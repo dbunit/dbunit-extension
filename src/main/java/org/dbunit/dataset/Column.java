@@ -64,6 +64,7 @@ public class Column
     private final String _defaultValue;
     private final String _remarks;
     private final AutoIncrement _autoIncrement;
+    private final Boolean _generatedColumn;
 
     /**
      * Creates a Column object. This constructor set nullable to true.
@@ -122,6 +123,25 @@ public class Column
     public Column(String columnName, DataType dataType, String sqlTypeName,
             Nullable nullable, String defaultValue, String remarks, AutoIncrement autoIncrement)
     {
+        this(columnName, dataType, sqlTypeName, nullable, defaultValue, remarks, autoIncrement, null);
+    }
+
+    /**
+     * Creates a Column object.
+     * @param columnName The name of the column
+     * @param dataType The DbUnit {@link DataType} of the column
+     * @param sqlTypeName The SQL name of the column which comes from the JDBC driver.
+     * See value 'TYPE_NAME' in {@link DatabaseMetaData#getColumns(String, String, String, String)}
+     * @param nullable whether or not the column is nullable
+     * @param defaultValue The default value on the DB for this column. Can be <code>null</code>.
+     * @param remarks The remarks on the DB for this column. Can be <code>null</code>.
+     * @param autoIncrement The auto increment setting for this column. Can be <code>null</code>.
+     * @param generatedColumn Whether this column is a generated column. Can be <code>null</code>.
+     */
+    public Column(String columnName, DataType dataType, String sqlTypeName,
+            Nullable nullable, String defaultValue, String remarks, AutoIncrement autoIncrement,
+            Boolean generatedColumn)
+    {
         _columnName = columnName;
         _dataType = dataType;
         _sqlTypeName = sqlTypeName;
@@ -129,6 +149,7 @@ public class Column
         _defaultValue = defaultValue;
         _remarks = remarks;
         _autoIncrement = autoIncrement;
+        _generatedColumn = generatedColumn;
     }
 
     public boolean hasDefaultValue()
@@ -201,6 +222,15 @@ public class Column
     }
     
     /**
+     * @return Whether the column is a generated column
+     * @since 3.0.0
+     */
+    public Boolean getGeneratedColumn()
+    {
+        return _generatedColumn;
+    }
+    
+    /**
      * Returns the appropriate Nullable constant according specified JDBC
      * DatabaseMetaData constant.
      *
@@ -244,6 +274,21 @@ public class Column
         return nullable ? NULLABLE : NO_NULLS;
     }
     
+    /**
+     * Converts a DatabaseMetaData boolean string to a Boolean object.
+     * @param value The string to convert
+     * @return True if string is "YES", false if string is "NO", null otherwise
+     */
+    public static Boolean convertMetaDataBoolean(String value)
+    {
+        if ("YES".equalsIgnoreCase(value)) {
+            return true;
+        } else if ("NO".equalsIgnoreCase(value)) {
+            return false;
+        } else {
+            return null;
+        }
+    }
 
     ////////////////////////////////////////////////////////////////////////////
     // Object class

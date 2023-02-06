@@ -307,6 +307,17 @@ dataSet.addReplacementObject("[NULL]", null);]]></source>
             </ul>
           </td>
         </tr>
+        <tr> 
+          <td><a name= "tabledecoratordataset" href="apidocs/org/dbunit/dataset/TableDecoratorDataSet.html">TableDecoratorDataSet</a></td>
+          <td>Decorator that allows ITables (and ITableMetaDatas, by extension) to be wrapped. This is intended for use cases like filtering out columns from a table.
+          <br/>
+          <br/>
+For example, if your database supports generated (computed) columns, you could filter them out like so:
+<source><![CDATA[
+dataset = new TableDecoratorDataSet(dataset, table -> new ColumnFilterTable(table, new GeneratedColumnFilter()));
+]]></source>
+        </td>
+        </tr>
       </table>
       </p>
     </section>

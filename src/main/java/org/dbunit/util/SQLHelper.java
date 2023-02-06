@@ -398,20 +398,9 @@ public class SQLHelper {
         int nullable = resultSet.getInt(11);
         String remarks = resultSet.getString(12);
         String columnDefaultValue = resultSet.getString(13);
-        // This is only available since Java 5 - so we can try it and if it does not work default it
-        String isAutoIncrement = Column.AutoIncrement.NO.getKey();
-        try {
-            isAutoIncrement = resultSet.getString(23);
-        }
-        catch (Exception e)
-        {
-            // Ignore this one here
-            final String msg =
-                    "Could not retrieve the 'isAutoIncrement' property"
-                            + " because not yet running on Java 1.5 -"
-                            + " defaulting to NO. Table={}, Column={}";
-            logger.debug(msg, tableName, columnName, e);
-        }
+        String isAutoIncrement = resultSet.getString(23);
+        // some JDBC drivers do not have this column even though they claim to be compliant with JDBC 4.1 or later
+        String isGenerated = resultSet.getMetaData().getColumnCount() >= 24 ? resultSet.getString(24) : null;
 
         // Convert SQL type to DataType
         DataType dataType =
@@ -420,7 +409,8 @@ public class SQLHelper {
         {
             Column column = new Column(columnName, dataType,
                     sqlTypeName, Column.nullableValue(nullable), columnDefaultValue, remarks,
-                    Column.AutoIncrement.autoIncrementValue(isAutoIncrement));
+                    Column.AutoIncrement.autoIncrementValue(isAutoIncrement),
+                    Column.convertMetaDataBoolean(isGenerated));
             return column;
         }
         else
