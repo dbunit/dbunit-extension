@@ -13,8 +13,8 @@
   </properties>
 
   <body>
-    <release version="2.7.4-SNAPSHOT" date="TBD" description="YAML dataset">
-      <action dev="bjornbeskow" type="add" issue="244" system="sffeatures" due-to="bjornbeskow">Add support for Yaml dataset format</action>
+    <release version="2.8.0" date="Jun 2, 2024" description="YAML dataset">
+      <action dev="bjornbeskow" type="add" issue="244" system="sffeatures" due-to="bjornbeskow">Add support for YAML dataset format</action>
     </release>
     <release version="2.7.3" date="Feb 12, 2022" description="new ValueComparers, unwrap PGConnection, Timestamp DST, UUID NPE, OracleClobDataType CCE, Operation multiple dataset sources, PostGIS 2021.1.0">
       <action dev="jeffjensen" type="add" issue="5" system="sfplugintickets" due-to="bjornbeskow">Enable composing an Operation dataset from multiple source files.</action>
