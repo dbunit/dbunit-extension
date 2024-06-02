@@ -52,7 +52,7 @@
     <gpgPluginVersion>1.6</gpgPluginVersion>
     <installPluginVersion>2.5.2</installPluginVersion>
     <jacocoPluginVersion>0.8.3</jacocoPluginVersion>
-    <japicmpPluginVersion>0.15.3</japicmpPluginVersion>
+    <japicmpPluginVersion>0.21.2</japicmpPluginVersion>
     <jarPluginVersion>3.0.2</jarPluginVersion>
     <javadocPluginVersion>3.0.0</javadocPluginVersion>
     <jdependPluginVersion>2.0</jdependPluginVersion>
@@ -920,8 +920,6 @@ enable this to generate coverage report HTML files during build (same as site)
           </parameter>
         </configuration>
         <reportSets>
-<!--
-disable until snapshot exists
           <reportSet>
             <id>2.8.0-to-snapshot</id>
             <reports>
@@ -946,7 +944,6 @@ disable until snapshot exists
               </newVersion>
             </configuration>
           </reportSet>
--->
           <reportSet>
             <id>2.7.3-to-2.8.0</id>
             <reports>
