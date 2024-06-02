@@ -63,7 +63,7 @@
     <propertiesPluginVersion>1.0.0</propertiesPluginVersion>
     <releasePluginVersion>2.5.3</releasePluginVersion>
     <resourcesPluginVersion>3.0.2</resourcesPluginVersion>
-    <sitePluginVersion>3.7.1</sitePluginVersion>
+    <sitePluginVersion>3.12.1</sitePluginVersion>
     <sourcePluginVersion>3.0.1</sourcePluginVersion>
     <surefirePluginVersion>2.21.0</surefirePluginVersion>
     <versionsMavenPluginVersion>2.8.1</versionsMavenPluginVersion>
@@ -104,7 +104,7 @@
     <sqlServer41DriverVersion>7.2.1.jre8</sqlServer41DriverVersion>
 
     <!-- Other versions -->
-    <wagonSshVersion>2.10</wagonSshVersion>
+    <wagonSshVersion>3.5.3</wagonSshVersion>
   </properties>
 
   <scm>
