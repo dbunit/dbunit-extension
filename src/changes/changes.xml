@@ -13,6 +13,8 @@
   </properties>
 
   <body>
+    <release version="2.8.1-SNAPSHOT" date="TBD" description="">
+    </release>
     <release version="2.8.0" date="Jun 2, 2024" description="YAML dataset">
       <action dev="bjornbeskow" type="add" issue="244" system="sffeatures" due-to="bjornbeskow">Add support for YAML dataset format</action>
     </release>
