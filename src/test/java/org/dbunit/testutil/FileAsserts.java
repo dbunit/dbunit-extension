@@ -37,25 +37,22 @@ import org.slf4j.LoggerFactory;
  * Simple utility to compare file or stream data with each other.
  * 
  * <p>
- * From  "Dale E Martin" dmartin@c..
- * Date  Thursday, March 14, 2002 2:42 pm
- * To  junit@yahoogroups.com
- * Subject  [junit] file assert, a starting point
+ * From "Dale E Martin" dmartin@c.. Date Thursday, March 14, 2002 2:42 pm To
+ * junit@yahoogroups.com Subject [junit] file assert, a starting point
  *
- * OK, this isn't rocket science or anything but it's working for me.  What it
- * is is a couple of assert methods that compare files, so your expected
- * results can be located in a file.
+ * OK, this isn't rocket science or anything but it's working for me. What it is
+ * is a couple of assert methods that compare files, so your expected results
+ * can be located in a file.
  *
  * I did not use the diff library as the docs are in French, which I have not
  * studied for about 15 years and am not ready to pick back up ;-)
  *
  * I declare this code to be open to the public domain and anyone may do
- * anything they like with it.  Before inclusion in JUnit I'm sure you'll need
- * to tweak it some, but it's working for my needs and maybe it will help
- * someone else.
+ * anything they like with it. Before inclusion in JUnit I'm sure you'll need to
+ * tweak it some, but it's working for my needs and maybe it will help someone
+ * else.
  *
- * Later,
- *       Dale
+ * Later, Dale
  * </p>
  * 
  * 
@@ -66,41 +63,46 @@ import org.slf4j.LoggerFactory;
  */
 public class FileAsserts
 {
-    private static final DefaultFailureHandler FAILURE_HANDLER = new DefaultFailureHandler();
-    static{
+    private static final DefaultFailureHandler FAILURE_HANDLER =
+            new DefaultFailureHandler();
+    static
+    {
         FAILURE_HANDLER.setFailureFactory(new JUnitFailureFactory());
     }
-    private static final SimpleAssert ASSERT = new SimpleAssert(FAILURE_HANDLER);
+    private static final SimpleAssert ASSERT =
+            new SimpleAssert(FAILURE_HANDLER);
 
     /**
      * Logger for this class
      */
-    private static final Logger logger = LoggerFactory.getLogger(FileAsserts.class);
+    private static final Logger logger =
+            LoggerFactory.getLogger(FileAsserts.class);
 
     private static String processOneLine(int lineNumber,
-            BufferedReader expectedData,
-            BufferedReader actualData)
+            BufferedReader expectedData, BufferedReader actualData)
             throws IOException
     {
-    	if(logger.isDebugEnabled())
-    		logger.debug("processOneLine(lineNumber={}, expectedData={}, actualData={}) - start", 
-    				new Object[] {new Integer(lineNumber), expectedData, actualData} );
+        if (logger.isDebugEnabled())
+            logger.debug(
+                    "processOneLine(lineNumber={}, expectedData={}, actualData={}) - start",
+                    new Object[] {Integer.valueOf(lineNumber), expectedData,
+                            actualData});
 
         String problem = null;
         String expectedLine = expectedData.readLine();
         if (!actualData.ready())
         {
-            problem = "at line " + lineNumber + ", expected:\n" +
-                    expectedLine + "\n" +
-                    "but actual file was not ready for reading at this line.";
-        }
-        else
+            problem = "at line " + lineNumber + ", expected:\n" + expectedLine
+                    + "\n"
+                    + "but actual file was not ready for reading at this line.";
+        } else
         {
             String actualLine = actualData.readLine();
             if (!expectedLine.equals(actualLine))
             {
                 // Uh oh, they did not match.
-                problem = "at line " + lineNumber + " there was a mismatch.  Expected:\n";
+                problem = "at line " + lineNumber
+                        + " there was a mismatch.  Expected:\n";
                 int maxLen = expectedLine.length();
                 if (expectedLine.length() > actualLine.length())
                 {
@@ -115,9 +117,9 @@ public class FileAsserts
                         break;
                     }
                 }
-                problem += expectedLine.substring(startOffset) + "\n" +
-                        "actual was:\n" +
-                        actualLine.substring(startOffset) + "\n";
+                problem += expectedLine.substring(startOffset) + "\n"
+                        + "actual was:\n" + actualLine.substring(startOffset)
+                        + "\n";
             }
         }
         return problem;
@@ -126,7 +128,8 @@ public class FileAsserts
     public static void assertEquals(BufferedReader expected,
             BufferedReader actual) throws Exception
     {
-        logger.debug("assertEquals(expected={}, actual={}) - start", expected, actual);
+        logger.debug("assertEquals(expected={}, actual={}) - start", expected,
+                actual);
 
         ASSERT.assertNotNull(expected);
         ASSERT.assertNotNull(actual);
@@ -140,8 +143,7 @@ public class FileAsserts
                 problem = processOneLine(lineCounter, expected, actual);
                 lineCounter++;
             }
-        }
-        finally
+        } finally
         {
             expected.close();
             actual.close();
@@ -156,24 +158,26 @@ public class FileAsserts
     public static void assertEquals(InputStream expected, File actual)
             throws Exception
     {
-        logger.debug("assertEquals(expected={}, actual={}) - start", expected, actual);
+        logger.debug("assertEquals(expected={}, actual={}) - start", expected,
+                actual);
 
         ASSERT.assertNotNull(expected);
         ASSERT.assertNotNull(actual);
 
         ASSERT.assertTrue(actual.canRead());
 
-        
-        BufferedReader expectedData = new BufferedReader(new InputStreamReader(expected));
+        BufferedReader expectedData =
+                new BufferedReader(new InputStreamReader(expected));
 
-        BufferedReader actualData =
-                new BufferedReader(new InputStreamReader(new FileInputStream(actual)));
+        BufferedReader actualData = new BufferedReader(
+                new InputStreamReader(new FileInputStream(actual)));
         assertEquals(expectedData, actualData);
     }
 
     public static void assertEquals(File expected, File actual) throws Exception
     {
-        logger.debug("assertEquals(expected={}, actual={}) - start", expected, actual);
+        logger.debug("assertEquals(expected={}, actual={}) - start", expected,
+                actual);
 
         ASSERT.assertNotNull(expected);
         ASSERT.assertNotNull(actual);
@@ -181,13 +185,10 @@ public class FileAsserts
         ASSERT.assertTrue(expected.canRead());
         ASSERT.assertTrue(actual.canRead());
 
-        BufferedReader expectedData =
-                new BufferedReader(new InputStreamReader(new FileInputStream(expected)));
-        BufferedReader actualData =
-                new BufferedReader(new InputStreamReader(new FileInputStream(actual)));
+        BufferedReader expectedData = new BufferedReader(
+                new InputStreamReader(new FileInputStream(expected)));
+        BufferedReader actualData = new BufferedReader(
+                new InputStreamReader(new FileInputStream(actual)));
         assertEquals(expectedData, actualData);
     }
 }
-
-
-

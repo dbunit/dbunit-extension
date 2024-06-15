@@ -20,9 +20,11 @@
  */
 package org.dbunit.dataset.datatype;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import java.sql.Types;
 
-import junit.framework.TestCase;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author gommma (gommma AT users.sourceforge.net)
@@ -30,20 +32,17 @@ import junit.framework.TestCase;
  * @version $Revision$ $Date$
  * @since 2.4.0
  */
-public class StringIgnoreCaseDataTypeTest extends TestCase
+class StringIgnoreCaseDataTypeTest
 {
 
-    public StringIgnoreCaseDataTypeTest(String name) 
+    @Test
+    void testCompareIgnoreCase() throws Exception
     {
-        super(name);
-    }
-
-    public void testCompareIgnoreCase() throws Exception
-    {
-        StringIgnoreCaseDataType type = new StringIgnoreCaseDataType("VARCHAR", Types.VARCHAR);
-        String value1 = "hello";
-        String value2 = "hElLo";
-        int result = type.compare(value1, value2);
-        assertEquals(0, result);
+        final StringIgnoreCaseDataType type =
+                new StringIgnoreCaseDataType("VARCHAR", Types.VARCHAR);
+        final String value1 = "hello";
+        final String value2 = "hElLo";
+        final int result = type.compare(value1, value2);
+        assertThat(result).isZero();
     }
 }

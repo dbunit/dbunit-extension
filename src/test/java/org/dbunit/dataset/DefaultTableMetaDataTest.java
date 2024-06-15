@@ -21,93 +21,92 @@
 
 package org.dbunit.dataset;
 
-import junit.framework.TestCase;
+import static org.assertj.core.api.Assertions.assertThat;
+
 import org.dbunit.dataset.datatype.DataType;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author Manuel Laflamme
  * @version $Revision$
  * @since Feb 17, 2002
  */
-public class DefaultTableMetaDataTest extends TestCase
+class DefaultTableMetaDataTest
 {
-    public DefaultTableMetaDataTest(String s)
+
+    protected ITableMetaData createMetaData(final String tableName,
+            final Column[] columns, final String[] keyNames) throws Exception
     {
-        super(s);
+        return new DefaultTableMetaData(tableName, columns, keyNames);
     }
 
-    protected ITableMetaData createMetaData(String tableName,
-            Column[] columns, String[] keyNames) throws Exception
+    @Test
+    void testGetTableName() throws Exception
     {
-        return new DefaultTableMetaData(
-                        tableName, columns, keyNames);
+        final String expected = "tableName";
+        final ITableMetaData metaData = createMetaData(expected, null, null);
+
+        assertThat(metaData.getTableName()).as("table name")
+                .isEqualTo(expected);
     }
 
-    public void testGetTableName() throws Exception
+    @Test
+    void testGetColumns() throws Exception
     {
-        String expected = "tableName";
-        ITableMetaData metaData = createMetaData(expected, null, null);
+        final Column[] columns =
+                new Column[] {new Column("numberColumn", DataType.NUMERIC),
+                        new Column("stringColumn", DataType.VARCHAR),
+                        new Column("booleanColumn", DataType.BOOLEAN),};
 
-        assertEquals("table name", expected, metaData.getTableName());
-    }
+        final ITableMetaData metaData = createMetaData("toto", columns, null);
 
-    public void testGetColumns() throws Exception
-    {
-        Column[] columns = new Column[]{
-            new Column("numberColumn", DataType.NUMERIC),
-            new Column("stringColumn", DataType.VARCHAR),
-            new Column("booleanColumn", DataType.BOOLEAN),
-        };
-
-        ITableMetaData metaData = createMetaData("toto", columns, null);
-
-        assertEquals("column count", columns.length, metaData.getColumns().length);
+        assertThat(metaData.getColumns()).as("column count")
+                .hasSameSizeAs(columns);
         for (int i = 0; i < columns.length; i++)
         {
-            Column column = columns[i];
-            assertEquals("columns" + i, column, metaData.getColumns()[i]);
+            final Column column = columns[i];
+            assertThat(metaData.getColumns()[i]).as("columns" + i)
+                    .isEqualTo(column);
         }
-        assertEquals("key count", 0, metaData.getPrimaryKeys().length);
+        assertThat(metaData.getPrimaryKeys().length).as("key count")
+                .isEqualTo(0);
     }
 
-    public void testGetPrimaryKeys() throws Exception
+    @Test
+    void testGetPrimaryKeys() throws Exception
     {
-        Column[] columns = new Column[]{
-            new Column("numberColumn", DataType.NUMERIC),
-            new Column("stringColumn", DataType.VARCHAR),
-            new Column("booleanColumn", DataType.BOOLEAN),
-        };
-        String[] keyNames = new String[]{"booleanColumn", "numberColumn"};
+        final Column[] columns =
+                new Column[] {new Column("numberColumn", DataType.NUMERIC),
+                        new Column("stringColumn", DataType.VARCHAR),
+                        new Column("booleanColumn", DataType.BOOLEAN),};
+        final String[] keyNames =
+                new String[] {"booleanColumn", "numberColumn"};
 
+        final ITableMetaData metaData =
+                createMetaData("toto", columns, keyNames);
 
-        ITableMetaData metaData = createMetaData("toto", columns, keyNames);
-
-        Column[] keys = metaData.getPrimaryKeys();
-        assertEquals("key count", keyNames.length, keys.length);
+        final Column[] keys = metaData.getPrimaryKeys();
+        assertThat(keys).as("key count").hasSameSizeAs(keyNames);
         for (int i = 0; i < keys.length; i++)
         {
-            assertEquals("key name", keyNames[i], keys[i].getColumnName());
+            assertThat(keys[i].getColumnName()).as("key name")
+                    .isEqualTo(keyNames[i]);
         }
     }
 
-    public void testGetPrimaryKeysColumnDontMatch() throws Exception
+    @Test
+    void testGetPrimaryKeysColumnDontMatch() throws Exception
     {
-        Column[] columns = new Column[]{
-            new Column("numberColumn", DataType.NUMERIC),
-            new Column("stringColumn", DataType.VARCHAR),
-            new Column("booleanColumn", DataType.BOOLEAN),
-        };
-        String[] keyNames = new String[]{"invalidColumn"};
+        final Column[] columns =
+                new Column[] {new Column("numberColumn", DataType.NUMERIC),
+                        new Column("stringColumn", DataType.VARCHAR),
+                        new Column("booleanColumn", DataType.BOOLEAN),};
+        final String[] keyNames = new String[] {"invalidColumn"};
 
+        final ITableMetaData metaData =
+                createMetaData("toto", columns, keyNames);
 
-        ITableMetaData metaData = createMetaData("toto", columns, keyNames);
-
-        Column[] keys = metaData.getPrimaryKeys();
-        assertEquals("key count", 0, keys.length);
+        final Column[] keys = metaData.getPrimaryKeys();
+        assertThat(keys.length).as("key count").isEqualTo(0);
     }
 }
-
-
-
-
-

@@ -18,289 +18,308 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  */
-
 package org.dbunit.dataset.datatype;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.Types;
+import java.util.Arrays;
+import java.util.LinkedList;
+import java.util.Objects;
 
-import org.dbunit.database.ExtendedMockSingleRowResultSet;
-import org.dbunit.database.statement.MockPreparedStatement;
 import org.dbunit.dataset.ITable;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 /**
  * @author Manuel Laflamme
  * @version $Revision$
  */
-
-public class BigIntegerDataTypeTest extends AbstractDataTypeTest
+@ExtendWith(MockitoExtension.class)
+class BigIntegerDataTypeTest extends AbstractDataTypeTest
 {
     private static final String NUMBER_LARGER_THAN_LONG =
             "17446744073709551630";
     private final static DataType THIS_TYPE = DataType.BIGINT;
 
-    public BigIntegerDataTypeTest(String name)
-    {
-        super(name);
-    }
+    @Mock
+    private ResultSet resultSet;
+
+    @Mock
+    private PreparedStatement statement;
 
     /**
      *
      */
     @Override
+    @Test
     public void testToString() throws Exception
     {
-        assertEquals("name", "BIGINT", THIS_TYPE.toString());
+        assertThat(THIS_TYPE).as("name").hasToString("BIGINT");
     }
 
     /**
      *
      */
     @Override
+    @Test
     public void testGetTypeClass() throws Exception
     {
-        assertEquals("class", BigInteger.class, THIS_TYPE.getTypeClass());
+        assertThat(THIS_TYPE.getTypeClass()).as("class")
+                .isEqualTo(BigInteger.class);
     }
 
     /**
      *
      */
     @Override
+    @Test
     public void testIsNumber() throws Exception
     {
-        assertEquals("is number", true, THIS_TYPE.isNumber());
+        assertThat(THIS_TYPE.isNumber()).as("is number").isTrue();
     }
 
     @Override
+    @Test
     public void testIsDateTime() throws Exception
     {
-        assertEquals("is date/time", false, THIS_TYPE.isDateTime());
+        assertThat(THIS_TYPE.isDateTime()).as("is date/time").isFalse();
     }
 
     @Override
+    @Test
     public void testTypeCast() throws Exception
     {
-        Object[] values =
-                {null, "5", new Long(1234), new Float(Long.MAX_VALUE),
-                        new Float(Long.MIN_VALUE), "-7500",
-                        new Double(Long.MAX_VALUE), new Double(Long.MIN_VALUE),
-                        new Float(0.666), new Double(0.666), new Double(5.49),
-                        "-99.9", new Double(1.5E6),
-                        new BigDecimal((double) 1234), NUMBER_LARGER_THAN_LONG,
-                        new BigDecimal(NUMBER_LARGER_THAN_LONG),};
+        final Object[] values = {null, "5", Long.valueOf(1234),
+                Float.valueOf(Long.MAX_VALUE), Float.valueOf(Long.MIN_VALUE),
+                "-7500", Double.valueOf(Long.MAX_VALUE),
+                Double.valueOf(Long.MIN_VALUE), Float.valueOf("0.666"),
+                Double.valueOf(0.666), Double.valueOf(5.49), "-99.9",
+                Double.valueOf(1.5E6), new BigDecimal((double) 1234),
+                NUMBER_LARGER_THAN_LONG,
+                new BigDecimal(NUMBER_LARGER_THAN_LONG),};
 
-        BigInteger[] expected =
-                {null, new BigInteger("5"), new BigInteger("1234"),
-                        new BigInteger("" + Long.MAX_VALUE),
-                        new BigInteger("" + Long.MIN_VALUE),
-                        new BigInteger("-7500"),
-                        new BigInteger("" + Long.MAX_VALUE),
-                        new BigInteger("" + Long.MIN_VALUE),
-                        new BigInteger("0"), new BigInteger("0"),
-                        new BigInteger("5"), new BigInteger("-99"),
-                        new BigInteger("1500000"), new BigInteger("1234"),
-                        new BigInteger(NUMBER_LARGER_THAN_LONG),
-                        new BigInteger(NUMBER_LARGER_THAN_LONG),};
-
-        assertEquals("actual vs expected count", values.length, expected.length);
+        final BigInteger[] expected = {null, new BigInteger("5"),
+                new BigInteger("1234"), new BigInteger("" + Long.MAX_VALUE),
+                new BigInteger("" + Long.MIN_VALUE), new BigInteger("-7500"),
+                new BigInteger("" + Long.MAX_VALUE),
+                new BigInteger("" + Long.MIN_VALUE), new BigInteger("0"),
+                new BigInteger("0"), new BigInteger("5"), new BigInteger("-99"),
+                new BigInteger("1500000"), new BigInteger("1234"),
+                new BigInteger(NUMBER_LARGER_THAN_LONG),
+                new BigInteger(NUMBER_LARGER_THAN_LONG),};
+        assertThat(values).as("actual vs expected count")
+                .hasSize(expected.length);
 
         for (int i = 0; i < values.length; i++)
         {
-            assertEquals("typecast " + i, expected[i],
-                    THIS_TYPE.typeCast(values[i]));
+            assertThat(THIS_TYPE.typeCast(values[i])).as("typecast " + i)
+                    .isEqualTo(expected[i]);
         }
     }
 
     @Override
+    @Test
     public void testTypeCastNone() throws Exception
     {
-        assertEquals("typecast", null, THIS_TYPE.typeCast(ITable.NO_VALUE));
+        assertThat(THIS_TYPE.typeCast(ITable.NO_VALUE)).as("typecast").isNull();
     }
 
     @Override
+    @Test
     public void testTypeCastInvalid() throws Exception
     {
-        Object[] values = {new Object(), "bla", new java.util.Date()};
+        final Object[] values = {new Object(), "bla", new java.util.Date()};
 
-        for (Object value : values)
+        for (final Object value : values)
         {
-            try
-            {
-                THIS_TYPE.typeCast(value);
-                fail("Should throw TypeCastException");
-            } catch (TypeCastException e)
-            {
-            }
+            assertThrows(TypeCastException.class,
+                    () -> THIS_TYPE.typeCast(value),
+                    "Should throw TypeCastException");
         }
     }
 
     @Override
+    @Test
     public void testCompareEquals() throws Exception
     {
-        Object[] values1 =
-                {null, "5", new Long(1234), new Float(Long.MAX_VALUE),
-                        new Float(Long.MIN_VALUE), "-7500",
-                        new Double(Long.MAX_VALUE), new Double(Long.MIN_VALUE),
-                        new Float(0.666), new Double(0.666), new Double(5.49),
-                        "-99.9", new Double(1.5E6),
-                        new BigDecimal((double) 1234),};
+        final Object[] values1 = {null, "5", Long.valueOf(1234),
+                Float.valueOf(Long.MAX_VALUE), Float.valueOf(Long.MIN_VALUE),
+                "-7500", Double.valueOf(Long.MAX_VALUE),
+                Double.valueOf(Long.MIN_VALUE), Float.valueOf("0.666"),
+                Double.valueOf(0.666), Double.valueOf(5.49), "-99.9",
+                Double.valueOf(1.5E6), new BigDecimal((double) 1234),};
 
-        Object[] values2 =
-                {null, new Long(5), new Long(1234), new Long(Long.MAX_VALUE),
-                        new Long(Long.MIN_VALUE), new Long(-7500),
-                        new Long(Long.MAX_VALUE), new Long(Long.MIN_VALUE),
-                        new Long(0), new Long(0), new Long(5), new Long(-99),
-                        new Long(1500000), new Long(1234),};
-
-        assertEquals("values count", values1.length, values2.length);
+        final Object[] values2 = {null, Long.valueOf(5), Long.valueOf(1234),
+                Long.valueOf(Long.MAX_VALUE), Long.valueOf(Long.MIN_VALUE),
+                Long.valueOf(-7500), Long.valueOf(Long.MAX_VALUE),
+                Long.valueOf(Long.MIN_VALUE), Long.valueOf(0), Long.valueOf(0),
+                Long.valueOf(5), Long.valueOf(-99), Long.valueOf(1500000),
+                Long.valueOf(1234),};
+        assertThat(values1).as("values count").hasSize(values2.length);
 
         for (int i = 0; i < values1.length; i++)
         {
-            assertEquals("compare1 " + i, 0,
-                    THIS_TYPE.compare(values1[i], values2[i]));
-            assertEquals("compare2 " + i, 0,
-                    THIS_TYPE.compare(values2[i], values1[i]));
+            assertThat(THIS_TYPE.compare(values1[i], values2[i]))
+                    .as("compare1 " + i).isZero();
+            assertThat(THIS_TYPE.compare(values2[i], values1[i]))
+                    .as("compare2 " + i).isZero();
         }
     }
 
     @Override
+    @Test
     public void testCompareInvalid() throws Exception
     {
-        Object[] values1 = {new Object(), "bla", new java.util.Date()};
-        Object[] values2 = {null, null, null};
+        final Object[] values1 = {new Object(), "bla", new java.util.Date()};
+        final Object[] values2 = {null, null, null};
 
-        assertEquals("values count", values1.length, values2.length);
+        assertThat(values1).as("values count").hasSize(values2.length);
 
         for (int i = 0; i < values1.length; i++)
         {
-            try
-            {
-                THIS_TYPE.compare(values1[i], values2[i]);
-                fail("Should throw TypeCastException");
-            } catch (TypeCastException e)
-            {
-            }
+            final int r = i;
+            assertThrows(TypeCastException.class,
+                    () -> THIS_TYPE.compare(values1[r], values2[r]),
+                    "Should throw TypeCastException");
 
-            try
-            {
-                THIS_TYPE.compare(values2[i], values1[i]);
-                fail("Should throw TypeCastException");
-            } catch (TypeCastException e)
-            {
-            }
+            assertThrows(TypeCastException.class,
+                    () -> THIS_TYPE.compare(values2[r], values1[r]),
+                    "Should throw TypeCastException");
         }
     }
 
     @Override
+    @Test
     public void testCompareDifferent() throws Exception
     {
-        Object[] less = {null, null, "-7500",};
+        final Object[] less = {null, null, "-7500",};
 
-        Object[] greater = {"0", new Long(-5), new Long(5),};
+        final Object[] greater = {"0", Long.valueOf(-5), Long.valueOf(5),};
 
-        assertEquals("values count", less.length, greater.length);
+        assertThat(less).as("values count").hasSize(greater.length);
 
         for (int i = 0; i < less.length; i++)
         {
-            assertTrue("less " + i, THIS_TYPE.compare(less[i], greater[i]) < 0);
-            assertTrue("greater " + i,
-                    THIS_TYPE.compare(greater[i], less[i]) > 0);
+            assertThat(THIS_TYPE.compare(less[i], greater[i])).as("less " + i)
+                    .isNegative();
+            assertThat(THIS_TYPE.compare(greater[i], less[i]))
+                    .as("greater " + i).isPositive();
         }
     }
 
     @Override
+    @Test
     public void testSqlType() throws Exception
     {
-        assertEquals(THIS_TYPE, DataType.forSqlType(Types.BIGINT));
-        assertEquals("forSqlTypeName", THIS_TYPE,
-                DataType.forSqlTypeName(THIS_TYPE.toString()));
-        assertEquals(Types.BIGINT, THIS_TYPE.getSqlType());
+        assertThat(THIS_TYPE).isEqualTo(DataType.forSqlType(Types.BIGINT))
+                .as("forSqlTypeName")
+                .isEqualTo(DataType.forSqlTypeName(THIS_TYPE.toString()));
+        assertThat(THIS_TYPE.getSqlType()).isEqualTo(Types.BIGINT);
     }
 
     @Override
+    @Test
     public void testForObject() throws Exception
     {
-        assertEquals(THIS_TYPE, DataType.forObject(new BigInteger("1234")));
+        assertThat(DataType.forObject(new BigInteger("1234")))
+                .isEqualTo(THIS_TYPE);
     }
 
     @Override
+    @Test
     public void testAsString() throws Exception
     {
-        Long[] values = {new Long(1234),};
+        final Long[] values = {Long.valueOf(1234),};
 
-        String[] expected = {"1234",};
+        final String[] expected = {"1234",};
 
-        assertEquals("actual vs expected count", values.length, expected.length);
+        assertThat(values).as("actual vs expected count")
+                .hasSize(expected.length);
 
         for (int i = 0; i < values.length; i++)
         {
-            assertEquals("asString " + i, expected[i],
-                    DataType.asString(values[i]));
+            assertThat(DataType.asString(values[i])).as("asString" + i)
+                    .isEqualTo(expected[i]);
         }
     }
 
     @Override
+    @Test
     public void testGetSqlValue() throws Exception
     {
-        BigInteger[] expected =
-                {null, new BigInteger("5"), new BigInteger("1234"),
-                        new BigInteger("" + Long.MAX_VALUE),
-                        new BigInteger("" + Long.MIN_VALUE),
-                        new BigInteger("-7500"), new BigInteger("0"),};
-
+        final BigInteger[] expected = {null, new BigInteger("5"),
+                new BigInteger("1234"), new BigInteger("" + Long.MAX_VALUE),
+                new BigInteger("" + Long.MIN_VALUE), new BigInteger("-7500"),
+                new BigInteger("0"),};
+        final LinkedList<BigInteger> results = new LinkedList<>();
+        final LinkedList<BigInteger> resultIsNull = new LinkedList<>();
+        Arrays.asList(expected).forEach(results::add);
         // Internally BigIntegerDataType uses resultSet.getBigDecimal() on the
         // JDBC API because there is no resultSet.getBigInteger().
-        BigDecimal[] expectedForMock = new BigDecimal[expected.length];
-        for (int i = 0; i < expectedForMock.length; i++)
-        {
-            if (expected[i] == null)
+        when(resultSet.getBigDecimal(anyInt())).thenAnswer(invocation -> {
+            final BigInteger i = results.removeFirst();
+            if (Objects.isNull(i))
             {
-                expectedForMock[i] = null;
+                return null;
             } else
             {
-                expectedForMock[i] = new BigDecimal(expected[i]);
+                return new BigDecimal(i);
             }
-        }
-
-        ExtendedMockSingleRowResultSet resultSet =
-                new ExtendedMockSingleRowResultSet();
-        resultSet.addExpectedIndexedValues(expectedForMock);
+        });
+        // Our resultSet wasNull call the array
+        Arrays.asList(expected).forEach(resultIsNull::add);
+        when(resultSet.wasNull()).thenAnswer(invocation -> {
+            final BigInteger bigI = resultIsNull.removeFirst();
+            if (Objects.isNull(bigI))
+            {
+                return true;
+            } else
+            {
+                return false;
+            }
+        });
 
         for (int i = 0; i < expected.length; i++)
         {
-            Object expectedValue = expected[i];
-            Object actualValue = THIS_TYPE.getSqlValue(i + 1, resultSet);
+            final Object expectedValue = expected[i];
+            final Object actualValue = THIS_TYPE.getSqlValue(i, resultSet);
             if (expectedValue != null && actualValue != null)
             {
-                assertEquals("type mismatch", expectedValue.getClass(),
-                        actualValue.getClass());
+                assertThat(actualValue.getClass()).as("type mismatch")
+                        .isEqualTo(expectedValue.getClass());
             }
-
-            assertEquals("value", expectedValue, actualValue);
+            assertThat(actualValue).as("value").isEqualTo(expectedValue);
         }
     }
 
     /** Issue 361: NPE when value is null. */
     @Test
-    public void testSetSqlValue_Null() throws Exception
+    void testSetSqlValue_Null() throws Exception
     {
-        Object value = null;
-        int column = 1;
-        PreparedStatement statement = new MockPreparedStatement();
-
-        THIS_TYPE.setSqlValue(value, column, statement);
+        final Object value = null;
+        final int column = 1;
+        assertDoesNotThrow(
+                () -> THIS_TYPE.setSqlValue(value, column, statement));
     }
 
     @Test
-    public void testSetSqlValue_Integer() throws Exception
+    void testSetSqlValue_Integer() throws Exception
     {
-        Object value = 1;
-        int column = 1;
-        PreparedStatement statement = new MockPreparedStatement();
+        final Object value = 1;
+        final int column = 1;
 
-        THIS_TYPE.setSqlValue(value, column, statement);
+        assertDoesNotThrow(
+                () -> THIS_TYPE.setSqlValue(value, column, statement));
     }
 }

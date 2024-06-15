@@ -23,8 +23,8 @@
 package org.dbunit.database;
 
 import org.dbunit.DatabaseProfile;
-import org.dbunit.PropertiesBasedJdbcDatabaseTester;
 import org.dbunit.IDatabaseTester;
+import org.dbunit.PropertiesBasedJdbcDatabaseTester;
 
 /**
  * @author Andres Almiray (aalmiray@users.sourceforge.net)
@@ -32,26 +32,33 @@ import org.dbunit.IDatabaseTester;
  * @version $Revision$ $Date$
  * @since 2.2.0
  */
-public class DefaultDatabaseTesterConnectionIT extends AbstractDatabaseTesterConnectionIT
+public class DefaultDatabaseTesterConnectionIT
+        extends AbstractDatabaseTesterConnectionIT
 {
-   private PropertiesBasedJdbcDatabaseTester databaseTester;
+    private PropertiesBasedJdbcDatabaseTester databaseTester;
 
-   public DefaultDatabaseTesterConnectionIT( String s )
-   {
-      super( s );
-   }
-
-   protected IDatabaseTester getDatabaseTester() throws Exception
-   {
-      if( databaseTester == null ){
-         DatabaseProfile profile = getEnvironment().getProfile();
-         System.setProperty( PropertiesBasedJdbcDatabaseTester.DBUNIT_DRIVER_CLASS, profile.getDriverClass() );
-         System.setProperty( PropertiesBasedJdbcDatabaseTester.DBUNIT_CONNECTION_URL, profile.getConnectionUrl() );
-         System.setProperty( PropertiesBasedJdbcDatabaseTester.DBUNIT_USERNAME, profile.getUser() );
-         System.setProperty( PropertiesBasedJdbcDatabaseTester.DBUNIT_PASSWORD, profile.getPassword() );
-         System.setProperty( PropertiesBasedJdbcDatabaseTester.DBUNIT_SCHEMA, profile.getSchema() );
-         databaseTester = new PropertiesBasedJdbcDatabaseTester();
-      }
-      return databaseTester;
-   }
+    @Override
+    protected IDatabaseTester getDatabaseTester() throws Exception
+    {
+        if (databaseTester == null)
+        {
+            final DatabaseProfile profile = getEnvironment().getProfile();
+            System.setProperty(
+                    PropertiesBasedJdbcDatabaseTester.DBUNIT_DRIVER_CLASS,
+                    profile.getDriverClass());
+            System.setProperty(
+                    PropertiesBasedJdbcDatabaseTester.DBUNIT_CONNECTION_URL,
+                    profile.getConnectionUrl());
+            System.setProperty(
+                    PropertiesBasedJdbcDatabaseTester.DBUNIT_USERNAME,
+                    profile.getUser());
+            System.setProperty(
+                    PropertiesBasedJdbcDatabaseTester.DBUNIT_PASSWORD,
+                    profile.getPassword());
+            System.setProperty(PropertiesBasedJdbcDatabaseTester.DBUNIT_SCHEMA,
+                    profile.getSchema());
+            databaseTester = new PropertiesBasedJdbcDatabaseTester();
+        }
+        return databaseTester;
+    }
 }

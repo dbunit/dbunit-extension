@@ -27,41 +27,42 @@ import org.dbunit.TestFeature;
 import org.dbunit.dataset.AbstractTableTest;
 import org.dbunit.dataset.ITable;
 import org.dbunit.operation.DatabaseOperation;
+import org.junit.jupiter.api.Disabled;
 
 /**
  * @author Manuel Laflamme
  * @version $Revision$
  * @since Feb 19, 2002
  */
+@Disabled("specific tests should call this or extend")
 public class ScrollableResultSetTableTest extends AbstractTableTest
 {
-    public ScrollableResultSetTableTest(String s)
+
+    @Override
+    protected boolean runTest(final String testName)
     {
-        super(s);
+        return AbstractDatabaseIT
+                .environmentHasFeature(TestFeature.SCROLLABLE_RESULTSET);
     }
-    
-    protected boolean runTest(String testName) {
-      return AbstractDatabaseIT.environmentHasFeature(TestFeature.SCROLLABLE_RESULTSET);
-    }
-    
+
+    @Override
     protected ITable createTable() throws Exception
     {
-        DatabaseEnvironment env = DatabaseEnvironment.getInstance();
-        IDatabaseConnection connection = env.getConnection();
+        final DatabaseEnvironment env = DatabaseEnvironment.getInstance();
+        final IDatabaseConnection connection = env.getConnection();
 
-        DatabaseOperation.CLEAN_INSERT.execute(connection, env.getInitDataSet());
+        DatabaseOperation.CLEAN_INSERT.execute(connection,
+                env.getInitDataSet());
 
-        String selectStatement = "select * from TEST_TABLE order by COLUMN0";
-        return new ScrollableResultSetTable("TEST_TABLE", selectStatement, connection);
+        final String selectStatement =
+                "select * from TEST_TABLE order by COLUMN0";
+        return new ScrollableResultSetTable("TEST_TABLE", selectStatement,
+                connection);
     }
 
+    @Override
     public void testGetMissingValue() throws Exception
     {
         // Do not test this!
     }
 }
-
-
-
-
-

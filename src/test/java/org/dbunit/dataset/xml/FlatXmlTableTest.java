@@ -21,87 +21,84 @@
 
 package org.dbunit.dataset.xml;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import org.dbunit.dataset.AbstractTableTest;
 import org.dbunit.dataset.Column;
 import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.ITable;
 import org.dbunit.testutil.TestUtils;
-
-import java.io.File;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author Manuel Laflamme
  * @version $Revision$
  * @since Mar 12, 2002
  */
-public class FlatXmlTableTest extends AbstractTableTest
+class FlatXmlTableTest extends AbstractTableTest
 {
-    public FlatXmlTableTest(String s)
-    {
-        super(s);
-    }
 
+    @Override
     protected ITable createTable() throws Exception
     {
         return createDataSet(true).getTable("TEST_TABLE");
     }
 
-    protected IDataSet createDataSet(boolean noneAsNull) throws Exception
+    protected IDataSet createDataSet(final boolean noneAsNull) throws Exception
     {
-        return new FlatXmlDataSetBuilder().build(TestUtils.getFile("xml/flatXmlTableTest.xml"));
+        return new FlatXmlDataSetBuilder()
+                .build(TestUtils.getFile("xml/flatXmlTableTest.xml"));
     }
 
+    @Override
+    @Test
     public void testGetMissingValue() throws Exception
     {
-        int row = 0;
-        Object[] expected = {"row 1 col 0", null, "row 1 col 2"};
+        final int row = 0;
+        final Object[] expected = {"row 1 col 0", null, "row 1 col 2"};
 
-        ITable table = createDataSet(false).getTable("MISSING_VALUES");
+        final ITable table = createDataSet(false).getTable("MISSING_VALUES");
 
-        Column[] columns = table.getTableMetaData().getColumns();
-        assertEquals("column count", expected.length, columns.length);
-        assertEquals("row count", 1, table.getRowCount());
+        final Column[] columns = table.getTableMetaData().getColumns();
+        assertThat(columns).as("column count").hasSameSizeAs(expected);
+        assertThat(table.getRowCount()).as("row count").isEqualTo(1);
         for (int i = 0; i < columns.length; i++)
         {
-            assertEquals("value " + i, expected[i],
-                    table.getValue(row, columns[i].getColumnName()));
+            assertThat(table.getValue(row, columns[i].getColumnName()))
+                    .as("value " + i).isEqualTo(expected[i]);
         }
     }
 
-    public void testLoadCRLF() throws Exception
+    @Test
+    void testLoadCRLF() throws Exception
     {
-        int row = 0;
-        Object[] expected = {"row 0 \n col 0 \r"}; // in the expected result the &#xA; and &#xD; should be replaced by \n and \r
+        final int row = 0;
+        final Object[] expected = {"row 0 \n col 0 \r"}; // in the expected
+                                                         // result the &#xA; and
+                                                         // &#xD; should be
+                                                         // replaced by \n and
+                                                         // \r
 
-        ITable table = createDataSet(false).getTable("TABLE_VALUE_METACHARS");
+        final ITable table =
+                createDataSet(false).getTable("TABLE_VALUE_METACHARS");
 
-        Column[] columns = table.getTableMetaData().getColumns();
-        assertEquals("column count", expected.length, columns.length);
-        assertEquals("row count", 1, table.getRowCount());
+        final Column[] columns = table.getTableMetaData().getColumns();
+        assertThat(columns).as("column count").hasSameSizeAs(expected);
+        assertThat(table.getRowCount()).as("row count").isEqualTo(1);
         for (int i = 0; i < columns.length; i++)
         {
-            assertEquals("value " + i, expected[i],
-                    table.getValue(row, columns[i].getColumnName()));
+            assertThat(table.getValue(row, columns[i].getColumnName()))
+                    .as("value " + i).isEqualTo(expected[i]);
         }
     }
-    
-    
-//    public void testGetValueAndNoSuchColumn() throws Exception
-//    {
-//        ITable table = createTable();
-//        String columnName = "Unknown";
-//
-//        Object value = table.getValue(0, columnName);
-//        assertEquals("no value", null, value);
-//    }
+
+    // public void testGetValueAndNoSuchColumn() throws Exception
+    // {
+    // ITable table = createTable();
+    // String columnName = "Unknown";
+    //
+    // Object value = table.getValue(0, columnName);
+    // assertThat( value).as("no value").isNull();
+    // }
 
 }
-
-
-
-
-
-
-
-
-

@@ -1,6 +1,6 @@
 package org.dbunit.assertion.comparer.value;
 
-import static org.junit.Assert.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.sql.Timestamp;
 
@@ -93,12 +93,10 @@ public class IsActualWithinToleranceOfExpectedTimestampValueComparer
     }
 
     /** Neither is null so compare values with tolerance. */
-    protected boolean isExpectedWithoutNull(final Object expectedValue,
-            final Object actualValue, final DataType dataType)
-            throws TypeCastException
-    {
-        assertNotNull("expectedValue is null.", expectedValue);
-        assertNotNull("actualValue is null.", actualValue);
+    protected boolean isExpectedWithoutNull(final Object expectedValue, final Object actualValue,
+            final DataType dataType) throws TypeCastException {
+        assertNotNull(expectedValue, "expectedValue is null.");
+        assertNotNull(actualValue, "actualValue is null.");
 
         final Object actualTimestamp = getCastedValue(actualValue, dataType);
         final long actualTime = convertValueToTimeInMillis(actualTimestamp);

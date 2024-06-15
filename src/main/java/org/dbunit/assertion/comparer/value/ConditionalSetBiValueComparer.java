@@ -1,6 +1,6 @@
 package org.dbunit.assertion.comparer.value;
 
-import static org.junit.Assert.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.util.Set;
 
@@ -50,16 +50,12 @@ public class ConditionalSetBiValueComparer<T> extends ValueComparerBase
      *            The {@link ValueComparer} used when the value from the
      *            actualValueFactory is not in the values map.
      */
-    public ConditionalSetBiValueComparer(
-            final ValueFactory<T> actualValueFactory, final Set<T> values,
-            final ValueComparer inValuesValueComparer,
-            final ValueComparer notInValuesValueComparer)
-    {
-        assertNotNull("actualValueFactory is null.", actualValueFactory);
-        assertNotNull("values is null.", values);
-        assertNotNull("inValuesValueComparer is null.", inValuesValueComparer);
-        assertNotNull("notInValuesValueComparer is null.",
-                notInValuesValueComparer);
+    public ConditionalSetBiValueComparer(final ValueFactory<T> actualValueFactory, final Set<T> values,
+            final ValueComparer inValuesValueComparer, final ValueComparer notInValuesValueComparer) {
+        assertNotNull(actualValueFactory, "actualValueFactory is null.");
+        assertNotNull(values, "values is null.");
+        assertNotNull(inValuesValueComparer, "inValuesValueComparer is null.");
+        assertNotNull(notInValuesValueComparer, "notInValuesValueComparer is null.");
 
         this.actualValueFactory = actualValueFactory;
         this.values = values;

@@ -1,7 +1,6 @@
 package org.dbunit.dataset.excel;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertNotEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.File;
 import java.net.URI;
@@ -10,14 +9,15 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.TimeZone;
 
+import org.assertj.core.api.SoftAssertions;
+import org.assertj.core.api.junit.jupiter.SoftAssertionsExtension;
 import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.ITable;
-import org.junit.Ignore;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ErrorCollector;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
-public class XlsTableTimezoneOffsetTest
+@ExtendWith(SoftAssertionsExtension.class)
+class XlsTableTimezoneOffsetTest
 {
     private static final String EXCEL_SPREADSHEET =
             "/excel/XlsTableTimezoneOffset.xlsx";
@@ -27,9 +27,6 @@ public class XlsTableTimezoneOffsetTest
 
     private static final DateFormat dateFormat =
             new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-
-    @Rule
-    public ErrorCollector collector = new ErrorCollector();
 
     private ITable table;
 
@@ -44,65 +41,61 @@ public class XlsTableTimezoneOffsetTest
      * To change the time zone offset to something other than 0, either change
      * your machine's system time zone setting, or use JVM parameter
      * '-Duser.timezone="Europe/Berlin"' (or any other valid timezone ID)
-     *
-     * @throws Exception
      */
-    @Ignore("Remove the following two lines in XlsTable for this test to pass")
-    // long tzOffset = TimeZone.getDefault().getOffset(date.getTime());
-    // date = new Date(date.getTime() + tzOffset);
     @Test
-    public void testTimestampTzOffsets() throws Exception
+    void testTimestampTzOffsets(final SoftAssertions softly) throws Exception
     {
         // uncomment to see available timezones
         // System.err.println(Arrays.toString(TimeZone.getAvailableIDs()));
 
-        assertNotEquals(
+        assertThat(TimeZone.getDefault().getRawOffset()).as(
                 "Precondition failed: default time zone must not have offset 0!"
-                        + " Use JVM parameter '-Duser.timezone=\"Europe/Berlin\"' or some other value, if you have to...",
-                0, TimeZone.getDefault().getRawOffset());
+                        + " Use JVM parameter '-Duser.timezone=\"Europe/Berlin\"' or some other value, if you have to...")
+                .isNotZero();
 
-        URL spreadsheetUrl = getClass().getResource(EXCEL_SPREADSHEET);
-        URI spreadsheetUri = spreadsheetUrl.toURI();
-        File spreadsheetFile = new File(spreadsheetUri);
-        XlsDataSet xlsDataSet = new XlsDataSet(spreadsheetFile);
+        final URL spreadsheetUrl = getClass().getResource(EXCEL_SPREADSHEET);
+        final URI spreadsheetUri = spreadsheetUrl.toURI();
+        final File spreadsheetFile = new File(spreadsheetUri);
+        final XlsDataSet xlsDataSet = new XlsDataSet(spreadsheetFile);
 
         table = xlsDataSet.getTable(TABLE_NAME);
 
         // The values returned by ITable.getValue() should match the content of
         // the actual file, regardless of the JVM's default timezone
 
-        checkStringValue(0, "id", "1");
-        checkDateValue(0, "ts", "2015-03-14 00:00:00");
-        checkStringValue(1, "id", "2");
-        checkDateValue(1, "ts", "2015-03-18 02:00:00");
-        checkStringValue(2, "id", "3");
-        checkDateValue(2, "ts", "2015-12-19 23:00:00");
+        checkStringValue(softly, 0, "id", "1");
+        checkDateValue(softly, 0, "ts", "2015-03-14 00:00:00");
+        checkStringValue(softly, 1, "id", "2");
+        checkDateValue(softly, 1, "ts", "2015-03-18 02:00:00");
+        checkStringValue(softly, 2, "id", "3");
+        checkDateValue(softly, 2, "ts", "2015-12-19 23:00:00");
+        softly.assertAll();
     }
 
-    private void checkStringValue(int row, String column, String expected)
-            throws DataSetException
+    private void checkStringValue(final SoftAssertions softly, final int row,
+            final String column, final String expected) throws DataSetException
     {
-        String failMsg = String.format(FAIL_MSG, row, column);
-        String value = getValueAsString(row, column);
-        collector.checkThat(failMsg, value, equalTo(expected));
+        final String failMsg = String.format(FAIL_MSG, row, column);
+        final String value = getValueAsString(row, column);
+        softly.assertThat(value).as(failMsg).isEqualTo(expected);
     }
 
-    private void checkDateValue(int row, String column, String expected)
-            throws DataSetException
+    private void checkDateValue(final SoftAssertions softly, final int row,
+            final String column, final String expected) throws DataSetException
     {
-        String failMsg = String.format(FAIL_MSG, row, column);
-        String value = getValueAsDate(row, column);
-        collector.checkThat(failMsg, value, equalTo(expected));
+        final String failMsg = String.format(FAIL_MSG, row, column);
+        final String value = getValueAsDate(row, column);
+        softly.assertThat(value).as(failMsg).isEqualTo(expected);
     }
 
-    private String getValueAsString(int row, String column)
+    private String getValueAsString(final int row, final String column)
             throws DataSetException
     {
-        Object value = table.getValue(row, column);
+        final Object value = table.getValue(row, column);
         return value.toString();
     }
 
-    private String getValueAsDate(int row, String column)
+    private String getValueAsDate(final int row, final String column)
             throws DataSetException
     {
         return dateFormat.format(table.getValue(row, column));

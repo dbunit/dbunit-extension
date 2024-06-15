@@ -21,95 +21,103 @@
 
 package org.dbunit.database.statement;
 
-import com.mockobjects.ExpectationCounter;
-import com.mockobjects.ExpectationList;
-import com.mockobjects.Verifiable;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.sql.SQLException;
+import java.util.Arrays;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Objects;
 
 /**
  * @author Manuel Laflamme
  * @version $Revision$
  * @since Mar 16, 2002
  */
-public class MockBatchStatement implements IBatchStatement, Verifiable
+public class MockBatchStatement implements IBatchStatement
 {
-    private ExpectationCounter _executeBatchCalls =
-            new ExpectationCounter("MockBatchStatement.executeBatch");;
-    private ExpectationCounter _clearBatchCalls =
-            new ExpectationCounter("MockBatchStatement.clearBatch");;
-    private ExpectationCounter _closeCalls =
-            new ExpectationCounter("MockBatchStatement.close");;
-    private ExpectationList _batchStrings =
-            new ExpectationList("MockBatchStatement.batchStrings");
+    private Integer _executeBatchCalls = 0;
+    private Integer _expectedExecuteBatchCalls = 0;
+    private Integer _clearBatchCalls = 0;
+    private Integer _expectedClearBatchCalls = 0;
+    private Integer _closeCalls = 0;
+    private Integer _expectedCloseCalls = 0;
+    private List<String> _batchStrings = new LinkedList<>();
+    private List<String> _actualBatchStrings = new LinkedList<>();
     private int _addBatchCalls = 0;
 
     public MockBatchStatement()
     {
     }
 
-    public void addExpectedBatchString(String sql)
+    public void addExpectedBatchString(final String sql)
     {
-        _batchStrings.addExpected(sql);
+        _batchStrings.add(sql);
     }
 
-    public void addExpectedBatchStrings(String[] sql)
+    public void addExpectedBatchStrings(final String[] sql)
     {
-        _batchStrings.addExpectedMany(sql);
+        _batchStrings.addAll(Arrays.asList(sql));
     }
 
-    public void setExpectedExecuteBatchCalls(int callsCount)
+    public void setExpectedExecuteBatchCalls(final int callsCount)
     {
-        _executeBatchCalls.setExpected(callsCount);
+        _expectedExecuteBatchCalls = callsCount;
     }
 
-    public void setExpectedClearBatchCalls(int callsCount)
+    public void setExpectedClearBatchCalls(final int callsCount)
     {
-        _clearBatchCalls.setExpected(callsCount);
+        _expectedClearBatchCalls = callsCount;
     }
 
-    public void setExpectedCloseCalls(int callsCount)
+    public void setExpectedCloseCalls(final int callsCount)
     {
-        _closeCalls.setExpected(callsCount);
+        _expectedCloseCalls = callsCount;
     }
-
-    ////////////////////////////////////////////////////////////////////////////
-    // Verifiable interface
 
     public void verify()
     {
-        _executeBatchCalls.verify();
-        _clearBatchCalls.verify();
-        _closeCalls.verify();
-        _batchStrings.verify();
+        verify(_executeBatchCalls, _expectedExecuteBatchCalls);
+        verify(_clearBatchCalls, _expectedClearBatchCalls);
+        verify(_closeCalls, _expectedCloseCalls);
+        assertThat(_batchStrings).isEqualTo(_actualBatchStrings);
+    }
+
+    private void verify(final int count, final int expected)
+    {
+        if (!Objects.isNull(expected))
+        {
+            assertThat(count).isEqualTo(expected);
+        }
     }
 
     ////////////////////////////////////////////////////////////////////////////
     // IBatchStatement interface
 
-    public void addBatch(String sql) throws SQLException
+    @Override
+    public void addBatch(final String sql) throws SQLException
     {
-        _batchStrings.addActual(sql);
+        _actualBatchStrings.add(sql);
         _addBatchCalls++;
     }
 
+    @Override
     public int executeBatch() throws SQLException
     {
-        _executeBatchCalls.inc();
+        _executeBatchCalls++;
         return _addBatchCalls;
     }
 
+    @Override
     public void clearBatch() throws SQLException
     {
-        _clearBatchCalls.inc();
+        _clearBatchCalls++;
         _addBatchCalls = 0;
     }
 
+    @Override
     public void close() throws SQLException
     {
-        _closeCalls.inc();
+        _closeCalls++;
     }
 }
-
-
-

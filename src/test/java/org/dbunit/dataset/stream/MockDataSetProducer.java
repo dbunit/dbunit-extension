@@ -72,7 +72,8 @@ public class MockDataSetProducer implements IDataSetProducer
             {
                 columns[j] = new Column("COLUMN" + j, DataType.UNKNOWN);
             }
-            ITableMetaData metaData = new DefaultTableMetaData(tableName, columns);
+            ITableMetaData metaData =
+                    new DefaultTableMetaData(tableName, columns);
 
             _consumer.startTable(metaData);
 

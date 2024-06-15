@@ -1,5 +1,7 @@
 package org.dbunit.dataset.excel;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -9,9 +11,9 @@ import java.net.URL;
 
 import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.IDataSet;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-public class XlsDataSetWriterTest
+class XlsDataSetWriterTest
 {
     private static final File OUTPUT_DIR = new File("target", "excel");
 
@@ -27,16 +29,17 @@ public class XlsDataSetWriterTest
      * exceeded. You can define up to 4000 styles in a .xls workbook
      */
     @Test
-    public void testTimestampTzOffsets()
+    void testTimestampTzOffsets()
             throws URISyntaxException, DataSetException, IOException
     {
         OUTPUT_DIR.mkdir();
 
-        URL excelFileUrl = getClass().getResource(INPUT_EXCEL_FILE);
-        URI excelFileUri = excelFileUrl.toURI();
-        File file = new File(excelFileUri);
-        IDataSet dataSet = new XlsDataSet(file);
-        FileOutputStream outputStream = new FileOutputStream(OUTPUT_EXCEL_FILE);
-        XlsDataSet.write(dataSet, outputStream);
+        final URL excelFileUrl = getClass().getResource(INPUT_EXCEL_FILE);
+        final URI excelFileUri = excelFileUrl.toURI();
+        final File file = new File(excelFileUri);
+        final IDataSet dataSet = new XlsDataSet(file);
+        final FileOutputStream outputStream =
+                new FileOutputStream(OUTPUT_EXCEL_FILE);
+        assertDoesNotThrow(() -> XlsDataSet.write(dataSet, outputStream));
     }
 }

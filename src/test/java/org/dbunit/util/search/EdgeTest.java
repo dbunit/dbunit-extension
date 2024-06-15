@@ -20,9 +20,9 @@
  */
 package org.dbunit.util.search;
 
-import com.gargoylesoftware.base.testing.EqualsTester;
+import static org.assertj.core.api.Assertions.assertThat;
 
-import junit.framework.TestCase;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author gommma
@@ -30,27 +30,34 @@ import junit.framework.TestCase;
  * @version $Revision$ $Date$
  * @since 2.4.0
  */
-public class EdgeTest extends TestCase 
+class EdgeTest
 {
 
-    public void testEqualsHashCode()
+    @Test
+    void testEqualsHashCode()
     {
-        Edge e1 = new Edge("table1", "table2");
-        Edge e2 = new Edge("table1", "table2");
-        Edge eNotEqual = new Edge("table1", "tableOther");
-        Edge eEqualSubclass = new Edge("table1", "table2") {};
-        
-        // Use gsbase "EqualsTester" library for this - easier and less code for equals/hashCode test
-        new EqualsTester(e1, e2, eNotEqual, eEqualSubclass);
+        final Edge e1 = new Edge("table1", "table2");
+        final Edge e2 = new Edge("table1", "table2");
+        final Edge eNotEqual = new Edge("table1", "tableOther");
+        final Edge eEqualSubclass = new Edge("table1", "table2")
+        {
+        };
+
+        assertThat(e1).as("e1 is equal to e2").hasSameHashCodeAs(e2)
+                .as("e1 is equal to eNotEqual")
+                .doesNotHaveSameHashCodeAs(eNotEqual)
+                .as("e1 is equal to eEqualSubclass")
+                .hasSameHashCodeAs(eEqualSubclass);
     }
-   
-    public void testCompare()
+
+    @Test
+    void testCompare()
     {
-        Edge e1 = new Edge("table1", "table2");
-        Edge e2 = new Edge("table1", "table2");
-        Edge eNotEqual = new Edge("table1", "tableOther");
-        
-        assertEquals(0, e1.compareTo(e2));
-        assertEquals(-29, e1.compareTo(eNotEqual));
+        final Edge e1 = new Edge("table1", "table2");
+        final Edge e2 = new Edge("table1", "table2");
+        final Edge eNotEqual = new Edge("table1", "tableOther");
+
+        assertThat(e1).isEqualTo(e2);
+        assertThat(e1.compareTo(eNotEqual)).isEqualTo(-29);
     }
 }

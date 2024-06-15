@@ -1,22 +1,19 @@
 package org.dbunit.assertion.comparer.value;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.not;
-import static org.hamcrest.Matchers.nullValue;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import org.dbunit.DatabaseUnitException;
 import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.datatype.DataType;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-public class IsActualNotNullValueComparerTest
+class IsActualNotNullValueComparerTest
 {
     private IsActualNotNullValueComparer sut =
             new IsActualNotNullValueComparer();
 
     @Test
-    public void testIsExpected_ActualNull_False() throws DatabaseUnitException
+    void testIsExpected_ActualNull_False() throws DatabaseUnitException
     {
         final ITable expectedTable = null;
         final ITable actualTable = null;
@@ -28,12 +25,11 @@ public class IsActualNotNullValueComparerTest
 
         final boolean actual = sut.isExpected(expectedTable, actualTable,
                 rowNum, columnName, dataType, expectedValue, actualValue);
-        assertThat("Actual null should have been false.", actual,
-                equalTo(false));
+        assertThat(actual).as("Actual null should have been false.").isFalse();
     }
 
     @Test
-    public void testIsExpected_ActualNotNull_True() throws DatabaseUnitException
+    void testIsExpected_ActualNotNull_True() throws DatabaseUnitException
     {
         final ITable expectedTable = null;
         final ITable actualTable = null;
@@ -45,15 +41,15 @@ public class IsActualNotNullValueComparerTest
 
         final boolean actual = sut.isExpected(expectedTable, actualTable,
                 rowNum, columnName, dataType, expectedValue, actualValue);
-        assertThat("Actual not null should have been true.", actual,
-                equalTo(true));
+        assertThat(actual).as("Actual not null should have been true.")
+                .isTrue();
     }
 
     @Test
-    public void testMakeFailMessage() throws Exception
+    void testMakeFailMessage() throws Exception
     {
         final String actual = sut.makeFailMessage();
 
-        assertThat("Should have fail phrase.", actual, not(nullValue()));
+        assertThat(actual).as("Should have fail phrase.").isNotNull();
     }
 }

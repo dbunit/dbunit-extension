@@ -1,6 +1,6 @@
 package org.dbunit.assertion.comparer.value;
 
-import static org.junit.Assert.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.util.Map;
 
@@ -20,12 +20,10 @@ public class ConditionalSelectorMultiValueComparer extends ValueComparerBase
     private final ValueComparerSelector valueComparerSelector;
     private final Map<Object, ValueComparer> valueComparers;
 
-    public ConditionalSelectorMultiValueComparer(
-            final Map<Object, ValueComparer> valueComparers,
-            final ValueComparerSelector valueComparerSelector)
-    {
-        assertNotNull("valueComparerSelector is null.", valueComparerSelector);
-        assertNotNull("valueComparers is null.", valueComparers);
+    public ConditionalSelectorMultiValueComparer(final Map<Object, ValueComparer> valueComparers,
+            final ValueComparerSelector valueComparerSelector) {
+        assertNotNull(valueComparerSelector, "valueComparerSelector is null.");
+        assertNotNull(valueComparers, "valueComparers is null.");
 
         this.valueComparerSelector = valueComparerSelector;
         this.valueComparers = valueComparers;

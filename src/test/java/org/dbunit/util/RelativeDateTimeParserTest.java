@@ -21,7 +21,10 @@
 
 package org.dbunit.util;
 
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -32,9 +35,9 @@ import java.time.ZoneId;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-public class RelativeDateTimeParserTest
+class RelativeDateTimeParserTest
 {
     private static Clock CLOCK =
             Clock.fixed(Instant.now(), ZoneId.systemDefault());
@@ -42,58 +45,51 @@ public class RelativeDateTimeParserTest
             new RelativeDateTimeParser(CLOCK);
 
     @Test
-    public void testNullInput() throws Exception
+    void testNullInput() throws Exception
     {
-        try
-        {
-            parser.parse(null);
-            fail("IllegalArgumentException must be thrown when input is null.");
-        } catch (IllegalArgumentException e)
-        {
-            assertTrue(e.getMessage().contains(
-                    "Relative datetime input must not be null or empty."));
-        }
+        final IllegalArgumentException e = assertThrows(
+                IllegalArgumentException.class, () -> parser.parse(null),
+                "IllegalArgumentException must be thrown when input is null.");
+        assertThat(e).hasMessageContaining(
+                "Relative datetime input must not be null or empty.");
     }
 
     @Test
-    public void testEmptyInput() throws Exception
+    void testEmptyInput() throws Exception
     {
-        try
-        {
-            parser.parse("");
-            fail("IllegalArgumentException must be thrown when input is empty.");
-        } catch (IllegalArgumentException e)
-        {
-            assertTrue(e.getMessage().contains(
-                    "Relative datetime input must not be null or empty."));
-        }
+
+        final IllegalArgumentException e = assertThrows(
+                IllegalArgumentException.class, () -> parser.parse(""),
+                "IllegalArgumentException must be thrown when input is empty.");
+        assertThat(e).hasMessageContaining(
+                "Relative datetime input must not be null or empty.");
     }
 
     @Test
-    public void testInvalidInputs() throws Exception
+    void testInvalidInputs() throws Exception
     {
         // @formatter:off
-        String[] inputs = {
+        final String[] inputs = {
                 "[+1d]", // missing 'now' prefix
                 "[NOW+1d", // missing closing bracket
                 "[NOW+1x]", // invalid unit
                 "[now+1d3y]", // missing +- sign
         };
         // @formatter:on
-        for (String input : inputs)
+        for (final String input : inputs)
         {
             verifyPatternMismatchError(input);
         }
     }
 
-    private void verifyPatternMismatchError(String input)
+    private void verifyPatternMismatchError(final String input)
     {
         try
         {
             parser.parse(input);
             fail("IllegalArgumentException must be thrown for input '" + input
                     + "'");
-        } catch (IllegalArgumentException e)
+        } catch (final IllegalArgumentException e)
         {
             assertEquals("'" + input
                     + "' does not match the expected pattern [now{diff}{time}]. "
@@ -104,74 +100,71 @@ public class RelativeDateTimeParserTest
     }
 
     @Test
-    public void testInvalidFormat_UnparsableTime() throws Exception
+    void testInvalidFormat_UnparsableTime() throws Exception
     {
-        try
-        {
-            parser.parse("[now 1:23]");
-            fail("DateTimeParseException should be thrown.");
-        } catch (DateTimeParseException e)
-        {
-            assertEquals("Text '1:23' could not be parsed at index 0",
-                    e.getMessage());
-        }
+        final DateTimeParseException e = assertThrows(
+                DateTimeParseException.class, () -> parser.parse("[now 1:23]"),
+                "DateTimeParseException should be thrown.");
+        assertThat(e).hasMessageContaining(
+                "Text '1:23' could not be parsed at index 0");
     }
 
     @Test
-    public void testUnitResolution() throws Exception
+    void testUnitResolution() throws Exception
     {
-        LocalDateTime actual = parser.parse("[NOW+1y-2M+3d-4h+5m-6s]");
-        LocalDateTime expected = LocalDateTime.now(CLOCK)
+        final LocalDateTime actual = parser.parse("[NOW+1y-2M+3d-4h+5m-6s]");
+        final LocalDateTime expected = LocalDateTime.now(CLOCK)
                 .plus(1, ChronoUnit.YEARS).plus(-2, ChronoUnit.MONTHS)
                 .plus(3, ChronoUnit.DAYS).plus(-4, ChronoUnit.HOURS)
                 .plus(5, ChronoUnit.MINUTES).plus(-6, ChronoUnit.SECONDS);
-        assertEquals(actual, expected);
+        assertThat(expected).isEqualTo(actual);
     }
 
     @Test
-    public void testOrderInsensitivity() throws Exception
+    void testOrderInsensitivity() throws Exception
     {
-        LocalDateTime actual = parser.parse("[NOW+1s-2m+3h-4d+5M-6y]");
-        LocalDateTime expected = LocalDateTime.now(CLOCK)
+        final LocalDateTime actual = parser.parse("[NOW+1s-2m+3h-4d+5M-6y]");
+        final LocalDateTime expected = LocalDateTime.now(CLOCK)
                 .plus(1, ChronoUnit.SECONDS).plus(-2, ChronoUnit.MINUTES)
                 .plus(3, ChronoUnit.HOURS).plus(-4, ChronoUnit.DAYS)
                 .plus(5, ChronoUnit.MONTHS).plus(-6, ChronoUnit.YEARS);
-        assertEquals(actual, expected);
+        assertThat(expected).isEqualTo(actual);
     }
 
     @Test
-    public void testWhitespaces() throws Exception
+    void testWhitespaces() throws Exception
     {
-        LocalDateTime actual = parser.parse("[NOW\t \r\n+1y  -2M\t\t+3d]");
-        LocalDateTime expected =
+        final LocalDateTime actual =
+                parser.parse("[NOW\t \r\n+1y  -2M\t\t+3d]");
+        final LocalDateTime expected =
                 LocalDateTime.now(CLOCK).plus(1, ChronoUnit.YEARS)
                         .plus(-2, ChronoUnit.MONTHS).plus(3, ChronoUnit.DAYS);
-        assertEquals(actual, expected);
+        assertThat(expected).isEqualTo(actual);
     }
 
     @Test
-    public void testNow() throws Exception
+    void testNow() throws Exception
     {
-        LocalDateTime actual = parser.parse("[NOW]");
-        LocalDateTime expected = LocalDateTime.now(CLOCK);
-        assertEquals(actual, expected);
+        final LocalDateTime actual = parser.parse("[NOW]");
+        final LocalDateTime expected = LocalDateTime.now(CLOCK);
+        assertThat(expected).isEqualTo(actual);
     }
 
     @Test
-    public void testHoursMinutes() throws Exception
+    void testHoursMinutes() throws Exception
     {
-        LocalDateTime actual = parser.parse("[now 12:34]");
-        LocalDateTime expected =
+        final LocalDateTime actual = parser.parse("[now 12:34]");
+        final LocalDateTime expected =
                 LocalDateTime.of(LocalDate.now(CLOCK), LocalTime.of(12, 34));
-        assertEquals(actual, expected);
+        assertThat(expected).isEqualTo(actual);
     }
 
     @Test
-    public void testHoursMinutesSeconds() throws Exception
+    void testHoursMinutesSeconds() throws Exception
     {
-        LocalDateTime actual = parser.parse("[Now02:34:56]");
-        LocalDateTime expected =
+        final LocalDateTime actual = parser.parse("[Now02:34:56]");
+        final LocalDateTime expected =
                 LocalDateTime.of(LocalDate.now(CLOCK), LocalTime.of(2, 34, 56));
-        assertEquals(actual, expected);
+        assertThat(expected).isEqualTo(actual);
     }
 }

@@ -21,7 +21,11 @@
 
 package org.dbunit.dataset.datatype;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import java.sql.Types;
+
+import org.junit.jupiter.api.Test;
 
 /**
  * @author Manuel Laflamme
@@ -32,24 +36,27 @@ public class BitDataTypeTest extends BooleanDataTypeTest
 {
     private final static DataType THIS_TYPE = DataType.BIT;
 
-    public BitDataTypeTest(String name)
-    {
-        super(name);
-    }
-
     /**
      *
      */
+    @Override
+    @Test
     public void testToString() throws Exception
     {
-        assertEquals("name", "BIT", THIS_TYPE.toString());
+        assertThat(THIS_TYPE).as("name").hasToString("BIT");
     }
 
+    @Override
+    @Test
     public void testSqlType() throws Exception
     {
-        assertEquals("forSqlType", THIS_TYPE, DataType.forSqlType(Types.BIT));
-        assertEquals("forSqlTypeName", THIS_TYPE, DataType.forSqlTypeName(THIS_TYPE.toString()));
-        assertEquals("getSqlType", Types.BIT, THIS_TYPE.getSqlType());
+
+        assertThat(DataType.forSqlType(Types.BIT)).as("forSqlType")
+                .isEqualTo(THIS_TYPE);
+        assertThat(DataType.forSqlTypeName(THIS_TYPE.toString()))
+                .as("forSqlTypeName").isEqualTo(THIS_TYPE);
+        assertThat(THIS_TYPE.getSqlType()).as("getSqlType")
+                .isEqualTo(Types.BIT);
     }
 
 }

@@ -19,37 +19,54 @@
  */
 package org.dbunit.ext.mssql;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.UUID;
 
-import junit.framework.TestCase;
-
 import org.dbunit.dataset.datatype.TypeCastException;
-
-import com.mockobjects.sql.MockSingleRowResultSet;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 /**
- * <code>UniqueIdentifierTypeTest</code> ensures that the {@link UniqueIdentifierType} works as expected.
+ * <code>UniqueIdentifierTypeTest</code> ensures that the
+ * {@link UniqueIdentifierType} works as expected.
  *
  * @author Darryl L. Pierce <dpierce@redhat.com>
  */
 // TODO add tests for setSqlValue(Object, int, PreparedStatement)
-public class UniqueIdentifierTypeTest extends TestCase {
+@ExtendWith(MockitoExtension.class)
+class UniqueIdentifierTypeTest
+{
+    @Mock
+    private ResultSet mockResultSet;
+
     private UUID existingUuid;
     private UniqueIdentifierType uuidType;
-    private MockSingleRowResultSet resultSet;
 
-    protected void setUp() throws Exception {
-        super.setUp();
-
+    @BeforeEach
+    protected void setUp() throws Exception
+    {
         uuidType = new UniqueIdentifierType();
 
-        resultSet = new MockSingleRowResultSet();
         existingUuid = UUID.randomUUID();
     }
 
-    protected void tearDown() throws Exception {
-        resultSet.verify();
+    @AfterEach
+    protected void tearDown() throws Exception
+    {
+        verify(mockResultSet, times(1)).getString(anyInt());
     }
 
     /**
@@ -57,16 +74,15 @@ public class UniqueIdentifierTypeTest extends TestCase {
      *
      * @throws SQLException
      */
-    public void testGetSqlValueWithBadValue() throws SQLException {
-        resultSet.addExpectedIndexedValues(new String[] { existingUuid.toString() + "Z" });
+    @Test
+    void testGetSqlValueWithBadValue() throws SQLException
+    {
+        when(mockResultSet.getString(anyInt()))
+                .thenAnswer(invocation -> existingUuid.toString() + "Z");
 
-        try {
-            uuidType.getSqlValue(1, resultSet);
-
-            fail("Method should have throw an exception");
-        } catch (TypeCastException e) {
-            assertTrue(true);
-        }
+        assertThrows(TypeCastException.class,
+                () -> uuidType.getSqlValue(1, mockResultSet),
+                "Method should have throw an exception");
     }
 
     /**
@@ -75,13 +91,16 @@ public class UniqueIdentifierTypeTest extends TestCase {
      * @throws SQLException
      * @throws TypeCastException
      */
-    public void testGetValue() throws TypeCastException, SQLException {
-        resultSet.addExpectedIndexedValues(new String[] { existingUuid.toString() });
+    @Test
+    void testGetValue() throws TypeCastException, SQLException
+    {
+        when(mockResultSet.getString(anyInt()))
+                .thenAnswer(invocation -> existingUuid.toString());
 
-        UUID result = (UUID) uuidType.getSqlValue(1, resultSet);
+        final UUID result = (UUID) uuidType.getSqlValue(1, mockResultSet);
 
-        assertEquals(existingUuid, result);
+        assertThat(result).isEqualTo(existingUuid);
 
-        resultSet.verify();
+        verify(mockResultSet, times(1)).getString(anyInt());
     }
 }

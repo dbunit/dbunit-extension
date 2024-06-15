@@ -21,15 +21,17 @@
 
 package org.dbunit.dataset.xml;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.io.FileReader;
+import java.io.Reader;
+
 import org.dbunit.dataset.AbstractTableTest;
 import org.dbunit.dataset.Column;
 import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.ITable;
 import org.dbunit.testutil.TestUtils;
-
-import java.io.File;
-import java.io.FileReader;
-import java.io.Reader;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author Manuel Laflamme
@@ -38,11 +40,8 @@ import java.io.Reader;
  */
 public class XmlTableTest extends AbstractTableTest
 {
-    public XmlTableTest(String s)
-    {
-        super(s);
-    }
 
+    @Override
     protected ITable createTable() throws Exception
     {
         return createDataSet().getTable("TEST_TABLE");
@@ -50,29 +49,28 @@ public class XmlTableTest extends AbstractTableTest
 
     protected IDataSet createDataSet() throws Exception
     {
-        Reader in = new FileReader(
-                TestUtils.getFile("xml/xmlTableTest.xml"));
+        final Reader in =
+                new FileReader(TestUtils.getFile("xml/xmlTableTest.xml"));
         return new XmlDataSet(in);
     }
 
+    @Override
+    @Test
     public void testGetMissingValue() throws Exception
     {
-        Object[] expected = {null, ITable.NO_VALUE, "value", "", "   ", ITable.NO_VALUE};
+        final Object[] expected =
+                {null, ITable.NO_VALUE, "value", "", "   ", ITable.NO_VALUE};
 
-        ITable table = createDataSet().getTable("MISSING_AND_NULL_VALUES");
+        final ITable table =
+                createDataSet().getTable("MISSING_AND_NULL_VALUES");
 
-        Column[] columns = table.getTableMetaData().getColumns();
-        assertEquals("column count", expected.length, columns.length);
+        final Column[] columns = table.getTableMetaData().getColumns();
+        assertThat(columns).as("column count").hasSize(expected.length);
         for (int i = 0; i < columns.length; i++)
         {
-            assertEquals("value " + i, expected[i],
-                    table.getValue(0, columns[i].getColumnName()));
+            assertThat(table.getValue(0, columns[i].getColumnName()))
+                    .as("value " + i).isEqualTo(expected[i]);
         }
     }
 
 }
-
-
-
-
-

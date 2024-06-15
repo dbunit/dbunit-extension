@@ -20,91 +20,88 @@
  */
 package org.dbunit.ext.mssql;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 
 import org.dbunit.dataset.datatype.TypeCastException;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
-import junit.framework.TestCase;
-
-public class DateTimeOffsetTypeTest extends TestCase
+class DateTimeOffsetTypeTest
 {
     private DateTimeOffsetType type;
 
-    @Override
+    @BeforeEach
     protected void setUp() throws Exception
     {
-        super.setUp();
-
         type = new DateTimeOffsetType();
     }
 
-    public void testTypeCastWithNull() throws TypeCastException
+    @Test
+    void testTypeCastWithNull() throws TypeCastException
     {
         final Object result = type.typeCast(null);
-        assertNull(result);
+        assertThat(result).isNull();
     }
 
-    public void testTypeCastWithOffsetDateTime() throws TypeCastException
+    @Test
+    void testTypeCastWithOffsetDateTime() throws TypeCastException
     {
         final Object result = type.typeCast(OffsetDateTime.MIN);
-        assertSame(OffsetDateTime.MIN, result);
+        assertThat(result).isSameAs(OffsetDateTime.MIN);
     }
 
-    public void testTypeCastWithValidTemporalAccessor() throws TypeCastException
+    @Test
+    void testTypeCastWithValidTemporalAccessor() throws TypeCastException
     {
         final ZonedDateTime now = ZonedDateTime.now();
         final Object result = type.typeCast(now);
-        assertEquals(now.toOffsetDateTime(), result);
+        assertThat(result).isEqualTo(now.toOffsetDateTime());
     }
 
-    public void testTypeCastWithInvalidTemporalAccessor()
-            throws TypeCastException
+    @Test
+    void testTypeCastWithInvalidTemporalAccessor() throws TypeCastException
     {
-        try
-        {
-            type.typeCast(LocalDateTime.now());
-            fail("Should not be possible to convert due to insufficient information");
-        } catch (final TypeCastException e)
-        {
-        }
+        assertThrows(TypeCastException.class,
+                () -> type.typeCast(LocalDateTime.now()),
+                "Should not be possible to convert due to insufficient information");
+
     }
 
-    public void testTypeCastWithISO_8601_String() throws TypeCastException
+    @Test
+    void testTypeCastWithISO_8601_String() throws TypeCastException
     {
         final Object result = type.typeCast("2000-01-01T01:00:00Z");
-        assertEquals(OffsetDateTime.of(2000, 1, 1, 1, 0, 0, 0, ZoneOffset.UTC),
-                result);
+        assertThat(result).isEqualTo(
+                OffsetDateTime.of(2000, 1, 1, 1, 0, 0, 0, ZoneOffset.UTC));
     }
 
-    public void testTypeCastWithSqlServerStringWithoutNanos()
-            throws TypeCastException
+    @Test
+    void testTypeCastWithSqlServerStringWithoutNanos() throws TypeCastException
     {
         final Object result = type.typeCast("2000-01-01 01:00:00 +00:00");
-        assertEquals(OffsetDateTime.of(2000, 1, 1, 1, 0, 0, 0, ZoneOffset.UTC),
-                result);
+        assertThat(result).isEqualTo(
+                OffsetDateTime.of(2000, 1, 1, 1, 0, 0, 0, ZoneOffset.UTC));
     }
 
-    public void testTypeCastWithSqlServerStringWithNanos()
-            throws TypeCastException
+    @Test
+    void testTypeCastWithSqlServerStringWithNanos() throws TypeCastException
     {
         final Object result =
                 type.typeCast("2000-01-01 01:00:00.123000 +00:00");
-        assertEquals(
-                OffsetDateTime.of(2000, 1, 1, 1, 0, 0, 123000, ZoneOffset.UTC),
-                result);
+        assertThat(result).isEqualTo(
+                OffsetDateTime.of(2000, 1, 1, 1, 0, 0, 123000, ZoneOffset.UTC));
     }
 
-    public void testTypeCastWithInvalidObject() throws TypeCastException
+    @Test
+    void testTypeCastWithInvalidObject() throws TypeCastException
     {
-        try
-        {
-            type.typeCast(new Object());
-            fail("Should not be possible to convert due to invalid string format");
-        } catch (final TypeCastException e)
-        {
-        }
+        assertThrows(TypeCastException.class, () -> type.typeCast(new Object()),
+                "Should not be possible to convert due to invalid string format");
     }
 }

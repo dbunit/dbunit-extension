@@ -33,25 +33,24 @@ import org.dbunit.dataset.xml.FlatXmlDataSetTest;
  */
 public class LowerCaseDataSetTest extends AbstractDataSetDecoratorTest
 {
-    public LowerCaseDataSetTest(String s)
-    {
-        super(s);
-    }
 
+    @Override
     protected IDataSet createDataSet() throws Exception
     {
-        return new LowerCaseDataSet(new FlatXmlDataSetBuilder().build(new FileReader(
-                FlatXmlDataSetTest.DATASET_FILE)));
+        return new LowerCaseDataSet(new FlatXmlDataSetBuilder()
+                .build(new FileReader(FlatXmlDataSetTest.DATASET_FILE)));
     }
 
+    @Override
     protected String[] getExpectedNames() throws Exception
     {
         return getExpectedLowerNames();
     }
 
+    @Override
     protected String[] getExpectedDuplicateNames()
     {
-        String[] names = super.getExpectedDuplicateNames();
+        final String[] names = super.getExpectedDuplicateNames();
         for (int i = 0; i < names.length; i++)
         {
             names[i] = names[i].toLowerCase();
@@ -60,7 +59,4 @@ public class LowerCaseDataSetTest extends AbstractDataSetDecoratorTest
         return names;
     }
 
-
 }
-
-

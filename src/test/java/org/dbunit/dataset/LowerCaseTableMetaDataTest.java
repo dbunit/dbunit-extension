@@ -18,91 +18,94 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  */
-
 package org.dbunit.dataset;
 
-import junit.framework.TestCase;
+import static org.assertj.core.api.Assertions.assertThat;
+
 import org.dbunit.dataset.datatype.DataType;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author Manuel Laflamme
  * @version $Revision$
  * @since Feb 17, 2002
  */
-public class LowerCaseTableMetaDataTest extends TestCase
+class LowerCaseTableMetaDataTest
 {
-    public LowerCaseTableMetaDataTest(String s)
-    {
-        super(s);
-    }
 
-    public void testGetTableName() throws Exception
+    @Test
+    void testGetTableName() throws Exception
     {
-        String original = "TABLE_NAME";
-        String expected = original.toLowerCase();
+        final String original = "TABLE_NAME";
+        final String expected = original.toLowerCase();
 
-        ITableMetaData metaData = new LowerCaseTableMetaData(
+        final ITableMetaData metaData = new LowerCaseTableMetaData(
                 new DefaultTableMetaData(original, new Column[0]));
 
-        assertEquals("table name", expected, metaData.getTableName());
+        assertThat(metaData.getTableName()).as("table name")
+                .isEqualTo(expected);
     }
 
-    public void testGetColumns() throws Exception
+    @Test
+    void testGetColumns() throws Exception
     {
-        Column[] columns = new Column[]{
-            new Column("NUMBER_COLUMN", DataType.NUMERIC, "qwerty", Column.NULLABLE),
-            new Column("STRING_COLUMN", DataType.VARCHAR, "toto", Column.NO_NULLS),
-            new Column("BOOLEAN_COLUMN", DataType.BOOLEAN),
-        };
+        final Column[] columns = new Column[] {
+                new Column("NUMBER_COLUMN", DataType.NUMERIC, "qwerty",
+                        Column.NULLABLE),
+                new Column("STRING_COLUMN", DataType.VARCHAR, "toto",
+                        Column.NO_NULLS),
+                new Column("BOOLEAN_COLUMN", DataType.BOOLEAN),};
 
-        ITableMetaData metaData = new LowerCaseTableMetaData(
-                "TABLE_NAME", columns);
+        final ITableMetaData metaData =
+                new LowerCaseTableMetaData("TABLE_NAME", columns);
 
-        Column[] lowerColumns = metaData.getColumns();
-        assertEquals("column count", columns.length, lowerColumns.length);
+        final Column[] lowerColumns = metaData.getColumns();
+        assertThat(lowerColumns).as("column count").hasSameSizeAs(columns);
         for (int i = 0; i < columns.length; i++)
         {
-            Column column = columns[i];
-            Column lowerColumn = lowerColumns[i];
+            final Column column = columns[i];
+            final Column lowerColumn = lowerColumns[i];
 
-            assertEquals("name", column.getColumnName().toLowerCase(),
-                    lowerColumn.getColumnName());
-            assertTrue("name not equals",
-                    !column.getColumnName().equals(lowerColumn.getColumnName()));
-            assertEquals("type", column.getDataType(), lowerColumn.getDataType());
-            assertEquals("sql type", column.getSqlTypeName(), lowerColumn.getSqlTypeName());
-            assertEquals("nullable", column.getNullable(), lowerColumn.getNullable());
+            assertThat(lowerColumn.getColumnName()).as("name")
+                    .isEqualTo(column.getColumnName().toLowerCase());
+            assertThat(
+                    column.getColumnName().equals(lowerColumn.getColumnName()))
+                            .as("name not equals").isFalse();
+            assertThat(lowerColumn.getDataType()).as("type")
+                    .isEqualTo(column.getDataType());
+            assertThat(lowerColumn.getSqlTypeName()).as("sql type")
+                    .isEqualTo(column.getSqlTypeName());
+            assertThat(lowerColumn.getNullable()).as("nullable")
+                    .isEqualTo(column.getNullable());
         }
-        assertEquals("key count", 0, metaData.getPrimaryKeys().length);
+        assertThat(metaData.getPrimaryKeys().length).as("key count")
+                .isEqualTo(0);
     }
 
-    public void testGetPrimaryKeys() throws Exception
+    @Test
+    void testGetPrimaryKeys() throws Exception
     {
-        Column[] columns = new Column[]{
-            new Column("NUMBER_COLUMN", DataType.NUMERIC, "qwerty", Column.NULLABLE),
-            new Column("STRING_COLUMN", DataType.VARCHAR, "toto", Column.NO_NULLS),
-            new Column("BOOLEAN_COLUMN", DataType.BOOLEAN),
-        };
-        String[] keyNames = new String[]{"Boolean_Column", "Number_Column"};
+        final Column[] columns = new Column[] {
+                new Column("NUMBER_COLUMN", DataType.NUMERIC, "qwerty",
+                        Column.NULLABLE),
+                new Column("STRING_COLUMN", DataType.VARCHAR, "toto",
+                        Column.NO_NULLS),
+                new Column("BOOLEAN_COLUMN", DataType.BOOLEAN),};
+        final String[] keyNames =
+                new String[] {"Boolean_Column", "Number_Column"};
 
+        final ITableMetaData metaData =
+                new LowerCaseTableMetaData("TABLE_NAME", columns, keyNames);
 
-        ITableMetaData metaData = new LowerCaseTableMetaData(
-                "TABLE_NAME", columns, keyNames);
-
-        Column[] keys = metaData.getPrimaryKeys();
-        assertEquals("key count", keyNames.length, keys.length);
+        final Column[] keys = metaData.getPrimaryKeys();
+        assertThat(keys).as("key count").hasSameSizeAs(keyNames);
         for (int i = 0; i < keys.length; i++)
         {
-            assertTrue("name not equals",
-                    !keyNames[i].equals(keys[i].getColumnName()));
-            assertEquals("key name", keyNames[i].toLowerCase(),
-                    keys[i].getColumnName());
+            assertThat(keyNames[i]).as("name not equals")
+                    .isNotEqualTo(keys[i].getColumnName());
+            assertThat(keys[i].getColumnName()).as("key name")
+                    .isEqualTo(keyNames[i].toLowerCase());
         }
     }
 
 }
-
-
-
-
-

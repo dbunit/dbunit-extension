@@ -22,29 +22,33 @@ package org.dbunit.database.search;
 
 import org.dbunit.database.IDatabaseConnection;
 
-/**  
+/**
  * @author Felipe Leme (dbunit@felipeal.net)
  * @version $Revision$
  * @since Aug 28, 2005
  */
-public class ImportAndExportNodesFilterSearchCallbackTest extends ImportNodesFilterSearchCallbackTest {
-  
-   public ImportAndExportNodesFilterSearchCallbackTest(String testName) {
-     super(testName);
-   }
-    
-  protected String[][] getExpectedOutput() { 
-    int size = getInput().length;
-    String[][] result = new String[size][];
-    String[] allResults = super.getExpectedOutput()[1];
-    for (int i = 0; i < result.length; i++) {
-      result[i] = allResults;      
+public class ImportAndExportNodesFilterSearchCallbackTest
+        extends ImportNodesFilterSearchCallbackTest
+{
+
+    @Override
+    protected String[][] getExpectedOutput()
+    {
+        final int size = getInput().length;
+        final String[][] result = new String[size][];
+        final String[] allResults = super.getExpectedOutput()[1];
+        for (int i = 0; i < result.length; i++)
+        {
+            result[i] = allResults;
+        }
+        return result;
     }
-    return result;
-  }
-  
-  protected AbstractMetaDataBasedSearchCallback getCallback(IDatabaseConnection connection) {
-    return new ImportedAndExportedKeysSearchCallback(connection);
-  }
+
+    @Override
+    protected AbstractMetaDataBasedSearchCallback getCallback(
+            final IDatabaseConnection connection)
+    {
+        return new ImportedAndExportedKeysSearchCallback(connection);
+    }
 
 }

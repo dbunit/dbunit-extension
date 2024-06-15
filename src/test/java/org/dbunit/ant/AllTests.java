@@ -21,24 +21,17 @@
 
 package org.dbunit.ant;
 
-import junit.framework.Test;
-import junit.framework.TestSuite;
+import org.junit.platform.suite.api.Suite;
 
 /**
  * @author Manuel Laflamme
  * @version $Revision$
  */
-public class AllTests extends TestSuite
+@Suite
+// @SelectClasses({
+// TODO Not sure where this is. will need to look for it
+// DbUnitTaskIT.class
+// })
+public class AllTests
 {
-    public static Test suite()
-    {
-        TestSuite suite = new TestSuite();
-        suite.addTest(new TestSuite(DbUnitTaskIT.class));
-        return suite;
-    }
 }
-
-
-
-
-

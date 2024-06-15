@@ -20,33 +20,23 @@
  */
 package org.dbunit.dataset.stream;
 
-import junit.framework.TestCase;
 import org.dbunit.dataset.Column;
 import org.dbunit.dataset.datatype.DataType;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author Manuel Laflamme
  * @since Apr 29, 2003
  * @version $Revision$
  */
-public abstract class AbstractProducerTest extends TestCase
+public abstract class AbstractProducerTest
 {
-    private static final String[] TABLE_NAMES = {
-        "DUPLICATE_TABLE",
-        "SECOND_TABLE",
-        "TEST_TABLE",
-        "NOT_NULL_TABLE",
-        "EMPTY_TABLE",
-    };
-
-    public AbstractProducerTest(String s)
-    {
-        super(s);
-    }
+    private static final String[] TABLE_NAMES = {"DUPLICATE_TABLE",
+            "SECOND_TABLE", "TEST_TABLE", "NOT_NULL_TABLE", "EMPTY_TABLE",};
 
     protected String[] getExpectedNames() throws Exception
     {
-        return (String[])TABLE_NAMES.clone();
+        return TABLE_NAMES.clone();
     }
 
     protected int[] getExpectedRowCount() throws Exception
@@ -59,9 +49,10 @@ public abstract class AbstractProducerTest extends TestCase
         return "NOT_NULL_TABLE";
     }
 
-    protected Column[] createExpectedColumns(Column.Nullable nullable) throws Exception
+    protected Column[] createExpectedColumns(final Column.Nullable nullable)
+            throws Exception
     {
-        Column[] columns = new Column[4];
+        final Column[] columns = new Column[4];
         for (int i = 0; i < columns.length; i++)
         {
             columns[i] = new Column("COLUMN" + i, DataType.UNKNOWN, nullable);
@@ -69,9 +60,9 @@ public abstract class AbstractProducerTest extends TestCase
         return columns;
     }
 
-    protected Object[] createExpectedRow(int row) throws Exception
+    protected Object[] createExpectedRow(final int row) throws Exception
     {
-        Object[] values = new Object[4];
+        final Object[] values = new Object[4];
         for (int i = 0; i < values.length; i++)
         {
             values[i] = "row " + row + " col " + i;
@@ -81,19 +72,21 @@ public abstract class AbstractProducerTest extends TestCase
 
     protected abstract IDataSetProducer createProducer() throws Exception;
 
+    @Test
     public void testProduce() throws Exception
     {
         // Setup consumer
-        MockDataSetConsumer consumer = new MockDataSetConsumer();
+        final MockDataSetConsumer consumer = new MockDataSetConsumer();
         consumer.addExpectedStartDataSet();
-        String[] expectedNames = getExpectedNames();
-        int[] rowCounts = getExpectedRowCount();
+        final String[] expectedNames = getExpectedNames();
+        final int[] rowCounts = getExpectedRowCount();
         for (int i = 0; i < expectedNames.length; i++)
         {
-            String expectedName = expectedNames[i];
-            Column.Nullable nullable = expectedName.equals(getNotNullTableName()) ?
-                    Column.NO_NULLS : Column.NULLABLE;
-            Column[] expectedColumns = createExpectedColumns(nullable);
+            final String expectedName = expectedNames[i];
+            final Column.Nullable nullable =
+                    expectedName.equals(getNotNullTableName()) ? Column.NO_NULLS
+                            : Column.NULLABLE;
+            final Column[] expectedColumns = createExpectedColumns(nullable);
 
             consumer.addExpectedStartTable(expectedName, expectedColumns);
             for (int j = 0; j < rowCounts[i]; j++)
@@ -105,7 +98,7 @@ public abstract class AbstractProducerTest extends TestCase
         consumer.addExpectedEndDataSet();
 
         // Setup producer
-        IDataSetProducer producer = createProducer();
+        final IDataSetProducer producer = createProducer();
         producer.setConsumer(consumer);
 
         // Produce and verify consumer
@@ -113,9 +106,10 @@ public abstract class AbstractProducerTest extends TestCase
         consumer.verify();
     }
 
+    @Test
     public void testProduceWithoutConsumer() throws Exception
     {
-        IDataSetProducer producer = createProducer();
+        final IDataSetProducer producer = createProducer();
         producer.produce();
     }
 

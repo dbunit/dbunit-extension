@@ -20,6 +20,16 @@
  */
 package org.dbunit.database;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.sql.ResultSet;
+import java.util.Arrays;
+import java.util.LinkedList;
+
 import org.dbunit.DatabaseEnvironment;
 import org.dbunit.dataset.Column;
 import org.dbunit.dataset.ForwardOnlyTableTest;
@@ -27,87 +37,101 @@ import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.MockTableMetaData;
 import org.dbunit.dataset.RowOutOfBoundsException;
 import org.dbunit.operation.DatabaseOperation;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 /**
  * @author Manuel Laflamme
  * @since Apr 11, 2003
  * @version $Revision$
  */
-public class ForwardOnlyResultSetTableIT extends ForwardOnlyTableTest
+@ExtendWith(MockitoExtension.class)
+class ForwardOnlyResultSetTableIT extends ForwardOnlyTableTest
 {
-    public ForwardOnlyResultSetTableIT(String s)
-    {
-        super(s);
-    }
 
+    @Mock
+    private ResultSet mockResultSet;
+
+    @Override
     protected ITable createTable() throws Exception
     {
-        DatabaseEnvironment env = DatabaseEnvironment.getInstance();
-        IDatabaseConnection connection = env.getConnection();
+        final DatabaseEnvironment env = DatabaseEnvironment.getInstance();
+        final IDatabaseConnection connection = env.getConnection();
 
-        DatabaseOperation.CLEAN_INSERT.execute(connection, env.getInitDataSet());
+        DatabaseOperation.CLEAN_INSERT.execute(connection,
+                env.getInitDataSet());
 
-        String selectStatement = "select * from TEST_TABLE order by COLUMN0";
-        return new ForwardOnlyResultSetTable("TEST_TABLE", selectStatement, connection);
+        final String selectStatement =
+                "select * from TEST_TABLE order by COLUMN0";
+        return new ForwardOnlyResultSetTable("TEST_TABLE", selectStatement,
+                connection);
     }
 
-    protected String convertString(String str) throws Exception
+    @Override
+    protected String convertString(final String str) throws Exception
     {
         return DatabaseEnvironment.getInstance().convertString(str);
     }
 
+    @Override
     public void testGetMissingValue() throws Exception
     {
         // Do not test this!
     }
 
-    public void testGetValueOnLastRowIsClosingResultSet() throws Exception
+    @Test
+    void testGetValueOnLastRowIsClosingResultSet() throws Exception
     {
-        String tableName = "TABLE";
-        String[] columnNames = {"C0"};
-//        String[] columnNames = {"C0", "C1", "C2"};
-        Object[][] expectedValues = new Object[][]{
-            new Object[]{"1", "2", "3"},
-            new Object[]{"4", "5", "6"},
-            new Object[]{"7", "8", "9"},
-        };
+        final String tableName = "TABLE";
+        final String[] columnNames = {"C0"};
+        // String[] columnNames = {"C0", "C1", "C2"};
+        final Object[][] expectedValues = new Object[][] {
+                new Object[] {"1", "2", "3"}, new Object[] {"4", "5", "6"},
+                new Object[] {"7", "8", "9"},};
 
         // Setup resultset
-        ExtendedMockMultiRowResultSet resultSet = new ExtendedMockMultiRowResultSet();
-        resultSet.setExpectedCloseCalls(1);
-        resultSet.setupColumnNames(columnNames);
-        resultSet.setupRows(expectedValues);
+        // Our resultSet wasNull call the array
+        final LinkedList<Object[]> results = new LinkedList<>();
+        Arrays.asList(expectedValues).forEach(results::add);
+        // We only have 1 column so just return value in position [0]
+        when(mockResultSet.getObject(anyInt()))
+                .thenAnswer(invocation -> results.removeFirst()[0]);
+        when(mockResultSet.next()).thenReturn(true).thenReturn(true)
+                .thenReturn(false);
 
         // Create table
-        MockTableMetaData metaData = new MockTableMetaData(tableName, columnNames);
-        ForwardOnlyResultSetTable table =
-                new ForwardOnlyResultSetTable(metaData, resultSet);
+        final MockTableMetaData metaData =
+                new MockTableMetaData(tableName, columnNames);
+        final ForwardOnlyResultSetTable table =
+                new ForwardOnlyResultSetTable(metaData, mockResultSet);
 
         // Exercise getValue()
         try
         {
-            Column[] columns = table.getTableMetaData().getColumns();
+            final Column[] columns = table.getTableMetaData().getColumns();
 
-            for (int i = 0; ; i++)
+            for (int i = 0;; i++)
             {
                 for (int j = 0; j < columns.length; j++)
                 {
-                    String columnName = columns[j].getColumnName();
-                    Object actualValue = table.getValue(i, columnName);
-                    Object expectedValue = expectedValues[i][j];
-                    assertEquals("row=" + i + ", col=" + columnName,
-                            expectedValue, actualValue);
+                    final String columnName = columns[j].getColumnName();
+                    final Object actualValue = table.getValue(i, columnName);
+                    final Object expectedValue = expectedValues[i][j];
+                    assertThat(actualValue)
+                            .as("row=" + i + ", col=" + columnName)
+                            .isEqualTo(expectedValue);
 
                 }
             }
-        }
-        catch(RowOutOfBoundsException e)
+        } catch (final RowOutOfBoundsException e)
         {
             // end of table
         }
 
         // Verify that ResultSet have been closed
-        resultSet.verify();
+        verify(mockResultSet, times(1)).close();
     }
 
 }

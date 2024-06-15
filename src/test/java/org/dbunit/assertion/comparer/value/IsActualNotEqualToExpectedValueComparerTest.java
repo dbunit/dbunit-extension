@@ -1,22 +1,19 @@
 package org.dbunit.assertion.comparer.value;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.not;
-import static org.hamcrest.Matchers.nullValue;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import org.dbunit.DatabaseUnitException;
 import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.datatype.DataType;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-public class IsActualNotEqualToExpectedValueComparerTest
+class IsActualNotEqualToExpectedValueComparerTest
 {
     private final IsActualNotEqualToExpectedValueComparer sut =
             new IsActualNotEqualToExpectedValueComparer();
 
     @Test
-    public void testIsExpected_AllNulls_False() throws DatabaseUnitException
+    void testIsExpected_AllNulls_False() throws DatabaseUnitException
     {
         final ITable expectedTable = null;
         final ITable actualTable = null;
@@ -28,13 +25,11 @@ public class IsActualNotEqualToExpectedValueComparerTest
 
         final boolean actual = sut.isExpected(expectedTable, actualTable,
                 rowNum, columnName, dataType, expectedValue, actualValue);
-        assertThat("All null should not have been equal.", actual,
-                equalTo(false));
+        assertThat(actual).as("All null should not have been equal.").isFalse();
     }
 
     @Test
-    public void testIsExpected_NotEqualNumbers_True()
-            throws DatabaseUnitException
+    void testIsExpected_NotEqualNumbers_True() throws DatabaseUnitException
     {
         final ITable expectedTable = null;
         final ITable actualTable = null;
@@ -46,15 +41,15 @@ public class IsActualNotEqualToExpectedValueComparerTest
 
         final boolean actual = sut.isExpected(expectedTable, actualTable,
                 rowNum, columnName, dataType, expectedValue, actualValue);
-        assertThat("Unequal numbers should not have been equal.", actual,
-                equalTo(true));
+        assertThat(actual).as("Unequal numbers should not have been equal.")
+                .isTrue();
     }
 
     @Test
-    public void testGetFailPhrase() throws Exception
+    void testGetFailPhrase() throws Exception
     {
         final String actual = sut.getFailPhrase();
 
-        assertThat("Should have fail phrase.", actual, not(nullValue()));
+        assertThat(actual).as("Should have fail phrase.").isNotNull();
     }
 }

@@ -21,66 +21,64 @@
 
 package org.dbunit.dataset;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import org.dbunit.database.AmbiguousTableNameException;
 import org.dbunit.dataset.xml.XmlDataSet;
 import org.dbunit.testutil.TestUtils;
-
-import java.io.FileReader;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author Manuel Laflamme
  * @version $Revision$
  * @since Feb 22, 2002
  */
-public class DefaultDataSetTest extends AbstractDataSetTest
+class DefaultDataSetTest extends AbstractDataSetTest
 {
-    public DefaultDataSetTest(String s)
-    {
-        super(s);
-    }
 
+    @Override
     protected IDataSet createDataSet() throws Exception
     {
-        IDataSet dataSet = new XmlDataSet(
-                TestUtils.getFileReader("xml/dataSetTest.xml"));
-        ITable[] tables = DataSetUtils.getTables(dataSet);
+        final IDataSet dataSet =
+                new XmlDataSet(TestUtils.getFileReader("xml/dataSetTest.xml"));
+        final ITable[] tables = DataSetUtils.getTables(dataSet);
 
         return new DefaultDataSet(tables);
     }
 
+    @Override
     protected IDataSet createDuplicateDataSet() throws Exception
     {
         return createDuplicateDataSet(false);
     }
-    
-    protected IDataSet createMultipleCaseDuplicateDataSet() throws Exception 
+
+    @Override
+    protected IDataSet createMultipleCaseDuplicateDataSet() throws Exception
     {
         return createDuplicateDataSet(true);
     }
 
-    private IDataSet createDuplicateDataSet(boolean multipleCase) throws AmbiguousTableNameException 
+    private IDataSet createDuplicateDataSet(final boolean multipleCase)
+            throws AmbiguousTableNameException
     {
-        ITable[] tables = super.createDuplicateTables(multipleCase);
+        final ITable[] tables = super.createDuplicateTables(multipleCase);
         return new DefaultDataSet(tables);
     }
 
-    public void testAddTableThenReadBackAndDoItAgainDataSet() throws Exception
+    @Test
+    void testAddTableThenReadBackAndDoItAgainDataSet() throws Exception
     {
-    	String tableName1 = "TEST_TABLE";
-    	String tableName2 = "SECOND_TABLE";
-        DefaultDataSet dataSet = new DefaultDataSet();
-        
-        DefaultTable table1 = new DefaultTable(tableName1);
+        final String tableName1 = "TEST_TABLE";
+        final String tableName2 = "SECOND_TABLE";
+        final DefaultDataSet dataSet = new DefaultDataSet();
+
+        final DefaultTable table1 = new DefaultTable(tableName1);
         dataSet.addTable(table1);
-        assertEquals(table1, dataSet.getTable(tableName1));
-        
-        DefaultTable table2 = new DefaultTable(tableName2);
+        assertThat(dataSet.getTable(tableName1)).isEqualTo(table1);
+
+        final DefaultTable table2 = new DefaultTable(tableName2);
         dataSet.addTable(table2);
-        assertEquals(table2, dataSet.getTable(tableName2));
+        assertThat(dataSet.getTable(tableName2)).isEqualTo(table2);
     }
-    
+
 }
-
-
-
-

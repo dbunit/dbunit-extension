@@ -21,7 +21,11 @@
 
 package org.dbunit.dataset;
 
-import junit.framework.TestCase;
+import static org.junit.jupiter.api.Assertions.fail;
+
+import java.io.FileOutputStream;
+import java.sql.Connection;
+
 import org.dbunit.DdlExecutor;
 import org.dbunit.HypersonicEnvironment;
 import org.dbunit.database.DatabaseConfig;
@@ -32,72 +36,83 @@ import org.dbunit.dataset.datatype.DataType;
 import org.dbunit.dataset.xml.FlatXmlDataSet;
 import org.dbunit.ext.hsqldb.HsqldbDataTypeFactory;
 import org.dbunit.testutil.TestUtils;
-
-import java.io.FileOutputStream;
-import java.sql.Connection;
-
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /**
  * Test Case for issue #1721870
+ * 
  * @author Sebastien Le Callonnec
  * @version $Revision$
  * @since Mar 11, 2008
  */
-public class CompositeDataSetIterationTest extends TestCase {
+class CompositeDataSetIterationTest
+{
 
-	private Connection jdbcConnection;
-	private final String sqlFile = "hypersonic_simple_dataset.sql"; 
-	private IDatabaseConnection connection;
+    private Connection jdbcConnection;
+    private final String sqlFile = "hypersonic_simple_dataset.sql";
+    private IDatabaseConnection connection;
 
-	protected void setUp() throws Exception {
-		super.setUp();
-		this.jdbcConnection = HypersonicEnvironment.createJdbcConnection("mem:tempdb");
-		DdlExecutor.executeDdlFile(TestUtils.getFile("sql/" + sqlFile), jdbcConnection);
-		this.connection = new DatabaseConnection(jdbcConnection);
-		DatabaseConfig config = connection.getConfig();
-	    config.setProperty(DatabaseConfig.PROPERTY_DATATYPE_FACTORY,
-	            new HsqldbDataTypeFactory());
-	}
-	
-	  protected void tearDown() throws Exception {
-		super.tearDown();
+    @BeforeEach
+    protected void setUp() throws Exception
+    {
+        this.jdbcConnection =
+                HypersonicEnvironment.createJdbcConnection("mem:tempdb");
+        DdlExecutor.executeDdlFile(TestUtils.getFile("sql/" + sqlFile),
+                jdbcConnection);
+        this.connection = new DatabaseConnection(jdbcConnection);
+        final DatabaseConfig config = connection.getConfig();
+        config.setProperty(DatabaseConfig.PROPERTY_DATATYPE_FACTORY,
+                new HsqldbDataTypeFactory());
+    }
 
-		HypersonicEnvironment.shutdown(this.jdbcConnection);
-		this.jdbcConnection.close();
-	}
+    @AfterEach
+    protected void tearDown() throws Exception
+    {
 
-	public void testMe() throws Exception {
-		
-		// 1. QueryDataSet
-		QueryDataSet queryDataSet = new QueryDataSet(connection);
-		queryDataSet.addTable("B", "select * from B");
-		queryDataSet.addTable("C", "select * from C");
+        HypersonicEnvironment.shutdown(this.jdbcConnection);
+        this.jdbcConnection.close();
+    }
 
-		// 2. Hard-coded data set
-		DefaultDataSet plainDataSet = new DefaultDataSet();
+    @Test
+    void testMe() throws Exception
+    {
 
-		Column id   = new Column("id",   DataType.DOUBLE);
-		Column name = new Column("name", DataType.VARCHAR);
+        // 1. QueryDataSet
+        final QueryDataSet queryDataSet = new QueryDataSet(connection);
+        queryDataSet.addTable("B", "select * from B");
+        queryDataSet.addTable("C", "select * from C");
 
-		Column[] cols = { id, name };
+        // 2. Hard-coded data set
+        final DefaultDataSet plainDataSet = new DefaultDataSet();
 
-		DefaultTable aTable = new DefaultTable("D", cols);
-		Object[] row1 = { new Long(1), "D1" };
-		Object[] row2 = { new Long(2), "D2" };
+        final Column id = new Column("id", DataType.DOUBLE);
+        final Column name = new Column("name", DataType.VARCHAR);
 
-		aTable.addRow(row1);
-		aTable.addRow(row2);
+        final Column[] cols = {id, name};
 
-		plainDataSet.addTable(aTable);
+        final DefaultTable aTable = new DefaultTable("D", cols);
+        final Object[] row1 = {Long.valueOf(1), "D1"};
+        final Object[] row2 = {Long.valueOf(2), "D2"};
 
-		// 3. Composite
-		CompositeDataSet compositeDataSet = new CompositeDataSet(queryDataSet, plainDataSet);
+        aTable.addRow(row1);
+        aTable.addRow(row2);
 
-		// 4. Write
-		try {
-			FlatXmlDataSet.write(compositeDataSet, new FileOutputStream("target/full.xml"));
-		} catch (Exception e) {
-			fail(e.getMessage());
-		}
-	}
+        plainDataSet.addTable(aTable);
+
+        // 3. Composite
+        final CompositeDataSet compositeDataSet =
+                new CompositeDataSet(queryDataSet, plainDataSet);
+
+        // 4. Write
+        try
+        {
+            FlatXmlDataSet.write(compositeDataSet,
+                    new FileOutputStream("target/full.xml"));
+        } catch (final Exception e)
+        {
+            fail(e.getMessage());
+        }
+    }
 }

@@ -20,6 +20,11 @@
  */
 package org.dbunit.dataset.xml;
 
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
+import java.io.File;
+import java.io.StringReader;
+
 import org.dbunit.dataset.Column;
 import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.datatype.DataType;
@@ -27,10 +32,8 @@ import org.dbunit.dataset.stream.AbstractProducerTest;
 import org.dbunit.dataset.stream.IDataSetProducer;
 import org.dbunit.dataset.stream.MockDataSetConsumer;
 import org.dbunit.testutil.TestUtils;
+import org.junit.jupiter.api.Test;
 import org.xml.sax.InputSource;
-
-import java.io.File;
-import java.io.StringReader;
 
 /**
  * @author Manuel Laflamme
@@ -42,39 +45,36 @@ public class XmlProducerTest extends AbstractProducerTest
     private static final File DATASET_FILE =
             TestUtils.getFile("xml/xmlProducerTest.xml");
 
-    public XmlProducerTest(String s)
-    {
-        super(s);
-    }
-
+    @Override
     protected IDataSetProducer createProducer() throws Exception
     {
-        String uri = DATASET_FILE.getAbsoluteFile().toURL().toString();
-        InputSource source = new InputSource(uri);
+        final String uri = DATASET_FILE.getAbsoluteFile().toURL().toString();
+        final InputSource source = new InputSource(uri);
 
-        XmlProducer producer = new XmlProducer(source);
+        final XmlProducer producer = new XmlProducer(source);
         producer.setValidating(true);
         return producer;
     }
 
-    protected Column[] createExpectedColumns(Column.Nullable nullable) throws Exception
+    @Override
+    protected Column[] createExpectedColumns(final Column.Nullable nullable)
+            throws Exception
     {
         return super.createExpectedColumns(Column.NULLABLE_UNKNOWN);
     }
 
-    public void testProduceEmptyDataSet() throws Exception
+    @Test
+    void testProduceEmptyDataSet() throws Exception
     {
         // Setup consumer
-        MockDataSetConsumer consumer = new MockDataSetConsumer();
+        final MockDataSetConsumer consumer = new MockDataSetConsumer();
         consumer.addExpectedStartDataSet();
         consumer.addExpectedEndDataSet();
 
         // Setup producer
-        String content =
-                "<?xml version=\"1.0\"?>" +
-                "<dataset/>";
-        InputSource source = new InputSource(new StringReader(content));
-        IDataSetProducer producer = new XmlProducer(source);
+        final String content = "<?xml version=\"1.0\"?>" + "<dataset/>";
+        final InputSource source = new InputSource(new StringReader(content));
+        final IDataSetProducer producer = new XmlProducer(source);
         producer.setConsumer(consumer);
 
         // Produce and verify consumer
@@ -82,18 +82,18 @@ public class XmlProducerTest extends AbstractProducerTest
         consumer.verify();
     }
 
-    public void testProduceNullValue() throws Exception
+    @Test
+    void testProduceNullValue() throws Exception
     {
-        String tableName = "TEST_TABLE";
-        Column[] expectedColumns = new Column[]{
-            new Column("c1", DataType.UNKNOWN),
-            new Column("c2", DataType.UNKNOWN),
-            new Column("c3", DataType.UNKNOWN),
-        };
-        Object[] expectedValues = new Object[]{null, "", "value"};
+        final String tableName = "TEST_TABLE";
+        final Column[] expectedColumns =
+                new Column[] {new Column("c1", DataType.UNKNOWN),
+                        new Column("c2", DataType.UNKNOWN),
+                        new Column("c3", DataType.UNKNOWN),};
+        final Object[] expectedValues = new Object[] {null, "", "value"};
 
         // Setup consumer
-        MockDataSetConsumer consumer = new MockDataSetConsumer();
+        final MockDataSetConsumer consumer = new MockDataSetConsumer();
         consumer.addExpectedStartDataSet();
         consumer.addExpectedStartTable(tableName, expectedColumns);
         consumer.addExpectedRow(tableName, expectedValues);
@@ -101,22 +101,15 @@ public class XmlProducerTest extends AbstractProducerTest
         consumer.addExpectedEndDataSet();
 
         // Setup producer
-        String content =
-                "<?xml version=\"1.0\"?>" +
-                "<dataset>" +
-                "   <table name='TEST_TABLE'>" +
-                "       <column>c1</column>" +
-                "       <column>c2</column>" +
-                "       <column>c3</column>" +
-                "       <row>" +
-                "           <null/>" +
-                "           <value></value>" +
-                "           <value>value</value>" +
-                "       </row>" +
-                "   </table>" +
-                "</dataset>";
-        InputSource source = new InputSource(new StringReader(content));
-        IDataSetProducer producer = new XmlProducer(source);
+        final String content = "<?xml version=\"1.0\"?>" + "<dataset>"
+                + "   <table name='TEST_TABLE'>" + "       <column>c1</column>"
+                + "       <column>c2</column>" + "       <column>c3</column>"
+                + "       <row>" + "           <null/>"
+                + "           <value></value>"
+                + "           <value>value</value>" + "       </row>"
+                + "   </table>" + "</dataset>";
+        final InputSource source = new InputSource(new StringReader(content));
+        final IDataSetProducer producer = new XmlProducer(source);
         producer.setConsumer(consumer);
 
         // Produce and verify consumer
@@ -124,18 +117,19 @@ public class XmlProducerTest extends AbstractProducerTest
         consumer.verify();
     }
 
-    public void testProduceMissingColumn() throws Exception
+    @Test
+    void testProduceMissingColumn() throws Exception
     {
-        String tableName = "TEST_TABLE";
-        Column[] expectedColumns = new Column[]{
-            new Column("c1", DataType.UNKNOWN),
-            new Column("c2", DataType.UNKNOWN),
-            new Column("c3", DataType.UNKNOWN),
-        };
-        Object[] expectedValues = new Object[]{null, "", "value", "extra"};
+        final String tableName = "TEST_TABLE";
+        final Column[] expectedColumns =
+                new Column[] {new Column("c1", DataType.UNKNOWN),
+                        new Column("c2", DataType.UNKNOWN),
+                        new Column("c3", DataType.UNKNOWN),};
+        final Object[] expectedValues =
+                new Object[] {null, "", "value", "extra"};
 
         // Setup consumer
-        MockDataSetConsumer consumer = new MockDataSetConsumer();
+        final MockDataSetConsumer consumer = new MockDataSetConsumer();
         consumer.addExpectedStartDataSet();
         consumer.addExpectedStartTable(tableName, expectedColumns);
         consumer.addExpectedRow(tableName, expectedValues);
@@ -143,23 +137,16 @@ public class XmlProducerTest extends AbstractProducerTest
         consumer.addExpectedEndDataSet();
 
         // Setup producer
-        String content =
-                "<?xml version=\"1.0\"?>" +
-                "<dataset>" +
-                "   <table name='TEST_TABLE'>" +
-                "       <column>c1</column>" +
-                "       <column>c2</column>" +
-                "       <column>c3</column>" +
-                "       <row>" +
-                "           <null/>" +
-                "           <value></value>" +
-                "           <value>value</value>" +
-                "           <value>extra</value>" +
-                "       </row>" +
-                "   </table>" +
-                "</dataset>";
-        InputSource source = new InputSource(new StringReader(content));
-        IDataSetProducer producer = new XmlProducer(source);
+        final String content = "<?xml version=\"1.0\"?>" + "<dataset>"
+                + "   <table name='TEST_TABLE'>" + "       <column>c1</column>"
+                + "       <column>c2</column>" + "       <column>c3</column>"
+                + "       <row>" + "           <null/>"
+                + "           <value></value>"
+                + "           <value>value</value>"
+                + "           <value>extra</value>" + "       </row>"
+                + "   </table>" + "</dataset>";
+        final InputSource source = new InputSource(new StringReader(content));
+        final IDataSetProducer producer = new XmlProducer(source);
         producer.setConsumer(consumer);
 
         // Produce and verify consumer
@@ -167,58 +154,44 @@ public class XmlProducerTest extends AbstractProducerTest
         consumer.verify();
     }
 
-    public void testProduceNotWellFormedXml() throws Exception
+    @Test
+    void testProduceNotWellFormedXml() throws Exception
     {
         // Setup consumer
-        MockDataSetConsumer consumer = new MockDataSetConsumer();
+        final MockDataSetConsumer consumer = new MockDataSetConsumer();
         consumer.addExpectedStartDataSet();
 
         // Setup producer
-        String content =
-                "<?xml version=\"1.0\"?>" +
-                "<dataset>";
-        InputSource source = new InputSource(new StringReader(content));
-        IDataSetProducer producer = new XmlProducer(source);
+        final String content = "<?xml version=\"1.0\"?>" + "<dataset>";
+        final InputSource source = new InputSource(new StringReader(content));
+        final IDataSetProducer producer = new XmlProducer(source);
         producer.setConsumer(consumer);
 
         // Produce and verify consumer
-        try
-        {
-            producer.produce();
-            fail("Should not be here!");
-        }
-        catch (DataSetException e)
-        {
-        }
+        assertThrows(DataSetException.class, () -> producer.produce(),
+                "Should not be here!");
 
         consumer.verify();
     }
 
-    public void testProduceInvalidXml() throws Exception
+    @Test
+    void testProduceInvalidXml() throws Exception
     {
         // Setup consumer
-        MockDataSetConsumer consumer = new MockDataSetConsumer();
+        final MockDataSetConsumer consumer = new MockDataSetConsumer();
 
         // Setup producer
-        String content =
-                "<?xml version=\"1.0\"?>" +
-                "<!DOCTYPE dataset SYSTEM \"dataset.dtd\" >" +
-                "<invalid/>";
-        InputSource source = new InputSource(new StringReader(content));
+        final String content = "<?xml version=\"1.0\"?>"
+                + "<!DOCTYPE dataset SYSTEM \"dataset.dtd\" >" + "<invalid/>";
+        final InputSource source = new InputSource(new StringReader(content));
         source.setSystemId("http:/nowhere.to.go");
-        XmlProducer producer = new XmlProducer(source);
+        final XmlProducer producer = new XmlProducer(source);
         producer.setValidating(true);
         producer.setConsumer(consumer);
 
         // Produce and verify consumer
-        try
-        {
-            producer.produce();
-            fail("Should not be here!");
-        }
-        catch (DataSetException e)
-        {
-        }
+        assertThrows(DataSetException.class, () -> producer.produce(),
+                "Should not be here!");
 
         consumer.verify();
     }

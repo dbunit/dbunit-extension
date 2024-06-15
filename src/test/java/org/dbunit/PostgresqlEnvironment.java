@@ -38,12 +38,12 @@ public class PostgresqlEnvironment extends DatabaseEnvironment
 
     protected void setupDatabaseConfig(DatabaseConfig config)
     {
-        config.setProperty(DatabaseConfig.PROPERTY_DATATYPE_FACTORY, new PostgresqlDataTypeFactory());
+        config.setProperty(DatabaseConfig.PROPERTY_DATATYPE_FACTORY,
+                new PostgresqlDataTypeFactory());
     }
 
     public String convertString(String str)
     {
-      return str == null ? null : str.toLowerCase();
+        return str == null ? null : str.toLowerCase();
     }
 }
-

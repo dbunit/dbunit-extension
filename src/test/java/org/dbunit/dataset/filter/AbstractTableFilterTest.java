@@ -20,49 +20,48 @@
  */
 package org.dbunit.dataset.filter;
 
-import org.dbunit.dataset.*;
+import static org.assertj.core.api.Assertions.assertThat;
+
+import org.dbunit.dataset.AbstractTest;
+import org.dbunit.dataset.CompositeDataSet;
+import org.dbunit.dataset.DefaultDataSet;
+import org.dbunit.dataset.DefaultTable;
+import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.xml.XmlDataSet;
 import org.dbunit.testutil.TestUtils;
-
-import java.io.FileReader;
 
 /**
  * @author Manuel Laflamme
  * @since Mar 9, 2003
  * @version $Revision$
  */
-public abstract class AbstractTableFilterTest
-        extends AbstractTest
+public abstract class AbstractTableFilterTest extends AbstractTest
 {
-
-    public AbstractTableFilterTest(String s)
-    {
-        super(s);
-    }
 
     protected IDataSet createDataSet() throws Exception
     {
-        IDataSet dataSet1 = new XmlDataSet(
-                TestUtils.getFileReader("xml/dataSetTest.xml"));
-        IDataSet dataSet2 = new DefaultDataSet(
-                new DefaultTable(getExtraTableName()));
+        final IDataSet dataSet1 =
+                new XmlDataSet(TestUtils.getFileReader("xml/dataSetTest.xml"));
+        final IDataSet dataSet2 =
+                new DefaultDataSet(new DefaultTable(getExtraTableName()));
 
-        IDataSet dataSet = new CompositeDataSet(dataSet1, dataSet2);
-        assertEquals("count before filter", getExpectedNames().length + 1,
-                dataSet.getTableNames().length);
+        final IDataSet dataSet = new CompositeDataSet(dataSet1, dataSet2);
+        assertThat(dataSet.getTableNames()).as("count before filter")
+                .hasSize(getExpectedNames().length + 1);
         return dataSet;
     }
 
     protected IDataSet createDuplicateDataSet() throws Exception
     {
-        IDataSet dataSet1 = new XmlDataSet(
+        final IDataSet dataSet1 = new XmlDataSet(
                 TestUtils.getFileReader("xml/xmlDataSetDuplicateTest.xml"));
-        IDataSet dataSet2 = new DefaultDataSet(
-                new DefaultTable(getExtraTableName()));
+        final IDataSet dataSet2 =
+                new DefaultDataSet(new DefaultTable(getExtraTableName()));
 
-        IDataSet dataSet = new CompositeDataSet(dataSet1, dataSet2, false);
-        assertEquals("count before filter", getExpectedDuplicateNames().length + 1,
-                dataSet.getTableNames().length);
+        final IDataSet dataSet =
+                new CompositeDataSet(dataSet1, dataSet2, false);
+        assertThat(dataSet.getTableNames()).as("count before filter")
+                .hasSize(getExpectedDuplicateNames().length + 1);
         return dataSet;
     }
 
@@ -78,7 +77,8 @@ public abstract class AbstractTableFilterTest
 
     public abstract void testGetReverseTableNames() throws Exception;
 
-    public abstract void testGetTableNamesAndTableNotInDecoratedDataSet() throws Exception;
+    public abstract void testGetTableNamesAndTableNotInDecoratedDataSet()
+            throws Exception;
 
     public abstract void testIterator() throws Exception;
 
@@ -86,5 +86,6 @@ public abstract class AbstractTableFilterTest
 
     public abstract void testReverseIterator() throws Exception;
 
-    public abstract void testIteratorAndTableNotInDecoratedDataSet() throws Exception;
+    public abstract void testIteratorAndTableNotInDecoratedDataSet()
+            throws Exception;
 }

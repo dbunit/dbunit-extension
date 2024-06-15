@@ -20,6 +20,8 @@
  */
 package org.dbunit.dataset.filter;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -30,375 +32,380 @@ import org.dbunit.dataset.DefaultTable;
 import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.LowerCaseDataSet;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author Manuel Laflamme
  * @since Mar 11, 2003
  * @version $Revision$
  */
-public class IncludeTableFilterTest extends AbstractTableFilterTest
+class IncludeTableFilterTest extends AbstractTableFilterTest
 {
     static final String MATCHING_NAME = "aBcDe";
-    static final String[] MATCHING_PATTERNS = {
-        "?bcde",
-        "?bc*",
-        "*",
-        "a?cde",
-        "abcd?",
-        "*e",
-        "a*",
-        "a*e",
-        "a*d*e",
-        "a**e",
-        "abcde*",
-        "*abcde",
-        "?????",
-    };
-    static final String[] NONMATCHING_PATTERNS = {
-        "?abcde",
-        "abcde?",
-        "*f*",
-        "??????",
-        "????",
-    };
+    static final String[] MATCHING_PATTERNS =
+            {"?bcde", "?bc*", "*", "a?cde", "abcd?", "*e", "a*", "a*e", "a*d*e",
+                    "a**e", "abcde*", "*abcde", "?????",};
+    static final String[] NONMATCHING_PATTERNS =
+            {"?abcde", "abcde?", "*f*", "??????", "????",};
 
-
-    public IncludeTableFilterTest(String s)
-    {
-        super(s);
-    }
-
+    @Override
+    @Test
     public void testAccept() throws Exception
     {
-        String[] validNames = getExpectedNames();
-        ITableFilter filter = new IncludeTableFilter(validNames);
+        final String[] validNames = getExpectedNames();
+        final ITableFilter filter = new IncludeTableFilter(validNames);
 
         for (int i = 0; i < validNames.length; i++)
         {
-            String validName = validNames[i];
-            assertEquals(validName, true, filter.accept(validName));
+            final String validName = validNames[i];
+            assertThat(filter.accept(validName)).as(validName).isTrue();
         }
     }
 
+    @Override
+    @Test
     public void testIsCaseInsensitiveValidName() throws Exception
     {
-        String[] validNames = getExpectedNames();
-        ITableFilter filter = new IncludeTableFilter(validNames);
+        final String[] validNames = getExpectedNames();
+        final ITableFilter filter = new IncludeTableFilter(validNames);
 
         for (int i = 0; i < validNames.length; i++)
         {
-            String validName = validNames[i];
-            assertEquals(validName, true, filter.accept(validName));
+            final String validName = validNames[i];
+            assertThat(filter.accept(validName)).as(validName).isTrue();
         }
     }
 
+    @Override
+    @Test
     public void testIsValidNameAndInvalid() throws Exception
     {
-        String[] invalidNames = new String[] {
-            "INVALID_TABLE",
-            "UNKNOWN_TABLE",
-        };
-        String[] validNames = getExpectedNames();
-        ITableFilter filter = new IncludeTableFilter(validNames);
+        final String[] invalidNames =
+                new String[] {"INVALID_TABLE", "UNKNOWN_TABLE",};
+        final String[] validNames = getExpectedNames();
+        final ITableFilter filter = new IncludeTableFilter(validNames);
 
         for (int i = 0; i < invalidNames.length; i++)
         {
-            String invalidName = invalidNames[i];
-            assertEquals(invalidName, false, filter.accept(invalidName));
+            final String invalidName = invalidNames[i];
+            assertThat(filter.accept(invalidName)).as(invalidName).isFalse();
         }
     }
 
+    @Override
+    @Test
     public void testGetTableNames() throws Exception
     {
-        String[] expectedNames = getExpectedNames();
-        ITableFilter filter = new IncludeTableFilter(expectedNames);
+        final String[] expectedNames = getExpectedNames();
+        final ITableFilter filter = new IncludeTableFilter(expectedNames);
 
-        IDataSet dataSet = createDataSet();
-        assertTrue("dataset names count",
-                dataSet.getTableNames().length > expectedNames.length);
+        final IDataSet dataSet = createDataSet();
+        assertThat(dataSet.getTableNames()).as("dataset names count")
+                .hasSizeGreaterThan(expectedNames.length);
 
-        String[] actualNames = filter.getTableNames(dataSet);
-        assertEquals("name count", expectedNames.length, actualNames.length);
-        assertEquals("names",
-                Arrays.asList(expectedNames), Arrays.asList(actualNames));
+        final String[] actualNames = filter.getTableNames(dataSet);
+        assertThat(actualNames).as("name count").hasSameSizeAs(expectedNames);
+        assertThat(Arrays.asList(actualNames)).as("names")
+                .isEqualTo(Arrays.asList(expectedNames));
     }
 
-    public void testGetTableNamesAndTableNotInDecoratedDataSet() throws Exception
+    @Override
+    @Test
+    public void testGetTableNamesAndTableNotInDecoratedDataSet()
+            throws Exception
     {
-        String[] expectedNames = getExpectedNames();
+        final String[] expectedNames = getExpectedNames();
 
-        List filterNameList = new ArrayList(Arrays.asList(expectedNames));
+        final List filterNameList = new ArrayList(Arrays.asList(expectedNames));
         filterNameList.add("UNKNOWN_TABLE");
-        String[] filterNames = (String[])filterNameList.toArray(new String[0]);
-        ITableFilter filter = new IncludeTableFilter(filterNames);
+        final String[] filterNames =
+                (String[]) filterNameList.toArray(new String[0]);
+        final ITableFilter filter = new IncludeTableFilter(filterNames);
 
-        IDataSet dataSet = createDataSet();
-        assertTrue("dataset names count",
-                dataSet.getTableNames().length > expectedNames.length);
+        final IDataSet dataSet = createDataSet();
+        assertThat(dataSet.getTableNames()).as("dataset names count")
+                .hasSizeGreaterThan(expectedNames.length);
 
-        String[] actualNames = filter.getTableNames(dataSet);
-        assertEquals("name count", expectedNames.length, actualNames.length);
-        assertEquals("names",
-                Arrays.asList(expectedNames), Arrays.asList(actualNames));
+        final String[] actualNames = filter.getTableNames(dataSet);
+        assertThat(actualNames).as("name count").hasSameSizeAs(expectedNames);
+        assertThat(Arrays.asList(actualNames)).as("names")
+                .isEqualTo(Arrays.asList(expectedNames));
     }
 
+    @Override
+    @Test
     public void testGetCaseInsensitiveTableNames() throws Exception
     {
-        String[] filterNames = getExpectedNames();
-        ITableFilter filter = new IncludeTableFilter(filterNames);
+        final String[] filterNames = getExpectedNames();
+        final ITableFilter filter = new IncludeTableFilter(filterNames);
 
-        String[] expectedNames = getExpectedLowerNames();
-        IDataSet dataSet = new LowerCaseDataSet(createDataSet());
-        assertTrue("dataset names count",
-                dataSet.getTableNames().length > expectedNames.length);
+        final String[] expectedNames = getExpectedLowerNames();
+        final IDataSet dataSet = new LowerCaseDataSet(createDataSet());
+        assertThat(dataSet.getTableNames()).as("dataset names count")
+                .hasSizeGreaterThan(expectedNames.length);
 
-        String[] actualNames = filter.getTableNames(dataSet);
-        assertEquals("name count", expectedNames.length, actualNames.length);
-        assertEquals("names",
-                Arrays.asList(expectedNames), Arrays.asList(actualNames));
+        final String[] actualNames = filter.getTableNames(dataSet);
+        assertThat(actualNames).as("name count").hasSameSizeAs(expectedNames);
+        assertThat(Arrays.asList(actualNames)).as("names")
+                .isEqualTo(Arrays.asList(expectedNames));
     }
 
+    @Override
+    @Test
     public void testGetReverseTableNames() throws Exception
     {
-        String[] expectedNames = getExpectedNames();
-        String[] filterNames = DataSetUtils.reverseStringArray(expectedNames);
-        ITableFilter filter = new IncludeTableFilter(filterNames);
+        final String[] expectedNames = getExpectedNames();
+        final String[] filterNames =
+                DataSetUtils.reverseStringArray(expectedNames);
+        final ITableFilter filter = new IncludeTableFilter(filterNames);
 
-        IDataSet dataSet = createDataSet();
-        assertTrue("dataset names count",
-                dataSet.getTableNames().length > expectedNames.length);
+        final IDataSet dataSet = createDataSet();
+        assertThat(dataSet.getTableNames()).as("dataset names count")
+                .hasSizeGreaterThan(expectedNames.length);
 
-        String[] actualNames = filter.getTableNames(dataSet);
-        assertEquals("name count", expectedNames.length, actualNames.length);
-        assertEquals("names",
-                Arrays.asList(expectedNames), Arrays.asList(actualNames));
+        final String[] actualNames = filter.getTableNames(dataSet);
+        assertThat(actualNames).as("name count").hasSameSizeAs(expectedNames);
+        assertThat(Arrays.asList(actualNames)).as("names")
+                .isEqualTo(Arrays.asList(expectedNames));
     }
 
+    @Override
+    @Test
     public void testIterator() throws Exception
     {
-        String[] expectedNames = getExpectedNames();
-        ITableFilter filter = new IncludeTableFilter(expectedNames);
+        final String[] expectedNames = getExpectedNames();
+        final ITableFilter filter = new IncludeTableFilter(expectedNames);
 
-        IDataSet dataSet = createDataSet();
-        assertTrue("dataset names count",
-                dataSet.getTableNames().length > expectedNames.length);
+        final IDataSet dataSet = createDataSet();
+        assertThat(dataSet.getTableNames()).as("dataset names count")
+                .hasSizeGreaterThan(expectedNames.length);
 
-        ITable[] actualTables = DataSetUtils.getTables(
-                filter.iterator(dataSet, false));
-        String[] actualNames = new DefaultDataSet(actualTables).getTableNames();
-        assertEquals("table count", expectedNames.length, actualTables.length);
-        assertEquals("table names",
-                Arrays.asList(expectedNames), Arrays.asList(actualNames));
+        final ITable[] actualTables =
+                DataSetUtils.getTables(filter.iterator(dataSet, false));
+        final String[] actualNames =
+                new DefaultDataSet(actualTables).getTableNames();
+        assertThat(actualTables).as("table count").hasSameSizeAs(expectedNames);
+        assertThat(Arrays.asList(actualNames)).as("table names")
+                .isEqualTo(Arrays.asList(expectedNames));
     }
 
+    @Override
+    @Test
     public void testCaseInsensitiveIterator() throws Exception
     {
-        ITableFilter filter = new IncludeTableFilter(getExpectedNames());
-        String[] lowerNames = getExpectedLowerNames();
+        final ITableFilter filter = new IncludeTableFilter(getExpectedNames());
+        final String[] lowerNames = getExpectedLowerNames();
 
-        IDataSet dataSet = new LowerCaseDataSet(createDataSet());
-        assertTrue("dataset names count",
-                dataSet.getTableNames().length > lowerNames.length);
+        final IDataSet dataSet = new LowerCaseDataSet(createDataSet());
+        assertThat(dataSet.getTableNames()).as("dataset names count")
+                .hasSizeGreaterThan(lowerNames.length);
 
-        ITable[] actualTables = DataSetUtils.getTables(
-                filter.iterator(dataSet, false));
-        String[] actualNames = new DefaultDataSet(actualTables).getTableNames();
-        assertEquals("table count", lowerNames.length, actualTables.length);
-        assertEquals("table names",
-                Arrays.asList(lowerNames), Arrays.asList(actualNames));
+        final ITable[] actualTables =
+                DataSetUtils.getTables(filter.iterator(dataSet, false));
+        final String[] actualNames =
+                new DefaultDataSet(actualTables).getTableNames();
+        assertThat(actualTables).as("table count").hasSameSizeAs(lowerNames);
+        assertThat(Arrays.asList(actualNames)).as("table names")
+                .isEqualTo(Arrays.asList(lowerNames));
     }
 
+    @Override
+    @Test
     public void testReverseIterator() throws Exception
     {
-        String[] filterNames = getExpectedNames();
-        String[] expectedNames = DataSetUtils.reverseStringArray(filterNames);
-        ITableFilter filter = new IncludeTableFilter(filterNames);
+        final String[] filterNames = getExpectedNames();
+        final String[] expectedNames =
+                DataSetUtils.reverseStringArray(filterNames);
+        final ITableFilter filter = new IncludeTableFilter(filterNames);
 
-        IDataSet dataSet = createDataSet();
-        assertTrue("dataset names count",
-                dataSet.getTableNames().length > expectedNames.length);
+        final IDataSet dataSet = createDataSet();
+        assertThat(dataSet.getTableNames()).as("dataset names count")
+                .hasSizeGreaterThan(expectedNames.length);
 
-        ITable[] actualTables = DataSetUtils.getTables(
-                filter.iterator(dataSet, true));
-        String[] actualNames = new DefaultDataSet(actualTables).getTableNames();
-        assertEquals("table count", expectedNames.length, actualTables.length);
-        assertEquals("table names",
-                Arrays.asList(expectedNames), Arrays.asList(actualNames));
+        final ITable[] actualTables =
+                DataSetUtils.getTables(filter.iterator(dataSet, true));
+        final String[] actualNames =
+                new DefaultDataSet(actualTables).getTableNames();
+        assertThat(actualTables).as("table count").hasSameSizeAs(expectedNames);
+        assertThat(Arrays.asList(actualNames)).as("table names")
+                .isEqualTo(Arrays.asList(expectedNames));
     }
 
+    @Override
+    @Test
     public void testIteratorAndTableNotInDecoratedDataSet() throws Exception
     {
-        String[] expectedNames = getExpectedNames();
+        final String[] expectedNames = getExpectedNames();
 
-        List filterNameList = new ArrayList(Arrays.asList(expectedNames));
+        final List filterNameList = new ArrayList(Arrays.asList(expectedNames));
         filterNameList.add("UNKNOWN_TABLE");
-        String[] filterNames = (String[])filterNameList.toArray(new String[0]);
-        ITableFilter filter = new IncludeTableFilter(filterNames);
+        final String[] filterNames =
+                (String[]) filterNameList.toArray(new String[0]);
+        final ITableFilter filter = new IncludeTableFilter(filterNames);
 
-        IDataSet dataSet = createDataSet();
-        assertTrue("dataset names count",
-                dataSet.getTableNames().length > expectedNames.length);
+        final IDataSet dataSet = createDataSet();
+        assertThat(dataSet.getTableNames()).as("dataset names count")
+                .hasSizeGreaterThan(expectedNames.length);
 
-        ITable[] actualTables = DataSetUtils.getTables(
-                filter.iterator(dataSet, false));
-        String[] actualNames = new DefaultDataSet(actualTables).getTableNames();
-        assertEquals("table count", expectedNames.length, actualTables.length);
-        assertEquals("table names",
-                Arrays.asList(expectedNames), Arrays.asList(actualNames));
+        final ITable[] actualTables =
+                DataSetUtils.getTables(filter.iterator(dataSet, false));
+        final String[] actualNames =
+                new DefaultDataSet(actualTables).getTableNames();
+        assertThat(actualTables).as("table count").hasSameSizeAs(expectedNames);
+        assertThat(Arrays.asList(actualNames)).as("table names")
+                .isEqualTo(Arrays.asList(expectedNames));
     }
 
     ////////////////////////////////////////////////////////////////////////////
 
-    public void testIsValidNameWithPatterns() throws Exception
+    @Test
+    void testIsValidNameWithPatterns() throws Exception
     {
-        String validName = MATCHING_NAME;
+        final String validName = MATCHING_NAME;
 
-        String[] patterns = MATCHING_PATTERNS;
+        final String[] patterns = MATCHING_PATTERNS;
         for (int i = 0; i < patterns.length; i++)
         {
-            String pattern = patterns[i];
-            IncludeTableFilter filter = new IncludeTableFilter();
+            final String pattern = patterns[i];
+            final IncludeTableFilter filter = new IncludeTableFilter();
             filter.includeTable(pattern);
-            assertEquals(pattern, true, filter.accept(validName));
+            assertThat(filter.accept(validName)).as(pattern).isTrue();
         }
     }
 
-    public void testIsValidNameInvalidWithPatterns() throws Exception
+    @Test
+    void testIsValidNameInvalidWithPatterns() throws Exception
     {
-        String validName = MATCHING_NAME;
+        final String validName = MATCHING_NAME;
 
-        String[] patterns = NONMATCHING_PATTERNS;
+        final String[] patterns = NONMATCHING_PATTERNS;
         for (int i = 0; i < patterns.length; i++)
         {
-            String pattern = patterns[i];
-            IncludeTableFilter filter = new IncludeTableFilter();
+            final String pattern = patterns[i];
+            final IncludeTableFilter filter = new IncludeTableFilter();
             filter.includeTable(pattern);
-            assertEquals(pattern, false, filter.accept(validName));
+            assertThat(filter.accept(validName)).as(pattern).isFalse();
         }
     }
 
-    public void testGetTableNamesWithPatterns() throws Exception
+    @Test
+    void testGetTableNamesWithPatterns() throws Exception
     {
-        String[] expectedNames = new String[] {MATCHING_NAME};
-        IDataSet dataSet = new DefaultDataSet(new ITable[] {
-            new DefaultTable(MATCHING_NAME),
-            new DefaultTable("toto"),
-            new DefaultTable("1234"),
-            new DefaultTable("fedcba"),
-        });
-        assertTrue("dataset names count",
-                dataSet.getTableNames().length > expectedNames.length);
+        final String[] expectedNames = new String[] {MATCHING_NAME};
+        final IDataSet dataSet = new DefaultDataSet(new ITable[] {
+                new DefaultTable(MATCHING_NAME), new DefaultTable("toto"),
+                new DefaultTable("1234"), new DefaultTable("fedcba"),});
+        assertThat(dataSet.getTableNames()).as("dataset names count")
+                .hasSizeGreaterThan(expectedNames.length);
 
-        String[] patterns = MATCHING_PATTERNS;
+        final String[] patterns = MATCHING_PATTERNS;
         for (int i = 0; i < patterns.length; i++)
         {
-            String pattern = patterns[i];
-            IncludeTableFilter filter = new IncludeTableFilter();
+            final String pattern = patterns[i];
+            final IncludeTableFilter filter = new IncludeTableFilter();
             filter.includeTable(pattern);
 
             // this pattern match everything, so ensure nothing is filtered
             if (pattern.equals("*"))
             {
-                String[] actualNames = filter.getTableNames(dataSet);
-                assertEquals("name count - " + pattern,
-                        dataSet.getTableNames().length, actualNames.length);
-                assertEquals("names - " + pattern,
-                        Arrays.asList(dataSet.getTableNames()),
-                        Arrays.asList(actualNames));
-            }
-            else
+                final String[] actualNames = filter.getTableNames(dataSet);
+                assertThat(actualNames).as("name count - " + pattern)
+                        .hasSameSizeAs(dataSet.getTableNames());
+                assertThat(Arrays.asList(actualNames)).as("names - " + pattern)
+                        .isEqualTo(Arrays.asList(dataSet.getTableNames()));
+            } else
             {
-                String[] actualNames = filter.getTableNames(dataSet);
-                assertEquals("name count - " + pattern,
-                        expectedNames.length, actualNames.length);
-                assertEquals("names - " + pattern,
-                        Arrays.asList(expectedNames), Arrays.asList(actualNames));
+                final String[] actualNames = filter.getTableNames(dataSet);
+                assertThat(actualNames).as("name count - " + pattern)
+                        .hasSameSizeAs(expectedNames);
+                assertThat(Arrays.asList(actualNames)).as("names - " + pattern)
+                        .isEqualTo(Arrays.asList(expectedNames));
             }
         }
     }
 
-    public void testGetTableNamesWithNonMatchingPatterns() throws Exception
+    @Test
+    void testGetTableNamesWithNonMatchingPatterns() throws Exception
     {
-        IDataSet dataSet = new DefaultDataSet(new ITable[] {
-            new DefaultTable(MATCHING_NAME),
-        });
-        assertTrue("dataset names count",
-                dataSet.getTableNames().length > 0);
+        final IDataSet dataSet = new DefaultDataSet(
+                new ITable[] {new DefaultTable(MATCHING_NAME),});
+        assertThat(dataSet.getTableNames()).as("dataset names count")
+                .hasSizeGreaterThan(0);
 
-        String[] patterns = NONMATCHING_PATTERNS;
+        final String[] patterns = NONMATCHING_PATTERNS;
         for (int i = 0; i < patterns.length; i++)
         {
-            String pattern = patterns[i];
-            IncludeTableFilter filter = new IncludeTableFilter();
+            final String pattern = patterns[i];
+            final IncludeTableFilter filter = new IncludeTableFilter();
             filter.includeTable(pattern);
 
-            String[] actualNames = filter.getTableNames(dataSet);
-            assertEquals("name count - " + pattern, 0, actualNames.length);
+            final String[] actualNames = filter.getTableNames(dataSet);
+            assertThat(actualNames).as("name count - " + pattern).isEmpty();
         }
     }
 
-    public void testGetTablesWithPatterns() throws Exception
+    @Test
+    void testGetTablesWithPatterns() throws Exception
     {
-        String[] expectedNames = new String[] {MATCHING_NAME};
-        IDataSet dataSet = new DefaultDataSet(new ITable[] {
-            new DefaultTable(MATCHING_NAME),
-            new DefaultTable("toto"),
-            new DefaultTable("1234"),
-            new DefaultTable("fedcba"),
-        });
-        assertTrue("dataset names count",
-                dataSet.getTableNames().length > expectedNames.length);
+        final String[] expectedNames = new String[] {MATCHING_NAME};
+        final IDataSet dataSet = new DefaultDataSet(new ITable[] {
+                new DefaultTable(MATCHING_NAME), new DefaultTable("toto"),
+                new DefaultTable("1234"), new DefaultTable("fedcba"),});
+        assertThat(dataSet.getTableNames()).as("dataset names count")
+                .hasSizeGreaterThan(expectedNames.length);
 
-        String[] patterns = MATCHING_PATTERNS;
+        final String[] patterns = MATCHING_PATTERNS;
         for (int i = 0; i < patterns.length; i++)
         {
-            String pattern = patterns[i];
-            IncludeTableFilter filter = new IncludeTableFilter();
+            final String pattern = patterns[i];
+            final IncludeTableFilter filter = new IncludeTableFilter();
             filter.includeTable(pattern);
 
             // this pattern match everything, so ensure nothing is filtered
             if (pattern.equals("*"))
             {
-                ITable[] actualTables = DataSetUtils.getTables(
-                        filter.iterator(dataSet, false));
-                String[] actualNames = new DefaultDataSet(actualTables).getTableNames();
-                assertEquals("table count - " + pattern,
-                        dataSet.getTableNames().length, actualNames.length);
-                assertEquals("table names - " + pattern,
-                        Arrays.asList(dataSet.getTableNames()),
-                        Arrays.asList(actualNames));
-            }
-            else
+                final ITable[] actualTables =
+                        DataSetUtils.getTables(filter.iterator(dataSet, false));
+                final String[] actualNames =
+                        new DefaultDataSet(actualTables).getTableNames();
+                assertThat(actualNames).as("table count - " + pattern)
+                        .hasSameSizeAs(dataSet.getTableNames());
+                assertThat(Arrays.asList(actualNames))
+                        .as("table names - " + pattern)
+                        .isEqualTo(Arrays.asList(dataSet.getTableNames()));
+            } else
             {
-                ITable[] actualTables = DataSetUtils.getTables(
-                        filter.iterator(dataSet, false));
-                String[] actualNames = new DefaultDataSet(actualTables).getTableNames();
-                assertEquals("table count - " + pattern,
-                        expectedNames.length, actualTables.length);
-                assertEquals("table names - " + pattern,
-                        Arrays.asList(expectedNames), Arrays.asList(actualNames));
+                final ITable[] actualTables =
+                        DataSetUtils.getTables(filter.iterator(dataSet, false));
+                final String[] actualNames =
+                        new DefaultDataSet(actualTables).getTableNames();
+                assertThat(actualTables).as("table count - " + pattern)
+                        .hasSameSizeAs(expectedNames);
+                assertThat(Arrays.asList(actualNames))
+                        .as("table names - " + pattern)
+                        .isEqualTo(Arrays.asList(expectedNames));
             }
         }
     }
 
-    public void testGetTablesWithNonMatchingPatterns() throws Exception
+    @Test
+    void testGetTablesWithNonMatchingPatterns() throws Exception
     {
-        IDataSet dataSet = new DefaultDataSet(new ITable[] {
-            new DefaultTable(MATCHING_NAME),
-        });
-        assertTrue("dataset names count",
-                dataSet.getTableNames().length > 0);
+        final IDataSet dataSet = new DefaultDataSet(
+                new ITable[] {new DefaultTable(MATCHING_NAME),});
+        assertThat(dataSet.getTableNames()).as("dataset names count")
+                .hasSizeGreaterThan(0);
 
-        String[] patterns = NONMATCHING_PATTERNS;
+        final String[] patterns = NONMATCHING_PATTERNS;
         for (int i = 0; i < patterns.length; i++)
         {
-            String pattern = patterns[i];
-            IncludeTableFilter filter = new IncludeTableFilter();
+            final String pattern = patterns[i];
+            final IncludeTableFilter filter = new IncludeTableFilter();
             filter.includeTable(pattern);
 
-            ITable[] actualTables = DataSetUtils.getTables(
-                    filter.iterator(dataSet, false));
-            assertEquals("table count - " + pattern, 0, actualTables.length);
+            final ITable[] actualTables =
+                    DataSetUtils.getTables(filter.iterator(dataSet, false));
+            assertThat(actualTables).as("table count - " + pattern).isEmpty();
         }
     }
 

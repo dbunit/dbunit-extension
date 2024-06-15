@@ -20,13 +20,14 @@
  */
 package org.dbunit.assertion;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import java.util.List;
 
-import junit.framework.TestCase;
-
 import org.dbunit.dataset.IDataSet;
-import org.dbunit.dataset.xml.FlatXmlDataSet;
+import org.dbunit.dataset.xml.FlatXmlDataSetBuilder;
 import org.dbunit.testutil.TestUtils;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author gommma (gommma AT users.sourceforge.net)
@@ -34,36 +35,33 @@ import org.dbunit.testutil.TestUtils;
  * @version $Revision$ $Date$
  * @since 2.4.0
  */
-public class DiffCollectingFailureHandlerTest extends TestCase
+class DiffCollectingFailureHandlerTest
 {
     private DbUnitAssert assertion = new DbUnitAssert();
 
-    public DiffCollectingFailureHandlerTest(String s)
-    {
-        super(s);
-    }
-
     private IDataSet getDataSet() throws Exception
     {
-        return new FlatXmlDataSet(TestUtils.getFileReader(DbUnitAssertIT.FILE_PATH));
+        return new FlatXmlDataSetBuilder()
+                .build(TestUtils.getFileReader(DbUnitAssertIT.FILE_PATH));
     }
 
-    public void testAssertTablesWithDifferentValues() throws Exception
+    @Test
+    void testAssertTablesWithDifferentValues() throws Exception
     {
-        IDataSet dataSet = getDataSet();
+        final IDataSet dataSet = getDataSet();
 
-        DiffCollectingFailureHandler myHandler = new DiffCollectingFailureHandler();
-        
+        final DiffCollectingFailureHandler myHandler =
+                new DiffCollectingFailureHandler();
+
         assertion.assertEquals(dataSet.getTable("TEST_TABLE"),
-                                dataSet.getTable("TEST_TABLE_WITH_WRONG_VALUE"), 
-                                myHandler);
-        
-        List diffList = myHandler.getDiffList();
-        assertEquals(1, diffList.size());
-        Difference diff = (Difference)diffList.get(0);
-        assertEquals("COLUMN2", diff.getColumnName());
-        assertEquals("row 1 col 2", diff.getExpectedValue());
-        assertEquals("wrong value", diff.getActualValue());
+                dataSet.getTable("TEST_TABLE_WITH_WRONG_VALUE"), myHandler);
+
+        final List<?> diffList = myHandler.getDiffList();
+        assertThat(diffList).hasSize(1);
+        final Difference diff = (Difference) diffList.get(0);
+        assertThat(diff.getColumnName()).isEqualTo("COLUMN2");
+        assertThat(diff.getExpectedValue()).isEqualTo("row 1 col 2");
+        assertThat(diff.getActualValue()).isEqualTo("wrong value");
     }
 
 }

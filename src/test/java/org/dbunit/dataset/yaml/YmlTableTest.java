@@ -21,14 +21,17 @@
 
 package org.dbunit.dataset.yaml;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.io.FileInputStream;
+import java.io.InputStream;
+
 import org.dbunit.dataset.AbstractTableTest;
 import org.dbunit.dataset.Column;
 import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.ITable;
 import org.dbunit.testutil.TestUtils;
-
-import java.io.FileInputStream;
-import java.io.InputStream;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author Björn Beskow
@@ -36,11 +39,8 @@ import java.io.InputStream;
  */
 public class YmlTableTest extends AbstractTableTest
 {
-    public YmlTableTest(String s)
-    {
-        super(s);
-    }
 
+    @Override
     protected ITable createTable() throws Exception
     {
         return createDataSet().getTable("TEST_TABLE");
@@ -48,29 +48,31 @@ public class YmlTableTest extends AbstractTableTest
 
     protected IDataSet createDataSet() throws Exception
     {
-        InputStream in = new FileInputStream(TestUtils.getFile("yaml/yamlTableTest.yml"));
+        final InputStream in = new FileInputStream(
+                TestUtils.getFile("yaml/yamlTableTest.yml"));
         return new YamlDataSet(in);
     }
 
+    @Override
+    @Test
     public void testGetMissingValue() throws Exception
     {
-        Object[][] expected = {
-            {"row 0 col 0", null, null},
-            {null, "row 1 col 1", null},
-            {null, null, "row 2 col 2"}
-        };
+        final Object[][] expected = {{"row 0 col 0", null, null},
+                {null, "row 1 col 1", null}, {null, null, "row 2 col 2"}};
 
-        ITable table = createDataSet().getTable("MISSING_VALUES");
+        final ITable table = createDataSet().getTable("MISSING_VALUES");
 
-        Column[] columns = table.getTableMetaData().getColumns();
-        assertEquals("column count", expected[0].length, columns.length);
-        assertEquals("row count", expected.length, table.getRowCount());
+        final Column[] columns = table.getTableMetaData().getColumns();
+        assertThat(columns).as("column count").hasSameSizeAs(expected[0]);
+        assertThat(table.getRowCount()).as("row count")
+                .isEqualTo(expected.length);
         for (int row = 0; row < table.getRowCount(); row++)
         {
             for (int col = 0; col < columns.length; col++)
             {
-                assertEquals("value " + row + ":" + col, expected[row][col],
-                table.getValue(row, columns[col].getColumnName()));
+                assertThat(table.getValue(row, columns[col].getColumnName()))
+                        .as("value " + row + ":" + col)
+                        .isEqualTo(expected[row][col]);
             }
         }
     }

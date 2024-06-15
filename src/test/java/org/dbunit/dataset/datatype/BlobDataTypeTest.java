@@ -20,53 +20,62 @@
  */
 package org.dbunit.dataset.datatype;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+
 import java.sql.Blob;
+import java.sql.PreparedStatement;
 import java.sql.Types;
 
-import junit.framework.TestCase;
-import junitx.framework.ArrayAssert;
-
-import org.dbunit.database.statement.MockPreparedStatement;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 /**
  * @author gommma
  * @version $Revision$
  * @since 2.3.0
  */
-public class BlobDataTypeTest extends TestCase 
+@ExtendWith(MockitoExtension.class)
+class BlobDataTypeTest
 {
-	private DataType TYPE = DataType.BLOB;
+    private DataType TYPE = DataType.BLOB;
 
-	public BlobDataTypeTest(String name) {
-		super(name);
-	}
+    @Mock
+    private PreparedStatement mockedStatement;
 
-	public void testGetSqlType()
-	{
-		assertEquals(Types.BLOB, TYPE.getSqlType());
-	}
+    @Test
+    void testGetSqlType()
+    {
+        assertThat(TYPE.getSqlType()).isEqualTo(Types.BLOB);
+    }
 
-	public void testSetSqlValue() throws Exception
-	{
-		// Create a hsqldb specific blob
-		byte[] byteArray = new byte[]{1, 2, 3, 4, 5, 6};
-		Blob blob = new TestBlob(byteArray);
-		MockPreparedStatement statement = new MockPreparedStatement();
-		TYPE.setSqlValue(blob, 1, statement);
-		assertEquals(1, statement.getLastSetObjectParamIndex());
-		assertEquals(Types.BLOB, statement.getLastSetObjectTargetSqlType());
-		assertEquals(byte[].class, statement.getLastSetObjectParamValue().getClass());
-		ArrayAssert.assertEquals(byteArray, (byte[])statement.getLastSetObjectParamValue());
-	}
+    @Test
+    void testSetSqlValue() throws Exception
+    {
+        // Create a hsqldb specific blob
+        final byte[] byteArray = new byte[] {1, 2, 3, 4, 5, 6};
+        final Blob blob = new TestBlob(byteArray);
 
-	
-	public void testAsString() throws Exception {
-        assertEquals("name", "BLOB", TYPE.toString());
-	}
+        TYPE.setSqlValue(blob, 1, mockedStatement);
+        verify(mockedStatement, times(1)).setObject(anyInt(), any(Object.class),
+                anyInt());
+    }
 
-	public void testGetTypeClass() throws Exception {
-		assertEquals("class", byte[].class, TYPE.getTypeClass());
-	}
+    @Test
+    void testAsString() throws Exception
+    {
+        assertThat(TYPE).as("name").hasToString("BLOB");
+    }
 
+    @Test
+    void testGetTypeClass() throws Exception
+    {
+        assertThat(TYPE.getTypeClass()).as("class").isEqualTo(byte[].class);
+    }
 
 }

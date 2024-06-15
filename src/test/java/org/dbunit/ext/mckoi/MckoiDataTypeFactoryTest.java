@@ -20,11 +20,14 @@
  */
 package org.dbunit.ext.mckoi;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.sql.Types;
+
 import org.dbunit.dataset.datatype.AbstractDataTypeFactoryTest;
 import org.dbunit.dataset.datatype.DataType;
 import org.dbunit.dataset.datatype.IDataTypeFactory;
-
-import java.sql.Types;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author Luigi Talamona (luigitalamona AT users.sourceforge.net)
@@ -33,23 +36,22 @@ import java.sql.Types;
  * @since 2.4.8
  *
  */
-public class MckoiDataTypeFactoryTest extends AbstractDataTypeFactoryTest
+class MckoiDataTypeFactoryTest extends AbstractDataTypeFactoryTest
 {
-    public MckoiDataTypeFactoryTest(String s)
-    {
-        super(s);
-    }
 
+    @Override
     public IDataTypeFactory createFactory() throws Exception
     {
         return new MckoiDataTypeFactory();
     }
-    public void testCreateJavaObjectDataType() throws Exception
+
+    @Test
+    void testCreateJavaObjectDataType() throws Exception
     {
         DataType expected = null, actual = null;
-        int sqlType = Types.DISTINCT;
+        final int sqlType = Types.DISTINCT;
         expected = DataType.forSqlType(Types.JAVA_OBJECT);
-        actual = this.createFactory().createDataType(sqlType,"JAVA_OBJECT");
-        assertSame("type", expected, actual);
+        actual = this.createFactory().createDataType(sqlType, "JAVA_OBJECT");
+        assertThat(actual).as("type").isSameAs(expected);
     }
 }

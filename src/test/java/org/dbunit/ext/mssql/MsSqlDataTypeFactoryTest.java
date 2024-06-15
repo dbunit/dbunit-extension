@@ -1,84 +1,94 @@
 package org.dbunit.ext.mssql;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import java.sql.Types;
 
 import org.dbunit.dataset.datatype.DataType;
 import org.dbunit.dataset.datatype.IDataTypeFactory;
-import junit.framework.TestCase;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 
 /**
- * Created By:   fede
- * Date:         8-set-2004 
- * Time:         15.08.55
+ * Created By: fede Date: 8-set-2004 Time: 15.08.55
  *
- * Last Checkin: $Author$
- * Date:         $Date$
- * Revision:     $Revision$
+ * Last Checkin: $Author$ Date: $Date$ Revision: $Revision$
  */
-public class MsSqlDataTypeFactoryTest extends TestCase {
-    public MsSqlDataTypeFactoryTest(String s)
-    {
-        super(s);
-    }
-
+public class MsSqlDataTypeFactoryTest
+{
     public IDataTypeFactory createFactory() throws Exception
     {
         return new MsSqlDataTypeFactory();
     }
 
-    public void testCreateCharDataType() throws Exception
+    @Test
+    void testCreateCharDataType() throws Exception
     {
-    	int sqlType = MsSqlDataTypeFactory.NCHAR;
-    	String sqlTypeName = "nchar";
+        final int sqlType = MsSqlDataTypeFactory.NCHAR;
+        final String sqlTypeName = "nchar";
 
-    	DataType expected = DataType.CHAR;
-    	DataType actual = createFactory().createDataType(sqlType, sqlTypeName);
-    	assertEquals("type", expected, actual);
+        final DataType expected = DataType.CHAR;
+        final DataType actual =
+                createFactory().createDataType(sqlType, sqlTypeName);
+        assertThat(actual).as("type").isEqualTo(expected);
     }
 
-    public void testCreateVarcharDataType() throws Exception
+    @Test
+    void testCreateVarcharDataType() throws Exception
     {
-    	int sqlType = MsSqlDataTypeFactory.NVARCHAR;
-    	String sqlTypeName = "nvarchar";
+        final int sqlType = MsSqlDataTypeFactory.NVARCHAR;
+        final String sqlTypeName = "nvarchar";
 
-    	DataType expected = DataType.VARCHAR;
-    	DataType actual = createFactory().createDataType(sqlType, sqlTypeName);
-    	assertEquals("type", expected, actual);
+        final DataType expected = DataType.VARCHAR;
+        final DataType actual =
+                createFactory().createDataType(sqlType, sqlTypeName);
+        assertThat(actual).as("type").isEqualTo(expected);
     }
 
-    public void testCreateLongVarcharDataTypeFromNtext() throws Exception
+    @Test
+    void testCreateLongVarcharDataTypeFromNtext() throws Exception
     {
-    	int sqlType = MsSqlDataTypeFactory.NTEXT;
-    	String sqlTypeName = "ntext";
+        final int sqlType = MsSqlDataTypeFactory.NTEXT;
+        final String sqlTypeName = "ntext";
 
-    	DataType expected = DataType.LONGVARCHAR;
-    	DataType actual = createFactory().createDataType(sqlType, sqlTypeName);
-    	assertEquals("type", expected, actual);
-    }
-    
-    public void testCreateLongVarcharDataTypeFromNtextMsSql2005() throws Exception
-    {
-    	int sqlType = MsSqlDataTypeFactory.NTEXT_MSSQL_2005;
-    	String sqlTypeName = "ntext";
-
-    	DataType expected = DataType.LONGVARCHAR;
-    	DataType actual = createFactory().createDataType(sqlType, sqlTypeName);
-    	assertEquals("type", expected, actual);
+        final DataType expected = DataType.LONGVARCHAR;
+        final DataType actual =
+                createFactory().createDataType(sqlType, sqlTypeName);
+        assertThat(actual).as("type").isEqualTo(expected);
     }
 
-    public void testCreateUniqueIdentifierType() throws Exception {
-        int sqlType = Types.CHAR;
-        String sqlTypeName = UniqueIdentifierType.UNIQUE_IDENTIFIER_TYPE;
+    @Test
+    void testCreateLongVarcharDataTypeFromNtextMsSql2005() throws Exception
+    {
+        final int sqlType = MsSqlDataTypeFactory.NTEXT_MSSQL_2005;
+        final String sqlTypeName = "ntext";
 
-        DataType actual = createFactory().createDataType(sqlType, sqlTypeName);
+        final DataType expected = DataType.LONGVARCHAR;
+        final DataType actual =
+                createFactory().createDataType(sqlType, sqlTypeName);
+        assertThat(actual).as("type").isEqualTo(expected);
+    }
+
+    @Test
+    void testCreateUniqueIdentifierType() throws Exception
+    {
+        final int sqlType = Types.CHAR;
+        final String sqlTypeName = UniqueIdentifierType.UNIQUE_IDENTIFIER_TYPE;
+
+        final DataType actual =
+                createFactory().createDataType(sqlType, sqlTypeName);
         assertTrue(actual instanceof UniqueIdentifierType);
     }
-    
-    public void testCreateDateTimeOffsetType() throws Exception {
-        int sqlType = DateTimeOffsetType.TYPE;
-        String sqlTypeName = "datetimeoffset";
 
-        DataType actual = createFactory().createDataType(sqlType, sqlTypeName);
+    @Test
+    void testCreateDateTimeOffsetType() throws Exception
+    {
+        final int sqlType = DateTimeOffsetType.TYPE;
+        final String sqlTypeName = "datetimeoffset";
+
+        final DataType actual =
+                createFactory().createDataType(sqlType, sqlTypeName);
         assertTrue(actual instanceof DateTimeOffsetType);
     }
 }

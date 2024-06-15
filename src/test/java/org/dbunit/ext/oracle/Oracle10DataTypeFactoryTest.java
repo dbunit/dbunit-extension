@@ -19,10 +19,13 @@
  */
 package org.dbunit.ext.oracle;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import java.sql.Types;
 
 import org.dbunit.dataset.datatype.DataType;
 import org.dbunit.dataset.datatype.IDataTypeFactory;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author gommma
@@ -31,33 +34,36 @@ import org.dbunit.dataset.datatype.IDataTypeFactory;
  */
 public class Oracle10DataTypeFactoryTest extends OracleDataTypeFactoryTest
 {
-    public Oracle10DataTypeFactoryTest(String s)
-    {
-        super(s);
-    }
 
+    @Override
     public IDataTypeFactory createFactory() throws Exception
     {
         return new Oracle10DataTypeFactory();
     }
 
+    @Override
+    @Test
     public void testCreateBlobDataType() throws Exception
     {
-        int sqlType = Types.BLOB;
-        String sqlTypeName = "BLOB";
+        final int sqlType = Types.BLOB;
+        final String sqlTypeName = "BLOB";
 
-        DataType expected = Oracle10DataTypeFactory.BLOB_AS_STREAM;
-        DataType actual = createFactory().createDataType(sqlType, sqlTypeName);
-        assertSame("type", expected, actual);
+        final DataType expected = Oracle10DataTypeFactory.BLOB_AS_STREAM;
+        final DataType actual =
+                createFactory().createDataType(sqlType, sqlTypeName);
+        assertThat(actual).as("type").isSameAs(expected);
     }
 
+    @Override
+    @Test
     public void testCreateClobDataType() throws Exception
     {
-        int sqlType = Types.CLOB;
-        String sqlTypeName = "CLOB";
+        final int sqlType = Types.CLOB;
+        final String sqlTypeName = "CLOB";
 
-        DataType expected = Oracle10DataTypeFactory.CLOB_AS_STRING;
-        DataType actual = createFactory().createDataType(sqlType, sqlTypeName);
-        assertSame("type", expected, actual);
+        final DataType expected = Oracle10DataTypeFactory.CLOB_AS_STRING;
+        final DataType actual =
+                createFactory().createDataType(sqlType, sqlTypeName);
+        assertThat(actual).as("type").isSameAs(expected);
     }
 }

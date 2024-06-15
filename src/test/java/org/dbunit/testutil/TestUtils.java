@@ -36,7 +36,8 @@ public class TestUtils
 {
     private static String getProfileName() throws Exception
     {
-        return DatabaseEnvironment.getInstance().getProfile().getActiveProfile();
+        return DatabaseEnvironment.getInstance().getProfile()
+                .getActiveProfile();
     }
 
     public static String getFileName(String fileName)
@@ -49,26 +50,29 @@ public class TestUtils
         return new File(getFileName(fileName));
     }
 
-    public static File getFileForDatabaseEnvironment(String originalFileName) throws Exception
+    public static File getFileForDatabaseEnvironment(String originalFileName)
+            throws Exception
     {
-        String profilePath = originalFileName.replace(".", "-" + getProfileName() + ".");
+        String profilePath =
+                originalFileName.replace(".", "-" + getProfileName() + ".");
         File profileFile = new File(profilePath);
         if (profileFile.exists())
         {
             return profileFile;
-        }
-        else
+        } else
         {
             return new File(originalFileName);
         }
     }
 
-    public static FileReader getFileReader(String fileName) throws FileNotFoundException
+    public static FileReader getFileReader(String fileName)
+            throws FileNotFoundException
     {
         return new FileReader(getFileName(fileName));
     }
 
-    public static FileInputStream getFileInputStream(String fileName) throws FileNotFoundException
+    public static FileInputStream getFileInputStream(String fileName)
+            throws FileNotFoundException
     {
         return new FileInputStream(getFileName(fileName));
     }

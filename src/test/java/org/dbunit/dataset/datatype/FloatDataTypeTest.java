@@ -18,260 +18,243 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  */
-
 package org.dbunit.dataset.datatype;
 
-import org.dbunit.database.ExtendedMockSingleRowResultSet;
-import org.dbunit.dataset.ITable;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.lenient;
 
 import java.math.BigDecimal;
+import java.sql.ResultSet;
 import java.sql.Types;
+
+import org.dbunit.dataset.ITable;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 /**
  * @author Manuel Laflamme
  * @version $Revision$
  */
-
+@ExtendWith(MockitoExtension.class)
 public class FloatDataTypeTest extends AbstractDataTypeTest
 {
     private final static DataType THIS_TYPE = DataType.REAL;
 
-    public FloatDataTypeTest(String name)
-    {
-        super(name);
-    }
+    @Mock
+    private ResultSet mockedResultSet;
 
+    @Override
+    @Test
     public void testToString() throws Exception
     {
-        assertEquals("name", "REAL", THIS_TYPE.toString());
+        assertThat(THIS_TYPE).as("name").hasToString("REAL");
     }
 
+    @Override
+    @Test
     public void testGetTypeClass() throws Exception
     {
-        assertEquals("class", Float.class, THIS_TYPE.getTypeClass());
+        assertThat(THIS_TYPE.getTypeClass()).as("class").isEqualTo(Float.class);
     }
 
+    @Override
+    @Test
     public void testIsNumber() throws Exception
     {
-        assertEquals("is number", true, THIS_TYPE.isNumber());
+        assertThat(THIS_TYPE.isNumber()).as("is number").isEqualTo(true);
     }
 
+    @Override
+    @Test
     public void testIsDateTime() throws Exception
     {
-        assertEquals("is date/time", false, THIS_TYPE.isDateTime());
+        assertThat(THIS_TYPE.isDateTime()).as("is date/time").isEqualTo(false);
     }
 
+    @Override
+    @Test
     public void testTypeCast() throws Exception
     {
-        Object[] values = {
-            null,
-            "5.555",
-            new Double(Float.MAX_VALUE),
-            new Double(Float.MIN_VALUE),
-            "-7500",
-            "2.34E3",
-            new Double(0.666),
-            new Double(5.49879),
-            "-99.9",
-            new BigDecimal((double)1234),
-        };
+        final Object[] values = {null, "5.555", Double.valueOf(Float.MAX_VALUE),
+                Double.valueOf(Float.MIN_VALUE), "-7500", "2.34E3",
+                Double.valueOf(0.666), Double.valueOf(5.49879), "-99.9",
+                new BigDecimal((double) 1234),};
 
-        Float[] expected = {
-            null,
-            new Float(5.555),
-            new Float(Float.MAX_VALUE),
-            new Float(Float.MIN_VALUE),
-            new Float(-7500),
-            Float.valueOf("2.34E3"),
-            new Float(0.666),
-            new Float(5.49879),
-            new Float(-99.9),
-            new Float(1234),
-        };
+        final Float[] expected = {null, Float.valueOf("5.555"),
+                Float.valueOf(Float.MAX_VALUE), Float.valueOf(Float.MIN_VALUE),
+                Float.valueOf(-7500), Float.valueOf("2.34E3"),
+                Float.valueOf("0.666"), Float.valueOf("5.49879"),
+                Float.valueOf("-99.9"), Float.valueOf(1234),};
 
-        assertEquals("actual vs expected count", values.length, expected.length);
+        assertThat(expected.length).as("actual vs expected count")
+                .isEqualTo(values.length);
 
         for (int i = 0; i < values.length; i++)
         {
-            assertEquals("typecast " + i, expected[i],
-                    THIS_TYPE.typeCast(values[i]));
+            assertThat(THIS_TYPE.typeCast(values[i])).as("typecast " + i)
+                    .isEqualTo(expected[i]);
         }
     }
 
+    @Override
+    @Test
     public void testTypeCastNone() throws Exception
     {
-        assertEquals("typecast", null, THIS_TYPE.typeCast(ITable.NO_VALUE));
+        assertThat(THIS_TYPE.typeCast(ITable.NO_VALUE)).as("typecast")
+                .isEqualTo(null);
     }
 
+    @Override
+    @Test
     public void testTypeCastInvalid() throws Exception
     {
-        Object[] values = {new Object(), "bla", new java.util.Date()};
+        final Object[] values = {new Object(), "bla", new java.util.Date()};
 
         for (int i = 0; i < values.length; i++)
         {
-            try
-            {
-                THIS_TYPE.typeCast(values[i]);
-                fail("Should throw TypeCastException");
-            }
-            catch (TypeCastException e)
-            {
-            }
+            final int id = i;
+            assertThrows(TypeCastException.class,
+                    () -> THIS_TYPE.typeCast(values[id]),
+                    "Should throw TypeCastException");
         }
     }
 
+    @Override
+    @Test
     public void testCompareEquals() throws Exception
     {
-        Object[] values1 = {
-            null,
-            "5.555",
-            new Double(Float.MAX_VALUE),
-            new Double(Float.MIN_VALUE),
-            "-7500",
-            "2.34E3",
-            new Double(0.666),
-            new Double(5.49879),
-            "-99.9",
-            new BigDecimal((double)1234),
-        };
+        final Object[] values1 =
+                {null, "5.555", Double.valueOf(Float.MAX_VALUE),
+                        Double.valueOf(Float.MIN_VALUE), "-7500", "2.34E3",
+                        Double.valueOf(0.666), Double.valueOf(5.49879), "-99.9",
+                        new BigDecimal((double) 1234),};
 
-        Float[] values2 = {
-            null,
-            new Float(5.555),
-            new Float(Float.MAX_VALUE),
-            new Float(Float.MIN_VALUE),
-            new Float(-7500),
-            Float.valueOf("2.34E3"),
-            new Float(0.666),
-            new Float(5.49879),
-            new Float(-99.9),
-            new Float(1234),
-        };
+        final Float[] values2 = {null, Float.valueOf("5.555"),
+                Float.valueOf(Float.MAX_VALUE), Float.valueOf(Float.MIN_VALUE),
+                Float.valueOf(-7500), Float.valueOf("2.34E3"),
+                Float.valueOf("0.666"), Float.valueOf("5.49879"),
+                Float.valueOf("-99.9"), Float.valueOf(1234),};
 
-        assertEquals("values count", values1.length, values2.length);
+        assertThat(values2).as("values count").hasSize(values1.length);
 
         for (int i = 0; i < values1.length; i++)
         {
-            assertEquals("compare1 " + i, 0, THIS_TYPE.compare(values1[i], values2[i]));
-            assertEquals("compare2 " + i, 0, THIS_TYPE.compare(values2[i], values1[i]));
+            assertThat(THIS_TYPE.compare(values1[i], values2[i]))
+                    .as("compare1 " + i).isZero();
+            assertThat(THIS_TYPE.compare(values2[i], values1[i]))
+                    .as("compare2 " + i).isZero();
         }
     }
 
+    @Override
+    @Test
     public void testCompareInvalid() throws Exception
     {
-        Object[] values1 = {
-            new Object(),
-            "bla",
-            new java.util.Date()
-        };
-        Object[] values2 = {
-            null,
-            null,
-            null
-        };
+        final Object[] values1 = {new Object(), "bla", new java.util.Date()};
+        final Object[] values2 = {null, null, null};
 
-        assertEquals("values count", values1.length, values2.length);
+        assertThat(values2).as("values count").hasSize(values1.length);
 
         for (int i = 0; i < values1.length; i++)
         {
-            try
-            {
-                THIS_TYPE.compare(values1[i], values2[i]);
-                fail("Should throw TypeCastException");
-            }
-            catch (TypeCastException e)
-            {
-            }
+            final int id = i;
+            assertThrows(TypeCastException.class,
+                    () -> THIS_TYPE.compare(values1[id], values2[id]),
+                    "Should throw TypeCastException");
 
-            try
-            {
-                THIS_TYPE.compare(values2[i], values1[i]);
-                fail("Should throw TypeCastException");
-            }
-            catch (TypeCastException e)
-            {
-            }
+            assertThrows(TypeCastException.class,
+                    () -> THIS_TYPE.compare(values2[id], values1[id]),
+                    "Should throw TypeCastException");
         }
     }
 
+    @Override
+    @Test
     public void testCompareDifferent() throws Exception
     {
-        Object[] less = {
-            null,
-            "-7500",
-            new Double(Float.MIN_VALUE),
-        };
+        final Object[] less = {null, "-7500", Double.valueOf(Float.MIN_VALUE),};
 
-        Object[] greater = {
-            "0",
-            "5.555",
-            new Float(Float.MAX_VALUE),
-        };
+        final Object[] greater =
+                {"0", "5.555", Float.valueOf(Float.MAX_VALUE),};
 
-        assertEquals("values count", less.length, greater.length);
+        assertThat(greater).as("values count").hasSize(less.length);
 
         for (int i = 0; i < less.length; i++)
         {
-            assertTrue("less " + i, THIS_TYPE.compare(less[i], greater[i]) < 0);
-            assertTrue("greater " + i, THIS_TYPE.compare(greater[i], less[i]) > 0);
+            assertThat(THIS_TYPE.compare(less[i], greater[i])).as("less " + i)
+                    .isNegative();
+            assertThat(THIS_TYPE.compare(greater[i], less[i]))
+                    .as("greater " + i).isPositive();
         }
     }
 
+    @Override
+    @Test
     public void testSqlType() throws Exception
     {
-        assertEquals(THIS_TYPE, DataType.forSqlType(Types.REAL));
-        assertEquals("forSqlTypeName", THIS_TYPE, DataType.forSqlTypeName(THIS_TYPE.toString()));
-        assertEquals(Types.REAL, THIS_TYPE.getSqlType());
+        assertThat(DataType.forSqlType(Types.REAL)).isEqualTo(THIS_TYPE);
+        assertThat(DataType.forSqlTypeName(THIS_TYPE.toString()))
+                .as("forSqlTypeName").isEqualTo(THIS_TYPE);
+        assertThat(THIS_TYPE.getSqlType()).isEqualTo(Types.REAL);
     }
 
+    @Override
+    @Test
     public void testForObject() throws Exception
     {
-        assertEquals(THIS_TYPE, DataType.forObject(new Float(1234)));
+        assertThat(DataType.forObject(Float.valueOf(1234)))
+                .isEqualTo(THIS_TYPE);
     }
 
+    @Override
+    @Test
     public void testAsString() throws Exception
     {
-        Object[] values = {
-            new Float("1234"),
-            new Float("12.34"),
-        };
+        final Object[] values =
+                {Float.valueOf("1234"), Float.valueOf("12.34"),};
 
-        String[] expected = {
-            "1234.0",
-            "12.34",
-        };
+        final String[] expected = {"1234.0", "12.34",};
 
-        assertEquals("actual vs expected count", values.length, expected.length);
+        assertThat(expected.length).as("actual vs expected count")
+                .isEqualTo(values.length);
 
         for (int i = 0; i < values.length; i++)
         {
-            assertEquals("asString " + i, expected[i], DataType.asString(values[i]));
+            assertThat(DataType.asString(values[i])).as("asString " + i)
+                    .isEqualTo(expected[i]);
         }
     }
 
+    @Override
+    @Test
     public void testGetSqlValue() throws Exception
     {
-        Float[] expected = {
-            null,
-            new Float(5.555),
-            new Float(Float.MAX_VALUE),
-            new Float(Float.MIN_VALUE),
-            new Float(-7500),
-            Float.valueOf("2.34E3"),
-            new Float(0.666),
-            new Float(5.49879),
-            new Float(-99.9),
-            new Float(1234),
-        };
+        final Float[] expected = {null, Float.valueOf("5.555"),
+                Float.valueOf(Float.MAX_VALUE), Float.valueOf(Float.MIN_VALUE),
+                Float.valueOf(-7500), Float.valueOf("2.34E3"),
+                Float.valueOf("0.666"), Float.valueOf("5.49879"),
+                Float.valueOf("-99.9"), Float.valueOf(1234),};
 
-        ExtendedMockSingleRowResultSet resultSet = new ExtendedMockSingleRowResultSet();
-        resultSet.addExpectedIndexedValues(expected);
-
+        lenient().when(mockedResultSet.getFloat(2)).thenReturn(expected[1]);
+        lenient().when(mockedResultSet.getFloat(3)).thenReturn(expected[2]);
+        lenient().when(mockedResultSet.getFloat(4)).thenReturn(expected[3]);
+        lenient().when(mockedResultSet.getFloat(5)).thenReturn(expected[4]);
+        lenient().when(mockedResultSet.getFloat(6)).thenReturn(expected[5]);
+        lenient().when(mockedResultSet.getFloat(7)).thenReturn(expected[6]);
+        lenient().when(mockedResultSet.getFloat(8)).thenReturn(expected[7]);
+        lenient().when(mockedResultSet.getFloat(9)).thenReturn(expected[8]);
+        lenient().when(mockedResultSet.getFloat(10)).thenReturn(expected[9]);
+        lenient().when(mockedResultSet.wasNull()).thenReturn(true)
+                .thenReturn(false);
         for (int i = 0; i < expected.length; i++)
         {
-            Object expectedValue = expected[i];
-            Object actualValue = THIS_TYPE.getSqlValue(i + 1, resultSet);
-            assertEquals("value", expectedValue, actualValue);
+            final Object expectedValue = expected[i];
+            final Object actualValue =
+                    THIS_TYPE.getSqlValue(i + 1, mockedResultSet);
+            assertThat(actualValue).as("value").isEqualTo(expectedValue);
         }
     }
 }

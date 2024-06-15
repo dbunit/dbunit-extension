@@ -20,30 +20,36 @@
  */
 package org.dbunit;
 
-import junit.framework.TestCase;
+import static org.assertj.core.api.Assertions.assertThat;
+
+import org.junit.jupiter.api.Test;
 
 /**
  * @author gommma
  * @version $Revision$
  * @since 2.3.0
  */
-public class DatabaseUnitExceptionTest extends TestCase 
+class DatabaseUnitExceptionTest
 {
 
-    public void testNestedException()
+    @Test
+    void testNestedException()
     {
-        IllegalStateException nested = new IllegalStateException("bla bla");
-        DatabaseUnitException ex = new DatabaseUnitException(nested);
-        assertEquals(nested, ex.getCause());
+        final IllegalStateException nested =
+                new IllegalStateException("bla bla");
+        final DatabaseUnitException ex = new DatabaseUnitException(nested);
+        assertThat(ex.getCause()).isEqualTo(nested);
     }
-    
-    public void testNestedExceptionWithMessage()
+
+    @Test
+    void testNestedExceptionWithMessage()
     {
-        String msg = "a dbunit exception message";
-        IllegalStateException nested = new IllegalStateException("bla bla");
-        DatabaseUnitException ex = new DatabaseUnitException(msg, nested);
-        assertEquals(msg, ex.getMessage());
-        assertEquals(nested, ex.getCause());
+        final String msg = "a dbunit exception message";
+        final IllegalStateException nested =
+                new IllegalStateException("bla bla");
+        final DatabaseUnitException ex = new DatabaseUnitException(msg, nested);
+        assertThat(ex.getMessage()).isEqualTo(msg);
+        assertThat(ex.getCause()).isEqualTo(nested);
     }
 
 }

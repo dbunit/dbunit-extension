@@ -20,6 +20,11 @@
  */
 package org.dbunit.dataset;
 
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
+
 /**
  * @author Manuel Laflamme
  * @author Last changed by: $Author$
@@ -28,119 +33,124 @@ package org.dbunit.dataset;
  */
 public class ForwardOnlyDataSetTest extends DefaultDataSetTest
 {
-    public ForwardOnlyDataSetTest(String s)
-    {
-        super(s);
-    }
 
+    @Override
     protected IDataSet createDataSet() throws Exception
     {
         return new ForwardOnlyDataSet(super.createDataSet());
     }
 
+    @Override
     protected IDataSet createDuplicateDataSet() throws Exception
     {
         throw new UnsupportedOperationException();
     }
 
-    protected IDataSet createMultipleCaseDuplicateDataSet() throws Exception 
+    @Override
+    protected IDataSet createMultipleCaseDuplicateDataSet() throws Exception
     {
         throw new UnsupportedOperationException();
     }
 
-    public void testGetTableNames() throws Exception
+    @Override
+    @Test
+    void testGetTableNames() throws Exception
     {
-        try
-        {
-            createDataSet().getTableNames();
-            fail("Should have throw UnsupportedOperationException");
-        }
-        catch (UnsupportedOperationException e)
-        {
-
-        }
+        final IDataSet ds = createDataSet();
+        assertThrows(UnsupportedOperationException.class,
+                () -> ds.getTableNames(),
+                "Should have throw UnsupportedOperationException");
     }
 
-    public void testGetTable() throws Exception
+    @Override
+    @Test
+    void testGetTable() throws Exception
     {
-        String[] tableNames = getExpectedNames();
-        try
-        {
-            createDataSet().getTable(tableNames[0]);
-            fail("Should have throw UnsupportedOperationException");
-        }
-        catch (UnsupportedOperationException e)
-        {
-
-        }
+        final String[] tableNames = getExpectedNames();
+        final IDataSet ds = createDataSet();
+        assertThrows(UnsupportedOperationException.class,
+                () -> ds.getTable(tableNames[0]),
+                "Should have throw UnsupportedOperationException");
     }
 
-    public void testGetTableMetaData() throws Exception
+    @Override
+    @Test
+    void testGetTableMetaData() throws Exception
     {
-        String[] tableNames = getExpectedNames();
-        try
-        {
-            createDataSet().getTableMetaData(tableNames[0]);
-            fail("Should have throw UnsupportedOperationException");
-        }
-        catch (UnsupportedOperationException e)
-        {
+        final String[] tableNames = getExpectedNames();
+        final IDataSet ds = createDataSet();
+        assertThrows(UnsupportedOperationException.class,
+                () -> ds.getTableMetaData(tableNames[0]),
+                "Should have throw UnsupportedOperationException");
 
-        }
     }
 
+    @Override
+    @Test
     public void testReverseIterator() throws Exception
     {
-        try
-        {
-            createDataSet().reverseIterator();
-            fail("Should have throw UnsupportedOperationException");
-        }
-        catch (UnsupportedOperationException e)
-        {
-
-        }
+        final IDataSet ds = createDataSet();
+        assertThrows(UnsupportedOperationException.class,
+                () -> ds.reverseIterator(),
+                "Should have throw UnsupportedOperationException");
     }
 
+    @Override
+    @Disabled("Cannot test! Unsupported feature.")
     public void testGetTableNamesDefensiveCopy() throws Exception
     {
         // Cannot test! Unsupported feature.
     }
 
+    @Override
+    @Disabled("Cannot test! Unsupported feature.")
     public void testGetUnknownTable() throws Exception
     {
         // Cannot test! Unsupported feature.
     }
 
+    @Override
+    @Disabled("Cannot test! Unsupported feature.")
     public void testGetUnknownTableMetaData() throws Exception
     {
         // Cannot test! Unsupported feature.
     }
 
+    @Override
+    @Disabled("Cannot test! Unsupported feature.")
     public void testGetTablesDefensiveCopy() throws Exception
     {
         // Cannot test! Unsupported feature.
     }
 
+    @Override
+    @Disabled("Cannot test! Unsupported feature.")
     public void testGetCaseInsensitiveTable() throws Exception
     {
         // Cannot test! Unsupported feature.
     }
 
+    @Override
+    @Disabled("Cannot test! Unsupported feature.")
     public void testGetCaseInsensitiveTableMetaData() throws Exception
     {
         // Cannot test! Unsupported feature.
     }
 
-    public void testCreateDuplicateDataSet() throws Exception 
+    @Override
+    @Disabled("No op. This dataSet is only a wrapper for another dataSet which is why duplicates cannot occur.")
+    public void testCreateDuplicateDataSet() throws Exception
     {
-        // No op. This dataSet is only a wrapper for another dataSet which is why duplicates cannot occur.
+        // No op. This dataSet is only a wrapper for another dataSet which is
+        // why duplicates cannot occur.
     }
 
-    public void testCreateMultipleCaseDuplicateDataSet() throws Exception 
+    @Override
+    @Disabled("No op. This dataSet is only a wrapper for another dataSet which is why duplicates cannot occur.")
+    public void testCreateMultipleCaseDuplicateDataSet() throws Exception
     {
-        // No op. This dataSet is only a wrapper for another dataSet which is why duplicates cannot occur.
+        // No op. This dataSet is only a wrapper for another dataSet which is
+        // why duplicates cannot occur.
     }
 
-    
 }

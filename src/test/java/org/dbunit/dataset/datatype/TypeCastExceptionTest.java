@@ -20,28 +20,36 @@
  */
 package org.dbunit.dataset.datatype;
 
-import junit.framework.TestCase;
+import static org.assertj.core.api.Assertions.assertThat;
+
+import org.junit.jupiter.api.Test;
 
 /**
  * @author gommma
  * @version $Revision$
  * @since 2.3.0
  */
-public class TypeCastExceptionTest extends TestCase 
+class TypeCastExceptionTest
 {
 
-	public void testCreationWithNullValue()
-	{
-		TypeCastException exception = new TypeCastException(null, DataType.BIGINT);
-		assertEquals("Unable to typecast value <null> of type <null> to BIGINT", exception.getMessage());
-	}
-	
-	public void testCreationWithNullDatatype()
-	{
-		String value = "myStringObject";
-		TypeCastException exception = new TypeCastException(value, (DataType)null);
-		assertEquals("Unable to typecast value <"+value+"> of type <java.lang.String> to null", exception.getMessage());
-	}
+    @Test
+    void testCreationWithNullValue()
+    {
+        final TypeCastException exception =
+                new TypeCastException(null, DataType.BIGINT);
+        assertThat(exception.getMessage()).isEqualTo(
+                "Unable to typecast value <null> of type <null> to BIGINT");
+    }
+
+    @Test
+    void testCreationWithNullDatatype()
+    {
+        final String value = "myStringObject";
+        final TypeCastException exception =
+                new TypeCastException(value, (DataType) null);
+        assertThat(exception.getMessage())
+                .isEqualTo("Unable to typecast value <" + value
+                        + "> of type <java.lang.String> to null");
+    }
 
 }
-

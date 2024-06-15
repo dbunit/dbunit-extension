@@ -30,27 +30,31 @@ import java.util.*;
  */
 public class DatabaseProfile
 {
-	private static final String[] EMPTY_ARRAY = new String[0];
-	
+    private static final String[] EMPTY_ARRAY = new String[0];
+
     public static final String DATABASE_PROFILE = "dbunit.profile";
-    private static final String PROFILE_DRIVER_CLASS = "dbunit.profile.driverClass";
+    private static final String PROFILE_DRIVER_CLASS =
+            "dbunit.profile.driverClass";
     private static final String PROFILE_URL = "dbunit.profile.url";
     private static final String PROFILE_SCHEMA = "dbunit.profile.schema";
     private static final String PROFILE_USER = "dbunit.profile.user";
     private static final String PROFILE_PASSWORD = "dbunit.profile.password";
-    private static final String PROFILE_UNSUPPORTED_FEATURES = "dbunit.profile.unsupportedFeatures";
+    private static final String PROFILE_UNSUPPORTED_FEATURES =
+            "dbunit.profile.unsupportedFeatures";
     private static final String PROFILE_DDL = "dbunit.profile.ddl";
-    private static final String PROFILE_MULTILINE_SUPPORT = "dbunit.profile.multiLineSupport";
+    private static final String PROFILE_MULTILINE_SUPPORT =
+            "dbunit.profile.multiLineSupport";
 
     private final Properties _properties;
 
     public DatabaseProfile(Properties properties)
     {
         _properties = properties;
-//        ArrayList keys = new ArrayList(properties.keySet());
-//        for (int i = 0; i < keys.size(); i++) {
-//            System.out.println("key = " + keys.get(i) + ", value = " + properties.get(keys.get(i)));
-//        }
+        // ArrayList keys = new ArrayList(properties.keySet());
+        // for (int i = 0; i < keys.size(); i++) {
+        // System.out.println("key = " + keys.get(i) + ", value = " +
+        // properties.get(keys.get(i)));
+        // }
 
     }
 
@@ -91,21 +95,23 @@ public class DatabaseProfile
 
     public boolean getProfileMultilineSupport()
     {
-        return Boolean.valueOf(_properties.getProperty(PROFILE_MULTILINE_SUPPORT));
+        return Boolean
+                .valueOf(_properties.getProperty(PROFILE_MULTILINE_SUPPORT));
     }
 
     public String[] getUnsupportedFeatures()
     {
         String property = _properties.getProperty(PROFILE_UNSUPPORTED_FEATURES);
-        
+
         // If property is not set return an empty array
-        if(property == null){
-        	return EMPTY_ARRAY;
+        if (property == null)
+        {
+            return EMPTY_ARRAY;
         }
-        
+
         List<String> stringList = new ArrayList<String>();
         StringTokenizer tokenizer = new StringTokenizer(property, ",");
-        while(tokenizer.hasMoreTokens())
+        while (tokenizer.hasMoreTokens())
         {
             stringList.add(tokenizer.nextToken().trim());
         }

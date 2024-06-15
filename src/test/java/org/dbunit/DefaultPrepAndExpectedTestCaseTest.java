@@ -1,5 +1,9 @@
 package org.dbunit;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.sql.Connection;
+
 import org.dbunit.database.DatabaseConfig;
 import org.dbunit.database.IDatabaseConnection;
 import org.dbunit.database.MockDatabaseConnection;
@@ -12,13 +16,14 @@ import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.ITable;
 import org.dbunit.util.fileloader.DataFileLoader;
 import org.dbunit.util.fileloader.FlatXmlDataFileLoader;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mock;
 
-import com.mockobjects.sql.MockConnection;
-
-import junit.framework.TestCase;
-
-public class DefaultPrepAndExpectedTestCaseTest extends TestCase
+class DefaultPrepAndExpectedTestCaseTest
 {
+    @Mock
+    private Connection mockConnection;
+
     private static final String PREP_DATA_FILE_NAME =
             "/xml/flatXmlDataSetTest.xml";
     private static final String EXP_DATA_FILE_NAME =
@@ -29,13 +34,8 @@ public class DefaultPrepAndExpectedTestCaseTest extends TestCase
     private final DefaultPrepAndExpectedTestCase tc =
             new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester);
 
-    @Override
-    protected void setUp() throws Exception
-    {
-        super.setUp();
-    }
-
-    public void testConfigureTest() throws Exception
+    @Test
+    void testConfigureTest() throws Exception
     {
         final String[] prepDataFiles = {PREP_DATA_FILE_NAME};
         final String[] expectedDataFiles = {EXP_DATA_FILE_NAME};
@@ -43,8 +43,8 @@ public class DefaultPrepAndExpectedTestCaseTest extends TestCase
 
         tc.configureTest(tables, prepDataFiles, expectedDataFiles);
 
-        assertEquals("Configured tables do not match expected.", tables,
-                tc.getVerifyTableDefs());
+        assertThat(tables).as("Configured tables do not match expected.")
+                .isEqualTo(tc.getVerifyTableDefs());
 
         final IDataSet expPrepDs = dataFileLoader.load(PREP_DATA_FILE_NAME);
         Assertion.assertEquals(expPrepDs, tc.getPrepDataset());
@@ -58,7 +58,8 @@ public class DefaultPrepAndExpectedTestCaseTest extends TestCase
         // TODO implement test
     }
 
-    public void testRunTest() throws Exception
+    @Test
+    void testRunTest() throws Exception
     {
         final VerifyTableDefinition[] tables = {};
         final String[] prepDataFiles = {};
@@ -70,8 +71,8 @@ public class DefaultPrepAndExpectedTestCaseTest extends TestCase
 
         final Boolean actual = (Boolean) tc.runTest(tables, prepDataFiles,
                 expectedDataFiles, testSteps);
-
-        assertTrue("Did not receive expected value from runTest().", actual);
+        assertThat(actual).as("Did not receive expected value from runTest().")
+                .isTrue();
     }
 
     public void testPostTest()
@@ -119,7 +120,7 @@ public class DefaultPrepAndExpectedTestCaseTest extends TestCase
     }
 
     // TODO implement test - doesn't test anything yet
-    public void testApplyColumnFiltersBothNotNull() throws DataSetException
+    void testApplyColumnFiltersBothNotNull() throws DataSetException
     {
         final ITable table = new DefaultTable("test_table");
         final String[] excludeColumns = {"COL1"};
@@ -135,8 +136,6 @@ public class DefaultPrepAndExpectedTestCaseTest extends TestCase
 
     protected IDatabaseConnection makeDatabaseConnection()
     {
-        final MockConnection mockConnection = new MockConnection();
-
         final MockStatementFactory mockStatementFactory =
                 new MockStatementFactory();
         final IBatchStatement mockBatchStatement = new MockBatchStatement();

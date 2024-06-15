@@ -20,15 +20,19 @@
  */
 package org.dbunit.dataset;
 
-import java.sql.DatabaseMetaData;
-import java.sql.SQLException;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
-import junit.framework.TestCase;
+import java.sql.DatabaseMetaData;
 
 import org.dbunit.dataset.datatype.IDataTypeFactory;
 import org.dbunit.ext.mssql.MsSqlDataTypeFactory;
-
-import com.mockobjects.sql.MockDatabaseMetaData;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 /**
  * @author Manuel Laflamme
@@ -36,36 +40,48 @@ import com.mockobjects.sql.MockDatabaseMetaData;
  * @version $Revision: $ $Date: $
  * @since 2.4.6
  */
-public class AbstractTableMetaDataTest extends TestCase 
+@ExtendWith(MockitoExtension.class)
+public class AbstractTableMetaDataTest
 {
 
+    @Mock
+    private DatabaseMetaData mockDatabaseMetData;
+
+    @Test
     public void testValidator() throws Exception
     {
-        AbstractTableMetaData metaData = new AbstractTableMetaData(){
-            public Column[] getColumns() throws DataSetException {
+        final AbstractTableMetaData metaData = new AbstractTableMetaData()
+        {
+            @Override
+            public Column[] getColumns() throws DataSetException
+            {
                 return null;
             }
 
-            public Column[] getPrimaryKeys() throws DataSetException {
+            @Override
+            public Column[] getPrimaryKeys() throws DataSetException
+            {
                 return null;
             }
 
-            public String getTableName() {
+            @Override
+            public String getTableName()
+            {
                 return null;
-            }};
-        
-//        DataTypeFactoryValidator validator = new DataTypeFactoryValidator();
-        IDataTypeFactory dataTypeFactory = new MsSqlDataTypeFactory();
-        DatabaseMetaData databaseMetaData = new MockDatabaseMetaData(){
-            public String getDatabaseProductName() throws SQLException {
-                return "Microsoft SQL Server";
             }
         };
-        String validationMessage = metaData.validateDataTypeFactory(dataTypeFactory, databaseMetaData);
-        assertEquals("Validation message should be null because DB product should be supported", null, validationMessage);
+
+        // DataTypeFactoryValidator validator = new DataTypeFactoryValidator();
+        final IDataTypeFactory dataTypeFactory = new MsSqlDataTypeFactory();
+        when(mockDatabaseMetData.getDatabaseProductName())
+                .thenReturn("Microsoft SQL Server");
+
+        final String validationMessage = metaData
+                .validateDataTypeFactory(dataTypeFactory, mockDatabaseMetData);
+        assertThat(validationMessage).as(
+                "Validation message should be null because DB product should be supported")
+                .isNull();
+        verify(mockDatabaseMetData, times(1)).getDatabaseProductName();
     }
-    
-    
-    
-    
+
 }

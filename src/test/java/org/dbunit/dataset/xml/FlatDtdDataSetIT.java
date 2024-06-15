@@ -33,49 +33,50 @@ import org.dbunit.dataset.FilteredDataSet;
 import org.dbunit.dataset.IDataSet;
 import org.dbunit.testutil.FileAsserts;
 import org.dbunit.testutil.TestUtils;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author Manuel Laflamme
  * @version $Revision$
  * @since Apr 4, 2002
  */
-public class FlatDtdDataSetIT extends AbstractDataSetTest
+class FlatDtdDataSetIT extends AbstractDataSetTest
 {
-    private static final String DTD_FILE =
-        "dtd/flatDtdDataSetTest.dtd";
+    private static final String DTD_FILE = "dtd/flatDtdDataSetTest.dtd";
     private static final String DUPLICATE_FILE =
-        "dtd/flatDtdDataSetDuplicateTest.dtd";
+            "dtd/flatDtdDataSetDuplicateTest.dtd";
     private static final String DUPLICATE_MULTIPLE_CASE_FILE =
-        "dtd/flatDtdDataSetDuplicateMultipleCaseTest.dtd";
-
-    public FlatDtdDataSetIT(String s)
-    {
-        super(s);
-    }
+            "dtd/flatDtdDataSetDuplicateMultipleCaseTest.dtd";
 
     ////////////////////////////////////////////////////////////////////////////
     // AbstractDataSetTest class
 
-    private File getFile(String fileName) throws Exception
+    private File getFile(final String fileName) throws Exception
     {
-        return TestUtils.getFileForDatabaseEnvironment(TestUtils.getFileName(fileName));
+        return TestUtils
+                .getFileForDatabaseEnvironment(TestUtils.getFileName(fileName));
     }
 
+    @Override
     protected IDataSet createDataSet() throws Exception
     {
         return new FlatDtdDataSet(TestUtils.getFileReader(DTD_FILE));
     }
 
+    @Override
     protected IDataSet createDuplicateDataSet() throws Exception
     {
         return new FlatDtdDataSet(TestUtils.getFileReader(DUPLICATE_FILE));
     }
 
-    protected IDataSet createMultipleCaseDuplicateDataSet() throws Exception 
+    @Override
+    protected IDataSet createMultipleCaseDuplicateDataSet() throws Exception
     {
-        return new FlatDtdDataSet(TestUtils.getFileReader(DUPLICATE_MULTIPLE_CASE_FILE));
+        return new FlatDtdDataSet(
+                TestUtils.getFileReader(DUPLICATE_MULTIPLE_CASE_FILE));
     }
 
+    @Override
     protected int[] getExpectedDuplicateRows()
     {
         return new int[] {0, 0, 0};
@@ -84,22 +85,23 @@ public class FlatDtdDataSetIT extends AbstractDataSetTest
     ////////////////////////////////////////////////////////////////////////////
     // Test methods
 
-    public void testWriteFromDtd() throws Exception
+    @Test
+    void testWriteFromDtd() throws Exception
     {
-        IDataSet dataSet = new FlatDtdDataSet(TestUtils.getFileReader(DTD_FILE));
+        final IDataSet dataSet =
+                new FlatDtdDataSet(TestUtils.getFileReader(DTD_FILE));
 
-        File tempFile = File.createTempFile("flatXmlDocType", ".dtd");
+        final File tempFile = File.createTempFile("flatXmlDocType", ".dtd");
 
         try
         {
-            Writer out = new FileWriter(tempFile);
+            final Writer out = new FileWriter(tempFile);
 
             try
             {
                 // write DTD in temp file
                 FlatDtdDataSet.write(dataSet, out);
-            }
-            finally
+            } finally
             {
                 out.close();
             }
@@ -107,34 +109,33 @@ public class FlatDtdDataSetIT extends AbstractDataSetTest
             FileAsserts.assertEquals(
                     new BufferedReader(TestUtils.getFileReader(DTD_FILE)),
                     new BufferedReader(new FileReader(tempFile)));
-        }
-        finally
+        } finally
         {
             tempFile.delete();
         }
 
     }
 
-    public void testWriteFromDatabase() throws Exception
+    @Test
+    void testWriteFromDatabase() throws Exception
     {
-        IDatabaseConnection connection =
+        final IDatabaseConnection connection =
                 DatabaseEnvironment.getInstance().getConnection();
-        IDataSet dataSet = connection.createDataSet();
+        final IDataSet dataSet = connection.createDataSet();
 
-        File tempFile = File.createTempFile("flatXmlDocType", ".dtd");
+        final File tempFile = File.createTempFile("flatXmlDocType", ".dtd");
 
         try
         {
-            Writer out = new FileWriter(tempFile);
+            final Writer out = new FileWriter(tempFile);
 
             try
             {
                 // write DTD in temp file
-                String[] tableNames = getExpectedNames();
-                FlatDtdDataSet.write(new FilteredDataSet(
-                        tableNames, dataSet), out);
-            }
-            finally
+                final String[] tableNames = getExpectedNames();
+                FlatDtdDataSet.write(new FilteredDataSet(tableNames, dataSet),
+                        out);
+            } finally
             {
                 out.close();
             }
@@ -142,17 +143,9 @@ public class FlatDtdDataSetIT extends AbstractDataSetTest
             FileAsserts.assertEquals(
                     new BufferedReader(new FileReader(getFile(DTD_FILE))),
                     new BufferedReader(new FileReader(tempFile)));
-        }
-        finally
+        } finally
         {
             tempFile.delete();
         }
     }
-
-
 }
-
-
-
-
-

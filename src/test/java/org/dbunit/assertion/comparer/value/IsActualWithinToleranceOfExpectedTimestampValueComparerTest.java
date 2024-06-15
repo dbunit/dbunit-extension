@@ -1,21 +1,18 @@
 package org.dbunit.assertion.comparer.value;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.not;
-import static org.hamcrest.Matchers.nullValue;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.sql.Timestamp;
 
 import org.dbunit.DatabaseUnitException;
 import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.datatype.DataType;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-public class IsActualWithinToleranceOfExpectedTimestampValueComparerTest
+class IsActualWithinToleranceOfExpectedTimestampValueComparerTest
 {
     @Test
-    public void testIsExpected_AllNull_True() throws DatabaseUnitException
+    void testIsExpected_AllNull_True() throws DatabaseUnitException
     {
         final long lowToleranceValueInMillis = 0;
         final long highToleranceValueInMillis = 0;
@@ -34,11 +31,11 @@ public class IsActualWithinToleranceOfExpectedTimestampValueComparerTest
         final boolean actual = sut.isExpected(expectedTable, actualTable,
                 rowNum, columnName, dataType, expectedValue, actualValue);
 
-        assertThat("All null should have been equal.", actual, equalTo(true));
+        assertThat(actual).as("All null should have been equal.").isTrue();
     }
 
     @Test
-    public void testIsExpected_ActualNullExpectedNotNull_False()
+    void testIsExpected_ActualNullExpectedNotNull_False()
             throws DatabaseUnitException
     {
         final long lowToleranceValueInMillis = 0;
@@ -58,12 +55,13 @@ public class IsActualWithinToleranceOfExpectedTimestampValueComparerTest
         final boolean actual = sut.isExpected(expectedTable, actualTable,
                 rowNum, columnName, dataType, expectedValue, actualValue);
 
-        assertThat("Actual null, expected not null should not have been equal.",
-                actual, equalTo(false));
+        assertThat(actual).as(
+                "Actual null, expected not null should not have been equal.")
+                .isFalse();
     }
 
     @Test
-    public void testIsExpected_WithinToleranceMiddle_True()
+    void testIsExpected_WithinToleranceMiddle_True()
             throws DatabaseUnitException
     {
         final long lowToleranceValueInMillis = 500;
@@ -85,12 +83,12 @@ public class IsActualWithinToleranceOfExpectedTimestampValueComparerTest
         final boolean actual = sut.isExpected(expectedTable, actualTable,
                 rowNum, columnName, dataType, expectedValue, actualValue);
 
-        assertThat("Within tolerance, should have been equal.", actual,
-                equalTo(true));
+        assertThat(actual).as("Within tolerance, should have been equal.")
+                .isTrue();
     }
 
     @Test
-    public void testIsExpected_WithinToleranceMatchLow_True()
+    void testIsExpected_WithinToleranceMatchLow_True()
             throws DatabaseUnitException
     {
         final long lowToleranceValueInMillis = 500;
@@ -102,8 +100,9 @@ public class IsActualWithinToleranceOfExpectedTimestampValueComparerTest
         final long actualMillis = expectedMillis + lowToleranceValueInMillis;
 
         final long diff = Math.abs(expectedMillis - actualMillis);
-        assertThat("Test setup problem, diff does not match low tolerance",
-                diff, equalTo(lowToleranceValueInMillis));
+        assertThat(diff)
+                .as("Test setup problem, diff does not match low tolerance")
+                .isEqualTo(lowToleranceValueInMillis);
 
         final ITable expectedTable = null;
         final ITable actualTable = null;
@@ -116,12 +115,13 @@ public class IsActualWithinToleranceOfExpectedTimestampValueComparerTest
         final boolean actual = sut.isExpected(expectedTable, actualTable,
                 rowNum, columnName, dataType, expectedValue, actualValue);
 
-        assertThat("Diff matches low tolerance, should have been equal.",
-                actual, equalTo(true));
+        assertThat(actual)
+                .as("Diff matches low tolerance, should have been equal.")
+                .isTrue();
     }
 
     @Test
-    public void testIsExpected_WithinToleranceMatchHigh_True()
+    void testIsExpected_WithinToleranceMatchHigh_True()
             throws DatabaseUnitException
     {
         final long lowToleranceValueInMillis = 500;
@@ -133,8 +133,9 @@ public class IsActualWithinToleranceOfExpectedTimestampValueComparerTest
         final long actualMillis = expectedMillis + highToleranceValueInMillis;
 
         final long diff = Math.abs(expectedMillis - actualMillis);
-        assertThat("Test setup problem, diff does not match high tolerance",
-                diff, equalTo(highToleranceValueInMillis));
+        assertThat(diff)
+                .as("Test setup problem, diff does not match high tolerance")
+                .isEqualTo(highToleranceValueInMillis);
 
         final ITable expectedTable = null;
         final ITable actualTable = null;
@@ -147,12 +148,13 @@ public class IsActualWithinToleranceOfExpectedTimestampValueComparerTest
         final boolean actual = sut.isExpected(expectedTable, actualTable,
                 rowNum, columnName, dataType, expectedValue, actualValue);
 
-        assertThat("Diff matches high tolerance, should have been equal.",
-                actual, equalTo(true));
+        assertThat(actual)
+                .as("Diff matches high tolerance, should have been equal.")
+                .isTrue();
     }
 
     @Test
-    public void testIsTolerant_DiffTimeNotInRangeLow_False()
+    void testIsTolerant_DiffTimeNotInRangeLow_False()
     {
         final long lowToleranceValueInMillis = 200;
         final long highToleranceValueInMillis = 400;
@@ -163,12 +165,12 @@ public class IsActualWithinToleranceOfExpectedTimestampValueComparerTest
         final long diffTime = lowToleranceValueInMillis - 100;
         final boolean actual = sut.isTolerant(diffTime);
 
-        assertThat("Diff value is low of tolerant range but passed.", actual,
-                equalTo(false));
+        assertThat(actual).as("Diff value is low of tolerant range but passed.")
+                .isFalse();
     }
 
     @Test
-    public void testIsTolerant_DiffTimeNotInRangeHigh_False()
+    void testIsTolerant_DiffTimeNotInRangeHigh_False()
     {
         final long lowToleranceValueInMillis = 200;
         final long highToleranceValueInMillis = 400;
@@ -179,12 +181,13 @@ public class IsActualWithinToleranceOfExpectedTimestampValueComparerTest
         final long diffTime = highToleranceValueInMillis + 100;
         final boolean actual = sut.isTolerant(diffTime);
 
-        assertThat("Diff value is high of tolerant range but passed.", actual,
-                equalTo(false));
+        assertThat(actual)
+                .as("Diff value is high of tolerant range but passed.")
+                .isFalse();
     }
 
     @Test
-    public void testIsTolerant_DiffTimeInRange_True()
+    void testIsTolerant_DiffTimeInRange_True()
     {
         final long lowToleranceValueInMillis = 200;
         final long highToleranceValueInMillis = 400;
@@ -196,12 +199,13 @@ public class IsActualWithinToleranceOfExpectedTimestampValueComparerTest
                 lowToleranceValueInMillis + highToleranceValueInMillis / 2;
         final boolean actual = sut.isTolerant(diffTime);
 
-        assertThat("Diff value is in tolerant range but did not pass.", actual,
-                equalTo(true));
+        assertThat(actual)
+                .as("Diff value is in tolerant range but did not pass.")
+                .isTrue();
     }
 
     @Test
-    public void testGetFailPhrase() throws Exception
+    void testGetFailPhrase() throws Exception
     {
         final long lowToleranceValueInMillis = 500;
         final long highToleranceValueInMillis = 1500;
@@ -211,11 +215,11 @@ public class IsActualWithinToleranceOfExpectedTimestampValueComparerTest
 
         final String actual = sut.getFailPhrase();
 
-        assertThat("Should have fail phrase.", actual, not(nullValue()));
+        assertThat(actual).as("Should have fail phrase.").isNotNull();
     }
 
     @Test
-    public void testStringExpectedTimestampActual() throws DatabaseUnitException
+    void testStringExpectedTimestampActual() throws DatabaseUnitException
     {
         final long lowToleranceValueInMillis = 500;
         final long highToleranceValueInMillis = 1500;
@@ -237,6 +241,6 @@ public class IsActualWithinToleranceOfExpectedTimestampValueComparerTest
         final boolean actual = sut.isExpected(expectedTable, actualTable,
                 rowNum, columnName, dataType, expectedValue, actualValue);
 
-        assertThat("Should have been equal.", actual, equalTo(true));
+        assertThat(actual).as("Should have been equal.").isTrue();
     }
 }

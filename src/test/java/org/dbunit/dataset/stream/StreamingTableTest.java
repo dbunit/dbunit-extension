@@ -20,14 +20,14 @@
  */
 package org.dbunit.dataset.stream;
 
+import java.io.FileReader;
+
 import org.dbunit.dataset.ForwardOnlyTableTest;
 import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.ITableIterator;
 import org.dbunit.dataset.xml.FlatXmlDataSetTest;
 import org.dbunit.dataset.xml.FlatXmlProducer;
 import org.xml.sax.InputSource;
-
-import java.io.FileReader;
 
 /**
  * @author Manuel Laflamme
@@ -38,22 +38,21 @@ public class StreamingTableTest extends ForwardOnlyTableTest
 {
     private static final String TEST_TABLE = "TEST_TABLE";
 
-    public StreamingTableTest(String s)
-    {
-        super(s);
-    }
-
+    @Override
     protected ITable createTable() throws Exception
     {
-        FileReader reader = new FileReader(FlatXmlDataSetTest.DATASET_FILE);
+        final FileReader reader =
+                new FileReader(FlatXmlDataSetTest.DATASET_FILE);
 
-//        IDataSetProducer source = new DataSetProducerAdapter(new FlatXmlDataSet(reader));
-        IDataSetProducer source = new FlatXmlProducer(new InputSource(reader));
-        ITableIterator iterator = new StreamingDataSet(source).iterator();
-        while(iterator.next())
+        // IDataSetProducer source = new DataSetProducerAdapter(new
+        // FlatXmlDataSet(reader));
+        final IDataSetProducer source =
+                new FlatXmlProducer(new InputSource(reader));
+        final ITableIterator iterator = new StreamingDataSet(source).iterator();
+        while (iterator.next())
         {
-            ITable table = iterator.getTable();
-            String tableName = table.getTableMetaData().getTableName();
+            final ITable table = iterator.getTable();
+            final String tableName = table.getTableMetaData().getTableName();
             if (tableName.equals(TEST_TABLE))
             {
                 return table;

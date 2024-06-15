@@ -21,116 +21,110 @@
 
 package org.dbunit.dataset.xml;
 
-import org.dbunit.Assertion;
-import org.dbunit.dataset.*;
-
 import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.Writer;
+
+import org.dbunit.Assertion;
+import org.dbunit.dataset.CompositeTable;
+import org.dbunit.dataset.DefaultDataSet;
+import org.dbunit.dataset.DefaultTableMetaData;
+import org.dbunit.dataset.IDataSet;
+import org.dbunit.dataset.ITable;
+import org.dbunit.dataset.ITableMetaData;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author Manuel Laflamme
  * @version $Revision$
  * @since Mar 13, 2002
  */
-public class FlatXmlTableWriteTest extends FlatXmlTableTest
+class FlatXmlTableWriteTest extends FlatXmlTableTest
 {
-    public FlatXmlTableWriteTest(String s)
-    {
-        super(s);
-    }
 
     protected IDataSet createDataSet() throws Exception
     {
-        File tempFile = File.createTempFile("flatXmlTableWriteTest", ".xml");
-        Writer out = new FileWriter(tempFile);
+        final File tempFile =
+                File.createTempFile("flatXmlTableWriteTest", ".xml");
+        final Writer out = new FileWriter(tempFile);
         try
         {
             // write DefaultTable in temp file
             try
             {
                 FlatXmlDataSet.write(super.createDataSet(true), out);
-            }
-            finally
+            } finally
             {
                 out.close();
             }
 
             // load new dataset from temp file
-            FileReader in = new FileReader(tempFile);
+            final FileReader in = new FileReader(tempFile);
             try
             {
                 return new FlatXmlDataSetBuilder().build(in);
-            }
-            finally
+            } finally
             {
                 in.close();
             }
-        }
-        finally
+        } finally
         {
             tempFile.delete();
         }
     }
 
-    public void testWriteMultipleTable() throws Exception
+    @Test
+    void testWriteMultipleTable() throws Exception
     {
-        int tableCount = 5;
-        ITable sourceTable = super.createTable();
+        final int tableCount = 5;
+        final ITable sourceTable = super.createTable();
 
-        ITable[] tables = new ITable[tableCount];
+        final ITable[] tables = new ITable[tableCount];
         for (int i = 0; i < tables.length; i++)
         {
-            ITableMetaData metaData = new DefaultTableMetaData("table" + i,
-                    sourceTable.getTableMetaData().getColumns());
+            final ITableMetaData metaData = new DefaultTableMetaData(
+                    "table" + i, sourceTable.getTableMetaData().getColumns());
             tables[i] = new CompositeTable(metaData, sourceTable);
         }
 
-        IDataSet dataSet = new DefaultDataSet(tables);
-        File tempFile = File.createTempFile("flatXmlTableWriteTest", "xml");
-        Writer out = new FileWriter(tempFile);
+        final IDataSet dataSet = new DefaultDataSet(tables);
+        final File tempFile =
+                File.createTempFile("flatXmlTableWriteTest", "xml");
+        final Writer out = new FileWriter(tempFile);
         try
         {
             // write DefaultTable in temp file
             try
             {
                 FlatXmlDataSet.write(dataSet, out);
-            }
-            finally
+            } finally
             {
                 out.close();
             }
 
             // load new dataset from temp file
-            FileReader in = new FileReader(tempFile);
+            final FileReader in = new FileReader(tempFile);
             try
             {
-                FlatXmlDataSet xmlDataSet2 = new FlatXmlDataSetBuilder().build(in);
+                final FlatXmlDataSet xmlDataSet2 =
+                        new FlatXmlDataSetBuilder().build(in);
 
                 // verify each table
                 for (int i = 0; i < tables.length; i++)
                 {
-                    ITable table = tables[i];
-                    Assertion.assertEquals(table, xmlDataSet2.getTable(xmlDataSet2.getTableNames()[i]));
+                    final ITable table = tables[i];
+                    Assertion.assertEquals(table, xmlDataSet2
+                            .getTable(xmlDataSet2.getTableNames()[i]));
                 }
-            }
-            finally
+            } finally
             {
                 in.close();
             }
-        }
-        finally
+        } finally
         {
             tempFile.delete();
         }
     }
 
 }
-
-
-
-
-
-
-

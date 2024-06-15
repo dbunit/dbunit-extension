@@ -20,10 +20,11 @@
  */
 package org.dbunit.dataset.datatype;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import java.sql.Types;
 
-import junit.framework.TestCase;
-import junitx.framework.ArrayAssert;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author gommma (gommma AT users.sourceforge.net)
@@ -31,24 +32,28 @@ import junitx.framework.ArrayAssert;
  * @version $Revision$ $Date$
  * @since 2.4.0
  */
-public class BinaryStreamDataTypeTest extends TestCase 
+class BinaryStreamDataTypeTest
 {
 
-    private BinaryStreamDataType type = new BinaryStreamDataType("BLOB", Types.BLOB);
-    
-    public void test2Chars() throws Exception
+    private BinaryStreamDataType type =
+            new BinaryStreamDataType("BLOB", Types.BLOB);
+
+    @Test
+    void test2Chars() throws Exception
     {
-        String value = "tu";
-        byte[] result = (byte[]) type.typeCast(value);
-        // Cannot be converted since it is not valid Base64 because it only has 2 chars
-        ArrayAssert.assertEquals(new byte[]{}, result);
+        final String value = "tu";
+        final byte[] result = (byte[]) type.typeCast(value);
+        // Cannot be converted since it is not valid Base64 because it only has
+        // 2 chars
+        assertThat(result).isEqualTo(new byte[] {});
     }
 
-    public void test4Chars() throws Exception
+    @Test
+    void test4Chars() throws Exception
     {
-        String value = "tutu";
-        byte[] result = (byte[]) type.typeCast(value);
-        ArrayAssert.assertEquals(new byte[]{-74,-21,110}, result);
+        final String value = "tutu";
+        final byte[] result = (byte[]) type.typeCast(value);
+        assertThat(result).isEqualTo(new byte[] {-74, -21, 110});
     }
 
 }

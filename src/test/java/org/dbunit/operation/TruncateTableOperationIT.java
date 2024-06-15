@@ -21,32 +21,33 @@
 package org.dbunit.operation;
 
 import org.dbunit.TestFeature;
+import org.junit.jupiter.api.condition.DisabledIfSystemProperty;
 
 /**
  * @author Manuel Laflamme
  * @since Apr 13, 2003
  * @version $Revision$
  */
+@DisabledIfSystemProperty(named = "dbunit.profile.unsupportedFeatures", matches = "(.*)TRUNCATE_TABLE(.*)")
 public class TruncateTableOperationIT extends DeleteAllOperationIT
 {
-    public TruncateTableOperationIT(String s)
-    {
-        super(s);
-    }
 
+    @Override
     protected DatabaseOperation getDeleteAllOperation()
     {
         return new TruncateTableOperation();
     }
 
-    protected String getExpectedStament(String tableName)
+    @Override
+    protected String getExpectedStament(final String tableName)
     {
         return "truncate table " + tableName;
     }
-    
-    protected boolean runTest(String testName) {
-      return environmentHasFeature(TestFeature.TRUNCATE_TABLE);
+
+    @Override
+    protected boolean runTest(final String testName)
+    {
+        return environmentHasFeature(TestFeature.TRUNCATE_TABLE);
     }
 
 }
-

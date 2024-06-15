@@ -20,11 +20,14 @@
  */
 package org.dbunit.util.xml;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.fail;
+
 import java.io.ByteArrayOutputStream;
 import java.io.StringWriter;
 import java.io.Writer;
 
-import junit.framework.TestCase;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author gommma
@@ -32,155 +35,174 @@ import junit.framework.TestCase;
  * @version $Revision$ $Date$
  * @since 2.3.0
  */
-public class XmlWriterTest extends TestCase 
+class XmlWriterTest
 {
 
-	public void testLiterallyFalse() throws Exception
-	{
-		String text = "text1\ntext2\rtext3";
-		String expectedXml = "<COLUMN1 ATTR=\"" + text + "\">" + text + "</COLUMN1>\n";
-        Writer writer = new StringWriter();
-        XmlWriter xmlWriter = new XmlWriter(writer);
-		xmlWriter.writeElement("COLUMN1");
-		xmlWriter.writeAttribute("ATTR", text);
-		xmlWriter.writeText(text);
-		xmlWriter.endElement();
-		xmlWriter.close();
-		String actualXml = writer.toString();
-		assertEquals(expectedXml, actualXml);
-	}
-	
-	public void testLiterallyTrue() throws Exception
-	{
-		String expectedText = "text1&#xA;text2&#xD;text3";
-		String expectedXml = "<COLUMN1 ATTR=\"" + expectedText + "\">" + expectedText + "</COLUMN1>\n";
+    @Test
+    void testLiterallyFalse() throws Exception
+    {
+        final String text = "text1\ntext2\rtext3";
+        final String expectedXml =
+                "<COLUMN1 ATTR=\"" + text + "\">" + text + "</COLUMN1>\n";
+        final Writer writer = new StringWriter();
+        final XmlWriter xmlWriter = new XmlWriter(writer);
+        xmlWriter.writeElement("COLUMN1");
+        xmlWriter.writeAttribute("ATTR", text);
+        xmlWriter.writeText(text);
+        xmlWriter.endElement();
+        xmlWriter.close();
+        final String actualXml = writer.toString();
+        assertThat(actualXml).isEqualTo(expectedXml);
+    }
 
-		boolean literally = true;
-		String text = "text1\ntext2\rtext3";
-        Writer writer = new StringWriter();
-        XmlWriter xmlWriter = new XmlWriter(writer);
-		xmlWriter.writeElement("COLUMN1");
-		xmlWriter.writeAttribute("ATTR", text, literally);
-		xmlWriter.writeText(text, literally);
-		xmlWriter.endElement();
-		xmlWriter.close();
-		String actualXml = writer.toString();
-		assertEquals(expectedXml, actualXml);
-	}
-	
-	public void testWriteAttributesAfterText() throws Exception
-	{
-		String text = "bla";
-        Writer writer = new StringWriter();
-        XmlWriter xmlWriter = new XmlWriter(writer);
-		xmlWriter.writeElement("COLUMN1");
-		xmlWriter.writeText(text);
-		try {
-			xmlWriter.writeAttribute("ATTR", text);
-			fail("Should not be able to add attributes afterwards with the current XmlWriter implementation (which could be better...)");
-		}
-		catch(IllegalStateException expected) {
-			// all right
-		}
-	}
-	
-	public void testWriteNestedCDATAWithoutSurrounder() throws Exception
-	{
-	    String text = "<![CDATA[Text that itself is in a CDATA section]]>";
-        Writer writer = new StringWriter();
-        XmlWriter xmlWriter = new XmlWriter(writer);
+    @Test
+    void testLiterallyTrue() throws Exception
+    {
+        final String expectedText = "text1&#xA;text2&#xD;text3";
+        final String expectedXml = "<COLUMN1 ATTR=\"" + expectedText + "\">"
+                + expectedText + "</COLUMN1>\n";
+
+        final boolean literally = true;
+        final String text = "text1\ntext2\rtext3";
+        final Writer writer = new StringWriter();
+        final XmlWriter xmlWriter = new XmlWriter(writer);
+        xmlWriter.writeElement("COLUMN1");
+        xmlWriter.writeAttribute("ATTR", text, literally);
+        xmlWriter.writeText(text, literally);
+        xmlWriter.endElement();
+        xmlWriter.close();
+        final String actualXml = writer.toString();
+        assertThat(actualXml).isEqualTo(expectedXml);
+    }
+
+    @Test
+    void testWriteAttributesAfterText() throws Exception
+    {
+        final String text = "bla";
+        final Writer writer = new StringWriter();
+        final XmlWriter xmlWriter = new XmlWriter(writer);
+        xmlWriter.writeElement("COLUMN1");
+        xmlWriter.writeText(text);
+        try
+        {
+            xmlWriter.writeAttribute("ATTR", text);
+            fail("Should not be able to add attributes afterwards with the current XmlWriter implementation (which could be better...)");
+        } catch (final IllegalStateException expected)
+        {
+            // all right
+        }
+    }
+
+    @Test
+    void testWriteNestedCDATAWithoutSurrounder() throws Exception
+    {
+        final String text =
+                "<![CDATA[Text that itself is in a CDATA section]]>";
+        final Writer writer = new StringWriter();
+        final XmlWriter xmlWriter = new XmlWriter(writer);
         xmlWriter.writeElement("COLUMN1");
         xmlWriter.writeCData(text);
         xmlWriter.endElement();
         xmlWriter.close();
-        String actualXml = writer.toString();
-        
-        // Input should be equal to output because the text already starts with a CDATA section
-        assertEquals("<COLUMN1>" + text + "</COLUMN1>\n", actualXml);
-	}
+        final String actualXml = writer.toString();
 
-	public void testWriteNestedCDATAWithSurrounder() throws Exception
-	{
-	    String text = "<myXmlText>"+XmlWriter.CDATA_START+"Text that itself is in a CDATA section"+XmlWriter.CDATA_END+"</myXmlText>";
-        String expectedResultText = "<myXmlText>"+XmlWriter.CDATA_START+"Text that itself is in a CDATA section]]"+XmlWriter.CDATA_END+XmlWriter.CDATA_START+"></myXmlText>";
-	    Writer writer = new StringWriter();
-	    XmlWriter xmlWriter = new XmlWriter(writer);
-	    xmlWriter.writeElement("COLUMN1");
-	    xmlWriter.writeCData(text);
-	    xmlWriter.endElement();
-	    xmlWriter.close();
-	    String actualXml = writer.toString();
+        // Input should be equal to output because the text already starts with
+        // a CDATA section
+        assertThat(actualXml).isEqualTo("<COLUMN1>" + text + "</COLUMN1>\n");
+    }
 
-	    String expectedXml = "<COLUMN1>" + XmlWriter.CDATA_START + expectedResultText + XmlWriter.CDATA_END + "</COLUMN1>\n";
-	    assertEquals(expectedXml, actualXml);
-	}
+    @Test
+    void testWriteNestedCDATAWithSurrounder() throws Exception
+    {
+        final String text = "<myXmlText>" + XmlWriter.CDATA_START
+                + "Text that itself is in a CDATA section" + XmlWriter.CDATA_END
+                + "</myXmlText>";
+        final String expectedResultText = "<myXmlText>" + XmlWriter.CDATA_START
+                + "Text that itself is in a CDATA section]]"
+                + XmlWriter.CDATA_END + XmlWriter.CDATA_START + "></myXmlText>";
+        final Writer writer = new StringWriter();
+        final XmlWriter xmlWriter = new XmlWriter(writer);
+        xmlWriter.writeElement("COLUMN1");
+        xmlWriter.writeCData(text);
+        xmlWriter.endElement();
+        xmlWriter.close();
+        final String actualXml = writer.toString();
 
-	   public void testOutputStreamWithNullEncoding() throws Exception
-	    {
-	        ByteArrayOutputStream out = new ByteArrayOutputStream();
-	        // Use a different encoding than the default
-	        XmlWriter xmlWriter = new XmlWriter(out, null);
-	        xmlWriter.writeDeclaration();
-	        xmlWriter.writeEmptyElement("COLUMN1");
-	        xmlWriter.close();
-	        
-	           String expected = "<?xml version='1.0' encoding='UTF-8'?>\n" +
-	           		"<COLUMN1/>\n";
-	        assertEquals(expected, out.toString("UTF-8"));
-	    }
+        final String expectedXml = "<COLUMN1>" + XmlWriter.CDATA_START
+                + expectedResultText + XmlWriter.CDATA_END + "</COLUMN1>\n";
+        assertThat(actualXml).isEqualTo(expectedXml);
+    }
 
-       public void testOutputStreamWithNonDefaultEncoding() throws Exception
-       {
-           ByteArrayOutputStream out = new ByteArrayOutputStream();
-           // Use a different encoding than the default
-           XmlWriter xmlWriter = new XmlWriter(out, "ISO-8859-1");
-           xmlWriter.writeDeclaration();
-           xmlWriter.writeEmptyElement("COLUMN1");
-           xmlWriter.close();
-           
-           String expected = "<?xml version='1.0' encoding='ISO-8859-1'?>\n" +
-           		"<COLUMN1/>\n";
-           assertEquals(expected, out.toString("ISO-8859-1"));
-       }
-	   
-	public void testEncodedXmlChar() throws Exception
-	{
-		String expectedText = "\u00AEtext1&#xA;text2&#xD;text3\u00AE";
-		String expectedXml = "<COLUMN1 ATTR=\"" + expectedText + "\">" + expectedText + "</COLUMN1>\n";
+    @Test
+    void testOutputStreamWithNullEncoding() throws Exception
+    {
+        final ByteArrayOutputStream out = new ByteArrayOutputStream();
+        // Use a different encoding than the default
+        final XmlWriter xmlWriter = new XmlWriter(out, null);
+        xmlWriter.writeDeclaration();
+        xmlWriter.writeEmptyElement("COLUMN1");
+        xmlWriter.close();
 
-		boolean literally = true;
-        StringBuffer textBuilder = new StringBuffer();
-        String registeredSymbol = new String(new char[] { 0xAE });
+        final String expected =
+                "<?xml version='1.0' encoding='UTF-8'?>\n" + "<COLUMN1/>\n";
+        assertThat(out.toString("UTF-8")).isEqualTo(expected);
+    }
+
+    @Test
+    void testOutputStreamWithNonDefaultEncoding() throws Exception
+    {
+        final ByteArrayOutputStream out = new ByteArrayOutputStream();
+        // Use a different encoding than the default
+        final XmlWriter xmlWriter = new XmlWriter(out, "ISO-8859-1");
+        xmlWriter.writeDeclaration();
+        xmlWriter.writeEmptyElement("COLUMN1");
+        xmlWriter.close();
+
+        final String expected = "<?xml version='1.0' encoding='ISO-8859-1'?>\n"
+                + "<COLUMN1/>\n";
+        assertThat(out.toString("ISO-8859-1")).isEqualTo(expected);
+    }
+
+    @Test
+    void testEncodedXmlChar() throws Exception
+    {
+        final String expectedText = "\u00AEtext1&#xA;text2&#xD;text3\u00AE";
+        final String expectedXml = "<COLUMN1 ATTR=\"" + expectedText + "\">"
+                + expectedText + "</COLUMN1>\n";
+
+        final boolean literally = true;
+        final StringBuffer textBuilder = new StringBuffer();
+        final String registeredSymbol = new String(new char[] {0xAE});
         textBuilder.append(registeredSymbol);
         textBuilder.append("text1\ntext2\rtext3");
         textBuilder.append(registeredSymbol);
-        String text = textBuilder.toString();
-        Writer writer = new StringWriter();
-        XmlWriter xmlWriter = new XmlWriter(writer);
-		xmlWriter.writeElement("COLUMN1");
-		xmlWriter.writeAttribute("ATTR", text, literally);
-		xmlWriter.writeText(text, literally);
-		xmlWriter.endElement();
-		xmlWriter.close();
-		String actualXml = writer.toString();
-		assertEquals(expectedXml, actualXml);
-	}
+        final String text = textBuilder.toString();
+        final Writer writer = new StringWriter();
+        final XmlWriter xmlWriter = new XmlWriter(writer);
+        xmlWriter.writeElement("COLUMN1");
+        xmlWriter.writeAttribute("ATTR", text, literally);
+        xmlWriter.writeText(text, literally);
+        xmlWriter.endElement();
+        xmlWriter.close();
+        final String actualXml = writer.toString();
+        assertThat(actualXml).isEqualTo(expectedXml);
+    }
 
+    @Test
+    void testNonAsciiValidXmlCharactersInAttributeValue() throws Exception
+    {
+        final String expectedText = "привет";
+        final String expectedXml = "<COLUMN1 ATTR=\"" + expectedText + "\"/>\n";
 
-	public void testNonAsciiValidXmlCharactersInAttributeValue() throws Exception
-	{
-		String expectedText = "привет";
-		String expectedXml = "<COLUMN1 ATTR=\"" + expectedText + "\"/>\n";
+        final boolean literally = true;
+        final Writer writer = new StringWriter();
+        final XmlWriter xmlWriter = new XmlWriter(writer);
+        xmlWriter.writeElement("COLUMN1");
+        xmlWriter.writeAttribute("ATTR", expectedText, literally);
+        xmlWriter.endElement();
+        xmlWriter.close();
 
-		boolean literally = true;
-		Writer writer = new StringWriter();
-		XmlWriter xmlWriter = new XmlWriter(writer);
-		xmlWriter.writeElement("COLUMN1");
-		xmlWriter.writeAttribute("ATTR", expectedText, literally);
-		xmlWriter.endElement();
-		xmlWriter.close();
-
-		String actualXml = writer.toString();
-		assertEquals(expectedXml, actualXml);
-	}
+        final String actualXml = writer.toString();
+        assertThat(actualXml).isEqualTo(expectedXml);
+    }
 }

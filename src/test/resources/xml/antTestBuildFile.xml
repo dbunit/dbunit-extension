@@ -17,11 +17,11 @@
   <property name="compositeCombineDataSet2" value="flatXmlCompositeCombineDataSetTestPart2.xml"/>
   <property name="updateDataSet" value="src/test/resources/xml/antTestDataSet.xml"/>
   <property name="exportDataSet" value="target/xml/antExportDataSet.xml"/>
-  <property name="exportDtd" value="src/test/resources/xml/antExport.dtd"/>
-  <property name="exportCsv" value="src/test/resources/xml/antExportCsv"/>
+  <property name="exportDtd" value="target/xml/antExport.dtd"/>
+  <property name="exportCsv" value="target/xml/antExportCsv"/>
 
-  <taskdef name="dbunit" classname="org.dbunit.ant.DbUnitTask" loaderref="dbunit"/>
-  <typedef name="queryset" classname="org.dbunit.ant.QuerySet" loaderref="dbunit"/>
+  <taskdef name="dbunit" classname="org.dbunit.ant.DbUnitTask" loaderref="dbunit" onerror="report"/>
+  <typedef name="queryset" classname="org.dbunit.ant.QuerySet" loaderref="dbunit" onerror="fail"/>
 
   <target name="all" depends="no-driver, no-db-url, no-userid, no-password"/>
 
@@ -387,10 +387,10 @@
             userid="${dbunit.profile.user}"
             password="${dbunit.profile.password}">
       <export dest="${exporDataSet}" format="flat">
-        <queryset id="someid" refid="someid"/>
+        <queryset id="someid" refid="someid" onerror="fail"/>
       </export>
     </dbunit>
-    <delete file="${exportDataSet}"/>
+    <delete file="${exportDataSet}" deleteonexit="true"/>
   </target>
 
   <target name="test-queryset-reference">

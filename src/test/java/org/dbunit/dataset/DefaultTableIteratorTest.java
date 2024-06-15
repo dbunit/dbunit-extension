@@ -28,35 +28,33 @@ import java.util.List;
  * @since Apr 6, 2003
  * @version $Revision$
  */
-public class DefaultTableIteratorTest
-        extends AbstractTableIteratorTest
+class DefaultTableIteratorTest extends AbstractTableIteratorTest
 {
-    public DefaultTableIteratorTest(String s)
-    {
-        super(s);
-    }
 
+    @Override
     protected ITableIterator getIterator() throws Exception
     {
         return getIterator(false);
     }
 
+    @Override
     protected ITableIterator getEmptyIterator()
     {
         return new DefaultTableIterator(new ITable[0]);
     }
 
-    protected ITableIterator getIterator(boolean reversed) throws Exception
+    protected ITableIterator getIterator(final boolean reversed)
+            throws Exception
     {
-        List tableList = new ArrayList();
-        String[] names = super.getExpectedNames();
+        final List<DefaultTable> tableList = new ArrayList<>();
+        final String[] names = super.getExpectedNames();
         for (int i = 0; i < names.length; i++)
         {
-            String name = names[i];
+            final String name = names[i];
             tableList.add(new DefaultTable(name));
         }
 
-        ITable[] tables = (ITable[])tableList.toArray(new ITable[0]);
+        final ITable[] tables = tableList.toArray(new ITable[0]);
         return new DefaultTableIterator(tables, reversed);
     }
 

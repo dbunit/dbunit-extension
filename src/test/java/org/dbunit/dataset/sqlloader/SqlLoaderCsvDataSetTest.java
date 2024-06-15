@@ -20,14 +20,13 @@
  */
 package org.dbunit.dataset.sqlloader;
 
-import java.io.File;
-
-import junit.framework.TestCase;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.ITable;
 import org.dbunit.testutil.TestUtils;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author Stephan Strittmatter (stritti AT users.sourceforge.net)
@@ -35,37 +34,44 @@ import org.dbunit.testutil.TestUtils;
  * @version $Revision$ $Date$
  * @since 2.4.0
  */
-public class SqlLoaderCsvDataSetTest extends TestCase {
+class SqlLoaderCsvDataSetTest
+{
 
     /**
      * Gets the data set.
-     * 
+     *
      * @return the data set
-     * 
-     * @throws DataSetException the data set exception
+     *
+     * @throws DataSetException
+     *             the data set exception
      */
-    protected IDataSet getDataSet() throws DataSetException {
+    protected IDataSet getDataSet() throws DataSetException
+    {
 
-        SqlLoaderControlDataSet loadedDataSet =
-            new SqlLoaderControlDataSet(TestUtils.getFile("sqlloader"), TestUtils.getFile("sqlloader/tables.lst"));
+        final SqlLoaderControlDataSet loadedDataSet =
+                new SqlLoaderControlDataSet(TestUtils.getFile("sqlloader"),
+                        TestUtils.getFile("sqlloader/tables.lst"));
 
         return loadedDataSet;
     }
 
     /**
      * Test null columns.
-     * 
-     * @throws DataSetException the data set exception
+     *
+     * @throws DataSetException
+     *             the data set exception
      */
-    public void testCountryTable() throws DataSetException {
+    @Test
+    void testCountryTable() throws DataSetException
+    {
 
-        ITable table = getDataSet().getTable("COUNTRY");
+        final ITable table = getDataSet().getTable("COUNTRY");
 
-        assertEquals(249, table.getRowCount());
-        
+        assertThat(table.getRowCount()).isEqualTo(249);
+
         // One sample test value
-        Object val = table.getValue(3, "NAME");
-        assertEquals("AMERICAN_SAMOA", val);
+        final Object val = table.getValue(3, "NAME");
+        assertThat(val).isEqualTo("AMERICAN_SAMOA");
     }
 
 }

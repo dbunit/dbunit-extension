@@ -18,80 +18,80 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  */
-
 package org.dbunit.database.statement;
 
-import junit.framework.TestCase;
+import static org.assertj.core.api.Assertions.assertThat;
+
 import org.dbunit.dataset.datatype.DataType;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author Manuel Laflamme
  * @version $Revision$
  * @since Mar 16, 2002
  */
-public class BatchStatementDecoratorTest extends TestCase
+class BatchStatementDecoratorTest
 {
-    public BatchStatementDecoratorTest(String s)
-    {
-        super(s);
-    }
 
-    public void testAddBatch() throws Exception
+    @Test
+    void testAddBatch() throws Exception
     {
-        String template = "START VAL0 = ?, VAL1 = ?, VAL2 = ? END";
-        String expected = "START VAL0 = NULL, VAL1 = 'value', VAL2 = 1234 END";
-        Object[] values = new Object[]{null, "value", new Integer(1234)};
+        final String template = "START VAL0 = ?, VAL1 = ?, VAL2 = ? END";
+        final String expected =
+                "START VAL0 = NULL, VAL1 = 'value', VAL2 = 1234 END";
+        final Object[] values =
+                new Object[] {null, "value", Integer.valueOf(1234)};
 
-        MockBatchStatement mockStatement = new MockBatchStatement();
+        final MockBatchStatement mockStatement = new MockBatchStatement();
         mockStatement.addExpectedBatchString(expected);
         mockStatement.setExpectedExecuteBatchCalls(1);
         mockStatement.setExpectedClearBatchCalls(1);
         mockStatement.setExpectedCloseCalls(1);
 
-        IPreparedBatchStatement preparedStatement =
+        final IPreparedBatchStatement preparedStatement =
                 new BatchStatementDecorator(template, mockStatement);
 
         for (int i = 0; i < values.length; i++)
         {
-            Object value = values[i];
+            final Object value = values[i];
             preparedStatement.addValue(value, DataType.forObject(value));
         }
         preparedStatement.addBatch();
-        assertEquals("execute result", 1, preparedStatement.executeBatch());
+        assertThat(preparedStatement.executeBatch()).as("execute result")
+                .isEqualTo(1);
         preparedStatement.clearBatch();
         preparedStatement.close();
         mockStatement.verify();
     }
 
-    public void testMultipleAddBatch() throws Exception
+    @Test
+    void testMultipleAddBatch() throws Exception
     {
-        String template = "I am ?";
-        String[] expected = {"I am 'Manuel'", "I am 'not here'", "I am 'fine'"};
-        String[] values = {"Manuel", "not here", "fine"};
+        final String template = "I am ?";
+        final String[] expected =
+                {"I am 'Manuel'", "I am 'not here'", "I am 'fine'"};
+        final String[] values = {"Manuel", "not here", "fine"};
 
-        MockBatchStatement mockStatement = new MockBatchStatement();
+        final MockBatchStatement mockStatement = new MockBatchStatement();
         mockStatement.addExpectedBatchStrings(expected);
         mockStatement.setExpectedExecuteBatchCalls(1);
         mockStatement.setExpectedClearBatchCalls(1);
         mockStatement.setExpectedCloseCalls(1);
 
-        IPreparedBatchStatement preparedStatement =
+        final IPreparedBatchStatement preparedStatement =
                 new BatchStatementDecorator(template, mockStatement);
 
         for (int i = 0; i < values.length; i++)
         {
-            Object value = values[i];
+            final Object value = values[i];
             preparedStatement.addValue(value, DataType.VARCHAR);
             preparedStatement.addBatch();
         }
-        assertEquals("execute result", values.length,
-                preparedStatement.executeBatch());
+        assertThat(preparedStatement.executeBatch()).as("execute result")
+                .isEqualTo(values.length);
         mockStatement.clearBatch();
         mockStatement.close();
         mockStatement.verify();
     }
 
 }
-
-
-

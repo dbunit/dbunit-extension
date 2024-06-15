@@ -21,10 +21,12 @@
 
 package org.dbunit.util.fileloader;
 
-import junit.framework.TestCase;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.IDataSet;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author Jeff Jensen jeffjensen AT users.sourceforge.net
@@ -32,23 +34,29 @@ import org.dbunit.dataset.IDataSet;
  * @version $Revision$ $Date$
  * @since 2.4.8
  */
-public class CsvDataFileLoaderTest extends TestCase {
+class CsvDataFileLoaderTest
+{
     CsvDataFileLoader loader = null;
 
     /**
      * {@inheritDoc}
      */
-    protected void setUp() throws Exception {
+    @BeforeEach
+    protected void setUp() throws Exception
+    {
         loader = new CsvDataFileLoader();
     }
 
     /**
      * Test can load the specified file.
      */
-    public void testLoad() throws DataSetException {
-        String filename = "/csv/orders/orders_row.csv";
-        IDataSet ds = loader.load(filename);
-        assertTrue("No tables found in dataset.", ds.getTableNames().length > 0);
+    @Test
+    void testLoad() throws DataSetException
+    {
+        final String filename = "/csv/orders/orders_row.csv";
+        final IDataSet ds = loader.load(filename);
+        assertThat(ds.getTableNames()).as("No tables found in dataset.")
+                .hasSizeGreaterThan(0);
         // DataSet loading tests verify data accuracy
     }
 }

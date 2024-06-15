@@ -20,8 +20,7 @@
  */
 package org.dbunit.assertion;
 
-import junit.framework.AssertionFailedError;
-import junit.framework.ComparisonFailure;
+import org.opentest4j.AssertionFailedError;
 
 /**
  * Adapter that lets dbunit create JUnit failure objects.
@@ -31,17 +30,21 @@ import junit.framework.ComparisonFailure;
  * @version $Revision$ $Date$
  * @since 2.4.0
  */
-public class JUnitFailureFactory implements FailureFactory
-{
-    public Error createFailure(String message, String expected, String actual) 
-    {
-        // Return the junit.framework.ComparisonFailure object
-        return new ComparisonFailure(message, expected, actual);
+public class JUnitFailureFactory implements FailureFactory {
+    @Override
+    public Error createFailure(final String message, final String expected, final String actual) {
+        // Return the org.opentest4j.AssertionFailedError object
+        // TODO Junit5 update something changed the message returned does not include
+        // the actual and exected
+        // adding it here for now.
+        return new DbComparisonFailure(
+                message,
+                expected, actual);
     }
 
-    public Error createFailure(String message) 
-    {
-        // Return the junit.framework.AssertionFailedError object
+    @Override
+    public Error createFailure(final String message) {
+        // Return the org.opentest4j.AssertionFailedError object
         return new AssertionFailedError(message);
     }
 }

@@ -28,23 +28,14 @@ package org.dbunit.dataset;
  */
 public class CompositeTableTest extends DefaultTableTest
 {
-    public CompositeTableTest(String s)
-    {
-        super(s);
-    }
 
+    @Override
     protected ITable createTable() throws Exception
     {
-        ITableMetaData metaData = createTableMetaData(COLUMN_COUNT);
-        ITable[] tables = new ITable[]{
-            createTable(COLUMN_COUNT, 4, 0),
-            createTable(COLUMN_COUNT, 2, 4),
-        };
+        final ITableMetaData metaData = createTableMetaData(COLUMN_COUNT);
+        final ITable[] tables = new ITable[] {createTable(COLUMN_COUNT, 4, 0),
+                createTable(COLUMN_COUNT, 2, 4),};
 
         return new CompositeTable(metaData, tables);
     }
 }
-
-
-
-

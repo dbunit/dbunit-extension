@@ -20,13 +20,15 @@
  */
 package org.dbunit;
 
-import junit.framework.TestCase;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import org.dbunit.database.IDatabaseConnection;
 import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.SortedTable;
 import org.dbunit.operation.DatabaseOperation;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,109 +38,90 @@ import org.slf4j.LoggerFactory;
  * @version $Revision$ $Date$
  * @since 2.2.0
  */
-public abstract class AbstractDatabaseTesterIT extends TestCase
+public abstract class AbstractDatabaseTesterIT
 {
-   protected IDatabaseConnection _connection;
-   protected IDatabaseTester _databaseTester;
+    protected IDatabaseConnection _connection;
+    protected IDatabaseTester _databaseTester;
 
-   protected final Logger logger = LoggerFactory.getLogger(AbstractDatabaseTesterIT.class);
-
-   public AbstractDatabaseTesterIT( String s )
-   {
-      super( s );
-   }
+    protected final Logger logger =
+            LoggerFactory.getLogger(AbstractDatabaseTesterIT.class);
+    private String testName;
 
     protected DatabaseEnvironment getEnvironment() throws Exception
-   {
-      return DatabaseEnvironment.getInstance();
-   }
+    {
+        return DatabaseEnvironment.getInstance();
+    }
 
-   protected ITable createOrderedTable( String tableName, String orderByColumn ) throws Exception
-   {
-      return new SortedTable( _connection.createDataSet()
-            .getTable( tableName ), new String[] { orderByColumn } );
-   }
+    protected ITable createOrderedTable(final String tableName,
+            final String orderByColumn) throws Exception
+    {
+        return new SortedTable(_connection.createDataSet().getTable(tableName),
+                new String[] {orderByColumn});
+    }
 
-   // //////////////////////////////////////////////////////////////////////////
-   // TestCase class
+    protected String getName()
+    {
+        return testName;
+    }
+    // //////////////////////////////////////////////////////////////////////////
+    // TestCase class
 
-   protected void setUp() throws Exception
-   {
-      super.setUp();
+    @BeforeEach
+    protected void setUpConnection() throws Exception
+    {
+        assertNotNull(getDatabaseTester(), "DatabaseTester is not set");
+        getDatabaseTester().setSetUpOperation(getSetUpOperation());
+        getDatabaseTester().setDataSet(getDataSet());
+        getDatabaseTester().onSetup();
 
-      assertNotNull( "DatabaseTester is not set", getDatabaseTester() );
-      getDatabaseTester().setSetUpOperation( getSetUpOperation() );
-      getDatabaseTester().setDataSet( getDataSet() );
-      getDatabaseTester().onSetup();
+        _connection = getDatabaseTester().getConnection();
+    }
 
-      _connection = getDatabaseTester().getConnection();
-   }
+    @AfterEach
+    protected void tearDown() throws Exception
+    {
 
-   protected void tearDown() throws Exception
-   {
-      super.tearDown();
+        assertNotNull(getDatabaseTester(), "DatabaseTester is not set");
+        getDatabaseTester().setTearDownOperation(getTearDownOperation());
+        getDatabaseTester().setDataSet(getDataSet());
+        getDatabaseTester().onTearDown();
 
-      assertNotNull( "DatabaseTester is not set", getDatabaseTester() );
-      getDatabaseTester().setTearDownOperation( getTearDownOperation() );
-      getDatabaseTester().setDataSet( getDataSet() );
-      getDatabaseTester().onTearDown();
+        DatabaseOperation.DELETE_ALL.execute(_connection,
+                _connection.createDataSet());
 
-      DatabaseOperation.DELETE_ALL.execute( _connection, _connection.createDataSet() );
+        _connection = null;
+    }
 
-      _connection = null;
-   }
+    // //////////////////////////////////////////////////////////////////////////
 
-   // //////////////////////////////////////////////////////////////////////////
+    protected IDataSet getDataSet() throws Exception
+    {
+        return getEnvironment().getInitDataSet();
+    }
 
-   protected IDataSet getDataSet() throws Exception
-   {
-      return getEnvironment().getInitDataSet();
-   }
+    protected DatabaseOperation getSetUpOperation()
+    {
+        return DatabaseOperation.CLEAN_INSERT;
+    }
 
-   protected DatabaseOperation getSetUpOperation()
-   {
-      return DatabaseOperation.CLEAN_INSERT;
-   }
+    protected DatabaseOperation getTearDownOperation()
+    {
+        return DatabaseOperation.NONE;
+    }
 
-   protected DatabaseOperation getTearDownOperation()
-   {
-      return DatabaseOperation.NONE;
-   }
+    protected abstract IDatabaseTester getDatabaseTester() throws Exception;
 
-   protected abstract IDatabaseTester getDatabaseTester() throws Exception;
-
-   /**
-    * This method is used so sub-classes can disable the tests according to some
-    * characteristics of the environment
-    * 
-    * @param testName name of the test to be checked
-    * @return flag indicating if the test should be executed or not
-    */
-   protected boolean runTest( String testName )
-   {
-      return true;
-   }
-
-   protected void runTest() throws Throwable
-   {
-      if( runTest( getName() ) ){
-         super.runTest();
-      }else{
-         if( logger.isDebugEnabled() ){
-            logger.debug( "Skipping test " + getClass().getName() + "." + getName() );
-         }
-      }
-   }
-
-   public static boolean environmentHasFeature( TestFeature feature )
-   {
-      try{
-         final DatabaseEnvironment environment = DatabaseEnvironment.getInstance();
-         final boolean runIt = environment.support( feature );
-         return runIt;
-      }
-      catch( Exception e ){
-         throw new DatabaseUnitRuntimeException( e );
-      }
-   }
+    public static boolean environmentHasFeature(final TestFeature feature)
+    {
+        try
+        {
+            final DatabaseEnvironment environment =
+                    DatabaseEnvironment.getInstance();
+            final boolean runIt = environment.support(feature);
+            return runIt;
+        } catch (final Exception e)
+        {
+            throw new DatabaseUnitRuntimeException(e);
+        }
+    }
 }

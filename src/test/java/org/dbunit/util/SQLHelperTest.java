@@ -21,72 +21,74 @@
 
 package org.dbunit.util;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.SQLException;
 
 import org.dbunit.AbstractHSQLTestCase;
-
-import com.mockobjects.sql.MockDatabaseMetaData;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 /**
  * @author Felipe Leme (dbunit@felipeal.net)
  * @version $Revision$
  * @since Nov 5, 2005
  */
-public class SQLHelperTest extends AbstractHSQLTestCase {
-  
-  public SQLHelperTest( String name ) {
-    super( name, "hypersonic_dataset.sql" );
-  }  
-  
-  public void testGetPrimaryKeyColumn() throws SQLException {
-    String[] tables = { "A", "B", "C", "D", "E", "F", "G", "H" };
-    Connection conn = getConnection().getConnection();
-    assertNotNull( "didn't get a connection", conn );
-    for (int i = 0; i < tables.length; i++) {
-      String table = tables[i];
-      String expectedPK = "PK" + table;
-      String actualPK = SQLHelper.getPrimaryKeyColumn( conn, table );
-      assertNotNull( actualPK );
-      assertEquals( "primary key column for table " + table + " does not match", expectedPK, actualPK );
+@ExtendWith(MockitoExtension.class)
+class SQLHelperTest extends AbstractHSQLTestCase
+{
+
+    @Mock
+    private DatabaseMetaData mockDatabaseMetaData;
+
+    @BeforeEach
+    protected void setUp() throws Exception
+    {
+        super.setUpConnectionWithFile("hypersonic_dataset.sql");
     }
-  }
-  
-  public void testGetDatabaseInfoWithException() throws Exception{
-      final String productName="Some product";
-      final String exceptionText="Dummy exception to simulate unimplemented operation exception as occurs " +
-      "in sybase 'getDatabaseMajorVersion()' (com.sybase.jdbc3.utils.UnimplementedOperationException)";
-      
-      DatabaseMetaData metaData = new MockDatabaseMetaData(){
-          public String getDatabaseProductName() throws SQLException {
-              return productName;
-          }
-          public String getDatabaseProductVersion() throws SQLException{
-              return null;
-          }
-          public int getDriverMajorVersion() {
-              return -1;
-          }
-          public int getDriverMinorVersion() {
-              return -1;
-          }
-          public String getDriverName() throws SQLException {
-              return null;
-          }
-          public String getDriverVersion() throws SQLException {
-              return null;
-          }
-          public int getDatabaseMajorVersion() throws SQLException {
-              throw new SQLException(exceptionText);
-          }
-          public int getDatabaseMinorVersion() throws SQLException {
-              return -1;
-          }
-      };
-      String info = SQLHelper.getDatabaseInfo(metaData);
-      assertNotNull(info);
-      assertTrue(info.indexOf(productName)>-1);
-      assertTrue(info.indexOf(SQLHelper.ExceptionWrapper.NOT_AVAILABLE_TEXT)>-1);
-  }
+
+    @Test
+    void testGetPrimaryKeyColumn() throws SQLException
+    {
+        final String[] tables = {"A", "B", "C", "D", "E", "F", "G", "H"};
+        final Connection conn = getConnection().getConnection();
+        assertThat(conn).as("didn't get a connection").isNotNull();
+        for (int i = 0; i < tables.length; i++)
+        {
+            final String table = tables[i];
+            final String expectedPK = "PK" + table;
+            final String actualPK = SQLHelper.getPrimaryKeyColumn(conn, table);
+            assertThat(actualPK).isNotNull();
+            assertThat(actualPK).as(
+                    "primary key column for table " + table + " does not match")
+                    .isEqualTo(expectedPK);
+        }
+    }
+
+    @Test
+    void testGetDatabaseInfoWithException() throws Exception
+    {
+        final String productName = "Some product";
+        final String exceptionText =
+                "Dummy exception to simulate unimplemented operation exception as occurs "
+                        + "in sybase 'getDatabaseMajorVersion()' (com.sybase.jdbc3.utils.UnimplementedOperationException)";
+        when(mockDatabaseMetaData.getDatabaseProductName())
+                .thenReturn(productName);
+        when(mockDatabaseMetaData.getDatabaseMajorVersion())
+                .thenThrow(new SQLException(exceptionText));
+
+        final String info = SQLHelper.getDatabaseInfo(mockDatabaseMetaData);
+        assertThat(info).isNotNull().contains(productName)
+                .contains(SQLHelper.ExceptionWrapper.NOT_AVAILABLE_TEXT);
+        verify(mockDatabaseMetaData, times(1)).getDatabaseProductName();
+        verify(mockDatabaseMetaData, times(1)).getDatabaseMajorVersion();
+    }
 }

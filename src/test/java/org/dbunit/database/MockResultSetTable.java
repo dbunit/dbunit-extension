@@ -20,8 +20,10 @@
  */
 package org.dbunit.database;
 
-import com.mockobjects.ExpectationCounter;
-import com.mockobjects.Verifiable;
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.util.concurrent.atomic.AtomicInteger;
+
 import org.dbunit.dataset.Column;
 import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.DefaultTableMetaData;
@@ -32,50 +34,52 @@ import org.dbunit.dataset.ITableMetaData;
  * @since Apr 12, 2003
  * @version $Revision$
  */
-public class MockResultSetTable implements IResultSetTable, Verifiable
+public class MockResultSetTable implements IResultSetTable
 {
-    private final ExpectationCounter _closeCalls =
-            new ExpectationCounter("MockResultSetTable.close");
+    private final AtomicInteger _closeCalls = new AtomicInteger();
+    private int expectedCloseCalls;
     private ITableMetaData _metaData;
 
-    public void setupTableMetaData(String tableName)
+    public void setupTableMetaData(final String tableName)
     {
         _metaData = new DefaultTableMetaData(tableName, new Column[0]);
     }
 
-    public void setExpectedCloseCalls(int callsCount)
+    public void setExpectedCloseCalls(final int callsCount)
     {
-        _closeCalls.setExpected(callsCount);
+        expectedCloseCalls = callsCount;
     }
-
-    ///////////////////////////////////////////////////////////////////////////
-    // Verifiable interface
 
     public void verify()
     {
-        _closeCalls.verify();
+        assertThat(_closeCalls.get()).isEqualTo(expectedCloseCalls);
     }
 
     ////////////////////////////////////////////////////////////////////////////
     // IResultSetTable interface
 
-    public Object getValue(int row, String column) throws DataSetException
+    @Override
+    public Object getValue(final int row, final String column)
+            throws DataSetException
     {
         return null;
     }
 
+    @Override
     public int getRowCount()
     {
         return 0;
     }
 
+    @Override
     public ITableMetaData getTableMetaData()
     {
         return _metaData;
     }
 
+    @Override
     public void close() throws DataSetException
     {
-        _closeCalls.inc();
+        _closeCalls.incrementAndGet();
     }
 }

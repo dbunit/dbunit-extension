@@ -1,5 +1,7 @@
 package org.dbunit.assertion;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+
 import java.io.FileNotFoundException;
 import java.util.Map;
 
@@ -11,7 +13,7 @@ import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.xml.FlatXmlDataSetBuilder;
 import org.dbunit.testutil.TestUtils;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class DbUnitValueComparerAssertIT
 {
@@ -27,7 +29,7 @@ public class DbUnitValueComparerAssertIT
     }
 
     @Test
-    public void testAssertWithValueComparerITableITableValueComparer_AllRowsEqual_NoFail()
+    void testAssertWithValueComparerITableITableValueComparer_AllRowsEqual_NoFail()
             throws Exception
     {
         final IDataSet dataSet = getDataSet();
@@ -37,12 +39,12 @@ public class DbUnitValueComparerAssertIT
                 dataSet.getTable("TEST_TABLE_WITH_SAME_VALUE");
         final ValueComparer defaultValueComparer =
                 ValueComparers.isActualEqualToExpected;
-        sut.assertWithValueComparer(expectedTable, actualTable,
-                defaultValueComparer);
+        assertDoesNotThrow(() -> sut.assertWithValueComparer(expectedTable,
+                actualTable, defaultValueComparer));
     }
 
     @Test
-    public void testAssertWithValueComparerITableITableValueComparerMap_OneColumnNotEqual_NoFail()
+    void testAssertWithValueComparerITableITableValueComparerMap_OneColumnNotEqual_NoFail()
             throws Exception
     {
         final IDataSet dataSet = getDataSet();
@@ -57,7 +59,7 @@ public class DbUnitValueComparerAssertIT
         final Map<String, ValueComparer> columnValueComparers =
                 new ColumnValueComparerMapBuilder()
                         .add("COLUMN2", valueComparer).build();
-        sut.assertWithValueComparer(expectedTable, actualTable,
-                defaultValueComparer, columnValueComparers);
+        assertDoesNotThrow(() -> sut.assertWithValueComparer(expectedTable,
+                actualTable, defaultValueComparer, columnValueComparers));
     }
 }
