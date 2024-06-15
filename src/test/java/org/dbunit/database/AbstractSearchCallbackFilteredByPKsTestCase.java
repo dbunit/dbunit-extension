@@ -1,5 +1,9 @@
 package org.dbunit.database;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.fail;
+
 import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -16,129 +20,162 @@ import org.dbunit.dataset.ITableIterator;
 import org.dbunit.util.CollectionsHelper;
 import org.dbunit.util.search.SearchException;
 
-public abstract class AbstractSearchCallbackFilteredByPKsTestCase extends AbstractHSQLTestCase {
+public abstract class AbstractSearchCallbackFilteredByPKsTestCase
+        extends AbstractHSQLTestCase
+{
 
-  private static final char FIRST_TABLE = 'A';
+    private static final char FIRST_TABLE = 'A';
 
-  private PkTableMap fInput = new PkTableMap();
-  private PkTableMap fOutput = new PkTableMap();  
-  
-  public AbstractSearchCallbackFilteredByPKsTestCase(String testName, String sqlFile) {
-    super(testName, sqlFile);
-  }
-  
-  protected abstract int[] setupTablesSizeFixture();
-  
-  protected IDataSet setupTablesDataSetFixture() throws SQLException {
-    IDatabaseConnection connection = getConnection();
-    IDataSet allDataSet = connection.createDataSet();
-    return allDataSet;
-  }
-    
-  protected void addInput(String tableName, String[] ids) {
-//    Set idsSet = CollectionsHelper.objectsToSet( ids );
-    SortedSet idsSet = new TreeSet(Arrays.asList(ids));
-    this.fInput.put( tableName, idsSet );
-  }
-  protected void addOutput(String tableName, String[] ids) {
-//    List idsList = Arrays.asList( ids );
-//      Set idsSet = CollectionsHelper.objectsToSet( ids );
-      SortedSet idsSet = new TreeSet(Arrays.asList(ids));
-    this.fOutput.put( tableName, idsSet );
-  }
-  
-  protected abstract IDataSet getDataset() throws SQLException, SearchException, DataSetException; 
+    private PkTableMap fInput = new PkTableMap();
+    private PkTableMap fOutput = new PkTableMap();
 
-  protected void doIt() throws SQLException, DataSetException, SearchException  {
-    IDataSet dataset = getDataset();
-    assertNotNull( dataset );
-    
-    // first, check if only the correct tables had been generated
-    String[] outputTables = dataset.getTableNames();
-    assertTablesSize( outputTables );
-    assertTablesName( outputTables );
-    assertRows( dataset );   
-  }
+    protected abstract int[] setupTablesSizeFixture();
 
-  protected void assertTablesSize(String[] actualTables) {
-    int expectedSize = this.fOutput.size();
-    int actualSize = actualTables.length;
-    if ( expectedSize != actualSize ) {
-      super.logger.error( "Expected tables: " + dump(this.fOutput.getTableNames()) );
-      super.logger.error( "Actual tables: " + dump(actualTables) );
-      fail( "I number of returned tables did not match: " + actualSize + " instead of " + expectedSize );
-    }    
-  }
-  protected void assertTablesName(String[] outputTables) {
-    Set expectedTables = CollectionsHelper.objectsToSet(this.fOutput.getTableNames());
-    Set notExpectedTables = new HashSet();
-    boolean ok = true;
-    // first check if expected tables are lacking or nonExpected tables were found
-    for (int i = 0; i < outputTables.length; i++) {
-      String table = outputTables[i];
-      if ( expectedTables.contains(table) ) {
-        expectedTables.remove(table);
-      } else {
-        notExpectedTables.add(table);
-      }
+    protected IDataSet setupTablesDataSetFixture() throws SQLException
+    {
+        final IDatabaseConnection connection = getConnection();
+        final IDataSet allDataSet = connection.createDataSet();
+        return allDataSet;
     }
-    if ( ! notExpectedTables.isEmpty() ) {
-      ok = false;
-      super.logger.error( "Returned tables not waited: " + dump(notExpectedTables) );
+
+    protected void addInput(final String tableName, final String[] ids)
+    {
+        // Set idsSet = CollectionsHelper.objectsToSet( ids );
+        final SortedSet<String> idsSet = new TreeSet<>(Arrays.asList(ids));
+        this.fInput.put(tableName, idsSet);
     }
-    if ( ! expectedTables.isEmpty() ) {
-      ok = false;
-      super.logger.error( "Waited tables not returned: " + dump(expectedTables) );
+
+    protected void addOutput(final String tableName, final String[] ids)
+    {
+        // List idsList = Arrays.asList( ids );
+        // Set idsSet = CollectionsHelper.objectsToSet( ids );
+        final SortedSet<String> idsSet = new TreeSet<>(Arrays.asList(ids));
+        this.fOutput.put(tableName, idsSet);
     }
-    if ( ! ok ) {
-      fail( "Returned tables do not match the expectation; check error output" );
+
+    protected abstract IDataSet getDataset()
+            throws SQLException, SearchException, DataSetException;
+
+    protected void doIt() throws SQLException, DataSetException, SearchException
+    {
+        final IDataSet dataset = getDataset();
+        assertThat(dataset).isNotNull();
+
+        // first, check if only the correct tables had been generated
+        final String[] outputTables = dataset.getTableNames();
+        assertTablesSize(outputTables);
+        assertTablesName(outputTables);
+        assertRows(dataset);
     }
-  }
-  
-  protected void assertRows(IDataSet dataset) throws DataSetException {
-    ITableIterator iterator = dataset.iterator();
-    while (iterator.next()) {
-      ITable table = iterator.getTable();
-      String tableName = table.getTableMetaData().getTableName();
-      String idField = "PK" + tableName;
-      Set expectedIds = this.fOutput.get( tableName );
-      Set actualIds = new HashSet();
-      int rowCount = table.getRowCount();
-      for( int row=0; row<rowCount; row++ ) {
-        String id = (String) table.getValue( row, idField );
-        actualIds.add( id );
-        if ( super.logger.isDebugEnabled() ) {
-          super.logger.debug( "T:" + tableName + " row: " + row + " id: " + id );      
+
+    protected void assertTablesSize(final String[] actualTables)
+    {
+        final int expectedSize = this.fOutput.size();
+        final int actualSize = actualTables.length;
+        if (expectedSize != actualSize)
+        {
+            super.logger.error(
+                    "Expected tables: " + dump(this.fOutput.getTableNames()));
+            super.logger.error("Actual tables: " + dump(actualTables));
+            fail("I number of returned tables did not match: " + actualSize
+                    + " instead of " + expectedSize);
         }
-      }
-//      Collections.sort( expectedIds );
-//      Collections.sort( actualIds );
-      assertEquals( "ids of table " + tableName + " do not match", expectedIds, actualIds );
     }
-  }
-  
-  public void testSetupTables() throws SQLException, DataSetException {
-    int[] sizes = setupTablesSizeFixture(); 
-    IDataSet allDataSet = setupTablesDataSetFixture();
-    assertNotNull( allDataSet );
-    for (short i = 0; i < sizes.length; i++) {
-      char table = (char) (FIRST_TABLE + i);
-      if ( super.logger.isDebugEnabled() ) {
-        super.logger.debug( "Getting table " + table );
-      }
-      ITable itable = allDataSet.getTable( ""+table );
-      assertNotNull( "did not find table " + table, itable );
-      assertEquals( "size did not match for table " + table, sizes[i], itable.getRowCount());
-    }
-  }
-  
-  protected PkTableMap getInput() {
-    return this.fInput;
-  }
 
-  protected PkTableMap getOutput() {
-    return this.fOutput;
-  }
-  
+    protected void assertTablesName(final String[] outputTables)
+    {
+        final Set<Object> expectedTables =
+                CollectionsHelper.objectsToSet(this.fOutput.getTableNames());
+        final Set<String> notExpectedTables = new HashSet<>();
+        boolean ok = true;
+        // first check if expected tables are lacking or nonExpected tables were
+        // found
+        for (int i = 0; i < outputTables.length; i++)
+        {
+            final String table = outputTables[i];
+            if (expectedTables.contains(table))
+            {
+                expectedTables.remove(table);
+            } else
+            {
+                notExpectedTables.add(table);
+            }
+        }
+        if (!notExpectedTables.isEmpty())
+        {
+            ok = false;
+            super.logger.error(
+                    "Returned tables not waited: " + dump(notExpectedTables));
+        }
+        if (!expectedTables.isEmpty())
+        {
+            ok = false;
+            super.logger.error(
+                    "Waited tables not returned: " + dump(expectedTables));
+        }
+        if (!ok)
+        {
+            fail("Returned tables do not match the expectation; check error output");
+        }
+    }
+
+    protected void assertRows(final IDataSet dataset) throws DataSetException
+    {
+        final ITableIterator iterator = dataset.iterator();
+        while (iterator.next())
+        {
+            final ITable table = iterator.getTable();
+            final String tableName = table.getTableMetaData().getTableName();
+            final String idField = "PK" + tableName;
+            final Set<?> expectedIds = this.fOutput.get(tableName);
+            final Set<String> actualIds = new HashSet<>();
+            final int rowCount = table.getRowCount();
+            for (int row = 0; row < rowCount; row++)
+            {
+                final String id = (String) table.getValue(row, idField);
+                actualIds.add(id);
+                if (super.logger.isDebugEnabled())
+                {
+                    super.logger.debug(
+                            "T:" + tableName + " row: " + row + " id: " + id);
+                }
+            }
+            // Collections.sort( expectedIds );
+            // Collections.sort( actualIds );
+            assertThat(actualIds)
+                    .as("ids of table " + tableName + " do not match")
+                    .isEqualTo(expectedIds);
+        }
+    }
+
+    public void testSetupTables() throws SQLException, DataSetException
+    {
+        final int[] sizes = setupTablesSizeFixture();
+        final IDataSet allDataSet = setupTablesDataSetFixture();
+        assertNotNull(allDataSet);
+        for (short i = 0; i < sizes.length; i++)
+        {
+            final char table = (char) (FIRST_TABLE + i);
+            if (super.logger.isDebugEnabled())
+            {
+                super.logger.debug("Getting table " + table);
+            }
+            final ITable itable = allDataSet.getTable("" + table);
+            assertThat(itable).as("did not find table " + table).isNotNull();
+            assertThat(itable.getRowCount())
+                    .as("size did not match for table " + table)
+                    .isEqualTo(sizes[i]);
+        }
+    }
+
+    protected PkTableMap getInput()
+    {
+        return this.fInput;
+    }
+
+    protected PkTableMap getOutput()
+    {
+        return this.fOutput;
+    }
 
 }

@@ -18,8 +18,10 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  */
-
 package org.dbunit.database;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -28,108 +30,117 @@ import java.sql.SQLException;
 import org.dbunit.AbstractDatabaseIT;
 import org.dbunit.DatabaseProfile;
 import org.dbunit.IDatabaseTester;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author Manuel Laflamme
  * @version $Revision$
  * @since Mar 26, 2002
  */
-public abstract class AbstractDatabaseConnectionIT extends AbstractDatabaseIT
+abstract class AbstractDatabaseConnectionIT extends AbstractDatabaseIT
 {
-	private String schema;
-	private DatabaseProfile profile;
-	
-	public AbstractDatabaseConnectionIT(String s)
+    private String schema;
+    private DatabaseProfile profile;
+
+    @Override
+    @BeforeEach
+    protected void setUp() throws Exception
     {
-        super(s);
+        super.setUp();
+        this.profile = super.getEnvironment().getProfile();
+        this.schema = this.profile.getSchema();
     }
 
-    
-	protected void setUp() throws Exception {
-		super.setUp();
-    	this.profile = super.getEnvironment().getProfile();
-		this.schema = this.profile.getSchema();
-	}
-
-
-	public final void testGetRowCount() throws Exception
+    @Test
+    final void testGetRowCount() throws Exception
     {
-        assertEquals("EMPTY_TABLE", 0, _connection.getRowCount("EMPTY_TABLE", null));
-        assertEquals("EMPTY_TABLE", 0, _connection.getRowCount("EMPTY_TABLE"));
+        assertThat(_connection.getRowCount("EMPTY_TABLE", null))
+                .as("EMPTY_TABLE").isZero();
+        assertThat(_connection.getRowCount("EMPTY_TABLE")).as("EMPTY_TABLE")
+                .isZero();
 
-        assertEquals("TEST_TABLE", 6, _connection.getRowCount("TEST_TABLE", null));
-        assertEquals("TEST_TABLE", 6, _connection.getRowCount("TEST_TABLE"));
+        assertThat(_connection.getRowCount("TEST_TABLE", null)).as("TEST_TABLE")
+                .isEqualTo(6);
+        assertThat(_connection.getRowCount("TEST_TABLE")).as("TEST_TABLE")
+                .isEqualTo(6);
 
-        assertEquals("PK_TABLE", 1, _connection.getRowCount("PK_TABLE", "where PK0 = 0"));
+        assertThat(_connection.getRowCount("PK_TABLE", "where PK0 = 0"))
+                .as("PK_TABLE").isEqualTo(1);
     }
 
-    public final void testGetRowCount_NonexistingSchema() throws Exception
+    @Test
+    final void testGetRowCount_NonexistingSchema() throws Exception
     {
-    	DatabaseProfile profile = super.getEnvironment().getProfile();
-    	String nonexistingSchema = profile.getSchema() + "_444_XYZ_TEST";
-    	this.schema = nonexistingSchema;
+        final DatabaseProfile profile = super.getEnvironment().getProfile();
+        final String nonexistingSchema = profile.getSchema() + "_444_XYZ_TEST";
+        this.schema = nonexistingSchema;
 
-    	IDatabaseTester dbTester = this.newDatabaseTester(nonexistingSchema);
-    	try {
-			IDatabaseConnection dbConnection = dbTester.getConnection();
-			
-			assertEquals(convertString(nonexistingSchema), dbConnection.getSchema());
-			try {
-				dbConnection.getRowCount("TEST_TABLE");
-				fail("Should not be able to retrieve row count for non-existing schema " + nonexistingSchema);
-			}
-			catch(SQLException expected)
-			{
-				// All right
-			}
-    	}
-    	finally {
-    		// Reset the testers schema for subsequent tests (environment.dbTester is a singleton)
-    		dbTester.setSchema(profile.getSchema());    		
-    	}
+        final IDatabaseTester dbTester =
+                this.newDatabaseTester(nonexistingSchema);
+        try
+        {
+            final IDatabaseConnection dbConnection = dbTester.getConnection();
+
+            assertThat(dbConnection.getSchema())
+                    .isEqualTo(convertString(nonexistingSchema));
+            assertThatThrownBy(() -> dbConnection.getRowCount("TEST_TABLE")).as(
+                    "Should not be able to retrieve row count for non-existing schema "
+                            + nonexistingSchema)
+                    .isInstanceOf(SQLException.class);
+
+        } finally
+        {
+            // Reset the testers schema for subsequent tests
+            // (environment.dbTester is a
+            // singleton)
+            dbTester.setSchema(profile.getSchema());
+        }
     }
 
-    public final void testGetRowCount_NoSchemaSpecified() throws Exception
+    @Test
+    final void testGetRowCount_NoSchemaSpecified() throws Exception
     {
-    	DatabaseProfile profile = super.getEnvironment().getProfile();
-    	this.schema = null;
-    	IDatabaseTester dbTester = this.newDatabaseTester(this.schema);
-    	try {
-			IDatabaseConnection dbConnection = dbTester.getConnection();
-			
-			assertEquals(null, dbConnection.getSchema());
-	        assertEquals("TEST_TABLE", 6, _connection.getRowCount("TEST_TABLE", null));
-    	}
-    	finally {
-    		// Reset the testers schema for subsequent tests (environment.dbTester is a singleton)
-    		dbTester.setSchema(profile.getSchema());    		
-    	}
+        final DatabaseProfile profile = super.getEnvironment().getProfile();
+        this.schema = null;
+        final IDatabaseTester dbTester = this.newDatabaseTester(this.schema);
+        try
+        {
+            final IDatabaseConnection dbConnection = dbTester.getConnection();
+
+            assertThat(dbConnection.getSchema()).isNull();
+            assertThat(_connection.getRowCount("TEST_TABLE", null))
+                    .as("TEST_TABLE").isEqualTo(6);
+        } finally
+        {
+            // Reset the testers schema for subsequent tests
+            // (environment.dbTester is a
+            // singleton)
+            dbTester.setSchema(profile.getSchema());
+        }
     }
 
-    
-    private IDatabaseTester newDatabaseTester(String schema) throws Exception {
-    	IDatabaseTester tester = super.newDatabaseTester();
-    	tester.setSchema(schema);
-    	return tester;
-	}
+    private IDatabaseTester newDatabaseTester(final String schema)
+            throws Exception
+    {
+        final IDatabaseTester tester = super.newDatabaseTester();
+        tester.setSchema(schema);
+        return tester;
+    }
 
-
-	protected IDatabaseConnection getConnection() throws Exception {
-        String name = profile.getDriverClass();
+    @Override
+    protected IDatabaseConnection getConnection() throws Exception
+    {
+        final String name = profile.getDriverClass();
         Class.forName(name);
-        Connection connection = DriverManager.getConnection(
-                profile.getConnectionUrl(), profile.getUser(),
-                profile.getPassword());
-        _connection = new DatabaseConnection(connection,
-                profile.getSchema());
-		
-        IDatabaseConnection dbunitConnection = new DatabaseConnection(connection,
-                this.schema);
+        final Connection connection =
+                DriverManager.getConnection(profile.getConnectionUrl(),
+                        profile.getUser(), profile.getPassword());
+        _connection = new DatabaseConnection(connection, profile.getSchema());
+
+        final IDatabaseConnection dbunitConnection =
+                new DatabaseConnection(connection, this.schema);
         return dbunitConnection;
-	}
-    
-    
+    }
 
 }
-
-

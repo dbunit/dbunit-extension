@@ -1,8 +1,7 @@
 package org.dbunit.database;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
@@ -21,14 +20,14 @@ import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.NoSuchTableException;
 import org.dbunit.ext.h2.H2DataTypeFactory;
 import org.dbunit.testutil.TestUtils;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 /**
  * Test the multiple schema support of DatabaseDataSet.
- * 
+ *
  * <p>
  * This test case uses the H2 database because it offers easy handling of
  * schemas / users.
@@ -49,10 +48,10 @@ public class DatabaseDataSet_MultiSchemaTest
     private static final String TABLE_BAR = "BAR";
     private static final String TABLE_FOO = "FOO";
 
-    private static final String TABLE_BAR_IN_SCHEMA_DBUNIT = SCHEMA_DBUNIT
-            + "." + TABLE_BAR;
-    private static final String TABLE_FOO_IN_SCHEMA_DEFAULT = SCHEMA_DEFAULT
-            + "." + TABLE_FOO;
+    private static final String TABLE_BAR_IN_SCHEMA_DBUNIT =
+            SCHEMA_DBUNIT + "." + TABLE_BAR;
+    private static final String TABLE_FOO_IN_SCHEMA_DEFAULT =
+            SCHEMA_DEFAULT + "." + TABLE_FOO;
 
     private static final Boolean IS_USING_QUALIFIED_TABLE_NAMES = Boolean.TRUE;
     private static final Boolean IS_NOT_USING_QUALIFIED_TABLE_NAMES =
@@ -68,7 +67,7 @@ public class DatabaseDataSet_MultiSchemaTest
     private final TestMetadataHandler testMetadataHandler =
             new TestMetadataHandler();
 
-    @BeforeClass
+    @BeforeAll
     public static void setUpClass() throws Exception
     {
         // create database and schemas for tests
@@ -77,7 +76,7 @@ public class DatabaseDataSet_MultiSchemaTest
                 connectionDdl);
     }
 
-    @AfterClass
+    @AfterAll
     public static void tearDownClass() throws Exception
     {
         // close connection after all tests so schemas stay around
@@ -87,7 +86,7 @@ public class DatabaseDataSet_MultiSchemaTest
         }
     }
 
-    @After
+    @AfterEach
     public void tearDown() throws Exception
     {
         if (connectionTest != null)
@@ -100,234 +99,176 @@ public class DatabaseDataSet_MultiSchemaTest
 
     /**
      * Admin user has full access to all tables in all schemas.
-     * 
+     *
      * @throws Exception
      */
     @Test
-    public void testPermissions_AdminUser_QualifiedTableNames()
-            throws Exception
+    void testPermissions_AdminUser_QualifiedTableNames() throws Exception
     {
-        IDataSet dataSet =
-                makeDataSet(DATABASE, USERNAME_ADMIN, PASSWORD_NONE,
-                        SCHEMA_NONE, IS_USING_QUALIFIED_TABLE_NAMES);
+        final IDataSet dataSet = makeDataSet(DATABASE, USERNAME_ADMIN,
+                PASSWORD_NONE, SCHEMA_NONE, IS_USING_QUALIFIED_TABLE_NAMES);
 
-        String[] allTables = dataSet.getTableNames();
+        final String[] allTables = dataSet.getTableNames();
         Arrays.sort(allTables);
-        assertEquals(2, allTables.length);
-        assertEquals(TABLE_BAR_IN_SCHEMA_DBUNIT, allTables[0]);
-        assertEquals(TABLE_FOO_IN_SCHEMA_DEFAULT, allTables[1]);
+        assertThat(allTables).hasSize(2);
+        assertThat(allTables[0]).isEqualTo(TABLE_BAR_IN_SCHEMA_DBUNIT);
+        assertThat(allTables[1]).isEqualTo(TABLE_FOO_IN_SCHEMA_DEFAULT);
     }
 
     /**
      * As basic schema owner you will have access to your own tables, but not to
      * other ones.
-     * 
+     *
      * @throws Exception
      */
     @Test
-    public void testPermissions_OwningUser_QualifiedTableNames()
-            throws Exception
+    void testPermissions_OwningUser_QualifiedTableNames() throws Exception
     {
-        IDataSet dataSet =
-                makeDataSet(DATABASE, USERNAME_DEFAULT, PASSWORD,
-                        SCHEMA_DEFAULT, IS_USING_QUALIFIED_TABLE_NAMES);
+        final IDataSet dataSet = makeDataSet(DATABASE, USERNAME_DEFAULT,
+                PASSWORD, SCHEMA_DEFAULT, IS_USING_QUALIFIED_TABLE_NAMES);
 
         // Own table
-        String[] allTables = dataSet.getTableNames();
+        final String[] allTables = dataSet.getTableNames();
         Arrays.sort(allTables);
-        assertEquals(1, allTables.length);
-        assertEquals(TABLE_FOO_IN_SCHEMA_DEFAULT, allTables[0]);
+        assertThat(allTables).hasSize(1);
+        assertThat(allTables[0]).isEqualTo(TABLE_FOO_IN_SCHEMA_DEFAULT);
 
         // Table of other user/schema
-        try
-        {
-            dataSet.getTable(TABLE_BAR_IN_SCHEMA_DBUNIT);
-            fail();
-        } catch (DataSetException e)
-        {
-            // Not enough permissions
-        }
+        assertThrows(DataSetException.class,
+                () -> dataSet.getTable(TABLE_BAR_IN_SCHEMA_DBUNIT));
     }
 
     /**
      * If we don't use qualified table names, then we still use only our own
      * tables.
-     * 
+     *
      * @throws Exception
      */
     @Test
-    public void testPermissions_OwningUser_UnqualifiedTableNames()
-            throws Exception
+    void testPermissions_OwningUser_UnqualifiedTableNames() throws Exception
     {
-        IDataSet dataSet =
-                makeDataSet(DATABASE, USERNAME_DEFAULT, PASSWORD,
-                        SCHEMA_DEFAULT, IS_NOT_USING_QUALIFIED_TABLE_NAMES);
+        final IDataSet dataSet = makeDataSet(DATABASE, USERNAME_DEFAULT,
+                PASSWORD, SCHEMA_DEFAULT, IS_NOT_USING_QUALIFIED_TABLE_NAMES);
 
-        String[] allTables = dataSet.getTableNames();
+        final String[] allTables = dataSet.getTableNames();
         Arrays.sort(allTables);
-        assertEquals(1, allTables.length);
-        assertEquals(TABLE_FOO, allTables[0]);
+        assertThat(allTables).hasSize(1);
+        assertThat(allTables[0]).isEqualTo(TABLE_FOO);
 
         // Table of other user/schema
-        try
-        {
-            dataSet.getTable(TABLE_BAR);
-            fail();
-        } catch (NoSuchTableException e)
-        {
-            // expected
-        }
+        assertThrows(NoSuchTableException.class,
+                () -> dataSet.getTable(TABLE_BAR));
     }
 
     /**
      * A special dbunit user could be allowed to access tables from other users
      * to prepare test data.
-     * 
+     *
      * @throws Exception
      */
     @Test
     // THIS ONE FAILS WITHOUT ISSUE 368 IN PLACE
-    public void testPermissions_DbunitUser_QualifiedTables() throws Exception
+    void testPermissions_DbunitUser_QualifiedTables() throws Exception
     {
-        IDataSet dataSet =
-                makeDataSet(DATABASE, USERNAME_DBUNIT, PASSWORD, SCHEMA_DBUNIT,
-                        IS_USING_QUALIFIED_TABLE_NAMES);
+        final IDataSet dataSet = makeDataSet(DATABASE, USERNAME_DBUNIT,
+                PASSWORD, SCHEMA_DBUNIT, IS_USING_QUALIFIED_TABLE_NAMES);
 
-        String[] allTables = dataSet.getTableNames();
+        final String[] allTables = dataSet.getTableNames();
         Arrays.sort(allTables);
-        assertEquals(1, allTables.length);
-        assertEquals(TABLE_BAR_IN_SCHEMA_DBUNIT, allTables[0]);
+        assertThat(allTables).hasSize(1);
+        assertThat(allTables[0]).isEqualTo(TABLE_BAR_IN_SCHEMA_DBUNIT);
 
         // Access table of other owner - metadata will be lazy loaded
-        ITable table = dataSet.getTable(TABLE_FOO_IN_SCHEMA_DEFAULT);
-        assertNotNull(table);
+        final ITable table = dataSet.getTable(TABLE_FOO_IN_SCHEMA_DEFAULT);
+        assertThat(table).isNotNull();
 
         // Unqualified access to table isn't possible
-        try
-        {
-            table = dataSet.getTable(TABLE_FOO);
-            fail();
-        } catch (NoSuchTableException e)
-        {
-            // expected
-        }
+        assertThrows(NoSuchTableException.class,
+                () -> dataSet.getTable(TABLE_FOO));
     }
 
     @Test
-    public void testPermissions_DbunitUser_UnqualifiedTables() throws Exception
+    void testPermissions_DbunitUser_UnqualifiedTables() throws Exception
     {
-        IDataSet dataSet =
-                makeDataSet(DATABASE, USERNAME_DBUNIT, PASSWORD, SCHEMA_DBUNIT,
-                        IS_NOT_USING_QUALIFIED_TABLE_NAMES);
+        final IDataSet dataSet = makeDataSet(DATABASE, USERNAME_DBUNIT,
+                PASSWORD, SCHEMA_DBUNIT, IS_NOT_USING_QUALIFIED_TABLE_NAMES);
 
-        String[] allTables = dataSet.getTableNames();
+        final String[] allTables = dataSet.getTableNames();
         Arrays.sort(allTables);
-        assertEquals(1, allTables.length);
-        assertEquals(TABLE_BAR, allTables[0]);
+        assertThat(allTables).hasSize(1);
+        assertThat(allTables[0]).isEqualTo(TABLE_BAR);
 
         // Access table of other owner
-        ITable table = dataSet.getTable(TABLE_BAR);
-        assertNotNull(table);
+        final ITable table = dataSet.getTable(TABLE_BAR);
+        assertThat(table).isNotNull();
 
-        try
-        {
-            dataSet.getTable(TABLE_FOO);
-            fail();
-        } catch (NoSuchTableException e)
-        {
-            // expected
-        }
+        assertThrows(NoSuchTableException.class,
+                () -> dataSet.getTable(TABLE_FOO));
     }
 
     /**
      * Without explicit schema selection, all available tables will be loaded...
-     * 
+     *
      * @throws Exception
      */
     @Test
-    public void testPermissions_DbunitUser_QualifiedTableNames_NoSpecifiedSchema()
+    void testPermissions_DbunitUser_QualifiedTableNames_NoSpecifiedSchema()
             throws Exception
     {
-        IDataSet dataSet =
-                makeDataSet(DATABASE, USERNAME_DBUNIT, PASSWORD, SCHEMA_NONE,
-                        IS_USING_QUALIFIED_TABLE_NAMES);
+        final IDataSet dataSet = makeDataSet(DATABASE, USERNAME_DBUNIT,
+                PASSWORD, SCHEMA_NONE, IS_USING_QUALIFIED_TABLE_NAMES);
 
-        String[] allTables = dataSet.getTableNames();
+        final String[] allTables = dataSet.getTableNames();
         Arrays.sort(allTables);
-        assertEquals(2, allTables.length);
-        assertEquals(TABLE_BAR_IN_SCHEMA_DBUNIT, allTables[0]);
-        assertEquals(TABLE_FOO_IN_SCHEMA_DEFAULT, allTables[1]);
+        assertThat(allTables).hasSize(2);
+        assertThat(allTables[0]).isEqualTo(TABLE_BAR_IN_SCHEMA_DBUNIT);
+        assertThat(allTables[1]).isEqualTo(TABLE_FOO_IN_SCHEMA_DEFAULT);
 
         // Qualified access to own tables...
         ITable table = dataSet.getTable(TABLE_BAR_IN_SCHEMA_DBUNIT);
-        assertNotNull(table);
+        assertThat(table).isNotNull();
 
         // Qualified access to other tables...
         table = dataSet.getTable(TABLE_FOO_IN_SCHEMA_DEFAULT);
-        assertNotNull(table);
+        assertThat(table).isNotNull();
 
         // But unqualified access doesn't work...
-        try
-        {
-            dataSet.getTable(TABLE_FOO);
-            fail();
-        } catch (NoSuchTableException e)
-        {
-            // expected
-        }
+        assertThrows(NoSuchTableException.class,
+                () -> dataSet.getTable(TABLE_FOO));
     }
 
     /**
      * Without explizit schema selection, all available tables will be loaded -
      * but without qualified table access, no metadata will be found.
-     * 
+     *
      * @throws Exception
      */
     @Test
-    public void testPermissions_DbunitUser_UnqualifiedTableNames_NoSpecifiedSchema()
+    void testPermissions_DbunitUser_UnqualifiedTableNames_NoSpecifiedSchema()
             throws Exception
     {
-        IDataSet dataSet =
-                makeDataSet(DATABASE, USERNAME_DBUNIT, PASSWORD, SCHEMA_NONE,
-                        IS_NOT_USING_QUALIFIED_TABLE_NAMES);
+        final IDataSet dataSet = makeDataSet(DATABASE, USERNAME_DBUNIT,
+                PASSWORD, SCHEMA_NONE, IS_NOT_USING_QUALIFIED_TABLE_NAMES);
 
-        String[] allTables = dataSet.getTableNames();
+        final String[] allTables = dataSet.getTableNames();
         Arrays.sort(allTables);
-        assertEquals(2, allTables.length);
-        assertEquals(TABLE_BAR, allTables[0]);
-        assertEquals(TABLE_FOO, allTables[1]);
+        assertThat(allTables).hasSize(2);
+        assertThat(allTables[0]).isEqualTo(TABLE_BAR);
+        assertThat(allTables[1]).isEqualTo(TABLE_FOO);
 
         // Qualified access to own tables...
-        try
-        {
-            dataSet.getTable(TABLE_BAR);
-        } catch (DataSetException e1)
-        {
-            // No metadata could be loaded...
-        }
+        assertThrows(DataSetException.class, () -> dataSet.getTable(TABLE_BAR));
 
         // Qualified access to other tables...
-        try
-        {
-            dataSet.getTable(TABLE_FOO);
-        } catch (DataSetException e1)
-        {
-            // No metadata could be loaded...
-        }
+        assertThrows(DataSetException.class, () -> dataSet.getTable(TABLE_FOO));
 
         // But unqualified access doesn't work...
-        try
-        {
-            dataSet.getTable(TABLE_FOO_IN_SCHEMA_DEFAULT);
-            fail();
-        } catch (NoSuchTableException e)
-        {
-            // expected
-        }
+        assertThrows(NoSuchTableException.class,
+                () -> dataSet.getTable(TABLE_FOO_IN_SCHEMA_DEFAULT));
     }
 
     @Test
-    public void testSchemaCaseSensitivity() throws Exception
+    void testSchemaCaseSensitivity() throws Exception
     {
         final IDataSet set = makeDataSet(DATABASE, USERNAME_ADMIN,
                 PASSWORD_NONE, SCHEMA_NONE, IS_USING_QUALIFIED_TABLE_NAMES);
@@ -335,13 +276,12 @@ public class DatabaseDataSet_MultiSchemaTest
         set.getTableMetaData(TABLE_FOO_IN_SCHEMA_DEFAULT);
         set.getTableMetaData(
                 TABLE_FOO_IN_SCHEMA_DEFAULT.toLowerCase(Locale.ENGLISH));
-
-        assertEquals(1, testMetadataHandler.getSchemaCount());
+        assertThat(testMetadataHandler.getSchemaCount()).isEqualTo(1);
     }
 
-    private IDataSet makeDataSet(String databaseName, String username,
-            String password, String schema, boolean useQualifiedTableNames)
-            throws Exception
+    private IDataSet makeDataSet(final String databaseName,
+            final String username, final String password, final String schema,
+            final boolean useQualifiedTableNames) throws Exception
     {
         makeDatabaseConnection(databaseName, username, password, schema,
                 useQualifiedTableNames);
@@ -349,13 +289,12 @@ public class DatabaseDataSet_MultiSchemaTest
         return connectionTest.createDataSet();
     }
 
-    private void makeDatabaseConnection(String databaseName, String username,
-            String password, String schema, boolean useQualifiedTableNames)
-            throws Exception
+    private void makeDatabaseConnection(final String databaseName,
+            final String username, final String password, final String schema,
+            final boolean useQualifiedTableNames) throws Exception
     {
-        Connection jdbcConnection =
-                H2Environment.createJdbcConnection(databaseName, username,
-                        password);
+        final Connection jdbcConnection = H2Environment
+                .createJdbcConnection(databaseName, username, password);
         connectionTest = new DatabaseConnection(jdbcConnection, schema);
         final DatabaseConfig config = connectionTest.getConfig();
         config.setProperty(DatabaseConfig.FEATURE_QUALIFIED_TABLE_NAMES,

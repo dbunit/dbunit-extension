@@ -18,49 +18,51 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  */
-
 package org.dbunit;
 
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import junit.framework.TestCase;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import org.dbunit.database.DatabaseConfig;
 import org.dbunit.database.IDatabaseConnection;
 import org.dbunit.dataset.IDataSet;
 import org.dbunit.operation.DatabaseOperation;
+import org.junit.jupiter.api.extension.InvocationInterceptor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Convenience class for writing JUnit tests with dbunit easily.
  * <br />
  * Note that there are some even more convenient classes available such
- * as {@link DBTestCase}. 
- * 
+ * as {@link DBTestCase}.
+ *
  * @author Manuel Laflamme
  * @version $Revision$
  * @since 1.0 (Feb 17, 2002)
  */
-public abstract class DatabaseTestCase extends TestCase
-{
+public abstract class DatabaseTestCase implements InvocationInterceptor {
 
     /**
      * Logger for this class
      */
     private static final Logger logger = LoggerFactory.getLogger(DatabaseTestCase.class);
 
-    private IDatabaseTester tester;
+    private IDatabaseTester     tester;
 
-    private IOperationListener operationListener;
+    private IOperationListener  operationListener;
 
-    public DatabaseTestCase()
-    {
+    private final String        name;
+
+    protected DatabaseTestCase() {
+        this.name = null;
     }
 
-    public DatabaseTestCase(String name)
-    {
-        super(name);
+    protected DatabaseTestCase(final String name) {
+        this.name = name;
+    }
+
+    public String getName() {
+        return this.name;
     }
 
     /**
@@ -82,10 +84,10 @@ public abstract class DatabaseTestCase extends TestCase
     protected IDatabaseTester newDatabaseTester() throws Exception{
         logger.debug("newDatabaseTester() - start");
 
-      final IDatabaseConnection connection = getConnection();
-      getOperationListener().connectionRetrieved(connection);
-      final IDatabaseTester tester = new DefaultDatabaseTester(connection);
-      return tester;
+        final IDatabaseConnection connection = getConnection();
+        getOperationListener().connectionRetrieved(connection);
+        final IDatabaseTester tester = new DefaultDatabaseTester(connection);
+        return tester;
     }
 
     /**
@@ -93,7 +95,7 @@ public abstract class DatabaseTestCase extends TestCase
      * parameters for the {@link IDatabaseConnection}.
      * @param config The settings of the current {@link IDatabaseConnection} to be configured
      */
-    protected void setUpDatabaseConfig(DatabaseConfig config) 
+    protected void setUpDatabaseConfig(final DatabaseConfig config)
     {
         // Designed to be overridden.
     }
@@ -105,10 +107,10 @@ public abstract class DatabaseTestCase extends TestCase
      * @throws Exception
      */
     protected IDatabaseTester getDatabaseTester() throws Exception {
-      if ( this.tester == null ) {
-        this.tester = newDatabaseTester();
-      }
-      return this.tester;
+        if ( this.tester == null ) {
+            this.tester = newDatabaseTester();
+        }
+        return this.tester;
     }
 
     /**
@@ -116,11 +118,12 @@ public abstract class DatabaseTestCase extends TestCase
      * keep your connection alive between tests.
      * @deprecated since 2.4.4 define a user defined {@link #getOperationListener()} in advance
      */
-    protected void closeConnection(IDatabaseConnection connection) throws Exception
+    @Deprecated
+    protected void closeConnection(final IDatabaseConnection connection) throws Exception
     {
         logger.debug("closeConnection(connection={}) - start", connection);
 
-        assertNotNull( "DatabaseTester is not set", getDatabaseTester() );
+        assertNotNull(getDatabaseTester(), "DatabaseTester is not set" );
         getDatabaseTester().closeConnection( connection );
     }
 
@@ -147,11 +150,10 @@ public abstract class DatabaseTestCase extends TestCase
     {
         logger.debug("setUp() - start");
 
-        super.setUp();
         final IDatabaseTester databaseTester = getDatabaseTester();
-        assertNotNull( "DatabaseTester is not set", databaseTester );
-        databaseTester.setSetUpOperation( getSetUpOperation() );
-        databaseTester.setDataSet( getDataSet() );
+        assertNotNull(databaseTester, "DatabaseTester is not set");
+        databaseTester.setSetUpOperation(getSetUpOperation());
+        databaseTester.setDataSet(getDataSet());
         databaseTester.setOperationListener(getOperationListener());
         databaseTester.onSetup();
     }
@@ -162,17 +164,16 @@ public abstract class DatabaseTestCase extends TestCase
 
         try {
             final IDatabaseTester databaseTester = getDatabaseTester();
-            assertNotNull( "DatabaseTester is not set", databaseTester );
-            databaseTester.setTearDownOperation( getTearDownOperation() );
-            databaseTester.setDataSet( getDataSet() );
+            assertNotNull(databaseTester, "DatabaseTester is not set");
+            databaseTester.setTearDownOperation(getTearDownOperation());
+            databaseTester.setDataSet(getDataSet());
             databaseTester.setOperationListener(getOperationListener());
             databaseTester.onTearDown();
         } finally {
             tester = null;
-            super.tearDown();
         }
     }
-    
+
     /**
      * @return The {@link IOperationListener} to be used by the {@link IDatabaseTester}.
      * @since 2.4.4
@@ -182,7 +183,8 @@ public abstract class DatabaseTestCase extends TestCase
         logger.debug("getOperationListener() - start");
         if(this.operationListener==null){
             this.operationListener = new DefaultOperationListener(){
-                public void connectionRetrieved(IDatabaseConnection connection) {
+                @Override
+                public void connectionRetrieved(final IDatabaseConnection connection) {
                     super.connectionRetrieved(connection);
                     // When a new connection has been created then invoke the setUp method
                     // so that user defined DatabaseConfig parameters can be set.

@@ -30,10 +30,6 @@ import org.dbunit.testutil.TestUtils;
  */
 public class XlsxDataSetTest extends XlsDataSetTest
 {
-    public XlsxDataSetTest(String s)
-    {
-        super(s);
-    }
 
     @Override
     protected IDataSet createDataSet() throws Exception

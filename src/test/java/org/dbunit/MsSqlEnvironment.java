@@ -38,6 +38,7 @@ public class MsSqlEnvironment extends DatabaseEnvironment
 
     /**
      * Preserve case for MS SQL
+     * 
      * @see DatabaseEnvironment#convertString(String)
      */
     @Override

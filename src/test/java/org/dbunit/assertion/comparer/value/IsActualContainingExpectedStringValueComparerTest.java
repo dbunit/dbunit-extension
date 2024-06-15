@@ -1,22 +1,19 @@
 package org.dbunit.assertion.comparer.value;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.not;
-import static org.hamcrest.Matchers.nullValue;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import org.dbunit.DatabaseUnitException;
 import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.datatype.DataType;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-public class IsActualContainingExpectedStringValueComparerTest
+class IsActualContainingExpectedStringValueComparerTest
 {
     final IsActualContainingExpectedStringValueComparer sut =
             new IsActualContainingExpectedStringValueComparer();
 
     @Test
-    public void testIsExpected_AllNull_True() throws DatabaseUnitException
+    void testIsExpected_AllNull_True() throws DatabaseUnitException
     {
         final ITable expectedTable = null;
         final ITable actualTable = null;
@@ -29,11 +26,11 @@ public class IsActualContainingExpectedStringValueComparerTest
         final boolean actual = sut.isExpected(expectedTable, actualTable,
                 rowNum, columnName, dataType, expectedValue, actualValue);
 
-        assertThat("All null should have been equal.", actual, equalTo(true));
+        assertThat(actual).as("All null should have been equal.").isTrue();
     }
 
     @Test
-    public void testIsExpected_ActualNullExpectedNotNull_False()
+    void testIsExpected_ActualNullExpectedNotNull_False()
             throws DatabaseUnitException
     {
         final ITable expectedTable = null;
@@ -47,12 +44,13 @@ public class IsActualContainingExpectedStringValueComparerTest
         final boolean actual = sut.isExpected(expectedTable, actualTable,
                 rowNum, columnName, dataType, expectedValue, actualValue);
 
-        assertThat("Actual null, expected not null should not have been equal.",
-                actual, equalTo(false));
+        assertThat(actual).as(
+                "Actual null, expected not null should not have been equal.")
+                .isFalse();
     }
 
     @Test
-    public void testIsExpected_ActualNotNullExpectedNull_False()
+    void testIsExpected_ActualNotNullExpectedNull_False()
             throws DatabaseUnitException
     {
         final ITable expectedTable = null;
@@ -66,13 +64,13 @@ public class IsActualContainingExpectedStringValueComparerTest
         final boolean actual = sut.isExpected(expectedTable, actualTable,
                 rowNum, columnName, dataType, expectedValue, actualValue);
 
-        assertThat(
-                "Actual not null, expected null, should not have been equal.",
-                actual, equalTo(false));
+        assertThat(actual).as(
+                "Actual not null, expected null, should not have been equal.")
+                .isFalse();
     }
 
     @Test
-    public void testIsExpected_ActualEqualToExpected_BigInt_True()
+    void testIsExpected_ActualEqualToExpected_BigInt_True()
             throws DatabaseUnitException
     {
         final ITable expectedTable = null;
@@ -85,12 +83,13 @@ public class IsActualContainingExpectedStringValueComparerTest
 
         final boolean actual = sut.isExpected(expectedTable, actualTable,
                 rowNum, columnName, dataType, expectedValue, actualValue);
-        assertThat("Actual is equal to expected, should have been true.",
-                actual, equalTo(true));
+        assertThat(actual)
+                .as("Actual is equal to expected, should have been true.")
+                .isTrue();
     }
 
     @Test
-    public void testIsExpected_ActualEqualToExpected_Double_True()
+    void testIsExpected_ActualEqualToExpected_Double_True()
             throws DatabaseUnitException
     {
         final ITable expectedTable = null;
@@ -103,12 +102,13 @@ public class IsActualContainingExpectedStringValueComparerTest
 
         final boolean actual = sut.isExpected(expectedTable, actualTable,
                 rowNum, columnName, dataType, expectedValue, actualValue);
-        assertThat("Actual is equal to expected, should have been true.",
-                actual, equalTo(true));
+        assertThat(actual)
+                .as("Actual is equal to expected, should have been true.")
+                .isTrue();
     }
 
     @Test
-    public void testIsExpected_ActualEqualToExpected_Varchar_True()
+    void testIsExpected_ActualEqualToExpected_Varchar_True()
             throws DatabaseUnitException
     {
         final ITable expectedTable = null;
@@ -121,12 +121,13 @@ public class IsActualContainingExpectedStringValueComparerTest
 
         final boolean actual = sut.isExpected(expectedTable, actualTable,
                 rowNum, columnName, dataType, expectedValue, actualValue);
-        assertThat("Actual is equal to expected, should have been true.",
-                actual, equalTo(true));
+        assertThat(actual)
+                .as("Actual is equal to expected, should have been true.")
+                .isTrue();
     }
 
     @Test
-    public void testIsExpected_ActualContainsExpected_BigInt_True()
+    void testIsExpected_ActualContainsExpected_BigInt_True()
             throws DatabaseUnitException
     {
         final ITable expectedTable = null;
@@ -139,12 +140,13 @@ public class IsActualContainingExpectedStringValueComparerTest
 
         final boolean actual = sut.isExpected(expectedTable, actualTable,
                 rowNum, columnName, dataType, expectedValue, actualValue);
-        assertThat("Actual contains expected, should have been true.", actual,
-                equalTo(true));
+        assertThat(actual)
+                .as("Actual contains expected, should have been true.")
+                .isTrue();
     }
 
     @Test
-    public void testIsExpected_ActualContainsExpected_Double_True()
+    void testIsExpected_ActualContainsExpected_Double_True()
             throws DatabaseUnitException
     {
         final ITable expectedTable = null;
@@ -157,12 +159,13 @@ public class IsActualContainingExpectedStringValueComparerTest
 
         final boolean actual = sut.isExpected(expectedTable, actualTable,
                 rowNum, columnName, dataType, expectedValue, actualValue);
-        assertThat("Actual contains expected, should have been true.", actual,
-                equalTo(true));
+        assertThat(actual)
+                .as("Actual contains expected, should have been true.")
+                .isTrue();
     }
 
     @Test
-    public void testIsExpected_ActualContainsExpected_Varchar_True()
+    void testIsExpected_ActualContainsExpected_Varchar_True()
             throws DatabaseUnitException
     {
         final ITable expectedTable = null;
@@ -175,12 +178,13 @@ public class IsActualContainingExpectedStringValueComparerTest
 
         final boolean actual = sut.isExpected(expectedTable, actualTable,
                 rowNum, columnName, dataType, expectedValue, actualValue);
-        assertThat("Actual contains expected, should have been true.", actual,
-                equalTo(true));
+        assertThat(actual)
+                .as("Actual contains expected, should have been true.")
+                .isTrue();
     }
 
     @Test
-    public void testIsExpected_ActualNotContainsExpected_BigInt_True()
+    void testIsExpected_ActualNotContainsExpected_BigInt_True()
             throws DatabaseUnitException
     {
         final ITable expectedTable = null;
@@ -193,12 +197,13 @@ public class IsActualContainingExpectedStringValueComparerTest
 
         final boolean actual = sut.isExpected(expectedTable, actualTable,
                 rowNum, columnName, dataType, expectedValue, actualValue);
-        assertThat("Actual does not contain expected, should have been false.",
-                actual, equalTo(false));
+        assertThat(actual)
+                .as("Actual does not contain expected, should have been false.")
+                .isFalse();
     }
 
     @Test
-    public void testIsExpected_ActualNotContainsExpected_Double_True()
+    void testIsExpected_ActualNotContainsExpected_Double_True()
             throws DatabaseUnitException
     {
         final ITable expectedTable = null;
@@ -211,12 +216,13 @@ public class IsActualContainingExpectedStringValueComparerTest
 
         final boolean actual = sut.isExpected(expectedTable, actualTable,
                 rowNum, columnName, dataType, expectedValue, actualValue);
-        assertThat("Actual does not contain expected, should have been false.",
-                actual, equalTo(false));
+        assertThat(actual)
+                .as("Actual does not contain expected, should have been false.")
+                .isFalse();
     }
 
     @Test
-    public void testIsExpected_ActualNotContainsExpected_Varchar_True()
+    void testIsExpected_ActualNotContainsExpected_Varchar_True()
             throws DatabaseUnitException
     {
         final ITable expectedTable = null;
@@ -229,15 +235,16 @@ public class IsActualContainingExpectedStringValueComparerTest
 
         final boolean actual = sut.isExpected(expectedTable, actualTable,
                 rowNum, columnName, dataType, expectedValue, actualValue);
-        assertThat("Actual does not contain expected, should have been false.",
-                actual, equalTo(false));
+        assertThat(actual)
+                .as("Actual does not contain expected, should have been false.")
+                .isFalse();
     }
 
     @Test
-    public void testGetFailPhrase() throws Exception
+    void testGetFailPhrase() throws Exception
     {
         final String actual = sut.getFailPhrase();
 
-        assertThat("Should have fail phrase.", actual, not(nullValue()));
+        assertThat(actual).as("Should have fail phrase.").isNotNull();
     }
 }

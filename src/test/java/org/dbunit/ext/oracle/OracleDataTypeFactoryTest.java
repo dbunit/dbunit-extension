@@ -20,147 +20,175 @@
  */
 package org.dbunit.ext.oracle;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.sql.Types;
+
 import org.dbunit.dataset.datatype.AbstractDataTypeFactoryTest;
 import org.dbunit.dataset.datatype.DataType;
 import org.dbunit.dataset.datatype.IDataTypeFactory;
-
-import java.sql.Types;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author Manuel Laflamme
  * @since Aug 13, 2003
  * @version $Revision$
  */
-public class OracleDataTypeFactoryTest extends AbstractDataTypeFactoryTest
+class OracleDataTypeFactoryTest extends AbstractDataTypeFactoryTest
 {
-    public OracleDataTypeFactoryTest(String s)
-    {
-        super(s);
-    }
 
+    @Override
     public IDataTypeFactory createFactory() throws Exception
     {
         return new OracleDataTypeFactory();
     }
 
+    @Override
+    @Test
     public void testCreateBlobDataType() throws Exception
     {
-        int sqlType = Types.OTHER;
-        String sqlTypeName = "BLOB";
+        final int sqlType = Types.OTHER;
+        final String sqlTypeName = "BLOB";
 
-        DataType expected = OracleDataTypeFactory.ORACLE_BLOB;
-        DataType actual = createFactory().createDataType(sqlType, sqlTypeName);
-        assertSame("type", expected, actual);
+        final DataType expected = OracleDataTypeFactory.ORACLE_BLOB;
+        final DataType actual =
+                createFactory().createDataType(sqlType, sqlTypeName);
+        assertThat(actual).as("type").isSameAs(expected);
     }
 
+    @Override
+    @Test
     public void testCreateClobDataType() throws Exception
     {
-        int sqlType = Types.OTHER;
-        String sqlTypeName = "CLOB";
+        final int sqlType = Types.OTHER;
+        final String sqlTypeName = "CLOB";
 
-        DataType expected = OracleDataTypeFactory.ORACLE_CLOB;
-        DataType actual = createFactory().createDataType(sqlType, sqlTypeName);
-        assertSame("type", expected, actual);
+        final DataType expected = OracleDataTypeFactory.ORACLE_CLOB;
+        final DataType actual =
+                createFactory().createDataType(sqlType, sqlTypeName);
+        assertThat(actual).as("type").isSameAs(expected);
     }
 
+    @Test
     public void testCreateNClobDataType() throws Exception
     {
-        int sqlType = Types.OTHER;
-        String sqlTypeName = "NCLOB";
+        final int sqlType = Types.OTHER;
+        final String sqlTypeName = "NCLOB";
 
-        DataType expected = OracleDataTypeFactory.ORACLE_NCLOB;
-        DataType actual = createFactory().createDataType(sqlType, sqlTypeName);
-        assertSame("type", expected, actual);
+        final DataType expected = OracleDataTypeFactory.ORACLE_NCLOB;
+        final DataType actual =
+                createFactory().createDataType(sqlType, sqlTypeName);
+        assertThat(actual).as("type").isSameAs(expected);
     }
 
+    @Test
     public void testCreateLongRawDataType() throws Exception
     {
-        int sqlType = Types.LONGVARBINARY;
-        String sqlTypeName = "LONG RAW";
+        final int sqlType = Types.LONGVARBINARY;
+        final String sqlTypeName = "LONG RAW";
 
-        DataType expected = OracleDataTypeFactory.LONG_RAW;
-        DataType actual = createFactory().createDataType(sqlType, sqlTypeName);
-        assertSame("type", expected, actual);
+        final DataType expected = OracleDataTypeFactory.LONG_RAW;
+        final DataType actual =
+                createFactory().createDataType(sqlType, sqlTypeName);
+        assertThat(actual).as("type").isSameAs(expected);
     }
 
+    @Test
     public void testCreateTimestampDataType() throws Exception
     {
-        int sqlType = Types.OTHER;
-        String sqlTypeName = "TIMESTAMP(6)";
+        final int sqlType = Types.OTHER;
+        final String sqlTypeName = "TIMESTAMP(6)";
 
-        DataType expected = DataType.TIMESTAMP;
-        DataType actual = createFactory().createDataType(sqlType, sqlTypeName);
-        assertSame("type", expected, actual);
+        final DataType expected = DataType.TIMESTAMP;
+        final DataType actual =
+                createFactory().createDataType(sqlType, sqlTypeName);
+        assertThat(actual).as("type").isSameAs(expected);
     }
 
+    @Override
+    @Test
     public void testCreateDateDataType() throws Exception
     {
-        int sqlType = Types.DATE;
-        String sqlTypeName = "DATE";
+        final int sqlType = Types.DATE;
+        final String sqlTypeName = "DATE";
 
-        DataType expected = DataType.TIMESTAMP;
-        DataType actual = createFactory().createDataType(sqlType, sqlTypeName);
-        assertSame("type", expected, actual);
+        final DataType expected = DataType.TIMESTAMP;
+        final DataType actual =
+                createFactory().createDataType(sqlType, sqlTypeName);
+        assertThat(actual).as("type").isSameAs(expected);
     }
 
+    @Test
     public void testCreateNChar2DataType() throws Exception
     {
-        int sqlType = Types.OTHER;
-        String sqlTypeName = "NCHAR2";
+        final int sqlType = Types.OTHER;
+        final String sqlTypeName = "NCHAR2";
 
-        DataType expected = DataType.CHAR;
-        DataType actual = createFactory().createDataType(sqlType, sqlTypeName);
-        assertSame("type", expected, actual);
+        final DataType expected = DataType.CHAR;
+        final DataType actual =
+                createFactory().createDataType(sqlType, sqlTypeName);
+        assertThat(actual).as("type").isSameAs(expected);
     }
 
+    @Test
     public void testCreateNVarChar2DataType() throws Exception
     {
-        int sqlType = Types.OTHER;
-        String sqlTypeName = "NVARCHAR2";
+        final int sqlType = Types.OTHER;
+        final String sqlTypeName = "NVARCHAR2";
 
-        DataType expected = DataType.VARCHAR;
-        DataType actual = createFactory().createDataType(sqlType, sqlTypeName);
-        assertSame("type", expected, actual);
+        final DataType expected = DataType.VARCHAR;
+        final DataType actual =
+                createFactory().createDataType(sqlType, sqlTypeName);
+        assertThat(actual).as("type").isSameAs(expected);
     }
 
+    @Test
     public void testCreateFloatDataType() throws Exception
     {
-        int sqlType = Types.OTHER;
-        String sqlTypeName = "FLOAT";
+        final int sqlType = Types.OTHER;
+        final String sqlTypeName = "FLOAT";
 
-        DataType expected = DataType.FLOAT;
-        DataType actual = createFactory().createDataType(sqlType, sqlTypeName);
-        assertSame("type", expected, actual);
+        final DataType expected = DataType.FLOAT;
+        final DataType actual =
+                createFactory().createDataType(sqlType, sqlTypeName);
+        assertThat(actual).as("type").isSameAs(expected);
     }
 
+    @Test
     public void testCreateBinaryDoubleDataType() throws Exception
     {
-        int sqlType = Types.OTHER;
-        String sqlTypeName = "BINARY_DOUBLE";
+        final int sqlType = Types.OTHER;
+        final String sqlTypeName = "BINARY_DOUBLE";
 
-        DataType expected = DataType.DOUBLE;
-        DataType actual = createFactory().createDataType(sqlType, sqlTypeName);
-        assertSame("type", expected, actual);
+        final DataType expected = DataType.DOUBLE;
+        final DataType actual =
+                createFactory().createDataType(sqlType, sqlTypeName);
+        assertThat(actual).as("type").isSameAs(expected);
     }
 
+    @Test
     public void testCreateBinaryFloatDataType() throws Exception
     {
-        int sqlType = Types.OTHER;
-        String sqlTypeName = "BINARY_FLOAT";
+        final int sqlType = Types.OTHER;
+        final String sqlTypeName = "BINARY_FLOAT";
 
-        DataType expected = DataType.FLOAT;
-        DataType actual = createFactory().createDataType(sqlType, sqlTypeName);
-        assertSame("type", expected, actual);
+        final DataType expected = DataType.FLOAT;
+        final DataType actual =
+                createFactory().createDataType(sqlType, sqlTypeName);
+        assertThat(actual).as("type").isSameAs(expected);
     }
 
+    @Test
     public void testCreateSdoGeometryDataType() throws Exception
     {
-        int sqlType = Types.STRUCT;
-        String sqlTypeName = "SDO_GEOMETRY";
+        final int sqlType = Types.STRUCT;
+        final String sqlTypeName = "SDO_GEOMETRY";
 
-        DataType expected = OracleDataTypeFactory.ORACLE_SDO_GEOMETRY_TYPE;
-        DataType actual = createFactory().createDataType(sqlType, sqlTypeName);
-        assertSame("type", expected, actual);
+        final DataType expected =
+                OracleDataTypeFactory.ORACLE_SDO_GEOMETRY_TYPE;
+        final DataType actual =
+                createFactory().createDataType(sqlType, sqlTypeName);
+        assertThat(actual).as("type").isSameAs(expected);
     }
 
 }

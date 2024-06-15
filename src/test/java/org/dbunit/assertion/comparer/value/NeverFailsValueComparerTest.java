@@ -1,19 +1,18 @@
 package org.dbunit.assertion.comparer.value;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import org.dbunit.DatabaseUnitException;
 import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.datatype.DataType;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-public class NeverFailsValueComparerTest
+class NeverFailsValueComparerTest
 {
     private final NeverFailsValueComparer sut = new NeverFailsValueComparer();
 
     @Test
-    public void testIsExpected_AllNulls_True() throws DatabaseUnitException
+    void testIsExpected_AllNulls_True() throws DatabaseUnitException
     {
         final ITable expectedTable = null;
         final ITable actualTable = null;
@@ -25,12 +24,11 @@ public class NeverFailsValueComparerTest
 
         final boolean actual = sut.isExpected(expectedTable, actualTable,
                 rowNum, columnName, dataType, expectedValue, actualValue);
-        assertThat("All null should have been equal.", actual, equalTo(true));
+        assertThat(actual).as("All null should have been equal.").isTrue();
     }
 
     @Test
-    public void testIsExpected_DifferenceValues_True()
-            throws DatabaseUnitException
+    void testIsExpected_DifferenceValues_True() throws DatabaseUnitException
     {
         final ITable expectedTable = null;
         final ITable actualTable = null;
@@ -42,18 +40,16 @@ public class NeverFailsValueComparerTest
 
         final boolean actual = sut.isExpected(expectedTable, actualTable,
                 rowNum, columnName, dataType, expectedValue, actualValue);
-        assertThat("Unequal values should have been equal.", actual,
-                equalTo(true));
+        assertThat(actual).as("Unequal values should have been equal.")
+                .isTrue();
     }
 
     @Test
-    public void testGetFailPhrase()
+    void testGetFailPhrase()
     {
         final String actual = sut.getFailPhrase();
 
-        assertThat(
-                "Fail phrase is not empty String"
-                        + " and must be empty for never fails.",
-                actual, equalTo(""));
+        assertThat(actual).as("Fail phrase is not empty String"
+                + " and must be empty for never fails.").isEmpty();
     }
 }

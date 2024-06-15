@@ -20,6 +20,8 @@
  */
 package org.dbunit;
 
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -334,16 +336,14 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     }
 
     @Override
-    protected DatabaseOperation getSetUpOperation() throws Exception
-    {
-        assertNotNull(DATABASE_TESTER_IS_NULL_MSG, databaseTester);
+    protected DatabaseOperation getSetUpOperation() throws Exception {
+        assertNotNull(databaseTester, DATABASE_TESTER_IS_NULL_MSG);
         return databaseTester.getSetUpOperation();
     }
 
     @Override
-    protected DatabaseOperation getTearDownOperation() throws Exception
-    {
-        assertNotNull(DATABASE_TESTER_IS_NULL_MSG, databaseTester);
+    protected DatabaseOperation getTearDownOperation() throws Exception {
+        assertNotNull(databaseTester, DATABASE_TESTER_IS_NULL_MSG);
         return databaseTester.getTearDownOperation();
     }
 

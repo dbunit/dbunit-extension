@@ -1,7 +1,7 @@
 /*
  *
  * The DbUnit Database Testing Framework
- * Copyright (C)2002-2004, DbUnit.org
+ * Copyright (C)2002-2006, DbUnit.org
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -18,23 +18,23 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  */
-package org.dbunit.ext.oracle;
 
-import junit.framework.Test;
-import junit.framework.TestSuite;
+package org.dbunit.dataset.xml;
+
+import org.junit.platform.suite.api.SelectClasses;
+import org.junit.platform.suite.api.Suite;
 
 /**
  * @author Manuel Laflamme
- * @since Aug 13, 2003
  * @version $Revision$
  */
-public class AllTests extends TestSuite
+@Suite
+@SelectClasses({FlatDtdDataSetIT.class, FlatDtdProducerTest.class,
+        FlatDtdWriterTest.class, FlatXmlDataSetTest.class,
+        FlatXmlProducerTest.class, FlatXmlTableTest.class,
+        FlatXmlTableWriteTest.class, FlatXmlWriterTest.class,
+        XmlDataSetTest.class, XmlDataSetWriterTest.class, XmlProducerTest.class,
+        XmlTableTest.class, XmlTableWriteTest.class})
+public class AllTestsSuite
 {
-    public static Test suite()
-    {
-        TestSuite suite = new TestSuite();
-        suite.addTest(new TestSuite(OracleDataTypeFactoryTest.class));
-        suite.addTest(new TestSuite(Oracle10DataTypeFactoryTest.class));
-        return suite;
-    }
 }

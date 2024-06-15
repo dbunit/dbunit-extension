@@ -18,29 +18,29 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  */
-package org.dbunit.ext;
 
-import junit.framework.Test;
-import junit.framework.TestSuite;
+package org.dbunit;
+
+import org.junit.platform.suite.api.SelectClasses;
+import org.junit.platform.suite.api.Suite;
 
 /**
  * @author Manuel Laflamme
- * @since Aug 13, 2003
  * @version $Revision$
  */
-public class AllTests extends TestSuite
+@Suite
+@SelectClasses({
+        // org.dbunit.ant.AllTests.class,
+        org.dbunit.assertion.AllAssertionTestSuite.class,
+        org.dbunit.database.DatabaseTestSuite.class,
+        org.dbunit.database.search.AllTestsSuite.class,
+        org.dbunit.dataset.AllTestsSuite.class,
+        org.dbunit.ext.AllTestsSuite.class,
+        org.dbunit.operation.AllTestsSuite.class,
+        org.dbunit.util.AllTestsSuite.class,
+        org.dbunit.util.search.AllTestsSuite.class,
+        DatabaseUnitExceptionTest.class, DatabaseProfileTest.class,
+        DatabaseTestCaseIT.class, DBTestCaseIT.class})
+public class AllTestsSuite
 {
-    public static Test suite() throws Exception
-    {
-        TestSuite suite = new TestSuite();
-        suite.addTest(org.dbunit.ext.db2.AllTests.suite());
-        suite.addTest(org.dbunit.ext.mckoi.AllTests.suite());
-        suite.addTest(org.dbunit.ext.mssql.AllTests.suite());
-        suite.addTest(org.dbunit.ext.mysql.AllTests.suite());
-        suite.addTest(org.dbunit.ext.oracle.AllTests.suite());
-        suite.addTest(org.dbunit.ext.hsqldb.AllTests.suite());
-        suite.addTest(org.dbunit.ext.h2.AllTests.suite());
-        suite.addTest(org.dbunit.ext.postgresql.AllTests.suite());
-        return suite;
-    }
 }

@@ -1,7 +1,7 @@
 /*
  *
  * The DbUnit Database Testing Framework
- * Copyright (C)2008, DbUnit.org
+ * Copyright (C)2002-2009, DbUnit.org
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -18,25 +18,19 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  */
-package org.dbunit.dataset.common.handlers;
+package org.dbunit.ext.postgresql;
 
-import junit.framework.Test;
-import junit.framework.TestSuite;
+import org.junit.platform.suite.api.SelectClasses;
+import org.junit.platform.suite.api.Suite;
 
 /**
- * @author gommma (gommma AT users.sourceforge.net)
- * @author Last changed by: $Author$
- * @version $Revision$ $Date$
- * @since 2.4.0
+ * @author Manuel Laflamme
+ * @since Aug 13, 2003
+ * @version $Revision$
  */
-public class AllTests extends TestSuite
+@Suite
+@SelectClasses({PostgresqlDataTypeFactoryTest.class,
+        SQLHelperDomainPostgreSQLIT.class})
+public class AllTestsSuite
 {
-    public static Test suite()
-    {
-        TestSuite suite = new TestSuite();
-        suite.addTest(new TestSuite(EnforceHandlerTest.class));
-        suite.addTest(new TestSuite(HandlersTest.class));
-        suite.addTest(new TestSuite(PipelineTest.class));
-        return suite;
-    }
 }

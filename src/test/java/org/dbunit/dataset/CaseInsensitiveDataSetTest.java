@@ -21,8 +21,6 @@
 
 package org.dbunit.dataset;
 
-import java.io.FileReader;
-
 import org.dbunit.dataset.xml.XmlDataSet;
 import org.dbunit.testutil.TestUtils;
 
@@ -32,45 +30,47 @@ import org.dbunit.testutil.TestUtils;
  * @version $Revision$ $Date$
  * @since 1.0 (Mar 27, 2002)
  */
-public class CaseInsensitiveDataSetTest extends AbstractDataSetTest
+class CaseInsensitiveDataSetTest extends AbstractDataSetTest
 {
-    public CaseInsensitiveDataSetTest(String s)
-    {
-        super(s);
-    }
 
+    @Override
     protected IDataSet createDataSet() throws Exception
     {
-        return new CaseInsensitiveDataSet(new XmlDataSet(TestUtils.getFileReader(
-                "xml/caseInsensitiveDataSetTest.xml")));
+        return new CaseInsensitiveDataSet(new XmlDataSet(
+                TestUtils.getFileReader("xml/caseInsensitiveDataSetTest.xml")));
     }
 
+    @Override
     protected IDataSet createDuplicateDataSet() throws Exception
     {
         throw new UnsupportedOperationException();
     }
 
-    protected IDataSet createMultipleCaseDuplicateDataSet() throws Exception 
+    @Override
+    protected IDataSet createMultipleCaseDuplicateDataSet() throws Exception
     {
         throw new UnsupportedOperationException();
     }
 
-    protected void assertEqualsTableName(String message, String expected,
-            String actual)
+    @Override
+    protected void assertEqualsTableName(final String message,
+            final String expected, final String actual)
     {
         assertEqualsIgnoreCase(message, expected, actual);
     }
-    
-    public void testCreateDuplicateDataSet() throws Exception 
+
+    @Override
+    public void testCreateDuplicateDataSet() throws Exception
     {
-        // No op. This dataSet is only a wrapper for another dataSet which is why duplicates cannot occur.
+        // No op. This dataSet is only a wrapper for another dataSet which is
+        // why duplicates cannot occur.
     }
 
-    public void testCreateMultipleCaseDuplicateDataSet() throws Exception 
+    @Override
+    public void testCreateMultipleCaseDuplicateDataSet() throws Exception
     {
-        // No op. This dataSet is only a wrapper for another dataSet which is why duplicates cannot occur.
+        // No op. This dataSet is only a wrapper for another dataSet which is
+        // why duplicates cannot occur.
     }
 
 }
-
-

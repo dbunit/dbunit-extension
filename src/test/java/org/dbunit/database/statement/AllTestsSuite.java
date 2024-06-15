@@ -18,22 +18,19 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  */
-package org.dbunit.ext.mysql;
 
-import junit.framework.Test;
-import junit.framework.TestSuite;
+package org.dbunit.database.statement;
+
+import org.junit.platform.suite.api.SelectClasses;
+import org.junit.platform.suite.api.Suite;
 
 /**
  * @author Manuel Laflamme
- * @since Sep 3, 2003
  * @version $Revision$
  */
-public class AllTests extends TestSuite
+@Suite
+@SelectClasses({BatchStatementDecoratorTest.class})
+public class AllTestsSuite
 {
-    public static Test suite()
-    {
-        TestSuite suite = new TestSuite();
-        suite.addTest(new TestSuite(MySqlDataTypeFactoryTest.class));
-        return suite;
-    }
+
 }

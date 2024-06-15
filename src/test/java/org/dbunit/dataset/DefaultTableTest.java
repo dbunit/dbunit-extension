@@ -21,7 +21,10 @@
 
 package org.dbunit.dataset;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import org.dbunit.dataset.datatype.DataType;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author Manuel Laflamme
@@ -30,23 +33,21 @@ import org.dbunit.dataset.datatype.DataType;
  */
 public class DefaultTableTest extends AbstractTableTest
 {
-    public DefaultTableTest(String s)
-    {
-        super(s);
-    }
 
+    @Override
     protected ITable createTable() throws Exception
     {
         return createTable(COLUMN_COUNT, ROW_COUNT, 0);
     }
 
-    protected ITable createTable(int columnCount, int rowCount, int startRow)
-            throws Exception
+    protected ITable createTable(final int columnCount, final int rowCount,
+            final int startRow) throws Exception
     {
-        DefaultTable table = new DefaultTable(createTableMetaData(columnCount));
+        final DefaultTable table =
+                new DefaultTable(createTableMetaData(columnCount));
         for (int i = 0; i < rowCount; i++)
         {
-            Object[] rowValues = new Object[columnCount];
+            final Object[] rowValues = new Object[columnCount];
             for (int j = 0; j < rowValues.length; j++)
             {
                 rowValues[j] = "row " + (i + startRow) + " col " + j;
@@ -56,9 +57,10 @@ public class DefaultTableTest extends AbstractTableTest
         return table;
     }
 
-    protected ITableMetaData createTableMetaData(int columnCount) throws Exception
+    protected ITableMetaData createTableMetaData(final int columnCount)
+            throws Exception
     {
-        Column[] columns = new Column[columnCount];
+        final Column[] columns = new Column[columnCount];
         for (int i = 0; i < columns.length; i++)
         {
             columns[i] = new Column("COLUMN" + i, DataType.UNKNOWN);
@@ -67,21 +69,22 @@ public class DefaultTableTest extends AbstractTableTest
         return new DefaultTableMetaData("myTable", columns);
     }
 
+    @Override
+    @Test
     public void testGetMissingValue() throws Exception
     {
-        String columnName = "COLUMN0";
-        Object expected = ITable.NO_VALUE;
+        final String columnName = "COLUMN0";
+        final Object expected = ITable.NO_VALUE;
 
-        DefaultTable table = new DefaultTable(createTableMetaData(COLUMN_COUNT));
-        table.addRow(new Object[]{ITable.NO_VALUE, ITable.NO_VALUE, ITable.NO_VALUE,
-                                  ITable.NO_VALUE, ITable.NO_VALUE, ITable.NO_VALUE});
-        Column[] columns = table.getTableMetaData().getColumns();
-        assertNotNull(Columns.getColumn(columnName, columns));
-        assertEquals("no value", expected, table.getValue(0, columnName));
+        final DefaultTable table =
+                new DefaultTable(createTableMetaData(COLUMN_COUNT));
+        table.addRow(
+                new Object[] {ITable.NO_VALUE, ITable.NO_VALUE, ITable.NO_VALUE,
+                        ITable.NO_VALUE, ITable.NO_VALUE, ITable.NO_VALUE});
+        final Column[] columns = table.getTableMetaData().getColumns();
+        assertThat(Columns.getColumn(columnName, columns)).isNotNull();
+        assertThat(table.getValue(0, columnName)).as("no value")
+                .isEqualTo(expected);
     }
 
 }
-
-
-
-

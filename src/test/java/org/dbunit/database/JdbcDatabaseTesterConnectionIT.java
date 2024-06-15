@@ -21,9 +21,9 @@
  */
 package org.dbunit.database;
 
-import org.dbunit.JdbcDatabaseTester;
 import org.dbunit.DatabaseProfile;
 import org.dbunit.IDatabaseTester;
+import org.dbunit.JdbcDatabaseTester;
 
 /**
  * @author Andres Almiray (aalmiray@users.sourceforge.net)
@@ -31,23 +31,21 @@ import org.dbunit.IDatabaseTester;
  * @version $Revision$ $Date$
  * @since 2.2.0
  */
-public class JdbcDatabaseTesterConnectionIT extends AbstractDatabaseTesterConnectionIT
+public class JdbcDatabaseTesterConnectionIT
+        extends AbstractDatabaseTesterConnectionIT
 {
-   private JdbcDatabaseTester databaseTester;
+    private JdbcDatabaseTester databaseTester;
 
-   public JdbcDatabaseTesterConnectionIT( String s )
-   {
-      super( s );
-   }
-
-   protected IDatabaseTester getDatabaseTester() throws Exception
-   {
-      if( databaseTester == null ){
-         DatabaseProfile profile = getEnvironment().getProfile();
-         databaseTester = new JdbcDatabaseTester( profile.getDriverClass(),
-               profile.getConnectionUrl(), profile.getUser(), profile.getPassword(), 
-               profile.getSchema() );
-      }
-      return databaseTester;
-   }
+    @Override
+    protected IDatabaseTester getDatabaseTester() throws Exception
+    {
+        if (databaseTester == null)
+        {
+            final DatabaseProfile profile = getEnvironment().getProfile();
+            databaseTester = new JdbcDatabaseTester(profile.getDriverClass(),
+                    profile.getConnectionUrl(), profile.getUser(),
+                    profile.getPassword(), profile.getSchema());
+        }
+        return databaseTester;
+    }
 }

@@ -18,33 +18,21 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  */
+package org.dbunit.dataset.excel;
 
-package org.dbunit.dataset.csv;
-
-import junit.framework.Test;
-import junit.framework.TestSuite;
+import org.junit.platform.suite.api.SelectClasses;
+import org.junit.platform.suite.api.Suite;
 
 /**
- * Created By:   fede
- * Date:         10-mar-2004
- * Time:         10.52.00
- *
- * Last Checkin: $Author$
- * Date:         $Date$
- * Revision:     $Revision$
+ * @author Manuel Laflamme
+ * @author Last changed by: $Author$
+ * @version $Revision$ $Date$
+ * @since 2.2.0
  */
-public class AllTests extends TestSuite
+@Suite
+@SelectClasses({XlsDataSetTest.class, XlsTableTest.class,
+        XlsTableWriteTest.class, XlsxDataSetTest.class, XlsxTableTest.class,})
+public class AllTestsSuite
 {
-    public static Test suite()
-    {
-        TestSuite suite = new TestSuite();
-        suite.addTest(new TestSuite(CsvParserTest.class));
-        suite.addTest(new TestSuite(CsvProducerTest.class));
-        suite.addTest(new TestSuite(CsvDataSetWriterTest.class));
-        suite.addTest(new TestSuite(CsvDataSetTest.class));
-        suite.addTest(new TestSuite(CsvURLDataSetTest.class));
-        suite.addTest(new TestSuite(CsvURLProducerTest.class));
-        
-        return suite;
-    }
+
 }

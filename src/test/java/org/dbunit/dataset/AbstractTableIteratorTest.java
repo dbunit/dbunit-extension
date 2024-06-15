@@ -20,6 +20,11 @@
  */
 package org.dbunit.dataset;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
+import org.junit.jupiter.api.Test;
+
 /**
  * @author Manuel Laflamme
  * @since Apr 6, 2003
@@ -27,114 +32,101 @@ package org.dbunit.dataset;
  */
 public abstract class AbstractTableIteratorTest extends AbstractTest
 {
-    public AbstractTableIteratorTest(String s)
-    {
-        super(s);
-    }
 
     protected abstract ITableIterator getIterator() throws Exception;
 
     protected abstract ITableIterator getEmptyIterator() throws Exception;
 
-    public void testNext() throws Exception
+    @Test
+    void testNext() throws Exception
     {
         int count = 0;
-        String[] names = getExpectedNames();
-        ITableIterator iterator = getIterator();
-        while(iterator.next())
+        final String[] names = getExpectedNames();
+        final ITableIterator iterator = getIterator();
+        while (iterator.next())
         {
             count++;
         }
-
-        assertEquals("count", names.length, count);
+        assertThat(count).as("count").isEqualTo(names.length);
     }
 
-    public void testNextAndEmpty() throws Exception
+    @Test
+    void testNextAndEmpty() throws Exception
     {
         int count = 0;
-        ITableIterator iterator = getEmptyIterator();
-        while(iterator.next())
+        final ITableIterator iterator = getEmptyIterator();
+        while (iterator.next())
         {
             count++;
         }
-
-        assertEquals("count", 0, count);
+        assertThat(count).as("count").isZero();
     }
 
-    public void testGetTableMetaData() throws Exception
+    @Test
+    void testGetTableMetaData() throws Exception
     {
         int i = 0;
-        String[] names = getExpectedNames();
-        ITableIterator iterator = getIterator();
-        while(iterator.next())
+        final String[] names = getExpectedNames();
+        final ITableIterator iterator = getIterator();
+        while (iterator.next())
         {
-            assertEquals("name " + i, names[i],
-                    iterator.getTableMetaData().getTableName());
+            assertThat(iterator.getTableMetaData().getTableName())
+                    .as("name " + i).isEqualTo(names[i]);
             i++;
         }
-
-        assertEquals("count", names.length, i);
+        assertThat(i).as("count").isEqualTo(names.length);
     }
 
-    public void testGetTableMetaDataBeforeNext() throws Exception
+    @Test
+    void testGetTableMetaDataBeforeNext() throws Exception
     {
-        ITableIterator iterator = getIterator();
-        try
-        {
-            iterator.getTableMetaData();
-            fail("Should have throw a ???Exception");
-        }
-        catch (IndexOutOfBoundsException e)
-        {
-
-        }
+        final ITableIterator iterator = getIterator();
+        assertThrows(IndexOutOfBoundsException.class,
+                () -> iterator.getTableMetaData(),
+                "Should have throw a ???Exception");
 
         int i = 0;
-        String[] names = getExpectedNames();
-        while(iterator.next())
+        final String[] names = getExpectedNames();
+        while (iterator.next())
         {
-            assertEquals("name " + i, names[i],
-                    iterator.getTableMetaData().getTableName());
+            assertThat(iterator.getTableMetaData().getTableName())
+                    .as("name " + i).isEqualTo(names[i]);
             i++;
         }
+        assertThat(i).as("count").isEqualTo(names.length);
 
-        assertEquals("count", names.length, i);
     }
 
-    public void testGetTableMetaDataAfterLastNext() throws Exception
+    @Test
+    void testGetTableMetaDataAfterLastNext() throws Exception
     {
         int count = 0;
-        String[] names = getExpectedNames();
-        ITableIterator iterator = getIterator();
-        while(iterator.next())
+        final String[] names = getExpectedNames();
+        final ITableIterator iterator = getIterator();
+        while (iterator.next())
         {
             count++;
         }
+        assertThat(count).as("count").isEqualTo(names.length);
 
-        assertEquals("count", names.length, count);
+        assertThrows(IndexOutOfBoundsException.class,
+                () -> iterator.getTableMetaData(),
+                "Should have throw a ???Exception");
 
-        try
-        {
-            iterator.getTableMetaData();
-            fail("Should have throw a ???Exception");
-        }
-        catch (IndexOutOfBoundsException e)
-        {
-        }
     }
 
-    public void testGetTable() throws Exception
+    @Test
+    void testGetTable() throws Exception
     {
         int i = 0;
-        String[] names = getExpectedNames();
-        ITableIterator iterator = getIterator();
-        while(iterator.next())
+        final String[] names = getExpectedNames();
+        final ITableIterator iterator = getIterator();
+        while (iterator.next())
         {
-            assertEquals("name " + i, names[i],
-                    iterator.getTable().getTableMetaData().getTableName());
+            assertThat(iterator.getTable().getTableMetaData().getTableName())
+                    .as("name " + i).isEqualTo(names[i]);
             i++;
         }
-
-        assertEquals("count", names.length, i);
+        assertThat(i).as("count").isEqualTo(names.length);
     }
 }

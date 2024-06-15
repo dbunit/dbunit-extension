@@ -20,11 +20,14 @@
  */
 package org.dbunit.ext.postgresql;
 
-import junit.framework.TestCase;
-import org.dbunit.dataset.datatype.DataType;
-import org.dbunit.dataset.datatype.IntegerDataType;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.sql.Types;
+
+import org.dbunit.dataset.datatype.DataType;
+import org.dbunit.dataset.datatype.IntegerDataType;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 
 /**
  *
@@ -33,103 +36,126 @@ import java.sql.Types;
  * @author Martin Gollogly (zemertz@gmail.com)
  * @since 2.4.5 (Apr 27, 2009)
  */
-public class PostgresqlDataTypeFactoryTest extends TestCase {
-
-    public PostgresqlDataTypeFactoryTest(String testName) {
-        super(testName);
-    }
+@EnabledIfEnvironmentVariable(named = "MAVEN_CMD_LINE_ARGS", matches = "(.*)postgresql(.*)")
+class PostgresqlDataTypeFactoryTest
+{
 
     /**
      * Test of createDataType method, of class PostgresqlDataTypeFactory.
      */
-    public void testCreateUuidType() throws Exception {
+    @Test
+    void testCreateUuidType() throws Exception
+    {
 
-        PostgresqlDataTypeFactory instance = new PostgresqlDataTypeFactory();
+        final PostgresqlDataTypeFactory instance =
+                new PostgresqlDataTypeFactory();
 
         // Test UUID type created properly
-        int sqlType = Types.OTHER;
-        String sqlTypeName = "uuid";
+        final int sqlType = Types.OTHER;
+        final String sqlTypeName = "uuid";
 
-        DataType result = instance.createDataType(sqlType, sqlTypeName);
-        assertTrue(result instanceof UuidType);
+        final DataType result = instance.createDataType(sqlType, sqlTypeName);
+        assertThat(result).isInstanceOf(UuidType.class);
     }
 
-    public void testCreateIntervalType() throws Exception {
+    @Test
+    void testCreateIntervalType() throws Exception
+    {
 
-        PostgresqlDataTypeFactory instance = new PostgresqlDataTypeFactory();
+        final PostgresqlDataTypeFactory instance =
+                new PostgresqlDataTypeFactory();
 
         // Test interval type created properly
-        int sqlType = Types.OTHER;
-        String sqlTypeName = "interval";
+        final int sqlType = Types.OTHER;
+        final String sqlTypeName = "interval";
 
-        DataType result = instance.createDataType(sqlType, sqlTypeName);
-        assertTrue(result instanceof IntervalType);
+        final DataType result = instance.createDataType(sqlType, sqlTypeName);
+        assertThat(result).isInstanceOf(IntervalType.class);
     }
 
-    public void testCreateInetType() throws Exception {
+    @Test
+    void testCreateInetType() throws Exception
+    {
 
-        PostgresqlDataTypeFactory instance = new PostgresqlDataTypeFactory();
+        final PostgresqlDataTypeFactory instance =
+                new PostgresqlDataTypeFactory();
 
         // Test inet type created properly
-        int sqlType = Types.OTHER;
-        String sqlTypeName = "inet";
+        final int sqlType = Types.OTHER;
+        final String sqlTypeName = "inet";
 
-        DataType result = instance.createDataType(sqlType, sqlTypeName);
-        assertTrue(result instanceof InetType);
+        final DataType result = instance.createDataType(sqlType, sqlTypeName);
+        assertThat(result).isInstanceOf(InetType.class);
     }
 
+    @Test
+    void testCreateCitextType() throws Exception
+    {
 
-    public void testCreateCitextType() throws Exception {
-
-        PostgresqlDataTypeFactory instance = new PostgresqlDataTypeFactory();
+        final PostgresqlDataTypeFactory instance =
+                new PostgresqlDataTypeFactory();
 
         // Test CITEXT type created properly
-        int sqlType = Types.OTHER;
-        String sqlTypeName = "citext";
+        final int sqlType = Types.OTHER;
+        final String sqlTypeName = "citext";
 
-        DataType result = instance.createDataType(sqlType, sqlTypeName);
-        assertTrue(result instanceof CitextType);
+        final DataType result = instance.createDataType(sqlType, sqlTypeName);
+        assertThat(result).isInstanceOf(CitextType.class);
     }
 
-    public void testCreateEnumType() throws Exception {
+    @Test
+    void testCreateEnumType() throws Exception
+    {
 
-        PostgresqlDataTypeFactory instance = new PostgresqlDataTypeFactory(){
-            public boolean isEnumType(String sqlTypeName) {
-                if(sqlTypeName.equalsIgnoreCase("abc_enum")){
-                    return true;
-                }
-                return false;
-            }
-        };
+        final PostgresqlDataTypeFactory instance =
+                new PostgresqlDataTypeFactory()
+                {
+                    @Override
+                    public boolean isEnumType(final String sqlTypeName)
+                    {
+                        if (sqlTypeName.equalsIgnoreCase("abc_enum"))
+                        {
+                            return true;
+                        }
+                        return false;
+                    }
+                };
 
         // Test Enum type created properly
-        int sqlType = Types.OTHER;
-        String sqlTypeName = "abc_enum";
+        final int sqlType = Types.OTHER;
+        final String sqlTypeName = "abc_enum";
 
-        DataType result = instance.createDataType(sqlType, sqlTypeName);
-        assertTrue(result instanceof GenericEnumType);
-        assertEquals("abc_enum", ((GenericEnumType)result).getSqlTypeName());
+        final DataType result = instance.createDataType(sqlType, sqlTypeName);
+        assertThat(result).isInstanceOf(GenericEnumType.class);
+        assertThat(((GenericEnumType) result).getSqlTypeName())
+                .isEqualTo("abc_enum");
     }
 
-    public void testCreateDefaultType() throws Exception {
+    @Test
+    void testCreateDefaultType() throws Exception
+    {
 
-        PostgresqlDataTypeFactory instance = new PostgresqlDataTypeFactory();
+        final PostgresqlDataTypeFactory instance =
+                new PostgresqlDataTypeFactory();
 
-        int sqlType = Types.INTEGER;
-        String sqlTypeName = "int";
+        final int sqlType = Types.INTEGER;
+        final String sqlTypeName = "int";
 
-        DataType result = instance.createDataType(sqlType, sqlTypeName);
-        assertTrue(result instanceof IntegerDataType);
+        final DataType result = instance.createDataType(sqlType, sqlTypeName);
+        assertThat(result).isInstanceOf(IntegerDataType.class);
     }
 
-    public void testPostgreSQLOidType() throws Exception {
+    @Test
+    void testPostgreSQLOidType() throws Exception
+    {
 
-        PostgresqlDataTypeFactory instance = new PostgresqlDataTypeFactory();
+        final PostgresqlDataTypeFactory instance =
+                new PostgresqlDataTypeFactory();
 
-        int sqlType = Types.BIGINT;
-        String sqlTypeName = "oid";
+        final int sqlType = Types.BIGINT;
+        final String sqlTypeName = "oid";
 
-        DataType result = instance.createDataType(sqlType, sqlTypeName);
-        assertTrue(result instanceof PostgreSQLOidDataType);
+        final DataType result = instance.createDataType(sqlType, sqlTypeName);
+        assertThat(result).isInstanceOf(PostgreSQLOidDataType.class);
     }
 }

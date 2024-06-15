@@ -21,11 +21,13 @@
 
 package org.dbunit.database.statement;
 
-import com.mockobjects.ExpectationCounter;
-import com.mockobjects.Verifiable;
-import org.dbunit.database.IDatabaseConnection;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.sql.SQLException;
+import java.util.Objects;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import org.dbunit.database.IDatabaseConnection;
 
 /**
  * @author Manuel Laflamme
@@ -35,59 +37,68 @@ import java.sql.SQLException;
 public class MockStatementFactory implements IStatementFactory, Verifiable
 {
     private IBatchStatement _batchStatement = null;
-//    private IPreparedBatchStatement _preparedBatchStatement = null;
-    private ExpectationCounter _createStatementCalls =
-            new ExpectationCounter("MockStatementFactory.createBatchStatement");;
-    private ExpectationCounter _createPreparedStatementCalls =
-            new ExpectationCounter("MockStatementFactory.createPreparedBatchStatement");;
+    // private IPreparedBatchStatement _preparedBatchStatement = null;
+    private Integer _expectedCreateStatementCalls;
+    private Integer _expectedCreatePreparedStatementCalls;
+    private AtomicInteger _createStatementCalls = new AtomicInteger();
+    private AtomicInteger _createPreparedStatementCalls = new AtomicInteger();
 
-    public void setupStatement(IBatchStatement batchStatement)
+    public void setupStatement(final IBatchStatement batchStatement)
     {
         _batchStatement = batchStatement;
     }
 
-//    public void setupPreparedStatement(IPreparedBatchStatement preparedBatchStatement)
-//    {
-//        _preparedBatchStatement = preparedBatchStatement;
-//    }
+    // public void setupPreparedStatement(IPreparedBatchStatement
+    // preparedBatchStatement)
+    // {
+    // _preparedBatchStatement = preparedBatchStatement;
+    // }
 
-    public void setExpectedCreateStatementCalls(int callsCount)
+    public void setExpectedCreateStatementCalls(final int callsCount)
     {
-        _createStatementCalls.setExpected(callsCount);
+        _expectedCreateStatementCalls = callsCount;
     }
 
-    public void setExpectedCreatePreparedStatementCalls(int callsCount)
+    public void setExpectedCreatePreparedStatementCalls(final int callsCount)
     {
-        _createPreparedStatementCalls.setExpected(callsCount);
+        _expectedCreatePreparedStatementCalls = callsCount;
     }
-
 
     ////////////////////////////////////////////////////////////////////////////
     // Verifiable interface
 
+    @Override
     public void verify()
     {
-        _createStatementCalls.verify();
-        _createPreparedStatementCalls.verify();
+        if (!Objects.isNull(_expectedCreateStatementCalls))
+        {
+            assertThat(_createStatementCalls.get())
+                    .isEqualTo(_expectedCreateStatementCalls);
+        }
+        if (!Objects.isNull(_expectedCreatePreparedStatementCalls))
+        {
+            assertThat(_createPreparedStatementCalls.get())
+                    .isEqualTo(_expectedCreatePreparedStatementCalls);
+        }
     }
 
     ////////////////////////////////////////////////////////////////////////////
     // IStatementFactory interface
 
-    public IBatchStatement createBatchStatement(IDatabaseConnection connection)
-            throws SQLException
+    @Override
+    public IBatchStatement createBatchStatement(
+            final IDatabaseConnection connection) throws SQLException
     {
-        _createStatementCalls.inc();
+        _createStatementCalls.incrementAndGet();
         return _batchStatement;
     }
 
-    public IPreparedBatchStatement createPreparedBatchStatement(String sql,
-            IDatabaseConnection connection) throws SQLException
+    @Override
+    public IPreparedBatchStatement createPreparedBatchStatement(
+            final String sql, final IDatabaseConnection connection)
+            throws SQLException
     {
-        _createPreparedStatementCalls.inc();
+        _createPreparedStatementCalls.incrementAndGet();
         return new BatchStatementDecorator(sql, _batchStatement);
     }
 }
-
-
-

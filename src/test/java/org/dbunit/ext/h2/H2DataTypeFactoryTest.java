@@ -20,11 +20,14 @@
  */
 package org.dbunit.ext.h2;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.sql.Types;
+
 import org.dbunit.dataset.datatype.AbstractDataTypeFactoryTest;
 import org.dbunit.dataset.datatype.DataType;
 import org.dbunit.dataset.datatype.IDataTypeFactory;
-
-import java.sql.Types;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author Felipe Leme
@@ -32,27 +35,24 @@ import java.sql.Types;
  * @version $Revision$ $Date$
  * @since 2.2.1
  */
-public class H2DataTypeFactoryTest extends AbstractDataTypeFactoryTest
+class H2DataTypeFactoryTest extends AbstractDataTypeFactoryTest
 {
-    public H2DataTypeFactoryTest(String s)
-    {
-        super(s);
-    }
-
+    @Override
     public IDataTypeFactory createFactory() throws Exception
     {
         return new H2DataTypeFactory();
     }
 
-    public void testCreateBooleanDataType() throws Exception
+    @Test
+    void testCreateBooleanDataType() throws Exception
     {
-        int sqlType = Types.BIT;
-        String sqlTypeName = "BOOLEAN";
+        final int sqlType = Types.BIT;
+        final String sqlTypeName = "BOOLEAN";
 
-        DataType expected = DataType.BOOLEAN;
-        DataType actual = createFactory().createDataType(sqlType, sqlTypeName);
-        assertSame("type", expected, actual);
+        final DataType expected = DataType.BOOLEAN;
+        final DataType actual =
+                createFactory().createDataType(sqlType, sqlTypeName);
+        assertThat(actual).as("type").isSameAs(expected);
     }
 
 }
-

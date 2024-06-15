@@ -20,91 +20,85 @@
  */
 package org.dbunit.dataset.datatype;
 
-import junit.framework.TestCase;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.sql.Types;
+
+import org.junit.jupiter.api.Test;
 
 /**
  * @author Manuel Laflamme
  * @since Aug 13, 2003
  * @version $Revision$
  */
-public class AbstractDataTypeFactoryTest extends TestCase
+public abstract class AbstractDataTypeFactoryTest
 {
-    public AbstractDataTypeFactoryTest(String s)
-    {
-        super(s);
-    }
 
     public IDataTypeFactory createFactory() throws Exception
     {
         return new DefaultDataTypeFactory();
     }
 
-    public void testCreateDataType() throws Exception
+    @Test
+    void testCreateDataType() throws Exception
     {
-        DataType[] expectedTypes = new DataType[] {
-            DataType.UNKNOWN,
-            DataType.CHAR,
-            DataType.VARCHAR,
-            DataType.LONGVARCHAR,
-//            DataType.CLOB,
-            DataType.NUMERIC,
-            DataType.DECIMAL,
-            DataType.BOOLEAN,
-            DataType.TINYINT,
-            DataType.SMALLINT,
-            DataType.INTEGER,
-            DataType.BIGINT,
-            DataType.REAL,
-            DataType.FLOAT,
-            DataType.DOUBLE,
-//            DataType.DATE,
-            DataType.TIME,
-            DataType.TIMESTAMP,
-            DataType.BINARY,
-            DataType.VARBINARY,
-            DataType.LONGVARBINARY,
-//            DataType.BLOB,
+        final DataType[] expectedTypes = new DataType[] {DataType.UNKNOWN,
+                DataType.CHAR, DataType.VARCHAR, DataType.LONGVARCHAR,
+                // DataType.CLOB,
+                DataType.NUMERIC, DataType.DECIMAL, DataType.BOOLEAN,
+                DataType.TINYINT, DataType.SMALLINT, DataType.INTEGER,
+                DataType.BIGINT, DataType.REAL, DataType.FLOAT, DataType.DOUBLE,
+                // DataType.DATE,
+                DataType.TIME, DataType.TIMESTAMP, DataType.BINARY,
+                DataType.VARBINARY, DataType.LONGVARBINARY,
+                // DataType.BLOB,
         };
 
-        IDataTypeFactory factory = createFactory();
+        final IDataTypeFactory factory = createFactory();
         for (int i = 0; i < expectedTypes.length; i++)
         {
-            DataType expected = expectedTypes[i];
-            DataType actual = factory.createDataType(expected.getSqlType(), expected.toString());
-            assertSame("type", expected,  actual);
+            final DataType expected = expectedTypes[i];
+            final DataType actual = factory
+                    .createDataType(expected.getSqlType(), expected.toString());
+            assertThat(actual).as("type").isSameAs(expected);
         }
     }
 
+    @Test
     public void testCreateDateDataType() throws Exception
     {
-        int sqlType = Types.DATE;
-        String sqlTypeName = "DATE";
+        final int sqlType = Types.DATE;
+        final String sqlTypeName = "DATE";
 
-        DataType expected = DataType.DATE;
-        DataType actual = createFactory().createDataType(sqlType, sqlTypeName);
-        assertSame("type", expected, actual);
+        final DataType expected = DataType.DATE;
+        final DataType actual =
+                createFactory().createDataType(sqlType, sqlTypeName);
+        assertThat(actual).as("type").isSameAs(expected);
     }
 
+    @Test
     public void testCreateBlobDataType() throws Exception
     {
-        int sqlType = Types.BLOB;
-        String sqlTypeName = "BLOB";
+        final int sqlType = Types.BLOB;
+        final String sqlTypeName = "BLOB";
 
-        DataType expected = DataType.BLOB;
-        DataType actual = createFactory().createDataType(sqlType, sqlTypeName);
-        assertSame("type", expected, actual);
+        final DataType expected = DataType.BLOB;
+        final DataType actual =
+                createFactory().createDataType(sqlType, sqlTypeName);
+        assertThat(actual).as("type").isSameAs(expected);
+
     }
 
+    @Test
     public void testCreateClobDataType() throws Exception
     {
-        int sqlType = Types.CLOB;
-        String sqlTypeName = "CLOB";
+        final int sqlType = Types.CLOB;
+        final String sqlTypeName = "CLOB";
 
-        DataType expected = DataType.CLOB;
-        DataType actual = createFactory().createDataType(sqlType, sqlTypeName);
-        assertSame("type", expected, actual);
+        final DataType expected = DataType.CLOB;
+        final DataType actual =
+                createFactory().createDataType(sqlType, sqlTypeName);
+        assertThat(actual).as("type").isSameAs(expected);
     }
 
 }

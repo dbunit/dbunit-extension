@@ -31,24 +31,22 @@ import org.dbunit.dataset.MockDataSet;
  */
 public class SequenceTableIteratorTest extends AbstractTableIteratorTest
 {
-    public SequenceTableIteratorTest(String s)
-    {
-        super(s);
-    }
 
+    @Override
     protected ITableIterator getIterator() throws Exception
     {
-        String[] expectedNames = getExpectedNames();
-        MockDataSet dataSet = new MockDataSet();
+        final String[] expectedNames = getExpectedNames();
+        final MockDataSet dataSet = new MockDataSet();
         for (int i = 0; i < expectedNames.length; i++)
         {
-            String tableName = expectedNames[i];
+            final String tableName = expectedNames[i];
             dataSet.addEmptyTable(tableName);
         }
 
         return new SequenceTableIterator(expectedNames, dataSet);
     }
 
+    @Override
     protected ITableIterator getEmptyIterator() throws Exception
     {
         return new SequenceTableIterator(new String[0], new MockDataSet());

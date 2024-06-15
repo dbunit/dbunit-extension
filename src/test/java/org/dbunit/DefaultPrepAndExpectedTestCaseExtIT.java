@@ -1,10 +1,14 @@
 package org.dbunit;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
+import org.dbunit.assertion.DbComparisonFailure;
 import org.dbunit.database.IDatabaseConnection;
 import org.dbunit.util.fileloader.DataFileLoader;
 import org.dbunit.util.fileloader.FlatXmlDataFileLoader;
-
-import junit.framework.ComparisonFailure;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /**
  * Integration test of extends of the PrepAndExpected.
@@ -14,8 +18,7 @@ import junit.framework.ComparisonFailure;
  * @version $Revision$ $Date$
  * @since 2.4.8
  */
-public class DefaultPrepAndExpectedTestCaseExtIT
-        extends DefaultPrepAndExpectedTestCase
+class DefaultPrepAndExpectedTestCaseExtIT extends DefaultPrepAndExpectedTestCase
 {
     private static final String PREP_DATA_FILE_NAME =
             "/xml/flatXmlDataSetTest.xml";
@@ -44,6 +47,7 @@ public class DefaultPrepAndExpectedTestCaseExtIT
     }
 
     @Override
+    @BeforeEach
     protected void setUp() throws Exception
     {
         setDataFileLoader(dataFileLoader);
@@ -53,7 +57,8 @@ public class DefaultPrepAndExpectedTestCaseExtIT
         // super.setUp();
     }
 
-    public void testSuccessRun() throws Exception
+    @Test
+    void testSuccessRun() throws Exception
     {
         final String[] prepDataFiles = {PREP_DATA_FILE_NAME};
         final String[] expectedDataFiles = {PREP_DATA_FILE_NAME};
@@ -70,8 +75,8 @@ public class DefaultPrepAndExpectedTestCaseExtIT
         // maybe we need a KeepConnectionOpenOperationListener class?!
         final IDatabaseTester databaseTesterNew1 = makeDatabaseTester();
         setDatabaseTester(databaseTesterNew1);
-
-        preTest();
+        assertDoesNotThrow(() -> preTest(),
+                "Did not expect tc.postTest() to throw, but it did!");
 
         // skip modifying data and just verify the insert
 
@@ -83,7 +88,8 @@ public class DefaultPrepAndExpectedTestCaseExtIT
         postTest();
     }
 
-    public void testFailRun() throws Exception
+    @Test
+    void testFailRun() throws Exception
     {
         final String[] prepDataFiles = {PREP_DATA_FILE_NAME};
         final String[] expectedDataFiles = {EXP_DATA_FILE_NAME};
@@ -110,15 +116,9 @@ public class DefaultPrepAndExpectedTestCaseExtIT
         final IDatabaseTester databaseTesterNew2 = makeDatabaseTester();
         setDatabaseTester(databaseTesterNew2);
 
-        try
-        {
-            postTest();
-            fail("Did not catch expected exception:"
-                    + " junit.framework.ComparisonFailure");
-        } catch (final ComparisonFailure e)
-        {
-            // test passes
-        }
+        assertThrows(DbComparisonFailure.class, () -> postTest(),
+                "Expected tc.postTest() to throw DbComparisonFailure, but it didn't");
+
     }
 
     protected IDatabaseTester makeDatabaseTester() throws Exception

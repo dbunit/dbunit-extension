@@ -21,9 +21,10 @@
 
 package org.dbunit.dataset;
 
-import junit.framework.TestCase;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import org.dbunit.DatabaseEnvironment;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,17 +33,12 @@ import org.slf4j.LoggerFactory;
  * @version $Revision$
  * @since Feb 17, 2002
  */
-public abstract class AbstractTableTest extends TestCase
+public abstract class AbstractTableTest
 {
     protected static final int ROW_COUNT = 6;
     protected static final int COLUMN_COUNT = 4;
 
     protected final Logger logger = LoggerFactory.getLogger(getClass());
-    
-    public AbstractTableTest(String s)
-    {
-        super(s);
-    }
 
     /**
      * Creates a table having 6 row and 4 column where columns are named
@@ -52,128 +48,116 @@ public abstract class AbstractTableTest extends TestCase
     protected abstract ITable createTable() throws Exception;
 
     /**
-     * Returns the string converted as an identifier according to the metadata rules of the database environment.
-     * Most databases convert all metadata identifiers to uppercase.
-     * PostgreSQL converts identifiers to lowercase.
+     * Returns the string converted as an identifier according to the metadata
+     * rules of the database environment. Most databases convert all metadata
+     * identifiers to uppercase. PostgreSQL converts identifiers to lowercase.
      * MySQL preserves case.
-     * @param str The identifier.
+     * 
+     * @param str
+     *            The identifier.
      * @return The identifier converted according to database rules.
      */
-    protected String convertString(String str) throws Exception
+    protected String convertString(final String str) throws Exception
     {
         return str;
     }
 
     ////////////////////////////////////////////////////////////////////////////
     // Test methods
-
-    public void testGetRowCount() throws Exception
+    @Test
+    void testGetRowCount() throws Exception
     {
-        assertEquals("row count", ROW_COUNT, createTable().getRowCount());
+        assertThat(createTable().getRowCount()).as("row count")
+                .isEqualTo(ROW_COUNT);
     }
 
-    public void testTableMetaData() throws Exception
+    @Test
+    void testTableMetaData() throws Exception
     {
-        Column[] columns = createTable().getTableMetaData().getColumns();
-        assertEquals("column count", COLUMN_COUNT, columns.length);
+        final Column[] columns = createTable().getTableMetaData().getColumns();
+        assertThat(columns).as("column count").hasSize(COLUMN_COUNT);
         for (int i = 0; i < columns.length; i++)
         {
-            String expected = convertString("COLUMN" + i);
-            String actual = columns[i].getColumnName();
-            assertEquals("column name", expected, actual);
+            final String expected = convertString("COLUMN" + i);
+            final String actual = columns[i].getColumnName();
+            assertThat(actual).as("column name").isEqualTo(expected);
         }
     }
 
-    public void testGetValue() throws Exception
+    @Test
+    protected void testGetValue() throws Exception
     {
-        ITable table = createTable();
+        final ITable table = createTable();
         for (int i = 0; i < ROW_COUNT; i++)
         {
             for (int j = 0; j < COLUMN_COUNT; j++)
             {
-                String columnName = "COLUMN" + j;
-                String expected = "row " + i + " col " + j;
-                Object value = table.getValue(i, columnName);
-                assertEquals("value", expected, value);
+                final String columnName = "COLUMN" + j;
+                final String expected = "row " + i + " col " + j;
+                final Object value = table.getValue(i, columnName);
+                assertThat(value).as("value").isEqualTo(expected);
             }
         }
     }
 
-    public void testGetValueCaseInsensitive() throws Exception
+    @Test
+    void testGetValueCaseInsensitive() throws Exception
     {
-        ITable table = createTable();
+        final ITable table = createTable();
         for (int i = 0; i < ROW_COUNT; i++)
         {
             for (int j = 0; j < COLUMN_COUNT; j++)
             {
-                String columnName = "CoLUmN" + j;
-                String expected = "row " + i + " col " + j;
-                Object value = table.getValue(i, columnName);
-                assertEquals("value", expected, value);
+                final String columnName = "CoLUmN" + j;
+                final String expected = "row " + i + " col " + j;
+                final Object value = table.getValue(i, columnName);
+                assertThat(value).as("value").isEqualTo(expected);
             }
         }
     }
 
     public abstract void testGetMissingValue() throws Exception;
 
-    public void testGetValueRowBounds() throws Exception
+    @Test
+    void testGetValueRowBounds() throws Exception
     {
-        int[] rows = new int[]{-2, -1, -ROW_COUNT, ROW_COUNT, ROW_COUNT + 1};
-        ITable table = createTable();
-        String columnName = table.getTableMetaData().getColumns()[0].getColumnName();
+        final int[] rows =
+                new int[] {-2, -1, -ROW_COUNT, ROW_COUNT, ROW_COUNT + 1};
+        final ITable table = createTable();
+        final String columnName =
+                table.getTableMetaData().getColumns()[0].getColumnName();
 
         for (int i = 0; i < rows.length; i++)
         {
-            try
-            {
-                table.getValue(rows[i], columnName);
-                fail("Should throw a RowOutOfBoundsException!");
-            }
-            catch (RowOutOfBoundsException e)
-            {
-            }
+            final int row = i;
+            assertThrows(RowOutOfBoundsException.class,
+                    () -> table.getValue(rows[row], columnName),
+                    "Should throw a RowOutOfBoundsException!");
         }
     }
 
-    public void testGetValueAndNoSuchColumn() throws Exception
+    @Test
+    void testGetValueAndNoSuchColumn() throws Exception
     {
-        ITable table = createTable();
-        String columnName = "Unknown";
+        final ITable table = createTable();
+        final String columnName = "Unknown";
 
-        try
-        {
-            table.getValue(0, columnName);
-            fail("Should throw a NoSuchColumnException!");
-        }
-        catch (NoSuchColumnException e)
-        {
-        }
+        assertThrows(NoSuchColumnException.class,
+                () -> table.getValue(0, columnName),
+                "Should throw a NoSuchColumnException!");
+
     }
-    
+
     /**
-     * This method is used so sub-classes can disable the tests according to 
+     * This method is used so sub-classes can disable the tests according to
      * some characteristics of the environment
-     * @param testName name of the test to be checked
+     * 
+     * @param testName
+     *            name of the test to be checked
      * @return flag indicating if the test should be executed or not
      */
-    protected boolean runTest(String testName) {
-      return true;
+    protected boolean runTest(final String testName)
+    {
+        return true;
     }
-
-    protected void runTest() throws Throwable {
-      if ( runTest(getName()) ) {
-        super.runTest();
-      } else { 
-        if ( logger.isDebugEnabled() ) {
-          logger.debug( "Skipping test " + getClass().getName() + "." + getName() );
-        }
-      }
-    }    
-    
 }
-
-
-
-
-
-

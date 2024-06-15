@@ -18,68 +18,59 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  */
-
 package org.dbunit.dataset;
 
-import junit.framework.TestCase;
-import org.dbunit.dataset.datatype.DataType;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.sql.DatabaseMetaData;
+
+import org.dbunit.dataset.datatype.DataType;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author Manuel Laflamme
  * @version $Revision$
  * @since Feb 17, 2002
  */
-public class ColumnTest extends TestCase
+class ColumnTest
 {
-    public ColumnTest(String s)
+
+    @Test
+    void testGetColumnName() throws Exception
     {
-        super(s);
+        final String expected = "columnName";
+        final Column column = new Column(expected, DataType.REAL);
+
+        assertThat(column.getColumnName()).as("column name")
+                .isEqualTo(expected);
     }
 
-    public void testGetColumnName() throws Exception
+    @Test
+    void testGetDataType() throws Exception
     {
-        String expected = "columnName";
-        Column column = new Column(expected, DataType.REAL);
+        final DataType expected = DataType.DATE;
+        final Column column = new Column(expected.toString(), expected);
 
-        assertEquals("column name", expected, column.getColumnName());
+        assertThat(column.getDataType()).as("data type").isEqualTo(expected);
     }
 
-    public void testGetDataType() throws Exception
+    @Test
+    void testNullableValue() throws Exception
     {
-        DataType expected = DataType.DATE;
-        Column column = new Column(expected.toString(), expected);
+        assertThat(Column.nullableValue(DatabaseMetaData.columnNullable))
+                .as("nullable").isEqualTo(Column.NULLABLE);
 
-        assertEquals("data type", expected, column.getDataType());
-    }
+        assertThat(Column.nullableValue(DatabaseMetaData.columnNoNulls))
+                .as("not nullable").isEqualTo(Column.NO_NULLS);
 
-    public void testNullableValue() throws Exception
-    {
-        assertEquals("nullable", Column.NULLABLE,
-                Column.nullableValue(DatabaseMetaData.columnNullable));
+        assertThat(Column.nullableValue(DatabaseMetaData.columnNullableUnknown))
+                .as("nullable unknown").isEqualTo(Column.NULLABLE_UNKNOWN);
 
-        assertEquals("not nullable", Column.NO_NULLS,
-                Column.nullableValue(DatabaseMetaData.columnNoNulls));
-
-        assertEquals("nullable unknown", Column.NULLABLE_UNKNOWN,
-                Column.nullableValue(DatabaseMetaData.columnNullableUnknown));
-
-
-        try
-        {
-            Column.nullableValue(12345);
-            fail("Should throw an IllegalArgumentException");
-        }
-        catch (IllegalArgumentException e)
-        {
-        }
+        assertThrows(IllegalArgumentException.class,
+                () -> Column.nullableValue(12345),
+                "Should throw an IllegalArgumentException");
 
     }
 
 }
-
-
-
-
-

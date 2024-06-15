@@ -18,10 +18,15 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  */
-
 package org.dbunit.operation;
 
-import java.io.File;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.atMost;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verify;
+
 import java.io.FileReader;
 import java.io.Reader;
 import java.sql.Connection;
@@ -30,38 +35,52 @@ import java.sql.SQLException;
 import org.dbunit.AbstractDatabaseIT;
 import org.dbunit.DatabaseUnitException;
 import org.dbunit.TestFeature;
+import org.dbunit.database.IDatabaseConnection;
 import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.xml.XmlDataSet;
 import org.dbunit.testutil.TestUtils;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 /**
  * @author Manuel Laflamme
  * @version $Revision$
  * @since Feb 21, 2002
  */
-public class TransactionOperationIT extends AbstractDatabaseIT
+@ExtendWith(MockitoExtension.class)
+class TransactionOperationIT extends AbstractDatabaseIT
 {
-    public TransactionOperationIT(String s)
+
+    @Mock
+    private IDatabaseConnection connection;
+
+    @Mock
+    private DatabaseOperation mockOperation;
+
+    @Override
+    protected boolean runTest(final String testName)
     {
-        super(s);
-    }
-    
-    protected boolean runTest(String testName) {
-      return environmentHasFeature(TestFeature.TRANSACTION);
+        return environmentHasFeature(TestFeature.TRANSACTION);
     }
 
-    public void testExecuteCommit() throws Exception
+    @Test
+    void testExecuteCommit() throws Exception
     {
-        String tableName = "TEST_TABLE";
-        Reader in = new FileReader(
+        final String tableName = "TEST_TABLE";
+        final Reader in = new FileReader(
                 TestUtils.getFile("xml/transactionOperationTest.xml"));
-        IDataSet xmlDataSet = new XmlDataSet(in);
-        Connection jdbcConnection = _connection.getConnection();
+        final IDataSet xmlDataSet = new XmlDataSet(in);
+        final Connection jdbcConnection = _connection.getConnection();
 
-        ITable tableBefore = _connection.createDataSet().getTable(tableName);
-        assertEquals("before row count", 6, tableBefore.getRowCount());
-        assertEquals("autocommit before", true, jdbcConnection.getAutoCommit());
+        final ITable tableBefore =
+                _connection.createDataSet().getTable(tableName);
+        assertThat(tableBefore.getRowCount()).as("before row count")
+                .isEqualTo(6);
+        assertThat(jdbcConnection.getAutoCommit()).as("autocommit before")
+                .isTrue();
 
         DatabaseOperation operation = new CompositeOperation(
                 DatabaseOperation.DELETE_ALL, DatabaseOperation.INSERT);
@@ -69,96 +88,86 @@ public class TransactionOperationIT extends AbstractDatabaseIT
         operation.execute(_connection, xmlDataSet);
 
         // snapshot after operation
-        ITable tableAfter = _connection.createDataSet().getTable(tableName);
-        assertEquals("after row count", 1, tableAfter.getRowCount());
-        assertEquals("autocommit after", true, jdbcConnection.getAutoCommit());
+        final ITable tableAfter =
+                _connection.createDataSet().getTable(tableName);
+        assertThat(tableAfter.getRowCount()).as("after row count").isEqualTo(1);
+        assertThat(jdbcConnection.getAutoCommit()).as("autocommit after")
+                .isTrue();
     }
 
-    public void testExclusiveTransaction() throws Exception
+    @Test
+    void testExclusiveTransaction() throws Exception
     {
-        String tableName = "TEST_TABLE";
-        Reader in = new FileReader(
+        final String tableName = "TEST_TABLE";
+        final Reader in = new FileReader(
                 TestUtils.getFile("xml/transactionOperationTest.xml"));
-        IDataSet xmlDataSet = new XmlDataSet(in);
-        Connection jdbcConnection = _connection.getConnection();
+        final IDataSet xmlDataSet = new XmlDataSet(in);
+        final Connection jdbcConnection = _connection.getConnection();
 
         jdbcConnection.setAutoCommit(false);
 
         // before operation
-        assertEquals("autocommit before", false, jdbcConnection.getAutoCommit());
-        ITable tableBefore = _connection.createDataSet().getTable(tableName);
-        assertEquals("before exclusive", 6, tableBefore.getRowCount());
+        assertThat(jdbcConnection.getAutoCommit()).as("autocommit before")
+                .isFalse();
+        final ITable tableBefore =
+                _connection.createDataSet().getTable(tableName);
+        assertThat(tableBefore.getRowCount()).as("before exclusive")
+                .isEqualTo(6);
 
-        try
-        {
+        assertThrows(ExclusiveTransactionException.class, () -> {
             // try with exclusive transaction
-            DatabaseOperation operation = new TransactionOperation(
-                    DatabaseOperation.DELETE);
+            final DatabaseOperation operation =
+                    new TransactionOperation(DatabaseOperation.DELETE);
             operation.execute(_connection, xmlDataSet);
-            fail("Should throw ExclusiveTransactionException");
-        }
-        catch (ExclusiveTransactionException e)
-        {
-        }
-        finally
-        {
-            jdbcConnection.setAutoCommit(true);
-        }
+        }, "Should throw ExclusiveTransactionException");
+        jdbcConnection.setAutoCommit(true);
 
         // after operation
-        ITable tableAfter = _connection.createDataSet().getTable(tableName);
-        assertEquals("after", 6, tableAfter.getRowCount());
+        final ITable tableAfter =
+                _connection.createDataSet().getTable(tableName);
+        assertThat(tableAfter.getRowCount()).as("after").isEqualTo(6);
     }
 
-    public void testExecuteRollback() throws Exception
+    @Test
+    void testExecuteRollback() throws Exception
     {
-        String tableName = "TEST_TABLE";
-        Reader in = new FileReader(
+        final String tableName = "TEST_TABLE";
+        final Reader in = new FileReader(
                 TestUtils.getFile("xml/transactionOperationTest.xml"));
-        IDataSet xmlDataSet = new XmlDataSet(in);
-        Exception[] exceptions = new Exception[]{
-            new SQLException(),
-            new DatabaseUnitException(),
-            new RuntimeException(),
-        };
-        Connection jdbcConnection = _connection.getConnection();
-
+        final IDataSet xmlDataSet = new XmlDataSet(in);
+        final Exception[] exceptions = new Exception[] {new SQLException(),
+                new DatabaseUnitException(), new RuntimeException(),};
+        final Connection jdbcConnection = _connection.getConnection();
 
         for (int i = 0; i < exceptions.length; i++)
         {
 
             // snapshot before operation
-            ITable tableBefore = _connection.createDataSet().getTable(tableName);
-            assertEquals("before row count", 6, tableBefore.getRowCount());
-            assertEquals("autocommit before", true, jdbcConnection.getAutoCommit());
+            final ITable tableBefore =
+                    _connection.createDataSet().getTable(tableName);
+            assertThat(tableBefore.getRowCount()).as("before row count")
+                    .isEqualTo(6);
+            assertThat(jdbcConnection.getAutoCommit()).as("autocommit before")
+                    .isTrue();
 
-            MockDatabaseOperation mockOperation = new MockDatabaseOperation();
-            mockOperation.setExpectedExecuteCalls(1);
-            mockOperation.setupThrowExceptionOnExecute(exceptions[i]);
-
-            try
-            {
+            doThrow(exceptions[i]).when(mockOperation).execute(any(), any());
+            assertThrows(Exception.class, () -> {
                 DatabaseOperation operation = new CompositeOperation(
-                        DatabaseOperation.DELETE_ALL,
-                        mockOperation);
+                        DatabaseOperation.DELETE_ALL, mockOperation);
                 operation = new TransactionOperation(operation);
                 operation.execute(_connection, xmlDataSet);
-                fail("Should throw an exception");
-            }
-            catch (Exception e)
-            {
-                mockOperation.verify();
-            }
+            }, "Should throw an exception");
+
+            verify(mockOperation, atMost(3)).execute(any(), any());
 
             // snapshot after operation
-            ITable tableAfter = _connection.createDataSet().getTable(tableName);
-            assertEquals("after row count", 6, tableAfter.getRowCount());
-            assertEquals("autocommit after", true, jdbcConnection.getAutoCommit());
+            final ITable tableAfter =
+                    _connection.createDataSet().getTable(tableName);
+            assertThat(tableAfter.getRowCount()).as("after row count")
+                    .isEqualTo(6);
+            assertThat(jdbcConnection.getAutoCommit()).as("autocommit after")
+                    .isTrue();
 
         }
     }
 }
-
-
-
-

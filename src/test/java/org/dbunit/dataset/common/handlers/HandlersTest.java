@@ -21,79 +21,101 @@
 
 package org.dbunit.dataset.common.handlers;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-import junit.framework.TestCase;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
-public class HandlersTest extends TestCase {
+class HandlersTest
+{
 
     Pipeline pipeline;
 
-    public void testEmptyFields() throws IllegalInputCharacterException, PipelineException {
+    @Test
+    void testEmptyFields()
+            throws IllegalInputCharacterException, PipelineException
+    {
         pipeline.putFront(SeparatorHandler.ENDPIECE());
         pipeline.putFront(WhitespacesHandler.IGNORE());
         pipeline.putFront(TransparentHandler.IGNORE());
 
-        String words = ",, ,";
+        final String words = ",, ,";
 
-        feed (pipeline, words);
+        feed(pipeline, words);
 
-        assertEquals(4, pipeline.getProducts().size());
+        assertThat(pipeline.getProducts()).hasSize(4);
 
-        for (int i = 0; i < pipeline.getProducts().size(); i++) {
-            assertEquals("", pipeline.getProducts().get(i).toString());
+        for (int i = 0; i < pipeline.getProducts().size(); i++)
+        {
+            assertThat(pipeline.getProducts().get(i)).hasToString("");
         }
     }
 
-    public void testUnquotedFieldsParser() throws IllegalInputCharacterException, PipelineException {
+    @Test
+    void testUnquotedFieldsParser()
+            throws IllegalInputCharacterException, PipelineException
+    {
 
         pipeline.putFront(SeparatorHandler.ENDPIECE());
         pipeline.putFront(IsAlnumHandler.QUOTE());
         pipeline.putFront(WhitespacesHandler.IGNORE());
         pipeline.putFront(TransparentHandler.IGNORE());
 
-        String words = "Today: Hello , World!";
+        final String words = "Today: Hello , World!";
 
-        feed (pipeline, words);
+        feed(pipeline, words);
 
-        assertEquals(2, pipeline.getProducts().size());
-        assertEquals("Today: Hello ", pipeline.getProducts().get(0));
-        assertEquals("World!", pipeline.getProducts().get(1));
+        assertThat(pipeline.getProducts()).hasSize(2);
+        assertThat(pipeline.getProducts().get(0)).isEqualTo("Today: Hello ");
+        assertThat(pipeline.getProducts().get(1)).isEqualTo("World!");
     }
 
-    public void testQuotedFieldWithEscapedCharacterAssembler () throws PipelineException, IllegalInputCharacterException {
+    @Test
+    void testQuotedFieldWithEscapedCharacterAssembler()
+            throws PipelineException, IllegalInputCharacterException
+    {
         pipeline.putFront(SeparatorHandler.ENDPIECE());
         pipeline.putFront(IsAlnumHandler.ACCEPT());
         pipeline.putFront(WhitespacesHandler.IGNORE());
         pipeline.putFront(QuoteHandler.QUOTE());
 
-        String words = " \"Hello, \\\"World!\" ";
+        final String words = " \"Hello, \\\"World!\" ";
 
-        feed (pipeline, words);
+        feed(pipeline, words);
 
-        assertEquals(1, pipeline.getProducts().size());
-        assertEquals("Hello, \"World!", pipeline.getProducts().get(0).toString());
+        assertThat(pipeline.getProducts()).hasSize(1);
+        assertThat(pipeline.getProducts().get(0))
+                .hasToString("Hello, \"World!");
     }
 
-    public void testUnquotedFieldWithEscapedCharacterAssembler () throws PipelineException, IllegalInputCharacterException {
+    @Test
+    void testUnquotedFieldWithEscapedCharacterAssembler()
+            throws PipelineException, IllegalInputCharacterException
+    {
         pipeline.putFront(SeparatorHandler.ENDPIECE());
         pipeline.putFront(EscapeHandler.ACCEPT());
         pipeline.putFront(IsAlnumHandler.QUOTE());
         pipeline.putFront(WhitespacesHandler.IGNORE());
         pipeline.putFront(TransparentHandler.IGNORE());
 
-        String words = "Hello \\\"World!";
+        final String words = "Hello \\\"World!";
 
-        feed (pipeline, words);
+        feed(pipeline, words);
 
-        assertEquals(1, pipeline.getProducts().size());
-        assertEquals("Hello \\\"World!", pipeline.getProducts().get(0).toString());
+        assertThat(pipeline.getProducts()).hasSize(1);
+        assertThat(pipeline.getProducts().get(0).toString())
+                .hasToString("Hello \\\"World!");
     }
 
-    public void testEscapedFieldAssembler () throws PipelineException, IllegalInputCharacterException {
-        String words = "\"He\"llo, \"World, !\", \\\"St. James O\"Connor";
+    @Test
+    void testEscapedFieldAssembler()
+            throws PipelineException, IllegalInputCharacterException
+    {
+        final String words = "\"He\"llo, \"World, !\", \\\"St. James O\"Connor";
 
         pipeline.putFront(SeparatorHandler.ENDPIECE());
         pipeline.putFront(EscapeHandler.ACCEPT());
@@ -103,81 +125,100 @@ public class HandlersTest extends TestCase {
         pipeline.putFront(WhitespacesHandler.IGNORE());
         pipeline.putFront(TransparentHandler.IGNORE());
 
-        feed (pipeline, words);
+        feed(pipeline, words);
 
-        assertEquals(3, pipeline.getProducts().size());
-        assertEquals("Hello", pipeline.getProducts().get(0));
-        assertEquals("World, !", pipeline.getProducts().get(1));
-        assertEquals("\"St. James O\"Connor", pipeline.getProducts().get(2));
+        assertThat(pipeline.getProducts()).hasSize(3);
+        assertThat(pipeline.getProducts().get(0)).isEqualTo("Hello");
+        assertThat(pipeline.getProducts().get(1)).isEqualTo("World, !");
+        assertThat(pipeline.getProducts().get(2))
+                .isEqualTo("\"St. James O\"Connor");
     }
 
-    private void dump(List products) {
-        Iterator it = products.iterator();
+    private void dump(final List<Object> products)
+    {
+        final Iterator<Object> it = products.iterator();
         int i = 0;
-        while (it.hasNext()) {
+        while (it.hasNext())
+        {
             System.out.println(i++ + ": " + it.next());
         }
     }
 
-    private void feed(Pipeline pipeline, String words) throws PipelineException, IllegalInputCharacterException {
-        for (int i = 0; i < words.length(); i++) {
+    private void feed(final Pipeline pipeline, final String words)
+            throws PipelineException, IllegalInputCharacterException
+    {
+        for (int i = 0; i < words.length(); i++)
+        {
             pipeline.handle(words.toCharArray()[i]);
         }
         pipeline.thePieceIsDone();
     }
 
-    public void testQuotedFieldAssembler() throws IllegalInputCharacterException, PipelineException {
+    @Test
+    void testQuotedFieldAssembler()
+            throws IllegalInputCharacterException, PipelineException
+    {
         pipeline.putFront(SeparatorHandler.ENDPIECE());
         pipeline.putFront(IsAlnumHandler.ACCEPT());
         pipeline.putFront(WhitespacesHandler.IGNORE());
         pipeline.putFront(QuoteHandler.QUOTE());
 
-        String words = " \"Hello, World!\" ";
+        final String words = " \"Hello, World!\" ";
 
-        feed (pipeline, words);
+        feed(pipeline, words);
 
-        assertEquals(1, pipeline.getProducts().size());
-        assertEquals("Hello, World!", pipeline.getProducts().get(0).toString());
+        assertThat(pipeline.getProducts()).hasSize(1);
+        assertThat(pipeline.getProducts().get(0)).hasToString("Hello, World!");
     }
 
-    public void testQuotedFieldsParser() throws IllegalInputCharacterException, PipelineException {
+    @Test
+    void testQuotedFieldsParser()
+            throws IllegalInputCharacterException, PipelineException
+    {
         pipeline.putFront(SeparatorHandler.ENDPIECE());
         pipeline.putFront(IsAlnumHandler.QUOTE());
         pipeline.putFront(WhitespacesHandler.IGNORE());
         pipeline.putFront(QuoteHandler.QUOTE());
         pipeline.putFront(TransparentHandler.IGNORE());
 
-        String words = "\"Hello\", \"oh my\", \"ehm. oh yeah. World!\", \" craa azy \"";
+        final String words =
+                "\"Hello\", \"oh my\", \"ehm. oh yeah. World!\", \" craa azy \"";
 
-        feed (pipeline, words);
+        feed(pipeline, words);
 
-        assertEquals(4, pipeline.getProducts().size());
+        assertThat(pipeline.getProducts()).hasSize(4);
 
-        List expected = new ArrayList();
+        final List<Object> expected = new ArrayList<>();
         expected.add("Hello");
         expected.add("oh my");
         expected.add("ehm. oh yeah. World!");
         expected.add(" craa azy ");
 
-        List got = new ArrayList();
+        final List<Object> got = new ArrayList<>();
 
-        for (int i = 0; i < pipeline.getProducts().size(); i++) {
+        for (int i = 0; i < pipeline.getProducts().size(); i++)
+        {
             got.add(pipeline.getProducts().get(i).toString());
         }
 
-        assertEquals(expected, got);
+        assertThat(got).isEqualTo(expected);
 
-        assertEquals("Hello", pipeline.getProducts().get(0).toString());
-        assertEquals("oh my", pipeline.getProducts().get(1).toString());
-        assertEquals("ehm. oh yeah. World!", pipeline.getProducts().get(2).toString());
-        assertEquals(" craa azy ", pipeline.getProducts().get(3).toString());
+        assertThat(pipeline.getProducts().get(0)).hasToString("Hello");
+        assertThat(pipeline.getProducts().get(1)).hasToString("oh my");
+        assertThat(pipeline.getProducts().get(2))
+                .hasToString("ehm. oh yeah. World!");
+        assertThat(pipeline.getProducts().get(3)).hasToString(" craa azy ");
 
     }
 
-    private void acceptHelper(String toAccept, Handler component) throws IllegalInputCharacterException, PipelineException {
-        for (int i = 0; i < toAccept.length(); i++) {
-            char c = toAccept.charAt(i);
-            assertTrue(c + " should be accepted", component.canHandle(c));
+    private void acceptHelper(final String toAccept, final Handler component)
+            throws IllegalInputCharacterException, PipelineException
+    {
+        for (int i = 0; i < toAccept.length(); i++)
+        {
+            final char c = toAccept.charAt(i);
+            assertThat(component.canHandle(c)).as(c + " should be accepted")
+                    .isTrue();
             // Handle
             component.handle(c);
         }
@@ -186,12 +227,16 @@ public class HandlersTest extends TestCase {
 
     /**
      * Test the handling of a sequence of empty, unquoted and quoted fields
+     * 
      * @throws IllegalInputCharacterException
      * @throws PipelineException
      */
-    public void testEmptyQuotedAndUnquotedFieldsParser() throws IllegalInputCharacterException, PipelineException {
+    public void testEmptyQuotedAndUnquotedFieldsParser()
+            throws IllegalInputCharacterException, PipelineException
+    {
 
-        String words = " , \\\\John \"Fox , \"St. Moritz, 2\" , \\\\, \\\"Steve Wolf, \" \\\"Night & Day\\\", \\\"2nd\\\" edition \", , Again Here, \"and there, of\"";
+        final String words =
+                " , \\\\John \"Fox , \"St. Moritz, 2\" , \\\\, \\\"Steve Wolf, \" \\\"Night & Day\\\", \\\"2nd\\\" edition \", , Again Here, \"and there, of\"";
 
         pipeline.putFront(SeparatorHandler.ENDPIECE());
         pipeline.putFront(EscapeHandler.ACCEPT());
@@ -201,73 +246,91 @@ public class HandlersTest extends TestCase {
         pipeline.putFront(WhitespacesHandler.IGNORE());
         pipeline.putFront(TransparentHandler.IGNORE());
 
-        feed (pipeline, words);
+        feed(pipeline, words);
 
-        //dump(pipeline.getProducts());
+        // dump(pipeline.getProducts());
 
-        assertEquals(9, pipeline.getProducts().size());
-        assertEquals("", pipeline.getProducts().get(0).toString());
-        assertEquals("\\John \"Fox ", pipeline.getProducts().get(1).toString());
-        assertEquals("St. Moritz, 2", pipeline.getProducts().get(2).toString());
-        assertEquals("\\", pipeline.getProducts().get(3).toString());
+        assertThat(pipeline.getProducts()).hasSize(9);
+        assertThat(pipeline.getProducts().get(0)).hasToString("");
+        assertThat(pipeline.getProducts().get(1)).hasToString("\\John \"Fox ");
+        assertThat(pipeline.getProducts().get(2))
+                .hasToString("St. Moritz).isEqualTo( 2");
+        assertThat(pipeline.getProducts().get(3)).hasToString("\\");
 
-        assertEquals("\"Steve Wolf", pipeline.getProducts().get(4).toString());
-        assertEquals(" \"Night & Day\", \"2nd\" edition ", pipeline.getProducts().get(5).toString());
-        assertEquals("", pipeline.getProducts().get(6).toString());
-        assertEquals("Again Here", pipeline.getProducts().get(7).toString());
-        assertEquals("and there, of", pipeline.getProducts().get(8).toString());
+        assertThat(pipeline.getProducts().get(4)).hasToString("\"Steve Wolf");
+        assertThat(pipeline.getProducts().get(5))
+                .hasToString(" \"Night & Day\", \"2nd\" edition ");
+        assertThat(pipeline.getProducts().get(6)).hasToString("");
+        assertThat(pipeline.getProducts().get(7)).hasToString("Again Here");
+        assertThat(pipeline.getProducts().get(8))
+                .hasToString("and there).isEqualTo(of");
     }
 
-    private void doNotAcceptHelper(String toAccept, Handler component) throws IllegalInputCharacterException, PipelineException {
-        for (int i = 0; i < toAccept.length(); i++) {
-            char c = toAccept.charAt(i);
-            assertFalse(c + " should not be accepted", component.canHandle(c));
+    private void doNotAcceptHelper(final String toAccept,
+            final Handler component)
+            throws IllegalInputCharacterException, PipelineException
+    {
+        for (int i = 0; i < toAccept.length(); i++)
+        {
+            final char c = toAccept.charAt(i);
+            assertThat(component.canHandle(c)).as(c + " should not be accepted")
+                    .isFalse();
         }
     }
 
-    public void testEscapeHandler () throws PipelineException, IllegalInputCharacterException {
-        String accepted = "\\\"";
+    @Test
+    void testEscapeHandler()
+            throws PipelineException, IllegalInputCharacterException
+    {
+        final String accepted = "\\\"";
 
-        EscapeHandler escapeHandler = (EscapeHandler) EscapeHandler.ESCAPE();
+        final EscapeHandler escapeHandler =
+                (EscapeHandler) EscapeHandler.ESCAPE();
         pipeline.putFront(escapeHandler);
         acceptHelper(accepted, pipeline);
-        assertEquals("\"", pipeline.getCurrentProduct().toString());
+        assertThat(pipeline.getCurrentProduct()).hasToString("\"");
     }
 
-    public void testWhitespaceHandler() throws Exception {
+    @Test
+    void testWhitespaceHandler() throws Exception
+    {
 
-        String accepted = " \t";
+        final String accepted = " \t";
 
-        PipelineComponent acceptHandler = WhitespacesHandler.ACCEPT();
+        final PipelineComponent acceptHandler = WhitespacesHandler.ACCEPT();
         pipeline.putFront(acceptHandler);
         acceptHelper(accepted, acceptHandler);
         acceptHelper(accepted, WhitespacesHandler.IGNORE());
 
-        assertEquals(accepted, pipeline.getCurrentProduct().toString());
+        assertThat(pipeline.getCurrentProduct()).hasToString(accepted);
 
     }
 
+    @Test
+    void testUnquotedHandler()
+            throws IllegalInputCharacterException, PipelineException
+    {
+        final String accepted =
+                "_1234567890abcdefghilmnopqrstuvzxywjABCDEFGHILMNOPQRSTUVZXYWJ()/&%$|-_.:;+*<>";
+        final String notAccepted = " \t\\";
 
-    public void testUnquotedHandler() throws IllegalInputCharacterException, PipelineException {
-        String accepted = "_1234567890abcdefghilmnopqrstuvzxywjABCDEFGHILMNOPQRSTUVZXYWJ()/&%$|-_.:;+*<>";
-        String notAccepted = " \t\\";
-
-        PipelineComponent acceptHandler = IsAlnumHandler.ACCEPT();
+        final PipelineComponent acceptHandler = IsAlnumHandler.ACCEPT();
         pipeline.putFront(acceptHandler);
         acceptHelper(accepted, acceptHandler);
-        
-        PipelineComponent ignoreHandler = IsAlnumHandler.IGNORE();
+
+        final PipelineComponent ignoreHandler = IsAlnumHandler.IGNORE();
         pipeline.putFront(ignoreHandler);
         acceptHelper(accepted, ignoreHandler);
 
         doNotAcceptHelper(notAccepted, acceptHandler);
         doNotAcceptHelper(notAccepted, ignoreHandler);
 
-        assertEquals(accepted, pipeline.getCurrentProduct().toString());
+        assertThat(pipeline.getCurrentProduct()).hasToString(accepted);
     }
 
-
-    protected void setUp() throws Exception {
+    @BeforeEach
+    protected void setUp() throws Exception
+    {
         pipeline = new Pipeline();
     }
 

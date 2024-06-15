@@ -20,11 +20,14 @@
  */
 package org.dbunit.ext.db2;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.sql.Types;
+
 import org.dbunit.dataset.datatype.AbstractDataTypeFactoryTest;
 import org.dbunit.dataset.datatype.DataType;
 import org.dbunit.dataset.datatype.IDataTypeFactory;
-
-import java.sql.Types;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author Manuel Laflamme
@@ -33,43 +36,46 @@ import java.sql.Types;
  */
 public class Db2DataTypeFactoryTest extends AbstractDataTypeFactoryTest
 {
-    public Db2DataTypeFactoryTest(String s)
-    {
-        super(s);
-    }
 
+    @Override
     public IDataTypeFactory createFactory() throws Exception
     {
         return new Db2DataTypeFactory();
     }
 
-    public void testCreateXmlVarcharDataType() throws Exception
+    @Test
+    void testCreateXmlVarcharDataType() throws Exception
     {
-        DataType expected = Db2DataTypeFactory.DB2XML_XMLVARCHAR;
-        int sqlType = Types.DISTINCT;
-        String sqlTypeName = "DB2XML.XMLVARCHAR";
+        final DataType expected = Db2DataTypeFactory.DB2XML_XMLVARCHAR;
+        final int sqlType = Types.DISTINCT;
+        final String sqlTypeName = "DB2XML.XMLVARCHAR";
 
-        DataType actual = createFactory().createDataType(sqlType, sqlTypeName);
-        assertSame("type", expected, actual);
+        final DataType actual =
+                createFactory().createDataType(sqlType, sqlTypeName);
+        assertThat(actual).as("type").isSameAs(expected);
     }
 
-    public void testCreateXmlClobDataType() throws Exception
+    @Test
+    void testCreateXmlClobDataType() throws Exception
     {
-        DataType expected = Db2DataTypeFactory.DB2XML_XMLCLOB;
-        int sqlType = Types.DISTINCT;
-        String sqlTypeName = "DB2XML.XMLCLOB";
+        final DataType expected = Db2DataTypeFactory.DB2XML_XMLCLOB;
+        final int sqlType = Types.DISTINCT;
+        final String sqlTypeName = "DB2XML.XMLCLOB";
 
-        DataType actual = createFactory().createDataType(sqlType, sqlTypeName);
-        assertSame("type", expected, actual);
+        final DataType actual =
+                createFactory().createDataType(sqlType, sqlTypeName);
+        assertThat(actual).as("type").isSameAs(expected);
     }
 
-    public void testCreateXmlFileDataType() throws Exception
+    @Test
+    void testCreateXmlFileDataType() throws Exception
     {
-        DataType expected = Db2DataTypeFactory.DB2XML_XMLFILE;
-        int sqlType = Types.DISTINCT;
-        String sqlTypeName = "DB2XML.XMLFILE";
+        final DataType expected = Db2DataTypeFactory.DB2XML_XMLFILE;
+        final int sqlType = Types.DISTINCT;
+        final String sqlTypeName = "DB2XML.XMLFILE";
 
-        DataType actual = createFactory().createDataType(sqlType, sqlTypeName);
-        assertSame("type", expected, actual);
+        final DataType actual =
+                createFactory().createDataType(sqlType, sqlTypeName);
+        assertThat(actual).as("type").isSameAs(expected);
     }
 }

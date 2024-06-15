@@ -18,13 +18,13 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  */
-
 package org.dbunit;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import org.dbunit.database.IDatabaseConnection;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Base testCase for database testing.<br>
@@ -54,20 +54,22 @@ public abstract class DBTestCase extends DatabaseTestCase {
   protected final IDatabaseConnection getConnection() throws Exception {
         logger.debug("getConnection() - start");
 
-    final IDatabaseTester databaseTester = getDatabaseTester();
-    assertNotNull( "DatabaseTester is not set", databaseTester );
-    IDatabaseConnection connection = databaseTester.getConnection();
-    // Ensure that users have the possibility to configure the connection's configuration
-    setUpDatabaseConfig(connection.getConfig());
-    return connection;
- }
+        final IDatabaseTester databaseTester = getDatabaseTester();
+        assertNotNull(databaseTester, "DatabaseTester is not set");
+        final IDatabaseConnection connection = databaseTester.getConnection();
+        // Ensure that users have the possibility to configure the connection's
+        // configuration
+        setUpDatabaseConfig(connection.getConfig());
+        return connection;
+    }
 
-  /**
-   * Creates a new IDatabaseTester.
-   * Default implementation returns a {@link PropertiesBasedJdbcDatabaseTester}.
-   */
-  protected IDatabaseTester newDatabaseTester() throws Exception {
-    return new PropertiesBasedJdbcDatabaseTester();
-  }
+    /**
+     * Creates a new IDatabaseTester. Default implementation returns a
+     * {@link PropertiesBasedJdbcDatabaseTester}.
+     */
+    @Override
+    protected IDatabaseTester newDatabaseTester() throws Exception {
+        return new PropertiesBasedJdbcDatabaseTester();
+    }
 
 }

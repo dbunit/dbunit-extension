@@ -20,12 +20,13 @@
  */
 package org.dbunit;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import org.dbunit.database.DatabaseConfig;
 import org.dbunit.database.IDatabaseConnection;
 import org.dbunit.dataset.IDataSet;
 import org.dbunit.operation.DatabaseOperation;
-
-import junit.framework.TestCase;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author gommma
@@ -33,57 +34,78 @@ import junit.framework.TestCase;
  * @version $Revision$ $Date$
  * @since 2.3.0
  */
-public class DatabaseTestCaseIT extends TestCase
+class DatabaseTestCaseIT
 {
 
-	public void testTearDownExceptionDoesNotObscureTestException() 
-	{
-		//TODO implement #1087040  	  tearDownOperation Exception obscures underlying problem
-	}
-	
-	/**
-	 * Tests whether the user can simply change the {@link DatabaseConfig} by
-	 * overriding the method {@link DatabaseTestCase#setUpDatabaseConfig(DatabaseConfig)}.
-	 * @throws Exception
-	 */
-	public void testConfigureConnection() throws Exception
-	{
-	    DatabaseEnvironment dbEnv = DatabaseEnvironment.getInstance();
-	    final IDatabaseConnection conn = dbEnv.getConnection();
-	    
-	    DatabaseTestCase testSubject = new DatabaseTestCase() {
+    public void testTearDownExceptionDoesNotObscureTestException()
+    {
+        // TODO implement #1087040 tearDownOperation Exception obscures
+        // underlying problem
+    }
+
+    /**
+     * Tests whether the user can simply change the {@link DatabaseConfig} by
+     * overriding the method
+     * {@link DatabaseTestCase#setUpDatabaseConfig(DatabaseConfig)}.
+     * 
+     * @throws Exception
+     */
+    @Test
+    void testConfigureConnection() throws Exception
+    {
+        final DatabaseEnvironment dbEnv = DatabaseEnvironment.getInstance();
+        final IDatabaseConnection conn = dbEnv.getConnection();
+
+        final DatabaseTestCase testSubject = new DatabaseTestCase()
+        {
 
             /**
              * method under test
              */
-            protected void setUpDatabaseConfig(DatabaseConfig config) {
-                config.setProperty(DatabaseConfig.PROPERTY_BATCH_SIZE, new Integer(97));
+            @Override
+            protected void setUpDatabaseConfig(final DatabaseConfig config)
+            {
+                config.setProperty(DatabaseConfig.PROPERTY_BATCH_SIZE,
+                        Integer.valueOf(97));
             }
 
-            protected IDatabaseConnection getConnection() throws Exception {
+            @Override
+            protected IDatabaseConnection getConnection() throws Exception
+            {
                 return conn;
             }
 
-            protected IDataSet getDataSet() throws Exception {
+            @Override
+            protected IDataSet getDataSet() throws Exception
+            {
                 return null;
             }
 
-            protected DatabaseOperation getSetUpOperation() throws Exception {
+            @Override
+            protected DatabaseOperation getSetUpOperation() throws Exception
+            {
                 return DatabaseOperation.NONE;
             }
 
-            protected DatabaseOperation getTearDownOperation() throws Exception {
+            @Override
+            protected DatabaseOperation getTearDownOperation() throws Exception
+            {
                 return DatabaseOperation.NONE;
             }
         };
-        
+
         // Simulate JUnit which first of all calls the "setUp" method
         testSubject.setUp();
-        
-        IDatabaseConnection actualConn = testSubject.getConnection();
-        assertEquals(new Integer(97), actualConn.getConfig().getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE));
-        
-        IDatabaseConnection actualConn2 = testSubject.getDatabaseTester().getConnection();
-        assertEquals(new Integer(97), actualConn2.getConfig().getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE));
-	}
+
+        final IDatabaseConnection actualConn = testSubject.getConnection();
+        assertThat(actualConn.getConfig()
+                .getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE))
+                        .isEqualTo(Integer.valueOf(97));
+
+        final IDatabaseConnection actualConn2 =
+                testSubject.getDatabaseTester().getConnection();
+        assertThat(actualConn2.getConfig()
+                .getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE))
+                        .isEqualTo(Integer.valueOf(97));
+    }
 }

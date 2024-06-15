@@ -44,9 +44,11 @@ public class H2Environment extends DatabaseEnvironment
         super(profile);
     }
 
-    public static Connection createJdbcConnection(String databaseName) throws Exception
+    public static Connection createJdbcConnection(String databaseName)
+            throws Exception
     {
-        return createJdbcConnection(databaseName, USERNAME_DEFAULT, PASSWORD_DEFAULT);
+        return createJdbcConnection(databaseName, USERNAME_DEFAULT,
+                PASSWORD_DEFAULT);
     }
 
     public static Connection createJdbcConnection(String databaseName,
@@ -63,15 +65,18 @@ public class H2Environment extends DatabaseEnvironment
         DatabaseOperation.DELETE_ALL.execute(getConnection(), getInitDataSet());
     }
 
-    public static void shutdown(Connection connection) throws SQLException {
-        DdlExecutor.executeSql( connection, "SHUTDOWN IMMEDIATELY" );
+    public static void shutdown(Connection connection) throws SQLException
+    {
+        DdlExecutor.executeSql(connection, "SHUTDOWN IMMEDIATELY");
     }
 
-    public static void deleteFiles(final String filename) {
+    public static void deleteFiles(final String filename)
+    {
         deleteFiles(new File("."), filename);
     }
 
-    public static void deleteFiles(File directory, final String filename) {
+    public static void deleteFiles(File directory, final String filename)
+    {
         File[] files = directory.listFiles(new FilenameFilter()
         {
             public boolean accept(File dir, String name)

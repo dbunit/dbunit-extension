@@ -1,22 +1,19 @@
 package org.dbunit.assertion.comparer.value;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.not;
-import static org.hamcrest.Matchers.nullValue;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import org.dbunit.DatabaseUnitException;
 import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.datatype.DataType;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-public class IsActualEqualToExpectedValueComparerTest
+class IsActualEqualToExpectedValueComparerTest
 {
     private final IsActualEqualToExpectedValueComparer sut =
             new IsActualEqualToExpectedValueComparer();
 
     @Test
-    public void testIsExpected_AllNulls_True() throws DatabaseUnitException
+    void testIsExpected_AllNulls_True() throws DatabaseUnitException
     {
         final ITable expectedTable = null;
         final ITable actualTable = null;
@@ -28,11 +25,11 @@ public class IsActualEqualToExpectedValueComparerTest
 
         final boolean actual = sut.isExpected(expectedTable, actualTable,
                 rowNum, columnName, dataType, expectedValue, actualValue);
-        assertThat("All null should have been true.", actual, equalTo(true));
+        assertThat(actual).as("All null should have been true.").isTrue();
     }
 
     @Test
-    public void testIsExpected_ActualEqualToExpected_True()
+    void testIsExpected_ActualEqualToExpected_True()
             throws DatabaseUnitException
     {
         final ITable expectedTable = null;
@@ -45,12 +42,13 @@ public class IsActualEqualToExpectedValueComparerTest
 
         final boolean actual = sut.isExpected(expectedTable, actualTable,
                 rowNum, columnName, dataType, expectedValue, actualValue);
-        assertThat("Actual is equal to expected, should have been true.",
-                actual, equalTo(true));
+        assertThat(actual)
+                .as("Actual is equal to expected, should have been true.")
+                .isTrue();
     }
 
     @Test
-    public void testIsExpected_ActualGreaterThanExpected_False()
+    void testIsExpected_ActualGreaterThanExpected_False()
             throws DatabaseUnitException
     {
         final ITable expectedTable = null;
@@ -63,13 +61,13 @@ public class IsActualEqualToExpectedValueComparerTest
 
         final boolean actual = sut.isExpected(expectedTable, actualTable,
                 rowNum, columnName, dataType, expectedValue, actualValue);
-        assertThat(
-                "Actual is greater than expected, should not have been true.",
-                actual, equalTo(false));
+        assertThat(actual).as(
+                "Actual is greater than expected, should not have been true.")
+                .isFalse();
     }
 
     @Test
-    public void testIsExpected_ActualLessThanExpected_False()
+    void testIsExpected_ActualLessThanExpected_False()
             throws DatabaseUnitException
     {
         final ITable expectedTable = null;
@@ -82,15 +80,16 @@ public class IsActualEqualToExpectedValueComparerTest
 
         final boolean actual = sut.isExpected(expectedTable, actualTable,
                 rowNum, columnName, dataType, expectedValue, actualValue);
-        assertThat("Actual is less than expected, should not have been true.",
-                actual, equalTo(false));
+        assertThat(actual)
+                .as("Actual is less than expected, should not have been true.")
+                .isFalse();
     }
 
     @Test
-    public void testGetFailPhrase() throws Exception
+    void testGetFailPhrase() throws Exception
     {
         final String actual = sut.getFailPhrase();
 
-        assertThat("Should have fail phrase.", actual, not(nullValue()));
+        assertThat(actual).as("Should have fail phrase.").isNotNull();
     }
 }

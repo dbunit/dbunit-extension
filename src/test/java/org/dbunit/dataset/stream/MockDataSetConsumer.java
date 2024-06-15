@@ -20,14 +20,17 @@
  */
 package org.dbunit.dataset.stream;
 
-import com.mockobjects.ExpectationList;
-import com.mockobjects.Verifiable;
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+import org.dbunit.database.statement.Verifiable;
 import org.dbunit.dataset.Column;
 import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.DefaultTableMetaData;
 import org.dbunit.dataset.ITableMetaData;
-
-import java.util.Arrays;
 
 /**
  * @author Manuel Laflamme
@@ -41,93 +44,107 @@ public class MockDataSetConsumer implements Verifiable, IDataSetConsumer
     private static final ProducerEvent END_DATASET_EVENT =
             new ProducerEvent("endDataSet()");
 
-    private final ExpectationList _expectedList = new ExpectationList("");
+    private final List<ProducerEvent> _expectedList = new ArrayList<>();
+    private final List<ProducerEvent> _actualList = new ArrayList<>();
     private String _actualTableName;
 
     public void addExpectedStartDataSet() throws Exception
     {
-        _expectedList.addExpected(START_DATASET_EVENT);
+        _expectedList.add(START_DATASET_EVENT);
     }
 
     public void addExpectedEndDataSet() throws Exception
     {
-        _expectedList.addExpected(END_DATASET_EVENT);
+        _expectedList.add(END_DATASET_EVENT);
     }
 
-    public void addExpectedStartTable(ITableMetaData metaData) throws Exception
+    public void addExpectedStartTable(final ITableMetaData metaData)
+            throws Exception
     {
-        _expectedList.addExpected(new StartTableEvent(metaData, false));
+        _expectedList.add(new StartTableEvent(metaData, false));
     }
 
-    public void addExpectedStartTable(String tableName, Column[] columns) throws Exception
+    public void addExpectedStartTable(final String tableName,
+            final Column[] columns) throws Exception
     {
         addExpectedStartTable(new DefaultTableMetaData(tableName, columns));
     }
 
-    public void addExpectedStartTableIgnoreColumns(String tableName) throws Exception
+    public void addExpectedStartTableIgnoreColumns(final String tableName)
+            throws Exception
     {
-        _expectedList.addExpected(new StartTableEvent(tableName, true));
+        _expectedList.add(new StartTableEvent(tableName, true));
     }
 
-    public void addExpectedEmptyTable(String tableName, Column[] columns) throws Exception
+    public void addExpectedEmptyTable(final String tableName,
+            final Column[] columns) throws Exception
     {
         addExpectedStartTable(tableName, columns);
         addExpectedEndTable(tableName);
     }
 
-    public void addExpectedEmptyTableIgnoreColumns(String tableName) throws Exception
+    public void addExpectedEmptyTableIgnoreColumns(final String tableName)
+            throws Exception
     {
         addExpectedStartTableIgnoreColumns(tableName);
         addExpectedEndTable(tableName);
     }
 
-    public void addExpectedEndTable(String tableName) throws Exception
+    public void addExpectedEndTable(final String tableName) throws Exception
     {
-        _expectedList.addExpected(new EndTableEvent(tableName));
+        _expectedList.add(new EndTableEvent(tableName));
     }
 
-    public void addExpectedRow(String tableName, Object[] values) throws Exception
+    public void addExpectedRow(final String tableName, final Object[] values)
+            throws Exception
     {
-        _expectedList.addExpected(new RowEvent(tableName, values));
+        _expectedList.add(new RowEvent(tableName, values));
     }
 
     ////////////////////////////////////////////////////////////////////////////
     // Verifiable interface
 
+    @Override
     public void verify()
     {
-        _expectedList.verify();
+        assertThat(_actualList).isEqualTo(_expectedList);
+        // _expectedList.verify();
     }
 
     ////////////////////////////////////////////////////////////////////////////
     // IDataSetConsumer interface
 
+    @Override
     public void startDataSet() throws DataSetException
     {
-        _expectedList.addActual(START_DATASET_EVENT);
+        _actualList.add(START_DATASET_EVENT);
     }
 
+    @Override
     public void endDataSet() throws DataSetException
     {
-        _expectedList.addActual(END_DATASET_EVENT);
+        _actualList.add(END_DATASET_EVENT);
     }
 
-    public void startTable(ITableMetaData metaData) throws DataSetException
+    @Override
+    public void startTable(final ITableMetaData metaData)
+            throws DataSetException
     {
-        _expectedList.addActual(new StartTableEvent(metaData, false));
+        _actualList.add(new StartTableEvent(metaData, false));
         _actualTableName = metaData.getTableName();
     }
 
+    @Override
     public void endTable() throws DataSetException
     {
-        _expectedList.addActual(new EndTableEvent(_actualTableName));
+        _actualList.add(new EndTableEvent(_actualTableName));
         _actualTableName = null;
     }
 
-    public void row(Object[] values) throws DataSetException
+    @Override
+    public void row(final Object[] values) throws DataSetException
     {
-        _expectedList.addActual(
-                new RowEvent(_actualTableName, values));
+        _actualList.add(new RowEvent(_actualTableName, values));
     }
 
     ////////////////////////////////////////////////////////////////////////////
@@ -137,28 +154,34 @@ public class MockDataSetConsumer implements Verifiable, IDataSetConsumer
     {
         protected final String _name;
 
-        public ProducerEvent(String name)
+        public ProducerEvent(final String name)
         {
             _name = name;
         }
 
-        public boolean equals(Object o)
+        @Override
+        public boolean equals(final Object o)
         {
-            if (this == o) return true;
-            if (!(o instanceof ProducerEvent)) return false;
+            if (this == o)
+                return true;
+            if (!(o instanceof ProducerEvent))
+                return false;
 
-            final ProducerEvent item = (ProducerEvent)o;
+            final ProducerEvent item = (ProducerEvent) o;
 
-            if (!_name.equals(item._name)) return false;
+            if (!_name.equals(item._name))
+                return false;
 
             return true;
         }
 
+        @Override
         public int hashCode()
         {
             return _name.hashCode();
         }
 
+        @Override
         public String toString()
         {
             return _name;
@@ -171,7 +194,8 @@ public class MockDataSetConsumer implements Verifiable, IDataSetConsumer
         private final Column[] _columns;
         private final boolean _ignoreColumns;
 
-        public StartTableEvent(ITableMetaData metaData, boolean ignoreColumns) throws DataSetException
+        public StartTableEvent(final ITableMetaData metaData,
+                final boolean ignoreColumns) throws DataSetException
         {
             super("startTable()");
             _tableName = metaData.getTableName();
@@ -179,7 +203,8 @@ public class MockDataSetConsumer implements Verifiable, IDataSetConsumer
             _ignoreColumns = ignoreColumns;
         }
 
-        public StartTableEvent(String tableName, boolean ignoreColumns) throws DataSetException
+        public StartTableEvent(final String tableName,
+                final boolean ignoreColumns) throws DataSetException
         {
             super("startTable()");
             _tableName = tableName;
@@ -187,23 +212,30 @@ public class MockDataSetConsumer implements Verifiable, IDataSetConsumer
             _ignoreColumns = ignoreColumns;
         }
 
-        public boolean equals(Object o)
+        @Override
+        public boolean equals(final Object o)
         {
-            if (this == o) return true;
-            if (!(o instanceof StartTableEvent)) return false;
-            if (!super.equals(o)) return false;
+            if (this == o)
+                return true;
+            if (!(o instanceof StartTableEvent))
+                return false;
+            if (!super.equals(o))
+                return false;
 
-            final StartTableEvent startTableItem = (StartTableEvent)o;
+            final StartTableEvent startTableItem = (StartTableEvent) o;
 
-            if (!_tableName.equals(startTableItem._tableName)) return false;
+            if (!_tableName.equals(startTableItem._tableName))
+                return false;
             if (!_ignoreColumns)
             {
-                if (!Arrays.equals(_columns, startTableItem._columns)) return false;
+                if (!Arrays.equals(_columns, startTableItem._columns))
+                    return false;
             }
 
             return true;
         }
 
+        @Override
         public int hashCode()
         {
             int result = super.hashCode();
@@ -211,6 +243,7 @@ public class MockDataSetConsumer implements Verifiable, IDataSetConsumer
             return result;
         }
 
+        @Override
         public String toString()
         {
             String string = _name + ": table=" + _tableName;
@@ -226,25 +259,31 @@ public class MockDataSetConsumer implements Verifiable, IDataSetConsumer
     {
         private final String _tableName;
 
-        public EndTableEvent(String tableName)
+        public EndTableEvent(final String tableName)
         {
             super("endTable()");
             _tableName = tableName;
         }
 
-        public boolean equals(Object o)
+        @Override
+        public boolean equals(final Object o)
         {
-            if (this == o) return true;
-            if (!(o instanceof EndTableEvent)) return false;
-            if (!super.equals(o)) return false;
+            if (this == o)
+                return true;
+            if (!(o instanceof EndTableEvent))
+                return false;
+            if (!super.equals(o))
+                return false;
 
-            final EndTableEvent endTableItem = (EndTableEvent)o;
+            final EndTableEvent endTableItem = (EndTableEvent) o;
 
-            if (!_tableName.equals(endTableItem._tableName)) return false;
+            if (!_tableName.equals(endTableItem._tableName))
+                return false;
 
             return true;
         }
 
+        @Override
         public int hashCode()
         {
             int result = super.hashCode();
@@ -252,6 +291,7 @@ public class MockDataSetConsumer implements Verifiable, IDataSetConsumer
             return result;
         }
 
+        @Override
         public String toString()
         {
             return _name + ": table=" + _tableName;
@@ -263,28 +303,35 @@ public class MockDataSetConsumer implements Verifiable, IDataSetConsumer
         private final String _tableName;
         private final Object[] _values;
 
-        public RowEvent(String tableName, Object[] values)
+        public RowEvent(final String tableName, final Object[] values)
         {
             super("row()");
             _tableName = tableName;
             _values = values;
         }
 
-        public boolean equals(Object o)
+        @Override
+        public boolean equals(final Object o)
         {
-            if (this == o) return true;
-            if (!(o instanceof RowEvent)) return false;
-            if (!super.equals(o)) return false;
+            if (this == o)
+                return true;
+            if (!(o instanceof RowEvent))
+                return false;
+            if (!super.equals(o))
+                return false;
 
-            final RowEvent rowItem = (RowEvent)o;
+            final RowEvent rowItem = (RowEvent) o;
 
-            if (!_tableName.equals(rowItem._tableName)) return false;
-// Probably incorrect - comparing Object[] arrays with Arrays.equals
-            if (!Arrays.equals(_values, rowItem._values)) return false;
+            if (!_tableName.equals(rowItem._tableName))
+                return false;
+            // Probably incorrect - comparing Object[] arrays with Arrays.equals
+            if (!Arrays.equals(_values, rowItem._values))
+                return false;
 
             return true;
         }
 
+        @Override
         public int hashCode()
         {
             int result = super.hashCode();
@@ -292,9 +339,11 @@ public class MockDataSetConsumer implements Verifiable, IDataSetConsumer
             return result;
         }
 
+        @Override
         public String toString()
         {
-            return _name + ": table=" + _tableName + ", values=" + Arrays.asList(_values);
+            return _name + ": table=" + _tableName + ", values="
+                    + Arrays.asList(_values);
         }
 
     }

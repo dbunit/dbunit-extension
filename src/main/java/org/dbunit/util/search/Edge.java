@@ -38,14 +38,14 @@ public class Edge implements IEdge {
      */
     private static final Logger logger = LoggerFactory.getLogger(Edge.class);
 
-    private final Comparable nodeFrom;
-    private final Comparable nodeTo;
+    private final Comparable<String> nodeFrom;
+    private final Comparable<String> nodeTo;
 
     /**
      * @param nodeFrom
      * @param nodeTo
      */
-    public Edge(Comparable nodeFrom, Comparable nodeTo) {
+    public Edge(final Comparable<String> nodeFrom, final Comparable<String> nodeTo) {
         if (nodeFrom == null) {
             throw new IllegalArgumentException("node from cannot be null");
         }
@@ -56,14 +56,17 @@ public class Edge implements IEdge {
         this.nodeTo = nodeTo;
     }
 
+    @Override
     public Object getFrom() {
         return this.nodeFrom;
     }
 
+    @Override
     public Object getTo() {
         return this.nodeTo;
     }
 
+    @Override
     public String toString() {
         return this.nodeFrom + "->" + this.nodeTo;
     }
@@ -75,17 +78,19 @@ public class Edge implements IEdge {
      * is used for comparison.
      * @see java.lang.Comparable#compareTo(java.lang.Object)
      */
-    public int compareTo(Object o) {
+    @Override
+    public int compareTo(final Object o) {
         logger.debug("compareTo(o={}) - start", o);
 
-        Edge otherEdge = (Edge) o;
-        int result = this.nodeFrom.compareTo(otherEdge.getFrom());
+        final Edge otherEdge = (Edge) o;
+        int result = this.nodeFrom.compareTo((String) otherEdge.getFrom());
         if ( result == 0 ) {
-            result = this.nodeTo.compareTo(otherEdge.getTo());
+            result = this.nodeTo.compareTo((String) otherEdge.getTo());
         }
         return result;
     }
 
+    @Override
     public int hashCode() {
         final int prime = 31;
         int result = 1;
@@ -95,14 +100,15 @@ public class Edge implements IEdge {
         return result;
     }
 
-    public boolean equals(Object obj) {
+    @Override
+    public boolean equals(final Object obj) {
         if (this == obj)
             return true;
         if (obj == null)
             return false;
         if (getClass() != obj.getClass())
             return false;
-        Edge other = (Edge) obj;
+        final Edge other = (Edge) obj;
         if (nodeFrom == null) {
             if (other.nodeFrom != null)
                 return false;

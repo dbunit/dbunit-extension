@@ -21,10 +21,12 @@
 
 package org.dbunit.util.fileloader;
 
-import junit.framework.TestCase;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.IDataSet;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author Jeff Jensen jeffjensen AT users.sourceforge.net
@@ -32,23 +34,29 @@ import org.dbunit.dataset.IDataSet;
  * @version $Revision$ $Date$
  * @since 2.4.8
  */
-public class FlatXmlDataFileLoaderTest extends TestCase {
+class FlatXmlDataFileLoaderTest
+{
     FlatXmlDataFileLoader loader = null;
 
     /**
      * {@inheritDoc}
      */
-    protected void setUp() throws Exception {
+    @BeforeEach
+    protected void setUp() throws Exception
+    {
         loader = new FlatXmlDataFileLoader();
     }
 
     /**
      * Test can load the specified file.
      */
-    public void testLoad() throws DataSetException {
-        String filename = "/xml/flatXmlDataSetTest.xml";
-        IDataSet ds = loader.load(filename);
-        assertTrue("No tables found in dataset.", ds.getTableNames().length > 0);
+    @Test
+    void testLoad() throws DataSetException
+    {
+        final String filename = "/xml/flatXmlDataSetTest.xml";
+        final IDataSet ds = loader.load(filename);
+        assertThat(ds.getTableNames()).as("No tables found in dataset.")
+                .hasSizeGreaterThan(0);
         // DataSet loading tests verify data accuracy
     }
 }

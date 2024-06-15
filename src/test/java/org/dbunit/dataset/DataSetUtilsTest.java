@@ -18,183 +18,184 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  */
-
 package org.dbunit.dataset;
 
-import junit.framework.TestCase;
-import org.dbunit.dataset.datatype.DataType;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.sql.Time;
 import java.sql.Timestamp;
+
+import org.dbunit.dataset.datatype.DataType;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author Manuel Laflamme
  * @version $Revision$
  * @since Feb 19, 2002
  */
-public class DataSetUtilsTest extends TestCase
+class DataSetUtilsTest
 {
-    public DataSetUtilsTest(String s)
+
+    @Test
+    void testGetQualifiedName() throws Exception
     {
-        super(s);
+        assertThat(DataSetUtils.getQualifiedName("prefix", "name"))
+                .as("prefix + name").isEqualTo("prefix.name");
+
+        assertThat(DataSetUtils.getQualifiedName(null, "name"))
+                .as("null prefix").isEqualTo("name");
+
+        assertThat(DataSetUtils.getQualifiedName("", "name")).as("empty prefix")
+                .isEqualTo("name");
+
+        assertThat(DataSetUtils.getQualifiedName("wrongPrefix", "prefix.name"))
+                .as("existing prefix").isEqualTo("prefix.name");
+
+        assertThat(DataSetUtils.getQualifiedName("prefix", "name"))
+                .as("escaped prefix + name").isEqualTo("prefix.name");
+
+        assertThat(DataSetUtils.getQualifiedName("prefix", "name", "[?]"))
+                .as("escaped prefix + name").isEqualTo("[prefix].[name]");
+
+        assertThat(DataSetUtils.getQualifiedName("prefix", "name", "\""))
+                .as("escaped prefix + name").isEqualTo("\"prefix\".\"name\"");
     }
 
-
-    public void testGetQualifiedName() throws Exception
+    @Test
+    void testGetEscapedName() throws Exception
     {
-        assertEquals("prefix + name", "prefix.name",
-                DataSetUtils.getQualifiedName("prefix", "name"));
+        assertThat(DataSetUtils.getEscapedName("name", "'?'"))
+                .isEqualTo("'name'");
 
-        assertEquals("null prefix", "name",
-                DataSetUtils.getQualifiedName(null, "name"));
+        assertThat(DataSetUtils.getEscapedName("name", "[?]"))
+                .isEqualTo("[name]");
 
-        assertEquals("empty prefix", "name",
-                DataSetUtils.getQualifiedName("", "name"));
+        // assertThat(DataSetUtils.getEscapedName(null, "[?]")).isEqualTo(null);
 
-        assertEquals("existing prefix", "prefix.name",
-                DataSetUtils.getQualifiedName("wrongPrefix", "prefix.name"));
+        assertThat(DataSetUtils.getEscapedName("name", null)).isEqualTo("name");
 
-        assertEquals("escaped prefix + name", "prefix.name",
-                DataSetUtils.getQualifiedName("prefix", "name"));
+        assertThat(DataSetUtils.getEscapedName("name", "invalid pattern!"))
+                .isEqualTo("name");
 
-        assertEquals("escaped prefix + name", "[prefix].[name]",
-                DataSetUtils.getQualifiedName("prefix", "name", "[?]"));
-
-        assertEquals("escaped prefix + name", "\"prefix\".\"name\"",
-                DataSetUtils.getQualifiedName("prefix", "name", "\""));
+        assertThat(DataSetUtils.getEscapedName("name", "\""))
+                .isEqualTo("\"name\"");
     }
 
-    public void testGetEscapedName() throws Exception
+    @Test
+    void testGetColumn() throws Exception
     {
-        assertEquals("'name'", DataSetUtils.getEscapedName("name", "'?'"));
-
-        assertEquals("[name]", DataSetUtils.getEscapedName("name", "[?]"));
-
-//        assertEquals(null, DataSetUtils.getEscapedName(null, "[?]"));
-
-        assertEquals("name", DataSetUtils.getEscapedName("name", null));
-
-        assertEquals("name", DataSetUtils.getEscapedName("name", "invalid pattern!"));
-
-        assertEquals("\"name\"", DataSetUtils.getEscapedName("name", "\""));
-    }
-
-    public void testGetColumn() throws Exception
-    {
-        Column[] columns = new Column[]{
-            new Column("c0", DataType.UNKNOWN),
-            new Column("c1", DataType.UNKNOWN),
-            new Column("c2", DataType.UNKNOWN),
-            new Column("c3", DataType.UNKNOWN),
-            new Column("c4", DataType.UNKNOWN),
-        };
+        final Column[] columns =
+                new Column[] {new Column("c0", DataType.UNKNOWN),
+                        new Column("c1", DataType.UNKNOWN),
+                        new Column("c2", DataType.UNKNOWN),
+                        new Column("c3", DataType.UNKNOWN),
+                        new Column("c4", DataType.UNKNOWN),};
 
         for (int i = 0; i < columns.length; i++)
         {
-            assertEquals("find column same", columns[i],
-                    DataSetUtils.getColumn("c" + i, columns));
+            assertThat(DataSetUtils.getColumn("c" + i, columns))
+                    .as("find column same").isEqualTo(columns[i]);
         }
     }
 
-    public void testGetColumnCaseInsensitive() throws Exception
+    @Test
+    void testGetColumnCaseInsensitive() throws Exception
     {
-        Column[] columns = new Column[]{
-            new Column("c0", DataType.UNKNOWN),
-            new Column("C1", DataType.UNKNOWN),
-            new Column("c2", DataType.UNKNOWN),
-            new Column("C3", DataType.UNKNOWN),
-            new Column("c4", DataType.UNKNOWN),
-        };
+        final Column[] columns =
+                new Column[] {new Column("c0", DataType.UNKNOWN),
+                        new Column("C1", DataType.UNKNOWN),
+                        new Column("c2", DataType.UNKNOWN),
+                        new Column("C3", DataType.UNKNOWN),
+                        new Column("c4", DataType.UNKNOWN),};
 
         for (int i = 0; i < columns.length; i++)
         {
-            assertEquals("find column same", columns[i],
-                    DataSetUtils.getColumn("c" + i, columns));
+            assertThat(DataSetUtils.getColumn("c" + i, columns))
+                    .as("find column same").isEqualTo(columns[i]);
         }
     }
 
-    public void testGetTables() throws Exception
+    @Test
+    void testGetTables() throws Exception
     {
-        String[] expected = {"t0", "t1", "t2", "t3"};
-        ITable[] testTables = new ITable[]{
-            new DefaultTable("t0"),
-            new DefaultTable("t1"),
-            new DefaultTable("t2"),
-            new DefaultTable("t3"),
-        };
+        final String[] expected = {"t0", "t1", "t2", "t3"};
+        final ITable[] testTables =
+                new ITable[] {new DefaultTable("t0"), new DefaultTable("t1"),
+                        new DefaultTable("t2"), new DefaultTable("t3"),};
 
-        ITable[] tables = DataSetUtils.getTables(new DefaultDataSet(testTables));
-        assertEquals("table count", expected.length, tables.length);
+        final ITable[] tables =
+                DataSetUtils.getTables(new DefaultDataSet(testTables));
+        assertThat(tables).as("table count").hasSameSizeAs(expected);
         for (int i = 0; i < tables.length; i++)
         {
-            String name = tables[i].getTableMetaData().getTableName();
-            assertEquals("table name", expected[i], name);
+            final String name = tables[i].getTableMetaData().getTableName();
+            assertThat(name).as("table name").isEqualTo(expected[i]);
         }
     }
 
-    public void testGetTablesByNames() throws Exception
+    @Test
+    void testGetTablesByNames() throws Exception
     {
-        String[] expected = {"t0", "t2"};
-        ITable[] testTables = new ITable[]{
-            new DefaultTable("t0"),
-            new DefaultTable("t1"),
-            new DefaultTable("t2"),
-            new DefaultTable("t3"),
-        };
+        final String[] expected = {"t0", "t2"};
+        final ITable[] testTables =
+                new ITable[] {new DefaultTable("t0"), new DefaultTable("t1"),
+                        new DefaultTable("t2"), new DefaultTable("t3"),};
 
-        ITable[] tables = DataSetUtils.getTables(expected,
+        final ITable[] tables = DataSetUtils.getTables(expected,
                 new DefaultDataSet(testTables));
-        assertEquals("table count", expected.length, tables.length);
+        assertThat(tables).as("table count").hasSameSizeAs(expected);
         for (int i = 0; i < tables.length; i++)
         {
-            String name = tables[i].getTableMetaData().getTableName();
-            assertEquals("table name", expected[i], name);
+            final String name = tables[i].getTableMetaData().getTableName();
+            assertThat(name).as("table name").isEqualTo(expected[i]);
         }
     }
 
-    public void testGetReserseNames() throws Exception
+    @Test
+    void testGetReserseNames() throws Exception
     {
-        String[] expected = {"t3", "t2", "t1", "t0"};
-        ITable[] testTables = new ITable[]{
-            new DefaultTable("t0"),
-            new DefaultTable("t1"),
-            new DefaultTable("t2"),
-            new DefaultTable("t3"),
-        };
+        final String[] expected = {"t3", "t2", "t1", "t0"};
+        final ITable[] testTables =
+                new ITable[] {new DefaultTable("t0"), new DefaultTable("t1"),
+                        new DefaultTable("t2"), new DefaultTable("t3"),};
 
-        String[] names = DataSetUtils.getReverseTableNames(new DefaultDataSet(testTables));
-        assertEquals("table count", expected.length, names.length);
+        final String[] names = DataSetUtils
+                .getReverseTableNames(new DefaultDataSet(testTables));
+        assertThat(names).as("table count").hasSameSizeAs(expected);
         for (int i = 0; i < names.length; i++)
         {
-            assertEquals("table name", expected[i], names[i]);
+            assertThat(names[i]).as("table name").isEqualTo(expected[i]);
         }
     }
 
-    public void testGetSqlValueString() throws Exception
+    @Test
+    void testGetSqlValueString() throws Exception
     {
-        ValueStringData[] values = new ValueStringData[]{
-            new ValueStringData(null, DataType.REAL, "NULL"),
-            new ValueStringData("1234", DataType.NUMERIC, "1234"),
-            new ValueStringData("1234", DataType.VARCHAR, "'1234'"),
-            new ValueStringData(new Float(1234.45), DataType.REAL, "1234.45"),
-            new ValueStringData(new java.sql.Date(0L), DataType.DATE,
-                    "{d '" + new java.sql.Date(0L).toString() + "'}"),
-            new ValueStringData(new Time(0L), DataType.TIME,
-                    "{t '" + new Time(0L).toString() + "'}"),
-            new ValueStringData(new Timestamp(0L), DataType.TIMESTAMP,
-                    "{ts '" + new Timestamp(0L).toString() + "'}"),
-            new ValueStringData("12'34", DataType.VARCHAR, "'12''34'"),
-            new ValueStringData("'1234", DataType.VARCHAR, "'''1234'"),
-            new ValueStringData("1234'", DataType.VARCHAR, "'1234'''"),
-            new ValueStringData("'12'34'", DataType.VARCHAR, "'''12''34'''"),
-        };
+        final ValueStringData[] values = new ValueStringData[] {
+                new ValueStringData(null, DataType.REAL, "NULL"),
+                new ValueStringData("1234", DataType.NUMERIC, "1234"),
+                new ValueStringData("1234", DataType.VARCHAR, "'1234'"),
+                new ValueStringData(Float.valueOf("1234.45"), DataType.REAL,
+                        "1234.45"),
+                new ValueStringData(new java.sql.Date(0L), DataType.DATE,
+                        "{d '" + new java.sql.Date(0L).toString() + "'}"),
+                new ValueStringData(new Time(0L), DataType.TIME,
+                        "{t '" + new Time(0L).toString() + "'}"),
+                new ValueStringData(new Timestamp(0L), DataType.TIMESTAMP,
+                        "{ts '" + new Timestamp(0L).toString() + "'}"),
+                new ValueStringData("12'34", DataType.VARCHAR, "'12''34'"),
+                new ValueStringData("'1234", DataType.VARCHAR, "'''1234'"),
+                new ValueStringData("1234'", DataType.VARCHAR, "'1234'''"),
+                new ValueStringData("'12'34'", DataType.VARCHAR,
+                        "'''12''34'''"),};
 
         for (int i = 0; i < values.length; i++)
         {
-            ValueStringData data = values[i];
-            String valueString = DataSetUtils.getSqlValueString(
-                    data.getValue(), data.getDataType());
-            assertEquals("data " + i, data.getExpected(), valueString);
+            final ValueStringData data = values[i];
+            final String valueString = DataSetUtils
+                    .getSqlValueString(data.getValue(), data.getDataType());
+            assertThat(valueString).as("data " + i)
+                    .isEqualTo(data.getExpected());
         }
     }
 
@@ -204,7 +205,8 @@ public class DataSetUtilsTest extends TestCase
         private final DataType _dataType;
         private final String _expected;
 
-        public ValueStringData(Object value, DataType dataType, String expected)
+        public ValueStringData(final Object value, final DataType dataType,
+                final String expected)
         {
             _value = value;
             _dataType = dataType;
@@ -228,11 +230,3 @@ public class DataSetUtilsTest extends TestCase
     }
 
 }
-
-
-
-
-
-
-
-

@@ -1,8 +1,6 @@
 package org.dbunit.assertion.comparer.value;
 
-import static org.hamcrest.Matchers.not;
-import static org.hamcrest.Matchers.nullValue;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.Arrays;
 import java.util.HashSet;
@@ -12,12 +10,13 @@ import org.dbunit.DatabaseUnitException;
 import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.datatype.DataType;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-public class ConditionalSetBiValueComparerTest
+class ConditionalSetBiValueComparerTest
 {
     private ValueFactory<Long> valueFactory1 = new ValueFactory<Long>()
     {
+        @Override
         public Long make(final ITable table, final int rowNum)
                 throws DataSetException
         {
@@ -29,7 +28,7 @@ public class ConditionalSetBiValueComparerTest
     private Set<Long> values2 = new HashSet<>(Arrays.asList(2L));
 
     @Test
-    public void testDoCompare_InValuesAllNulls_NullFailMessage()
+    void testDoCompare_InValuesAllNulls_NullFailMessage()
             throws DatabaseUnitException
     {
         final ValueFactory<Long> actualValueFactory = valueFactory1;
@@ -53,12 +52,12 @@ public class ConditionalSetBiValueComparerTest
 
         final String actual = sut.doCompare(expectedTable, actualTable, rowNum,
                 columnName, dataType, expectedValue, actualValue);
-        assertThat("All null should have been no fail message.", actual,
-                nullValue());
+        assertThat(actual).as("All null should have been no fail message.")
+                .isNull();
     }
 
     @Test
-    public void testDoCompare_InValuesActualEqualToExpected_NullFailMessage()
+    void testDoCompare_InValuesActualEqualToExpected_NullFailMessage()
             throws DatabaseUnitException
     {
         final ValueFactory<Long> actualValueFactory = valueFactory1;
@@ -82,13 +81,13 @@ public class ConditionalSetBiValueComparerTest
 
         final String actual = sut.doCompare(expectedTable, actualTable, rowNum,
                 columnName, dataType, expectedValue, actualValue);
-        assertThat(
-                "Actual is equal to expected, should have been no fail message.",
-                actual, nullValue());
+        assertThat(actual).as(
+                "Actual is equal to expected, should have been no fail message.")
+                .isNull();
     }
 
     @Test
-    public void testDoCompare_InValuesActualGreaterThanExpected_FailMessage()
+    void testDoCompare_InValuesActualGreaterThanExpected_FailMessage()
             throws DatabaseUnitException
     {
         final ValueFactory<Long> actualValueFactory = valueFactory1;
@@ -112,13 +111,13 @@ public class ConditionalSetBiValueComparerTest
 
         final String actual = sut.doCompare(expectedTable, actualTable, rowNum,
                 columnName, dataType, expectedValue, actualValue);
-        assertThat(
-                "Actual is greater than expected, should have been a fail message.",
-                actual, not(nullValue()));
+        assertThat(actual).as(
+                "Actual is greater than expected, should have been a fail message.")
+                .isNotNull();
     }
 
     @Test
-    public void testDoCompare_InValuesActualLessThanExpected_FailMessage()
+    void testDoCompare_InValuesActualLessThanExpected_FailMessage()
             throws DatabaseUnitException
     {
         final ValueFactory<Long> actualValueFactory = valueFactory1;
@@ -142,13 +141,13 @@ public class ConditionalSetBiValueComparerTest
 
         final String actual = sut.doCompare(expectedTable, actualTable, rowNum,
                 columnName, dataType, expectedValue, actualValue);
-        assertThat(
-                "Actual is greater than expected, should have been a fail message.",
-                actual, not(nullValue()));
+        assertThat(actual).as(
+                "Actual is greater than expected, should have been a fail message.")
+                .isNotNull();
     }
 
     @Test
-    public void testDoCompare_NotInValuesActualEqualToExpected_FailMessage()
+    void testDoCompare_NotInValuesActualEqualToExpected_FailMessage()
             throws DatabaseUnitException
     {
         final ValueFactory<Long> actualValueFactory = valueFactory1;
@@ -172,8 +171,8 @@ public class ConditionalSetBiValueComparerTest
 
         final String actual = sut.doCompare(expectedTable, actualTable, rowNum,
                 columnName, dataType, expectedValue, actualValue);
-        assertThat(
-                "Actual is equal to expected, should have been fail message.",
-                actual, not(nullValue()));
+        assertThat(actual).as(
+                "Actual is equal to expected, should have been fail message.")
+                .isNotNull();
     }
 }

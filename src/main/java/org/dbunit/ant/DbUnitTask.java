@@ -20,8 +20,13 @@
  */
 package org.dbunit.ant;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.sql.Connection;
+import java.sql.Driver;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Properties;
 
 import org.apache.tools.ant.AntClassLoader;
 import org.apache.tools.ant.BuildException;
@@ -34,14 +39,8 @@ import org.dbunit.database.DatabaseConfig;
 import org.dbunit.database.DatabaseConnection;
 import org.dbunit.database.IDatabaseConnection;
 import org.dbunit.dataset.datatype.IDataTypeFactory;
-
-import java.sql.Connection;
-import java.sql.Driver;
-import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Properties;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * <code>DbUnitTask</code> is the task definition for an Ant
@@ -101,7 +100,7 @@ public class DbUnitTask extends Task
     private Path classpath;
 
     private AntClassLoader loader;
-    
+
     /**
      * DB configuration child element to configure {@link DatabaseConfig} properties
      * in a generic way.
@@ -112,54 +111,63 @@ public class DbUnitTask extends Task
      * Flag for using the qualified table names.
      * @deprecated since 2.4. Use {@link #dbConfig} instead. Only here because of backwards compatibility should be removed in the next major release.
      */
+    @Deprecated
     private Boolean useQualifiedTableNames = null;
 
     /**
      * Flag for using batched statements.
      * @deprecated since 2.4. Use {@link #dbConfig} instead. Only here because of backwards compatibility should be removed in the next major release.
      */
+    @Deprecated
     private Boolean supportBatchStatement = null;
 
     /**
      * Flag for datatype warning.
      * @deprecated since 2.4. Use {@link #dbConfig} instead. Only here because of backwards compatibility should be removed in the next major release.
      */
+    @Deprecated
     private Boolean datatypeWarning = null;
 
     /**
      * @deprecated since 2.4. Use {@link #dbConfig} instead. Only here because of backwards compatibility should be removed in the next major release.
      */
+    @Deprecated
     private String escapePattern = null;
 
     /**
      * @deprecated since 2.4. Use {@link #dbConfig} instead. Only here because of backwards compatibility should be removed in the next major release.
      */
+    @Deprecated
     private String dataTypeFactory = null;
 
     /**
      * @deprecated since 2.4. Use {@link #dbConfig} instead. Only here because of backwards compatibility should be removed in the next major release.
      */
+    @Deprecated
     private String batchSize = null;
-    
+
     /**
      * @deprecated since 2.4. Use {@link #dbConfig} instead. Only here because of backwards compatibility should be removed in the next major release.
      */
+    @Deprecated
     private String fetchSize = null;
 
     /**
      * @deprecated since 2.4. Use {@link #dbConfig} instead. Only here because of backwards compatibility should be removed in the next major release.
      */
+    @Deprecated
     private Boolean skipOracleRecycleBinTables = null;
 
     /**
      * @deprecated since 2.5.1. Use {@link #dbConfig} instead. Only here because of backwards compatibility should be removed in the next major release.
      */
+    @Deprecated
     private Boolean allowEmptyFields = null;
 
     /**
      * Set the JDBC driver to be used.
      */
-    public void setDriver(String driver)
+    public void setDriver(final String driver)
     {
         logger.trace("setDriver(driver={}) - start", driver);
         this.driver = driver;
@@ -168,7 +176,7 @@ public class DbUnitTask extends Task
     /**
      * Set the DB connection url.
      */
-    public void setUrl(String url)
+    public void setUrl(final String url)
     {
         logger.trace("setUrl(url={}) - start", url);
         this.url = url;
@@ -177,7 +185,7 @@ public class DbUnitTask extends Task
     /**
      * Set the user name for the DB connection.
      */
-    public void setUserid(String userId)
+    public void setUserid(final String userId)
     {
         logger.trace("setUserid(userId={}) - start", userId);
         this.userId = userId;
@@ -186,7 +194,7 @@ public class DbUnitTask extends Task
     /**
      * Set the password for the DB connection.
      */
-    public void setPassword(String password)
+    public void setPassword(final String password)
     {
         logger.trace("setPassword(password=*****) - start");
         this.password = password;
@@ -195,7 +203,7 @@ public class DbUnitTask extends Task
     /**
      * Set the schema for the DB connection.
      */
-    public void setSchema(String schema)
+    public void setSchema(final String schema)
     {
         logger.trace("setSchema(schema={}) - start", schema);
         this.schema = schema;
@@ -204,7 +212,7 @@ public class DbUnitTask extends Task
     /**
      * Set the flag for using the qualified table names.
      */
-    public void setUseQualifiedTableNames(Boolean useQualifiedTableNames)
+    public void setUseQualifiedTableNames(final Boolean useQualifiedTableNames)
     {
         logger.trace("setUseQualifiedTableNames(useQualifiedTableNames={}) - start", String.valueOf(useQualifiedTableNames));
         this.useQualifiedTableNames = useQualifiedTableNames;
@@ -215,51 +223,51 @@ public class DbUnitTask extends Task
      * NOTE: This property cannot be used to force the usage of batch
      *       statement if your database does not support it.
      */
-    public void setSupportBatchStatement(Boolean supportBatchStatement)
+    public void setSupportBatchStatement(final Boolean supportBatchStatement)
     {
         logger.trace("setSupportBatchStatement(supportBatchStatement={}) - start", String.valueOf(supportBatchStatement));
         this.supportBatchStatement = supportBatchStatement;
     }
 
-    public void setDatatypeWarning(Boolean datatypeWarning)
+    public void setDatatypeWarning(final Boolean datatypeWarning)
     {
         logger.trace("setDatatypeWarning(datatypeWarning={}) - start", String.valueOf(datatypeWarning));
         this.datatypeWarning = datatypeWarning;
     }
 
-    public void setDatatypeFactory(String datatypeFactory)
+    public void setDatatypeFactory(final String datatypeFactory)
     {
         logger.trace("setDatatypeFactory(datatypeFactory={}) - start", datatypeFactory);
         this.dataTypeFactory = datatypeFactory;
     }
 
-    public void setEscapePattern(String escapePattern)
+    public void setEscapePattern(final String escapePattern)
     {
         logger.trace("setEscapePattern(escapePattern={}) - start", escapePattern);
         this.escapePattern = escapePattern;
     }
 
-    public DbConfig getDbConfig() 
+    public DbConfig getDbConfig()
     {
         return dbConfig;
     }
 
-//    public void setDbConfig(DbConfig dbConfig) 
-//    {
-//        logger.debug("setDbConfig(dbConfig={}) - start", dbConfig);
-//        this.dbConfig = dbConfig;
-//    }
+    //    public void setDbConfig(DbConfig dbConfig)
+    //    {
+    //        logger.debug("setDbConfig(dbConfig={}) - start", dbConfig);
+    //        this.dbConfig = dbConfig;
+    //    }
 
-    public void addDbConfig(DbConfig dbConfig)
+    public void addDbConfig(final DbConfig dbConfig)
     {
         logger.trace("addDbConfig(dbConfig={}) - start", dbConfig);
         this.dbConfig = dbConfig;
     }
-    
+
     /**
      * Set the classpath for loading the driver.
      */
-    public void setClasspath(Path classpath)
+    public void setClasspath(final Path classpath)
     {
         logger.trace("setClasspath(classpath={}) - start", classpath);
         if (this.classpath == null)
@@ -289,7 +297,7 @@ public class DbUnitTask extends Task
     /**
      * Set the classpath for loading the driver using the classpath reference.
      */
-    public void setClasspathRef(Reference r)
+    public void setClasspathRef(final Reference r)
     {
         logger.trace("setClasspathRef(r={}) - start", r);
 
@@ -307,7 +315,7 @@ public class DbUnitTask extends Task
     /**
      * Adds an Operation.
      */
-    public void addOperation(Operation operation)
+    public void addOperation(final Operation operation)
     {
         logger.trace("addOperation({}) - start", operation);
 
@@ -317,7 +325,7 @@ public class DbUnitTask extends Task
     /**
      * Adds a Compare to the steps List.
      */
-    public void addCompare(Compare compare)
+    public void addCompare(final Compare compare)
     {
         logger.trace("addCompare({}) - start", compare);
 
@@ -327,71 +335,70 @@ public class DbUnitTask extends Task
     /**
      * Adds an Export to the steps List.
      */
-    public void addExport(Export export)
+    public void addExport(final Export export)
     {
         logger.trace("addExport(export={}) - start", export);
 
         steps.add(export);
     }
-    
-    
+
+
     public String getBatchSize()
-	{
-		return batchSize;
-	}
+    {
+        return batchSize;
+    }
 
     /**
      * sets the size of batch inserts.
      * @param batchSize
      */
-	public void setBatchSize(String batchSize)
-	{
-		this.batchSize = batchSize;
-	}
-	
+    public void setBatchSize(final String batchSize)
+    {
+        this.batchSize = batchSize;
+    }
 
-	public String getFetchSize() 
-	{
-		return fetchSize;
-	}
 
-	public void setFetchSize(String fetchSize) 
-	{
-		this.fetchSize = fetchSize;
-	}
+    public String getFetchSize()
+    {
+        return fetchSize;
+    }
 
-	public void setSkipOracleRecycleBinTables(Boolean skipOracleRecycleBinTables)
-	{
-		this.skipOracleRecycleBinTables = skipOracleRecycleBinTables;
-	}
+    public void setFetchSize(final String fetchSize)
+    {
+        this.fetchSize = fetchSize;
+    }
 
-	/**
+    public void setSkipOracleRecycleBinTables(final Boolean skipOracleRecycleBinTables)
+    {
+        this.skipOracleRecycleBinTables = skipOracleRecycleBinTables;
+    }
+
+
+    /**
      * Load the step and then execute it
      */
+    @Override
     public void execute() throws BuildException
     {
         logger.trace("execute() - start");
 
         try
         {
-            IDatabaseConnection connection = createConnection();
+            final IDatabaseConnection connection = createConnection();
 
-            Iterator stepIter = steps.listIterator();
+            final Iterator stepIter = steps.listIterator();
             while (stepIter.hasNext())
             {
-                DbUnitTaskStep step = (DbUnitTaskStep)stepIter.next();
+                final DbUnitTaskStep step = (DbUnitTaskStep)stepIter.next();
                 log(step.getLogMessage(), Project.MSG_INFO);
                 step.execute(connection);
             }
         }
-        catch (DatabaseUnitException e)
+        catch (DatabaseUnitException | SQLException e)
         {
             throw new BuildException(e, getLocation());
         }
-        catch (SQLException e)
-        {
-            throw new BuildException(e, getLocation());
-        }
+
         finally
         {
             try
@@ -401,7 +408,7 @@ public class DbUnitTask extends Task
                     conn.close();
                 }
             }
-            catch (SQLException e)
+            catch (final SQLException e)
             {
                 logger.error("execute()", e);
             }
@@ -453,24 +460,24 @@ public class DbUnitTask extends Task
             }
             driverInstance = (Driver)dc.newInstance();
         }
-        catch (ClassNotFoundException e)
+        catch (final ClassNotFoundException e)
         {
             throw new BuildException("Class Not Found: JDBC driver "
                     + driver + " could not be loaded", e, getLocation());
         }
-        catch (IllegalAccessException e)
+        catch (final IllegalAccessException e)
         {
             throw new BuildException("Illegal Access: JDBC driver "
                     + driver + " could not be loaded", e, getLocation());
         }
-        catch (InstantiationException e)
+        catch (final InstantiationException e)
         {
             throw new BuildException("Instantiation Exception: JDBC driver "
                     + driver + " could not be loaded", e, getLocation());
         }
 
         log("connecting to " + url, Project.MSG_VERBOSE);
-        Properties info = new Properties();
+        final Properties info = new Properties();
         info.put("user", userId);
         info.put("password", password);
         conn = driverInstance.connect(url, info);
@@ -482,20 +489,20 @@ public class DbUnitTask extends Task
         }
         conn.setAutoCommit(true);
 
-        IDatabaseConnection connection = createDatabaseConnection(conn, schema);
+        final IDatabaseConnection connection = createDatabaseConnection(conn, schema);
         return connection;
     }
 
     /**
      * Creates the dbunit connection using the two given arguments. The configuration
      * properties of the dbunit connection are initialized using the fields of this class.
-     * 
+     *
      * @param jdbcConnection
      * @param dbSchema
      * @return The dbunit connection
      */
-    protected IDatabaseConnection createDatabaseConnection(Connection jdbcConnection,
-            String dbSchema) 
+    protected IDatabaseConnection createDatabaseConnection(final Connection jdbcConnection,
+            final String dbSchema)
     {
         logger.trace("createDatabaseConnection(jdbcConnection={}, dbSchema={}) - start", jdbcConnection, dbSchema);
 
@@ -504,17 +511,17 @@ public class DbUnitTask extends Task
         {
             connection = new DatabaseConnection(jdbcConnection, dbSchema);
         }
-        catch(DatabaseUnitException e)
+        catch(final DatabaseUnitException e)
         {
             throw new BuildException("Could not create dbunit connection object", e);
         }
-        DatabaseConfig config = connection.getConfig();
-        
+        final DatabaseConfig config = connection.getConfig();
+
         if(this.dbConfig != null){
             try {
                 this.dbConfig.copyTo(config);
             }
-            catch(DatabaseUnitException e)
+            catch(final DatabaseUnitException e)
             {
                 throw new BuildException("Could not populate dbunit config object", e, getLocation());
             }
@@ -524,7 +531,7 @@ public class DbUnitTask extends Task
         copyAttributes(config);
 
         log("Created connection for schema '" + schema + "' with config: " + config, Project.MSG_VERBOSE);
-        
+
         return connection;
     }
 
@@ -532,7 +539,8 @@ public class DbUnitTask extends Task
      * @param config
      * @deprecated since 2.4. Only here because of backwards compatibility should be removed in the next major release.
      */
-    private void copyAttributes(DatabaseConfig config) 
+    @Deprecated
+    private void copyAttributes(final DatabaseConfig config)
     {
         if(supportBatchStatement!=null)
             config.setFeature(DatabaseConfig.FEATURE_BATCHED_STATEMENTS, supportBatchStatement.booleanValue());
@@ -551,7 +559,7 @@ public class DbUnitTask extends Task
         }
         if (batchSize != null)
         {
-            Integer batchSizeInteger = new Integer(batchSize);
+            final Integer batchSizeInteger = new Integer(batchSize);
             config.setProperty(DatabaseConfig.PROPERTY_BATCH_SIZE, batchSizeInteger);
         }
         if (fetchSize != null)
@@ -563,27 +571,27 @@ public class DbUnitTask extends Task
         if(this.dataTypeFactory!=null) {
             try
             {
-                IDataTypeFactory dataTypeFactory = (IDataTypeFactory)Class.forName(
+                final IDataTypeFactory dataTypeFactory = (IDataTypeFactory)Class.forName(
                         this.dataTypeFactory).newInstance();
                 config.setProperty(DatabaseConfig.PROPERTY_DATATYPE_FACTORY, dataTypeFactory);
             }
-            catch (ClassNotFoundException e)
+            catch (final ClassNotFoundException e)
             {
                 throw new BuildException("Class Not Found: DataType factory "
                         + driver + " could not be loaded", e, getLocation());
             }
-            catch (IllegalAccessException e)
+            catch (final IllegalAccessException e)
             {
                 throw new BuildException("Illegal Access: DataType factory "
                         + driver + " could not be loaded", e, getLocation());
             }
-            catch (InstantiationException e)
+            catch (final InstantiationException e)
             {
                 throw new BuildException("Instantiation Exception: DataType factory "
                         + driver + " could not be loaded", e, getLocation());
             }
         }
-        
+
     }
 }
 

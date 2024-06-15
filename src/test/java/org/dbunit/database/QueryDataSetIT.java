@@ -21,240 +21,236 @@
 
 package org.dbunit.database;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
 import org.dbunit.DatabaseEnvironment;
 import org.dbunit.dataset.AbstractDataSetTest;
 import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.NoSuchColumnException;
 import org.dbunit.operation.DatabaseOperation;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author Manuel Laflamme
  * @version $Revision$
  * @since Feb 18, 2002
  */
-public class QueryDataSetIT extends AbstractDataSetTest
+class QueryDataSetIT extends AbstractDataSetTest
 {
     private IDatabaseConnection _connection;
-
-    public QueryDataSetIT(String s)
-    {
-        super(s);
-    }
 
     ////////////////////////////////////////////////////////////////////////////
     // TestCase class
 
-    protected void setUp() throws Exception
+    @BeforeEach
+    protected void setUpConnection() throws Exception
     {
-        super.setUp();
 
-        DatabaseEnvironment env = DatabaseEnvironment.getInstance();
+        final DatabaseEnvironment env = DatabaseEnvironment.getInstance();
         _connection = env.getConnection();
 
-        DatabaseOperation.CLEAN_INSERT.execute(_connection, env.getInitDataSet());
+        DatabaseOperation.CLEAN_INSERT.execute(_connection,
+                env.getInitDataSet());
     }
 
+    @AfterEach
     protected void tearDown() throws Exception
     {
-        super.tearDown();
-
         _connection = null;
     }
 
     ////////////////////////////////////////////////////////////////////////////
     // AbstractDataSetTest class
 
+    @Override
     protected IDataSet createDataSet() throws Exception
     {
-        String[] names = getExpectedNames();
+        final String[] names = getExpectedNames();
 
-        QueryDataSet dataSet = new QueryDataSet(_connection);
+        final QueryDataSet dataSet = new QueryDataSet(_connection);
         for (int i = 0; i < names.length; i++)
         {
-            String name = names[i];
-            String query = "select * from " + name;
+            final String name = names[i];
+            final String query = "select * from " + name;
             dataSet.addTable(name, query);
-/*
-            if (i % 2 == 0)
-            {
-                String query = "select * from " + name;
-                dataSet.addTable(name, query);
-            }
-            else
-            {
-                dataSet.addTable(name);
-            }
-*/
+            /*
+             * if (i % 2 == 0) { String query = "select * from " + name;
+             * dataSet.addTable(name, query); } else { dataSet.addTable(name); }
+             */
         }
         return dataSet;
     }
 
+    @Override
     protected IDataSet createDuplicateDataSet() throws Exception
     {
-        QueryDataSet dataSet = new QueryDataSet(_connection);
-        String[] names = getExpectedDuplicateNames();
+        final QueryDataSet dataSet = new QueryDataSet(_connection);
+        final String[] names = getExpectedDuplicateNames();
 
         // first table expect 1 row
-        String queryOneRow = "select * from only_pk_table";
+        final String queryOneRow = "select * from only_pk_table";
         dataSet.addTable(names[0], queryOneRow);
 
         // second table expect 0 row
-        String queryNoRow = "select * from empty_table";
+        final String queryNoRow = "select * from empty_table";
         dataSet.addTable(names[1], queryNoRow);
 
         // third table expect 2 row
-        String queryTwoRow = "select * from pk_table where PK0=0 or PK0=1";
+        final String queryTwoRow =
+                "select * from pk_table where PK0=0 or PK0=1";
         dataSet.addTable(names[2], queryTwoRow);
 
         return dataSet;
     }
 
-    protected IDataSet createMultipleCaseDuplicateDataSet() throws Exception {
-        QueryDataSet dataSet = new QueryDataSet(_connection);
-        String[] names = getExpectedDuplicateNames();
+    @Override
+    protected IDataSet createMultipleCaseDuplicateDataSet() throws Exception
+    {
+        final QueryDataSet dataSet = new QueryDataSet(_connection);
+        final String[] names = getExpectedDuplicateNames();
 
         // first table expect 1 row
-        String queryOneRow = "select * from only_pk_table";
+        final String queryOneRow = "select * from only_pk_table";
         dataSet.addTable(names[0], queryOneRow);
 
         // second table expect 0 row
-        String queryNoRow = "select * from empty_table";
+        final String queryNoRow = "select * from empty_table";
         dataSet.addTable(names[1], queryNoRow);
 
         // third table expect 2 row
-        String queryTwoRow = "select * from pk_table where PK0=0 or PK0=1";
-        dataSet.addTable(names[2].toLowerCase(), queryTwoRow); // lowercase table name which should fail as well
+        final String queryTwoRow =
+                "select * from pk_table where PK0=0 or PK0=1";
+        dataSet.addTable(names[2].toLowerCase(), queryTwoRow); // lowercase
+                                                               // table name
+                                                               // which should
+                                                               // fail as well
 
         return dataSet;
     }
 
-
     ////////////////////////////////////////////////////////////////////////////
     // Test methods
 
-    public void testGetSelectPartialData() throws Exception
+    @Test
+    void testGetSelectPartialData() throws Exception
     {
 
-        QueryDataSet ptds = new QueryDataSet(_connection);
-        ptds.addTable("PK_TABLE", "SELECT PK0, PK1 FROM PK_TABLE where PK0 = 0");
+        final QueryDataSet ptds = new QueryDataSet(_connection);
+        ptds.addTable("PK_TABLE",
+                "SELECT PK0, PK1 FROM PK_TABLE where PK0 = 0");
 
-        ITable table = ptds.getTable("PK_TABLE");
-        assertEquals("", "0", table.getValue(0, "PK0").toString());
-        assertEquals("", "1", new String(table.getRowCount() + ""));
+        final ITable table = ptds.getTable("PK_TABLE");
+        assertThat(table.getValue(0, "PK0")).hasToString("0");
+        assertThat(new String(table.getRowCount() + "")).hasSize(1);
 
     }
 
-    public void testGetAllColumnsWithStar() throws Exception
+    @Test
+    void testGetAllColumnsWithStar() throws Exception
     {
 
-        QueryDataSet ptds = new QueryDataSet(_connection);
+        final QueryDataSet ptds = new QueryDataSet(_connection);
         ptds.addTable("PK_TABLE", "SELECT * FROM PK_TABLE where PK0 = 0");
 
-        ITable table = ptds.getTable("PK_TABLE");
-        assertEquals("", "0", table.getValue(0, "PK0").toString());
-        assertEquals("", "1", new String(table.getRowCount() + ""));
+        final ITable table = ptds.getTable("PK_TABLE");
+        assertThat(table.getValue(0, "PK0")).hasToString("0");
+        assertThat(new String(table.getRowCount() + "")).hasSize(1);
 
     }
 
-    public void testGetAllRowsSingleColumn() throws Exception
+    @Test
+    void testGetAllRowsSingleColumn() throws Exception
     {
 
-        QueryDataSet ptds = new QueryDataSet(_connection);
+        final QueryDataSet ptds = new QueryDataSet(_connection);
         ptds.addTable("PK_TABLE", "SELECT PK0 FROM PK_TABLE ORDER BY PK0");
 
-        ITable table = ptds.getTable("PK_TABLE");
-        assertEquals("", "0", table.getValue(0, "PK0").toString());
-        assertEquals("", "3", new String(table.getRowCount() + ""));
+        final ITable table = ptds.getTable("PK_TABLE");
+        assertThat(table.getValue(0, "PK0")).hasToString("0");
+        assertThat(new String(table.getRowCount() + "")).isEqualTo("3");
     }
 
-
-    public void testOnlySpecifiedColumnsReturned() throws Exception
+    @Test
+    void testOnlySpecifiedColumnsReturned() throws Exception
     {
 
-        QueryDataSet ptds = new QueryDataSet(_connection);
+        final QueryDataSet ptds = new QueryDataSet(_connection);
         ptds.addTable("PK_TABLE", "SELECT PK0 FROM PK_TABLE ORDER BY PK0 ASC");
 
-        ITable table = ptds.getTable("PK_TABLE");
-        assertEquals("", "0", table.getValue(0, "PK0").toString());
+        final ITable table = ptds.getTable("PK_TABLE");
+        assertThat(table.getValue(0, "PK0")).hasToString("0");
 
-        try
-        {
-            table.getValue(0, "PK1").toString();
-            fail("Should not have reached here, we should have thrown a NoSuchColumnException");
-        }
-        catch (NoSuchColumnException nsce)
-        {
-            String errorMsg = "org.dbunit.dataset.NoSuchColumnException: PK_TABLE.PK1";
-            assertTrue("Find text:" + errorMsg, nsce.toString().indexOf(errorMsg) >= 0);
-        }
+        final NoSuchColumnException nsce = assertThrows(
+                NoSuchColumnException.class,
+                () -> table.getValue(0, "PK1").toString(),
+                "Should not have reached here, we should have thrown a NoSuchColumnException");
+        final String errorMsg =
+                "org.dbunit.dataset.NoSuchColumnException: PK_TABLE.PK1";
+        assertThat(nsce).as("Find text:" + errorMsg).asString()
+                .contains(errorMsg);
     }
 
-    public void testGetSelectPartialData2() throws Exception
+    @Test
+    void testGetSelectPartialData2() throws Exception
     {
 
-        QueryDataSet ptds = new QueryDataSet(_connection);
+        final QueryDataSet ptds = new QueryDataSet(_connection);
         ptds.addTable("SECOND_TABLE",
                 "SELECT * FROM SECOND_TABLE where COLUMN0='row 0 col 0'");
 
-        ITable table = ptds.getTable("SECOND_TABLE");
-        assertEquals("", "row 0 col 0", table.getValue(0, "COLUMN0").toString());
-        assertEquals("", "row 0 col 3", table.getValue(0, "COLUMN3").toString());
-        assertEquals("", "1", new String(table.getRowCount() + ""));
+        final ITable table = ptds.getTable("SECOND_TABLE");
+        assertThat(table.getValue(0, "COLUMN0")).hasToString("row 0 col 0");
+        assertThat(table.getValue(0, "COLUMN3")).hasToString("row 0 col 3");
+        assertThat(new String(table.getRowCount() + "")).hasSize(1);
 
     }
 
-    public void testCombinedWhere() throws Exception
+    @Test
+    void testCombinedWhere() throws Exception
     {
 
-        QueryDataSet ptds = new QueryDataSet(_connection);
+        final QueryDataSet ptds = new QueryDataSet(_connection);
         ptds.addTable("SECOND_TABLE",
                 "SELECT COLUMN0, COLUMN3 FROM SECOND_TABLE where COLUMN0='row 0 col 0' and COLUMN2='row 0 col 2'");
 
-        ITable table = ptds.getTable("SECOND_TABLE");
-        assertEquals("", "row 0 col 0", table.getValue(0, "COLUMN0").toString());
-        assertEquals("", "row 0 col 3", table.getValue(0, "COLUMN3").toString());
-        assertEquals("", "1", new String(table.getRowCount() + ""));
+        final ITable table = ptds.getTable("SECOND_TABLE");
+        assertThat(table.getValue(0, "COLUMN0")).hasToString("row 0 col 0");
+        assertThat(table.getValue(0, "COLUMN3")).hasToString("row 0 col 3");
+        assertThat(new String(table.getRowCount() + "")).hasSize(1);
 
     }
 
-    public void testMultipleTables() throws Exception
+    @Test
+    void testMultipleTables() throws Exception
     {
         ITable table = null;
 
-        QueryDataSet ptds = new QueryDataSet(_connection);
+        final QueryDataSet ptds = new QueryDataSet(_connection);
         ptds.addTable("SECOND_TABLE",
                 "SELECT * from SECOND_TABLE where COLUMN0='row 0 col 0' and COLUMN2='row 0 col 2'");
-        ptds.addTable("PK_TABLE",
-                "SELECT * FROM PK_TABLE where PK0 = 0");
+        ptds.addTable("PK_TABLE", "SELECT * FROM PK_TABLE where PK0 = 0");
 
         table = ptds.getTable("SECOND_TABLE");
-        assertEquals("", "row 0 col 0", table.getValue(0, "COLUMN0").toString());
-        assertEquals("", "row 0 col 3", table.getValue(0, "COLUMN3").toString());
-        assertEquals("", "1", new String(table.getRowCount() + ""));
+        assertThat(table.getValue(0, "COLUMN0")).hasToString("row 0 col 0");
+        assertThat(table.getValue(0, "COLUMN3")).hasToString("row 0 col 3");
+        assertThat(new String(table.getRowCount() + "")).hasSize(1);
 
         table = ptds.getTable("PK_TABLE");
-        assertEquals("", "0", table.getValue(0, "PK0").toString());
-        assertEquals("", "1", new String(table.getRowCount() + ""));
+        assertThat(table.getValue(0, "PK0").toString()).isEqualTo("0");
+        assertThat(new String(table.getRowCount() + "")).isEqualTo("1");
 
     }
 
-    public void testMultipleTablesWithMissingWhere() throws Exception
+    @Test
+    void testMultipleTablesWithMissingWhere() throws Exception
     {
-        QueryDataSet ptds = new QueryDataSet(_connection);
+        final QueryDataSet ptds = new QueryDataSet(_connection);
         ptds.addTable("SECOND_TABLE",
                 "SELECT * from SECOND_TABLE where COLUMN0='row 0 col 0' and COLUMN2='row 0 col 2'");
         ptds.addTable("PK_TABLE", null);
     }
 }
-
-
-
-
-
-
-
-
-
-
-

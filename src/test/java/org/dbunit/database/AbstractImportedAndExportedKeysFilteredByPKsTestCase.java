@@ -7,20 +7,16 @@ import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.IDataSet;
 import org.dbunit.util.search.SearchException;
 
-
-public abstract class AbstractImportedAndExportedKeysFilteredByPKsTestCase extends
-AbstractSearchCallbackFilteredByPKsTestCase 
+public abstract class AbstractImportedAndExportedKeysFilteredByPKsTestCase
+        extends AbstractSearchCallbackFilteredByPKsTestCase
 {
 
-    public AbstractImportedAndExportedKeysFilteredByPKsTestCase(String testName,
-            String sqlFile) 
+    @Override
+    protected IDataSet getDataset()
+            throws SQLException, SearchException, DataSetException
     {
-        super(testName, sqlFile);
-    }
-
-    protected IDataSet getDataset() throws SQLException, SearchException, DataSetException
-    {
-        IDataSet dataset = TablesDependencyHelper.getAllDataset( getConnection(), getInput() );
+        final IDataSet dataset = TablesDependencyHelper
+                .getAllDataset(getConnection(), getInput());
         return dataset;
     }
 

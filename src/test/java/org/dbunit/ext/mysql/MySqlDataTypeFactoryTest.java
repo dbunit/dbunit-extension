@@ -20,92 +20,115 @@
  */
 package org.dbunit.ext.mysql;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.sql.Types;
+
 import org.dbunit.dataset.datatype.AbstractDataTypeFactoryTest;
 import org.dbunit.dataset.datatype.DataType;
 import org.dbunit.dataset.datatype.IDataTypeFactory;
-
-import java.sql.Types;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author Manuel Laflamme
  * @since Sep 3, 2003
  * @version $Revision$
  */
-public class MySqlDataTypeFactoryTest extends AbstractDataTypeFactoryTest
+class MySqlDataTypeFactoryTest extends AbstractDataTypeFactoryTest
 {
-    public MySqlDataTypeFactoryTest(String s)
-    {
-        super(s);
-    }
 
+    @Override
     public IDataTypeFactory createFactory() throws Exception
     {
         return new MySqlDataTypeFactory();
     }
 
-    public void testCreateLongtextDataType() throws Exception
+    @Test
+    void testCreateLongtextDataType() throws Exception
     {
-        DataType actual = createFactory().createDataType(Types.OTHER, "longtext");
-        DataType expected = DataType.CLOB;
-        assertSame("type", expected, actual);
+        final DataType actual =
+                createFactory().createDataType(Types.OTHER, "longtext");
+        final DataType expected = DataType.CLOB;
+        assertThat(actual).as("type").isSameAs(expected);
     }
 
-    public void testCreateLongtextUpperCaseDataType() throws Exception
+    @Test
+    void testCreateLongtextUpperCaseDataType() throws Exception
     {
-        // MySql 5 reports the datatypes in uppercase, so this here must also work
-        DataType actual = createFactory().createDataType(Types.OTHER, "LONGTEXT");
-        DataType expected = DataType.CLOB;
-        assertSame("type", expected, actual);
+        // MySql 5 reports the datatypes in uppercase, so this here must also
+        // work
+        final DataType actual =
+                createFactory().createDataType(Types.OTHER, "LONGTEXT");
+        final DataType expected = DataType.CLOB;
+        assertThat(actual).as("type").isSameAs(expected);
     }
 
-    public void testCreateBooleanDataType() throws Exception
+    @Test
+    void testCreateBooleanDataType() throws Exception
     {
-        DataType actual = createFactory().createDataType(Types.OTHER, "bit");
-        DataType expected = DataType.BOOLEAN;
-        assertSame("type", expected, actual);
-    }
-    
-    public void testCreateBooleanUpperCaseDataType() throws Exception
-    {
-        // MySql 5 reports the datatypes in uppercase, so this here must also work
-        DataType actual = createFactory().createDataType(Types.OTHER, "BIT");
-        DataType expected = DataType.BOOLEAN;
-        assertSame("type", expected, actual);
+        final DataType actual =
+                createFactory().createDataType(Types.OTHER, "bit");
+        final DataType expected = DataType.BOOLEAN;
+        assertThat(actual).as("type").isSameAs(expected);
     }
 
-    public void testCreatePointDataType() throws Exception
+    @Test
+    void testCreateBooleanUpperCaseDataType() throws Exception
     {
-        DataType actual = createFactory().createDataType(Types.OTHER, "point");
-        DataType expected = DataType.BINARY;
-        assertSame("type", expected, actual);
+        // MySql 5 reports the datatypes in uppercase, so this here must also
+        // work
+        final DataType actual =
+                createFactory().createDataType(Types.OTHER, "BIT");
+        final DataType expected = DataType.BOOLEAN;
+        assertThat(actual).as("type").isSameAs(expected);
     }
 
-    public void testCreatePointUpperCaseDataType() throws Exception
+    @Test
+    void testCreatePointDataType() throws Exception
     {
-        // MySql 5 reports the datatypes in uppercase, so this here must also work
-        DataType actual = createFactory().createDataType(Types.OTHER, "POINT");
-        DataType expected = DataType.BINARY;
-        assertSame("type", expected, actual);
+        final DataType actual =
+                createFactory().createDataType(Types.OTHER, "point");
+        final DataType expected = DataType.BINARY;
+        assertThat(actual).as("type").isSameAs(expected);
     }
 
-    public void testCreateTinyintUnsignedDatatype() throws Exception
+    @Test
+    void testCreatePointUpperCaseDataType() throws Exception
     {
-        int sqlType = Types.BIT; // MySqlConnector/J reports "TINYINT UNSIGNED" columns as SQL type "BIT".
-        String sqlTypeName = MySqlDataTypeFactory.SQL_TYPE_NAME_TINYINT_UNSIGNED;
-
-        DataType expected = DataType.TINYINT;
-        DataType actual = createFactory().createDataType(sqlType, sqlTypeName);
-        assertSame("type", expected, actual);
+        // MySql 5 reports the datatypes in uppercase, so this here must also
+        // work
+        final DataType actual =
+                createFactory().createDataType(Types.OTHER, "POINT");
+        final DataType expected = DataType.BINARY;
+        assertThat(actual).as("type").isSameAs(expected);
     }
 
-    public void testCreateIntegerUnsignedDatatype() throws Exception
+    @Test
+    void testCreateTinyintUnsignedDatatype() throws Exception
     {
-        int sqlType = Types.INTEGER;
-        String sqlTypeName = "INTEGER" + MySqlDataTypeFactory.UNSIGNED_SUFFIX;
+        final int sqlType = Types.BIT; // MySqlConnector/J reports
+        // "TINYINT UNSIGNED" columns as
+        // SQL type "BIT".
+        final String sqlTypeName =
+                MySqlDataTypeFactory.SQL_TYPE_NAME_TINYINT_UNSIGNED;
 
-        DataType expected = DataType.BIGINT;
-        DataType actual = createFactory().createDataType(sqlType, sqlTypeName);
-        assertSame("type", expected, actual);
+        final DataType expected = DataType.TINYINT;
+        final DataType actual =
+                createFactory().createDataType(sqlType, sqlTypeName);
+        assertThat(actual).as("type").isSameAs(expected);
+    }
+
+    @Test
+    void testCreateIntegerUnsignedDatatype() throws Exception
+    {
+        final int sqlType = Types.INTEGER;
+        final String sqlTypeName =
+                "INTEGER" + MySqlDataTypeFactory.UNSIGNED_SUFFIX;
+
+        final DataType expected = DataType.BIGINT;
+        final DataType actual =
+                createFactory().createDataType(sqlType, sqlTypeName);
+        assertThat(actual).as("type").isSameAs(expected);
     }
 
 }

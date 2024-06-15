@@ -20,6 +20,12 @@
  */
 package org.dbunit.dataset.xml;
 
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
+import java.io.File;
+import java.io.IOException;
+import java.io.StringReader;
+
 import org.dbunit.dataset.Column;
 import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.DefaultDataSet;
@@ -28,51 +34,42 @@ import org.dbunit.dataset.stream.AbstractProducerTest;
 import org.dbunit.dataset.stream.IDataSetProducer;
 import org.dbunit.dataset.stream.MockDataSetConsumer;
 import org.dbunit.testutil.TestUtils;
-
+import org.junit.jupiter.api.Test;
 import org.xml.sax.EntityResolver;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
-
-import java.io.File;
-import java.io.IOException;
-import java.io.StringReader;
 
 /**
  * @author Manuel Laflamme
  * @since Apr 28, 2003
  * @version $Revision$
  */
-public class FlatXmlProducerTest extends AbstractProducerTest
+class FlatXmlProducerTest extends AbstractProducerTest
 {
     private static final File DATASET_FILE =
             TestUtils.getFile("xml/flatXmlProducerTest.xml");
 
-    public FlatXmlProducerTest(String s)
-    {
-        super(s);
-    }
-
+    @Override
     protected IDataSetProducer createProducer() throws Exception
     {
-        String uri = DATASET_FILE.getAbsoluteFile().toURL().toString();
-        InputSource source = new InputSource(uri);
+        final String uri = DATASET_FILE.getAbsoluteFile().toURL().toString();
+        final InputSource source = new InputSource(uri);
 
         return new FlatXmlProducer(source);
     }
 
-    public void testProduceEmptyDataSet() throws Exception
+    @Test
+    void testProduceEmptyDataSet() throws Exception
     {
         // Setup consumer
-        MockDataSetConsumer consumer = new MockDataSetConsumer();
+        final MockDataSetConsumer consumer = new MockDataSetConsumer();
         consumer.addExpectedStartDataSet();
         consumer.addExpectedEndDataSet();
 
         // Setup producer
-        String content =
-                "<?xml version=\"1.0\"?>" +
-                "<dataset/>";
-        InputSource source = new InputSource(new StringReader(content));
-        IDataSetProducer producer = new FlatXmlProducer(source);
+        final String content = "<?xml version=\"1.0\"?>" + "<dataset/>";
+        final InputSource source = new InputSource(new StringReader(content));
+        final IDataSetProducer producer = new FlatXmlProducer(source);
         producer.setConsumer(consumer);
 
         // Produce and verify consumer
@@ -80,24 +77,22 @@ public class FlatXmlProducerTest extends AbstractProducerTest
         consumer.verify();
     }
 
-    public void testProduceNoDtd() throws Exception
+    @Test
+    void testProduceNoDtd() throws Exception
     {
         // Setup consumer
-        String tableName = "EMPTY_TABLE";
-        MockDataSetConsumer consumer = new MockDataSetConsumer();
+        final String tableName = "EMPTY_TABLE";
+        final MockDataSetConsumer consumer = new MockDataSetConsumer();
         consumer.addExpectedStartDataSet();
-        Column[] expectedColumns = new Column[0];
+        final Column[] expectedColumns = new Column[0];
         consumer.addExpectedEmptyTable(tableName, expectedColumns);
         consumer.addExpectedEndDataSet();
 
         // Setup producer
-        String content =
-                "<?xml version=\"1.0\"?>" +
-                "<dataset>" +
-                    "<EMPTY_TABLE/>" +
-                "</dataset>";
-        InputSource source = new InputSource(new StringReader(content));
-        IDataSetProducer producer = new FlatXmlProducer(source);
+        final String content = "<?xml version=\"1.0\"?>" + "<dataset>"
+                + "<EMPTY_TABLE/>" + "</dataset>";
+        final InputSource source = new InputSource(new StringReader(content));
+        final IDataSetProducer producer = new FlatXmlProducer(source);
         producer.setConsumer(consumer);
 
         // Produce and verify consumer
@@ -105,25 +100,23 @@ public class FlatXmlProducerTest extends AbstractProducerTest
         consumer.verify();
     }
 
-    public void testProduceIgnoreDtd() throws Exception
+    @Test
+    void testProduceIgnoreDtd() throws Exception
     {
         // Setup consumer
-        String tableName = "EMPTY_TABLE";
-        MockDataSetConsumer consumer = new MockDataSetConsumer();
+        final String tableName = "EMPTY_TABLE";
+        final MockDataSetConsumer consumer = new MockDataSetConsumer();
         consumer.addExpectedStartDataSet();
-        Column[] expectedColumns = new Column[0];
+        final Column[] expectedColumns = new Column[0];
         consumer.addExpectedEmptyTable(tableName, expectedColumns);
         consumer.addExpectedEndDataSet();
 
         // Setup producer
-        String content =
-                "<?xml version=\"1.0\"?>" +
-                "<!DOCTYPE dataset SYSTEM \"uri:/dummy.dtd\">" +
-                "<dataset>" +
-                    "<EMPTY_TABLE/>" +
-                "</dataset>";
-        InputSource source = new InputSource(new StringReader(content));
-        IDataSetProducer producer = new FlatXmlProducer(source, false);
+        final String content = "<?xml version=\"1.0\"?>"
+                + "<!DOCTYPE dataset SYSTEM \"uri:/dummy.dtd\">" + "<dataset>"
+                + "<EMPTY_TABLE/>" + "</dataset>";
+        final InputSource source = new InputSource(new StringReader(content));
+        final IDataSetProducer producer = new FlatXmlProducer(source, false);
         producer.setConsumer(consumer);
 
         // Produce and verify consumer
@@ -131,27 +124,26 @@ public class FlatXmlProducerTest extends AbstractProducerTest
         consumer.verify();
     }
 
-    public void testProduceMetaDataSet() throws Exception
+    @Test
+    void testProduceMetaDataSet() throws Exception
     {
         // Setup consumer
-        String tableName = "EMPTY_TABLE";
-        MockDataSetConsumer consumer = new MockDataSetConsumer();
+        final String tableName = "EMPTY_TABLE";
+        final MockDataSetConsumer consumer = new MockDataSetConsumer();
         consumer.addExpectedStartDataSet();
-        Column[] expectedColumns = createExpectedColumns(Column.NULLABLE);
+        final Column[] expectedColumns = createExpectedColumns(Column.NULLABLE);
         consumer.addExpectedEmptyTable(tableName, expectedColumns);
         consumer.addExpectedEndDataSet();
 
         // Setup producer
-        String content =
-                "<?xml version=\"1.0\"?>" +
-                "<!DOCTYPE dataset SYSTEM \"urn:/dummy.dtd\">" +
-                "<dataset>" +
-                    "<EMPTY_TABLE/>" +
-                "</dataset>";
-        InputSource source = new InputSource(new StringReader(content));
-        DefaultDataSet metaDataSet = new DefaultDataSet();
+        final String content = "<?xml version=\"1.0\"?>"
+                + "<!DOCTYPE dataset SYSTEM \"urn:/dummy.dtd\">" + "<dataset>"
+                + "<EMPTY_TABLE/>" + "</dataset>";
+        final InputSource source = new InputSource(new StringReader(content));
+        final DefaultDataSet metaDataSet = new DefaultDataSet();
         metaDataSet.addTable(new DefaultTable(tableName, expectedColumns));
-        IDataSetProducer producer = new FlatXmlProducer(source, metaDataSet);
+        final IDataSetProducer producer =
+                new FlatXmlProducer(source, metaDataSet);
         producer.setConsumer(consumer);
 
         // Produce and verify consumer
@@ -159,40 +151,40 @@ public class FlatXmlProducerTest extends AbstractProducerTest
         consumer.verify();
     }
 
-    public void testProduceCustomEntityResolver() throws Exception
+    @Test
+    void testProduceCustomEntityResolver() throws Exception
     {
         // Setup consumer
-        String tableName = "EMPTY_TABLE";
-        MockDataSetConsumer consumer = new MockDataSetConsumer();
+        final String tableName = "EMPTY_TABLE";
+        final MockDataSetConsumer consumer = new MockDataSetConsumer();
         consumer.addExpectedStartDataSet();
-        Column[] expectedColumns = createExpectedColumns(Column.NULLABLE);
+        final Column[] expectedColumns = createExpectedColumns(Column.NULLABLE);
         consumer.addExpectedEmptyTable(tableName, expectedColumns);
         consumer.addExpectedEndDataSet();
 
         // Setup producer
-       String dtdContent =
-                "<!ELEMENT dataset (EMPTY_TABLE)>" +
-                "<!ATTLIST EMPTY_TABLE " +
-                    "COLUMN0 CDATA #IMPLIED " +
-                    "COLUMN1 CDATA #IMPLIED " +
-                    "COLUMN2 CDATA #IMPLIED " +
-                    "COLUMN3 CDATA #IMPLIED>" +
-                "<!ELEMENT TEST_TABLE EMPTY>";
-        final InputSource dtdSource = new InputSource(new StringReader(dtdContent));
+        final String dtdContent = "<!ELEMENT dataset (EMPTY_TABLE)>"
+                + "<!ATTLIST EMPTY_TABLE " + "COLUMN0 CDATA #IMPLIED "
+                + "COLUMN1 CDATA #IMPLIED " + "COLUMN2 CDATA #IMPLIED "
+                + "COLUMN3 CDATA #IMPLIED>" + "<!ELEMENT TEST_TABLE EMPTY>";
+        final InputSource dtdSource =
+                new InputSource(new StringReader(dtdContent));
 
-        String xmlContent =
-                "<?xml version=\"1.0\"?>" +
-                "<!DOCTYPE dataset SYSTEM \"urn:/dummy.dtd\">" +
-                "<dataset>" +
-                    "<EMPTY_TABLE/>" +
-                "</dataset>";
-        InputSource xmlSource = new InputSource(new StringReader(xmlContent));
-        IDataSetProducer producer = new FlatXmlProducer(xmlSource, new EntityResolver(){
-            public InputSource resolveEntity(String s, String s1) throws SAXException, IOException
-            {
-                return dtdSource;
-            }
-        });
+        final String xmlContent = "<?xml version=\"1.0\"?>"
+                + "<!DOCTYPE dataset SYSTEM \"urn:/dummy.dtd\">" + "<dataset>"
+                + "<EMPTY_TABLE/>" + "</dataset>";
+        final InputSource xmlSource =
+                new InputSource(new StringReader(xmlContent));
+        final IDataSetProducer producer =
+                new FlatXmlProducer(xmlSource, new EntityResolver()
+                {
+                    @Override
+                    public InputSource resolveEntity(final String s,
+                            final String s1) throws SAXException, IOException
+                    {
+                        return dtdSource;
+                    }
+                });
         producer.setConsumer(consumer);
 
         // Produce and verify consumer
@@ -200,29 +192,22 @@ public class FlatXmlProducerTest extends AbstractProducerTest
         consumer.verify();
     }
 
-    public void testProduceNotWellFormedXml() throws Exception
+    @Test
+    void testProduceNotWellFormedXml() throws Exception
     {
         // Setup consumer
-        MockDataSetConsumer consumer = new MockDataSetConsumer();
+        final MockDataSetConsumer consumer = new MockDataSetConsumer();
         consumer.addExpectedStartDataSet();
 
         // Setup producer
-        String content =
-                "<?xml version=\"1.0\"?>" +
-                "<dataset>";
-        InputSource source = new InputSource(new StringReader(content));
-        IDataSetProducer producer = new FlatXmlProducer(source);
+        final String content = "<?xml version=\"1.0\"?>" + "<dataset>";
+        final InputSource source = new InputSource(new StringReader(content));
+        final IDataSetProducer producer = new FlatXmlProducer(source);
         producer.setConsumer(consumer);
 
         // Produce and verify consumer
-        try
-        {
-            producer.produce();
-            fail("Should not be here!");
-        }
-        catch (DataSetException e)
-        {
-        }
+        assertThrows(DataSetException.class, () -> producer.produce(),
+                "Should not be here!");
 
         consumer.verify();
     }

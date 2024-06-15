@@ -18,8 +18,9 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  */
-
 package org.dbunit.util.search;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -30,15 +31,13 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 
-import junit.framework.TestCase;
-
 /**
  * @author Felipe Leme (dbunit@felipeal.net)
  * @author Last changed by: $Author$
  * @version $Revision$ $Date$
  * @since Aug 25, 2005
  */
-public abstract class AbstractSearchTestCase extends TestCase
+public abstract class AbstractSearchTestCase
 {
     protected static final String A = "A";
     protected static final String B = "B";
@@ -48,24 +47,25 @@ public abstract class AbstractSearchTestCase extends TestCase
     protected static final String F = "F";
 
     // fixtures
-    protected final Map fEdgesPerNodeMap = new HashMap();
+    protected final Map<Object, Object> fEdgesPerNodeMap = new HashMap<>();
 
-    protected final Set fAllEdgesSet = new HashSet();
+    protected final Set<Edge> fAllEdgesSet = new HashSet<>();
 
-    protected final Set fExpectedOutput = new LinkedHashSet();
+    protected final Set<Object> fExpectedOutput = new LinkedHashSet<>();
 
-    protected final Set fInput = new HashSet();
+    protected final Set<Object> fInput = new HashSet<>();
 
     protected final DepthFirstSearch fSearch = new DepthFirstSearch();
 
     protected void doIt() throws Exception
     {
-        final Set actualOutput = fSearch.search(this.fInput, getCallback());
-        assertEquals(
-                "Input and output sets do not have the same number of members",
-                this.fExpectedOutput.size(), actualOutput.size());
-        assertEquals("Sets do not contain the same members",
-                this.fExpectedOutput, actualOutput);
+        final Set<Object> actualOutput =
+                fSearch.search(this.fInput, getCallback());
+        assertThat(actualOutput).as(
+                "Input and output sets do not have the same number of members")
+                .hasSameSizeAs(this.fExpectedOutput);
+        assertThat(actualOutput).as("Sets do not contain the same members")
+                .isEqualTo(this.fExpectedOutput);
     }
 
     protected void setInput(final String[] nodes)
@@ -86,7 +86,7 @@ public abstract class AbstractSearchTestCase extends TestCase
 
     protected void addEdges(final String from, final String[] tos)
     {
-        final Set tmpEdges = new TreeSet();
+        final Set<Object> tmpEdges = new TreeSet<>();
         for (int i = 0; i < tos.length; i++)
         {
             final Edge edge = new Edge(from, tos[i]);
@@ -100,15 +100,18 @@ public abstract class AbstractSearchTestCase extends TestCase
     {
         return new ISearchCallback()
         {
-            public SortedSet getEdges(final Object fromNode)
+            @Override
+            public SortedSet<?> getEdges(final Object fromNode)
             {
                 return getEdgesFromNode(fromNode);
             };
 
+            @Override
             public void nodeAdded(final Object fromNode)
             {
             }
 
+            @Override
             public boolean searchNode(final Object node)
             {
                 return true;
@@ -116,18 +119,18 @@ public abstract class AbstractSearchTestCase extends TestCase
         };
     }
 
-    protected SortedSet getEdgesFromNode(final Object fromNode)
+    protected SortedSet<?> getEdgesFromNode(final Object fromNode)
     {
-        return (SortedSet) fEdgesPerNodeMap.get(fromNode);
+        return (SortedSet<?>) fEdgesPerNodeMap.get(fromNode);
     }
 
-    protected SortedSet getEdgesToNode(final Object toNode)
+    protected SortedSet<Edge> getEdgesToNode(final Object toNode)
     {
-        final TreeSet set = new TreeSet();
-        final Iterator iterator = this.fAllEdgesSet.iterator();
+        final TreeSet<Edge> set = new TreeSet<Edge>();
+        final Iterator<Edge> iterator = this.fAllEdgesSet.iterator();
         while (iterator.hasNext())
         {
-            final Edge edge = (Edge) iterator.next();
+            final Edge edge = iterator.next();
             if (edge.getTo().equals(toNode))
             {
                 set.add(edge);

@@ -20,27 +20,28 @@
  */
 package org.dbunit.dataset;
 
-import com.mockobjects.Verifiable;
-
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+
+import org.mockito.Mock;
+import org.mockito.Mockito;
 
 /**
  * @author Manuel Laflamme
  * @since Apr 12, 2003
  * @version $Revision$
  */
-public class MockDataSet extends AbstractDataSet implements Verifiable
+public class MockDataSet extends AbstractDataSet
 {
-    private final List _tableList = new ArrayList();
+    private final List<ITable> _tableList = new ArrayList<>();
 
-    public void addTable(ITable table)
+    public void addTable(final ITable table)
     {
         _tableList.add(table);
     }
 
-    public void addEmptyTable(String tableName)
+    public void addEmptyTable(final String tableName)
     {
         _tableList.add(new DefaultTable(tableName));
     }
@@ -48,10 +49,11 @@ public class MockDataSet extends AbstractDataSet implements Verifiable
     ////////////////////////////////////////////////////////////////////////////
     // AbstractDataSet class
 
-    protected ITableIterator createIterator(boolean reversed)
+    @Override
+    protected ITableIterator createIterator(final boolean reversed)
             throws DataSetException
     {
-        ITable[] tables = (ITable[])_tableList.toArray(new ITable[0]);
+        final ITable[] tables = _tableList.toArray(new ITable[0]);
         return new DefaultTableIterator(tables, reversed);
     }
 
@@ -60,13 +62,14 @@ public class MockDataSet extends AbstractDataSet implements Verifiable
 
     public void verify()
     {
-        for (Iterator it = _tableList.iterator(); it.hasNext();)
+        for (final Iterator<ITable> it = _tableList.iterator(); it.hasNext();)
         {
-            ITable table = (ITable)it.next();
-            if (table instanceof Verifiable)
+            final ITable table = it.next();
+            if (table instanceof Mock)
             {
-                ((Verifiable)table).verify();
+                Mockito.verify(table).getTableMetaData();
             }
         }
     }
+
 }

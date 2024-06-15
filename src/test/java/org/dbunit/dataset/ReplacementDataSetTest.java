@@ -20,71 +20,76 @@
  */
 package org.dbunit.dataset;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import java.io.FileReader;
 
 import org.dbunit.dataset.xml.FlatXmlDataSet;
 import org.dbunit.dataset.xml.FlatXmlDataSetBuilder;
 import org.dbunit.dataset.xml.FlatXmlDataSetTest;
 import org.dbunit.testutil.TestUtils;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author Manuel Laflamme
  * @since Mar 17, 2003
  * @version $Revision$
  */
-public class ReplacementDataSetTest extends AbstractDataSetDecoratorTest
+class ReplacementDataSetTest extends AbstractDataSetDecoratorTest
 {
-    public ReplacementDataSetTest(String s)
-    {
-        super(s);
-    }
 
     ////////////////////////////////////////////////////////////////////////////
     // AbstractDataSetTest class
 
+    @Override
     protected IDataSet createDataSet() throws Exception
     {
-        return new ReplacementDataSet(new FlatXmlDataSetBuilder().build(new FileReader(
-                FlatXmlDataSetTest.DATASET_FILE)));
+        return new ReplacementDataSet(new FlatXmlDataSetBuilder()
+                .build(new FileReader(FlatXmlDataSetTest.DATASET_FILE)));
     }
 
-    public void testConstructor_DataSetHasCaseSensitive_ReplacementSetHasCaseSensitive()
+    @Test
+    void testConstructor_DataSetHasCaseSensitive_ReplacementSetHasCaseSensitive()
             throws Exception
     {
-        FileReader xmlReader = new FileReader(FlatXmlDataSetTest.DATASET_FILE);
-        FlatXmlDataSet flatDataSet = new FlatXmlDataSetBuilder()
+        final FileReader xmlReader =
+                new FileReader(FlatXmlDataSetTest.DATASET_FILE);
+        final FlatXmlDataSet flatDataSet = new FlatXmlDataSetBuilder()
                 .setCaseSensitiveTableNames(true).build(xmlReader);
-        ReplacementDataSet dataSet = new ReplacementDataSet(flatDataSet);
+        final ReplacementDataSet dataSet = new ReplacementDataSet(flatDataSet);
+        assertThat(dataSet.isCaseSensitiveTableNames()).isTrue();
 
-        assertTrue(dataSet.isCaseSensitiveTableNames());
     }
 
-    public void testConstructor_DifferentCaseTableNames_CaseSensitiveMatch()
+    @Test
+    void testConstructor_DifferentCaseTableNames_CaseSensitiveMatch()
             throws Exception
     {
-        FileReader fileReader = TestUtils
+        final FileReader fileReader = TestUtils
                 .getFileReader("/xml/replacementDataSetCaseSensitive.xml");
-        IDataSet originalDataSet = new FlatXmlDataSetBuilder()
+        final IDataSet originalDataSet = new FlatXmlDataSetBuilder()
                 .setCaseSensitiveTableNames(true).build(fileReader);
         assertCaseSensitiveTables(originalDataSet);
 
-        IDataSet replacementDataSet = new ReplacementDataSet(originalDataSet);
+        final IDataSet replacementDataSet =
+                new ReplacementDataSet(originalDataSet);
         assertCaseSensitiveTables(replacementDataSet);
     }
 
-    private void assertCaseSensitiveTables(IDataSet dataSet) throws DataSetException
+    private void assertCaseSensitiveTables(final IDataSet dataSet)
+            throws DataSetException
     {
-        ITable[] tables = dataSet.getTables();
-        assertEquals(
-                "Should be 2 tables with case-sensitive table names; 1 without.",
-                2, tables.length);
+        final ITable[] tables = dataSet.getTables();
+        assertThat(tables).as(
+                "Should be 2 tables with case-sensitive table names; 1 without.")
+                .hasSize(2);
 
-        String tableName0 = tables[0].getTableMetaData().getTableName();
-        String tableName1 = tables[1].getTableMetaData().getTableName();
+        final String tableName0 = tables[0].getTableMetaData().getTableName();
+        final String tableName1 = tables[1].getTableMetaData().getTableName();
 
-        assertEquals("TEST_TABLE", tableName0);
-        assertEquals("test_table", tableName1);
-        assertEquals("row 0 col 0", tables[0].getValue(0, "COLUMN0"));
-        assertEquals("row 1 col 0", tables[1].getValue(0, "COLUMN0"));
+        assertThat(tableName0).isEqualTo("TEST_TABLE");
+        assertThat(tableName1).isEqualTo("test_table");
+        assertThat(tables[0].getValue(0, "COLUMN0")).isEqualTo("row 0 col 0");
+        assertThat(tables[1].getValue(0, "COLUMN0")).isEqualTo("row 1 col 0");
     }
 }

@@ -20,16 +20,9 @@
  */
 package org.dbunit.database.search;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.Matchers.greaterThan;
-import static org.hamcrest.Matchers.lessThan;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
-import org.junit.Test;
-
-import com.gargoylesoftware.base.testing.EqualsTester;
-
-import junit.framework.TestCase;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author gommma
@@ -37,7 +30,7 @@ import junit.framework.TestCase;
  * @version $Revision$ $Date$
  * @since 2.4.0
  */
-public class ForeignKeyRelationshipEdgeTest extends TestCase
+class ForeignKeyRelationshipEdgeTest
 {
     private final ForeignKeyRelationshipEdge e1 =
             new ForeignKeyRelationshipEdge("table1", "table2", "fk_col",
@@ -58,36 +51,37 @@ public class ForeignKeyRelationshipEdgeTest extends TestCase
             {
             };
 
-    public void testEqualsHashCode()
+    @Test
+    void testEqualsHashCode()
     {
-        // Use gsbase "EqualsTester" library for this - easier and less code for
-        // equals/hashCode test
-        new EqualsTester(e1, equal, notEqual1, equalSubclass);
-        new EqualsTester(e1, equal, notEqual2, equalSubclass);
+        assertThat(e1).isEqualByComparingTo(equal)
+                .isNotEqualByComparingTo(notEqual1)
+                .isNotEqualByComparingTo(notEqual2)
+                .isEqualByComparingTo(equalSubclass);
     }
 
     @Test
-    public void testCompareTo()
+    void testCompareTo()
     {
-        assertThat("Equal instances have different compareTo.",
-                e1.compareTo(equal), equalTo(0));
+        assertThat(e1.compareTo(equal))
+                .as("Equal instances have different compareTo.").isZero();
 
-        assertThat(
-                "Unequal parent values with equal child values:"
-                        + " first compared after second.",
-                e1.compareTo(notEqual1), lessThan(0));
-        assertThat(
-                "Unequal parent values with equal child values:"
-                        + " first compared before second.",
-                notEqual1.compareTo(e1), greaterThan(0));
+        assertThat(e1.compareTo(notEqual1))
+                .as("Unequal parent values with equal child values:"
+                        + " first compared after second.")
+                .isNegative();
+        assertThat(notEqual1.compareTo(e1))
+                .as("Unequal parent values with equal child values:"
+                        + " first compared before second.")
+                .isPositive();
 
-        assertThat(
-                "Equal parent values with unequal child values:"
-                        + " first compared after second.",
-                e1.compareTo(notEqual2), lessThan(0));
-        assertThat(
-                "Equal parent values with unequal child values:"
-                        + " first compared before second.",
-                notEqual2.compareTo(e1), greaterThan(0));
+        assertThat(e1.compareTo(notEqual2))
+                .as("Equal parent values with unequal child values:"
+                        + " first compared after second.")
+                .isNegative();
+        assertThat(notEqual2.compareTo(e1))
+                .as("Equal parent values with unequal child values:"
+                        + " first compared before second.")
+                .isPositive();
     }
 }

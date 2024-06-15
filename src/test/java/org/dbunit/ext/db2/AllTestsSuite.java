@@ -18,24 +18,18 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  */
-package org.dbunit.database;
 
-import com.mockobjects.sql.MockMultiRowResultSet;
+package org.dbunit.ext.db2;
 
-import java.sql.SQLException;
+import org.junit.platform.suite.api.SelectClasses;
+import org.junit.platform.suite.api.Suite;
 
 /**
  * @author Manuel Laflamme
- * @since Aug 11, 2003
  * @version $Revision$
  */
-public class ExtendedMockMultiRowResultSet extends MockMultiRowResultSet
+@Suite
+@SelectClasses({Db2DataTypeFactoryTest.class})
+public class AllTestsSuite
 {
-    /**
-     * Always returns false.
-     */
-    public boolean wasNull() throws SQLException
-    {
-        return false;
-    }
 }

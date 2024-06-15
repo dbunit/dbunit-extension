@@ -1,16 +1,18 @@
 package org.dbunit;
 
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
 import org.dbunit.database.DatabaseConfig;
 import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.DefaultDataSet;
 import org.dbunit.dataset.DefaultTable;
 import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.ITable;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 // TODO always passes on same counts, fix prod to always verify table names
 
-public class DefaultExpectedDataSetAndVerifyTableDefinitionVerifierTest
+class DefaultExpectedDataSetAndVerifyTableDefinitionVerifierTest
 {
     private static final ITable TABLE_1 = new DefaultTable("TABLE_1");
     private static final ITable TABLE_2 = new DefaultTable("TABLE_2");
@@ -21,7 +23,7 @@ public class DefaultExpectedDataSetAndVerifyTableDefinitionVerifierTest
             new DefaultExpectedDataSetAndVerifyTableDefinitionVerifier();
 
     @Test
-    public void testVerify_VtdMatchesExpected_Success() throws DataSetException
+    void testVerify_VtdMatchesExpected_Success() throws DataSetException
     {
         final VerifyTableDefinition[] verifyTableDefinitions =
                 makeVerifyTableDefinitions_MatchingExpected();
@@ -30,19 +32,21 @@ public class DefaultExpectedDataSetAndVerifyTableDefinitionVerifierTest
         sut.verify(verifyTableDefinitions, expectedDataSet, DATABASE_CONFIG);
     }
 
-    @Test(expected = DataSetException.class)
-    public void testVerify_VtdLessThanExpected_Exception()
-            throws DataSetException
+    @Test
+    void testVerify_VtdLessThanExpected_Exception() throws DataSetException
     {
-        final VerifyTableDefinition[] verifyTableDefinitions =
-                makeVerifyTableDefinitions_LessThanExpected();
-        final IDataSet expectedDataSet = new DefaultDataSet(TABLE_1, TABLE_2);
-
-        sut.verify(verifyTableDefinitions, expectedDataSet, DATABASE_CONFIG);
+        assertThrows(DataSetException.class, () -> {
+            final VerifyTableDefinition[] verifyTableDefinitions =
+                    makeVerifyTableDefinitions_LessThanExpected();
+            final IDataSet expectedDataSet =
+                    new DefaultDataSet(TABLE_1, TABLE_2);
+            sut.verify(verifyTableDefinitions, expectedDataSet,
+                    DATABASE_CONFIG);
+        });
     }
 
     @Test
-    public void testVerify_VtdMoreThanExpected_Success() throws DataSetException
+    void testVerify_VtdMoreThanExpected_Success() throws DataSetException
     {
         final VerifyTableDefinition[] verifyTableDefinitions =
                 makeVerifyTableDefinitions_MoreThanExpected();

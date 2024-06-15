@@ -21,13 +21,15 @@
 
 package org.dbunit.dataset;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import java.io.FileNotFoundException;
-import java.io.FileReader;
 import java.io.IOException;
 
 import org.dbunit.dataset.xml.FlatXmlDataSetBuilder;
 import org.dbunit.dataset.xml.XmlDataSet;
 import org.dbunit.testutil.TestUtils;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author Manuel Laflamme
@@ -35,72 +37,70 @@ import org.dbunit.testutil.TestUtils;
  * @version $Revision$ $Date$
  * @since 1.0 (Feb 22, 2002)
  */
-public class CompositeDataSetTest extends AbstractDataSetTest
+class CompositeDataSetTest extends AbstractDataSetTest
 {
-    public CompositeDataSetTest(String s)
-    {
-        super(s);
-    }
 
+    @Override
     protected IDataSet createDataSet() throws Exception
     {
-        IDataSet dataSet1 = new XmlDataSet(
+        final IDataSet dataSet1 = new XmlDataSet(
                 TestUtils.getFileReader("xml/compositeDataSetTest1.xml"));
-        assertTrue("count before combine (1)",
-                dataSet1.getTableNames().length < getExpectedNames().length);
+        assertThat(dataSet1.getTableNames()).as("count before combine (1)")
+                .hasSizeLessThan(getExpectedNames().length);
 
-        IDataSet dataSet2 = new XmlDataSet(
+        final IDataSet dataSet2 = new XmlDataSet(
                 TestUtils.getFileReader("xml/compositeDataSetTest2.xml"));
-        assertTrue("count before combine (2)",
-                dataSet2.getTableNames().length < getExpectedNames().length);
+        assertThat(dataSet2.getTableNames()).as("count before combine (2)")
+                .hasSizeLessThan(getExpectedNames().length);
 
         return new CompositeDataSet(dataSet1, dataSet2);
     }
 
+    @Override
     protected IDataSet createDuplicateDataSet() throws Exception
     {
         return createCompositeDataSet(false, false);
     }
 
-    protected IDataSet createMultipleCaseDuplicateDataSet() throws Exception 
+    @Override
+    protected IDataSet createMultipleCaseDuplicateDataSet() throws Exception
     {
         return createCompositeDataSet(false, true);
     }
 
-    
-    public void testCombineTables() throws Exception
+    @Test
+    void testCombineTables() throws Exception
     {
-        CompositeDataSet combinedDataSet = createCompositeDataSet(true, false);
-        String[] tableNames = combinedDataSet.getTableNames();
-        assertEquals("table count combined", 2, tableNames.length);
-        assertEquals("DUPLICATE_TABLE", tableNames[0]);
-        assertEquals("EMPTY_TABLE", tableNames[1]);
+        final CompositeDataSet combinedDataSet =
+                createCompositeDataSet(true, false);
+        final String[] tableNames = combinedDataSet.getTableNames();
+        assertThat(tableNames).as("table count combined").hasSize(2);
+        assertThat(tableNames[0]).isEqualTo("DUPLICATE_TABLE");
+        assertThat(tableNames[1]).isEqualTo("EMPTY_TABLE");
     }
 
-    
-    private CompositeDataSet createCompositeDataSet(boolean combined, boolean multipleCase) 
-    throws DataSetException, FileNotFoundException, IOException 
+    private CompositeDataSet createCompositeDataSet(final boolean combined,
+            final boolean multipleCase)
+            throws DataSetException, FileNotFoundException, IOException
     {
-        IDataSet dataSet1 = new FlatXmlDataSetBuilder().build(
-                TestUtils.getFileReader("xml/compositeDataSetDuplicateTest1.xml"));
-        assertTrue("count before combine (1)",
-                dataSet1.getTableNames().length < getExpectedDuplicateNames().length);
+        final IDataSet dataSet1 = new FlatXmlDataSetBuilder().build(TestUtils
+                .getFileReader("xml/compositeDataSetDuplicateTest1.xml"));
+        assertThat(dataSet1.getTableNames()).as("count before combine (1)")
+                .hasSizeLessThan(getExpectedDuplicateNames().length);
 
-        IDataSet dataSet2 = new FlatXmlDataSetBuilder().build(
-                TestUtils.getFileReader("xml/compositeDataSetDuplicateTest2.xml"));
-        assertTrue("count before combine (2)",
-                dataSet2.getTableNames().length < getExpectedDuplicateNames().length);
+        IDataSet dataSet2 = new FlatXmlDataSetBuilder().build(TestUtils
+                .getFileReader("xml/compositeDataSetDuplicateTest2.xml"));
+        assertThat(dataSet2.getTableNames()).as("count before combine (2)")
+                .hasSizeLessThan(getExpectedDuplicateNames().length);
 
-        if(multipleCase){
+        if (multipleCase)
+        {
             dataSet2 = new LowerCaseDataSet(dataSet2);
         }
-        
-        CompositeDataSet dataSet = new CompositeDataSet(dataSet1, dataSet2, combined);
+
+        final CompositeDataSet dataSet =
+                new CompositeDataSet(dataSet1, dataSet2, combined);
         return dataSet;
     }
 
 }
-
-
-
-

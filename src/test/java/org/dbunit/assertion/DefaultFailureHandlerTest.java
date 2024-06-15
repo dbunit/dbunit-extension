@@ -20,7 +20,8 @@
  */
 package org.dbunit.assertion;
 
-import junit.framework.TestCase;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 
 import org.dbunit.dataset.Column;
 import org.dbunit.dataset.DataSetException;
@@ -28,12 +29,13 @@ import org.dbunit.dataset.DefaultTable;
 import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.datatype.DataType;
 import org.dbunit.dataset.filter.DefaultColumnFilter;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author gommma (gommma AT users.sourceforge.net)
  * @since 2.4.0
  */
-public class DefaultFailureHandlerTest extends TestCase
+class DefaultFailureHandlerTest
 {
     private static final String MY_TABLE = "MY_TABLE";
 
@@ -43,92 +45,92 @@ public class DefaultFailureHandlerTest extends TestCase
     private static final String COL_VALUE_1 = "value1";
     private static final String COL_VALUE_2 = "value2";
 
-    public void testGetColumn() throws Exception
+    @Test
+    void testGetColumn() throws Exception
     {
-        Column[] cols = new Column[]{
-                new Column(COL_NAME_1, DataType.UNKNOWN),
-                new Column(COL_NAME_2, DataType.UNKNOWN)
-        };
-        DefaultTable table = new DefaultTable(MY_TABLE, cols);
+        final Column[] cols =
+                new Column[] {new Column(COL_NAME_1, DataType.UNKNOWN),
+                        new Column(COL_NAME_2, DataType.UNKNOWN)};
+        final DefaultTable table = new DefaultTable(MY_TABLE, cols);
         table.addRow(new Object[] {COL_VALUE_1, COL_VALUE_2});
 
         // Filter COL_NAME_1
-        ITable tableFiltered = DefaultColumnFilter.excludedColumnsTable(table, new String[]{COL_NAME_1});
+        final ITable tableFiltered = DefaultColumnFilter
+                .excludedColumnsTable(table, new String[] {COL_NAME_1});
 
-        DefaultFailureHandler failureHandler = new DefaultFailureHandler(cols);
-        String info = failureHandler.getAdditionalInfo(tableFiltered, tableFiltered, 0, COL_NAME_1);
+        final DefaultFailureHandler failureHandler =
+                new DefaultFailureHandler(cols);
+        final String info = failureHandler.getAdditionalInfo(tableFiltered,
+                tableFiltered, 0, COL_NAME_1);
 
-        String expectedInfo =
-                "Additional row info: ('"
-                        + COL_NAME_1
-                        + "': expected=<"
-                        + COL_VALUE_1
-                        + ">, actual=<"
-                        + COL_VALUE_1
-                        + ">) ('"
-                        + COL_NAME_2 + "': expected=<" + COL_VALUE_2
-                        + ">, actual=<" + COL_VALUE_2 + ">)";
-        assertEquals(expectedInfo, info);
+        final String expectedInfo = "Additional row info: ('" + COL_NAME_1
+                + "': expected=<" + COL_VALUE_1 + ">, actual=<" + COL_VALUE_1
+                + ">) ('" + COL_NAME_2 + "': expected=<" + COL_VALUE_2
+                + ">, actual=<" + COL_VALUE_2 + ">)";
+        assertThat(info).isEqualTo(expectedInfo);
     }
 
-    public void testMakeAdditionalColumnInfoErrorMessage()
+    @Test
+    void testMakeAdditionalColumnInfoErrorMessage()
     {
-        DefaultFailureHandler defaultFailureHandler = new DefaultFailureHandler();
+        final DefaultFailureHandler defaultFailureHandler =
+                new DefaultFailureHandler();
 
-        String columnName = "testColumnName";
-        DataSetException e = new DataSetException("test exception message");
-        String actual =
-                defaultFailureHandler.makeAdditionalColumnInfoErrorMessage(
-                        columnName,
-                        e);
-        assertNotNull("Error message is null.", actual);
+        final String columnName = "testColumnName";
+        final DataSetException e =
+                new DataSetException("test exception message");
+        final String actual = defaultFailureHandler
+                .makeAdditionalColumnInfoErrorMessage(columnName, e);
+        assertThat(actual).as("Error message is null.").isNotNull();
 
         // manually review log for acceptable message content
     }
 
-    public void testGetColumnValue_Found() throws DataSetException
+    @Test
+    void testGetColumnValue_Found() throws DataSetException
     {
-        Column[] cols =
+        final Column[] cols =
                 new Column[] {new Column(COL_NAME_1, DataType.UNKNOWN),
-                new Column(COL_NAME_2, DataType.UNKNOWN)};
-        DefaultTable table = new DefaultTable(MY_TABLE, cols);
+                        new Column(COL_NAME_2, DataType.UNKNOWN)};
+        final DefaultTable table = new DefaultTable(MY_TABLE, cols);
         table.addRow(new Object[] {COL_VALUE_1, COL_VALUE_2});
 
         DefaultColumnFilter.excludedColumnsTable(table,
                 new String[] {COL_NAME_1});
-        DefaultFailureHandler defaultFailureHandler =
+        final DefaultFailureHandler defaultFailureHandler =
                 new DefaultFailureHandler();
 
-        Object expected = COL_VALUE_1;
+        final Object expected = COL_VALUE_1;
 
-        int rowIndex = 0;
-        String columnName = COL_NAME_1;
-        Object actual = defaultFailureHandler.getColumnValue(table, rowIndex, columnName);
+        final int rowIndex = 0;
+        final String columnName = COL_NAME_1;
+        final Object actual = defaultFailureHandler.getColumnValue(table,
+                rowIndex, columnName);
 
-        assertEquals("Wrong column value found.", expected, actual);
+        assertThat(actual).as("Wrong column value found.").isEqualTo(expected);
     }
 
-    public void testGetColumnValue_NotFound() throws DataSetException
+    @Test
+    void testGetColumnValue_NotFound() throws DataSetException
     {
-        Column[] cols =
+        final Column[] cols =
                 new Column[] {new Column(COL_NAME_1, DataType.UNKNOWN),
-                new Column(COL_NAME_2, DataType.UNKNOWN)};
-        DefaultTable table = new DefaultTable(MY_TABLE, cols);
+                        new Column(COL_NAME_2, DataType.UNKNOWN)};
+        final DefaultTable table = new DefaultTable(MY_TABLE, cols);
         table.addRow(new Object[] {COL_VALUE_1, COL_VALUE_2});
 
         DefaultColumnFilter.excludedColumnsTable(table,
                 new String[] {COL_NAME_1});
-        DefaultFailureHandler defaultFailureHandler =
+        final DefaultFailureHandler defaultFailureHandler =
                 new DefaultFailureHandler();
 
-        Object expected = COL_VALUE_1;
+        final Object expected = COL_VALUE_1;
 
-        int rowIndex = 0;
-        String columnName = "NonExistingColumnName";
-        Object actual =
-                defaultFailureHandler.getColumnValue(table, rowIndex,
-                        columnName);
+        final int rowIndex = 0;
+        final String columnName = "NonExistingColumnName";
+        final Object actual = defaultFailureHandler.getColumnValue(table,
+                rowIndex, columnName);
 
-        assertNotSame("Wrong column value found.", expected, actual);
+        assertNotSame(expected, actual, "Wrong column value found.");
     }
 }

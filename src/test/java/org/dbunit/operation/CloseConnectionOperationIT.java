@@ -21,40 +21,41 @@
 
 package org.dbunit.operation;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+
 import org.dbunit.AbstractDatabaseIT;
-import org.dbunit.database.MockDatabaseConnection;
+import org.dbunit.database.IDatabaseConnection;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 /**
  * @author Manuel Laflamme
  * @version $Revision$
  * @since Mar 6, 2002
  */
-public class CloseConnectionOperationIT extends AbstractDatabaseIT
+@ExtendWith(MockitoExtension.class)
+class CloseConnectionOperationIT extends AbstractDatabaseIT
 {
-    public CloseConnectionOperationIT(String s)
-    {
-        super(s);
-    }
 
-    public void testMockExecute() throws Exception
-    {
-        // setup mock objects
-        MockDatabaseOperation operation = new MockDatabaseOperation();
-        operation.setExpectedExecuteCalls(1);
+    @Mock
+    private IDatabaseConnection connection;
 
-        MockDatabaseConnection connection = new MockDatabaseConnection();
-        connection.setExpectedCloseCalls(1);
+    @Mock
+    private DatabaseOperation operation;
+
+    @Test
+    void testMockExecute() throws Exception
+    {
 
         // execute operation
         new CloseConnectionOperation(operation).execute(connection, null);
+        verify(operation, times(1)).execute(any(), any());
+        verify(connection, times(1)).close();
 
-        // verify
-        operation.verify();
-        connection.verify();
     }
 
 }
-
-
-
-

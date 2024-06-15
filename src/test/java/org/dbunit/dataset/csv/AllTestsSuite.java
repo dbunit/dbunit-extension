@@ -19,26 +19,21 @@
  *
  */
 
-package org.dbunit.ext.db2;
+package org.dbunit.dataset.csv;
 
-import junit.framework.Test;
-import junit.framework.TestSuite;
+import org.junit.platform.suite.api.SelectClasses;
+import org.junit.platform.suite.api.Suite;
 
 /**
- * @author Manuel Laflamme
- * @version $Revision$
+ * Created By: fede Date: 10-mar-2004 Time: 10.52.00
+ *
+ * Last Checkin: $Author$ Date: $Date$ Revision: $Revision$
  */
-public class AllTests extends TestSuite
+@Suite
+@SelectClasses({CsvParserTest.class, CsvProducerTest.class,
+        CsvDataSetWriterTest.class, CsvDataSetTest.class,
+        CsvURLDataSetTest.class, CsvURLProducerTest.class})
+public class AllTestsSuite
 {
-    public static Test suite()
-    {
-        TestSuite suite = new TestSuite();
-        suite.addTest(new TestSuite(Db2DataTypeFactoryTest.class));
-        return suite;
-    }
+
 }
-
-
-
-
-

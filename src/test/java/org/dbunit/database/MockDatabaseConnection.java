@@ -21,14 +21,20 @@
 
 package org.dbunit.database;
 
-import com.mockobjects.ExpectationCounter;
-import com.mockobjects.Verifiable;
-import org.dbunit.database.statement.IStatementFactory;
-import org.dbunit.dataset.*;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.util.Objects;
+
+import org.dbunit.database.statement.IStatementFactory;
+import org.dbunit.database.statement.Verifiable;
+import org.dbunit.dataset.DataSetException;
+import org.dbunit.dataset.DefaultDataSet;
+import org.dbunit.dataset.FilteredDataSet;
+import org.dbunit.dataset.IDataSet;
+import org.dbunit.dataset.ITable;
 
 /**
  * @author Manuel Laflamme
@@ -37,133 +43,151 @@ import java.sql.SQLException;
  */
 public class MockDatabaseConnection implements IDatabaseConnection, Verifiable
 {
-    private ExpectationCounter _closeCalls =
-            new ExpectationCounter("MockDatabaseConnection.close");;
+    private Integer _closeCalls = 0;
+    private Integer _expectedCloseCalls = 0;
 
     private Connection _connection;
     private String _schema;
     private IDataSet _dataSet;
-//    private IStatementFactory _statementFactory;
+    // private IStatementFactory _statementFactory;
     private DatabaseConfig _databaseConfig = new DatabaseConfig();
 
-    public void setupSchema(String schema)
+    public void setupSchema(final String schema)
     {
         _schema = schema;
     }
 
-    public void setupConnection(Connection connection)
+    public void setupConnection(final Connection connection)
     {
         _connection = connection;
     }
 
-    public void setupDataSet(IDataSet dataSet)
+    public void setupDataSet(final IDataSet dataSet)
     {
         _dataSet = dataSet;
     }
 
-    public void setupDataSet(ITable table) throws AmbiguousTableNameException
+    public void setupDataSet(final ITable table)
+            throws AmbiguousTableNameException
     {
         _dataSet = new DefaultDataSet(table);
     }
 
-    public void setupDataSet(ITable[] tables) throws AmbiguousTableNameException
+    public void setupDataSet(final ITable[] tables)
+            throws AmbiguousTableNameException
     {
         _dataSet = new DefaultDataSet(tables);
     }
 
-    public void setupStatementFactory(IStatementFactory statementFactory)
+    public void setupStatementFactory(final IStatementFactory statementFactory)
     {
-        _databaseConfig.setProperty(DatabaseConfig.PROPERTY_STATEMENT_FACTORY, statementFactory);
+        _databaseConfig.setProperty(DatabaseConfig.PROPERTY_STATEMENT_FACTORY,
+                statementFactory);
     }
 
-//    public void setupEscapePattern(String escapePattern)
-//    {
-//        _databaseConfig.setProperty(DatabaseConfig.PROPERTY_ESCAPE_PATTERN, escapePattern);
-//    }
-//
-    public void setExpectedCloseCalls(int callsCount)
+    // public void setupEscapePattern(String escapePattern)
+    // {
+    // _databaseConfig.setProperty(DatabaseConfig.PROPERTY_ESCAPE_PATTERN,
+    // escapePattern);
+    // }
+    //
+    public void setExpectedCloseCalls(final int callsCount)
     {
-        _closeCalls.setExpected(callsCount);
+        _expectedCloseCalls = callsCount;
     }
 
     ///////////////////////////////////////////////////////////////////////////
     // Verifiable interface
 
+    @Override
     public void verify()
     {
-        _closeCalls.verify();
+        if (!Objects.isNull(_expectedCloseCalls))
+        {
+            assertThat(_closeCalls).isEqualTo(_expectedCloseCalls);
+        }
+
     }
 
     ///////////////////////////////////////////////////////////////////////////
     // IDatabaseConnection interface
 
+    @Override
     public Connection getConnection() throws SQLException
     {
         return _connection;
     }
 
+    @Override
     public String getSchema()
     {
         return _schema;
     }
 
+    @Override
     public void close() throws SQLException
     {
-        _closeCalls.inc();
+        _closeCalls++;
     }
 
+    @Override
     public IDataSet createDataSet() throws SQLException
     {
         return _dataSet;
     }
 
-    public IDataSet createDataSet(String[] tableNames) throws SQLException, AmbiguousTableNameException
+    @Override
+    public IDataSet createDataSet(final String[] tableNames)
+            throws SQLException, AmbiguousTableNameException
     {
         return new FilteredDataSet(tableNames, createDataSet());
     }
 
-    public ITable createQueryTable(String resultName, String sql)
+    @Override
+    public ITable createQueryTable(final String resultName, final String sql)
             throws DataSetException, SQLException
     {
         throw new UnsupportedOperationException();
     }
 
-    public ITable createTable(String tableName,
-            PreparedStatement preparedStatement) throws DataSetException,
-            SQLException 
+    @Override
+    public ITable createTable(final String tableName,
+            final PreparedStatement preparedStatement)
+            throws DataSetException, SQLException
     {
         throw new UnsupportedOperationException();
     }
 
-    public ITable createTable(String tableName) throws DataSetException,
-            SQLException 
+    @Override
+    public ITable createTable(final String tableName)
+            throws DataSetException, SQLException
     {
         throw new UnsupportedOperationException();
     }
 
-    public int getRowCount(String tableName) throws SQLException
+    @Override
+    public int getRowCount(final String tableName) throws SQLException
     {
         throw new UnsupportedOperationException();
     }
 
-    public int getRowCount(String tableName, String whereClause) throws SQLException
+    @Override
+    public int getRowCount(final String tableName, final String whereClause)
+            throws SQLException
     {
         throw new UnsupportedOperationException();
     }
 
+    @Override
     public IStatementFactory getStatementFactory()
     {
-        return (IStatementFactory)_databaseConfig.getProperty(
-                DatabaseConfig.PROPERTY_STATEMENT_FACTORY);
+        return (IStatementFactory) _databaseConfig
+                .getProperty(DatabaseConfig.PROPERTY_STATEMENT_FACTORY);
     }
 
+    @Override
     public DatabaseConfig getConfig()
     {
         return _databaseConfig;
     }
 }
-
-
-
-
-

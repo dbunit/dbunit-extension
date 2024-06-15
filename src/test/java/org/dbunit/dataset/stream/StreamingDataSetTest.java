@@ -20,6 +20,8 @@
  */
 package org.dbunit.dataset.stream;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import java.io.FileReader;
 
 import org.dbunit.dataset.DataSetException;
@@ -27,6 +29,7 @@ import org.dbunit.dataset.ForwardOnlyDataSetTest;
 import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.xml.FlatXmlDataSetTest;
 import org.dbunit.dataset.xml.FlatXmlProducer;
+import org.junit.jupiter.api.Test;
 import org.xml.sax.InputSource;
 
 /**
@@ -35,58 +38,67 @@ import org.xml.sax.InputSource;
  * @version $Revision$ $Date$
  * @since 1.x (Apr 18, 2003)
  */
-public class StreamingDataSetTest extends ForwardOnlyDataSetTest
+class StreamingDataSetTest extends ForwardOnlyDataSetTest
 {
-    public StreamingDataSetTest(String s)
-    {
-        super(s);
-    }
 
+    @Override
     protected IDataSet createDataSet() throws Exception
     {
-        IDataSetProducer source = new FlatXmlProducer(
-                new InputSource(new FileReader(FlatXmlDataSetTest.DATASET_FILE)));
+        final IDataSetProducer source = new FlatXmlProducer(new InputSource(
+                new FileReader(FlatXmlDataSetTest.DATASET_FILE)));
         return new StreamingDataSet(source);
     }
 
+    @Override
     protected IDataSet createDuplicateDataSet() throws Exception
     {
         return new StreamingDataSet(
                 new DataSetProducerAdapter(super.createDuplicateDataSet()));
     }
-    
-    public void testReturnsOnException() throws Exception
+
+    @Test
+    void testReturnsOnException() throws Exception
     {
-    	RuntimeException exceptionToThrow = new IllegalArgumentException("For this test case we throw something that we normally would never do");
-    	ExceptionThrowingProducer source = new ExceptionThrowingProducer(exceptionToThrow);
-    	StreamingDataSet streamingDataSet = new StreamingDataSet(source);
-    	try {
-    		streamingDataSet.createIterator(false);
-    	}
-    	catch(DataSetException expected) {
-    		Throwable cause = expected.getCause();
-    		assertEquals(IllegalArgumentException.class, cause.getClass());
-    		assertEquals(exceptionToThrow, cause);
-    	}
+        final RuntimeException exceptionToThrow = new IllegalArgumentException(
+                "For this test case we throw something that we normally would never do");
+        final ExceptionThrowingProducer source =
+                new ExceptionThrowingProducer(exceptionToThrow);
+        final StreamingDataSet streamingDataSet = new StreamingDataSet(source);
+        try
+        {
+            streamingDataSet.createIterator(false);
+        } catch (final DataSetException expected)
+        {
+            final Throwable cause = expected.getCause();
+            assertThat(cause.getClass())
+                    .isEqualTo(IllegalArgumentException.class);
+            assertThat(cause).isEqualTo(exceptionToThrow);
+        }
     }
-    
+
     private static class ExceptionThrowingProducer implements IDataSetProducer
     {
-    	private RuntimeException exceptionToThrow;
-    	
-		public ExceptionThrowingProducer(RuntimeException exceptionToThrow) {
-			super();
-			this.exceptionToThrow = exceptionToThrow;
-		}
+        private RuntimeException exceptionToThrow;
 
-		public void produce() throws DataSetException {
-			throw exceptionToThrow;
-		}
+        public ExceptionThrowingProducer(
+                final RuntimeException exceptionToThrow)
+        {
+            super();
+            this.exceptionToThrow = exceptionToThrow;
+        }
 
-		public void setConsumer(IDataSetConsumer consumer)
-				throws DataSetException {
-			// Ignore for this test
-		}
-    	
+        @Override
+        public void produce() throws DataSetException
+        {
+            throw exceptionToThrow;
+        }
+
+        @Override
+        public void setConsumer(final IDataSetConsumer consumer)
+                throws DataSetException
+        {
+            // Ignore for this test
+        }
+
     }
 }

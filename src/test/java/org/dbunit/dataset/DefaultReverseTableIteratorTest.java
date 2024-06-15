@@ -20,8 +20,6 @@
  */
 package org.dbunit.dataset;
 
-
-
 /**
  * @author Manuel Laflamme
  * @since Apr 6, 2003
@@ -29,21 +27,20 @@ package org.dbunit.dataset;
  */
 public class DefaultReverseTableIteratorTest extends DefaultTableIteratorTest
 {
-    public DefaultReverseTableIteratorTest(String s)
-    {
-        super(s);
-    }
 
+    @Override
     protected String[] getExpectedNames() throws Exception
     {
         return DataSetUtils.reverseStringArray(super.getExpectedNames());
     }
 
+    @Override
     protected ITableIterator getIterator() throws Exception
     {
         return getIterator(true);
     }
 
+    @Override
     protected ITableIterator getEmptyIterator()
     {
         return new DefaultTableIterator(new ITable[0], true);

@@ -20,23 +20,26 @@
  */
 package org.dbunit;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import java.util.Properties;
 
-import junit.framework.TestCase;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author gommma
  * @version $Revision$
  * @since 2.3.0
  */
-public class DatabaseProfileTest extends TestCase 
+class DatabaseProfileTest
 {
 
-	public void testPropertyUnsupportedFeaturesIsMissing() throws Exception
-	{
-		Properties props = new Properties();
-		DatabaseProfile profile = new DatabaseProfile(props);
-		String[] unsupported = profile.getUnsupportedFeatures();
-		assertEquals(0, unsupported.length);
-	}
+    @Test
+    void testPropertyUnsupportedFeaturesIsMissing() throws Exception
+    {
+        final Properties props = new Properties();
+        final DatabaseProfile profile = new DatabaseProfile(props);
+        final String[] unsupported = profile.getUnsupportedFeatures();
+        assertThat(unsupported).hasSize(0);
+    }
 }

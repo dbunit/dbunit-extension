@@ -31,7 +31,7 @@ package org.dbunit.util.search;
  * @version $Revision$
  * @since Aug 25, 2005
  */
-public interface IEdge extends Comparable {
+public interface IEdge extends Comparable<Object> {
 
   /**
    * Get the node this edge originates from.

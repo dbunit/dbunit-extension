@@ -20,14 +20,14 @@
  */
 package org.dbunit.dataset;
 
+import java.io.File;
+
 import org.dbunit.dataset.stream.AbstractProducerTest;
 import org.dbunit.dataset.stream.DataSetProducerAdapter;
 import org.dbunit.dataset.stream.IDataSetProducer;
 import org.dbunit.dataset.xml.FlatXmlDataSet;
 import org.dbunit.dataset.xml.FlatXmlDataSetBuilder;
 import org.dbunit.testutil.TestUtils;
-
-import java.io.File;
 
 /**
  * @author Manuel Laflamme
@@ -39,14 +39,11 @@ public class DataSetProducerAdapterTest extends AbstractProducerTest
     private static final File DATASET_FILE =
             TestUtils.getFile("xml/flatXmlProducerTest.xml");
 
-    public DataSetProducerAdapterTest(String s)
-    {
-        super(s);
-    }
-
+    @Override
     protected IDataSetProducer createProducer() throws Exception
     {
-        FlatXmlDataSet dataSet = new FlatXmlDataSetBuilder().build(DATASET_FILE);
+        final FlatXmlDataSet dataSet =
+                new FlatXmlDataSetBuilder().build(DATASET_FILE);
         return new DataSetProducerAdapter(dataSet);
     }
 

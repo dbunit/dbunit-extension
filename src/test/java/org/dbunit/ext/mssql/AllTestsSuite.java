@@ -18,28 +18,20 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  */
-package org.dbunit.dataset.filter;
+package org.dbunit.ext.mssql;
 
-import junit.framework.Test;
-import junit.framework.TestSuite;
+import org.junit.platform.suite.api.SelectClasses;
+import org.junit.platform.suite.api.Suite;
 
 /**
  * @author Manuel Laflamme
- * @author Last changed by: $Author$
- * @version $Revision$ $Date$
- * @since 2.2.0
+ * @since Apr 11, 2003
+ * @version $Revision$
  */
-public class AllTests extends TestSuite
+@Suite
+@SelectClasses({InsertIdentityOperationIT.class, MsSqlDataTypeFactoryTest.class,
+        UniqueIdentifierTypeTest.class})
+public class AllTestsSuite
 {
-    public static Test suite()
-    {
-        TestSuite suite = new TestSuite();
-        suite.addTest(new TestSuite(ExcludeTableFilterTest.class));
-        suite.addTest(new TestSuite(IncludeTableFilterTest.class));
-        suite.addTest(new TestSuite(SequenceTableFilterTest.class));
-        suite.addTest(new TestSuite(SequenceTableIteratorTest.class));
-
-        return suite;
-    }
 
 }

@@ -21,16 +21,15 @@
 
 package org.dbunit.dataset.csv;
 
+import static org.assertj.core.api.Assertions.assertThat;
 
-import java.io.File;
 import java.net.MalformedURLException;
 import java.net.URL;
-
-import junit.framework.TestCase;
 
 import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.ITable;
 import org.dbunit.testutil.TestUtils;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author Lenny Marks (lenny@aps.org)
@@ -38,34 +37,31 @@ import org.dbunit.testutil.TestUtils;
  * @version $Revision$
  * @since 2.1.0
  */
-public class CsvURLDataSetTest extends TestCase {
-    
-    public CsvURLDataSetTest(String s) {
-        super(s);
+class CsvURLDataSetTest
+{
+
+    @Test
+    void testNullColumns() throws DataSetException, MalformedURLException
+    {
+        final URL csvDir = TestUtils.getFile("csv/orders/").toURL();
+        final CsvURLDataSet dataSet = new CsvURLDataSet(csvDir);
+
+        final ITable table = dataSet.getTable("orders");
+        assertThat(table.getValue(4, "description")).isNull();
     }
 
-    public void testNullColumns() throws DataSetException, MalformedURLException {
-		URL csvDir = TestUtils.getFile("csv/orders/").toURL();
-    	CsvURLDataSet dataSet = new CsvURLDataSet(csvDir);
-    	
-    	ITable table = dataSet.getTable("orders");
-    	assertNull(table.getValue(4, "description"));
-    }
+    @Test
+    void testSpacesInColumns() throws DataSetException, MalformedURLException
+    {
+        final URL csvDir = TestUtils.getFile("csv/accounts/").toURL();
+        final CsvURLDataSet dataSet = new CsvURLDataSet(csvDir);
 
-    public void testSpacesInColumns() throws DataSetException, MalformedURLException {
-		URL csvDir = TestUtils.getFile("csv/accounts/").toURL();
-    	CsvURLDataSet dataSet = new CsvURLDataSet(csvDir);
-    	
-    	ITable table = dataSet.getTable("accounts");
-    	assertEquals("   123", table.getValue(0, "acctid"));
-    	assertEquals("  2", table.getValue(1, "acctid"));
-    	assertEquals("   3spaces", table.getValue(2, "acctid"));
-    	assertEquals("    -4", table.getValue(3, "acctid"));
-    	assertEquals("     5     ", table.getValue(4, "acctid"));
+        final ITable table = dataSet.getTable("accounts");
+        assertThat(table.getValue(0, "acctid")).isEqualTo("   123");
+        assertThat(table.getValue(1, "acctid")).isEqualTo("  2");
+        assertThat(table.getValue(2, "acctid")).isEqualTo("   3spaces");
+        assertThat(table.getValue(3, "acctid")).isEqualTo("    -4");
+        assertThat(table.getValue(4, "acctid")).isEqualTo("     5     ");
     }
 
 }
-
-
-
-

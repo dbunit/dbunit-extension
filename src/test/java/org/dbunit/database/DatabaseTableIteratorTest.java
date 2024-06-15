@@ -20,30 +20,29 @@
  */
 package org.dbunit.database;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import org.dbunit.dataset.AbstractTableIteratorTest;
 import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.ITableIterator;
 import org.dbunit.dataset.MockDataSet;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author Manuel Laflamme
  * @since Apr 6, 2003
  * @version $Revision$
  */
-public class DatabaseTableIteratorTest extends AbstractTableIteratorTest
+class DatabaseTableIteratorTest extends AbstractTableIteratorTest
 {
-    public DatabaseTableIteratorTest(String s)
-    {
-        super(s);
-    }
 
-    private MockDataSet createMockDataSet(String[] expectedNames)
+    private MockDataSet createMockDataSet(final String[] expectedNames)
     {
-        MockDataSet dataSet = new MockDataSet();
+        final MockDataSet dataSet = new MockDataSet();
         for (int i = 0; i < expectedNames.length; i++)
         {
-            String tableName = expectedNames[i];
-            MockResultSetTable table = new MockResultSetTable();
+            final String tableName = expectedNames[i];
+            final MockResultSetTable table = new MockResultSetTable();
             table.setupTableMetaData(tableName);
             table.setExpectedCloseCalls(1);
             dataSet.addTable(table);
@@ -51,35 +50,38 @@ public class DatabaseTableIteratorTest extends AbstractTableIteratorTest
         return dataSet;
     }
 
+    @Override
     protected ITableIterator getIterator() throws Exception
     {
-        String[] expectedNames = getExpectedNames();
-        MockDataSet dataSet = createMockDataSet(expectedNames);
+        final String[] expectedNames = getExpectedNames();
+        final MockDataSet dataSet = createMockDataSet(expectedNames);
 
         return new DatabaseTableIterator(expectedNames, dataSet);
     }
 
+    @Override
     protected ITableIterator getEmptyIterator() throws Exception
     {
         return new DatabaseTableIterator(new String[0], new MockDataSet());
     }
 
-    public void testGetTableClose() throws Exception
+    @Test
+    void testGetTableClose() throws Exception
     {
         int i = 0;
-        String[] expectedNames = getExpectedNames();
-        MockDataSet dataSet = createMockDataSet(expectedNames);
+        final String[] expectedNames = getExpectedNames();
+        final MockDataSet dataSet = createMockDataSet(expectedNames);
 
-        ITableIterator iterator = new DatabaseTableIterator(expectedNames, dataSet);
-        while(iterator.next())
+        final ITableIterator iterator =
+                new DatabaseTableIterator(expectedNames, dataSet);
+        while (iterator.next())
         {
-            ITable table = iterator.getTable();
-            assertEquals("name " + i, expectedNames[i],
-                    table.getTableMetaData().getTableName());
+            final ITable table = iterator.getTable();
+            assertThat(table.getTableMetaData().getTableName()).as("name " + i)
+                    .isEqualTo(expectedNames[i]);
             i++;
         }
-
-        assertEquals("count", expectedNames.length, i);
+        assertThat(i).as("count").isEqualTo(expectedNames.length);
         dataSet.verify();
     }
 }

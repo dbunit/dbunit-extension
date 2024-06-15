@@ -18,119 +18,119 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  */
-
 package org.dbunit.dataset.datatype;
 
-import org.dbunit.database.ExtendedMockSingleRowResultSet;
-import org.dbunit.dataset.ITable;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.lenient;
 
-import java.sql.Types;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Types;
+
+import org.dbunit.dataset.ITable;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 /**
  * @author Manuel Laflamme
  * @version $Revision$
  */
-
+@ExtendWith(MockitoExtension.class)
 public class StringDataTypeTest extends AbstractDataTypeTest
 {
-    private final static DataType[] TYPES = {
-        DataType.CHAR,
-        DataType.VARCHAR,
-        DataType.LONGVARCHAR,
-//        DataType.CLOB,
-    };
+    @Mock
+    private ResultSet mockedResultSet;
 
-    public StringDataTypeTest(String name)
-    {
-        super(name);
-    }
+    private final static DataType[] TYPES =
+            {DataType.CHAR, DataType.VARCHAR, DataType.LONGVARCHAR,
+            // DataType.CLOB,
+            };
 
+    @Override
+    @Test
     public void testToString() throws Exception
     {
-        String[] expected = {
-            "CHAR",
-            "VARCHAR",
-            "LONGVARCHAR",
-//            "CLOB",
+        final String[] expected = {"CHAR", "VARCHAR", "LONGVARCHAR",
+                // "CLOB",
         };
 
-        assertEquals("type count", expected.length, TYPES.length);
+        assertThat(TYPES).as("type count").hasSameSizeAs(expected);
         for (int i = 0; i < TYPES.length; i++)
         {
-            assertEquals("name", expected[i], TYPES[i].toString());
+            assertThat(TYPES[i].toString()).as("name").isEqualTo(expected[i]);
         }
     }
 
+    @Override
+    @Test
     public void testGetTypeClass() throws Exception
     {
         for (int i = 0; i < TYPES.length; i++)
         {
-            assertEquals("class", String.class, TYPES[i].getTypeClass());
+            assertThat(TYPES[i].getTypeClass()).as("class")
+                    .isEqualTo(String.class);
         }
     }
 
+    @Override
+    @Test
     public void testIsNumber() throws Exception
     {
         for (int i = 0; i < TYPES.length; i++)
         {
-            assertEquals("is number", false, TYPES[i].isNumber());
+            assertThat(TYPES[i].isNumber()).as("is number").isFalse();
         }
     }
 
+    @Override
+    @Test
     public void testIsDateTime() throws Exception
     {
         for (int i = 0; i < TYPES.length; i++)
         {
-            assertEquals("is date/time", false, TYPES[i].isDateTime());
+            assertThat(TYPES[i].isDateTime()).as("is date/time").isFalse();
         }
     }
 
+    @Override
+    @Test
     public void testTypeCast() throws Exception
     {
-        Object[] values = {
-            null,
-            "bla",
-            new java.sql.Date(1234),
-            new java.sql.Time(1234),
-            new java.sql.Timestamp(1234),
-            Boolean.TRUE,
-            new Integer(1234),
-            new Long(1234),
-            new Double(12.34),
-            new byte[]{'a', 'b', 'c', 'd'},
-        };
-        String[] expected = {
-            null,
-            "bla",
-            new java.sql.Date(1234).toString(),
-            new java.sql.Time(1234).toString(),
-            new java.sql.Timestamp(1234).toString(),
-            "true",
-            "1234",
-            "1234",
-            "12.34",
-            "YWJjZA==",
-        };
+        final Object[] values = {null, "bla", new java.sql.Date(1234),
+                new java.sql.Time(1234), new java.sql.Timestamp(1234),
+                Boolean.TRUE, Integer.valueOf(1234), Long.valueOf(1234),
+                Double.valueOf(12.34), new byte[] {'a', 'b', 'c', 'd'},};
+        final String[] expected =
+                {null, "bla", new java.sql.Date(1234).toString(),
+                        new java.sql.Time(1234).toString(),
+                        new java.sql.Timestamp(1234).toString(), "true", "1234",
+                        "1234", "12.34", "YWJjZA==",};
 
-        assertEquals("actual vs expected count", values.length, expected.length);
+        assertThat(expected).as("actual vs expected count")
+                .hasSameSizeAs(values);
 
         for (int i = 0; i < TYPES.length; i++)
         {
             for (int j = 0; j < values.length; j++)
             {
-                assertEquals("typecast " + j, expected[j],
-                        TYPES[i].typeCast(values[j]));
+                assertThat(TYPES[i].typeCast(values[j])).as("typecast " + j)
+                        .isEqualTo(expected[j]);
             }
         }
     }
 
+    @Override
+    @Test
     public void testTypeCastNone() throws Exception
     {
         for (int i = 0; i < TYPES.length; i++)
         {
-            DataType type = TYPES[i];
-            assertEquals("typecast " + type, null, type.typeCast(ITable.NO_VALUE));
+            final DataType type = TYPES[i];
+            assertThat(type.typeCast(ITable.NO_VALUE)).as("typecast " + type)
+                    .isNull();
         }
     }
 
@@ -141,222 +141,216 @@ public class StringDataTypeTest extends AbstractDataTypeTest
     {
         // need to use proxy / reflection to work arround Clob differences
         // in jdk 1.4+
-        java.lang.reflect.InvocationHandler alwaysThrowSqlExceptionHandler =
-            new java.lang.reflect.InvocationHandler()
-        {
-            public Object invoke(Object proxy, java.lang.reflect.Method method, Object[] args)
-                throws Throwable
-            {
-                if ("toString".equals(method.getName()))
+        final java.lang.reflect.InvocationHandler alwaysThrowSqlExceptionHandler =
+                new java.lang.reflect.InvocationHandler()
                 {
-                    return this.toString();
-                }
-                else if ("equals".equals(method.getName()))
-                {
-                    return Boolean.FALSE;
-                }
-                throw new SQLException();
-            }
-        };
+                    @Override
+                    public Object invoke(final Object proxy,
+                            final java.lang.reflect.Method method,
+                            final Object[] args) throws Throwable
+                    {
+                        if ("toString".equals(method.getName()))
+                        {
+                            return this.toString();
+                        } else if ("equals".equals(method.getName()))
+                        {
+                            return Boolean.FALSE;
+                        }
+                        throw new SQLException();
+                    }
+                };
 
         return java.lang.reflect.Proxy.newProxyInstance(
-            java.sql.Clob.class.getClassLoader(), new Class[] { java.sql.Clob.class },
-            alwaysThrowSqlExceptionHandler);
+                java.sql.Clob.class.getClassLoader(),
+                new Class[] {java.sql.Clob.class},
+                alwaysThrowSqlExceptionHandler);
     }
 
+    @Override
+    @Test
     public void testTypeCastInvalid() throws Exception
     {
-        Object[] values = {
-            new Object() { public String toString() { return "ABC123";} },
-            new Object() { public String toString() { return "XXXX";} },
-            new Object() { public String toString() { return "X";} },
-        };
+        final Object[] values = {new Object()
+        {
+            @Override
+            public String toString()
+            {
+                return "ABC123";
+            }
+        }, new Object()
+        {
+            @Override
+            public String toString()
+            {
+                return "XXXX";
+            }
+        }, new Object()
+        {
+            @Override
+            public String toString()
+            {
+                return "X";
+            }
+        },};
 
         for (int i = 0; i < TYPES.length; i++)
         {
             for (int j = 0; j < values.length; j++)
             {
-                assertEquals(TYPES[i].typeCast(values[j]), values[j].toString());
+                assertThat(values[j].toString())
+                        .isEqualTo(TYPES[i].typeCast(values[j]));
             }
         }
 
-        Object badClob = getBadClob();
+        final Object badClob = getBadClob();
         for (int i = 0; i < TYPES.length; i++)
         {
-            try
-            {
-                TYPES[i].typeCast(badClob);
-                fail("Should throw TypeCastException");
-            }
-            catch (TypeCastException e)
-            {
-            }
+            final int id = i;
+            assertThrows(TypeCastException.class,
+                    () -> TYPES[id].typeCast(badClob),
+                    "Should throw TypeCastException");
         }
     }
 
+    @Override
+    @Test
     public void testCompareEquals() throws Exception
     {
-        Object[] values1 = {
-            null,
-            "bla",
-            new java.sql.Date(1234),
-            new java.sql.Time(1234),
-            new java.sql.Timestamp(1234),
-            Boolean.TRUE,
-            new Integer(1234),
-            new Long(1234),
-            new Double(12.34),
-            new byte[]{'a', 'b', 'c', 'd'},
-        };
-        String[] values2 = {
-            null,
-            "bla",
-            new java.sql.Date(1234).toString(),
-            new java.sql.Time(1234).toString(),
-            new java.sql.Timestamp(1234).toString(),
-            "true",
-            "1234",
-            "1234",
-            "12.34",
-            "YWJjZA==",
-        };
+        final Object[] values1 = {null, "bla", new java.sql.Date(1234),
+                new java.sql.Time(1234), new java.sql.Timestamp(1234),
+                Boolean.TRUE, Integer.valueOf(1234), Long.valueOf(1234),
+                Double.valueOf(12.34), new byte[] {'a', 'b', 'c', 'd'},};
+        final String[] values2 =
+                {null, "bla", new java.sql.Date(1234).toString(),
+                        new java.sql.Time(1234).toString(),
+                        new java.sql.Timestamp(1234).toString(), "true", "1234",
+                        "1234", "12.34", "YWJjZA==",};
 
-        assertEquals("values count", values1.length, values2.length);
+        assertThat(values2).as("values count").hasSameSizeAs(values1);
 
         for (int i = 0; i < TYPES.length; i++)
         {
             for (int j = 0; j < values1.length; j++)
             {
-                assertEquals("compare1 " + j, 0, TYPES[i].compare(values1[j], values2[j]));
-                assertEquals("compare2 " + j, 0, TYPES[i].compare(values2[j], values1[j]));
+                assertThat(TYPES[i].compare(values1[j], values2[j]))
+                        .as("compare1 " + j).isZero();
+                assertThat(TYPES[i].compare(values2[j], values1[j]))
+                        .as("compare2 " + j).isZero();
             }
         }
     }
 
+    @Override
+    @Test
     public void testCompareInvalid() throws Exception
     {
-        Object[] values1 = {
-            getBadClob(),
-        };
-        Object[] values2 = {
-            null,
-        };
+        final Object[] values1 = {getBadClob(),};
+        final Object[] values2 = {null,};
 
-        assertEquals("values count", values1.length, values2.length);
+        assertThat(values2).as("values count").hasSameSizeAs(values1);
 
         for (int i = 0; i < TYPES.length; i++)
         {
             for (int j = 0; j < values1.length; j++)
             {
-                try
-                {
-                    TYPES[i].compare(values1[j], values2[j]);
-                    fail("Should throw TypeCastException");
-                }
-                catch (TypeCastException e)
-                {
-                }
+                final int id = i;
+                final int jd = j;
+                assertThrows(TypeCastException.class,
+                        () -> TYPES[id].compare(values1[jd], values2[jd]),
+                        "Should throw TypeCastException");
 
-                try
-                {
-                    TYPES[i].compare(values2[j], values1[j]);
-                    fail("Should throw TypeCastException");
-                }
-                catch (TypeCastException e)
-                {
-                }
+                assertThrows(TypeCastException.class,
+                        () -> TYPES[id].compare(values2[jd], values1[jd]),
+                        "Should throw TypeCastException");
             }
         }
     }
 
+    @Override
+    @Test
     public void testCompareDifferent() throws Exception
     {
-        Object[] less = {
-            null,
-            "",
-            "abcd",
-            "123",
-        };
+        final Object[] less = {null, "", "abcd", "123",};
 
-        Object[] greater = {
-            "bla",
-            "bla",
-            "efgh",
-            "1234",
-        };
+        final Object[] greater = {"bla", "bla", "efgh", "1234",};
 
-        assertEquals("values count", less.length, greater.length);
+        assertThat(greater).as("values count").hasSameSizeAs(less);
 
         for (int i = 0; i < TYPES.length; i++)
         {
             for (int j = 0; j < less.length; j++)
             {
-                assertTrue("less " + j, TYPES[i].compare(less[j], greater[j]) < 0);
-                assertTrue("greater " + j, TYPES[i].compare(greater[j], less[j]) > 0);
+                assertThat(TYPES[i].compare(less[j], greater[j]))
+                        .as("less " + j).isNegative();
+                assertThat(TYPES[i].compare(greater[j], less[j]))
+                        .as("greater " + j).isPositive();
             }
         }
     }
 
+    @Override
+    @Test
     public void testSqlType() throws Exception
     {
-        int[] sqlTypes = {
-            Types.CHAR,
-            Types.VARCHAR,
-            Types.LONGVARCHAR,
-//            Types.CLOB,
+        final int[] sqlTypes = {Types.CHAR, Types.VARCHAR, Types.LONGVARCHAR,
+                // Types.CLOB,
         };
 
-        assertEquals("count", sqlTypes.length, TYPES.length);
+        assertThat(TYPES).as("count").hasSameSizeAs(sqlTypes);
         for (int i = 0; i < TYPES.length; i++)
         {
-            assertEquals("forSqlType", TYPES[i], DataType.forSqlType(sqlTypes[i]));
-            assertEquals("forSqlTypeName", TYPES[i], DataType.forSqlTypeName(TYPES[i].toString()));
-            assertEquals("getSqlType", sqlTypes[i], TYPES[i].getSqlType());
+            assertThat(DataType.forSqlType(sqlTypes[i])).as("forSqlType")
+                    .isEqualTo(TYPES[i]);
+            assertThat(DataType.forSqlTypeName(TYPES[i].toString()))
+                    .as("forSqlTypeName").isEqualTo(TYPES[i]);
+            assertThat(TYPES[i].getSqlType()).as("getSqlType")
+                    .isEqualTo(sqlTypes[i]);
         }
     }
 
+    @Override
+    @Test
     public void testForObject() throws Exception
     {
-        assertEquals(DataType.VARCHAR, DataType.forObject(""));
+        assertThat(DataType.forObject("")).isEqualTo(DataType.VARCHAR);
     }
 
+    @Override
+    @Test
     public void testAsString() throws Exception
     {
-        Object[] values = {
-            new String("1234"),
-        };
+        final Object[] values = {new String("1234"),};
 
-        String[] expected = {
-            "1234",
-        };
+        final String[] expected = {"1234",};
 
-        assertEquals("actual vs expected count", values.length, expected.length);
+        assertThat(expected).as("actual vs expected count")
+                .hasSameSizeAs(values);
 
         for (int i = 0; i < values.length; i++)
         {
-            assertEquals("asString " + i, expected[i], DataType.asString(values[i]));
+            assertThat(DataType.asString(values[i])).as("asString " + i)
+                    .isEqualTo(expected[i]);
         }
     }
 
+    @Override
+    @Test
     public void testGetSqlValue() throws Exception
     {
-        String[] expected = {
-            null,
-            "bla",
-        };
+        final String[] expected = {null, "bla",};
 
-        ExtendedMockSingleRowResultSet resultSet = new ExtendedMockSingleRowResultSet();
-        resultSet.addExpectedIndexedValues(expected);
-
+        lenient().when(mockedResultSet.getString(2)).thenReturn(expected[1]);
         for (int i = 0; i < expected.length; i++)
         {
-            Object expectedValue = expected[i];
+            final Object expectedValue = expected[i];
 
             for (int j = 0; j < TYPES.length; j++)
             {
-                DataType dataType = TYPES[j];
-                Object actualValue = dataType.getSqlValue(i + 1, resultSet);
-                assertEquals("value " + j, expectedValue, actualValue);
+                final DataType dataType = TYPES[j];
+                final Object actualValue =
+                        dataType.getSqlValue(i + 1, mockedResultSet);
+                assertThat(actualValue).as("value " + j)
+                        .isEqualTo(expectedValue);
             }
         }
     }

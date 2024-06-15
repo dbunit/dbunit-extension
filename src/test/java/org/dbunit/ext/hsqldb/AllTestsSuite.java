@@ -18,29 +18,17 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  */
+package org.dbunit.ext.hsqldb;
 
-package org.dbunit.dataset.stream;
-
-import junit.framework.Test;
-import junit.framework.TestSuite;
+import org.junit.platform.suite.api.SelectClasses;
+import org.junit.platform.suite.api.Suite;
 
 /**
- * @author Manuel Laflamme
- * @version $Revision$
+ * @author Klas Axell
  */
-public class AllTests extends TestSuite
+@Suite
+@SelectClasses({HsqldbDataTypeFactoryTest.class})
+public class AllTestsSuite
 {
-    public static Test suite()
-    {
-        TestSuite suite = new TestSuite();
-        suite.addTest(new TestSuite(BufferedConsumerTest.class));
-        suite.addTest(new TestSuite(StreamingDataSetTest.class));
-        suite.addTest(new TestSuite(StreamingTableTest.class));
-        return suite;
-    }
+
 }
-
-
-
-
-

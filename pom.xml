@@ -5,13 +5,13 @@
   <parent>
     <groupId>org.sonatype.oss</groupId>
     <artifactId>oss-parent</artifactId>
-    <version>7</version>
+    <version>9</version>
     <relativePath />
   </parent>
 
   <groupId>org.dbunit</groupId>
   <artifactId>dbunit</artifactId>
-  <version>2.8.1-SNAPSHOT</version>
+  <version>3.0.0-SNAPSHOT</version>
   <packaging>jar</packaging>
   <name>dbUnit Extension</name>
   <url>http://dbunit.sourceforge.net</url>
@@ -38,7 +38,7 @@
     <compileSource>1.8</compileSource>
     <checkstyle.excludes>org/dbunit/util/concurrent/*.java</checkstyle.excludes>
     <mavenVersion>3.0.4</mavenVersion>
-
+    <test.timezone>Europe/Berlin</test.timezone>
     <!-- Maven plugin versions -->
     <assemblyPluginVersion>3.1.0</assemblyPluginVersion>
     <changelogPluginVersion>2.3</changelogPluginVersion>
@@ -48,7 +48,7 @@
     <compilerPluginVersion>3.7.0</compilerPluginVersion>
     <deployPluginVersion>2.8.2</deployPluginVersion>
     <enforcerPluginVersion>1.4.1</enforcerPluginVersion>
-    <failsafePluginVersion>2.21.0</failsafePluginVersion>
+    <failsafePluginVersion>3.2.5</failsafePluginVersion>
     <gpgPluginVersion>1.6</gpgPluginVersion>
     <installPluginVersion>2.5.2</installPluginVersion>
     <jacocoPluginVersion>0.8.3</jacocoPluginVersion>
@@ -57,28 +57,28 @@
     <javadocPluginVersion>3.0.0</javadocPluginVersion>
     <jdependPluginVersion>2.0</jdependPluginVersion>
     <jxrPluginVersion>2.5</jxrPluginVersion>
-    <modernizer-maven-plugin>2.0.0</modernizer-maven-plugin>
+    <modernizer-maven-plugin>2.7.0</modernizer-maven-plugin>
     <pmdPluginVersion>3.8</pmdPluginVersion>
     <projectInfoReportsPluginVersion>2.9</projectInfoReportsPluginVersion>
-    <propertiesPluginVersion>1.0.0</propertiesPluginVersion>
+    <propertiesPluginVersion>1.2.1</propertiesPluginVersion>
     <releasePluginVersion>2.5.3</releasePluginVersion>
     <resourcesPluginVersion>3.0.2</resourcesPluginVersion>
     <sitePluginVersion>3.12.1</sitePluginVersion>
     <sourcePluginVersion>3.0.1</sourcePluginVersion>
-    <surefirePluginVersion>2.21.0</surefirePluginVersion>
+    <surefirePluginVersion>3.2.5</surefirePluginVersion>
     <versionsMavenPluginVersion>2.8.1</versionsMavenPluginVersion>
 
     <!-- Framework versions -->
-    <antTestUtilVersion>1.7.0</antTestUtilVersion>
-    <antVersion>1.6.5</antVersion>
+    <antTestUtilVersion>1.10.12</antTestUtilVersion>
+    <antVersion>1.10.12</antVersion>
+    <assertj.version>3.25.1</assertj.version>
     <gsbaseVersion>2.0.1</gsbaseVersion>
-    <hamcrestVersion>1.3</hamcrestVersion>
     <junitAddonsVersion>1.4</junitAddonsVersion>
-    <junitVersion>4.12</junitVersion>
+    <junitPlatformSuiteEngine.version>1.10.1</junitPlatformSuiteEngine.version>
+    <junitVersion>5.10.1</junitVersion>
     <logbackVersion>1.2.3</logbackVersion>
-    <mmmockobjectsVersion>1.12.0</mmmockobjectsVersion>
-    <mockObjectsVersion>0.09</mockObjectsVersion>
-    <poiVersion>4.1.0</poiVersion>
+    <mockito.version>4.11.0</mockito.version>
+    <poiVersion>5.2.5</poiVersion>
     <slf4jVersion>1.7.25</slf4jVersion>
     <snakeYamlVersion>2.2</snakeYamlVersion>
     <xmlParserAPIsVersion>2.6.2</xmlParserAPIsVersion>
@@ -99,8 +99,8 @@
     <!-- Oracle JDBC Driver compatible with JDK10 and JDK11 -->
     <oracleJ10v19DriverVersion>19.3.0.0</oracleJ10v19DriverVersion>
     <oracleXdbVersion>19.3.0.0</oracleXdbVersion>
-    <postgresqlDriverVersion>42.3.1</postgresqlDriverVersion>
-    <postgisDriverVersion>2021.1.0</postgisDriverVersion>
+    <postgresqlDriverVersion>42.7.3</postgresqlDriverVersion>
+    <postgisDriverVersion>2023.1.0</postgisDriverVersion>
     <sqlServer41DriverVersion>7.2.1.jre8</sqlServer41DriverVersion>
 
     <!-- Other versions -->
@@ -337,18 +337,21 @@
         <groupId>com.oracle.database.jdbc</groupId>
         <artifactId>ojdbc6</artifactId>
         <version>${oracleJ6DriverVersion}</version>
+        <scope>provided</scope>
         <optional>true</optional>
       </dependency>
       <dependency>
         <groupId>com.oracle.database.jdbc</groupId>
         <artifactId>ojdbc8</artifactId>
         <version>${oracleJ8v19DriverVersion}</version>
+        <scope>provided</scope>
         <optional>true</optional>
       </dependency>
       <dependency>
         <groupId>com.oracle.database.jdbc</groupId>
         <artifactId>ojdbc10</artifactId>
         <version>${oracleJ10v19DriverVersion}</version>
+        <scope>provided</scope>
         <optional>true</optional>
       </dependency>
       <dependency>
@@ -409,25 +412,41 @@
     </dependency>
 
     <dependency>
-      <groupId>junit</groupId>
-      <artifactId>junit</artifactId>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
       <version>${junitVersion}</version>
       <optional>true</optional>
     </dependency>
     <dependency>
-      <groupId>org.hamcrest</groupId>
-      <artifactId>hamcrest-library</artifactId>
-      <version>${hamcrestVersion}</version>
+      <groupId>org.junit.vintage</groupId>
+      <artifactId>junit-vintage-engine</artifactId>
+      <version>${junitVersion}</version>
+      <scope>test</scope>
+</dependency>
+    <dependency>
+      <groupId>org.junit.platform</groupId>
+      <artifactId>junit-platform-suite-engine</artifactId>
+      <version>${junitPlatformSuiteEngine.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.assertj</groupId>
+      <artifactId>assertj-core</artifactId>
+      <version>${assertj.version}</version>
       <scope>test</scope>
       <optional>true</optional>
     </dependency>
     <dependency>
-      <groupId>ant</groupId>
+      <groupId>org.apache.ant</groupId>
       <artifactId>ant</artifactId>
       <version>${antVersion}</version>
       <optional>true</optional>
     </dependency>
-
+    <dependency>
+      <groupId>org.apache.ant</groupId>
+      <artifactId>ant-junitlauncher</artifactId>
+      <version>${antVersion}</version>
+      <scope>test</scope>
+	</dependency>
     <dependency>
       <groupId>org.apache.poi</groupId>
       <artifactId>poi</artifactId>
@@ -459,46 +478,21 @@
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>junit-addons</groupId>
-      <artifactId>junit-addons</artifactId>
-      <version>${junitAddonsVersion}</version>
-      <scope>test</scope>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-core</artifactId>
+      <version>${mockito.version}</version>
+	  <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>mockobjects</groupId>
-      <artifactId>mockobjects-core</artifactId>
-      <version>${mockObjectsVersion}</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>mockmaker</groupId>
-      <artifactId>mmmockobjects</artifactId>
-      <version>${mmmockobjectsVersion}</version>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-junit-jupiter</artifactId>
+      <version>${mockito.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.yaml</groupId>
       <artifactId>snakeyaml</artifactId>
       <version>${snakeYamlVersion}</version>
-    </dependency>
-    <!-- TODO: check why follow dependency is necessary -->
-    <dependency>
-      <groupId>mockobjects</groupId>
-      <artifactId>mockobjects-jdk1.3</artifactId>
-      <version>${mockObjectsVersion}</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>gsbase</groupId>
-      <artifactId>gsbase</artifactId>
-      <version>${gsbaseVersion}</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>xerces</groupId>
-      <artifactId>xmlParserAPIs</artifactId>
-      <version>${xmlParserAPIsVersion}</version>
-      <scope>test</scope>
     </dependency>
 
     <!-- databases -->
@@ -810,6 +804,7 @@ enable this to generate coverage report HTML files during build (same as site)
           <artifactId>maven-surefire-plugin</artifactId>
           <version>${surefirePluginVersion}</version>
           <configuration>
+            <argLine>-Duser.timezone=${test.timezone}</argLine>
             <redirectTestOutputToFile>true</redirectTestOutputToFile>
             <excludes>
               <exclude>**/Abstract*.java</exclude>
@@ -891,8 +886,7 @@ enable this to generate coverage report HTML files during build (same as site)
       </plugin>
     </plugins>
   </build>
-
-  <reporting>
+    <reporting>
     <plugins>
       <plugin>
         <groupId>org.jacoco</groupId>

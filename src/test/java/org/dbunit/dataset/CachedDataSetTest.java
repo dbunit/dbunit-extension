@@ -20,11 +20,14 @@
  */
 package org.dbunit.dataset;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.fail;
+
 import java.io.FileReader;
 
 import org.dbunit.dataset.xml.FlatXmlDataSetTest;
 import org.dbunit.dataset.xml.FlatXmlProducer;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.xml.sax.InputSource;
 
 /**
@@ -33,19 +36,18 @@ import org.xml.sax.InputSource;
  * @version $Revision$ $Date$
  * @since 1.x (Apr 18, 2003)
  */
-public class CachedDataSetTest extends AbstractDataSetDecoratorTest
+class CachedDataSetTest extends AbstractDataSetDecoratorTest
 {
-    public CachedDataSetTest(String s)
-    {
-        super(s);
-    }
 
+    @Override
     protected IDataSet createDataSet() throws Exception
     {
-        FileReader reader = new FileReader(FlatXmlDataSetTest.DATASET_FILE);
+        final FileReader reader =
+                new FileReader(FlatXmlDataSetTest.DATASET_FILE);
         return new CachedDataSet(new FlatXmlProducer(new InputSource(reader)));
     }
 
+    @Override
     public void testGetTable() throws Exception
     {
         super.testGetTable();
@@ -58,7 +60,7 @@ public class CachedDataSetTest extends AbstractDataSetDecoratorTest
      * test this constructor.
      */
     @Test
-    public void testCachedDataSetDataSetConstructor() throws Exception
+    void testCachedDataSetDataSetConstructor() throws Exception
     {
         final IDataSet cachedDataSetCreatedByProducer = createDataSet();
 
@@ -81,8 +83,8 @@ public class CachedDataSetTest extends AbstractDataSetDecoratorTest
                     iterator.getTable().getTableMetaData().getTableName();
             try
             {
-                assertNotNull(cachedDataSetCreatedByDataSetConstructor
-                        .getTable(tableNameFromProducer));
+                assertThat(cachedDataSetCreatedByDataSetConstructor
+                        .getTable(tableNameFromProducer)).isNotNull();
             } catch (final Exception exception)
             {
                 fail("Table " + tableNameFromProducer + " was not cached.");

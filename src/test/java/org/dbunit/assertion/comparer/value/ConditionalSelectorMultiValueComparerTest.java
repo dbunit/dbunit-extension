@@ -1,9 +1,7 @@
 package org.dbunit.assertion.comparer.value;
 
-import static org.hamcrest.Matchers.not;
-import static org.hamcrest.Matchers.nullValue;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -11,10 +9,10 @@ import java.util.Map;
 import org.dbunit.DatabaseUnitException;
 import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.datatype.DataType;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
-public class ConditionalSelectorMultiValueComparerTest
+class ConditionalSelectorMultiValueComparerTest
 {
     private static final Long VALUE_COMPARER_KEY = 1L;
 
@@ -27,15 +25,15 @@ public class ConditionalSelectorMultiValueComparerTest
             new HashMap<>();
     private final Map<Object, ValueComparer> valueComparers1 = new HashMap<>();
 
-    @Before
+    @BeforeEach
     public void setupValueComparerMap()
     {
         valueComparers1.put(VALUE_COMPARER_KEY,
                 ValueComparers.isActualEqualToExpected);
     }
 
-    @Test(expected = IllegalStateException.class)
-    public void testDoCompare_NoValueComparers_IllegalState()
+    @Test
+    void testDoCompare_NoValueComparers_IllegalState()
             throws DatabaseUnitException
     {
         final Map<Object, ValueComparer> valueComparers = valueComparersEmpty;
@@ -52,14 +50,14 @@ public class ConditionalSelectorMultiValueComparerTest
         final DataType dataType = DataType.BIGINT;
         final Object expectedValue = null;
         final Object actualValue = null;
-        sut.doCompare(expectedTable, actualTable, rowNum, columnName, dataType,
-                expectedValue, actualValue);
-        fail("Expected exception for no ValueComparers found in map.");
+        assertThatThrownBy(() -> sut.doCompare(expectedTable, actualTable,
+                rowNum, columnName, dataType, expectedValue, actualValue)).as(
+                        "Expected exception for no ValueComparers found in map.")
+                        .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
-    public void testDoCompare_AllNull_NoFailMessage()
-            throws DatabaseUnitException
+    void testDoCompare_AllNull_NoFailMessage() throws DatabaseUnitException
     {
         final Map<Object, ValueComparer> valueComparers = valueComparers1;
         final ValueComparerSelector valueComparerSelector =
@@ -78,12 +76,12 @@ public class ConditionalSelectorMultiValueComparerTest
         final String actual = sut.doCompare(expectedTable, actualTable, rowNum,
                 columnName, dataType, expectedValue, actualValue);
 
-        assertThat("Actual and expected both null,"
-                + " should have no fail message.", actual, nullValue());
+        assertThat(actual).as("Actual and expected both null,"
+                + " should have no fail message.").isNull();
     }
 
     @Test
-    public void testDoCompare_ActualAndExpectedNotEqual_FailMessage()
+    void testDoCompare_ActualAndExpectedNotEqual_FailMessage()
             throws DatabaseUnitException
     {
         final Map<Object, ValueComparer> valueComparers = valueComparers1;
@@ -103,7 +101,8 @@ public class ConditionalSelectorMultiValueComparerTest
         final String actual = sut.doCompare(expectedTable, actualTable, rowNum,
                 columnName, dataType, expectedValue, actualValue);
 
-        assertThat("Actual and expected not equal, should have fail message.",
-                actual, not(nullValue()));
+        assertThat(actual)
+                .as("Actual and expected not equal, should have fail message.")
+                .isNotNull();
     }
 }

@@ -32,28 +32,29 @@ import org.dbunit.operation.DatabaseOperation;
  */
 public class CachedResultSetTableIT extends AbstractTableTest
 {
-    public CachedResultSetTableIT(String s)
-    {
-        super(s);
-    }
 
+    @Override
     protected ITable createTable() throws Exception
     {
-        DatabaseEnvironment env = DatabaseEnvironment.getInstance();
-        IDatabaseConnection connection = env.getConnection();
+        final DatabaseEnvironment env = DatabaseEnvironment.getInstance();
+        final IDatabaseConnection connection = env.getConnection();
 
-        DatabaseOperation.CLEAN_INSERT.execute(connection, env.getInitDataSet());
+        DatabaseOperation.CLEAN_INSERT.execute(connection,
+                env.getInitDataSet());
 
-        String selectStatement = "select * from TEST_TABLE order by COLUMN0";
-        return new CachedResultSetTable(
-                new ForwardOnlyResultSetTable("TEST_TABLE", selectStatement, connection));
+        final String selectStatement =
+                "select * from TEST_TABLE order by COLUMN0";
+        return new CachedResultSetTable(new ForwardOnlyResultSetTable(
+                "TEST_TABLE", selectStatement, connection));
     }
 
-    protected String convertString(String str) throws Exception
+    @Override
+    protected String convertString(final String str) throws Exception
     {
         return DatabaseEnvironment.getInstance().convertString(str);
     }
 
+    @Override
     public void testGetMissingValue() throws Exception
     {
         // Do not test this!

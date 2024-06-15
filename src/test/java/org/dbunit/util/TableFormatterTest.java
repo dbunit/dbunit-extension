@@ -20,48 +20,47 @@
  */
 package org.dbunit.util;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import java.math.BigDecimal;
 
 import org.dbunit.dataset.Column;
 import org.dbunit.dataset.DefaultTable;
 import org.dbunit.dataset.datatype.DataType;
-
-import junit.framework.TestCase;
+import org.junit.jupiter.api.Test;
 
 /**
  * Unit test for the {@link TableFormatter}
+ * 
  * @author gommma (gommma AT users.sourceforge.net)
  * @author Last changed by: $Author$
  * @version $Revision$ $Date$
  * @since 2.4.1
  */
-public class TableFormatterTest extends TestCase 
+class TableFormatterTest
 {
 
-    public void testFormatSimpleTable() throws Exception
+    @Test
+    void testFormatSimpleTable() throws Exception
     {
-        Column[] cols = new Column[]{
-             new Column("COL1", DataType.VARCHAR),   
-             new Column("COL2", DataType.NUMERIC)   
-        };
-        DefaultTable table = new DefaultTable("MY_TABLE", cols);
-        table.addRow(new Object[]{
-           "my string value", new BigDecimal("39284.1")
-        });
-        table.addRow(new Object[]{
-            "my string value2", new BigDecimal("2")     
-         });
-        
-        TableFormatter formatter = new TableFormatter();
-        String actual = formatter.format(table);
-        
-        String expected = 
-            "****** table: MY_TABLE ** row count: 2 ******\n"+
-            "COL1                |COL2                |\n"+
-            "====================|====================|\n"+
-            "my string value     |39284.1             |\n"+
-            "my string value2    |2                   |\n";
-        assertEquals(expected, actual);
-//        System.out.println(actual);
+        final Column[] cols =
+                new Column[] {new Column("COL1", DataType.VARCHAR),
+                        new Column("COL2", DataType.NUMERIC)};
+        final DefaultTable table = new DefaultTable("MY_TABLE", cols);
+        table.addRow(
+                new Object[] {"my string value", new BigDecimal("39284.1")});
+        table.addRow(new Object[] {"my string value2", new BigDecimal("2")});
+
+        final TableFormatter formatter = new TableFormatter();
+        final String actual = formatter.format(table);
+
+        final String expected =
+                "****** table: MY_TABLE ** row count: 2 ******\n"
+                        + "COL1                |COL2                |\n"
+                        + "====================|====================|\n"
+                        + "my string value     |39284.1             |\n"
+                        + "my string value2    |2                   |\n";
+        assertThat(actual).isEqualTo(expected);
+        // System.out.println(actual);
     }
 }

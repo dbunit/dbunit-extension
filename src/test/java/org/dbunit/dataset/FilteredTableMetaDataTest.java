@@ -21,85 +21,86 @@
 
 package org.dbunit.dataset;
 
-import junit.framework.TestCase;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import org.dbunit.dataset.datatype.DataType;
-import org.dbunit.dataset.filter.IColumnFilter;
 import org.dbunit.dataset.filter.DefaultColumnFilter;
+import org.dbunit.dataset.filter.IColumnFilter;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author Manuel Laflamme
  * @version $Revision$
  * @since May 11, 2004
  */
-public class FilteredTableMetaDataTest extends TestCase
+class FilteredTableMetaDataTest
 {
-    public FilteredTableMetaDataTest(String s)
-    {
-        super(s);
-    }
 
     protected IColumnFilter createColumnFilter() throws Exception
     {
-        DefaultColumnFilter filter = new DefaultColumnFilter();
+        final DefaultColumnFilter filter = new DefaultColumnFilter();
         filter.excludeColumn("excluded*");
         return filter;
     }
 
-    public void testGetTableName() throws Exception
+    @Test
+    void testGetTableName() throws Exception
     {
-        String expected = "tableName";
-        ITableMetaData metaData = new DefaultTableMetaData(expected, null, (Column[])null);
+        final String expected = "tableName";
+        ITableMetaData metaData =
+                new DefaultTableMetaData(expected, null, (Column[]) null);
         metaData = new FilteredTableMetaData(metaData, createColumnFilter());
 
-        assertEquals("table name", expected, metaData.getTableName());
+        assertThat(metaData.getTableName()).as("table name")
+                .isEqualTo(expected);
     }
 
-    public void testGetColumns() throws Exception
+    @Test
+    void testGetColumns() throws Exception
     {
-        Column[] columns = new Column[]{
-            new Column("numberColumn", DataType.NUMERIC),
-            new Column("stringColumn", DataType.VARCHAR),
-            new Column("booleanColumn", DataType.BOOLEAN),
-            new Column("excludedColumn", DataType.BOOLEAN),
-        };
+        final Column[] columns =
+                new Column[] {new Column("numberColumn", DataType.NUMERIC),
+                        new Column("stringColumn", DataType.VARCHAR),
+                        new Column("booleanColumn", DataType.BOOLEAN),
+                        new Column("excludedColumn", DataType.BOOLEAN),};
 
-        ITableMetaData metaData = new DefaultTableMetaData("toto", columns, (Column[])null);
+        ITableMetaData metaData =
+                new DefaultTableMetaData("toto", columns, (Column[]) null);
         metaData = new FilteredTableMetaData(metaData, createColumnFilter());
 
-        assertEquals("column count", 3, metaData.getColumns().length);
+        assertThat(metaData.getColumns().length).as("column count")
+                .isEqualTo(3);
         for (int i = 0; i < 3; i++)
         {
-            Column column = columns[i];
-            assertEquals("columns" + i, column, metaData.getColumns()[i]);
+            final Column column = columns[i];
+            assertThat(metaData.getColumns()[i]).as("columns" + i)
+                    .isEqualTo(column);
         }
-        assertEquals("key count", 0, metaData.getPrimaryKeys().length);
+        assertThat(metaData.getPrimaryKeys().length).as("key count")
+                .isEqualTo(0);
     }
 
-    public void testGetPrimaryKeys() throws Exception
+    @Test
+    void testGetPrimaryKeys() throws Exception
     {
-        Column[] columns = new Column[]{
-            new Column("numberColumn", DataType.NUMERIC),
-            new Column("stringColumn", DataType.VARCHAR),
-            new Column("booleanColumn", DataType.BOOLEAN),
-            new Column("excludedColumn", DataType.BOOLEAN),
-        };
-        String[] keyNames = new String[]{"booleanColumn", "numberColumn", "excludedColumn"};
+        final Column[] columns =
+                new Column[] {new Column("numberColumn", DataType.NUMERIC),
+                        new Column("stringColumn", DataType.VARCHAR),
+                        new Column("booleanColumn", DataType.BOOLEAN),
+                        new Column("excludedColumn", DataType.BOOLEAN),};
+        final String[] keyNames = new String[] {"booleanColumn", "numberColumn",
+                "excludedColumn"};
 
-
-        ITableMetaData metaData = new DefaultTableMetaData("toto", columns, keyNames);
+        ITableMetaData metaData =
+                new DefaultTableMetaData("toto", columns, keyNames);
         metaData = new FilteredTableMetaData(metaData, createColumnFilter());
 
-        Column[] keys = metaData.getPrimaryKeys();
-        assertEquals("key count", 2, keys.length);
+        final Column[] keys = metaData.getPrimaryKeys();
+        assertThat(keys.length).as("key count").isEqualTo(2);
         for (int i = 0; i < 2; i++)
         {
-            assertEquals("key name", keyNames[i], keys[i].getColumnName());
+            assertThat(keys[i].getColumnName()).as("key name")
+                    .isEqualTo(keyNames[i]);
         }
     }
 }
-
-
-
-
-

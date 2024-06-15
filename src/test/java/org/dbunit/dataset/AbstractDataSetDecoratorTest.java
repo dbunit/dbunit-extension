@@ -20,13 +20,12 @@
  */
 package org.dbunit.dataset;
 
-
 /**
  * Abstract class for testing {@link IDataSet} implementations which only
  * decorate another {@link IDataSet} implementation. The check for duplicate
- * table names can be omitted in this case since no new tables are created 
- * by normal decorators.
- * 
+ * table names can be omitted in this case since no new tables are created by
+ * normal decorators.
+ *
  * @author gommma (gommma AT users.sourceforge.net)
  * @author Last changed by: $Author$
  * @version $Revision$ $Date$
@@ -34,39 +33,32 @@ package org.dbunit.dataset;
  */
 public abstract class AbstractDataSetDecoratorTest extends AbstractDataSetTest
 {
-    public AbstractDataSetDecoratorTest(String s)
-    {
-        super(s);
-    }
 
+    @Override
     protected final IDataSet createDuplicateDataSet() throws Exception
     {
         throw new UnsupportedOperationException();
     }
 
-    protected final IDataSet createMultipleCaseDuplicateDataSet() throws Exception 
+    @Override
+    protected final IDataSet createMultipleCaseDuplicateDataSet()
+            throws Exception
     {
         throw new UnsupportedOperationException();
     }
-    
-    public final void testCreateDuplicateDataSet() throws Exception 
+
+    @Override
+    public final void testCreateDuplicateDataSet() throws Exception
     {
-        // No op. This dataSet is only a wrapper for another dataSet which is why duplicates cannot occur.
+        // No op. This dataSet is only a wrapper for another dataSet which is
+        // why duplicates cannot occur.
     }
 
-    public final void testCreateMultipleCaseDuplicateDataSet() throws Exception 
+    @Override
+    public final void testCreateMultipleCaseDuplicateDataSet() throws Exception
     {
-        // No op. This dataSet is only a wrapper for another dataSet which is why duplicates cannot occur.
+        // No op. This dataSet is only a wrapper for another dataSet which is
+        // why duplicates cannot occur.
     }
 
 }
-
-
-
-
-
-
-
-
-
-

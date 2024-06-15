@@ -18,14 +18,14 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  */
-
 package org.dbunit.assertion;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowableOfType;
 
 import java.io.StringReader;
 import java.math.BigDecimal;
-
-import junit.framework.ComparisonFailure;
-import junit.framework.TestCase;
 
 import org.dbunit.DatabaseEnvironment;
 import org.dbunit.database.IDatabaseConnection;
@@ -45,581 +45,594 @@ import org.dbunit.dataset.xml.FlatXmlDataSetBuilder;
 import org.dbunit.dataset.xml.XmlDataSet;
 import org.dbunit.operation.DatabaseOperation;
 import org.dbunit.testutil.TestUtils;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author Manuel Laflamme
  * @version $Revision$
  * @since Mar 22, 2002
  */
-public class DbUnitAssertIT extends TestCase
+public class DbUnitAssertIT
 {
     public static final String FILE_PATH = "xml/assertionTest.xml";
-    
+
     private DbUnitAssert assertion = new DbUnitAssert();
-    
-    
-    public DbUnitAssertIT(String s)
-    {
-        super(s);
-    }
 
     private IDataSet getDataSet() throws Exception
     {
-        return new FlatXmlDataSetBuilder().build(TestUtils.getFileReader(FILE_PATH));
+        return new FlatXmlDataSetBuilder()
+                .build(TestUtils.getFileReader(FILE_PATH));
     }
 
     ////////////////////////////////////////////////////////////////////////////
     // Test methods
 
-    public void testAssertTablesEquals() throws Exception
+    @Test
+    void testAssertTablesEquals() throws Exception
     {
-        IDataSet dataSet = getDataSet();
+        final IDataSet dataSet = getDataSet();
         assertion.assertEquals(dataSet.getTable("TEST_TABLE"),
-                dataSet.getTable("TEST_TABLE_WITH_SAME_VALUE"), 
-                new Column[] {new Column("COLUMN0", DataType.VARCHAR)} );
+                dataSet.getTable("TEST_TABLE_WITH_SAME_VALUE"),
+                new Column[] {new Column("COLUMN0", DataType.VARCHAR)});
     }
-    
-    public void testAssertTablesEmtpyEquals() throws Exception
-    {
-      IDataSet empty1 = new XmlDataSet(TestUtils.getFileReader("xml/assertionTest-empty1.xml"));
-      IDataSet empty2 = new FlatXmlDataSetBuilder().build(TestUtils.getFileReader("xml/assertionTest-empty2.xml"));
-      assertion.assertEquals(empty1, empty2);
-    }
-    
 
-	public void testAssertTablesEqualsColumnNamesCaseInsensitive() throws Exception
+    @Test
+    void testAssertTablesEmtpyEquals() throws Exception
     {
-        IDataSet dataSet = getDataSet();
+        final IDataSet empty1 = new XmlDataSet(
+                TestUtils.getFileReader("xml/assertionTest-empty1.xml"));
+        final IDataSet empty2 = new FlatXmlDataSetBuilder()
+                .build(TestUtils.getFileReader("xml/assertionTest-empty2.xml"));
+        assertion.assertEquals(empty1, empty2);
+    }
+
+    @Test
+    void testAssertTablesEqualsColumnNamesCaseInsensitive() throws Exception
+    {
+        final IDataSet dataSet = getDataSet();
         assertion.assertEquals(dataSet.getTable("TEST_TABLE"),
                 dataSet.getTable("TEST_TABLE_WITH_LOWER_COLUMN_NAMES"));
     }
 
-    public void testAssertTablesAndNamesNotEquals() throws Exception
+    @Test
+    void testAssertTablesAndNamesNotEquals() throws Exception
     {
-        IDataSet dataSet = getDataSet();
+        final IDataSet dataSet = getDataSet();
         assertion.assertEquals(dataSet.getTable("TEST_TABLE"),
                 dataSet.getTable("TEST_TABLE_WITH_DIFFERENT_NAME"));
     }
 
-    public void testAssertTablesAndColumnCountNotEquals() throws Exception
+    @Test
+    void testAssertTablesAndColumnCountNotEquals() throws Exception
     {
-        IDataSet dataSet = getDataSet();
-
-        try
-        {
-            assertion.assertEquals(dataSet.getTable("TEST_TABLE"),
-                    dataSet.getTable("TEST_TABLE_WITH_3_COLUMNS"));
-            throw new IllegalStateException("Should throw an AssertionFailedError");
-        }
-        catch (ComparisonFailure expected)
-        {
-            assertEquals("[COLUMN0, COLUMN1, COLUMN2, COLUMN3]", expected.getExpected());
-            assertEquals("[COLUMN0, COLUMN1, COLUMN2]", expected.getActual());
-            String expectedMsg = "column count (table=TEST_TABLE, expectedColCount=4, actualColCount=3) expected:<...N0, COLUMN1, COLUMN2[, COLUMN3]]> but was:<...N0, COLUMN1, COLUMN2[]]>";
-            assertEquals(expectedMsg, expected.getMessage());
-        }
+        final IDataSet dataSet = getDataSet();
+        final ITable testTable = dataSet.getTable("TEST_TABLE");
+        final ITable testTable3 = dataSet.getTable("TEST_TABLE_WITH_3_COLUMNS");
+        final String expectedMsg =
+                "column count (table=TEST_TABLE, expectedColCount=4, actualColCount=3) expected:<[COLUMN0, COLUMN1, COLUMN2, COLUMN3]> but was:<[COLUMN0, COLUMN1, COLUMN2]>";
+        assertThatThrownBy(() -> assertion.assertEquals(testTable, testTable3))
+                .as("Should throw an DbComparisonFailure")
+                .isInstanceOf(DbComparisonFailure.class)
+                .hasMessageContaining(expectedMsg)
+                .extracting("expected", "actual").asString()
+                .contains("[COLUMN0, COLUMN1, COLUMN2, COLUMN3]",
+                        "[COLUMN0, COLUMN1, COLUMN2]");
     }
 
-    public void testAssertTablesAndColumnSequenceNotEquals() throws Exception
+    @Test
+    void testAssertTablesAndColumnSequenceNotEquals() throws Exception
     {
-        IDataSet dataSet = getDataSet();
+        final IDataSet dataSet = getDataSet();
 
         assertion.assertEquals(dataSet.getTable("TEST_TABLE"),
                 dataSet.getTable("TEST_TABLE_WITH_DIFFERENT_COLUMN_SEQUENCE"));
     }
 
-    public void testAssertTablesAndColumnNamesNotEquals() throws Exception
+    @Test
+    void testAssertTablesAndColumnNamesNotEquals() throws Exception
     {
-        IDataSet dataSet = getDataSet();
+        final IDataSet dataSet = getDataSet();
+        final ITable testTable = dataSet.getTable("TEST_TABLE");
+        final ITable testTable2 =
+                dataSet.getTable("TEST_TABLE_WITH_DIFFERENT_COLUMN_NAMES");
+        final String expectedMsg =
+                "column mismatch (table=TEST_TABLE) expected:<[COLUMN0, COLUMN1, COLUMN2, COLUMN3]> but was:<[COLUMN4, COLUMN5, COLUMN6, COLUMN7]>";
+        assertThatThrownBy(() -> assertion.assertEquals(testTable, testTable2))
+                .as("Should throw an DbComparisonFailure")
+                .isInstanceOf(DbComparisonFailure.class)
+                .hasMessageContaining(expectedMsg)
+                .extracting("expected", "actual").asString()
+                .contains("[COLUMN0, COLUMN1, COLUMN2, COLUMN3]",
+                        "[COLUMN4, COLUMN5, COLUMN6, COLUMN7]");
 
-        try
-        {
-            assertion.assertEquals(dataSet.getTable("TEST_TABLE"),
-                    dataSet.getTable("TEST_TABLE_WITH_DIFFERENT_COLUMN_NAMES"));
-            throw new IllegalStateException("Should throw an AssertionFailedError");
-        }
-        catch (ComparisonFailure expected)
-        {
-            assertEquals("[COLUMN0, COLUMN1, COLUMN2, COLUMN3]", expected.getExpected());
-            assertEquals("[COLUMN4, COLUMN5, COLUMN6, COLUMN7]", expected.getActual());
-            String expectedMsg = "column mismatch (table=TEST_TABLE) expected:<[COLUMN[0, COLUMN1, COLUMN2, COLUMN3]]> but was:<[COLUMN[4, COLUMN5, COLUMN6, COLUMN7]]>";
-            assertEquals(expectedMsg, expected.getMessage());
-        }
     }
 
-    public void testAssertTablesAndRowCountNotEquals() throws Exception
+    @Test
+    void testAssertTablesAndRowCountNotEquals() throws Exception
     {
-        IDataSet dataSet = getDataSet();
+        final IDataSet dataSet = getDataSet();
+        final ITable testTable = dataSet.getTable("TEST_TABLE");
+        final ITable testTable2 = dataSet.getTable("TEST_TABLE_WITH_ONE_ROW");
+        final String expectedMsg =
+                "row count (table=TEST_TABLE) expected:<2> but was:<1>";
+        assertThatThrownBy(() -> assertion.assertEquals(testTable, testTable2))
+                .as("Should throw an DbComparisonFailure")
+                .isInstanceOf(DbComparisonFailure.class)
+                .hasMessageContaining(expectedMsg)
+                .extracting("expected", "actual").asString().contains("2", "1");
 
-        try
-        {
-            assertion.assertEquals(dataSet.getTable("TEST_TABLE"),
-                    dataSet.getTable("TEST_TABLE_WITH_ONE_ROW"));
-            throw new IllegalStateException("Should throw an AssertionFailedError");
-        }
-        catch (ComparisonFailure expected)
-        {
-            assertEquals("2", expected.getExpected());
-            assertEquals("1", expected.getActual());
-            String expectedMsg = "row count (table=TEST_TABLE) expected:<[2]> but was:<[1]>";
-            assertEquals(expectedMsg, expected.getMessage());
-        }
     }
 
-    public void testAssertTablesAndValuesNotEquals() throws Exception
+    @Test
+    void testAssertTablesAndValuesNotEquals() throws Exception
     {
-        IDataSet dataSet = getDataSet();
+        final IDataSet dataSet = getDataSet();
 
-        try
-        {
-            assertion.assertEquals(dataSet.getTable("TEST_TABLE"),
-                    dataSet.getTable("TEST_TABLE_WITH_WRONG_VALUE"));
-            throw new IllegalStateException("Should throw an AssertionFailedError");
-        }
-        catch (ComparisonFailure expected)
-        {
-            assertEquals("row 1 col 2", expected.getExpected());
-            assertEquals("wrong value", expected.getActual());
-            String expectedMsg = "value (table=TEST_TABLE, row=1, col=COLUMN2) expected:<[row 1 col 2]> but was:<[wrong value]>";
-            assertEquals(expectedMsg, expected.getMessage());
-        }
+        final ITable testTable = dataSet.getTable("TEST_TABLE");
+        final ITable testTable2 =
+                dataSet.getTable("TEST_TABLE_WITH_WRONG_VALUE");
+        final String expectedMsg =
+                "value (table=TEST_TABLE, row=1, col=COLUMN2) expected:<row 1 col 2> but was:<wrong value>";
+        assertThatThrownBy(() -> assertion.assertEquals(testTable, testTable2))
+                .as("Should throw an DbComparisonFailure")
+                .isInstanceOf(DbComparisonFailure.class)
+                .hasMessageContaining(expectedMsg)
+                .extracting("expected", "actual").asString()
+                .contains("row 1 col 2", "wrong value");
+
     }
 
-    public void testAssertTablesWithColFilterAndValuesNotEqualExcluded() throws Exception
+    @Test
+    void testAssertTablesWithColFilterAndValuesNotEqualExcluded()
+            throws Exception
     {
-        IDataSet dataSet = getDataSet();
-        
-        // Column2 has the wrong value, so exclude -> test should run successfully
-        String[] allColumnsThatAreNotEqual = new String[] {"COLUMN2"};
+        final IDataSet dataSet = getDataSet();
+
+        // Column2 has the wrong value, so exclude -> test should run
+        // successfully
+        final String[] allColumnsThatAreNotEqual = new String[] {"COLUMN2"};
         assertion.assertEqualsIgnoreCols(dataSet.getTable("TEST_TABLE"),
                 dataSet.getTable("TEST_TABLE_WITH_WRONG_VALUE"),
-                allColumnsThatAreNotEqual );
+                allColumnsThatAreNotEqual);
     }
 
-    public void testAssertTablesWithColFilterAndValuesNotEqualNotExcluded() throws Exception
+    @Test
+    void testAssertTablesWithColFilterAndValuesNotEqualNotExcluded()
+            throws Exception
     {
-        IDataSet dataSet = getDataSet();
-        
-        // Column0 has correct value. Column2 has the wrong value but is not filtered.
+        final IDataSet dataSet = getDataSet();
+
+        // Column0 has correct value. Column2 has the wrong value but is not
+        // filtered.
         // -> test should fail
-        String[] filteredColumns = new String[] {"COLUMN0"};
-        try {
-            assertion.assertEqualsIgnoreCols(dataSet.getTable("TEST_TABLE"),
-	                dataSet.getTable("TEST_TABLE_WITH_WRONG_VALUE"),
-	                filteredColumns );
-            throw new IllegalStateException("Should throw an AssertionFailedError");
-        }
-        catch (ComparisonFailure expected)
-        {
-            assertEquals("row 1 col 2", expected.getExpected());
-            assertEquals("wrong value", expected.getActual());
-        	String expectedMsg = "value (table=TEST_TABLE, row=1, col=COLUMN2) expected:<[row 1 col 2]> but was:<[wrong value]>";
-        	assertEquals(expectedMsg, expected.getMessage());
-        }
+        final String[] filteredColumns = new String[] {"COLUMN0"};
+        final ITable testTable = dataSet.getTable("TEST_TABLE");
+        final ITable testTable3 =
+                dataSet.getTable("TEST_TABLE_WITH_WRONG_VALUE");
+        final String expectedMsg =
+                "value (table=TEST_TABLE, row=1, col=COLUMN2) expected:<row 1 col 2> but was:<wrong value>";
+        assertThatThrownBy(() -> assertion.assertEqualsIgnoreCols(testTable,
+                testTable3, filteredColumns))
+                        .as("Should throw an DbComparisonFailure")
+                        .isInstanceOf(DbComparisonFailure.class)
+                        .hasMessageContaining(expectedMsg)
+                        .extracting("expected", "actual").asString()
+                        .contains("row 1 col 2", "wrong value");
+
     }
 
-    public void testAssertTablesAndValuesNotEquals_AdditionalColumnInfo() throws Exception
+    @Test
+    void testAssertTablesAndValuesNotEquals_AdditionalColumnInfo()
+            throws Exception
     {
-        IDataSet dataSet = getDataSet();
+        final IDataSet dataSet = getDataSet();
 
-        try
-        {
-        	Column[] additionalColInfo = new Column[]{
-        			new Column("COLUMN0", DataType.VARCHAR)
-        	};
-        	assertion.assertEquals(dataSet.getTable("TEST_TABLE"),
-                    dataSet.getTable("TEST_TABLE_WITH_WRONG_VALUE"),
-                    additionalColInfo);
-            throw   new IllegalStateException("Should throw an AssertionFailedError");
-        }
-        catch (ComparisonFailure expected)
-        {
-        	String expectedMsg = "junit.framework.ComparisonFailure: value (table=TEST_TABLE, row=1, col=COLUMN2, " +
-        			"Additional row info: ('COLUMN0': expected=<row 1 col 0>, actual=<row 1 col 0>)) " +
-        			"expected:<[row 1 col 2]> but was:<[wrong value]>";
-        	String actualMsg = expected.toString();
-        	assertEquals("row 1 col 2", expected.getExpected());
-        	assertEquals("wrong value", expected.getActual());
-        	assertEquals("Exception message did not match the expected one.", expectedMsg, actualMsg);
-        }
+        final ITable testTable = dataSet.getTable("TEST_TABLE");
+        final ITable testTable3 =
+                dataSet.getTable("TEST_TABLE_WITH_WRONG_VALUE");
+        final Column[] additionalColInfo =
+                new Column[] {new Column("COLUMN0", DataType.VARCHAR)};
+        final String expectedMsg =
+                "org.dbunit.assertion.DbComparisonFailure[value (table=TEST_TABLE, row=1, col=COLUMN2, "
+                        + "Additional row info: ('COLUMN0': expected=<row 1 col 0>, actual=<row 1 col 0>))"
+                        + "expected:<row 1 col 2> but was:<wrong value>]";
+        assertThatThrownBy(() -> assertion.assertEquals(testTable, testTable3,
+                additionalColInfo)).as("Should throw an DbComparisonFailure")
+                        .isInstanceOf(DbComparisonFailure.class)
+                        .hasToString(expectedMsg)
+                        .extracting("expected", "actual").asString()
+                        .contains("row 1 col 2", "wrong value");
+
     }
 
-    
-    public void testAssertTablesEqualsAndIncompatibleDataType() throws Exception
+    @Test
+    void testAssertTablesEqualsAndIncompatibleDataType() throws Exception
     {
-        String tableName = "TABLE_NAME";
+        final String tableName = "TABLE_NAME";
 
         // Setup actual table
-        Column[] actualColumns = new Column[] {
-            new Column("BOOLEAN", DataType.BOOLEAN),
-        };
-        Object[] actualRow = new Object[] {
-            Boolean.TRUE,
-        };
-        DefaultTable actualTable = new DefaultTable(tableName,
-                actualColumns);
+        final Column[] actualColumns =
+                new Column[] {new Column("BOOLEAN", DataType.BOOLEAN),};
+        final Object[] actualRow = new Object[] {Boolean.TRUE,};
+        final DefaultTable actualTable =
+                new DefaultTable(tableName, actualColumns);
         actualTable.addRow(actualRow);
 
         // Setup expected table
-        Column[] expectedColumns = new Column[] {
-            new Column("BOOLEAN", DataType.VARCHAR),
-        };
-        Object[] expectedRow = new Object[] {
-            "1",
-        };
-        DefaultTable expectedTable = new DefaultTable(tableName,
-                expectedColumns);
+        final Column[] expectedColumns =
+                new Column[] {new Column("BOOLEAN", DataType.VARCHAR),};
+        final Object[] expectedRow = new Object[] {"1",};
+        final DefaultTable expectedTable =
+                new DefaultTable(tableName, expectedColumns);
         expectedTable.addRow(expectedRow);
+        final String expectedMsg =
+                "Incompatible data types: (table=TABLE_NAME, col=BOOLEAN) expected:<VARCHAR> but was:<BOOLEAN>";
+        assertThatThrownBy(
+                () -> assertion.assertEquals(expectedTable, actualTable))
+                        .isInstanceOf(DbComparisonFailure.class)
+                        .hasMessageContaining(expectedMsg)
+                        .extracting("expected", "actual").asString()
+                        .contains("VARCHAR", "BOOLEAN");
 
-
-        try
-        {
-            assertion.assertEquals(expectedTable, actualTable);
-        }
-        catch (ComparisonFailure expected)
-        {
-            assertEquals("VARCHAR", expected.getExpected());
-            assertEquals("BOOLEAN", expected.getActual());
-            String expectedMsg = "Incompatible data types: (table=TABLE_NAME, col=BOOLEAN) expected:<[VARCHAR]> but was:<[BOOLEAN]>";
-            assertEquals(expectedMsg, expected.getMessage());
-        }
     }
 
-    public void testAssertTablesByQueryWithColFilterAndValuesNotEqualExcluded() throws Exception
+    @Test
+    void testAssertTablesByQueryWithColFilterAndValuesNotEqualExcluded()
+            throws Exception
     {
-        DatabaseEnvironment env = DatabaseEnvironment.getInstance();
-        IDatabaseConnection connection = env.getConnection();
+        final DatabaseEnvironment env = DatabaseEnvironment.getInstance();
+        final IDatabaseConnection connection = env.getConnection();
 
-        IDataSet dataSet = env.getInitDataSet();
-    	ITable expectedTable = dataSet.getTable("TEST_TABLE");
+        final IDataSet dataSet = env.getInitDataSet();
+        final ITable expectedTable = dataSet.getTable("TEST_TABLE");
 
-		ITable table = dataSet.getTable("TEST_TABLE");
-		ITable filteredTable = new ModifyingTable(table, "COLUMN2");
-        DatabaseOperation.CLEAN_INSERT.execute(connection, new DefaultDataSet(filteredTable));
+        final ITable table = dataSet.getTable("TEST_TABLE");
+        final ITable filteredTable = new ModifyingTable(table, "COLUMN2");
+        DatabaseOperation.CLEAN_INSERT.execute(connection,
+                new DefaultDataSet(filteredTable));
 
-    	// Ignore COLUMN2 which has been modified by the "ModifyingTable" above and hence does not match.
+        // Ignore COLUMN2 which has been modified by the "ModifyingTable" above
+        // and
+        // hence does not match.
         // When we ignore this column, the assertion should work without failure
-        String[] ignoreCols = new String[] {"COLUMN2"};
-        assertion.assertEqualsByQuery(expectedTable, connection, "TEST_TABLE", "select * from TEST_TABLE order by 1", ignoreCols);
+        final String[] ignoreCols = new String[] {"COLUMN2"};
+        assertion.assertEqualsByQuery(expectedTable, connection, "TEST_TABLE",
+                "select * from TEST_TABLE order by 1", ignoreCols);
     }
-    
-    public void testAssertTablesByQueryWithColFilterAndValuesNotEqualNotExcluded() throws Exception
+
+    @Test
+    void testAssertTablesByQueryWithColFilterAndValuesNotEqualNotExcluded()
+            throws Exception
     {
-        DatabaseEnvironment env = DatabaseEnvironment.getInstance();
-        IDatabaseConnection connection = env.getConnection();
+        final DatabaseEnvironment env = DatabaseEnvironment.getInstance();
+        final IDatabaseConnection connection = env.getConnection();
 
-        IDataSet dataSet = env.getInitDataSet();
-    	ITable expectedTable = dataSet.getTable("TEST_TABLE");
+        final IDataSet dataSet = env.getInitDataSet();
+        final ITable expectedTable = dataSet.getTable("TEST_TABLE");
 
-		ITable table = dataSet.getTable("TEST_TABLE");
-		ITable filteredTable = new ModifyingTable(table, "COLUMN2");
-        DatabaseOperation.CLEAN_INSERT.execute(connection, new DefaultDataSet(filteredTable));
+        final ITable table = dataSet.getTable("TEST_TABLE");
+        final ITable filteredTable = new ModifyingTable(table, "COLUMN2");
+        DatabaseOperation.CLEAN_INSERT.execute(connection,
+                new DefaultDataSet(filteredTable));
 
-    	// Ignore COLUMN1 which has NOT been modified by the "ModifyingTable". The modified COLUMN2 does
+        // Ignore COLUMN1 which has NOT been modified by the "ModifyingTable".
+        // The
+        // modified COLUMN2 does
         // not match and is not ignored. So the assertion should fail.
-        String[] ignoreCols = new String[] {"COLUMN1"};
-        try {
-            assertion.assertEqualsByQuery(expectedTable, connection, "TEST_TABLE", "select * from TEST_TABLE order by 1", ignoreCols);
-        	fail("The assertion should not work");
-        }
-        catch (ComparisonFailure expected)
-        {
-            assertEquals("row 0 col 2", expected.getExpected());
-            assertEquals("row 0 col 2 (modified COLUMN2)", expected.getActual());
-        	String expectedMsg = "value (table=TEST_TABLE, row=0, col=COLUMN2) expected:<row 0 col 2[]> but was:<row 0 col 2[ (modified COLUMN2)]>";
-        	assertEquals(expectedMsg, expected.getMessage());
-        }
+        final String[] ignoreCols = new String[] {"COLUMN1"};
+        final String expectedMsg =
+                "value (table=TEST_TABLE, row=0, col=COLUMN2) expected:<row 0 col 2> but was:<row 0 col 2 (modified COLUMN2)>";
+        assertThatThrownBy(() -> assertion.assertEqualsByQuery(expectedTable,
+                connection, "TEST_TABLE", "select * from TEST_TABLE order by 1",
+                ignoreCols)).as("The assertion should not work")
+                        .isInstanceOf(DbComparisonFailure.class)
+                        .hasMessageContaining(expectedMsg)
+                        .extracting("expected", "actual").asString()
+                        .contains("row 0 col 2",
+                                "row 0 col 2 (modified COLUMN2)");
+
     }
 
-    
-    
-    public void testAssertTablesEqualsAndCompatibleDataType() throws Exception
+    @Test
+    void testAssertTablesEqualsAndCompatibleDataType() throws Exception
     {
-        String tableName = "TABLE_NAME";
-        java.sql.Timestamp now = new java.sql.Timestamp(
-                System.currentTimeMillis());
+        final String tableName = "TABLE_NAME";
+        final java.sql.Timestamp now =
+                new java.sql.Timestamp(System.currentTimeMillis());
 
         // Setup actual table
-        Column[] actualColumns = new Column[] {
-            new Column("BOOLEAN", DataType.BOOLEAN),
-            new Column("TIMESTAMP", DataType.TIMESTAMP),
-            new Column("STRING", DataType.CHAR),
-            new Column("NUMERIC", DataType.NUMERIC),
-        };
-        Object[] actualRow = new Object[] {
-            Boolean.TRUE,
-            now,
-            "0",
-            new BigDecimal("123.4"),
-        };
-        DefaultTable actualTable = new DefaultTable(tableName,
-                actualColumns);
+        final Column[] actualColumns =
+                new Column[] {new Column("BOOLEAN", DataType.BOOLEAN),
+                        new Column("TIMESTAMP", DataType.TIMESTAMP),
+                        new Column("STRING", DataType.CHAR),
+                        new Column("NUMERIC", DataType.NUMERIC),};
+        final Object[] actualRow =
+                new Object[] {Boolean.TRUE, now, "0", new BigDecimal("123.4"),};
+        final DefaultTable actualTable =
+                new DefaultTable(tableName, actualColumns);
         actualTable.addRow(actualRow);
 
-
         // Setup expected table
-        Column[] expectedColumns = new Column[] {
-            new Column("BOOLEAN", DataType.UNKNOWN),
-            new Column("TIMESTAMP", DataType.UNKNOWN),
-            new Column("STRING", DataType.UNKNOWN),
-            new Column("NUMERIC", DataType.UNKNOWN),
-        };
-        Object[] expectedRow = new Object[] {
-            "1",
-            new Long(now.getTime()),
-            new Integer("0"),
-            "123.4000",
-        };
-        DefaultTable expectedTable = new DefaultTable(tableName,
-                expectedColumns);
+        final Column[] expectedColumns =
+                new Column[] {new Column("BOOLEAN", DataType.UNKNOWN),
+                        new Column("TIMESTAMP", DataType.UNKNOWN),
+                        new Column("STRING", DataType.UNKNOWN),
+                        new Column("NUMERIC", DataType.UNKNOWN),};
+        final Object[] expectedRow = new Object[] {"1",
+                Long.valueOf(now.getTime()), Integer.valueOf("0"), "123.4000",};
+        final DefaultTable expectedTable =
+                new DefaultTable(tableName, expectedColumns);
         expectedTable.addRow(expectedRow);
 
         assertion.assertEquals(expectedTable, actualTable);
     }
 
-    public void testAssertDataSetsEquals() throws Exception
+    @Test
+    void testAssertDataSetsEquals() throws Exception
     {
-        IDataSet dataSet1 = getDataSet();
+        final IDataSet dataSet1 = getDataSet();
 
         // change table names order
-        String[] names = DataSetUtils.getReverseTableNames(dataSet1);
-        IDataSet dataSet2 = new FilteredDataSet(names, dataSet1);
+        final String[] names = DataSetUtils.getReverseTableNames(dataSet1);
+        final IDataSet dataSet2 = new FilteredDataSet(names, dataSet1);
 
-        assertTrue("Datasets are the same instances.", dataSet1 != dataSet2);
+        assertThat(dataSet2).as("Datasets are the same instances.")
+                .isNotSameAs(dataSet1);
         assertion.assertEquals(dataSet1, dataSet2);
     }
 
-    public void testAssertDataSetsEqualsTableNamesCaseInsensitive() throws Exception
+    @Test
+    void testAssertDataSetsEqualsTableNamesCaseInsensitive() throws Exception
     {
-        IDataSet dataSet1 = getDataSet();
+        final IDataSet dataSet1 = getDataSet();
 
         // change table names case
-        String[] names = dataSet1.getTableNames();
+        final String[] names = dataSet1.getTableNames();
         for (int i = 0; i < names.length; i++)
         {
             names[i] = names[i].toLowerCase();
         }
-        IDataSet dataSet2 = new FilteredDataSet(names, dataSet1);
+        final IDataSet dataSet2 = new FilteredDataSet(names, dataSet1);
 
-        assertTrue("Datasets are the same instances.", dataSet1 != dataSet2);
-        assertion.assertEquals(dataSet1, dataSet2);
-    }
-    
-    public void testAssertDataSetsTableNamesCaseSensitiveNotEquals() throws Exception
-    {
-        IDataSet dataSet1 = new FlatXmlDataSetBuilder().setCaseSensitiveTableNames(true).build(TestUtils.getFileReader("xml/assertion_table_name_case_sensitive_1.xml"));
-        IDataSet dataSet2 = new FlatXmlDataSetBuilder().setCaseSensitiveTableNames(true).build(TestUtils.getFileReader("xml/assertion_table_name_case_sensitive_2.xml"));
-        
-        try {
-            assertion.assertEquals(dataSet1, dataSet2);
-            fail("Should throw an AssertionFailedError");
-        } catch (ComparisonFailure expected) {
-            assertEquals("Expected table name did not match.",
-                    "[TEST_TABLE_WITH_CASE_SENSITIVE_NAME]",
-                    expected.getExpected());
-            assertEquals("Actual table name did not match.",
-                    "[test_table_with_case_sensitive_name]",
-                    expected.getActual());
-        }
-    }
-    
-    public void testAssertDataSetsTableNamesCaseSensitiveWithLowerCaseEquals() throws Exception
-    {
-        IDataSet dataSet1 = new FlatXmlDataSetBuilder().setCaseSensitiveTableNames(true).build(TestUtils.getFileReader("xml/assertion_table_name_case_sensitive_with_lower_case.xml"));
-        IDataSet dataSet2 = new FlatXmlDataSetBuilder().setCaseSensitiveTableNames(true).build(TestUtils.getFileReader("xml/assertion_table_name_case_sensitive_with_lower_case.xml"));
-        assertTrue("Datasets are the same instances.", dataSet1 != dataSet2);
+        assertThat(dataSet2).as("Datasets are the same instances.")
+                .isNotSameAs(dataSet1);
         assertion.assertEquals(dataSet1, dataSet2);
     }
 
-    public void testAssertDataSetsAndTableCountNotEquals() throws Exception
+    @Test
+    void testAssertDataSetsTableNamesCaseSensitiveNotEquals() throws Exception
     {
-        IDataSet dataSet1 = getDataSet();
+        final IDataSet dataSet1 = new FlatXmlDataSetBuilder()
+                .setCaseSensitiveTableNames(true).build(TestUtils.getFileReader(
+                        "xml/assertion_table_name_case_sensitive_1.xml"));
+        final IDataSet dataSet2 = new FlatXmlDataSetBuilder()
+                .setCaseSensitiveTableNames(true).build(TestUtils.getFileReader(
+                        "xml/assertion_table_name_case_sensitive_2.xml"));
+        final DbComparisonFailure expected2 = catchThrowableOfType(
+                () -> assertion.assertEquals(dataSet1, dataSet2),
+                DbComparisonFailure.class);
+        assertThat(expected2.getExpected())
+                .as("[TEST_TABLE_WITH_CASE_SENSITIVE_NAME]").toString()
+                .contains("Expected table name did not match.");
+        assertThat(expected2.getActual()).as("Actual table name did not match.")
+                .toString().contains("[test_table_with_case_sensitive_name]");
+
+    }
+
+    @Test
+    void testAssertDataSetsTableNamesCaseSensitiveWithLowerCaseEquals()
+            throws Exception
+    {
+        final IDataSet dataSet1 = new FlatXmlDataSetBuilder()
+                .setCaseSensitiveTableNames(true).build(TestUtils.getFileReader(
+                        "xml/assertion_table_name_case_sensitive_with_lower_case.xml"));
+        final IDataSet dataSet2 = new FlatXmlDataSetBuilder()
+                .setCaseSensitiveTableNames(true).build(TestUtils.getFileReader(
+                        "xml/assertion_table_name_case_sensitive_with_lower_case.xml"));
+        assertThat(dataSet2).as("Datasets are the same instances.")
+                .isNotSameAs(dataSet1);
+        assertion.assertEquals(dataSet1, dataSet2);
+    }
+
+    @Test
+    void testAssertDataSetsAndTableCountNotEquals() throws Exception
+    {
+        final IDataSet dataSet1 = getDataSet();
 
         // only one table
-        String[] names = new String[]{dataSet1.getTableNames()[0]};
-        IDataSet dataSet2 = new FilteredDataSet(names, dataSet1);
+        final String[] names = new String[] {dataSet1.getTableNames()[0]};
+        final IDataSet dataSet2 = new FilteredDataSet(names, dataSet1);
 
-        assertTrue("Datasets are the same instances.", dataSet1 != dataSet2);
+        assertThat(dataSet2).as("Datasets are the same instances.")
+                .isNotSameAs(dataSet1);
 
-        try
-        {
-            assertion.assertEquals(dataSet1, dataSet2);
-            throw new IllegalStateException("Should throw an AssertionFailedError");
-        }
-        catch (ComparisonFailure expected)
-        {
-            assertEquals("10", expected.getExpected());
-            assertEquals("1", expected.getActual());
-            assertEquals("table count expected:<1[0]> but was:<1[]>", expected.getMessage());
-        }
+        assertThatThrownBy(() -> assertion.assertEquals(dataSet1, dataSet2))
+                .as("Should throw an DbComparisonFailure")
+                .isInstanceOf(DbComparisonFailure.class)
+                .hasMessageContaining("table count expected:<10> but was:<1>")
+                .extracting("expected", "actual").asString()
+                .contains("10", "1");
+
     }
 
-
-    public void testAssertDataSetsAndTableNamesNotEquals() throws Exception
+    @Test
+    void testAssertDataSetsAndTableNamesNotEquals() throws Exception
     {
-        IDataSet dataSet1 = getDataSet();
+        final IDataSet dataSet1 = getDataSet();
 
         // reverse table names
-        String[] names = dataSet1.getTableNames();
-        ITable[] tables = new ITable[names.length];
+        final String[] names = dataSet1.getTableNames();
+        final ITable[] tables = new ITable[names.length];
         for (int i = 0; i < names.length; i++)
         {
-            String reversedName = new StringBuffer(names[i]).reverse().toString();
+            final String reversedName =
+                    new StringBuffer(names[i]).reverse().toString();
             tables[i] = new CompositeTable(reversedName,
                     dataSet1.getTable(names[i]));
         }
-        IDataSet dataSet2 = new DefaultDataSet(tables);
+        final IDataSet dataSet2 = new DefaultDataSet(tables);
 
-        assertTrue("Datasets are the same instances.", dataSet1 != dataSet2);
-        assertEquals("table count", dataSet1.getTableNames().length,
-                dataSet2.getTableNames().length);
+        assertThat(dataSet2).as("Datasets are the same instances.")
+                .isNotSameAs(dataSet1);
+        assertThat(dataSet2.getTableNames()).as("table count")
+                .hasSameSizeAs(dataSet1.getTableNames());
 
-        try
-        {
-            assertion.assertEquals(dataSet1, dataSet2);
-            throw new IllegalStateException("Should throw an AssertionFailedError");
-        }
-        catch (ComparisonFailure expected)
-        {
-        }
+        assertThatThrownBy(() -> assertion.assertEquals(dataSet1, dataSet2))
+                .as("Should throw an DbComparisonFailure")
+                .isInstanceOf(DbComparisonFailure.class);
     }
 
-    public void testAssertDataSetsAndTablesNotEquals() throws Exception
+    @Test
+    void testAssertDataSetsAndTablesNotEquals() throws Exception
     {
-        IDataSet dataSet1 = getDataSet();
+        final IDataSet dataSet1 = getDataSet();
 
         // different row counts (double)
-        IDataSet dataSet2 = new CompositeDataSet(dataSet1, dataSet1);
+        final IDataSet dataSet2 = new CompositeDataSet(dataSet1, dataSet1);
 
-        assertTrue("Datasets are the same instances.", dataSet1 != dataSet2);
-        assertEquals("table count", dataSet1.getTableNames().length,
-                dataSet2.getTableNames().length);
+        assertThat(dataSet2).as("Datasets are the same instances.")
+                .isNotSameAs(dataSet1);
+        assertThat(dataSet2.getTableNames()).as("table count")
+                .hasSameSizeAs(dataSet1.getTableNames());
 
-        try
-        {
-            assertion.assertEquals(dataSet1, dataSet2);
-            throw new IllegalStateException("Should throw an AssertionFailedError");
-        }
-        catch (ComparisonFailure expected)
-        {
-            assertEquals("2", expected.getExpected());
-            assertEquals("4", expected.getActual());
-            assertEquals("row count (table=TEST_TABLE) expected:<[2]> but was:<[4]>", expected.getMessage());
-        }
+        assertThatThrownBy(() -> assertion.assertEquals(dataSet1, dataSet2))
+                .as("Should throw an DbComparisonFailure")
+                .isInstanceOf(DbComparisonFailure.class)
+                .hasMessageContaining(
+                        "row count (table=TEST_TABLE) expected:<2> but was:<4>")
+                .extracting("expected", "actual").asString().contains("2", "4");
+
     }
-    
-    public void testAssertDataSetsWithFailureHandler() throws Exception
+
+    @Test
+    void testAssertDataSetsWithFailureHandler() throws Exception
     {
-        DiffCollectingFailureHandler fh = new DiffCollectingFailureHandler();
-        
-        String xml1 = 
-            "<dataset>\n"+
-            "<TEST_TABLE COLUMN0='row 0 col 0' COLUMN1='row 0 col 1'/>\n" +
-            "</dataset>\n";
-        IDataSet dataSet1 = new FlatXmlDataSetBuilder().build(new StringReader(xml1));
-        String xml2 = 
-            "<dataset>\n"+
-            "<TEST_TABLE COLUMN0='row 0 col somthing' COLUMN1='row 0 col something mysterious'/>\n" +
-            "</dataset>\n";
-        IDataSet dataSet2 = new FlatXmlDataSetBuilder().build(new StringReader(xml2));
+        final DiffCollectingFailureHandler fh =
+                new DiffCollectingFailureHandler();
+
+        final String xml1 = "<dataset>\n"
+                + "<TEST_TABLE COLUMN0='row 0 col 0' COLUMN1='row 0 col 1'/>\n"
+                + "</dataset>\n";
+        final IDataSet dataSet1 =
+                new FlatXmlDataSetBuilder().build(new StringReader(xml1));
+        final String xml2 = "<dataset>\n"
+                + "<TEST_TABLE COLUMN0='row 0 col somthing' COLUMN1='row 0 col something mysterious'/>\n"
+                + "</dataset>\n";
+        final IDataSet dataSet2 =
+                new FlatXmlDataSetBuilder().build(new StringReader(xml2));
 
         // Invoke the assertion
         assertion.assertEquals(dataSet1, dataSet2, fh);
-        // We expect that no failure was thrown even if the dataSets were not equal.
+        // We expect that no failure was thrown even if the dataSets were not
+        // equal.
         // This is because our custom failureHandler
-        assertEquals(2, fh.getDiffList().size());
+        assertThat(fh.getDiffList()).hasSize(2);
     }
 
-    
-    
-    public void testGetComparisonDataType_ExpectedTypeUnknown()
+    @Test
+    void testGetComparisonDataType_ExpectedTypeUnknown()
     {
-    	Column expectedColumn = new Column("COL1", DataType.UNKNOWN);
-    	Column actualColumn = new Column("COL1", DataType.VARCHAR);
-    	DataType dataType = new DbUnitAssert.ComparisonColumn("BLABLA_TABLE_NOT_NEEDED_HERE", expectedColumn, actualColumn, assertion.getDefaultFailureHandler()).getDataType();
-    	assertEquals(DataType.VARCHAR, dataType);
-    }
-    
-    public void testGetComparisonDataType_ActualTypeUnknown()
-    {
-    	Column expectedColumn = new Column("COL1", DataType.VARCHAR);
-    	Column actualColumn = new Column("COL1", DataType.UNKNOWN);
-    	DataType dataType = new DbUnitAssert.ComparisonColumn("BLABLA_TABLE_NOT_NEEDED_HERE", expectedColumn, actualColumn, assertion.getDefaultFailureHandler()).getDataType();
-    	assertEquals(DataType.VARCHAR, dataType);
+        final Column expectedColumn = new Column("COL1", DataType.UNKNOWN);
+        final Column actualColumn = new Column("COL1", DataType.VARCHAR);
+        final DataType dataType = new DbUnitAssert.ComparisonColumn(
+                "BLABLA_TABLE_NOT_NEEDED_HERE", expectedColumn, actualColumn,
+                assertion.getDefaultFailureHandler()).getDataType();
+        assertThat(dataType).isEqualTo(DataType.VARCHAR);
     }
 
-    public void testGetComparisonDataType_BothTypesSetIncompatible()
+    @Test
+    void testGetComparisonDataType_ActualTypeUnknown()
     {
-    	Column expectedColumn = new Column("COL1", DataType.VARCHAR);
-    	Column actualColumn = new Column("COL1", DataType.NUMERIC);
-    	try {
-    	    new DbUnitAssert.ComparisonColumn("BLABLA_TABLE_NOT_NEEDED_HERE", expectedColumn, actualColumn, assertion.getDefaultFailureHandler()).getDataType();
-    		fail("Incompatible datatypes should not work");
-    	}
-    	catch(ComparisonFailure expected){
-    		assertEquals("VARCHAR", expected.getExpected());
-    		assertEquals("NUMERIC", expected.getActual());
-    		String expectedMsg = "Incompatible data types: (table=BLABLA_TABLE_NOT_NEEDED_HERE, col=COL1) expected:<[VARCHAR]> but was:<[NUMERIC]>";
-    		assertEquals(expectedMsg, expected.getMessage());
-    	}
+        final Column expectedColumn = new Column("COL1", DataType.VARCHAR);
+        final Column actualColumn = new Column("COL1", DataType.UNKNOWN);
+        final DataType dataType = new DbUnitAssert.ComparisonColumn(
+                "BLABLA_TABLE_NOT_NEEDED_HERE", expectedColumn, actualColumn,
+                assertion.getDefaultFailureHandler()).getDataType();
+        assertThat(dataType).isEqualTo(DataType.VARCHAR);
     }
 
-    public void testGetComparisonDataType_BothTypesSetToSame()
+    @Test
+    void testGetComparisonDataType_BothTypesSetIncompatible()
     {
-    	Column expectedColumn = new Column("COL1", DataType.VARCHAR);
-    	Column actualColumn = new Column("COL1", DataType.VARCHAR);
-    	DataType dataType = new DbUnitAssert.ComparisonColumn("BLABLA_TABLE_NOT_NEEDED_HERE", expectedColumn, actualColumn, assertion.getDefaultFailureHandler()).getDataType();
-    	assertEquals(DataType.VARCHAR, dataType);
+        final Column expectedColumn = new Column("COL1", DataType.VARCHAR);
+        final Column actualColumn = new Column("COL1", DataType.NUMERIC);
+        final String expectedMsg =
+                "Incompatible data types: (table=BLABLA_TABLE_NOT_NEEDED_HERE, col=COL1) expected:<VARCHAR> but was:<NUMERIC>";
+        final FailureHandler failureHandler =
+                assertion.getDefaultFailureHandler();
+        assertThatThrownBy(() -> new DbUnitAssert.ComparisonColumn(
+                "BLABLA_TABLE_NOT_NEEDED_HERE", expectedColumn, actualColumn,
+                failureHandler)).as("Incompatible datatypes should not work")
+                        .isInstanceOf(DbComparisonFailure.class)
+                        .hasMessageContaining(expectedMsg)
+                        .extracting("expected", "actual").asString()
+                        .contains("VARCHAR", "NUMERIC");
     }
 
-    public void testGetComparisonDataType_BothTypesUnknown()
+    @Test
+    void testGetComparisonDataType_BothTypesSetToSame()
     {
-    	Column expectedColumn = new Column("COL1", DataType.UNKNOWN);
-    	Column actualColumn = new Column("COL1", DataType.UNKNOWN);
-    	DataType dataType = new DbUnitAssert.ComparisonColumn("BLABLA_TABLE_NOT_NEEDED_HERE", expectedColumn, actualColumn, assertion.getDefaultFailureHandler()).getDataType();
-    	assertEquals(DataType.UNKNOWN, dataType);
+        final Column expectedColumn = new Column("COL1", DataType.VARCHAR);
+        final Column actualColumn = new Column("COL1", DataType.VARCHAR);
+        final DataType dataType = new DbUnitAssert.ComparisonColumn(
+                "BLABLA_TABLE_NOT_NEEDED_HERE", expectedColumn, actualColumn,
+                assertion.getDefaultFailureHandler()).getDataType();
+        assertThat(dataType).isEqualTo(DataType.VARCHAR);
     }
 
-    
-    
+    @Test
+    void testGetComparisonDataType_BothTypesUnknown()
+    {
+        final Column expectedColumn = new Column("COL1", DataType.UNKNOWN);
+        final Column actualColumn = new Column("COL1", DataType.UNKNOWN);
+        final DataType dataType = new DbUnitAssert.ComparisonColumn(
+                "BLABLA_TABLE_NOT_NEEDED_HERE", expectedColumn, actualColumn,
+                assertion.getDefaultFailureHandler()).getDataType();
+        assertThat(dataType).isEqualTo(DataType.UNKNOWN);
+    }
+
     /**
      * Test utility that modifies all values for a specific column arbitrarily
      */
     protected static class ModifyingTable implements ITable
     {
-    	private ITable _wrappedTable;
-    	private String _columnToModify;
-    	
-    	public ModifyingTable(ITable originalTable, String columnToModify)
-    	{
-    		this._wrappedTable = originalTable;
-    		this._columnToModify = columnToModify;
-    	}
+        private ITable _wrappedTable;
+        private String _columnToModify;
 
-		public int getRowCount() {
-			return this._wrappedTable.getRowCount();
-		}
+        public ModifyingTable(final ITable originalTable,
+                final String columnToModify)
+        {
+            this._wrappedTable = originalTable;
+            this._columnToModify = columnToModify;
+        }
 
-		public ITableMetaData getTableMetaData() {
-			return this._wrappedTable.getTableMetaData();
-		}
+        @Override
+        public int getRowCount()
+        {
+            return this._wrappedTable.getRowCount();
+        }
 
-		public Object getValue(int row, String column) throws DataSetException {
-			Object originalValue = _wrappedTable.getValue(row, column);
+        @Override
+        public ITableMetaData getTableMetaData()
+        {
+            return this._wrappedTable.getTableMetaData();
+        }
 
-			// Modify the value if column name matches
-			if(column.equalsIgnoreCase(this._columnToModify)) {
-				return String.valueOf(originalValue) + " (modified "+_columnToModify +")";
-			}
-			return originalValue;
-		}
-    	
-    	
+        @Override
+        public Object getValue(final int row, final String column)
+                throws DataSetException
+        {
+            final Object originalValue = _wrappedTable.getValue(row, column);
+
+            // Modify the value if column name matches
+            if (column.equalsIgnoreCase(this._columnToModify))
+            {
+                return String.valueOf(originalValue) + " (modified "
+                        + _columnToModify + ")";
+            }
+            return originalValue;
+        }
+
     }
 
 }
-
-
-
-
-

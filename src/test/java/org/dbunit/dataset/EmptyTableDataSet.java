@@ -1,7 +1,9 @@
 package org.dbunit.dataset;
 
 /**
- * <p> Copyright (c) 2003 OZ.COM.  All Rights Reserved. </p>
+ * <p>
+ * Copyright (c) 2003 OZ.COM. All Rights Reserved.
+ * </p>
  * 
  * @author manuel.laflamme
  * @since Mar 30, 2004
@@ -23,9 +25,10 @@ public class EmptyTableDataSet extends AbstractDataSet
         return _dataSet.getTableNames();
     }
 
-    public ITableMetaData getTableMetaData(String tableName) throws DataSetException
+    public ITableMetaData getTableMetaData(String tableName)
+            throws DataSetException
     {
-        return _dataSet.getTableMetaData(tableName);    
+        return _dataSet.getTableMetaData(tableName);
     }
 
     public ITable getTable(String tableName) throws DataSetException
@@ -36,10 +39,11 @@ public class EmptyTableDataSet extends AbstractDataSet
     ////////////////////////////////////////////////////////////////////////////
     // AbstractDataSet class
 
-    protected ITableIterator createIterator(boolean reversed) throws DataSetException
+    protected ITableIterator createIterator(boolean reversed)
+            throws DataSetException
     {
-        return new EmptyTableIterator(reversed ?
-                _dataSet.reverseIterator() : _dataSet.iterator());
+        return new EmptyTableIterator(
+                reversed ? _dataSet.reverseIterator() : _dataSet.iterator());
     }
 
     public static class EmptyTableIterator implements ITableIterator

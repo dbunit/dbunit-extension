@@ -18,28 +18,26 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  */
-package org.dbunit.dataset.excel;
 
-import junit.framework.Test;
-import junit.framework.TestSuite;
+package org.dbunit.dataset.datatype;
+
+import org.junit.platform.suite.api.SelectClasses;
+import org.junit.platform.suite.api.Suite;
 
 /**
  * @author Manuel Laflamme
- * @author Last changed by: $Author$
- * @version $Revision$ $Date$
- * @since 2.2.0
+ * @version $Revision$
  */
-public class AllTests extends TestSuite
+@Suite
+@SelectClasses({BooleanDataTypeTest.class, BigIntegerDataTypeTest.class,
+        BitDataTypeTest.class, BytesDataTypeTest.class, BlobDataTypeTest.class,
+        BinaryStreamDataTypeTest.class, DateDataTypeTest.class,
+        DefaultDataTypeFactoryTest.class, DoubleDataTypeTest.class,
+        FloatDataTypeTest.class, IntegerDataTypeTest.class,
+        LongDataTypeTest.class, NumberDataTypeTest.class,
+        NumberTolerantDataTypeTest.class, StringDataTypeTest.class,
+        StringIgnoreCaseDataTypeTest.class, TimeDataTypeTest.class,
+        TimestampDataTypeTest.class, TypeCastExceptionTest.class})
+public class AllTestsSuite
 {
-    public static Test suite()
-    {
-        TestSuite suite = new TestSuite();
-        suite.addTest(new TestSuite(XlsDataSetTest.class));
-        suite.addTest(new TestSuite(XlsTableTest.class));
-        suite.addTest(new TestSuite(XlsTableWriteTest.class));
-        suite.addTest(new TestSuite(XlsxDataSetTest.class));
-        suite.addTest(new TestSuite(XlsxTableTest.class));
-
-        return suite;
-    }
 }

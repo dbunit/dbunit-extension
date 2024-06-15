@@ -21,26 +21,32 @@
 
 package org.dbunit.database;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import org.dbunit.AbstractDatabaseTesterIT;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author Andres Almiray
  */
-public abstract class AbstractDatabaseTesterConnectionIT extends AbstractDatabaseTesterIT
+public abstract class AbstractDatabaseTesterConnectionIT
+        extends AbstractDatabaseTesterIT
 {
-    public AbstractDatabaseTesterConnectionIT(String s)
+
+    @Test
+    final void testGetRowCount() throws Exception
     {
-        super(s);
-    }
+        assertThat(_connection.getRowCount("EMPTY_TABLE", null))
+                .as("EMPTY_TABLE").isZero();
+        assertThat(_connection.getRowCount("EMPTY_TABLE")).as("EMPTY_TABLE")
+                .isZero();
 
-    public final void testGetRowCount() throws Exception
-    {
-        assertEquals("EMPTY_TABLE", 0, _connection.getRowCount("EMPTY_TABLE", null));
-        assertEquals("EMPTY_TABLE", 0, _connection.getRowCount("EMPTY_TABLE"));
+        assertThat(_connection.getRowCount("TEST_TABLE", null)).as("TEST_TABLE")
+                .isEqualTo(6);
+        assertThat(_connection.getRowCount("TEST_TABLE")).as("TEST_TABLE")
+                .isEqualTo(6);
 
-        assertEquals("TEST_TABLE", 6, _connection.getRowCount("TEST_TABLE", null));
-        assertEquals("TEST_TABLE", 6, _connection.getRowCount("TEST_TABLE"));
-
-        assertEquals("PK_TABLE", 1, _connection.getRowCount("PK_TABLE", "where PK0 = 0"));
+        assertThat(_connection.getRowCount("PK_TABLE", "where PK0 = 0"))
+                .as("PK_TABLE").isEqualTo(1);
     }
 }

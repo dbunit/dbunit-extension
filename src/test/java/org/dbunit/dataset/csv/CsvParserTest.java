@@ -18,8 +18,12 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  */
-
 package org.dbunit.dataset.csv;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -29,129 +33,155 @@ import java.io.InputStreamReader;
 import java.io.LineNumberReader;
 import java.util.List;
 
-import junit.framework.TestCase;
-
 import org.dbunit.dataset.common.handlers.IllegalInputCharacterException;
 import org.dbunit.dataset.common.handlers.PipelineException;
 import org.dbunit.testutil.TestUtils;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
-public class CsvParserTest extends TestCase {
+class CsvParserTest
+{
 
     CsvParser parser;
 
-/*
-    public void testNewParserHasNotNullPipeline() {
-        assertNotNull(parser.getPipeline());
+    /*
+     * public void testNewParserHasNotNullPipeline() {
+     * assertThat(parser.getPipeline()).isNotNull(); }
+     *
+     * public void testAfterEachParsingThePipelineIsEmpty() throws
+     * PipelineException, IllegalInputCharacterException {
+     *
+     * class MockPipeline extends Pipeline { boolean setProductCalled = false;
+     *
+     * protected void setProducts(List products) { assertThat(
+     * products.size()).isEqualTo(0); super.setProducts(products);
+     * setProductCalled = true; } }
+     *
+     * MockPipeline mockPipeline = new MockPipeline();
+     * parser.setPipeline(mockPipeline); parser.parse("");
+     * assertTrue("the set product method should be called to prepare a new list of products"
+     * , mockPipeline.setProductCalled); }
+     */
+
+    @Test
+    void testCanParseNonQuotedStrings()
+            throws PipelineException, IllegalInputCharacterException
+    {
+        final String csv = "Hello, world";
+        final List parsed = parser.parse(csv);
+        assertThat(parsed).hasSize(2);
+        assertThat(parsed.get(0)).isEqualTo("Hello");
+        assertThat(parsed.get(1)).isEqualTo("world");
     }
 
-    public void testAfterEachParsingThePipelineIsEmpty() throws PipelineException, IllegalInputCharacterException {
-
-        class MockPipeline extends Pipeline {
-            boolean setProductCalled = false;
-
-            protected void setProducts(List products) {
-                assertEquals(0, products.size());
-                super.setProducts(products);
-                setProductCalled = true;
-            }
-        }
-
-        MockPipeline mockPipeline = new MockPipeline();
-        parser.setPipeline(mockPipeline);
-        parser.parse("");
-        assertTrue("the set product method should be called to prepare a new list of products",
-                mockPipeline.setProductCalled);
-    }
-*/
-
-    
-    public void testCanParseNonQuotedStrings() throws PipelineException, IllegalInputCharacterException {
-        String csv = "Hello, world";
-        List parsed = parser.parse(csv);
-        assertEquals(2, parsed.size());
-        assertEquals(parsed.get(0), "Hello");
-        assertEquals(parsed.get(1), "world");
+    @Test
+    void testAFieldCanContainANewLine()
+            throws PipelineException, IllegalInputCharacterException
+    {
+        assertThat(parser
+                .parse("Hello, World\nIt's today, the day before tomorrow"))
+                        .as("").hasSize(3);
     }
 
-    public void testAFieldCanContainANewLine () throws PipelineException, IllegalInputCharacterException {
-        assertEquals("", 3, parser.parse("Hello, World\nIt's today, the day before tomorrow").size());
+    @Test
+    void testDontAcceptIncompleteFields()
+            throws PipelineException, IllegalInputCharacterException
+    {
+        final String incompleteFields = "AAAAA,\"BB";
+
+        assertThrows(IllegalStateException.class,
+                () -> parser.parse(incompleteFields),
+                "should have thrown an exception");
     }
 
-    public void testDontAcceptIncompleteFields () throws PipelineException, IllegalInputCharacterException {
-        String incompleteFields = "AAAAA,\"BB";
-
-        try {
-            parser.parse(incompleteFields);
-            fail("should have thrown an exception");
-        } catch (IllegalStateException e) {
-            assertTrue(true);
-        }
-    }
-
-    public void testAFileCanContainFieldWithNewLine () throws IOException, CsvParserException {
+    @Test
+    void testAFileCanContainFieldWithNewLine()
+            throws IOException, CsvParserException
+    {
         final String pathname = "csv/with-newlines.csv";
-        List list = parser.parse(TestUtils.getFile(pathname));
-        assertEquals("wrong number of lines parsed from " + pathname, 2, list.size());
-        List row = (List) list.get(1);
-        assertEquals("AA\nAAA", row.get(0));
-        assertEquals("BB\nBBB", row.get(1));
+        final List list = parser.parse(TestUtils.getFile(pathname));
+        assertThat(list).as("wrong number of lines parsed from " + pathname)
+                .hasSize(2);
+        final List row = (List) list.get(1);
+        assertThat(row.get(0)).isEqualTo("AA\nAAA");
+        assertThat(row.get(1)).isEqualTo("BB\nBBB");
     }
 
-    public void testRaiseACSVParserExceptonWhenParsingAnEmptyFile () throws IOException {
+    @Test
+    void testRaiseACSVParserExceptonWhenParsingAnEmptyFile() throws IOException
+    {
         failParsing(TestUtils.getFile("csv/empty-file.csv"));
     }
 
-    public void testRaiseACSVParserExceptonWhenParsingFileWithDifferentNumberOfColumns () throws IllegalInputCharacterException, IOException, PipelineException {
+    @Test
+    void testRaiseACSVParserExceptonWhenParsingFileWithDifferentNumberOfColumns()
+            throws IllegalInputCharacterException, IOException,
+            PipelineException
+    {
         failParsing(TestUtils.getFile("csv/different-column-numbers-last.csv"));
-        failParsing(TestUtils.getFile("csv/different-column-numbers-first.csv"));
+        failParsing(
+                TestUtils.getFile("csv/different-column-numbers-first.csv"));
     }
 
-    private void failParsing(File sample) throws IOException {
-        try {
+    private void failParsing(final File sample) throws IOException
+    {
+        try
+        {
             parser.parse(sample);
             fail("should have thrown a CsvParserException");
-        } catch (CsvParserException e) {
+        } catch (final CsvParserException e)
+        {
             assertTrue(true);
         }
     }
 
-    public void testSample() throws Exception {
+    @Test
+    void testSample() throws Exception
+    {
 
-        File sample = TestUtils.getFile("csv/sample.csv");
-        BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(sample)));
-        LineNumberReader lineNumberReader = new LineNumberReader(reader);
+        final File sample = TestUtils.getFile("csv/sample.csv");
+        final BufferedReader reader = new BufferedReader(
+                new InputStreamReader(new FileInputStream(sample)));
+        final LineNumberReader lineNumberReader = new LineNumberReader(reader);
         String line;
-        while ((line = lineNumberReader.readLine()) != null) {
+        while ((line = lineNumberReader.readLine()) != null)
+        {
             if (line.startsWith("#") || line.trim().length() == 0)
                 continue;
-            //System.out.println("line: " + line);
-            List actual = parser.parse(line);
-            assertEquals("wrong tokens on line " + lineNumberReader.getLineNumber() + " " + line,
-                    3, actual.size());
+            // System.out.println("line: " + line);
+            final List actual = parser.parse(line);
+            assertThat(actual)
+                    .as("wrong tokens on line "
+                            + lineNumberReader.getLineNumber() + " " + line)
+                    .hasSize(3);
         }
     }
 
-    public void testWhitespacePreservedOnQuotedStrings() throws PipelineException, IllegalInputCharacterException {
+    @Test
+    void testWhitespacePreservedOnQuotedStrings()
+            throws PipelineException, IllegalInputCharacterException
+    {
         String csv = "\" Hello, \",world";
         List parsed = parser.parse(csv);
-        assertEquals(2, parsed.size());
-        assertEquals(" Hello, ", parsed.get(0));
-        assertEquals("world", parsed.get(1));
+        assertThat(parsed).hasSize(2);
+        assertThat(parsed.get(0)).isEqualTo(" Hello, ");
+        assertThat(parsed.get(1)).isEqualTo("world");
         csv = " Hello, world";
         parsed = parser.parse(csv);
-        assertEquals(2, parsed.size());
-        assertEquals("Hello", parsed.get(0));
-        assertEquals("world", parsed.get(1));
+        assertThat(parsed).hasSize(2);
+        assertThat(parsed.get(0)).isEqualTo("Hello");
+        assertThat(parsed.get(1)).isEqualTo("world");
         csv = "\" Hello, \",\" world \"";
         parsed = parser.parse(csv);
-        assertEquals(2, parsed.size());
-        assertEquals(" Hello, ", parsed.get(0));
-        assertEquals(" world ", parsed.get(1));
+        assertThat(parsed).hasSize(2);
+        assertThat(parsed.get(0)).isEqualTo(" Hello, ");
+        assertThat(parsed.get(1)).isEqualTo(" world ");
     }
 
-    protected void setUp() throws Exception {
+    @BeforeEach
+    protected void setUp() throws Exception
+    {
         parser = new CsvParserImpl();
     }
 
 }
-

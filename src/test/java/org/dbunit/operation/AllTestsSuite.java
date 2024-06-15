@@ -21,36 +21,22 @@
 
 package org.dbunit.operation;
 
-import junit.framework.Test;
-import junit.framework.TestSuite;
+import org.junit.platform.suite.api.SelectClasses;
+import org.junit.platform.suite.api.Suite;
 
 /**
  * @author Manuel Laflamme
  * @version $Revision$
  * @since Feb 19, 2002
  */
-public class AllTests extends TestSuite
+@Suite
+@SelectClasses({AbstractBatchOperationIT.class,
+        CloseConnectionOperationIT.class, CompositeOperationIT.class,
+        DeleteAllOperationIT.class, DeleteOperationIT.class,
+        InsertOperationIT.class, RefreshOperationIT.class,
+        TransactionOperationIT.class, TruncateTableOperationIT.class,
+        UpdateOperationIT.class,})
+public class AllTestsSuite
 {
-    public static Test suite() throws Exception
-    {
-        TestSuite suite = new TestSuite();
 
-        suite.addTest(new TestSuite(AbstractBatchOperationIT.class));
-        suite.addTest(new TestSuite(CloseConnectionOperationIT.class));
-        suite.addTest(new TestSuite(CompositeOperationIT.class));
-        suite.addTest(new TestSuite(DeleteAllOperationIT.class));
-        suite.addTest(new TestSuite(DeleteOperationIT.class));
-        suite.addTest(new TestSuite(InsertOperationIT.class));
-        suite.addTest(new TestSuite(RefreshOperationIT.class));
-        suite.addTest(new TestSuite(TransactionOperationIT.class));
-        suite.addTest(new TestSuite(TruncateTableOperationIT.class));
-        suite.addTest(new TestSuite(UpdateOperationIT.class));
-
-        return suite;
-    }
 }
-
-
-
-
-

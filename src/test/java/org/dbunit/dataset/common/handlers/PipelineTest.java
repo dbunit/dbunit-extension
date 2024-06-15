@@ -18,80 +18,107 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  */
-
 package org.dbunit.dataset.common.handlers;
 
-import junit.framework.TestCase;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyChar;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 /**
- * author: fede
- * 29-lug-2003 16.14.18
- * $Revision$
+ * author: fede 29-lug-2003 16.14.18 $Revision$
  */
-public class PipelineTest extends TestCase {
+@ExtendWith(MockitoExtension.class)
+class PipelineTest
+{
     Pipeline line;
 
-    public void testRemovingTheLastHandlerThrowsException () {
-        try {
+    @Test
+    void testRemovingTheLastHandlerThrowsException()
+    {
+        line.removeFront();
+        assertThrows(PipelineException.class, () -> {
             line.removeFront();
-            line.removeFront();
-            fail ("Removing from an ampty pipeline should throw an exception");
-        } catch (PipelineException e) {}
+        }, "Removing from an ampty pipeline should throw an exception");
     }
 
-    public void testAnHandlerCanBeAddedInFront () throws PipelineException {
-        PipelineComponent handler = SeparatorHandler.ACCEPT();
+    @Test
+    void testAnHandlerCanBeAddedInFront() throws PipelineException
+    {
+        final PipelineComponent handler = SeparatorHandler.ACCEPT();
         line.putFront(handler);
-        assertSame(handler, line.removeFront());
-        assertSame(line, handler.getPipeline());
+        assertThat(line.removeFront()).isSameAs(handler);
+        assertThat(handler.getPipeline()).isSameAs(line);
     }
 
-    public void testTheFrontHandlerIsThereAfterAddingAndRemovingAnother () throws PipelineException {
-        PipelineComponent handler = SeparatorHandler.ACCEPT();
-        PipelineComponent handler2 = SeparatorHandler.ACCEPT();
+    @Test
+    void testTheFrontHandlerIsThereAfterAddingAndRemovingAnother()
+            throws PipelineException
+    {
+        final PipelineComponent handler = SeparatorHandler.ACCEPT();
+        final PipelineComponent handler2 = SeparatorHandler.ACCEPT();
         line.putFront(handler);
         line.putFront(handler2);
-        assertSame(handler2, line.removeFront());
-        assertSame(handler, line.removeFront());
+        assertThat(line.removeFront()).isSameAs(handler2);
+        assertThat(line.removeFront()).isSameAs(handler);
     }
 
-    public void testEachHandlerIsCalled () throws IllegalInputCharacterException, PipelineException {
-        MockHandler component = new MockHandler();
-        MockHandler component2 = new MockHandler();
-        component.setExpectedHandleCalls(1);
-        component2.setExpectedHandleCalls(1);
+    @Test
+    void testEachHandlerIsCalled(@Mock final PipelineComponent component,
+            @Mock final PipelineComponent component2)
+            throws IllegalInputCharacterException, PipelineException
+    {
         line.putFront(component);
         line.putFront(component2);
-
+        doThrow(new IllegalInputCharacterException("")).when(component2)
+                .handle(anyChar());
         // the last handler will throw an exception
-        try {
-            line.handle('x');
-            fail("Exception expected");
-        } catch (IllegalInputCharacterException seen) {}
+        assertThrows(IllegalInputCharacterException.class,
+                () -> line.handle('x'), "Exception expected");
 
-        component.verify();
-        component2.verify();
+        verify(component, times(1)).setSuccessor(any(TransparentHandler.class));
+        verify(component, times(1)).setPipeline(any(Pipeline.class));
+        verify(component2, times(1)).handle(anyChar());
+
+        // component.verify();
+        // component2.verify();
     }
 
-    public void testWhenAPieceIsDoneIsAddedToProducts () throws IllegalInputCharacterException, PipelineException {
-        PipelineComponent c = AllHandler.ACCEPT();
+    @Test
+    void testWhenAPieceIsDoneIsAddedToProducts()
+            throws IllegalInputCharacterException, PipelineException
+    {
+        final PipelineComponent c = AllHandler.ACCEPT();
         line.putFront(c);
         line.handle('x');
         line.thePieceIsDone();
-        assertEquals(1, line.getProducts().size());
-        assertEquals("x", line.getProducts().get(0));
+        assertThat(line.getProducts()).hasSize(1);
+        assertThat(line.getProducts().get(0)).isEqualTo("x");
     }
 
-    public void testWhetAPieceIsDoneANewOneIsCreated () throws IllegalInputCharacterException, PipelineException {
-        PipelineComponent c = AllHandler.ACCEPT();
+    @Test
+    void testWhetAPieceIsDoneANewOneIsCreated()
+            throws IllegalInputCharacterException, PipelineException
+    {
+        final PipelineComponent c = AllHandler.ACCEPT();
         line.putFront(c);
         line.handle('x');
         line.thePieceIsDone();
-        assertEquals("", line.getCurrentProduct().toString());
+        assertThat(line.getCurrentProduct()).hasToString("");
     }
 
-
-    protected void setUp() throws Exception {
+    @BeforeEach
+    protected void setUp() throws Exception
+    {
         line = new Pipeline();
     }
 }

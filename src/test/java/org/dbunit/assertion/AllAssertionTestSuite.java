@@ -18,29 +18,20 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  */
+package org.dbunit.assertion;
 
-package org.dbunit.ext.mckoi;
-
-import junit.framework.Test;
-import junit.framework.TestSuite;
+import org.junit.platform.suite.api.SelectClasses;
+import org.junit.platform.suite.api.Suite;
 
 /**
- * @author Luigi Talamona (luigitalamona AT users.sourceforge.net)
+ * @author gommma (gommma AT users.sourceforge.net)
  * @author Last changed by: $Author$
  * @version $Revision$ $Date$
- * @since 2.4.8
+ * @since 2.4.0
  */
-public class AllTests extends TestSuite
+@Suite
+@SelectClasses({DefaultFailureHandlerTest.class, DbUnitAssertIT.class,
+        DiffCollectingFailureHandlerTest.class})
+public class AllAssertionTestSuite
 {
-    public static Test suite()
-    {
-        TestSuite suite = new TestSuite();
-        suite.addTest(new TestSuite(MckoiDataTypeFactoryTest.class));
-        return suite;
-    }
 }
-
-
-
-
-
