@@ -11,3 +11,11 @@ dbunit.properties
 *.iml
 *.ipr
 *.iws
+
+# Personal env file for SDKMAN!
+.sdkmanrc
+
+
+# Generated outputs from the build.
+antExport.dtd
+antExportCsv/

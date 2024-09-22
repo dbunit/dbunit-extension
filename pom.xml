@@ -418,12 +418,6 @@
       <optional>true</optional>
     </dependency>
     <dependency>
-      <groupId>org.junit.vintage</groupId>
-      <artifactId>junit-vintage-engine</artifactId>
-      <version>${junitVersion}</version>
-      <scope>test</scope>
-</dependency>
-    <dependency>
       <groupId>org.junit.platform</groupId>
       <artifactId>junit-platform-suite-engine</artifactId>
       <version>${junitPlatformSuiteEngine.version}</version>
@@ -470,13 +464,6 @@
       <optional>true</optional>
     </dependency>
 
-    <dependency>
-      <groupId>org.apache.ant</groupId>
-      <artifactId>ant-testutil</artifactId>
-      <version>${antTestUtilVersion}</version>
-      <optional>true</optional>
-      <scope>test</scope>
-    </dependency>
     <dependency>
       <groupId>org.mockito</groupId>
       <artifactId>mockito-core</artifactId>

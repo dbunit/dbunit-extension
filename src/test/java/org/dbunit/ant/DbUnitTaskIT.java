@@ -1,7 +1,7 @@
 /*
  *
  * The DbUnit Database Testing Framework
- * Copyright (C)2002-2004, DbUnit.org
+ * Copyright (C)2002-2024, DbUnit.org
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -34,15 +34,14 @@ import java.sql.SQLException;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.List;
-
 import org.apache.tools.ant.BuildException;
-import org.apache.tools.ant.BuildFileRule;
 import org.apache.tools.ant.Target;
 import org.apache.tools.ant.Task;
 import org.apache.tools.ant.UnknownElement;
 import org.dbunit.DatabaseEnvironment;
 import org.dbunit.DatabaseUnitException;
 import org.dbunit.IDatabaseTester;
+import org.dbunit.ant.adapter.BuildFileExtension;
 import org.dbunit.database.DatabaseConfig;
 import org.dbunit.database.IDatabaseConnection;
 import org.dbunit.dataset.FilteredDataSet;
@@ -55,12 +54,14 @@ import org.dbunit.ext.oracle.OracleDataTypeFactory;
 import org.dbunit.operation.DatabaseOperation;
 import org.dbunit.testutil.TestUtils;
 import org.dbunit.util.FileHelper;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-
-import junit.framework.TestSuite;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Ant-based test class for the Dbunit ant task definition.
@@ -74,9 +75,10 @@ import junit.framework.TestSuite;
  */
 public class DbUnitTaskIT
 {
+    private final Logger log = LoggerFactory.getLogger(getClass());
 
-    @Rule
-    public BuildFileRule rule = new BuildFileRule();
+    @RegisterExtension
+    public BuildFileExtension rule = new BuildFileExtension();
 
     static protected Class classUnderTest = DbUnitTaskIT.class;
 
@@ -85,12 +87,15 @@ public class DbUnitTaskIT
 
     private File outputDir;
 
-    @Before
-    public void setUp() throws Exception
-    {
+    @BeforeAll
+    public static void initializeDbEnvironment() throws Exception {
         // This line ensure test database is initialized
         DatabaseEnvironment.getInstance();
+    }
 
+    @BeforeEach
+    public void setUp() throws Exception
+    {
         final String filePath = BUILD_FILE_DIR + "/antTestBuildFile.xml";
         assertThat(TestUtils.getFile(filePath)).as("Buildfile not found")
         .isFile();
@@ -99,10 +104,9 @@ public class DbUnitTaskIT
         outputDir.mkdirs();
     }
 
-    @After
+    @AfterEach
     public void tearDown() throws Exception
     {
-
         outputDir = new File(rule.getProject().getBaseDir(), OUTPUT_DIR);
         FileHelper.deleteDirectory(outputDir);
     }
@@ -418,6 +422,7 @@ public class DbUnitTaskIT
         assertThat(emptyTable.getName()).as("name").isEqualTo("EMPTY_TABLE");
     }
 
+    @Disabled("Ant now ignores id errors and refid is always evaluated first")
     @Test
     public void testWithBadQuerySet()
     {
@@ -730,8 +735,7 @@ public class DbUnitTaskIT
                             ((DbUnitTaskStep)s).execute(((DbUnitTask) elm).createConnection());
                         } catch (DatabaseUnitException | SQLException e)
                         {
-                            // TODO Auto-generated catch block
-                            e.printStackTrace();
+                            log.error("getFirstTargetTask: Error creating connection", e);
                         }
                     });
                 }
@@ -739,23 +743,6 @@ public class DbUnitTaskIT
         }
 
         return task;
-    }
-
-    static TestSuite suite()
-    {
-        final TestSuite suite = new TestSuite(classUnderTest);
-        return suite;
-    }
-
-    public static void main(final String args[])
-    {
-        if (args.length > 0 && args[0].equals("-gui"))
-        {
-            System.err.println("JUnit Swing-GUI is no longer supported.");
-            System.err.println("Starting textversion.");
-        }
-
-        junit.textui.TestRunner.run(suite());
     }
 
     /**
