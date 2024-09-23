@@ -62,8 +62,7 @@ public class DefaultDataTypeFactory implements IDataTypeFactory, IDbProductRelat
      */
     public DataType createDataType(int sqlType, String sqlTypeName) throws DataTypeException
     {
-    	if(logger.isDebugEnabled())
-    		logger.debug("createDataType(sqlType={}, sqlTypeName={}) - start", new Integer(sqlType), sqlTypeName);
+    	logger.debug("createDataType(sqlType={}, sqlTypeName={}) - start", sqlType, sqlTypeName);
 
         DataType dataType = DataType.UNKNOWN;
         if (sqlType != Types.OTHER)
@@ -93,9 +92,8 @@ public class DefaultDataTypeFactory implements IDataTypeFactory, IDbProductRelat
      */
     public DataType createDataType(int sqlType, String sqlTypeName, String tableName, String columnName) throws DataTypeException
     {
-    	if(logger.isDebugEnabled())
-    		logger.debug("createDataType(sqlType={} , sqlTypeName={}, tableName={}, columnName={}) - start", 
-        		new Object[] {new Integer(sqlType), sqlTypeName, tableName, columnName} );
+    	logger.debug("createDataType(sqlType={} , sqlTypeName={}, tableName={}, columnName={}) - start",
+    		sqlType, sqlTypeName, tableName, columnName);
 
         if (sqlType == Types.NUMERIC || sqlType == Types.DECIMAL)
         {
@@ -105,7 +103,7 @@ public class DefaultDataTypeFactory implements IDataTypeFactory, IDbProductRelat
             if(delta!=null) {
                 if(logger.isDebugEnabled())
                     logger.debug("Creating NumberTolerantDataType for table={}, column={}, toleratedDelta={}", 
-            			new Object[]{tableName, columnName, delta.getToleratedDelta() });
+            			tableName, columnName, delta.getToleratedDelta());
                 
                 // Use a special data type to implement the tolerance for numbers (floating point things)
                 NumberTolerantDataType type = new NumberTolerantDataType("NUMERIC_WITH_TOLERATED_DELTA", 
@@ -144,7 +142,7 @@ public class DefaultDataTypeFactory implements IDataTypeFactory, IDbProductRelat
      */
     public String toString()
     {
-        StringBuffer sb = new StringBuffer();
+        final StringBuilder sb = new StringBuilder();
         sb.append(getClass().getName()).append("[");
         sb.append("_toleratedDeltaMap=").append(_toleratedDeltaMap);
         sb.append("]");

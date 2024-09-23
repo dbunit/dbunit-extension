@@ -62,7 +62,7 @@ public class Query
 
     public String toString()
     {
-        StringBuffer result = new StringBuffer();
+        StringBuilder result = new StringBuilder();
         result.append("Query: ");
         result.append(" name=" + name);
         result.append(" sql=" + sql);

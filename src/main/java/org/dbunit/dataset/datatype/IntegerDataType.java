@@ -58,7 +58,7 @@ public class IntegerDataType extends AbstractDataType
 
         if (value instanceof Number)
         {
-            return new Integer(((Number)value).intValue());
+            return ((Number)value).intValue();
         }
 
         // Treat "false" as 0, "true" as 1
@@ -68,12 +68,12 @@ public class IntegerDataType extends AbstractDataType
 
             if ("false".equalsIgnoreCase(string))
             {
-                return new Integer(0);
+                return 0;
             }
 
             if ("true".equalsIgnoreCase(string))
             {
-                return new Integer(1);
+                return 1;
             }
         }
 
@@ -97,25 +97,18 @@ public class IntegerDataType extends AbstractDataType
     public Object getSqlValue(int column, ResultSet resultSet)
             throws SQLException, TypeCastException
     {
-    	if(logger.isDebugEnabled())
-    		logger.debug("getSqlValue(column={}, resultSet={}) - start", new Integer(column), resultSet);
+    	logger.debug("getSqlValue(column={}, resultSet={}) - start", column, resultSet);
 
-        int value = resultSet.getInt(column);
-        if (resultSet.wasNull())
-        {
-            return null;
-        }
-        return new Integer(value);
+        return resultSet.wasNull() ? null : resultSet.getInt(column);
     }
 
     public void setSqlValue(Object value, int column, PreparedStatement statement)
             throws SQLException, TypeCastException
     {
-    	if(logger.isDebugEnabled())
-    		logger.debug("setSqlValue(value={}, column={}, statement={}) - start",
-        		new Object[]{value, new Integer(column), statement} );
+    	logger.debug("setSqlValue(value={}, column={}, statement={}) - start",
+    		value, column, statement);
 
-        statement.setInt(column, ((Integer)typeCast(value)).intValue());
+        statement.setInt(column, (Integer)typeCast(value));
     }
 }
 

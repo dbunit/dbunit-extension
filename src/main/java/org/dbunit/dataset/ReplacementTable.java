@@ -76,10 +76,10 @@ public class ReplacementTable implements ITable
      * 
      * @param strictReplacement true if replacement should be strict
      */
-    public void setStrictReplacement(boolean strictReplacement) 
+    public void setStrictReplacement(boolean strictReplacement)
     {
     	if(logger.isDebugEnabled())
-    		logger.debug("setStrictReplacement(strictReplacement={}) - start", String.valueOf(strictReplacement));
+    		logger.debug("setStrictReplacement(strictReplacement={}) - start", strictReplacement);
     	
         this._strictReplacement = strictReplacement;
     }
@@ -135,7 +135,7 @@ public class ReplacementTable implements ITable
     /**
      * Replace occurrences of source in text with target. Operates directly on text.
      */
-    private void replaceAll(StringBuffer text, String source, String target) {
+    private void replaceAll(StringBuilder text, String source, String target) {
         int index = 0;
         while((index = text.toString().indexOf(source, index)) != -1)
         {
@@ -145,7 +145,7 @@ public class ReplacementTable implements ITable
     }
     
     private String replaceStrings(String value, String lDelim, String rDelim) {
-        StringBuffer buffer = new StringBuffer(value);
+        final StringBuilder buffer = new StringBuilder(value);
 
         for (Iterator it = _substringMap.entrySet().iterator(); it.hasNext();)
         {
@@ -168,7 +168,7 @@ public class ReplacementTable implements ITable
      */
     private String replaceDelimitedSubstrings(String value) throws DataSetException
     {
-        StringBuffer buffer = null;
+        StringBuilder buffer = null;
 
         int startIndex = 0;
         int endIndex = 0;
@@ -183,7 +183,7 @@ public class ReplacementTable implements ITable
                 {
                     if (buffer == null)
                     {
-                        buffer = new StringBuffer();
+                        buffer = new StringBuilder();
                     }
 
                     String substring = value.substring(
@@ -242,7 +242,7 @@ public class ReplacementTable implements ITable
     public Object getValue(int row, String column) throws DataSetException
     {
         if(logger.isDebugEnabled())
-            logger.debug("getValue(row={}, columnName={}) - start", Integer.toString(row), column);
+            logger.debug("getValue(row={}, columnName={}) - start", row, column);
 
         Object value = _table.getValue(row, column);
 
@@ -269,7 +269,7 @@ public class ReplacementTable implements ITable
     
     public String toString()
     {
-    	StringBuffer sb = new StringBuffer();
+    	final StringBuilder sb = new StringBuilder();
     	sb.append(getClass().getName()).append("[");
     	sb.append("_strictReplacement=").append(_strictReplacement);
     	sb.append(", _table=").append(_table);

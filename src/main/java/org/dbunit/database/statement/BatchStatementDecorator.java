@@ -48,7 +48,7 @@ public class BatchStatementDecorator implements IPreparedBatchStatement
 
     private final IBatchStatement _statement;
     private final String[] _sqlTemplate;
-    private StringBuffer _sqlBuffer;
+    private StringBuilder _sqlBuffer;
     private int _index;
 
     BatchStatementDecorator(String sql, IBatchStatement statement)
@@ -70,7 +70,7 @@ public class BatchStatementDecorator implements IPreparedBatchStatement
 
         // reset sql buffer
         _index = 0;
-        _sqlBuffer = new StringBuffer(_sqlTemplate[_index++]);
+        _sqlBuffer = new StringBuilder(_sqlTemplate[_index++]);
     }
 
     ////////////////////////////////////////////////////////////////////////////
@@ -93,7 +93,7 @@ public class BatchStatementDecorator implements IPreparedBatchStatement
 
         // reset sql buffer
         _index = 0;
-        _sqlBuffer = new StringBuffer(_sqlTemplate[_index++]);
+        _sqlBuffer = new StringBuilder(_sqlTemplate[_index++]);
     }
 
     public int executeBatch() throws SQLException
@@ -111,7 +111,7 @@ public class BatchStatementDecorator implements IPreparedBatchStatement
 
         // reset sql buffer
         _index = 0;
-        _sqlBuffer = new StringBuffer(_sqlTemplate[_index++]);
+        _sqlBuffer = new StringBuilder(_sqlTemplate[_index++]);
     }
 
     public void close() throws SQLException

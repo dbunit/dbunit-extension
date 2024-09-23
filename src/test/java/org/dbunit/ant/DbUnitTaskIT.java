@@ -30,6 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.fail;
 
 import java.io.File;
+import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.util.Hashtable;
 import java.util.Iterator;
@@ -306,7 +307,7 @@ public class DbUnitTaskIT
         final String targetName = "test-export-format-flat-with-encoding";
         final Export export = (Export) getFirstStepFromTarget(targetName);
         assertThat(export.getFormat()).as("format").isEqualTo("flat");
-        assertThat(export.getEncoding()).as("encoding").isEqualTo("ISO-8859-1");
+        assertThat(export.getEncoding()).as("encoding").isEqualTo(StandardCharsets.ISO_8859_1);
     }
 
     @Test

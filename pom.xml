@@ -721,8 +721,7 @@ enable this to generate coverage report HTML files during build (same as site)
           <version>${modernizer-maven-plugin}</version>
           <configuration>
             <javaVersion>${compileSource}</javaVersion>
-            <!-- TODO enable failOnViolations after fixing failures-->
-            <failOnViolations>false</failOnViolations>
+            <failOnViolations>true</failOnViolations>
           </configuration>
           <executions>
             <execution>

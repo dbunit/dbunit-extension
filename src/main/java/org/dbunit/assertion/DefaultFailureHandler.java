@@ -126,8 +126,8 @@ public class DefaultFailureHandler implements FailureHandler
             logger.debug(
                     "buildAdditionalColumnInfo(expectedTable={}, actualTable={}, rowIndex={}, "
                             + "additionalColumnInfo={}) - start",
-                    new Object[] {expectedTable, actualTable,
-                            new Integer(rowIndex), _additionalColumnInfo});
+                    expectedTable, actualTable,
+                            rowIndex, _additionalColumnInfo);
         }
 
         // No columns specified

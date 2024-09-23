@@ -101,10 +101,10 @@ public class RowFilterTable implements ITable, IRowValueProvider {
 		for ( int row=0; row<fullSize; row++ ) {
 			this.currentRowIdx = row;
 			if(rowFilter.accept(this)) {
-				this.logger.debug("Adding row {}", new Integer(row));
-				filteredRowIndexes.add(new Integer(row));
+				this.logger.debug("Adding row {}", row);
+				filteredRowIndexes.add(row);
 			} else {
-				this.logger.debug("Discarding row {}", new Integer(row));        
+				this.logger.debug("Discarding row {}", row);
 			}
 		}
 		return filteredRowIndexes;   

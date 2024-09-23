@@ -113,8 +113,7 @@ public class FlatDtdDataSet extends AbstractDataSet implements IDataSetConsumer
     protected ITableIterator createIterator(boolean reversed)
             throws DataSetException
     {
-    	if(logger.isDebugEnabled())
-    		logger.debug("createIterator(reversed={}) - start", String.valueOf(reversed));
+    	logger.debug("createIterator(reversed={}) - start", reversed);
 
         // Verify producer notifications completed
         if (!_ready)
@@ -218,7 +217,7 @@ public class FlatDtdDataSet extends AbstractDataSet implements IDataSetConsumer
 
     public String toString()
     {
-    	StringBuffer sb = new StringBuffer();
+    	final StringBuilder sb = new StringBuilder();
     	sb.append(getClass().getName()).append("[");
     	sb.append("_ready=").append(this._ready);
     	sb.append(", _orderedTableNameMap=").append(this._orderedTableNameMap);

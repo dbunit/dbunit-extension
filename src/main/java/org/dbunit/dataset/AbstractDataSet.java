@@ -201,7 +201,7 @@ public abstract class AbstractDataSet implements IDataSet
 
     public String toString()
     {
-        StringBuffer sb = new StringBuffer();
+        final StringBuilder sb = new StringBuilder();
         sb.append("AbstractDataSet[");
         sb.append("_orderedTableNameMap=").append(_orderedTableNameMap);
         sb.append("]");

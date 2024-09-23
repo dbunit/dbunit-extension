@@ -305,7 +305,7 @@ class PatternMatcher
     
     public String toString()
     {
-        StringBuffer sb = new StringBuffer();
+        final StringBuilder sb = new StringBuilder();
         sb.append(getClass().getName()).append("[");
         sb.append("_acceptedNames=").append(_acceptedNames);
         sb.append(", _acceptedPatterns=").append(_acceptedPatterns);

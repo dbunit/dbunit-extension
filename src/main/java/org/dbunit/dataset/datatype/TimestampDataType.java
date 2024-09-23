@@ -27,7 +27,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.sql.Types;
-import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.TimeZone;
@@ -182,10 +181,7 @@ public class TimestampDataType extends AbstractDataType
     @Override
     public Object getSqlValue(int column, ResultSet resultSet) throws SQLException, TypeCastException
     {
-        if (logger.isDebugEnabled())
-        {
-            logger.debug("getSqlValue(column={}, resultSet={}) - start", new Integer(column), resultSet);
-        }
+        logger.debug("getSqlValue(column={}, resultSet={}) - start", column, resultSet);
 
         Timestamp value = resultSet.getTimestamp(column);
         if (value == null || resultSet.wasNull())
@@ -199,11 +195,8 @@ public class TimestampDataType extends AbstractDataType
     public void setSqlValue(Object value, int column, PreparedStatement statement)
             throws SQLException, TypeCastException
     {
-        if (logger.isDebugEnabled())
-        {
-            logger.debug("setSqlValue(value={}, column={}, statement={}) - start",
-                    new Object[] {value, new Integer(column), statement});
-        }
+        logger.debug("setSqlValue(value={}, column={}, statement={}) - start",
+                value, column, statement);
 
         statement.setTimestamp(column, (java.sql.Timestamp) typeCast(value));
     }

@@ -81,7 +81,7 @@ public abstract class AbstractStep extends ProjectComponent implements DbUnitTas
     	if (logger.isDebugEnabled())
     	{
             logger.debug("getDatabaseDataSet(connection={}, tables={}) - start",
-            		new Object[] { connection, tables});
+            	 connection, tables);
     	}
 
         try
@@ -100,7 +100,7 @@ public abstract class AbstractStep extends ProjectComponent implements DbUnitTas
             IDataSet[] dataSetsArray = null;
             if (config.getProperty(DatabaseConfig.PROPERTY_RESULTSET_TABLE_FACTORY)
                     .getClass().getName().equals("org.dbunit.database.ForwardOnlyResultSetTableFactory")) {
-                dataSetsArray = (IDataSet[]) createForwardOnlyDataSetArray(queryDataSets);
+                dataSetsArray = createForwardOnlyDataSetArray(queryDataSets);
             } else {
                 dataSetsArray = (IDataSet[]) queryDataSets.toArray(new IDataSet[queryDataSets.size()]);
             }
@@ -173,7 +173,7 @@ public abstract class AbstractStep extends ProjectComponent implements DbUnitTas
 		if (logger.isDebugEnabled())
 		{
 			logger.debug("getSrcDataSet(src={}, format={}, forwardonly={}) - start",
-					new Object[]{ src, format, String.valueOf(forwardonly) });
+					 src, format, forwardonly);
 		}
 
         try
@@ -234,21 +234,13 @@ public abstract class AbstractStep extends ProjectComponent implements DbUnitTas
 	{
         logger.debug("isDataFormat(format={}) - start", format);
 
-        if (format.equalsIgnoreCase(FORMAT_FLAT)
+        return format.equalsIgnoreCase(FORMAT_FLAT)
                 || format.equalsIgnoreCase(FORMAT_XML)
                 || format.equalsIgnoreCase(FORMAT_CSV)
                 || format.equalsIgnoreCase(FORMAT_XLS)
-                || format.equalsIgnoreCase(FORMAT_YML)
-        )
-        {
-            return true;
-        }
-        else
-        {
-            return false;
-        }
-	}
-	
+                || format.equalsIgnoreCase(FORMAT_YML);
+    }
+
     /**
      * Checks if the given data format is a valid one according to
      * the method {@link #isDataFormat(String)}. If it is not an
@@ -293,7 +285,7 @@ public abstract class AbstractStep extends ProjectComponent implements DbUnitTas
     
     public String toString()
     {
-        StringBuffer result = new StringBuffer();
+        final StringBuilder result = new StringBuilder();
         result.append("AbstractStep: ");
         result.append("ordered=").append(this.ordered);
         return result.toString();

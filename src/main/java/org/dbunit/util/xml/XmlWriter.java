@@ -53,15 +53,17 @@
  */
 package org.dbunit.util.xml;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
-import java.io.UnsupportedEncodingException;
 import java.io.Writer;
-import java.util.Stack;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayDeque;
+import java.util.Deque;
 
 /**
  * Makes writing XML much much easier. Improved from <a href=
@@ -90,6 +92,8 @@ public class XmlWriter
      */
     public static final String DEFAULT_ENCODING = "UTF-8";
 
+    public static final Charset DEFAULT_CHARSET = StandardCharsets.UTF_8;
+
     /**
      * Logger for this class
      */
@@ -100,13 +104,13 @@ public class XmlWriter
     private Writer out;
 
     /** The encoding to be written into the XML header/metatag. */
-    private String encoding;
+    private Charset encoding;
 
     /** Of xml element names. */
-    private Stack stack = new Stack();
+    private Deque<String> stack = new ArrayDeque<>();
 
     /** Current attribute string. */
-    private StringBuffer attrs;
+    private StringBuilder attrs;
 
     /** Is the current node empty. */
     private boolean empty;
@@ -143,32 +147,28 @@ public class XmlWriter
     /**
      * Create an XmlWriter on top of an existing java.io.Writer.
      */
-    public XmlWriter(final Writer writer, final String encoding)
+    public XmlWriter(final Writer writer, final Charset charset)
     {
-        setWriter(writer, encoding);
+        setWriter(writer, charset);
     }
 
     /**
      * Create an XmlWriter on top of an existing {@link java.io.OutputStream}.
      *
      * @param outputStream
-     * @param encoding
-     *            The encoding to be used for writing to the given output
-     *            stream. Can be <code>null</code>. If it is <code>null</code>
-     *            the {@link #DEFAULT_ENCODING} is used.
-     * @throws UnsupportedEncodingException
+     * @param charset
+     *         The charset to be used for writing to the given output stream.
+     *         Can be <code>null</code>. If it is <code>null</code> the
+     *         {@link #DEFAULT_ENCODING} is used.
      * @since 2.4
      */
-    public XmlWriter(final OutputStream outputStream, String encoding)
-            throws UnsupportedEncodingException
+    public XmlWriter(final OutputStream outputStream, Charset charset)
     {
-        if (encoding == null)
-        {
-            encoding = DEFAULT_ENCODING;
-        }
+        final Charset writerCharset =
+                charset == null ? DEFAULT_CHARSET : charset;
         final OutputStreamWriter writer =
-                new OutputStreamWriter(outputStream, encoding);
-        setWriter(writer, encoding);
+                new OutputStreamWriter(outputStream, writerCharset);
+        setWriter(writer, writerCharset);
     }
 
     /**
@@ -300,7 +300,7 @@ public class XmlWriter
         }
         this.out.write("<");
         this.out.write(name);
-        stack.add(name);
+        this.stack.push(name);
         this.empty = true;
         this.wroteText = false;
         return this;
@@ -387,7 +387,7 @@ public class XmlWriter
 
         if (this.attrs == null)
         {
-            this.attrs = new StringBuffer();
+            this.attrs = new StringBuilder();
         }
         this.attrs.append(" ");
         this.attrs.append(attr);
@@ -405,11 +405,11 @@ public class XmlWriter
     {
         logger.debug("endElement() - start");
 
-        if (this.stack.empty())
+        if (this.stack.isEmpty())
         {
             throw new IOException("Called endElement too many times. ");
         }
-        final String name = (String) this.stack.pop();
+        final String name = this.stack.pop();
         if (name != null)
         {
             if (this.empty)
@@ -451,7 +451,7 @@ public class XmlWriter
 
         this.out.flush();
 
-        if (!this.stack.empty())
+        if (!this.stack.isEmpty())
         {
             throw new IOException("Tags are not all closed. " + "Possibly, "
                     + this.stack.pop() + " is unclosed. ");
@@ -561,6 +561,9 @@ public class XmlWriter
         return this;
     }
 
+    ////////////////////////////////////////////////////////////////////////////
+    // Added for DbUnit
+
     private void writeChunk(final String data) throws IOException
     {
         logger.debug("writeChunk(data={}) - start", data);
@@ -658,7 +661,7 @@ public class XmlWriter
 
         char[] block = null;
         int last = 0;
-        StringBuffer buffer = null;
+        StringBuilder buffer = null;
         final int strLength = str.length();
         int index = 0;
 
@@ -678,7 +681,7 @@ public class XmlWriter
                 }
                 if (buffer == null)
                 {
-                    buffer = new StringBuffer();
+                    buffer = new StringBuilder();
                 }
                 buffer.append(block, last, index - last);
                 buffer.append(entity);
@@ -700,7 +703,7 @@ public class XmlWriter
             }
             if (buffer == null)
             {
-                buffer = new StringBuffer();
+                buffer = new StringBuilder();
             }
             buffer.append(block, last, index - last);
         }
@@ -791,7 +794,7 @@ public class XmlWriter
                     + ", replacement=" + replacement + ") - start");
         }
 
-        StringBuffer buffer = null;
+        StringBuilder buffer = null;
 
         int startIndex = 0;
         int lastEndIndex = 0;
@@ -809,7 +812,7 @@ public class XmlWriter
 
             if (buffer == null)
             {
-                buffer = new StringBuffer((int) (original.length() * 1.5));
+                buffer = new StringBuilder((int) (original.length() * 1.5));
             }
             buffer.append(value.substring(lastEndIndex, startIndex));
             buffer.append(replacement);
@@ -823,14 +826,16 @@ public class XmlWriter
     {
         logger.debug("setEncoding(encoding={}) - start", encoding);
 
+        Charset charset = null;
+
         if (encoding == null && out instanceof OutputStreamWriter)
         {
-            encoding = ((OutputStreamWriter) out).getEncoding();
+            charset = Charset.forName(((OutputStreamWriter) out).getEncoding());
         }
 
         if (encoding != null)
         {
-            encoding = encoding.toUpperCase();
+            final String ucEncoding = encoding.toUpperCase();
 
             // Use official encoding names where we know them,
             // avoiding the Java-only names. When using common
@@ -839,24 +844,24 @@ public class XmlWriter
             // characters using character refs for safety.
 
             // I _think_ these are all the main synonyms for these!
-            if ("UTF8".equals(encoding))
+            if ("UTF8".equalsIgnoreCase(ucEncoding))
             {
-                encoding = "UTF-8";
-            } else if ("US-ASCII".equals(encoding) || "ASCII".equals(encoding))
+                charset = StandardCharsets.UTF_8;
+            } else if ("US-ASCII".equalsIgnoreCase(ucEncoding) || "ASCII".equalsIgnoreCase(ucEncoding))
             {
                 // dangerMask = (short)0xff80;
-                encoding = "US-ASCII";
-            } else if ("ISO-8859-1".equals(encoding)
-                    || "8859_1".equals(encoding)
-                    || "ISO8859_1".equals(encoding))
+                charset = StandardCharsets.US_ASCII;
+            } else if ("ISO-8859-1".equalsIgnoreCase(ucEncoding)
+                    || "8859_1".equalsIgnoreCase(ucEncoding)
+                    || "ISO8859_1".equalsIgnoreCase(ucEncoding))
             {
                 // dangerMask = (short)0xff00;
-                encoding = "ISO-8859-1";
-            } else if ("UNICODE".equals(encoding)
-                    || "UNICODE-BIG".equals(encoding)
-                    || "UNICODE-LITTLE".equals(encoding))
+                charset = StandardCharsets.ISO_8859_1;
+            } else if ("UNICODE".equalsIgnoreCase(ucEncoding)
+                    || "UNICODE-BIG".equalsIgnoreCase(ucEncoding)
+                    || "UNICODE-LITTLE".equalsIgnoreCase(ucEncoding))
             {
-                encoding = "UTF-16";
+                charset = StandardCharsets.UTF_16;
 
                 // TODO: UTF-16BE, UTF-16LE ... no BOM; what
                 // release of JDK supports those Unicode names?
@@ -866,7 +871,12 @@ public class XmlWriter
             // stringBuf = new StringBuffer();
         }
 
-        this.encoding = encoding;
+        setEncoding(charset);
+    }
+
+    private void setEncoding(Charset charset)
+    {
+        this.encoding = charset;
     }
 
     /**
@@ -887,6 +897,14 @@ public class XmlWriter
         logger.debug("setWriter(writer={}, encoding={}) - start", writer,
                 encoding);
 
+        setWriter(writer, Charset.forName(encoding));
+    }
+
+    final public void setWriter(final Writer writer, final Charset charset)
+    {
+        logger.debug("setWriter(writer={}, charset={}) - start", writer,
+                charset);
+
         if (this.out != null)
         {
             throw new IllegalStateException(
@@ -895,7 +913,7 @@ public class XmlWriter
         this.out = writer;
         if (this.out != null)
         {
-            setEncoding(encoding);
+            setEncoding(charset);
             // if (!(this.out instanceof BufferedWriter))
             // this.out = new BufferedWriter(this.out);
         }

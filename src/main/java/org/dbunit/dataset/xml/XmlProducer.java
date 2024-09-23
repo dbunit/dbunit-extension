@@ -86,7 +86,7 @@ public class XmlProducer extends DefaultHandler
     private ITableMetaData _activeMetaData;
 
     private List _activeColumnNames;
-    private StringBuffer _activeCharacters;
+    private StringBuilder _activeCharacters;
     private List _activeRowValues;
 
     public XmlProducer(InputSource inputSource)
@@ -201,11 +201,8 @@ public class XmlProducer extends DefaultHandler
 
     public void startElement(String uri, String localName, String qName, Attributes attributes) throws SAXException
     {
-    	if (logger.isDebugEnabled())
-    	{
-    		logger.debug("startElement(uri={}, localName={}, qName={}, attributes={}) - start",
-    				new Object[]{ uri, localName, qName, attributes });
-    	}
+    	logger.debug("startElement(uri={}, localName={}, qName={}, attributes={}) - start",
+    		uri, localName, qName, attributes);
 
         try
         {
@@ -227,7 +224,7 @@ public class XmlProducer extends DefaultHandler
             // column
             if (qName.equals(COLUMN))
             {
-                _activeCharacters = new StringBuffer();
+                _activeCharacters = new StringBuilder();
                 return;
             }
 
@@ -250,7 +247,7 @@ public class XmlProducer extends DefaultHandler
             // value
             if (qName.equals(VALUE))
             {
-                _activeCharacters = new StringBuffer();
+                _activeCharacters = new StringBuilder();
                 return;
             }
 
@@ -276,11 +273,7 @@ public class XmlProducer extends DefaultHandler
 
     public void endElement(String uri, String localName, String qName) throws SAXException
     {
-    	if (logger.isDebugEnabled())
-    	{
-    		logger.debug("endElement(uri={}, localName={}, qName={}) - start",
-    				new Object[]{ uri, localName, qName });
-    	}
+    	logger.debug("endElement(uri={}, localName={}, qName={}) - start", uri, localName, qName);
 
         try
         {

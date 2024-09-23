@@ -61,7 +61,7 @@ public class Table
 
     public String toString()
     {
-        StringBuffer result = new StringBuffer();
+        final StringBuilder result = new StringBuilder();
         result.append("Table: ");
         result.append(" name=" + name);
 

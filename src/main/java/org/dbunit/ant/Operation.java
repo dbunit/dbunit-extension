@@ -23,7 +23,6 @@ package org.dbunit.ant;
 
 import org.apache.tools.ant.DirectoryScanner;
 import org.apache.tools.ant.types.FileSet;
-import org.apache.tools.ant.types.Resource;
 import org.dbunit.DatabaseUnitException;
 import org.dbunit.database.IDatabaseConnection;
 import org.dbunit.database.DatabaseSequenceFilter;
@@ -41,7 +40,6 @@ import java.io.File;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -53,7 +51,6 @@ import java.util.List;
  * @author Ben Cox
  * @version $Revision$
  * @since Jun 10, 2002
- * @see org.dbunit.ant.DbUnitTaskStep
  */
 public class Operation extends AbstractStep
 {
@@ -247,7 +244,7 @@ public class Operation extends AbstractStep
 
     public String getLogMessage()
     {
-        StringBuffer result = new StringBuffer();
+        final StringBuilder result = new StringBuilder();
         result.append("Executing operation: " + _type);
         result.append("\n          on   files: [ ");
         for (File f : _sources) {
@@ -258,10 +255,9 @@ public class Operation extends AbstractStep
         return result.toString();
     }
 
-
     public String toString()
     {
-        StringBuffer result = new StringBuffer();
+        final StringBuilder result = new StringBuilder();
         result.append("Operation: ");
         result.append(" type=").append(_type);
         result.append(", format=").append(_format);

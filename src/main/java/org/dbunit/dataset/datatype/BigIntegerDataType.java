@@ -93,11 +93,8 @@ public class BigIntegerDataType extends AbstractDataType
     public Object getSqlValue(int column, ResultSet resultSet)
             throws SQLException, TypeCastException
     {
-        if (logger.isDebugEnabled())
-        {
-            logger.debug("getSqlValue(column={}, resultSet={}) - start",
-                    new Integer(column), resultSet);
-        }
+        logger.debug("getSqlValue(column={}, resultSet={}) - start",
+                    column, resultSet);
 
         BigDecimal value = resultSet.getBigDecimal(column);
         if (resultSet.wasNull())
@@ -111,12 +108,8 @@ public class BigIntegerDataType extends AbstractDataType
     public void setSqlValue(Object value, int column,
             PreparedStatement statement) throws SQLException, TypeCastException
     {
-        if (logger.isDebugEnabled())
-        {
-            logger.debug(
-                    "setSqlValue(value={}, column={}, statement={}) - start",
-                    new Object[] {value, new Integer(column), statement});
-        }
+        logger.debug("setSqlValue(value={}, column={}, statement={}) - start",
+                value, column, statement);
 
         BigInteger val = (BigInteger) typeCast(value);
         BigDecimal valueBigDecimal = (val == null) ? null : new BigDecimal(val);

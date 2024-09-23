@@ -216,7 +216,7 @@ public class SortedTable extends AbstractTable
             final Integer[] indexes = new Integer[getRowCount()];
             for (int i = 0; i < indexes.length; i++)
             {
-                indexes[i] = new Integer(i);
+                indexes[i] = i;
             }
 
             try

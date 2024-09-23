@@ -26,9 +26,16 @@ import org.dbunit.util.Base64;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.*;
+import java.io.BufferedInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.nio.charset.Charset;
 import java.sql.Blob;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -62,7 +69,7 @@ public class BytesDataType extends AbstractDataType
     {
         if (logger.isDebugEnabled())
 		{
-			logger.debug("toByteArray(in={}, length={}) - start", in, Integer.toString(length));
+			logger.debug("toByteArray(in={}, length={}) - start", in, length);
 		}
 
         ByteArrayOutputStream out = new ByteArrayOutputStream(length);
@@ -138,12 +145,14 @@ public class BytesDataType extends AbstractDataType
                         if (split.length > 1) {
                             encoding = split[1];
                         }
-                        logger.debug("Data explicitly states that given string is text encoded "
-                            + encoding);
+                        logger.debug(
+                            "Data explicitly states that given string is text encoded {}",
+                            	encoding);
                         try {
-                            return stringValue.getBytes(encoding);
-                        } catch (UnsupportedEncodingException unsupportedEncodingException) {
-                            return "Error:  [text " + encoding + "] has an invalid encoding id.".getBytes();
+                            final Charset charset = Charset.forName(encoding);
+                            return stringValue.getBytes(charset);
+                        } catch (IllegalArgumentException e) {
+                            return "Error:  [text " + encoding + "] has an invalid encoding id.";
                         }
                     }
                     else if (command.equals("BASE64"))
@@ -157,7 +166,7 @@ public class BytesDataType extends AbstractDataType
                             logger.debug("Data explicitly states that given string is a file name");
                             return loadFile(stringValue);
                         } catch (IOException e) {
-                            String errMsg = "Could not load file following instruction >>" + value.toString() + "<<";
+                            String errMsg = "Could not load file following instruction >>" + value + "<<";
                             logger.error(errMsg);
                             return ("Error:  " + errMsg).getBytes();
                         }
@@ -168,7 +177,7 @@ public class BytesDataType extends AbstractDataType
                             logger.debug("Data explicitly states that given string is a URL");
                             return loadURL(stringValue);
                         } catch (IOException e) {
-                            String errMsg = "Could not load URL following instruction >>" + value.toString() + "<<";
+                            String errMsg = "Could not load URL following instruction >>" + value + "<<";
                             logger.error(errMsg);
                             return ("Error:  " + errMsg).getBytes();
                         }
@@ -330,8 +339,7 @@ public class BytesDataType extends AbstractDataType
     public Object getSqlValue(int column, ResultSet resultSet)
             throws SQLException, TypeCastException
     {
-    	if(logger.isDebugEnabled())
-    		logger.debug("getSqlValue(column={}, resultSet={}) - start", new Integer(column), resultSet);
+    	logger.debug("getSqlValue(column={}, resultSet={}) - start", column, resultSet);
 
         byte[] value = resultSet.getBytes(column);
         if (value == null || resultSet.wasNull())
@@ -341,14 +349,11 @@ public class BytesDataType extends AbstractDataType
         return value;
     }
 
-    public void setSqlValue(Object value, int column, PreparedStatement statement)
-            throws SQLException, TypeCastException
+    public void setSqlValue(Object value, int column,
+            PreparedStatement statement) throws SQLException, TypeCastException
     {
-    	if (logger.isDebugEnabled())
-    	{
-    		logger.debug("setSqlValue(value={}, column={}, statement={}) - start",
-        		new Object[]{value, new Integer(column), statement} );
-    	}
+    	logger.debug("setSqlValue(value={}, column={}, statement={}) - start",
+        		value, column, statement);
 
         super.setSqlValue(value, column, statement);
     }

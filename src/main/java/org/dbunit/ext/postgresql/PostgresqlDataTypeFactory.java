@@ -98,13 +98,9 @@ public class PostgresqlDataTypeFactory extends DefaultDataTypeFactory
                 // Finally check whether the user defined a custom datatype
                 if (isEnumType(sqlTypeName))
                 {
-                    if (logger.isDebugEnabled())
-                    {
-                        logger.debug(
-                                "Custom enum type used for sqlTypeName {} (sqlType '{}')",
-                                new Object[] {sqlTypeName,
-                                        new Integer(sqlType)});
-                    }
+                    logger.debug(
+                            "Custom enum type used for sqlTypeName {} (sqlType '{}')",
+                            sqlTypeName, sqlType);
                     return new GenericEnumType(sqlTypeName);
                 }
             }

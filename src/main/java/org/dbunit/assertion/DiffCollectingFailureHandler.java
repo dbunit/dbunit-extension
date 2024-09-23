@@ -66,7 +66,7 @@ public class DiffCollectingFailureHandler extends DefaultFailureHandler
 
     public String toString()
     {
-        StringBuffer sb = new StringBuffer();
+        final StringBuilder sb = new StringBuilder();
         sb.append(super.toString());
         sb.append(DiffCollectingFailureHandler.class.getName()).append("[");
         sb.append("diffList=").append(diffList);

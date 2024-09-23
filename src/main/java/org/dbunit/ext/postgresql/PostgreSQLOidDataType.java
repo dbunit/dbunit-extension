@@ -28,9 +28,7 @@ public class PostgreSQLOidDataType
             throws SQLException,
             TypeCastException
     {
-        if (logger.isDebugEnabled()) {
-            logger.debug("getSqlValue(column={}, resultSet={}) - start", new Integer(column), resultSet);
-        }
+        logger.debug("getSqlValue(column={}, resultSet={}) - start", column, resultSet);
 
         Statement statement = resultSet.getStatement();
         Connection connection = statement.getConnection();
@@ -74,14 +72,10 @@ public class PostgreSQLOidDataType
 
     @Override
     public void setSqlValue(final Object value, final int column, final PreparedStatement statement)
-            throws SQLException,
-            TypeCastException
+            throws SQLException, TypeCastException
     {
-        if (logger.isDebugEnabled())
-        {
-            logger.debug("setSqlValue(value={}, column={}, statement={}) - start",
-                    new Object[] { value, new Integer(column), statement });
-        }
+        logger.debug("setSqlValue(value={}, column={}, statement={}) - start",
+            value, column, statement);
 
         Connection connection = statement.getConnection();
         boolean autoCommit = connection.getAutoCommit();

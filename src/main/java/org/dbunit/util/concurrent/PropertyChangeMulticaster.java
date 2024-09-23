@@ -357,7 +357,7 @@ public class PropertyChangeMulticaster implements Serializable {
 				  new Object[]{ propertyName, oldValue, newValue });
 	  }
    
-    if (oldValue == null || newValue == null || !oldValue.equals(newValue)) {
+    if (oldValue == null || !oldValue.equals(newValue)) {
       multicast(new PropertyChangeEvent(source,
                                         propertyName, 
                                         oldValue, 
@@ -383,14 +383,12 @@ public class PropertyChangeMulticaster implements Serializable {
 	  if (logger.isDebugEnabled())
 	  {
 		  logger.debug("firePropertyChange(propertyName={}, oldValue={}, newValue={}) - start",
-				  new Object[]{ propertyName, String.valueOf(oldValue), String.valueOf(newValue) });
+				  propertyName, oldValue, newValue);
 	  }
 
     if (oldValue != newValue) {
       multicast(new PropertyChangeEvent(source,
-                                        propertyName, 
-                                        new Integer(oldValue), 
-                                        new Integer(newValue)));
+                                        propertyName, oldValue, newValue));
     }
   }
 
@@ -434,7 +432,7 @@ public class PropertyChangeMulticaster implements Serializable {
 
     Object oldValue = evt.getOldValue();
     Object newValue = evt.getNewValue();
-    if (oldValue == null || newValue == null || !oldValue.equals(newValue)) 
+    if (oldValue == null || !oldValue.equals(newValue)) 
       multicast(evt);
   }
 

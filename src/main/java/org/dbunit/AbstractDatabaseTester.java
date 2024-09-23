@@ -224,7 +224,7 @@ public abstract class AbstractDatabaseTester extends SimpleAssert implements IDa
     @Override
     public String toString()
     {
-        StringBuffer sb = new StringBuffer();
+        final StringBuilder sb = new StringBuilder();
         sb.append(getClass().getName()).append("[");
         sb.append("schema=").append(schema);
         sb.append(", dataSet=").append(dataSet);

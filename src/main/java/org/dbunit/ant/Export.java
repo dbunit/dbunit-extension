@@ -25,6 +25,8 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -69,7 +71,7 @@ public class Export extends AbstractStep
     private File _dest;
     private String _format = FORMAT_FLAT;
     private String _doctype = null;
-    private String _encoding = null; // if no encoding set by script than the default encoding (UTF-8) of the wrietr is used
+    private Charset _encoding = StandardCharsets.UTF_8; // if no encoding set by script than the default encoding (UTF-8) of the wrietr is used
     private List _tables = new ArrayList();
 
     public Export()
@@ -125,13 +127,18 @@ public class Export extends AbstractStep
      * Encoding for XML-Output
      * @return Returns the encoding.
      */
-    public String getEncoding() 
+    public Charset getEncoding()
     {
         return this._encoding;
     }
 
-    public void setEncoding(String encoding) 
-    { 
+    public void setEncoding(String encoding)
+    {
+        setEncoding(Charset.forName(encoding));
+    }
+
+    public void setEncoding(Charset encoding)
+    {
         this._encoding = encoding;
     }
 
@@ -267,7 +274,7 @@ public class Export extends AbstractStep
 
     public String toString()
     {
-        StringBuffer result = new StringBuffer();
+        final StringBuilder result = new StringBuilder();
         result.append("Export: ");
         result.append(" dest=" + getAbsolutePath(_dest));
         result.append(", format= " + _format);

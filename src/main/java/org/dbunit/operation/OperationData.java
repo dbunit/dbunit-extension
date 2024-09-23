@@ -58,7 +58,7 @@ public class OperationData
     
     public String toString()
     {
-    	StringBuffer sb = new StringBuffer();
+    	final StringBuilder sb = new StringBuilder();
     	sb.append(getClass().getName()).append("[");
     	sb.append("_sql=").append(_sql);
     	sb.append(", _columns=").append(_columns==null ? "null" : Arrays.asList(_columns).toString());

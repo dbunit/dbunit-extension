@@ -37,6 +37,7 @@ import java.io.OutputStream;
 import java.io.Reader;
 import java.io.Writer;
 import java.net.URL;
+import java.nio.charset.Charset;
 
 /**
  * Reads and writes flat XML dataset document. Each XML element corresponds to a table row.
@@ -391,16 +392,13 @@ public class FlatXmlDataSet extends CachedDataSet
     /**
      * Write the specified dataset to the specified writer as xml.
      */
-    public static void write(IDataSet dataSet, Writer writer, String encoding)
+    public static void write(IDataSet dataSet, Writer writer, Charset charset)
             throws IOException, DataSetException
     {
-    	if (logger.isDebugEnabled())
-    	{
-    		logger.debug("write(dataSet={}, writer={}, encoding={}) - start",
-    				new Object[]{ dataSet, writer, encoding });
-    	}
+        logger.debug("write(dataSet={}, writer={}, charset={}) - start",
+                dataSet, writer, charset);
 
-        FlatXmlWriter datasetWriter = new FlatXmlWriter(writer, encoding);
+        final FlatXmlWriter datasetWriter = new FlatXmlWriter(writer, charset);
         datasetWriter.setIncludeEmptyTable(true);
         datasetWriter.write(dataSet);
     }

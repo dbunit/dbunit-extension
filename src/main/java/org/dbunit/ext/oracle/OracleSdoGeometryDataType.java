@@ -22,7 +22,6 @@
 package org.dbunit.ext.oracle;
 
 import java.math.BigDecimal;
-import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -293,9 +292,8 @@ public class OracleSdoGeometryDataType extends AbstractDataType
     public Object getSqlValue(int column, ResultSet resultSet)
         throws SQLException, TypeCastException
     {
-        if(logger.isDebugEnabled())
-            logger.debug("getSqlValue(column={}, resultSet={}) - start",
-            new Integer(column), resultSet);
+        logger.debug("getSqlValue(column={}, resultSet={}) - start", column,
+            resultSet);
 
         Object data = null;
         try

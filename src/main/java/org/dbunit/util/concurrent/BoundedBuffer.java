@@ -142,7 +142,7 @@ public class BoundedBuffer implements BoundedChannel {
   }
 
   public boolean offer(Object x, long msecs) throws InterruptedException {
-        logger.debug("offer(x={}, msecs={}) - start", x, new Long(msecs));
+        logger.debug("offer(x={}, msecs={}) - start", x, msecs);
 
     if (x == null) throw new IllegalArgumentException();
     if (Thread.interrupted()) throw new InterruptedException();
@@ -187,7 +187,7 @@ public class BoundedBuffer implements BoundedChannel {
   }
 
   public  Object poll(long msecs) throws InterruptedException {
-        logger.debug("poll(msecs={}) - start", new Long(msecs));
+        logger.debug("poll(msecs={}) - start", msecs);
  
     if (Thread.interrupted()) throw new InterruptedException();
     Object old = null; 

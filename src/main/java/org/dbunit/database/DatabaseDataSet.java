@@ -119,7 +119,7 @@ public class DatabaseDataSet extends AbstractDataSet
         if (logger.isDebugEnabled())
         {
             logger.debug("getSelectStatement(schema={}, metaData={}, escapePattern={}) - start",
-                    new Object[] { schema, metaData, escapePattern });
+                    schema, metaData, escapePattern);
         }
 
         Column[] columns = metaData.getColumns();
@@ -131,7 +131,7 @@ public class DatabaseDataSet extends AbstractDataSet
         }
 
         // select
-        StringBuffer sqlBuffer = new StringBuffer(128);
+        final StringBuilder sqlBuffer = new StringBuilder(128);
         sqlBuffer.append("select ");
         for (int i = 0; i < columns.length; i++)
         {

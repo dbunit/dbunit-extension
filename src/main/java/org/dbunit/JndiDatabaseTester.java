@@ -129,7 +129,7 @@ public class JndiDatabaseTester extends AbstractDatabaseTester
 
     public String toString()
     {
-        StringBuffer sb = new StringBuffer();
+        final StringBuilder sb = new StringBuilder();
         sb.append(getClass().getName()).append("[");
         sb.append("lookupName=").append(this.lookupName);
         sb.append(", environment=").append(this.environment);

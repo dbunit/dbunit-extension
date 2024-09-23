@@ -134,8 +134,8 @@ public class DatabaseConfig
             new CachedResultSetTableFactory();
     private static final String DEFAULT_ESCAPE_PATTERN = null;
     private static final String[] DEFAULT_TABLE_TYPE = {"TABLE"};
-    private static final Integer DEFAULT_BATCH_SIZE = new Integer(100);
-    private static final Integer DEFAULT_FETCH_SIZE = new Integer(100);
+    private static final Integer DEFAULT_BATCH_SIZE = 100;
+    private static final Integer DEFAULT_FETCH_SIZE = 100;
 
 
 
@@ -341,7 +341,7 @@ public class DatabaseConfig
 
             if(dbunitProp == null)
             {
-                logger.info("Could not set property '" + entry + "' - not found in the list of known properties.");
+                logger.info("Could not set property '{}' - not found in the list of known properties.", entry);
             }
             else
             {
@@ -458,11 +458,11 @@ public class DatabaseConfig
 
     public String toString()
     {
-    	StringBuffer sb = new StringBuffer();
-    	sb.append(getClass().getName()).append("[");
-    	sb.append(", _propertyMap=").append(_propertyMap);
-    	sb.append("]");
-    	return sb.toString();
+        final StringBuilder sb = new StringBuilder();
+        sb.append(getClass().getName()).append("[");
+        sb.append(", _propertyMap=").append(_propertyMap);
+        sb.append("]");
+        return sb.toString();
     }
     
 
@@ -535,7 +535,7 @@ public class DatabaseConfig
 
         public String toString()
         {
-            StringBuffer sb = new StringBuffer();
+            final StringBuilder sb = new StringBuilder();
             sb.append(getClass().getName()).append("[");
             sb.append("property=").append(property);
             sb.append(", propertyType=").append(propertyType);

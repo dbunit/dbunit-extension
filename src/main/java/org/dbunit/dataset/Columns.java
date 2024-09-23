@@ -69,7 +69,7 @@ public class Columns
 	public static Column[] getColumns(String[] columnNames, Column[] columns) {
     	if (logger.isDebugEnabled())
     		logger.debug("getColumns(columnNames={}, columns={}) - start",
-    				new Object[]{ columnNames, columns });
+    				columnNames, columns);
 
     	if (columnNames == null || columnNames.length == 0)
         {
@@ -180,7 +180,7 @@ public class Columns
     {
         if (logger.isDebugEnabled())
             logger.debug("getColumn(columnName={}, columns={}, tableName={}) - start", 
-                new Object[] {columnName, columns, tableName } );
+                columnName, columns, tableName);
 
         Column column = Columns.getColumn(columnName, columns);
         if(column==null)
@@ -204,7 +204,7 @@ public class Columns
     {
     	if (logger.isDebugEnabled())
     		logger.debug("getColumns(tableName={}, columns={}, columnFilter={}) - start",
-    				new Object[]{ tableName, columns, columnFilter });
+    				tableName, columns, columnFilter);
 
         List resultList = new ArrayList();
         for (int i = 0; i < columns.length; i++)
@@ -525,7 +525,7 @@ public class Columns
 		
 		public String toString()
     	{
-    		StringBuffer sb = new StringBuffer();
+    		final StringBuilder sb = new StringBuilder();
     		sb.append(getClass().getName()).append("[");
     		sb.append("expected=").append(Arrays.asList(expected).toString());
     		sb.append(", actual=").append(Arrays.asList(actual).toString());

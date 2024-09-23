@@ -248,7 +248,7 @@ public class SQLHelper {
                 String catalog = rs.getString("TABLE_CAT");
                 String schema = rs.getString("TABLE_SCHEM");
                 String table = rs.getString("TABLE_NAME");
-                StringBuffer tableInfo = new StringBuffer();
+                final StringBuilder tableInfo = new StringBuilder();
      			if(catalog!=null) tableInfo.append(catalog).append(".");
      			if(schema!=null) tableInfo.append(schema).append(".");
                 tableInfo.append(table);
@@ -271,7 +271,7 @@ public class SQLHelper {
      */
     public static String getDatabaseInfo(DatabaseMetaData metaData)
     {
-        StringBuffer sb = new StringBuffer();
+        final StringBuilder sb = new StringBuilder();
         sb.append("\n");
 
         String dbInfo = null;
@@ -651,7 +651,6 @@ public class SQLHelper {
                     new Object[]{Boolean.valueOf(isEscaped), tableName, dbIdentifierQuoteString} );
         return isEscaped;
     }
-
 
     /**
      * Performs a method invocation and catches all exceptions that occur during the invocation.

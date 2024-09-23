@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
 import java.io.Writer;
+import java.nio.charset.Charset;
 
 import org.dbunit.dataset.Column;
 import org.dbunit.dataset.DataSetException;
@@ -70,10 +71,9 @@ public class FlatXmlWriter implements IDataSetConsumer
      * Can be null. See {@link XmlWriter#XmlWriter(OutputStream, String)}.
      * @throws UnsupportedEncodingException
      */
-    public FlatXmlWriter(OutputStream outputStream, String encoding) 
-    throws UnsupportedEncodingException
+    public FlatXmlWriter(OutputStream outputStream, Charset charset)
     {
-        _xmlWriter = new XmlWriter(outputStream, encoding);
+        _xmlWriter = new XmlWriter(outputStream, charset);
         _xmlWriter.enablePrettyPrint(true);
     }
 
@@ -83,9 +83,9 @@ public class FlatXmlWriter implements IDataSetConsumer
         _xmlWriter.enablePrettyPrint(true);
     }
 
-    public FlatXmlWriter(Writer writer, String encoding)
+    public FlatXmlWriter(Writer writer, Charset charset)
     {
-        _xmlWriter = new XmlWriter(writer, encoding);
+        _xmlWriter = new XmlWriter(writer, charset);
         _xmlWriter.enablePrettyPrint(true);
     }
 

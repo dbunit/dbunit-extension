@@ -201,7 +201,7 @@ public class InsertIdentityOperation extends AbstractOperation
 
                 if (hasIdentityColumn)
                 {
-                    StringBuffer sqlBuffer = new StringBuffer(128);
+                    final StringBuilder sqlBuffer = new StringBuilder(128);
                     sqlBuffer.append("SET IDENTITY_INSERT ");
                     sqlBuffer.append(getQualifiedName(connection.getSchema(),
                             metaData.getTableName(), connection));
@@ -218,7 +218,7 @@ public class InsertIdentityOperation extends AbstractOperation
                     // disable identity insert
                     if (hasIdentityColumn)
                     {
-                        StringBuffer sqlBuffer = new StringBuffer(128);
+                        final StringBuilder sqlBuffer = new StringBuilder(128);
                         sqlBuffer.append("SET IDENTITY_INSERT ");
                         sqlBuffer.append(getQualifiedName(connection.getSchema(),
                                 metaData.getTableName(), connection));

@@ -108,7 +108,7 @@ public class PrimaryKeyFilteredTableWrapper implements ITable {
         if ( this.logger.isDebugEnabled() ) {
           this.logger.debug( "Adding row " + row + " (pk=" + pk + ")" );
         }
-        mapping.add( new Integer(row) );
+        mapping.add(row);
       } else {
         if ( this.logger.isDebugEnabled() ) {
           this.logger.debug("Discarding row " + row + " (pk=" + pk + ")" );        

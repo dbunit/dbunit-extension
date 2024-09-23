@@ -301,7 +301,7 @@ public class FlatXmlProducer extends DefaultHandler implements IDataSetProducer,
 	    	} 
 	    	else
 	    	{
-	    		StringBuffer extraColumnNames = new StringBuffer();
+	    		final StringBuilder extraColumnNames = new StringBuilder();
 	    		for (Iterator i = columnsToMerge.iterator(); i.hasNext();) {
 					Column col = (Column) i.next();
 					extraColumnNames.append(extraColumnNames.length() > 0 ? "," : "").append(col.getColumnName());

@@ -63,7 +63,7 @@ public class LongDataType extends AbstractDataType
 
         if (value instanceof Number)
         {
-            return new Long(((Number)value).longValue());
+            return ((Number)value).longValue();
         }
 
         try
@@ -79,23 +79,21 @@ public class LongDataType extends AbstractDataType
     public Object getSqlValue(int column, ResultSet resultSet)
             throws SQLException, TypeCastException
     {
-    	if(logger.isDebugEnabled())
-    		logger.debug("getSqlValue(column={}, resultSet={}) - start", new Integer(column), resultSet);
+    	logger.debug("getSqlValue(column={}, resultSet={}) - start", column, resultSet);
 
-        long value = resultSet.getLong(column);
+        final long value = resultSet.getLong(column);
         if (resultSet.wasNull())
         {
             return null;
         }
-        return new Long(value);
+        return value;
     }
 
     public void setSqlValue(Object value, int column, PreparedStatement statement)
             throws SQLException, TypeCastException
     {
-    	if(logger.isDebugEnabled())
-    		logger.debug("setSqlValue(value={}, column={}, statement={}) - start",
-        		new Object[]{value, new Integer(column), statement} );
+    	logger.debug("setSqlValue(value={}, column={}, statement={}) - start",
+        		value, column, statement);
 
         statement.setLong(column, ((Number)typeCast(value)).longValue());
     }

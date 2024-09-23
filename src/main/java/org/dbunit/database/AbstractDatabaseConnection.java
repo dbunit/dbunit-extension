@@ -157,7 +157,7 @@ public abstract class AbstractDatabaseConnection implements IDatabaseConnection
         logger.debug("getRowCount(tableName={}, whereClause={}) - start",
                 tableName, whereClause);
 
-        StringBuffer sqlBuffer = new StringBuffer(128);
+        final StringBuilder sqlBuffer = new StringBuilder(128);
         sqlBuffer.append("select count(*) from ");
 
         // add table name and schema (schema only if available)
@@ -217,7 +217,7 @@ public abstract class AbstractDatabaseConnection implements IDatabaseConnection
     @Override
     public String toString()
     {
-        StringBuffer sb = new StringBuffer();
+        final StringBuilder sb = new StringBuilder();
         sb.append("_databaseConfig=").append(_databaseConfig);
         sb.append(", _dataSet=").append(_dataSet);
         return sb.toString();

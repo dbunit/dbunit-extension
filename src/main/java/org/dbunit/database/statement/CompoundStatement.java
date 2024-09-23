@@ -40,7 +40,7 @@ public class CompoundStatement extends AbstractBatchStatement
      */
     private static final Logger logger = LoggerFactory.getLogger(CompoundStatement.class);
 
-    private StringBuffer _buffer = new StringBuffer();
+    private StringBuilder _buffer = new StringBuilder();
 
     CompoundStatement(Connection connection) throws SQLException
     {
@@ -66,7 +66,7 @@ public class CompoundStatement extends AbstractBatchStatement
     {
         logger.debug("clearBatch() - start");
 
-        _buffer = new StringBuffer();
+        _buffer = new StringBuilder();
     }
 }
 

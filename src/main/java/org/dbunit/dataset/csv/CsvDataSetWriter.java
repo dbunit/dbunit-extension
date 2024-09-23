@@ -202,7 +202,7 @@ public class CsvDataSetWriter implements IDataSetConsumer {
     private String quote(String stringValue) {
         logger.debug("quote(stringValue={}) - start", stringValue);
 
-        return new StringBuffer(QUOTE).append(escape(stringValue)).append(QUOTE).toString();
+        return new StringBuilder(QUOTE).append(escape(stringValue)).append(QUOTE).toString();
     }
 
     protected static String escape(String stringValue) {
@@ -211,7 +211,7 @@ public class CsvDataSetWriter implements IDataSetConsumer {
         char [] array = stringValue.toCharArray();
         testExport = QUOTE.toCharArray()[0];
         final char escape = ESCAPE.toCharArray()[0];
-        StringBuffer buffer = new StringBuffer();
+        StringBuilder buffer = new StringBuilder();
         for (int i = 0; i < array.length; i++) {
             char c = array[i];
             if (c == testExport || c == escape) {

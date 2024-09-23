@@ -68,7 +68,7 @@ public class ToleratedDeltaMap
 		Map res = getToleratedDeltas();
         if(res==null) 
         {
-            return Collections.EMPTY_MAP;
+            return Collections.emptyMap();
         }
         return res;
     }
@@ -211,7 +211,7 @@ public class ToleratedDeltaMap
     	}
     	
 		public String toString() {
-    		StringBuffer sb = new StringBuffer();
+    		final StringBuilder sb = new StringBuilder();
     		sb.append("tableName=").append(tableName);
     		sb.append(", columnName=").append(columnName);
     		sb.append(", toleratedDelta=").append(toleratedDelta);
@@ -231,10 +231,10 @@ public class ToleratedDeltaMap
     public static class Precision
     {
         private static final BigDecimal ZERO = new BigDecimal("0.0");
-        
-        private boolean percentage;
-        private BigDecimal delta;
-        
+
+        private final boolean percentage;
+        private final BigDecimal delta;
+
         /**
          * @param delta The allowed/tolerated difference
          */

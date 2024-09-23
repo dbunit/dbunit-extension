@@ -29,6 +29,7 @@ import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Reader;
 import java.io.Writer;
+import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 
 import org.dbunit.database.DatabaseConfig;
@@ -121,8 +122,8 @@ public class Main
         final IDataSet dataSet = new StreamingDataSet(mockProducer);
 
         final OutputStream out = new FileOutputStream("flatXmlWriterTest.xml");
-        final FlatXmlWriter writer =
-                new FlatXmlWriter(new OutputStreamWriter(out, "UTF8"));
+        final FlatXmlWriter writer = new FlatXmlWriter(
+                new OutputStreamWriter(out, StandardCharsets.UTF_8));
         writer.write(dataSet);
     }
 
@@ -135,8 +136,8 @@ public class Main
         final IDataSet dataSet = new StreamingDataSet(mockProducer);
 
         final OutputStream out = new FileOutputStream("xmlWriterTest.xml");
-        final XmlDataSetWriter writer =
-                new XmlDataSetWriter(new OutputStreamWriter(out, "UTF8"));
+        final XmlDataSetWriter writer = new XmlDataSetWriter(
+                new OutputStreamWriter(out, StandardCharsets.UTF_8));
         writer.write(dataSet);
     }
 

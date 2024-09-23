@@ -263,7 +263,7 @@ public abstract class AbstractBatchOperation extends AbstractOperation
     @Override
     public String toString()
     {
-        StringBuffer sb = new StringBuffer();
+        final StringBuilder sb = new StringBuilder();
         sb.append(getClass().getName()).append("[");
         sb.append("_reverseRowOrder=").append(this._reverseRowOrder);
         sb.append(", super=").append(super.toString());

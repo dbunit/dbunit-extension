@@ -91,7 +91,7 @@ public class NoSuchColumnException extends DataSetException
     
     
     private static String buildText(String tableName, String columnName, String message) {
-    	StringBuffer sb = new StringBuffer();
+        final StringBuilder sb = new StringBuilder();
     	if(tableName != null){
     		sb.append(tableName).append(".");
     	}

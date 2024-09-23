@@ -332,7 +332,7 @@ public class ResultSetTableMetaData extends AbstractTableMetaData
 
 	public String toString()
 	{
-		StringBuffer sb = new StringBuffer();
+		final StringBuilder sb = new StringBuilder();
 		sb.append(getClass().getName()).append("[");
 		sb.append("wrappedTableMetaData=").append(this.wrappedTableMetaData);
 		sb.append("]");

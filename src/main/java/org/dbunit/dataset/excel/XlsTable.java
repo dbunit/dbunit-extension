@@ -104,7 +104,7 @@ class XlsTable extends AbstractTable
             // Bugfix for issue ID 2818981 - if a cell has a formatting but no name also ignore it
             if(columnName.length()<=0)
             {
-                logger.debug("The column name of column # {} is empty - will skip here assuming the last column was reached", String.valueOf(i));
+                logger.debug("The column name of column # {} is empty - will skip here assuming the last column was reached", i);
                 break;
             }
             
@@ -134,8 +134,7 @@ class XlsTable extends AbstractTable
 
     public Object getValue(int row, String column) throws DataSetException
     {
-        if(logger.isDebugEnabled())
-            logger.debug("getValue(row={}, columnName={}) - start", Integer.toString(row), column);
+        logger.debug("getValue(row={}, columnName={}) - start", row, column);
 
         assertValidRowIndex(row);
 
@@ -195,8 +194,7 @@ class XlsTable extends AbstractTable
         double numericValue = cell.getNumericCellValue();
         BigDecimal numericValueBd = new BigDecimal(String.valueOf(numericValue));
         numericValueBd = stripTrailingZeros(numericValueBd);
-        return new Long(numericValueBd.longValue());
-//        return new Long(numericValueBd.unscaledValue().longValue());
+        return numericValueBd.longValue();
     }
     
     protected Object getDateValue(Cell cell) 
@@ -205,7 +203,7 @@ class XlsTable extends AbstractTable
         
         double numericValue = cell.getNumericCellValue();
         Date date = DateUtil.getJavaDate(numericValue);
-        return new Long(date.getTime());
+        return date.getTime();
         
         //TODO use a calendar for XLS Date objects when it is supported better by POI
 //        HSSFCellStyle style = cell.getCellStyle();

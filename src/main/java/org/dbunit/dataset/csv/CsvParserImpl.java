@@ -168,7 +168,7 @@ public class CsvParserImpl implements CsvParser {
 
         List columns = null;
         int columnsCollectedSoFar = 0;
-        StringBuffer buffer = new StringBuffer();
+        final StringBuilder buffer = new StringBuilder();
         String anotherLine = lineNumberReader.readLine();
         if(anotherLine == null)
             return null;
@@ -190,7 +190,7 @@ public class CsvParserImpl implements CsvParser {
                 break;
         }
         if (columnsCollectedSoFar != expectedNumberOfColumns) {
-            String message = new StringBuffer("Expected ").append(expectedNumberOfColumns)
+            String message = new StringBuilder("Expected ").append(expectedNumberOfColumns)
                     .append(" columns on line ").append(lineNumberReader.getLineNumber())
                     .append(", got ").append(columnsCollectedSoFar).append(". Offending line: ").append(buffer).toString();
             throw new CsvParserException(message);

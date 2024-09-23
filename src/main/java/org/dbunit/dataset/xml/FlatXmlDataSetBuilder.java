@@ -289,7 +289,7 @@ public final class FlatXmlDataSetBuilder
     
     public String toString()
     {
-        StringBuffer sb = new StringBuffer();
+        final StringBuilder sb = new StringBuilder();
         sb.append(getClass().getName()).append("[");
         sb.append("dtdMetadata=").append(dtdMetadata);
         sb.append(", columnSensing=").append(columnSensing);

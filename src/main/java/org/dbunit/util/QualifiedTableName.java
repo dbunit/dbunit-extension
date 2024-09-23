@@ -156,7 +156,7 @@ public class QualifiedTableName
 	}
 
 	public String toString() {
-		StringBuffer sb = new StringBuffer();
+		final StringBuilder sb = new StringBuilder();
 		sb.append(getClass().getName()).append("[");
 		sb.append("schema=").append(schema);
 		sb.append(", table=").append(table);

@@ -29,6 +29,7 @@ import static org.mockito.Mockito.when;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.nio.charset.StandardCharsets;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Types;
@@ -119,11 +120,11 @@ class BytesDataTypeTest extends AbstractDataTypeTest
         final byte[][] expected = {null, new byte[0],
                 new byte[] {'a', 'b', 'c', 'd'}, new byte[] {0, 1, 2, 3, 4, 5},
                 values[4].toString().replaceAll("\\[.*?\\]", "")
-                        .getBytes("UTF-8"),
+                        .getBytes(StandardCharsets.UTF_8),
                 values[5].toString().replaceAll("\\[.*?\\]", "")
-                        .getBytes("UTF-8"),
+                        .getBytes(StandardCharsets.UTF_8),
                 values[6].toString().replaceAll("\\[.*?\\]", "").getBytes(
-                        "UTF-8"),
+                        StandardCharsets.UTF_8),
                 "This is a test for base64.\n".getBytes(),};
 
         assertThat(expected).as("actual vs expected count")

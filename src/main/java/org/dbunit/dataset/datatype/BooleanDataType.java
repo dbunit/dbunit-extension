@@ -125,8 +125,7 @@ public class BooleanDataType extends AbstractDataType
     public Object getSqlValue(int column, ResultSet resultSet)
             throws SQLException, TypeCastException
     {
-    	if(logger.isDebugEnabled())
-    		logger.debug("getSqlValue(column={}, resultSet={}) - start", new Integer(column), resultSet);
+    	logger.debug("getSqlValue(column={}, resultSet={}) - start", column, resultSet);
 
         boolean value = resultSet.getBoolean(column);
         if (resultSet.wasNull())
@@ -139,9 +138,8 @@ public class BooleanDataType extends AbstractDataType
     public void setSqlValue(Object value, int column, PreparedStatement statement)
             throws SQLException, TypeCastException
     {
-    	if(logger.isDebugEnabled())
-    		logger.debug("setSqlValue(value={}, column={}, statement={}) - start",
-        		new Object[]{value, new Integer(column), statement} );
+    	logger.debug("setSqlValue(value={}, column={}, statement={}) - start",
+        		value, column, statement);
 
     	Boolean castValue = (Boolean)typeCast(value);
     	if(castValue==null)

@@ -62,7 +62,7 @@ public class DoubleDataType extends AbstractDataType
 
         if (value instanceof Number)
         {
-            return new Double(((Number)value).doubleValue());
+            return ((Number)value).doubleValue();
         }
 
         try
@@ -78,23 +78,21 @@ public class DoubleDataType extends AbstractDataType
     public Object getSqlValue(int column, ResultSet resultSet)
             throws SQLException, TypeCastException
     {
-    	if(logger.isDebugEnabled())
-    		logger.debug("getSqlValue(column={}, resultSet={}) - start", new Integer(column), resultSet);
+    	logger.debug("getSqlValue(column={}, resultSet={}) - start", column, resultSet);
 
         double value = resultSet.getDouble(column);
         if (resultSet.wasNull())
         {
             return null;
         }
-        return new Double(value);
+        return value;
     }
 
     public void setSqlValue(Object value, int column, PreparedStatement statement)
             throws SQLException, TypeCastException
     {
-    	if(logger.isDebugEnabled())
-    		logger.debug("setSqlValue(value={}, column={}, statement={}) - start",
-        		new Object[]{value, new Integer(column), statement} );
+    	logger.debug("setSqlValue(value={}, column={}, statement={}) - start",
+        		value, column, statement);
 
         statement.setDouble(column, ((Number)typeCast(value)).doubleValue());
     }

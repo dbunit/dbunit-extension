@@ -73,7 +73,7 @@ public class UpdateOperation extends AbstractBatchOperation
         }
 
         // update table
-        StringBuffer sqlBuffer = new StringBuffer(128);
+        final StringBuilder sqlBuffer = new StringBuilder(128);
         sqlBuffer.append("update ");
         sqlBuffer.append(getQualifiedName(connection.getSchema(),
                 metaData.getTableName(), connection));

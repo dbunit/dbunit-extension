@@ -98,7 +98,7 @@ public abstract class AbstractHSQLTestCase
 
     protected static String dump(final String[] parent)
     {
-        final StringBuffer buffer = new StringBuffer("[ " + parent[0]);
+        final StringBuilder buffer = new StringBuilder("[ " + parent[0]);
         for (int i = 1; i < parent.length; i++)
         {
             buffer.append(", " + parent[i]);

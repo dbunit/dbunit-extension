@@ -44,8 +44,9 @@ public class Pipeline implements Handler {
 
     private LinkedList components;
     private List products;
-    private StringBuffer currentProduct;
+    private StringBuilder currentProduct;
     private PipelineComponent noHandler;
+    private PipelineConfig pipelineConfig = new PipelineConfig();
 
     public Pipeline() {
         setComponents(new LinkedList());
@@ -61,17 +62,17 @@ public class Pipeline implements Handler {
         //getComponents().addFirst(TransparentHandler.IGNORE);
 
         //prepareNewPiece();
-        setCurrentProduct(new StringBuffer());
+        setCurrentProduct(new StringBuilder());
         putFront(TransparentHandler.IGNORE());
     }
 
-    public StringBuffer getCurrentProduct() {
+    public StringBuilder getCurrentProduct() {
         logger.debug("getCurrentProduct() - start");
 
         return currentProduct;
     }
 
-    public void setCurrentProduct(StringBuffer currentProduct) {
+    public void setCurrentProduct(StringBuilder currentProduct) {
         logger.debug("setCurrentProduct(currentProduct={}) - start", currentProduct);
 
         this.currentProduct = currentProduct;
@@ -80,7 +81,7 @@ public class Pipeline implements Handler {
     private void prepareNewPiece() {
         logger.debug("prepareNewPiece() - start");
 
-        setCurrentProduct(new StringBuffer());
+        setCurrentProduct(new StringBuilder());
 
         // remove all the components down to a TrasparentHandler
         try {
@@ -197,8 +198,6 @@ public class Pipeline implements Handler {
         //thePieceIsDone();
     }
 
-    
-    private PipelineConfig pipelineConfig = new PipelineConfig();
     public PipelineConfig getPipelineConfig() {
         return pipelineConfig;
     }

@@ -74,7 +74,7 @@ public class DbComparisonFailure extends AssertionError
     @Override
     public String toString()
     {
-        final StringBuffer sb = new StringBuffer();
+        final StringBuilder sb = new StringBuilder();
         sb.append(getClass().getName()).append("[");
         sb.append(reason);
         sb.append("expected:<").append(expected);
@@ -93,7 +93,7 @@ public class DbComparisonFailure extends AssertionError
      */
     public static final String buildMessage(final String reason, final String expected, final String actual)
     {
-        final StringBuffer sb = new StringBuffer();
+        final StringBuilder sb = new StringBuilder();
         sb.append(reason);
         sb.append(" expected:<").append(expected).append(">");
         sb.append(" but was:<").append(actual).append(">");

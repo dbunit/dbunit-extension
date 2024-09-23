@@ -26,6 +26,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Reader;
 import java.io.Writer;
+import java.nio.charset.Charset;
 
 import org.dbunit.dataset.CachedDataSet;
 import org.dbunit.dataset.DataSetException;
@@ -94,13 +95,13 @@ public class XmlDataSet extends CachedDataSet
     /**
      * Write the specified dataset to the specified output stream as xml (using specified encoding).
      */
-    public static void write(IDataSet dataSet, OutputStream out, String encoding)
+    public static void write(IDataSet dataSet, OutputStream out, Charset charset)
             throws IOException, DataSetException
     {
-        logger.debug("write(dataSet={}, out={}, encoding={}) - start", 
-                new Object[]{dataSet, out, encoding} );
-        
-        XmlDataSetWriter datasetWriter = new XmlDataSetWriter(out, encoding);
+        logger.debug("write(dataSet={}, out={}, charset={}) - start",
+                dataSet, out, charset);
+
+        XmlDataSetWriter datasetWriter = new XmlDataSetWriter(out, charset);
         datasetWriter.write(dataSet);
     }
 
@@ -111,20 +112,19 @@ public class XmlDataSet extends CachedDataSet
             throws IOException, DataSetException
     {
         logger.debug("write(dataSet={}, writer={}) - start", dataSet, writer);
-        write(dataSet, writer, null);
+        write(dataSet, writer, Charset.defaultCharset());
     }
 
     /**
      * Write the specified dataset to the specified writer as xml.
      */
-    public static void write(IDataSet dataSet, Writer writer, String encoding)
+    public static void write(IDataSet dataSet, Writer writer, Charset charset)
             throws IOException, DataSetException
     {
-    	if (logger.isDebugEnabled())
-    		logger.debug("write(dataSet={}, writer={}, encoding={}) - start",
-    				new Object[]{ dataSet, writer, encoding });
+    	logger.debug("write(dataSet={}, writer={}, charset={}) - start",
+    		dataSet, writer, charset);
 
-        XmlDataSetWriter datasetWriter = new XmlDataSetWriter(writer, encoding);
+        XmlDataSetWriter datasetWriter = new XmlDataSetWriter(writer, charset);
         datasetWriter.write(dataSet);
     }
 }

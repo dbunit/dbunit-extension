@@ -170,8 +170,7 @@ public class DatabaseConnection extends AbstractDatabaseConnection
      */
     private void validateSchema(boolean validateStrict) throws DatabaseUnitException
     {
-    	if(logger.isDebugEnabled())
-    		logger.debug("validateSchema(validateStrict={}) - start", String.valueOf(validateStrict));
+    	logger.debug("validateSchema(validateStrict={}) - start", validateStrict);
         
         if(this._schema == null)
         {
@@ -203,7 +202,7 @@ public class DatabaseConnection extends AbstractDatabaseConnection
     
     public String toString()
     {
-        StringBuffer sb = new StringBuffer();
+        final StringBuilder sb = new StringBuilder();
         sb.append(getClass().getName()).append("[");
         sb.append("schema=").append(_schema);
         sb.append(", connection=").append(_connection);

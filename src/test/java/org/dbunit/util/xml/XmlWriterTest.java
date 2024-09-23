@@ -26,6 +26,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 import java.io.ByteArrayOutputStream;
 import java.io.StringWriter;
 import java.io.Writer;
+import java.nio.charset.StandardCharsets;
 
 import org.junit.jupiter.api.Test;
 
@@ -138,7 +139,7 @@ class XmlWriterTest
     {
         final ByteArrayOutputStream out = new ByteArrayOutputStream();
         // Use a different encoding than the default
-        final XmlWriter xmlWriter = new XmlWriter(out, null);
+        final XmlWriter xmlWriter = new XmlWriter(out, StandardCharsets.UTF_8);
         xmlWriter.writeDeclaration();
         xmlWriter.writeEmptyElement("COLUMN1");
         xmlWriter.close();
@@ -153,7 +154,7 @@ class XmlWriterTest
     {
         final ByteArrayOutputStream out = new ByteArrayOutputStream();
         // Use a different encoding than the default
-        final XmlWriter xmlWriter = new XmlWriter(out, "ISO-8859-1");
+        final XmlWriter xmlWriter = new XmlWriter(out, StandardCharsets.ISO_8859_1);
         xmlWriter.writeDeclaration();
         xmlWriter.writeEmptyElement("COLUMN1");
         xmlWriter.close();
@@ -171,7 +172,7 @@ class XmlWriterTest
                 + expectedText + "</COLUMN1>\n";
 
         final boolean literally = true;
-        final StringBuffer textBuilder = new StringBuffer();
+        final StringBuilder textBuilder = new StringBuilder();
         final String registeredSymbol = new String(new char[] {0xAE});
         textBuilder.append(registeredSymbol);
         textBuilder.append("text1\ntext2\rtext3");

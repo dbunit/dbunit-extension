@@ -63,7 +63,7 @@ public class FloatDataType extends AbstractDataType
 
         if (value instanceof Number)
         {
-            return new Float(((Number)value).floatValue());
+            return ((Number)value).floatValue();
         }
 
         try
@@ -79,23 +79,21 @@ public class FloatDataType extends AbstractDataType
     public Object getSqlValue(int column, ResultSet resultSet)
             throws SQLException, TypeCastException
     {
-    	if(logger.isDebugEnabled())
-    		logger.debug("getSqlValue(column={}, resultSet={}) - start", new Integer(column), resultSet);
+    	logger.debug("getSqlValue(column={}, resultSet={}) - start", column, resultSet);
 
         float value = resultSet.getFloat(column);
         if (resultSet.wasNull())
         {
             return null;
         }
-        return new Float(value);
+        return value;
     }
 
     public void setSqlValue(Object value, int column, PreparedStatement statement)
             throws SQLException, TypeCastException
     {
-    	if(logger.isDebugEnabled())
-    		logger.debug("setSqlValue(value={}, column={}, statement={}) - start",
-        		new Object[]{value, new Integer(column), statement} );
+    	logger.debug("setSqlValue(value={}, column={}, statement={}) - start",
+    		value, column, statement);
 
         statement.setFloat(column, ((Number)typeCast(value)).floatValue());
     }

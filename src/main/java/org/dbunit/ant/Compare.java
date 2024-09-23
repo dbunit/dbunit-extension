@@ -175,7 +175,7 @@ public class Compare extends AbstractStep
 
     public String toString()
     {
-        StringBuffer result = new StringBuffer();
+        StringBuilder result = new StringBuilder();
         result.append("Compare: ");
         result.append(" src=");
         result.append((_src == null ? "null" : _src.getAbsolutePath()));

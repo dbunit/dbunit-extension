@@ -25,10 +25,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
-import java.time.Clock;
-import java.time.Instant;
-import java.time.ZoneId;
-
 import org.dbunit.util.RelativeDateTimeParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -200,8 +196,7 @@ public abstract class DataType
      */
     public static DataType forSqlType(int sqlType) throws DataTypeException
     {
-    	if(logger.isDebugEnabled())
-    		logger.debug("forSqlType(sqlType={}) - start", new Integer(sqlType));
+        logger.debug("forSqlType(sqlType={}) - start", sqlType);
 
         for (int i = 0; i < TYPES.length; i++)
         {
@@ -222,8 +217,7 @@ public abstract class DataType
      */
     public static DataType forSqlTypeName(String sqlTypeName) throws DataTypeException
     {
-    	if(logger.isDebugEnabled())
-    		logger.debug("forSqlTypeName(sqlTypeName=" + sqlTypeName + ") - start");
+    	logger.debug("forSqlTypeName(sqlTypeName={}) - start", sqlTypeName);
 
         for (int i = 0; i < TYPES.length; i++)
         {

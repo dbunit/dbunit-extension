@@ -82,7 +82,7 @@ public class CompositeOperation extends DatabaseOperation
     
     public String toString()
     {
-    	StringBuffer sb = new StringBuffer();
+    	final StringBuilder sb = new StringBuilder();
     	sb.append(getClass().getName()).append("[");
     	sb.append("_actions=").append(this._actions==null ? "null" : Arrays.asList(this._actions).toString());
     	sb.append("]");

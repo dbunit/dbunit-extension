@@ -33,9 +33,10 @@ import org.dbunit.dataset.ITableIterator;
 import org.dbunit.dataset.ITableMetaData;
 
 import java.sql.SQLException;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.Stack;
 
 /**
  * Deletes all rows of tables present in the specified dataset. If the dataset
@@ -87,8 +88,8 @@ public class DeleteAllOperation extends AbstractOperation
         {
             int count = 0;
             
-            Stack tableNames = new Stack();
-            Set tablesSeen = new HashSet();
+            final Deque<String> tableNames = new ArrayDeque<>();
+            final Set<String> tablesSeen = new HashSet<>();
             ITableIterator iterator = dataSet.iterator();
             while (iterator.next())
             {
@@ -109,7 +110,7 @@ public class DeleteAllOperation extends AbstractOperation
                 ITableMetaData databaseMetaData = databaseDataSet.getTableMetaData(tableName);
                 tableName = databaseMetaData.getTableName();
 
-                StringBuffer sqlBuffer = new StringBuffer(128);
+                final StringBuilder sqlBuffer = new StringBuilder(128);
                 sqlBuffer.append(getDeleteAllCommand());
                 sqlBuffer.append(getQualifiedName(connection.getSchema(), tableName, connection));
                 String sql = sqlBuffer.toString();

@@ -305,7 +305,7 @@ public class DatabaseSequenceFilter extends SequenceTableFilter
 
         public String toString()
         {
-            StringBuffer sb = new StringBuffer();
+            final StringBuilder sb = new StringBuilder();
             sb.append("DependencyInfo[");
             sb.append("table=").append(tableName);
             sb.append(", directDependsOn=").append(directDependsOnTablesSet);

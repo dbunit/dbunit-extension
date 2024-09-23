@@ -52,11 +52,7 @@ public class OracleClobDataType extends ClobDataType
     public Object getSqlValue(final int column, final ResultSet resultSet)
             throws SQLException, TypeCastException
     {
-        if (logger.isDebugEnabled())
-        {
-            logger.debug("getSqlValue(column={}, resultSet={}) - start",
-                    new Integer(column), resultSet);
-        }
+        logger.debug("getSqlValue(column={}, resultSet={}) - start", column, resultSet);
 
         return typeCast(resultSet.getClob(column));
     }
@@ -66,12 +62,8 @@ public class OracleClobDataType extends ClobDataType
             final PreparedStatement statement)
             throws SQLException, TypeCastException
     {
-        if (logger.isDebugEnabled())
-        {
-            logger.debug(
-                    "setSqlValue(value={}, column={}, statement={}) - start",
-                    new Object[] {value, new Integer(column), statement});
-        }
+        logger.debug("setSqlValue(value={}, column={}, statement={}) - start",
+                value, column, statement);
 
         statement.setObject(column, getClob(value, statement.getConnection()));
     }

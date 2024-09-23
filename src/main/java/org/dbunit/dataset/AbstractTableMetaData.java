@@ -85,7 +85,7 @@ public abstract class AbstractTableMetaData implements ITableMetaData
     	if (logger.isDebugEnabled())
     	{
     		logger.debug("getPrimaryKeys(tableName={}, columns={}, columnFilter={}) - start",
-    				new Object[]{ tableName, columns, columnFilter });
+    				tableName, columns, columnFilter);
     	}
     	return Columns.getColumns(tableName, columns, columnFilter);
     }
@@ -108,14 +108,14 @@ public abstract class AbstractTableMetaData implements ITableMetaData
 		
         String columnNameUpperCase = columnName.toUpperCase();
 		Integer colIndex = (Integer) this._columnsToIndexes.get(columnNameUpperCase);
-		if(colIndex != null) 
+		if(colIndex != null)
 		{
 			return colIndex.intValue();
 		}
 		else 
 		{
 			throw new NoSuchColumnException(this.getTableName(), columnNameUpperCase,
-					" (Non-uppercase input column: "+columnName+") in ColumnNameToIndexes cache map. " +
+					" (Non-uppercase input column: " + columnName + ") in ColumnNameToIndexes cache map. " +
 					"Note that the map's column names are NOT case sensitive.");
 		}
 	}
@@ -129,7 +129,7 @@ public abstract class AbstractTableMetaData implements ITableMetaData
 		Map colsToIndexes = new HashMap(columns.length);
 		for (int i = 0; i < columns.length; i++) 
 		{
-			colsToIndexes.put(columns[i].getColumnName().toUpperCase(), new Integer(i));
+			colsToIndexes.put(columns[i].getColumnName().toUpperCase(), i);
 		}
 		return colsToIndexes;
 	}

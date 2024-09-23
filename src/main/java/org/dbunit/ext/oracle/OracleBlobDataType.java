@@ -51,8 +51,7 @@ public class OracleBlobDataType extends BlobDataType
 
     public Object getSqlValue(int column, ResultSet resultSet) throws SQLException, TypeCastException
     {
-    	if(logger.isDebugEnabled())
-    		logger.debug("getSqlValue(column={}, resultSet={}) - start", new Integer(column), resultSet);
+    	logger.debug("getSqlValue(column={}, resultSet={}) - start", column, resultSet);
 
         return typeCast(resultSet.getBlob(column));
     }
@@ -60,9 +59,8 @@ public class OracleBlobDataType extends BlobDataType
     public void setSqlValue(Object value, int column, PreparedStatement statement)
             throws SQLException, TypeCastException
     {
-    	if(logger.isDebugEnabled())
-    		logger.debug("setSqlValue(value={}, column={}, statement={}) - start",
-    				new Object[]{value, new Integer(column), statement} );
+    	logger.debug("setSqlValue(value={}, column={}, statement={}) - start",
+    		value, column, statement);
 
         statement.setObject(column, getBlob(value, statement.getConnection()));
     }

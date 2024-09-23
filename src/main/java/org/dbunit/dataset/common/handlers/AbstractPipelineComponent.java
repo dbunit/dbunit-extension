@@ -69,13 +69,13 @@ public abstract class AbstractPipelineComponent implements PipelineComponent {
     }
 
 
-    private StringBuffer getThePiece() {
+    private StringBuilder getThePiece() {
         return getPipeline().getCurrentProduct();
     }
 
     public void handle(char c) throws IllegalInputCharacterException, PipelineException {
         if(logger.isDebugEnabled())
-            logger.debug("handle(c={}) - start", String.valueOf(c));
+            logger.debug("handle(c={}) - start", c);
 
         if (!canHandle(c)) {
             getSuccessor().handle(c);
@@ -132,7 +132,7 @@ public abstract class AbstractPipelineComponent implements PipelineComponent {
     static protected class ACCEPT extends Helper {
         public void helpWith(char c) {
             if(logger.isDebugEnabled())
-                logger.debug("helpWith(c={}) - start", String.valueOf(c));
+                logger.debug("helpWith(c={}) - start", c);
             
             getHandler().accept(c);
         }

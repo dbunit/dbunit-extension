@@ -63,13 +63,13 @@ public class InsertOperation extends AbstractBatchOperation
     	if (logger.isDebugEnabled())
     	{
     		logger.debug("getOperationData(metaData={}, ignoreMapping={}, connection={}) - start",
-    				new Object[]{ metaData, ignoreMapping, connection });
+    				metaData, ignoreMapping, connection);
     	}
 
         Column[] columns = metaData.getColumns();
 
         // insert
-        StringBuffer sqlBuffer = new StringBuffer(128);
+        final StringBuilder sqlBuffer = new StringBuilder(128);
         sqlBuffer.append("insert into ");
         sqlBuffer.append(getQualifiedName(connection.getSchema(),
                 metaData.getTableName(), connection));
@@ -109,8 +109,7 @@ public class InsertOperation extends AbstractBatchOperation
 
     protected BitSet getIgnoreMapping(ITable table, int row) throws DataSetException
     {
-    	if(logger.isDebugEnabled())
-    		logger.debug("getIgnoreMapping(table={}, row={}) - start", table, String.valueOf(row));
+    	logger.debug("getIgnoreMapping(table={}, row={}) - start", table, row);
 
         Column[] columns = table.getTableMetaData().getColumns();
 
@@ -131,11 +130,8 @@ public class InsertOperation extends AbstractBatchOperation
     protected boolean equalsIgnoreMapping(BitSet ignoreMapping, ITable table,
             int row) throws DataSetException
     {
-    	if (logger.isDebugEnabled())
-    	{
-    		logger.debug("equalsIgnoreMapping(ignoreMapping={}, table={}, row={}) - start",
-    				new Object[]{ ignoreMapping, table, String.valueOf(row) });
-    	}
+    	logger.debug("equalsIgnoreMapping(ignoreMapping={}, table={}, row={}) - start",
+    			 ignoreMapping, table, row);
 
         Column[] columns = table.getTableMetaData().getColumns();
 

@@ -140,13 +140,9 @@ public abstract class AbstractDataType extends DataType
         {
             return true;
         }
-        if(o1 != null && o1.equals(o2))
-        {
-            return true;
-        }
+        return o1 != null && o1.equals(o2);
         // Note that no more check is needed for o2 because it definitely does is not equal to o1
         // Instead immediately proceed with the typeCast method
-        return false;
     }
 
     public int getSqlType()
@@ -180,8 +176,7 @@ public abstract class AbstractDataType extends DataType
     public Object getSqlValue(int column, ResultSet resultSet)
             throws SQLException, TypeCastException
     {
-    	if(logger.isDebugEnabled())
-    		logger.debug("getSqlValue(column={}, resultSet={}) - start", new Integer(column), resultSet);
+        logger.debug("getSqlValue(column={}, resultSet={}) - start", column, resultSet);
 
         Object value = resultSet.getObject(column);
         if (value == null || resultSet.wasNull())
@@ -194,9 +189,8 @@ public abstract class AbstractDataType extends DataType
     public void setSqlValue(Object value, int column, PreparedStatement statement)
             throws SQLException, TypeCastException
     {
-    	if(logger.isDebugEnabled())
-    		logger.debug("setSqlValue(value={}, column={}, statement={}) - start",
-    				new Object[]{value, new Integer(column), statement} );
+        logger.debug("setSqlValue(value={}, column={}, statement={}) - start",
+                value, column, statement);
 
         statement.setObject(column, typeCast(value), getSqlType());
     }

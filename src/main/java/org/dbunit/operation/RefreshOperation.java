@@ -235,7 +235,7 @@ public class RefreshOperation extends AbstractOperation
         public boolean execute(ITable table, int row)
                 throws DataSetException, SQLException
         {
-            logger.debug("execute(table={}, row={}) - start", table, String.valueOf(row));
+            logger.debug("execute(table={}, row={}) - start", table, row);
 
             // If current row has a different ignore value mapping than
             // previous one, we generate a new statement
@@ -316,7 +316,7 @@ public class RefreshOperation extends AbstractOperation
             }
 
             // select count
-            StringBuffer sqlBuffer = new StringBuffer(128);
+            final StringBuilder sqlBuffer = new StringBuilder(128);
             sqlBuffer.append("select COUNT(*) from ");
             sqlBuffer.append(getQualifiedName(connection.getSchema(), metaData.getTableName(), connection));
 
@@ -347,7 +347,7 @@ public class RefreshOperation extends AbstractOperation
         public boolean execute(ITable table, int row)
                 throws DataSetException, SQLException
         {
-            logger.debug("execute(table={}, row={}) - start", table, String.valueOf(row));
+            logger.debug("execute(table={}, row={}) - start", table, row);
 
             Column[] columns = _operationData.getColumns();
             for (int i = 0; i < columns.length; i++)

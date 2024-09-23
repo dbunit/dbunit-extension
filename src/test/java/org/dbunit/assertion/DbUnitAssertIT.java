@@ -466,7 +466,7 @@ public class DbUnitAssertIT
         for (int i = 0; i < names.length; i++)
         {
             final String reversedName =
-                    new StringBuffer(names[i]).reverse().toString();
+                    new StringBuilder(names[i]).reverse().toString();
             tables[i] = new CompositeTable(reversedName,
                     dataSet1.getTable(names[i]));
         }

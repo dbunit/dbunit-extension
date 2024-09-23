@@ -141,7 +141,7 @@ public class StringDataType extends AbstractDataType
             throws SQLException, TypeCastException
     {
     	if (logger.isDebugEnabled())
-    		logger.debug("getSqlValue(column={}, resultSet={}) - start", new Integer(column), resultSet);
+    		logger.debug("getSqlValue(column={}, resultSet={}) - start", column, resultSet);
 
         String value = resultSet.getString(column);
         if (value == null || resultSet.wasNull())
@@ -154,9 +154,8 @@ public class StringDataType extends AbstractDataType
     public void setSqlValue(Object value, int column, PreparedStatement statement)
             throws SQLException, TypeCastException
     {
-    	if (logger.isDebugEnabled())
-    		logger.debug("setSqlValue(value={}, column={}, statement={}) - start",
-    				new Object[]{value, new Integer(column), statement} );
+    	logger.debug("setSqlValue(value={}, column={}, statement={}) - start",
+    		value, column, statement);
 
         statement.setString(column, asString(value));
     }

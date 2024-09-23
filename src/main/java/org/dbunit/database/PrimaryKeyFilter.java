@@ -116,7 +116,7 @@ public class PrimaryKeyFilter extends AbstractTableFilter {
         edges = (Set) this.fkReverseEdgesPerTable.get(to);
         if ( edges == null ) {
             edges = new HashSet();
-            this.fkReverseEdgesPerTable.put( to, edges );
+            this.fkReverseEdgesPerTable.put(to, edges);
         }
         if ( ! edges.contains(edge) ) {
             edges.add(edge);
@@ -203,10 +203,7 @@ public class PrimaryKeyFilter extends AbstractTableFilter {
                 } 
                 else 
                 {
-                    if ( this.logger.isDebugEnabled() ) {
-                        this.logger.debug( "Discarding id " + id + " of table " + table + 
-                        " as it was not included in the input!" );
-                    }
+                    logger.debug("Discarding id {} of table {} as it was not included in the input!", id, table);
                 }
             }
         }
@@ -225,7 +222,7 @@ public class PrimaryKeyFilter extends AbstractTableFilter {
         }
         // we need a temporary list as there is no warranty about the set order...
         List fkTables = new ArrayList( fkEdges.size() );
-        StringBuffer colsBuffer = new StringBuffer();
+        final StringBuilder colsBuffer = new StringBuilder();
         for(Iterator iterator = fkEdges.iterator(); iterator.hasNext(); ) {
             ForeignKeyRelationshipEdge edge = (ForeignKeyRelationshipEdge) iterator.next();
             fkTables.add( edge.getTo() );
@@ -262,14 +259,11 @@ public class PrimaryKeyFilter extends AbstractTableFilter {
                         String newTable = (String) fkTables.get(i);
                         Object fk = rs.getObject(i+1);
                         if( fk != null ) {
-                            if( this.logger.isDebugEnabled() ) {
-                                this.logger.debug("New ID: " + newTable + "->" + fk);
-                            }
+                            logger.debug("New ID: {}->{}", newTable, fk);
                             addPKToScan( newTable, fk );
                         } 
                         else {
-                            this.logger.warn( "Found null FK for relationship  " + 
-                                    table + "=>" + newTable );
+                            logger.warn( "Found null FK for relationship {} =>{}", table, newTable );
                         }
                     }
                 }
@@ -312,10 +306,9 @@ public class PrimaryKeyFilter extends AbstractTableFilter {
         PreparedStatement pstmt = null;
         ResultSet rs = null;
         try {
-            if ( this.logger.isDebugEnabled() ) {
-                this.logger.debug( "Preparing SQL query '" + sql + "'" );
-            }
-            pstmt = this.connection.getConnection().prepareStatement( sql );
+            logger.debug("Preparing SQL query '{}'", sql);
+
+            pstmt = this.connection.getConnection().prepareStatement(sql);
             for(Iterator iterator = idsToScan.iterator(); iterator.hasNext(); ) {
                 Object pk = iterator.next();
                 if ( this.logger.isDebugEnabled() ) {
@@ -386,7 +379,7 @@ public class PrimaryKeyFilter extends AbstractTableFilter {
     }
 
     public String toString() {
-        StringBuffer sb = new StringBuffer();
+        final StringBuilder sb = new StringBuilder();
         sb.append("tableNames=").append(tableNames);
         sb.append(", allowedPKsInput=").append(allowedPKsInput);
         sb.append(", allowedPKsPerTable=").append(allowedPKsPerTable);
@@ -556,7 +549,7 @@ public class PrimaryKeyFilter extends AbstractTableFilter {
         
         
         public String toString() {
-            StringBuffer sb = new StringBuffer();
+            final StringBuilder sb = new StringBuilder();
             sb.append("pKsPerTable=").append(pksPerTable);
             return sb.toString();
         }

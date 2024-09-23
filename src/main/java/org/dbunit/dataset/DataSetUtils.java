@@ -117,7 +117,7 @@ public class DataSetUtils
     {
         if(logger.isDebugEnabled())
             logger.debug("getQualifiedName(prefix={}, name={}, escapePattern={}) - start", 
-                    new String[] {prefix, name, escapePattern});
+                    prefix, name, escapePattern);
         
         return new QualifiedTableName(name, prefix, escapePattern).getQualifiedName();
     }
@@ -172,13 +172,13 @@ public class DataSetUtils
         if (!dataType.isNumber())
         {
             // no single quotes
-            if (stringValue.indexOf("'") < 0)
+            if (!stringValue.contains("'"))
             {
-                return stringValue = "'" + stringValue + "'";
+                return "'" + stringValue + "'";
             }
 
             // escaping single quotes
-            StringBuffer buffer = new StringBuffer(stringValue.length() * 2);
+            final StringBuilder buffer = new StringBuilder(stringValue.length() * 2);
             StringTokenizer tokenizer = new StringTokenizer(stringValue, "'", true);
 
             buffer.append("'");

@@ -360,7 +360,7 @@ public class SqlLoaderControlParserImpl implements SqlLoaderControlParser {
 
         List columns = null;
         int columnsCollectedSoFar = 0;
-        StringBuffer buffer = new StringBuffer();
+        final StringBuilder buffer = new StringBuilder();
         boolean shouldProceed = false;
         while (columnsCollectedSoFar < expectedNumberOfColumns) {
             try {
@@ -389,7 +389,7 @@ public class SqlLoaderControlParserImpl implements SqlLoaderControlParser {
             else {
 
                 String message =
-                    new StringBuffer("Expected ")
+                    new StringBuilder("Expected ")
                         .append(expectedNumberOfColumns).append(" columns on line ")
                         .append(lineNumberReader.getLineNumber()).append(", got ")
                         .append(columnsCollectedSoFar).append(". Offending line: ").append(buffer)

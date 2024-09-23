@@ -71,7 +71,7 @@ public class DeleteOperation extends AbstractBatchOperation
     	if (logger.isDebugEnabled())
     	{
     		logger.debug("getOperationData(metaData={}, ignoreMapping={}, connection={}) - start",
-    				new Object[]{ metaData, ignoreMapping, connection });
+    				metaData, ignoreMapping, connection);
     	}
 
         // cannot construct where clause if no primary key
@@ -82,7 +82,7 @@ public class DeleteOperation extends AbstractBatchOperation
         }
 
         // delete from
-        StringBuffer sqlBuffer = new StringBuffer(128);
+        final StringBuilder sqlBuffer = new StringBuilder(128);
         sqlBuffer.append("delete from ");
         sqlBuffer.append(getQualifiedName(connection.getSchema(),
                 metaData.getTableName(), connection));
