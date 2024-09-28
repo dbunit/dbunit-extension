@@ -386,8 +386,8 @@
             url="${dbunit.profile.url}"
             userid="${dbunit.profile.user}"
             password="${dbunit.profile.password}">
-      <export dest="${exporDataSet}" format="flat">
-        <queryset id="someid" refid="someid" onerror="fail"/>
+      <export dest="${exportDataSet}" format="flat">
+        <queryset id="someid" refid="someid"/>
       </export>
     </dbunit>
     <delete file="${exportDataSet}" deleteonexit="true"/>
@@ -531,4 +531,3 @@
   </target>
 
 </project>
-
