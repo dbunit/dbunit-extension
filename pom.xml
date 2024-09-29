@@ -600,6 +600,10 @@
             <encoding>UTF-8</encoding>
             <systemProperties>
               <property>
+                <name>derby.stream.error.file</name>
+                <value>${project.build.directory}/derby.log</value>
+              </property>
+              <property>
                 <name>dbunit.profile</name>
                 <value>${dbunit.profile}</value>
               </property>
