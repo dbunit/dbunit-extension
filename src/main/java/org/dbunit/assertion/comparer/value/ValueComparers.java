@@ -60,6 +60,14 @@ public abstract class ValueComparers
     public static final ValueComparer isActualLessThanExpected =
             new IsActualLessThanExpectedValueComparer();
 
+    /** @see IsActualNotNullValueComparer */
+    public static final ValueComparer isActualNotNullValueComparer =
+            new IsActualNotNullValueComparer();
+
+    /** @see IsActualNullValueComparer */
+    public static final ValueComparer isActualNullValueComparer =
+            new IsActualNullValueComparer();
+
     /** @see IsActualWithinToleranceOfExpectedTimestampValueComparer */
     public static final ValueComparer isActualWithinOneSecondNewerOfExpectedTimestamp =
             new IsActualWithinToleranceOfExpectedTimestampValueComparer(0,
