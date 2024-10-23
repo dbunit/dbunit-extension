@@ -13,7 +13,7 @@
   </properties>
 
   <body>
-    <release version="3.0.0-SNAPSHOT" date="Jun 15, 2024" description="JUnit 5">
+    <release version="3.0.0-SNAPSHOT" date="TBD" description="JUnit 5 update, ValueComparers constants">
       <action dev="jeffjensen" type="update" issue="222" system="sffeatures" due-to="emann">Upgrade dbUnit from JUnit 4 to JUnit 5</action>
       <action dev="jeffjensen" type="add" issue="250" system="sffeatures" due-to="jeffjensen">Add 'actual is null' and 'actual is not null' constants to ValueComparers class</action>
     </release>

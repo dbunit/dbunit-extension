@@ -30,19 +30,17 @@
 
     <section name="News">
       <table border="1">
-<!-- 
         <tr>
-          <td>SET ME</td>
+          <td>TBD</td>
           <td> 
-            Please try the 2.8.1-SNAPSHOT snapshot build and let us know how it works!
+            Please try the 3.0.0-SNAPSHOT snapshot build and let us know how it works!
             <br/>
-            Refer to the <a href="changes-report.html#a2.8.1-SNAPSHOT">changes report</a>,
-            the <a href="https://sourceforge.net/p/dbunit/feature-requests/milestone/2.8.1/">feature list</a>,
-            and the <a href="https://sourceforge.net/p/dbunit/bugs/fixed_release/2.8.1/">bug list</a>
+            Refer to the <a href="changes-report.html#a3.0.0-SNAPSHOT">changes report</a>,
+            the <a href="https://sourceforge.net/p/dbunit/feature-requests/milestone/3.0.0/">feature list</a>,
+            and the <a href="https://sourceforge.net/p/dbunit/bugs/fixed_release/3.0.0/">bug list</a>
             for the snapshot contents (and any subsequent updates).
           </td>
         </tr>
--->
         <tr>
           <td>2024-06-02</td>
           <td> 
