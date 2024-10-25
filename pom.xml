@@ -367,6 +367,7 @@
         <groupId>org.postgresql</groupId>
         <artifactId>postgresql</artifactId>
         <version>${postgresqlDriverVersion}</version>
+        <scope>provided</scope>
         <optional>true</optional>
       </dependency>
       <dependency>
