@@ -20,6 +20,7 @@
  */
 package org.dbunit.ext.oracle;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.io.Writer;
 import java.sql.Connection;
@@ -27,7 +28,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-import org.apache.commons.compress.utils.IOUtils;
 import org.dbunit.dataset.datatype.ClobDataType;
 import org.dbunit.dataset.datatype.TypeCastException;
 import org.slf4j.Logger;
@@ -48,7 +48,8 @@ public class OracleClobDataType extends ClobDataType
     private static final Logger logger =
             LoggerFactory.getLogger(OracleClobDataType.class);
 
-    public Object getSqlValue(int column, ResultSet resultSet)
+    @Override
+    public Object getSqlValue(final int column, final ResultSet resultSet)
             throws SQLException, TypeCastException
     {
         if (logger.isDebugEnabled())
@@ -60,8 +61,10 @@ public class OracleClobDataType extends ClobDataType
         return typeCast(resultSet.getClob(column));
     }
 
-    public void setSqlValue(Object value, int column,
-            PreparedStatement statement) throws SQLException, TypeCastException
+    @Override
+    public void setSqlValue(final Object value, final int column,
+            final PreparedStatement statement)
+            throws SQLException, TypeCastException
     {
         if (logger.isDebugEnabled())
         {
@@ -73,7 +76,7 @@ public class OracleClobDataType extends ClobDataType
         statement.setObject(column, getClob(value, statement.getConnection()));
     }
 
-    protected Object getClob(Object value, Connection connection)
+    protected Object getClob(final Object value, final Connection connection)
             throws TypeCastException
     {
         logger.debug("getClob(value={}, connection={}) - start", value,
@@ -82,7 +85,7 @@ public class OracleClobDataType extends ClobDataType
         Writer tempClobWriter = null;
         try
         {
-            java.sql.Clob tempClob = connection.createClob();
+            final java.sql.Clob tempClob = connection.createClob();
             tempClobWriter = tempClob.setCharacterStream(1);
 
             // Write the data into the temporary CLOB
@@ -96,7 +99,21 @@ public class OracleClobDataType extends ClobDataType
             throw new TypeCastException(value, this, e);
         } finally
         {
-            IOUtils.closeQuietly(tempClobWriter);
+            closeQuietly(tempClobWriter);
+        }
+    }
+
+    private void closeQuietly(final Closeable c)
+    {
+        if (c != null)
+        {
+            try
+            {
+                c.close();
+            } catch (final IOException ignored)
+            {
+                // ignore
+            }
         }
     }
 }
