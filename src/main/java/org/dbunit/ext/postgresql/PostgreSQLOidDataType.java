@@ -84,7 +84,7 @@ public class PostgreSQLOidDataType
 
         try {
             // Get the Large Object Manager to perform operations with
-            LargeObjectManager lobj = ((org.postgresql.PGConnection) statement.getConnection()).getLargeObjectAPI();
+            LargeObjectManager lobj = (connection.unwrap(PGConnection.class)).getLargeObjectAPI();
 
             // Create a new large object
             long oid = lobj.createLO(LargeObjectManager.READ | LargeObjectManager.WRITE);
