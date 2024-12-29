@@ -50,9 +50,9 @@ public class OracleNClobDataType extends OracleClobDataType {
     	logger.debug("setSqlValue(value={}, column={}, statement={}) - start",
     		value, column, statement);
 
-        OraclePreparedStatement oraclePreparedStatement = (OraclePreparedStatement) statement;
+        OraclePreparedStatement oraclePreparedStatement = statement.unwrap(OraclePreparedStatement.class);
         oraclePreparedStatement.setFormOfUse(column, OraclePreparedStatement.FORM_NCHAR);
         statement.setObject(column, getClob(value, statement.getConnection()));
     }
-    
+
 }

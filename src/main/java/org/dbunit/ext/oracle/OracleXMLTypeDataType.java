@@ -35,7 +35,7 @@ import oracle.jdbc.OracleResultSet;
 /**
  *
  * TODO UnitTests are completely missing
- * 
+ *
  * @author Phil Barr
  * @author Last changed by: $Author$
  * @version $Revision$ $Date$
@@ -53,7 +53,7 @@ public class OracleXMLTypeDataType extends BlobDataType
             throws SQLException, TypeCastException
     {
         byte[] data = null;
-        OracleResultSet oracleResultSet = (OracleResultSet) resultSet;
+        OracleResultSet oracleResultSet = resultSet.unwrap(OracleResultSet.class);
         SQLXML sqlXml = oracleResultSet.getSQLXML(column);
         if (sqlXml != null)
         {
@@ -68,8 +68,7 @@ public class OracleXMLTypeDataType extends BlobDataType
     public void setSqlValue(Object value, int column,
             PreparedStatement statement) throws SQLException, TypeCastException
     {
-        OraclePreparedStatement oraclePreparedStatement =
-                (OraclePreparedStatement) statement;
+        OraclePreparedStatement oraclePreparedStatement = statement.unwrap(OraclePreparedStatement.class);
         SQLXML sqlXmlValue =
                 oraclePreparedStatement.getConnection().createSQLXML();
         // XML document in the parameter is Base64 encoded (it is entered in XML
