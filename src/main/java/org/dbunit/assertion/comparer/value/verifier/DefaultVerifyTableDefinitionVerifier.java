@@ -91,7 +91,7 @@ public class DefaultVerifyTableDefinitionVerifier
 
         if (isMissing)
         {
-            log.info("hasColumnExclusionFilters:"
+            log.debug("hasColumnExclusionFilters:"
                     + " no columnExclusionFilters specified");
         }
 
@@ -106,7 +106,7 @@ public class DefaultVerifyTableDefinitionVerifier
 
         if (isMissing)
         {
-            log.info("hasColumnValueComparers:"
+            log.debug("hasColumnValueComparers:"
                     + " no columnValueComparers specified");
         }
 
