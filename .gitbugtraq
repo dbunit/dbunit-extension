@@ -1,0 +1,11 @@
+[bugtraq "Features"]
+	projects = F
+	url=https://sourceforge.net/p/dbunit/feature-requests/%BUGID%
+	loglinkregex = %PROJECT%\\d+
+	logregex=\\d+
+
+[bugtraq "Bugs"]
+	projects = B
+	url=https://sourceforge.net/p/dbunit/bugs/%BUGID%
+	loglinkregex = %PROJECT%\\d+
+	logregex=\\d+
