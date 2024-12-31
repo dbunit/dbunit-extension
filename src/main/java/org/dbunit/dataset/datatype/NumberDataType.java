@@ -86,12 +86,9 @@ public class NumberDataType extends AbstractDataType
     {
         logger.debug("getSqlValue(column={}, resultSet={}) - start", column,
                 resultSet);
-
-        final BigDecimal value = resultSet.getBigDecimal(column);
-        if (value == null || resultSet.wasNull())
-        {
-            return null;
-        }
+        final BigDecimal rawValue = resultSet.getBigDecimal(column);
+        final BigDecimal value = resultSet.wasNull() ? null : rawValue;
+        logger.debug("getSqlValue: column={}, value={}", column, value);
         return value;
     }
 

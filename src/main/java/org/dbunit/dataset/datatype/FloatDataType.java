@@ -82,12 +82,9 @@ public class FloatDataType extends AbstractDataType
     {
         logger.debug("getSqlValue(column={}, resultSet={}) - start", column,
                 resultSet);
-
-        final float value = resultSet.getFloat(column);
-        if (resultSet.wasNull())
-        {
-            return null;
-        }
+        final float rawValue = resultSet.getFloat(column);
+        final Float value = resultSet.wasNull() ? null : rawValue;
+        logger.debug("getSqlValue: column={}, value={}", column, value);
         return value;
     }
 

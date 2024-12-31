@@ -27,12 +27,15 @@ import static org.mockito.Mockito.lenient;
 
 import java.math.BigDecimal;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Types;
 
 import org.dbunit.dataset.ITable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InOrder;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 /**
@@ -247,5 +250,22 @@ public class BooleanDataTypeTest extends AbstractDataTypeTest
                     THIS_TYPE.getSqlValue(i + 1, mockedResultSet);
             assertThat(actualValue).as("value").isEqualTo(expectedValue);
         }
+    }
+
+    /**
+     * Assert calls ResultSet.getBoolean(columnIndex) before
+     * ResultSet.wasNull().
+     */
+    @Test
+    public void testGetSqlValueCallOrder()
+            throws TypeCastException, SQLException
+    {
+        final int columnIndex = 1;
+
+        DataType.BOOLEAN.getSqlValue(columnIndex, mockedResultSet);
+
+        final InOrder inOrder = Mockito.inOrder(mockedResultSet);
+        inOrder.verify(mockedResultSet).getBoolean(columnIndex);
+        inOrder.verify(mockedResultSet).wasNull();
     }
 }

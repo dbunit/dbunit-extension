@@ -54,18 +54,13 @@ public class BlobDataType extends BytesDataType
     public Object getSqlValue(final int column, final ResultSet resultSet)
             throws SQLException, TypeCastException
     {
-        if (logger.isDebugEnabled())
-        {
-            logger.debug("getSqlValue(column={}, resultSet={}) - start",
-                    String.valueOf(column), resultSet);
-        }
-
-        final Blob value = resultSet.getBlob(column);
-        if (value == null || resultSet.wasNull())
-        {
-            return null;
-        }
-        return typeCast(value);
+        logger.debug("getSqlValue(column={}, resultSet={}) - start", column,
+                resultSet);
+        final Blob rawValue = resultSet.getBlob(column);
+        final Object value = resultSet.wasNull() ? null : typeCast(rawValue);
+        logger.debug("getSqlValue: column={}, value is null?={}", column,
+                value == null);
+        return value;
     }
 
     @Override

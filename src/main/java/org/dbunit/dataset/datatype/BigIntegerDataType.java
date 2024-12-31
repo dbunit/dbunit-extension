@@ -91,13 +91,11 @@ public class BigIntegerDataType extends AbstractDataType
     {
         logger.debug("getSqlValue(column={}, resultSet={}) - start", column,
                 resultSet);
-
-        final BigDecimal value = resultSet.getBigDecimal(column);
-        if (resultSet.wasNull())
-        {
-            return null;
-        }
-        return value.toBigInteger();
+        final BigDecimal rawValue = resultSet.getBigDecimal(column);
+        final BigInteger value =
+                resultSet.wasNull() ? null : rawValue.toBigInteger();
+        logger.debug("getSqlValue: column={}, value={}", column, value);
+        return value;
     }
 
     @Override

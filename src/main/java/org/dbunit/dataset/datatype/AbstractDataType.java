@@ -200,12 +200,9 @@ public abstract class AbstractDataType extends DataType
     {
         logger.debug("getSqlValue(column={}, resultSet={}) - start", column,
                 resultSet);
-
-        final Object value = resultSet.getObject(column);
-        if (value == null || resultSet.wasNull())
-        {
-            return null;
-        }
+        final Object rawValue = resultSet.getObject(column);
+        final Object value = resultSet.wasNull() ? null : rawValue;
+        logger.debug("getSqlValue: column={}, value={}", column, value);
         return value;
     }
 

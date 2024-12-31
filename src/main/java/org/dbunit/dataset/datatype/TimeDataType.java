@@ -125,8 +125,10 @@ public class TimeDataType extends AbstractDataType
     {
         logger.debug("getSqlValue(column={}, resultSet={}) - start", column,
                 resultSet);
-
-        return resultSet.wasNull() ? null : resultSet.getTime(column);
+        final Time rawValue = resultSet.getTime(column);
+        final Time value = resultSet.wasNull() ? null : rawValue;
+        logger.debug("getSqlValue: column={}, value={}", column, value);
+        return value;
     }
 
     @Override

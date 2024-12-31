@@ -136,17 +136,11 @@ public class StringDataType extends AbstractDataType
     public Object getSqlValue(final int column, final ResultSet resultSet)
             throws SQLException, TypeCastException
     {
-        if (logger.isDebugEnabled())
-        {
-            logger.debug("getSqlValue(column={}, resultSet={}) - start", column,
-                    resultSet);
-        }
-
-        final String value = resultSet.getString(column);
-        if (value == null || resultSet.wasNull())
-        {
-            return null;
-        }
+        logger.debug("getSqlValue(column={}, resultSet={}) - start", column,
+                resultSet);
+        final String rawValue = resultSet.getString(column);
+        final String value = resultSet.wasNull() ? null : rawValue;
+        logger.debug("getSqlValue: column={}, value={}", column, value);
         return value;
     }
 

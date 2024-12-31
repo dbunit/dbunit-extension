@@ -137,12 +137,9 @@ public class DateDataType extends AbstractDataType
     {
         logger.debug("getSqlValue(column={}, resultSet={}) - start", column,
                 resultSet);
-
-        final java.sql.Date value = resultSet.getDate(column);
-        if (value == null || resultSet.wasNull())
-        {
-            return null;
-        }
+        final java.sql.Date rawValue = resultSet.getDate(column);
+        final java.sql.Date value = resultSet.wasNull() ? null : rawValue;
+        logger.debug("getSqlValue: column={}, value={}", column, value);
         return value;
     }
 

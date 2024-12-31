@@ -21,10 +21,18 @@
 package org.dbunit.dataset.datatype;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.when;
 
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Types;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InOrder;
+import org.mockito.Mock;
+import org.mockito.Mockito;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 /**
  * @author gommma (gommma AT users.sourceforge.net)
@@ -32,10 +40,14 @@ import org.junit.jupiter.api.Test;
  * @version $Revision$ $Date$
  * @since 2.4.0
  */
+@ExtendWith(MockitoExtension.class)
 class BinaryStreamDataTypeTest
 {
     private final BinaryStreamDataType type =
             new BinaryStreamDataType("BLOB", Types.BLOB);
+
+    @Mock
+    private ResultSet mockedResultSet;
 
     @Test
     void test2Chars() throws Exception
@@ -53,5 +65,23 @@ class BinaryStreamDataTypeTest
         final String value = "tutu";
         final byte[] result = (byte[]) type.typeCast(value);
         assertThat(result).isEqualTo(new byte[] {-74, -21, 110});
+    }
+
+    /**
+     * Assert calls ResultSet.getBinaryStream(columnIndex) before
+     * ResultSet.wasNull().
+     */
+    @Test
+    public void testGetSqlValueCallOrder()
+            throws TypeCastException, SQLException
+    {
+        final int columnIndex = 1;
+
+        when(mockedResultSet.wasNull()).thenReturn(true);
+        type.getSqlValue(columnIndex, mockedResultSet);
+
+        final InOrder inOrder = Mockito.inOrder(mockedResultSet);
+        inOrder.verify(mockedResultSet).getBinaryStream(columnIndex);
+        inOrder.verify(mockedResultSet).wasNull();
     }
 }

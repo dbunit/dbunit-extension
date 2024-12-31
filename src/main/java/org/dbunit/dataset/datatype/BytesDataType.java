@@ -364,12 +364,9 @@ public class BytesDataType extends AbstractDataType
     {
         logger.debug("getSqlValue(column={}, resultSet={}) - start", column,
                 resultSet);
-
-        final byte[] value = resultSet.getBytes(column);
-        if (value == null || resultSet.wasNull())
-        {
-            return null;
-        }
+        final byte[] rawValue = resultSet.getBytes(column);
+        final byte[] value = resultSet.wasNull() ? null : rawValue;
+        logger.debug("getSqlValue: column={}, value={}", column, value);
         return value;
     }
 

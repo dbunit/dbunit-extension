@@ -52,13 +52,10 @@ public class ClobDataType extends StringDataType
     {
         logger.debug("getSqlValue(column={}, resultSet={}) - start", column,
                 resultSet);
-
-        final Clob value = resultSet.getClob(column);
-        if (value == null || resultSet.wasNull())
-        {
-            return null;
-        }
-        return typeCast(value);
+        final Clob rawValue = resultSet.getClob(column);
+        final Object value = resultSet.wasNull() ? null : typeCast(rawValue);
+        logger.debug("getSqlValue: column={}, value={}", column, value);
+        return value;
     }
 
     @Override

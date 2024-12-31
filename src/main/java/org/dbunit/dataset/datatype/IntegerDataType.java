@@ -100,8 +100,10 @@ public class IntegerDataType extends AbstractDataType
     {
         logger.debug("getSqlValue(column={}, resultSet={}) - start", column,
                 resultSet);
-
-        return resultSet.wasNull() ? null : resultSet.getInt(column);
+        final int rawValue = resultSet.getInt(column);
+        final Integer value = resultSet.wasNull() ? null : rawValue;
+        logger.debug("getSqlValue: column={}, value={}", column, value);
+        return value;
     }
 
     @Override

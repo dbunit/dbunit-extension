@@ -77,12 +77,9 @@ public class DoubleDataType extends AbstractDataType
     {
         logger.debug("getSqlValue(column={}, resultSet={}) - start", column,
                 resultSet);
-
-        final double value = resultSet.getDouble(column);
-        if (resultSet.wasNull())
-        {
-            return null;
-        }
+        final double rawValue = resultSet.getDouble(column);
+        final Double value = resultSet.wasNull() ? null : rawValue;
+        logger.debug("getSqlValue: column={}, value={}", column, value);
         return value;
     }
 

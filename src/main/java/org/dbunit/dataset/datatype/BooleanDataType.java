@@ -128,13 +128,10 @@ public class BooleanDataType extends AbstractDataType
     {
         logger.debug("getSqlValue(column={}, resultSet={}) - start", column,
                 resultSet);
-
-        final boolean value = resultSet.getBoolean(column);
-        if (resultSet.wasNull())
-        {
-            return null;
-        }
-        return value ? Boolean.TRUE : Boolean.FALSE;
+        final boolean rawValue = resultSet.getBoolean(column);
+        final Boolean value = resultSet.wasNull() ? null : rawValue;
+        logger.debug("getSqlValue: column={}, value={}", column, value);
+        return value;
     }
 
     @Override

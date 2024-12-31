@@ -192,12 +192,9 @@ public class TimestampDataType extends AbstractDataType
     {
         logger.debug("getSqlValue(column={}, resultSet={}) - start", column,
                 resultSet);
-
-        final Timestamp value = resultSet.getTimestamp(column);
-        if (value == null || resultSet.wasNull())
-        {
-            return null;
-        }
+        final Timestamp rawValue = resultSet.getTimestamp(column);
+        final Timestamp value = resultSet.wasNull() ? null : rawValue;
+        logger.debug("getSqlValue: column={}, value={}", column, value);
         return value;
     }
 

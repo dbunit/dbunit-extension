@@ -53,13 +53,14 @@ public class BinaryStreamDataType extends BytesDataType
     {
         logger.debug("getSqlValue(column={}, resultSet={}) - start", column,
                 resultSet);
-
         final InputStream in = resultSet.getBinaryStream(column);
-        if (in == null || resultSet.wasNull())
-        {
-            return null;
-        }
+        final Object value = resultSet.wasNull() ? null : readValue(in);
+        logger.debug("getSqlValue: column={}, value={}", column, value);
+        return value;
+    }
 
+    private Object readValue(final InputStream in) throws TypeCastException
+    {
         try
         {
             final ByteArrayOutputStream out = new ByteArrayOutputStream();

@@ -28,11 +28,15 @@ import static org.mockito.Mockito.verify;
 
 import java.sql.Blob;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Types;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InOrder;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 /**
@@ -47,6 +51,9 @@ class BlobDataTypeTest
 
     @Mock
     private PreparedStatement mockedStatement;
+
+    @Mock
+    private ResultSet mockedResultSet;
 
     @Test
     void testGetSqlType()
@@ -76,5 +83,21 @@ class BlobDataTypeTest
     void testGetTypeClass() throws Exception
     {
         assertThat(TYPE.getTypeClass()).as("class").isEqualTo(byte[].class);
+    }
+
+    /**
+     * Assert calls ResultSet.getBlob(columnIndex) before ResultSet.wasNull().
+     */
+    @Test
+    public void testGetSqlValueCallOrder()
+            throws TypeCastException, SQLException
+    {
+        final int columnIndex = 1;
+
+        DataType.BLOB.getSqlValue(columnIndex, mockedResultSet);
+
+        final InOrder inOrder = Mockito.inOrder(mockedResultSet);
+        inOrder.verify(mockedResultSet).getBlob(columnIndex);
+        inOrder.verify(mockedResultSet).wasNull();
     }
 }

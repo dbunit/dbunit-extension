@@ -30,6 +30,7 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Types;
 import java.util.Arrays;
 import java.util.LinkedList;
@@ -38,7 +39,9 @@ import java.util.Objects;
 import org.dbunit.dataset.ITable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InOrder;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 /**
@@ -313,5 +316,24 @@ class BigIntegerDataTypeTest extends AbstractDataTypeTest
 
         assertDoesNotThrow(
                 () -> THIS_TYPE.setSqlValue(value, column, statement));
+    }
+
+    /**
+     * Assert calls ResultSet.getInt(columnIndex) before ResultSet.wasNull().
+     */
+    @Test
+    public void testGetSqlValueCallOrder()
+            throws TypeCastException, SQLException
+    {
+        final int columnIndex = 1;
+
+        when(mockedResultSet.getBigDecimal(columnIndex))
+                .thenReturn(BigDecimal.TEN);
+
+        DataType.BIGINT.getSqlValue(columnIndex, mockedResultSet);
+
+        final InOrder inOrder = Mockito.inOrder(mockedResultSet);
+        inOrder.verify(mockedResultSet).getBigDecimal(columnIndex);
+        inOrder.verify(mockedResultSet).wasNull();
     }
 }
