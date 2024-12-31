@@ -21,15 +21,14 @@
 
 package org.dbunit.dataset.datatype;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import org.dbunit.dataset.ITable;
-
 import java.math.BigDecimal;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+
+import org.dbunit.dataset.ITable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * @author Manuel Laflamme
@@ -37,9 +36,10 @@ import java.sql.SQLException;
  */
 public class IntegerDataType extends AbstractDataType
 {
-    private static final Logger logger = LoggerFactory.getLogger(IntegerDataType.class);
+    private static final Logger logger =
+            LoggerFactory.getLogger(IntegerDataType.class);
 
-    IntegerDataType(String name, int sqlType)
+    IntegerDataType(final String name, final int sqlType)
     {
         super(name, sqlType, Integer.class, true);
     }
@@ -47,7 +47,8 @@ public class IntegerDataType extends AbstractDataType
     ////////////////////////////////////////////////////////////////////////////
     // DataType class
 
-    public Object typeCast(Object value) throws TypeCastException
+    @Override
+    public Object typeCast(final Object value) throws TypeCastException
     {
         logger.debug("typeCast(value={}) - start", value);
 
@@ -58,13 +59,13 @@ public class IntegerDataType extends AbstractDataType
 
         if (value instanceof Number)
         {
-            return ((Number)value).intValue();
+            return ((Number) value).intValue();
         }
 
         // Treat "false" as 0, "true" as 1
         if (value instanceof String)
         {
-            String string = (String) value;
+            final String string = (String) value;
 
             if ("false".equalsIgnoreCase(string))
             {
@@ -78,37 +79,39 @@ public class IntegerDataType extends AbstractDataType
         }
 
         // Bugfix in release 2.4.6
-        String stringValue = value.toString().trim();
-        if(stringValue.length()<=0)
+        final String stringValue = value.toString().trim();
+        if (stringValue.length() <= 0)
         {
             return null;
         }
-        
+
         try
         {
             return typeCast(new BigDecimal(stringValue));
-        }
-        catch (java.lang.NumberFormatException e)
+        } catch (final java.lang.NumberFormatException e)
         {
             throw new TypeCastException(value, this, e);
         }
     }
 
-    public Object getSqlValue(int column, ResultSet resultSet)
+    @Override
+    public Object getSqlValue(final int column, final ResultSet resultSet)
             throws SQLException, TypeCastException
     {
-    	logger.debug("getSqlValue(column={}, resultSet={}) - start", column, resultSet);
+        logger.debug("getSqlValue(column={}, resultSet={}) - start", column,
+                resultSet);
 
         return resultSet.wasNull() ? null : resultSet.getInt(column);
     }
 
-    public void setSqlValue(Object value, int column, PreparedStatement statement)
+    @Override
+    public void setSqlValue(final Object value, final int column,
+            final PreparedStatement statement)
             throws SQLException, TypeCastException
     {
-    	logger.debug("setSqlValue(value={}, column={}, statement={}) - start",
-    		value, column, statement);
+        logger.debug("setSqlValue(value={}, column={}, statement={}) - start",
+                value, column, statement);
 
-        statement.setInt(column, (Integer)typeCast(value));
+        statement.setInt(column, (Integer) typeCast(value));
     }
 }
-

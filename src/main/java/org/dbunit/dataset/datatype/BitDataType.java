@@ -28,10 +28,10 @@ import java.sql.Types;
  * @version $Revision$ $Date$
  * @since 2.3.0
  */
-public class BitDataType extends BooleanDataType 
+public class BitDataType extends BooleanDataType
 {
-	BitDataType()
-	{
-		super("BIT", Types.BIT);		
-	}
+    BitDataType()
+    {
+        super("BIT", Types.BIT);
+    }
 }

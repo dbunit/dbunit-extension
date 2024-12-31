@@ -35,7 +35,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Data type that maps a SQL {@link Types#TIME} object to a java object.
- * 
+ *
  * @author Manuel Laflamme
  * @author Last changed by: $Author$
  * @version $Revision$ $Date$
@@ -43,11 +43,8 @@ import org.slf4j.LoggerFactory;
  */
 public class TimeDataType extends AbstractDataType
 {
-
-    /**
-     * Logger for this class
-     */
-    private static final Logger logger = LoggerFactory.getLogger(TimeDataType.class);
+    private static final Logger logger =
+            LoggerFactory.getLogger(TimeDataType.class);
 
     TimeDataType()
     {
@@ -57,7 +54,8 @@ public class TimeDataType extends AbstractDataType
     ////////////////////////////////////////////////////////////////////////////
     // DataType class
 
-    public Object typeCast(Object value) throws TypeCastException
+    @Override
+    public Object typeCast(final Object value) throws TypeCastException
     {
         logger.debug("typeCast(value={}) - start", value);
 
@@ -73,26 +71,26 @@ public class TimeDataType extends AbstractDataType
 
         if (value instanceof java.util.Date)
         {
-            java.util.Date date = (java.util.Date)value;
+            final java.util.Date date = (java.util.Date) value;
             return new java.sql.Time(date.getTime());
         }
 
         if (value instanceof Long)
         {
-            Long date = (Long)value;
-            return new java.sql.Time(date.longValue());
+            final Long date = (Long) value;
+            return new java.sql.Time(date);
         }
 
         if (value instanceof String)
         {
-            final String stringValue = (String)value;
+            final String stringValue = (String) value;
 
             if (isExtendedSyntax(stringValue))
             {
                 // Relative date.
                 try
                 {
-                    LocalDateTime datetime =
+                    final LocalDateTime datetime =
                             RELATIVE_DATE_TIME_PARSER.parse(stringValue);
                     return java.sql.Time.valueOf(datetime.toLocalTime());
                 } catch (IllegalArgumentException | DateTimeParseException e)
@@ -104,8 +102,7 @@ public class TimeDataType extends AbstractDataType
             try
             {
                 return java.sql.Time.valueOf(stringValue);
-            }
-            catch (IllegalArgumentException e)
+            } catch (final IllegalArgumentException e)
             {
                 throw new TypeCastException(value, this, e);
             }
@@ -114,6 +111,7 @@ public class TimeDataType extends AbstractDataType
         throw new TypeCastException(value, this);
     }
 
+    @Override
     public boolean isDateTime()
     {
         logger.debug("isDateTime() - start");
@@ -121,25 +119,24 @@ public class TimeDataType extends AbstractDataType
         return true;
     }
 
-    public Object getSqlValue(int column, ResultSet resultSet)
+    @Override
+    public Object getSqlValue(final int column, final ResultSet resultSet)
             throws SQLException, TypeCastException
     {
-    	logger.debug("getSqlValue(column={}, resultSet={}) - start", column, resultSet);
+        logger.debug("getSqlValue(column={}, resultSet={}) - start", column,
+                resultSet);
 
         return resultSet.wasNull() ? null : resultSet.getTime(column);
     }
 
-    public void setSqlValue(Object value, int column,
-            PreparedStatement statement) throws SQLException, TypeCastException
+    @Override
+    public void setSqlValue(final Object value, final int column,
+            final PreparedStatement statement)
+            throws SQLException, TypeCastException
     {
-    	logger.debug("setSqlValue(value={}, column={}, statement={}) - start",
-        		value, column, statement);
+        logger.debug("setSqlValue(value={}, column={}, statement={}) - start",
+                value, column, statement);
 
-        statement.setTime(column, (java.sql.Time)typeCast(value));
+        statement.setTime(column, (java.sql.Time) typeCast(value));
     }
 }
-
-
-
-
-

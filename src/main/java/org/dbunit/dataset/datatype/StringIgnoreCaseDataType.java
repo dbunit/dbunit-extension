@@ -31,28 +31,28 @@ import org.slf4j.LoggerFactory;
  * @version $Revision$ $Date$
  * @since 2.4.0
  */
-public class StringIgnoreCaseDataType extends StringDataType 
+public class StringIgnoreCaseDataType extends StringDataType
 {
     /**
      * Logger for this class
      */
-    private static final Logger logger = LoggerFactory.getLogger(StringIgnoreCaseDataType.class);
+    private static final Logger logger =
+            LoggerFactory.getLogger(StringIgnoreCaseDataType.class);
 
-    
-    public StringIgnoreCaseDataType(String name, int sqlType) 
+    public StringIgnoreCaseDataType(String name, int sqlType)
     {
         super(name, sqlType);
     }
 
-    protected int compareNonNulls(Object value1, Object value2) throws TypeCastException
+    protected int compareNonNulls(Object value1, Object value2)
+            throws TypeCastException
     {
-        logger.debug("compareNonNulls(value1={}, value2={}) - start", value1, value2);
-        
-        String value1cast = (String)value1;
-        String value2cast = (String)value2;
+        logger.debug("compareNonNulls(value1={}, value2={}) - start", value1,
+                value2);
+
+        String value1cast = (String) value1;
+        String value2cast = (String) value2;
         return value1cast.compareToIgnoreCase(value2cast);
     }
 
-    
-    
 }

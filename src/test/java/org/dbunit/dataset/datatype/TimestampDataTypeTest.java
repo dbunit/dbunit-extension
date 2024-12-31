@@ -55,9 +55,6 @@ class TimestampDataTypeTest extends AbstractDataTypeTest
     @Mock
     private ResultSet mockedResultSet;
 
-    /**
-     *
-     */
     @Override
     @Test
     public void testToString() throws Exception
@@ -65,9 +62,6 @@ class TimestampDataTypeTest extends AbstractDataTypeTest
         assertThat(THIS_TYPE).as("name").hasToString("TIMESTAMP");
     }
 
-    /**
-     *
-     */
     @Override
     @Test
     public void testGetTypeClass() throws Exception

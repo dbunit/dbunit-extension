@@ -48,7 +48,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class BytesDataTypeTest extends AbstractDataTypeTest
 {
-
     @Mock
     private PreparedStatement preparedStatement;
 
@@ -79,9 +78,9 @@ class BytesDataTypeTest extends AbstractDataTypeTest
     @Test
     public void testGetTypeClass() throws Exception
     {
-        for (int i = 0; i < TYPES.length; i++)
+        for (final DataType element : TYPES)
         {
-            assertThat(TYPES[i].getTypeClass()).as("class")
+            assertThat(element.getTypeClass()).as("class")
                     .isEqualTo(byte[].class);
         }
     }
@@ -90,9 +89,9 @@ class BytesDataTypeTest extends AbstractDataTypeTest
     @Test
     public void testIsNumber() throws Exception
     {
-        for (int i = 0; i < TYPES.length; i++)
+        for (final DataType element : TYPES)
         {
-            assertThat(TYPES[i].isNumber()).as("is number").isFalse();
+            assertThat(element.isNumber()).as("is number").isFalse();
         }
     }
 
@@ -100,9 +99,9 @@ class BytesDataTypeTest extends AbstractDataTypeTest
     @Test
     public void testIsDateTime() throws Exception
     {
-        for (int i = 0; i < TYPES.length; i++)
+        for (final DataType element : TYPES)
         {
-            assertThat(TYPES[i].isDateTime()).as("is date/time").isFalse();
+            assertThat(element.isDateTime()).as("is date/time").isFalse();
         }
     }
 
@@ -123,18 +122,18 @@ class BytesDataTypeTest extends AbstractDataTypeTest
                         .getBytes(StandardCharsets.UTF_8),
                 values[5].toString().replaceAll("\\[.*?\\]", "")
                         .getBytes(StandardCharsets.UTF_8),
-                values[6].toString().replaceAll("\\[.*?\\]", "").getBytes(
-                        StandardCharsets.UTF_8),
+                values[6].toString().replaceAll("\\[.*?\\]", "")
+                        .getBytes(StandardCharsets.UTF_8),
                 "This is a test for base64.\n".getBytes(),};
 
         assertThat(expected).as("actual vs expected count")
                 .hasNumberOfRows(values.length);
 
-        for (int i = 0; i < TYPES.length; i++)
+        for (final DataType element : TYPES)
         {
             for (int j = 0; j < values.length; j++)
             {
-                final byte[] actual = (byte[]) TYPES[i].typeCast(values[j]);
+                final byte[] actual = (byte[]) element.typeCast(values[j]);
                 assertThat(actual).as("typecast " + j).isEqualTo(expected[j]);
             }
         }
@@ -151,11 +150,11 @@ class BytesDataTypeTest extends AbstractDataTypeTest
 
         assertThat(file).as("exists").exists();
 
-        for (int i = 0; i < TYPES.length; i++)
+        for (final DataType element : TYPES)
         {
-            for (int j = 0; j < values.length; j++)
+            for (final Object value : values)
             {
-                final byte[] actual = (byte[]) TYPES[i].typeCast(values[j]);
+                final byte[] actual = (byte[]) element.typeCast(value);
                 FileAsserts.assertEquals(new ByteArrayInputStream(actual),
                         file);
             }
@@ -166,9 +165,8 @@ class BytesDataTypeTest extends AbstractDataTypeTest
     @Test
     public void testTypeCastNone() throws Exception
     {
-        for (int i = 0; i < TYPES.length; i++)
+        for (final DataType type : TYPES)
         {
-            final DataType type = TYPES[i];
             assertThat(type.typeCast(ITable.NO_VALUE)).as("typecast " + type)
                     .isNull();
         }
@@ -206,13 +204,13 @@ class BytesDataTypeTest extends AbstractDataTypeTest
 
         assertThat(values2).as("values count").hasNumberOfRows(values1.length);
 
-        for (int i = 0; i < TYPES.length; i++)
+        for (final DataType element : TYPES)
         {
             for (int j = 0; j < values1.length; j++)
             {
-                assertThat(TYPES[i].compare(values1[j], values2[j]))
+                assertThat(element.compare(values1[j], values2[j]))
                         .as("compare1 " + j).isZero();
-                assertThat(TYPES[i].compare(values2[j], values1[j]))
+                assertThat(element.compare(values2[j], values1[j]))
                         .as("compare2 " + j).isZero();
             }
         }
@@ -255,13 +253,13 @@ class BytesDataTypeTest extends AbstractDataTypeTest
 
         assertThat(greater).as("values count").hasSize(less.length);
 
-        for (int i = 0; i < TYPES.length; i++)
+        for (final DataType element : TYPES)
         {
             for (int j = 0; j < less.length; j++)
             {
-                assertThat(TYPES[i].compare(less[j], greater[j]))
-                        .as("less " + j).isNegative();
-                assertThat(TYPES[i].compare(greater[j], less[j]))
+                assertThat(element.compare(less[j], greater[j])).as("less " + j)
+                        .isNegative();
+                assertThat(element.compare(greater[j], less[j]))
                         .as("greater " + j).isPositive();
             }
         }
@@ -351,10 +349,8 @@ class BytesDataTypeTest extends AbstractDataTypeTest
         final int[] expectedSqlTypesForDataType =
                 {Types.BINARY, Types.VARBINARY, Types.LONGVARBINARY};
 
-        for (int i = 0; i < expected.length; i++)
+        for (final Object expectedValue : expected)
         {
-            final Object expectedValue = expected[i];
-
             for (int j = 0; j < TYPES.length; j++)
             {
                 final DataType dataType = TYPES[j];

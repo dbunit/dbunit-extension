@@ -46,9 +46,6 @@ public class LongDataTypeTest extends AbstractDataTypeTest
     @Mock
     private ResultSet mockedResultSet;
 
-    /**
-     *
-     */
     @Override
     @Test
     public void testToString() throws Exception
@@ -56,9 +53,6 @@ public class LongDataTypeTest extends AbstractDataTypeTest
         assertThat(THIS_TYPE.toString()).as("name").isEqualTo("BIGINT");
     }
 
-    /**
-     *
-     */
     @Override
     @Test
     public void testGetTypeClass() throws Exception
@@ -66,9 +60,6 @@ public class LongDataTypeTest extends AbstractDataTypeTest
         assertThat(THIS_TYPE.getTypeClass()).as("class").isEqualTo(Long.class);
     }
 
-    /**
-     *
-     */
     @Override
     @Test
     public void testIsNumber() throws Exception
@@ -94,12 +85,9 @@ public class LongDataTypeTest extends AbstractDataTypeTest
                 Double.valueOf(0.666), Double.valueOf(5.49), "-99.9",
                 Double.valueOf(1.5E6), new BigDecimal((double) 1234),};
 
-        final Long[] expected = {null, Long.valueOf(5), Long.valueOf(1234),
-                Long.valueOf(Long.MAX_VALUE), Long.valueOf(Long.MIN_VALUE),
-                Long.valueOf(-7500), Long.valueOf(Long.MAX_VALUE),
-                Long.valueOf(Long.MIN_VALUE), Long.valueOf(0), Long.valueOf(0),
-                Long.valueOf(5), Long.valueOf(-99), Long.valueOf(1500000),
-                Long.valueOf(1234),};
+        final Long[] expected = {null, 5L, 1234L, Long.MAX_VALUE,
+                Long.MIN_VALUE, -7500L, Long.MAX_VALUE, Long.MIN_VALUE, 0L, 0L,
+                5L, -99L, 1500000L, 1234L,};
 
         assertThat(expected).as("actual vs expected count")
                 .hasSameSizeAs(values);
@@ -230,7 +218,7 @@ public class LongDataTypeTest extends AbstractDataTypeTest
     @Test
     public void testAsString() throws Exception
     {
-        final Long[] values = {Long.valueOf(1234),};
+        final Long[] values = {(long) 1234,};
 
         final String[] expected = {"1234",};
 
@@ -248,9 +236,8 @@ public class LongDataTypeTest extends AbstractDataTypeTest
     @Test
     public void testGetSqlValue() throws Exception
     {
-        final Long[] expected = {null, Long.valueOf(5), Long.valueOf(1234),
-                Long.valueOf(Long.MAX_VALUE), Long.valueOf(Long.MIN_VALUE),
-                Long.valueOf(-7500), Long.valueOf(0),};
+        final Long[] expected =
+                {null, 5L, 1234L, Long.MAX_VALUE, Long.MIN_VALUE, -7500L, 0L,};
 
         lenient().when(mockedResultSet.getLong(2)).thenReturn(expected[1]);
         lenient().when(mockedResultSet.getLong(3)).thenReturn(expected[2]);
@@ -268,5 +255,4 @@ public class LongDataTypeTest extends AbstractDataTypeTest
             assertThat(actualValue).as("value").isEqualTo(expectedValue);
         }
     }
-
 }

@@ -46,8 +46,8 @@ public class UuidAwareBytesDataType extends BytesDataType
     /**
      * The regular expression for a hexadecimal UUID representation.
      */
-    private static final Pattern UUID_RE =
-            Pattern.compile("uuid'([0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12})'");
+    private static final Pattern UUID_RE = Pattern.compile(
+            "uuid'([0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12})'");
 
     UuidAwareBytesDataType(final String name, final int sqlType)
     {

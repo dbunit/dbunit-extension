@@ -46,12 +46,14 @@ import org.slf4j.LoggerFactory;
 public class TimestampDataType extends AbstractDataType
 {
     private static final BigInteger ONE_BILLION = new BigInteger("1000000000");
-    private static final Pattern TIMEZONE_REGEX = Pattern.compile("(.*)(?:\\W([+-][0-2][0-9][0-5][0-9]))");
+    private static final Pattern TIMEZONE_REGEX =
+            Pattern.compile("(.*)(?:\\W([+-][0-2][0-9][0-5][0-9]))");
 
     /**
      * Logger for this class
      */
-    private static final Logger logger = LoggerFactory.getLogger(TimestampDataType.class);
+    private static final Logger logger =
+            LoggerFactory.getLogger(TimestampDataType.class);
 
     TimestampDataType()
     {
@@ -62,7 +64,7 @@ public class TimestampDataType extends AbstractDataType
     // DataType class
 
     @Override
-    public Object typeCast(Object value) throws TypeCastException
+    public Object typeCast(final Object value) throws TypeCastException
     {
         logger.debug("typeCast(value={}) - start", value);
 
@@ -78,14 +80,14 @@ public class TimestampDataType extends AbstractDataType
 
         if (value instanceof java.util.Date)
         {
-            java.util.Date date = (java.util.Date) value;
+            final java.util.Date date = (java.util.Date) value;
             return new java.sql.Timestamp(date.getTime());
         }
 
         if (value instanceof Long)
         {
-            Long date = (Long) value;
-            return new java.sql.Timestamp(date.longValue());
+            final Long date = (Long) value;
+            return new java.sql.Timestamp(date);
         }
 
         if (value instanceof String)
@@ -97,7 +99,7 @@ public class TimestampDataType extends AbstractDataType
                 // Relative date.
                 try
                 {
-                    LocalDateTime datetime =
+                    final LocalDateTime datetime =
                             RELATIVE_DATE_TIME_PARSER.parse(stringValue);
                     return java.sql.Timestamp.valueOf(datetime);
                 } catch (IllegalArgumentException | DateTimeParseException e)
@@ -108,7 +110,7 @@ public class TimestampDataType extends AbstractDataType
 
             String zoneValue = null;
 
-            Matcher tzMatcher = TIMEZONE_REGEX.matcher(stringValue);
+            final Matcher tzMatcher = TIMEZONE_REGEX.matcher(stringValue);
             if (tzMatcher.matches() && tzMatcher.group(2) != null)
             {
                 stringValue = tzMatcher.group(1);
@@ -120,9 +122,10 @@ public class TimestampDataType extends AbstractDataType
             {
                 try
                 {
-                    long time = java.sql.Date.valueOf(stringValue).getTime();
+                    final long time =
+                            java.sql.Date.valueOf(stringValue).getTime();
                     ts = new java.sql.Timestamp(time);
-                } catch (IllegalArgumentException e)
+                } catch (final IllegalArgumentException e)
                 {
                     // Was not a java.sql.Date, let Timestamp handle this value
                 }
@@ -132,7 +135,7 @@ public class TimestampDataType extends AbstractDataType
                 try
                 {
                     ts = java.sql.Timestamp.valueOf(stringValue);
-                } catch (IllegalArgumentException e)
+                } catch (final IllegalArgumentException e)
                 {
                     throw new TypeCastException(value, this, e);
                 }
@@ -141,17 +144,21 @@ public class TimestampDataType extends AbstractDataType
             // Apply zone if any
             if (zoneValue != null)
             {
-                long tsTime = ts.getTime();
+                final long tsTime = ts.getTime();
 
-                TimeZone localTZ = java.util.TimeZone.getDefault();
-                int offset = localTZ.getOffset(tsTime);
-                BigInteger localTZOffset = BigInteger.valueOf(offset);
-                BigInteger time = BigInteger.valueOf(tsTime / 1000 * 1000).add(localTZOffset)
-                        .multiply(ONE_BILLION).add(BigInteger.valueOf(ts.getNanos()));
-                int hours = Integer.parseInt(zoneValue.substring(1, 3));
-                int minutes = Integer.parseInt(zoneValue.substring(3, 5));
-                BigInteger offsetAsSeconds = BigInteger.valueOf((hours * 3600) + (minutes * 60));
-                BigInteger offsetAsNanos = offsetAsSeconds.multiply(BigInteger.valueOf(1000)).multiply(ONE_BILLION);
+                final TimeZone localTZ = java.util.TimeZone.getDefault();
+                final int offset = localTZ.getOffset(tsTime);
+                final BigInteger localTZOffset = BigInteger.valueOf(offset);
+                BigInteger time = BigInteger.valueOf(tsTime / 1000 * 1000)
+                        .add(localTZOffset).multiply(ONE_BILLION)
+                        .add(BigInteger.valueOf(ts.getNanos()));
+                final int hours = Integer.parseInt(zoneValue.substring(1, 3));
+                final int minutes = Integer.parseInt(zoneValue.substring(3, 5));
+                final BigInteger offsetAsSeconds =
+                        BigInteger.valueOf((hours * 3600) + (minutes * 60));
+                final BigInteger offsetAsNanos =
+                        offsetAsSeconds.multiply(BigInteger.valueOf(1000))
+                                .multiply(ONE_BILLION);
                 if (zoneValue.charAt(0) == '+')
                 {
                     time = time.subtract(offsetAsNanos);
@@ -159,7 +166,8 @@ public class TimestampDataType extends AbstractDataType
                 {
                     time = time.add(offsetAsNanos);
                 }
-                BigInteger[] components = time.divideAndRemainder(ONE_BILLION);
+                final BigInteger[] components =
+                        time.divideAndRemainder(ONE_BILLION);
                 ts = new Timestamp(components[0].longValue());
                 ts.setNanos(components[1].intValue());
             }
@@ -179,11 +187,13 @@ public class TimestampDataType extends AbstractDataType
     }
 
     @Override
-    public Object getSqlValue(int column, ResultSet resultSet) throws SQLException, TypeCastException
+    public Object getSqlValue(final int column, final ResultSet resultSet)
+            throws SQLException, TypeCastException
     {
-        logger.debug("getSqlValue(column={}, resultSet={}) - start", column, resultSet);
+        logger.debug("getSqlValue(column={}, resultSet={}) - start", column,
+                resultSet);
 
-        Timestamp value = resultSet.getTimestamp(column);
+        final Timestamp value = resultSet.getTimestamp(column);
         if (value == null || resultSet.wasNull())
         {
             return null;
@@ -192,7 +202,8 @@ public class TimestampDataType extends AbstractDataType
     }
 
     @Override
-    public void setSqlValue(Object value, int column, PreparedStatement statement)
+    public void setSqlValue(final Object value, final int column,
+            final PreparedStatement statement)
             throws SQLException, TypeCastException
     {
         logger.debug("setSqlValue(value={}, column={}, statement={}) - start",

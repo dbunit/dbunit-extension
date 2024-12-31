@@ -21,15 +21,14 @@
 
 package org.dbunit.dataset.datatype;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import org.dbunit.dataset.ITable;
-
 import java.math.BigDecimal;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+
+import org.dbunit.dataset.ITable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * @author Manuel Laflamme
@@ -38,16 +37,13 @@ import java.sql.SQLException;
  */
 public class NumberDataType extends AbstractDataType
 {
+    private static final Logger logger =
+            LoggerFactory.getLogger(NumberDataType.class);
 
-    /**
-     * Logger for this class
-     */
-    private static final Logger logger = LoggerFactory.getLogger(NumberDataType.class);
+    private static final Number TRUE = new BigDecimal((double) 1);
+    private static final Number FALSE = new BigDecimal((double) 0);
 
-    private static final Number TRUE = new BigDecimal((double)1);
-    private static final Number FALSE = new BigDecimal((double)0);
-
-    NumberDataType(String name, int sqlType)
+    NumberDataType(final String name, final int sqlType)
     {
         super(name, sqlType, BigDecimal.class, true);
     }
@@ -55,7 +51,8 @@ public class NumberDataType extends AbstractDataType
     ////////////////////////////////////////////////////////////////////////////
     // DataType class
 
-    public Object typeCast(Object value) throws TypeCastException
+    @Override
+    public Object typeCast(final Object value) throws TypeCastException
     {
         logger.debug("typeCast(value={}) - start", value);
 
@@ -71,25 +68,26 @@ public class NumberDataType extends AbstractDataType
 
         if (value instanceof Boolean)
         {
-            return ((Boolean)value).booleanValue() ? TRUE : FALSE;
+            return ((Boolean) value) ? TRUE : FALSE;
         }
 
         try
         {
             return new BigDecimal(value.toString());
-        }
-        catch (java.lang.NumberFormatException e)
+        } catch (final java.lang.NumberFormatException e)
         {
             throw new TypeCastException(value, this, e);
         }
     }
 
-    public Object getSqlValue(int column, ResultSet resultSet)
+    @Override
+    public Object getSqlValue(final int column, final ResultSet resultSet)
             throws SQLException, TypeCastException
     {
-    	logger.debug("getSqlValue(column={}, resultSet={}) - start", column, resultSet);
+        logger.debug("getSqlValue(column={}, resultSet={}) - start", column,
+                resultSet);
 
-        BigDecimal value = resultSet.getBigDecimal(column);
+        final BigDecimal value = resultSet.getBigDecimal(column);
         if (value == null || resultSet.wasNull())
         {
             return null;
@@ -97,18 +95,14 @@ public class NumberDataType extends AbstractDataType
         return value;
     }
 
-    public void setSqlValue(Object value, int column, PreparedStatement statement)
+    @Override
+    public void setSqlValue(final Object value, final int column,
+            final PreparedStatement statement)
             throws SQLException, TypeCastException
     {
-    	logger.debug("setSqlValue(value={}, column={}, statement={}) - start",
-    		value, column, statement);
+        logger.debug("setSqlValue(value={}, column={}, statement={}) - start",
+                value, column, statement);
 
-        statement.setBigDecimal(column, (BigDecimal)typeCast(value));
+        statement.setBigDecimal(column, (BigDecimal) typeCast(value));
     }
 }
-
-
-
-
-
-

@@ -21,17 +21,16 @@
 
 package org.dbunit.dataset.datatype;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import org.dbunit.dataset.ITable;
-
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
+
+import org.dbunit.dataset.ITable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * @author Manuel Laflamme
@@ -40,11 +39,8 @@ import java.time.format.DateTimeParseException;
  */
 public class DateDataType extends AbstractDataType
 {
-
-    /**
-     * Logger for this class
-     */
-    private static final Logger logger = LoggerFactory.getLogger(DateDataType.class);
+    private static final Logger logger =
+            LoggerFactory.getLogger(DateDataType.class);
 
     DateDataType()
     {
@@ -54,7 +50,8 @@ public class DateDataType extends AbstractDataType
     ////////////////////////////////////////////////////////////////////////////
     // DataType class
 
-    public Object typeCast(Object value) throws TypeCastException
+    @Override
+    public Object typeCast(final Object value) throws TypeCastException
     {
         logger.debug("typeCast(value={}) - start", value);
 
@@ -70,26 +67,26 @@ public class DateDataType extends AbstractDataType
 
         if (value instanceof java.util.Date)
         {
-            java.util.Date date = (java.util.Date)value;
+            final java.util.Date date = (java.util.Date) value;
             return new java.sql.Date(date.getTime());
         }
 
         if (value instanceof Long)
         {
-            Long date = (Long)value;
+            final Long date = (Long) value;
             return new java.sql.Date(date.longValue());
         }
 
         if (value instanceof String)
         {
-            final String stringValue = (String)value;
+            final String stringValue = (String) value;
 
             if (isExtendedSyntax(stringValue))
             {
                 // Relative date.
                 try
                 {
-                    LocalDateTime datetime =
+                    final LocalDateTime datetime =
                             RELATIVE_DATE_TIME_PARSER.parse(stringValue);
                     return java.sql.Date.valueOf(datetime.toLocalDate());
                 } catch (IllegalArgumentException | DateTimeParseException e)
@@ -103,11 +100,12 @@ public class DateDataType extends AbstractDataType
             {
                 try
                 {
-                    long time = java.sql.Timestamp.valueOf(stringValue).getTime();
+                    final long time =
+                            java.sql.Timestamp.valueOf(stringValue).getTime();
                     return new java.sql.Date(time);
-//                    return java.sql.Date.valueOf(new java.sql.Date(time).toString());
-                }
-                catch (IllegalArgumentException e)
+                    // return java.sql.Date.valueOf(new
+                    // java.sql.Date(time).toString());
+                } catch (final IllegalArgumentException e)
                 {
                     // Was not a Timestamp, let java.sql.Date handle this value
                 }
@@ -116,8 +114,7 @@ public class DateDataType extends AbstractDataType
             try
             {
                 return java.sql.Date.valueOf(stringValue);
-            }
-            catch (IllegalArgumentException e)
+            } catch (final IllegalArgumentException e)
             {
                 throw new TypeCastException(value, this, e);
             }
@@ -126,6 +123,7 @@ public class DateDataType extends AbstractDataType
         throw new TypeCastException(value, this);
     }
 
+    @Override
     public boolean isDateTime()
     {
         logger.debug("isDateTime() - start");
@@ -133,12 +131,14 @@ public class DateDataType extends AbstractDataType
         return true;
     }
 
-    public Object getSqlValue(int column, ResultSet resultSet)
+    @Override
+    public Object getSqlValue(final int column, final ResultSet resultSet)
             throws SQLException, TypeCastException
     {
-    	logger.debug("getSqlValue(column={}, resultSet={}) - start", column, resultSet);
+        logger.debug("getSqlValue(column={}, resultSet={}) - start", column,
+                resultSet);
 
-        java.sql.Date value = resultSet.getDate(column);
+        final java.sql.Date value = resultSet.getDate(column);
         if (value == null || resultSet.wasNull())
         {
             return null;
@@ -146,17 +146,14 @@ public class DateDataType extends AbstractDataType
         return value;
     }
 
-    public void setSqlValue(Object value, int column, PreparedStatement statement)
+    @Override
+    public void setSqlValue(final Object value, final int column,
+            final PreparedStatement statement)
             throws SQLException, TypeCastException
     {
-    	logger.debug("setSqlValue(value={}, column={}, statement={}) - start",
-        		value, column, statement);
+        logger.debug("setSqlValue(value={}, column={}, statement={}) - start",
+                value, column, statement);
 
-        statement.setDate(column, (java.sql.Date)typeCast(value));
+        statement.setDate(column, (java.sql.Date) typeCast(value));
     }
 }
-
-
-
-
-

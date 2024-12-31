@@ -51,9 +51,6 @@ class DateDataTypeTest extends AbstractDataTypeTest
     @Mock
     private ResultSet mockedResultSet;
 
-    /**
-     *
-     */
     @Override
     @Test
     public void testToString() throws Exception
@@ -61,9 +58,6 @@ class DateDataTypeTest extends AbstractDataTypeTest
         assertThat(THIS_TYPE).as("name").hasToString("DATE");
     }
 
-    /**
-     *
-     */
     @Override
     @Test
     public void testGetTypeClass() throws Exception
@@ -72,9 +66,6 @@ class DateDataTypeTest extends AbstractDataTypeTest
                 .isEqualTo(java.sql.Date.class);
     }
 
-    /**
-     *
-     */
     @Override
     @Test
     public void testIsNumber() throws Exception
@@ -296,5 +287,4 @@ class DateDataTypeTest extends AbstractDataTypeTest
             assertThat(actualValue).as("value").isEqualTo(expectedValue);
         }
     }
-
 }

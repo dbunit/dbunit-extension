@@ -20,9 +20,6 @@
  */
 package org.dbunit.dataset.datatype;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -31,6 +28,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * @author fede
@@ -40,23 +39,22 @@ import java.sql.SQLException;
  */
 public class BinaryStreamDataType extends BytesDataType
 {
+    private static final Logger logger =
+            LoggerFactory.getLogger(BinaryStreamDataType.class);
 
-    /**
-     * Logger for this class
-     */
-    private static final Logger logger = LoggerFactory.getLogger(BinaryStreamDataType.class);
-
-    public BinaryStreamDataType(String name, int sqlType)
+    public BinaryStreamDataType(final String name, final int sqlType)
     {
         super(name, sqlType);
     }
 
-    public Object getSqlValue(int column, ResultSet resultSet)
+    @Override
+    public Object getSqlValue(final int column, final ResultSet resultSet)
             throws SQLException, TypeCastException
     {
-    	logger.debug("getSqlValue(column={}, resultSet={}) - start", column, resultSet);
+        logger.debug("getSqlValue(column={}, resultSet={}) - start", column,
+                resultSet);
 
-        InputStream in = resultSet.getBinaryStream(column);
+        final InputStream in = resultSet.getBinaryStream(column);
         if (in == null || resultSet.wasNull())
         {
             return null;
@@ -64,8 +62,8 @@ public class BinaryStreamDataType extends BytesDataType
 
         try
         {
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
-            byte[] buffer = new byte[32];
+            final ByteArrayOutputStream out = new ByteArrayOutputStream();
+            final byte[] buffer = new byte[32];
             int length = in.read(buffer);
             while (length != -1)
             {
@@ -73,36 +71,36 @@ public class BinaryStreamDataType extends BytesDataType
                 length = in.read(buffer);
             }
             return out.toByteArray();
-        }
-        catch (IOException e)
+        } catch (final IOException e)
         {
             throw new TypeCastException(e);
         }
     }
 
     /**
-     * Sets the given value on the given statement and therefore invokes 
+     * Sets the given value on the given statement and therefore invokes
      * {@link BytesDataType#typeCast(Object)}.
-     * @see org.dbunit.dataset.datatype.BytesDataType#setSqlValue(java.lang.Object, int, java.sql.PreparedStatement)
+     *
+     * @see org.dbunit.dataset.datatype.BytesDataType#setSqlValue(java.lang.Object,
+     *      int, java.sql.PreparedStatement)
      */
-    public void setSqlValue(Object value, int column, PreparedStatement statement)
+    @Override
+    public void setSqlValue(final Object value, final int column,
+            final PreparedStatement statement)
             throws SQLException, TypeCastException
     {
-    	logger.debug("setSqlValue(value={}, column={}, statement={}) - start",
-        		value, column, statement);
+        logger.debug("setSqlValue(value={}, column={}, statement={}) - start",
+                value, column, statement);
 
-        byte[] bytes = (byte[])typeCast(value);
-        if(value==null || bytes==null)
+        final byte[] bytes = (byte[]) typeCast(value);
+        if (value == null || bytes == null)
         {
             logger.debug("Setting SQL column value to <null>");
             statement.setNull(column, getSqlType());
-        }
-        else
+        } else
         {
-            ByteArrayInputStream in = new ByteArrayInputStream(bytes);
+            final ByteArrayInputStream in = new ByteArrayInputStream(bytes);
             statement.setBinaryStream(column, in, bytes.length);
         }
-        
     }
-
 }

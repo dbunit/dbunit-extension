@@ -83,11 +83,9 @@ public class FloatDataTypeTest extends AbstractDataTypeTest
                 Double.valueOf(0.666), Double.valueOf(5.49879), "-99.9",
                 new BigDecimal((double) 1234),};
 
-        final Float[] expected = {null, Float.valueOf("5.555"),
-                Float.valueOf(Float.MAX_VALUE), Float.valueOf(Float.MIN_VALUE),
-                Float.valueOf(-7500), Float.valueOf("2.34E3"),
-                Float.valueOf("0.666"), Float.valueOf("5.49879"),
-                Float.valueOf("-99.9"), Float.valueOf(1234),};
+        final Float[] expected = {null, 5.555F, Float.MAX_VALUE,
+                Float.MIN_VALUE, -7500F, Float.valueOf("2.34E3"), 0.666F,
+                5.49879F, -99.9F, 1234F,};
 
         assertThat(expected.length).as("actual vs expected count")
                 .isEqualTo(values.length);
@@ -132,11 +130,9 @@ public class FloatDataTypeTest extends AbstractDataTypeTest
                         Double.valueOf(0.666), Double.valueOf(5.49879), "-99.9",
                         new BigDecimal((double) 1234),};
 
-        final Float[] values2 = {null, Float.valueOf("5.555"),
-                Float.valueOf(Float.MAX_VALUE), Float.valueOf(Float.MIN_VALUE),
-                Float.valueOf(-7500), Float.valueOf("2.34E3"),
-                Float.valueOf("0.666"), Float.valueOf("5.49879"),
-                Float.valueOf("-99.9"), Float.valueOf(1234),};
+        final Float[] values2 = {null, 5.555F, Float.MAX_VALUE, Float.MIN_VALUE,
+                -7500F, Float.valueOf("2.34E3"), 0.666F, 5.49879F, -99.9F,
+                1234F,};
 
         assertThat(values2).as("values count").hasSize(values1.length);
 
@@ -205,16 +201,14 @@ public class FloatDataTypeTest extends AbstractDataTypeTest
     @Test
     public void testForObject() throws Exception
     {
-        assertThat(DataType.forObject(Float.valueOf(1234)))
-                .isEqualTo(THIS_TYPE);
+        assertThat(DataType.forObject(1234F)).isEqualTo(THIS_TYPE);
     }
 
     @Override
     @Test
     public void testAsString() throws Exception
     {
-        final Object[] values =
-                {Float.valueOf("1234"), Float.valueOf("12.34"),};
+        final Object[] values = {1234F, 12.34F,};
 
         final String[] expected = {"1234.0", "12.34",};
 
@@ -232,11 +226,9 @@ public class FloatDataTypeTest extends AbstractDataTypeTest
     @Test
     public void testGetSqlValue() throws Exception
     {
-        final Float[] expected = {null, Float.valueOf("5.555"),
-                Float.valueOf(Float.MAX_VALUE), Float.valueOf(Float.MIN_VALUE),
-                Float.valueOf(-7500), Float.valueOf("2.34E3"),
-                Float.valueOf("0.666"), Float.valueOf("5.49879"),
-                Float.valueOf("-99.9"), Float.valueOf(1234),};
+        final Float[] expected = {null, 5.555F, Float.MAX_VALUE,
+                Float.MIN_VALUE, -7500F, Float.valueOf("2.34E3"), 0.666F,
+                5.49879F, -99.9F, 1234F,};
 
         lenient().when(mockedResultSet.getFloat(2)).thenReturn(expected[1]);
         lenient().when(mockedResultSet.getFloat(3)).thenReturn(expected[2]);

@@ -53,14 +53,11 @@ class BigIntegerDataTypeTest extends AbstractDataTypeTest
     private final static DataType THIS_TYPE = DataType.BIGINT;
 
     @Mock
-    private ResultSet resultSet;
+    private ResultSet mockedResultSet;
 
     @Mock
     private PreparedStatement statement;
 
-    /**
-     *
-     */
     @Override
     @Test
     public void testToString() throws Exception
@@ -68,9 +65,6 @@ class BigIntegerDataTypeTest extends AbstractDataTypeTest
         assertThat(THIS_TYPE).as("name").hasToString("BIGINT");
     }
 
-    /**
-     *
-     */
     @Override
     @Test
     public void testGetTypeClass() throws Exception
@@ -79,9 +73,6 @@ class BigIntegerDataTypeTest extends AbstractDataTypeTest
                 .isEqualTo(BigInteger.class);
     }
 
-    /**
-     *
-     */
     @Override
     @Test
     public void testIsNumber() throws Exception
@@ -240,7 +231,7 @@ class BigIntegerDataTypeTest extends AbstractDataTypeTest
     @Test
     public void testAsString() throws Exception
     {
-        final Long[] values = {Long.valueOf(1234),};
+        final Long[] values = {(long) 1234,};
 
         final String[] expected = {"1234",};
 
@@ -267,7 +258,7 @@ class BigIntegerDataTypeTest extends AbstractDataTypeTest
         Arrays.asList(expected).forEach(results::add);
         // Internally BigIntegerDataType uses resultSet.getBigDecimal() on the
         // JDBC API because there is no resultSet.getBigInteger().
-        when(resultSet.getBigDecimal(anyInt())).thenAnswer(invocation -> {
+        when(mockedResultSet.getBigDecimal(anyInt())).thenAnswer(invocation -> {
             final BigInteger i = results.removeFirst();
             if (Objects.isNull(i))
             {
@@ -279,7 +270,7 @@ class BigIntegerDataTypeTest extends AbstractDataTypeTest
         });
         // Our resultSet wasNull call the array
         Arrays.asList(expected).forEach(resultIsNull::add);
-        when(resultSet.wasNull()).thenAnswer(invocation -> {
+        when(mockedResultSet.wasNull()).thenAnswer(invocation -> {
             final BigInteger bigI = resultIsNull.removeFirst();
             if (Objects.isNull(bigI))
             {
@@ -293,7 +284,8 @@ class BigIntegerDataTypeTest extends AbstractDataTypeTest
         for (int i = 0; i < expected.length; i++)
         {
             final Object expectedValue = expected[i];
-            final Object actualValue = THIS_TYPE.getSqlValue(i, resultSet);
+            final Object actualValue =
+                    THIS_TYPE.getSqlValue(i, mockedResultSet);
             if (expectedValue != null && actualValue != null)
             {
                 assertThat(actualValue.getClass()).as("type mismatch")

@@ -43,7 +43,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class BlobDataTypeTest
 {
-    private DataType TYPE = DataType.BLOB;
+    private final DataType TYPE = DataType.BLOB;
 
     @Mock
     private PreparedStatement mockedStatement;
@@ -58,7 +58,7 @@ class BlobDataTypeTest
     void testSetSqlValue() throws Exception
     {
         // Create a hsqldb specific blob
-        final byte[] byteArray = new byte[] {1, 2, 3, 4, 5, 6};
+        final byte[] byteArray = {1, 2, 3, 4, 5, 6};
         final Blob blob = new TestBlob(byteArray);
 
         TYPE.setSqlValue(blob, 1, mockedStatement);
@@ -77,5 +77,4 @@ class BlobDataTypeTest
     {
         assertThat(TYPE.getTypeClass()).as("class").isEqualTo(byte[].class);
     }
-
 }

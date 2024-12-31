@@ -48,9 +48,6 @@ public class BooleanDataTypeTest extends AbstractDataTypeTest
     @Mock
     private ResultSet mockedResultSet;
 
-    /**
-     *
-     */
     @Override
     @Test
     public void testToString() throws Exception
@@ -58,9 +55,6 @@ public class BooleanDataTypeTest extends AbstractDataTypeTest
         assertThat(THIS_TYPE).as("name").hasToString("BOOLEAN");
     }
 
-    /**
-     *
-     */
     @Override
     @Test
     public void testGetTypeClass() throws Exception
@@ -69,9 +63,6 @@ public class BooleanDataTypeTest extends AbstractDataTypeTest
                 .isEqualTo(Boolean.class);
     }
 
-    /**
-     *
-     */
     @Override
     @Test
     public void testIsNumber() throws Exception
@@ -217,9 +208,6 @@ public class BooleanDataTypeTest extends AbstractDataTypeTest
         assertThat(DataType.forObject(Boolean.TRUE)).isEqualTo(THIS_TYPE);
     }
 
-    /**
-     *
-     */
     @Override
     @Test
     public void testAsString() throws Exception
@@ -242,8 +230,7 @@ public class BooleanDataTypeTest extends AbstractDataTypeTest
     @Test
     public void testGetSqlValue() throws Exception
     {
-        final Object[] expected =
-                new Object[] {null, Boolean.TRUE, Boolean.FALSE,};
+        final Object[] expected = {null, Boolean.TRUE, Boolean.FALSE,};
         // First invocation we want to say it was null using lenient to ignore
         // the first call
         lenient().when(mockedResultSet.wasNull()).thenReturn(true)

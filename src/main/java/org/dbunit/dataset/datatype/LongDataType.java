@@ -21,16 +21,15 @@
 
 package org.dbunit.dataset.datatype;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import org.dbunit.dataset.ITable;
-
 import java.math.BigDecimal;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
+
+import org.dbunit.dataset.ITable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * @author Manuel Laflamme
@@ -38,11 +37,8 @@ import java.sql.Types;
  */
 public class LongDataType extends AbstractDataType
 {
-
-    /**
-     * Logger for this class
-     */
-    private static final Logger logger = LoggerFactory.getLogger(LongDataType.class);
+    private static final Logger logger =
+            LoggerFactory.getLogger(LongDataType.class);
 
     LongDataType()
     {
@@ -52,7 +48,8 @@ public class LongDataType extends AbstractDataType
     ////////////////////////////////////////////////////////////////////////////
     // DataType class
 
-    public Object typeCast(Object value) throws TypeCastException
+    @Override
+    public Object typeCast(final Object value) throws TypeCastException
     {
         logger.debug("typeCast(value={}) - start", value);
 
@@ -63,23 +60,24 @@ public class LongDataType extends AbstractDataType
 
         if (value instanceof Number)
         {
-            return ((Number)value).longValue();
+            return ((Number) value).longValue();
         }
 
         try
         {
             return typeCast(new BigDecimal(value.toString()));
-        }
-        catch (java.lang.NumberFormatException e)
+        } catch (final java.lang.NumberFormatException e)
         {
             throw new TypeCastException(value, this, e);
         }
     }
 
-    public Object getSqlValue(int column, ResultSet resultSet)
+    @Override
+    public Object getSqlValue(final int column, final ResultSet resultSet)
             throws SQLException, TypeCastException
     {
-    	logger.debug("getSqlValue(column={}, resultSet={}) - start", column, resultSet);
+        logger.debug("getSqlValue(column={}, resultSet={}) - start", column,
+                resultSet);
 
         final long value = resultSet.getLong(column);
         if (resultSet.wasNull())
@@ -89,17 +87,14 @@ public class LongDataType extends AbstractDataType
         return value;
     }
 
-    public void setSqlValue(Object value, int column, PreparedStatement statement)
+    @Override
+    public void setSqlValue(final Object value, final int column,
+            final PreparedStatement statement)
             throws SQLException, TypeCastException
     {
-    	logger.debug("setSqlValue(value={}, column={}, statement={}) - start",
-        		value, column, statement);
+        logger.debug("setSqlValue(value={}, column={}, statement={}) - start",
+                value, column, statement);
 
-        statement.setLong(column, ((Number)typeCast(value)).longValue());
+        statement.setLong(column, ((Number) typeCast(value)).longValue());
     }
 }
-
-
-
-
-

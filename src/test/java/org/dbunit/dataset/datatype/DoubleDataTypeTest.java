@@ -41,7 +41,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 public class DoubleDataTypeTest extends AbstractDataTypeTest
 {
-
     @Mock
     private ResultSet mockedResultSet;
 
@@ -64,9 +63,9 @@ public class DoubleDataTypeTest extends AbstractDataTypeTest
     @Test
     public void testGetTypeClass() throws Exception
     {
-        for (int i = 0; i < TYPES.length; i++)
+        for (final DataType element : TYPES)
         {
-            assertThat(TYPES[i].getTypeClass()).as("class")
+            assertThat(element.getTypeClass()).as("class")
                     .isEqualTo(Double.class);
         }
     }
@@ -75,9 +74,9 @@ public class DoubleDataTypeTest extends AbstractDataTypeTest
     @Test
     public void testIsNumber() throws Exception
     {
-        for (int i = 0; i < TYPES.length; i++)
+        for (final DataType element : TYPES)
         {
-            assertThat(TYPES[i].isNumber()).as("is number").isTrue();
+            assertThat(element.isNumber()).as("is number").isTrue();
         }
     }
 
@@ -85,9 +84,9 @@ public class DoubleDataTypeTest extends AbstractDataTypeTest
     @Test
     public void testIsDateTime() throws Exception
     {
-        for (int i = 0; i < TYPES.length; i++)
+        for (final DataType element : TYPES)
         {
-            assertThat(TYPES[i].isDateTime()).as("is date/time").isFalse();
+            assertThat(element.isDateTime()).as("is date/time").isFalse();
         }
     }
 
@@ -100,21 +99,18 @@ public class DoubleDataTypeTest extends AbstractDataTypeTest
                 Double.valueOf(0.666), Double.valueOf(5.49879), "-99.9",
                 new BigDecimal((double) 1234),};
 
-        final Double[] expected =
-                {null, Double.valueOf(5.555), Double.valueOf(Float.MAX_VALUE),
-                        Double.valueOf(Double.MIN_VALUE), Double.valueOf(-7500),
-                        Double.valueOf("2.34E23"), Double.valueOf(0.666),
-                        Double.valueOf(5.49879), Double.valueOf(-99.9),
-                        Double.valueOf(1234),};
+        final Double[] expected = {null, 5.555, (double) Float.MAX_VALUE,
+                Double.MIN_VALUE, (double) -7500.0, Double.valueOf("2.34E23"),
+                0.666, 5.49879, -99.9, (double) 1234,};
 
         assertThat(values).as("actual vs expected count")
                 .hasSize(expected.length);
 
-        for (int i = 0; i < TYPES.length; i++)
+        for (final DataType element : TYPES)
         {
             for (int j = 0; j < values.length; j++)
             {
-                assertThat(TYPES[i].typeCast(values[j])).as("typecast " + j)
+                assertThat(element.typeCast(values[j])).as("typecast " + j)
                         .isEqualTo(expected[j]);
             }
         }
@@ -124,9 +120,8 @@ public class DoubleDataTypeTest extends AbstractDataTypeTest
     @Test
     public void testTypeCastNone() throws Exception
     {
-        for (int i = 0; i < TYPES.length; i++)
+        for (final DataType type : TYPES)
         {
-            final DataType type = TYPES[i];
             assertThat(type.typeCast(ITable.NO_VALUE)).as("typecast " + type)
                     .isNull();
         }
@@ -169,13 +164,13 @@ public class DoubleDataTypeTest extends AbstractDataTypeTest
 
         assertThat(values2).as("values count").hasSize(values1.length);
 
-        for (int i = 0; i < TYPES.length; i++)
+        for (final DataType element : TYPES)
         {
             for (int j = 0; j < values1.length; j++)
             {
-                assertThat(TYPES[i].compare(values1[j], values2[j]))
+                assertThat(element.compare(values1[j], values2[j]))
                         .as("compare1 " + j).isZero();
-                assertThat(TYPES[i].compare(values2[j], values1[j]))
+                assertThat(element.compare(values2[j], values1[j]))
                         .as("compare2 " + j).isZero();
             }
         }
@@ -218,13 +213,13 @@ public class DoubleDataTypeTest extends AbstractDataTypeTest
 
         assertThat(greater).as("values count").hasSize(less.length);
 
-        for (int i = 0; i < TYPES.length; i++)
+        for (final DataType element : TYPES)
         {
             for (int j = 0; j < less.length; j++)
             {
-                assertThat(TYPES[i].compare(less[j], greater[j]))
-                        .as("less " + j).isNegative();
-                assertThat(TYPES[i].compare(greater[j], less[j]))
+                assertThat(element.compare(less[j], greater[j])).as("less " + j)
+                        .isNegative();
+                assertThat(element.compare(greater[j], less[j]))
                         .as("greater " + j).isPositive();
             }
         }
@@ -279,12 +274,9 @@ public class DoubleDataTypeTest extends AbstractDataTypeTest
     @Test
     public void testGetSqlValue() throws Exception
     {
-        final Double[] expected =
-                {null, Double.valueOf(5.555), Double.valueOf(Float.MAX_VALUE),
-                        Double.valueOf(Double.MIN_VALUE), Double.valueOf(-7500),
-                        Double.valueOf("2.34E23"), Double.valueOf(0.666),
-                        Double.valueOf(5.49879), Double.valueOf(-99.9),
-                        Double.valueOf(1234),};
+        final Double[] expected = {null, 5.555, (double) Float.MAX_VALUE,
+                Double.MIN_VALUE, (double) -7500, Double.valueOf("2.34E23"),
+                0.666, 5.49879, -99.9, (double) 1234,};
         lenient().when(mockedResultSet.getDouble(2)).thenReturn(expected[1]);
         lenient().when(mockedResultSet.getDouble(3)).thenReturn(expected[2]);
         lenient().when(mockedResultSet.getDouble(4)).thenReturn(expected[3]);
@@ -310,5 +302,4 @@ public class DoubleDataTypeTest extends AbstractDataTypeTest
             }
         }
     }
-
 }

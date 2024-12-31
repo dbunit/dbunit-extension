@@ -33,26 +33,36 @@ public interface IDataTypeFactory
      * Returns the DataType object that corresponds to the specified
      * {@link java.sql.Types}.
      *
-     * @param sqlType SQL type from {@link java.sql.Types}
-     * @param sqlTypeName Data source dependent type name
+     * @param sqlType
+     *            SQL type from {@link java.sql.Types}
+     * @param sqlTypeName
+     *            Data source dependent type name
      */
-    public DataType createDataType(int sqlType, String sqlTypeName) throws DataTypeException;
+    public DataType createDataType(int sqlType, String sqlTypeName)
+            throws DataTypeException;
 
     /**
      * Returns the DataType object that corresponds to the specified
      * {@link java.sql.Types} and regards the given tableName and columnName.
-     * When a {@link org.dbunit.dataset.datatype.ToleratedDeltaMap.ToleratedDelta} has been set 
-     * for a tableName.columnName set then this method automatically creates the correct 
-     * datatype that honours the tolerance value in the assertion.
+     * When a
+     * {@link org.dbunit.dataset.datatype.ToleratedDeltaMap.ToleratedDelta} has
+     * been set for a tableName.columnName set then this method automatically
+     * creates the correct datatype that honours the tolerance value in the
+     * assertion.
      *
-     * @param sqlType SQL type from {@link java.sql.Types}
-     * @param sqlTypeName Data source dependent type name
-     * @param tableName The database table for which the type is created
-     * @param columnName The database column in the given table for which the type is created
+     * @param sqlType
+     *            SQL type from {@link java.sql.Types}
+     * @param sqlTypeName
+     *            Data source dependent type name
+     * @param tableName
+     *            The database table for which the type is created
+     * @param columnName
+     *            The database column in the given table for which the type is
+     *            created
      * 
      * @since 2.3.0
      */
-    public DataType createDataType(int sqlType, String sqlTypeName, String tableName, String columnName) 
-    	throws DataTypeException;
+    public DataType createDataType(int sqlType, String sqlTypeName,
+            String tableName, String columnName) throws DataTypeException;
 
 }

@@ -40,13 +40,10 @@ import org.slf4j.LoggerFactory;
  */
 public class StringDataType extends AbstractDataType
 {
+    private static final Logger logger =
+            LoggerFactory.getLogger(StringDataType.class);
 
-    /**
-     * Logger for this class
-     */
-    private static final Logger logger = LoggerFactory.getLogger(StringDataType.class);
-
-    public StringDataType(String name, int sqlType)
+    public StringDataType(final String name, final int sqlType)
     {
         super(name, sqlType, String.class, false);
     }
@@ -54,7 +51,8 @@ public class StringDataType extends AbstractDataType
     ////////////////////////////////////////////////////////////////////////////
     // DataType class
 
-    public Object typeCast(Object value) throws TypeCastException
+    @Override
+    public Object typeCast(final Object value) throws TypeCastException
     {
         logger.debug("typeCast(value={}) - start", value);
 
@@ -68,10 +66,9 @@ public class StringDataType extends AbstractDataType
             return value;
         }
 
-        if (value instanceof java.sql.Date ||
-                value instanceof java.sql.Time ||
-                value instanceof java.sql.Timestamp ||
-                value instanceof java.time.temporal.TemporalAccessor)
+        if (value instanceof java.sql.Date || value instanceof java.sql.Time
+                || value instanceof java.sql.Timestamp
+                || value instanceof java.time.temporal.TemporalAccessor)
         {
             return value.toString();
         }
@@ -86,8 +83,7 @@ public class StringDataType extends AbstractDataType
             try
             {
                 return value.toString();
-            }
-            catch (java.lang.NumberFormatException e)
+            } catch (final java.lang.NumberFormatException e)
             {
                 throw new TypeCastException(value, this, e);
             }
@@ -95,18 +91,17 @@ public class StringDataType extends AbstractDataType
 
         if (value instanceof byte[])
         {
-            return Base64.encodeBytes((byte[])value);
+            return Base64.encodeBytes((byte[]) value);
         }
 
         if (value instanceof Blob)
         {
             try
             {
-                Blob blob = (Blob)value;
-                byte[] blobValue = blob.getBytes(1, (int)blob.length());
+                final Blob blob = (Blob) value;
+                final byte[] blobValue = blob.getBytes(1, (int) blob.length());
                 return typeCast(blobValue);
-            }
-            catch (SQLException e)
+            } catch (final SQLException e)
             {
                 throw new TypeCastException(value, this, e);
             }
@@ -116,34 +111,38 @@ public class StringDataType extends AbstractDataType
         {
             try
             {
-                Clob clobValue = (Clob)value;
-                int length = (int)clobValue.length();
+                final Clob clobValue = (Clob) value;
+                final int length = (int) clobValue.length();
                 if (length > 0)
                 {
                     return clobValue.getSubString(1, length);
                 }
                 return "";
-            }
-            catch (SQLException e)
+            } catch (final SQLException e)
             {
                 throw new TypeCastException(value, this, e);
             }
         }
 
-        logger.warn("Unknown/unsupported object type '{}' - " +
-                "will invoke toString() as last fallback which " +
-                "might produce undesired results",
+        logger.warn(
+                "Unknown/unsupported object type '{}' - "
+                        + "will invoke toString() as last fallback which "
+                        + "might produce undesired results",
                 value.getClass().getName());
         return value.toString();
     }
 
-    public Object getSqlValue(int column, ResultSet resultSet)
+    @Override
+    public Object getSqlValue(final int column, final ResultSet resultSet)
             throws SQLException, TypeCastException
     {
-    	if (logger.isDebugEnabled())
-    		logger.debug("getSqlValue(column={}, resultSet={}) - start", column, resultSet);
+        if (logger.isDebugEnabled())
+        {
+            logger.debug("getSqlValue(column={}, resultSet={}) - start", column,
+                    resultSet);
+        }
 
-        String value = resultSet.getString(column);
+        final String value = resultSet.getString(column);
         if (value == null || resultSet.wasNull())
         {
             return null;
@@ -151,21 +150,14 @@ public class StringDataType extends AbstractDataType
         return value;
     }
 
-    public void setSqlValue(Object value, int column, PreparedStatement statement)
+    @Override
+    public void setSqlValue(final Object value, final int column,
+            final PreparedStatement statement)
             throws SQLException, TypeCastException
     {
-    	logger.debug("setSqlValue(value={}, column={}, statement={}) - start",
-    		value, column, statement);
+        logger.debug("setSqlValue(value={}, column={}, statement={}) - start",
+                value, column, statement);
 
         statement.setString(column, asString(value));
     }
 }
-
-
-
-
-
-
-
-
-

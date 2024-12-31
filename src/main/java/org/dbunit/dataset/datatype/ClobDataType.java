@@ -21,14 +21,14 @@
 
 package org.dbunit.dataset.datatype;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+import java.sql.Clob;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
-import java.sql.Clob;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * @author Manuel Laflamme
@@ -38,22 +38,22 @@ import java.sql.Clob;
  */
 public class ClobDataType extends StringDataType
 {
-
-    /**
-     * Logger for this class
-     */
-    private static final Logger logger = LoggerFactory.getLogger(ClobDataType.class);
+    private static final Logger logger =
+            LoggerFactory.getLogger(ClobDataType.class);
 
     public ClobDataType()
     {
         super("CLOB", Types.CLOB);
     }
 
-    public Object getSqlValue(int column, ResultSet resultSet) throws SQLException, TypeCastException
+    @Override
+    public Object getSqlValue(final int column, final ResultSet resultSet)
+            throws SQLException, TypeCastException
     {
-    	logger.debug("getSqlValue(column={}, resultSet={}) - start", column, resultSet);
+        logger.debug("getSqlValue(column={}, resultSet={}) - start", column,
+                resultSet);
 
-        Clob value = resultSet.getClob(column);
+        final Clob value = resultSet.getClob(column);
         if (value == null || resultSet.wasNull())
         {
             return null;
@@ -61,10 +61,13 @@ public class ClobDataType extends StringDataType
         return typeCast(value);
     }
 
-    public void setSqlValue(Object value, int column, PreparedStatement statement) throws SQLException, TypeCastException
+    @Override
+    public void setSqlValue(final Object value, final int column,
+            final PreparedStatement statement)
+            throws SQLException, TypeCastException
     {
-    	logger.debug("setSqlValue(value={}, column={}, statement={}) - start",
-        		value, column, statement);
+        logger.debug("setSqlValue(value={}, column={}, statement={}) - start",
+                value, column, statement);
 
         statement.setObject(column, typeCast(value), getSqlType());
     }

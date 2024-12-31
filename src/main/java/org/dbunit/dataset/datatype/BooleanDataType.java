@@ -20,15 +20,14 @@
  */
 package org.dbunit.dataset.datatype;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import org.dbunit.dataset.ITable;
-
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
+
+import org.dbunit.dataset.ITable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * @author Manuel Laflamme
@@ -37,11 +36,8 @@ import java.sql.Types;
  */
 public class BooleanDataType extends AbstractDataType
 {
-
-    /**
-     * Logger for this class
-     */
-    private static final Logger logger = LoggerFactory.getLogger(BooleanDataType.class);
+    private static final Logger logger =
+            LoggerFactory.getLogger(BooleanDataType.class);
 
     BooleanDataType()
     {
@@ -49,11 +45,9 @@ public class BooleanDataType extends AbstractDataType
     }
 
     /**
-     * @param name
-     * @param sqlType
      * @since 2.3
      */
-    BooleanDataType(String name, int sqlType)
+    BooleanDataType(final String name, final int sqlType)
     {
         super(name, sqlType, Boolean.class, false);
     }
@@ -61,7 +55,8 @@ public class BooleanDataType extends AbstractDataType
     ////////////////////////////////////////////////////////////////////////////
     // DataType class
 
-    public Object typeCast(Object value) throws TypeCastException
+    @Override
+    public Object typeCast(final Object value) throws TypeCastException
     {
         logger.debug("typeCast(value={}) - start", value);
 
@@ -77,22 +72,25 @@ public class BooleanDataType extends AbstractDataType
 
         if (value instanceof Number)
         {
-            Number number = (Number)value;
+            final Number number = (Number) value;
             if (number.intValue() == 0)
+            {
                 return Boolean.FALSE;
-            else
+            } else
+            {
                 return Boolean.TRUE;
+            }
         }
 
         if (value instanceof String)
         {
-            String string = (String)value;
+            final String string = (String) value;
 
-            if (string.equalsIgnoreCase("true") || string.equalsIgnoreCase("false"))
+            if ("true".equalsIgnoreCase(string)
+                    || "false".equalsIgnoreCase(string))
             {
                 return Boolean.valueOf(string);
-            }
-            else
+            } else
             {
                 return typeCast(DataType.INTEGER.typeCast(string));
             }
@@ -101,20 +99,22 @@ public class BooleanDataType extends AbstractDataType
         throw new TypeCastException(value, this);
     }
 
-
-    protected int compareNonNulls(Object value1, Object value2) throws TypeCastException
+    @Override
+    protected int compareNonNulls(final Object value1, final Object value2)
+            throws TypeCastException
     {
-        logger.debug("compareNonNulls(value1={}, value2={}) - start", value1, value2);
-        
-        Boolean value1bool = (Boolean)value1;
-        Boolean value2bool = (Boolean)value2;
-        
+        logger.debug("compareNonNulls(value1={}, value2={}) - start", value1,
+                value2);
+
+        final Boolean value1bool = (Boolean) value1;
+        final Boolean value2bool = (Boolean) value2;
+
         if (value1bool.equals(value2bool))
         {
             return 0;
         }
 
-        if (value1bool.equals(Boolean.FALSE))
+        if (!value1bool)
         {
             return -1;
         }
@@ -122,12 +122,14 @@ public class BooleanDataType extends AbstractDataType
         return 1;
     }
 
-    public Object getSqlValue(int column, ResultSet resultSet)
+    @Override
+    public Object getSqlValue(final int column, final ResultSet resultSet)
             throws SQLException, TypeCastException
     {
-    	logger.debug("getSqlValue(column={}, resultSet={}) - start", column, resultSet);
+        logger.debug("getSqlValue(column={}, resultSet={}) - start", column,
+                resultSet);
 
-        boolean value = resultSet.getBoolean(column);
+        final boolean value = resultSet.getBoolean(column);
         if (resultSet.wasNull())
         {
             return null;
@@ -135,26 +137,21 @@ public class BooleanDataType extends AbstractDataType
         return value ? Boolean.TRUE : Boolean.FALSE;
     }
 
-    public void setSqlValue(Object value, int column, PreparedStatement statement)
+    @Override
+    public void setSqlValue(final Object value, final int column,
+            final PreparedStatement statement)
             throws SQLException, TypeCastException
     {
-    	logger.debug("setSqlValue(value={}, column={}, statement={}) - start",
-        		value, column, statement);
+        logger.debug("setSqlValue(value={}, column={}, statement={}) - start",
+                value, column, statement);
 
-    	Boolean castValue = (Boolean)typeCast(value);
-    	if(castValue==null)
-    	{
-    	    statement.setNull(column, Types.BOOLEAN);
-    	}
-    	else
-    	{
-    	    statement.setBoolean(column, castValue.booleanValue());
-    	}
+        final Boolean castValue = (Boolean) typeCast(value);
+        if (castValue == null)
+        {
+            statement.setNull(column, Types.BOOLEAN);
+        } else
+        {
+            statement.setBoolean(column, castValue);
+        }
     }
-
 }
-
-
-
-
-

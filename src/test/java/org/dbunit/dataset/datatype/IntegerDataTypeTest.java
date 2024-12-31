@@ -68,9 +68,9 @@ class IntegerDataTypeTest extends AbstractDataTypeTest
     @Test
     public void testGetTypeClass() throws Exception
     {
-        for (int i = 0; i < TYPES.length; i++)
+        for (final DataType element : TYPES)
         {
-            assertThat(TYPES[i].getTypeClass()).as("class")
+            assertThat(element.getTypeClass()).as("class")
                     .isEqualTo(Integer.class);
         }
     }
@@ -79,9 +79,9 @@ class IntegerDataTypeTest extends AbstractDataTypeTest
     @Test
     public void testIsNumber() throws Exception
     {
-        for (int i = 0; i < TYPES.length; i++)
+        for (final DataType element : TYPES)
         {
-            assertThat(TYPES[i].isNumber()).as("is number").isTrue();
+            assertThat(element.isNumber()).as("is number").isTrue();
         }
     }
 
@@ -89,9 +89,9 @@ class IntegerDataTypeTest extends AbstractDataTypeTest
     @Test
     public void testIsDateTime() throws Exception
     {
-        for (int i = 0; i < TYPES.length; i++)
+        for (final DataType element : TYPES)
         {
-            assertThat(TYPES[i].isDateTime()).as("is date/time").isFalse();
+            assertThat(element.isDateTime()).as("is date/time").isFalse();
         }
     }
 
@@ -106,24 +106,20 @@ class IntegerDataTypeTest extends AbstractDataTypeTest
                 Double.valueOf(0.666), Double.valueOf(5.49), "-99.9",
                 Double.valueOf(1.5E2), new BigDecimal((double) 1234),};
 
-        final Integer[] expected = {null, Integer.valueOf(5),
-                Integer.valueOf(Integer.MAX_VALUE - 1),
-                Integer.valueOf(Integer.MIN_VALUE + 1), Integer.valueOf(-7500),
-                Integer.valueOf(Integer.MAX_VALUE),
-                Integer.valueOf(Integer.MIN_VALUE), Integer.valueOf(0),
-                Integer.valueOf(0), Integer.valueOf(5), Integer.valueOf(-99),
-                Integer.valueOf(150), Integer.valueOf(1234),
+        final Integer[] expected = {null, 5, Integer.MAX_VALUE - 1,
+                Integer.MIN_VALUE + 1, -7500, Integer.MAX_VALUE,
+                Integer.MIN_VALUE, 0, 0, 5, -99, 150, 1234,
 
         };
 
         assertThat(expected).as("actual vs expected count")
                 .hasSameSizeAs(values);
 
-        for (int i = 0; i < TYPES.length; i++)
+        for (final DataType element : TYPES)
         {
             for (int j = 0; j < values.length; j++)
             {
-                assertThat(TYPES[i].typeCast(values[j])).as("typecast " + j)
+                assertThat(element.typeCast(values[j])).as("typecast " + j)
                         .isEqualTo(expected[j]);
             }
         }
@@ -139,9 +135,8 @@ class IntegerDataTypeTest extends AbstractDataTypeTest
     void testTypeCastEmptyString() throws Exception
     {
         final String emptyString = "";
-        for (int i = 0; i < TYPES.length; i++)
+        for (final DataType type : TYPES)
         {
-            final DataType type = TYPES[i];
             assertThat(type.typeCast(emptyString)).as("typecast " + type)
                     .isNull();
         }
@@ -151,9 +146,8 @@ class IntegerDataTypeTest extends AbstractDataTypeTest
     @Test
     public void testTypeCastNone() throws Exception
     {
-        for (int i = 0; i < TYPES.length; i++)
+        for (final DataType type : TYPES)
         {
-            final DataType type = TYPES[i];
             assertThat(type.typeCast(ITable.NO_VALUE)).as("typecast " + type)
                     .isNull();
         }
@@ -162,9 +156,8 @@ class IntegerDataTypeTest extends AbstractDataTypeTest
     @Test
     void testTypeCastBool() throws Exception
     {
-        for (int i = 0; i < TYPES.length; i++)
+        for (final DataType type : TYPES)
         {
-            final DataType type = TYPES[i];
             assertThat(type.typeCast("false")).as("typecast " + type)
                     .isEqualTo(0);
             assertThat(type.typeCast("FALSE")).as("typecast " + type)
@@ -182,13 +175,13 @@ class IntegerDataTypeTest extends AbstractDataTypeTest
     {
         final Object[] values = {new Object(), "bla", new java.util.Date()};
 
-        for (int i = 0; i < TYPES.length; i++)
+        for (final DataType element : TYPES)
         {
-            for (int j = 0; j < values.length; j++)
+            for (final Object value : values)
             {
                 try
                 {
-                    TYPES[i].typeCast(values[j]);
+                    element.typeCast(value);
                     fail("Should throw TypeCastException");
                 } catch (final TypeCastException e)
                 {
@@ -219,13 +212,13 @@ class IntegerDataTypeTest extends AbstractDataTypeTest
 
         assertThat(values2).as("values count").hasSameSizeAs(values1);
 
-        for (int i = 0; i < TYPES.length; i++)
+        for (final DataType element : TYPES)
         {
             for (int j = 0; j < values1.length; j++)
             {
-                assertThat(TYPES[i].compare(values1[j], values2[j]))
+                assertThat(element.compare(values1[j], values2[j]))
                         .as("compare1 " + j).isZero();
-                assertThat(TYPES[i].compare(values2[j], values1[j]))
+                assertThat(element.compare(values2[j], values1[j]))
                         .as("compare2 " + j, 0).isZero();
             }
         }
@@ -268,13 +261,13 @@ class IntegerDataTypeTest extends AbstractDataTypeTest
 
         assertThat(greater).as("values count").hasSameSizeAs(less);
 
-        for (int i = 0; i < TYPES.length; i++)
+        for (final DataType element : TYPES)
         {
             for (int j = 0; j < less.length; j++)
             {
-                assertThat(TYPES[i].compare(less[j], greater[j]))
-                        .as("less " + j).isNegative();
-                assertThat(TYPES[i].compare(greater[j], less[j]))
+                assertThat(element.compare(less[j], greater[j])).as("less " + j)
+                        .isNegative();
+                assertThat(element.compare(greater[j], less[j]))
                         .as("greater " + j).isPositive();
             }
         }
@@ -331,10 +324,8 @@ class IntegerDataTypeTest extends AbstractDataTypeTest
     @Test
     public void testGetSqlValue() throws Exception
     {
-        final Integer[] expected = {null, Integer.valueOf(5),
-                Integer.valueOf(Integer.MAX_VALUE - 1),
-                Integer.valueOf(Integer.MIN_VALUE + 1),
-                Integer.valueOf(-7500),};
+        final Integer[] expected =
+                {null, 5, Integer.MAX_VALUE - 1, Integer.MIN_VALUE + 1, -7500,};
 
         lenient().when(mockedResultSet.getInt(2)).thenReturn(expected[1]);
         lenient().when(mockedResultSet.getInt(3)).thenReturn(expected[2]);
@@ -356,5 +347,4 @@ class IntegerDataTypeTest extends AbstractDataTypeTest
             }
         }
     }
-
 }

@@ -65,9 +65,9 @@ public class NumberDataTypeTest extends AbstractDataTypeTest
     @Test
     public void testGetTypeClass() throws Exception
     {
-        for (int i = 0; i < TYPES.length; i++)
+        for (final DataType element : TYPES)
         {
-            assertThat(TYPES[i].getTypeClass()).as("class")
+            assertThat(element.getTypeClass()).as("class")
                     .isEqualTo(BigDecimal.class);
         }
     }
@@ -76,9 +76,9 @@ public class NumberDataTypeTest extends AbstractDataTypeTest
     @Test
     public void testIsNumber() throws Exception
     {
-        for (int i = 0; i < TYPES.length; i++)
+        for (final DataType element : TYPES)
         {
-            assertThat(TYPES[i].isNumber()).as("is number").isTrue();
+            assertThat(element.isNumber()).as("is number").isTrue();
         }
     }
 
@@ -86,9 +86,9 @@ public class NumberDataTypeTest extends AbstractDataTypeTest
     @Test
     public void testIsDateTime() throws Exception
     {
-        for (int i = 0; i < TYPES.length; i++)
+        for (final DataType element : TYPES)
         {
-            assertThat(TYPES[i].isDateTime()).as("is date/time").isFalse();
+            assertThat(element.isDateTime()).as("is date/time").isFalse();
         }
     }
 
@@ -109,11 +109,11 @@ public class NumberDataTypeTest extends AbstractDataTypeTest
         assertThat(expected).as("actual vs expected count")
                 .hasSameSizeAs(values);
 
-        for (int i = 0; i < TYPES.length; i++)
+        for (final DataType element : TYPES)
         {
             for (int j = 0; j < values.length; j++)
             {
-                assertThat(TYPES[i].typeCast(values[j])).as("typecast " + j)
+                assertThat(element.typeCast(values[j])).as("typecast " + j)
                         .isEqualTo(expected[j]);
             }
         }
@@ -123,9 +123,8 @@ public class NumberDataTypeTest extends AbstractDataTypeTest
     @Test
     public void testTypeCastNone() throws Exception
     {
-        for (int i = 0; i < TYPES.length; i++)
+        for (final DataType type : TYPES)
         {
-            final DataType type = TYPES[i];
             assertThat(type.typeCast(ITable.NO_VALUE)).as("typecast " + type)
                     .isNull();
         }
@@ -164,13 +163,13 @@ public class NumberDataTypeTest extends AbstractDataTypeTest
 
         assertThat(values2).as("values count").hasSameSizeAs(values1);
 
-        for (int i = 0; i < TYPES.length; i++)
+        for (final DataType element : TYPES)
         {
             for (int j = 0; j < values1.length; j++)
             {
-                assertThat(TYPES[i].compare(values1[j], values2[j]))
+                assertThat(element.compare(values1[j], values2[j]))
                         .as("compare1 " + j).isZero();
-                assertThat(TYPES[i].compare(values2[j], values1[j]))
+                assertThat(element.compare(values2[j], values1[j]))
                         .as("compare2 " + j, 0).isZero();
             }
         }
@@ -214,13 +213,13 @@ public class NumberDataTypeTest extends AbstractDataTypeTest
 
         assertThat(greater).as("values count").hasSameSizeAs(less);
 
-        for (int i = 0; i < TYPES.length; i++)
+        for (final DataType element : TYPES)
         {
             for (int j = 0; j < less.length; j++)
             {
-                assertThat(TYPES[i].compare(less[j], greater[j]))
-                        .as("less " + j).isNegative();
-                assertThat(TYPES[i].compare(greater[j], less[j]))
+                assertThat(element.compare(less[j], greater[j])).as("less " + j)
+                        .isNegative();
+                assertThat(element.compare(greater[j], less[j]))
                         .as("greater " + j).isPositive();
             }
         }
@@ -293,5 +292,4 @@ public class NumberDataTypeTest extends AbstractDataTypeTest
             }
         }
     }
-
 }

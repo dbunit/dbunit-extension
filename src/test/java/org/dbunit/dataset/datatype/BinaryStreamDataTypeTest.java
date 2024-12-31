@@ -34,8 +34,7 @@ import org.junit.jupiter.api.Test;
  */
 class BinaryStreamDataTypeTest
 {
-
-    private BinaryStreamDataType type =
+    private final BinaryStreamDataType type =
             new BinaryStreamDataType("BLOB", Types.BLOB);
 
     @Test
@@ -55,5 +54,4 @@ class BinaryStreamDataTypeTest
         final byte[] result = (byte[]) type.typeCast(value);
         assertThat(result).isEqualTo(new byte[] {-74, -21, 110});
     }
-
 }

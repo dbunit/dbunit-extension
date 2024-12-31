@@ -21,14 +21,14 @@
 
 package org.dbunit.dataset.datatype;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+import java.sql.Blob;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
-import java.sql.Blob;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * @author Manuel Laflamme
@@ -37,27 +37,30 @@ import java.sql.Blob;
  */
 public class BlobDataType extends BytesDataType
 {
-    /**
-     * Logger for this class
-     */
-    private static final Logger logger = LoggerFactory.getLogger(BlobDataType.class);
+    private static final Logger logger =
+            LoggerFactory.getLogger(BlobDataType.class);
 
     public BlobDataType()
     {
         super("BLOB", Types.BLOB);
     }
 
-    public BlobDataType(String name, int sqlType)
+    public BlobDataType(final String name, final int sqlType)
     {
         super(name, sqlType);
     }
 
-    public Object getSqlValue(int column, ResultSet resultSet) throws SQLException, TypeCastException
+    @Override
+    public Object getSqlValue(final int column, final ResultSet resultSet)
+            throws SQLException, TypeCastException
     {
-    	if(logger.isDebugEnabled())
-    		logger.debug("getSqlValue(column={}, resultSet={}) - start", String.valueOf(column), resultSet);
+        if (logger.isDebugEnabled())
+        {
+            logger.debug("getSqlValue(column={}, resultSet={}) - start",
+                    String.valueOf(column), resultSet);
+        }
 
-        Blob value = resultSet.getBlob(column);
+        final Blob value = resultSet.getBlob(column);
         if (value == null || resultSet.wasNull())
         {
             return null;
@@ -65,14 +68,18 @@ public class BlobDataType extends BytesDataType
         return typeCast(value);
     }
 
-    public void setSqlValue(Object value, int column, PreparedStatement statement) throws SQLException, TypeCastException
+    @Override
+    public void setSqlValue(final Object value, final int column,
+            final PreparedStatement statement)
+            throws SQLException, TypeCastException
     {
-    	if (logger.isDebugEnabled())
-    	{
-    		logger.debug("setSqlValue(value={}, column={}, statement={}) - start",
-    				new Object[]{ value, String.valueOf(column), statement});
-    	}
+        if (logger.isDebugEnabled())
+        {
+            logger.debug(
+                    "setSqlValue(value={}, column={}, statement={}) - start",
+                    value, String.valueOf(column), statement);
+        }
 
-    	statement.setObject(column, typeCast(value), super.getSqlType());
+        statement.setObject(column, typeCast(value), super.getSqlType());
     }
 }

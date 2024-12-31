@@ -51,7 +51,3 @@ public class DataTypeException extends DataSetException
         super(msg, e);
     }
 }
-
-
-
-

@@ -248,9 +248,6 @@ public class TimeDataTypeTest extends AbstractDataTypeTest
         assertThat(THIS_TYPE.getSqlType()).isEqualTo(Types.TIME);
     }
 
-    /**
-     *
-     */
     @Override
     @Test
     public void testForObject() throws Exception
@@ -298,5 +295,4 @@ public class TimeDataTypeTest extends AbstractDataTypeTest
             assertThat(actualValue).as("value").isEqualTo(expectedValue);
         }
     }
-
 }
