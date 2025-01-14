@@ -20,6 +20,9 @@
         Since version 2.0, DbUnit can also work with very large datasets when used in streaming mode.
         DbUnit can also help you to verify that your database data match an expected set of values.
       </p>
+      <p>
+        Since 3.0.0, DbUnit supports JUnit 5 and drops JUnit 4 support.
+      </p>
     </section>
 
     <section name="Downloading dbUnit">

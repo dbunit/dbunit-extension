@@ -67,7 +67,7 @@ private PrepAndExpectedTestCase testCase;
   setup type of method, such as:
 
 +--
-@Before
+@BeforeEach
 public void setDbunitTestDependencies()
 {
     setDatabaseTester(databaseTester);

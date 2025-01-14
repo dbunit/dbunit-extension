@@ -9,6 +9,11 @@
     <section name="Getting Started">
       <ol>
         <li>
+          <a href="#noextend">
+            Database setup with no parent class
+          </a>
+        </li>
+        <li>
           <a href="#extendDbUnit">
             Database setup with a DBTestCase subclass
           </a>
@@ -16,11 +21,6 @@
         <li>
           <a href="#extendJUnit">
             Database setup with your own TestCase subclass
-          </a>
-        </li>
-        <li>
-          <a href="#noextend">
-            Database setup with no parent class
           </a>
         </li>
         <li>
@@ -40,6 +40,47 @@
         </li>
       </ol>
     </section>
+    <section name="Database setup with no parent class" id="noextend">
+      <p>In order to use Dbunit you are not required to extend any classes.
+      Simply configure an instance of a DBTestCase subclass, whether
+      directly instantiated or dependency injected in test classes.
+      <p>
+      For example, using PrepAndExpectedTestCase:
+      (also see
+      <a href="testcases/PrepAndExpectedTestCase.html">TestCases -> PrepAndExpectedTestCase</a>
+      and
+      <a href="apidocs/org/dbunit/DefaultPrepAndExpectedTestCase.html">DefaultPrepAndExpectedTestCase</a> JavaDoc).
+      </p>
+<source>
+public class SampleTest
+{
+    private PrepAndExpectedTestCase tc; // injected or instantiated, already configured
+
+    @Test
+    public void testExample() throws Exception
+    {
+        final String[] prepDataFiles = {}; // define prep files
+        final String[] expectedDataFiles = {}; // define expected files
+        final VerifyTableDefinition[] tables = {}; // define tables to verify
+        final PrepAndExpectedTestCaseSteps testSteps = () -> {
+            // execute test steps that exercise production code
+            // e.g. call repository, call REST service
+
+            // assert responses or other values
+
+            // after this method exits, dbUnit will:
+            //  * verify configured tables
+            //  * cleanup tables as configured
+
+            return null; // or an object for use/assert outside the Steps
+        };
+
+        Object result = tc.runTest(tables, prepDataFiles, expectedDataFiles, testSteps);
+    }
+}
+</source>
+      </p>
+      </section>
     <section name="Database setup with a DBTestCase subclass" id="extendDbUnit">
       <subsection name="Step 1: Create your dataset file" id="createdataset">
       <p>Your test need some data to work with. This means you must
@@ -150,6 +191,7 @@ public class SampleTest extends DBTestCase
     </section>
 
     <section name="Database setup with your own TestCase subclass" id="extendJUnit">
+      <p>This information applies to dbUnit releases before 3.0.0, which support JUnit 4.</p>
       <p>In order to use Dbunit you are not required to extend the DBTestCase
       class. You can override the standard JUnit setUp() method and execute the
       desired operation on your database. Do something similar in teardown() if
@@ -236,47 +278,6 @@ public class SampleTest extends TestCase
     }
     ...
 }</source></p>
-      </section>
-      <section name="Database setup with no parent class" id="noextend">
-      <p>In order to use Dbunit you are not required to extend any classes.
-      Simply configure an instance of a DBTestCase subclass, whether
-      directly instantiated or dependency injected in test classes.
-      <p>
-      For example, using PrepAndExpectedTestCase:
-      (also see
-      <a href="testcases/PrepAndExpectedTestCase.html">TestCases -> PrepAndExpectedTestCase</a>
-      and
-      <a href="apidocs/org/dbunit/DefaultPrepAndExpectedTestCase.html">DefaultPrepAndExpectedTestCase</a> JavaDoc).
-      </p>
-<source>
-public class SampleTest
-{
-    private PrepAndExpectedTestCase tc; // injected or instantiated, already configured
-
-    @Test
-    public void testExample() throws Exception
-    {
-        final String[] prepDataFiles = {}; // define prep files
-        final String[] expectedDataFiles = {}; // define expected files
-        final VerifyTableDefinition[] tables = {}; // define tables to verify
-        final PrepAndExpectedTestCaseSteps testSteps = () -> {
-            // execute test steps that exercise production code
-            // e.g. call repository, call REST service
-
-            // assert responses or other values
-
-            // after this method exits, dbUnit will:
-            //  * verify configured tables
-            //  * cleanup tables as configured
-
-            return null; // or an object for use/assert outside the Steps
-        };
-
-        Object result = tc.runTest(tables, prepDataFiles, expectedDataFiles, testSteps);
-    }
-}
-</source>
-      </p>
       </section>
       <section name="Database data verification" id="assertdata">
       <p>Dbunit provides support for verifying whether two tables or datasets
