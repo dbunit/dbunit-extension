@@ -13,7 +13,8 @@
   </properties>
 
   <body>
-    <release version="3.0.1-SNAPSHOT" date="TBD" description="Lower DefaultPrepAndExpectedTestCase log levels">
+    <release version="3.0.1-SNAPSHOT" date="TBD" description="Lower DefaultPrepAndExpectedTestCase log levels, build DB config">
+      <action dev="jeffjensen" type="update" issue="259" system="sffeatures" due-to="jeffjensen">Update build to use docker-maven-plugin for starting databases.</action>
       <action dev="jeffjensen" type="update" issue="261" system="sffeatures" due-to="jeffjensen">DefaultPrepAndExpectedTestCase: lower log levels so no WARN and fewer INFO.</action>
     </release>
     <release version="3.0.0" date="Jan 25, 2025" description="JUnit 5 update, ValueComparers constants, Add TableDecoratorDataSet and GeneratedColumnFilter, Postgresql dep scope, IOUtils NoClassDefFoundError, PostgreSQLOidDataType.setSqlValue(): use unwrap(), Oracle NClob, XML DataTypes: use unwrap()">
