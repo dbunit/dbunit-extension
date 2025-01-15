@@ -9,192 +9,99 @@ Andrew Landsverk
 
 Overview
 
-  DbUnit includes a comprehensive test suite.
+ DbUnit includes a comprehensive test suite.
 
-  Most of the tests are <<unit tests>>, and do not rely on any particular database environment.
-  The unit tests are executed in the normal Maven test phase.
+ Most of the tests are <<unit tests>> (UTs) and therefore do not rely on any particular database environment;
+ they test the logic, not the database interaction.
+ UT class names have the suffix <<Test>>.
+ The unit tests are executed in the normal Maven test phase by the
+ {{{http://mojo.codehaus.org/surefire-maven-plugin/}Maven surefire-plugin}}.
 
-  Some of the tests are <<integration tests>>, and can test DbUnit functionality against a particular database.
-  The integration tests are executed in the Maven integration-test phase.
+ Some of the tests are <<integration tests>> (ITs) and test DbUnit functionality against a particular database.
+ IT class names have the suffix <<IT>>.
+ The integration tests are executed in the Maven integration-test phase by the
+ {{{http://mojo.codehaus.org/failsafe-maven-plugin/}Maven failsafe-plugin}}.
 
-Running Databases
 
-* Overview
+The dbUnit Build
 
- The database integration tests require a running database server with a few
- expected configuration items, such as credentials and schema.
- If needed, find the needed values defined in database-named .properties files
- located in the <<<src/test/resources directory>>>.
+ The dbUnit build runs the ITs with the database specified by a Maven profile.
+ 
+ Apache Derby, H2, and HSQLDB have embedded in-memory runtime options,
+ enabling them to automatically start and stop with the tests,
+ so running the build with them requires no extra steps.
 
- Apache Derby, H2, and HSQLDB have an in-memory runtime option
- enabling the tests to automatically start and stop the database.
- Running the database integration tests with those databases requires no
- additional setup.
+ However, the remaining databases require additional setup to run as a service.
+ The dbUnit build uses Docker containers for them,
+ using the docker-maven-plugin to start and stop them.
+ Therefore, running the dbUnit build with these databases requires Docker installed and running.
 
- However, the remaining databases require additional setup.
- This section outlines how to setup and run them.
+ The IT infrastructure requires some properties such as credentials and schema.
+ The .properties files located in the <<<src/test/resources>>> directory root
+ contain the needed test configuration values,
+ named for each database.
 
-* Using Docker Images
 
- For typical dbUnit development with databases requiring setup, use the
- {{{https://hub.docker.com/r/dbunit/}dbUnit database Docker images}} for easy,
- pre-configured setup.  The dbUnit CI server uses these database Docker images
- for the tests.
+Running the Build with the Default Database
 
- The next sections describe using Docker for the databases where needed.
- Using Docker is not required - having the databases for the tests is required -
- and using Docker is the easiest solution we have found for the database setups.
+ Running the dbUnit build with no Maven profile, <<<./mvnw clean install>>>,
+ runs the ITs with the HSQLDB database.
 
-** Install Docker
 
- To use the dbUnit Docker database images, install Docker
- and follow the running tests instructions.
+Running the Build with a Specific Database
 
-*** Windows
+ To run the ITs with a specific database,
+ specify the database's Maven profile ID,
+ e.g. <<<./mvnw clean install -Ppostgresql-16>>>.
 
- Install Docker for Windows from
- {{https://www.docker.com/docker-windows}}
- or using {{{https://chocolatey.org/packages?q=docker}Chocolatey}}.
+ Refer to the profile IDs in the pom.xml file for the options or list them with:
+ <<<./mvnw help:all-profiles>>>.
 
-*** OS X
 
-**** Using Homebrew
+Running the Build with All Databases
 
----
-brew cask install docker
----
+ To more easily run the ITs with all databases,
+ use the convenience script located in the root directory,
+ <<<build-with-all-DBs.ps1>>> or <<<build-with-all-DBs.sh>>>
+ as applicable.
 
-**** Not Using Homebrew
+ The script runs the core build and then the ITs with each database,
+ sequentially, as listed in the <<<database-profiles.txt>>> file
+ located in the root.
 
- Install Docker for Mac from
- {{https://docs.docker.com/docker-for-mac/install/}}
+ The script writes all build output to log files,
+ one per database Maven profile,
+ in the <<<build-logs>>> directory in the root.
 
-*** Linux
 
- Based on distro:
+Starting a Specific Database for Running ITs in an IDE
 
- * {{https://docs.docker.com/install/linux/docker-ce/ubuntu/}}
+ This is very helpful for creating/updating ITs
+ and diagnosing issues shown by the ITs.
 
- * {{https://docs.docker.com/install/linux/docker-ce/debian/}}
+ To start a database and run one or more ITs in the IDE,
+ run the Maven pre-integration-test goal and specify the Maven profile for the desired database,
+ e.g. <<<./mvnw pre-integration-test -Ppostgresql-16>>>
 
- * {{https://docs.docker.com/install/linux/docker-ce/centos/}}
+ More easily,
+ use the convenience script <<<start-database-via-profile.ps1>>> or <<<start-database-via-profile.ps1>>>,
+ as applicable,
+ located in the root directory,
+ e.g. <<<start-database-via-profile.ps1 Ppostgresql-16>>>
 
- * {{https://docs.docker.com/install/linux/docker-ce/fedora/}}
+ Running the script with no arguments lists the valid profile names.
 
-** Start Databases
+ Remember to match the ITs configured database properties to the started database.
+ The easiest way to provide them is with a
+ <<<dbunit.properties>>> file in <<<src/test/resources>>>,
+ created by copying from an existing database properties file in the same directory.
 
- All instructions assume current directory is (path to)/dbunit-docker
+ Refer to the next sections for more information on
+ the properties
+ and running ITs in IDEs.
 
-*** Starting All Databases
 
- To start the databases all at once:
-
----
-docker-compose up -d
----
-
- To stop them:
-
----
-docker-compose down
----
-
-*** Starting One Database
-
- If desired, start only one database by also specifying the name, as in the following table.
-
-*---------------*-----------------------------------*---------------------------------------*
-|<<Database>>   |<<Start Command>>                  |<<DB Ready Messages>>                  |
-*---------------*-----------------------------------*---------------------------------------*
-|DB2            |TODO                               |                                       |
-*---------------*-----------------------------------*---------------------------------------*
-|MySQL          |docker-compose up -d mysql         |Creating dbunitdocker_mysql_1 [v]      |
-*---------------*-----------------------------------*---------------------------------------*
-|Oracle 11g     |docker-compose up -d oracle11      |User altered. \                        |
-|               |                                   |              \                        |
-|               |                                   |SQL> Disconnected from Oracle Database 11g Express Edition Release 11.2.0.2.0 - 64bit Production   |
-*---------------*-----------------------------------*---------------------------------------*
-|PostgreSQL     |docker-compose up -d postgres      |Creating dbunitdocker_postgres_1 [v]   |
-*---------------*-----------------------------------*---------------------------------------*
-|SQLServer      |docker-compose up -d mssql         |Creating dbunitdocker_mssql_1 [v]      |
-*---------------*-----------------------------------*---------------------------------------*
-Docker Database Start Commands
-
-
- Stopping them is the same as with starting all:
-
----
-docker-compose down
----
-
-* Using Databases Directly
-
-** DB2
-
- TODO
-
-** MySQL
-
-  [[1]] Install MySQL database.  This can be on your local machine, or you can use any MySQL database you have access to.
-
-  [[2]] Create a "dbunit" user and database, for example with these commands:
-
----
-mysql -uroot -p <<EOF
-# (enter database root password)
-CREATE DATABASE dbunit;
-GRANT ALL ON dbunit.* TO dbunit@localhost IDENTIFIED BY "dbunit";
-EOF
----
-
-  * These values are the defaults configured in the project.
-  For different values, override the properties.
-
-  * To connect to a remote database, specify the client host name.
-
-  * May also need to adjust the MySQL configuration to permit remote connection.
-
-  []
-
-** Oracle 11g
-
-  [[1]] Install Oracle database.  This can be on your local machine, or you can use any Oracle database you have access to.
-
-  [[2]] Create a "dbunit" user with password "dbunit".
-
-  * These values are the defaults configured in the project.
-  For different values, override the properties.
-
-  []
-
-** PostgreSQL
-
-  [[1]] Install PostgreSQL database.  This can be on your local machine, or you can use any PostgreSQL database you have access to.
-
-  [[2]] Create a "dbunit" user and database, for example with these commands:
-
----
-sudo -u postgres psql <<EOF
-CREATE USER dbunit WITH PASSWORD 'dbunit';
-CREATE DATABASE dbunit OWNER dbunit;
-
-\q
-EOF
----
-
-  * These values are the defaults configured in the project.
-  For different values, override the properties.
-
-  []
-
-** SQLServer
-
- TODO
-
-
-Running Integration Tests
-
-* Database Properties
+Integration Tests Database Properties
 
   Each database environment is configured by properties and dependencies,
   set by the Maven profile or other means.
@@ -223,8 +130,14 @@ Running Integration Tests
 
   []
 
-  Each Maven database integration test profile defines these properties.
-  You can override the profile property values by setting them in Maven's settings.xml file,
+
+  Each Maven database integration test profile loads these properties from 
+  its corresponding .properties file located in the <<<src/test/resources>>> directory root.
+  You can override the profile property values by:
+
+  * specifying system property command line arguments with -D
+
+  * setting them in Maven's settings.xml file,
   located in ~/.m2/settings.xml:
 
 ---
@@ -240,103 +153,15 @@ Running Integration Tests
 </settings>
 ---
 
-* Running Integration Tests with Maven
 
-** Maven Profiles
+Running Integration Tests with IDEs
 
-  Maven profiles control which database configuration is in use for a particular test run.
-  The profiles are named for the database (see specific database sections below).
-  List all profiles using this command:
+  The ITs need database configuration properties such as the connection URL.
+  Running in an IDE has a couple of ways to specify them.
 
----
-mvnw help:all-profiles
----
+* dbunit.properties File
 
-  The default profile (when not specifying a profile) runs the tests using an HSQLDB in-memory database.
-
-  For example, to run the tests using the DbUnit Oracle10DataTypeFactory and the Oracle 8 JDBC driver,
-  use this command:
-
----
-mvnw verify -Poracle10-ojdbc8
----
-
-
-  <<Note:>> The integration tests are run using the {{{http://mojo.codehaus.org/failsafe-maven-plugin/}Maven failsafe-plugin}}.
-
-** Clean Build
-
- It's important to occasionally run a clean build to ensure no problems are
- hidden by existing compiled classes or resource files.
- Simply run the Maven clean goal:
-
----
-mvnw clean
----
-
-** Optionally Skip Unit Tests When Running Integration Tests
-
- To skip running the unit tests with the integration tests,
- specify the "it-config" profile in addition to the database-named profile.
- While we typically run all tests, it's useful to save the unit tests
- run time when focusing on one or more integration tests.
-
- For example, this runs the unit tests and the integration tests with Apache Derby:
-
----
-mvnw -Pderby verify
----
-
- and this skips the unit tests and runs the integration tests with Apache Derby:
-
----
-mvnw -Pit-config,derby verify
----
-
-** Maven Commands
-
-*---------------*------------------------------------------------*
-|<<Database>>   |<<Maven Command>>                               |
-*---------------*------------------------------------------------*
-|Apache Derby   |mvnw -e -Pit-config,derby verify                |
-*---------------*------------------------------------------------*
-|DB2            |mvnw -e -Pit-config,db2 verify                  |
-*---------------*------------------------------------------------*
-|H2             |mvnw -e -Pit-config,h2 verify                   |
-*---------------*------------------------------------------------*
-|HSQLDB         |mvnw -e -Pit-config,hsqldb verify               |
-*---------------*------------------------------------------------*
-|MySQL          |mvnw -e -Pit-config,mysql verify                |
-*---------------*------------------------------------------------*
-|Oracle         |mvnw -e -Pit-config,oracle-ojdbc8 verify      \ |
-|               |mvnw -e -Pit-config,oracle10-ojdbc8 verify    \ |
-|               |mvnw -e -Pit-config,oracle10-ojdbc8v12 verify \ |
-|               |mvnw -e -Pit-config,oracle-ojdbc6 verify        |
-*---------------*------------------------------------------------*
-|PostgreSQL     |mvnw -e -Pit-config,postgresql verify           |
-*---------------*------------------------------------------------*
-|SQLServer      |mvnw -e -Pit-config,mssql41 verify              |
-*---------------*------------------------------------------------*
-|SQLServer 2019 |mvnw -e -Pit-config,mssql2019 verify            |
-*---------------*------------------------------------------------*
-
-* Running Integration Tests with IDEs
-
-** Eclipse / Maven Integration
-
-  The m2e plugin has an "Active Maven Profile" setting in a project's properties which activates the specified profile(s) during builds.
-  Access it from the project's context menu:
-
----
-(project context menu) -> Properties -> Maven -> Active Maven Profiles
----
-
-  Enter the Maven profile name(s) to always run,
-  including the integration test profiles such as "derby".
-
-** Using dbunit.properties File
-
-  "dbunit.properties" is useful for environments which make it difficult if
+  The <<<dbunit.properties>>> file is useful for environments which make it difficult if
   not impossible to use Maven's profiles.  For instance, directly running JUnit
   tests within IDEs typically don't use Maven and therefore are not using
   Maven's profiles (which set the the database configuration) and tests fail.
@@ -364,3 +189,22 @@ dbunit.profile.multiLineSupport=true
   <<<src/test/resources>>> has the properties files for each supported database
   (the Maven profiles use them for configuring the tests accordingly).
   They are convenient for simply copying the desired one to dbunit.properties.
+
+* Eclipse / Maven Integration
+
+  The m2e plugin has an "Active Maven Profile" setting in a project's properties which activates the specified profile(s) during builds.
+  Access it from the project's context menu:
+
+---
+(project context menu) -> Properties -> Maven -> Active Maven Profiles
+---
+
+  Enter the Maven profile name(s) to always run,
+  including the integration test profiles such as "postgresql-16".
+
+
+Clean Build
+
+ It's important to occasionally run a clean build to ensure no problems are
+ hidden by existing compiled classes, resource files, or other prior build remnants.
+ Simply run the Maven clean goal: <<<mvnw clean>>>.

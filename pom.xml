@@ -49,7 +49,9 @@
     <cleanPluginVersion>3.0.0</cleanPluginVersion>
     <compilerPluginVersion>3.7.0</compilerPluginVersion>
     <deployPluginVersion>2.8.2</deployPluginVersion>
-    <enforcerPluginVersion>1.4.1</enforcerPluginVersion>
+    <dockerMavenPluginVersion>0.45.1</dockerMavenPluginVersion>
+    <!-- FIXME maven picking 1.2 specified in parent; fix with parent change -->
+    <enforcerPluginVersion>3.5.0</enforcerPluginVersion>
     <failsafePluginVersion>3.2.5</failsafePluginVersion>
     <gpgPluginVersion>1.6</gpgPluginVersion>
     <installPluginVersion>2.5.2</installPluginVersion>
@@ -83,13 +85,14 @@
     <poiVersion>5.2.5</poiVersion>
     <slf4jVersion>1.7.25</slf4jVersion>
     <snakeYamlVersion>2.2</snakeYamlVersion>
-    <xmlParserAPIsVersion>2.6.2</xmlParserAPIsVersion>
+    <xmlparserv2Version>23.7.0.25.01</xmlparserv2Version>
 
     <!-- Database driver versions -->
-    <derbyDriverVersion>10.4.1.3</derbyDriverVersion>
-    <h2DriverVersion>1.1.118</h2DriverVersion>
-    <hsqldbDriverVersion>1.8.0.1</hsqldbDriverVersion>
-    <mysqlDriverVersion>5.1.6</mysqlDriverVersion>
+    <db2DriverVersion>12.1.0.0</db2DriverVersion>
+    <derbyDriverVersion>10.14.2.0</derbyDriverVersion>
+    <h2DriverVersion>1.4.200</h2DriverVersion>
+    <hsqldbDriverVersion>1.8.0.10</hsqldbDriverVersion>
+    <mysqlDriverVersion>8.0.31</mysqlDriverVersion>
     <!-- Oracle JDBC Driver compatible with JDK6, JDK7, and JDK8 -->
     <oracleJ6DriverVersion>11.2.0.4</oracleJ6DriverVersion>
     <!-- Oracle JDBC Driver compatible with JDK8 -->
@@ -100,10 +103,34 @@
     <oracleJ8v19DriverVersion>19.3.0.0</oracleJ8v19DriverVersion>
     <!-- Oracle JDBC Driver compatible with JDK10 and JDK11 -->
     <oracleJ10v19DriverVersion>19.3.0.0</oracleJ10v19DriverVersion>
-    <oracleXdbVersion>19.3.0.0</oracleXdbVersion>
+    <oracleXdbVersion>23.7.0.25.01</oracleXdbVersion>
     <postgresqlDriverVersion>42.7.3</postgresqlDriverVersion>
     <postgisDriverVersion>2023.1.0</postgisDriverVersion>
     <sqlServer41DriverVersion>7.2.1.jre8</sqlServer41DriverVersion>
+
+    <!-- docker images -->
+    <docker.image.name.db2-11>ibmcom/db2:11.5.8.0</docker.image.name.db2-11>
+    <docker.image.name.mssql-2019>mcr.microsoft.com/mssql/server:2019-latest</docker.image.name.mssql-2019>
+    <docker.image.name.mysql.9-20>mysql:9.2.0</docker.image.name.mysql.9-20>
+    <docker.image.name.oracle-18>gvenzl/oracle-xe:18.4.0-faststart</docker.image.name.oracle-18>
+    <docker.image.name.oracle-23>gvenzl/oracle-free:23.6-faststart</docker.image.name.oracle-23>
+    <docker.image.name.postgresql-16>postgres:16.3</docker.image.name.postgresql-16>
+
+    <docker.image.ready.message.db2>Setup has completed.</docker.image.ready.message.db2>
+    <docker.image.ready.message.mssql>SQL Server is now ready for client connections.</docker.image.ready.message.mssql>
+    <docker.image.ready.message.mysql>(?s)Giving user dbunit access to schema dbunit.*mysqld: ready for connections.</docker.image.ready.message.mysql>
+    <docker.image.ready.message.oracle>DATABASE IS READY TO USE!</docker.image.ready.message.oracle>
+    <docker.image.ready.message.postgresql>(?s)database system is shut down.*database system is ready to accept connections</docker.image.ready.message.postgresql>
+
+    <!-- docker image configs -->
+    <database.port.db2>50000</database.port.db2>
+    <database.port.mssql>1433</database.port.mssql>
+    <database.port.mysql>3306</database.port.mysql>
+    <database.port.oracle>1521</database.port.oracle>
+    <database.port.postgresql>5432</database.port.postgresql>
+
+    <!-- docker plugin config -->
+    <docker.plugin.start.wait.time.ms>120000</docker.plugin.start.wait.time.ms>
 
     <!-- Other versions -->
     <wagonSshVersion>3.5.3</wagonSshVersion>
@@ -311,6 +338,11 @@
     <dependencies>
       <!-- databases -->
       <dependency>
+        <groupId>com.ibm.db2</groupId>
+        <artifactId>jcc</artifactId>
+        <version>${db2DriverVersion}</version>
+      </dependency>
+      <dependency>
         <groupId>org.apache.derby</groupId>
         <artifactId>derby</artifactId>
         <version>${derbyDriverVersion}</version>
@@ -320,11 +352,10 @@
         <groupId>com.h2database</groupId>
         <artifactId>h2</artifactId>
         <version>${h2DriverVersion}</version>
-        <!-- Note that the 1.1.113 version is the last one officially built with JDK 1.4 -->
         <scope>test</scope>
       </dependency>
       <dependency>
-        <groupId>hsqldb</groupId>
+        <groupId>org.hsqldb</groupId>
         <artifactId>hsqldb</artifactId>
         <version>${hsqldbDriverVersion}</version>
         <scope>test</scope>
@@ -362,6 +393,12 @@
         <version>${oracleXdbVersion}</version>
         <scope>test</scope>
         <optional>true</optional>
+      </dependency>
+      <dependency>
+        <groupId>com.oracle.database.xml</groupId>
+        <artifactId>xmlparserv2</artifactId>
+        <version>${xmlparserv2Version}</version>
+        <scope>test</scope>
       </dependency>
       <dependency>
         <groupId>org.postgresql</groupId>
@@ -492,7 +529,7 @@
       <artifactId>h2</artifactId>
     </dependency>
     <dependency>
-      <groupId>hsqldb</groupId>
+      <groupId>org.hsqldb</groupId>
       <artifactId>hsqldb</artifactId>
     </dependency>
     <dependency>
@@ -562,12 +599,40 @@
           <version>${deployPluginVersion}</version>
         </plugin>
         <plugin>
+          <groupId>io.fabric8</groupId>
+          <artifactId>docker-maven-plugin</artifactId>
+          <version>${dockerMavenPluginVersion}</version>
+          <configuration>
+            <skip>${dockerMavenPluginSkip}</skip>
+            <startParallel>true</startParallel>
+            <removeVolumes>true</removeVolumes>
+            <showLogs>true</showLogs>
+          </configuration>
+          <executions>
+            <execution>
+              <id>start-database</id>
+              <phase>pre-integration-test</phase>
+              <goals>
+                <goal>stop</goal>
+                <goal>start</goal>
+              </goals>
+            </execution>
+            <execution>
+              <id>stop-database</id>
+              <phase>post-integration-test</phase>
+              <goals>
+                <goal>stop</goal>
+              </goals>
+            </execution>
+          </executions>
+        </plugin>
+        <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-enforcer-plugin</artifactId>
           <version>${enforcerPluginVersion}</version>
           <executions>
             <execution>
-              <id>enforce-versions</id>
+              <id>enforce</id>
               <goals>
                 <goal>enforce</goal>
               </goals>
@@ -589,6 +654,7 @@
               <requirePluginVersions>
                 <phases>compile</phases>
               </requirePluginVersions>
+              <requireProfileIdsExist/>
             </rules>
           </configuration>
         </plugin>
@@ -720,6 +786,7 @@ enable this to generate coverage report HTML files during build (same as site)
           <artifactId>modernizer-maven-plugin</artifactId>
           <version>${modernizer-maven-plugin}</version>
           <configuration>
+            <skip>${modernizerPluginSkip}</skip>
             <javaVersion>${compileSource}</javaVersion>
             <failOnViolations>true</failOnViolations>
           </configuration>
@@ -797,6 +864,7 @@ enable this to generate coverage report HTML files during build (same as site)
           <artifactId>maven-surefire-plugin</artifactId>
           <version>${surefirePluginVersion}</version>
           <configuration>
+            <skipTests>${surefirePluginSkip}</skipTests>
             <argLine>-Duser.timezone=${test.timezone}</argLine>
             <redirectTestOutputToFile>true</redirectTestOutputToFile>
             <excludes>
@@ -1401,30 +1469,26 @@ enable this to generate coverage report HTML files during build (same as site)
 
   <profiles>
     <profile>
-      <!-- include this profile when running ITs to skip unit tests and more -->
-      <id>it-config</id>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>org.gaul</groupId>
-            <artifactId>modernizer-maven-plugin</artifactId>
-            <version>${modernizer-maven-plugin}</version>
-            <configuration>
-              <skip>true</skip>
-            </configuration>
-          </plugin>
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-surefire-plugin</artifactId>
-            <configuration>
-              <skipTests>true</skipTests>
-            </configuration>
-          </plugin>
-        </plugins>
-      </build>
+      <id>oracle-default</id>
+      <activation>
+        <activeByDefault>true</activeByDefault>
+      </activation>
+      <dependencies>
+        <dependency>
+          <groupId>com.oracle.database.jdbc</groupId>
+          <artifactId>ojdbc8</artifactId>
+        </dependency>
+      </dependencies>
     </profile>
+
+    <!-- non-Docker DBs -->
+
     <profile>
-      <id>derby</id>
+      <id>derby-10-14</id>
+      <properties>
+        <surefirePluginSkip>true</surefirePluginSkip>
+        <modernizerPluginSkip>true</modernizerPluginSkip>
+      </properties>
       <build>
         <plugins>
           <plugin>
@@ -1450,10 +1514,15 @@ enable this to generate coverage report HTML files during build (same as site)
       </dependencies>
     </profile>
     <profile>
-      <id>hsqldb</id>
+      <id>hsqldb-1-8</id>
       <activation>
         <activeByDefault>true</activeByDefault>
       </activation>
+      <!-- this profile used for default build which is unit tests, so false to have them run -->
+      <properties>
+        <surefirePluginSkip>false</surefirePluginSkip>
+        <modernizerPluginSkip>false</modernizerPluginSkip>
+      </properties>
       <build>
         <plugins>
           <plugin>
@@ -1475,7 +1544,11 @@ enable this to generate coverage report HTML files during build (same as site)
       </dependencies>
     </profile>
     <profile>
-      <id>h2</id>
+      <id>h2-1-4</id>
+      <properties>
+        <surefirePluginSkip>true</surefirePluginSkip>
+        <modernizerPluginSkip>true</modernizerPluginSkip>
+      </properties>
       <build>
         <plugins>
           <plugin>
@@ -1500,22 +1573,15 @@ enable this to generate coverage report HTML files during build (same as site)
         </dependency>
       </dependencies>
     </profile>
+
+    <!-- Docker DBs -->
+
     <profile>
-      <!-- FIXME needs driver and other properties set -->
-      <id>oracle-default</id>
-      <activation>
-        <activeByDefault>true</activeByDefault>
-      </activation>
-      <dependencies>
-        <dependency>
-          <groupId>com.oracle.database.jdbc</groupId>
-          <artifactId>ojdbc8</artifactId>
-        </dependency>
-      </dependencies>
-    </profile>
-    <profile>
-      <!-- "original" OracleDataTypeFactory (NOT 10g) with Oracle 11 JDBC driver for Java 6-8 -->
-      <id>oracle-ojdbc6</id>
+      <id>db2-11-5</id>
+      <properties>
+        <surefirePluginSkip>true</surefirePluginSkip>
+        <modernizerPluginSkip>true</modernizerPluginSkip>
+      </properties>
       <build>
         <plugins>
           <plugin>
@@ -1523,178 +1589,42 @@ enable this to generate coverage report HTML files during build (same as site)
             <artifactId>properties-maven-plugin</artifactId>
             <configuration>
               <urls>
-                <url>file:///${basedir}/src/test/resources/oracle6-dbunit.properties</url>
+                <url>file:///${basedir}/src/test/resources/db2-dbunit.properties</url>
               </urls>
             </configuration>
           </plugin>
-        </plugins>
-      </build>
-      <dependencies>
-        <dependency>
-          <groupId>com.oracle.database.jdbc</groupId>
-          <artifactId>ojdbc6</artifactId>
-        </dependency>
-        <dependency>
-          <groupId>com.oracle.database.xml</groupId>
-          <artifactId>xdb</artifactId>
-        </dependency>
-      </dependencies>
-    </profile>
-    <profile>
-      <!-- "original" OracleDataTypeFactory (NOT 10g) with Oracle 11 JDBC driver for Java 8 -->
-      <id>oracle-ojdbc8</id>
-      <build>
-        <plugins>
           <plugin>
-            <groupId>org.codehaus.mojo</groupId>
-            <artifactId>properties-maven-plugin</artifactId>
+            <groupId>io.fabric8</groupId>
+            <artifactId>docker-maven-plugin</artifactId>
             <configuration>
-              <urls>
-                <url>file:///${basedir}/src/test/resources/oracle-dbunit.properties</url>
-              </urls>
+              <images>
+                <image>
+                  <name>${docker.image.name.db2-11}</name>
+                  <run>
+                    <ports>
+                      <port>${database.port.db2}:50000</port>
+                    </ports>
+                    <env>
+                      <DBNAME>${dbunit.profile.user}</DBNAME>
+                      <DB2INST1_PASSWORD>${dbunit.profile.password}</DB2INST1_PASSWORD>
+                      <LICENSE>accept</LICENSE>
+                    </env>
+                    <wait>
+                      <log>${docker.image.ready.message.db2}</log>
+                      <!-- DB2 has extra slow startup, needs long wait -->
+                      <time>300000</time>
+                    </wait>
+                  </run>
+                </image>
+              </images>
             </configuration>
           </plugin>
         </plugins>
       </build>
       <dependencies>
         <dependency>
-          <groupId>com.oracle.database.jdbc</groupId>
-          <artifactId>ojdbc8</artifactId>
-        </dependency>
-        <dependency>
-          <groupId>com.oracle.database.xml</groupId>
-          <artifactId>xdb</artifactId>
-        </dependency>
-      </dependencies>
-    </profile>
-    <profile>
-      <!-- "newer" Oracle10DataTypeFactory with current Oracle 11 JDBC driver for Java 8 -->
-      <id>oracle10-ojdbc8</id>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>org.codehaus.mojo</groupId>
-            <artifactId>properties-maven-plugin</artifactId>
-            <configuration>
-              <urls>
-                <url>file:///${basedir}/src/test/resources/oracle10-dbunit.properties</url>
-              </urls>
-            </configuration>
-          </plugin>
-        </plugins>
-      </build>
-      <dependencies>
-        <dependency>
-          <groupId>com.oracle.database.jdbc</groupId>
-          <artifactId>ojdbc8</artifactId>
-        </dependency>
-        <dependency>
-          <groupId>com.oracle.database.xml</groupId>
-          <artifactId>xdb</artifactId>
-        </dependency>
-      </dependencies>
-    </profile>
-    <profile>
-      <!-- "newer" Oracle10DataTypeFactory with older Oracle 11 JDBC driver for Java 8 -->
-      <id>oracle10-ojdbc8v12</id>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>org.codehaus.mojo</groupId>
-            <artifactId>properties-maven-plugin</artifactId>
-            <configuration>
-              <urls>
-                <url>file:///${basedir}/src/test/resources/oracle10-dbunit.properties</url>
-              </urls>
-            </configuration>
-          </plugin>
-        </plugins>
-      </build>
-      <dependencies>
-        <dependency>
-          <groupId>com.oracle.database.jdbc</groupId>
-          <artifactId>ojdbc8</artifactId>
-          <version>${oracleJ8v12DriverVersion}</version>
-          <optional>true</optional>
-        </dependency>
-        <dependency>
-          <groupId>com.oracle.database.xml</groupId>
-          <artifactId>xdb</artifactId>
-        </dependency>
-      </dependencies>
-    </profile>
-    <profile>
-      <!-- "newer" Oracle10DataTypeFactory with current Oracle 11 JDBC driver for Java 10 -->
-      <id>oracle10-ojdbc10</id>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>org.codehaus.mojo</groupId>
-            <artifactId>properties-maven-plugin</artifactId>
-            <configuration>
-              <urls>
-                <url>file:///${basedir}/src/test/resources/oracle10-dbunit.properties</url>
-              </urls>
-            </configuration>
-          </plugin>
-        </plugins>
-      </build>
-      <dependencies>
-        <dependency>
-          <groupId>com.oracle.database.jdbc</groupId>
-          <artifactId>ojdbc10</artifactId>
-        </dependency>
-        <dependency>
-          <groupId>com.oracle.database.xml</groupId>
-          <artifactId>xdb</artifactId>
-        </dependency>
-      </dependencies>
-    </profile>
-    <profile>
-      <id>postgresql</id>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>org.codehaus.mojo</groupId>
-            <artifactId>properties-maven-plugin</artifactId>
-            <configuration>
-              <urls>
-                <url>file:///${basedir}/src/test/resources/postgresql-dbunit.properties</url>
-              </urls>
-            </configuration>
-          </plugin>
-        </plugins>
-      </build>
-      <dependencies>
-        <dependency>
-          <groupId>org.postgresql</groupId>
-          <artifactId>postgresql</artifactId>
-        </dependency>
-        <dependency>
-          <groupId>com.oracle.database.jdbc</groupId>
-          <artifactId>ojdbc8</artifactId>
-        </dependency>
-      </dependencies>
-    </profile>
-    <profile>
-      <id>mysql</id>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>org.codehaus.mojo</groupId>
-            <artifactId>properties-maven-plugin</artifactId>
-            <configuration>
-              <urls>
-                <url>file:///${basedir}/src/test/resources/mysql-dbunit.properties</url>
-              </urls>
-            </configuration>
-          </plugin>
-        </plugins>
-      </build>
-      <dependencies>
-        <dependency>
-          <groupId>mysql</groupId>
-          <artifactId>mysql-connector-java</artifactId>
+          <groupId>com.ibm.db2</groupId>
+          <artifactId>jcc</artifactId>
         </dependency>
         <dependency>
           <groupId>com.oracle.database.jdbc</groupId>
@@ -1704,6 +1634,10 @@ enable this to generate coverage report HTML files during build (same as site)
     </profile>
     <profile>
       <id>mssql41</id>
+      <properties>
+        <surefirePluginSkip>true</surefirePluginSkip>
+        <modernizerPluginSkip>true</modernizerPluginSkip>
+      </properties>
       <build>
         <plugins>
           <plugin>
@@ -1729,7 +1663,11 @@ enable this to generate coverage report HTML files during build (same as site)
       </dependencies>
     </profile>
     <profile>
-      <id>mssql2019</id>
+      <id>mssql-2019</id>
+      <properties>
+        <surefirePluginSkip>true</surefirePluginSkip>
+        <modernizerPluginSkip>true</modernizerPluginSkip>
+      </properties>
       <build>
         <plugins>
           <plugin>
@@ -1739,6 +1677,31 @@ enable this to generate coverage report HTML files during build (same as site)
               <urls>
                 <url>file:///${basedir}/src/test/resources/mssql2019-dbunit.properties</url>
               </urls>
+            </configuration>
+          </plugin>
+          <plugin>
+            <groupId>io.fabric8</groupId>
+            <artifactId>docker-maven-plugin</artifactId>
+            <configuration>
+              <images>
+                <image>
+                  <name>${docker.image.name.mssql-2019}</name>
+                  <run>
+                    <ports>
+                      <port>${database.port.mssql}:1433</port>
+                    </ports>
+                    <env>
+                      <ACCEPT_EULA>Y</ACCEPT_EULA>
+                      <MSSQL_SA_PASSWORD>${dbunit.profile.password}</MSSQL_SA_PASSWORD>
+                      <MSSQL_PID>Express</MSSQL_PID>
+                    </env>
+                    <wait>
+                      <log>${docker.image.ready.message.mssql}</log>
+                      <time>${docker.plugin.start.wait.time.ms}</time>
+                    </wait>
+                  </run>
+                </image>
+              </images>
             </configuration>
           </plugin>
         </plugins>
@@ -1755,7 +1718,11 @@ enable this to generate coverage report HTML files during build (same as site)
       </dependencies>
     </profile>
     <profile>
-      <id>db2</id>
+      <id>mysql-9-20</id>
+      <properties>
+        <surefirePluginSkip>true</surefirePluginSkip>
+        <modernizerPluginSkip>true</modernizerPluginSkip>
+      </properties>
       <build>
         <plugins>
           <plugin>
@@ -1763,14 +1730,221 @@ enable this to generate coverage report HTML files during build (same as site)
             <artifactId>properties-maven-plugin</artifactId>
             <configuration>
               <urls>
-                <url>file:///${basedir}/src/test/resources/db2-dbunit.properties</url>
+                <url>file:///${basedir}/src/test/resources/mysql-dbunit.properties</url>
               </urls>
+            </configuration>
+          </plugin>
+          <plugin>
+            <groupId>io.fabric8</groupId>
+            <artifactId>docker-maven-plugin</artifactId>
+            <configuration>
+              <images>
+                <image>
+                  <name>${docker.image.name.mysql.9-20}</name>
+                  <run>
+                    <ports>
+                      <port>${database.port.mysql}:3306</port>
+                    </ports>
+                    <env>
+                      <MYSQL_ROOT_PASSWORD>${dbunit.profile.password}</MYSQL_ROOT_PASSWORD>
+                      <MYSQL_DATABASE>${dbunit.profile.user}</MYSQL_DATABASE>
+                      <MYSQL_USER>${dbunit.profile.user}</MYSQL_USER>
+                      <MYSQL_PASSWORD>${dbunit.profile.password}</MYSQL_PASSWORD>
+                      <TZ>America/Chicago</TZ>
+                    </env>
+                    <wait>
+                      <log>${docker.image.ready.message.mysql}</log>
+                      <time>${docker.plugin.start.wait.time.ms}</time>
+                    </wait>
+                  </run>
+                </image>
+              </images>
             </configuration>
           </plugin>
         </plugins>
       </build>
-      <!-- JH_TODO: db2 dependencies -->
       <dependencies>
+        <dependency>
+          <groupId>mysql</groupId>
+          <artifactId>mysql-connector-java</artifactId>
+        </dependency>
+        <dependency>
+          <groupId>com.oracle.database.jdbc</groupId>
+          <artifactId>ojdbc8</artifactId>
+        </dependency>
+      </dependencies>
+    </profile>
+    <profile>
+      <id>oracle-18</id>
+      <properties>
+        <surefirePluginSkip>true</surefirePluginSkip>
+        <modernizerPluginSkip>true</modernizerPluginSkip>
+      </properties>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>properties-maven-plugin</artifactId>
+            <configuration>
+              <urls>
+                <url>file:///${basedir}/src/test/resources/oracle-xe-dbunit.properties</url>
+              </urls>
+            </configuration>
+          </plugin>
+          <plugin>
+            <groupId>io.fabric8</groupId>
+            <artifactId>docker-maven-plugin</artifactId>
+            <configuration>
+              <images>
+                <image>
+                  <name>${docker.image.name.oracle-18}</name>
+                  <run>
+                    <ports>
+                      <port>${database.port.oracle}:1521</port>
+                    </ports>
+                    <env>
+                      <TZ>America/Chicago</TZ>
+                      <ORACLE_PASSWORD>${dbunit.profile.password}</ORACLE_PASSWORD>
+                      <APP_USER>${dbunit.profile.user}</APP_USER>
+                      <APP_USER_PASSWORD>${dbunit.profile.password}</APP_USER_PASSWORD>
+                    </env>
+                    <wait>
+                      <log>${docker.image.ready.message.oracle}</log>
+                      <time>${docker.plugin.start.wait.time.ms}</time>
+                    </wait>
+                  </run>
+                </image>
+              </images>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+      <dependencies>
+        <dependency>
+          <groupId>com.oracle.database.jdbc</groupId>
+          <artifactId>ojdbc8</artifactId>
+        </dependency>
+        <dependency>
+          <groupId>com.oracle.database.xml</groupId>
+          <artifactId>xdb</artifactId>
+        </dependency>
+        <dependency>
+          <groupId>com.oracle.database.xml</groupId>
+          <artifactId>xmlparserv2</artifactId>
+        </dependency>
+      </dependencies>
+    </profile>
+    <profile>
+      <id>oracle-23</id>
+      <properties>
+        <surefirePluginSkip>true</surefirePluginSkip>
+        <modernizerPluginSkip>true</modernizerPluginSkip>
+      </properties>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>properties-maven-plugin</artifactId>
+            <configuration>
+              <urls>
+                <url>file:///${basedir}/src/test/resources/oracle-free-dbunit.properties</url>
+              </urls>
+            </configuration>
+          </plugin>
+          <plugin>
+            <groupId>io.fabric8</groupId>
+            <artifactId>docker-maven-plugin</artifactId>
+            <configuration>
+              <images>
+                <image>
+                  <name>${docker.image.name.oracle-23}</name>
+                  <run>
+                    <ports>
+                      <port>${database.port.oracle}:1521</port>
+                    </ports>
+                    <env>
+                      <TZ>America/Chicago</TZ>
+                      <ORACLE_PASSWORD>${dbunit.profile.password}</ORACLE_PASSWORD>
+                      <APP_USER>${dbunit.profile.user}</APP_USER>
+                      <APP_USER_PASSWORD>${dbunit.profile.password}</APP_USER_PASSWORD>
+                    </env>
+                    <wait>
+                      <log>${docker.image.ready.message.oracle}</log>
+                      <time>${docker.plugin.start.wait.time.ms}</time>
+                    </wait>
+                  </run>
+                </image>
+              </images>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+      <dependencies>
+        <dependency>
+          <groupId>com.oracle.database.jdbc</groupId>
+          <artifactId>ojdbc8</artifactId>
+        </dependency>
+        <dependency>
+          <groupId>com.oracle.database.xml</groupId>
+          <artifactId>xdb</artifactId>
+        </dependency>
+        <dependency>
+          <groupId>com.oracle.database.xml</groupId>
+          <artifactId>xmlparserv2</artifactId>
+        </dependency>
+      </dependencies>
+    </profile>
+    <profile>
+      <id>postgresql-16</id>
+      <properties>
+        <surefirePluginSkip>true</surefirePluginSkip>
+        <modernizerPluginSkip>true</modernizerPluginSkip>
+      </properties>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>properties-maven-plugin</artifactId>
+            <configuration>
+              <urls>
+                <url>file:///${basedir}/src/test/resources/postgresql-dbunit.properties</url>
+              </urls>
+            </configuration>
+          </plugin>
+          <plugin>
+            <groupId>io.fabric8</groupId>
+            <artifactId>docker-maven-plugin</artifactId>
+            <configuration>
+              <images>
+                <image>
+                  <name>${docker.image.name.postgresql-16}</name>
+                  <run>
+                    <ports>
+                      <port>${database.port.postgresql}:5432</port>
+                    </ports>
+                    <env>
+                      <POSTGRES_USER>${dbunit.profile.user}</POSTGRES_USER>
+                      <POSTGRES_PASSWORD>${dbunit.profile.password}</POSTGRES_PASSWORD>
+                    </env>
+                    <tmpfs>
+                      <mount>/var/lib/postgresql/data:rw</mount>
+                    </tmpfs>
+                    <wait>
+                      <log>${docker.image.ready.message.postgresql}</log>
+                      <time>${docker.plugin.start.wait.time.ms}</time>
+                    </wait>
+                  </run>
+                </image>
+              </images>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+      <dependencies>
+        <dependency>
+          <groupId>org.postgresql</groupId>
+          <artifactId>postgresql</artifactId>
+        </dependency>
         <dependency>
           <groupId>com.oracle.database.jdbc</groupId>
           <artifactId>ojdbc8</artifactId>
