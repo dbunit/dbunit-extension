@@ -116,7 +116,7 @@ public class SampleTest
              <td>uses a configurable IDatabaseTester (allowing any connection type) providing a turn-key test setup and verification process in one, with clear separation of prep and expected datasets.</td></tr>
       </table>
       <p>
-      Refer to <a href="/testcases.html">dbUnit Test Cases</a> page for more details.
+      Refer to <a href="testcases.html">dbUnit Test Cases</a> page for more details.
       </p>
       <p>
       The following is a sample implementation that returns a connection to a Hypersonic

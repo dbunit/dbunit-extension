@@ -155,7 +155,7 @@
           </td>
         </tr>
         <tr> 
-          <td><a name="yamldataset" href="apidocs/org/dbunit/dataset/xml/YamlDataSet.html">YamlDataSet</a></td>
+          <td><a name="yamldataset" href="apidocs/org/dbunit/dataset/yaml/YamlDataSet.html">YamlDataSet</a></td>
           <td>
        Reads and writes Yaml dataset documents. Each toplevel key corresponds to a table, where the value
        is a list of rows. Each row is a sequence of key:value pairs, where the key corresponds to the table
@@ -179,7 +179,7 @@ EMPTY_TABLE:]]></source>
           </td>
         </tr>
         <tr>
-          <td><a name="streamingdataset" href="apidocs/org/dbunit/database/StreamingDataSet.html">StreamingDataSet</a></td>
+          <td><a name="streamingdataset" href="apidocs/org/dbunit/dataset/stream/StreamingDataSet.html">StreamingDataSet</a></td>
           <td>Consumes a producer and expose its content as a dataset. Provides cursor like forward only access to it and only keeps the active row in memory. Can be used with FlatXmlProducer and XmlProvider.
 <br/>
 This is a very efficient way to load XML dataset document when working with forward only database operations (UPDATE, INSERT, REFRESH).
@@ -401,42 +401,42 @@ dataset = new TableDecoratorDataSet(dataset, table -> new ColumnFilterTable(tabl
     </section>
     <section name="ValueComparer" id="valuecomparer">
       <p>
-      <a name="ValueComparer" href="/apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html">ValueComparer</a>
+      <a name="ValueComparer" href="apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html">ValueComparer</a>
       is a strategy for comparing values, a data comparison definition.
       </p>
       <p>
-      <a name="VerifyTableDefinition" href="/apidocs/org/dbunit/VerifyTableDefinition.html">VerifyTableDefinition</a>
+      <a name="VerifyTableDefinition" href="apidocs/org/dbunit/VerifyTableDefinition.html">VerifyTableDefinition</a>
       directly supports using 
-      <a name="ValueComparer" href="/apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html">ValueComparer</a>
+      <a name="ValueComparer" href="apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html">ValueComparer</a>
       in the definition..
       </p>
       <p>
       Refer to 
-      <a name="Data_Comparisons" href="/datacomparisons.html">Data Comparisons</a>
+      <a name="Data_Comparisons" href="datacomparisons.html">Data Comparisons</a>
       for more information.
       </p>
       <subsection name="ValueComparers" id="valuecomparers">
       <p>
-      <a name="ValueComparers" href="/apidocs/org/dbunit/assertion/comparer/value/ValueComparers.html">ValueComparers</a>
+      <a name="ValueComparers" href="apidocs/org/dbunit/assertion/comparer/value/ValueComparers.html">ValueComparers</a>
       is a class of static 
-      <a name="ValueComparer" href="/apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html">ValueComparer</a>
+      <a name="ValueComparer" href="apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html">ValueComparer</a>
       instances.
       Please create a feature request for new
-      <a name="ValueComparer" href="/apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html">ValueComparer</a>
+      <a name="ValueComparer" href="apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html">ValueComparer</a>
       ideas we can add to this class.
       </p>
       </subsection>
     </section>
     <section name="VerifyTableDefinition" id="verifytabledefinition">
       <p>
-      <a name="VerifyTableDefinition" href="/apidocs/org/dbunit/VerifyTableDefinition.html">VerifyTableDefinition</a>
+      <a name="VerifyTableDefinition" href="apidocs/org/dbunit/VerifyTableDefinition.html">VerifyTableDefinition</a>
       defines a database table to verify (assert on data), specifying include and exclude column filters and optional
-      <a name="ValueComparer" href="/apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html">ValueComparer</a>s.
+      <a name="ValueComparer" href="apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html">ValueComparer</a>s.
       </p>
       <p>
-      <a name="PrepAndExpectedTestCase" href="/apidocs/org/dbunit/PrepAndExpectedTestCase.html">PrepAndExpectedTestCase</a>
+      <a name="PrepAndExpectedTestCase" href="apidocs/org/dbunit/PrepAndExpectedTestCase.html">PrepAndExpectedTestCase</a>
       directly supports using 
-      <a name="VerifyTableDefinition" href="/apidocs/org/dbunit/VerifyTableDefinition.html">VerifyTableDefinition</a>s
+      <a name="VerifyTableDefinition" href="apidocs/org/dbunit/VerifyTableDefinition.html">VerifyTableDefinition</a>s
       in the test definition and execution.
       </p>
     </section>
