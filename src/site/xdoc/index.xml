@@ -33,6 +33,7 @@
 
     <section name="News">
       <table border="1">
+<!--
         <tr>
           <td>TBD</td>
           <td> 
@@ -42,6 +43,17 @@
             the <a href="https://sourceforge.net/p/dbunit/feature-requests/milestone/3.0.0/">feature list</a>,
             and the <a href="https://sourceforge.net/p/dbunit/bugs/fixed_release/3.0.0/">bug list</a>
             for the snapshot contents (and any subsequent updates).
+          </td>
+        </tr>
+-->
+        <tr>
+          <td>2025-01-25</td>
+          <td> 
+            Release 3.0.0 available.
+            Refer to the <a href="changes-report.html#a3.0.0">changes report</a>,
+            the <a href="https://sourceforge.net/p/dbunit/feature-requests/milestone/3.0.0/">feature list</a>,
+            and the <a href="https://sourceforge.net/p/dbunit/bugs/fixed_release/3.0.0/">bug list</a>
+            for the release contents.
           </td>
         </tr>
         <tr>
