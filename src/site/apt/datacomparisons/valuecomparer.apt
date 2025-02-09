@@ -9,8 +9,8 @@ ValueComparer Comparison
 
 * Overview
 
- Introduced in {{{/changes-report.html#a2.6.0}Release 2.6.0}}, the
- {{{/apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html}ValueComparer}}
+ Introduced in {{{/dbunit/changes-report.html#a2.6.0}Release 2.6.0}}, the
+ {{{/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html}ValueComparer}}
  is a strategy interface enabling any type of comparison, not only equality.
 
  It enables comparing difficult-to-compare column values such as:
@@ -36,64 +36,64 @@ ValueComparer Comparison
  This flexibility and power has slightly more complex usage than equality comparison.
 
  To use
- {{{/apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html}ValueComparer}}
+ {{{/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html}ValueComparer}}
  comparison,
  the dbUnit dataset files do not change.
  Instead, the tests use dbUnit assert methods that work with
-  {{{/apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html}ValueComparer}}s.
+  {{{/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html}ValueComparer}}s.
 
 ** Core ValueComparer Classes
 
  Package
- {{{/apidocs/org/dbunit/assertion/comparer/value/package-summary.html}org.dbunit.assertion.comparer.value}}
+ {{{/dbunit/apidocs/org/dbunit/assertion/comparer/value/package-summary.html}org.dbunit.assertion.comparer.value}}
  contains the 
- {{{/apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html}ValueComparer}}
+ {{{/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html}ValueComparer}}
  implementations and related interfaces/classes.
 
  The
- {{{/apidocs/org/dbunit/assertion/comparer/value/ValueComparers.html}ValueComparers}}
+ {{{/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparers.html}ValueComparers}}
  class has singleton instances of the ones provided by dbUnit
  plus pre-configured variances (e.g.
- {{{/apidocs/org/dbunit/assertion/comparer/value/ValueComparers.html#isActualWithinOneMinuteNewerOfExpectedTimestamp}isActualWithinOneMinuteNewerOfExpectedTimestamp}}).
+ {{{/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparers.html#isActualWithinOneMinuteNewerOfExpectedTimestamp}isActualWithinOneMinuteNewerOfExpectedTimestamp}}).
  Start with these as they provide for most comparison needs.
 
  It is easy to add your own implementations of the
- {{{/apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html}ValueComparer}}
+ {{{/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html}ValueComparer}}
  interface,
  either directly or using base classes such as 
- {{{/apidocs/org/dbunit/assertion/comparer/value/ValueComparerBase.html}ValueComparerBase}}
+ {{{/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparerBase.html}ValueComparerBase}}
  and
- {{{/apidocs/org/dbunit/assertion/comparer/value/ValueComparerTemplateBase.html}ValueComparerTemplateBase}}.
+ {{{/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparerTemplateBase.html}ValueComparerTemplateBase}}.
  
  Please let us know of comparison needs not handled by the
- {{{/apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html}ValueComparer}}
+ {{{/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html}ValueComparer}}
  implementations and
- {{{/apidocs/org/dbunit/assertion/comparer/value/ValueComparers.html}ValueComparers}}
+ {{{/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparers.html}ValueComparers}}
  instances as maybe we should add it to dbUnit.
 
 ** Assert with ValueComparer Classes
 
  The
- {{{/apidocs/org/dbunit/Assertion.html}Assertion}}
+ {{{/dbunit/apidocs/org/dbunit/Assertion.html}Assertion}}
  and
- {{{/apidocs/org/dbunit/assertion/DbUnitValueComparerAssert.html}DbUnitValueComparerAssert}}
+ {{{/dbunit/apidocs/org/dbunit/assertion/DbUnitValueComparerAssert.html}DbUnitValueComparerAssert}}
  classes have assertWithValueComparer() methods for the 
- {{{/apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html}ValueComparer}}
+ {{{/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html}ValueComparer}}
  comparisons.
  See
- {{{/xref-test/org/dbunit/assertion/DbUnitValueComparerAssertIT.html}DbUnitValueComparerAssertIT}}
+ {{{/dbunit/xref-test/org/dbunit/assertion/DbUnitValueComparerAssertIT.html}DbUnitValueComparerAssertIT}}
  for examples using
- {{{/apidocs/org/dbunit/assertion/DbUnitValueComparerAssert.html}DbUnitValueComparerAssert}}.
+ {{{/dbunit/apidocs/org/dbunit/assertion/DbUnitValueComparerAssert.html}DbUnitValueComparerAssert}}.
 
 ** TestCase with ValueComparer Classes
 
- {{{/apidocs/org/dbunit/PrepAndExpectedTestCase.html}PrepAndExpectedTestCase}}
+ {{{/dbunit/apidocs/org/dbunit/PrepAndExpectedTestCase.html}PrepAndExpectedTestCase}}
  directly supports 
- {{{/apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html}ValueComparer}}
+ {{{/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html}ValueComparer}}
  in addition to equality comparison via
- {{{/apidocs/org/dbunit/VerifyTableDefinition.html}VerifyTableDefinition}}.
+ {{{/dbunit/apidocs/org/dbunit/VerifyTableDefinition.html}VerifyTableDefinition}}.
  See
- {{{/testcases/PrepAndExpectedTestCase.html}PrepAndExpectedTestCase overview}}
+ {{{/dbunit/testcases/PrepAndExpectedTestCase.html}PrepAndExpectedTestCase overview}}
  for examples with it.
 
 * Example
@@ -107,7 +107,7 @@ ValueComparer Comparison
  and the column value comparers map for comparing specified columns.
 
  It uses the value comparer instances defined on the
- {{{/apidocs/org/dbunit/assertion/comparer/value/ValueComparers.html}ValueComparers}}
+ {{{/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparers.html}ValueComparers}}
  class.
 
 +--

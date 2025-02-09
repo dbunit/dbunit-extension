@@ -7,9 +7,9 @@ Jeff Jensen
 
 Overview
 
- {{{/apidocs/org/dbunit/PrepAndExpectedTestCase.html}PrepAndExpectedTestCase}},
+ {{{/dbunit/apidocs/org/dbunit/PrepAndExpectedTestCase.html}PrepAndExpectedTestCase}},
  and its default implementation 
- {{{/apidocs/org/dbunit/DefaultPrepAndExpectedTestCase.html}DefaultPrepAndExpectedTestCase}}, 
+ {{{/dbunit/apidocs/org/dbunit/DefaultPrepAndExpectedTestCase.html}DefaultPrepAndExpectedTestCase}}, 
  is a test case formally supporting prep data and expected data concepts and
  definitions.
 
@@ -17,7 +17,7 @@ Overview
 
   [Expected data] is the data to compare with one or more database tables verifying the test ran successfully.
 
- {{{/apidocs/org/dbunit/PrepAndExpectedTestCase.html}PrepAndExpectedTestCase}}
+ {{{/dbunit/apidocs/org/dbunit/PrepAndExpectedTestCase.html}PrepAndExpectedTestCase}}
  easily allows defining which are the setup datasets (prep) and
  the verify datasets (expected).
 
@@ -28,7 +28,7 @@ Overview
  [[1]] Runs the test steps (if specified as a runTest() PrepAndExpectedTestCaseSteps parameter)
 
  [[1]] Verifies table state matches the expected datasets for the specified
-   {{{/apidocs/org/dbunit/VerifyTableDefinition.html}VerifyTableDefinition}}s
+   {{{/dbunit/apidocs/org/dbunit/VerifyTableDefinition.html}VerifyTableDefinition}}s
 
  [[1]] Cleans up the tables listed in the prep and expected datasets
    (per the configured teardown operation)
@@ -48,20 +48,20 @@ private PrepAndExpectedTestCase testCase;
 
   Create it by configuring an instance of its interface
   (start with
-  {{{/apidocs/org/dbunit/DefaultPrepAndExpectedTestCase.html}DefaultPrepAndExpectedTestCase}}
+  {{{/dbunit/apidocs/org/dbunit/DefaultPrepAndExpectedTestCase.html}DefaultPrepAndExpectedTestCase}}
   and extend & override if necessary),
   injecting a 
-  {{{/apidocs/org/dbunit/IDatabaseTester.html}IDatabaseTester}}
+  {{{/dbunit/apidocs/org/dbunit/IDatabaseTester.html}IDatabaseTester}}
   and a
-  {{{/apidocs/org/dbunit/util/fileloader/DataFileLoader.html}DataFileLoader}}
+  {{{/dbunit/apidocs/org/dbunit/util/fileloader/DataFileLoader.html}DataFileLoader}}
   using the databaseTester and a dataFileLoader properties
   (see {{{#Configuration_Example_Using_Spring}Configuration Example Using Spring}} below).
 
   [[1]]Extend it in a test class.
   Obtain
-  {{{/apidocs/org/dbunit/IDatabaseTester.html}IDatabaseTester}}
+  {{{/dbunit/apidocs/org/dbunit/IDatabaseTester.html}IDatabaseTester}}
   and
-  {{{/apidocs/org/dbunit/util/fileloader/DataFileLoader.html}DataFileLoader}}
+  {{{/dbunit/apidocs/org/dbunit/util/fileloader/DataFileLoader.html}DataFileLoader}}
   instances (possibly dependency
   injecting them into the test class) and set them accordingly, probably in a
   setup type of method, such as:
@@ -77,13 +77,13 @@ public void setDbunitTestDependencies()
 
 * Run Tests
 
- {{{/apidocs/org/dbunit/PrepAndExpectedTestCase.html}PrepAndExpectedTestCase}}
+ {{{/dbunit/apidocs/org/dbunit/PrepAndExpectedTestCase.html}PrepAndExpectedTestCase}}
  has two ways to setup, execute, and clean up tests:
 
   [[1]] Encapsulate the test steps in
-  {{{/apidocs/org/dbunit/PrepAndExpectedTestCaseSteps.html}PrepAndExpectedTestCaseSteps}}
+  {{{/dbunit/apidocs/org/dbunit/PrepAndExpectedTestCaseSteps.html}PrepAndExpectedTestCaseSteps}}
   and call the runTest() method.
-  Note, this requires {{{/changes-report.html#a2.5.2}Release 2.5.2}} and newer.
+  Note, this requires {{{/dbunit/changes-report.html#a2.5.2}Release 2.5.2}} and newer.
 
   [[1]] Call the configureTest(), preTest(),
   and postTest() methods. Note there is a preTest() convenience method that
@@ -103,9 +103,9 @@ public void setDbunitTestDependencies()
 Configuration Example Using Spring
 
  The following configuration shows customizing
- {{{/apidocs/org/dbunit/database/DatabaseConfig.html}DatabaseConfig}} and
+ {{{/dbunit/apidocs/org/dbunit/database/DatabaseConfig.html}DatabaseConfig}} and
  enables dependency injecting the created
- {{{/apidocs/org/dbunit/PrepAndExpectedTestCase.html}PrepAndExpectedTestCase}}.
+ {{{/dbunit/apidocs/org/dbunit/PrepAndExpectedTestCase.html}PrepAndExpectedTestCase}}.
 
 +--
 @Configuration
@@ -385,31 +385,31 @@ public abstract class VerifyTableDefinitions
 *** Test-Specific VerifyTableDefinitions
 
  The above VerifyTableDefinitions example class used static
- {{{/apidocs/org/dbunit/VerifyTableDefinition.html}VerifyTableDefinition}}
+ {{{/dbunit/apidocs/org/dbunit/VerifyTableDefinition.html}VerifyTableDefinition}}
  instances.
  Some
- {{{/apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html}ValueComparer}}s
+ {{{/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html}ValueComparer}}s
  require test-specific values
  so static instances won't work when reused across tests.
  In these cases, make a parameterized
- {{{/apidocs/org/dbunit/VerifyTableDefinition.html}VerifyTableDefinition}}
+ {{{/dbunit/apidocs/org/dbunit/VerifyTableDefinition.html}VerifyTableDefinition}}
  factory method to take the needed values.
 
  For example,
  a test may need to specify a different set of "in values"
  than other tests,
  such as with the
- {{{/apidocs/org/dbunit/assertion/comparer/value/ConditionalSetBiValueComparer.html}ConditionalSetBiValueComparer}}.
+ {{{/dbunit/apidocs/org/dbunit/assertion/comparer/value/ConditionalSetBiValueComparer.html}ConditionalSetBiValueComparer}}.
  It uses a 
- {{{/apidocs/org/dbunit/assertion/comparer/value/ValueFactory.html}ValueFactory}}
+ {{{/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueFactory.html}ValueFactory}}
  to determine which of two 
- {{{/apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html}ValueComparer}}s
+ {{{/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html}ValueComparer}}s
  to use for each table row,
  so make a factory method with the needed values parameters.
 
  The following example's factory method takes a list of IDs (called "in values")
  for a column's values requiring a different
- {{{/apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html}ValueComparer}}
+ {{{/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html}ValueComparer}}
  than the rest of the rows (called "not in values").
  Comparing columns happens as configured:
 
@@ -584,10 +584,10 @@ Sharing Common (but not all) Prep or Expected Data Among Test Methods
 
 Java 8+ and Anonymous Interfaces
 
- {{{/changes-report.html#a2.5.2}Release 2.5.2}} introduced interface
- {{{/apidocs/org/dbunit/PrepAndExpectedTestCaseSteps.html}PrepAndExpectedTestCaseSteps}}
+ {{{/dbunit/changes-report.html#a2.5.2}Release 2.5.2}} introduced interface
+ {{{/dbunit/apidocs/org/dbunit/PrepAndExpectedTestCaseSteps.html}PrepAndExpectedTestCaseSteps}}
  and the
- {{{/apidocs/org/dbunit/PrepAndExpectedTestCase.html#runTest-org.dbunit.VerifyTableDefinition:A-java.lang.String:A-java.lang.String:A-org.dbunit.PrepAndExpectedTestCaseSteps-}PrepAndExpectedTestCase#runTest(VerifyTableDefinition[], String[], String[], PrepAndExpectedTestCaseSteps)}}
+ {{{/dbunit/apidocs/org/dbunit/PrepAndExpectedTestCase.html#runTest-org.dbunit.VerifyTableDefinition:A-java.lang.String:A-java.lang.String:A-org.dbunit.PrepAndExpectedTestCaseSteps-}PrepAndExpectedTestCase#runTest(VerifyTableDefinition[], String[], String[], PrepAndExpectedTestCaseSteps)}}
  method. This allows for encapsulating test steps into an anonymous inner
  class or a Java 8+ lambda.
 

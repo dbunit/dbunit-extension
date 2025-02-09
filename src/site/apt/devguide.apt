@@ -141,11 +141,11 @@ Run the DbUnit Tests
 
   Verify the build is clean with your changes and tests by running the dbUnit unit and integration tests
   against all the supported databases.
-  Refer to {{{/integrationtests.html}Integration Tests}} for setup and running them.
+  Refer to {{{/dbunit/integrationtests.html}Integration Tests}} for setup and running them.
 
 Discussions and Questions
 
   For questions, assistance, or other help,
   please comment on the tracker item,
   merge request,
-  or {{{/mail-lists.html}email the dev list}}.
+  or {{{/dbunit/mail-lists.html}email the dev list}}.

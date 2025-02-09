@@ -12,7 +12,7 @@ Equality Comparison
  It enables comparing actual table results to expected results in an equal manner.
 
  The
- {{{/apidocs/org/dbunit/Assertion.html}Assertion}}
+ {{{/dbunit/apidocs/org/dbunit/Assertion.html}Assertion}}
  and
- {{{/apidocs/org/dbunit/assertion/DbUnitAssert.html}DbUnitAssert}}
+ {{{/dbunit/apidocs/org/dbunit/assertion/DbUnitAssert.html}DbUnitAssert}}
  classes have assertEquals() methods for the equality comparisons.

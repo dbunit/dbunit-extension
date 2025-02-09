@@ -12,6 +12,6 @@ Data Comparisons
 
  dbUnit has two approaches for data comparison:
 
- [[1]] {{{/datacomparisons/equality.html}equality}} (the original)
+ [[1]] {{{/dbunit/datacomparisons/equality.html}equality}} (the original)
 
- [[1]] {{{/datacomparisons/valuecomparer.html}value comparer}} (since release 2.6.0)
+ [[1]] {{{/dbunit/datacomparisons/valuecomparer.html}value comparer}} (since release 2.6.0)

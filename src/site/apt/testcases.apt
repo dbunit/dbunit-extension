@@ -8,8 +8,8 @@ Jeff Jensen
 Overview
 
  dbUnit has multiple base test case classes -  use these classes as the basis for your tests.
- All extend {{{/apidocs/org/dbunit/DBTestCase.html}DBTestCase}} and the top
- level {{{/apidocs/org/dbunit/DBTestCase.html}DatabaseTestCase}}.
+ All extend {{{/dbunit/apidocs/org/dbunit/DBTestCase.html}DBTestCase}} and the top
+ level {{{/dbunit/apidocs/org/dbunit/DBTestCase.html}DatabaseTestCase}}.
 
  Use the submenus to learn about each of them.
 
