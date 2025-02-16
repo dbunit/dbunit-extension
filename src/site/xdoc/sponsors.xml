@@ -17,7 +17,7 @@
 			  <a href="http://www.sourceforge.net">SourceForge</a> provides us the web space, source control, and all other tools in its great platform
 			</li>
 	      	<li>
-			  <a href="https://gitlab.com">GitLab</a> hosts our CI builds at <a href="https://gitlab.com/dbUnit">https://gitlab.com/dbUnit</a>
+			  <a href="https://github.com">GitHub</a> hosts our CI builds at <a href="https://github.com/dbunit/dbunit-extension/actions">https://github.com/dbunit/dbunit-extension/actions</a>
 			</li>
 	      </ul>
 		<p>To all of them our sincere thanks for their support!</p>

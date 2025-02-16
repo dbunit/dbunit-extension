@@ -43,7 +43,7 @@
     <links>
       <item name="JUnit" href="http://www.junit.org/index.htm"/>
       <item name="DBUnit" href="http://dbunit.sourceforge.net/"/>
-      <item name="" href="https://gitlab.com/dbUnit/dbunit-extension/-/pipelines" img="https://gitlab.com/dbUnit/dbunit-extension/badges/master/pipeline.svg"/>
+      <item name="" href="https://github.com/dbunit/dbunit-extension/actions/workflows/build-any-branch-with-all-dbs.yml" img="https://github.com/dbunit/dbunit-extension/actions/workflows/build-any-branch-with-all-dbs.yml/badge.svg"/>
     </links>
 
     <menu name="Quick Links">

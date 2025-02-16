@@ -1,0 +1,60 @@
+name: Build any branch with all databases
+
+on: [push, pull_request]
+
+env:
+  MAVEN_COMMAND: ./mvnw
+  MAVEN_CLI_COMMON: "-e -B"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compile-and-unit-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+    - uses: actions/checkout@v4
+    - uses: ./.github/actions/jdk-setup
+    - name: Compile and run unit tests
+      run: ${{ env.MAVEN_COMMAND }} ${{ env.MAVEN_CLI_COMMON }} clean test
+    - name: Submit dependencies to GitHub
+      uses: advanced-security/maven-dependency-submission-action@v3
+    - name: Upload target directory for reuse
+      uses: actions/upload-artifact@v4
+      with:
+        name: target-directory
+        path: target/
+        retention-days: 11
+
+  integration-tests:
+    needs: [compile-and-unit-test]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        database: [
+          {name: 'Derby', profile: 'derby-10-14', url: ''},
+          {name: 'H2', profile: 'h2-1-4', url: ''},
+          {name: 'HSQLDB', profile: 'hsqldb-1-8', url: ''},
+          {name: 'MSSQL', profile: 'mssql-2019', url: 'jdbc:sqlserver://localhost:1433;DatabaseName=dbunit;user=sa;password=theSaPassword1234;Trusted_Connection=True;SelectMethod=cursor'},
+          {name: 'MySQL', profile: 'mysql-9-20', url: 'jdbc:mysql://localhost:3306/dbunit'},
+          {name: 'Oracle 18', profile: 'oracle-18', url: ''},
+          {name: 'Oracle 23', profile: 'oracle-23', url: ''},
+          {name: 'PostgreSQL', profile: 'postgresql-16', url: 'jdbc:postgresql://localhost:5432/dbunit'}
+        ]
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/jdk-setup
+      - name: Download target directory
+        uses: actions/download-artifact@v4
+        with:
+          name: target-directory
+          path: target/
+      - name: Run ${{ matrix.database.name }} integration tests
+        run: ${{ env.MAVEN_COMMAND }} ${{ env.MAVEN_CLI_COMMON }} -P${{ matrix.database.profile }} verify ${{ matrix.database.url != '' && format('-Ddbunit.profile.url={0}', matrix.database.url) || '' }}
+      - name: Submit dependencies to GitHub
+        uses: advanced-security/maven-dependency-submission-action@v3
+

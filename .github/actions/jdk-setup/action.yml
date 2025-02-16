@@ -1,0 +1,10 @@
+name: "JDK Setup"
+runs:
+  using: "composite"
+  steps:
+    - name: Set up JDK 8
+      uses: actions/setup-java@v3
+      with:
+        java-version: '8'
+        distribution: 'temurin'
+        cache: maven
