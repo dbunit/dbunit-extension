@@ -1,0 +1,146 @@
+name: All branches with all databases
+
+on: [push, pull_request]
+
+env:
+  MAVEN_COMMAND: ./mvnw
+  MAVEN_CLI_COMMON: "-e -B -DdockerMavenPluginSkip=true"
+
+jobs:
+  setup:
+    uses: ./.github/workflows/setup-jdk.yml
+
+  compile:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Compile
+      run: ${{ env.MAVEN_COMMAND }} ${{ env.MAVEN_CLI_COMMON }} clean compile
+
+  unit-test:
+    needs: compile
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Run unit tests
+      run: ${{ env.MAVEN_COMMAND }} ${{ env.MAVEN_CLI_COMMON }} test
+
+  derby-integration-test:
+    needs: unit-test
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Run Derby integration tests
+      run: ${{ env.MAVEN_COMMAND }} ${{ env.MAVEN_CLI_COMMON }} -Pderby-10-14 verify
+
+  h2-integration-test:
+    needs: unit-test
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Run H2 integration tests
+      run: ${{ env.MAVEN_COMMAND }} ${{ env.MAVEN_CLI_COMMON }} -Ph2-1-4 verify
+
+  hsqldb-integration-test:
+    needs: unit-test
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Run HSQLDB integration tests
+      run: ${{ env.MAVEN_COMMAND }} ${{ env.MAVEN_CLI_COMMON }} -Phsqldb-1-8 verify
+
+  mssql-2019-integration-test:
+    needs: unit-test
+    runs-on: ubuntu-latest
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2019-latest
+        env:
+          ACCEPT_EULA: Y
+          SA_PASSWORD: theSaPassword1234
+        ports:
+          - 1433:1433
+    steps:
+    - uses: actions/checkout@v4
+    - name: Run MSSQL integration tests
+      run: ${{ env.MAVEN_COMMAND }} ${{ env.MAVEN_CLI_COMMON }} -Pmssql-2019 verify -Ddbunit.profile.url=jdbc:sqlserver://localhost:1433;DatabaseName=dbunit;user=sa;password=theSaPassword1234;Trusted_Connection=True;SelectMethod=cursor
+
+  mysql-9-20-integration-test:
+    needs: unit-test
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql/mysql-server:5.7
+        env:
+          MYSQL_DATABASE: dbunit
+          MYSQL_USER: dbunit
+          MYSQL_PASSWORD: dbunit
+          MYSQL_ROOT_PASSWORD: dbunit
+        ports:
+          - 3306:3306
+    steps:
+    - uses: actions/checkout@v4
+    - name: Run MySQL integration tests
+      run: ${{ env.MAVEN_COMMAND }} ${{ env.MAVEN_CLI_COMMON }} -Pmysql-9-20 verify -Ddbunit.profile.url=jdbc:mysql://localhost:3306/dbunit
+
+  oracle-18-integration-test:
+    needs: unit-test
+    runs-on: ubuntu-latest
+    services:
+      oracle:
+        image: gvenzl/oracle-xe:18.4.0-faststart
+        env:
+          ORACLE_PASSWORD: dbunit
+          APP_USER: dbunit
+          APP_USER_PASSWORD: dbunit
+        ports:
+          - 1521:1521
+        options: >-
+          --health-cmd healthcheck.sh
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+    - uses: actions/checkout@v4
+    - name: Run Oracle 18 integration tests
+      run: ${{ env.MAVEN_COMMAND }} ${{ env.MAVEN_CLI_COMMON }} -Poracle-18 verify
+
+  oracle-23-integration-test:
+    needs: unit-test
+    runs-on: ubuntu-latest
+    services:
+      oracle:
+        image: gvenzl/oracle-free:23.6-faststart
+        env:
+          ORACLE_PASSWORD: dbunit
+          APP_USER: dbunit
+          APP_USER_PASSWORD: dbunit
+        ports:
+          - 1521:1521
+        options: >-
+          --health-cmd healthcheck.sh
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+    - uses: actions/checkout@v4
+    - name: Run Oracle 23 integration tests
+      run: ${{ env.MAVEN_COMMAND }} ${{ env.MAVEN_CLI_COMMON }} -Poracle-23 verify
+
+  postgresql-16-integration-test:
+    needs: unit-test
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16.3
+        env:
+          POSTGRES_USER: dbunit
+          POSTGRES_PASSWORD: dbunit
+          POSTGRES_DB: dbunit
+        ports:
+          - 5432:5432
+    steps:
+    - uses: actions/checkout@v4
+    - name: Run PostgreSQL 16 integration tests
+      run: ${{ env.MAVEN_COMMAND }} ${{ env.MAVEN_CLI_COMMON }} -Ppostgresql-16 verify -Ddbunit.profile.url=jdbc:postgresql://localhost:5432/dbunit

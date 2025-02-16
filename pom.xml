@@ -147,8 +147,13 @@
     <url>https://sourceforge.net/p/dbunit/_list/tickets</url>
   </issueManagement>
   <ciManagement>
+    <system>github</system>
+    <url>https://github.com/dbunit/dbunit-extension/actions</url>
+    <!-- prior -->
+    <!--
     <system>gitlab</system>
     <url>https://gitlab.com/dbUnit/dbunit-extension/-/pipelines</url>
+    -->
   </ciManagement>
 
   <mailingLists>
