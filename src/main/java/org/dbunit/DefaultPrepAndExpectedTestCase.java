@@ -145,11 +145,11 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
             final String[] prepDataFiles, final String[] expectedDataFiles)
             throws Exception
     {
-        log.info("configureTest: saving instance variables");
+        log.debug("configureTest: saving instance variables");
 
         final boolean isCaseSensitiveTableNames = lookupFeatureValue(
                 DatabaseConfig.FEATURE_CASE_SENSITIVE_TABLE_NAMES);
-        log.info("configureTest: using case sensitive table names={}",
+        log.debug("configureTest: using case sensitive table names={}",
                 isCaseSensitiveTableNames);
 
         this.prepDataSet = makeCompositeDataSet(prepDataFiles, "prep",
@@ -274,11 +274,10 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
         {
             final boolean isCaseSensitiveTableNames = lookupFeatureValue(
                     DatabaseConfig.FEATURE_CASE_SENSITIVE_TABLE_NAMES);
-            log.info("cleanupData: using case sensitive table names={}",
+            log.debug("cleanupData: using case sensitive table names={}",
                     isCaseSensitiveTableNames);
 
-            final IDataSet[] dataSets =
-                    new IDataSet[] {prepDataSet, expectedDataSet};
+            final IDataSet[] dataSets = {prepDataSet, expectedDataSet};
             final IDataSet dataset = new CompositeDataSet(dataSets, true,
                     isCaseSensitiveTableNames);
             final String[] tableNames = dataset.getTableNames();
@@ -336,13 +335,15 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     }
 
     @Override
-    protected DatabaseOperation getSetUpOperation() throws Exception {
+    protected DatabaseOperation getSetUpOperation() throws Exception
+    {
         assertNotNull(databaseTester, DATABASE_TESTER_IS_NULL_MSG);
         return databaseTester.getSetUpOperation();
     }
 
     @Override
-    protected DatabaseOperation getTearDownOperation() throws Exception {
+    protected DatabaseOperation getTearDownOperation() throws Exception
+    {
         assertNotNull(databaseTester, DATABASE_TESTER_IS_NULL_MSG);
         return databaseTester.getTearDownOperation();
     }
@@ -367,14 +368,16 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
         try
         {
             final int tableDefsCount = verifyTableDefs.length;
-            log.info(
-                    "verifyData: about to verify {} tables"
-                            + " using verifyTableDefinitions={}",
-                    tableDefsCount, verifyTableDefs);
             if (tableDefsCount == 0)
             {
-                log.warn("verifyData: No tables to verify as"
+                log.info("verifyData: No tables to verify as"
                         + " no VerifyTableDefinitions specified");
+            } else
+            {
+                log.info(
+                        "verifyData: about to verify {} tables"
+                                + " using verifyTableDefinitions={}",
+                        tableDefsCount, verifyTableDefs);
             }
 
             for (int i = 0; i < tableDefsCount; i++)
@@ -397,7 +400,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
             final VerifyTableDefinition verifyTableDefinition) throws Exception
     {
         final String tableName = verifyTableDefinition.getTableName();
-        log.info("verifyData: Verifying table '{}'", tableName);
+        log.debug("verifyData: Verifying table '{}'", tableName);
 
         final String[] excludeColumns =
                 verifyTableDefinition.getColumnExclusionFilters();
@@ -509,14 +512,14 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
         final SortedTable expectedSortedTable =
                 new SortedTable(expectedTable, expectedTableColumns, true);
         expectedSortedTable.setUseComparable(true);
-        log.debug("{}: Sorted expected table={}", methodName,
+        log.trace("{}: Sorted expected table={}", methodName,
                 expectedSortedTable);
 
         log.debug("{}: Sorting actual table using all columns", methodName);
         final SortedTable actualSortedTable =
                 new SortedTable(actualTable, actualTableColumns);
         actualSortedTable.setUseComparable(true);
-        log.debug("{}: Sorted actual table={}", methodName, actualSortedTable);
+        log.trace("{}: Sorted actual table={}", methodName, actualSortedTable);
 
         // Filter out the columns from the expected and actual results
         log.debug(
@@ -534,7 +537,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
                 methodName);
         final Column[] additionalColumnInfo =
                 makeAdditionalColumnInfo(expectedTable, excludeColumns);
-        log.debug("{}: additionalColumnInfo={}", methodName,
+        log.trace("{}: additionalColumnInfo={}", methodName,
                 additionalColumnInfo);
 
         logSortedTables(expectedSortedTable, actualSortedTable);
@@ -745,9 +748,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
         }
 
         final IDataSet[] dataSet = (IDataSet[]) list.toArray(new IDataSet[] {});
-        final IDataSet compositeDS =
-                new CompositeDataSet(dataSet, true, isCaseSensitiveTableNames);
-        return compositeDS;
+        return new CompositeDataSet(dataSet, true, isCaseSensitiveTableNames);
     }
 
     /**
