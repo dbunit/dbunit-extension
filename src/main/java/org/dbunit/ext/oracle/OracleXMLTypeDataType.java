@@ -49,12 +49,13 @@ public class OracleXMLTypeDataType extends BlobDataType
     }
 
     @Override
-    public Object getSqlValue(int column, ResultSet resultSet)
+    public Object getSqlValue(final int column, final ResultSet resultSet)
             throws SQLException, TypeCastException
     {
         byte[] data = null;
-        OracleResultSet oracleResultSet = resultSet.unwrap(OracleResultSet.class);
-        SQLXML sqlXml = oracleResultSet.getSQLXML(column);
+        final OracleResultSet oracleResultSet =
+                resultSet.unwrap(OracleResultSet.class);
+        final SQLXML sqlXml = oracleResultSet.getSQLXML(column);
         if (sqlXml != null)
         {
             data = sqlXml.getString().getBytes();
@@ -65,11 +66,13 @@ public class OracleXMLTypeDataType extends BlobDataType
     }
 
     @Override
-    public void setSqlValue(Object value, int column,
-            PreparedStatement statement) throws SQLException, TypeCastException
+    public void setSqlValue(final Object value, final int column,
+            final PreparedStatement statement)
+            throws SQLException, TypeCastException
     {
-        OraclePreparedStatement oraclePreparedStatement = statement.unwrap(OraclePreparedStatement.class);
-        SQLXML sqlXmlValue =
+        final OraclePreparedStatement oraclePreparedStatement =
+                statement.unwrap(OraclePreparedStatement.class);
+        final SQLXML sqlXmlValue =
                 oraclePreparedStatement.getConnection().createSQLXML();
         // XML document in the parameter is Base64 encoded (it is entered in XML
         // parameter
