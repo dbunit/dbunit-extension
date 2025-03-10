@@ -2,7 +2,7 @@
 <configuration scan="true">
   <contextName>dbunit</contextName>
 
-  <logger name="org.dbunit" level="INFO" />
+  <logger name="org.dbunit" level="TRACE" />
 
   <appender name="FILE" class="ch.qos.logback.core.FileAppender">
     <!-- NOTE: user must append slash in property -->
