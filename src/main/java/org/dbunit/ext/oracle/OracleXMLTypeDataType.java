@@ -28,6 +28,8 @@ import java.sql.Types;
 
 import org.dbunit.dataset.datatype.BlobDataType;
 import org.dbunit.dataset.datatype.TypeCastException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import oracle.jdbc.OraclePreparedStatement;
 import oracle.jdbc.OracleResultSet;
@@ -43,6 +45,8 @@ import oracle.jdbc.OracleResultSet;
  */
 public class OracleXMLTypeDataType extends BlobDataType
 {
+    private final Logger log = LoggerFactory.getLogger(getClass());
+
     OracleXMLTypeDataType()
     {
         super("SQLXML", Types.SQLXML);
@@ -62,7 +66,13 @@ public class OracleXMLTypeDataType extends BlobDataType
         }
 
         // return the byte data (using typeCast to cast it to Base64 notation)
-        return typeCast(data);
+        final Object typeCast = typeCast(data);
+        final String string =
+                typeCast == null ? null : new String((byte[]) typeCast);
+        log.trace("getSqlValue: column={}, data={}, typeCast={}, string={}",
+                column, data, typeCast, string);
+
+        return typeCast;
     }
 
     @Override
@@ -74,9 +84,16 @@ public class OracleXMLTypeDataType extends BlobDataType
                 statement.unwrap(OraclePreparedStatement.class);
         final SQLXML sqlXmlValue =
                 oraclePreparedStatement.getConnection().createSQLXML();
+
         // XML document in the parameter is Base64 encoded (it is entered in XML
-        // parameter
-        sqlXmlValue.setString(new String((byte[]) typeCast(value)));
+        // parameter)
+        final byte[] typeCast = (byte[]) typeCast(value);
+        final String string = new String(typeCast);
+
+        log.trace("setSqlValue: column={}, value={}, typeCast={}, string={}",
+                column, value, typeCast, string);
+
+        sqlXmlValue.setString(string);
         oraclePreparedStatement.setSQLXML(column, sqlXmlValue);
     }
 
