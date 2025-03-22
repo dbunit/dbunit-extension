@@ -1,8 +1,8 @@
 <!-- edited with XML Spy v3.5 NT (http://www.xmlspy.com) by Manuel Laflamme (Java development) -->
 <dataset>
-	<XML_TYPE_TABLE PK="0" XMLTYPE="PG5ld0RvY3VtZW50MC8+"/> <!-- Value "<newDocument0/>" in Base64 -->
-	<XML_TYPE_TABLE PK="1" XMLTYPE="PG5ld0RvY3VtZW50MS8+"/> <!-- Value "<newDocument1/>" in Base64 -->
+	<XML_TYPE_TABLE PK="0" XMLTYPE="PG5ld0RvY3VtZW50MC8+Cg=="/> <!-- Value "<newDocument0/>\n" in Base64 -->
+	<XML_TYPE_TABLE PK="1" XMLTYPE="PG5ld0RvY3VtZW50MS8+Cg=="/> <!-- Value "<newDocument1/>\n" in Base64 -->
 	<XML_TYPE_TABLE PK="2" /> <!-- NULL Value -->
-	<XML_TYPE_TABLE PK="3" XMLTYPE="PGRvY3VtZW50My8+"/> <!-- Value "<document3/>" in Base64 -->
+	<XML_TYPE_TABLE PK="3" XMLTYPE="PGRvY3VtZW50My8+Cg=="/> <!-- Value "<document3/>\n" in Base64 -->
 </dataset>
 

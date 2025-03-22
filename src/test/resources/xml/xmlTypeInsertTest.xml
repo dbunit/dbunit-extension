@@ -1,6 +1,6 @@
 <dataset>
-	<XML_TYPE_TABLE PK="0" XMLTYPE="PGRvY3VtZW50MC8+"/> <!-- Value "<document0/>" in Base64 -->
+	<XML_TYPE_TABLE PK="0" XMLTYPE="PGRvY3VtZW50MC8+Cg=="/> <!-- Value "<document0/>\n" in Base64 -->
 	<XML_TYPE_TABLE PK="1" /> <!-- NULL value -->
-	<XML_TYPE_TABLE PK="2" XMLTYPE="PGRvY3VtZW50Mi8+"/> <!-- Value "<document2/>" in Base64 -->
+	<XML_TYPE_TABLE PK="2" XMLTYPE="PGRvY3VtZW50Mi8+Cg=="/> <!-- Value "<document2/>\n" in Base64 -->
 </dataset>
 
