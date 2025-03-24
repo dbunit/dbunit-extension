@@ -21,11 +21,11 @@ Running Databases
 
 * Overview
 
- The database integration tests require a running database server with a few 
+ The database integration tests require a running database server with a few
  expected configuration items, such as credentials and schema.
  If needed, find the needed values defined in database-named .properties files
  located in the <<<src/test/resources directory>>>.
- 
+
  Apache Derby, H2, and HSQLDB have an in-memory runtime option
  enabling the tests to automatically start and stop the database.
  Running the database integration tests with those databases requires no
@@ -36,7 +36,7 @@ Running Databases
 
 * Using Docker Images
 
- For typical dbUnit development with databases requiring setup, use the 
+ For typical dbUnit development with databases requiring setup, use the
  {{{https://hub.docker.com/r/dbunit/}dbUnit database Docker images}} for easy,
  pre-configured setup.  The dbUnit CI server uses these database Docker images
  for the tests.
@@ -249,7 +249,7 @@ Running Integration Tests
   List all profiles using this command:
 
 ---
-mvn help:all-profiles
+mvnw help:all-profiles
 ---
 
   The default profile (when not specifying a profile) runs the tests using an HSQLDB in-memory database.
@@ -258,7 +258,7 @@ mvn help:all-profiles
   use this command:
 
 ---
-mvn verify -Poracle10-ojdbc8
+mvnw verify -Poracle10-ojdbc8
 ---
 
 
@@ -271,7 +271,7 @@ mvn verify -Poracle10-ojdbc8
  Simply run the Maven clean goal:
 
 ---
-mvn clean
+mvnw clean
 ---
 
 ** Optionally Skip Unit Tests When Running Integration Tests
@@ -284,41 +284,41 @@ mvn clean
  For example, this runs the unit tests and the integration tests with Apache Derby:
 
 ---
-mvn -Pderby verify
+mvnw -Pderby verify
 ---
 
  and this skips the unit tests and runs the integration tests with Apache Derby:
 
 ---
-mvn -Pit-config,derby verify
+mvnw -Pit-config,derby verify
 ---
 
 ** Maven Commands
 
-*---------------*-----------------------------------------------*
-|<<Database>>   |<<Maven Command>>                              |
-*---------------*-----------------------------------------------*
-|Apache Derby   |mvn -e -Pit-config,derby verify                |
-*---------------*-----------------------------------------------*
-|DB2            |mvn -e -Pit-config,db2 verify                  |
-*---------------*-----------------------------------------------*
-|H2             |mvn -e -Pit-config,h2 verify                   |
-*---------------*-----------------------------------------------*
-|HSQLDB         |mvn -e -Pit-config,hsqldb verify               |
-*---------------*-----------------------------------------------*
-|MySQL          |mvn -e -Pit-config,mysql verify                |
-*---------------*-----------------------------------------------*
-|Oracle         |mvn -e -Pit-config,oracle-ojdbc8 verify      \ |
-|               |mvn -e -Pit-config,oracle10-ojdbc8 verify    \ |
-|               |mvn -e -Pit-config,oracle10-ojdbc8v12 verify \ |
-|               |mvn -e -Pit-config,oracle-ojdbc6 verify        |
-*---------------*-----------------------------------------------*
-|PostgreSQL     |mvn -e -Pit-config,postgresql verify           |
-*---------------*-----------------------------------------------*
-|SQLServer      |mvn -e -Pit-config,mssql41 verify              |
-*---------------*-----------------------------------------------*
-|SQLServer 2019 |mvn -e -Pit-config,mssql2019 verify            |
-*---------------*-----------------------------------------------*
+*---------------*------------------------------------------------*
+|<<Database>>   |<<Maven Command>>                               |
+*---------------*------------------------------------------------*
+|Apache Derby   |mvnw -e -Pit-config,derby verify                |
+*---------------*------------------------------------------------*
+|DB2            |mvnw -e -Pit-config,db2 verify                  |
+*---------------*------------------------------------------------*
+|H2             |mvnw -e -Pit-config,h2 verify                   |
+*---------------*------------------------------------------------*
+|HSQLDB         |mvnw -e -Pit-config,hsqldb verify               |
+*---------------*------------------------------------------------*
+|MySQL          |mvnw -e -Pit-config,mysql verify                |
+*---------------*------------------------------------------------*
+|Oracle         |mvnw -e -Pit-config,oracle-ojdbc8 verify      \ |
+|               |mvnw -e -Pit-config,oracle10-ojdbc8 verify    \ |
+|               |mvnw -e -Pit-config,oracle10-ojdbc8v12 verify \ |
+|               |mvnw -e -Pit-config,oracle-ojdbc6 verify        |
+*---------------*------------------------------------------------*
+|PostgreSQL     |mvnw -e -Pit-config,postgresql verify           |
+*---------------*------------------------------------------------*
+|SQLServer      |mvnw -e -Pit-config,mssql41 verify              |
+*---------------*------------------------------------------------*
+|SQLServer 2019 |mvnw -e -Pit-config,mssql2019 verify            |
+*---------------*------------------------------------------------*
 
 * Running Integration Tests with IDEs
 
@@ -337,7 +337,7 @@ mvn -Pit-config,derby verify
 ** Using dbunit.properties File
 
   "dbunit.properties" is useful for environments which make it difficult if
-  not impossible to use Maven's profiles.  For instance, directly running JUnit 
+  not impossible to use Maven's profiles.  For instance, directly running JUnit
   tests within IDEs typically don't use Maven and therefore are not using
   Maven's profiles (which set the the database configuration) and tests fail.
 

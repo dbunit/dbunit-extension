@@ -50,8 +50,8 @@ Releasing
  [[1]] Build and deploy the release
 
 ---
-mvn clean
-mvn deploy -Psonatype-oss-release
+mvnw clean
+mvnw deploy -Psonatype-oss-release
 ---
 
  [[1]] Login to Sonatype OSS and process the release through staging
@@ -62,7 +62,7 @@ mvn deploy -Psonatype-oss-release
    [[i]] Build site:
 
 ---
-mvn site
+mvnw site
 ---
 
    [[i]] Review site results for issues and correct as necessary
@@ -73,13 +73,13 @@ mvn site
 
 ---
 ssh -t sf-username,dbunit@shell.sourceforge.net create
-mvn site:deploy
+mvnw site:deploy
 ---
 
  [[1]] Generate Announcement Email
 
 ---
-mvn changes:announcement-generate -Dchanges.version=theNewVersion
+mvnw changes:announcement-generate -Dchanges.version=theNewVersion
 ---
  Review and adjust the text as desired before using.
 
