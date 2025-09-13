@@ -10,13 +10,13 @@
   <body>
     <section name="About DbUnit">
       <p>
-        DbUnit is a JUnit extension (also usable with Ant) targeted at database-driven projects that, 
-        among other things, puts your database into a known state between test runs.  This is an excellent 
-        way to avoid the myriad of problems that can occur when one test case corrupts the database and 
+        DbUnit is a JUnit extension (also usable with Ant) targeted at database-driven projects that,
+        among other things, puts your database into a known state between test runs.  This is an excellent
+        way to avoid the myriad of problems that can occur when one test case corrupts the database and
         causes subsequent tests to fail or exacerbate the damage.
       </p>
       <p>
-        DbUnit has the ability to export and import your database data to and from XML datasets. 
+        DbUnit has the ability to export and import your database data to and from XML datasets.
         Since version 2.0, DbUnit can also work with very large datasets when used in streaming mode.
         DbUnit can also help you to verify that your database data match an expected set of values.
       </p>
@@ -31,11 +31,25 @@
       </p>
     </section>
 
+    <section name="Help Wanted">
+      <p>
+        While dbUnit is a very mature product (its first commits date back to 2002), it has many needed improvements;
+        not only new features and bug fixes, but documentation, refactoring, and modernization!
+        We are a small team working on improvements and issues along the way and need more help.
+      </p>
+      <p>
+        If you have interest in helping dbUnit, please email the developers list to initiate discussion:
+        dbunit-developer@lists.sourceforge.net
+        We will gladly help you as needed with your ideas and contributions
+        and look to add you as a committer when ready. 
+      </p>
+    </section>
+
     <section name="News">
       <table border="1">
         <tr>
           <td>TBD</td>
-          <td> 
+          <td>
             Please try the 3.0.1-SNAPSHOT snapshot build and let us know how it works!
             <br/>
             Refer to the <a href="changes-report.html#a3.0.1-SNAPSHOT">changes report</a>,
@@ -46,7 +60,7 @@
         </tr>
         <tr>
           <td>2025-01-25</td>
-          <td> 
+          <td>
             Release 3.0.0 available.
             Refer to the <a href="changes-report.html#a3.0.0">changes report</a>,
             the <a href="https://sourceforge.net/p/dbunit/feature-requests/milestone/3.0.0/">feature list</a>,
@@ -56,7 +70,7 @@
         </tr>
         <tr>
           <td>2024-06-02</td>
-          <td> 
+          <td>
             Release 2.8.0 available.
             Refer to the <a href="changes-report.html#a2.8.0">changes report</a>,
             the <a href="https://sourceforge.net/p/dbunit/feature-requests/milestone/2.8.0/">feature list</a>,
@@ -66,7 +80,7 @@
         </tr>
         <tr>
           <td>2022-02-12</td>
-          <td> 
+          <td>
             Release 2.7.3 available.
             Refer to the <a href="changes-report.html#a2.7.3">changes report</a>,
             the <a href="https://sourceforge.net/p/dbunit/feature-requests/milestone/2.7.3/">feature list</a>,
@@ -76,7 +90,7 @@
         </tr>
         <tr>
           <td>2021-07-25</td>
-          <td> 
+          <td>
             Release 2.7.2 available.
             Refer to the <a href="changes-report.html#a2.7.2">changes report</a>,
             the <a href="https://sourceforge.net/p/dbunit/feature-requests/milestone/2.7.2/">feature list</a>,
@@ -86,7 +100,7 @@
         </tr>
         <tr>
           <td>2021-07-22</td>
-          <td> 
+          <td>
             Release 2.7.1 available.
             Refer to the <a href="changes-report.html#a2.7.1">changes report</a>,
             the <a href="https://sourceforge.net/p/dbunit/feature-requests/milestone/2.7.1/">feature list</a>,
@@ -96,7 +110,7 @@
         </tr>
         <tr>
           <td>2020-02-23</td>
-          <td> 
+          <td>
             Release 2.7.0 available.
             Refer to the <a href="changes-report.html#a2.7.0">changes report</a>,
             the <a href="https://sourceforge.net/p/dbunit/feature-requests/milestone/2.7.0/">feature list</a>,
@@ -106,7 +120,7 @@
         </tr>
         <tr>
           <td>2018-10-14</td>
-          <td> 
+          <td>
             Release 2.6.0 available.
             Refer to the <a href="changes-report.html#a2.6.0">changes report</a>,
             the <a href="https://sourceforge.net/p/dbunit/feature-requests/milestone/2.6.0/">feature list</a>,
@@ -252,105 +266,105 @@
           <td>2007-12-01</td>
           <td>Roberto Lo Giacco joined the project team.</td>
         </tr>
-        <tr> 
+        <tr>
           <td>2006-12-28</td>
           <td>Version 2.2 finally released!!!. See <a href="changes-report.html#a2.2">changes</a>.</td>
-        </tr>        
-        <tr> 
+        </tr>
+        <tr>
           <td>2006-12-20</td>
           <td><a href="http://www.dbunit.org/cgi-bin/wiki.pl">Wiki</a> is back!. </td>
-        </tr>        
-        <tr> 
+        </tr>
+        <tr>
           <td>2006-05-28</td>
           <td>Build has been ported to <a href="http://maven.apache.org">Maven 2</a> and snapshots for the 2.2 release are available in the <a href="http://dbunit.sourceforge.net/repo/snapshots/">repository</a>. </td>
-        </tr>        
-        <tr> 
+        </tr>
+        <tr>
           <td>2006-02-04</td>
           <td>Felipe Leme joined the DbUnit developement team.</td>
-        </tr>        
-        <tr> 
+        </tr>
+        <tr>
           <td>2005-08-19</td>
           <td><b>Website Updated!</b> Link to wiki has been removed.  Many fixes in CVS for 2.2-dev, see <a href="changes-report.html#a2.2">changes</a>.</td>
-        </tr>      
-        <tr> 
+        </tr>
+        <tr>
           <td>2004-05-31</td>
           <td>Version 2.1 released. Multiple bugfixes and enhancements. See <a href="changes-report.html#a2.1">changes</a>.</td>
         </tr>
-        <tr> 
+        <tr>
           <td>2004-04-28</td>
           <td>DeveloperWorks article: <a href="http://www-106.ibm.com/developerworks/library/j-dbunit.html?ca=drs-j1604">Control your test-environement with DbUnit and Anthill</a>.</td>
         </tr>
-        <tr> 
+        <tr>
           <td>2004-03-16</td>
           <td>The <a href="http://www.dbunit.org/wiki/">DbUnit Wiki</a> is now officially online. Please contribute to the <a href=" http://www.dbunit.org/cgi-bin/wiki.pl?SupportedRDBMS">SupportedRDBMS</a> page.</td>
         </tr>
-        <tr> 
+        <tr>
           <td>2004-01-26</td>
           <td>ONJava article: <a href="http://www.onjava.com/pub/a/onjava/2004/01/21/dbunit.html">Effective Unit Testing with DbUnit</a>.</td>
         </tr>
-        <tr> 
+        <tr>
           <td>2004-01-22</td>
           <td>Version 2.0 released. See <a href="changes-report.html#a2.0">changes</a>.</td>
         </tr>
-        <tr> 
+        <tr>
           <td>2003-10-05</td>
           <td>Version 1.5.6 released. See <a href="changes-report.html#a1.5.6">changes</a>.</td>
         </tr>
-        <tr> 
+        <tr>
           <td>2003-07-16</td>
           <td>Federico Spinazzi joined the DbUnit developement team.</td>
         </tr>
-        <tr> 
+        <tr>
           <td>2003-07-16</td>
           <td>Version 1.5.5 released. See <a href="changes-report.html#a1.5.5">changes</a>.</td>
         </tr>
-        <tr> 
+        <tr>
           <td>2003-04-04</td>
           <td>Version 1.5.1 released. See <a href="changes-report.html#a1.5.1">changes</a>.</td>
         </tr>
-        <tr> 
+        <tr>
           <td>2003-03-01</td>
           <td>Version 1.5 released. See <a href="changes-report.html#a1.5">changes</a>.</td>
         </tr>
-        <tr> 
+        <tr>
           <td>2002-11-07</td>
           <td>Eric Pugh joined the DbUnit developement team.</td>
         </tr>
-        <tr> 
+        <tr>
           <td>2002-07-17</td>
           <td>The java API documentation is now available <a href="apidocs/index.html">online</a>.</td>
         </tr>
-        <tr> 
+        <tr>
           <td>2002-07-17</td>
           <td>Version 1.4 released. See <a href="changes-report.html#a1.4">changes</a>.</td>
         </tr>
-        <tr> 
+        <tr>
           <td>2002-05-10</td>
-          <td>Timothy Ruppert and Ben Cox joined the DbUnit developement 
+          <td>Timothy Ruppert and Ben Cox joined the DbUnit developement
          team.</td>
         </tr>
-        <tr> 
+        <tr>
           <td>2002-04-04</td>
           <td>Version 1.3 released. See <a href="changes-report.html#a1.3">changes</a>.</td>
         </tr>
-        <tr> 
+        <tr>
           <td>2002-04-04</td>
-          <td>New website design and logo done by <a href="http://www.silphid.com/">Silphid 
+          <td>New website design and logo done by <a href="http://www.silphid.com/">Silphid
          Creations</a>.</td>
         </tr>
-        <tr> 
+        <tr>
           <td>2002-03-19</td>
           <td>Version 1.2.4 released. See <a href="changes-report.html#a1.2.4">changes</a>.</td>
         </tr>
-        <tr> 
+        <tr>
           <td>2002-03-15</td>
           <td>Version 1.2 released. See <a href="changes-report.html#a1.2">changes</a>.</td>
         </tr>
-        <tr> 
+        <tr>
           <td>2002-03-10</td>
           <td>Version 1.1 released. See <a href="changes-report.html#a1.1">changes</a>.</td>
         </tr>
-        <tr> 
+        <tr>
           <td>2002-02-27</td>
           <td>Version 1.0 released. This is the first public release.</td>
         </tr>
