@@ -41,3 +41,20 @@ Updating the repository and site
 ---
 mvnw clean source:jar javadoc:jar deploy site site:deploy
 ---
+
+
+Verify Reproducible Build
+
+  [[1]] Run the normal build, installing to local repo for comparing to:
+
+---
+mvnw clean install
+---
+
+  [[1]] Run the reproducible build comparison step:
+
+---
+mvnw clean verify artifact:compare
+---
+
+  [[1]] Review the compare output for issues to fix.

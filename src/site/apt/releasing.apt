@@ -6,19 +6,21 @@ Releasing
 
 * Overview
 
- The following steps describe how to release dbUnit.  
+ The following steps describe how to release dbUnit.
  While the Maven release plugin automates steps such as version change, commit, and deploy,
  dbUnit has manual file information update steps that are outside of its scope.
- 
- While the below steps do not use the Maven release plugin, 
+
+ While the below steps do not use the Maven release plugin,
  you can use it by performing the manual file edits first then running the release plugin steps.
 
 * Release Steps
 
  [[1]] Update pom.xml
 
-   [[a]] Set version to release version
-  
+   [[a]] Set <version> to release version
+
+   [[a]] Set <project.build.outputTimestamp> property to the release timestamp, typically today's date with midnight time
+
    [[a]] Update japicmp-maven-plugin configuration
 
      [[i]] Add <reportSet> for prior version to new version comparison
@@ -26,9 +28,9 @@ Releasing
      [[i]] Comment out <reportSet> comparison to latest snapshot until a new snapshot exists
 
  [[1]] Update site.xml
- 
+
    [[i]] Add menu entry for japicmp prior version to new version comparison
-   
+
    [[i]] Comment out comparison to latest snapshot until a new snapshot exists
 
  [[1]] Update changes.xml
@@ -66,9 +68,9 @@ mvnw site
 ---
 
    [[i]] Review site results for issues and correct as necessary
-   
+
    [[i]] Deploy to SourceForge;
-   reference how-to: 
+   reference how-to:
    {{{http://maven.apache.org/plugins/maven-site-plugin/examples/site-deploy-to-sourceforge.net.html}Deploying to sourceforge.net}}
 
 ---
@@ -94,7 +96,7 @@ mvnw changes:announcement-generate -Dchanges.version=theNewVersion
      [[i]] Update to SNAPSHOT version
 
      [[i]] Update japicmp-maven-plugin configuration with comparison of latest release to new snapshot
-   
+
    [[i]] Update index.xml with new SNAPSHOT entry
 
    [[i]] Update changes.xml with new SNAPSHOT entry
