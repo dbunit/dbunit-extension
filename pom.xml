@@ -664,7 +664,6 @@
           <version>${failsafePluginVersion}</version>
           <configuration>
             <redirectTestOutputToFile>true</redirectTestOutputToFile>
-            <encoding>UTF-8</encoding>
             <systemProperties>
               <property>
                 <name>derby.stream.error.file</name>
