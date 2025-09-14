@@ -57,7 +57,7 @@
     <installPluginVersion>2.5.2</installPluginVersion>
     <jacocoPluginVersion>0.8.3</jacocoPluginVersion>
     <japicmpPluginVersion>0.21.2</japicmpPluginVersion>
-    <jarPluginVersion>3.0.2</jarPluginVersion>
+    <jarPluginVersion>3.2.0</jarPluginVersion>
     <javadocPluginVersion>3.0.0</javadocPluginVersion>
     <jdependPluginVersion>2.0</jdependPluginVersion>
     <jxrPluginVersion>2.5</jxrPluginVersion>
@@ -68,7 +68,7 @@
     <releasePluginVersion>2.5.3</releasePluginVersion>
     <resourcesPluginVersion>3.0.2</resourcesPluginVersion>
     <sitePluginVersion>3.12.1</sitePluginVersion>
-    <sourcePluginVersion>3.0.1</sourcePluginVersion>
+    <sourcePluginVersion>3.2.1</sourcePluginVersion>
     <surefirePluginVersion>3.2.5</surefirePluginVersion>
     <versionsMavenPluginVersion>2.8.1</versionsMavenPluginVersion>
 
