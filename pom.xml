@@ -43,7 +43,7 @@
     <checkstylePluginVersion>2.17</checkstylePluginVersion>
     <cleanPluginVersion>3.0.0</cleanPluginVersion>
     <compilerPluginVersion>3.7.0</compilerPluginVersion>
-    <deployPluginVersion>2.8.2</deployPluginVersion>
+    <deployPluginVersion>3.1.4</deployPluginVersion>
     <dockerMavenPluginVersion>0.45.1</dockerMavenPluginVersion>
     <!-- FIXME maven picking 1.2 specified in parent; fix with parent change -->
     <enforcerPluginVersion>3.5.0</enforcerPluginVersion>
@@ -60,7 +60,7 @@
     <pmdPluginVersion>3.8</pmdPluginVersion>
     <projectInfoReportsPluginVersion>2.9</projectInfoReportsPluginVersion>
     <propertiesPluginVersion>1.2.1</propertiesPluginVersion>
-    <releasePluginVersion>2.5.3</releasePluginVersion>
+    <releasePluginVersion>3.3.1</releasePluginVersion>
     <resourcesPluginVersion>3.0.2</resourcesPluginVersion>
     <sitePluginVersion>3.12.1</sitePluginVersion>
     <sourcePluginVersion>3.2.1</sourcePluginVersion>
