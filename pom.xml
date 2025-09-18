@@ -1513,8 +1513,8 @@ enable this to generate coverage report HTML files during build (same as site)
       </activation>
       <!-- this profile used for default build which is unit tests, so false to have them run -->
       <properties>
-        <surefirePluginSkip>false</surefirePluginSkip>
-        <modernizerPluginSkip>false</modernizerPluginSkip>
+        <surefirePluginSkip>${skipTests}</surefirePluginSkip>
+        <modernizerPluginSkip>${skipTests}</modernizerPluginSkip>
       </properties>
       <build>
         <plugins>
