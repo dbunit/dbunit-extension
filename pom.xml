@@ -3,13 +3,6 @@
   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <parent>
-    <groupId>org.sonatype.oss</groupId>
-    <artifactId>oss-parent</artifactId>
-    <version>9</version>
-    <relativePath />
-  </parent>
-
   <groupId>org.dbunit</groupId>
   <artifactId>dbunit</artifactId>
   <version>3.0.1-SNAPSHOT</version>
@@ -714,6 +707,15 @@
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-gpg-plugin</artifactId>
           <version>${gpgPluginVersion}</version>
+          <executions>
+            <execution>
+              <id>sign-artifacts</id>
+              <phase>verify</phase>
+              <goals>
+                <goal>sign</goal>
+              </goals>
+            </execution>
+          </executions>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
@@ -763,6 +765,14 @@ enable this to generate coverage report HTML files during build (same as site)
             <additionalparam>-Xdoclint:none</additionalparam>
             <doclint>none</doclint>
           </configuration>
+          <executions>
+            <execution>
+              <id>attach-javadocs</id>
+              <goals>
+                <goal>jar</goal>
+              </goals>
+            </execution>
+          </executions>
         </plugin>
         <plugin>
           <groupId>org.codehaus.mojo</groupId>
@@ -1453,7 +1463,6 @@ enable this to generate coverage report HTML files during build (same as site)
   </reporting>
 
   <distributionManagement>
-    <!-- distribution repos specified in parent -->
     <site>
       <id>sourceforge</id>
       <url>scp://shell.sourceforge.net/home/project-web/dbunit/htdocs/dbunit/</url>
@@ -1943,6 +1952,26 @@ enable this to generate coverage report HTML files during build (same as site)
           <artifactId>ojdbc8</artifactId>
         </dependency>
       </dependencies>
+    </profile>
+
+    <profile>
+      <id>release</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-source-plugin</artifactId>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-javadoc-plugin</artifactId>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-gpg-plugin</artifactId>
+          </plugin>
+        </plugins>
+      </build>
     </profile>
   </profiles>
 </project>

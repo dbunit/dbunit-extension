@@ -53,11 +53,8 @@ Releasing
 
 ---
 mvnw clean
-mvnw deploy -Psonatype-oss-release
+mvnw deploy -Prelease
 ---
-
- [[1]] Login to Sonatype OSS and process the release through staging
- (requires privileges)
 
  [[1]] Build and deploy the site
 
