@@ -13,11 +13,12 @@
   </properties>
 
   <body>
-    <release version="3.0.1-SNAPSHOT" date="TBD" description="Lower DefaultPrepAndExpectedTestCase log levels, build DB config, GitHub CI, reproducible builds">
+    <release version="3.0.1-SNAPSHOT" date="TBD" description="Lower DefaultPrepAndExpectedTestCase log levels, build DB config, GitHub CI, reproducible builds, change to Central Portal publishing">
       <action dev="jeffjensen" type="add" issue="260" system="sffeatures" due-to="jeffjensen">Configure GitHub CI.</action>
       <action dev="jeffjensen" type="update" issue="259" system="sffeatures" due-to="jeffjensen">Update build to use docker-maven-plugin for starting databases.</action>
       <action dev="jeffjensen" type="update" issue="261" system="sffeatures" due-to="jeffjensen">DefaultPrepAndExpectedTestCase: lower log levels so no WARN and fewer INFO.</action>
       <action dev="jeffjensen" type="update" issue="262" system="sffeatures" due-to="jeffjensen">Setup reproducible builds.</action>
+      <action dev="jeffjensen" type="update" issue="263" system="sffeatures" due-to="jeffjensen">Change Central artifact publishing from OSSRH to new Portal.</action>
     </release>
     <release version="3.0.0" date="Jan 25, 2025" description="JUnit 5 update, ValueComparers constants, Add TableDecoratorDataSet and GeneratedColumnFilter, Postgresql dep scope, IOUtils NoClassDefFoundError, PostgreSQLOidDataType.setSqlValue(): use unwrap(), Oracle NClob, XML DataTypes: use unwrap()">
       <action dev="jeffjensen" type="update" issue="222" system="sffeatures" due-to="emann">Upgrade dbUnit from JUnit 4 to JUnit 5</action>

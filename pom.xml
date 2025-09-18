@@ -38,6 +38,7 @@
 
     <!-- Maven plugin versions -->
     <assemblyPluginVersion>3.1.0</assemblyPluginVersion>
+    <centralPublishingMavenPluginVersion>0.8.0</centralPublishingMavenPluginVersion>
     <changelogPluginVersion>2.3</changelogPluginVersion>
     <changesPluginVersion>2.12.1</changesPluginVersion>
     <checkstylePluginVersion>2.17</checkstylePluginVersion>
@@ -540,6 +541,18 @@
           </configuration>
         </plugin>
         <plugin>
+          <groupId>org.sonatype.central</groupId>
+          <artifactId>central-publishing-maven-plugin</artifactId>
+          <version>${centralPublishingMavenPluginVersion}</version>
+          <extensions>true</extensions>
+          <configuration>
+            <publishingServerId>central-publish</publishingServerId>
+            <autoPublish>true</autoPublish>
+            <waitUntil>published</waitUntil>
+            <deploymentName>dbunit-core</deploymentName>
+          </configuration>
+        </plugin>
+        <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-changelog-plugin</artifactId>
           <version>${changelogPluginVersion}</version>
@@ -945,8 +958,8 @@ enable this to generate coverage report HTML files during build (same as site)
         <artifactId>modernizer-maven-plugin</artifactId>
       </plugin>
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-source-plugin</artifactId>
+        <groupId>org.sonatype.central</groupId>
+        <artifactId>central-publishing-maven-plugin</artifactId>
       </plugin>
     </plugins>
   </build>
