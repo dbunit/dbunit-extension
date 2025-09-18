@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="ISO-8859-1"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
@@ -173,13 +174,9 @@
     </mailingList>
   </mailingLists>
 
-  <!--
-     - Who are the developers for the project, in order of recent activity.
-    -->
+  <!-- Who are the developers for the project, in order of recent activity. -->
   <developers>
-    <!--
-       - Note: email of first developer is used by the announcements-email plugin
-      -->
+    <!-- Note: email of first developer is used by the announcements-email plugin -->
     <developer>
       <name>Jeff Jensen</name>
       <id>jeffjensen</id>
@@ -424,11 +421,7 @@
   </dependencyManagement>
 
   <dependencies>
-    <!--
-      TODO: check which dependencies could marked as optional. For
-      instance, ant is optional because it's only necessary for the
-      dbunit Ant tasks.
-    -->
+    <!-- TODO: check which dependencies could mark as optional. For instance, ant is optional because it's only necessary for the dbunit Ant tasks. -->
 
     <!-- TODO: add exclusion for dependencies that include xerces/xalan -->
 
@@ -481,7 +474,7 @@
       <artifactId>ant-junitlauncher</artifactId>
       <version>${antVersion}</version>
       <scope>test</scope>
-	</dependency>
+    </dependency>
     <dependency>
       <groupId>org.apache.poi</groupId>
       <artifactId>poi</artifactId>
@@ -509,7 +502,7 @@
       <groupId>org.mockito</groupId>
       <artifactId>mockito-core</artifactId>
       <version>${mockito.version}</version>
-	  <scope>test</scope>
+      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.mockito</groupId>
@@ -543,7 +536,7 @@
     <defaultGoal>install</defaultGoal>
     <pluginManagement>
       <plugins>
-       <plugin>
+        <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-assembly-plugin</artifactId>
           <version>${assemblyPluginVersion}</version>
@@ -655,7 +648,7 @@
               <requirePluginVersions>
                 <phases>compile</phases>
               </requirePluginVersions>
-              <requireProfileIdsExist/>
+              <requireProfileIdsExist />
             </rules>
           </configuration>
         </plugin>
@@ -705,7 +698,7 @@
               <property>
                 <name>dbunit.profile.multiLineSupport</name>
                 <value>${dbunit.profile.multiLineSupport}</value>
-               </property>
+              </property>
             </systemProperties>
           </configuration>
           <executions>
