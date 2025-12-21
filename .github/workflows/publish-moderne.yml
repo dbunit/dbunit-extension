@@ -1,0 +1,23 @@
+name: Publish to Moderne
+on:
+  push:
+    branches: jj-publish-moderne
+  workflow_dispatch:  # Allows manual triggering
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up JDK
+        uses: actions/setup-java@v3
+        with:
+          java-version: '8'
+          distribution: 'temurin'
+      - name: Build and publish LST
+        env:
+          MODERNE_API_URL: ${{ secrets.MODERNE_API_URL }}
+          MODERNE_API_TOKEN: ${{ secrets.MODERNE_API_TOKEN }}
+        run: |
+          mvn -B clean install
+          mvn -B rewrite:build-ast
+          mvn rewrite:publish

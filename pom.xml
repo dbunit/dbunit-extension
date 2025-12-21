@@ -817,6 +817,14 @@ enable this to generate coverage report HTML files during build (same as site)
           </executions>
         </plugin>
         <plugin>
+          <groupId>org.openrewrite.maven</groupId>
+          <artifactId>rewrite-maven-plugin</artifactId>
+          <version>6.26.0</version>
+          <configuration>
+            <exportDatatables>true</exportDatatables>
+          </configuration>
+        </plugin>
+        <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-pmd-plugin</artifactId>
           <version>${pmdPluginVersion}</version>
