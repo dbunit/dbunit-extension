@@ -798,6 +798,20 @@ enable this to generate coverage report HTML files during build (same as site)
           <version>${jxrPluginVersion}</version>
         </plugin>
         <plugin>
+          <groupId>io.moderne</groupId>
+          <artifactId>moderne-lst-maven-plugin</artifactId>
+          <version>2.7.2</version> <!-- Check for the latest version -->
+          <executions>
+            <execution>
+              <id>generate-lst</id>
+              <phase>package</phase>
+              <goals>
+                <goal>ast</goal>
+              </goals>
+            </execution>
+          </executions>
+        </plugin>
+        <plugin>
           <groupId>org.gaul</groupId>
           <artifactId>modernizer-maven-plugin</artifactId>
           <version>${modernizer-maven-plugin}</version>
