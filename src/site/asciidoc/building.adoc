@@ -1,0 +1,49 @@
+= Building DbUnit
+Felipe Leme
+
+== Overview
+
+Building DbUnit is quite simple. You need the following software installed:
+
+* link:http://www.oracle.com/technetwork/java/javase/downloads/index.html[Java SE SDK 8+]
+* link:http://maven.apache.org[Maven 3]
+* Git client
+
+Once you have them all, you can build DbUnit by just typing *mvnw*! The items below describe every step.
+
+== Generating the JAR
+
+. Install Java SE SDK and Maven.
+. Obtain DbUnit code, either current or released source (see *Quick Links* on left menu)
+. On the root directory, simply type `mvnw` in the command line. (If you need to clean up the binaries, run `mvnw clean install` instead.) The jar file will be generated in the target directory.
+
+== Creating the site
+
+Run `mvnw site` in the command line; the site will be available on `target/site/index.html`. Note that you might get an _OutOfMemoryExceptionError_; if that happens, you must increase the heap size through the _MAVEN_OPTS_ variable (for instance, on Unix systems, you could run `MAVEN_OPTS=-mx512M mvnw site`).
+
+== Updating the repository and site
+
+Once new code is committed, it is necessary to update the Maven repository with new snapshots, and also update the site. These 2 tasks can be done with a simple command:
+
+[source,bash]
+----
+mvnw clean source:jar javadoc:jar deploy site site:deploy
+----
+
+== Verify Reproducible Build
+
+. Run the normal build, installing to local repo for comparing to:
++
+[source,bash]
+----
+mvnw clean install
+----
+
+. Run the reproducible build comparison step:
++
+[source,bash]
+----
+mvnw clean verify artifact:compare
+----
+
+. Review the compare output for issues to fix.

@@ -1,0 +1,10 @@
+= Data Comparisons
+Jeff Jensen
+
+One of dbUnit's strengths is comparing data -
+table to table, dataset to table, and dataset to dataset.
+
+dbUnit has two approaches for data comparison:
+
+. link:/dbunit/datacomparisons/equality.html[equality] (the original)
+. link:/dbunit/datacomparisons/valuecomparer.html[value comparer] (since release 2.6.0)

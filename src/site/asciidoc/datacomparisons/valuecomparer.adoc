@@ -1,0 +1,118 @@
+= ValueComparer Comparison
+Jeff Jensen
+
+== Overview
+
+Introduced in link:/dbunit/changes-report.html#a2.6.0[Release 2.6.0], the
+link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html[ValueComparer]
+is a strategy interface enabling any type of comparison, not only equality.
+
+It enables comparing difficult-to-compare column values such as:
+
+* auto-incrementing ids
+* timestamps
+
+It enables comparisons such as:
+
+* greater-than
+* less-than
+* contains
+* complex multi-column-based
+* dynamically choosing the ValueComparer based on criteria
+
+== Usage
+
+This flexibility and power has slightly more complex usage than equality comparison.
+
+To use
+link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html[ValueComparer]
+comparison,
+the dbUnit dataset files do not change.
+Instead, the tests use dbUnit assert methods that work with
+link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html[ValueComparer]s.
+
+=== Core ValueComparer Classes
+
+Package
+link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/package-summary.html[org.dbunit.assertion.comparer.value]
+contains the
+link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html[ValueComparer]
+implementations and related interfaces/classes.
+
+The
+link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparers.html[ValueComparers]
+class has singleton instances of the ones provided by dbUnit
+plus pre-configured variances (e.g.
+link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparers.html#isActualWithinOneMinuteNewerOfExpectedTimestamp[isActualWithinOneMinuteNewerOfExpectedTimestamp]).
+Start with these as they provide for most comparison needs.
+
+It is easy to add your own implementations of the
+link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html[ValueComparer]
+interface,
+either directly or using base classes such as
+link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparerBase.html[ValueComparerBase]
+and
+link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparerTemplateBase.html[ValueComparerTemplateBase].
+
+Please let us know of comparison needs not handled by the
+link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html[ValueComparer]
+implementations and
+link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparers.html[ValueComparers]
+instances as maybe we should add it to dbUnit.
+
+=== Assert with ValueComparer Classes
+
+The
+link:/dbunit/apidocs/org/dbunit/Assertion.html[Assertion]
+and
+link:/dbunit/apidocs/org/dbunit/assertion/DbUnitValueComparerAssert.html[DbUnitValueComparerAssert]
+classes have assertWithValueComparer() methods for the
+link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html[ValueComparer]
+comparisons.
+See
+link:/dbunit/xref-test/org/dbunit/assertion/DbUnitValueComparerAssertIT.html[DbUnitValueComparerAssertIT]
+for examples using
+link:/dbunit/apidocs/org/dbunit/assertion/DbUnitValueComparerAssert.html[DbUnitValueComparerAssert].
+
+=== TestCase with ValueComparer Classes
+
+link:/dbunit/apidocs/org/dbunit/PrepAndExpectedTestCase.html[PrepAndExpectedTestCase]
+directly supports
+link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html[ValueComparer]
+in addition to equality comparison via
+link:/dbunit/apidocs/org/dbunit/VerifyTableDefinition.html[VerifyTableDefinition].
+See
+link:/dbunit/testcases/PrepAndExpectedTestCase.html[PrepAndExpectedTestCase overview]
+for examples with it.
+
+== Example
+
+This example shows defining the value comparers
+for comparing the expected table to the actual table.
+In addition to the expected and actual table parameters,
+Assertion.assertWithValueComparer()
+uses a default value comparer
+(used for columns not listed in the columns map)
+and the column value comparers map for comparing specified columns.
+
+It uses the value comparer instances defined on the
+link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparers.html[ValueComparers]
+class.
+
+[source,java]
+----
+@Test
+public void testExample() throws Exception
+{
+    ITable expectedTable = ...; // declare the expected table
+    ITable actualTable = ...;  // declare the actual table
+    ValueComparer defaultValueComparer = ValueComparers.isActualEqualToExpected;
+    Map<String, ValueComparer> columnValueComparers =
+            new ColumnValueComparerMapBuilder()
+                    .add("COLUMN1", ValueComparers.isActualGreaterThanExpected)
+                    .add("COLUMN2", ValueComparers.isActualLessOrEqualToThanExpected)
+                    .build();
+
+    Assertion.assertWithValueComparer(expectedTable, actualTable, defaultValueComparer, columnValueComparers);
+}
+----

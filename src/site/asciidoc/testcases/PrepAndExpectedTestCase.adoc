@@ -1,113 +1,109 @@
-  ---
-PrepAndExpectedTestCase
-  ---
+= PrepAndExpectedTestCase
 Jeff Jensen
-  ---
-2018-01-18
 
-Overview
+== Overview
 
- {{{/dbunit/apidocs/org/dbunit/PrepAndExpectedTestCase.html}PrepAndExpectedTestCase}},
- and its default implementation 
- {{{/dbunit/apidocs/org/dbunit/DefaultPrepAndExpectedTestCase.html}DefaultPrepAndExpectedTestCase}}, 
- is a test case formally supporting prep data and expected data concepts and
- definitions.
+link:/dbunit/apidocs/org/dbunit/PrepAndExpectedTestCase.html[PrepAndExpectedTestCase],
+and its default implementation
+link:/dbunit/apidocs/org/dbunit/DefaultPrepAndExpectedTestCase.html[DefaultPrepAndExpectedTestCase],
+is a test case formally supporting prep data and expected data concepts and
+definitions.
 
-  [Prep data] is the setup data needed in the database for the test to run.
+Prep data:: is the setup data needed in the database for the test to run.
 
-  [Expected data] is the data to compare with one or more database tables verifying the test ran successfully.
+Expected data:: is the data to compare with one or more database tables verifying the test ran successfully.
 
- {{{/dbunit/apidocs/org/dbunit/PrepAndExpectedTestCase.html}PrepAndExpectedTestCase}}
- easily allows defining which are the setup datasets (prep) and
- the verify datasets (expected).
+link:/dbunit/apidocs/org/dbunit/PrepAndExpectedTestCase.html[PrepAndExpectedTestCase]
+easily allows defining which are the setup datasets (prep) and
+the verify datasets (expected).
 
- It conveniently packages a turn-key test setup and verification process in one:
+It conveniently packages a turn-key test setup and verification process in one:
 
- [[1]] Loads the prep dataset files and inserts their data into the database tables
+. Loads the prep dataset files and inserts their data into the database tables
+. Runs the test steps (if specified as a runTest() PrepAndExpectedTestCaseSteps parameter)
+. Verifies table state matches the expected datasets for the specified
+  link:/dbunit/apidocs/org/dbunit/VerifyTableDefinition.html[VerifyTableDefinition]s
+. Cleans up the tables listed in the prep and expected datasets
+  (per the configured teardown operation)
 
- [[1]] Runs the test steps (if specified as a runTest() PrepAndExpectedTestCaseSteps parameter)
+== Usage
 
- [[1]] Verifies table state matches the expected datasets for the specified
-   {{{/dbunit/apidocs/org/dbunit/VerifyTableDefinition.html}VerifyTableDefinition}}s
+=== Configure
 
- [[1]] Cleans up the tables listed in the prep and expected datasets
-   (per the configured teardown operation)
+Configure this class in one of two ways:
 
-Usage
-
-* Configure
-
- Configure this class in one of two ways:
-
-  [[1]]Dependency inject it as its interface into a test class.
-
-+--
+. Dependency inject it as its interface into a test class.
++
+[source,java]
+----
 @Inject
 private PrepAndExpectedTestCase testCase;
-+--
+----
++
+Create it by configuring an instance of its interface
+(start with
+link:/dbunit/apidocs/org/dbunit/DefaultPrepAndExpectedTestCase.html[DefaultPrepAndExpectedTestCase]
+and extend & override if necessary),
+injecting a
+link:/dbunit/apidocs/org/dbunit/IDatabaseTester.html[IDatabaseTester]
+and a
+link:/dbunit/apidocs/org/dbunit/util/fileloader/DataFileLoader.html[DataFileLoader]
+using the databaseTester and a dataFileLoader properties
+(see <<Configuration_Example_Using_Spring,Configuration Example Using Spring>> below).
 
-  Create it by configuring an instance of its interface
-  (start with
-  {{{/dbunit/apidocs/org/dbunit/DefaultPrepAndExpectedTestCase.html}DefaultPrepAndExpectedTestCase}}
-  and extend & override if necessary),
-  injecting a 
-  {{{/dbunit/apidocs/org/dbunit/IDatabaseTester.html}IDatabaseTester}}
-  and a
-  {{{/dbunit/apidocs/org/dbunit/util/fileloader/DataFileLoader.html}DataFileLoader}}
-  using the databaseTester and a dataFileLoader properties
-  (see {{{#Configuration_Example_Using_Spring}Configuration Example Using Spring}} below).
-
-  [[1]]Extend it in a test class.
+. Extend it in a test class.
   Obtain
-  {{{/dbunit/apidocs/org/dbunit/IDatabaseTester.html}IDatabaseTester}}
+  link:/dbunit/apidocs/org/dbunit/IDatabaseTester.html[IDatabaseTester]
   and
-  {{{/dbunit/apidocs/org/dbunit/util/fileloader/DataFileLoader.html}DataFileLoader}}
+  link:/dbunit/apidocs/org/dbunit/util/fileloader/DataFileLoader.html[DataFileLoader]
   instances (possibly dependency
   injecting them into the test class) and set them accordingly, probably in a
   setup type of method, such as:
-
-+--
++
+[source,java]
+----
 @BeforeEach
 public void setDbunitTestDependencies()
 {
     setDatabaseTester(databaseTester);
     setDataFileLoader(dataFileLoader);
 }
-+--
+----
 
-* Run Tests
+=== Run Tests
 
- {{{/dbunit/apidocs/org/dbunit/PrepAndExpectedTestCase.html}PrepAndExpectedTestCase}}
- has two ways to setup, execute, and clean up tests:
+link:/dbunit/apidocs/org/dbunit/PrepAndExpectedTestCase.html[PrepAndExpectedTestCase]
+has two ways to setup, execute, and clean up tests:
 
-  [[1]] Encapsulate the test steps in
-  {{{/dbunit/apidocs/org/dbunit/PrepAndExpectedTestCaseSteps.html}PrepAndExpectedTestCaseSteps}}
+. Encapsulate the test steps in
+  link:/dbunit/apidocs/org/dbunit/PrepAndExpectedTestCaseSteps.html[PrepAndExpectedTestCaseSteps]
   and call the runTest() method.
-  Note, this requires {{{/dbunit/changes-report.html#a2.5.2}Release 2.5.2}} and newer.
+  Note, this requires link:/dbunit/changes-report.html#a2.5.2[Release 2.5.2] and newer.
 
-  [[1]] Call the configureTest(), preTest(),
+. Call the configureTest(), preTest(),
   and postTest() methods. Note there is a preTest() convenience method that
   takes the same parameters as the configureTest() method; use it instead of
   using both configureTest() and preTest().
   Where the test calls those methods depends on data needs:
++
+--
+* For the whole test case, i.e. in setUp() and tearDown() or @Before and @After.
+* In each test method.
+* Or some combination of both test case setup/teardown and test methods.
+--
 
-    * For the whole test case, i.e. in setUp() and tearDown() or @Before
-    and @After.
+(see <<Test_Examples,Test Examples>> below)
 
-    * In each test method.
+[#Configuration_Example_Using_Spring]
+== Configuration Example Using Spring
 
-    * Or some combination of both test case setup/teardown and test methods.
+The following configuration shows customizing
+link:/dbunit/apidocs/org/dbunit/database/DatabaseConfig.html[DatabaseConfig] and
+enables dependency injecting the created
+link:/dbunit/apidocs/org/dbunit/PrepAndExpectedTestCase.html[PrepAndExpectedTestCase].
 
- (see {{{#Test_Examples}Test Examples}} below)
-
-Configuration Example Using Spring
-
- The following configuration shows customizing
- {{{/dbunit/apidocs/org/dbunit/database/DatabaseConfig.html}DatabaseConfig}} and
- enables dependency injecting the created
- {{{/dbunit/apidocs/org/dbunit/PrepAndExpectedTestCase.html}PrepAndExpectedTestCase}}.
-
-+--
+[source,java]
+----
 @Configuration
 @Validated
 public class DbUnitConfiguration
@@ -177,7 +173,7 @@ public class DbUnitConfiguration
 
     /**
      * Create dbUnit {@link IDatabaseTester}.
-     * 
+     *
      * @param dataSource
      *            The {@link DataSource} for the dbUnit test to use.
      * @return Configured dbUnit {@link IDatabaseTester}.
@@ -193,8 +189,10 @@ public class DbUnitConfiguration
         return databaseTester;
     }
 }
-+--
-+--
+----
+
+[source,java]
+----
 /**
  * Class containing replacement objects and replacement substrings for
  * substitution in dbUnit datasets.
@@ -240,8 +238,10 @@ public class DbUnitDataReplacement
         return replacementSubstrings;
     }
 }
-+--
-+--
+----
+
+[source,java]
+----
 /**
  * Dates for testing with database dates.
  */
@@ -261,72 +261,74 @@ public class TestDatabaseDates
         return Timestamp.from(instant);
     }
 }
-+--
+----
 
-Test Examples
+[#Test_Examples]
+== Test Examples
 
- Note: use good constant names for table names and table definitions,
- not generic "TABLEn" as used in these examples.
+Note: use good constant names for table names and table definitions,
+not generic "TABLEn" as used in these examples.
 
- These examples show:
+These examples show:
 
-  [[1]] Before the test runs,
+. Before the test runs,
   insert into the database the dataset contents of the files
   (represented by the constants COMMON_TABLE1, COMMON_TABLE2, TABLE3_PREP, TABLE4_PREP)
   as configured by the setup operation (defined outside of the test).
-
-  [[1]] After the test runs,
+. After the test runs,
   verify table3 and table5 contents
   are the same as the expected data files and according to the VerifyTableDefinitions.
-
-  [[1]] After the test runs,
+. After the test runs,
   cleanup tables as configured by the teardown operation (defined outside of the test).
 
-* Common Classes for Examples
+=== Common Classes for Examples
 
- It is helpful to make classes for common test table configurations
- as the configuration is usually the same for most tests
- with some tests slightly deviating.
- The following examples show some of these options.
+It is helpful to make classes for common test table configurations
+as the configuration is usually the same for most tests
+with some tests slightly deviating.
+The following examples show some of these options.
 
-** TableNames
+==== TableNames
 
- A simple class of table names, providing consistency and preventing typos.
+A simple class of table names, providing consistency and preventing typos.
 
- Make this a production class
- when additionally specifying table names in classes
- such as entities and repositories/DAOs.
+Make this a production class
+when additionally specifying table names in classes
+such as entities and repositories/DAOs.
 
-+--
+[source,java]
+----
 public abstract class TableNames
 {
     public static final String TABLE3 = "table3";
     public static final String TABLE5 = "table5";
 }
-+---
+----
 
-** ColumnNames
+==== ColumnNames
 
- A simple class of column names, providing consistency and preventing typos.
+A simple class of column names, providing consistency and preventing typos.
 
- Make this a production class
- when additionally specifying column names in classes
- such as entities and repositories/DAOs.
+Make this a production class
+when additionally specifying column names in classes
+such as entities and repositories/DAOs.
 
-+--
+[source,java]
+----
 public abstract class ColumnNames
 {
     public static final String COLUMN1 = "column1";
 }
-+---
+----
 
-** ValueComparers
+==== ValueComparers
 
- For specific ValueComparer configurations,
- it is helpful to isolate them in one or more classes,
- possibly organized by table.
+For specific ValueComparer configurations,
+it is helpful to isolate them in one or more classes,
+possibly organized by table.
 
-+--
+[source,java]
+----
 public abstract class AppValueComparers
 {
     public static final Map<String, ValueComparer> COLUMN1_GREATER =
@@ -334,31 +336,28 @@ public abstract class AppValueComparers
             .add(ColumnNames.COLUMN1, ValueComparers.isActualGreaterThanExpected)
             .build();
 }
-+--
+----
 
-** VerifyTableDefinitions
+==== VerifyTableDefinitions
 
-*** Static VerifyTableDefinition Instances
+===== Static VerifyTableDefinition Instances
 
- Typically, most tests' VerifyTableDefinitions are the same.
- Some tests' VerifyTableDefinitions needs may deviate on an ignored column or a specific column ValueComparer.
+Typically, most tests' VerifyTableDefinitions are the same.
+Some tests' VerifyTableDefinitions needs may deviate on an ignored column or a specific column ValueComparer.
 
- In this example:
+In this example:
 
- * "table3" in this class has the same configuration for any test,
- represented by the TABLE3 constant.
+* "table3" in this class has the same configuration for any test,
+  represented by the TABLE3 constant.
+* "table5" in this class has two configurations:
 
- * "table5" in this class has two configurations:
+. TABLE5 has all columns using equality comparison
+. TABLE5_COLUMN1_GREATER has all columns using equality comparison
+  except COLUMN1 using ValueComparers.isActualGreaterThanExpected,
+  verifying the COLUMN1 actual value results in a larger value than the expected value.
 
- [[1]] TABLE5 has all columns using equality comparison
-
- [[1]] TABLE5_COLUMN1_GREATER has all columns using equality comparison
- except COLUMN1 using ValueComparers.isActualGreaterThanExpected,
- verifying the COLUMN1 actual value results in a larger value than the expected value.
-
-[] (end the lists to outdent the code)
-
-+--
+[source,java]
+----
 public abstract class VerifyTableDefinitions
 {
     public static final VerifyTableDefinition TABLE3 = make(TableNames.TABLE3);
@@ -380,60 +379,55 @@ public abstract class VerifyTableDefinitions
         return new VerifyTableDefinition(tableName, defaultValueComparer, columnValueComparers);
     }
 }
-+--
+----
 
-*** Test-Specific VerifyTableDefinitions
+===== Test-Specific VerifyTableDefinitions
 
- The above VerifyTableDefinitions example class used static
- {{{/dbunit/apidocs/org/dbunit/VerifyTableDefinition.html}VerifyTableDefinition}}
- instances.
- Some
- {{{/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html}ValueComparer}}s
- require test-specific values
- so static instances won't work when reused across tests.
- In these cases, make a parameterized
- {{{/dbunit/apidocs/org/dbunit/VerifyTableDefinition.html}VerifyTableDefinition}}
- factory method to take the needed values.
+The above VerifyTableDefinitions example class used static
+link:/dbunit/apidocs/org/dbunit/VerifyTableDefinition.html[VerifyTableDefinition]
+instances.
+Some
+link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html[ValueComparer]s
+require test-specific values
+so static instances won't work when reused across tests.
+In these cases, make a parameterized
+link:/dbunit/apidocs/org/dbunit/VerifyTableDefinition.html[VerifyTableDefinition]
+factory method to take the needed values.
 
- For example,
- a test may need to specify a different set of "in values"
- than other tests,
- such as with the
- {{{/dbunit/apidocs/org/dbunit/assertion/comparer/value/ConditionalSetBiValueComparer.html}ConditionalSetBiValueComparer}}.
- It uses a 
- {{{/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueFactory.html}ValueFactory}}
- to determine which of two 
- {{{/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html}ValueComparer}}s
- to use for each table row,
- so make a factory method with the needed values parameters.
+For example,
+a test may need to specify a different set of "in values"
+than other tests,
+such as with the
+link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/ConditionalSetBiValueComparer.html[ConditionalSetBiValueComparer].
+It uses a
+link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueFactory.html[ValueFactory]
+to determine which of two
+link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html[ValueComparer]s
+to use for each table row,
+so make a factory method with the needed values parameters.
 
- The following example's factory method takes a list of IDs (called "in values")
- for a column's values requiring a different
- {{{/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html}ValueComparer}}
- than the rest of the rows (called "not in values").
- Comparing columns happens as configured:
+The following example's factory method takes a list of IDs (called "in values")
+for a column's values requiring a different
+link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html[ValueComparer]
+than the rest of the rows (called "not in values").
+Comparing columns happens as configured:
 
- * COLUMN1 uses the specified "isActualGreaterThanOrEqualToExpected"
+* COLUMN1 uses the specified "isActualGreaterThanOrEqualToExpected"
+* COLUMN2 uses the specified "ConditionalSetBiValueComparer",
+** Table rows with an ID in the specified list
+   will use the "inValuesValueComparer" for it,
+   which is "isActualGreaterThanExpected",
+   verifying the value changed and increased.
+** Table rows without an ID in the specified list
+   will use the "notInValuesValueComparer" for it,
+   which is "isActualEqualToExpected",
+   verifying the value did not change.
+* The remaining columns will use the default,
+  which is equality comparison,
+  verifying the value did not change.
 
- * COLUMN2 uses the specified "ConditionalSetBiValueComparer",
-
-  * Table rows with an ID in the specified list
- will use the "inValuesValueComparer" for it,
- which is "isActualGreaterThanExpected",
- verifying the value changed and increased.
-
-  * Table rows without an ID in the specified list
- will use the "notInValuesValueComparer" for it,
- which is "isActualEqualToExpected",
- verifying the value did not change.
-
- * The remaining columns will use the default,
- which is equality comparison,
- verifying the value did not change.
-
-[] (end the list to outdent the code)
-
-+--
+[source,java]
+----
 public abstract class VerifyTableDefinitionFactory
 {
     public static VerifyTableDefinition tableName_update(Long... ids)
@@ -441,8 +435,10 @@ public abstract class VerifyTableDefinitionFactory
         return make(TableName.TABLE_NAME, ValueComparerMapFactory.makeTableName_updated(ids));
     }
 }
-+--
-+--
+----
+
+[source,java]
+----
 public abstract class ValueComparerMapFactory
 {
     public static Map<String, ValueComparer> makeTableName_updated(Long[] ids)
@@ -462,17 +458,18 @@ public abstract class ValueComparerMapFactory
                 .build();
     }
 }
-+--
+----
 
- The test then uses the factory method (tableName_update) instead of a constant.
+The test then uses the factory method (tableName_update) instead of a constant.
 
-* Using Default Equality Column Comparison
+=== Using Default Equality Column Comparison
 
- This test uses the default equality column comparison for all columns - 
- the VerifyTableDefinitions used do not specify any ValueComparers
- so it defaults to equality.
+This test uses the default equality column comparison for all columns -
+the VerifyTableDefinitions used do not specify any ValueComparers
+so it defaults to equality.
 
-+--
+[source,java]
+----
 public class DefaultEqualityComparisonExampleTest
 {
     // this path is on classpath, e.g. in src/test/resources
@@ -511,24 +508,22 @@ public class DefaultEqualityComparisonExampleTest
         });
     }
 }
-+--
+----
 
-* Using ValueComparer Column Comparison
+=== Using ValueComparer Column Comparison
 
- This test uses the default equality column comparison for all but one column - 
- "table5"'s VerifyTableDefinition specifies a ValueComparer for "column1".
+This test uses the default equality column comparison for all but one column -
+"table5"'s VerifyTableDefinition specifies a ValueComparer for "column1".
 
- Note the only differences between this test and the prior test are:
+Note the only differences between this test and the prior test are:
 
- [[1]] This test uses VerifyTableDefinitions.TABLE5_COLUMN1_GREATER
- instead of
- VerifyTableDefinitions.TABLE5
+. This test uses VerifyTableDefinitions.TABLE5_COLUMN1_GREATER
+  instead of
+  VerifyTableDefinitions.TABLE5
+. The directory location of the prep and expected files
 
- [[1]] The directory location of the prep and expected files
-
-[] (end the lists to outdent the code)
-
-+--
+[source,java]
+----
 public class ValueComparerComparisonExampleTest
 {
     // this path is on classpath, e.g. in src/test/resources
@@ -567,31 +562,32 @@ public class ValueComparerComparisonExampleTest
         });
     }
 }
-+--
+----
 
-Sharing Common (but not all) Prep or Expected Data Among Test Methods
+== Sharing Common (but not all) Prep or Expected Data Among Test Methods
 
-  As with the examples above,
-  usually each test method requires its own prep and expected data so
-  the test methods will each define their own.
+As with the examples above,
+usually each test method requires its own prep and expected data so
+the test methods will each define their own.
 
-  Often, we can define dataset files of test data used across multiple tests,
-  typically master lists and a base set of data useful to multiple tests.
-  As above, place them in separate files (usually by table) for easy reuse.
+Often, we can define dataset files of test data used across multiple tests,
+typically master lists and a base set of data useful to multiple tests.
+As above, place them in separate files (usually by table) for easy reuse.
 
- Then, pass the needed ones in the correct data file array
- (as shown in the examples).
+Then, pass the needed ones in the correct data file array
+(as shown in the examples).
 
-Java 8+ and Anonymous Interfaces
+== Java 8+ and Anonymous Interfaces
 
- {{{/dbunit/changes-report.html#a2.5.2}Release 2.5.2}} introduced interface
- {{{/dbunit/apidocs/org/dbunit/PrepAndExpectedTestCaseSteps.html}PrepAndExpectedTestCaseSteps}}
- and the
- {{{/dbunit/apidocs/org/dbunit/PrepAndExpectedTestCase.html#runTest-org.dbunit.VerifyTableDefinition:A-java.lang.String:A-java.lang.String:A-org.dbunit.PrepAndExpectedTestCaseSteps-}PrepAndExpectedTestCase#runTest(VerifyTableDefinition[], String[], String[], PrepAndExpectedTestCaseSteps)}}
- method. This allows for encapsulating test steps into an anonymous inner
- class or a Java 8+ lambda.
+link:/dbunit/changes-report.html#a2.5.2[Release 2.5.2] introduced interface
+link:/dbunit/apidocs/org/dbunit/PrepAndExpectedTestCaseSteps.html[PrepAndExpectedTestCaseSteps]
+and the
+link:/dbunit/apidocs/org/dbunit/PrepAndExpectedTestCase.html#runTest-org.dbunit.VerifyTableDefinition:A-java.lang.String:A-java.lang.String:A-org.dbunit.PrepAndExpectedTestCaseSteps-[PrepAndExpectedTestCase#runTest(VerifyTableDefinition[], String[], String[], PrepAndExpectedTestCaseSteps)]
+method. This allows for encapsulating test steps into an anonymous inner
+class or a Java 8+ lambda.
 
-+--
+[source,java]
+----
 @Inject
 private PrepAndExpectedTestCase testCase;
 
@@ -616,14 +612,15 @@ public void testExample() throws Exception
 
     testCase.runTest(verifyTables, prepDataFiles, expectedDataFiles, testSteps);
 }
-+--
+----
 
- When using a version prior to Java 8, either use a class
- (concrete or anonymous inner class)
- for PrepAndExpectedTestCaseSteps
- or the following idiom that uses a try/catch/finally template:
+When using a version prior to Java 8, either use a class
+(concrete or anonymous inner class)
+for PrepAndExpectedTestCaseSteps
+or the following idiom that uses a try/catch/finally template:
 
-+--
+[source,java]
+----
 @Inject
 private PrepAndExpectedTestCase testCase;
 
@@ -652,4 +649,4 @@ public void testExample() throws Exception
         testCase.postTest();
     }
 }
-+--
+----

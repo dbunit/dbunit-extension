@@ -1,0 +1,186 @@
+= Running DbUnit Integration Tests
+John Hurst; Jeff Jensen; Andrew Landsverk
+
+== Overview
+
+DbUnit includes a comprehensive test suite.
+
+Most of the tests are *unit tests* (UTs) and therefore do not rely on any particular database environment;
+they test the logic, not the database interaction.
+UT class names have the suffix *Test*.
+The unit tests are executed in the normal Maven test phase by the
+link:http://mojo.codehaus.org/surefire-maven-plugin/[Maven surefire-plugin].
+
+Some of the tests are *integration tests* (ITs) and test DbUnit functionality against a particular database.
+IT class names have the suffix *IT*.
+The integration tests are executed in the Maven integration-test phase by the
+link:http://mojo.codehaus.org/failsafe-maven-plugin/[Maven failsafe-plugin].
+
+== The dbUnit Build
+
+The dbUnit build runs the ITs with the database specified by a Maven profile.
+
+Apache Derby, H2, and HSQLDB have embedded in-memory runtime options,
+enabling them to automatically start and stop with the tests,
+so running the build with them requires no extra steps.
+
+However, the remaining databases require additional setup to run as a service.
+The dbUnit build uses Docker containers for them,
+using the docker-maven-plugin to start and stop them.
+Therefore, running the dbUnit build with these databases requires Docker installed and running.
+
+The IT infrastructure requires some properties such as credentials and schema.
+The .properties files located in the `src/test/resources` directory root
+contain the needed test configuration values,
+named for each database.
+
+== Running the Build with the Default Database
+
+Running the dbUnit build with no Maven profile, `./mvnw clean install`,
+runs the ITs with the HSQLDB database.
+
+== Running the Build with a Specific Database
+
+To run the ITs with a specific database,
+specify the database's Maven profile ID,
+e.g. `./mvnw clean install -Ppostgresql-16`.
+
+Refer to the profile IDs in the pom.xml file for the options or list them with:
+`./mvnw help:all-profiles`.
+
+== Running the Build with All Databases
+
+To more easily run the ITs with all databases,
+use the convenience script located in the root directory,
+`build-with-all-DBs.ps1` or `build-with-all-DBs.sh`
+as applicable.
+
+The script runs the core build and then the ITs with each database,
+sequentially, as listed in the `database-profiles.txt` file
+located in the root.
+
+The script writes all build output to log files,
+one per database Maven profile,
+in the `build-logs` directory in the root.
+
+== Starting a Specific Database for Running ITs in an IDE
+
+This is very helpful for creating/updating ITs
+and diagnosing issues shown by the ITs.
+
+To start a database and run one or more ITs in the IDE,
+run the Maven pre-integration-test goal and specify the Maven profile for the desired database,
+e.g. `./mvnw pre-integration-test -Ppostgresql-16`
+
+More easily,
+use the convenience script `start-database-via-profile.ps1` or `start-database-via-profile.sh`,
+as applicable,
+located in the root directory,
+e.g. `start-database-via-profile.ps1 Ppostgresql-16`
+
+Running the script with no arguments lists the valid profile names.
+
+Remember to match the ITs configured database properties to the started database.
+The easiest way to provide them is with a
+`dbunit.properties` file in `src/test/resources`,
+created by copying from an existing database properties file in the same directory.
+
+Refer to the next sections for more information on
+the properties
+and running ITs in IDEs.
+
+== Integration Tests Database Properties
+
+Each database environment is configured by properties and dependencies,
+set by the Maven profile or other means.
+The properties relate to standard JDBC connection parameters,
+and the dependencies cover the database-specific JDBC driver.
+
+The properties include:
+
+* dbunit.profile - the name of the database environment
+* dbunit.profile.driverClass - JDBC driver class
+* dbunit.profile.url - JDBC connection URL
+* dbunit.profile.schema - database schema (may be case-sensitive)
+* dbunit.profile.user - database connection user name
+* dbunit.profile.password - database connection password
+* dbunit.profile.unsupportedFeatures - comma-separated list of features not to test
+* dbunit.profile.ddl - database-specific DDL script to create tables
+* dbunit.profile.multiLineSupport - true if database supports SQL line continuation
+
+Each Maven database integration test profile loads these properties from
+its corresponding .properties file located in the `src/test/resources` directory root.
+You can override the profile property values by:
+
+* specifying system property command line arguments with -D
+* setting them in Maven's settings.xml file,
+  located in ~/.m2/settings.xml:
+
+[source,xml]
+----
+<settings>
+  <profiles>
+    <profile>
+      <id>oracle-ojdbc14</id>
+      <properties>
+        <dbunit.profile.url>jdbc:oracle:thin:@myhost:1521:mysid</dbunit.profile.url>
+      </properties>
+    </profile>
+  </profiles>
+</settings>
+----
+
+== Running Integration Tests with IDEs
+
+The ITs need database configuration properties such as the connection URL.
+Running in an IDE has a couple of ways to specify them.
+
+=== dbunit.properties File
+
+The `dbunit.properties` file is useful for environments which make it difficult if
+not impossible to use Maven's profiles. For instance, directly running JUnit
+tests within IDEs typically don't use Maven and therefore are not using
+Maven's profiles (which set the database configuration) and tests fail.
+
+`dbunit.properties` contains the properties a profile sets.
+It is an optional file and is not provided by DbUnit; one must
+create it under `src/test/resources`.
+
+Following is an example content of `dbunit.properties` that works
+for activating the profile `h2`:
+
+[source,properties]
+----
+dbunit.profile=h2
+dbunit.profile.driverClass=org.h2.Driver
+dbunit.profile.url=jdbc:h2:target/h2/test
+dbunit.profile.schema=PUBLIC
+dbunit.profile.user=sa
+dbunit.profile.password=
+dbunit.profile.ddl=h2.sql
+dbunit.profile.unsupportedFeatures=BLOB,CLOB,SCROLLABLE_RESULTSET,INSERT_IDENTITY,TRUNCATE_TABLE,SDO_GEOMETRY,XML_TYPE
+dbunit.profile.multiLineSupport=true
+----
+
+The directory
+`src/test/resources` has the properties files for each supported database
+(the Maven profiles use them for configuring the tests accordingly).
+They are convenient for simply copying the desired one to dbunit.properties.
+
+=== Eclipse / Maven Integration
+
+The m2e plugin has an "Active Maven Profile" setting in a project's properties which activates the specified profile(s) during builds.
+Access it from the project's context menu:
+
+----
+(project context menu) -> Properties -> Maven -> Active Maven Profiles
+----
+
+Enter the Maven profile name(s) to always run,
+including the integration test profiles such as "postgresql-16".
+
+== Clean Build
+
+It's important to occasionally run a clean build to ensure no problems are
+hidden by existing compiled classes, resource files, or other prior build remnants.
+Simply run the Maven clean goal: `mvnw clean`.

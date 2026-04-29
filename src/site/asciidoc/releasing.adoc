@@ -1,0 +1,82 @@
+= Releasing
+
+== Overview
+
+The following steps describe how to release dbUnit.
+While the Maven release plugin automates steps such as version change, commit, and deploy,
+dbUnit has manual file information update steps that are outside of its scope.
+
+While the below steps do not use the Maven release plugin,
+you can use it by performing the manual file edits first then running the release plugin steps.
+
+== Release Steps
+
+. Update pom.xml
+.. Set _version_ to release version
+.. Set _project.build.outputTimestamp_ property to the release timestamp, typically today's date with midnight time
+.. Update japicmp-maven-plugin configuration
+... Add _reportSet_ for prior version to new version comparison
+... Comment out _reportSet_ comparison to latest snapshot until a new snapshot exists
+
+. Update site.xml
+.. Add menu entry for japicmp prior version to new version comparison
+.. Comment out comparison to latest snapshot until a new snapshot exists
+
+. Update changes.xml
+.. Update release version
+.. Set release date to today
+
+. Update index.xml
+.. Add entry to release section; ensure correct links
+
+. Commit files "Prep release x.y.z"
+
+. Tag the commit
+
+. Push the commit
+
+. Build and deploy the release
++
+[source,bash]
+----
+mvnw clean
+mvnw deploy -Prelease
+----
+
+. Build and deploy the site
+.. Build site:
++
+[source,bash]
+----
+mvnw site
+----
+.. Review site results for issues and correct as necessary
+.. Deploy to SourceForge;
+   reference how-to:
+   link:http://maven.apache.org/plugins/maven-site-plugin/examples/site-deploy-to-sourceforge.net.html[Deploying to sourceforge.net]
++
+[source,bash]
+----
+ssh -t sf-username,dbunit@shell.sourceforge.net create
+mvnw site:deploy
+----
+
+. Generate Announcement Email
++
+[source,bash]
+----
+mvnw changes:announcement-generate -Dchanges.version=theNewVersion
+----
++
+Review and adjust the text as desired before using.
+
+. Email Users List
+
+. Post News on SourceForge
+
+. Prepare next release in SCM
+.. Update pom.xml
+... Update to SNAPSHOT version
+... Update japicmp-maven-plugin configuration with comparison of latest release to new snapshot
+.. Update index.xml with new SNAPSHOT entry
+.. Update changes.xml with new SNAPSHOT entry
