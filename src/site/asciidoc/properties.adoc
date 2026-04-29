@@ -1,0 +1,225 @@
+= Configurable Features and Properties
+
+DbUnit does not use System properties anymore since version 2.0.
+DbUnit use a configuration object, `DatabaseConfig`, to query and set feature flags and property values for a `IDatabaseConnection`.
+It is possible to change DbUnit behaviors, such as using batched statements or not, using the `getFeature`, `setFeature`, `getProperty`, and `setProperty` methods of `DatabaseConfig`.
+
+While feature flags are always boolean, property values are arbitrary objects.
+Note that starting with dbunit 2.4.6 features can also be set using the setProperty method.
+
+The following sample displays the `batched statement` feature status:
+
+[source,java]
+----
+String id = DatabaseConfig.FEATURE_BATCHED_STATEMENTS;
+DatabaseConfig config = connection.getConfig();
+if (config.getFeature(id))
+{
+  System.out.println("Batched statements is enabled.");
+}
+else
+{
+  System.out.println("Batched statements is disabled.");
+}
+----
+
+== Constants
+
+Each Feature Flag ID and Property ID has a corresponding constant on link:apidocs/org/dbunit/database/DatabaseConfig.html[DatabaseConfig].
+
+== Feature Flags
+
+[#batchstatement]
+=== Batched Statements
+
+[cols="1,3"]
+|===
+|Feature ID |http://www.dbunit.org/features/batchedStatements
+|Default |false
+|Description |Enable or disable usage of JDBC batched statement by DbUnit.
+|===
+
+[#casesensitivetablenames]
+=== Case Sensitive Table Names
+
+[cols="1,3"]
+|===
+|Feature ID |http://www.dbunit.org/features/caseSensitiveTableNames
+|Default |false
+|Description |Enable or disable case sensitive table names. If enabled, Dbunit handles all table names in a case sensitive way.
+|===
+
+[#qualifiedtablenames]
+=== Qualified Table Names
+
+[cols="1,3"]
+|===
+|Feature ID |http://www.dbunit.org/features/qualifiedTableNames
+|Default |false
+|Description |Enable or disable multiple schemas support. If enabled, Dbunit access tables with names fully qualified by schema using this format: SCHEMA.TABLE.
+|Note |This feature was not compatible with the <<escapepattern,escape pattern>> property until the 2.2.1 release. Since then the two properties can be mixed without problem: each element will be properly escaped.
+|===
+
+[#typewarning]
+=== DataType Warning
+
+[cols="1,3"]
+|===
+|Feature ID |http://www.dbunit.org/features/datatypeWarning
+|Default |true
+|Description |Enable or disable the warning message displayed when DbUnit encounter an unsupported data type.
+|===
+
+[#skiporaclereyclebintables]
+=== Skip Oracle 10g Recyclebin Tables
+
+[cols="1,3"]
+|===
+|Feature ID |http://www.dbunit.org/features/skipOracleRecycleBinTables
+|Default |false
+|Description |Enable or disable the processing of oracle recycle bin tables (tables starting with BIN$). Oracle 10g recyle bin tables may break DbUnit's assumption of tables name uniqueness within a schema since these table are case sensitive. Enable this feature for Oracle 10g databases until the bug in the oracle driver is fixed, which incorrectly reports this system tables to DbUnit.
+|===
+
+[#allowemptyfields]
+=== Allow Empty Fields
+
+[cols="1,3"]
+|===
+|Feature ID |http://www.dbunit.org/features/allowEmptyFields
+|Default |false
+|Description |Allow to call INSERT/UPDATE with empty strings ('').
+|===
+
+== Properties
+
+[#escapepattern]
+=== Escape Patterns
+
+[cols="1,3"]
+|===
+|Property ID |http://www.dbunit.org/properties/escapePattern
+|Default |_none_
+a|Description
+a|Allows schema, table and column names escaping.
+The property value is an escape pattern where the ? is replaced by the name.
+For example, the pattern "[?]" is expanded as "[MY_TABLE]" for a table named "MY_TABLE".
+The most common escape pattern is `"\"?\""` which surrounds the table name with quotes (for the above example it would result in `"\"MY_TABLE\""`).
+
+As a fallback if no questionmark is in the given String and its length is one it is used to surround the table name on the left and right side.
+For example the escape pattern `"\""` will have the same effect as the escape pattern `"\"?\""`.
+|Note |This property was not compatible with the <<qualifiedtablenames,qualified table names>> feature until 2.2.1. Since then the two properties can be mixed resulting in each element properly escaped.
+|===
+
+[#tabletype]
+=== Table Type
+
+[cols="1,3"]
+|===
+|Property ID |http://www.dbunit.org/properties/tableType
+|Type |String[]
+|Description |Used to configure the list of table types recognized by DbUnit. See link:https://docs.oracle.com/javase/7/docs/api/java/sql/DatabaseMetaData.html#getTables(java.lang.String,%20java.lang.String,%20java.lang.String,%20java.lang.String%5B%5D)[java.sql.DatabaseMetaData.getTables()] for possible values.
+|Default |String[]{"TABLE"}
+|===
+
+[#typefactory]
+=== DataType Factory
+
+[cols="1,3"]
+|===
+|Property ID |http://www.dbunit.org/properties/datatypeFactory
+|Default |org.dbunit.dataset.datatype.DefaultDataTypeFactory
+|Description |Used to configure the DataType factory. You can replace the default factory to add support for non-standard database vendor data types. The Object must implement link:apidocs/org/dbunit/dataset/datatype/IDataTypeFactory.html[org.dbunit.dataset.datatype.IDataTypeFactory].
+a|Note
+a|The following factories are currently available:
+
+* link:apidocs/org/dbunit/ext/db2/Db2DataTypeFactory.html[org.dbunit.ext.db2.Db2DataTypeFactory]
+* link:apidocs/org/dbunit/ext/h2/H2DataTypeFactory.html[org.dbunit.ext.h2.H2DataTypeFactory]
+* link:apidocs/org/dbunit/ext/hsqldb/HsqldbDataTypeFactory.html[org.dbunit.ext.hsqldb.HsqldbDataTypeFactory]
+* link:apidocs/org/dbunit/ext/mckoi/MckoiDataTypeFactory.html[org.dbunit.ext.mckoi.MckoiDataTypeFactory]
+* link:apidocs/org/dbunit/ext/mssql/MsSqlDataTypeFactory.html[org.dbunit.ext.mssql.MsSqlDataTypeFactory]
+* link:apidocs/org/dbunit/ext/mysql/MySqlDataTypeFactory.html[org.dbunit.ext.mysql.MySqlDataTypeFactory]
+* link:apidocs/org/dbunit/ext/oracle/OracleDataTypeFactory.html[org.dbunit.ext.oracle.OracleDataTypeFactory]
+* link:apidocs/org/dbunit/ext/oracle/Oracle10DataTypeFactory.html[org.dbunit.ext.oracle.Oracle10DataTypeFactory]
+* link:apidocs/org/dbunit/ext/postgresql/PostgresqlDataTypeFactory.html[org.dbunit.ext.postgresql.PostgresqlDataTypeFactory]
+* link:apidocs/org/dbunit/ext/netezza/NetezzaDataTypeFactory.html[org.dbunit.ext.netezza.NetezzaDataTypeFactory]
+
+When you want to create your own data type factory you may also want to look at the generic base implementation at link:apidocs/org/dbunit/dataset/datatype/DefaultDataTypeFactory.html[org.dbunit.dataset.datatype.DefaultDataTypeFactory].
+|===
+
+[#statementfactory]
+=== Statement Factory
+
+[cols="1,3"]
+|===
+|Property ID |http://www.dbunit.org/properties/statementFactory
+|Default |org.dbunit.database.statement.PreparedStatementFactory
+|Description |Used to configure the statement factory. The Object must implement link:apidocs/org/dbunit/database/statement/IStatementFactory.html[org.dbunit.database.statement.IStatementFactory].
+|===
+
+[#resultsettablefactory]
+=== ResultSetTable Factory
+
+[cols="1,3"]
+|===
+|Property ID |http://www.dbunit.org/properties/resultSetTableFactory
+|Default |org.dbunit.database.CachedResultSetTableFactory
+|Description |Used to configure the ResultSet table factory. The Object must implement link:apidocs/org/dbunit/database/IResultSetTableFactory.html[org.dbunit.database.IResultSetTableFactory].
+|===
+
+[#primarykeysfilter]
+=== Primary Keys Filter
+
+[cols="1,3"]
+|===
+|Property ID |http://www.dbunit.org/properties/primaryKeyFilter
+|Default |_none_
+|Description |Use to override primary keys detection. The Object must implement link:apidocs/org/dbunit/dataset/filter/IColumnFilter.html[org.dbunit.dataset.filter.IColumnFilter].
+|===
+
+[#identitycolumnfilter]
+=== MS SQL Server IDENTITY Column Filter
+
+[cols="1,3"]
+|===
+|Property ID |http://www.dbunit.org/properties/mssql/identityColumnFilter
+|Default |_none_
+|Description |Use to override IDENTITY column detection. The Object must implement link:apidocs/org/dbunit/dataset/filter/IColumnFilter.html[org.dbunit.dataset.filter.IColumnFilter].
+|===
+
+[#batchsize]
+=== Batch Size
+
+[cols="1,3"]
+|===
+|Property ID |http://www.dbunit.org/properties/batchSize
+|Default |_100_
+|Description |Integer object giving the size of batch updates.
+|===
+
+[#fetchsize]
+=== Fetch Size
+
+[cols="1,3"]
+|===
+|Property ID |http://www.dbunit.org/properties/fetchSize
+|Default |_100_
+|Description |Integer object giving the statement fetch size for loading data into a result set table.
+|===
+
+[#metadatahandler]
+=== Metadata Handler
+
+[cols="1,3"]
+|===
+|Property ID |http://www.dbunit.org/properties/metadataHandler
+|Default |org.dbunit.database.DefaultMetadataHandler
+|Description |Used to configure the handler used to control database metadata related methods. The Object must implement link:apidocs/org/dbunit/database/IMetadataHandler.html[org.dbunit.database.IMetadataHandler].
+a|Note
+a|The following RDBMS specific handlers are currently available:
+
+* link:apidocs/org/dbunit/ext/db2/Db2MetadataHandler.html[org.dbunit.ext.db2.Db2MetadataHandler]
+* link:apidocs/org/dbunit/ext/mysql/MySqlMetadataHandler.html[org.dbunit.ext.mysql.MySqlMetadataHandler]
+* link:apidocs/org/dbunit/ext/netezza/NetezzaMetadataHandler.html[org.dbunit.ext.netezza.NetezzaMetadataHandler]
+
+For all others the default handler should do the job: link:apidocs/org/dbunit/database/DefaultMetadataHandler.html[org.dbunit.database.DefaultMetadataHandler].
+|===

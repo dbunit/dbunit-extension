@@ -1,0 +1,347 @@
+= Core Components
+
+== Overview
+This document attempts to give you an overview of the core classes that make up DbUnit.
+Following are the core interfaces or abstract classes:
+
+[cols="1,3",options="header"]
+|===
+|Class |Description
+
+|<<databaseconnection,IDatabaseConnection>> |Interface representing a DbUnit connection to a database.
+|<<dataset,IDataSet>> |Interface representing a collection of tables.
+|<<databaseoperation,DatabaseOperation>> |Abstract class representing an operation performed on the database before and after each test.
+|<<valuecomparer,ValueComparer>> |Interface representing a strategy for comparing values, typically columns.
+|<<verifytabledefinition,VerifyTableDefinition>> |Interface representing how to verify a table meets expectations.
+|===
+
+[#databaseconnection]
+== IDatabaseConnection
+
+The link:apidocs/org/dbunit/database/IDatabaseConnection.html[IDatabaseConnection] interface represents a DbUnit connection to a database.
+
+[cols="1,3",options="header"]
+|===
+|Class |Description
+
+|link:apidocs/org/dbunit/database/DatabaseConnection.html[DatabaseConnection] |Wraps a JDBC connection.
+|link:apidocs/org/dbunit/database/DatabaseDataSourceConnection.html[DatabaseDataSourceConnection] |Wraps a JDBC DataSource.
+|===
+
+[#dataset]
+== IDataSet
+
+The link:apidocs/org/dbunit/dataset/IDataSet.html[IDataSet] interface represents is a collection of tables.
+This is the primary abstraction used by DbUnit to manipulate tabular data.
+
+Most commonly used implementations are in the following sections.
+
+[#flatxmldataset]
+=== link:apidocs/org/dbunit/dataset/xml/FlatXmlDataSet.html[FlatXmlDataSet]
+
+Reads and writes flat XML dataset document.
+Each XML element corresponds to a table row.
+Each XML element name corresponds to a table name.
+The XML attributes correspond to table columns.
+
+Flat XML dataset document sample:
+
+[source,xml]
+----
+<!DOCTYPE dataset SYSTEM "my-dataset.dtd">
+<dataset>
+    <TEST_TABLE COL0="row 0 col 0"
+                COL1="row 0 col 1"
+                COL2="row 0 col 2"/>
+    <TEST_TABLE COL1="row 1 col 1"/>
+    <SECOND_TABLE COL0="row 0 col 0"
+                  COL1="row 0 col 1" />
+    <EMPTY_TABLE/>
+</dataset>
+----
+
+To specify null values, omit corresponding attribute.
+In the above example, missing COL0 and COL2 attributes of TEST_TABLE second row represents null values.
+
+Table metadata is deduced from the first row of each table by default, whereas it is possible to enable the _column sensing_ feature as described in link:faq.html#differentcolumnnumber[differentcolumnnumber].
+*Beware you may get a NoSuchColumnException if the first row of a table has one or more null values.*
+Because of that, this is highly recommended to use DTD.
+DbUnit will use the columns declared in the DTD as table metadata.
+DbUnit only support external system URI.
+The URI can be absolute or relative.
+
+Another way to cope with this problem is to use the <<replacementdataset,ReplacementDataSet>>.
+
+[#xmldataset]
+=== link:apidocs/org/dbunit/dataset/xml/XmlDataSet.html[XmlDataSet]
+
+Reads and writes original XML dataset document.
+This format is very verbose and must conform to the following DTD:
+
+[source,xml]
+----
+<?xml version="1.0" encoding="UTF-8"?>
+<!ELEMENT dataset (table+) | ANY>
+<!ELEMENT table (column*, row*)>
+<!ATTLIST table
+    name CDATA #REQUIRED
+>
+<!ELEMENT column (#PCDATA)>
+<!ELEMENT row (value | null | none)*>
+<!ELEMENT value (#PCDATA)>
+<!ELEMENT null EMPTY>
+----
+
+[#originalxmlsample]#XML dataset document sample:#
+
+[source,xml]
+----
+<!DOCTYPE dataset SYSTEM "dataset.dtd">
+<dataset>
+    <table name="TEST_TABLE">
+        <column>COL0</column>
+        <column>COL1</column>
+        <column>COL2</column>
+        <row>
+            <value>row 0 col 0</value>
+            <value>row 0 col 1</value>
+            <value>row 0 col 2</value>
+        </row>
+        <row>
+            <null/>
+            <value>row 1 col 1</value>
+            <null/>
+        </row>
+    </table>
+    <table name="SECOND_TABLE">
+        <column>COLUMN0</column>
+        <column>COLUMN1</column>
+        <row>
+            <value>row 0 col 0</value>
+            <value>row 0 col 1</value>
+        </row>
+    </table>
+    <table name='EMPTY_TABLE'>
+        <column>COLUMN0</column>
+        <column>COLUMN1</column>
+    </table>
+</dataset>
+----
+
+[#yamldataset]
+=== link:apidocs/org/dbunit/dataset/yaml/YamlDataSet.html[YamlDataSet]
+
+Reads and writes Yaml dataset documents.
+Each toplevel key corresponds to a table, where the value is a list of rows.
+Each row is a sequence of key:value pairs, where the key corresponds to the table column.
+
+Yaml dataset document sample:
+
+[source,yaml]
+----
+TEST_TABLE:
+  - COL0: row 0 col 0
+    COL1: row 0 col 1
+    COL2: row 0 col 2
+  - COL1: row 1 col 1
+SECOND_TABLE:
+  - COL0: row 0 col 0
+    COL1: row 0 col 1
+EMPTY_TABLE:
+----
+
+To specify null values, just omit the corresponding column key.
+In the above example, missing COL0 and COL2 keys of TEST_TABLE second row represents null values.
+
+In contrast to a <<flatxmldataset,FlatXmlDataSet>>, the Table metadata is deduced from the sum of all rows for each table.
+
+[#streamingdataset]
+=== link:apidocs/org/dbunit/dataset/stream/StreamingDataSet.html[StreamingDataSet]
+
+Consumes a producer and expose its content as a dataset.
+Provides cursor like forward only access to it and only keeps the active row in memory.
+Can be used with FlatXmlProducer and XmlProvider.
+
+This is a very efficient way to load XML dataset document when working with forward only database operations (UPDATE, INSERT, REFRESH).
+
+Following sample shows how to load a flat XML dataset with the StreamingDataSet:
+
+[source,java]
+----
+IDataSetProducer producer = new FlatXmlProducer(new InputSource("dataset.xml"));
+IDataSet dataSet = new StreamingDataSet(producer);
+----
+
+[#databasedataset]
+=== link:apidocs/org/dbunit/database/DatabaseDataSet.html[DatabaseDataSet]
+
+Adapter that provides access to a database instance as a dataset. This class is not usually instantiated directly but from the factory method `IDatabaseConnection.createDataSet()`.
+
+[#querydataset]
+=== link:apidocs/org/dbunit/database/QueryDataSet.html[QueryDataSet]
+
+Holds collection of tables resulting from database queries.
+
+Following sample snippet creates a dataset containing two tables: FOO, resulting from specified query and BAR, resulting from generated query "SELECT * FROM BAR".
+
+[source,java]
+----
+QueryDataSet dataSet = new QueryDataSet(connection);
+dataSet.addTable("FOO", "SELECT * FROM TABLE WHERE COL='VALUE'");
+dataSet.addTable("BAR");
+----
+
+[#defaultdataset]
+=== link:apidocs/org/dbunit/dataset/DefaultDataSet.html[DefaultDataSet]
+
+Uses to create datasets programmatically.
+
+[#compositedataset]
+=== link:apidocs/org/dbunit/dataset/CompositeDataSet.html[CompositeDataSet]
+
+Combines multiple datasets into a single logical dataset.
+
+[#filtereddataset]
+=== link:apidocs/org/dbunit/dataset/FilteredDataSet.html[FilteredDataSet]
+
+Decorator that exposes only some tables from decorated dataset.
+Can be used with different filtering strategies.
+Some strategies can include/exclude tables without altering their order while others expose tables with a different order.
+This is a list of the strategies and their definitions:
+
+IncludeTableFilter:: Exposes only matching tables pattern without modifying the original table order. Support wildcards.
+ExcludeTableFilter:: Hides matching tables pattern without modifying the original table order. Support wildcards.
+SequenceTableFilter:: Exposes a configured table sequence and can be used to reorder dataset table. This is the original filtering strategy from DbUnit 1.x.
+DatabaseSequenceFilter:: Automatically determine the tables order using foreign/exported keys information.
+This strategy is vendor independent and should work with any JDBC driver that implement the `DatabaseMetaData.getExportedKeys()` method.
++
+Support simple multi-level dependency like this:
++
+[source,text]
+----
+   A
+  / \
+ B   C
+    / \
+   D   E
+----
+
+[#xlsdataset]
+=== link:apidocs/org/dbunit/dataset/excel/XlsDataSet.html[XlsDataSet]
+
+Read and writes MS Excel dataset documents. Each sheet represents a table. The first row of a sheet defines the columns names and remaining rows contains the data.
+
+[#replacementdataset]
+=== link:apidocs/org/dbunit/dataset/ReplacementDataSet.html[ReplacementDataSet]
+
+Decorator that replaces placeholder objects from the decorated dataset with replacement objects.
+Substring substitution is also possible.
+
+Interestingly this provides a new way to specify null values in flat XML datasets.
+For example you can use a placeholder value, like "[NULL]" in your flat XML dataset and replace it with `null` at runtime.
+
+[source,xml]
+----
+<?xml version="1.0"?>
+<dataset>
+    <TEST_TABLE COL0="row 0 col 0"
+                COL1="[null]"/>
+    <TEST_TABLE COL1="row 1 col 0"
+                COL2="row 1 col 1"/>
+</dataset>
+----
+
+Loading the flat XML dataset:
+
+[source,java]
+----
+ReplacementDataSet dataSet = new ReplacementDataSet(new FlatXmlDataSet());
+dataSet.addReplacementObject("[NULL]", null);
+----
+
+You can choose to use a fail-fast replacement to ensure that all placeholders are actually set and no one is missing in the replacement map.
+If one is missing the replacement will fail immediately throwing an exception.
+(Note that the default behaviour is to leave the non-replaced placeholder there and proceeding work silently):
+
+[source,java]
+----
+replacementDataSet.setStrictReplacement(true);
+----
+
+[#csvdataset]
+=== link:apidocs/org/dbunit/dataset/csv/CsvDataSet.html[CsvDataSet]
+
+Reads and writes CSV dataset documents. Each CSV file represents a table - one CSV file per table.
+
+* CSV base filename must match table name.
+* Requires a file named table-ordering.txt containing all table names (same as the base file name; case insensitive but best to match case), one per line, sorted in insert order.
+* All data CSV files reside in the same directory as table-ordering.txt.
+* Numeric CSV data file fields must not have trailing spaces before the comma-separator as will interpret it as a String instead of a number.
+* Specify null values as null without quotes.
+
+[#tabledecoratordataset]
+=== link:apidocs/org/dbunit/dataset/TableDecoratorDataSet.html[TableDecoratorDataSet]
+
+Decorator that allows ITables (and ITableMetaDatas, by extension) to be wrapped.
+This is intended for use cases like filtering out columns from a table.
+
+For example, if your database supports generated (computed) columns, you could filter them out like so:
+
+[source,java]
+----
+dataset = new TableDecoratorDataSet(dataset, table -> new ColumnFilterTable(table, new GeneratedColumnFilter()));
+----
+
+[#databaseoperation]
+== DatabaseOperation
+
+link:apidocs/org/dbunit/operation/DatabaseOperation.html[DatabaseOperation] is an abstract class that represents an operation performed on the database before and after each test.
+
+The two most useful operations are <<refresh,REFRESH>> and <<cleanInsert,CLEAN_INSERT>>.
+They are the ones you will deal usually with.
+They represent two testing strategies with different benefits and tradeoffs.
+
+[cols="1,3",options="header"]
+|===
+|Operation |Description
+
+|link:apidocs/org/dbunit/operation/UpdateOperation.html[DatabaseOperation.UPDATE] |This operation updates the database from the dataset contents. This operation assumes that table data already exists in the target database and fails if this is not the case.
+|[#insert]#link:apidocs/org/dbunit/operation/InsertOperation.html[DatabaseOperation.INSERT]# |This operation inserts the dataset contents into the database. This operation assumes that table data does not exist in the target database and fails if this is not the case. To prevent problems with foreign keys, tables must be sequenced appropriately in the dataset.
+|[#delete]#link:apidocs/org/dbunit/operation/DeleteOperation.html[DatabaseOperation.DELETE]# |This operation deletes only the dataset contents from the database. This operation does not delete the entire table contents but only data that are present in the dataset.
+|[#deleteall]#link:apidocs/org/dbunit/operation/DeleteAllOperation.html[DatabaseOperation.DELETE_ALL]# |Deletes all rows of tables present in the specified dataset. If the dataset does not contains a particular table, but that table exists in the database, the database table is not affected. Table are truncated in reverse sequence.
+|[#truncate]#link:apidocs/org/dbunit/operation/TruncateTableOperation.html[DatabaseOperation.TRUNCATE_TABLE]# |Truncate tables present in the specified dataset. If the dataset does not contains a particular table, but that table exists in the database, the database table is not affected. Table are truncated in reverse sequence.
+|[#refresh]#link:apidocs/org/dbunit/operation/RefreshOperation.html[DatabaseOperation.REFRESH]#
+a|This operation literally refreshes dataset contents into the target database.
+This means that data of existing rows are updated and non-existing row get inserted.
+Any rows which exist in the database but not in dataset stay unaffected.
+This approach is more appropriate for tests that assume other data may exist in the database.
+
+If they are correctly written, tests using this strategy can even be performed on a populated database like a copy of a production database.
+
+|[#cleanInsert]#DatabaseOperation.CLEAN_INSERT# |This composite operation performs a <<deleteall,DELETE_ALL>> operation followed by an <<insert,INSERT>> operation. This is the safest approach to ensure that the database is in a known state. This is appropriate for tests that require the database to only contain a specific set of data.
+|DatabaseOperation.NONE |Empty operation that does absolutely nothing.
+|link:apidocs/org/dbunit/operation/CompositeOperation.html[CompositeOperation] |This operation combines multiple operations into a single one.
+|link:apidocs/org/dbunit/operation/TransactionOperation.html[TransactionOperation] |This operation decorates an operation and executes it within the context of a transaction.
+|[#InsertIdentityOperation]#link:apidocs/org/dbunit/ext/mssql/InsertIdentityOperation.html[InsertIdentityOperation]# |This operation decorates an insert operation and disables the MS SQL Server automatic identifier generation (IDENTITY) during its execution. Use following constants InsertIdentityOperation.INSERT, InsertIdentityOperation.CLEAN_INSERT or InsertIdentityOperation.REFRESH instead of those defined in DatabaseOperation.
+|===
+
+[#valuecomparer]
+== ValueComparer
+
+link:apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html[ValueComparer] is a strategy for comparing values, a data comparison definition.
+
+link:apidocs/org/dbunit/VerifyTableDefinition.html[VerifyTableDefinition] directly supports using link:apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html[ValueComparer] in the definition.
+
+Refer to link:datacomparisons.html[Data Comparisons] for more information.
+
+=== ValueComparers
+
+link:apidocs/org/dbunit/assertion/comparer/value/ValueComparers.html[ValueComparers] is a class of static link:apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html[ValueComparer] instances.
+Please create a feature request for new link:apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html[ValueComparer] ideas we can add to this class.
+
+[#verifytabledefinition]
+== VerifyTableDefinition
+
+link:apidocs/org/dbunit/VerifyTableDefinition.html[VerifyTableDefinition] defines a database table to verify (assert on data), specifying include and exclude column filters and optional link:apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html[ValueComparer]s.
+
+link:apidocs/org/dbunit/PrepAndExpectedTestCase.html[PrepAndExpectedTestCase] directly supports using link:apidocs/org/dbunit/VerifyTableDefinition.html[VerifyTableDefinition]s in the test definition and execution.

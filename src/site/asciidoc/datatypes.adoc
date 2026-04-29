@@ -1,0 +1,151 @@
+= Data Types
+
+== Overview
+Most of the data types are self explanatory and are adapted to the database in use.
+Refer to the database documentation for its data types specifics.
+
+The following sections document data types within dbUnit.
+
+. BigInteger
+. BinaryStream
+. Bit
+. <<blob,Blob>>
+. Boolean
+. Bytes
+. Clob
+. <<relativedatetime,Date>>
+. Double
+. Float
+. Integer
+. Long
+. Number
+. NumberTolerant
+. String
+. StringIgnoreCase
+. <<relativedatetime,Time>>
+. <<relativedatetime,Timestamp>>
+. UuidAwareBytes
+
+[#blob]
+== Blob
+
+link:apidocs/org/dbunit/dataset/datatype/BlobDataType.html[Blob JavaDoc]
+
+Blobs contain binary data.
+DbUnit, however, processes data with XML or CSV files containing textual data sets, not binary.
+To push binary data into a database blob from dbUnit data set files, use the following syntax in a data set field:
+
+----
+... field_name="[TEXT|BASE64|FILE|URL <optional argument>] optional text"
+----
+
+The following sections show how to use each of the forms available to load binary data into a blob.
+
+=== TEXT
+
+Insert text in a blob. By default the encoding used is UTF-8, but optionally any encoding can be provided.
+
+Example with UTF-8 encoding:
+
+[source,xml]
+----
+<!DOCTYPE dataset SYSTEM "my-dataset.dtd">
+<dataset>
+    <TABLE_WITHBLOB COL0="[TEXT]This is my text, saved in UTF-8 (default) encoding.  Java: bon café!"
+                    COL1="row 0 col 1"
+                    COL2="row 0 col 2"/>
+</dataset>
+----
+
+Example with ISO-8859-1 encoding:
+
+[source,xml]
+----
+<!DOCTYPE dataset SYSTEM "my-dataset.dtd">
+<dataset>
+    <TABLE_WITHBLOB COL0="[TEXT ISO-8859-1]This is my text, saved in ISO-8859-1 encoding.  Java: bon café!"
+                    COL1="row 0 col 1"
+                    COL2="row 0 col 2"/>
+</dataset>
+----
+
+=== BASE64
+
+Insert binary in a blob using Base64.
+
+Example:
+
+[source,xml]
+----
+<!DOCTYPE dataset SYSTEM "my-dataset.dtd">
+<dataset>
+    <TABLE_WITHBLOB COL0="[BASE64]VGhpcyBpcyBteSB0ZXh0Lg=="
+                    COL1="row 0 col 1"
+                    COL2="row 0 col 2"/>
+</dataset>
+----
+
+=== FILE
+
+Insert the content of a binary file in a blob. The path may contains spaces.
+
+Example:
+
+[source,xml]
+----
+<!DOCTYPE dataset SYSTEM "my-dataset.dtd">
+<dataset>
+    <TABLE_WITHBLOB COL0="[FILE]/path/to file to download"
+                    COL1="row 0 col 1"
+                    COL2="row 0 col 2"/>
+</dataset>
+----
+
+=== URL
+
+Insert the content pointed by a URL in a blob.
+
+Example:
+
+[source,xml]
+----
+<!DOCTYPE dataset SYSTEM "my-dataset.dtd">
+<dataset>
+    <TABLE_WITHBLOB COL0="[URL]http://url%20here"
+                    COL1="row 0 col 1"
+                    COL2="row 0 col 2"/>
+</dataset>
+----
+
+[#relativedatetime]
+== Relative date, time, and timestamp
+
+It is possible to push date, time, and timestamp values relative to the current date/time by using the following syntax in a data set field (since 2.7.0):
+
+----
+... field_name="[now{diff...}{time}]"
+----
+
+`diff` consists of two parts 1) a number with a leading plus or minus sign and 2) a character represents temporal unit.
+See the list below for the supported units.
+There can be multiple `diff`s and they can be specified in any order.
+
+`time` is a string that can be parsed by `LocalTime#parse()`.
+If specified, it is used instead of the current time.
+
+Both `diff` and `time` are optional.
+Whitespaces are allowed before and after each `diff`.
+
+* y : years
+* M : months
+* d : days
+* h : hours
+* m : minutes
+* s : seconds
+
+Here are some examples:
+
+* `[now]` : current date time
+* `[now-1d]` : the same time yesterday
+* `[now+1y+1M-2h]` : a year and a month from today, two hours earlier
+* `[now+1d 10:00]` : 10 o'clock tomorrow

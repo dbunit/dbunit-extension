@@ -1,0 +1,33 @@
+= External Resources
+
+[cols="1,2",options="header"]
+|===
+|Document |Description
+
+|[[effectivedbtesting]]link:http://www.onjava.com/pub/a/onjava/2004/01/21/dbunit.html[Effective Unit Testing with DbUnit]
+|Excellent introduction to DbUnit written by Andrew Glover. A must read!
+
+|[[controltestenv]]link:http://www-106.ibm.com/developerworks/java/library/j-dbunit.html[Control your test-environment with DbUnit and Anthill]
+|Learn how DbUnit can ease your testing and build process.
+
+|link:http://groups.yahoo.com/group/agileDatabases/[The Agile Database Mailing List]
+|Discussion about Database management with regards to Extreme Programming practices and principles.
+
+|link:http://www.agiledata.org/[The Agile Data Home Page]
+|Scott W. Ambler's site about Agile Data methodology. Ambler is sharing multiple techniques about data-related software development issues.
+
+|link:http://www.martinfowler.com/articles/evodb.html[Evolutionary Database Design]
+|A Martin Fowler's white paper that describes techniques that allows a database design to evolve as an application develops
+
+|[[RichardDallaway]]link:http://www.dallaway.com/acad/dbunit.html[Unit testing database code]
+|Richard Dallaway notes about database unit testing.
+
+|link:http://www.mockobjects.com/wiki/DevelopingJdbcApplicationsTestFirst[Developing JDBC applications test-first]
+|The Mock Objects approach applied to JDBC development.
+
+|link:http://www.junit.org[JUnit]
+|The home of the Java JUnit software.
+
+|link:http://webtest.canoo.com/[Canoo Webtest Home]
+|Canoo WebTest is a free open source tool for automated testing of web applications.
+|===

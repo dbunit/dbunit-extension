@@ -1,0 +1,213 @@
+= About DbUnit
+
+DbUnit is a mature, proven JUnit extension founded in 2002.
+
+It is a JUnit extension targeted at database projects that, among other things, puts the database into a known state between test runs.
+This is an excellent way to avoid the myriad of problems that can occur when one test case corrupts the data and causes subsequent tests to fail or exacerbate the damage.
+
+While dbUnit is most commonly used in automated tests using a database to setup, verify, and cleanup the database tables, it is also a convenient utility for importing and exporting data, whether via code or the dbunit-maven-plugin.
+
+Note: Since 3.0.0, DbUnit supports JUnit 5 and drops JUnit 4 support.
+
+== Downloading dbUnit
+
+Refer to link:repos.html[Maven Repositories] for obtaining releases and snapshots (pre-releases/work in progress).
+
+== Help Wanted
+
+While dbUnit is a very mature product (its first commits date back to 2002), it has many needed improvements; not only new features and bug fixes, but documentation, refactoring, and modernization!
+We are a small team working on improvements and issues along the way and need more help.
+
+If you have interest in helping dbUnit, please email the developers list to initiate discussion: dbunit-developer@lists.sourceforge.net.
+We will gladly help you as needed with your ideas and contributions and look to add you as a committer when ready.
+
+== News
+
+[cols="1,4",options="header"]
+|===
+|Date |News
+
+|TBD
+a|Please try the 3.0.1-SNAPSHOT snapshot build and let us know how it works! +
+Refer to the link:changes-report.html#a3.0.1-SNAPSHOT[changes report],
+the link:https://sourceforge.net/p/dbunit/feature-requests/milestone/3.0.1/[feature list],
+and the link:https://sourceforge.net/p/dbunit/bugs/fixed_release/3.0.1/[bug list]
+for the snapshot contents (and any subsequent updates).
+
+|2025-01-25
+|Release 3.0.0 available. Refer to the link:changes-report.html#a3.0.0[changes report], the link:https://sourceforge.net/p/dbunit/feature-requests/milestone/3.0.0/[feature list], and the link:https://sourceforge.net/p/dbunit/bugs/fixed_release/3.0.0/[bug list] for the release contents.
+
+|2024-06-02
+|Release 2.8.0 available. Refer to the link:changes-report.html#a2.8.0[changes report], the link:https://sourceforge.net/p/dbunit/feature-requests/milestone/2.8.0/[feature list], and the link:https://sourceforge.net/p/dbunit/bugs/fixed_release/2.8.0/[bug list] for the release contents.
+
+|2022-02-12
+|Release 2.7.3 available. Refer to the link:changes-report.html#a2.7.3[changes report], the link:https://sourceforge.net/p/dbunit/feature-requests/milestone/2.7.3/[feature list], and the link:https://sourceforge.net/p/dbunit/bugs/fixed_release/2.7.3/[bug list] for the release contents.
+
+|2021-07-25
+|Release 2.7.2 available. Refer to the link:changes-report.html#a2.7.2[changes report], the link:https://sourceforge.net/p/dbunit/feature-requests/milestone/2.7.2/[feature list], and the link:https://sourceforge.net/p/dbunit/bugs/fixed_release/2.7.2/[bug list] for the release contents.
+
+|2021-07-22
+|Release 2.7.1 available. Refer to the link:changes-report.html#a2.7.1[changes report], the link:https://sourceforge.net/p/dbunit/feature-requests/milestone/2.7.1/[feature list], and the link:https://sourceforge.net/p/dbunit/bugs/fixed_release/2.7.1/[bug list] for the release contents.
+
+|2020-02-23
+|Release 2.7.0 available. Refer to the link:changes-report.html#a2.7.0[changes report], the link:https://sourceforge.net/p/dbunit/feature-requests/milestone/2.7.0/[feature list], and the link:https://sourceforge.net/p/dbunit/bugs/fixed_release/2.7.0/[bug list] for the release contents.
+
+|2018-10-14
+|Release 2.6.0 available. Refer to the link:changes-report.html#a2.6.0[changes report], the link:https://sourceforge.net/p/dbunit/feature-requests/milestone/2.6.0/[feature list], and the link:https://sourceforge.net/p/dbunit/bugs/fixed_release/2.6.0/[bug list] for the release contents.
+
+|2017-08-20
+|Release 2.5.4 available. Refer to the link:changes-report.html#a2.5.4[changes report], the link:https://sourceforge.net/p/dbunit/feature-requests/milestone/2.5.4/[feature list], and the link:https://sourceforge.net/p/dbunit/bugs/fixed_release/2.5.4/[bug list] for the release contents.
+
+|2016-08-21
+|Release 2.5.3 available. Refer to the link:changes-report.html#a2.5.3[changes report], the link:https://sourceforge.net/p/dbunit/feature-requests/milestone/2.5.3/[feature list], and the link:https://sourceforge.net/p/dbunit/bugs/fixed_release/2.5.3/[bug list] for the release contents.
+
+|2016-04-08
+|Release 2.5.2 available. Refer to the link:changes-report.html#a2.5.2[changes report], the link:https://sourceforge.net/p/dbunit/feature-requests/milestone/2.5.2/[feature list], and the link:https://sourceforge.net/p/dbunit/bugs/fixed_release/2.5.2/[bug list] for the release contents.
+
+|2015-04-11
+|Release 2.5.1 available. Refer to the link:changes-report.html#a2.5.1[changes report], the link:https://sourceforge.net/p/dbunit/feature-requests/milestone/2.5.1/[feature list], and the link:https://sourceforge.net/p/dbunit/bugs/fixed_release/2.5.1/[bug list] for the release contents.
+
+|2014-04-24
+|Release 2.5.0 available. Refer to the link:changes-report.html#a2.5.0[changes report], the link:https://sourceforge.net/p/dbunit/feature-requests/milestone/2.5.0/[feature list], and the link:https://sourceforge.net/p/dbunit/bugs/fixed_release/2.5.0/[bug list] for the release contents.
+
+|2012-09-30
+|Release 2.4.9 available. Refer to the link:changes-report.html#a2.4.9[changes report] for the release contents.
+
+|2010-08-31
+|Release 2.4.8 available. Refer to the link:changes-report.html#a2.4.8[changes report] for the release contents.
+
+|2009-11-09
+|Release 2.4.7 available. Refer to the link:changes-report.html#a2.4.7[changes report] for the release contents.
+
+|2009-10-09
+|We wish to welcome Jeff Jensen as a DbUnit developer, the project team is growing!
+
+|2009-09-24
+|Another member joined the DbUnit project developers group: welcome John Hurst!
+
+|2009-09-20
+|Your contributions has led us to cut a new release: DbUnit 2.4.6 is out. Here a detailed link:changes-report.html#a2.4.6[changes] report.
+
+|2009-05-23
+|Another bugfixing release has been cut: DbUnit 2.4.5 is out. Here a detailed link:changes-report.html#a2.4.5[changes] report.
+
+|2009-02-24
+|We are proud to announce the 2.4.4 release has been cut. Here a detailed link:changes-report.html#a2.4.4[changes] report.
+
+|2009-01-20
+|Development continues to go on, fixes and a additions have been contributed and a new 2.4.3 release has been cut. Here a detailed link:changes-report.html#a2.4.3[changes] report.
+
+|2008-12-17
+|Some other fixes and a additions have been released in dbunit-2.4.2. Here a detailed link:changes-report.html#a2.4.2[changes] report.
+
+|2008-12-15
+|Another Open Source project named link:http://jailer.sourceforge.net[Jailer] has added support for the DbUnit flat XML dataset file format. The integration provided by the Jailer project allows easy data sharing between the two projects. Well done Ralf!
+
+|2008-12-03
+|Previous version introduced a bug on Oracle-based tests, so we are proud to announce a quick new version (2.4.1) that fixes it. More information in the link:changes-report.html#a2.4.1[changes].
+
+|2008-11-27
+|DbUnit development is very active and is proud to announce the 2.4.0 release! Here are the link:changes-report.html#a2.4.0[changes].
+
+|2008-09-11
+|We all are so proud to announce the 2.3.0 release is finally out! Have a look at the link:changes-report.html#a2.3.0[changes].
+
+|2008-06-08
+|Matthias Gommeringer joined the project team. Welcome Matthias!
+
+|2008-05-23
+|Well another bug fixing release is out: 2.2.3 fixes some annoying bugs! Please see link:changes-report.html#a2.2.3[changes].
+
+|2008-05-05
+|Release 2.2.2 is out and fixes some annoying bugs! Please see link:changes-report.html#a2.2.2[changes].
+
+|2008-03-19
+|link:http://dbunit.wikidot.com/[Wiki] is back.... again!
+
+|2008-03-18
+|Release 2.2.1 is finally out!!! See link:changes-report.html#a2.2.1[changes].
+
+|2008-03-12
+|Sébastien Le Callonnec joined the project team.
+
+|2008-02-29
+|Release 2.2.1 is on it's first steps. Snapshot release available on link:http://dbunit.sourceforge.net/repo/snapshots[DbUnit Snapshots Maven Repo].
+
+|2007-12-01
+|Roberto Lo Giacco joined the project team.
+
+|2006-12-28
+|Version 2.2 finally released!!!. See link:changes-report.html#a2.2[changes].
+
+|2006-12-20
+|link:http://www.dbunit.org/cgi-bin/wiki.pl[Wiki] is back!.
+
+|2006-05-28
+|Build has been ported to link:http://maven.apache.org[Maven 2] and snapshots for the 2.2 release are available in the link:http://dbunit.sourceforge.net/repo/snapshots/[repository].
+
+|2006-02-04
+|Felipe Leme joined the DbUnit development team.
+
+|2005-08-19
+|*Website Updated!* Link to wiki has been removed. Many fixes in CVS for 2.2-dev, see link:changes-report.html#a2.2[changes].
+
+|2004-05-31
+|Version 2.1 released. Multiple bugfixes and enhancements. See link:changes-report.html#a2.1[changes].
+
+|2004-04-28
+|DeveloperWorks article: link:http://www-106.ibm.com/developerworks/library/j-dbunit.html?ca=drs-j1604[Control your test-environment with DbUnit and Anthill].
+
+|2004-03-16
+|The link:http://www.dbunit.org/wiki/[DbUnit Wiki] is now officially online. Please contribute to the link:http://www.dbunit.org/cgi-bin/wiki.pl?SupportedRDBMS[SupportedRDBMS] page.
+
+|2004-01-26
+|ONJava article: link:http://www.onjava.com/pub/a/onjava/2004/01/21/dbunit.html[Effective Unit Testing with DbUnit].
+
+|2004-01-22
+|Version 2.0 released. See link:changes-report.html#a2.0[changes].
+
+|2003-10-05
+|Version 1.5.6 released. See link:changes-report.html#a1.5.6[changes].
+
+|2003-07-16
+|Federico Spinazzi joined the DbUnit development team.
+
+|2003-07-16
+|Version 1.5.5 released. See link:changes-report.html#a1.5.5[changes].
+
+|2003-04-04
+|Version 1.5.1 released. See link:changes-report.html#a1.5.1[changes].
+
+|2003-03-01
+|Version 1.5 released. See link:changes-report.html#a1.5[changes].
+
+|2002-11-07
+|Eric Pugh joined the DbUnit development team.
+
+|2002-07-17
+|The java API documentation is now available link:apidocs/index.html[online].
+
+|2002-07-17
+|Version 1.4 released. See link:changes-report.html#a1.4[changes].
+
+|2002-05-10
+|Timothy Ruppert and Ben Cox joined the DbUnit development team.
+
+|2002-04-04
+|Version 1.3 released. See link:changes-report.html#a1.3[changes].
+
+|2002-04-04
+|New website design and logo done by link:http://www.silphid.com/[Silphid Creations].
+
+|2002-03-19
+|Version 1.2.4 released. See link:changes-report.html#a1.2.4[changes].
+
+|2002-03-15
+|Version 1.2 released. See link:changes-report.html#a1.2[changes].
+
+|2002-03-10
+|Version 1.1 released. See link:changes-report.html#a1.1[changes].
+
+|2002-02-27
+|Version 1.0 released. This is the first public release.
+|===

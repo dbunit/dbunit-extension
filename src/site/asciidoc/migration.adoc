@@ -1,0 +1,67 @@
+= Migration Guide
+
+To migrate from an older DbUnit release to a newer one you can find some useful information here.
+
+Be sure to review the link:changes-report.html[Changes Report] for more current details.
+
+== 2.4.3 to 2.4.4
+
+There has been a very small change to the API.
+
+[cols="1,2,3,3",options="header"]
+|===
+|Tracker # |Affects |Migration |Background information
+
+|2567724
+|`new method org.dbunit.IDatabaseTester#setOperationListener()`
+|If you extend from AbstractDatabaseTester then there is nothing to do. If you implement the IDatabaseTester interface then you must support the methods of IOperationListener. As reference implementation you can look at the AbstractDatabaseTester.
+|This change was necessary to ensure that the user defined IDatabaseConnection setup provided by `DatabaseTestCase#setUpDatabaseConfig(DatabaseConfig databaseConfig)` is also used in the setUp and tearDown operations.
+
+|1956543
+|`new method org.dbunit.database.IDatabaseConnection#createTable(String tableName, PreparedStatement preparedStatement)`
+|If you extend from AbstractDatabaseConnection then there is nothing to do. If you implement the IDatabaseConnection interface then you must implement the new method. As reference implementation you can look into AbstractDatabaseConnection.
+|This addition comes from the feature request link:https://sourceforge.net/tracker/index.php?func=detail&aid=1956543&group_id=47439&atid=449494[1956543] where you can read details about why this is useful.
+
+|1956543
+|`new method org.dbunit.database.IResultSetTableFactory#createTable(String tableName, PreparedStatement preparedStatement, IDatabaseConnection connection)`
+|If you provide a custom IResultSetTableFactory then you have to implement this new method. As reference implementation you can look into ForwardOnlyResultSetTableFactory.
+|This addition comes from the feature request link:https://sourceforge.net/tracker/index.php?func=detail&aid=1956543&group_id=47439&atid=449494[1956543] where you can read details about why this is useful.
+|===
+
+== 2.4.2 to 2.4.3
+
+There has been a very small change to the API.
+
+[cols="1,2,3,3",options="header"]
+|===
+|Tracker # |Affects |Migration |Background information
+
+|2023994
+|`org.dbunit.DBTestCase#getConnection() is final`
+|To control the creation of the IDatabaseConnection, override method DBTestCase#newDatabaseTester() which provides the connection via IDatabaseTester#getConnection()
+|The method DBTestCase#getConnection() is now final and the master object for retrieving a connection here is the IDatabaseTester. It is created via the DBTestCase#newDatabaseTester() method and provides the database connection via IDatabaseTester#getConnection. The reason for this change is firstly to provide a consistent access to the database connection and secondly to allow the user to easily configure dbunit properties by overriding the method setUpDatabaseConfig(DatabaseConfig databaseConfig).
+
+|2023994
+|`Removed setters from org.dbunit.JdbcDatabaseTester and added constructors`
+|Just invoke the appropriate constructor of JdbcDatabaseTester
+|The target of this little change is to ensure that every JdbcDatabaseTester instance is completely valid when it was successfully created.
+|===
+
+== 2.2.x to 2.3.x
+
+There have been some smaller changes to the API from 2.2.x to 2.3.x with the effect that those versions are not source compatible.
+
+[cols="1,2,3,3",options="header"]
+|===
+|Tracker # |Affects |Migration |Background information
+
+|1993243
+|`org.dbunit.dataset.ITableMetaData.getColumnIndex()`
+|Inherit from org.dbunit.dataset.AbstractTableMetaData or implement the new method.
+|This method has been introduced for performance improvements in the comparison of table data. Another goal is to improve the design by reusing this method at several locations where it has been re-implemented (or copy-pasted) multiple times before.
+
+|1961269
+|`org.dbunit.dataset.datatype.IDataTypeFactory.createDataType(int sqlType, String sqlTypeName, String tableName, String columnName)`
+|Inherit from org.dbunit.dataset.datatype.DefaultDataTypeFactory or implement the new method.
+|This method has been introduced for the new feature that lets users define a tolerated delta when comparing floating point numbers (database types NUMERIC and DECIMAL). Since the tolerated delta can (or needs to) be specified for a TABLE + COLUMN combination the new createDataType method provides those two additional parameters.
+|===
