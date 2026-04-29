@@ -32,6 +32,12 @@
     <!-- General values -->
     <compileSource>1.8</compileSource>
     <checkstyle.excludes>org/dbunit/util/concurrent/*.java</checkstyle.excludes>
+    <antJunitlauncherVersion>1.10.12</antJunitlauncherVersion>
+    <assertjCoreVersion>3.25.1</assertjCoreVersion>
+    <jclOverSlf4jVersion>1.7.25</jclOverSlf4jVersion>
+    <junitJupiterVersion>5.10.1</junitJupiterVersion>
+    <junitPlatformSuiteEngineVersion>1.10.1</junitPlatformSuiteEngineVersion>
+    <logbackClassicVersion>1.2.3</logbackClassicVersion>
     <mavenVersion>3.0.4</mavenVersion>
     <!-- non-UTC timezone for testing -->
     <test.timezone>Europe/Berlin</test.timezone>
@@ -58,12 +64,17 @@
     <jdependPluginVersion>2.0</jdependPluginVersion>
     <jxrPluginVersion>2.5</jxrPluginVersion>
     <modernizer-maven-plugin>2.7.0</modernizer-maven-plugin>
+    <mockitoCoreVersion>4.11.0</mockitoCoreVersion>
+    <mockitoJunitJupiterVersion>4.11.0</mockitoJunitJupiterVersion>
     <pmdPluginVersion>3.8</pmdPluginVersion>
+    <poiOoxmlVersion>5.2.5</poiOoxmlVersion>
     <projectInfoReportsPluginVersion>2.9</projectInfoReportsPluginVersion>
     <propertiesPluginVersion>1.2.1</propertiesPluginVersion>
     <releasePluginVersion>3.3.1</releasePluginVersion>
     <resourcesPluginVersion>3.0.2</resourcesPluginVersion>
     <sitePluginVersion>3.12.1</sitePluginVersion>
+    <slf4jApiVersion>1.7.25</slf4jApiVersion>
+    <snakeyamlVersion>2.2</snakeyamlVersion>
     <sourcePluginVersion>3.2.1</sourcePluginVersion>
     <surefirePluginVersion>3.2.5</surefirePluginVersion>
     <versionsMavenPluginVersion>2.8.1</versionsMavenPluginVersion>
@@ -411,6 +422,71 @@
         <version>${sqlServer41DriverVersion}</version>
         <scope>test</scope>
       </dependency>
+      <dependency>
+        <groupId>org.slf4j</groupId>
+        <artifactId>slf4j-api</artifactId>
+        <version>${slf4jApiVersion}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.slf4j</groupId>
+        <artifactId>jcl-over-slf4j</artifactId>
+        <version>${jclOverSlf4jVersion}</version>
+      </dependency>
+      <dependency>
+        <groupId>ch.qos.logback</groupId>
+        <artifactId>logback-classic</artifactId>
+        <version>${logbackClassicVersion}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.junit.jupiter</groupId>
+        <artifactId>junit-jupiter</artifactId>
+        <version>${junitJupiterVersion}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.junit.platform</groupId>
+        <artifactId>junit-platform-suite-engine</artifactId>
+        <version>${junitPlatformSuiteEngineVersion}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.assertj</groupId>
+        <artifactId>assertj-core</artifactId>
+        <version>${assertjCoreVersion}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.ant</groupId>
+        <artifactId>ant</artifactId>
+        <version>${antVersion}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.ant</groupId>
+        <artifactId>ant-junitlauncher</artifactId>
+        <version>${antJunitlauncherVersion}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.poi</groupId>
+        <artifactId>poi</artifactId>
+        <version>${poiVersion}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.poi</groupId>
+        <artifactId>poi-ooxml</artifactId>
+        <version>${poiOoxmlVersion}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.mockito</groupId>
+        <artifactId>mockito-core</artifactId>
+        <version>${mockitoCoreVersion}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.mockito</groupId>
+        <artifactId>mockito-junit-jupiter</artifactId>
+        <version>${mockitoJunitJupiterVersion}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.yaml</groupId>
+        <artifactId>snakeyaml</artifactId>
+        <version>${snakeyamlVersion}</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
@@ -424,55 +500,46 @@
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
-      <version>${slf4jVersion}</version>
     </dependency>
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>jcl-over-slf4j</artifactId>
-      <version>${slf4jVersion}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>ch.qos.logback</groupId>
       <artifactId>logback-classic</artifactId>
-      <version>${logbackVersion}</version>
       <scope>test</scope>
     </dependency>
 
     <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter</artifactId>
-      <version>${junitVersion}</version>
       <optional>true</optional>
     </dependency>
     <dependency>
       <groupId>org.junit.platform</groupId>
       <artifactId>junit-platform-suite-engine</artifactId>
-      <version>${junitPlatformSuiteEngine.version}</version>
     </dependency>
     <dependency>
       <groupId>org.assertj</groupId>
       <artifactId>assertj-core</artifactId>
-      <version>${assertj.version}</version>
       <scope>test</scope>
       <optional>true</optional>
     </dependency>
     <dependency>
       <groupId>org.apache.ant</groupId>
       <artifactId>ant</artifactId>
-      <version>${antVersion}</version>
       <optional>true</optional>
     </dependency>
     <dependency>
       <groupId>org.apache.ant</groupId>
       <artifactId>ant-junitlauncher</artifactId>
-      <version>${antVersion}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.poi</groupId>
       <artifactId>poi</artifactId>
-      <version>${poiVersion}</version>
       <exclusions>
         <exclusion>
           <artifactId>log4j</artifactId>
@@ -488,26 +555,22 @@
     <dependency>
       <groupId>org.apache.poi</groupId>
       <artifactId>poi-ooxml</artifactId>
-      <version>${poiVersion}</version>
       <optional>true</optional>
     </dependency>
 
     <dependency>
       <groupId>org.mockito</groupId>
       <artifactId>mockito-core</artifactId>
-      <version>${mockito.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.mockito</groupId>
       <artifactId>mockito-junit-jupiter</artifactId>
-      <version>${mockito.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.yaml</groupId>
       <artifactId>snakeyaml</artifactId>
-      <version>${snakeYamlVersion}</version>
     </dependency>
 
     <!-- databases -->
