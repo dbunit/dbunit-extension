@@ -1,0 +1,10 @@
+/* Bootstrap's .table only adds border-top to cells (horizontal row lines).
+ * Add left borders for vertical column separators, and an outer border on the table. */
+table.table {
+    border: 1px solid #ddd;
+}
+
+.table th,
+.table td {
+    border-left: 1px solid #ddd;
+}

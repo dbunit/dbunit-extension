@@ -43,6 +43,7 @@
     <test.timezone>Europe/Berlin</test.timezone>
 
     <!-- Maven plugin versions -->
+    <asciidoctorMavenPluginVersion>3.2.0</asciidoctorMavenPluginVersion>
     <assemblyPluginVersion>3.1.0</assemblyPluginVersion>
     <centralPublishingMavenPluginVersion>0.8.0</centralPublishingMavenPluginVersion>
     <changelogPluginVersion>2.3</changelogPluginVersion>
@@ -922,6 +923,11 @@ enable this to generate coverage report HTML files during build (same as site)
               <groupId>org.apache.maven.wagon</groupId>
               <artifactId>wagon-ssh</artifactId>
               <version>${wagonSshVersion}</version>
+            </dependency>
+            <dependency>
+              <groupId>org.asciidoctor</groupId>
+              <artifactId>asciidoctor-parser-doxia-module</artifactId>
+              <version>${asciidoctorMavenPluginVersion}</version>
             </dependency>
           </dependencies>
         </plugin>
