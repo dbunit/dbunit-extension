@@ -1,0 +1,1016 @@
+{
+  "sf_url": "https://sourceforge.net/rest/p/dbunit/plugintickets",
+  "ticket_list_name": "plugintickets",
+  "tickets": [
+    {
+      "votes_up": 0,
+      "votes_down": 0,
+      "_id": "50e92a0127184605ef0b1c0a",
+      "mod_date": "2021-10-30 13:03:45.648000",
+      "labels": [],
+      "related_artifacts": [],
+      "discussion_thread": {
+        "_id": "4edc7b5e",
+        "discussion_id": "617d4157832869d870416ed0",
+        "subject": "",
+        "limit": 10,
+        "page": null,
+        "posts": [
+          {
+            "slug": "e6ae",
+            "text": "I find your proposal quite interesting and sensible. Can you give an estimate of how much time this migration would consume? Perhaps you do want to do this migration?\r\n\r\nI am curious what the other developers think about it.\r\n\r\nSince there are already a lot of changes in the next release I would postpone this for a later release.\r\n\r\nRegards,\r\nmat",
+            "subject": "#1 Move dbunit-maven-plugin from codehaus to DBUnit",
+            "author": "gommma",
+            "author_icon_url": "https://a.fsdn.com/con/images/sandiego/icons/default-avatar.png",
+            "timestamp": "2008-11-02 08:30:57",
+            "last_edited": null,
+            "attachments": [],
+            "is_meta": false
+          },
+          {
+            "slug": "41ca",
+            "text": "it is going to be some work for the migration.  \r\n\r\n\\- Current DBUnit needs to have a parent pom to host dbunit.jar and the plugin \r\nas 2 sub projects. Take a look at codehaus'mojo mojo-parent's pom.xml\r\n\r\n\\- Rename package for the plugin source.\r\n\r\nI can help with the migration should take me around a couple nights\r\n\r\nI would strongly suggest that DBUnit team should start thinking about the parent pom first in the next release, then plugin move becomes seemless.\r\n\r\nI am currently fixed up dbunit-maven-plugin to be on the same level with 2.3.0\r\n\r\n\r\n\r\n\r\n\r\n",
+            "subject": "#1 Move dbunit-maven-plugin from codehaus to DBUnit",
+            "author": "danttran",
+            "author_icon_url": "https://a.fsdn.com/con/images/sandiego/icons/default-avatar.png",
+            "timestamp": "2008-11-02 17:13:12",
+            "last_edited": null,
+            "attachments": [],
+            "is_meta": false
+          },
+          {
+            "slug": "398d",
+            "text": "Let's wait for the opinions of the other developers \\(Roberto, Sebastien, Felipe, ...\\). \r\n\r\nI'd like to vote +1 to include you in the dbunit team so that you could support doing the migration \\(of course only if you like\\).",
+            "subject": "#1 Move dbunit-maven-plugin from codehaus to DBUnit",
+            "author": "gommma",
+            "author_icon_url": "https://a.fsdn.com/con/images/sandiego/icons/default-avatar.png",
+            "timestamp": "2008-11-02 19:53:07",
+            "last_edited": null,
+            "attachments": [],
+            "is_meta": false
+          },
+          {
+            "slug": "3b40",
+            "text": "I already pinged MOJO dev list asking for opinion for the move. We have done a few moves before such as jaxws, izpack pluings, etc.\r\n\r\nFor DBUnit move,\r\n\r\nThe below structure allows all projects to be released in one shot\r\n\r\ntrunk\r\npom.xml &lt;--- top level parent pom\r\ndbunit  &lt;--- the current structure but one level down\r\ndbunit-maven-plugin\r\n\r\n\r\nThe next structure supports independent release of each module\r\n\r\ntrunk\r\ndbunit-parent\r\ndbunit\r\ndbunit-maven-plugin\r\n\r\n\r\ndbunit still have the main site\r\n\r\n\r\n",
+            "subject": "#1 Move dbunit-maven-plugin from codehaus to DBUnit",
+            "author": "danttran",
+            "author_icon_url": "https://a.fsdn.com/con/images/sandiego/icons/default-avatar.png",
+            "timestamp": "2008-11-03 01:29:36",
+            "last_edited": null,
+            "attachments": [],
+            "is_meta": false
+          },
+          {
+            "slug": "4980",
+            "text": "Just to avoid loosing this information I copy/paste the mail from Jeff here \\(I find this very useful - thanks a lot to Jeff\\!\\):\r\n\r\n\r\n\r\nRegarding the Maven 2 plugin coordination, some thoughts for you....\r\nI maintained the Maven 1 dbUnit plugin for the last few years. Basically,\r\nyou will release dbUnit first and then release the plugin, even if these\r\ntasks are just an hour apart :-\\), to update the plugin with the newly\r\nreleased dbUnit version and any changes to the dependencies \\(otherwise Maven\r\nwon't find the newly released dbUnit dependency and will fail the build\\!\\).\r\n\r\nTo shorten the plugin release time after a dbUnit release, I suggest\r\npublishing snapshots of dbUnit and the plugin regularly \\(the plugin snapshot\r\nusing the dbUnit snapshot\\) to encourage earlier testing and usage of both,\r\npossibly as a weekly or even a nightly build. Publishing a HEAD snapshot\r\nbuild nightly is a great practice\\!\r\n\r\nI suggest different version numbers for each, as you may fix a bug in the\r\nplugin but there was no dbUnit release change. If desired, you could have\r\nthem somewhat in sync, with the major or major.minor numbers staying in\r\nsync, but point releases differing.\r\n\r\nAnd if I can help with anything, please let me know...",
+            "subject": "#1 Move dbunit-maven-plugin from codehaus to DBUnit",
+            "author": "gommma",
+            "author_icon_url": "https://a.fsdn.com/con/images/sandiego/icons/default-avatar.png",
+            "timestamp": "2008-12-14 19:48:01",
+            "last_edited": null,
+            "attachments": [],
+            "is_meta": false
+          },
+          {
+            "slug": "41aa",
+            "text": "\r\nSo do we still have interest on moving the m2 plugin over here, but make it a separate release cycle\r\n\r\nor\r\n\r\nwe can leave it at codehaus, and invite some one well verse with dbunit to maintain it?\r\n\r\n",
+            "subject": "#1 Move dbunit-maven-plugin from codehaus to DBUnit",
+            "author": "danttran",
+            "author_icon_url": "https://a.fsdn.com/con/images/sandiego/icons/default-avatar.png",
+            "timestamp": "2008-12-18 06:26:05",
+            "last_edited": null,
+            "attachments": [],
+            "is_meta": false
+          },
+          {
+            "slug": "9f7a",
+            "text": "I'd welcome to move it to dbunit\\! But first of all I'd like to handle some critical bugs from the 2.4 release. Perhaps Roberto would like to do this now?",
+            "subject": "#1 Move dbunit-maven-plugin from codehaus to DBUnit",
+            "author": "gommma",
+            "author_icon_url": "https://a.fsdn.com/con/images/sandiego/icons/default-avatar.png",
+            "timestamp": "2008-12-18 19:34:52",
+            "last_edited": null,
+            "attachments": [],
+            "is_meta": false
+          },
+          {
+            "slug": "c697",
+            "text": "We should also check whether there are changes required on the parabuild configuration: http://parabuild.viewtier.com:8080/parabuild/index.htm?view=detailed&buildid=30 or whether the parabuild server is maintained by someone out of our reach. \r\nRoberto, do you know anything about this?",
+            "subject": "#1 Move dbunit-maven-plugin from codehaus to DBUnit",
+            "author": "gommma",
+            "author_icon_url": "https://a.fsdn.com/con/images/sandiego/icons/default-avatar.png",
+            "timestamp": "2009-03-08 20:09:07",
+            "last_edited": null,
+            "attachments": [],
+            "is_meta": false
+          },
+          {
+            "slug": "6f22",
+            "text": "Hi Dan,\r\na log time has passed since we spoke about the migration of the maven plugin from codehaus to the dbunit project. I had a look at the sources now and I think that for these 4 classes it wouldn't event be necessary to create a separate module but it could be included in the default dbunit.jar as well as into the main pom.xml. I know that this is kind of a monolithic approach but we had the same discussion for the different supported RDBMSes and ended up in choosing this monolithic approach for now since there are only a handful of classes for each logical \"module\". So would it be okay for you to move the maven plugin sources/testclasses/docs into the dbunit project now? I have some time and will be able to do it the next couple of days.\r\nRgds,\r\nmatthias",
+            "subject": "#1 Move dbunit-maven-plugin from codehaus to DBUnit",
+            "author": "gommma",
+            "author_icon_url": "https://a.fsdn.com/con/images/sandiego/icons/default-avatar.png",
+            "timestamp": "2009-10-25 18:25:33",
+            "last_edited": null,
+            "attachments": [],
+            "is_meta": false
+          },
+          {
+            "slug": "e2e4",
+            "text": "I committed a first shot \\(SVN rev.1089/1090\\) and would like you to check the current trunk. I added a pom.xml to the trunk so that we do not have anything to change on the parabuild server.\r\n\r\nSome more questions:\r\n1\\. Should we change the tracker and SCM URL of the maven plugin? +1 for me\r\n2\\. May I change the license of the plugin to the LGPL? waiting for Dan's go \\(looks like nothing should be in the way\\)\r\n3\\. I'd like to add the documentation for the maven-plugin to the main dbunit site. Is that sensible? For me this is easier to maintain but of course violates the modularisation\r\n\r\nregards,\r\nmatthias",
+            "subject": "#1 Move dbunit-maven-plugin from codehaus to DBUnit",
+            "author": "gommma",
+            "author_icon_url": "https://a.fsdn.com/con/images/sandiego/icons/default-avatar.png",
+            "timestamp": "2009-11-03 20:51:03",
+            "last_edited": null,
+            "attachments": [],
+            "is_meta": false
+          }
+        ]
+      },
+      "discussion_thread_url": "https://sourceforge.net/rest/p/dbunit/plugintickets/_discuss/thread/4edc7b5e/",
+      "created_date": "2008-11-02 00:25:46",
+      "ticket_num": 1,
+      "summary": "Move dbunit-maven-plugin from codehaus to DBUnit",
+      "description": "any interest of moving this babe to the rightful knownledge?\r\n\r\n",
+      "reported_by": "danttran",
+      "assigned_to": "gommma",
+      "reported_by_id": "502bf888bfc09e4b6677c5f9",
+      "assigned_to_id": "50e9298727184605ef0b09cb",
+      "status": "closed",
+      "private": false,
+      "discussion_disabled": false,
+      "attachments": [],
+      "custom_fields": {
+        "_milestone": "1.0-SNAPSHOT"
+      }
+    },
+    {
+      "votes_up": 0,
+      "votes_down": 0,
+      "_id": "50e92a2c27184605ef0b23f0",
+      "mod_date": "2021-10-30 13:05:32.503000",
+      "labels": [
+        "Interface Improvements (example)"
+      ],
+      "related_artifacts": [],
+      "discussion_thread": {
+        "_id": "e764c5db",
+        "discussion_id": "617d4157832869d870416ed0",
+        "subject": "",
+        "limit": 10,
+        "page": null,
+        "posts": [
+          {
+            "slug": "f38b",
+            "text": "Two considerations:\r\n1\\. shouldn't be better if we remove the difference between property and feature?\r\n2\\. I would avoid the dbconfig additional tag if not strictly necessary\r\n\r\nBoth considerations are not really relative to the maven plugin only but are effective on the framework and on the ant task too",
+            "subject": "#2 maven plugin to support the generic dbConfig like for ant",
+            "author": "rlogiacco",
+            "author_icon_url": "https://a.fsdn.com/con/images/sandiego/icons/default-avatar.png",
+            "timestamp": "2009-11-09 17:42:21",
+            "last_edited": null,
+            "attachments": [],
+            "is_meta": false
+          },
+          {
+            "slug": "12e4",
+            "text": "I agree with the idea of consolidating properties and features. However, as this is a significant change for users \\(as you say it should be effective on the whole framework\\), should we perhaps note this as a possible change for DbUnit 3.0?\n\n\\(We should start a wiki page to discuss DbUnit 3.0 changes, even if we're not going to do it for some time yet.\\)",
+            "subject": "#2 maven plugin to support the generic dbConfig like for ant",
+            "author": "jbhurst",
+            "author_icon_url": "https://a.fsdn.com/con/images/sandiego/icons/default-avatar.png",
+            "timestamp": "2009-11-10 19:38:37",
+            "last_edited": null,
+            "attachments": [],
+            "is_meta": false
+          },
+          {
+            "slug": "fb2f",
+            "text": "Behind the scenes the properties and features are already consolidated in class DatabaseConfig. So if you set a feature using a \"property\"/\"setProperty\" method it is properly set.\r\nActually for the maven plugin I agree and we should always use properties. I did not have a detailed look into it but I think it can be implemented in a backwards compatible way setting the old attributes to deprecated only. So it's again a seamless thing for a minor release.\r\n\r\nFor a 3.0 release I'd like to remove all deprecated code - it would actually clean up the code base quite a bit. But good idea with the wiki, I'm just a bit short of time...",
+            "subject": "#2 maven plugin to support the generic dbConfig like for ant",
+            "author": "gommma",
+            "author_icon_url": "https://a.fsdn.com/con/images/sandiego/icons/default-avatar.png",
+            "timestamp": "2009-11-10 23:15:18",
+            "last_edited": null,
+            "attachments": [],
+            "is_meta": false
+          },
+          {
+            "slug": "2466",
+            "text": "I suggest the following procedure to simplify the process:\r\n\r\n1\\. remove the difference between feature and property allowing each feature/property to be specified both as a feature and as a property \\(this will avoid breaking the current code\\)\r\n2\\. mark the features as deprecated both in code AND documentation \\(this will suggest people to move toward the properties convention\\)\r\n3\\. delay the definitive removal of the features support until a major release is performed\r\n\r\nThis way we can suggest our final solution without breaking existing code... ",
+            "subject": "#2 maven plugin to support the generic dbConfig like for ant",
+            "author": "rlogiacco",
+            "author_icon_url": "https://a.fsdn.com/con/images/sandiego/icons/default-avatar.png",
+            "timestamp": "2009-11-11 13:39:54",
+            "last_edited": null,
+            "attachments": [],
+            "is_meta": false
+          },
+          {
+            "slug": "0fd1",
+            "text": "Opps, sorry, I commented before reading the gommma post... anyway we wrote the same conclusions ;\\)",
+            "subject": "#2 maven plugin to support the generic dbConfig like for ant",
+            "author": "rlogiacco",
+            "author_icon_url": "https://a.fsdn.com/con/images/sandiego/icons/default-avatar.png",
+            "timestamp": "2009-11-11 13:41:25",
+            "last_edited": null,
+            "attachments": [],
+            "is_meta": false
+          },
+          {
+            "slug": "4a33",
+            "text": "I think I'll go for this one which is also the easiest way to implement properties :\r\n\r\n&lt;configuration&gt;\r\n&lt;dbconfig&gt;\r\n&lt;property&gt;\r\n&lt;name&gt;datatypeFactory&lt;/name&gt;\r\n&lt;value&gt;org.dbunit.ext.hsqldb.HsqldbDataTypeFactory&lt;/value&gt;\r\n&lt;/property&gt;\r\n&lt;property&gt;\r\n&lt;name&gt;tableType&lt;/name&gt;\r\n&lt;value&gt;TABLE,SYNONYM&lt;/value&gt;\r\n&lt;/property&gt;\r\n&lt;property&gt;\r\n&lt;name&gt;batchedStatements&lt;/name&gt;\r\n&lt;value&gt;true&lt;/value&gt;\r\n&lt;/property&gt;\r\n&lt;property&gt;\r\n&lt;name&gt;caseSensitiveTableNames&lt;/name&gt;\r\n&lt;value&gt;true&lt;/value&gt;\r\n&lt;/property&gt;\r\n&lt;/dbconfig&gt;\r\n...",
+            "subject": "#2 maven plugin to support the generic dbConfig like for ant",
+            "author": "gommma",
+            "author_icon_url": "https://a.fsdn.com/con/images/sandiego/icons/default-avatar.png",
+            "timestamp": "2009-11-14 14:19:50",
+            "last_edited": null,
+            "attachments": [],
+            "is_meta": false
+          },
+          {
+            "slug": "c7e6",
+            "text": "",
+            "subject": "#2 maven plugin to support the generic dbConfig like for ant",
+            "author": "gommma",
+            "author_icon_url": "https://a.fsdn.com/con/images/sandiego/icons/default-avatar.png",
+            "timestamp": "2009-11-15 12:53:37",
+            "last_edited": null,
+            "attachments": [
+              {
+                "bytes": 13405,
+                "url": "https://sourceforge.net/p/dbunit/plugintickets/_discuss/thread/e764c5db/c7e6/attachment/2894096-maven-plugin-generic-dbconfig.patch"
+              }
+            ],
+            "is_meta": false
+          },
+          {
+            "slug": "7179",
+            "text": "Just attached a patch for review \\(if anybody likes\\) that will work as soon as the 2.4.7 dbunit is on the central maven repo.",
+            "subject": "#2 maven plugin to support the generic dbConfig like for ant",
+            "author": "gommma",
+            "author_icon_url": "https://a.fsdn.com/con/images/sandiego/icons/default-avatar.png",
+            "timestamp": "2009-11-15 12:53:46",
+            "last_edited": null,
+            "attachments": [],
+            "is_meta": false
+          },
+          {
+            "slug": "aeba",
+            "text": "May be you missed my comment or may be my considerations were so silly you simply ignored them anyway I'm reposting my opinion on this: shouldn't be better if we use a structure like\r\n\r\n&lt;configuration&gt;\r\n&lt;property&gt;\r\n&lt;name&gt;...&lt;/name&gt;\r\n&lt;value&gt;...&lt;/value&gt;\r\n&lt;/property&gt;\r\n...\r\n&lt;/configuration&gt;\r\n\r\nor something like\r\n\r\n\r\n&lt;configuration&gt;\r\n&lt;properties&gt;\r\n&lt;property&gt;\r\n&lt;name&gt;...&lt;/name&gt;\r\n&lt;value&gt;...&lt;/value&gt;\r\n&lt;/property&gt;\r\n....\r\n&lt;/properties&gt;\r\n&lt;/configuration&gt;\r\n\r\nand eliminate the dbconfig tag? I think it's a duplication as we are already in the dbunit plugin configuration section and everything we put in here is a dbunit configuration, in addition with those properties we are not only configuring the database but even the dataset and the framework: in my humble opinion we are misleading people with the dbconfig tag name",
+            "subject": "#2 maven plugin to support the generic dbConfig like for ant",
+            "author": "rlogiacco",
+            "author_icon_url": "https://a.fsdn.com/con/images/sandiego/icons/default-avatar.png",
+            "timestamp": "2009-11-15 17:36:33",
+            "last_edited": null,
+            "attachments": [],
+            "is_meta": false
+          },
+          {
+            "slug": "7d7c",
+            "text": "Sorry Roberto, I've totally overlooked this one. I totally agree that it would be simpler to have the properties directly beneath the &lt;configuration&gt; tag.\r\nThere are 2 caveats/thoughts \\(I see/have at the moment\\):\r\n\r\n1\\. I did not find out how to implement generic properties with MOJOs directly unter the configuration element. If you have a java.util.Properties element in your mojo you must give it a name which is dbconfig here. If you know how that works please give me advice.\r\n\r\n2\\. It is conceptually not that bad to encapsulate the values that are set on the java DatabaseConfig object in a separate XML tag to maintain proper semantics. And with the &lt;dbconfig&gt; element it would be consistent to the ant task.",
+            "subject": "#2 maven plugin to support the generic dbConfig like for ant",
+            "author": "gommma",
+            "author_icon_url": "https://a.fsdn.com/con/images/sandiego/icons/default-avatar.png",
+            "timestamp": "2009-11-15 18:50:36",
+            "last_edited": null,
+            "attachments": [],
+            "is_meta": false
+          }
+        ]
+      },
+      "discussion_thread_url": "https://sourceforge.net/rest/p/dbunit/plugintickets/_discuss/thread/e764c5db/",
+      "created_date": "2009-11-08 11:49:12",
+      "ticket_num": 2,
+      "summary": "maven plugin to support the generic dbConfig like for ant",
+      "description": "Until now it is necessary to update the maven plugin manually if a new DatabaseConfig parameter is introduced by adding a property to the corresponding MOJO class. This should be switched to the way it works with ant using the \"dbConfig\" xml element which allows users to specify properties and features that are parsed in a generic way.\r\n\r\nVery first draft example \\(copied from the ant task\\):\r\n\r\n&lt;configuration&gt;\r\n&lt;dbconfig&gt;\r\n&lt;property name=\"datatypeFactory\" value=\"org.dbunit.ext.oracle.OracleDataTypeFactory\" /&gt;\r\n&lt;property name=\"tableType\" value=\"TABLE,SYNONYM\" /&gt;\r\n&lt;feature name=\"batchedStatements\" value=\"true\" /&gt;\r\n&lt;feature name=\"caseSensitiveTableNames\" value=\"true\" /&gt;\r\n&lt;/dbconfig&gt;\r\n&lt;/configuration&gt;\r\n",
+      "reported_by": "gommma",
+      "assigned_to": "gommma",
+      "reported_by_id": "50e9298727184605ef0b09cb",
+      "assigned_to_id": "50e9298727184605ef0b09cb",
+      "status": "closed",
+      "private": false,
+      "discussion_disabled": false,
+      "attachments": [],
+      "custom_fields": {
+        "_milestone": "1.0-SNAPSHOT"
+      }
+    },
+    {
+      "votes_up": 0,
+      "votes_down": 0,
+      "_id": "50e92a2927184605ef0b232f",
+      "mod_date": "2021-10-30 13:09:07.425000",
+      "labels": [],
+      "related_artifacts": [],
+      "discussion_thread": {
+        "_id": "c4a14bf2",
+        "discussion_id": "617d4157832869d870416ed0",
+        "subject": "",
+        "limit": 10,
+        "page": null,
+        "posts": [
+          {
+            "slug": "da33",
+            "text": "Hi,\r\nI'm not sure whether you are aware of the fact that the dbunit maven plugin is currently maintained on a different site: http://mojo.codehaus.org/dbunit-maven-plugin/export-mojo.html\r\nYou can find an example for the export goal at http://mojo.codehaus.org/dbunit-maven-plugin/examples/export-full.html\r\n\r\nHere an example that should work \\(but I did not test this, so feel free to correct me if I'm wrong\\):\r\n\r\n\r\n&lt;executions&gt;\r\n&lt;execution&gt;\r\n&lt;phase&gt;test&lt;/phase&gt;\r\n&lt;goals&gt;\r\n&lt;goal&gt;export&lt;/goal&gt;\r\n&lt;/goals&gt;\r\n&lt;\\!-- specific configurations --&gt;\r\n&lt;configuration&gt;\r\n&lt;format&gt;xml&lt;/format&gt;\r\n&lt;dest&gt;target/dbunit/export.xml&lt;/dest&gt;\r\n&lt;queries&gt;\r\n&lt;query implementation=\"org.dbunit.ant.Query\"&gt;\r\n&lt;name&gt;myQueryName&lt;/name&gt;\r\n&lt;sql&gt;select \\* from MYTAB&lt;/sql&gt;\r\n&lt;/query&gt;\r\n&lt;/queries&gt;\r\n&lt;/configuration&gt;\r\n&lt;/execution&gt;\r\n\\[...\\]\r\n&lt;/executions&gt;\r\n\r\nPlease let me know if it works.\r\n\r\nrgds,\r\nmatthias",
+            "subject": "#3 Provide example for use of queries in maven plugin",
+            "author": "gommma",
+            "author_icon_url": "https://a.fsdn.com/con/images/sandiego/icons/default-avatar.png",
+            "timestamp": "2009-10-21 20:54:38",
+            "last_edited": null,
+            "attachments": [],
+            "is_meta": false
+          },
+          {
+            "slug": "95b4",
+            "text": "Thanks gommma, I didn't realize I was posting in the wrong place, my bad.\n\nYour example is exactly what I was looking for and works great.  I wasn't sure how to specify the xml element as a \"Query\" type, I see you do so by adding \"implementation = ...\".   \n\nMuch appreciated\\!",
+            "subject": "#3 Provide example for use of queries in maven plugin",
+            "author": "sellerjd",
+            "author_icon_url": "https://a.fsdn.com/con/images/sandiego/icons/default-avatar.png",
+            "timestamp": "2009-10-21 21:13:55",
+            "last_edited": null,
+            "attachments": [],
+            "is_meta": false
+          },
+          {
+            "slug": "85ba",
+            "text": "I committed the example to the svn trunk rev. 1094 and with the next release of the dbunit-maven-plugin \\(newly hosted in dbunit sf SVN\\) it will be on the site.\r\nregards,\r\nmatthias",
+            "subject": "#3 Provide example for use of queries in maven plugin",
+            "author": "gommma",
+            "author_icon_url": "https://a.fsdn.com/con/images/sandiego/icons/default-avatar.png",
+            "timestamp": "2009-11-03 22:36:14",
+            "last_edited": null,
+            "attachments": [],
+            "is_meta": false
+          },
+          {
+            "slug": "a270",
+            "text": "- **status**: open --> closed-fixed",
+            "subject": "#3 Provide example for use of queries in maven plugin",
+            "author": "gommma",
+            "author_icon_url": "https://a.fsdn.com/con/images/sandiego/icons/default-avatar.png",
+            "timestamp": "2009-11-03 22:36:17",
+            "last_edited": null,
+            "attachments": [],
+            "is_meta": true
+          },
+          {
+            "slug": "7f41",
+            "text": "Ticket moved from /p/dbunit/feature-requests/143/\n\nCan't be converted:\n\n- **_priority**: 5\n- **_milestone**: ",
+            "subject": "#3 Provide example for use of queries in maven plugin",
+            "author": "jeffjensen",
+            "author_icon_url": "https://a.fsdn.com/con/images/sandiego/icons/default-avatar.png",
+            "timestamp": "2021-10-30 13:08:44.880000",
+            "last_edited": null,
+            "attachments": [],
+            "is_meta": false
+          },
+          {
+            "slug": "ab81",
+            "text": "- **status**: closed-fixed --> closed\n- **assigned_to**: matthias g\n- **Milestone**:  --> 1.0-SNAPSHOT\n",
+            "subject": "#3 Provide example for use of queries in maven plugin",
+            "author": "jeffjensen",
+            "author_icon_url": "https://a.fsdn.com/con/images/sandiego/icons/default-avatar.png",
+            "timestamp": "2021-10-30 13:09:07.248000",
+            "last_edited": null,
+            "attachments": [],
+            "is_meta": true
+          }
+        ]
+      },
+      "discussion_thread_url": "https://sourceforge.net/rest/p/dbunit/plugintickets/_discuss/thread/c4a14bf2/",
+      "created_date": "2009-10-21 16:56:56",
+      "ticket_num": 3,
+      "summary": "Provide example for use of queries in maven plugin",
+      "description": "I'm trying to figure out how to use the \"queries\" parameter for the maven2 export goal.  Can you please provide an example on your website?  I could not figure out how to search the mail archives to see if this had been asked/answered before.  Multiple searches in the BUG and FEATURE REQUEST trackers produced no similar requests.",
+      "reported_by": "sellerjd",
+      "assigned_to": "gommma",
+      "reported_by_id": "50e929fa27184605ef0b1b13",
+      "assigned_to_id": "50e9298727184605ef0b09cb",
+      "status": "closed",
+      "private": false,
+      "discussion_disabled": false,
+      "attachments": [],
+      "custom_fields": {
+        "_milestone": "1.0-SNAPSHOT"
+      }
+    },
+    {
+      "votes_up": 0,
+      "votes_down": 0,
+      "_id": "5d362291cd848536c49d8767",
+      "mod_date": "2021-10-30 13:12:40.372000",
+      "labels": [],
+      "related_artifacts": [],
+      "discussion_thread": {
+        "_id": "9ed34b3ce8",
+        "discussion_id": "617d4157832869d870416ed0",
+        "subject": "",
+        "limit": 10,
+        "page": null,
+        "posts": [
+          {
+            "slug": "8101",
+            "text": "- **status**: open --> closed-out-of-date\n- **assigned_to**: Andrew Landsverk\n- **Release**: (future) --> 2.7.0\n",
+            "subject": "#4 Upgrate Java version to 8 in dbunit-maven-plugin ",
+            "author": "jeffjensen",
+            "author_icon_url": "https://a.fsdn.com/con/images/sandiego/icons/default-avatar.png",
+            "timestamp": "2020-02-24 13:44:19.623000",
+            "last_edited": null,
+            "attachments": [],
+            "is_meta": true
+          },
+          {
+            "slug": "6231",
+            "text": "Ticket moved from /p/dbunit/feature-requests/241/\n\nCan't be converted:\n\n- **_priority**: 5\n- **_milestone**: 2.7.0",
+            "subject": "#4 Upgrate Java version to 8 in dbunit-maven-plugin ",
+            "author": "jeffjensen",
+            "author_icon_url": "https://a.fsdn.com/con/images/sandiego/icons/default-avatar.png",
+            "timestamp": "2021-10-30 13:12:21.790000",
+            "last_edited": null,
+            "attachments": [],
+            "is_meta": false
+          },
+          {
+            "slug": "a7dd",
+            "text": "- **status**: closed-out-of-date --> closed\n- **Milestone**: 2.7.0 --> 1.0-SNAPSHOT\n",
+            "subject": "#4 Upgrate Java version to 8 in dbunit-maven-plugin ",
+            "author": "jeffjensen",
+            "author_icon_url": "https://a.fsdn.com/con/images/sandiego/icons/default-avatar.png",
+            "timestamp": "2021-10-30 13:12:40.166000",
+            "last_edited": null,
+            "attachments": [],
+            "is_meta": true
+          }
+        ]
+      },
+      "discussion_thread_url": "https://sourceforge.net/rest/p/dbunit/plugintickets/_discuss/thread/9ed34b3ce8/",
+      "created_date": "2019-07-22 20:54:41.593000",
+      "ticket_num": 4,
+      "summary": "Upgrate Java version to 8 in dbunit-maven-plugin ",
+      "description": "The compiler plugin throws an error: Source/Target option 1.4 is no longer supported. Use 7 or later.\r\n\r\nPatch: https://github.com/vicziani/dbunit/commit/d8ddc04d8ccccde7b81bb2b78c2ebf9f8d4a7c7a.patch",
+      "reported_by": "viczi",
+      "assigned_to": "quantas",
+      "reported_by_id": "4ecf63321be1ce5d0c000db7",
+      "assigned_to_id": "5a1f8528eeac0f66d5051543",
+      "status": "closed",
+      "private": false,
+      "discussion_disabled": false,
+      "attachments": [],
+      "custom_fields": {
+        "_milestone": "1.0-SNAPSHOT"
+      }
+    },
+    {
+      "votes_up": 0,
+      "votes_down": 0,
+      "_id": "5e4e9f92dd85f46f5e19fb84",
+      "mod_date": "2021-11-27 19:46:06.180000",
+      "labels": [],
+      "related_artifacts": [],
+      "discussion_thread": {
+        "_id": "e16ed91ed1",
+        "discussion_id": "617d4157832869d870416ed0",
+        "subject": "",
+        "limit": 10,
+        "page": null,
+        "posts": [
+          {
+            "slug": "b129",
+            "text": "- **status**: open --> pending\n- **assigned_to**: Jeff Jensen\n",
+            "subject": "#5 Allow multiple source files to form composite dataset",
+            "author": "jeffjensen",
+            "author_icon_url": "https://a.fsdn.com/con/images/sandiego/icons/default-avatar.png",
+            "timestamp": "2021-07-30 12:30:55.659000",
+            "last_edited": null,
+            "attachments": [],
+            "is_meta": true
+          },
+          {
+            "slug": "ea3c",
+            "text": "Ticket moved from /p/dbunit/feature-requests/245/\n\nCan't be converted:\n\n- **_priority**: 5\n- **_milestone**: (future)",
+            "subject": "#5 Allow multiple source files to form composite dataset",
+            "author": "jeffjensen",
+            "author_icon_url": "https://a.fsdn.com/con/images/sandiego/icons/default-avatar.png",
+            "timestamp": "2021-10-30 13:13:48.442000",
+            "last_edited": null,
+            "attachments": [],
+            "is_meta": false
+          },
+          {
+            "slug": "0d76",
+            "text": "- **status**: pending --> closed\n- **Milestone**: (future) --> 1.1.0\n",
+            "subject": "#5 Allow multiple source files to form composite dataset",
+            "author": "jeffjensen",
+            "author_icon_url": "https://a.fsdn.com/con/images/sandiego/icons/default-avatar.png",
+            "timestamp": "2021-11-27 19:45:15.862000",
+            "last_edited": null,
+            "attachments": [],
+            "is_meta": true
+          },
+          {
+            "slug": "3898",
+            "text": "Merged.  Thank you for your work!\r\n",
+            "subject": "#5 Allow multiple source files to form composite dataset",
+            "author": "jeffjensen",
+            "author_icon_url": "https://a.fsdn.com/con/images/sandiego/icons/default-avatar.png",
+            "timestamp": "2021-11-27 19:45:16.045000",
+            "last_edited": null,
+            "attachments": [],
+            "is_meta": false
+          },
+          {
+            "slug": "f9be",
+            "text": "- **Milestone**: 1.1.0 --> 1.2.0\n",
+            "subject": "#5 Allow multiple source files to form composite dataset",
+            "author": "jeffjensen",
+            "author_icon_url": "https://a.fsdn.com/con/images/sandiego/icons/default-avatar.png",
+            "timestamp": "2021-11-27 19:46:05.731000",
+            "last_edited": null,
+            "attachments": [],
+            "is_meta": true
+          }
+        ]
+      },
+      "discussion_thread_url": "https://sourceforge.net/rest/p/dbunit/plugintickets/_discuss/thread/e16ed91ed1/",
+      "created_date": "2020-02-20 15:02:42.444000",
+      "ticket_num": 5,
+      "summary": "Allow multiple source files to form composite dataset",
+      "description": "When specifying multiple sources, they are by default creating separate datasets, which are used in separate operations, one for each source file.\r\n\r\nIn many situations, it may however make sense to split one dataset into multiple smaller, separate files. It allows composition of different datasets from smaller bits and pieces, and hence promote reuse while reducing redundancy.\r\n\r\nThe CompositeDataSet already provides all needed functionality. It just needs to be exposed via the maven plugin and the underlying ant Operation.\r\n\r\nAn example usage might look like this:\r\n\r\n          <execution>\r\n            <id>clean-insert-from-multiple-files</id>\r\n            <phase>test</phase>\r\n            <goals>\r\n              <goal>operation</goal>\r\n            </goals>\r\n            <configuration>\r\n              <type>CLEAN_INSERT</type>\r\n              <sources>\r\n                <source>aSourceFile.xml</source>\r\n                <source>anotherSourceFile.xml</source>\r\n              </sources>\r\n              <composite>true</composite>\r\n              <combine>true</combine>\r\n            </configuration>\r\n          </execution>\r\n",
+      "reported_by": "bjornbeskow",
+      "assigned_to": "jeffjensen",
+      "reported_by_id": "50e92c4c27184605ef0b688f",
+      "assigned_to_id": "4d0d1119b9363c7bf9000077",
+      "status": "closed",
+      "private": false,
+      "discussion_disabled": false,
+      "attachments": [],
+      "custom_fields": {
+        "_milestone": "1.2.0"
+      }
+    },
+    {
+      "votes_up": 0,
+      "votes_down": 0,
+      "_id": "617d483f256247f7ab1424fb",
+      "mod_date": "2021-10-30 13:27:28.421000",
+      "labels": [],
+      "related_artifacts": [],
+      "discussion_thread": {
+        "_id": "5fc7a372bd",
+        "discussion_id": "617d4157832869d870416ed0",
+        "subject": "",
+        "limit": 10,
+        "page": null,
+        "posts": []
+      },
+      "discussion_thread_url": "https://sourceforge.net/rest/p/dbunit/plugintickets/_discuss/thread/5fc7a372bd/",
+      "created_date": "2021-10-30 13:27:27.475000",
+      "ticket_num": 6,
+      "summary": "Update POMs to make current for release",
+      "description": "",
+      "reported_by": "jeffjensen",
+      "assigned_to": "ajohnson",
+      "reported_by_id": "4d0d1119b9363c7bf9000077",
+      "assigned_to_id": "60fb16906a889b6c7680a47e",
+      "status": "closed",
+      "private": false,
+      "discussion_disabled": false,
+      "attachments": [],
+      "custom_fields": {
+        "_milestone": "1.1.0"
+      }
+    },
+    {
+      "votes_up": 0,
+      "votes_down": 0,
+      "_id": "617d490d6680e9ce32320b25",
+      "mod_date": "2021-10-30 13:30:54.278000",
+      "labels": [],
+      "related_artifacts": [],
+      "discussion_thread": {
+        "_id": "cf1f359001",
+        "discussion_id": "617d4157832869d870416ed0",
+        "subject": "",
+        "limit": 10,
+        "page": null,
+        "posts": []
+      },
+      "discussion_thread_url": "https://sourceforge.net/rest/p/dbunit/plugintickets/_discuss/thread/cf1f359001/",
+      "created_date": "2021-10-30 13:30:53.167000",
+      "ticket_num": 7,
+      "summary": "Migrate to Sonatype oss-parent",
+      "description": "Change for releasing needs and consistency with dbUnit module.\r\nCorrect code as needed.",
+      "reported_by": "jeffjensen",
+      "assigned_to": "jeffjensen",
+      "reported_by_id": "4d0d1119b9363c7bf9000077",
+      "assigned_to_id": "4d0d1119b9363c7bf9000077",
+      "status": "closed",
+      "private": false,
+      "discussion_disabled": false,
+      "attachments": [],
+      "custom_fields": {
+        "_milestone": "1.1.0"
+      }
+    },
+    {
+      "votes_up": 0,
+      "votes_down": 0,
+      "_id": "62097a03e426e40d3cf73e72",
+      "mod_date": "2025-09-21 14:28:42.600000",
+      "labels": [],
+      "related_artifacts": [],
+      "discussion_thread": {
+        "_id": "73919caa93",
+        "discussion_id": "617d4157832869d870416ed0",
+        "subject": "",
+        "limit": 10,
+        "page": null,
+        "posts": [
+          {
+            "slug": "4d48",
+            "text": "- **Milestone**: 1.2.0 --> (future)\n",
+            "subject": "#8 Add ability to specify replacement tokens class",
+            "author": "jeffjensen",
+            "author_icon_url": "https://a.fsdn.com/con/images/sandiego/icons/default-avatar.png",
+            "timestamp": "2025-09-21 14:28:42.332000",
+            "last_edited": null,
+            "attachments": [],
+            "is_meta": true
+          }
+        ]
+      },
+      "discussion_thread_url": "https://sourceforge.net/rest/p/dbunit/plugintickets/_discuss/thread/73919caa93/",
+      "created_date": "2022-02-13 21:37:07.481000",
+      "ticket_num": 8,
+      "summary": "Add ability to specify replacement tokens class",
+      "description": "Currently the plugin doesn't support the replacement tokens (e.g. [NULL]) so cannot use those datasets with the plugin.  Allow specifying and using a class to do so.",
+      "reported_by": "jeffjensen",
+      "assigned_to": null,
+      "reported_by_id": "4d0d1119b9363c7bf9000077",
+      "assigned_to_id": null,
+      "status": "open",
+      "private": false,
+      "discussion_disabled": false,
+      "attachments": [],
+      "custom_fields": {
+        "_milestone": "(future)"
+      }
+    },
+    {
+      "votes_up": 0,
+      "votes_down": 0,
+      "_id": "65c989124999dd830883165c",
+      "mod_date": "2025-09-21 14:28:34.796000",
+      "labels": [],
+      "related_artifacts": [],
+      "discussion_thread": {
+        "_id": "46d7047ac9",
+        "discussion_id": "617d4157832869d870416ed0",
+        "subject": "",
+        "limit": 10,
+        "page": null,
+        "posts": [
+          {
+            "slug": "7e25",
+            "text": "- **Milestone**: 1.2.0 --> (future)\n",
+            "subject": "#9 Properties only work in POM, not from CLI",
+            "author": "jeffjensen",
+            "author_icon_url": "https://a.fsdn.com/con/images/sandiego/icons/default-avatar.png",
+            "timestamp": "2025-09-21 14:28:34.450000",
+            "last_edited": null,
+            "attachments": [],
+            "is_meta": true
+          }
+        ]
+      },
+      "discussion_thread_url": "https://sourceforge.net/rest/p/dbunit/plugintickets/_discuss/thread/46d7047ac9/",
+      "created_date": "2024-02-12 02:57:22.042000",
+      "ticket_num": 9,
+      "summary": "Properties only work in POM, not from CLI",
+      "description": "Determine why properties only work when specified in the POM but not when specified on the command line.",
+      "reported_by": "jeffjensen",
+      "assigned_to": null,
+      "reported_by_id": "4d0d1119b9363c7bf9000077",
+      "assigned_to_id": null,
+      "status": "open",
+      "private": false,
+      "discussion_disabled": false,
+      "attachments": [],
+      "custom_fields": {
+        "_milestone": "(future)"
+      }
+    },
+    {
+      "votes_up": 0,
+      "votes_down": 0,
+      "_id": "68d00c14d6e1e106342625cc",
+      "mod_date": "2025-09-21 16:55:57.347000",
+      "labels": [
+        "build"
+      ],
+      "related_artifacts": [],
+      "discussion_thread": {
+        "_id": "139c96ad01",
+        "discussion_id": "617d4157832869d870416ed0",
+        "subject": "",
+        "limit": 10,
+        "page": null,
+        "posts": [
+          {
+            "slug": "be69",
+            "text": "- **Milestone**: (future) --> 1.2.1\n",
+            "subject": "#10 Setup for reproducible builds",
+            "author": "jeffjensen",
+            "author_icon_url": "https://a.fsdn.com/con/images/sandiego/icons/default-avatar.png",
+            "timestamp": "2025-09-21 14:33:09.072000",
+            "last_edited": null,
+            "attachments": [],
+            "is_meta": true
+          },
+          {
+            "slug": "96f6",
+            "text": "- **status**: open --> closed\n",
+            "subject": "#10 Setup for reproducible builds",
+            "author": "jeffjensen",
+            "author_icon_url": "https://a.fsdn.com/con/images/sandiego/icons/default-avatar.png",
+            "timestamp": "2025-09-21 16:55:56.953000",
+            "last_edited": null,
+            "attachments": [],
+            "is_meta": true
+          }
+        ]
+      },
+      "discussion_thread_url": "https://sourceforge.net/rest/p/dbunit/plugintickets/_discuss/thread/139c96ad01/",
+      "created_date": "2025-09-21 14:30:44.823000",
+      "ticket_num": 10,
+      "summary": "Setup for reproducible builds",
+      "description": "Follow https://maven.apache.org/guides/mini/guide-reproducible-builds.html to set it up.\r\n",
+      "reported_by": "jeffjensen",
+      "assigned_to": "jeffjensen",
+      "reported_by_id": "4d0d1119b9363c7bf9000077",
+      "assigned_to_id": "4d0d1119b9363c7bf9000077",
+      "status": "closed",
+      "private": false,
+      "discussion_disabled": false,
+      "attachments": [],
+      "custom_fields": {
+        "_milestone": "1.2.1"
+      }
+    },
+    {
+      "votes_up": 0,
+      "votes_down": 0,
+      "_id": "68d00cbcce2058652f9d51a7",
+      "mod_date": "2025-09-21 15:35:23.258000",
+      "labels": [
+        "build"
+      ],
+      "related_artifacts": [],
+      "discussion_thread": {
+        "_id": "512eabdaaa",
+        "discussion_id": "617d4157832869d870416ed0",
+        "subject": "",
+        "limit": 10,
+        "page": null,
+        "posts": [
+          {
+            "slug": "f14d",
+            "text": "- **status**: open --> closed\n",
+            "subject": "#11 Change artifact publishing to the new Central Portal",
+            "author": "jeffjensen",
+            "author_icon_url": "https://a.fsdn.com/con/images/sandiego/icons/default-avatar.png",
+            "timestamp": "2025-09-21 15:35:22.850000",
+            "last_edited": null,
+            "attachments": [],
+            "is_meta": true
+          }
+        ]
+      },
+      "discussion_thread_url": "https://sourceforge.net/rest/p/dbunit/plugintickets/_discuss/thread/512eabdaaa/",
+      "created_date": "2025-09-21 14:33:32.570000",
+      "ticket_num": 11,
+      "summary": "Change artifact publishing to the new Central Portal",
+      "description": "Per https://central.sonatype.org/pages/ossrh-eol, change from using OSSRH artifact publishing to the new Central Portal publishing.",
+      "reported_by": "jeffjensen",
+      "assigned_to": "jeffjensen",
+      "reported_by_id": "4d0d1119b9363c7bf9000077",
+      "assigned_to_id": "4d0d1119b9363c7bf9000077",
+      "status": "closed",
+      "private": false,
+      "discussion_disabled": false,
+      "attachments": [],
+      "custom_fields": {
+        "_milestone": "1.2.1"
+      }
+    },
+    {
+      "votes_up": 0,
+      "votes_down": 0,
+      "_id": "68d0755a73b97dc5b3aad52c",
+      "mod_date": "2025-11-22 16:45:57.504000",
+      "labels": [],
+      "related_artifacts": [],
+      "discussion_thread": {
+        "_id": "d988a6be40",
+        "discussion_id": "617d4157832869d870416ed0",
+        "subject": "",
+        "limit": 10,
+        "page": null,
+        "posts": [
+          {
+            "slug": "f986",
+            "text": "- **Milestone**: (future) --> 1.2.1\n",
+            "subject": "#12 Use latest (3.0.0) dbunit core",
+            "author": "jeffjensen",
+            "author_icon_url": "https://a.fsdn.com/con/images/sandiego/icons/default-avatar.png",
+            "timestamp": "2025-09-21 22:34:01.467000",
+            "last_edited": null,
+            "attachments": [],
+            "is_meta": true
+          },
+          {
+            "slug": "a3fb",
+            "text": "- Description has changed:\n\nDiff:\n\n~~~~\n\n--- old\n+++ new\n@@ -1 +1 @@\n-Update the plugin dependencies to use the latest release (at this time, 3.0.0) of dbunit.\n+Update the plugin dependencies to use the latest release (at this time, 3.0.0) of dbUnit.\n\n~~~~\n\n",
+            "subject": "#12 Use latest (3.0.0) dbunit core",
+            "author": "jeffjensen",
+            "author_icon_url": "https://a.fsdn.com/con/images/sandiego/icons/default-avatar.png",
+            "timestamp": "2025-09-21 22:34:19.688000",
+            "last_edited": null,
+            "attachments": [],
+            "is_meta": true
+          },
+          {
+            "slug": "fa32",
+            "text": "- **status**: open --> closed\n",
+            "subject": "#12 Use latest (3.0.0) dbunit core",
+            "author": "jeffjensen",
+            "author_icon_url": "https://a.fsdn.com/con/images/sandiego/icons/default-avatar.png",
+            "timestamp": "2025-11-22 16:45:57.123000",
+            "last_edited": null,
+            "attachments": [],
+            "is_meta": true
+          }
+        ]
+      },
+      "discussion_thread_url": "https://sourceforge.net/rest/p/dbunit/plugintickets/_discuss/thread/d988a6be40/",
+      "created_date": "2025-09-21 21:59:54.417000",
+      "ticket_num": 12,
+      "summary": "Use latest (3.0.0) dbunit core",
+      "description": "Update the plugin dependencies to use the latest release (at this time, 3.0.0) of dbUnit.",
+      "reported_by": "ajohnson",
+      "assigned_to": "ajohnson",
+      "reported_by_id": "60fb16906a889b6c7680a47e",
+      "assigned_to_id": "60fb16906a889b6c7680a47e",
+      "status": "closed",
+      "private": false,
+      "discussion_disabled": false,
+      "attachments": [],
+      "custom_fields": {
+        "_milestone": "1.2.1"
+      }
+    },
+    {
+      "votes_up": 0,
+      "votes_down": 0,
+      "_id": "6921e995104102aa7a69e10c",
+      "mod_date": "2025-11-23 00:34:46.136000",
+      "labels": [],
+      "related_artifacts": [],
+      "discussion_thread": {
+        "_id": "f62b8a09b3",
+        "discussion_id": "617d4157832869d870416ed0",
+        "subject": "",
+        "limit": 10,
+        "page": null,
+        "posts": [
+          {
+            "slug": "c440",
+            "text": "- **status**: open --> closed\n",
+            "subject": "#13 Migrate from GitLab to GitHub for CI",
+            "author": "jeffjensen",
+            "author_icon_url": "https://a.fsdn.com/con/images/sandiego/icons/default-avatar.png",
+            "timestamp": "2025-11-23 00:34:45.761000",
+            "last_edited": null,
+            "attachments": [],
+            "is_meta": true
+          }
+        ]
+      },
+      "discussion_thread_url": "https://sourceforge.net/rest/p/dbunit/plugintickets/_discuss/thread/f62b8a09b3/",
+      "created_date": "2025-11-22 16:49:25.262000",
+      "ticket_num": 13,
+      "summary": "Migrate from GitLab to GitHub for CI",
+      "description": "GitLab has too many missing features and limitations. 400 mins per month, no service start timeout feature, and kills Oracle on startup.\r\nhttps://github.com/dbunit/dbunit-maven-plugin",
+      "reported_by": "jeffjensen",
+      "assigned_to": "jeffjensen",
+      "reported_by_id": "4d0d1119b9363c7bf9000077",
+      "assigned_to_id": "4d0d1119b9363c7bf9000077",
+      "status": "closed",
+      "private": false,
+      "discussion_disabled": false,
+      "attachments": [],
+      "custom_fields": {
+        "_milestone": "1.2.1"
+      }
+    },
+    {
+      "votes_up": 0,
+      "votes_down": 0,
+      "_id": "69f61956f4748ae28cf35b64",
+      "mod_date": "2026-05-02 15:37:28.257000",
+      "labels": [],
+      "related_artifacts": [],
+      "discussion_thread": {
+        "_id": "567f2644c1",
+        "discussion_id": "617d4157832869d870416ed0",
+        "subject": "",
+        "limit": 10,
+        "page": null,
+        "posts": [
+          {
+            "slug": "c9ab",
+            "text": "- **status**: open --> closed\n",
+            "subject": "#14 Convert APT and XDoc doc files to Asciidoc",
+            "author": "jeffjensen",
+            "author_icon_url": "https://a.fsdn.com/con/images/sandiego/icons/default-avatar.png",
+            "timestamp": "2026-05-02 15:37:27.878000",
+            "last_edited": null,
+            "attachments": [],
+            "is_meta": true
+          }
+        ]
+      },
+      "discussion_thread_url": "https://sourceforge.net/rest/p/dbunit/plugintickets/_discuss/thread/567f2644c1/",
+      "created_date": "2026-05-02 15:33:42.272000",
+      "ticket_num": 14,
+      "summary": "Convert APT and XDoc doc files to Asciidoc",
+      "description": "Use modern plain-text documentation format.",
+      "reported_by": "jeffjensen",
+      "assigned_to": "jeffjensen",
+      "reported_by_id": "4d0d1119b9363c7bf9000077",
+      "assigned_to_id": "4d0d1119b9363c7bf9000077",
+      "status": "closed",
+      "private": false,
+      "discussion_disabled": false,
+      "attachments": [],
+      "custom_fields": {
+        "_milestone": "1.2.1"
+      }
+    },
+    {
+      "votes_up": 0,
+      "votes_down": 0,
+      "_id": "69f61aba0e164e3db8ec12f7",
+      "mod_date": "2026-05-02 15:39:55.039000",
+      "labels": [],
+      "related_artifacts": [],
+      "discussion_thread": {
+        "_id": "7e19729586",
+        "discussion_id": "617d4157832869d870416ed0",
+        "subject": "",
+        "limit": 10,
+        "page": null,
+        "posts": [
+          {
+            "slug": "774b",
+            "text": "https://dbunit.github.io/dbunit-maven-plugin/index.html",
+            "subject": "#15 Generate and publish Maven site to GitHub pages on commits",
+            "author": "jeffjensen",
+            "author_icon_url": "https://a.fsdn.com/con/images/sandiego/icons/default-avatar.png",
+            "timestamp": "2026-05-02 15:39:45.402000",
+            "last_edited": null,
+            "attachments": [],
+            "is_meta": false
+          },
+          {
+            "slug": "9462",
+            "text": "- **status**: open --> closed\n",
+            "subject": "#15 Generate and publish Maven site to GitHub pages on commits",
+            "author": "jeffjensen",
+            "author_icon_url": "https://a.fsdn.com/con/images/sandiego/icons/default-avatar.png",
+            "timestamp": "2026-05-02 15:39:54.771000",
+            "last_edited": null,
+            "attachments": [],
+            "is_meta": true
+          }
+        ]
+      },
+      "discussion_thread_url": "https://sourceforge.net/rest/p/dbunit/plugintickets/_discuss/thread/7e19729586/",
+      "created_date": "2026-05-02 15:39:38.444000",
+      "ticket_num": 15,
+      "summary": "Generate and publish Maven site to GitHub pages on commits",
+      "description": "Build and publish the Maven site to GitHub pages.\r\n",
+      "reported_by": "jeffjensen",
+      "assigned_to": "jeffjensen",
+      "reported_by_id": "4d0d1119b9363c7bf9000077",
+      "assigned_to_id": "4d0d1119b9363c7bf9000077",
+      "status": "closed",
+      "private": false,
+      "discussion_disabled": false,
+      "attachments": [],
+      "custom_fields": {
+        "_milestone": "1.2.1"
+      }
+    }
+  ]
+}

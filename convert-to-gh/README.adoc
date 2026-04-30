@@ -1,0 +1,20 @@
+= How to Use These Scripts
+
+== Download the SourceForge Tickets for Each List
+download-sf-tickets-PLUGIN-TICKETS.bat
+download-sf-tickets-DBUNIT-BUGS.bat
+download-sf-tickets-DBUNIT-FEATURES.bat
+
+== Combine the dbUnit Lists Into One
+combine-sf-tickets-DBUNIT.bat
+
+== Create Username Map File From changes.xml Files
+create-sf-to-gh-usernames.py
+
+== Create the GitHub Tickets
+create-gh-tickets-PLUGIN-TICKETS.bat
+create-gh-tickets-DBUNIT-TICKETS.bat
+
+== Update the changes.xml files
+update-changes-PLUGIN-TICKETS.bat
+update-changes-DBUNIT-TICKETS.bat
