@@ -1,10 +1,48 @@
 version: 2
 updates:
+  # -----------------------------------------------------------------------
+  # Maven dependencies — weekly, grouped to reduce changes.xml churn.
+  # -----------------------------------------------------------------------
+  - package-ecosystem: "maven"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    groups:
+      # Maven build and reporting plugins
+      maven-plugins:
+        patterns:
+          - "org.apache.maven.plugins:*"
+          - "org.codehaus.mojo:*"
+          - "org.asciidoctor:*"
+          - "org.apache.maven.reporting:*"
+      # Test-only libraries
+      test-dependencies:
+        patterns:
+          - "org.junit*:*"
+          - "org.mockito:*"
+          - "org.hamcrest:*"
+          - "org.assertj:*"
+        update-types: ["minor", "patch"]
+      # JDBC drivers and embedded databases used in integration tests
+      jdbc-drivers:
+        patterns:
+          - "*:*jdbc*"
+          - "com.h2database:*"
+          - "org.postgresql:*"
+          - "com.mysql:*"
+          - "org.hsqldb:*"
+          - "org.apache.derby:*"
+
+  # -----------------------------------------------------------------------
+  # GitHub Actions — daily, all actions grouped into one PR.
+  # (Kept daily so security-relevant action pins are updated quickly.)
+  # -----------------------------------------------------------------------
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "daily"
-    open-pull-requests-limit: 10       # Max number of active PRs at once
+    open-pull-requests-limit: 10
     groups:
       actions-updates:                 # Group all action updates into one PR
         patterns:
