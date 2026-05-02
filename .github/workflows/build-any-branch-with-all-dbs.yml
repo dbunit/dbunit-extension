@@ -15,14 +15,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     - uses: ./.github/actions/jdk-setup
     - name: Compile and run unit tests
       run: ${{ env.MAVEN_COMMAND }} ${{ env.MAVEN_CLI_COMMON }} clean test
     - name: Submit dependencies to GitHub
-      uses: advanced-security/maven-dependency-submission-action@v3
+      uses: advanced-security/maven-dependency-submission-action@v5
     - name: Upload target directory for reuse
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: target-directory
         path: target/
@@ -46,15 +46,15 @@ jobs:
         ]
       fail-fast: false
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/jdk-setup
       - name: Download target directory
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: target-directory
           path: target/
       - name: Run ${{ matrix.database.name }} integration tests
         run: ${{ env.MAVEN_COMMAND }} ${{ env.MAVEN_CLI_COMMON }} -P${{ matrix.database.profile }} verify ${{ matrix.database.url != '' && format('-Ddbunit.profile.url={0}', matrix.database.url) || '' }}
       - name: Submit dependencies to GitHub
-        uses: advanced-security/maven-dependency-submission-action@v3
+        uses: advanced-security/maven-dependency-submission-action@v5
 
