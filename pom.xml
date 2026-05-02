@@ -44,41 +44,41 @@
 
     <!-- Maven plugin versions -->
     <asciidoctorMavenPluginVersion>3.2.0</asciidoctorMavenPluginVersion>
-    <assemblyPluginVersion>3.1.0</assemblyPluginVersion>
+    <assemblyPluginVersion>3.8.0</assemblyPluginVersion>
     <centralPublishingMavenPluginVersion>0.8.0</centralPublishingMavenPluginVersion>
     <changelogPluginVersion>2.3</changelogPluginVersion>
     <changesPluginVersion>2.12.1</changesPluginVersion>
-    <checkstylePluginVersion>2.17</checkstylePluginVersion>
-    <cleanPluginVersion>3.0.0</cleanPluginVersion>
-    <compilerPluginVersion>3.7.0</compilerPluginVersion>
+    <checkstylePluginVersion>3.6.0</checkstylePluginVersion>
+    <cleanPluginVersion>3.5.0</cleanPluginVersion>
+    <compilerPluginVersion>3.15.0</compilerPluginVersion>
     <deployPluginVersion>3.1.4</deployPluginVersion>
     <dockerMavenPluginVersion>0.45.1</dockerMavenPluginVersion>
     <!-- FIXME maven picking 1.2 specified in parent; fix with parent change -->
-    <enforcerPluginVersion>3.5.0</enforcerPluginVersion>
-    <failsafePluginVersion>3.2.5</failsafePluginVersion>
-    <gpgPluginVersion>1.6</gpgPluginVersion>
-    <installPluginVersion>2.5.2</installPluginVersion>
+    <enforcerPluginVersion>3.6.2</enforcerPluginVersion>
+    <failsafePluginVersion>3.5.5</failsafePluginVersion>
+    <gpgPluginVersion>3.2.8</gpgPluginVersion>
+    <installPluginVersion>3.1.4</installPluginVersion>
     <jacocoPluginVersion>0.8.3</jacocoPluginVersion>
     <japicmpPluginVersion>0.21.2</japicmpPluginVersion>
-    <jarPluginVersion>3.2.0</jarPluginVersion>
-    <javadocPluginVersion>3.0.0</javadocPluginVersion>
-    <jdependPluginVersion>2.0</jdependPluginVersion>
-    <jxrPluginVersion>2.5</jxrPluginVersion>
+    <jarPluginVersion>3.5.0</jarPluginVersion>
+    <javadocPluginVersion>3.12.0</javadocPluginVersion>
+    <jdependPluginVersion>2.2.0</jdependPluginVersion>
+    <jxrPluginVersion>3.6.0</jxrPluginVersion>
     <modernizer-maven-plugin>2.7.0</modernizer-maven-plugin>
     <mockitoCoreVersion>4.11.0</mockitoCoreVersion>
     <mockitoJunitJupiterVersion>4.11.0</mockitoJunitJupiterVersion>
-    <pmdPluginVersion>3.8</pmdPluginVersion>
+    <pmdPluginVersion>3.28.0</pmdPluginVersion>
     <poiOoxmlVersion>5.2.5</poiOoxmlVersion>
-    <projectInfoReportsPluginVersion>2.9</projectInfoReportsPluginVersion>
-    <propertiesPluginVersion>1.2.1</propertiesPluginVersion>
+    <projectInfoReportsPluginVersion>3.9.0</projectInfoReportsPluginVersion>
+    <propertiesPluginVersion>1.3.0</propertiesPluginVersion>
     <releasePluginVersion>3.3.1</releasePluginVersion>
-    <resourcesPluginVersion>3.0.2</resourcesPluginVersion>
-    <sitePluginVersion>3.12.1</sitePluginVersion>
+    <resourcesPluginVersion>3.5.0</resourcesPluginVersion>
+    <sitePluginVersion>3.21.0</sitePluginVersion>
     <slf4jApiVersion>1.7.25</slf4jApiVersion>
     <snakeyamlVersion>2.2</snakeyamlVersion>
-    <sourcePluginVersion>3.2.1</sourcePluginVersion>
-    <surefirePluginVersion>3.2.5</surefirePluginVersion>
-    <versionsMavenPluginVersion>2.8.1</versionsMavenPluginVersion>
+    <sourcePluginVersion>3.4.0</sourcePluginVersion>
+    <surefirePluginVersion>3.5.5</surefirePluginVersion>
+    <versionsMavenPluginVersion>2.21.0</versionsMavenPluginVersion>
 
     <!-- Framework versions -->
     <antTestUtilVersion>1.10.12</antTestUtilVersion>
