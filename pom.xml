@@ -33,7 +33,7 @@
     <compileSource>1.8</compileSource>
     <checkstyle.excludes>org/dbunit/util/concurrent/*.java</checkstyle.excludes>
     <antJunitlauncherVersion>1.10.12</antJunitlauncherVersion>
-    <assertjCoreVersion>3.25.1</assertjCoreVersion>
+    <assertjCoreVersion>3.27.7</assertjCoreVersion>
     <jclOverSlf4jVersion>1.7.25</jclOverSlf4jVersion>
     <junitJupiterVersion>5.10.1</junitJupiterVersion>
     <junitPlatformSuiteEngineVersion>1.10.1</junitPlatformSuiteEngineVersion>
