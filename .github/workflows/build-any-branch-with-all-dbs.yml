@@ -20,6 +20,7 @@ jobs:
     - name: Compile and run unit tests
       run: ${{ env.MAVEN_COMMAND }} ${{ env.MAVEN_CLI_COMMON }} clean test
     - name: Submit dependencies to GitHub
+      if: github.actor != 'dependabot[bot]'
       uses: advanced-security/maven-dependency-submission-action@v5
     - name: Upload target directory for reuse
       uses: actions/upload-artifact@v7
