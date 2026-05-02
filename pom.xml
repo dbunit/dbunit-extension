@@ -651,6 +651,7 @@
           <configuration>
             <source>${compileSource}</source>
             <target>${compileSource}</target>
+            <release>8</release>
             <compilerVersion>${compileSource}</compilerVersion>
             <debug>true</debug>
             <fork>true</fork>
