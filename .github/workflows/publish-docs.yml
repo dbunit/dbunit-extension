@@ -32,7 +32,7 @@ jobs:
       run: ${{ env.MAVEN_COMMAND }} ${{ env.MAVEN_CLI_COMMON }} site
     - name: Upload Pages artifact
       if: github.event_name == 'push'
-      uses: actions/upload-pages-artifact@v3
+      uses: actions/upload-pages-artifact@v5
       with:
         path: target/site/
 
@@ -47,4 +47,4 @@ jobs:
     steps:
     - name: Deploy to GitHub Pages
       id: deployment
-      uses: actions/deploy-pages@v4
+      uses: actions/deploy-pages@v5
