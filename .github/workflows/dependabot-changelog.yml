@@ -1,0 +1,183 @@
+# Record Dependabot dependency updates in src/changes/changes.xml.
+#
+# Runs after a Dependabot PR is merged into the default branch and appends
+# one <action> entry per updated dependency to the current -SNAPSHOT release.
+# A workflow_dispatch trigger lets maintainers replay any failed run manually.
+#
+# Branch-protection fallback: if a direct push to the default branch is
+# rejected (e.g. because all merges require a PR), the job automatically
+# opens a tiny "chore/changelog-pr-NNN" branch, creates a PR, and enables
+# auto-merge so it lands without human intervention.
+
+name: Record Dependabot update in changes.xml
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [master, main]
+  workflow_dispatch:
+    inputs:
+      pr-number:
+        description: "PR number whose dependencies to record"
+        required: true
+        type: number
+      dependency-name:
+        description: "Dependency name (e.g. org.foo:bar or actions/checkout)"
+        required: true
+        type: string
+      previous-version:
+        description: "Previous version"
+        required: true
+        type: string
+      new-version:
+        description: "New version"
+        required: true
+        type: string
+      update-type:
+        description: "Update type (version-update:semver-major/minor/patch)"
+        required: true
+        type: string
+        default: "version-update:semver-patch"
+      ecosystem:
+        description: "Package ecosystem (maven, github-actions, …)"
+        required: true
+        type: string
+        default: "maven"
+
+# Serialize runs so two near-simultaneous merges don't clobber each other.
+concurrency:
+  group: dependabot-changelog
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write  # needed for the branch-protection fallback PR
+
+jobs:
+  update-changelog:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    # Run only on merged Dependabot PRs (not labeled skip-changelog),
+    # or on manual dispatch.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event.pull_request.merged == true &&
+        github.event.pull_request.user.login == 'dependabot[bot]' &&
+        !contains(github.event.pull_request.labels.*.name, 'skip-changelog')
+      )
+
+    steps:
+      # ---------------------------------------------------------------
+      # 1. Check out the current HEAD of the default branch so we patch
+      #    the authoritative copy, not the PR's merge base.
+      # ---------------------------------------------------------------
+      - name: Checkout default branch
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # ---------------------------------------------------------------
+      # 2. Fetch Dependabot metadata (skipped for manual dispatch).
+      #    updated-dependencies-json contains per-dependency version info
+      #    which is more reliable than splitting dependency-names.
+      # ---------------------------------------------------------------
+      - name: Fetch Dependabot metadata
+        if: github.event_name != 'workflow_dispatch'
+        id: metadata
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      # ---------------------------------------------------------------
+      # 3a. For merged PRs: iterate the JSON payload and call the script
+      #     once per dependency (handles grouped-update PRs correctly).
+      # ---------------------------------------------------------------
+      - name: Update changes.xml (auto — from PR metadata)
+        if: github.event_name != 'workflow_dispatch'
+        env:
+          UPDATED_DEPS_JSON: ${{ steps.metadata.outputs.updated-dependencies-json }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          python3 <<'PYEOF'
+          import json, os, subprocess, sys
+          deps = json.loads(os.environ["UPDATED_DEPS_JSON"])
+          pr = os.environ["PR_NUMBER"]
+          for dep in deps:
+              subprocess.run(
+                  [
+                      sys.executable,
+                      ".github/scripts/append-changes-entry.py",
+                      "--pr-number", pr,
+                      "--dependency-name", dep["dependencyName"],
+                      "--previous-version", dep.get("prevVersion") or "unknown",
+                      "--new-version", dep["newVersion"],
+                      "--update-type",
+                          dep.get("updateType", "version-update:semver-patch"),
+                      "--ecosystem",
+                          dep.get("packageEcosystem", "unknown"),
+                  ],
+                  check=True,
+              )
+          PYEOF
+
+      # ---------------------------------------------------------------
+      # 3b. For manual dispatch: call the script with the provided inputs.
+      # ---------------------------------------------------------------
+      - name: Update changes.xml (manual dispatch)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          python3 .github/scripts/append-changes-entry.py \
+            --pr-number     "${{ inputs.pr-number }}" \
+            --dependency-name "${{ inputs.dependency-name }}" \
+            --previous-version "${{ inputs.previous-version }}" \
+            --new-version   "${{ inputs.new-version }}" \
+            --update-type   "${{ inputs.update-type }}" \
+            --ecosystem     "${{ inputs.ecosystem }}"
+
+      # ---------------------------------------------------------------
+      # 4. Commit the updated changes.xml.
+      #    Try a direct push first; if branch protection blocks it, fall
+      #    back to opening a small auto-merge PR.
+      # ---------------------------------------------------------------
+      - name: Commit and push (or open fallback PR)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          PR_NUMBER: ${{ github.event_name == 'workflow_dispatch' && inputs.pr-number || github.event.pull_request.number }}
+          DEP_NAMES: ${{ github.event_name == 'workflow_dispatch' && inputs.dependency-name || steps.metadata.outputs.dependency-names }}
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add src/changes/changes.xml
+          if git diff --cached --quiet; then
+            echo "No changes to commit (all entries already existed)."
+            exit 0
+          fi
+
+          COMMIT_MSG="chore(changes): record Dependabot update for ${DEP_NAMES} [skip ci]"
+
+          git commit \
+            -m "${COMMIT_MSG}" \
+            -m "" \
+            -m "Co-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>"
+
+          # Attempt direct push; fall back to a PR if branch protection blocks it.
+          if git push origin "HEAD:${DEFAULT_BRANCH}"; then
+            echo "Pushed directly to ${DEFAULT_BRANCH}."
+          else
+            echo "Direct push rejected — creating fallback PR."
+            BRANCH="chore/changelog-pr-${PR_NUMBER}"
+            git checkout -b "${BRANCH}"
+            git push -u origin "${BRANCH}"
+            gh pr create \
+              --title  "${COMMIT_MSG}" \
+              --body   "Auto-generated changelog entry for Dependabot PR #${PR_NUMBER}. Merges automatically." \
+              --base   "${DEFAULT_BRANCH}" \
+              --label  "dependencies" \
+              --label  "skip-changelog"
+            gh pr merge --auto --squash --delete-branch
+          fi
