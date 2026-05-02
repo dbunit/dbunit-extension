@@ -1,4 +1,4 @@
-name: Publish docs to GitHub pages
+name: Build and Deploy Maven Site to GitHub Pages
 
 on:
   push:
@@ -6,18 +6,45 @@ on:
   pull_request:
     branches: [ master, main ]
 
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  MAVEN_COMMAND: ./mvnw
+  MAVEN_CLI_COMMON: "-e -B"
+
 jobs:
-  build:
+  build-site:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
     - uses: actions/checkout@v6
-    - name: Build AsciiDoc Pages
-      uses: manoelcampos/asciidoctor-ghpages-action@v2
+    - uses: ./.github/actions/jdk-setup
+    - name: Build project
+      run: ${{ env.MAVEN_COMMAND }} ${{ env.MAVEN_CLI_COMMON }} install -DskipTests
+    - name: Generate Maven site
+      run: ${{ env.MAVEN_COMMAND }} ${{ env.MAVEN_CLI_COMMON }} site
+    - name: Upload Pages artifact
+      if: github.event_name == 'push'
+      uses: actions/upload-pages-artifact@v3
       with:
-        source_dir: docs/ # default is .
-        pdf_build: true
-        # asciidoctor_params: --attribute=nofooter
-        # adoc_file_ext: .ascii # default is .adoc
-        # slides_build: true
-        # pre_build:
-        # post_build:
+        path: target/site/
+
+  deploy:
+    needs: build-site
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v4
