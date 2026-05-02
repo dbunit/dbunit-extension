@@ -37,7 +37,7 @@
     <jclOverSlf4jVersion>1.7.25</jclOverSlf4jVersion>
     <junitJupiterVersion>5.10.1</junitJupiterVersion>
     <junitPlatformSuiteEngineVersion>1.10.1</junitPlatformSuiteEngineVersion>
-    <logbackClassicVersion>1.2.3</logbackClassicVersion>
+    <logbackClassicVersion>1.2.13</logbackClassicVersion>
     <mavenVersion>3.0.4</mavenVersion>
     <!-- non-UTC timezone for testing -->
     <test.timezone>Europe/Berlin</test.timezone>
