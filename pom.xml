@@ -32,15 +32,49 @@
     <!-- General values -->
     <compileSource>1.8</compileSource>
     <checkstyle.excludes>org/dbunit/util/concurrent/*.java</checkstyle.excludes>
-    <antJunitlauncherVersion>1.10.12</antJunitlauncherVersion>
-    <assertjCoreVersion>3.27.7</assertjCoreVersion>
-    <jclOverSlf4jVersion>1.7.25</jclOverSlf4jVersion>
-    <junitJupiterVersion>5.10.1</junitJupiterVersion>
-    <junitPlatformSuiteEngineVersion>1.10.1</junitPlatformSuiteEngineVersion>
-    <logbackClassicVersion>1.2.3</logbackClassicVersion>
     <mavenVersion>3.0.4</mavenVersion>
     <!-- non-UTC timezone for testing -->
     <test.timezone>Europe/Berlin</test.timezone>
+
+    <!-- Framework versions -->
+    <antJunitlauncherVersion>1.10.12</antJunitlauncherVersion>
+    <antTestUtilVersion>1.10.12</antTestUtilVersion>
+    <antVersion>1.10.12</antVersion>
+    <assertj.version>3.25.1</assertj.version>
+    <assertjCoreVersion>3.27.7</assertjCoreVersion>
+    <gsbaseVersion>2.0.1</gsbaseVersion>
+    <jclOverSlf4jVersion>1.7.25</jclOverSlf4jVersion>
+    <junitAddonsVersion>1.4</junitAddonsVersion>
+    <junitJupiterVersion>5.10.1</junitJupiterVersion>
+    <junitPlatformSuiteEngineVersion>1.10.1</junitPlatformSuiteEngineVersion>
+    <junitVersion>6.0.3</junitVersion>
+    <logbackClassicVersion>1.2.3</logbackClassicVersion>
+    <mockito.version>4.11.0</mockito.version>
+    <poiVersion>5.2.5</poiVersion>
+    <slf4jVersion>1.7.25</slf4jVersion>
+    <snakeYamlVersion>2.2</snakeYamlVersion>
+    <xmlparserv2Version>23.7.0.25.01</xmlparserv2Version>
+
+    <!-- Database driver versions -->
+    <db2DriverVersion>12.1.0.0</db2DriverVersion>
+    <derbyDriverVersion>10.14.2.0</derbyDriverVersion>
+    <h2DriverVersion>1.4.200</h2DriverVersion>
+    <hsqldbDriverVersion>1.8.0.10</hsqldbDriverVersion>
+    <mysqlDriverVersion>8.0.31</mysqlDriverVersion>
+    <!-- Oracle JDBC Driver compatible with JDK6, JDK7, and JDK8 -->
+    <oracleJ6DriverVersion>11.2.0.4</oracleJ6DriverVersion>
+    <!-- Oracle JDBC Driver compatible with JDK8 -->
+    <oracleJ8v12DriverVersion>12.2.0.1</oracleJ8v12DriverVersion>
+    <!-- Oracle JDBC Driver compatible with JDK8, JDK9,JDK10,and JDK11 -->
+    <oracleJ8v18DriverVersion>18.3.0.0</oracleJ8v18DriverVersion>
+    <!-- Oracle JDBC Driver compatible with JDK8, JDK9, and JDK11 -->
+    <oracleJ8v19DriverVersion>19.3.0.0</oracleJ8v19DriverVersion>
+    <!-- Oracle JDBC Driver compatible with JDK10 and JDK11 -->
+    <oracleJ10v19DriverVersion>19.3.0.0</oracleJ10v19DriverVersion>
+    <oracleXdbVersion>23.7.0.25.01</oracleXdbVersion>
+    <postgresqlDriverVersion>42.7.3</postgresqlDriverVersion>
+    <postgisDriverVersion>2023.1.0</postgisDriverVersion>
+    <sqlServer41DriverVersion>7.2.1.jre8</sqlServer41DriverVersion>
 
     <!-- Maven plugin versions -->
     <asciidoctorMavenPluginVersion>3.2.0</asciidoctorMavenPluginVersion>
@@ -79,42 +113,6 @@
     <sourcePluginVersion>3.2.1</sourcePluginVersion>
     <surefirePluginVersion>3.2.5</surefirePluginVersion>
     <versionsMavenPluginVersion>2.8.1</versionsMavenPluginVersion>
-
-    <!-- Framework versions -->
-    <antTestUtilVersion>1.10.12</antTestUtilVersion>
-    <antVersion>1.10.12</antVersion>
-    <assertj.version>3.25.1</assertj.version>
-    <gsbaseVersion>2.0.1</gsbaseVersion>
-    <junitAddonsVersion>1.4</junitAddonsVersion>
-    <junitPlatformSuiteEngine.version>1.10.1</junitPlatformSuiteEngine.version>
-    <junitVersion>5.10.1</junitVersion>
-    <logbackVersion>1.2.3</logbackVersion>
-    <mockito.version>4.11.0</mockito.version>
-    <poiVersion>5.2.5</poiVersion>
-    <slf4jVersion>1.7.25</slf4jVersion>
-    <snakeYamlVersion>2.2</snakeYamlVersion>
-    <xmlparserv2Version>23.7.0.25.01</xmlparserv2Version>
-
-    <!-- Database driver versions -->
-    <db2DriverVersion>12.1.0.0</db2DriverVersion>
-    <derbyDriverVersion>10.14.2.0</derbyDriverVersion>
-    <h2DriverVersion>1.4.200</h2DriverVersion>
-    <hsqldbDriverVersion>1.8.0.10</hsqldbDriverVersion>
-    <mysqlDriverVersion>8.0.31</mysqlDriverVersion>
-    <!-- Oracle JDBC Driver compatible with JDK6, JDK7, and JDK8 -->
-    <oracleJ6DriverVersion>11.2.0.4</oracleJ6DriverVersion>
-    <!-- Oracle JDBC Driver compatible with JDK8 -->
-    <oracleJ8v12DriverVersion>12.2.0.1</oracleJ8v12DriverVersion>
-    <!-- Oracle JDBC Driver compatible with JDK8, JDK9,JDK10,and JDK11 -->
-    <oracleJ8v18DriverVersion>18.3.0.0</oracleJ8v18DriverVersion>
-    <!-- Oracle JDBC Driver compatible with JDK8, JDK9, and JDK11 -->
-    <oracleJ8v19DriverVersion>19.3.0.0</oracleJ8v19DriverVersion>
-    <!-- Oracle JDBC Driver compatible with JDK10 and JDK11 -->
-    <oracleJ10v19DriverVersion>19.3.0.0</oracleJ10v19DriverVersion>
-    <oracleXdbVersion>23.7.0.25.01</oracleXdbVersion>
-    <postgresqlDriverVersion>42.7.3</postgresqlDriverVersion>
-    <postgisDriverVersion>2023.1.0</postgisDriverVersion>
-    <sqlServer41DriverVersion>7.2.1.jre8</sqlServer41DriverVersion>
 
     <!-- docker images -->
     <docker.image.name.db2-11>ibmcom/db2:11.5.8.0</docker.image.name.db2-11>
