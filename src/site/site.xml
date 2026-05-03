@@ -30,11 +30,6 @@
       ]]>
     </head>
 
-    <breadcrumbs>
-      <item name="JUnit" href="http://www.junit.org/index.htm"/>
-      <item name="DBUnit" href="http://dbunit.sourceforge.net/"/>
-    </breadcrumbs>
-
     <links>
       <item name="JUnit" href="http://www.junit.org/index.htm"/>
       <item name="DBUnit" href="http://dbunit.sourceforge.net/"/>
@@ -42,6 +37,11 @@
         <image src="https://github.com/dbunit/dbunit-extension/actions/workflows/build-any-branch-with-all-dbs.yml/badge.svg"/>
       </item>
     </links>
+
+    <breadcrumbs>
+      <item name="JUnit" href="http://www.junit.org/index.htm"/>
+      <item name="DBUnit" href="http://dbunit.sourceforge.net/"/>
+    </breadcrumbs>
 
     <menu name="Quick Links">
       <item name="Maven 1.x Plugin"  href="http://maven-plugins.sourceforge.net/maven-dbunit-plugin/index.html"/>
