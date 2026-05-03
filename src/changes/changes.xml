@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
-<document xmlns="http://maven.apache.org/changes/1.0.0"
+<document xmlns="http://maven.apache.org/changes/2.0.0"
           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-          xsi:schemaLocation="http://maven.apache.org/changes/1.0.0 http://maven.apache.org/xsd/changes-1.0.0.xsd">
+          xsi:schemaLocation="http://maven.apache.org/changes/2.0.0 https://maven.apache.org/xsd/changes-2.0.0.xsd">
   <properties>
     <title>Changes</title>
     <!-- Commented out as recent versions of maven-changes-plugin generate
@@ -23,6 +23,7 @@
       <action dev="jeffjensen" type="add" issue="???" system="sffeatures" due-to="jeffjensen">Add IsActualGreaterThanOrEqualToExpectedWithIgnoreMillisValueComparer.</action>
       <action dev="jeffjensen" type="add" issue="264" system="sffeatures" due-to="jeffjensen">Convert APT and XDoc doc files to Asciidoc.</action>
       <action dev="jeffjensen" type="add" issue="265" system="sffeatures" due-to="jeffjensen">Generate and publish Maven site to GitHub pages.</action>
+      <action dev="jeffjensen" type="update" due-to="jeffjensen">Bump multiple plugin and lib versions.</action>
     </release>
     <release version="3.0.0" date="Jan 25, 2025" description="JUnit 5 update, ValueComparers constants, Add TableDecoratorDataSet and GeneratedColumnFilter, Postgresql dep scope, IOUtils NoClassDefFoundError, PostgreSQLOidDataType.setSqlValue(): use unwrap(), Oracle NClob, XML DataTypes: use unwrap()">
       <action dev="jeffjensen" type="update" issue="222" system="sffeatures" due-to="emann">Upgrade dbUnit from JUnit 4 to JUnit 5</action>
@@ -89,21 +90,12 @@
       <action dev="jeffjensen" type="add" issue="214" system="sffeatures" due-to="deragon">Convert devguide.xml to devguide.apt.</action>
       <action dev="quantas" type="fix" issue="406" system="sfbugs" due-to="deragon">Fixed documentation regarding the blob tags.</action>
       <action dev="jeffjensen" type="fix" issue="352" system="sfbugs" due-to="jeffjensen">Fix changes report tracker links (Bugs, Features) to support both.</action>
-      <action dev="quantas" type="fix" system="sfbugs" due-to="quantas">
-        Fix all (except one Oracle test) database integration tests to work again.
-        <fixes issue="407" />
-        <fixes issue="409" />
-        <fixes issue="410" />
-        <fixes issue="411" />
-      </action>
+      <action dev="quantas" type="fix" fixed-issues="407,409,410,411" system="sfbugs" due-to="quantas">Fix all (except one Oracle test) database integration tests to work again.</action>
       <action dev="jeffjensen" type="update" issue="195" system="sffeatures" due-to="jkearns">Update tests to support build running Java 8.</action>
       <action dev="jeffjensen" type="update" issue="200" system="sffeatures" due-to="deragon">CachedDataSet has redundant code.</action>
       <action dev="jeffjensen" type="update" issue="199" system="sffeatures" due-to="deragon">FlatDtdDataSet has redundant code.</action>
       <action dev="jeffjensen" type="update" issue="205" system="sffeatures" due-to="msymons81">Use Apache POI 3.17.</action>
-      <action dev="jeffjensen" type="add" issue="179" system="sffeatures" due-to="mfrechePgest">
-        Add PostgreSQL OID data type.
-        <dueto name="ibic"/>
-      </action>
+      <action dev="jeffjensen" type="add" issue="179" system="sffeatures" due-to="mfrechePgest, ibic">Add PostgreSQL OID data type.</action>
     </release>
     <release version="2.5.4" date="Aug 20, 2017" description="Doc update, MSSQL IdentityInsertOperation commits, streamed export, blobs in datasets">
       <action dev="jeffjensen" type="update" due-to="jeffjensen">DefaultPrepAndExpectedTestCase: Don't verify table data when test execution has errors.</action>

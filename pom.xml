@@ -37,19 +37,16 @@
     <test.timezone>Europe/Berlin</test.timezone>
 
     <!-- Framework versions -->
-    <antJunitlauncherVersion>1.10.12</antJunitlauncherVersion>
+    <antJunitlauncherVersion>1.10.17</antJunitlauncherVersion>
     <antTestUtilVersion>1.10.12</antTestUtilVersion>
-    <antVersion>1.10.12</antVersion>
+    <antVersion>1.10.17</antVersion>
     <assertj.version>3.25.1</assertj.version>
     <assertjCoreVersion>3.27.7</assertjCoreVersion>
     <gsbaseVersion>2.0.1</gsbaseVersion>
-    <jclOverSlf4jVersion>1.7.25</jclOverSlf4jVersion>
-    <junitAddonsVersion>1.4</junitAddonsVersion>
-    <junitJupiterVersion>5.10.1</junitJupiterVersion>
-    <junitPlatformSuiteEngineVersion>1.10.1</junitPlatformSuiteEngineVersion>
+    <jclOverSlf4jVersion>2.0.17</jclOverSlf4jVersion>
     <junitVersion>6.0.3</junitVersion>
-    <logbackClassicVersion>1.2.3</logbackClassicVersion>
-    <mockito.version>4.11.0</mockito.version>
+    <logbackClassicVersion>1.5.32</logbackClassicVersion>
+    <mockitoVersion>5.23.0</mockitoVersion>
     <poiVersion>5.2.5</poiVersion>
     <slf4jVersion>1.7.25</slf4jVersion>
     <snakeYamlVersion>2.2</snakeYamlVersion>
@@ -78,41 +75,39 @@
 
     <!-- Maven plugin versions -->
     <asciidoctorMavenPluginVersion>3.2.0</asciidoctorMavenPluginVersion>
-    <assemblyPluginVersion>3.1.0</assemblyPluginVersion>
-    <centralPublishingMavenPluginVersion>0.8.0</centralPublishingMavenPluginVersion>
+    <assemblyPluginVersion>3.8.0</assemblyPluginVersion>
+    <centralPublishingMavenPluginVersion>0.10.0</centralPublishingMavenPluginVersion>
     <changelogPluginVersion>2.3</changelogPluginVersion>
-    <changesPluginVersion>2.12.1</changesPluginVersion>
-    <checkstylePluginVersion>2.17</checkstylePluginVersion>
-    <cleanPluginVersion>3.0.0</cleanPluginVersion>
-    <compilerPluginVersion>3.7.0</compilerPluginVersion>
+    <changesPluginVersion>3.0.0-M3</changesPluginVersion>
+    <checkstylePluginVersion>3.6.0</checkstylePluginVersion>
+    <cleanPluginVersion>3.5.0</cleanPluginVersion>
+    <compilerPluginVersion>3.15.0</compilerPluginVersion>
     <deployPluginVersion>3.1.4</deployPluginVersion>
-    <dockerMavenPluginVersion>0.45.1</dockerMavenPluginVersion>
+    <dockerMavenPluginVersion>0.48.1</dockerMavenPluginVersion>
     <!-- FIXME maven picking 1.2 specified in parent; fix with parent change -->
-    <enforcerPluginVersion>3.5.0</enforcerPluginVersion>
-    <failsafePluginVersion>3.2.5</failsafePluginVersion>
-    <gpgPluginVersion>1.6</gpgPluginVersion>
-    <installPluginVersion>2.5.2</installPluginVersion>
-    <jacocoPluginVersion>0.8.3</jacocoPluginVersion>
-    <japicmpPluginVersion>0.21.2</japicmpPluginVersion>
-    <jarPluginVersion>3.2.0</jarPluginVersion>
-    <javadocPluginVersion>3.0.0</javadocPluginVersion>
-    <jdependPluginVersion>2.0</jdependPluginVersion>
-    <jxrPluginVersion>2.5</jxrPluginVersion>
+    <enforcerPluginVersion>3.6.2</enforcerPluginVersion>
+    <failsafePluginVersion>3.5.5</failsafePluginVersion>
+    <gpgPluginVersion>3.2.8</gpgPluginVersion>
+    <installPluginVersion>3.1.4</installPluginVersion>
+    <jacocoPluginVersion>0.8.14</jacocoPluginVersion>
+    <japicmpPluginVersion>0.25.6</japicmpPluginVersion>
+    <jarPluginVersion>3.5.0</jarPluginVersion>
+    <javadocPluginVersion>3.12.0</javadocPluginVersion>
+    <jdependPluginVersion>2.2.0</jdependPluginVersion>
+    <jxrPluginVersion>3.6.0</jxrPluginVersion>
     <modernizer-maven-plugin>2.7.0</modernizer-maven-plugin>
-    <mockitoCoreVersion>4.11.0</mockitoCoreVersion>
-    <mockitoJunitJupiterVersion>4.11.0</mockitoJunitJupiterVersion>
-    <pmdPluginVersion>3.8</pmdPluginVersion>
+    <pmdPluginVersion>3.28.0</pmdPluginVersion>
     <poiOoxmlVersion>5.2.5</poiOoxmlVersion>
-    <projectInfoReportsPluginVersion>2.9</projectInfoReportsPluginVersion>
-    <propertiesPluginVersion>1.2.1</propertiesPluginVersion>
+    <projectInfoReportsPluginVersion>3.9.0</projectInfoReportsPluginVersion>
+    <propertiesPluginVersion>1.3.0</propertiesPluginVersion>
     <releasePluginVersion>3.3.1</releasePluginVersion>
-    <resourcesPluginVersion>3.0.2</resourcesPluginVersion>
-    <sitePluginVersion>3.12.1</sitePluginVersion>
-    <slf4jApiVersion>1.7.25</slf4jApiVersion>
+    <resourcesPluginVersion>3.5.0</resourcesPluginVersion>
+    <sitePluginVersion>3.21.0</sitePluginVersion>
+    <slf4jApiVersion>2.0.17</slf4jApiVersion>
     <snakeyamlVersion>2.2</snakeyamlVersion>
-    <sourcePluginVersion>3.2.1</sourcePluginVersion>
-    <surefirePluginVersion>3.2.5</surefirePluginVersion>
-    <versionsMavenPluginVersion>2.8.1</versionsMavenPluginVersion>
+    <sourcePluginVersion>3.4.0</sourcePluginVersion>
+    <surefirePluginVersion>3.5.5</surefirePluginVersion>
+    <versionsMavenPluginVersion>2.21.0</versionsMavenPluginVersion>
 
     <!-- docker images -->
     <docker.image.name.db2-11>ibmcom/db2:11.5.8.0</docker.image.name.db2-11>
@@ -439,12 +434,12 @@
       <dependency>
         <groupId>org.junit.jupiter</groupId>
         <artifactId>junit-jupiter</artifactId>
-        <version>${junitJupiterVersion}</version>
+        <version>${junitVersion}</version>
       </dependency>
       <dependency>
         <groupId>org.junit.platform</groupId>
         <artifactId>junit-platform-suite-engine</artifactId>
-        <version>${junitPlatformSuiteEngineVersion}</version>
+        <version>${junitVersion}</version>
       </dependency>
       <dependency>
         <groupId>org.assertj</groupId>
@@ -474,12 +469,12 @@
       <dependency>
         <groupId>org.mockito</groupId>
         <artifactId>mockito-core</artifactId>
-        <version>${mockitoCoreVersion}</version>
+        <version>${mockitoVersion}</version>
       </dependency>
       <dependency>
         <groupId>org.mockito</groupId>
         <artifactId>mockito-junit-jupiter</artifactId>
-        <version>${mockitoJunitJupiterVersion}</version>
+        <version>${mockitoVersion}</version>
       </dependency>
       <dependency>
         <groupId>org.yaml</groupId>
@@ -1535,7 +1530,7 @@ enable this to generate coverage report HTML files during build (same as site)
         <reportSets>
           <reportSet>
             <reports>
-              <report>changes-report</report>
+              <report>changes</report>
             </reports>
           </reportSet>
         </reportSets>

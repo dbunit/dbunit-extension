@@ -1,18 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/DECORATION/1.8.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://maven.apache.org/DECORATION/1.8.0 http://maven.apache.org/xsd/decoration-1.8.0.xsd"
-  name="DbUnit">
+<site xmlns="http://maven.apache.org/SITE/2.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/SITE/2.0.0 https://maven.apache.org/xsd/site-2.0.0.xsd">
 
-  <bannerLeft>
-    <name>${project.name}</name>
-    <src>/images/dbunit-logo.jpg</src>
-    <href>http://dbunit.sourceforge.net</href>
+  <bannerLeft name="${project.name}" href="http://dbunit.sourceforge.net">
+    <image src="/images/dbunit-logo.jpg"/>
   </bannerLeft>
 
-  <bannerRight>
-    <name>DbUnit.org</name>
-    <src>http://sourceforge.net/sflogo.php?group_id=47439&amp;type=5</src>
-    <href>http://www.sourceforge.net/projects/dbunit</href>
+  <bannerRight name="DbUnit.org" href="http://www.sourceforge.net/projects/dbunit">
+    <image src="http://sourceforge.net/sflogo.php?group_id=47439&amp;type=5"/>
   </bannerRight>
 
   <!-- position can be
@@ -23,7 +18,7 @@
   <skin>
     <groupId>org.apache.maven.skins</groupId>
     <artifactId>maven-fluido-skin</artifactId>
-    <version>1.7</version>
+    <version>2.1.0</version>
   </skin>
 
   <body>
@@ -43,13 +38,15 @@
     <links>
       <item name="JUnit" href="http://www.junit.org/index.htm"/>
       <item name="DBUnit" href="http://dbunit.sourceforge.net/"/>
-      <item name="" href="https://github.com/dbunit/dbunit-extension/actions/workflows/build-any-branch-with-all-dbs.yml" img="https://github.com/dbunit/dbunit-extension/actions/workflows/build-any-branch-with-all-dbs.yml/badge.svg"/>
+      <item name="" href="https://github.com/dbunit/dbunit-extension/actions/workflows/build-any-branch-with-all-dbs.yml">
+        <image src="https://github.com/dbunit/dbunit-extension/actions/workflows/build-any-branch-with-all-dbs.yml/badge.svg"/>
+      </item>
     </links>
 
     <menu name="Quick Links">
       <item name="Maven 1.x Plugin"  href="http://maven-plugins.sourceforge.net/maven-dbunit-plugin/index.html"/>
       <item name="Maven 2.x/3.x Plugin" href="../dbunit-maven-plugin/index.html"/>
-      <item name="Changes"           href="/changes-report.html"/>
+      <item name="Changes"           href="/changes.html"/>
       <item name="FAQ"               href="/faq.html"/>
       <item name="Wiki"              href="http://dbunit.wikidot.com/"/>
       <item name="Get support"       href="http://sourceforge.net/projects/dbunit/support"/>
@@ -88,7 +85,7 @@
     </menu>
 
     <menu name="Upgrading DbUnit">
-      <item name="Changes"                  href="/changes-report.html"/>
+      <item name="Changes"                  href="/changes.html"/>
       <item name="3.0.0 to 3.0.1-SNAPSHOT"  href="/3.0.0-to-snapshot.html"/>
       <item name="2.8.0 to 3.0.0"           href="/2.8.0-to-3.0.0.html"/>
       <item name="2.7.3 to 2.8.0"           href="/2.7.3-to-2.8.0.html"/>
@@ -117,4 +114,4 @@
 
   </body>
 
-</project>
+</site>
