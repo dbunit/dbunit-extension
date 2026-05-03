@@ -2,11 +2,11 @@
 <site xmlns="http://maven.apache.org/SITE/2.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xsi:schemaLocation="http://maven.apache.org/SITE/2.0.0 https://maven.apache.org/xsd/site-2.0.0.xsd">
 
-  <bannerLeft name="${project.name}" href="http://dbunit.sourceforge.net">
+  <bannerLeft name="" href="http://dbunit.sourceforge.net">
     <image src="/images/dbunit-logo.jpg"/>
   </bannerLeft>
 
-  <bannerRight name="DbUnit.org" href="http://www.sourceforge.net/projects/dbunit">
+  <bannerRight name="" href="http://www.sourceforge.net/projects/dbunit">
     <image src="http://sourceforge.net/sflogo.php?group_id=47439&amp;type=5"/>
   </bannerRight>
 
