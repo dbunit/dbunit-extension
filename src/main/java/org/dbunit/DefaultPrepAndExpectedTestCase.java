@@ -217,7 +217,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
         {
             preTest(verifyTables, prepDataFiles, expectedDataFiles);
             log.info("runTest: running test steps");
-            result = testSteps.run();
+            result = runTestSteps(testSteps);
         } catch (final Throwable e)
         {
             log.error(TEST_ERROR_MSG, e);
@@ -231,6 +231,18 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
         postTest();
 
         return result;
+    }
+
+    /**
+     * Run the provided test steps. Override as necessary for custom logic.
+     *
+     * @param testSteps
+     *            The test steps to run.
+     */
+    protected Object runTestSteps(final PrepAndExpectedTestCaseSteps testSteps)
+            throws Exception
+    {
+        return testSteps.run();
     }
 
     /**

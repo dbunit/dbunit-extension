@@ -24,6 +24,7 @@
       <action dev="jeffjensen" type="add" issue="264" system="sffeatures" due-to="jeffjensen">Convert APT and XDoc doc files to Asciidoc.</action>
       <action dev="jeffjensen" type="add" issue="265" system="sffeatures" due-to="jeffjensen">Generate and publish Maven site to GitHub pages.</action>
       <action dev="jeffjensen" type="update" due-to="jeffjensen">Bump multiple plugin and lib versions.</action>
+      <action dev="jeffjensen" type="add" issue="266" system="sffeatures" due-to="jeffjensen">DefaultPrepAndExpectedTestCase: extract runTestSteps() from runTest() enabling customization in child classes.</action>
     </release>
     <release version="3.0.0" date="Jan 25, 2025" description="JUnit 5 update, ValueComparers constants, Add TableDecoratorDataSet and GeneratedColumnFilter, Postgresql dep scope, IOUtils NoClassDefFoundError, PostgreSQLOidDataType.setSqlValue(): use unwrap(), Oracle NClob, XML DataTypes: use unwrap()">
       <action dev="jeffjensen" type="update" issue="222" system="sffeatures" due-to="emann">Upgrade dbUnit from JUnit 4 to JUnit 5</action>
