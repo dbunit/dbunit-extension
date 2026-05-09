@@ -1,0 +1,43 @@
+name: Deploy Snapshot
+
+on:
+  workflow_run:
+    workflows: ["Build any branch with all databases"]
+    types: [completed]
+    branches: [main, master]
+
+env:
+  MAVEN_COMMAND: ./mvnw
+  MAVEN_CLI_COMMON: "-e -B"
+
+jobs:
+  deploy-snapshot:
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+          server-id: central-publish
+          server-username: CENTRAL_USERNAME
+          server-password: CENTRAL_TOKEN
+
+      - name: Get project version
+        id: ver
+        run: echo "version=$(${{ env.MAVEN_COMMAND }} help:evaluate -Dexpression=project.version -q -DforceStdout)" >> $GITHUB_OUTPUT
+
+      - name: Deploy snapshot to Maven Central
+        if: endsWith(steps.ver.outputs.version, '-SNAPSHOT')
+        env:
+          CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
+          CENTRAL_TOKEN: ${{ secrets.CENTRAL_TOKEN }}
+        run: ${{ env.MAVEN_COMMAND }} ${{ env.MAVEN_CLI_COMMON }} deploy -DskipTests
+
+      - name: Skip (not a snapshot version)
+        if: "!endsWith(steps.ver.outputs.version, '-SNAPSHOT')"
+        run: echo "Version ${{ steps.ver.outputs.version }} is a release version — skipping snapshot deploy"
