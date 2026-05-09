@@ -47,7 +47,7 @@
     <junitVersion>6.0.3</junitVersion>
     <logbackClassicVersion>1.5.32</logbackClassicVersion>
     <mockitoVersion>5.23.0</mockitoVersion>
-    <poiVersion>5.2.5</poiVersion>
+    <poiVersion>5.5.1</poiVersion>
     <slf4jVersion>1.7.25</slf4jVersion>
     <snakeYamlVersion>2.2</snakeYamlVersion>
     <xmlparserv2Version>23.7.0.25.01</xmlparserv2Version>
