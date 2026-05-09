@@ -104,7 +104,7 @@
     <resourcesPluginVersion>3.5.0</resourcesPluginVersion>
     <sitePluginVersion>3.21.0</sitePluginVersion>
     <slf4jApiVersion>2.0.17</slf4jApiVersion>
-    <snakeyamlVersion>2.2</snakeyamlVersion>
+    <snakeyamlVersion>2.6</snakeyamlVersion>
     <sourcePluginVersion>3.4.0</sourcePluginVersion>
     <surefirePluginVersion>3.5.5</surefirePluginVersion>
     <versionsMavenPluginVersion>2.21.0</versionsMavenPluginVersion>
