@@ -1,13 +1,9 @@
 name: Build and Deploy Maven Site to GitHub Pages
 
 on:
-  push:
-    branches: [ master, main ]
-  pull_request:
-    branches: [ master, main ]
   workflow_dispatch:
   workflow_run:
-    workflows: ["Record Dependabot update in changes.xml"]
+    workflows: ["Build any branch with all databases", "Record Dependabot update in changes.xml"]
     types: [completed]
     branches: [ master, main ]
 
@@ -26,6 +22,7 @@ env:
 
 jobs:
   build-site:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -36,14 +33,14 @@ jobs:
     - name: Generate Maven site
       run: ${{ env.MAVEN_COMMAND }} ${{ env.MAVEN_CLI_COMMON }} site -Dproject.build.outputTimestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)
     - name: Upload Pages artifact
-      if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_run'
+      if: github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_run'
       uses: actions/upload-pages-artifact@v3
       with:
         path: target/site/
 
   deploy:
     needs: build-site
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_run'
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_run'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment:
