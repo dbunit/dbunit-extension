@@ -5,7 +5,7 @@
 
   <groupId>org.dbunit</groupId>
   <artifactId>dbunit</artifactId>
-  <version>3.1.0-SNAPSHOT</version>
+  <version>3.1.0</version>
   <packaging>jar</packaging>
   <name>dbUnit Extension</name>
   <url>http://dbunit.sourceforge.net</url>
@@ -24,7 +24,7 @@
 
   <properties>
     <!-- Maven configuration -->
-    <project.build.outputTimestamp>2025-10-01T00:00:00Z</project.build.outputTimestamp>
+    <project.build.outputTimestamp>2026-05-11T00:00:00Z</project.build.outputTimestamp>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <project.scm.id>sourceforge</project.scm.id>
@@ -1055,14 +1055,40 @@ enable this to generate coverage report HTML files during build (same as site)
           </parameter>
         </configuration>
         <reportSets>
+<!-- 
           <reportSet>
-            <id>3.0.0-to-snapshot</id>
+            <id>3.1.0-to-snapshot</id>
             <reports>
               <report>cmp-report</report>
             </reports>
             <configuration>
               <parameter>
-                <reportLinkName>3.0.0-to-snapshot</reportLinkName>
+                <reportLinkName>3.1.0-to-snapshot</reportLinkName>
+              </parameter>
+              <oldVersion>
+                <dependency>
+                  <groupId>${project.groupId}</groupId>
+                  <artifactId>${project.artifactId}</artifactId>
+                  <version>3.1.0</version>
+                  <type>jar</type>
+                </dependency>
+              </oldVersion>
+              <newVersion>
+                <file>
+                  <path>${project.build.directory}/${project.artifactId}-${project.version}.${project.packaging}</path>
+                </file>
+              </newVersion>
+            </configuration>
+          </reportSet>
+-->
+          <reportSet>
+            <id>3.0.0-to-3.1.0</id>
+            <reports>
+              <report>cmp-report</report>
+            </reports>
+            <configuration>
+              <parameter>
+                <reportLinkName>3.0.0-to-3.1.0</reportLinkName>
               </parameter>
               <oldVersion>
                 <dependency>
@@ -1073,9 +1099,12 @@ enable this to generate coverage report HTML files during build (same as site)
                 </dependency>
               </oldVersion>
               <newVersion>
-                <file>
-                  <path>${project.build.directory}/${project.artifactId}-${project.version}.${project.packaging}</path>
-                </file>
+                <dependency>
+                  <groupId>${project.groupId}</groupId>
+                  <artifactId>${project.artifactId}</artifactId>
+                  <version>3.1.0</version>
+                  <type>jar</type>
+                </dependency>
               </newVersion>
             </configuration>
           </reportSet>
