@@ -55,14 +55,14 @@ hsqldb-integration-test-job:
   script:
     - mvn $MAVEN_CLI_COMMON -Pit-config,hsqldb verify
 
-mssql-2019-latest-integration-test-job:
+mssql-2022-latest-integration-test-job:
   extends: .integration-test-base
   services:
-    - name: mcr.microsoft.com/mssql/server:2019-latest
-      alias: sqlserver19
+    - name: mcr.microsoft.com/mssql/server:2022-latest
+      alias: sqlserver22
   variables:
     ACCEPT_EULA: Y
-    MSSQL_HOST: sqlserver19
+    MSSQL_HOST: sqlserver22
     MSSQL_SA_PASSWORD: theSaPassword1234
     SA_PASSWORD: theSaPassword1234
 
@@ -71,7 +71,7 @@ mssql-2019-latest-integration-test-job:
     DB_USERNAME: sa
     DB_PASSWORD: theSaPassword1234
   script:
-    - mvn $MAVEN_CLI_COMMON -Pit-config,mssql2019 verify -Ddbunit.profile.url=jdbc:sqlserver://sqlserver19:1433;DatabaseName=dbunit;user=sa;password=theSaPassword1234;Trusted_Connection=True;SelectMethod=cursor
+    - mvn $MAVEN_CLI_COMMON -Pit-config,mssql-2022 verify -Ddbunit.profile.url=jdbc:sqlserver://sqlserver22:1433;DatabaseName=dbunit;user=sa;password=theSaPassword1234;Trusted_Connection=True;SelectMethod=cursor
 
 mysql-integration-test-job:
   extends: .integration-test-base

@@ -111,7 +111,7 @@
 
     <!-- docker images -->
     <docker.image.name.db2-11>ibmcom/db2:11.5.8.0</docker.image.name.db2-11>
-    <docker.image.name.mssql-2019>mcr.microsoft.com/mssql/server:2019-latest</docker.image.name.mssql-2019>
+    <docker.image.name.mssql-2022>mcr.microsoft.com/mssql/server:2022-latest</docker.image.name.mssql-2022>
     <docker.image.name.mysql.9-20>mysql:9.2.0</docker.image.name.mysql.9-20>
     <docker.image.name.oracle-18>gvenzl/oracle-xe:18.4.0-faststart</docker.image.name.oracle-18>
     <docker.image.name.oracle-23>gvenzl/oracle-free:23.6-faststart</docker.image.name.oracle-23>
@@ -1771,7 +1771,7 @@ enable this to generate coverage report HTML files during build (same as site)
       </dependencies>
     </profile>
     <profile>
-      <id>mssql-2019</id>
+      <id>mssql-2022</id>
       <properties>
         <surefirePluginSkip>true</surefirePluginSkip>
         <modernizerPluginSkip>true</modernizerPluginSkip>
@@ -1783,7 +1783,7 @@ enable this to generate coverage report HTML files during build (same as site)
             <artifactId>properties-maven-plugin</artifactId>
             <configuration>
               <urls>
-                <url>file:///${basedir}/src/test/resources/mssql2019-dbunit.properties</url>
+                <url>file:///${basedir}/src/test/resources/mssql2022-dbunit.properties</url>
               </urls>
             </configuration>
           </plugin>
@@ -1793,7 +1793,7 @@ enable this to generate coverage report HTML files during build (same as site)
             <configuration>
               <images>
                 <image>
-                  <name>${docker.image.name.mssql-2019}</name>
+                  <name>${docker.image.name.mssql-2022}</name>
                   <run>
                     <ports>
                       <port>${database.port.mssql}:1433</port>
