@@ -13,6 +13,8 @@
   </properties>
 
   <body>
+    <release version="3.1.1-SNAPSHOT" date="TBD" description="">
+    </release>
     <release version="3.1.0" date="May 11, 2026" description="Lower DefaultPrepAndExpectedTestCase log levels, build DB config, GitHub CI, reproducible builds, change to Central Portal publishing, IsActualGreaterThanExpectedWithIgnoreMillisValueComparer, IsActualGreaterThanOrEqualToExpectedWithIgnoreMillisValueComparer, GitHub config, convert docs to Asciidoc, version bumps, DefaultPrepAndExpectedTestCase.runTestSteps(), auto-publish SNAPSHOTS">
       <action dev="jeffjensen" type="add" issue="260" system="sffeatures" due-to="jeffjensen">Configure GitHub CI.</action>
       <action dev="jeffjensen" type="update" issue="259" system="sffeatures" due-to="jeffjensen">Update build to use docker-maven-plugin for starting databases.</action>

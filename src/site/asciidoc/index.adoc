@@ -27,12 +27,12 @@ We will gladly help you as needed with your ideas and contributions and look to 
 |===
 |Date |News
 
-//|TBD
-//a|Please try the 3.0.1-SNAPSHOT snapshot build and let us know how it works! +
-//Refer to the link:changes.html#a3.0.1-SNAPSHOT[changes report],
-//the link:https://sourceforge.net/p/dbunit/feature-requests/milestone/3.0.1/[feature list],
-//and the link:https://sourceforge.net/p/dbunit/bugs/fixed_release/3.0.1/[bug list]
-//for the snapshot contents (and any subsequent updates).
+|TBD
+|Please try the 3.1.1-SNAPSHOT snapshot build and let us know how it works!
+Refer to the link:changes.html#a3.1.1-SNAPSHOT[changes report],
+the link:https://sourceforge.net/p/dbunit/feature-requests/milestone/3.1.1/[feature list],
+and the link:https://sourceforge.net/p/dbunit/bugs/fixed_release/3.1.1/[bug list]
+for the snapshot contents (and any subsequent updates).
 
 |2026-05-11
 |Release 3.1.0 available. Refer to the link:changes.html#a3.1.0[changes report], the link:https://sourceforge.net/p/dbunit/feature-requests/milestone/3.1.0/[feature list], and the link:https://sourceforge.net/p/dbunit/bugs/fixed_release/3.1.0/[bug list] for the release contents.

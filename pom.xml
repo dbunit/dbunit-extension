@@ -5,7 +5,7 @@
 
   <groupId>org.dbunit</groupId>
   <artifactId>dbunit</artifactId>
-  <version>3.1.0</version>
+  <version>3.1.1-SNAPSHOT</version>
   <packaging>jar</packaging>
   <name>dbUnit Extension</name>
   <url>http://dbunit.sourceforge.net</url>
@@ -1059,7 +1059,6 @@ enable this to generate coverage report HTML files during build (same as site)
           </parameter>
         </configuration>
         <reportSets>
-<!-- 
           <reportSet>
             <id>3.1.0-to-snapshot</id>
             <reports>
@@ -1084,7 +1083,6 @@ enable this to generate coverage report HTML files during build (same as site)
               </newVersion>
             </configuration>
           </reportSet>
--->
           <reportSet>
             <id>3.0.0-to-3.1.0</id>
             <reports>
@@ -1103,9 +1101,12 @@ enable this to generate coverage report HTML files during build (same as site)
                 </dependency>
               </oldVersion>
               <newVersion>
-                <file>
-                  <path>${project.build.directory}/${project.build.finalName}.${project.packaging}</path>
-                </file>
+                <dependency>
+                  <groupId>${project.groupId}</groupId>
+                  <artifactId>${project.artifactId}</artifactId>
+                  <version>3.1.0</version>
+                  <type>jar</type>
+                </dependency>
               </newVersion>
             </configuration>
           </reportSet>
