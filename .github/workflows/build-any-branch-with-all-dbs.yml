@@ -57,5 +57,6 @@ jobs:
       - name: Run ${{ matrix.database.name }} integration tests
         run: ${{ env.MAVEN_COMMAND }} ${{ env.MAVEN_CLI_COMMON }} -P${{ matrix.database.profile }} verify ${{ matrix.database.url != '' && format('-Ddbunit.profile.url={0}', matrix.database.url) || '' }}
       - name: Submit dependencies to GitHub
+        if: github.actor != 'dependabot[bot]'
         uses: advanced-security/maven-dependency-submission-action@v5
 
