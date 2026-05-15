@@ -31,15 +31,15 @@
     </head>
 
     <links>
-      <item name="JUnit" href="http://www.junit.org/index.htm"/>
-      <item name="DBUnit" href="http://dbunit.sourceforge.net/"/>
       <item name="" href="https://github.com/dbunit/dbunit-extension/actions/workflows/build-any-branch-with-all-dbs.yml">
         <image src="https://github.com/dbunit/dbunit-extension/actions/workflows/build-any-branch-with-all-dbs.yml/badge.svg"/>
+      </item>
+      <item name="" href="https://github.com/jvm-repo-rebuild/reproducible-central/blob/master/content/org/dbunit/README.md">
+        <image src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/jvm-repo-rebuild/reproducible-central/master/content/org/dbunit/badge.json"/>
       </item>
     </links>
 
     <breadcrumbs>
-      <item name="JUnit" href="http://www.junit.org/index.htm"/>
       <item name="DBUnit" href="http://dbunit.sourceforge.net/"/>
     </breadcrumbs>
 
