@@ -8,7 +8,7 @@
   <version>3.1.1-SNAPSHOT</version>
   <packaging>jar</packaging>
   <name>dbUnit Extension</name>
-  <url>http://dbunit.sourceforge.net</url>
+  <url>https://github.com/dbunit/dbunit-extension</url>
   <inceptionYear>2002</inceptionYear>
   <description>
     dbUnit is a JUnit extension (also usable from Ant and Maven) targeted for database-driven projects that, among other things, puts your database into a known state between test runs. This is an excellent way to avoid the myriad of problems that can occur when one test case corrupts the database and causes subsequent tests to fail or exacerbate the damage.
@@ -27,7 +27,7 @@
     <project.build.outputTimestamp>2026-05-11T00:00:00Z</project.build.outputTimestamp>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-    <project.scm.id>sourceforge</project.scm.id>
+    <project.scm.id>github</project.scm.id>
 
     <!-- General values -->
     <compileSource>1.8</compileSource>
@@ -138,40 +138,19 @@
   </properties>
 
   <scm>
-    <connection>scm:git:http://git.code.sf.net/p/dbunit/code.git</connection>
-    <developerConnection>scm:git:https://git.code.sf.net/p/dbunit/code.git</developerConnection>
-    <url>http://sourceforge.net/p/dbunit/code.git/ci/master/tree/</url>
+    <connection>scm:git:https://github.com/dbunit/dbunit-extension.git</connection>
+    <developerConnection>scm:git:git@github.com:dbunit/dbunit-extension.git</developerConnection>
+    <url>https://github.com/dbunit/dbunit-extension.git</url>
     <tag>HEAD</tag>
   </scm>
   <issueManagement>
-    <system>SourceForge2</system>
-    <url>https://sourceforge.net/p/dbunit/_list/tickets</url>
+    <system>github</system>
+    <url>https://github.com/dbunit/dbunit-extension/issues</url>
   </issueManagement>
   <ciManagement>
-    <system>github</system>
+    <system>GitHub Actions</system>
     <url>https://github.com/dbunit/dbunit-extension/actions</url>
   </ciManagement>
-
-  <mailingLists>
-    <mailingList>
-      <name>dbUnit User List</name>
-      <subscribe>http://lists.sourceforge.net/lists/listinfo/dbunit-user</subscribe>
-      <unsubscribe>http://lists.sourceforge.net/lists/listinfo/dbunit-user</unsubscribe>
-      <archive>http://sourceforge.net/mailarchive/forum.php?forum_name=dbunit-user</archive>
-    </mailingList>
-    <mailingList>
-      <name>dbUnit Developer List</name>
-      <subscribe>http://lists.sourceforge.net/lists/listinfo/dbunit-developer</subscribe>
-      <unsubscribe>http://lists.sourceforge.net/lists/listinfo/dbunit-developer</unsubscribe>
-      <archive>http://sourceforge.net/mailarchive/forum.php?forum_name=dbunit-developer</archive>
-    </mailingList>
-    <mailingList>
-      <name>dbUnit Commit List</name>
-      <subscribe>http://lists.sourceforge.net/lists/listinfo/dbunit-commit</subscribe>
-      <unsubscribe>http://lists.sourceforge.net/lists/listinfo/dbunit-commit</unsubscribe>
-      <archive>http://sourceforge.net/mailarchive/forum.php?forum_name=dbunit-commit</archive>
-    </mailingList>
-  </mailingLists>
 
   <!-- Who are the developers for the project, in order of recent activity. -->
   <developers>
@@ -915,6 +894,9 @@ enable this to generate coverage report HTML files during build (same as site)
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-site-plugin</artifactId>
           <version>${sitePluginVersion}</version>
+          <configuration>
+            <relativizeSiteLinks>false</relativizeSiteLinks>
+          </configuration>
           <dependencies>
             <dependency>
               <groupId>org.apache.maven.wagon</groupId>
@@ -1546,16 +1528,8 @@ enable this to generate coverage report HTML files during build (same as site)
           <smtpHost>localhost</smtpHost>
           <smtpPort implementation="java.lang.Integer">25</smtpPort>
           <introduction>If you are reading this, the maintainer forgot to describe what's the purpose of this release!!!</introduction>
-          <toAddresses>
-            <toAddress implementation="java.lang.String">dbunit-developer@lists.sourceforge.net</toAddress>
-            <toAddress implementation="java.lang.String">dbunit-user@lists.sourceforge.net</toAddress>
-          </toAddresses>
-          <urlDownload>http://dbunit.sourceforge.net/repos.html</urlDownload>
           <issueLinkTemplatePerSystem>
-            <sfbugs><![CDATA[https://sourceforge.net/p/dbunit/bugs/%ISSUE%]]></sfbugs>
-            <sffeatures><![CDATA[https://sourceforge.net/p/dbunit/feature-requests/%ISSUE%]]></sffeatures>
-            <sfplugintickets><![CDATA[https://sourceforge.net/p/dbunit/plugintickets/%ISSUE%]]></sfplugintickets>
-            <sfmerges><![CDATA[https://sourceforge.net/p/dbunit/code.git/merge-requests/%ISSUE%]]></sfmerges>
+            <github><![CDATA[https://github.com/dbunit/dbunit-extension/issues/%ISSUE%]]></github>
           </issueLinkTemplatePerSystem>
         </configuration>
         <reportSets>
@@ -1568,13 +1542,6 @@ enable this to generate coverage report HTML files during build (same as site)
       </plugin>
     </plugins>
   </reporting>
-
-  <distributionManagement>
-    <site>
-      <id>sourceforge</id>
-      <url>scp://shell.sourceforge.net/home/project-web/dbunit/htdocs/dbunit/</url>
-    </site>
-  </distributionManagement>
 
   <profiles>
     <profile>

@@ -16,132 +16,132 @@
     <release version="3.1.1-SNAPSHOT" date="TBD" description="">
     </release>
     <release version="3.1.0" date="May 11, 2026" description="Lower DefaultPrepAndExpectedTestCase log levels, build DB config, GitHub CI, reproducible builds, change to Central Portal publishing, IsActualGreaterThanExpectedWithIgnoreMillisValueComparer, IsActualGreaterThanOrEqualToExpectedWithIgnoreMillisValueComparer, GitHub config, convert docs to Asciidoc, version bumps, DefaultPrepAndExpectedTestCase.runTestSteps(), auto-publish SNAPSHOTS">
-      <action dev="jeffjensen" type="add" issue="260" system="sffeatures" due-to="jeffjensen">Configure GitHub CI.</action>
-      <action dev="jeffjensen" type="update" issue="259" system="sffeatures" due-to="jeffjensen">Update build to use docker-maven-plugin for starting databases.</action>
-      <action dev="jeffjensen" type="update" issue="261" system="sffeatures" due-to="jeffjensen">DefaultPrepAndExpectedTestCase: lower log levels so no WARN and fewer INFO.</action>
-      <action dev="jeffjensen" type="update" issue="262" system="sffeatures" due-to="jeffjensen">Setup reproducible builds.</action>
-      <action dev="jeffjensen" type="update" issue="263" system="sffeatures" due-to="jeffjensen">Change Central artifact publishing from OSSRH to new Portal.</action>
+      <action dev="jeffjensen" type="add" issue="717" system="github" due-to="jeffjensen">Configure GitHub CI.</action>
+      <action dev="jeffjensen" type="update" issue="716" system="github" due-to="jeffjensen">Update build to use docker-maven-plugin for starting databases.</action>
+      <action dev="jeffjensen" type="update" issue="718" system="github" due-to="jeffjensen">DefaultPrepAndExpectedTestCase: lower log levels so no WARN and fewer INFO.</action>
+      <action dev="jeffjensen" type="update" issue="720" system="github" due-to="jeffjensen">Setup reproducible builds.</action>
+      <action dev="jeffjensen" type="update" issue="721" system="github" due-to="jeffjensen">Change Central artifact publishing from OSSRH to new Portal.</action>
       <action dev="jeffjensen" type="add" due-to="jeffjensen">Add IsActualGreaterThanExpectedWithIgnoreMillisValueComparer.</action>
       <action dev="jeffjensen" type="add" due-to="jeffjensen">Add IsActualGreaterThanOrEqualToExpectedWithIgnoreMillisValueComparer.</action>
-      <action dev="jeffjensen" type="add" issue="264" system="sffeatures" due-to="jeffjensen">Convert APT and XDoc doc files to Asciidoc.</action>
-      <action dev="jeffjensen" type="add" issue="265" system="sffeatures" due-to="jeffjensen">Generate and publish Maven site to GitHub pages.</action>
+      <action dev="jeffjensen" type="add" issue="723" system="github" due-to="jeffjensen">Convert APT and XDoc doc files to Asciidoc.</action>
+      <action dev="jeffjensen" type="add" issue="724" system="github" due-to="jeffjensen">Generate and publish Maven site to GitHub pages.</action>
       <action dev="jeffjensen" type="update" due-to="jeffjensen">Bump multiple plugin and lib versions.</action>
-      <action dev="jeffjensen" type="add" issue="266" system="sffeatures" due-to="jeffjensen">DefaultPrepAndExpectedTestCase: extract runTestSteps() from runTest() enabling customization in child classes.</action>
+      <action dev="jeffjensen" type="add" issue="725" system="github" due-to="jeffjensen">DefaultPrepAndExpectedTestCase: extract runTestSteps() from runTest() enabling customization in child classes.</action>
       <action dev="jeffjensen" type="add" due-to="jeffjensen">Auto-publish SNAPSHOTs to Maven Central on master commits.</action>
     </release>
     <release version="3.0.0" date="Jan 25, 2025" description="JUnit 5 update, ValueComparers constants, Add TableDecoratorDataSet and GeneratedColumnFilter, Postgresql dep scope, IOUtils NoClassDefFoundError, PostgreSQLOidDataType.setSqlValue(): use unwrap(), Oracle NClob, XML DataTypes: use unwrap()">
-      <action dev="jeffjensen" type="update" issue="222" system="sffeatures" due-to="emann">Upgrade dbUnit from JUnit 4 to JUnit 5</action>
-      <action dev="jeffjensen" type="add" issue="250" system="sffeatures" due-to="jeffjensen">Add 'actual is null' and 'actual is not null' constants to ValueComparers class</action>
-      <action dev="jeffjensen" type="add" issue="232" system="sffeatures" due-to="rcd">Add TableDecoratorDataSet and GeneratedColumnFilterSupport enabling column filtering from datasets, such as computed columns</action>
-      <action dev="jeffjensen" type="fix" issue="443" system="sfbugs" due-to="jeffjensen">Mark postgresql dependency as provided scope</action>
-      <action dev="jeffjensen" type="fix" issue="445" system="sfbugs" due-to="jeffjensen">Fix NoClassDefFoundError for IOUtils</action>
-      <action dev="ajohnson" type="update" issue="248" system="sffeatures" due-to="ajohnson">Update code for Modernizer plugin violations</action>
-      <action dev="jeffjensen" type="fix" issue="451" system="sfbugs" due-to="wbiller">In PostgreSQLOidDataType.setSqlValue(), use connection.unwrap() to get PGConnection.</action>
-      <action dev="jeffjensen" type="fix" issue="444" system="sfbugs" due-to="wbiller">In OracleNClobDataType.setSqlValue() and OracleXMLTypeDataType.setSqlValue(), use connection.unwrap() to get statement or resultset.</action>
-      <action dev="jeffjensen" type="add" issue="258" system="sffeatures" due-to="jeffjensen">Configure Maven Wrapper for dbUnit builds.</action>
+      <action dev="jeffjensen" type="update" issue="659" system="github" due-to="emann">Upgrade dbUnit from JUnit 4 to JUnit 5</action>
+      <action dev="jeffjensen" type="add" issue="699" system="github" due-to="jeffjensen">Add 'actual is null' and 'actual is not null' constants to ValueComparers class</action>
+      <action dev="jeffjensen" type="add" issue="675" system="github" due-to="rdicroce">Add TableDecoratorDataSet and GeneratedColumnFilterSupport enabling column filtering from datasets, such as computed columns</action>
+      <action dev="jeffjensen" type="fix" issue="701" system="github" due-to="jeffjensen">Mark postgresql dependency as provided scope</action>
+      <action dev="jeffjensen" type="fix" issue="703" system="github" due-to="jeffjensen">Fix NoClassDefFoundError for IOUtils</action>
+      <action dev="andrewhj" type="update" issue="690" system="github" due-to="andrewhj">Update code for Modernizer plugin violations</action>
+      <action dev="jeffjensen" type="fix" issue="714" system="github" due-to="wbiller">In PostgreSQLOidDataType.setSqlValue(), use connection.unwrap() to get PGConnection.</action>
+      <action dev="jeffjensen" type="fix" issue="702" system="github" due-to="wbiller">In OracleNClobDataType.setSqlValue() and OracleXMLTypeDataType.setSqlValue(), use connection.unwrap() to get statement or resultset.</action>
+      <action dev="jeffjensen" type="add" issue="715" system="github" due-to="jeffjensen">Configure Maven Wrapper for dbUnit builds.</action>
     </release>
     <release version="2.8.0" date="Jun 2, 2024" description="YAML dataset">
-      <action dev="bjornbeskow" type="add" issue="244" system="sffeatures" due-to="bjornbeskow">Add support for YAML dataset format</action>
+      <action dev="beskow" type="add" issue="688" system="github" due-to="beskow">Add support for YAML dataset format</action>
     </release>
     <release version="2.7.3" date="Feb 12, 2022" description="new ValueComparers, unwrap PGConnection, Timestamp DST, UUID NPE, OracleClobDataType CCE, Operation multiple dataset sources, PostGIS 2021.1.0">
-      <action dev="jeffjensen" type="add" issue="5" system="sfplugintickets" due-to="bjornbeskow">Enable composing an Operation dataset from multiple source files</action>
-      <action dev="jeffjensen" type="update" issue="240" system="sffeatures" due-to="bambaro">OracleClobDataType: Use non-deprecated CLOB; also prevents ClassCastException</action>
-      <action dev="jeffjensen" type="fix" issue="439" system="sfbugs" due-to="xobotun">Nullable UUID column in PostgreSQL caused NPE</action>
-      <action dev="jeffjensen" type="fix" issue="438" system="sfbugs" due-to="jammule">Timestamp conversion for instants during daylight saving time is off</action>
-      <action dev="jeffjensen" type="fix" issue="436" system="sfbugs" due-to="sfranson">Unwrap PGConnection instead of casting to it</action>
-      <action dev="jeffjensen" type="add" issue="250" system="sffeatures" due-to="jeffjensen">Add 'actual is null' and 'actual is not null' ValueComparers</action>
-      <action dev="jeffjensen" type="update" issue="251" system="sffeatures" due-to="mprins">Upgrade PostGIS JDBC driver to 2021.1.0</action>
+      <action dev="jeffjensen" type="add" issue="44" system="github" due-to="beskow">Enable composing an Operation dataset from multiple source files</action>
+      <action dev="jeffjensen" type="update" issue="684" system="github" due-to="Bambaro">OracleClobDataType: Use non-deprecated CLOB; also prevents ClassCastException</action>
+      <action dev="jeffjensen" type="fix" issue="695" system="github" due-to="xobotun">Nullable UUID column in PostgreSQL caused NPE</action>
+      <action dev="jeffjensen" type="fix" issue="694" system="github" due-to="JamMule">Timestamp conversion for instants during daylight saving time is off</action>
+      <action dev="jeffjensen" type="fix" issue="692" system="github" due-to="fransonsr">Unwrap PGConnection instead of casting to it</action>
+      <action dev="jeffjensen" type="add" issue="699" system="github" due-to="jeffjensen">Add 'actual is null' and 'actual is not null' ValueComparers</action>
+      <action dev="jeffjensen" type="update" issue="700" system="github" due-to="mprins">Upgrade PostGIS JDBC driver to 2021.1.0</action>
     </release>
     <release version="2.7.2" date="Jul 27, 2021" description="DefaultPrepAndExpectedTestCase getConnection(), more case sensitive tables">
-      <action dev="jeffjensen" type="fix" issue="441" system="sfbugs" due-to="jeffjensen">DefaultPrepAndExpectedTestCase must use correct getConnection() to initialize DatabaseConfig </action>
-      <action dev="jeffjensen" type="fix" issue="442" system="sfbugs" due-to="jeffjensen">DefaultPrepAndExpectedTestCase must use DatabaseConfig.FEATURE_CASE_SENSITIVE_TABLE_NAMES: in cleanupData()</action>
+      <action dev="jeffjensen" type="fix" issue="697" system="github" due-to="jeffjensen">DefaultPrepAndExpectedTestCase must use correct getConnection() to initialize DatabaseConfig </action>
+      <action dev="jeffjensen" type="fix" issue="698" system="github" due-to="jeffjensen">DefaultPrepAndExpectedTestCase must use DatabaseConfig.FEATURE_CASE_SENSITIVE_TABLE_NAMES: in cleanupData()</action>
     </release>
     <release version="2.7.1" date="Jul 22, 2021" description="Apache POI 4.1.0, Maven relativePath warning, UniqueIdentifierType: change caught exception for Java 12, Set some dependencies optional, Remove commons-io, commons-collections deps, case sensitive tables">
-      <action dev="jeffjensen" type="update" issue="231" system="sffeatures" due-to="felixknecht">Update Apache POI to version 4.1.0</action>
-      <action dev="jeffjensen" type="update" issue="235" system="sffeatures" due-to="viczi">Eliminate the Maven's relativePath warning</action>
-      <action dev="jeffjensen" type="update" issue="236" system="sffeatures" due-to="viczi">UniqueIdentifierType: change caught exception for Java 12's changed UUID validation</action>
-      <action dev="jeffjensen" type="update" issue="237" system="sffeatures" due-to="viczi">Use optional in poi-ooxml and postgresql Maven dependencies</action>
-      <action dev="jeffjensen" type="update" issue="238" system="sffeatures" due-to="viczi">Use optional in junit and hamcrest Maven dependencies</action>
-      <action dev="jeffjensen" type="update" issue="239" system="sffeatures" due-to="viczi">Remove commons-io dependency</action>
-      <action dev="jeffjensen" type="update" issue="240" system="sffeatures" due-to="viczi">Remove commons-collections dependency</action>
-      <action dev="jeffjensen" type="fix" issue="440" system="sfbugs" due-to="jeffjensen">DefaultPrepAndExpectedTestCase must use DatabaseConfig.FEATURE_CASE_SENSITIVE_TABLE_NAMES: in configureTest()</action>
+      <action dev="jeffjensen" type="update" issue="671" system="github" due-to="dicer">Update Apache POI to version 4.1.0</action>
+      <action dev="jeffjensen" type="update" issue="679" system="github" due-to="vicziani">Eliminate the Maven's relativePath warning</action>
+      <action dev="jeffjensen" type="update" issue="680" system="github" due-to="vicziani">UniqueIdentifierType: change caught exception for Java 12's changed UUID validation</action>
+      <action dev="jeffjensen" type="update" issue="681" system="github" due-to="vicziani">Use optional in poi-ooxml and postgresql Maven dependencies</action>
+      <action dev="jeffjensen" type="update" issue="682" system="github" due-to="vicziani">Use optional in junit and hamcrest Maven dependencies</action>
+      <action dev="jeffjensen" type="update" issue="683" system="github" due-to="vicziani">Remove commons-io dependency</action>
+      <action dev="jeffjensen" type="update" issue="684" system="github" due-to="vicziani">Remove commons-collections dependency</action>
+      <action dev="jeffjensen" type="fix" issue="696" system="github" due-to="jeffjensen">DefaultPrepAndExpectedTestCase must use DatabaseConfig.FEATURE_CASE_SENSITIVE_TABLE_NAMES: in configureTest()</action>
     </release>
     <release version="2.7.0" date="Feb 23, 2020" description="DefaultPrepAndExpectedTestCase.makeAdditionalColumnInfo NPE, PostgreSQL driver update, DefaultPrepAndExpectedTestCase.verifyData() sorting, Relative date/time syntax, Travis CI, Fix MSSQL identity column filter, Fix CachedDataSet, IsActualContainingExpectedStringValueComparer, Fix FilteredDataSet case sensitivity, Fix DatabaseDataSet schema normalisation, Fix IsActualWithinToleranceOfExpectedTimestampValueComparer value casting, MSSQL datetimeoffset, Fix FlatXml set null value for different column name cases">
-      <action dev="jeffjensen" type="fix" issue="417" system="sfbugs" due-to="jeffjensen">NPE in DefaultPrepAndExpectedTestCase.makeAdditionalColumnInfo when excludeColumns is null</action>
-      <action dev="jeffjensen" type="update" issue="221" system="sffeatures" due-to="aklemp">Update PostgreSQL driver version</action>
-      <action dev="jeffjensen" type="fix" issue="423" system="sfbugs" due-to="jeffjensen">DefaultPrepAndExpectedTestCase.verifyData() sorts table columns by Strings</action>
-      <action dev="jeffjensen" type="add" issue="224" system="sffeatures" due-to="kforkiss">Add new syntax to set relative date, time, and timestamp in dataset</action>
-      <action dev="quantas" type="add" issue="227" system="sffeatures" due-to="quantas">Setup public CI</action>
-      <action dev="jeffjensen" type="fix" issue="315" system="sfbugs" due-to="lufecir">IllegalArgumentException when setting PROPERTY_IDENTITY_COLUMN_FILTER</action>
-      <action dev="deragon" type="fix" issue="424" system="sfbugs" due-to="deragon">CachedDataSet does not work</action>
-      <action dev="jeffjensen" type="add" issue="229" system="sffeatures" due-to="jeffjensen">Add IsActualContainingExpectedStringValueComparer comparing if actual contains expected</action>
-      <action dev="jeffjensen" type="fix" issue="426" system="sfbugs" due-to="lcann">FilteredDataSet does not inherit case sensitivity of wrapped set</action>
-      <action dev="jeffjensen" type="fix" issue="427" system="sfbugs" due-to="lcann">DatabaseDataSet SchemaSet ignores case sensitivity setting in normalizing schema names</action>
-      <action dev="jeffjensen" type="fix" issue="428" system="sfbugs" due-to="lcann">IsActualWithinToleranceOfExpectedTimestampValueComparer assumes values are represented as Timestamps</action>
-      <action dev="jeffjensen" type="add" issue="228" system="sffeatures" due-to="rcd">Add support for MSSQL's datetimeoffset data type</action>
-      <action dev="jeffjensen" type="add" issue="243" system="sffeatures" due-to="jeffjensen">DefaultPrepAndExpectedTestCase.runTest(): catch Throwable instead of Exception</action>
-      <action dev="quantas" type="add" issue="246" system="sffeatures" due-to="quantas">Update Oracle Dependency to ojdbc8 from Maven Central</action>
-      <action dev="jeffjensen" type="fix" issue="431" system="sfbugs" due-to="lorentzforces">Fix null values being inserted when a column is referenced with different casing</action>
+      <action dev="jeffjensen" type="fix" issue="652" system="github" due-to="jeffjensen">NPE in DefaultPrepAndExpectedTestCase.makeAdditionalColumnInfo when excludeColumns is null</action>
+      <action dev="jeffjensen" type="update" issue="654" system="github" due-to="aklemp">Update PostgreSQL driver version</action>
+      <action dev="jeffjensen" type="fix" issue="658" system="github" due-to="jeffjensen">DefaultPrepAndExpectedTestCase.verifyData() sorts table columns by Strings</action>
+      <action dev="jeffjensen" type="add" issue="661" system="github" due-to="kforkiss">Add new syntax to set relative date, time, and timestamp in dataset</action>
+      <action dev="Quantas" type="add" issue="664" system="github" due-to="Quantas">Setup public CI</action>
+      <action dev="jeffjensen" type="fix" issue="503" system="github" due-to="lufecir">IllegalArgumentException when setting PROPERTY_IDENTITY_COLUMN_FILTER</action>
+      <action dev="deragon" type="fix" issue="660" system="github" due-to="deragon">CachedDataSet does not work</action>
+      <action dev="jeffjensen" type="add" issue="669" system="github" due-to="jeffjensen">Add IsActualContainingExpectedStringValueComparer comparing if actual contains expected</action>
+      <action dev="jeffjensen" type="fix" issue="665" system="github" due-to="lcann">FilteredDataSet does not inherit case sensitivity of wrapped set</action>
+      <action dev="jeffjensen" type="fix" issue="666" system="github" due-to="lcann">DatabaseDataSet SchemaSet ignores case sensitivity setting in normalizing schema names</action>
+      <action dev="jeffjensen" type="fix" issue="667" system="github" due-to="lcann">IsActualWithinToleranceOfExpectedTimestampValueComparer assumes values are represented as Timestamps</action>
+      <action dev="jeffjensen" type="add" issue="668" system="github" due-to="rdicroce">Add support for MSSQL's datetimeoffset data type</action>
+      <action dev="jeffjensen" type="add" issue="687" system="github" due-to="jeffjensen">DefaultPrepAndExpectedTestCase.runTest(): catch Throwable instead of Exception</action>
+      <action dev="Quantas" type="add" issue="689" system="github" due-to="Quantas">Update Oracle Dependency to ojdbc8 from Maven Central</action>
+      <action dev="jeffjensen" type="fix" issue="673" system="github" due-to="lorentz-bind">Fix null values being inserted when a column is referenced with different casing</action>
     </release>
     <release version="2.6.0" date="Oct 13, 2018" description="ValueComparers, PostgreSQL OID, POI 3.17, Java 8 tests, database integration tests, changes links, devguide.apt created, dbunit.properties, expected and definition tables verifier, JavaDoc gen, JDK 8">
-      <action dev="jeffjensen" type="add" issue="208" system="sffeatures" due-to="jeffjensen">DefaultPrepAndExpectedTestCase, VerifyTableDefinition: support ValueComparer.</action>
-      <action dev="jeffjensen" type="add" issue="208" system="sffeatures" due-to="jeffjensen">ValueComparer: DbUnitAssert: add assert method that strategizes the compare algorithm on a per column basis.</action>
-      <action dev="quantas" type="add" issue="220" system="sffeatures" due-to="quantas">Add Dockerfiles for running ITs: MySQL, Oracle 11, Postgres and SQL Server</action>
-      <action dev="jeffjensen" type="fix" issue="396" system="sfbugs" due-to="jeffjensen">Fix JavaDoc gen</action>
-      <action dev="jeffjensen" type="update" issue="207" system="sffeatures" due-to="jeffjensen">DefaultPrepAndExpectedTestCase: VerifyTableDefinitions and expected tables can silently mismatch, add ExpectedDataSetAndVerifyTableDefinitionVerifier</action>
-      <action dev="jeffjensen" type="add" issue="219" system="sffeatures" due-to="jeffjensen">Change build to use Java 8 compiler and target 1.8: update compileSource to 1.8.</action>
-      <action dev="jeffjensen" type="add" issue="215" system="sffeatures" due-to="deragon">DatabaseEnvironment loads dbunit.properties.  See "Integration Tests" page for docs.</action>
-      <action dev="jeffjensen" type="add" issue="214" system="sffeatures" due-to="deragon">Convert devguide.xml to devguide.apt.</action>
-      <action dev="quantas" type="fix" issue="406" system="sfbugs" due-to="deragon">Fixed documentation regarding the blob tags.</action>
-      <action dev="jeffjensen" type="fix" issue="352" system="sfbugs" due-to="jeffjensen">Fix changes report tracker links (Bugs, Features) to support both.</action>
-      <action dev="quantas" type="fix" fixed-issues="407,409,410,411" system="sfbugs" due-to="quantas">Fix all (except one Oracle test) database integration tests to work again.</action>
-      <action dev="jeffjensen" type="update" issue="195" system="sffeatures" due-to="jkearns">Update tests to support build running Java 8.</action>
-      <action dev="jeffjensen" type="update" issue="200" system="sffeatures" due-to="deragon">CachedDataSet has redundant code.</action>
-      <action dev="jeffjensen" type="update" issue="199" system="sffeatures" due-to="deragon">FlatDtdDataSet has redundant code.</action>
-      <action dev="jeffjensen" type="update" issue="205" system="sffeatures" due-to="msymons81">Use Apache POI 3.17.</action>
-      <action dev="jeffjensen" type="add" issue="179" system="sffeatures" due-to="mfrechePgest, ibic">Add PostgreSQL OID data type.</action>
+      <action dev="jeffjensen" type="add" issue="627" system="github" due-to="jeffjensen">DefaultPrepAndExpectedTestCase, VerifyTableDefinition: support ValueComparer.</action>
+      <action dev="jeffjensen" type="add" issue="627" system="github" due-to="jeffjensen">ValueComparer: DbUnitAssert: add assert method that strategizes the compare algorithm on a per column basis.</action>
+      <action dev="Quantas" type="add" issue="649" system="github" due-to="Quantas">Add Dockerfiles for running ITs: MySQL, Oracle 11, Postgres and SQL Server</action>
+      <action dev="jeffjensen" type="fix" issue="609" system="github" due-to="jeffjensen">Fix JavaDoc gen</action>
+      <action dev="jeffjensen" type="update" issue="626" system="github" due-to="jeffjensen">DefaultPrepAndExpectedTestCase: VerifyTableDefinitions and expected tables can silently mismatch, add ExpectedDataSetAndVerifyTableDefinitionVerifier</action>
+      <action dev="jeffjensen" type="add" issue="648" system="github" due-to="jeffjensen">Change build to use Java 8 compiler and target 1.8: update compileSource to 1.8.</action>
+      <action dev="jeffjensen" type="add" issue="643" system="github" due-to="deragon">DatabaseEnvironment loads dbunit.properties.  See "Integration Tests" page for docs.</action>
+      <action dev="jeffjensen" type="add" issue="641" system="github" due-to="deragon">Convert devguide.xml to devguide.apt.</action>
+      <action dev="Quantas" type="fix" issue="630" system="github" due-to="deragon">Fixed documentation regarding the blob tags.</action>
+      <action dev="jeffjensen" type="fix" issue="557" system="github" due-to="jeffjensen">Fix changes report tracker links (Bugs, Features) to support both.</action>
+      <action dev="Quantas" type="fix" fixed-issues="407,409,410,411" system="github" due-to="Quantas">Fix all (except one Oracle test) database integration tests to work again.</action>
+      <action dev="jeffjensen" type="update" issue="601" system="github" due-to="jkearns-arthrex">Update tests to support build running Java 8.</action>
+      <action dev="jeffjensen" type="update" issue="619" system="github" due-to="deragon">CachedDataSet has redundant code.</action>
+      <action dev="jeffjensen" type="update" issue="618" system="github" due-to="deragon">FlatDtdDataSet has redundant code.</action>
+      <action dev="jeffjensen" type="update" issue="623" system="github" due-to="msymons">Use Apache POI 3.17.</action>
+      <action dev="jeffjensen" type="add" issue="550" system="github" due-to="mfrechePgest, ibic">Add PostgreSQL OID data type.</action>
     </release>
     <release version="2.5.4" date="Aug 20, 2017" description="Doc update, MSSQL IdentityInsertOperation commits, streamed export, blobs in datasets">
       <action dev="jeffjensen" type="update" due-to="jeffjensen">DefaultPrepAndExpectedTestCase: Don't verify table data when test execution has errors.</action>
-      <action dev="jeffjensen" type="fix" system="sfbugs" issue="400" due-to="sidikcz">Cannot insert null values via jTDS (regression from 374).</action>
-      <action dev="jeffjensen" type="add" system="sffeatures" issue="196" due-to="deragon">Blobs are now easier to define in flat XML dataset and CSV files using [text &lt;encoding&gt;], [base64] and [file] cues.  See Data Types doc page.</action>
-      <action dev="jeffjensen" type="update" system="sffeatures" issue="198" due-to="mureinik">Fix Ohloh to the update Open Hub terminology.</action>
-      <action dev="jeffjensen" type="fix" system="sfbugs" issue="397" due-to="zdenek-z">Streamed export does not work when it launched from Ant.</action>
-      <action dev="jeffjensen" type="fix" system="sfbugs" issue="309" due-to="bjornbeskow">MSSQL IdentityInsertOperation.execute erroneously always commits.</action>
-      <action dev="jeffjensen" type="update" system="sfbugs" issue="395" due-to="opporancisis">Outdated link on Configurable Features and Properties page.</action>
+      <action dev="jeffjensen" type="fix" system="github" issue="616" due-to="sidikcz">Cannot insert null values via jTDS (regression from 374).</action>
+      <action dev="jeffjensen" type="add" system="github" issue="612" due-to="deragon">Blobs are now easier to define in flat XML dataset and CSV files using [text &lt;encoding&gt;], [base64] and [file] cues.  See Data Types doc page.</action>
+      <action dev="jeffjensen" type="update" system="github" issue="615" due-to="mureinik">Fix Ohloh to the update Open Hub terminology.</action>
+      <action dev="jeffjensen" type="fix" system="github" issue="610" due-to="zdenek-zikan">Streamed export does not work when it launched from Ant.</action>
+      <action dev="jeffjensen" type="fix" system="github" issue="493" due-to="beskow">MSSQL IdentityInsertOperation.execute erroneously always commits.</action>
+      <action dev="jeffjensen" type="update" system="github" issue="608" due-to="opporancisis">Outdated link on Configurable Features and Properties page.</action>
     </release>
     <release version="2.5.3" date="Aug 21, 2016" description="DefaultPrepAndExpectedTestCase config, TimestampDataType.typeCast(), escape pattern for table name, DefaultPrepAndExpectedTestCase.verifyData() connection, XlsTable timezone, OracleXMLType, 'true' 'false' for numeric fields, XlsDataSetWriter cellstyle caching, ForeignKeyRelationshipEdge.compareTo, new CI, POM cleanup, ReplacementDataSet and DbUnitAssert case sensitive table names, XmlWriter">
-      <action dev="jeffjensen" type="fix" system="sfbugs" issue="389" due-to="apechinsky">Any characters with code greater than 7f are written to XML attribute value as entity.</action>
-      <action dev="jeffjensen" type="fix" system="sfbugs" issue="386" due-to="rafaelvs">DbUnitAssert table name case sensitive problems.</action>
-      <action dev="jeffjensen" type="fix" system="sfbugs" issue="388" due-to="rafaelvs">ReplacementDataSet "ignores" its decorated DataSet's caseSensitiveTableNames setting.</action>
-      <action dev="jeffjensen" type="update" system="sfbugs" issue="387" due-to="jeffjensen">Broken links to issues referenced in changes-report.html.</action>
+      <action dev="jeffjensen" type="fix" system="github" issue="602" due-to="apechinsky">Any characters with code greater than 7f are written to XML attribute value as entity.</action>
+      <action dev="jeffjensen" type="fix" system="github" issue="597" due-to="RafaelANTVS">DbUnitAssert table name case sensitive problems.</action>
+      <action dev="jeffjensen" type="fix" system="github" issue="599" due-to="RafaelANTVS">ReplacementDataSet "ignores" its decorated DataSet's caseSensitiveTableNames setting.</action>
+      <action dev="jeffjensen" type="update" system="github" issue="598" due-to="jeffjensen">Broken links to issues referenced in changes-report.html.</action>
       <action dev="jeffjensen" type="update" due-to="jeffjensen">POM cleanup: remove "official" profile, consolidate config.</action>
       <action dev="jeffjensen" type="update" due-to="jeffjensen">Update site with new CI server info: http://dbunit.intertech.com/jenkins</action>
-      <action dev="jeffjensen" type="fix" system="sfbugs" issue="320" due-to="jeffjensen">Can not obtain relations from several columns.</action>
-      <action dev="jeffjensen" type="fix" system="sfbugs" issue="377" due-to="markarnold">Running out of cell styles in XlsDataSetWriter.</action>
-      <action dev="jeffjensen" type="add" system="sfbugs" issue="313" due-to="weifengli">Allow 'false' -> 0 and 'true' -> 1 for numeric fields.</action>
-      <action dev="jeffjensen" type="fix" system="sfbugs" issue="374" due-to="sidikcz">Unable to insert row with Oracle XMLType.</action>
-      <action dev="jeffjensen" type="fix" system="sfbugs" issue="371" due-to="markarnold">Add test showing XlsTable timezone issue first reported in issue 280.</action>
-      <action dev="jeffjensen" type="fix" system="sfbugs" issue="280" due-to="mnt40">Don't add timezone offset for XlsTable.</action>
+      <action dev="jeffjensen" type="fix" system="github" issue="510" due-to="jeffjensen">Can not obtain relations from several columns.</action>
+      <action dev="jeffjensen" type="fix" system="github" issue="586" due-to="markarnold">Running out of cell styles in XlsDataSetWriter.</action>
+      <action dev="jeffjensen" type="add" system="github" issue="498" due-to="weifengli">Allow 'false' -> 0 and 'true' -> 1 for numeric fields.</action>
+      <action dev="jeffjensen" type="fix" system="github" issue="582" due-to="sidikcz">Unable to insert row with Oracle XMLType.</action>
+      <action dev="jeffjensen" type="fix" system="github" issue="579" due-to="markarnold">Add test showing XlsTable timezone issue first reported in issue 280.</action>
+      <action dev="jeffjensen" type="fix" system="github" issue="457" due-to="mnt40">Don't add timezone offset for XlsTable.</action>
       <action dev="jeffjensen" type="fix" due-to="jeffjensen">DefaultPrepAndExpectedTestCase.verifyData() uses databaseTester.getConnection() and should use DatabaseTestCase.getConnection().</action>
       <action dev="jeffjensen" type="fix" due-to="jeffjensen">AbstractDatabaseConnection.createTable(String) ignores escape pattern for table name.</action>
-      <action dev="jeffjensen" type="fix" system="sfbugs" issue="380" due-to="fs5">TimestampDataType.typeCast() fails on non-local timezones.</action>
-      <action dev="jeffjensen" type="fix" system="sfbugs" issue="383" due-to="jeffjensen">DefaultPrepAndExpectedTestCase doesn't handle all DatabaseConfig access approaches, missing dbUnit lifecycle steps.</action>
+      <action dev="jeffjensen" type="fix" system="github" issue="589" due-to="Kalnet-FS5">TimestampDataType.typeCast() fails on non-local timezones.</action>
+      <action dev="jeffjensen" type="fix" system="github" issue="592" due-to="jeffjensen">DefaultPrepAndExpectedTestCase doesn't handle all DatabaseConfig access approaches, missing dbUnit lifecycle steps.</action>
     </release>
     <release version="2.5.2" date="Apr 8, 2016" description="Lost dbunit.org, toString() tables, respect DEFAULTs, multi-schema, PrepAndExpectedTestCaseSteps">
-      <action dev="jeffjensen" type="fix" system="sfbugs" issue="368" due-to="warwing">Multi schema support in FlatXmlDataSets.</action>
-      <action dev="jeffjensen" type="add" system="sffeatures" issue="185" due-to="mattias78">Do not explicitly insert null into NOT NULL columns with DEFAULT.</action>
-      <action dev="jeffjensen" type="add" system="sffeatures" issue="187" due-to="jeffjensen">Add toString() to XlsTable and StreamingIterator.</action>
-      <action dev="jeffjensen" type="update" system="sfbugs" issue="367" due-to="jeffjensen">dbunit.org domain owner did not renew it; fix links.</action>
+      <action dev="jeffjensen" type="fix" system="github" issue="573" due-to="warwing">Multi schema support in FlatXmlDataSets.</action>
+      <action dev="jeffjensen" type="add" system="github" issue="562" due-to="mjiderhamn">Do not explicitly insert null into NOT NULL columns with DEFAULT.</action>
+      <action dev="jeffjensen" type="add" system="github" issue="571" due-to="jeffjensen">Add toString() to XlsTable and StreamingIterator.</action>
+      <action dev="jeffjensen" type="update" system="github" issue="572" due-to="jeffjensen">dbunit.org domain owner did not renew it; fix links.</action>
       <action dev="jeffjensen" type="update" due-to="jeffjensen">Make AbstractDataFileLoader.loadDataSet public and pull up to DataFileLoader interface.</action>
-      <action dev="jeffjensen" type="add" system="sffeatures" issue="189" due-to="zemertz">Postgres CITEXT data type support.</action>
+      <action dev="jeffjensen" type="add" system="github" issue="577" due-to="zemertz">Postgres CITEXT data type support.</action>
       <action dev="jeffjensen" type="add" due-to="jeffjensen">Add PrepAndExpectedTestCaseSteps for lambdas and eliminating try/catch/finally template for PrepAndExpectedTestCase.</action>
     </release>
     <release version="2.5.1" date="April 11, 2015" description="allowEmptyFields property, column aliases POI 3.11, ">
-      <action dev="jeffjensen" type="update" system="sffeatures" issue="161" due-to="kazuhito-m">Upgrade Apache POI library from "3.2-FINAL" to "3.11".  Pull request 6, Enhancement 161.</action>
-      <action dev="jeffjensen" type="fix" system="sfbugs" issue="348" due-to="tm14258">dBUnit does not pick up column aliases.</action>
-      <action dev="jeffjensen" type="add" system="sfbugs" issue="363" due-to="adko">Add allowEmptyFields feature flag/property to prevent fail-fast and allow empty string fields.</action>
-      <action dev="jeffjensen" type="fix" system="sfbugs" issue="361" due-to="drissamri">BigIntegerDataType.setSqlValue() NPE when value is null.</action>
+      <action dev="jeffjensen" type="update" system="github" issue="497" due-to="kazuhito-m">Upgrade Apache POI library from "3.2-FINAL" to "3.11".  Pull request 6, Enhancement 161.</action>
+      <action dev="jeffjensen" type="fix" system="github" issue="552" due-to="tm14258">dBUnit does not pick up column aliases.</action>
+      <action dev="jeffjensen" type="add" system="github" issue="561" due-to="adamsiemion">Add allowEmptyFields feature flag/property to prevent fail-fast and allow empty string fields.</action>
+      <action dev="jeffjensen" type="fix" system="github" issue="567" due-to="drissamri">BigIntegerDataType.setSqlValue() NPE when value is null.</action>
     </release>
     <release version="2.5.0" date="Apr 24, 2014" description="CSV dataset, PostGres, Sonatype OSSRH, logging, Java 1.5, MySQL, UUIDs, autoincrement, DTD implied columns">
       <action dev="jeffjensen" type="add" issue="3578765" due-to="jeffjensen">Use Sonatype OSSRH for snapshots and release sync to Central.</action>
@@ -153,13 +153,13 @@
       <action dev="jeffjensen" type="update" due-to="jeffjensen">Update SLF4J and LogBack to latest versions.</action>
       <action dev="jeffjensen" type="update" due-to="jeffjensen">Update compileSource to 1.5.</action>
       <action dev="jeffjensen" type="update" due-to="jeffjensen">Update JUnit version to 4.11.</action>
-      <action dev="jeffjensen" type="fix" system="sfbugs" issue="349" due-to="rburgst">H2DataTypeFactory does not properly support UUID data type.</action>
-      <action dev="jeffjensen" type="fix" system="sfbugs" issue="340" due-to="djeanprost">DBUnit 2.4.9 needs java 6 to run.</action>
-      <action dev="jeffjensen" type="fix" system="sfbugs" issue="313" due-to="weifengli">MySqlDataTypeFactory saves TINYINT(1) as String.</action>
-      <action dev="jeffjensen" type="add" system="sffeatures" issue="178" due-to="timurstrekalov">Special dataset syntax for UUIDs mapped to binary fields.</action>
-      <action dev="jeffjensen" type="update" system="sfbugs" issue="343" due-to="gavenkoa">Broken link on http://www.dbunit.org/issue-tracking.html.</action>
-      <action dev="jeffjensen" type="fix" system="sfbugs" issue="335" due-to="mrhcon01">SQLHelper Oracle Issue (autoincrement metadata problem).</action>
-      <action dev="jeffjensen" type="add" system="sffeatures" issue="184" due-to="mattias78">Columns with defaults should be #IMPLIED in generated DTD.</action>
+      <action dev="jeffjensen" type="fix" system="github" issue="553" due-to="rburgstaller">H2DataTypeFactory does not properly support UUID data type.</action>
+      <action dev="jeffjensen" type="fix" system="github" issue="541" due-to="djeanprost">DBUnit 2.4.9 needs java 6 to run.</action>
+      <action dev="jeffjensen" type="fix" system="github" issue="498" due-to="weifengli">MySqlDataTypeFactory saves TINYINT(1) as String.</action>
+      <action dev="jeffjensen" type="add" system="github" issue="546" due-to="timurstrekalov">Special dataset syntax for UUIDs mapped to binary fields.</action>
+      <action dev="jeffjensen" type="update" system="github" issue="544" due-to="gavenkoa">Broken link on http://www.dbunit.org/issue-tracking.html.</action>
+      <action dev="jeffjensen" type="fix" system="github" issue="535" due-to="mrhcon01">SQLHelper Oracle Issue (autoincrement metadata problem).</action>
+      <action dev="jeffjensen" type="add" system="github" issue="559" due-to="mjiderhamn">Columns with defaults should be #IMPLIED in generated DTD.</action>
     </release>
     <release version="2.4.9" date="Sep 30, 2012" description="Additional toString()s, schema name usage, logging, timestamp, unique ID, table name in Operation exceptions, build with JDK 6.">
       <action dev="jeffjensen" type="add" issue="3573007" due-to="jeffjensen">Change build to use current compiler on path vs 1.4.  This is first dbUnit release done with JDK 6.  If you encounter problems, please open a bug tracker item.</action>
@@ -168,36 +168,36 @@
       <action dev="jeffjensen" type="fix" due-to="jeffjensen">Add schema name, if specified, to table name in query in AbstractDatabaseConnection.createTable().</action>
       <action dev="rlogiacco" type="fix" issue="3071408" due-to="chrisphe">New Handling of Timestamp in 2.4.8 has error with subseconds</action>
       <action dev="jeffjensen" type="fix" issue="3132130" due-to="jeffjensen">AbstractDatabaseConnection createQueryTable throws UOEx.</action>
-      <action dev="jeffjensen" type="add" issue="3170998" due-to="mcpierceaim">Provides support for the uniqueidentifier type in Microsoft SQLServer.</action>
+      <action dev="jeffjensen" type="add" issue="3170998" due-to="mcpierce">Provides support for the uniqueidentifier type in Microsoft SQLServer.</action>
       <action dev="jeffjensen" type="update" due-to="jeffjensen">To help troubleshooting, add table name to Operation exceptions: refresh, delete, insert, update.</action>
     </release>
     <release version="2.4.8" date="Sep 2, 2010" description="Bug fixes, timezone support, Oracle support improvements, new DataFileLoader, new PrepAndExpectedTestCase">
       <action dev="gommma" type="add" issue="3027485" due-to="Yishai">MSSQL JDBC Driver 3.0 doesn't work well</action>
       <action dev="gommma" type="fix" issue="3022281" due-to="wujeksrujek">NPE when setting properties</action>
       <action dev="gommma" type="fix" issue="2993712" due-to="glesatsf">Wrong value for property "datatypeFactory"</action>
-      <action dev="gommma" type="add" issue="2986323" due-to="luigitalamona">Added driver for Mckoi db.</action>
+      <action dev="gommma" type="add" issue="2986323" due-to="LuigiTalamona">Added driver for Mckoi db.</action>
       <action dev="gommma" type="fix" issue="2887115" due-to="unwissender2009">SQL: "Create Domain" ... Data Types are not supported.</action>
-      <action dev="jbhurst" type="add" issue="2875253" due-to="caseylucas">Additional refinements for Oracle SDO_GEOMETRY datatype</action>
-      <action dev="jbhurst" type="add" issue="2921131" due-to="vlamp">Add timezone support for timestamp data type</action>
-      <action dev="jbhurst" type="add" issue="2919427" due-to="dbamberghi (Daniele Bamberghi)">OracleDataTypeFactory recognises "SYS.XMLTYPE"</action>
+      <action dev="johnbhurst" type="add" issue="2875253" due-to="caseylucas">Additional refinements for Oracle SDO_GEOMETRY datatype</action>
+      <action dev="johnbhurst" type="add" issue="2921131" due-to="vlamp">Add timezone support for timestamp data type</action>
+      <action dev="johnbhurst" type="add" issue="2919427" due-to="dbamberghi (Daniele Bamberghi)">OracleDataTypeFactory recognises "SYS.XMLTYPE"</action>
       <action dev="jeffjensen" type="add" issue="2938029" due-to="jeffjensen">Add "file loader" utility (DataFileLoader) for various data file types</action>
       <action dev="jeffjensen" type="add" due-to="jeffjensen">Add new TestCase that supports prepare and expected datasets: "DefaultPrepAndExpectedTestCase"</action>
     </release>
     <release version="2.4.7" date="Nov 09, 2009" description="Bugfixes and some non breaking refactoring">
       <action dev="gommma" type="fix" issue="2685615" due-to="lumpynose">dtd for XmlDataSet</action>
       <action dev="gommma" type="fix" issue="2866150" due-to="rlogiacco">Column sensing not available for InputStream</action>
-      <action dev="gommma" type="fix" issue="2741077" due-to="dnap">DatabaseSequenceFilter fails on case sensitive tables</action>
+      <action dev="gommma" type="fix" issue="2741077" due-to="DnAp">DatabaseSequenceFilter fails on case sensitive tables</action>
       <action dev="gommma" type="fix" issue="2838922" due-to="matthieus, simon_wu">DB2 problem with schema names</action>
       <action dev="gommma" type="fix" issue="2875262" due-to="caseylucas">Handle non-typical characters in xml encoding</action>
-      <action dev="jbhurst" type="fix" issue="2875235" due-to="jbhurst">Fix integration tests</action>
+      <action dev="johnbhurst" type="fix" issue="2875235" due-to="johnbhurst">Fix integration tests</action>
       <action dev="gommma" type="fix" issue="2880113" due-to="jherico">FK table sorting does not work with cross-schema FKs</action>
-      <action dev="jbhurst" type="update" issue="2876909" due-to="jbhurst">Replaced reflection-based Oracle data types with static calls</action>
-      <action dev="jbhurst" type="add" issue="2875253" due-to="caseylucas">Add support for Oracle SDO_GEOMETRY datatype</action>
-      <action dev="gommma" type="add" issue="2884634" due-to="ymenager">Improvements to the ant operation task</action>
+      <action dev="johnbhurst" type="update" issue="2876909" due-to="johnbhurst">Replaced reflection-based Oracle data types with static calls</action>
+      <action dev="johnbhurst" type="add" issue="2875253" due-to="caseylucas">Add support for Oracle SDO_GEOMETRY datatype</action>
+      <action dev="gommma" type="add" issue="2884634" due-to="yanm-sdfc">Improvements to the ant operation task</action>
       <action dev="gommma" type="add" issue="2889757" due-to="carcher">MsSqlDataTypeFactory does not support MS SQL 2005 NTEXT</action>
     </release>
     <release version="2.4.6" date="Sep 20, 2009" description="Bugfixes and some database specific additions">
-      <action dev="rlogiacco" type="add" issue="284432" due-to="JamesR">Add support for interval type on postgres</action>
+      <action dev="rlogiacco" type="add" issue="284432" due-to="jamesr">Add support for interval type on postgres</action>
       <action dev="felipeal" type="update" due-to="felipeal">Changed some verbose logging statements from INFO to DEBUG level</action>
       <action dev="gommma" type="fix" issue="2797698" due-to="mkienenb">DefaultDataSet is incompatible w/ AbstractDataSet's IDataSet</action>
       <action dev="gommma" type="fix" issue="2818981" due-to="verreckenk">XlsTable - empty excel columns cause problem</action>
@@ -208,14 +208,14 @@
       <action dev="gommma" type="add" issue="2833897" due-to="user2037">Support for Postgresql Enum</action>
       <action dev="gommma" type="fix" issue="2838922" due-to="matthieus">DB2 problem with schema names</action>
       <action dev="gommma" type="add" due-to="gommma">Support for Oracle ROWID</action>
-      <action dev="gommma" type="update" issue="2856524" due-to="jbhurst">AbstractTableMetaData hardcoded dependency on IDataTypeFactory</action>
+      <action dev="gommma" type="update" issue="2856524" due-to="johnbhurst">AbstractTableMetaData hardcoded dependency on IDataTypeFactory</action>
       <action dev="gommma" type="fix" issue="2858410" due-to="acecacec">Numbers with more than 19 digits cannot be saved in a BIGINT column</action>
       <action dev="gommma" type="fix" issue="2854788" due-to="olibye">Sybace - SQLHelper.getDatabaseInfo exception getDatabaseMajorVersion()</action>
       <action dev="gommma" type="add" issue="2828869" due-to="amit3011">DBUnit support for Netezza database</action>
     </release>
 
     <release version="2.4.5" date="May 22, 2009" description="Bugfixes and some few additions">
-      <action dev="gommma" type="add" issue="2633859" due-to="tjstavenger">Add Excel support to Export</action>
+      <action dev="gommma" type="add" issue="2633859" due-to="tjstavenger-pnnl">Add Excel support to Export</action>
       <action dev="gommma" type="fix" issue="2658082" due-to="Bernard Schubach">MySQL - NoSuchTableException</action>
       <action dev="gommma" type="add" issue="2658136" due-to="ejain">Have DbUnitAssert use JUnit only if present</action>
       <action dev="gommma" type="add" issue="2645688" due-to="reidmp">Oracle BINARY_DOUBLE+BINARY_FLOAT support</action>
@@ -226,9 +226,9 @@
     </release>
     <release version="2.4.4" date="Feb 24, 2009" description="Bugfixes, some small additions">
       <action dev="gommma" type="update" issue="2524180" due-to="gommma"> Better extensibility for XmlDataSetWriter</action>
-      <action dev="gommma" type="fix" issue="2542079" due-to="kkaz"> XlsDataSet.write</action>
+      <action dev="gommma" type="fix" issue="2542079" due-to="nemuzuka"> XlsDataSet.write</action>
       <action dev="gommma" type="fix" issue="2545095" due-to="jhattat"> Mysql FEATURE_QUALIFIED_TABLE_NAMES column SQLHelper.matches</action>
-      <action dev="gommma" type="fix" issue="2567724" due-to="lunatix13"> overridden setUpDatabaseConfig not called</action>
+      <action dev="gommma" type="fix" issue="2567724" due-to="armandjanssen"> overridden setUpDatabaseConfig not called</action>
       <action dev="gommma" type="fix" issue="2549683" due-to="chuanghs">DB2 problem after 2.4</action>
       <action dev="gommma" type="fix" issue="2517257" due-to="jhattat"> Mysql Linux metatdata UpperCase Comparison</action>
       <action dev="gommma" type="fix" issue="2616420" due-to="ihr-staal"> JTDS Driver causes warning in class AbstractTableMetaData</action>
@@ -246,11 +246,11 @@
       <action dev="gommma" type="add" issue="1452382" due-to="akhilss"> TableName pattern filtering</action>
     </release>
     <release version="2.4.2" date="Dec 17, 2008" description="Bugfixes, some small additions">
-      <action dev="gommma" type="fix" issue="2356800" due-to="jeremy_finney"> Cannot extract contents of table with a column named "AS"</action>
-      <action dev="gommma" type="fix" issue="2382766" due-to="dacota"> MySQL case sensitive problem in dataset creation</action>
+      <action dev="gommma" type="fix" issue="2356800" due-to="finneyj-gh"> Cannot extract contents of table with a column named "AS"</action>
+      <action dev="gommma" type="fix" issue="2382766" due-to="DaCoTa"> MySQL case sensitive problem in dataset creation</action>
       <action dev="gommma" type="add" issue="2390557" due-to="gommma">Add StringIgnoreCase DataType</action>
-      <action dev="gommma" type="fix" issue="2391757" due-to="j_zimmermann"> FEATURE_CASE_SENSITIVE_TABLE_NAMES doesn't work completely (fixed wrong DatabaseConfig property)</action>
-      <action dev="gommma" type="fix" issue="2392770" due-to="kkaz"> org.dbunit.dataset.datatype.TypeCastException</action>
+      <action dev="gommma" type="fix" issue="2391757" due-to="juergenzimmermann"> FEATURE_CASE_SENSITIVE_TABLE_NAMES doesn't work completely (fixed wrong DatabaseConfig property)</action>
+      <action dev="gommma" type="fix" issue="2392770" due-to="nemuzuka"> org.dbunit.dataset.datatype.TypeCastException</action>
       <action dev="gommma" type="fix" issue="2398926" due-to="xianpants"> SLF4J maven dependencies aren't quite correct</action>
       <action dev="gommma" type="add" issue="2407106" due-to="brentplump"> Include table name in cyclic dependency exception</action>
       <action dev="gommma" type="fix" issue="2439408" due-to="claus437"> Insert fails on Oracle multiple schemas</action>
@@ -259,7 +259,7 @@
       <action dev="gommma" type="update" due-to="gommma">Updated slf4j dependencies to version 1.5.6.</action>
       <action dev="gommma" type="fix" issue="1628896" due-to="jeromevdl">No metadata Tables found</action>
       <action dev="gommma" type="fix" issue="2356010" due-to="gommma">Oracle problem rel 2.4 in createQueryTable</action>
-      <action dev="gommma" type="fix" issue="2370993" due-to="schedinl"> Cannot insert table data with self-reference in 2.4.0</action>
+      <action dev="gommma" type="fix" issue="2370993" due-to="schedin"> Cannot insert table data with self-reference in 2.4.0</action>
     </release>
     <release version="2.4.0" date="Nov 27, 2008" description="Some API changes, features added, bugfixes">
       <action dev="felipeal" type="add" issue="2235876" due-to="felipeal">Refactor Assertion class</action>
@@ -267,33 +267,33 @@
       <action dev="felipeal" type="add" issue="2122413" due-to="felipeal">Added "constants" for DatabaseOperation wrappers</action>
       <action dev="gommma" type="update" due-to="gommma">ISearchAlgorithm.search returns strongly typed ListOrderedSet instead of a normal Set so that TableDependencyHelper can return tables in correct order. API change.</action>
       <action dev="gommma" type="fix" issue="1628105" due-to="ozonobon"> XmlWriter can't write nested CDATA sections</action>
-      <action dev="gommma" type="fix" issue="1464982" due-to="woollybarr"> XMLType Support for Oracle - Again</action>
-      <action dev="gommma" type="fix" issue="2122773" due-to="mkejzar"> QueryDataSet does not cache query results - Implies API change - new method IDatabaseConnection.createTable(String tableName)</action>
+      <action dev="gommma" type="fix" issue="1464982" due-to="philbarr"> XMLType Support for Oracle - Again</action>
+      <action dev="gommma" type="fix" issue="2122773" due-to="MadMatt04"> QueryDataSet does not cache query results - Implies API change - new method IDatabaseConnection.createTable(String tableName)</action>
       <action dev="gommma" type="update" issue="2132121" due-to="gommma">Fail-Fast if AmbiguousTableNames found</action>
       <action dev="gommma" type="add" issue="1735092" due-to="stritti"> [PATCH] Support Oracle SQLLoader files for datasets - refactored the CSV Pipeline infrastructure so that it can be reused for sqlldr files</action>
       <action dev="gommma" type="update" due-to="gommma">Updated apache commons-collections from 3.1 to 3.2.1</action>
-      <action dev="gommma" type="fix" issue="1159489" due-to="srinirang"> BigDecimal values read by XlsDataSet have wrong precision</action>
+      <action dev="gommma" type="fix" issue="1159489" due-to="SriniRang"> BigDecimal values read by XlsDataSet have wrong precision</action>
       <action dev="gommma" type="add" issue="2148079" due-to="gommma">give tolerated delta as percentage in floating-point compare</action>
       <action dev="gommma" type="remove" issue="2148099" due-to="gommma">Remove commons-lang dependency</action>
       <action dev="gommma" type="update" issue="1180734" due-to="che---"> DbUnitTask#createConnection</action>
-      <action dev="gommma" type="add" issue="1432308" due-to="hack"> FlatDtdProducer does not support Element dataset ANY</action>
+      <action dev="gommma" type="add" issue="1432308" due-to="hackmann"> FlatDtdProducer does not support Element dataset ANY</action>
       <action dev="gommma" type="fix" issue="1344618" due-to="ianjoyce"> tinyint being ignored</action>
       <action dev="gommma" type="fix" issue="1194928" due-to="rahulr"> DBUnit does not recognise "Unsigned" INTEGER columns</action>
       <action dev="gommma" type="fix" issue="1063128" due-to="djocal"> FlatXMLdataSet counts 14 tables instead of 1 table of 14 row</action>
-      <action dev="gommma" type="fix" issue="2163902" due-to="olegc"> Better reporting of extra columns in FlatXmlProducer</action>
-      <action dev="gommma" type="fix" issue="2163897" due-to="olegc"> BufferedConsumer never cleans _allRows</action>
+      <action dev="gommma" type="fix" issue="2163902" due-to="olegch"> Better reporting of extra columns in FlatXmlProducer</action>
+      <action dev="gommma" type="fix" issue="2163897" due-to="olegch"> BufferedConsumer never cleans _allRows</action>
       <action dev="gommma" type="fix" issue="2119648" due-to="powerlord">new SortedTable throws NoSuchColumnException</action>
-      <action dev="gommma" type="fix" issue="2122773" due-to="mkejzar"> QueryDataSet does not cache query results</action>
+      <action dev="gommma" type="fix" issue="2122773" due-to="MadMatt04"> QueryDataSet does not cache query results</action>
       <action dev="gommma" type="fix" issue="1214252" due-to="bilaco"> problem because tableName is case insensitive</action>
       <action dev="gommma" type="fix" issue="1531883" due-to="fordfrog"> DatabaseSequenceFilter infinite loop on cyclic dependency</action>
       <action dev="gommma" type="update" due-to="gommma">Performance improvement in Assertions.assertEquals(ITable expected, ITable actual) - Lookup the DataTypes for every column only once and not for every single row</action>
       <action dev="gommma" type="fix" issue="2166291" due-to="lyrzine"> Field forgot under insert step - enabled columnSensing feature for ant task when format "flat" is used</action>
       <action dev="gommma" type="add" issue="1196357" due-to="ips_khanwale"> Need a way to NOT pretty format xml</action>
       <action dev="gommma" type="add" issue="2212329" due-to="gommma">Additional column info also for filtered columns</action>
-      <action dev="gommma" type="update" issue="1277038" due-to="lennymarks"> QuerySet docs (includes little refactoring)</action>
+      <action dev="gommma" type="update" issue="1277038" due-to="lenny"> QuerySet docs (includes little refactoring)</action>
       <action dev="gommma" type="add" issue="2041400" due-to="moschen">add primaryKeyFilter-Property in ant</action>
       <action dev="gommma" type="add" issue="1371813" due-to="dsyer"> Make configuration elements settable in ant (see 2041400)</action>
-      <action dev="gommma" type="add" issue="1108976" due-to="matty70"> Choose encoding for ant export task</action>
+      <action dev="gommma" type="add" issue="1108976" due-to="Matty70"> Choose encoding for ant export task</action>
       <action dev="gommma" type="fix" issue="564041" due-to="james_a_woods"> Share transaction with InsertIdentityOp.</action>
       <action dev="gommma" type="fix" issue="1798605" due-to="gianasista">New Datatype MySqlDataTypeFactory</action>
       <action dev="gommma" type="add" issue="1897627" due-to="felipeal"> Remove JUnit dependency</action>
@@ -305,37 +305,37 @@
       <action dev="gommma" type="update" issue="1897620" due-to="felipeal"> Improvements on HxxxxDataFactory</action>
     </release>
     <release version="2.3.0" date="Sep 11, 2008" description="Some API changes, features added, bugfixes, performance improvements in assertions. See migration guide for additional help">
-      <action dev="slecallonnec" type="fix" issue="1968640" due-to="slecallonnec">Trimming is now done on Excel column names to prevent NoSuchColumnException.</action>
+      <action dev="tychobrailleur" type="fix" issue="1968640" due-to="tychobrailleur">Trimming is now done on Excel column names to prevent NoSuchColumnException.</action>
       <action dev="rlogiacco" type="fix" issue="1981449" due-to="gommma"> Patch for Bug #1421590 "Problem in data import if all the columns are not populated"</action>
-      <action dev="slecallonnec" type="fix" issue="1975499" due-to="gommma">NoSuchColumnException now thrown when column name does not exist.</action>
-      <action dev="gommma" type="add" issue="1969355" due-to="ymenager"> Patch: some extra comparison methods for Assertion.</action>
+      <action dev="tychobrailleur" type="fix" issue="1975499" due-to="gommma">NoSuchColumnException now thrown when column name does not exist.</action>
+      <action dev="gommma" type="add" issue="1969355" due-to="yanm-sdfc"> Patch: some extra comparison methods for Assertion.</action>
       <action dev="gommma" type="add" issue="1966517" due-to="gommma">Assertion.equals to provide more info about failure</action>
-      <action dev="slecallonnec" type="fix" issue="1636182" due-to="slecallonnec"> StreamingDataSet.toString() now returning default value rather UnsupportedOperationException.</action>
+      <action dev="tychobrailleur" type="fix" issue="1636182" due-to="tychobrailleur"> StreamingDataSet.toString() now returning default value rather UnsupportedOperationException.</action>
       <action dev="gommma" type="add" issue="1993243" due-to="gommma">Performance optimization getColumnIndex() - Implies API change: new method ITableMetaData.getColumnIndex</action>
       <action dev="gommma" type="add" issue="1959771" due-to="gommma">Support RowFilter on ITable</action>
       <action dev="gommma" type="add" issue="1961269" due-to="gommma">support for tolerated delta in floating-point comparisons - Implies API change: new method IDataTypeFactory.createDataType(int sqlType, String sqlTypeName, String tableName, String columnName)</action>
-      <action dev="slecallonnec" type="add" due-to="slecallonnec">Added batchSize as a parameter.</action>
+      <action dev="tychobrailleur" type="add" due-to="tychobrailleur">Added batchSize as a parameter.</action>
       <action dev="gommma" type="add" issue="1358137" due-to="rinkrank"> Excel support in Ant task</action>
       <action dev="gommma" type="add" issue="1176380" due-to="easyproglife">Bad comparison in SortedTable</action>
       <action dev="gommma" type="add" due-to="gommma">Added fetchSize as a parameter.</action>
       <action dev="gommma" type="add" issue="1685474" due-to="jacobrobertson"> ReplacementTable - allow fail if value not replaced</action>
-      <action dev="slecallonnec" type="fix" issue="2009747" due-to="slecallonnec">Fixing erroneous logger.error in BytesDataType.typeCast().</action>
-      <action dev="slecallonnec" type="add" issue="2004349" due-to="gommma">Refactoring of column-related methods.</action>
+      <action dev="tychobrailleur" type="fix" issue="2009747" due-to="tychobrailleur">Fixing erroneous logger.error in BytesDataType.typeCast().</action>
+      <action dev="tychobrailleur" type="add" issue="2004349" due-to="gommma">Refactoring of column-related methods.</action>
       <action dev="gommma" type="fix" issue="2007635" due-to="phisf"> TablesDependencyHelper with Oracle schema bug - Implies API change - the constructors of DatabaseConnection throw a DatabaseUnitException if the connection/schema are not valid</action>
-      <action dev="gommma" type="add" issue="2010546" due-to="damian_golda"> Assertion: replace Assert.fail with ComparisonFailure</action>
-      <action dev="gommma" type="add" issue="2010567" due-to="damian_golda"> Alternative support for CLOB and BLOB in Oracle 11 JDBC</action>
+      <action dev="gommma" type="add" issue="2010546" due-to="dgolda"> Assertion: replace Assert.fail with ComparisonFailure</action>
+      <action dev="gommma" type="add" issue="2010567" due-to="dgolda"> Alternative support for CLOB and BLOB in Oracle 11 JDBC</action>
       <action dev="gommma" type="fix" issue="1499591" due-to="loedolff"> datatypeFactory documentation note needed</action>
       <action dev="gommma" type="fix" issue="2014884" due-to="pasha_z"> getAllDependentTables ORA-01000: maximum open cursors exceed</action>
-      <action dev="gommma" type="fix" issue="1746373" due-to="byte-error"> getAllDependentTables didn't work with full qualified names</action>
+      <action dev="gommma" type="fix" issue="1746373" due-to="ByTe-ErRoR"> getAllDependentTables didn't work with full qualified names</action>
       <action dev="gommma" type="add" due-to="gommma">Added constructors to NoSuchColumnException taking table name and column name as arguments - set old constructors to deprecated</action>
-      <action dev="gommma" type="fix" issue="1789402" due-to="jondi"> Exception in DTD generation - Implies API behaviour change. DatabaseTableMetaData.getColumns() does not throw a NoColumnsFoundExcepion anymore but returns an empty Column[] when a table does not have any dbunit-supported columns</action>
+      <action dev="gommma" type="fix" issue="1789402" due-to="Jondi"> Exception in DTD generation - Implies API behaviour change. DatabaseTableMetaData.getColumns() does not throw a NoColumnsFoundExcepion anymore but returns an empty Column[] when a table does not have any dbunit-supported columns</action>
       <action dev="gommma" type="add" due-to="gommma">Assertion.equals provides more information than just the column count when a column mismatch between expected and result tables was found. All columns are reported so that the user can see immediately which columns are missing</action>
       <action dev="gommma" type="add" due-to="gommma">Write validation message when the configured IDataTypeFactory probably does not match to the current database system. The validation implicitly takes place when AbstractTableMetaData.getDataTypeFactory() is invoked.</action>
       <action dev="gommma" type="add" due-to="gommma">Maven pom.xml updates: Added ciManagement section, added some plugins for reporting</action>
       <action dev="gommma" type="fix" issue="1497369" due-to="bascan"> Test error: testExportWithQuerySet</action>
-      <action dev="gommma" type="add" issue="2012491" due-to="rpuchkovskiy"> Topological sorting of tables when exporting</action>
-      <action dev="gommma" type="fix" issue="2012495" due-to="rpuchkovskiy">Use DataType.BLOB instead of DataType.LONGVARBINARY</action>
-      <action dev="gommma" type="fix" due-to="rpuchkovskiy">DbUnit is only JDK 1.4 compatible and not 1.3 (as claimed until now). Several methods are in use that did not exist in JDK 1.3. To build with JDK 1.4 and maven it is now required to set the environment variable JAVA_1_4_HOME to your JDK 1.4 home directory</action>
+      <action dev="gommma" type="add" issue="2012491" due-to="rpuch"> Topological sorting of tables when exporting</action>
+      <action dev="gommma" type="fix" issue="2012495" due-to="rpuch">Use DataType.BLOB instead of DataType.LONGVARBINARY</action>
+      <action dev="gommma" type="fix" due-to="rpuch">DbUnit is only JDK 1.4 compatible and not 1.3 (as claimed until now). Several methods are in use that did not exist in JDK 1.3. To build with JDK 1.4 and maven it is now required to set the environment variable JAVA_1_4_HOME to your JDK 1.4 home directory</action>
       <action dev="gommma" type="add" issue="2029693" due-to="gommma">Update apache POI to latest release (2.5.1 -> 3.1)</action>
       <action dev="gommma" type="fix" issue="1984596" due-to="bustuila"> Inserting of clobs fails</action>
       <action dev="gommma" type="fix" issue="1214234" due-to="bilaco"> method getRowCount don't use schema.</action>
@@ -345,21 +345,21 @@
       <action dev="gommma" type="fix" issue="1144269" due-to="berni123"> Types.BOOLEAN not recognized.</action>
       <action dev="gommma" type="add" issue="1448932" due-to="palsnagaraj"> "compare" + "table" tag throw NoSuchTableException - added more information about the cause to the thrown exception.</action>
       <action dev="gommma" type="fix" issue="1339675" due-to="vanhill21">DTD Creation and Parsing - throw meaningful exception if DTD ELEMENT declaration is missing.</action>
-      <action dev="gommma" type="add" issue="2059253" due-to="kornstaedt"> Added more information in case of a wrong configured DataTypeFactory.</action>
+      <action dev="gommma" type="add" issue="2059253" due-to="andreaskornstaedt"> Added more information in case of a wrong configured DataTypeFactory.</action>
     </release>
     <release version="2.2.3" date="May 23, 2008" description="Bugfixing release">
       <action dev="rlogiacco" type="fix" issue="1967969" due-to="rlogiacco">Missing License file in distribution jars</action>
-      <action dev="slecallonnec" type="fix" issue="1925603" due-to="slecallonnec">Removed redundant and erroneous ERROR logging.</action>
+      <action dev="tychobrailleur" type="fix" issue="1925603" due-to="tychobrailleur">Removed redundant and erroneous ERROR logging.</action>
       <action dev="rlogiacco" type="fix" issue="1955585" due-to="rlogiacco">Memory leak.</action>
-      <action dev="slecallonnec" type="add" due-to="slecallonnec">A warning message is now displayed when rows contain more columns than the first row.</action>
+      <action dev="tychobrailleur" type="add" due-to="tychobrailleur">A warning message is now displayed when rows contain more columns than the first row.</action>
     </release>
     <release version="2.2.2" date="May 5, 2008" description="Bugfixing release">
       <action dev="rlogiacco" type="fix" issue="1953115" due-to="Mike Norrish"> End of table name cut off when bracketed in FlatDtdProducer</action>
       <action dev="rlogiacco" type="fix" issue="1926302" due-to="rlogiacco"> IncompatibleClassChangeError with 2.2.1</action>
       <action dev="rlogiacco" type="fix" issue="1955929" due-to="rlogiacco">junit jar-file should be JDK 1.4 compatible</action>
       <action dev="rlogiacco" type="fix" issue="1475565" due-to="rlogiacco">Version 2.2-dev, Java 1.4 compatibility issue</action>
-      <action dev="slecallonnec" type="fix" issue="1925603" due-to="slecallonnec">Changed logger.error into logger.debug when the exception can be disregarded.</action>
-      <action dev="slecallonnec" type="fix" issue="1806363" due-to="Brian Atkinson">Fixed issue with CLOB datatype in Derby.</action>
+      <action dev="tychobrailleur" type="fix" issue="1925603" due-to="tychobrailleur">Changed logger.error into logger.debug when the exception can be disregarded.</action>
+      <action dev="tychobrailleur" type="fix" issue="1806363" due-to="Brian Atkinson">Fixed issue with CLOB datatype in Derby.</action>
     </release>
     <release version="2.2.1" date="March 17, 2008" description="Another official release after a long, long time...">
       <action dev="rlogiacco" type="add" due-to="rlogiacco">Added SLF4J dependency and logging statements</action>
@@ -380,19 +380,19 @@
       <action dev="rlogiacco" type="fix" issue="1459205" due-to="S&#xe9;bastien Le Callonnec">Problem with Oracle 10g Recyclebin</action>
     </release>
     <release version="2.2" date="December 28, 2006" description="First official release in a long, long time...">
-      <action dev="felipeal" type="add" issue="1473744" due-to="Andres Almiray">Enable TestCase compositions</action>
+      <action dev="felipeal" type="add" issue="1473744" due-to="aalmiray">Enable TestCase compositions</action>
       <action dev="felipeal" type="add" due-to="felipeal">Migrate SCM to Subversion</action>
       <action dev="felipeal" type="fix" issue="1494257" due-to="Bas Cancrinus"> Support for MySQL 5.0 boolean datatype</action>
       <action dev="felipeal" type="add" issue="1482990" due-to="felipeal">Added pom.xml so it can be built by Maven 2.</action>
       <action dev="felipeal" type="add" due-to="felipeal">XmlDataSetWriter now has a flag to include column's name as comment.</action>
       <action dev="felipeal" type="add" issue="1273949" due-to="felipeal">Added org.dbunit.util.search and org.dbunit.database.search packages, whose classes can be used to search tables depedencies for a given table.</action>
-      <action dev="dep4b" due-to="John Lewis" type="add" issue="1264212"> Add "transaction" attribute to ant tasks to wrap operations in a single transaction. Can make operations faster.</action>
-      <action dev="dep4b" due-to="Jeremy Frens" type="fix">Typo in howto example</action>
-      <action dev="dep4b" due-to="Cris Daniluk" type="add">Properly support writing NCLOBs to Oracle</action>
-      <action dev="dep4b" type="add" due-to="Dion Gillard" issue="1114490"> Support CSV files from a URL (e.g. jar file) + CSV fixes</action>
-      <action dev="dep4b" type="fix" due-to="dep4b">Fix the driver in classpath/driver not in classpath to always work regardless of configured driver.</action>
-      <action dev="dep4b" type="fix" due-to="Dion Gillard" issue="1114487"> Typo in test class AbstractDataSetTest</action>
-      <action dev="dep4b" type="add" due-to="Klas Axell">new HsqldbDataTypeFactory for working with booleans in HsqlDB.</action>
+      <action dev="epugh" due-to="John Lewis" type="add" issue="1264212"> Add "transaction" attribute to ant tasks to wrap operations in a single transaction. Can make operations faster.</action>
+      <action dev="epugh" due-to="Jeremy Frens" type="fix">Typo in howto example</action>
+      <action dev="epugh" due-to="Cris Daniluk" type="add">Properly support writing NCLOBs to Oracle</action>
+      <action dev="epugh" type="add" due-to="Dion Gillard" issue="1114490"> Support CSV files from a URL (e.g. jar file) + CSV fixes</action>
+      <action dev="epugh" type="fix" due-to="epugh">Fix the driver in classpath/driver not in classpath to always work regardless of configured driver.</action>
+      <action dev="epugh" type="fix" due-to="Dion Gillard" issue="1114487"> Typo in test class AbstractDataSetTest</action>
+      <action dev="epugh" type="add" due-to="Klas Axell">new HsqldbDataTypeFactory for working with booleans in HsqlDB.</action>
     </release>
     <release version="2.1" date="May 31, 2004" description="Multiple bugfixes and enhancements.">
        <action dev="" type="add">741394 - New database compare Ant tag. See Ant task documentation.</action>

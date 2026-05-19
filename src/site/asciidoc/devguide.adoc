@@ -70,7 +70,7 @@ keep track of the changes that are made to the old/existing API.
 == Track Changes with Tickets
 
 If one does not already exist,
-link:https://sourceforge.net/p/dbunit/_list/tickets[create a bug or feature ticket for the change].
+link:https://github.com/dbunit/dbunit-extension/issues[create a bug or feature ticket for the change].
 
 == Merge Requests or Patches
 
@@ -78,8 +78,8 @@ The easier you make it for dbUnit committers to apply changes,
 the more likely they will apply the changes.
 
 Contribute changes using
-link:https://sourceforge.net/p/dbunit/code.git/merge-requests[merge requests]
-from your fork (preferred) or patches attached to tickets.
+link:https://github.com/dbunit/dbunit-extension/pulls[pull requests]
+from your fork.
 
 == Tests are Critical
 
