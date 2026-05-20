@@ -81,7 +81,6 @@
       <item name="Properties"        href="/properties.html"/>
       <item name="Ant Task"          href="/anttask.html"/>
       <item name="Resources"         href="/resources.html"/>
-      <item name="Sponsors"          href="/sponsors.html"/>
     </menu>
 
     <menu name="Upgrading DbUnit">
