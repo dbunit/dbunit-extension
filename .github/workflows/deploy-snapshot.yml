@@ -4,7 +4,7 @@ on:
   workflow_run:
     workflows: ["Build any branch with all databases"]
     types: [completed]
-    branches: [main, master]
+    branches: [main]
 
 env:
   MAVEN_COMMAND: ./mvnw

@@ -5,7 +5,7 @@ on:
   workflow_run:
     workflows: ["Build any branch with all databases", "Record Dependabot update in changes.xml"]
     types: [completed]
-    branches: [ master, main ]
+    branches: [ main ]
 
 permissions:
   contents: read

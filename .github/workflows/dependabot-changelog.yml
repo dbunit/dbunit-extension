@@ -14,7 +14,7 @@ name: Record Dependabot update in changes.xml
 on:
   pull_request:
     types: [closed]
-    branches: [master, main]
+    branches: [main]
   workflow_dispatch:
     inputs:
       pr-number:
