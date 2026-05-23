@@ -6,7 +6,7 @@
 #
 # Branch-protection fallback: if a direct push to the default branch is
 # rejected (e.g. because all merges require a PR), the job automatically
-# opens a tiny "chore/changelog-pr-NNN" branch, creates a PR, and enables
+# opens a tiny "docs/changelog-pr-NNN" branch, creates a PR, and enables
 # auto-merge so it lands without human intervention.
 
 name: Record Dependabot update in changes.xml
@@ -158,7 +158,7 @@ jobs:
             exit 0
           fi
 
-          COMMIT_MSG="chore(changes): record Dependabot update for ${DEP_NAMES} [skip ci]"
+          COMMIT_MSG="docs(changes): record Dependabot update for ${DEP_NAMES} [skip ci]"
 
           git commit \
             -m "${COMMIT_MSG}" \
@@ -170,7 +170,7 @@ jobs:
             echo "Pushed directly to ${DEFAULT_BRANCH}."
           else
             echo "Direct push rejected — creating fallback PR."
-            BRANCH="chore/changelog-pr-${PR_NUMBER}"
+            BRANCH="docs/changelog-pr-${PR_NUMBER}"
             git checkout -b "${BRANCH}"
             git push -u origin "${BRANCH}"
             gh pr create \
