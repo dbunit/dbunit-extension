@@ -9,3 +9,8 @@
 	url=https://sourceforge.net/p/dbunit/bugs/%BUGID%
 	loglinkregex = %PROJECT%\\d+
 	logregex=\\d+
+
+[bugtraq "GitHub Issues"]
+	url = https://github.com/dbunit/dbunit-extension/issues/%BUGID%
+	loglinkregex = Refs: \\d+
+	logregex = \\d+
