@@ -43,8 +43,8 @@
     <assertj.version>3.25.1</assertj.version>
     <assertjCoreVersion>3.27.7</assertjCoreVersion>
     <gsbaseVersion>2.0.1</gsbaseVersion>
-    <jclOverSlf4jVersion>2.0.17</jclOverSlf4jVersion>
-    <junitVersion>6.0.3</junitVersion>
+    <jclOverSlf4jVersion>2.0.18</jclOverSlf4jVersion>
+    <junitVersion>6.1.0</junitVersion>
     <logbackClassicVersion>1.5.32</logbackClassicVersion>
     <mockitoVersion>5.23.0</mockitoVersion>
     <poiVersion>5.2.5</poiVersion>
@@ -85,16 +85,16 @@
     <deployPluginVersion>3.1.4</deployPluginVersion>
     <dockerMavenPluginVersion>0.48.1</dockerMavenPluginVersion>
     <!-- FIXME maven picking 1.2 specified in parent; fix with parent change -->
-    <enforcerPluginVersion>3.6.2</enforcerPluginVersion>
+    <enforcerPluginVersion>3.6.3</enforcerPluginVersion>
     <failsafePluginVersion>3.5.5</failsafePluginVersion>
     <gpgPluginVersion>3.2.8</gpgPluginVersion>
     <installPluginVersion>3.1.4</installPluginVersion>
     <jacocoPluginVersion>0.8.14</jacocoPluginVersion>
-    <japicmpPluginVersion>0.25.6</japicmpPluginVersion>
+    <japicmpPluginVersion>0.26.0</japicmpPluginVersion>
     <jarPluginVersion>3.5.0</jarPluginVersion>
     <javadocPluginVersion>3.12.0</javadocPluginVersion>
     <jdependPluginVersion>2.2.0</jdependPluginVersion>
-    <jxrPluginVersion>3.6.0</jxrPluginVersion>
+    <jxrluginVersion>3.6.0</jxrluginVersion>
     <modernizer-maven-plugin>2.7.0</modernizer-maven-plugin>
     <pmdPluginVersion>3.28.0</pmdPluginVersion>
     <poiOoxmlVersion>5.2.5</poiOoxmlVersion>
@@ -102,9 +102,9 @@
     <propertiesPluginVersion>1.3.0</propertiesPluginVersion>
     <releasePluginVersion>3.3.1</releasePluginVersion>
     <resourcesPluginVersion>3.5.0</resourcesPluginVersion>
-    <sitePluginVersion>3.21.0</sitePluginVersion>
-    <slf4jApiVersion>2.0.17</slf4jApiVersion>
-    <snakeyamlVersion>2.2</snakeyamlVersion>
+    <sitePluginVersion>3.22.0</sitePluginVersion>
+    <slf4jApiVersion>2.0.18</slf4jApiVersion>
+    <snakeyamlVersion>2.6</snakeyamlVersion>
     <sourcePluginVersion>3.4.0</sourcePluginVersion>
     <surefirePluginVersion>3.5.5</surefirePluginVersion>
     <versionsMavenPluginVersion>2.21.0</versionsMavenPluginVersion>
