@@ -35,9 +35,9 @@ import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.DuplicateKeyException;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -66,7 +66,7 @@ public class YamlProducer implements IDataSetProducer
 
     public YamlProducer(File file) throws IOException
     {
-        this(new FileInputStream(file));
+        this(Files.newInputStream(file.toPath()));
     }
 
     public YamlProducer(InputStream inputStream)

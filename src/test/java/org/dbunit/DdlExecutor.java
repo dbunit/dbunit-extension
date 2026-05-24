@@ -26,8 +26,9 @@ import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.SQLSyntaxErrorException;
@@ -228,7 +229,7 @@ public final class DdlExecutor
     private static String readSqlFromFile(final File ddlFile) throws IOException
     {
         final BufferedReader sqlReader =
-                new BufferedReader(new FileReader(ddlFile));
+                new BufferedReader(Files.newBufferedReader(ddlFile.toPath(), StandardCharsets.UTF_8));
         final StringBuilder sqlBuffer = new StringBuilder();
         while (sqlReader.ready())
         {

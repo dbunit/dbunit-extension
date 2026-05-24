@@ -24,10 +24,10 @@ package org.dbunit.dataset.datatype;
 import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.Charset;
@@ -85,8 +85,8 @@ public class BytesDataType extends AbstractDataType
     public byte[] loadFile(final String filename) throws IOException
     {
         // Not an URL, try as file name
-        final File file = new File(filename);
-        return toByteArray(new FileInputStream(file), (int) file.length());
+        final File file = Paths.get(filename).toFile();
+        return toByteArray(Files.newInputStream(file.toPath()), (int) file.length());
     }
 
     public byte[] loadURL(final String urlAsString) throws IOException
@@ -225,7 +225,7 @@ public class BytesDataType extends AbstractDataType
                     {
                         // Not an URL, try as file name
                         return loadFile(stringValue);
-                    } catch (final FileNotFoundException e2)
+                    } catch (final IOException e2)
                     {
                         logger.debug(
                                 "Assuming given string to be Base64 and not a URI or File");
@@ -285,7 +285,7 @@ public class BytesDataType extends AbstractDataType
             try
             {
                 final File file = (File) value;
-                return toByteArray(new FileInputStream(file),
+                return toByteArray(Files.newInputStream(file.toPath()),
                         (int) file.length());
             } catch (final IOException e)
             {

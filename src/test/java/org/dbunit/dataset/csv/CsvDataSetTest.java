@@ -69,7 +69,7 @@ class CsvDataSetTest
             CsvDataSetWriter.write(expectedDataSet, tempDir);
 
             final File tableOrderingFile =
-                    new File(tempDir, CsvDataSet.TABLE_ORDERING_FILE);
+                    tempDir.toPath().resolve(CsvDataSet.TABLE_ORDERING_FILE).toFile();
             assertThat(tableOrderingFile).exists();
 
             final IDataSet actualDataSet = new CsvDataSet(tempDir);
@@ -110,7 +110,7 @@ class CsvDataSetTest
         final String fullPath = tmpFile.getAbsolutePath();
         tmpFile.delete();
 
-        final File tmpDir = new File(fullPath);
+        final File tmpDir = java.nio.file.Paths.get(fullPath).toFile();
         if (!tmpDir.mkdir())
         {
             throw new IOException("Failed to create tmpDir: " + fullPath);

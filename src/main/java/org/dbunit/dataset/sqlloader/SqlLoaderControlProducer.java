@@ -22,6 +22,7 @@ package org.dbunit.dataset.sqlloader;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Paths;
 import java.util.Iterator;
 import java.util.List;
 
@@ -86,7 +87,7 @@ public class SqlLoaderControlProducer implements IDataSetProducer {
     public SqlLoaderControlProducer(String controlFilesDir, String tableOrderFile) 
     throws DataSetException 
     {
-        this(new File(controlFilesDir), new File(tableOrderFile));
+        this(Paths.get(controlFilesDir).toFile(), Paths.get(tableOrderFile).toFile());
     }
 
     /**
@@ -145,7 +146,7 @@ public class SqlLoaderControlProducer implements IDataSetProducer {
         for (Iterator tableIter = this.orderedTableNames.iterator(); tableIter.hasNext();) {
             String table = (String) tableIter.next();
             try {
-                File ctlFile = new File(dir, table + ".ctl");
+                File ctlFile = dir.toPath().resolve(table + ".ctl").toFile();
                 produceFromControlFile(ctlFile);
             }
             catch (SqlLoaderControlParserException e) {
@@ -221,7 +222,7 @@ public class SqlLoaderControlProducer implements IDataSetProducer {
         logger.debug("getTables(controlFilesDir={}, tableList={}) - start", controlFilesDir, tableList);
 
         // Copy file into the control directory
-        File tmpTableList = new File(controlFilesDir, TMP_TABLE_LIST_FILENAME);
+        File tmpTableList = controlFilesDir.toPath().resolve(TMP_TABLE_LIST_FILENAME).toFile();
         FileHelper.copyFile(tableList, tmpTableList);
 
         List orderedNames;

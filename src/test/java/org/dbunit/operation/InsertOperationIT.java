@@ -24,8 +24,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.fail;
 
-import java.io.FileReader;
 import java.io.Reader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.sql.SQLException;
 
 import org.dbunit.AbstractDatabaseIT;
@@ -481,7 +482,7 @@ public class InsertOperationIT extends AbstractDatabaseIT
             final String tableName = "CLOB_TABLE";
 
             final Reader in =
-                    new FileReader(TestUtils.getFile("xml/clobInsertTest.xml"));
+                    Files.newBufferedReader(TestUtils.getFile("xml/clobInsertTest.xml").toPath(), StandardCharsets.UTF_8);
             final IDataSet xmlDataSet = new FlatXmlDataSetBuilder().build(in);
 
             assertThat(_connection.getRowCount(tableName)).as("count before")
@@ -507,7 +508,7 @@ public class InsertOperationIT extends AbstractDatabaseIT
             final String tableName = "BLOB_TABLE";
 
             final Reader in =
-                    new FileReader(TestUtils.getFile("xml/blobInsertTest.xml"));
+                    Files.newBufferedReader(TestUtils.getFile("xml/blobInsertTest.xml").toPath(), StandardCharsets.UTF_8);
             final IDataSet xmlDataSet = new FlatXmlDataSetBuilder().build(in);
 
             assertThat(_connection.getRowCount(tableName)).as("count before")
@@ -532,8 +533,8 @@ public class InsertOperationIT extends AbstractDatabaseIT
         {
             final String tableName = "SDO_GEOMETRY_TABLE";
 
-            final Reader in = new FileReader(
-                    TestUtils.getFile("xml/sdoGeometryInsertTest.xml"));
+            final Reader in = Files.newBufferedReader(
+                    TestUtils.getFile("xml/sdoGeometryInsertTest.xml").toPath(), StandardCharsets.UTF_8);
             final IDataSet xmlDataSet = new FlatXmlDataSetBuilder().build(in);
 
             assertThat(_connection.getRowCount(tableName)).as("count before")
@@ -558,8 +559,8 @@ public class InsertOperationIT extends AbstractDatabaseIT
         {
             final String tableName = "XML_TYPE_TABLE";
 
-            final Reader in = new FileReader(
-                    TestUtils.getFile("xml/xmlTypeInsertTest.xml"));
+            final Reader in = Files.newBufferedReader(
+                    TestUtils.getFile("xml/xmlTypeInsertTest.xml").toPath(), StandardCharsets.UTF_8);
             final IDataSet xmlDataSet = new FlatXmlDataSetBuilder().build(in);
 
             assertThat(_connection.getRowCount(tableName)).as("count before")

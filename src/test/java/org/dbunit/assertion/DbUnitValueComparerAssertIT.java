@@ -2,7 +2,7 @@ package org.dbunit.assertion;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
-import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.util.Map;
 
 import org.dbunit.assertion.comparer.value.ValueComparer;
@@ -22,7 +22,7 @@ public class DbUnitValueComparerAssertIT
     private final DbUnitValueComparerAssert sut =
             new DbUnitValueComparerAssert();
 
-    private IDataSet getDataSet() throws DataSetException, FileNotFoundException
+    private IDataSet getDataSet() throws DataSetException, IOException
     {
         return new FlatXmlDataSetBuilder()
                 .build(TestUtils.getFileReader(FILE_PATH));

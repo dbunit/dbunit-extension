@@ -22,9 +22,9 @@
 package org.dbunit.ant;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.file.Files;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
@@ -193,7 +193,7 @@ public class Export extends AbstractStep
             }
             else
             {
-                OutputStream out = new FileOutputStream(_dest);
+                OutputStream out = Files.newOutputStream(_dest.toPath());
                 try
                 {
                     if (_format.equalsIgnoreCase(FORMAT_FLAT))

@@ -23,7 +23,8 @@ package org.dbunit.dataset;
 
 import static org.junit.jupiter.api.Assertions.fail;
 
-import java.io.FileOutputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.sql.Connection;
 
 import org.dbunit.DdlExecutor;
@@ -109,7 +110,7 @@ class CompositeDataSetIterationTest
         try
         {
             FlatXmlDataSet.write(compositeDataSet,
-                    new FileOutputStream("target/full.xml"));
+                    Files.newOutputStream(Paths.get("target/full.xml")));
         } catch (final Exception e)
         {
             fail(e.getMessage());

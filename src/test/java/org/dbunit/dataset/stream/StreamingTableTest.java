@@ -20,7 +20,8 @@
  */
 package org.dbunit.dataset.stream;
 
-import java.io.FileReader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 
 import org.dbunit.dataset.ForwardOnlyTableTest;
 import org.dbunit.dataset.ITable;
@@ -41,8 +42,8 @@ public class StreamingTableTest extends ForwardOnlyTableTest
     @Override
     protected ITable createTable() throws Exception
     {
-        final FileReader reader =
-                new FileReader(FlatXmlDataSetTest.DATASET_FILE);
+        final java.io.Reader reader =
+                Files.newBufferedReader(FlatXmlDataSetTest.DATASET_FILE.toPath(), StandardCharsets.UTF_8);
 
         // IDataSetProducer source = new DataSetProducerAdapter(new
         // FlatXmlDataSet(reader));

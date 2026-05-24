@@ -24,7 +24,8 @@ package org.dbunit.dataset.csv;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.File;
-import java.io.FileInputStream;
+import java.io.InputStream;
+import java.nio.file.Paths;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -123,7 +124,7 @@ class CsvProducerTest
     {
         final Operation operation = new Operation();
         operation.setFormat(AbstractStep.FORMAT_CSV);
-        operation.setSrc(new File(THE_DIRECTORY));
+        operation.setSrc(Paths.get(THE_DIRECTORY).toFile());
         operation.setType("INSERT");
         operation.execute(connection);
         final Statement statement =
@@ -145,7 +146,7 @@ class CsvProducerTest
         produceAndInsertToDatabase();
 
         final String fromAnt = "target/csv/from-ant";
-        final File dir = new File(fromAnt);
+        final File dir = Paths.get(fromAnt).toFile();
         FileHelper.deleteDirectory(dir);
 
         try
@@ -166,10 +167,10 @@ class CsvProducerTest
 
             export.execute(getConnection());
 
-            final File ordersFile = new File(fromAnt + "/orders.csv");
+            final File ordersFile = Paths.get(fromAnt, "orders.csv").toFile();
             assertThat(ordersFile).as("file '" + ordersFile.getAbsolutePath()
                     + "' does not exists").exists();
-            final File ordersRowFile = new File(fromAnt + "/orders_row.csv");
+            final File ordersRowFile = Paths.get(fromAnt, "orders_row.csv").toFile();
             assertThat(ordersRowFile)
                     .as("file " + ordersRowFile + " does not exists").exists();
         } finally
@@ -193,7 +194,7 @@ class CsvProducerTest
     protected void setUp() throws Exception
     {
         final Properties properties = new Properties();
-        final FileInputStream inStream =
+        final InputStream inStream =
                 TestUtils.getFileInputStream("csv/cvs-tests.properties");
         properties.load(inStream);
         inStream.close();

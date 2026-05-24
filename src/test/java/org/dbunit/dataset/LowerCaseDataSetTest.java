@@ -21,7 +21,8 @@
 
 package org.dbunit.dataset;
 
-import java.io.FileReader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 
 import org.dbunit.dataset.xml.FlatXmlDataSetBuilder;
 import org.dbunit.dataset.xml.FlatXmlDataSetTest;
@@ -38,7 +39,7 @@ public class LowerCaseDataSetTest extends AbstractDataSetDecoratorTest
     protected IDataSet createDataSet() throws Exception
     {
         return new LowerCaseDataSet(new FlatXmlDataSetBuilder()
-                .build(new FileReader(FlatXmlDataSetTest.DATASET_FILE)));
+                .build(Files.newBufferedReader(FlatXmlDataSetTest.DATASET_FILE.toPath(), StandardCharsets.UTF_8)));
     }
 
     @Override

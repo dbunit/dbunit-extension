@@ -23,7 +23,8 @@ package org.dbunit.dataset;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.io.FileReader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 
 import org.dbunit.dataset.xml.FlatXmlDataSetBuilder;
 import org.dbunit.dataset.xml.FlatXmlDataSetTest;
@@ -35,7 +36,7 @@ public class TableDecoratorDataSetTest extends AbstractDataSetDecoratorTest
     {
         return new TableDecoratorDataSet(
                 new FlatXmlDataSetBuilder()
-                        .build(new FileReader(FlatXmlDataSetTest.DATASET_FILE)),
+                        .build(Files.newBufferedReader(FlatXmlDataSetTest.DATASET_FILE.toPath(), StandardCharsets.UTF_8)),
                 t -> new ColumnFilterTable(t, (table, column) -> true));
     }
 

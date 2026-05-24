@@ -3,8 +3,10 @@ package org.dbunit.dataset.excel;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -15,13 +17,13 @@ import org.junit.jupiter.api.Test;
 
 class XlsDataSetWriterTest
 {
-    private static final File OUTPUT_DIR = new File("target", "excel");
+    private static final File OUTPUT_DIR = Paths.get("target", "excel").toFile();
 
     private static final String INPUT_EXCEL_FILE =
             "/excel/XlsDataSetWriterCellStyleCaching.xlsx";
 
-    private static final File OUTPUT_EXCEL_FILE = new File(OUTPUT_DIR,
-            "XlsDataSetWriterCellStyleCachingTestOutput.xls");
+    private static final File OUTPUT_EXCEL_FILE = OUTPUT_DIR.toPath()
+            .resolve("XlsDataSetWriterCellStyleCachingTestOutput.xls").toFile();
 
     /**
      * Test for issue 377. Without 377's changes, test fails with:
@@ -36,10 +38,10 @@ class XlsDataSetWriterTest
 
         final URL excelFileUrl = getClass().getResource(INPUT_EXCEL_FILE);
         final URI excelFileUri = excelFileUrl.toURI();
-        final File file = new File(excelFileUri);
+        final File file = Paths.get(excelFileUri).toFile();
         final IDataSet dataSet = new XlsDataSet(file);
-        final FileOutputStream outputStream =
-                new FileOutputStream(OUTPUT_EXCEL_FILE);
+        final OutputStream outputStream =
+                Files.newOutputStream(OUTPUT_EXCEL_FILE.toPath());
         assertDoesNotThrow(() -> XlsDataSet.write(dataSet, outputStream));
     }
 }

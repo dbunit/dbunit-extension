@@ -24,8 +24,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.StringReader;
+import java.nio.file.Files;
 
 import org.dbunit.dataset.Column;
 import org.dbunit.dataset.DataSetException;
@@ -50,7 +50,7 @@ class FlatDtdProducerTest extends AbstractProducerTest
     protected IDataSetProducer createProducer() throws Exception
     {
         final InputSource source =
-                new InputSource(new FileInputStream(DTD_FILE));
+                new InputSource(Files.newInputStream(DTD_FILE.toPath()));
         return new FlatDtdProducer(source);
     }
 

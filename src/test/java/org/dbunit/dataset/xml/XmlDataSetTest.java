@@ -24,12 +24,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.FileReader;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Reader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 
 import org.dbunit.Assertion;
 import org.dbunit.dataset.AbstractDataSetTest;
@@ -54,23 +53,23 @@ public class XmlDataSetTest extends AbstractDataSetTest
     protected IDataSet createDataSet() throws Exception
     {
         final Reader in =
-                new FileReader(TestUtils.getFile("xml/dataSetTest.xml"));
+                Files.newBufferedReader(TestUtils.getFile("xml/dataSetTest.xml").toPath(), StandardCharsets.UTF_8);
         return new XmlDataSet(in);
     }
 
     @Override
     protected IDataSet createDuplicateDataSet() throws Exception
     {
-        final InputStream in = new FileInputStream(
-                TestUtils.getFile("xml/xmlDataSetDuplicateTest.xml"));
+        final InputStream in = Files.newInputStream(
+                TestUtils.getFile("xml/xmlDataSetDuplicateTest.xml").toPath());
         return new XmlDataSet(in);
     }
 
     @Override
     protected IDataSet createMultipleCaseDuplicateDataSet() throws Exception
     {
-        final InputStream in = new FileInputStream(TestUtils
-                .getFile("xml/xmlDataSetDuplicateMultipleCaseTest.xml"));
+        final InputStream in = Files.newInputStream(TestUtils
+                .getFile("xml/xmlDataSetDuplicateMultipleCaseTest.xml").toPath());
         return new XmlDataSet(in);
     }
 
@@ -81,7 +80,7 @@ public class XmlDataSetTest extends AbstractDataSetTest
         final File tempFile = File.createTempFile("dataSetTest", ".xml");
         try
         {
-            final OutputStream out = new FileOutputStream(tempFile);
+            final OutputStream out = Files.newOutputStream(tempFile.toPath());
 
             try
             {
@@ -90,7 +89,7 @@ public class XmlDataSetTest extends AbstractDataSetTest
 
                 // load new dataset from temp file
                 final IDataSet actualDataSet =
-                        new XmlDataSet(new FileReader(tempFile));
+                        new XmlDataSet(Files.newBufferedReader(tempFile.toPath(), StandardCharsets.UTF_8));
 
                 // verify table count
                 assertThat(actualDataSet.getTableNames()).as("table count")

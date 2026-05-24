@@ -23,8 +23,9 @@ package org.dbunit.operation;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.io.FileReader;
 import java.io.Reader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 
 import org.dbunit.AbstractDatabaseIT;
 import org.dbunit.dataset.IDataSet;
@@ -46,8 +47,8 @@ class CompositeOperationIT extends AbstractDatabaseIT
     {
         final String tableName = "PK_TABLE";
         final String columnName = "PK0";
-        final Reader in = new FileReader(
-                TestUtils.getFile("xml/compositeOperationTest.xml"));
+        final Reader in = Files.newBufferedReader(
+                TestUtils.getFile("xml/compositeOperationTest.xml").toPath(), StandardCharsets.UTF_8);
         final IDataSet xmlDataSet = new XmlDataSet(in);
 
         // verify table before

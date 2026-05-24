@@ -145,7 +145,7 @@ class BytesDataTypeTest extends AbstractDataTypeTest
     @Test
     void testTypeCastFileName() throws Exception
     {
-        final File file = new File("LICENSE.txt");
+        final File file = java.nio.file.Paths.get("LICENSE.txt").toFile();
 
         final Object[] values = {"[file]" + file.toString(), file.toString(),
                 file.getAbsolutePath(), file.toURI().toURL().toString(), file,

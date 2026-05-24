@@ -24,6 +24,7 @@ package org.dbunit;
 import org.dbunit.operation.DatabaseOperation;
 
 import java.io.File;
+import java.nio.file.Paths;
 import java.io.FilenameFilter;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -63,7 +64,7 @@ public class HypersonicEnvironment extends DatabaseEnvironment
 
     public static void deleteFiles(final String filename)
     {
-        deleteFiles(new File("."), filename);
+        deleteFiles(Paths.get(".").toFile(), filename);
     }
 
     public static void deleteFiles(File directory, final String filename)

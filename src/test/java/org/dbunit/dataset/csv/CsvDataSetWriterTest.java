@@ -44,7 +44,7 @@ class CsvDataSetWriterTest
             throws DataSetException
     {
         final CsvProducer producer = new CsvProducer(source);
-        new File(dest).delete();
+        java.nio.file.Paths.get(dest).toFile().delete();
         final CsvDataSetWriter writer = new CsvDataSetWriter(dest);
         producer.setConsumer(writer);
         producer.produce();

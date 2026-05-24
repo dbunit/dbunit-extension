@@ -23,7 +23,6 @@ package org.dbunit.dataset;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
 
 import org.dbunit.dataset.xml.FlatXmlDataSetBuilder;
@@ -81,7 +80,7 @@ class CompositeDataSetTest extends AbstractDataSetTest
 
     private CompositeDataSet createCompositeDataSet(final boolean combined,
             final boolean multipleCase)
-            throws DataSetException, FileNotFoundException, IOException
+            throws DataSetException, IOException
     {
         final IDataSet dataSet1 = new FlatXmlDataSetBuilder().build(TestUtils
                 .getFileReader("xml/compositeDataSetDuplicateTest1.xml"));

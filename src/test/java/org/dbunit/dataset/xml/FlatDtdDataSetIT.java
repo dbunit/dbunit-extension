@@ -22,9 +22,9 @@ package org.dbunit.dataset.xml;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.Writer;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 
 import org.dbunit.DatabaseEnvironment;
 import org.dbunit.database.IDatabaseConnection;
@@ -95,7 +95,7 @@ class FlatDtdDataSetIT extends AbstractDataSetTest
 
         try
         {
-            final Writer out = new FileWriter(tempFile);
+            final Writer out = Files.newBufferedWriter(tempFile.toPath(), StandardCharsets.UTF_8);
 
             try
             {
@@ -108,7 +108,7 @@ class FlatDtdDataSetIT extends AbstractDataSetTest
 
             FileAsserts.assertEquals(
                     new BufferedReader(TestUtils.getFileReader(DTD_FILE)),
-                    new BufferedReader(new FileReader(tempFile)));
+                    new BufferedReader(Files.newBufferedReader(tempFile.toPath(), StandardCharsets.UTF_8)));
         } finally
         {
             tempFile.delete();
@@ -127,7 +127,7 @@ class FlatDtdDataSetIT extends AbstractDataSetTest
 
         try
         {
-            final Writer out = new FileWriter(tempFile);
+            final Writer out = Files.newBufferedWriter(tempFile.toPath(), StandardCharsets.UTF_8);
 
             try
             {
@@ -141,8 +141,8 @@ class FlatDtdDataSetIT extends AbstractDataSetTest
             }
 
             FileAsserts.assertEquals(
-                    new BufferedReader(new FileReader(getFile(DTD_FILE))),
-                    new BufferedReader(new FileReader(tempFile)));
+                    new BufferedReader(Files.newBufferedReader(getFile(DTD_FILE).toPath(), StandardCharsets.UTF_8)),
+                    new BufferedReader(Files.newBufferedReader(tempFile.toPath(), StandardCharsets.UTF_8)));
         } finally
         {
             tempFile.delete();

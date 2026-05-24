@@ -101,14 +101,14 @@ public class DbUnitTaskIT
         assertThat(TestUtils.getFile(filePath)).as("Buildfile not found")
         .isFile();
         rule.configureProject(TestUtils.getFileName(filePath));
-        outputDir = new File(rule.getProject().getBaseDir(), OUTPUT_DIR);
+        outputDir = rule.getProject().getBaseDir().toPath().resolve(OUTPUT_DIR).toFile();
         outputDir.mkdirs();
     }
 
     @AfterEach
     public void tearDown() throws Exception
     {
-        outputDir = new File(rule.getProject().getBaseDir(), OUTPUT_DIR);
+        outputDir = rule.getProject().getBaseDir().toPath().resolve(OUTPUT_DIR).toFile();
         FileHelper.deleteDirectory(outputDir);
     }
 
@@ -497,7 +497,7 @@ public class DbUnitTaskIT
             final DatabaseUnitException dbUnitException =
                     (DatabaseUnitException) cause;
             final String filename =
-                    new File(outputDir, "antExportDataSet.xml").toString();
+                    outputDir.toPath().resolve("antExportDataSet.xml").toString();
             final String expectedMsg = "Did not find table in source file '"
                     + filename + "' using format 'xml'";
             assertThat(dbUnitException.getMessage()).isEqualTo(expectedMsg);

@@ -24,8 +24,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.fail;
 
-import java.io.FileReader;
 import java.io.Reader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 
 import org.dbunit.AbstractDatabaseIT;
 import org.dbunit.Assertion;
@@ -526,8 +527,8 @@ class UpdateOperationIT extends AbstractDatabaseIT
     @Test
     void testExecute() throws Exception
     {
-        final Reader in = new FileReader(
-                TestUtils.getFile("xml/updateOperationTest.xml"));
+        final Reader in = Files.newBufferedReader(
+                TestUtils.getFile("xml/updateOperationTest.xml").toPath(), StandardCharsets.UTF_8);
         final IDataSet dataSet = new XmlDataSet(in);
 
         testExecute(dataSet);
@@ -537,8 +538,8 @@ class UpdateOperationIT extends AbstractDatabaseIT
     @Test
     void testExecuteCaseInsensitive() throws Exception
     {
-        final Reader in = new FileReader(
-                TestUtils.getFile("xml/updateOperationTest.xml"));
+        final Reader in = Files.newBufferedReader(
+                TestUtils.getFile("xml/updateOperationTest.xml").toPath(), StandardCharsets.UTF_8);
         final IDataSet dataSet = new XmlDataSet(in);
 
         testExecute(new LowerCaseDataSet(dataSet));
@@ -547,8 +548,8 @@ class UpdateOperationIT extends AbstractDatabaseIT
     @Test
     void testExecuteForwardOnly() throws Exception
     {
-        final Reader in = new FileReader(
-                TestUtils.getFile("xml/updateOperationTest.xml"));
+        final Reader in = Files.newBufferedReader(
+                TestUtils.getFile("xml/updateOperationTest.xml").toPath(), StandardCharsets.UTF_8);
         final IDataSet dataSet = new XmlDataSet(in);
 
         testExecute(new ForwardOnlyDataSet(dataSet));

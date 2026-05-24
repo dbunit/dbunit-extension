@@ -24,6 +24,7 @@ package org.dbunit.ant.adapter;
 import java.io.File;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.nio.file.Paths;
 import org.apache.tools.ant.BuildEvent;
 import org.apache.tools.ant.BuildException;
 import org.apache.tools.ant.BuildListener;
@@ -107,7 +108,8 @@ public class BuildFileExtension implements AfterEachCallback {
 		}
 
 		this.project.init();
-		File antFile = new File(System.getProperty("root"), filename);
+		final String root = System.getProperty("root");
+		File antFile = root != null ? Paths.get(root, filename).toFile() : Paths.get(filename).toFile();
 		this.project.setProperty("ant.processid", ProcessUtil.getProcessId("<Process>"));
 		this.project.setProperty("ant.threadname", Thread.currentThread().getName());
 		this.project.setUserProperty("ant.file", antFile.getAbsolutePath());
@@ -147,7 +149,7 @@ public class BuildFileExtension implements AfterEachCallback {
 	}
 
 	public File getOutputDir() {
-		return new File(this.getProject().getProperty("output"));
+		return java.nio.file.Paths.get(this.getProject().getProperty("output")).toFile();
 	}
 
 	@Override

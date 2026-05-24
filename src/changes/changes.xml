@@ -22,6 +22,8 @@
       <action dev="dependabot" type="update" due-to="Dependabot">Update github_actions dependency actions/upload-pages-artifact from 3 to 5 (#27).</action>
       <!-- dependabot:dep=dependabot/fetch-metadata:new=3:pr=27 -->
       <action dev="dependabot" type="update" due-to="Dependabot">Update github_actions dependency dependabot/fetch-metadata from 2 to 3 (#27).</action>
+      <action dev="dependabot" type="update" due-to="Dependabot">Bump modernizer-maven-plugin from 2.7.0 to 3.4.0 (#21).</action>
+      <action dev="jeffjensen" type="fix" due-to="jeffjensen">Fix modernizer-maven-plugin 3.4.0 violations: migrate java.io.File I/O to java.nio.file APIs across source and test files.</action>
     </release>
     <release version="3.1.0" date="May 11, 2026" description="Lower DefaultPrepAndExpectedTestCase log levels, build DB config, GitHub CI, reproducible builds, change to Central Portal publishing, IsActualGreaterThanExpectedWithIgnoreMillisValueComparer, IsActualGreaterThanOrEqualToExpectedWithIgnoreMillisValueComparer, GitHub config, convert docs to Asciidoc, version bumps, DefaultPrepAndExpectedTestCase.runTestSteps(), auto-publish SNAPSHOTS">
       <action dev="jeffjensen" type="add" issue="717" system="github" due-to="jeffjensen">Configure GitHub CI.</action>

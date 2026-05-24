@@ -27,8 +27,9 @@ import static org.mockito.Mockito.atMost;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 
-import java.io.FileReader;
 import java.io.Reader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.sql.Connection;
 import java.sql.SQLException;
 
@@ -70,8 +71,8 @@ class TransactionOperationIT extends AbstractDatabaseIT
     void testExecuteCommit() throws Exception
     {
         final String tableName = "TEST_TABLE";
-        final Reader in = new FileReader(
-                TestUtils.getFile("xml/transactionOperationTest.xml"));
+        final Reader in = Files.newBufferedReader(
+                TestUtils.getFile("xml/transactionOperationTest.xml").toPath(), StandardCharsets.UTF_8);
         final IDataSet xmlDataSet = new XmlDataSet(in);
         final Connection jdbcConnection = _connection.getConnection();
 
@@ -99,8 +100,8 @@ class TransactionOperationIT extends AbstractDatabaseIT
     void testExclusiveTransaction() throws Exception
     {
         final String tableName = "TEST_TABLE";
-        final Reader in = new FileReader(
-                TestUtils.getFile("xml/transactionOperationTest.xml"));
+        final Reader in = Files.newBufferedReader(
+                TestUtils.getFile("xml/transactionOperationTest.xml").toPath(), StandardCharsets.UTF_8);
         final IDataSet xmlDataSet = new XmlDataSet(in);
         final Connection jdbcConnection = _connection.getConnection();
 
@@ -132,8 +133,8 @@ class TransactionOperationIT extends AbstractDatabaseIT
     void testExecuteRollback() throws Exception
     {
         final String tableName = "TEST_TABLE";
-        final Reader in = new FileReader(
-                TestUtils.getFile("xml/transactionOperationTest.xml"));
+        final Reader in = Files.newBufferedReader(
+                TestUtils.getFile("xml/transactionOperationTest.xml").toPath(), StandardCharsets.UTF_8);
         final IDataSet xmlDataSet = new XmlDataSet(in);
         final Exception[] exceptions = new Exception[] {new SQLException(),
                 new DatabaseUnitException(), new RuntimeException(),};

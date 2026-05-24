@@ -22,13 +22,12 @@ package org.dbunit.util;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.MalformedURLException;
 import java.nio.channels.FileChannel;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -118,10 +117,10 @@ public class FileHelper
         logger.debug("copyFile(srcFile={}, destFile={}) - start", srcFile, destFile);
 
         // Create channel on the source
-        FileChannel srcChannel = new FileInputStream(srcFile).getChannel();
+        FileChannel srcChannel = FileChannel.open(srcFile.toPath());
 
         // Create channel on the destination
-        FileChannel dstChannel = new FileOutputStream(destFile).getChannel();
+        FileChannel dstChannel = FileChannel.open(destFile.toPath(), java.nio.file.StandardOpenOption.WRITE, java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.TRUNCATE_EXISTING);
 
         try {
             // Copy file contents from source to destination
@@ -146,7 +145,7 @@ public class FileHelper
     {
         logger.debug("readLines(theFile={}) - start", theFile);
 
-        InputStream tableListStream = new FileInputStream(theFile);
+        InputStream tableListStream = Files.newInputStream(theFile.toPath());
         try {
             List orderedNames = new ArrayList();
             BufferedReader reader = new BufferedReader(new InputStreamReader(tableListStream));

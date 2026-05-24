@@ -24,7 +24,7 @@ package org.dbunit.dataset;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import java.io.FileReader;
+import java.io.Reader;
 
 import org.dbunit.dataset.xml.FlatXmlDataSetBuilder;
 import org.dbunit.dataset.xml.XmlDataSet;
@@ -148,7 +148,7 @@ class FilteredDataSetTest extends AbstractDataSetTest
     void testCaseSensitivityInheritance() throws Exception
     {
         // Case sensitive check
-        FileReader fileReader = TestUtils.getFileReader("xml/dataSetTest.xml");
+        Reader fileReader = TestUtils.getFileReader("xml/dataSetTest.xml");
         final IDataSet caseSensitive = new FlatXmlDataSetBuilder()
                 .setCaseSensitiveTableNames(true).build(fileReader);
 

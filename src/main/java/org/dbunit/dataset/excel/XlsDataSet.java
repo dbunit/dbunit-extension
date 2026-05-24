@@ -21,10 +21,10 @@
 package org.dbunit.dataset.excel;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.Files;
 
 import org.apache.poi.EncryptedDocumentException;
 import org.apache.poi.ss.usermodel.Workbook;
@@ -64,7 +64,7 @@ public class XlsDataSet extends AbstractDataSet
      */
     public XlsDataSet(File file) throws IOException, DataSetException
     {
-        this(new FileInputStream(file));
+        this(Files.newInputStream(file.toPath()));
     }
 
     /**

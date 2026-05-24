@@ -23,10 +23,9 @@ package org.dbunit.dataset.excel;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.Files;
 
 import org.dbunit.Assertion;
 import org.dbunit.dataset.AbstractDataSetTest;
@@ -79,7 +78,7 @@ class XlsDataSetTest extends AbstractDataSetTest
         final File tempFile = File.createTempFile("xlsDataSetTest", ".xls");
         try
         {
-            final OutputStream out = new FileOutputStream(tempFile);
+            final OutputStream out = Files.newOutputStream(tempFile.toPath());
 
             // write dataset in temp file
             try
@@ -91,7 +90,7 @@ class XlsDataSetTest extends AbstractDataSetTest
             }
 
             // load new dataset from temp file
-            final InputStream in = new FileInputStream(tempFile);
+            final InputStream in = Files.newInputStream(tempFile.toPath());
             try
             {
                 final IDataSet actualDataSet = new XlsDataSet(in);

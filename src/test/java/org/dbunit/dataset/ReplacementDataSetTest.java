@@ -22,7 +22,9 @@ package org.dbunit.dataset;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.io.FileReader;
+import java.io.Reader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 
 import org.dbunit.dataset.xml.FlatXmlDataSet;
 import org.dbunit.dataset.xml.FlatXmlDataSetBuilder;
@@ -45,15 +47,15 @@ class ReplacementDataSetTest extends AbstractDataSetDecoratorTest
     protected IDataSet createDataSet() throws Exception
     {
         return new ReplacementDataSet(new FlatXmlDataSetBuilder()
-                .build(new FileReader(FlatXmlDataSetTest.DATASET_FILE)));
+                .build(Files.newBufferedReader(FlatXmlDataSetTest.DATASET_FILE.toPath(), StandardCharsets.UTF_8)));
     }
 
     @Test
     void testConstructor_DataSetHasCaseSensitive_ReplacementSetHasCaseSensitive()
             throws Exception
     {
-        final FileReader xmlReader =
-                new FileReader(FlatXmlDataSetTest.DATASET_FILE);
+        final java.io.Reader xmlReader =
+                Files.newBufferedReader(FlatXmlDataSetTest.DATASET_FILE.toPath(), StandardCharsets.UTF_8);
         final FlatXmlDataSet flatDataSet = new FlatXmlDataSetBuilder()
                 .setCaseSensitiveTableNames(true).build(xmlReader);
         final ReplacementDataSet dataSet = new ReplacementDataSet(flatDataSet);
@@ -65,7 +67,7 @@ class ReplacementDataSetTest extends AbstractDataSetDecoratorTest
     void testConstructor_DifferentCaseTableNames_CaseSensitiveMatch()
             throws Exception
     {
-        final FileReader fileReader = TestUtils
+        final Reader fileReader = TestUtils
                 .getFileReader("/xml/replacementDataSetCaseSensitive.xml");
         final IDataSet originalDataSet = new FlatXmlDataSetBuilder()
                 .setCaseSensitiveTableNames(true).build(fileReader);

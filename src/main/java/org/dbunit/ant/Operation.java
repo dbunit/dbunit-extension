@@ -92,7 +92,7 @@ public class Operation extends AbstractStep
     {
         DirectoryScanner scanner = fileSet.getDirectoryScanner(getProject());
         for (String file : scanner.getIncludedFiles()) {
-            _sources.add(new File(scanner.getBasedir(), file));
+            _sources.add(scanner.getBasedir().toPath().resolve(file).toFile());
         }
     }
 

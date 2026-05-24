@@ -23,7 +23,8 @@ package org.dbunit.dataset;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.fail;
 
-import java.io.FileReader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 
 import org.dbunit.dataset.xml.FlatXmlDataSetTest;
 import org.dbunit.dataset.xml.FlatXmlProducer;
@@ -42,8 +43,8 @@ class CachedDataSetTest extends AbstractDataSetDecoratorTest
     @Override
     protected IDataSet createDataSet() throws Exception
     {
-        final FileReader reader =
-                new FileReader(FlatXmlDataSetTest.DATASET_FILE);
+        final java.io.Reader reader =
+                Files.newBufferedReader(FlatXmlDataSetTest.DATASET_FILE.toPath(), StandardCharsets.UTF_8);
         return new CachedDataSet(new FlatXmlProducer(new InputSource(reader)));
     }
 

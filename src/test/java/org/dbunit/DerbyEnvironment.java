@@ -23,7 +23,7 @@ package org.dbunit;
 
 import org.dbunit.util.FileHelper;
 
-import java.io.File;
+import java.nio.file.Paths;
 import java.util.concurrent.Callable;
 
 /**
@@ -45,7 +45,7 @@ public class DerbyEnvironment extends DatabaseEnvironment
                 // The name of the db is specified in the profile.properties and
                 // is created on the fly
                 // when the connection is retrieved the first time
-                FileHelper.deleteDirectory(new File("./target/derby_db"));
+                FileHelper.deleteDirectory(Paths.get("./target/derby_db").toFile());
 
                 return null;
             }

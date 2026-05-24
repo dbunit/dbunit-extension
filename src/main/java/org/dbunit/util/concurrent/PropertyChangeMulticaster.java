@@ -415,9 +415,9 @@ public class PropertyChangeMulticaster implements Serializable {
 
     if (oldValue != newValue) {
       multicast(new PropertyChangeEvent(source,
-                                        propertyName, 
-                                        new Boolean(oldValue), 
-                                        new Boolean(newValue)));
+                                        propertyName,
+                                        oldValue,
+                                        newValue));
     }
   }
 

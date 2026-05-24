@@ -23,8 +23,8 @@ package org.dbunit.dataset.yaml;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.io.FileInputStream;
 import java.io.InputStream;
+import java.nio.file.Files;
 
 import org.dbunit.dataset.AbstractTableTest;
 import org.dbunit.dataset.Column;
@@ -48,8 +48,8 @@ public class YmlTableTest extends AbstractTableTest
 
     protected IDataSet createDataSet() throws Exception
     {
-        final InputStream in = new FileInputStream(
-                TestUtils.getFile("yaml/yamlTableTest.yml"));
+        final InputStream in = Files.newInputStream(
+                TestUtils.getFile("yaml/yamlTableTest.yml").toPath());
         return new YamlDataSet(in);
     }
 

@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URL;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -78,7 +79,7 @@ public class CsvProducer implements IDataSetProducer {
     public void produce() throws DataSetException {
         logger.debug("produce() - start");
 
-        File dir = new File(_theDirectory);
+        File dir = Paths.get(_theDirectory).toFile();
 
         if (!dir.isDirectory()) {
             throw new DataSetException("'" + _theDirectory + "' should be a directory");
@@ -90,7 +91,7 @@ public class CsvProducer implements IDataSetProducer {
         	for (Iterator tableIter = tableSpecs.iterator(); tableIter.hasNext();) {
 				String table = (String) tableIter.next();
 	            try {
-	                produceFromFile(new File(dir, table + ".csv"));
+	                produceFromFile(dir.toPath().resolve(table + ".csv").toFile());
 	            } catch (CsvParserException e) {
 	                throw new DataSetException("error producing dataset for table '" + table + "'", e);
 	            } catch (DataSetException e) {

@@ -23,10 +23,9 @@ package org.dbunit.dataset.yaml;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.Files;
 
 import org.dbunit.Assertion;
 import org.dbunit.dataset.AbstractDataSetTest;
@@ -48,15 +47,15 @@ class YmlDataSetTest extends AbstractDataSetTest
     protected IDataSet createDataSet() throws Exception
     {
         final InputStream in =
-                new FileInputStream(TestUtils.getFile("yaml/dataSetTest.yml"));
+                Files.newInputStream(TestUtils.getFile("yaml/dataSetTest.yml").toPath());
         return new YamlDataSet(in);
     }
 
     @Override
     protected IDataSet createDuplicateDataSet() throws Exception
     {
-        final InputStream in = new FileInputStream(
-                TestUtils.getFile("yaml/yamlDataSetDuplicateTest.yml"));
+        final InputStream in = Files.newInputStream(
+                TestUtils.getFile("yaml/yamlDataSetDuplicateTest.yml").toPath());
         return new YamlDataSet(in);
     }
 
@@ -98,7 +97,7 @@ class YmlDataSetTest extends AbstractDataSetTest
         final File tempFile = File.createTempFile("dataSetTest", ".yml");
         try
         {
-            final OutputStream out = new FileOutputStream(tempFile);
+            final OutputStream out = Files.newOutputStream(tempFile.toPath());
 
             try
             {
@@ -107,7 +106,7 @@ class YmlDataSetTest extends AbstractDataSetTest
 
                 // load new dataset from temp file
                 final IDataSet actualDataSet =
-                        new YamlDataSet(new FileInputStream(tempFile));
+                        new YamlDataSet(Files.newInputStream(tempFile.toPath()));
 
                 // verify table count
                 assertThat(actualDataSet.getTableNames()).as("table count")
