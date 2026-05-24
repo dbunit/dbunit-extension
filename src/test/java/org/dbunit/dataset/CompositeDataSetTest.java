@@ -69,7 +69,7 @@ class CompositeDataSetTest extends AbstractDataSetTest
     }
 
     @Test
-    void testCombineTables() throws Exception
+    void testCombineTables_whenCombineEnabled_mergesDuplicateTables() throws Exception
     {
         final CompositeDataSet combinedDataSet =
                 createCompositeDataSet(true, false);

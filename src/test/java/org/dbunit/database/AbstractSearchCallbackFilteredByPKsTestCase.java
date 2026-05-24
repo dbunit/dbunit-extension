@@ -148,7 +148,7 @@ public abstract class AbstractSearchCallbackFilteredByPKsTestCase
         }
     }
 
-    public void testSetupTables() throws SQLException, DataSetException
+    public void testSetupTables_withFixtureData_allTablesExistWithCorrectSize() throws SQLException, DataSetException
     {
         final int[] sizes = setupTablesSizeFixture();
         final IDataSet allDataSet = setupTablesDataSetFixture();

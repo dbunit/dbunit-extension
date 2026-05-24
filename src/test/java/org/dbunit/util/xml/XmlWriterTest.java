@@ -40,7 +40,7 @@ class XmlWriterTest
 {
 
     @Test
-    void testLiterallyFalse() throws Exception
+    void testLiterallyFalse_withNewlinesInText_writesLiteralNewlines() throws Exception
     {
         final String text = "text1\ntext2\rtext3";
         final String expectedXml =
@@ -57,7 +57,7 @@ class XmlWriterTest
     }
 
     @Test
-    void testLiterallyTrue() throws Exception
+    void testLiterallyTrue_withNewlinesInTextAndLiterallyTrue_writesEncodedNewlines() throws Exception
     {
         final String expectedText = "text1&#xA;text2&#xD;text3";
         final String expectedXml = "<COLUMN1 ATTR=\"" + expectedText + "\">"
@@ -77,7 +77,7 @@ class XmlWriterTest
     }
 
     @Test
-    void testWriteAttributesAfterText() throws Exception
+    void testWriteAttributesAfterText_afterWritingText_throwsIllegalStateException() throws Exception
     {
         final String text = "bla";
         final Writer writer = new StringWriter();
@@ -95,7 +95,7 @@ class XmlWriterTest
     }
 
     @Test
-    void testWriteNestedCDATAWithoutSurrounder() throws Exception
+    void testWriteNestedCDATAWithoutSurrounder_withCdataAlreadyPresent_writesAsIs() throws Exception
     {
         final String text =
                 "<![CDATA[Text that itself is in a CDATA section]]>";
@@ -113,7 +113,7 @@ class XmlWriterTest
     }
 
     @Test
-    void testWriteNestedCDATAWithSurrounder() throws Exception
+    void testWriteNestedCDATAWithSurrounder_withCdataEndSequenceInText_splitsCdataSection() throws Exception
     {
         final String text = "<myXmlText>" + XmlWriter.CDATA_START
                 + "Text that itself is in a CDATA section" + XmlWriter.CDATA_END
@@ -135,7 +135,7 @@ class XmlWriterTest
     }
 
     @Test
-    void testOutputStreamWithNullEncoding() throws Exception
+    void testOutputStreamWithNullEncoding_withUtf8Encoding_writesUtf8Declaration() throws Exception
     {
         final ByteArrayOutputStream out = new ByteArrayOutputStream();
         // Use a different encoding than the default
@@ -150,7 +150,7 @@ class XmlWriterTest
     }
 
     @Test
-    void testOutputStreamWithNonDefaultEncoding() throws Exception
+    void testOutputStreamWithNonDefaultEncoding_withIso8859Encoding_writesIso8859Declaration() throws Exception
     {
         final ByteArrayOutputStream out = new ByteArrayOutputStream();
         // Use a different encoding than the default
@@ -165,7 +165,7 @@ class XmlWriterTest
     }
 
     @Test
-    void testEncodedXmlChar() throws Exception
+    void testEncodedXmlChar_withNonAsciiAndSpecialChars_encodesCorrectly() throws Exception
     {
         final String expectedText = "\u00AEtext1&#xA;text2&#xD;text3\u00AE";
         final String expectedXml = "<COLUMN1 ATTR=\"" + expectedText + "\">"
@@ -190,7 +190,7 @@ class XmlWriterTest
     }
 
     @Test
-    void testNonAsciiValidXmlCharactersInAttributeValue() throws Exception
+    void testNonAsciiValidXmlCharactersInAttributeValue_withCyrillicChars_writesCharsAsIs() throws Exception
     {
         final String expectedText = "привет";
         final String expectedXml = "<COLUMN1 ATTR=\"" + expectedText + "\"/>\n";

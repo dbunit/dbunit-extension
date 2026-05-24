@@ -75,7 +75,7 @@ public class XmlDataSetTest extends AbstractDataSetTest
     }
 
     @Test
-    void testWrite() throws Exception
+    void testWrite_withValidDataSet_writesAndReadsBackEquivalentData() throws Exception
     {
         final IDataSet expectedDataSet = createDataSet();
         final File tempFile = File.createTempFile("dataSetTest", ".xml");
@@ -134,7 +134,7 @@ public class XmlDataSetTest extends AbstractDataSetTest
     // @Override
     @Override
     @Test
-    public void testCreateDuplicateDataSet() throws Exception
+    public void testCreateDuplicateDataSet_withDuplicateTableNames_throwsAmbiguousTableNameException() throws Exception
     {
         final IDataSet dataSet = createDuplicateDataSet();
         final ITable[] tables = dataSet.getTables();
@@ -157,7 +157,7 @@ public class XmlDataSetTest extends AbstractDataSetTest
     // @Override
     @Override
     @Test
-    public void testCreateMultipleCaseDuplicateDataSet() throws Exception
+    public void testCreateMultipleCaseDuplicateDataSet_withDuplicateCaseVariantNames_throwsAmbiguousTableNameException() throws Exception
     {
         final IDataSet dataSet = createMultipleCaseDuplicateDataSet();
         final ITable[] tables = dataSet.getTables();

@@ -44,14 +44,14 @@ public class CollectionsHelperTest
     public static final String C = "C";
 
     @Test
-    void testObjectsToSetNullEntry()
+    void testObjectsToSetNullEntry_withNullInput_returnsNull()
     {
         final Set<Object> output = CollectionsHelper.objectsToSet(null);
         assertThat(output).as("set should be null").isNull();
     }
 
     @Test
-    void testObjectsToSetEmptyEntry()
+    void testObjectsToSetEmptyEntry_withEmptyArray_returnsEmptySet()
     {
         final Set<Object> output =
                 CollectionsHelper.objectsToSet(new Object[0]);
@@ -60,7 +60,7 @@ public class CollectionsHelperTest
     }
 
     @Test
-    void testObjectsToSetSingleInput()
+    void testObjectsToSetSingleInput_withSingleElement_returnsSingleElementSet()
     {
         final Object[] input = {A};
         final Set<Object> output = CollectionsHelper.objectsToSet(input);
@@ -72,7 +72,7 @@ public class CollectionsHelperTest
     }
 
     @Test
-    void testObjectsToSetSequence()
+    void testObjectsToSetSequence_withMultipleElements_returnsSetWithAllElements()
     {
         final Object[] input = {A, C, B};
         final Set<Object> output = CollectionsHelper.objectsToSet(input);
@@ -86,14 +86,14 @@ public class CollectionsHelperTest
     }
 
     @Test
-    void testSetToObjectsNullEntry()
+    void testSetToObjectsNullEntry_withNullInput_returnsNull()
     {
         final Object[] output = CollectionsHelper.setToObjects(null);
         assertThat(output).as("array should be null").isNull();
     }
 
     @Test
-    void testSetToObjectsEmptyEntry()
+    void testSetToObjectsEmptyEntry_withEmptySet_returnsEmptyArray()
     {
         final Set<Object> input = new HashSet<>();
         final Object[] output = CollectionsHelper.setToObjects(input);
@@ -102,7 +102,7 @@ public class CollectionsHelperTest
     }
 
     @Test
-    void testSetToObjectsSingle()
+    void testSetToObjectsSingle_withSingleElementSet_returnsSingleElementArray()
     {
         final Set<Object> input = new HashSet<>();
         input.add(A);
@@ -113,7 +113,7 @@ public class CollectionsHelperTest
     }
 
     @Test
-    void testSetToObjectsOrderedSet()
+    void testSetToObjectsOrderedSet_withSortedSet_returnsSortedArray()
     {
         final Set<Object> input = new TreeSet<>();
         input.add(A);
@@ -128,7 +128,7 @@ public class CollectionsHelperTest
     }
 
     @Test
-    void testSetToObjectsSequencialSet()
+    void testSetToObjectsSequencialSet_withLinkedHashSet_returnsInsertionOrderArray()
     {
         final Set<Object> input = new LinkedHashSet<>();
         input.add(A);
@@ -143,14 +143,14 @@ public class CollectionsHelperTest
     }
 
     @Test
-    void testSetToStringsNullEntry()
+    void testSetToStringsNullEntry_withNullInput_returnsNull()
     {
         final Object[] output = CollectionsHelper.setToStrings(null);
         assertThat(output).as("array should be null").isNull();
     }
 
     @Test
-    void testSetToStringsEmptyEntry()
+    void testSetToStringsEmptyEntry_withEmptySet_returnsEmptyArray()
     {
         final Set<Object> input = new HashSet<>();
         final Object[] output = CollectionsHelper.setToStrings(input);
@@ -159,7 +159,7 @@ public class CollectionsHelperTest
     }
 
     @Test
-    void testSetToStringsSingle()
+    void testSetToStringsSingle_withSingleElementSet_returnsSingleElementArray()
     {
         final Set<Object> input = new HashSet<>();
         input.add(A);
@@ -170,7 +170,7 @@ public class CollectionsHelperTest
     }
 
     @Test
-    void testSetToStringsOrderedSet()
+    void testSetToStringsOrderedSet_withSortedSet_returnsSortedArray()
     {
         final Set<Object> input = new TreeSet<>();
         input.add(A);
@@ -185,7 +185,7 @@ public class CollectionsHelperTest
     }
 
     @Test
-    void testSetToStringsSequencialSet()
+    void testSetToStringsSequencialSet_withLinkedHashSet_returnsInsertionOrderArray()
     {
         final Set<Object> input = new LinkedHashSet<>();
         input.add(A);

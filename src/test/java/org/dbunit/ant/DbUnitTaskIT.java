@@ -113,7 +113,7 @@ public class DbUnitTaskIT
     }
 
     @Test
-    public void testNoDriver()
+    public void testNoDriver_withMissingDriverAttribute_throwsBuildException()
     {
         assertThrows(BuildException.class,
                 () -> rule.executeTarget("no-driver"),
@@ -121,7 +121,7 @@ public class DbUnitTaskIT
     }
 
     @Test
-    public void testNoDbUrl()
+    public void testNoDbUrl_withMissingUrlAttribute_throwsBuildException()
     {
         assertThrows(BuildException.class,
                 () -> rule.executeTarget("no-db-url"),
@@ -129,7 +129,7 @@ public class DbUnitTaskIT
     }
 
     @Test
-    public void testNoUserid()
+    public void testNoUserid_withMissingUseridAttribute_throwsBuildException()
     {
         assertThrows(BuildException.class,
                 () -> rule.executeTarget("no-userid"),
@@ -137,7 +137,7 @@ public class DbUnitTaskIT
     }
 
     @Test
-    public void testNoPassword()
+    public void testNoPassword_withMissingPasswordAttribute_throwsBuildException()
     {
         assertThatThrownBy(() -> rule.executeTarget("no-password"))
         .as("Should have required a password attribute.")
@@ -145,7 +145,7 @@ public class DbUnitTaskIT
     }
 
     @Test
-    public void testInvalidDatabaseInformation()
+    public void testInvalidDatabaseInformation_withBadConnectionInfo_causeIsSqlException()
     {
         final Throwable thrown =
                 catchThrowable(() -> rule.executeTarget("invalid-db-info"));
@@ -155,7 +155,7 @@ public class DbUnitTaskIT
     }
 
     @Test
-    public void testInvalidOperationType()
+    public void testInvalidOperationType_withUnknownType_causeIsIllegalArgumentException()
     {
         final Throwable thrown =
                 catchThrowable(() -> rule.executeTarget("invalid-type"));
@@ -165,7 +165,7 @@ public class DbUnitTaskIT
     }
 
     @Test
-    public void testSetFlatFalse()
+    public void testSetFlatFalse_withXmlFormatAttribute_returnsXmlFormat()
     {
         final String targetName = "set-format-xml";
         final Operation operation =
@@ -178,7 +178,7 @@ public class DbUnitTaskIT
     }
 
     @Test
-    public void testResolveOperationTypes()
+    public void testResolveOperationTypes_withAllOperationTypeNames_resolvesCorrectOperations()
     {
         assertOperationType("Should have been a NONE operation",
                 "test-type-none", DatabaseOperation.NONE);
@@ -210,7 +210,7 @@ public class DbUnitTaskIT
     }
 
     @Test
-    public void testInvalidCompositeOperationSrc()
+    public void testInvalidCompositeOperationSrc_withNestedSrcAttribute_throwsBuildException()
     {
         expectBuildException("invalid-composite-operation-src",
                 "Should have objected to nested operation src attribute "
@@ -218,7 +218,7 @@ public class DbUnitTaskIT
     }
 
     @Test
-    public void testInvalidCompositeOperationFlat()
+    public void testInvalidCompositeOperationFlat_withNestedFormatAttribute_throwsBuildException()
     {
         expectBuildException("invalid-composite-operation-format-flat",
                 "Should have objected to nested operation format attribute "
@@ -226,7 +226,7 @@ public class DbUnitTaskIT
     }
 
     @Test
-    public void testExportFull()
+    public void testExportFull_withFullExportTarget_returnsFlatFormatEmptyTableList()
     {
         final String targetName = "test-export-full";
         final Export export = (Export) getFirstStepFromTarget(targetName);
@@ -243,7 +243,7 @@ public class DbUnitTaskIT
     }
 
     @Test
-    public void testExportPartial()
+    public void testExportPartial_withTwoTableExport_returnsTwoTableNames()
     {
         final String targetName = "test-export-partial";
         final Export export = (Export) getFirstStepFromTarget(targetName);
@@ -264,7 +264,7 @@ public class DbUnitTaskIT
     }
 
     @Test
-    public void testExportWithForwardOnlyResultSetTable()
+    public void testExportWithForwardOnlyResultSetTable_withForwardOnlyConfig_setsForwardOnlyFactory()
             throws SQLException, DatabaseUnitException
     {
         final String targetName =
@@ -285,7 +285,7 @@ public class DbUnitTaskIT
     }
 
     @Test
-    public void testExportFlat()
+    public void testExportFlat_withFlatFormatTarget_returnsFlatFormat()
     {
         final String targetName = "test-export-format-flat";
         final Export export = (Export) getFirstStepFromTarget(targetName);
@@ -293,7 +293,7 @@ public class DbUnitTaskIT
     }
 
     @Test
-    public void testExportFlatWithDocytpe()
+    public void testExportFlatWithDocytpe_withDoctypeSet_returnsFlatFormatAndDoctype()
     {
         final String targetName = "test-export-format-flat-with-doctype";
         final Export export = (Export) getFirstStepFromTarget(targetName);
@@ -302,7 +302,7 @@ public class DbUnitTaskIT
     }
 
     @Test
-    public void testExportFlatWithEncoding()
+    public void testExportFlatWithEncoding_withEncodingSet_returnsFlatFormatAndIso8859Encoding()
     {
         final String targetName = "test-export-format-flat-with-encoding";
         final Export export = (Export) getFirstStepFromTarget(targetName);
@@ -311,7 +311,7 @@ public class DbUnitTaskIT
     }
 
     @Test
-    public void testExportXml()
+    public void testExportXml_withXmlFormatTarget_returnsXmlFormat()
     {
         final String targetName = "test-export-format-xml";
         final Export export = (Export) getFirstStepFromTarget(targetName);
@@ -321,7 +321,7 @@ public class DbUnitTaskIT
     }
 
     @Test
-    public void testExportCsv()
+    public void testExportCsv_withCsvFormatTarget_returnsCsvFormat()
     {
         final String targetName = "test-export-format-csv";
         final Export export = (Export) getFirstStepFromTarget(targetName);
@@ -331,7 +331,7 @@ public class DbUnitTaskIT
     }
 
     @Test
-    public void testExportDtd()
+    public void testExportDtd_withDtdFormatTarget_returnsDtdFormat()
     {
         final String targetName = "test-export-format-dtd";
         final Export export = (Export) getFirstStepFromTarget(targetName);
@@ -341,14 +341,14 @@ public class DbUnitTaskIT
     }
 
     @Test
-    public void testInvalidExportFormat()
+    public void testInvalidExportFormat_withInvalidFormatAttribute_throwsBuildException()
     {
         expectBuildException("invalid-export-format",
                 "Should have objected to invalid format attribute.");
     }
 
     @Test
-    public void testExportXmlOrdered() throws Exception
+    public void testExportXmlOrdered_withOrderedXmlExport_returnsFilteredDataSet() throws Exception
     {
         final String targetName = "test-export-format-xml-ordered";
         final Export export = (Export) getFirstStepFromTarget(targetName);
@@ -366,7 +366,7 @@ public class DbUnitTaskIT
     }
 
     @Test
-    public void testExportQuery()
+    public void testExportQuery_withQueryExportTarget_returnsQueriesWithSql()
     {
         final String targetName = "test-export-query";
         final Export export = (Export) getFirstStepFromTarget(targetName);
@@ -387,7 +387,7 @@ public class DbUnitTaskIT
     }
 
     @Test
-    public void testExportWithQuerySet()
+    public void testExportWithQuerySet_withQuerySetTarget_returnsQuerySetsTablesAndQueries()
     {
         final String targetName = "test-export-with-queryset";
         final Export export = (Export) getFirstStepFromTarget(targetName);
@@ -425,14 +425,14 @@ public class DbUnitTaskIT
 
     @Disabled("Ant now ignores id errors and refid is always evaluated first")
     @Test
-    public void testWithBadQuerySet()
+    public void testWithBadQuerySet_withBothIdAndRefid_throwsBuildException()
     {
         expectBuildException("invalid-queryset",
                 "Cannot specify 'id' and 'refid' attributes together in queryset.");
     }
 
     @Test
-    public void testWithReferenceQuerySet()
+    public void testWithReferenceQuerySet_withRefidQuerySet_returnsQueriesFromReference()
     {
         final String targetName = "test-queryset-reference";
 
@@ -458,7 +458,7 @@ public class DbUnitTaskIT
     }
 
     @Test
-    public void testExportQueryMixed()
+    public void testExportQueryMixed_withMixedTableAndQueryExport_returnsBothTypes()
     {
         final String targetName = "test-export-query-mixed";
         final Export export = (Export) getFirstStepFromTarget(targetName);
@@ -482,7 +482,7 @@ public class DbUnitTaskIT
      * format.
      */
     @Test
-    public void testExportAndCompareFormatMismatch()
+    public void testExportAndCompareFormatMismatch_withMismatchedFormats_throwsDatabaseUnitException()
     {
         final String targetName = "test-export-and-compare-format-mismatch";
 
@@ -510,7 +510,7 @@ public class DbUnitTaskIT
     }
 
     @Test
-    public void testDataTypeFactory() throws Exception
+    public void testDataTypeFactory_withOracleDataTypeFactory_setsOracleFactory() throws Exception
     {
         final String targetName = "test-datatypefactory";
         final DbUnitTask task = getFirstTargetTask(targetName);
@@ -525,7 +525,7 @@ public class DbUnitTaskIT
     }
 
     @Test
-    public void testEscapePattern() throws Exception
+    public void testEscapePattern_withEscapePatternTarget_setsEscapePattern() throws Exception
     {
         final String targetName = "test-escapepattern";
         final DbUnitTask task = getFirstTargetTask(targetName);
@@ -539,7 +539,7 @@ public class DbUnitTaskIT
     }
 
     @Test
-    public void testDataTypeFactoryViaGenericConfig() throws Exception
+    public void testDataTypeFactoryViaGenericConfig_withGenericConfigTarget_setsFactoryAndProperties() throws Exception
     {
         final String targetName = "test-datatypefactory-via-generic-config";
         final DbUnitTask task = getFirstTargetTask(targetName);
@@ -568,7 +568,7 @@ public class DbUnitTaskIT
     }
 
     @Test
-    public void testClasspath() throws Exception
+    public void testClasspath_withInvalidUrl_throwsBuildExceptionWithSqlCause() throws Exception
     {
         final String targetName = "test-classpath";
 
@@ -585,7 +585,7 @@ public class DbUnitTaskIT
     }
 
     @Test
-    public void testDriverNotInClasspath() throws Exception
+    public void testDriverNotInClasspath_withDriverAbsent_throwsBuildExceptionWithClassNotFoundCause() throws Exception
     {
         final String targetName = "test-drivernotinclasspath";
 
@@ -602,7 +602,7 @@ public class DbUnitTaskIT
     }
 
     @Test
-    public void testReplaceOperation() throws Exception
+    public void testReplaceOperation_withReplaceTarget_updatesFirstRowToNull() throws Exception
     {
         final String targetName = "test-replace";
         final IDatabaseTester dbTest =
@@ -615,7 +615,7 @@ public class DbUnitTaskIT
     }
 
     @Test
-    public void testOrderedOperation() throws Exception
+    public void testOrderedOperation_withOrderedTarget_insertsRowsInOrder() throws Exception
     {
         final String targetName = "test-ordered";
         final IDatabaseTester dbTest =
@@ -628,7 +628,7 @@ public class DbUnitTaskIT
     }
 
     @Test
-    public void testReplaceOrderedOperation() throws Exception
+    public void testReplaceOrderedOperation_withReplaceOrderedTarget_updatesFirstRowToNull() throws Exception
     {
         final String targetName = "test-replace-ordered";
         final IDatabaseTester dbTest =

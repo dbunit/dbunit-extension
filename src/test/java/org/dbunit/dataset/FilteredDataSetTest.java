@@ -81,7 +81,7 @@ class FilteredDataSetTest extends AbstractDataSetTest
     }
 
     @Test
-    void testGetFilteredTableNames() throws Exception
+    void testGetFilteredTableNames_withSingleTableFilter_returnsOnlyFilteredTableName() throws Exception
     {
         final String[] originalNames = getExpectedNames();
         final String expectedName = originalNames[0];
@@ -98,7 +98,7 @@ class FilteredDataSetTest extends AbstractDataSetTest
     }
 
     @Test
-    void testGetFilteredTable() throws Exception
+    void testGetFilteredTable_withSingleTableFilter_returnsFilteredTableAndThrowsForOthers() throws Exception
     {
         final String[] originalNames = getExpectedNames();
         final IDataSet filteredDataSet = new FilteredDataSet(
@@ -121,7 +121,7 @@ class FilteredDataSetTest extends AbstractDataSetTest
     }
 
     @Test
-    void testGetFilteredTableMetaData() throws Exception
+    void testGetFilteredTableMetaData_withSingleTableFilter_returnsFilteredMetaDataAndThrowsForOthers() throws Exception
     {
         final String[] originalNames = getExpectedNames();
         final IDataSet filteredDataSet = new FilteredDataSet(
@@ -145,7 +145,7 @@ class FilteredDataSetTest extends AbstractDataSetTest
     }
 
     @Test
-    void testCaseSensitivityInheritance() throws Exception
+    void testCaseSensitivityInheritance_withCaseSensitiveAndInsensitiveDataSet_inheritsFromDecoratedDataSet() throws Exception
     {
         // Case sensitive check
         FileReader fileReader = TestUtils.getFileReader("xml/dataSetTest.xml");

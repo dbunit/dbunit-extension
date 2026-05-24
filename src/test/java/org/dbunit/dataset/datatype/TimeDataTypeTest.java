@@ -55,35 +55,35 @@ public class TimeDataTypeTest extends AbstractDataTypeTest
 
     @Override
     @Test
-    public void testToString() throws Exception
+    public void testToString_withDataType_returnsExpectedString() throws Exception
     {
         assertThat(THIS_TYPE.toString()).as("name").isEqualTo("TIME");
     }
 
     @Override
     @Test
-    public void testGetTypeClass() throws Exception
+    public void testGetTypeClass_returnsExpectedClass() throws Exception
     {
         assertThat(THIS_TYPE.getTypeClass()).as("class").isEqualTo(Time.class);
     }
 
     @Override
     @Test
-    public void testIsNumber() throws Exception
+    public void testIsNumber_returnsExpectedBoolean() throws Exception
     {
         assertThat(THIS_TYPE.isNumber()).as("is number").isFalse();
     }
 
     @Override
     @Test
-    public void testIsDateTime() throws Exception
+    public void testIsDateTime_returnsExpectedBoolean() throws Exception
     {
         assertThat(THIS_TYPE.isDateTime()).as("is date/time").isTrue();
     }
 
     @Override
     @Test
-    public void testTypeCast() throws Exception
+    public void testTypeCast_withCompatibleInput_returnsExpectedValue() throws Exception
     {
         final Object[] values = {null, new Time(1234), new java.sql.Date(1234),
                 new Timestamp(1234), new Time(1234).toString(),
@@ -106,14 +106,14 @@ public class TimeDataTypeTest extends AbstractDataTypeTest
 
     @Override
     @Test
-    public void testTypeCastNone() throws Exception
+    public void testTypeCastNone_withNullInput_returnsNull() throws Exception
     {
         assertThat(THIS_TYPE.typeCast(ITable.NO_VALUE)).as("typecast").isNull();
     }
 
     @Override
     @Test
-    public void testTypeCastInvalid() throws Exception
+    public void testTypeCastInvalid_withIncompatibleInput_throwsTypeCastException() throws Exception
     {
         final Object[] values =
                 {Integer.valueOf(1234), new Object(), "bla", "2000.05.05",};
@@ -131,7 +131,7 @@ public class TimeDataTypeTest extends AbstractDataTypeTest
     }
 
     @Test
-    void testTypeCastRelative() throws Exception
+    void testTypeCastRelative_withRelativeTimeSyntax_returnsExpectedTime() throws Exception
     {
         // @formatter:off
         final Object[] values = {
@@ -166,7 +166,7 @@ public class TimeDataTypeTest extends AbstractDataTypeTest
 
     @Override
     @Test
-    public void testCompareEquals() throws Exception
+    public void testCompareEquals_withEqualValues_returnsZero() throws Exception
     {
         final Object[] values1 = {null, new Time(1234), new java.sql.Date(1234),
                 new Timestamp(1234), new Time(1234).toString(),
@@ -191,7 +191,7 @@ public class TimeDataTypeTest extends AbstractDataTypeTest
 
     @Override
     @Test
-    public void testCompareInvalid() throws Exception
+    public void testCompareInvalid_withInvalidInput_throwsTypeCastException() throws Exception
     {
         final Object[] values1 =
                 {Integer.valueOf(1234), new Object(), "bla", "2000.05.05",};
@@ -221,7 +221,7 @@ public class TimeDataTypeTest extends AbstractDataTypeTest
 
     @Override
     @Test
-    public void testCompareDifferent() throws Exception
+    public void testCompareDifferent_withDifferentValues_returnsNonZero() throws Exception
     {
         final Object[] less =
                 {null, new java.sql.Time(0), "08:00:00", "08:00:00",};
@@ -243,7 +243,7 @@ public class TimeDataTypeTest extends AbstractDataTypeTest
 
     @Override
     @Test
-    public void testSqlType() throws Exception
+    public void testSqlType_returnsExpectedSqlType() throws Exception
     {
         assertThat(DataType.forSqlType(Types.TIME)).isEqualTo(THIS_TYPE);
         assertThat(DataType.forSqlTypeName(THIS_TYPE.toString()))
@@ -253,14 +253,14 @@ public class TimeDataTypeTest extends AbstractDataTypeTest
 
     @Override
     @Test
-    public void testForObject() throws Exception
+    public void testForObject_withValidInput_returnsDataType() throws Exception
     {
         assertThat(DataType.forObject(new Time(1234))).isEqualTo(THIS_TYPE);
     }
 
     @Override
     @Test
-    public void testAsString() throws Exception
+    public void testAsString_withValidInput_returnsStringRepresentation() throws Exception
     {
         final java.sql.Time[] values = {new java.sql.Time(1234),};
 
@@ -278,7 +278,7 @@ public class TimeDataTypeTest extends AbstractDataTypeTest
 
     @Override
     @Test
-    public void testGetSqlValue() throws Exception
+    public void testGetSqlValue_withValidStatement_returnsExpectedValue() throws Exception
     {
         final java.sql.Time[] expected = {null, new Time(1234),
                 new Time(new java.sql.Date(1234).getTime()),
@@ -303,7 +303,7 @@ public class TimeDataTypeTest extends AbstractDataTypeTest
      * Assert calls ResultSet.getTime(columnIndex) before ResultSet.wasNull().
      */
     @Test
-    public void testGetSqlValueCallOrder()
+    public void testGetSqlValueCallOrder_afterGetSqlValue_callsGetTimeBeforeWasNull()
             throws TypeCastException, SQLException
     {
         final int columnIndex = 1;

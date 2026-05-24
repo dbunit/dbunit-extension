@@ -72,7 +72,7 @@ class BinaryStreamDataTypeTest
      * ResultSet.wasNull().
      */
     @Test
-    public void testGetSqlValueCallOrder()
+    public void testGetSqlValueCallOrder_afterGetSqlValue_callsGetBinaryStreamBeforeWasNull()
             throws TypeCastException, SQLException
     {
         final int columnIndex = 1;

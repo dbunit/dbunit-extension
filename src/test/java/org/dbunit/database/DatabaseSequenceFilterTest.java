@@ -64,7 +64,7 @@ class DatabaseSequenceFilterTest
     }
 
     @Test
-    void testGetTableNames() throws Exception
+    void testGetTableNames_withForeignKeyConstraints_returnsTablesInDependencyOrder() throws Exception
     {
         final String[] expectedNoFilter =
                 {"A", "B", "C", "D", "E", "F", "G", "H",};
@@ -90,7 +90,7 @@ class DatabaseSequenceFilterTest
     }
 
     @Test
-    void testGetTableNamesCyclic() throws Exception
+    void testGetTableNamesCyclic_withCyclicDependency_throwsCyclicTablesDependencyException() throws Exception
     {
         final String[] expectedNoFilter = {"A", "B", "C", "D", "E",};
 
@@ -116,7 +116,7 @@ class DatabaseSequenceFilterTest
     }
 
     @Test
-    void testCaseSensitiveTableNames() throws Exception
+    void testCaseSensitiveTableNames_withCaseSensitiveFeature_preservesCase() throws Exception
     {
         final String[] expectedNoFilter =
                 {"MixedCaseTable", "UPPER_CASE_TABLE"};
@@ -153,7 +153,7 @@ class DatabaseSequenceFilterTest
      * @throws Exception
      */
     @Test
-    void testMultiSchemaFks() throws Exception
+    void testMultiSchemaFks_withMultipleSchemas_returnsQualifiedTableNames() throws Exception
     {
         final Connection jdbcConnection =
                 H2Environment.createJdbcConnection("test");

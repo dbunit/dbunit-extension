@@ -51,7 +51,7 @@ class XlsDataFileLoaderTest
      * Test can load the specified file.
      */
     @Test
-    void testLoad() throws DataSetException
+    void testLoad_withValidXlsFile_returnsNonEmptyDataSet() throws DataSetException
     {
         final String filename = "/xml/dataSetTest.xls";
         final IDataSet ds = loader.load(filename);

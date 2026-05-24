@@ -45,7 +45,7 @@ class OracleDataTypeFactoryTest extends AbstractDataTypeFactoryTest
 
     @Override
     @Test
-    public void testCreateBlobDataType() throws Exception
+    public void testCreateBlobDataType_withBlobSqlType_returnsBlobDataType() throws Exception
     {
         final int sqlType = Types.OTHER;
         final String sqlTypeName = "BLOB";
@@ -58,7 +58,7 @@ class OracleDataTypeFactoryTest extends AbstractDataTypeFactoryTest
 
     @Override
     @Test
-    public void testCreateClobDataType() throws Exception
+    public void testCreateClobDataType_withClobSqlType_returnsClobDataType() throws Exception
     {
         final int sqlType = Types.OTHER;
         final String sqlTypeName = "CLOB";
@@ -70,7 +70,7 @@ class OracleDataTypeFactoryTest extends AbstractDataTypeFactoryTest
     }
 
     @Test
-    public void testCreateNClobDataType() throws Exception
+    public void testCreateNClobDataType_withNClobSqlTypeName_returnsNClobDataType() throws Exception
     {
         final int sqlType = Types.OTHER;
         final String sqlTypeName = "NCLOB";
@@ -82,7 +82,7 @@ class OracleDataTypeFactoryTest extends AbstractDataTypeFactoryTest
     }
 
     @Test
-    public void testCreateLongRawDataType() throws Exception
+    public void testCreateLongRawDataType_withLongRawTypeName_returnsLongVarbinaryType() throws Exception
     {
         final int sqlType = Types.LONGVARBINARY;
         final String sqlTypeName = "LONG RAW";
@@ -94,7 +94,7 @@ class OracleDataTypeFactoryTest extends AbstractDataTypeFactoryTest
     }
 
     @Test
-    public void testCreateTimestampDataType() throws Exception
+    public void testCreateTimestampDataType_withTimestampTypeName_returnsTimestampDataType() throws Exception
     {
         final int sqlType = Types.OTHER;
         final String sqlTypeName = "TIMESTAMP(6)";
@@ -107,7 +107,7 @@ class OracleDataTypeFactoryTest extends AbstractDataTypeFactoryTest
 
     @Override
     @Test
-    public void testCreateDateDataType() throws Exception
+    public void testCreateDateDataType_withDateSqlType_returnsDateDataType() throws Exception
     {
         final int sqlType = Types.DATE;
         final String sqlTypeName = "DATE";
@@ -119,7 +119,7 @@ class OracleDataTypeFactoryTest extends AbstractDataTypeFactoryTest
     }
 
     @Test
-    public void testCreateNChar2DataType() throws Exception
+    public void testCreateNChar2DataType_withNChar2TypeName_returnsCharDataType() throws Exception
     {
         final int sqlType = Types.OTHER;
         final String sqlTypeName = "NCHAR2";
@@ -131,7 +131,7 @@ class OracleDataTypeFactoryTest extends AbstractDataTypeFactoryTest
     }
 
     @Test
-    public void testCreateNVarChar2DataType() throws Exception
+    public void testCreateNVarChar2DataType_withNVarChar2TypeName_returnsVarCharDataType() throws Exception
     {
         final int sqlType = Types.OTHER;
         final String sqlTypeName = "NVARCHAR2";
@@ -143,7 +143,7 @@ class OracleDataTypeFactoryTest extends AbstractDataTypeFactoryTest
     }
 
     @Test
-    public void testCreateFloatDataType() throws Exception
+    public void testCreateFloatDataType_withFloatTypeName_returnsFloatDataType() throws Exception
     {
         final int sqlType = Types.OTHER;
         final String sqlTypeName = "FLOAT";
@@ -155,7 +155,7 @@ class OracleDataTypeFactoryTest extends AbstractDataTypeFactoryTest
     }
 
     @Test
-    public void testCreateBinaryDoubleDataType() throws Exception
+    public void testCreateBinaryDoubleDataType_withBinaryDoubleTypeName_returnsDoubleDataType() throws Exception
     {
         final int sqlType = Types.OTHER;
         final String sqlTypeName = "BINARY_DOUBLE";
@@ -167,7 +167,7 @@ class OracleDataTypeFactoryTest extends AbstractDataTypeFactoryTest
     }
 
     @Test
-    public void testCreateBinaryFloatDataType() throws Exception
+    public void testCreateBinaryFloatDataType_withBinaryFloatTypeName_returnsFloatDataType() throws Exception
     {
         final int sqlType = Types.OTHER;
         final String sqlTypeName = "BINARY_FLOAT";
@@ -179,7 +179,7 @@ class OracleDataTypeFactoryTest extends AbstractDataTypeFactoryTest
     }
 
     @Test
-    public void testCreateSdoGeometryDataType() throws Exception
+    public void testCreateSdoGeometryDataType_withSdoGeometryTypeName_returnsSdoGeometryDataType() throws Exception
     {
         final int sqlType = Types.STRUCT;
         final String sqlTypeName = "SDO_GEOMETRY";

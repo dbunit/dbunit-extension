@@ -51,7 +51,7 @@ class CsvDataFileLoaderTest
      * Test can load the specified file.
      */
     @Test
-    void testLoad() throws DataSetException
+    void testLoad_withValidCsvFile_returnsNonEmptyDataSet() throws DataSetException
     {
         final String filename = "/csv/orders/orders_row.csv";
         final IDataSet ds = loader.load(filename);

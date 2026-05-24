@@ -65,7 +65,7 @@ class DeleteAllOperationIT extends AbstractDatabaseIT
     }
 
     @Test
-    void testExecute() throws Exception
+    void testExecute_withPopulatedDatabase_deletesAllRows() throws Exception
     {
         final IDataSet databaseDataSet = _connection.createDataSet();
         final IDataSet dataSet =
@@ -75,7 +75,7 @@ class DeleteAllOperationIT extends AbstractDatabaseIT
     }
 
     @Test
-    void testExecuteEmpty() throws Exception
+    void testExecute_withEmptyTableDataSet_deletesAllRows() throws Exception
     {
         final IDataSet databaseDataSet = _connection.createDataSet();
         final IDataSet dataSet =
@@ -85,7 +85,7 @@ class DeleteAllOperationIT extends AbstractDatabaseIT
     }
 
     @Test
-    void testExecuteCaseInsentive() throws Exception
+    void testExecute_withLowerCaseDataSet_deletesAllRows() throws Exception
     {
         final IDataSet dataSet = AbstractDataSetTest
                 .removeExtraTestTables(_connection.createDataSet());
@@ -133,7 +133,7 @@ class DeleteAllOperationIT extends AbstractDatabaseIT
     }
 
     @Test
-    void testExecuteWithEmptyDataset() throws Exception
+    void testExecute_withEmptyDataset_completesWithoutError() throws Exception
     {
         getDeleteAllOperation().execute(_connection,
                 new DefaultDataSet(new ITable[0]));

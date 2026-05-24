@@ -23,7 +23,7 @@ public class MsSqlDataTypeFactoryTest
     }
 
     @Test
-    void testCreateCharDataType() throws Exception
+    void testCreateCharDataType_withNcharSqlType_returnsCharDataType() throws Exception
     {
         final int sqlType = MsSqlDataTypeFactory.NCHAR;
         final String sqlTypeName = "nchar";
@@ -35,7 +35,7 @@ public class MsSqlDataTypeFactoryTest
     }
 
     @Test
-    void testCreateVarcharDataType() throws Exception
+    void testCreateVarcharDataType_withNvarcharSqlType_returnsVarcharDataType() throws Exception
     {
         final int sqlType = MsSqlDataTypeFactory.NVARCHAR;
         final String sqlTypeName = "nvarchar";
@@ -47,7 +47,7 @@ public class MsSqlDataTypeFactoryTest
     }
 
     @Test
-    void testCreateLongVarcharDataTypeFromNtext() throws Exception
+    void testCreateLongVarcharDataTypeFromNtext_withNtextSqlType_returnsLongVarcharDataType() throws Exception
     {
         final int sqlType = MsSqlDataTypeFactory.NTEXT;
         final String sqlTypeName = "ntext";
@@ -59,7 +59,7 @@ public class MsSqlDataTypeFactoryTest
     }
 
     @Test
-    void testCreateLongVarcharDataTypeFromNtextMsSql2005() throws Exception
+    void testCreateLongVarcharDataTypeFromNtextMsSql2005_withMsSql2005NtextType_returnsLongVarcharDataType() throws Exception
     {
         final int sqlType = MsSqlDataTypeFactory.NTEXT_MSSQL_2005;
         final String sqlTypeName = "ntext";
@@ -71,7 +71,7 @@ public class MsSqlDataTypeFactoryTest
     }
 
     @Test
-    void testCreateUniqueIdentifierType() throws Exception
+    void testCreateUniqueIdentifierType_withUniqueIdentifierTypeName_returnsUniqueIdentifierTypeInstance() throws Exception
     {
         final int sqlType = Types.CHAR;
         final String sqlTypeName = UniqueIdentifierType.UNIQUE_IDENTIFIER_TYPE;
@@ -82,7 +82,7 @@ public class MsSqlDataTypeFactoryTest
     }
 
     @Test
-    void testCreateDateTimeOffsetType() throws Exception
+    void testCreateDateTimeOffsetType_withDateTimeOffsetTypeName_returnsDateTimeOffsetTypeInstance() throws Exception
     {
         final int sqlType = DateTimeOffsetType.TYPE;
         final String sqlTypeName = "datetimeoffset";

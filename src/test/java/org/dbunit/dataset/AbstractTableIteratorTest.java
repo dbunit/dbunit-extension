@@ -38,7 +38,7 @@ public abstract class AbstractTableIteratorTest extends AbstractTest
     protected abstract ITableIterator getEmptyIterator() throws Exception;
 
     @Test
-    void testNext() throws Exception
+    void testNext_withIterator_iteratesAllTables() throws Exception
     {
         int count = 0;
         final String[] names = getExpectedNames();
@@ -51,7 +51,7 @@ public abstract class AbstractTableIteratorTest extends AbstractTest
     }
 
     @Test
-    void testNextAndEmpty() throws Exception
+    void testNextAndEmpty_withEmptyIterator_iteratesZeroTables() throws Exception
     {
         int count = 0;
         final ITableIterator iterator = getEmptyIterator();
@@ -63,7 +63,7 @@ public abstract class AbstractTableIteratorTest extends AbstractTest
     }
 
     @Test
-    void testGetTableMetaData() throws Exception
+    void testGetTableMetaData_withIterator_returnsCorrectTableNamesInOrder() throws Exception
     {
         int i = 0;
         final String[] names = getExpectedNames();
@@ -78,7 +78,7 @@ public abstract class AbstractTableIteratorTest extends AbstractTest
     }
 
     @Test
-    void testGetTableMetaDataBeforeNext() throws Exception
+    void testGetTableMetaDataBeforeNext_beforeCallingNext_throwsIndexOutOfBoundsException() throws Exception
     {
         final ITableIterator iterator = getIterator();
         assertThrows(IndexOutOfBoundsException.class,
@@ -98,7 +98,7 @@ public abstract class AbstractTableIteratorTest extends AbstractTest
     }
 
     @Test
-    void testGetTableMetaDataAfterLastNext() throws Exception
+    void testGetTableMetaDataAfterLastNext_afterIterationComplete_throwsIndexOutOfBoundsException() throws Exception
     {
         int count = 0;
         final String[] names = getExpectedNames();
@@ -116,7 +116,7 @@ public abstract class AbstractTableIteratorTest extends AbstractTest
     }
 
     @Test
-    void testGetTable() throws Exception
+    void testGetTable_withIterator_returnsTableWithCorrectName() throws Exception
     {
         int i = 0;
         final String[] names = getExpectedNames();

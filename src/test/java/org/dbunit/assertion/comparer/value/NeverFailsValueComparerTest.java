@@ -45,7 +45,7 @@ class NeverFailsValueComparerTest
     }
 
     @Test
-    void testGetFailPhrase()
+    void testGetFailPhrase_returnsEmptyStringForNeverFails()
     {
         final String actual = sut.getFailPhrase();
 

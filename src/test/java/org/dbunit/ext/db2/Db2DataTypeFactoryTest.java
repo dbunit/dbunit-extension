@@ -44,7 +44,7 @@ public class Db2DataTypeFactoryTest extends AbstractDataTypeFactoryTest
     }
 
     @Test
-    void testCreateXmlVarcharDataType() throws Exception
+    void testCreateXmlVarcharDataType_withXmlVarcharTypeName_returnsXmlVarcharDataType() throws Exception
     {
         final DataType expected = Db2DataTypeFactory.DB2XML_XMLVARCHAR;
         final int sqlType = Types.DISTINCT;
@@ -56,7 +56,7 @@ public class Db2DataTypeFactoryTest extends AbstractDataTypeFactoryTest
     }
 
     @Test
-    void testCreateXmlClobDataType() throws Exception
+    void testCreateXmlClobDataType_withXmlClobTypeName_returnsXmlClobDataType() throws Exception
     {
         final DataType expected = Db2DataTypeFactory.DB2XML_XMLCLOB;
         final int sqlType = Types.DISTINCT;
@@ -68,7 +68,7 @@ public class Db2DataTypeFactoryTest extends AbstractDataTypeFactoryTest
     }
 
     @Test
-    void testCreateXmlFileDataType() throws Exception
+    void testCreateXmlFileDataType_withXmlFileTypeName_returnsXmlFileDataType() throws Exception
     {
         final DataType expected = Db2DataTypeFactory.DB2XML_XMLFILE;
         final int sqlType = Types.DISTINCT;

@@ -41,14 +41,14 @@ public class BitDataTypeTest extends BooleanDataTypeTest
      */
     @Override
     @Test
-    public void testToString() throws Exception
+    public void testToString_withDataType_returnsExpectedString() throws Exception
     {
         assertThat(THIS_TYPE).as("name").hasToString("BIT");
     }
 
     @Override
     @Test
-    public void testSqlType() throws Exception
+    public void testSqlType_returnsExpectedSqlType() throws Exception
     {
 
         assertThat(DataType.forSqlType(Types.BIT)).as("forSqlType")

@@ -44,7 +44,7 @@ class EnforceHandlerTest
     Pipeline pipeline;
 
     @Test
-    void testOwnAnEnforcedHandler()
+    void testOwnAnEnforcedHandler_withEnforcedComponent_sharesTheSamePipeline()
     {
         final PipelineComponent enforced = AllHandler.ACCEPT();
         final EnforceHandler enforceHandler =
@@ -58,7 +58,7 @@ class EnforceHandlerTest
     }
 
     @Test
-    void testThrowExceptionWhenEnforcedDoesNotHandle(
+    void testThrowExceptionWhenEnforcedDoesNotHandle_withComponentThrowingException_propagatesException(
             @Mock final PipelineComponent component)
             throws PipelineException, IllegalInputCharacterException
     {
@@ -76,7 +76,7 @@ class EnforceHandlerTest
     }
 
     @Test
-    void testDontRemoveItselfOnException(
+    void testDontRemoveItselfOnException_whenEnforcedThrowsException_remainsInPipeline(
             @Mock final PipelineComponent component)
             throws PipelineException, IllegalInputCharacterException
     {
@@ -97,7 +97,7 @@ class EnforceHandlerTest
     }
 
     @Test
-    void testRemoveItselfAfterEnforcing()
+    void testRemoveItselfAfterEnforcing_afterEnforcedComponentHandles_removesItselfFromPipeline()
             throws PipelineException, IllegalInputCharacterException
     {
         final PipelineComponent enforceHandler =
@@ -111,7 +111,7 @@ class EnforceHandlerTest
     }
 
     @Test
-    void testEnforceOneBetweenMany()
+    void testEnforceOneBetweenMany_withMultipleComponents_enforcesFirstMatch()
             throws PipelineException, IllegalInputCharacterException
     {
         final PipelineComponent pass = SeparatorHandler.ACCEPT();

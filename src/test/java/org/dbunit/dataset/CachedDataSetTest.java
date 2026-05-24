@@ -48,9 +48,9 @@ class CachedDataSetTest extends AbstractDataSetDecoratorTest
     }
 
     @Override
-    public void testGetTable() throws Exception
+    public void testGetTable_withKnownTableName_returnsTable() throws Exception
     {
-        super.testGetTable();
+        super.testGetTable_withKnownTableName_returnsTable();
     }
 
     /**
@@ -60,7 +60,7 @@ class CachedDataSetTest extends AbstractDataSetDecoratorTest
      * test this constructor.
      */
     @Test
-    void testCachedDataSetDataSetConstructor() throws Exception
+    void testCachedDataSetDataSetConstructor_withDataSetInput_cachesAllTables() throws Exception
     {
         final IDataSet cachedDataSetCreatedByProducer = createDataSet();
 

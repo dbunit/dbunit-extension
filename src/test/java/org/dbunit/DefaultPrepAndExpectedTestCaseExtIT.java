@@ -58,7 +58,7 @@ class DefaultPrepAndExpectedTestCaseExtIT extends DefaultPrepAndExpectedTestCase
     }
 
     @Test
-    void testSuccessRun() throws Exception
+    void testSuccessRun_withMatchingPrepAndExpectedFiles_doesNotThrowException() throws Exception
     {
         final String[] prepDataFiles = {PREP_DATA_FILE_NAME};
         final String[] expectedDataFiles = {PREP_DATA_FILE_NAME};
@@ -89,7 +89,7 @@ class DefaultPrepAndExpectedTestCaseExtIT extends DefaultPrepAndExpectedTestCase
     }
 
     @Test
-    void testFailRun() throws Exception
+    void testFailRun_withMismatchedExpectedFile_throwsDbComparisonFailure() throws Exception
     {
         final String[] prepDataFiles = {PREP_DATA_FILE_NAME};
         final String[] expectedDataFiles = {EXP_DATA_FILE_NAME};

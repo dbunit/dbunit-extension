@@ -77,7 +77,7 @@ class XmlTableWriteTest extends XmlTableTest
     }
 
     @Test
-    void testWriteMultipleTable() throws Exception
+    void testWriteMultipleTable_withFiveTablesWrittenAndReloaded_tablesMatchOriginals() throws Exception
     {
         final int tableCount = 5;
         final ITable sourceTable = super.createTable();

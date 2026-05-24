@@ -64,7 +64,7 @@ class CsvParserTest
      */
 
     @Test
-    void testCanParseNonQuotedStrings()
+    void testCanParseNonQuotedStrings_withCommaSeparatedInput_returnsTwoTokens()
             throws PipelineException, IllegalInputCharacterException
     {
         final String csv = "Hello, world";
@@ -75,7 +75,7 @@ class CsvParserTest
     }
 
     @Test
-    void testAFieldCanContainANewLine()
+    void testAFieldCanContainANewLine_withNewlineInInput_returnsThreeTokens()
             throws PipelineException, IllegalInputCharacterException
     {
         assertThat(parser
@@ -84,7 +84,7 @@ class CsvParserTest
     }
 
     @Test
-    void testDontAcceptIncompleteFields()
+    void testDontAcceptIncompleteFields_withUnclosedQuotedField_throwsIllegalStateException()
             throws PipelineException, IllegalInputCharacterException
     {
         final String incompleteFields = "AAAAA,\"BB";
@@ -95,7 +95,7 @@ class CsvParserTest
     }
 
     @Test
-    void testAFileCanContainFieldWithNewLine()
+    void testAFileCanContainFieldWithNewLine_withFileContainingNewlines_parsesTwoRows()
             throws IOException, CsvParserException
     {
         final String pathname = "csv/with-newlines.csv";
@@ -108,13 +108,13 @@ class CsvParserTest
     }
 
     @Test
-    void testRaiseACSVParserExceptonWhenParsingAnEmptyFile() throws IOException
+    void testRaiseACSVParserExceptonWhenParsingAnEmptyFile_withEmptyFile_throwsCsvParserException() throws IOException
     {
         failParsing(TestUtils.getFile("csv/empty-file.csv"));
     }
 
     @Test
-    void testRaiseACSVParserExceptonWhenParsingFileWithDifferentNumberOfColumns()
+    void testRaiseACSVParserExceptonWhenParsingFileWithDifferentNumberOfColumns_withInconsistentColumnCount_throwsCsvParserException()
             throws IllegalInputCharacterException, IOException,
             PipelineException
     {
@@ -136,7 +136,7 @@ class CsvParserTest
     }
 
     @Test
-    void testSample() throws Exception
+    void testSample_withSampleCsvFile_parsesThreeTokensPerLine() throws Exception
     {
 
         final File sample = TestUtils.getFile("csv/sample.csv");
@@ -158,7 +158,7 @@ class CsvParserTest
     }
 
     @Test
-    void testWhitespacePreservedOnQuotedStrings()
+    void testWhitespacePreservedOnQuotedStrings_withQuotedWhitespace_preservesWhitespaceInsideQuotes()
             throws PipelineException, IllegalInputCharacterException
     {
         String csv = "\" Hello, \",world";

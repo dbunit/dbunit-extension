@@ -65,14 +65,14 @@ public abstract class AbstractTableTest
     ////////////////////////////////////////////////////////////////////////////
     // Test methods
     @Test
-    void testGetRowCount() throws Exception
+    void testGetRowCount_withSixRowTable_returnsRowCount() throws Exception
     {
         assertThat(createTable().getRowCount()).as("row count")
                 .isEqualTo(ROW_COUNT);
     }
 
     @Test
-    void testTableMetaData() throws Exception
+    void testTableMetaData_withFourColumns_returnsColumnMetaData() throws Exception
     {
         final Column[] columns = createTable().getTableMetaData().getColumns();
         assertThat(columns).as("column count").hasSize(COLUMN_COUNT);
@@ -85,7 +85,7 @@ public abstract class AbstractTableTest
     }
 
     @Test
-    protected void testGetValue() throws Exception
+    protected void testGetValue_withValidRowAndColumn_returnsExpectedValue() throws Exception
     {
         final ITable table = createTable();
         for (int i = 0; i < ROW_COUNT; i++)
@@ -101,7 +101,7 @@ public abstract class AbstractTableTest
     }
 
     @Test
-    void testGetValueCaseInsensitive() throws Exception
+    void testGetValueCaseInsensitive_withMixedCaseColumnName_returnsValue() throws Exception
     {
         final ITable table = createTable();
         for (int i = 0; i < ROW_COUNT; i++)
@@ -116,10 +116,10 @@ public abstract class AbstractTableTest
         }
     }
 
-    public abstract void testGetMissingValue() throws Exception;
+    public abstract void testGetMissingValue_withMissingCells_returnsExpectedValues() throws Exception;
 
     @Test
-    void testGetValueRowBounds() throws Exception
+    void testGetValueRowBounds_withOutOfBoundsRow_throwsRowOutOfBoundsException() throws Exception
     {
         final int[] rows =
                 new int[] {-2, -1, -ROW_COUNT, ROW_COUNT, ROW_COUNT + 1};
@@ -137,7 +137,7 @@ public abstract class AbstractTableTest
     }
 
     @Test
-    void testGetValueAndNoSuchColumn() throws Exception
+    void testGetValueAndNoSuchColumn_withUnknownColumn_throwsNoSuchColumnException() throws Exception
     {
         final ITable table = createTable();
         final String columnName = "Unknown";

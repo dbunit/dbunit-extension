@@ -59,7 +59,7 @@ class InsertIdentityOperationIT extends AbstractDatabaseIT
     }
 
     @Test
-    void testExecuteXML() throws Exception
+    void testExecuteXML_withXmlDataSet_insertsIdentityRows() throws Exception
     {
         final Reader in =
                 TestUtils.getFileReader("xml/insertIdentityOperationTest.xml");
@@ -69,7 +69,7 @@ class InsertIdentityOperationIT extends AbstractDatabaseIT
     }
 
     @Test
-    void testExecuteFlatXML() throws Exception
+    void testExecute_withFlatXmlDataSet_insertsIdentityRows() throws Exception
     {
         final Reader in = TestUtils
                 .getFileReader("xml/insertIdentityOperationTestFlat.xml");
@@ -79,7 +79,7 @@ class InsertIdentityOperationIT extends AbstractDatabaseIT
     }
 
     @Test
-    void testExecuteLowerCase() throws Exception
+    void testExecute_withLowerCaseDataSet_insertsIdentityRows() throws Exception
     {
         final Reader in = TestUtils
                 .getFileReader("xml/insertIdentityOperationTestFlat.xml");
@@ -90,7 +90,7 @@ class InsertIdentityOperationIT extends AbstractDatabaseIT
     }
 
     @Test
-    void testExecuteForwardOnly() throws Exception
+    void testExecute_withForwardOnlyDataSet_insertsIdentityRows() throws Exception
     {
         final Reader in = TestUtils
                 .getFileReader("xml/insertIdentityOperationTestFlat.xml");

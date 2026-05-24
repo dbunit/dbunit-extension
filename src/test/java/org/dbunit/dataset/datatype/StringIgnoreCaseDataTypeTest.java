@@ -36,7 +36,7 @@ class StringIgnoreCaseDataTypeTest
 {
 
     @Test
-    void testCompareIgnoreCase() throws Exception
+    void testCompareIgnoreCase_withMixedCaseValues_returnsZero() throws Exception
     {
         final StringIgnoreCaseDataType type =
                 new StringIgnoreCaseDataType("VARCHAR", Types.VARCHAR);

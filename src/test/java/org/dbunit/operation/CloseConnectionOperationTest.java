@@ -48,7 +48,7 @@ class CloseConnectionOperationTest
     private DatabaseOperation operation;
 
     @Test
-    void testMockExecute() throws Exception
+    void testExecute_withMockDelegate_delegateCalledAndConnectionClosed() throws Exception
     {
         new CloseConnectionOperation(operation).execute(connection, null);
         verify(operation, times(1)).execute(any(), any());

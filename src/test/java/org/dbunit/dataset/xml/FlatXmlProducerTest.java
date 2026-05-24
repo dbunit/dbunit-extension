@@ -59,7 +59,7 @@ class FlatXmlProducerTest extends AbstractProducerTest
     }
 
     @Test
-    void testProduceEmptyDataSet() throws Exception
+    void testProduceEmptyDataSet_withEmptyDatasetXml_producesStartAndEndDataSetOnly() throws Exception
     {
         // Setup consumer
         final MockDataSetConsumer consumer = new MockDataSetConsumer();
@@ -78,7 +78,7 @@ class FlatXmlProducerTest extends AbstractProducerTest
     }
 
     @Test
-    void testProduceNoDtd() throws Exception
+    void testProduceNoDtd_withXmlHavingNoColumnsInDtd_producesEmptyTableWithNoColumns() throws Exception
     {
         // Setup consumer
         final String tableName = "EMPTY_TABLE";
@@ -101,7 +101,7 @@ class FlatXmlProducerTest extends AbstractProducerTest
     }
 
     @Test
-    void testProduceIgnoreDtd() throws Exception
+    void testProduceIgnoreDtd_withDtdInXmlButIgnoreDtdFalse_producesEmptyTableWithNoColumns() throws Exception
     {
         // Setup consumer
         final String tableName = "EMPTY_TABLE";
@@ -125,7 +125,7 @@ class FlatXmlProducerTest extends AbstractProducerTest
     }
 
     @Test
-    void testProduceMetaDataSet() throws Exception
+    void testProduceMetaDataSet_withMetaDataSetProvided_usesMetaDataSetColumnsForEmptyTable() throws Exception
     {
         // Setup consumer
         final String tableName = "EMPTY_TABLE";
@@ -152,7 +152,7 @@ class FlatXmlProducerTest extends AbstractProducerTest
     }
 
     @Test
-    void testProduceCustomEntityResolver() throws Exception
+    void testProduceCustomEntityResolver_withCustomEntityResolver_usesResolverToLoadDtd() throws Exception
     {
         // Setup consumer
         final String tableName = "EMPTY_TABLE";
@@ -193,7 +193,7 @@ class FlatXmlProducerTest extends AbstractProducerTest
     }
 
     @Test
-    void testProduceNotWellFormedXml() throws Exception
+    void testProduceNotWellFormedXml_withUnclosedDatasetTag_throwsDataSetException() throws Exception
     {
         // Setup consumer
         final MockDataSetConsumer consumer = new MockDataSetConsumer();

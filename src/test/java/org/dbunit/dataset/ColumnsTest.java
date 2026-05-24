@@ -36,7 +36,7 @@ class ColumnsTest
 {
 
     @Test
-    void testGetColumn() throws Exception
+    void testGetColumn_withColumnName_returnsMatchingColumn() throws Exception
     {
         final Column[] columns =
                 new Column[] {new Column("c0", DataType.UNKNOWN),
@@ -53,7 +53,7 @@ class ColumnsTest
     }
 
     @Test
-    void testGetColumnCaseInsensitive() throws Exception
+    void testGetColumnCaseInsensitive_withMixedCaseName_returnsMatchingColumn() throws Exception
     {
         final Column[] columns =
                 new Column[] {new Column("c0", DataType.UNKNOWN),
@@ -70,7 +70,7 @@ class ColumnsTest
     }
 
     @Test
-    void testGetColumnValidated() throws Exception
+    void testGetColumnValidated_withValidColumnName_returnsColumn() throws Exception
     {
         final Column[] columns =
                 new Column[] {new Column("c0", DataType.UNKNOWN),
@@ -84,7 +84,7 @@ class ColumnsTest
     }
 
     @Test
-    void testGetColumnValidatedColumnNotFound() throws Exception
+    void testGetColumnValidatedColumnNotFound_withUnknownColumnName_throwsNoSuchColumnException() throws Exception
     {
         final Column[] columns =
                 new Column[] {new Column("c0", DataType.UNKNOWN),

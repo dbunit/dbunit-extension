@@ -75,7 +75,7 @@ class FlatXmlTableWriteTest extends FlatXmlTableTest
     }
 
     @Test
-    void testWriteMultipleTable() throws Exception
+    void testWriteMultipleTable_withFiveTables_writesAndVerifiesAllTables() throws Exception
     {
         final int tableCount = 5;
         final ITable sourceTable = super.createTable();

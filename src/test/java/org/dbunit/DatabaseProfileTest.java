@@ -35,7 +35,7 @@ class DatabaseProfileTest
 {
 
     @Test
-    void testPropertyUnsupportedFeaturesIsMissing() throws Exception
+    void testGetUnsupportedFeatures_withMissingProperty_returnsEmptyArray() throws Exception
     {
         final Properties props = new Properties();
         final DatabaseProfile profile = new DatabaseProfile(props);

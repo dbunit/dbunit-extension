@@ -38,7 +38,7 @@ class ImportedAndExportedKeysFilteredByPKsTest
     }
 
     @Test
-    void testBWithOne() throws DataSetException, SQLException, SearchException
+    void testBWithOne_withTableBAndOnePk_returnsAllRelatedTables() throws DataSetException, SQLException, SearchException
     {
         addInput(B, new String[] {B1});
         addOutput(A, new String[] {A1, A2});
@@ -53,7 +53,7 @@ class ImportedAndExportedKeysFilteredByPKsTest
     }
 
     @Test
-    void testBWithRepeated()
+    void testBWithRepeated_withDuplicatePkInputs_returnsDeduplicatedOutput()
             throws DataSetException, SQLException, SearchException
     {
         addInput(B, new String[] {B1, B4, B3, B2, B1, B1, B8, B7});
@@ -69,7 +69,7 @@ class ImportedAndExportedKeysFilteredByPKsTest
     }
 
     @Test
-    void testBWithAllRepeated()
+    void testBWithAllRepeated_withAllPksRepeated_returnsAllTablesDeduplicatedOutput()
             throws DataSetException, SQLException, SearchException
     {
         addInput(B, new String[] {B1, B4, B3, B2, B1, B1, B1, B6, B6, B1, B5,
@@ -79,7 +79,7 @@ class ImportedAndExportedKeysFilteredByPKsTest
     }
 
     @Test
-    void testDWithOne() throws DataSetException, SQLException, SearchException
+    void testDWithOne_withTableDAndOnePkAndTableBAndOnePk_returnsAllRelatedTables() throws DataSetException, SQLException, SearchException
     {
         addInput(D, new String[] {D1});
         addInput(B, new String[] {B1});
@@ -95,7 +95,7 @@ class ImportedAndExportedKeysFilteredByPKsTest
     }
 
     @Test
-    void testDWithTwo() throws DataSetException, SQLException, SearchException
+    void testDWithTwo_withTableDAndTwoPks_returnsAllTables() throws DataSetException, SQLException, SearchException
     {
         addInput(D, new String[] {D1, D2});
         addAllOutput();
@@ -103,7 +103,7 @@ class ImportedAndExportedKeysFilteredByPKsTest
     }
 
     @Test
-    void testDWithRepeated()
+    void testDWithRepeated_withDuplicatePkInputs_returnsDeduplicatedOutput()
             throws DataSetException, SQLException, SearchException
     {
         addInput(D, new String[] {D1, D2, D2, D1, D1, D1, D2, D2});

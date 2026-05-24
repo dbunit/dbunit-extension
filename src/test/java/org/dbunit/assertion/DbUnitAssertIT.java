@@ -68,7 +68,7 @@ public class DbUnitAssertIT
     // Test methods
 
     @Test
-    void testAssertTablesEquals() throws Exception
+    void testAssertTablesEquals_withSameValueTable_assertsSuccessfully() throws Exception
     {
         final IDataSet dataSet = getDataSet();
         assertion.assertEquals(dataSet.getTable("TEST_TABLE"),
@@ -77,7 +77,7 @@ public class DbUnitAssertIT
     }
 
     @Test
-    void testAssertTablesEmtpyEquals() throws Exception
+    void testAssertTablesEmtpyEquals_withTwoEmptyDataSets_assertsSuccessfully() throws Exception
     {
         final IDataSet empty1 = new XmlDataSet(
                 TestUtils.getFileReader("xml/assertionTest-empty1.xml"));
@@ -87,7 +87,7 @@ public class DbUnitAssertIT
     }
 
     @Test
-    void testAssertTablesEqualsColumnNamesCaseInsensitive() throws Exception
+    void testAssertTablesEqualsColumnNamesCaseInsensitive_withDifferentCaseColumnNames_assertsSuccessfully() throws Exception
     {
         final IDataSet dataSet = getDataSet();
         assertion.assertEquals(dataSet.getTable("TEST_TABLE"),
@@ -95,7 +95,7 @@ public class DbUnitAssertIT
     }
 
     @Test
-    void testAssertTablesAndNamesNotEquals() throws Exception
+    void testAssertTablesAndNamesNotEquals_withDifferentTableNames_assertsSuccessfully() throws Exception
     {
         final IDataSet dataSet = getDataSet();
         assertion.assertEquals(dataSet.getTable("TEST_TABLE"),
@@ -103,7 +103,7 @@ public class DbUnitAssertIT
     }
 
     @Test
-    void testAssertTablesAndColumnCountNotEquals() throws Exception
+    void testAssertTablesAndColumnCountNotEquals_withDifferentColumnCount_throwsDbComparisonFailure() throws Exception
     {
         final IDataSet dataSet = getDataSet();
         final ITable testTable = dataSet.getTable("TEST_TABLE");
@@ -120,7 +120,7 @@ public class DbUnitAssertIT
     }
 
     @Test
-    void testAssertTablesAndColumnSequenceNotEquals() throws Exception
+    void testAssertTablesAndColumnSequenceNotEquals_withDifferentColumnOrder_assertsSuccessfully() throws Exception
     {
         final IDataSet dataSet = getDataSet();
 
@@ -129,7 +129,7 @@ public class DbUnitAssertIT
     }
 
     @Test
-    void testAssertTablesAndColumnNamesNotEquals() throws Exception
+    void testAssertTablesAndColumnNamesNotEquals_withDifferentColumnNames_throwsDbComparisonFailure() throws Exception
     {
         final IDataSet dataSet = getDataSet();
         final ITable testTable = dataSet.getTable("TEST_TABLE");
@@ -148,7 +148,7 @@ public class DbUnitAssertIT
     }
 
     @Test
-    void testAssertTablesAndRowCountNotEquals() throws Exception
+    void testAssertTablesAndRowCountNotEquals_withDifferentRowCount_throwsDbComparisonFailure() throws Exception
     {
         final IDataSet dataSet = getDataSet();
         final ITable testTable = dataSet.getTable("TEST_TABLE");
@@ -164,7 +164,7 @@ public class DbUnitAssertIT
     }
 
     @Test
-    void testAssertTablesAndValuesNotEquals() throws Exception
+    void testAssertTablesAndValuesNotEquals_withWrongValue_throwsDbComparisonFailure() throws Exception
     {
         final IDataSet dataSet = getDataSet();
 
@@ -183,7 +183,7 @@ public class DbUnitAssertIT
     }
 
     @Test
-    void testAssertTablesWithColFilterAndValuesNotEqualExcluded()
+    void testAssertTablesWithColFilter_withWrongValueColumnExcluded_assertsSuccessfully()
             throws Exception
     {
         final IDataSet dataSet = getDataSet();
@@ -197,7 +197,7 @@ public class DbUnitAssertIT
     }
 
     @Test
-    void testAssertTablesWithColFilterAndValuesNotEqualNotExcluded()
+    void testAssertTablesWithColFilter_withWrongValueColumnNotExcluded_throwsDbComparisonFailure()
             throws Exception
     {
         final IDataSet dataSet = getDataSet();
@@ -246,7 +246,7 @@ public class DbUnitAssertIT
     }
 
     @Test
-    void testAssertTablesEqualsAndIncompatibleDataType() throws Exception
+    void testAssertTablesEqualsAndIncompatibleDataType_withBooleanVsVarchar_throwsDbComparisonFailure() throws Exception
     {
         final String tableName = "TABLE_NAME";
 
@@ -277,7 +277,7 @@ public class DbUnitAssertIT
     }
 
     @Test
-    void testAssertTablesByQueryWithColFilterAndValuesNotEqualExcluded()
+    void testAssertTablesByQueryWithColFilter_withWrongValueColumnExcluded_assertsSuccessfully()
             throws Exception
     {
         final DatabaseEnvironment env = DatabaseEnvironment.getInstance();
@@ -301,7 +301,7 @@ public class DbUnitAssertIT
     }
 
     @Test
-    void testAssertTablesByQueryWithColFilterAndValuesNotEqualNotExcluded()
+    void testAssertTablesByQueryWithColFilter_withWrongValueColumnNotExcluded_throwsDbComparisonFailure()
             throws Exception
     {
         final DatabaseEnvironment env = DatabaseEnvironment.getInstance();
@@ -334,7 +334,7 @@ public class DbUnitAssertIT
     }
 
     @Test
-    void testAssertTablesEqualsAndCompatibleDataType() throws Exception
+    void testAssertTablesEqualsAndCompatibleDataType_withUnknownVsCompatibleTypes_assertsSuccessfully() throws Exception
     {
         final String tableName = "TABLE_NAME";
         final java.sql.Timestamp now =
@@ -368,7 +368,7 @@ public class DbUnitAssertIT
     }
 
     @Test
-    void testAssertDataSetsEquals() throws Exception
+    void testAssertDataSetsEquals_withReorderedTableNames_assertsSuccessfully() throws Exception
     {
         final IDataSet dataSet1 = getDataSet();
 
@@ -382,7 +382,7 @@ public class DbUnitAssertIT
     }
 
     @Test
-    void testAssertDataSetsEqualsTableNamesCaseInsensitive() throws Exception
+    void testAssertDataSetsEqualsTableNamesCaseInsensitive_withLowerCaseTableNames_assertsSuccessfully() throws Exception
     {
         final IDataSet dataSet1 = getDataSet();
 
@@ -400,7 +400,7 @@ public class DbUnitAssertIT
     }
 
     @Test
-    void testAssertDataSetsTableNamesCaseSensitiveNotEquals() throws Exception
+    void testAssertDataSetsTableNamesCaseSensitiveNotEquals_withCaseSensitiveDifferentCaseNames_throwsDbComparisonFailure() throws Exception
     {
         final IDataSet dataSet1 = new FlatXmlDataSetBuilder()
                 .setCaseSensitiveTableNames(true).build(TestUtils.getFileReader(
@@ -420,7 +420,7 @@ public class DbUnitAssertIT
     }
 
     @Test
-    void testAssertDataSetsTableNamesCaseSensitiveWithLowerCaseEquals()
+    void testAssertDataSetsTableNamesCaseSensitiveWithLowerCaseEquals_withCaseSensitiveSameNames_assertsSuccessfully()
             throws Exception
     {
         final IDataSet dataSet1 = new FlatXmlDataSetBuilder()
@@ -435,7 +435,7 @@ public class DbUnitAssertIT
     }
 
     @Test
-    void testAssertDataSetsAndTableCountNotEquals() throws Exception
+    void testAssertDataSetsAndTableCountNotEquals_withFewerTablesInActual_throwsDbComparisonFailure() throws Exception
     {
         final IDataSet dataSet1 = getDataSet();
 
@@ -456,7 +456,7 @@ public class DbUnitAssertIT
     }
 
     @Test
-    void testAssertDataSetsAndTableNamesNotEquals() throws Exception
+    void testAssertDataSetsAndTableNamesNotEquals_withReversedTableNames_throwsDbComparisonFailure() throws Exception
     {
         final IDataSet dataSet1 = getDataSet();
 
@@ -483,7 +483,7 @@ public class DbUnitAssertIT
     }
 
     @Test
-    void testAssertDataSetsAndTablesNotEquals() throws Exception
+    void testAssertDataSetsAndTablesNotEquals_withDoubledRowCounts_throwsDbComparisonFailure() throws Exception
     {
         final IDataSet dataSet1 = getDataSet();
 
@@ -505,7 +505,7 @@ public class DbUnitAssertIT
     }
 
     @Test
-    void testAssertDataSetsWithFailureHandler() throws Exception
+    void testAssertDataSetsWithFailureHandler_withMismatchedValues_collectsTwoDifferences() throws Exception
     {
         final DiffCollectingFailureHandler fh =
                 new DiffCollectingFailureHandler();

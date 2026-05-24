@@ -43,7 +43,7 @@ class PipelineTest
     Pipeline line;
 
     @Test
-    void testRemovingTheLastHandlerThrowsException()
+    void testRemovingTheLastHandlerThrowsException_whenRemovingFromEmptyPipeline_throwsPipelineException()
     {
         line.removeFront();
         assertThrows(PipelineException.class, () -> {
@@ -52,7 +52,7 @@ class PipelineTest
     }
 
     @Test
-    void testAnHandlerCanBeAddedInFront() throws PipelineException
+    void testAnHandlerCanBeAddedInFront_withHandlerAddedToFront_isReturnedOnRemove() throws PipelineException
     {
         final PipelineComponent handler = SeparatorHandler.ACCEPT();
         line.putFront(handler);
@@ -61,7 +61,7 @@ class PipelineTest
     }
 
     @Test
-    void testTheFrontHandlerIsThereAfterAddingAndRemovingAnother()
+    void testTheFrontHandlerIsThereAfterAddingAndRemovingAnother_withTwoHandlers_returnsLIFOOrder()
             throws PipelineException
     {
         final PipelineComponent handler = SeparatorHandler.ACCEPT();
@@ -73,7 +73,7 @@ class PipelineTest
     }
 
     @Test
-    void testEachHandlerIsCalled(@Mock final PipelineComponent component,
+    void testEachHandlerIsCalled_withTwoHandlers_callsEachHandlerInOrder(@Mock final PipelineComponent component,
             @Mock final PipelineComponent component2)
             throws IllegalInputCharacterException, PipelineException
     {
@@ -94,7 +94,7 @@ class PipelineTest
     }
 
     @Test
-    void testWhenAPieceIsDoneIsAddedToProducts()
+    void testWhenAPieceIsDoneIsAddedToProducts_afterPieceIsDone_addsToProductsList()
             throws IllegalInputCharacterException, PipelineException
     {
         final PipelineComponent c = AllHandler.ACCEPT();
@@ -106,7 +106,7 @@ class PipelineTest
     }
 
     @Test
-    void testWhetAPieceIsDoneANewOneIsCreated()
+    void testWhetAPieceIsDoneANewOneIsCreated_afterPieceIsDone_startsNewEmptyProduct()
             throws IllegalInputCharacterException, PipelineException
     {
         final PipelineComponent c = AllHandler.ACCEPT();

@@ -56,7 +56,7 @@ class IntegerDataTypeTest extends AbstractDataTypeTest
      */
     @Override
     @Test
-    public void testToString() throws Exception
+    public void testToString_withDataType_returnsExpectedString() throws Exception
     {
         final String[] expected = {"TINYINT", "SMALLINT", "INTEGER",};
 
@@ -69,7 +69,7 @@ class IntegerDataTypeTest extends AbstractDataTypeTest
 
     @Override
     @Test
-    public void testGetTypeClass() throws Exception
+    public void testGetTypeClass_returnsExpectedClass() throws Exception
     {
         for (final DataType element : TYPES)
         {
@@ -80,7 +80,7 @@ class IntegerDataTypeTest extends AbstractDataTypeTest
 
     @Override
     @Test
-    public void testIsNumber() throws Exception
+    public void testIsNumber_returnsExpectedBoolean() throws Exception
     {
         for (final DataType element : TYPES)
         {
@@ -90,7 +90,7 @@ class IntegerDataTypeTest extends AbstractDataTypeTest
 
     @Override
     @Test
-    public void testIsDateTime() throws Exception
+    public void testIsDateTime_returnsExpectedBoolean() throws Exception
     {
         for (final DataType element : TYPES)
         {
@@ -100,7 +100,7 @@ class IntegerDataTypeTest extends AbstractDataTypeTest
 
     @Override
     @Test
-    public void testTypeCast() throws Exception
+    public void testTypeCast_withCompatibleInput_returnsExpectedValue() throws Exception
     {
         final Object[] values = {null, "5", Long.valueOf(Integer.MAX_VALUE - 1),
                 Double.valueOf(Integer.MIN_VALUE + 1), "-7500",
@@ -135,7 +135,7 @@ class IntegerDataTypeTest extends AbstractDataTypeTest
      * @since 2.4.6
      */
     @Test
-    void testTypeCastEmptyString() throws Exception
+    void testTypeCastEmptyString_withEmptyStringValue_returnsNull() throws Exception
     {
         final String emptyString = "";
         for (final DataType type : TYPES)
@@ -147,7 +147,7 @@ class IntegerDataTypeTest extends AbstractDataTypeTest
 
     @Override
     @Test
-    public void testTypeCastNone() throws Exception
+    public void testTypeCastNone_withNullInput_returnsNull() throws Exception
     {
         for (final DataType type : TYPES)
         {
@@ -157,7 +157,7 @@ class IntegerDataTypeTest extends AbstractDataTypeTest
     }
 
     @Test
-    void testTypeCastBool() throws Exception
+    void testTypeCastBool_withBoolStringValue_returnsIntegerZeroOrOne() throws Exception
     {
         for (final DataType type : TYPES)
         {
@@ -174,7 +174,7 @@ class IntegerDataTypeTest extends AbstractDataTypeTest
 
     @Override
     @Test
-    public void testTypeCastInvalid() throws Exception
+    public void testTypeCastInvalid_withIncompatibleInput_throwsTypeCastException() throws Exception
     {
         final Object[] values = {new Object(), "bla", new java.util.Date()};
 
@@ -195,7 +195,7 @@ class IntegerDataTypeTest extends AbstractDataTypeTest
 
     @Override
     @Test
-    public void testCompareEquals() throws Exception
+    public void testCompareEquals_withEqualValues_returnsZero() throws Exception
     {
         final Object[] values1 = {null, "5",
                 Long.valueOf(Integer.MAX_VALUE - 1),
@@ -229,7 +229,7 @@ class IntegerDataTypeTest extends AbstractDataTypeTest
 
     @Override
     @Test
-    public void testCompareInvalid() throws Exception
+    public void testCompareInvalid_withInvalidInput_throwsTypeCastException() throws Exception
     {
         final Object[] values1 = {new Object(), "bla", new java.util.Date()};
         final Object[] values2 = {null, null, null};
@@ -255,7 +255,7 @@ class IntegerDataTypeTest extends AbstractDataTypeTest
 
     @Override
     @Test
-    public void testCompareDifferent() throws Exception
+    public void testCompareDifferent_withDifferentValues_returnsNonZero() throws Exception
     {
         final Object[] less = {null, "-7500", Double.valueOf(Float.MIN_VALUE),};
 
@@ -278,7 +278,7 @@ class IntegerDataTypeTest extends AbstractDataTypeTest
 
     @Override
     @Test
-    public void testSqlType() throws Exception
+    public void testSqlType_returnsExpectedSqlType() throws Exception
     {
         final int[] sqlTypes = {Types.TINYINT, Types.SMALLINT, Types.INTEGER,};
 
@@ -299,7 +299,7 @@ class IntegerDataTypeTest extends AbstractDataTypeTest
      */
     @Override
     @Test
-    public void testForObject() throws Exception
+    public void testForObject_withValidInput_returnsDataType() throws Exception
     {
         assertThat(DataType.forObject(Integer.valueOf(1234)))
                 .isEqualTo(DataType.INTEGER);
@@ -307,7 +307,7 @@ class IntegerDataTypeTest extends AbstractDataTypeTest
 
     @Override
     @Test
-    public void testAsString() throws Exception
+    public void testAsString_withValidInput_returnsStringRepresentation() throws Exception
     {
         final Object[] values = {Integer.valueOf("1234"),};
 
@@ -325,7 +325,7 @@ class IntegerDataTypeTest extends AbstractDataTypeTest
 
     @Override
     @Test
-    public void testGetSqlValue() throws Exception
+    public void testGetSqlValue_withValidStatement_returnsExpectedValue() throws Exception
     {
         final Integer[] expected =
                 {null, 5, Integer.MAX_VALUE - 1, Integer.MIN_VALUE + 1, -7500,};
@@ -355,7 +355,7 @@ class IntegerDataTypeTest extends AbstractDataTypeTest
      * Assert calls ResultSet.getInt(columnIndex) before ResultSet.wasNull().
      */
     @Test
-    public void testGetSqlValueCallOrder()
+    public void testGetSqlValueCallOrder_afterGetSqlValue_callsGetIntBeforeWasNull()
             throws TypeCastException, SQLException
     {
         final int columnIndex = 1;

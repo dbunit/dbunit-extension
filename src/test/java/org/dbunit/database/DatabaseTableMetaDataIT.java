@@ -71,7 +71,7 @@ class DatabaseTableMetaDataIT extends AbstractDatabaseIT
     }
 
     @Test
-    void testGetPrimaryKeys() throws Exception
+    void testGetPrimaryKeys_withPkTable_returnsAllThreePrimaryKeyColumns() throws Exception
     {
         final String tableName = "PK_TABLE";
         // String[] expected = {"PK0"};
@@ -91,7 +91,7 @@ class DatabaseTableMetaDataIT extends AbstractDatabaseIT
     }
 
     @Test
-    void testGetNoPrimaryKeys() throws Exception
+    void testGetNoPrimaryKeys_withTestTable_returnsEmptyPrimaryKeyArray() throws Exception
     {
         final String tableName = TEST_TABLE;
 
@@ -102,7 +102,7 @@ class DatabaseTableMetaDataIT extends AbstractDatabaseIT
     }
 
     @Test
-    void testCreation_UnknownTable() throws Exception
+    void testCreation_withUnknownTable_throwsNoSuchTableException() throws Exception
     {
         final String tableName = "UNKNOWN_TABLE";
         final IDatabaseConnection connection = getConnection();
@@ -119,7 +119,7 @@ class DatabaseTableMetaDataIT extends AbstractDatabaseIT
     }
 
     @Test
-    void testGetNoColumns() throws Exception
+    void testGetNoColumns_withUnknownTableAndNoValidation_returnsEmptyColumnArray() throws Exception
     {
         // Since the "unknown_table" does not exist it also does not have any
         // columns
@@ -134,7 +134,7 @@ class DatabaseTableMetaDataIT extends AbstractDatabaseIT
     }
 
     @Test
-    void testColumnIsNullable() throws Exception
+    void testColumnIsNullable_withPkTableColumns_returnsCorrectNullability() throws Exception
     {
         final String tableName = "PK_TABLE";
         final String[] notNullable = {"PK0", "PK1", "PK2"};
@@ -165,7 +165,7 @@ class DatabaseTableMetaDataIT extends AbstractDatabaseIT
     }
 
     @Test
-    void testUnsupportedColumnDataType() throws Exception
+    void testUnsupportedColumnDataType_withFactoryReturningUnknown_returnsEmptyColumnArray() throws Exception
     {
         final IDataTypeFactory dataTypeFactory = new DefaultDataTypeFactory()
         {
@@ -189,7 +189,7 @@ class DatabaseTableMetaDataIT extends AbstractDatabaseIT
     }
 
     @Test
-    void testColumnDataType() throws Exception
+    void testColumnDataType_withMultiTypeTable_returnsCorrectDataTypes() throws Exception
     {
         final String tableName = "EMPTY_MULTITYPE_TABLE";
 
@@ -269,7 +269,7 @@ class DatabaseTableMetaDataIT extends AbstractDatabaseIT
      * @throws Exception
      */
     @Test
-    void testCaseInsensitiveAndI18n() throws Exception
+    void testCaseInsensitiveAndI18n_withTurkishLocale_findsTableSuccessfully() throws Exception
     {
         // To test bug report #1537894 where the user has a turkish locale set
         // on his box
@@ -314,7 +314,7 @@ class DatabaseTableMetaDataIT extends AbstractDatabaseIT
      * @throws Exception
      */
     @Test
-    void testGetColumnsForTablesMatchingSamePattern() throws Exception
+    void testGetColumnsForTablesMatchingSamePattern_withUnderscoreInTableName_returnsOnlyExactMatchColumns() throws Exception
     {
         final Connection jdbcConnection =
                 HypersonicEnvironment.createJdbcConnection("tempdb");
@@ -350,7 +350,7 @@ class DatabaseTableMetaDataIT extends AbstractDatabaseIT
     }
 
     @Test
-    void testCaseSensitive() throws Exception
+    void testCaseSensitive_withMixedCaseTableAndWrongCaseLookup_throwsNoSuchTableException() throws Exception
     {
         final Connection jdbcConnection =
                 HypersonicEnvironment.createJdbcConnection("tempdb");
@@ -398,7 +398,7 @@ class DatabaseTableMetaDataIT extends AbstractDatabaseIT
      * @throws Exception
      */
     @Test
-    void testFullyQualifiedTableName() throws Exception
+    void testFullyQualifiedTableName_withSchemaQualifiedTableName_returnsFullyQualifiedName() throws Exception
     {
         final DatabaseEnvironment environment =
                 DatabaseEnvironment.getInstance();
@@ -416,7 +416,7 @@ class DatabaseTableMetaDataIT extends AbstractDatabaseIT
     }
 
     @Test
-    void testDbStoresUpperCaseTableNames() throws Exception
+    void testDbStoresUpperCaseTableNames_whenDbStoresUpperCase_normalizesTableNameToUpperCase() throws Exception
     {
         final IDatabaseConnection connection = getConnection();
         final DatabaseMetaData metaData =
@@ -438,7 +438,7 @@ class DatabaseTableMetaDataIT extends AbstractDatabaseIT
     }
 
     @Test
-    void testDbStoresLowerCaseTableNames() throws Exception
+    void testDbStoresLowerCaseTableNames_whenDbStoresLowerCase_normalizesTableNameToLowerCase() throws Exception
     {
         final IDatabaseConnection connection = getConnection();
         final DatabaseMetaData metaData =

@@ -67,13 +67,13 @@ class XlsDataSetTest extends AbstractDataSetTest
     }
 
     @Override
-    public void testCreateMultipleCaseDuplicateDataSet() throws Exception
+    public void testCreateMultipleCaseDuplicateDataSet_withDuplicateCaseVariantNames_throwsAmbiguousTableNameException() throws Exception
     {
         // Not supported
     }
 
     @Test
-    void testWrite() throws Exception
+    void testWrite_withValidDataSet_writesAndReadsBackEquivalentData() throws Exception
     {
         final IDataSet expectedDataSet = createDataSet();
         final File tempFile = File.createTempFile("xlsDataSetTest", ".xls");
@@ -129,7 +129,7 @@ class XlsDataSetTest extends AbstractDataSetTest
     }
 
     @Test
-    void testColumnNameWithSpace() throws Exception
+    void testColumnNameWithSpace_withSpaceInColumnName_returnsColumn() throws Exception
     {
         final IDataSet dataSet = new XlsDataSet(
                 TestUtils.getFileInputStream("xml/contactor.xls"));

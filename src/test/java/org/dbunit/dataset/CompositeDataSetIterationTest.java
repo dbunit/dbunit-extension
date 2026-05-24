@@ -76,7 +76,7 @@ class CompositeDataSetIterationTest
     }
 
     @Test
-    void testMe() throws Exception
+    void testMe_withCompositeDataSet_writesAllTablesToXml() throws Exception
     {
 
         // 1. QueryDataSet

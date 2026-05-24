@@ -44,7 +44,7 @@ public class SequenceTableFilterTest extends AbstractTableFilterTest
 
     @Override
     @Test
-    public void testAccept() throws Exception
+    public void testAccept_withFilter_acceptsExpectedTables() throws Exception
     {
         final String[] validNames = getExpectedNames();
         final ITableFilter filter = new SequenceTableFilter(validNames);
@@ -58,7 +58,7 @@ public class SequenceTableFilterTest extends AbstractTableFilterTest
 
     @Override
     @Test
-    public void testIsCaseInsensitiveValidName() throws Exception
+    public void testIsCaseInsensitiveValidName_withMixedCaseName_acceptsAsValid() throws Exception
     {
         final String[] validNames = getExpectedNames();
         final ITableFilter filter = new SequenceTableFilter(validNames);
@@ -72,7 +72,7 @@ public class SequenceTableFilterTest extends AbstractTableFilterTest
 
     @Override
     @Test
-    public void testIsValidNameAndInvalid() throws Exception
+    public void testIsValidNameAndInvalid_withInvalidName_rejectsName() throws Exception
     {
         final String[] invalidNames =
                 new String[] {"INVALID_TABLE", "UNKNOWN_TABLE",};
@@ -88,7 +88,7 @@ public class SequenceTableFilterTest extends AbstractTableFilterTest
 
     @Override
     @Test
-    public void testGetTableNames() throws Exception
+    public void testGetTableNames_withFilter_returnsFilteredTableNames() throws Exception
     {
         final String[] expectedNames = getExpectedNames();
         final ITableFilter filter = new SequenceTableFilter(expectedNames);
@@ -105,7 +105,7 @@ public class SequenceTableFilterTest extends AbstractTableFilterTest
 
     @Override
     @Test
-    public void testGetTableNamesAndTableNotInDecoratedDataSet()
+    public void testGetTableNamesAndTableNotInDecoratedDataSet_withMissingTable_excludesMissingTable()
             throws Exception
     {
         final String[] expectedNames = getExpectedNames();
@@ -128,7 +128,7 @@ public class SequenceTableFilterTest extends AbstractTableFilterTest
 
     @Override
     @Test
-    public void testGetCaseInsensitiveTableNames() throws Exception
+    public void testGetCaseInsensitiveTableNames_withLowercaseNames_returnsMatchingTables() throws Exception
     {
         final String[] filterNames = getExpectedNames();
         final ITableFilter filter = new SequenceTableFilter(filterNames);
@@ -146,7 +146,7 @@ public class SequenceTableFilterTest extends AbstractTableFilterTest
 
     @Override
     @Test
-    public void testGetReverseTableNames() throws Exception
+    public void testGetReverseTableNames_withFilter_returnsFilteredTablesInReverseOrder() throws Exception
     {
         final String[] expectedNames =
                 DataSetUtils.reverseStringArray(getExpectedNames());
@@ -164,7 +164,7 @@ public class SequenceTableFilterTest extends AbstractTableFilterTest
 
     @Override
     @Test
-    public void testIterator() throws Exception
+    public void testIterator_withFilter_iteratesFilteredTables() throws Exception
     {
         final String[] expectedNames = getExpectedNames();
         final ITableFilter filter = new SequenceTableFilter(expectedNames);
@@ -184,7 +184,7 @@ public class SequenceTableFilterTest extends AbstractTableFilterTest
 
     @Override
     @Test
-    public void testCaseInsensitiveIterator() throws Exception
+    public void testCaseInsensitiveIterator_withMixedCaseFilter_iteratesMatchingTables() throws Exception
     {
         final ITableFilter filter = new SequenceTableFilter(getExpectedNames());
         final String[] lowerNames = getExpectedLowerNames();
@@ -204,7 +204,7 @@ public class SequenceTableFilterTest extends AbstractTableFilterTest
 
     @Override
     @Test
-    public void testReverseIterator() throws Exception
+    public void testReverseIterator_withFilter_iteratesFilteredTablesInReverse() throws Exception
     {
         final String[] filterNames = getExpectedNames();
         final String[] expectedNames =
@@ -226,7 +226,7 @@ public class SequenceTableFilterTest extends AbstractTableFilterTest
 
     @Override
     @Test
-    public void testIteratorAndTableNotInDecoratedDataSet() throws Exception
+    public void testIteratorAndTableNotInDecoratedDataSet_withMissingTable_iteratesAvailableTables() throws Exception
     {
         final String[] expectedNames = getExpectedNames();
 
@@ -251,7 +251,7 @@ public class SequenceTableFilterTest extends AbstractTableFilterTest
 
     ////////////////////////////////////////////////////////////////////////////
     @Test
-    void testIteratorWithDifferentSequence() throws Exception
+    void testIteratorWithDifferentSequence_withReversedFilter_iteratesInFilterOrder() throws Exception
     {
         final String[] expectedNames =
                 DataSetUtils.reverseStringArray(getExpectedNames());

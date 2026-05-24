@@ -46,7 +46,7 @@ import org.junit.jupiter.api.Test;
 class UpdateOperationTest
 {
     @Test
-    void testMockExecute() throws Exception
+    void testExecute_withMockObjects_updatesColumnsWithPrimaryKeyInWhereClause() throws Exception
     {
         final String schemaName = "schema";
         final String tableName = "table";
@@ -92,7 +92,7 @@ class UpdateOperationTest
     }
 
     @Test
-    void testExecuteWithBlanksDisabledAndEmptyString() throws Exception
+    void testExecute_withBlanksDisabledAndEmptyStringValue_throwsIllegalArgumentException() throws Exception
     {
         final String schemaName = "schema";
         final String tableName = "table";
@@ -134,7 +134,7 @@ class UpdateOperationTest
     }
 
     @Test
-    void testExecuteWithBlanksDisabledAndNonEmptyStrings() throws Exception
+    void testExecute_withBlanksDisabledAndNonEmptyValues_updatesSuccessfully() throws Exception
     {
         final String schemaName = "schema";
         final String tableName = "table";
@@ -182,7 +182,7 @@ class UpdateOperationTest
     }
 
     @Test
-    void testExecuteWithBlanksAllowed() throws Exception
+    void testExecute_withBlanksAllowed_includesEmptyStringInUpdate() throws Exception
     {
         final String schemaName = "schema";
         final String tableName = "table";
@@ -233,7 +233,7 @@ class UpdateOperationTest
     }
 
     @Test
-    void testExecuteWithEscapedName() throws Exception
+    void testExecute_withEscapePatternConfigured_columnAndTableNamesEscaped() throws Exception
     {
         final String schemaName = "schema";
         final String tableName = "table";
@@ -281,7 +281,7 @@ class UpdateOperationTest
     }
 
     @Test
-    void testExecuteWithEmptyTable() throws Exception
+    void testExecute_withEmptyTable_noStatementCreated() throws Exception
     {
         final Column[] columns = {new Column("c1", DataType.VARCHAR)};
         final ITable table = new DefaultTable(

@@ -66,7 +66,7 @@ class DefaultDataSetTest extends AbstractDataSetTest
     }
 
     @Test
-    void testAddTableThenReadBackAndDoItAgainDataSet() throws Exception
+    void testAddTableThenReadBackAndDoItAgainDataSet_withTwoTables_returnsCorrectTables() throws Exception
     {
         final String tableName1 = "TEST_TABLE";
         final String tableName2 = "SECOND_TABLE";

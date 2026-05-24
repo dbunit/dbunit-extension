@@ -46,7 +46,7 @@ class DefaultPrepAndExpectedTestCaseDiIT
     }
 
     @Test
-    void testSuccessRun() throws Exception
+    void testSuccessRun_withMatchingPrepAndExpectedFiles_doesNotThrowException() throws Exception
     {
         // use same files to have no data comparison fails
         final String[] prepDataFiles = {PREP_DATA_FILE_NAME};
@@ -82,7 +82,7 @@ class DefaultPrepAndExpectedTestCaseDiIT
     }
 
     @Test
-    void testFailRun() throws Exception
+    void testFailRun_withMismatchedExpectedFile_throwsDbComparisonFailure() throws Exception
     {
         final String[] prepDataFiles = {PREP_DATA_FILE_NAME};
         final String[] expectedDataFiles = {EXP_DATA_FILE_NAME};

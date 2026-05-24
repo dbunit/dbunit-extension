@@ -205,7 +205,7 @@ class IsActualWithinToleranceOfExpectedTimestampValueComparerTest
     }
 
     @Test
-    void testGetFailPhrase() throws Exception
+    void testGetFailPhrase_returnsNonNullPhrase() throws Exception
     {
         final long lowToleranceValueInMillis = 500;
         final long highToleranceValueInMillis = 1500;
@@ -219,7 +219,7 @@ class IsActualWithinToleranceOfExpectedTimestampValueComparerTest
     }
 
     @Test
-    void testStringExpectedTimestampActual() throws DatabaseUnitException
+    void testIsExpected_withStringExpectedAndTimestampActual_returnsTrue() throws DatabaseUnitException
     {
         final long lowToleranceValueInMillis = 500;
         final long highToleranceValueInMillis = 1500;

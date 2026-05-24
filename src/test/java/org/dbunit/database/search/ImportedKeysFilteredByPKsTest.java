@@ -26,7 +26,7 @@ class ImportedKeysFilteredByPKsTest
     }
 
     @Test
-    void testAWithOne() throws DataSetException, SQLException, SearchException
+    void testAWithOne_withTableAAndOnePk_returnsAAndItsParentD() throws DataSetException, SQLException, SearchException
     {
         addInput(A, new String[] {A1});
         addOutput(A, new String[] {A1});
@@ -35,7 +35,7 @@ class ImportedKeysFilteredByPKsTest
     }
 
     @Test
-    void testHWithOne() throws DataSetException, SQLException, SearchException
+    void testHWithOne_withTableHAndOnePk_returnsHOnly() throws DataSetException, SQLException, SearchException
     {
         addInput(H, new String[] {H1});
         addOutput(H, new String[] {H1});
@@ -43,7 +43,7 @@ class ImportedKeysFilteredByPKsTest
     }
 
     @Test
-    void testBWithOne() throws DataSetException, SQLException, SearchException
+    void testBWithOne_withTableBAndOnePk_returnsAllDependentTables() throws DataSetException, SQLException, SearchException
     {
         addInput(B, new String[] {B1});
         addOutput(B, new String[] {B1});

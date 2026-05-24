@@ -79,7 +79,7 @@ class TablesDependencyHelperTest
     }
 
     @Test
-    void testGetDependentTablesFromOneTable() throws Exception
+    void testGetDependentTablesFromOneTable_withSingleInputTable_returnsDependentTablesInOrder() throws Exception
     {
         setUp(ImportNodesFilterSearchCallbackTest.SQL_FILE);
         final String[][] allInput =
@@ -120,7 +120,7 @@ class TablesDependencyHelperTest
     }
 
     @Test
-    void testGetDependentTablesFromManyTables() throws Exception
+    void testGetDependentTablesFromManyTables_withMultipleInputTables_returnsDependentTablesInOrder() throws Exception
     {
         setUp(ImportNodesFilterSearchCallbackTest.SQL_FILE);
         final String[][] allInput =
@@ -139,7 +139,7 @@ class TablesDependencyHelperTest
     }
 
     @Test
-    void testGetAllDependentTablesFromOneTable() throws Exception
+    void testGetAllDependentTablesFromOneTable_withSingleInputTable_returnsAllDependentTablesInOrder() throws Exception
     {
         setUp(ImportAndExportKeysSearchCallbackOwnFileTest.SQL_FILE);
         final String[][] allInput =
@@ -158,7 +158,7 @@ class TablesDependencyHelperTest
     }
 
     @Test
-    void testGetAllDependentTablesFromManyTables() throws Exception
+    void testGetAllDependentTablesFromManyTables_withMultipleInputTables_returnsAllDependentTablesInOrder() throws Exception
     {
         setUp(ImportAndExportKeysSearchCallbackOwnFileTest.SQL_FILE);
         final String[][] allInput =
@@ -177,7 +177,7 @@ class TablesDependencyHelperTest
     }
 
     @Test
-    void testGetAllDatasetFromOneTable() throws Exception
+    void testGetAllDatasetFromOneTable_withSingleInputTable_returnsDatasetWithAllDependentTables() throws Exception
     {
         setUp(ImportAndExportKeysSearchCallbackOwnFileTest.SQL_FILE);
         final String[][] allInput =
@@ -226,7 +226,7 @@ class TablesDependencyHelperTest
      * @throws Exception
      */
     @Test
-    void testGetDatasetFromManyTables() throws Exception
+    void testGetDatasetFromManyTables_withMultipleInputTables_returnsDatasetWithDependentTablesPreservingOrder() throws Exception
     {
         setUp(ImportNodesFilterSearchCallbackTest.SQL_FILE);
         final String[][] allInput =

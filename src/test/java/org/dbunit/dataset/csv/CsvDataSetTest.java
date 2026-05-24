@@ -44,7 +44,7 @@ class CsvDataSetTest
     protected static final File DATASET_DIR = TestUtils.getFile("csv/orders");
 
     @Test
-    void testNullColumns() throws DataSetException
+    void testNullColumns_withNullValueInColumn_returnsNull() throws DataSetException
     {
         final File csvDir = DATASET_DIR;
 
@@ -57,7 +57,7 @@ class CsvDataSetTest
     }
 
     @Test
-    void testWrite() throws Exception
+    void testWrite_withValidDataSet_writesAndReadsBackEquivalentData() throws Exception
     {
 
         final IDataSet expectedDataSet = new CsvDataSet(DATASET_DIR);

@@ -55,7 +55,7 @@ public class CachedResultSetTableIT extends AbstractTableTest
     }
 
     @Override
-    public void testGetMissingValue() throws Exception
+    public void testGetMissingValue_withMissingCells_returnsExpectedValues() throws Exception
     {
         // Do not test this!
     }

@@ -42,7 +42,7 @@ class CompositeOperationIT extends AbstractDatabaseIT
 {
 
     @Test
-    void testExecute() throws Exception
+    void testExecute_withDeleteAllAndInsertOperations_resultMatchesExpected() throws Exception
     {
         final String tableName = "PK_TABLE";
         final String columnName = "PK0";

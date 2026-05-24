@@ -51,7 +51,7 @@ class DeleteAllOperationTest
     }
 
     @Test
-    void testMockExecute() throws Exception
+    void testExecute_withMockObjects_correctStatementExecuted() throws Exception
     {
         final String schemaName = "schema";
         final String tableName = "table";
@@ -87,7 +87,7 @@ class DeleteAllOperationTest
     }
 
     @Test
-    void testExecuteWithEscapedNames() throws Exception
+    void testExecute_withEscapePatternConfigured_tableNameEscaped() throws Exception
     {
         final String schemaName = "schema";
         final String tableName = "table";

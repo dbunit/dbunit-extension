@@ -61,7 +61,7 @@ class FlatDtdProducerTest extends AbstractProducerTest
     }
 
     @Test
-    void testSequenceModel() throws Exception
+    void testSequenceModel_withSequentialElementDeclaration_producesTablesInOrder() throws Exception
     {
         // Setup consumer
         final MockDataSetConsumer consumer = new MockDataSetConsumer();
@@ -86,7 +86,7 @@ class FlatDtdProducerTest extends AbstractProducerTest
     }
 
     @Test
-    void testChoicesModel() throws Exception
+    void testChoicesModel_withChoiceElementDeclaration_producesTablesFromChoices() throws Exception
     {
         // Setup consumer
         final MockDataSetConsumer consumer = new MockDataSetConsumer();
@@ -137,7 +137,7 @@ class FlatDtdProducerTest extends AbstractProducerTest
     }
 
     @Test
-    void testAttrListBeforeParentElement() throws Exception
+    void testAttrListBeforeParentElement_withAttrListDeclaredBeforeElement_producesTableWithColumns() throws Exception
     {
         // Setup consumer
         final MockDataSetConsumer consumer = new MockDataSetConsumer();
@@ -162,7 +162,7 @@ class FlatDtdProducerTest extends AbstractProducerTest
     }
 
     @Test
-    void testCleanupTableName() throws Exception
+    void testCleanupTableName_withQuantifiersInElementDeclaration_stripsQuantifiersFromTableNames() throws Exception
     {
         // Setup consumer
         final MockDataSetConsumer consumer = new MockDataSetConsumer();
@@ -189,7 +189,7 @@ class FlatDtdProducerTest extends AbstractProducerTest
     }
 
     @Test
-    void testANYModel() throws Exception
+    void testANYModel_withANYContentModel_producesTwoTables() throws Exception
     {
         // Setup consumer
         final FlatDtdDataSet consumer = new FlatDtdDataSet();

@@ -66,7 +66,7 @@ class DatabaseTableIteratorTest extends AbstractTableIteratorTest
     }
 
     @Test
-    void testGetTableClose() throws Exception
+    void testGetTableClose_afterIteratingAllTables_closesAllTables() throws Exception
     {
         int i = 0;
         final String[] expectedNames = getExpectedNames();

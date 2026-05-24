@@ -83,7 +83,7 @@ public class XmlDataSetWriterTest
     }
 
     @Test
-    void testWrite() throws Exception
+    void testWrite_withTwoTables_writesExpectedXmlOutput() throws Exception
     {
         final String expectedOutput = "<dataset>\n"
                 + "  <table name=\"TABLE1\">\n" + "    <column>COL0</column>\n"
@@ -105,7 +105,7 @@ public class XmlDataSetWriterTest
     }
 
     @Test
-    void testWriteWithComments() throws Exception
+    void testWriteWithComments_withIncludeColumnCommentsTrue_addsColumnCommentsToOutput() throws Exception
     {
         final String expectedOutput = "<dataset>\n"
                 + "  <table name=\"TABLE1\">\n" + "    <column>COL0</column>\n"
@@ -129,7 +129,7 @@ public class XmlDataSetWriterTest
     }
 
     @Test
-    void testWriteWithCData() throws Exception
+    void testWriteWithCData_withCDataContainingXml_writesNestedCDataCorrectly() throws Exception
     {
         // Setup
         final Column[] columns =
@@ -155,7 +155,7 @@ public class XmlDataSetWriterTest
     }
 
     @Test
-    void testWritePrettyPrintDisabled() throws Exception
+    void testWritePrettyPrintDisabled_withPrettyPrintFalse_writesCompactOutput() throws Exception
     {
         final String expectedOutput = "<dataset>" + "<table name=\"TABLE1\">"
                 + "<column>COL0</column>" + "<column>COL1</column>" + "<row>"

@@ -46,7 +46,7 @@ class DiffCollectingFailureHandlerTest
     }
 
     @Test
-    void testAssertTablesWithDifferentValues() throws Exception
+    void testAssertEquals_withTablesHavingDifferentValues_collectsDifferences() throws Exception
     {
         final IDataSet dataSet = getDataSet();
 

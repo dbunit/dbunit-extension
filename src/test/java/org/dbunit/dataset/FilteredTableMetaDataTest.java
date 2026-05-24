@@ -44,7 +44,7 @@ class FilteredTableMetaDataTest
     }
 
     @Test
-    void testGetTableName() throws Exception
+    void testGetTableName_withMetaData_returnsTableName() throws Exception
     {
         final String expected = "tableName";
         ITableMetaData metaData =
@@ -56,7 +56,7 @@ class FilteredTableMetaDataTest
     }
 
     @Test
-    void testGetColumns() throws Exception
+    void testGetColumns_withExcludeFilter_returnsNonExcludedColumns() throws Exception
     {
         final Column[] columns =
                 new Column[] {new Column("numberColumn", DataType.NUMERIC),
@@ -81,7 +81,7 @@ class FilteredTableMetaDataTest
     }
 
     @Test
-    void testGetPrimaryKeys() throws Exception
+    void testGetPrimaryKeys_withExcludeFilter_returnsNonExcludedPrimaryKeys() throws Exception
     {
         final Column[] columns =
                 new Column[] {new Column("numberColumn", DataType.NUMERIC),

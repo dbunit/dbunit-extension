@@ -102,7 +102,7 @@ class DatabaseDataSetIT extends AbstractDataSetTest
     // Test methods
 
     @Test
-    void testGetSelectStatement() throws Exception
+    void testGetSelectStatement_withSchemaAndColumns_returnsCorrectSqlStatement() throws Exception
     {
         final String schemaName = "schema";
         final String tableName = "table";
@@ -120,7 +120,7 @@ class DatabaseDataSetIT extends AbstractDataSetTest
     }
 
     @Test
-    void testGetSelectStatementWithEscapedNames() throws Exception
+    void testGetSelectStatementWithEscapedNames_withEscapePattern_returnsEscapedSql() throws Exception
     {
         final String schemaName = "schema";
         final String tableName = "table";
@@ -138,7 +138,7 @@ class DatabaseDataSetIT extends AbstractDataSetTest
     }
 
     @Test
-    void testGetSelectStatementWithEscapedNamesAndOrderBy() throws Exception
+    void testGetSelectStatementWithEscapedNamesAndOrderBy_withPrimaryKeys_includesOrderByClause() throws Exception
     {
         final String schemaName = "schema";
         final String tableName = "table";
@@ -159,7 +159,7 @@ class DatabaseDataSetIT extends AbstractDataSetTest
     }
 
     @Test
-    void testGetSelectStatementWithPrimaryKeys() throws Exception
+    void testGetSelectStatementWithPrimaryKeys_withPrimaryKeyColumns_appendsOrderByClause() throws Exception
     {
         final String schemaName = "schema";
         final String tableName = "table";
@@ -178,7 +178,7 @@ class DatabaseDataSetIT extends AbstractDataSetTest
     }
 
     @Test
-    void testGetQualifiedTableNames() throws Exception
+    void testGetQualifiedTableNames_withQualifiedNamesEnabled_returnsPrefixedTableNames() throws Exception
     {
         final String[] expectedNames = getExpectedNames();
 
@@ -201,7 +201,7 @@ class DatabaseDataSetIT extends AbstractDataSetTest
     }
 
     @Test
-    void testGetColumnsAndQualifiedNamesEnabled() throws Exception
+    void testGetColumnsAndQualifiedNamesEnabled_withQualifiedNamesEnabled_returnsCorrectColumns() throws Exception
     {
         final String tableName =
                 new QualifiedTableName("TEST_TABLE", _connection.getSchema())
@@ -225,7 +225,7 @@ class DatabaseDataSetIT extends AbstractDataSetTest
     }
 
     @Test
-    void testGetPrimaryKeysAndQualifiedNamesEnabled() throws Exception
+    void testGetPrimaryKeysAndQualifiedNamesEnabled_withQualifiedNamesEnabled_returnsCorrectPrimaryKeys() throws Exception
     {
         final String tableName =
                 new QualifiedTableName("PK_TABLE", _connection.getSchema())
@@ -250,7 +250,7 @@ class DatabaseDataSetIT extends AbstractDataSetTest
     }
 
     @Test
-    void testGetPrimaryKeysWithColumnFilters() throws Exception
+    void testGetPrimaryKeysWithColumnFilters_withPrimaryKeyFilter_returnsOnlyIncludedKeys() throws Exception
     {
 
         // TODO (felipeal): I don't know if PK_TABLE is a standard JDBC name or
@@ -292,19 +292,19 @@ class DatabaseDataSetIT extends AbstractDataSetTest
     // }
 
     @Override
-    public void testCreateDuplicateDataSet() throws Exception
+    public void testCreateDuplicateDataSet_withDuplicateTableNames_throwsAmbiguousTableNameException() throws Exception
     {
         // Cannot test! Unsupported feature.
     }
 
     @Override
-    public void testCreateMultipleCaseDuplicateDataSet() throws Exception
+    public void testCreateMultipleCaseDuplicateDataSet_withDuplicateCaseVariantNames_throwsAmbiguousTableNameException() throws Exception
     {
         // Cannot test! Unsupported feature.
     }
 
     @Test
-    void testGetTableThatIsFiltered() throws Exception
+    void testGetTableThatIsFiltered_withFilteredTable_throwsNoSuchTableException() throws Exception
     {
         final String existingTableToFilter = convertString("TEST_TABLE");
         final ITableFilterSimple tableFilter = new ITableFilterSimple()

@@ -37,7 +37,7 @@ class ColumnTest
 {
 
     @Test
-    void testGetColumnName() throws Exception
+    void testGetColumnName_withColumnName_returnsColumnName() throws Exception
     {
         final String expected = "columnName";
         final Column column = new Column(expected, DataType.REAL);
@@ -47,7 +47,7 @@ class ColumnTest
     }
 
     @Test
-    void testGetDataType() throws Exception
+    void testGetDataType_withDataType_returnsDataType() throws Exception
     {
         final DataType expected = DataType.DATE;
         final Column column = new Column(expected.toString(), expected);
@@ -56,7 +56,7 @@ class ColumnTest
     }
 
     @Test
-    void testNullableValue() throws Exception
+    void testNullableValue_withValidNullableConstants_returnsCorrectNullable() throws Exception
     {
         assertThat(Column.nullableValue(DatabaseMetaData.columnNullable))
                 .as("nullable").isEqualTo(Column.NULLABLE);

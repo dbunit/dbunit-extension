@@ -53,7 +53,7 @@ abstract class AbstractDatabaseConnectionIT extends AbstractDatabaseIT
     }
 
     @Test
-    final void testGetRowCount() throws Exception
+    final void testGetRowCount_withPopulatedTables_returnsCorrectCounts() throws Exception
     {
         assertThat(_connection.getRowCount("EMPTY_TABLE", null))
                 .as("EMPTY_TABLE").isZero();

@@ -29,7 +29,7 @@ class XlsDataSetWriterTest
      * exceeded. You can define up to 4000 styles in a .xls workbook
      */
     @Test
-    void testTimestampTzOffsets()
+    void testTimestampTzOffsets_withManyRowsExceedingCellStyles_doesNotThrowException()
             throws URISyntaxException, DataSetException, IOException
     {
         OUTPUT_DIR.mkdir();

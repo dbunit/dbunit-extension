@@ -29,32 +29,32 @@ package org.dbunit.dataset.datatype;
 public abstract class AbstractDataTypeTest
 {
 
-    public abstract void testToString() throws Exception;
+    public abstract void testToString_withDataType_returnsExpectedString() throws Exception;
 
-    public abstract void testGetTypeClass() throws Exception;
+    public abstract void testGetTypeClass_returnsExpectedClass() throws Exception;
 
-    public abstract void testIsNumber() throws Exception;
+    public abstract void testIsNumber_returnsExpectedBoolean() throws Exception;
 
-    public abstract void testIsDateTime() throws Exception;
+    public abstract void testIsDateTime_returnsExpectedBoolean() throws Exception;
 
-    public abstract void testTypeCast() throws Exception;
+    public abstract void testTypeCast_withCompatibleInput_returnsExpectedValue() throws Exception;
 
-    public abstract void testTypeCastNone() throws Exception;
+    public abstract void testTypeCastNone_withNullInput_returnsNull() throws Exception;
 
-    public abstract void testTypeCastInvalid() throws Exception;
+    public abstract void testTypeCastInvalid_withIncompatibleInput_throwsTypeCastException() throws Exception;
 
-    public abstract void testSqlType() throws Exception;
+    public abstract void testSqlType_returnsExpectedSqlType() throws Exception;
 
-    public abstract void testForObject() throws Exception;
+    public abstract void testForObject_withValidInput_returnsDataType() throws Exception;
 
-    public abstract void testAsString() throws Exception;
+    public abstract void testAsString_withValidInput_returnsStringRepresentation() throws Exception;
 
-    public abstract void testCompareEquals() throws Exception;
+    public abstract void testCompareEquals_withEqualValues_returnsZero() throws Exception;
 
-    public abstract void testCompareDifferent() throws Exception;
+    public abstract void testCompareDifferent_withDifferentValues_returnsNonZero() throws Exception;
 
-    public abstract void testCompareInvalid() throws Exception;
+    public abstract void testCompareInvalid_withInvalidInput_throwsTypeCastException() throws Exception;
 
-    public abstract void testGetSqlValue() throws Exception;
+    public abstract void testGetSqlValue_withValidStatement_returnsExpectedValue() throws Exception;
 
 }

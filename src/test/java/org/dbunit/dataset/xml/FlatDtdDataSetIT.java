@@ -86,7 +86,7 @@ class FlatDtdDataSetIT extends AbstractDataSetTest
     // Test methods
 
     @Test
-    void testWriteFromDtd() throws Exception
+    void testWriteFromDtd_withValidDtd_writesEquivalentDtdFile() throws Exception
     {
         final IDataSet dataSet =
                 new FlatDtdDataSet(TestUtils.getFileReader(DTD_FILE));
@@ -117,7 +117,7 @@ class FlatDtdDataSetIT extends AbstractDataSetTest
     }
 
     @Test
-    void testWriteFromDatabase() throws Exception
+    void testWriteFromDatabase_withDatabaseDataSet_writesEquivalentDtdFile() throws Exception
     {
         final IDatabaseConnection connection =
                 DatabaseEnvironment.getInstance().getConnection();

@@ -41,7 +41,7 @@ class PostgresqlDataTypeFactoryTest
      * Test of createDataType method, of class PostgresqlDataTypeFactory.
      */
     @Test
-    void testCreateUuidType() throws Exception
+    void testCreateUuidType_withUuidTypeName_returnsUuidTypeInstance() throws Exception
     {
         final PostgresqlDataTypeFactory instance =
                 new PostgresqlDataTypeFactory();
@@ -55,7 +55,7 @@ class PostgresqlDataTypeFactoryTest
     }
 
     @Test
-    void testCreateIntervalType() throws Exception
+    void testCreateIntervalType_withIntervalTypeName_returnsIntervalTypeInstance() throws Exception
     {
         final PostgresqlDataTypeFactory instance =
                 new PostgresqlDataTypeFactory();
@@ -69,7 +69,7 @@ class PostgresqlDataTypeFactoryTest
     }
 
     @Test
-    void testCreateInetType() throws Exception
+    void testCreateInetType_withInetTypeName_returnsInetTypeInstance() throws Exception
     {
         final PostgresqlDataTypeFactory instance =
                 new PostgresqlDataTypeFactory();
@@ -83,7 +83,7 @@ class PostgresqlDataTypeFactoryTest
     }
 
     @Test
-    void testCreateCitextType() throws Exception
+    void testCreateCitextType_withCitextTypeName_returnsCitextTypeInstance() throws Exception
     {
         final PostgresqlDataTypeFactory instance =
                 new PostgresqlDataTypeFactory();
@@ -97,7 +97,7 @@ class PostgresqlDataTypeFactoryTest
     }
 
     @Test
-    void testCreateEnumType() throws Exception
+    void testCreateEnumType_withCustomEnumTypeName_returnsGenericEnumTypeInstance() throws Exception
     {
         final PostgresqlDataTypeFactory instance =
                 new PostgresqlDataTypeFactory()
@@ -124,7 +124,7 @@ class PostgresqlDataTypeFactoryTest
     }
 
     @Test
-    void testCreateDefaultType() throws Exception
+    void testCreateDefaultType_withStandardIntegerType_returnsIntegerDataTypeInstance() throws Exception
     {
         final PostgresqlDataTypeFactory instance =
                 new PostgresqlDataTypeFactory();
@@ -137,7 +137,7 @@ class PostgresqlDataTypeFactoryTest
     }
 
     @Test
-    void testPostgreSQLOidType() throws Exception
+    void testPostgreSQLOidType_withOidTypeName_returnsPostgreSQLOidDataTypeInstance() throws Exception
     {
         final PostgresqlDataTypeFactory instance =
                 new PostgresqlDataTypeFactory();

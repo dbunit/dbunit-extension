@@ -22,7 +22,7 @@ class CsvDataSetWriterTest
     private static final String SOURCE = TestUtils.getFileName("csv/orders");
 
     @Test
-    void testProduceAndWriteBackToDisk() throws Exception
+    void testProduceAndWriteBackToDisk_withCsvSource_writesAndReadBackEquivalent() throws Exception
     {
         produceToFolder(SOURCE, DEST);
         final IDataSet expected = produceToMemory(SOURCE);
@@ -51,13 +51,13 @@ class CsvDataSetWriterTest
     }
 
     @Test
-    void testEscapeQuote()
+    void testEscapeQuote_withDoubleQuotedString_returnsBackslashEscapedQuotes()
     {
         assertThat(CsvDataSetWriter.escape("\"foo\"")).isEqualTo("\\\"foo\\\"");
     }
 
     @Test
-    void testEscapeEscape()
+    void testEscapeEscape_withBackslashString_returnsDoubleBackslash()
     {
         assertThat(CsvDataSetWriter.escape("\\foo\\")).isEqualTo("\\\\foo\\\\");
     }

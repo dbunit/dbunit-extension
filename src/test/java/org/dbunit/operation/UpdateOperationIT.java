@@ -98,7 +98,7 @@ class UpdateOperationIT extends AbstractDatabaseIT
     //
 
     @Test
-    void testUpdateClob() throws Exception
+    void testExecute_withClobData_updatesClobSuccessfully() throws Exception
     {
         // execute this test only if the target database support CLOB
         final DatabaseEnvironment environment =
@@ -135,7 +135,7 @@ class UpdateOperationIT extends AbstractDatabaseIT
     }
 
     @Test
-    void testUpdateBlob() throws Exception
+    void testExecute_withBlobData_updatesBlobSuccessfully() throws Exception
     {
         // execute this test only if the target database support BLOB
         final DatabaseEnvironment environment =
@@ -180,7 +180,7 @@ class UpdateOperationIT extends AbstractDatabaseIT
     }
 
     @Test
-    void testUpdateSdoGeometry() throws Exception
+    void testExecute_withSdoGeometryData_updatesSdoGeometrySuccessfully() throws Exception
     {
         // execute this test only if the target database supports SDO_GEOMETRY
         final DatabaseEnvironment environment =
@@ -218,7 +218,7 @@ class UpdateOperationIT extends AbstractDatabaseIT
     }
 
     @Test
-    void testUpdateXmlType() throws Exception
+    void testExecute_withXmlTypeData_updatesXmlTypeSuccessfully() throws Exception
     {
         // execute this test only if the target database support XML_TYPE
         final DatabaseEnvironment environment =
@@ -255,7 +255,7 @@ class UpdateOperationIT extends AbstractDatabaseIT
     }
 
     @Test
-    void testExecute() throws Exception
+    void testExecute_withXmlDataSet_updatesMatchingRow() throws Exception
     {
         final Reader in = new FileReader(
                 TestUtils.getFile("xml/updateOperationTest.xml"));
@@ -266,7 +266,7 @@ class UpdateOperationIT extends AbstractDatabaseIT
     }
 
     @Test
-    void testExecuteCaseInsensitive() throws Exception
+    void testExecute_withLowerCaseDataSet_updatesMatchingRow() throws Exception
     {
         final Reader in = new FileReader(
                 TestUtils.getFile("xml/updateOperationTest.xml"));
@@ -276,7 +276,7 @@ class UpdateOperationIT extends AbstractDatabaseIT
     }
 
     @Test
-    void testExecuteForwardOnly() throws Exception
+    void testExecute_withForwardOnlyDataSet_updatesMatchingRow() throws Exception
     {
         final Reader in = new FileReader(
                 TestUtils.getFile("xml/updateOperationTest.xml"));
@@ -286,7 +286,7 @@ class UpdateOperationIT extends AbstractDatabaseIT
     }
 
     @Test
-    void testExecuteAndNoPrimaryKeys() throws Exception
+    void testExecute_withTableHavingNoPrimaryKey_throwsNoPrimaryKeyException() throws Exception
     {
         final String tableName = "TEST_TABLE";
 

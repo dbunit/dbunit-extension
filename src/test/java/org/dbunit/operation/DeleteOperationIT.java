@@ -46,7 +46,7 @@ public class DeleteOperationIT extends AbstractDatabaseIT
 {
 
     @Test
-    void testExecuteAndNoPrimaryKey() throws Exception
+    void testGetOperationData_withNoPrimaryKey_throwsNoPrimaryKeyException() throws Exception
     {
         final IDataSet dataSet = _connection.createDataSet();
         final ITableMetaData metaData = dataSet.getTableMetaData("TEST_TABLE");
@@ -57,7 +57,7 @@ public class DeleteOperationIT extends AbstractDatabaseIT
     }
 
     @Test
-    void testExecute() throws Exception
+    void testExecute_withXmlDataSet_deletesMatchingRowsByPrimaryKey() throws Exception
     {
         final Reader in = new FileReader(
                 TestUtils.getFile("xml/deleteOperationTest.xml"));
@@ -68,7 +68,7 @@ public class DeleteOperationIT extends AbstractDatabaseIT
     }
 
     @Test
-    void testExecuteCaseInsensitive() throws Exception
+    void testExecute_withLowerCaseDataSet_deletesMatchingRows() throws Exception
     {
         final Reader in = new FileReader(
                 TestUtils.getFile("xml/deleteOperationTest.xml"));

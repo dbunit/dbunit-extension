@@ -34,7 +34,7 @@ class ResultSetTableMetaDataIT extends AbstractDatabaseIT
      * @throws Exception
      */
     @Test
-    void testGetColumnsForTablesMatchingSamePattern() throws Exception
+    void testGetColumnsForTablesMatchingSamePattern_withPatternLikeTableName_returnsCorrectColumns() throws Exception
     {
         final Connection jdbcConnection =
                 HypersonicEnvironment.createJdbcConnection("tempdb");

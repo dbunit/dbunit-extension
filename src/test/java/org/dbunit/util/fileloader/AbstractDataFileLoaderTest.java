@@ -49,7 +49,7 @@ public class AbstractDataFileLoaderTest
     }
 
     @Test
-    void testLoadDefaultDataSetEmpty() throws DataSetException
+    void testLoadDefaultDataSetEmpty_withNullFilename_returnsEmptyDataSet() throws DataSetException
     {
         final IDataSet ds = loader.load(null);
         assertThat(ds.getTableNames()).as("Default dataset had tables in it.")

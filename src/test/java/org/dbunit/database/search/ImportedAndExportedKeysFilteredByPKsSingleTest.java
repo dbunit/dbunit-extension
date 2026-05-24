@@ -26,7 +26,7 @@ class ImportedAndExportedKeysFilteredByPKsSingleTest
     }
 
     @Test
-    void testCWithOne() throws DataSetException, SQLException, SearchException
+    void testCWithOne_withTableCAndOnePk_returnsCAndAllRelated() throws DataSetException, SQLException, SearchException
     {
         addInput(C, new String[] {C1});
         addOutput(C, new String[] {C1});
@@ -36,7 +36,7 @@ class ImportedAndExportedKeysFilteredByPKsSingleTest
     }
 
     @Test
-    void testCWithTwo() throws DataSetException, SQLException, SearchException
+    void testCWithTwo_withTableCAndTwoPks_returnsAllRows() throws DataSetException, SQLException, SearchException
     {
         addInput(C, new String[] {C1, C2});
         addOutput(C, new String[] {C1, C2});
@@ -46,7 +46,7 @@ class ImportedAndExportedKeysFilteredByPKsSingleTest
     }
 
     @Test
-    void testCWithTwoInvertedInput()
+    void testCWithTwoInvertedInput_withInvertedInputOrder_returnsSortedOutput()
             throws DataSetException, SQLException, SearchException
     {
         addInput(C, new String[] {C2, C1});
@@ -57,7 +57,7 @@ class ImportedAndExportedKeysFilteredByPKsSingleTest
     }
 
     @Test
-    void testCWithTwoInvertedOutput()
+    void testCWithTwoInvertedOutput_withRegularInputOrder_returnsInvertedOutput()
             throws DataSetException, SQLException, SearchException
     {
         addInput(C, new String[] {C1, C2});
@@ -68,7 +68,7 @@ class ImportedAndExportedKeysFilteredByPKsSingleTest
     }
 
     @Test
-    void testCWithRepeated()
+    void testCWithRepeated_withDuplicatePkInputs_returnsDeduplicatedOutput()
             throws DataSetException, SQLException, SearchException
     {
         addInput(C, new String[] {C1, C2, C2, C1, C1, C1, C2, C2});
@@ -79,7 +79,7 @@ class ImportedAndExportedKeysFilteredByPKsSingleTest
     }
 
     @Test
-    void testB() throws DataSetException, SQLException, SearchException
+    void testB_withTableBAndOnePk_returnsCAndBAndA() throws DataSetException, SQLException, SearchException
     {
         addInput(B, new String[] {B1});
         addOutput(C, new String[] {C1, C2});
@@ -89,7 +89,7 @@ class ImportedAndExportedKeysFilteredByPKsSingleTest
     }
 
     @Test
-    void testA() throws DataSetException, SQLException, SearchException
+    void testA_withTableAAndOnePk_returnsCAndBAndA() throws DataSetException, SQLException, SearchException
     {
         addInput(A, new String[] {A1});
         addOutput(C, new String[] {C1, C2});

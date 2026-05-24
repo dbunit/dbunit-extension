@@ -53,7 +53,7 @@ public class NumberDataTypeTest extends AbstractDataTypeTest
 
     @Override
     @Test
-    public void testToString() throws Exception
+    public void testToString_withDataType_returnsExpectedString() throws Exception
     {
         final String[] expected = {"NUMERIC", "DECIMAL"};
 
@@ -66,7 +66,7 @@ public class NumberDataTypeTest extends AbstractDataTypeTest
 
     @Override
     @Test
-    public void testGetTypeClass() throws Exception
+    public void testGetTypeClass_returnsExpectedClass() throws Exception
     {
         for (final DataType element : TYPES)
         {
@@ -77,7 +77,7 @@ public class NumberDataTypeTest extends AbstractDataTypeTest
 
     @Override
     @Test
-    public void testIsNumber() throws Exception
+    public void testIsNumber_returnsExpectedBoolean() throws Exception
     {
         for (final DataType element : TYPES)
         {
@@ -87,7 +87,7 @@ public class NumberDataTypeTest extends AbstractDataTypeTest
 
     @Override
     @Test
-    public void testIsDateTime() throws Exception
+    public void testIsDateTime_returnsExpectedBoolean() throws Exception
     {
         for (final DataType element : TYPES)
         {
@@ -97,7 +97,7 @@ public class NumberDataTypeTest extends AbstractDataTypeTest
 
     @Override
     @Test
-    public void testTypeCast() throws Exception
+    public void testTypeCast_withCompatibleInput_returnsExpectedValue() throws Exception
     {
         final Object[] values = {null, new BigDecimal((double) 1234), "1234",
                 "12.34", Boolean.TRUE, Boolean.FALSE, Double.valueOf(2.1),
@@ -124,7 +124,7 @@ public class NumberDataTypeTest extends AbstractDataTypeTest
 
     @Override
     @Test
-    public void testTypeCastNone() throws Exception
+    public void testTypeCastNone_withNullInput_returnsNull() throws Exception
     {
         for (final DataType type : TYPES)
         {
@@ -135,7 +135,7 @@ public class NumberDataTypeTest extends AbstractDataTypeTest
 
     @Override
     @Test
-    public void testTypeCastInvalid() throws Exception
+    public void testTypeCastInvalid_withIncompatibleInput_throwsTypeCastException() throws Exception
     {
         final Object[] values = {new Object(), "bla"};
 
@@ -154,7 +154,7 @@ public class NumberDataTypeTest extends AbstractDataTypeTest
 
     @Override
     @Test
-    public void testCompareEquals() throws Exception
+    public void testCompareEquals_withEqualValues_returnsZero() throws Exception
     {
         final Object[] values1 = {null, new BigDecimal((double) 1234), "1234",
                 "12.34", Boolean.TRUE, Boolean.FALSE, new BigDecimal(123.4),
@@ -180,7 +180,7 @@ public class NumberDataTypeTest extends AbstractDataTypeTest
 
     @Override
     @Test
-    public void testCompareInvalid() throws Exception
+    public void testCompareInvalid_withInvalidInput_throwsTypeCastException() throws Exception
     {
         final Object[] values1 = {new Object(), "bla", new java.util.Date()};
         final Object[] values2 = {null, null, null};
@@ -206,7 +206,7 @@ public class NumberDataTypeTest extends AbstractDataTypeTest
 
     @Override
     @Test
-    public void testCompareDifferent() throws Exception
+    public void testCompareDifferent_withDifferentValues_returnsNonZero() throws Exception
     {
         final Object[] less = {null, "-7500", new BigDecimal("-0.01"),
                 new BigInteger("1234"),};
@@ -230,7 +230,7 @@ public class NumberDataTypeTest extends AbstractDataTypeTest
 
     @Override
     @Test
-    public void testSqlType() throws Exception
+    public void testSqlType_returnsExpectedSqlType() throws Exception
     {
         final int[] sqlTypes = {Types.NUMERIC, Types.DECIMAL};
 
@@ -248,7 +248,7 @@ public class NumberDataTypeTest extends AbstractDataTypeTest
 
     @Override
     @Test
-    public void testForObject() throws Exception
+    public void testForObject_withValidInput_returnsDataType() throws Exception
     {
         assertThat(DataType.forObject(new BigDecimal((double) 1234)))
                 .isEqualTo(DataType.NUMERIC);
@@ -256,7 +256,7 @@ public class NumberDataTypeTest extends AbstractDataTypeTest
 
     @Override
     @Test
-    public void testAsString() throws Exception
+    public void testAsString_withValidInput_returnsStringRepresentation() throws Exception
     {
         final BigDecimal[] values = {new BigDecimal("1234"),};
 
@@ -274,7 +274,7 @@ public class NumberDataTypeTest extends AbstractDataTypeTest
 
     @Override
     @Test
-    public void testGetSqlValue() throws Exception
+    public void testGetSqlValue_withValidStatement_returnsExpectedValue() throws Exception
     {
         final BigDecimal[] expected = {null, new BigDecimal("12.34"),};
 
@@ -301,7 +301,7 @@ public class NumberDataTypeTest extends AbstractDataTypeTest
      * ResultSet.wasNull().
      */
     @Test
-    public void testGetSqlValueCallOrder()
+    public void testGetSqlValueCallOrder_afterGetSqlValue_callsGetBigDecimalBeforeWasNull()
             throws TypeCastException, SQLException
     {
         final int columnIndex = 1;
