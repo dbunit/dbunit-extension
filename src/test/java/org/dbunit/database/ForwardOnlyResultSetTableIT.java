@@ -76,13 +76,13 @@ class ForwardOnlyResultSetTableIT extends ForwardOnlyTableTest
     }
 
     @Override
-    public void testGetMissingValue() throws Exception
+    public void testGetMissingValue_withMissingCells_returnsExpectedValues() throws Exception
     {
         // Do not test this!
     }
 
     @Test
-    void testGetValueOnLastRowIsClosingResultSet() throws Exception
+    void testGetValueOnLastRowIsClosingResultSet_afterIteratingAllRows_closesResultSet() throws Exception
     {
         final String tableName = "TABLE";
         final String[] columnNames = {"C0"};

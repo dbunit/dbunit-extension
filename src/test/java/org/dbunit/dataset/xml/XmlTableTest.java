@@ -56,7 +56,7 @@ public class XmlTableTest extends AbstractTableTest
 
     @Override
     @Test
-    public void testGetMissingValue() throws Exception
+    public void testGetMissingValue_withMissingCells_returnsExpectedValues() throws Exception
     {
         final Object[] expected =
                 {null, ITable.NO_VALUE, "value", "", "   ", ITable.NO_VALUE};

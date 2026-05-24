@@ -57,7 +57,7 @@ class StreamingDataSetTest extends ForwardOnlyDataSetTest
     }
 
     @Test
-    void testReturnsOnException() throws Exception
+    void testReturnsOnException_whenProducerThrows_wrapsInDataSetException() throws Exception
     {
         final RuntimeException exceptionToThrow = new IllegalArgumentException(
                 "For this test case we throw something that we normally would never do");

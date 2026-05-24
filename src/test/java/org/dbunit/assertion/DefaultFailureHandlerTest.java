@@ -46,7 +46,7 @@ class DefaultFailureHandlerTest
     private static final String COL_VALUE_2 = "value2";
 
     @Test
-    void testGetColumn() throws Exception
+    void testGetColumn_withFilteredTable_returnsAdditionalInfoForAllColumns() throws Exception
     {
         final Column[] cols =
                 new Column[] {new Column(COL_NAME_1, DataType.UNKNOWN),
@@ -71,7 +71,7 @@ class DefaultFailureHandlerTest
     }
 
     @Test
-    void testMakeAdditionalColumnInfoErrorMessage()
+    void testMakeAdditionalColumnInfoErrorMessage_withColumnNameAndException_returnsNonNullMessage()
     {
         final DefaultFailureHandler defaultFailureHandler =
                 new DefaultFailureHandler();

@@ -50,7 +50,7 @@ class IncludeTableFilterTest extends AbstractTableFilterTest
 
     @Override
     @Test
-    public void testAccept() throws Exception
+    public void testAccept_withFilter_acceptsExpectedTables() throws Exception
     {
         final String[] validNames = getExpectedNames();
         final ITableFilter filter = new IncludeTableFilter(validNames);
@@ -64,7 +64,7 @@ class IncludeTableFilterTest extends AbstractTableFilterTest
 
     @Override
     @Test
-    public void testIsCaseInsensitiveValidName() throws Exception
+    public void testIsCaseInsensitiveValidName_withMixedCaseName_acceptsAsValid() throws Exception
     {
         final String[] validNames = getExpectedNames();
         final ITableFilter filter = new IncludeTableFilter(validNames);
@@ -78,7 +78,7 @@ class IncludeTableFilterTest extends AbstractTableFilterTest
 
     @Override
     @Test
-    public void testIsValidNameAndInvalid() throws Exception
+    public void testIsValidNameAndInvalid_withInvalidName_rejectsName() throws Exception
     {
         final String[] invalidNames =
                 new String[] {"INVALID_TABLE", "UNKNOWN_TABLE",};
@@ -94,7 +94,7 @@ class IncludeTableFilterTest extends AbstractTableFilterTest
 
     @Override
     @Test
-    public void testGetTableNames() throws Exception
+    public void testGetTableNames_withFilter_returnsFilteredTableNames() throws Exception
     {
         final String[] expectedNames = getExpectedNames();
         final ITableFilter filter = new IncludeTableFilter(expectedNames);
@@ -111,7 +111,7 @@ class IncludeTableFilterTest extends AbstractTableFilterTest
 
     @Override
     @Test
-    public void testGetTableNamesAndTableNotInDecoratedDataSet()
+    public void testGetTableNamesAndTableNotInDecoratedDataSet_withMissingTable_excludesMissingTable()
             throws Exception
     {
         final String[] expectedNames = getExpectedNames();
@@ -134,7 +134,7 @@ class IncludeTableFilterTest extends AbstractTableFilterTest
 
     @Override
     @Test
-    public void testGetCaseInsensitiveTableNames() throws Exception
+    public void testGetCaseInsensitiveTableNames_withLowercaseNames_returnsMatchingTables() throws Exception
     {
         final String[] filterNames = getExpectedNames();
         final ITableFilter filter = new IncludeTableFilter(filterNames);
@@ -152,7 +152,7 @@ class IncludeTableFilterTest extends AbstractTableFilterTest
 
     @Override
     @Test
-    public void testGetReverseTableNames() throws Exception
+    public void testGetReverseTableNames_withFilter_returnsFilteredTablesInReverseOrder() throws Exception
     {
         final String[] expectedNames = getExpectedNames();
         final String[] filterNames =
@@ -171,7 +171,7 @@ class IncludeTableFilterTest extends AbstractTableFilterTest
 
     @Override
     @Test
-    public void testIterator() throws Exception
+    public void testIterator_withFilter_iteratesFilteredTables() throws Exception
     {
         final String[] expectedNames = getExpectedNames();
         final ITableFilter filter = new IncludeTableFilter(expectedNames);
@@ -191,7 +191,7 @@ class IncludeTableFilterTest extends AbstractTableFilterTest
 
     @Override
     @Test
-    public void testCaseInsensitiveIterator() throws Exception
+    public void testCaseInsensitiveIterator_withMixedCaseFilter_iteratesMatchingTables() throws Exception
     {
         final ITableFilter filter = new IncludeTableFilter(getExpectedNames());
         final String[] lowerNames = getExpectedLowerNames();
@@ -211,7 +211,7 @@ class IncludeTableFilterTest extends AbstractTableFilterTest
 
     @Override
     @Test
-    public void testReverseIterator() throws Exception
+    public void testReverseIterator_withFilter_iteratesFilteredTablesInReverse() throws Exception
     {
         final String[] filterNames = getExpectedNames();
         final String[] expectedNames =
@@ -233,7 +233,7 @@ class IncludeTableFilterTest extends AbstractTableFilterTest
 
     @Override
     @Test
-    public void testIteratorAndTableNotInDecoratedDataSet() throws Exception
+    public void testIteratorAndTableNotInDecoratedDataSet_withMissingTable_iteratesAvailableTables() throws Exception
     {
         final String[] expectedNames = getExpectedNames();
 
@@ -259,7 +259,7 @@ class IncludeTableFilterTest extends AbstractTableFilterTest
     ////////////////////////////////////////////////////////////////////////////
 
     @Test
-    void testIsValidNameWithPatterns() throws Exception
+    void testIsValidNameWithPatterns_withMatchingPatterns_acceptsName() throws Exception
     {
         final String validName = MATCHING_NAME;
 
@@ -274,7 +274,7 @@ class IncludeTableFilterTest extends AbstractTableFilterTest
     }
 
     @Test
-    void testIsValidNameInvalidWithPatterns() throws Exception
+    void testIsValidNameInvalidWithPatterns_withNonMatchingPatterns_rejectsName() throws Exception
     {
         final String validName = MATCHING_NAME;
 
@@ -289,7 +289,7 @@ class IncludeTableFilterTest extends AbstractTableFilterTest
     }
 
     @Test
-    void testGetTableNamesWithPatterns() throws Exception
+    void testGetTableNamesWithPatterns_withMatchingPatterns_returnsMatchingTables() throws Exception
     {
         final String[] expectedNames = new String[] {MATCHING_NAME};
         final IDataSet dataSet = new DefaultDataSet(new ITable[] {
@@ -325,7 +325,7 @@ class IncludeTableFilterTest extends AbstractTableFilterTest
     }
 
     @Test
-    void testGetTableNamesWithNonMatchingPatterns() throws Exception
+    void testGetTableNamesWithNonMatchingPatterns_withNonMatchingPatterns_returnsEmptyList() throws Exception
     {
         final IDataSet dataSet = new DefaultDataSet(
                 new ITable[] {new DefaultTable(MATCHING_NAME),});
@@ -345,7 +345,7 @@ class IncludeTableFilterTest extends AbstractTableFilterTest
     }
 
     @Test
-    void testGetTablesWithPatterns() throws Exception
+    void testGetTablesWithPatterns_withMatchingPatterns_returnsMatchingTables() throws Exception
     {
         final String[] expectedNames = new String[] {MATCHING_NAME};
         final IDataSet dataSet = new DefaultDataSet(new ITable[] {
@@ -389,7 +389,7 @@ class IncludeTableFilterTest extends AbstractTableFilterTest
     }
 
     @Test
-    void testGetTablesWithNonMatchingPatterns() throws Exception
+    void testGetTablesWithNonMatchingPatterns_withNonMatchingPatterns_returnsEmptyList() throws Exception
     {
         final IDataSet dataSet = new DefaultDataSet(
                 new ITable[] {new DefaultTable(MATCHING_NAME),});

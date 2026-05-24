@@ -95,7 +95,7 @@ class IsActualGreaterThanOrEqualToExpectedWithIgnoreMillisValueComparerTest
     }
 
     @Test
-    void testGetFailPhrase() throws Exception
+    void testGetFailPhrase_returnsNonNullPhrase() throws Exception
     {
         final String actual = sut.getFailPhrase();
 

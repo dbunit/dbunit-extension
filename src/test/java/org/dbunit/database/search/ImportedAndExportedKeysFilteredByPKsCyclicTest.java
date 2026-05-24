@@ -26,7 +26,7 @@ class ImportedAndExportedKeysFilteredByPKsCyclicTest
     }
 
     @Test
-    void testAWithOne() throws DataSetException, SQLException, SearchException
+    void testAWithOne_withTableAAndOnePk_returnsCyclicDependencies() throws DataSetException, SQLException, SearchException
     {
         addInput(A, new String[] {A1});
         addOutput(C, new String[] {C1});
@@ -36,7 +36,7 @@ class ImportedAndExportedKeysFilteredByPKsCyclicTest
     }
 
     @Test
-    void testAWithTwo() throws DataSetException, SQLException, SearchException
+    void testAWithTwo_withTableAAndTwoPks_returnsCyclicDependencies() throws DataSetException, SQLException, SearchException
     {
         addInput(A, new String[] {A1, A2});
         addOutput(C, new String[] {C1});
@@ -46,7 +46,7 @@ class ImportedAndExportedKeysFilteredByPKsCyclicTest
     }
 
     @Test
-    void testAWithTwoInvertedInput()
+    void testAWithTwoInvertedInput_withInvertedInputOrder_returnsSortedOutput()
             throws DataSetException, SQLException, SearchException
     {
         addInput(A, new String[] {A2, A1});
@@ -57,7 +57,7 @@ class ImportedAndExportedKeysFilteredByPKsCyclicTest
     }
 
     @Test
-    void testAWithTwoInvertedOutput()
+    void testAWithTwoInvertedOutput_withRegularInputOrder_returnsInvertedOutput()
             throws DataSetException, SQLException, SearchException
     {
         addInput(A, new String[] {A1, A2});
@@ -68,7 +68,7 @@ class ImportedAndExportedKeysFilteredByPKsCyclicTest
     }
 
     @Test
-    void testAWithRepeated()
+    void testAWithRepeated_withDuplicatePkInputs_returnsDeduplicatedOutput()
             throws DataSetException, SQLException, SearchException
     {
         addInput(A, new String[] {A1, A2, A2, A1, A1, A1, A2, A2});
@@ -79,7 +79,7 @@ class ImportedAndExportedKeysFilteredByPKsCyclicTest
     }
 
     @Test
-    void testBWithOne() throws DataSetException, SQLException, SearchException
+    void testBWithOne_withTableBAndOnePk_returnsCyclicDependencies() throws DataSetException, SQLException, SearchException
     {
         addInput(B, new String[] {B1});
         addOutput(C, new String[] {C1});
@@ -89,7 +89,7 @@ class ImportedAndExportedKeysFilteredByPKsCyclicTest
     }
 
     @Test
-    void testCWithOne() throws DataSetException, SQLException, SearchException
+    void testCWithOne_withTableCAndOnePk_returnsCyclicDependencies() throws DataSetException, SQLException, SearchException
     {
         addInput(C, new String[] {C1});
         addOutput(C, new String[] {C1});

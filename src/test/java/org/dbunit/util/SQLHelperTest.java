@@ -56,7 +56,7 @@ class SQLHelperTest extends AbstractHSQLTestCase
     }
 
     @Test
-    void testGetPrimaryKeyColumn() throws SQLException
+    void testGetPrimaryKeyColumn_withValidTable_returnsPrimaryKeyColumnName() throws SQLException
     {
         final String[] tables = {"A", "B", "C", "D", "E", "F", "G", "H"};
         final Connection conn = getConnection().getConnection();
@@ -74,7 +74,7 @@ class SQLHelperTest extends AbstractHSQLTestCase
     }
 
     @Test
-    void testGetDatabaseInfoWithException() throws Exception
+    void testGetDatabaseInfoWithException_withExceptionOnVersion_returnsNotAvailableText() throws Exception
     {
         final String productName = "Some product";
         final String exceptionText =

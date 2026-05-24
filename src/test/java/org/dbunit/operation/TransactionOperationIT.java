@@ -67,7 +67,7 @@ class TransactionOperationIT extends AbstractDatabaseIT
     }
 
     @Test
-    void testExecuteCommit() throws Exception
+    void testExecute_withSuccessfulOperation_commitsAndRestoresAutoCommit() throws Exception
     {
         final String tableName = "TEST_TABLE";
         final Reader in = new FileReader(
@@ -96,7 +96,7 @@ class TransactionOperationIT extends AbstractDatabaseIT
     }
 
     @Test
-    void testExclusiveTransaction() throws Exception
+    void testExecute_withExistingTransaction_throwsExclusiveTransactionException() throws Exception
     {
         final String tableName = "TEST_TABLE";
         final Reader in = new FileReader(
@@ -129,7 +129,7 @@ class TransactionOperationIT extends AbstractDatabaseIT
     }
 
     @Test
-    void testExecuteRollback() throws Exception
+    void testExecute_withFailingOperation_rollsBackAndRestoresAutoCommit() throws Exception
     {
         final String tableName = "TEST_TABLE";
         final Reader in = new FileReader(

@@ -62,7 +62,7 @@ class SqlLoaderCsvDataSetTest
      *             the data set exception
      */
     @Test
-    void testCountryTable() throws DataSetException
+    void testCountryTable_withValidSqlLoaderFile_returns249RowsWithExpectedValues() throws DataSetException
     {
 
         final ITable table = getDataSet().getTable("COUNTRY");

@@ -41,7 +41,7 @@ class TableFormatterTest
 {
 
     @Test
-    void testFormatSimpleTable() throws Exception
+    void testFormatSimpleTable_withTwoRows_returnsFormattedTableString() throws Exception
     {
         final Column[] cols =
                 new Column[] {new Column("COL1", DataType.VARCHAR),

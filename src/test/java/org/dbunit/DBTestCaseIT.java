@@ -51,7 +51,7 @@ class DBTestCaseIT
      * @throws Exception
      */
     @Test
-    void testConfigureConnection() throws Exception
+    void testConfigureConnection_withCustomBatchSizeAndBatchedStatements_setsConfigPropertiesOnConnection() throws Exception
     {
         final DatabaseEnvironment dbEnv = DatabaseEnvironment.getInstance();
         final IDatabaseConnection conn = dbEnv.getConnection();
@@ -136,7 +136,7 @@ class DBTestCaseIT
      * @throws Exception
      */
     @Test
-    void testExecuteSetUpTearDown() throws Exception
+    void testExecuteSetUpTearDown_withCleanInsertAndDeleteAllOperations_keepsConnectionOpenAndManagesData() throws Exception
     {
         // TODO implement this
         final DatabaseEnvironment dbEnv = DatabaseEnvironment.getInstance();

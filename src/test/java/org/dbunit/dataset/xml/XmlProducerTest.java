@@ -64,7 +64,7 @@ public class XmlProducerTest extends AbstractProducerTest
     }
 
     @Test
-    void testProduceEmptyDataSet() throws Exception
+    void testProduceEmptyDataSet_withEmptyDatasetXml_producesStartAndEndDataSetOnly() throws Exception
     {
         // Setup consumer
         final MockDataSetConsumer consumer = new MockDataSetConsumer();
@@ -83,7 +83,7 @@ public class XmlProducerTest extends AbstractProducerTest
     }
 
     @Test
-    void testProduceNullValue() throws Exception
+    void testProduceNullValue_withNullAndEmptyValuesInXml_producesCorrectNullAndEmptyValues() throws Exception
     {
         final String tableName = "TEST_TABLE";
         final Column[] expectedColumns =
@@ -118,7 +118,7 @@ public class XmlProducerTest extends AbstractProducerTest
     }
 
     @Test
-    void testProduceMissingColumn() throws Exception
+    void testProduceMissingColumn_withExtraValueInRow_includesExtraValueInOutput() throws Exception
     {
         final String tableName = "TEST_TABLE";
         final Column[] expectedColumns =
@@ -155,7 +155,7 @@ public class XmlProducerTest extends AbstractProducerTest
     }
 
     @Test
-    void testProduceNotWellFormedXml() throws Exception
+    void testProduceNotWellFormedXml_withUnclosedDatasetTag_throwsDataSetException() throws Exception
     {
         // Setup consumer
         final MockDataSetConsumer consumer = new MockDataSetConsumer();
@@ -175,7 +175,7 @@ public class XmlProducerTest extends AbstractProducerTest
     }
 
     @Test
-    void testProduceInvalidXml() throws Exception
+    void testProduceInvalidXml_withInvalidRootElementAndValidatingEnabled_throwsDataSetException() throws Exception
     {
         // Setup consumer
         final MockDataSetConsumer consumer = new MockDataSetConsumer();

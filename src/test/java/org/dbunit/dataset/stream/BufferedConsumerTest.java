@@ -8,7 +8,7 @@ class BufferedConsumerTest
 {
 
     @Test
-    void testBufferedConsumer() throws Exception
+    void testBufferedConsumer_withMultipleTables_buffersAndForwardsAllEvents() throws Exception
     {
         final MockDataSetConsumer wrappedConsumer = new MockDataSetConsumer();
 

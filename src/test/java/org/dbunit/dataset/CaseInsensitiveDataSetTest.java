@@ -60,14 +60,14 @@ class CaseInsensitiveDataSetTest extends AbstractDataSetTest
     }
 
     @Override
-    public void testCreateDuplicateDataSet() throws Exception
+    public void testCreateDuplicateDataSet_withDuplicateTableNames_throwsAmbiguousTableNameException() throws Exception
     {
         // No op. This dataSet is only a wrapper for another dataSet which is
         // why duplicates cannot occur.
     }
 
     @Override
-    public void testCreateMultipleCaseDuplicateDataSet() throws Exception
+    public void testCreateMultipleCaseDuplicateDataSet_withDuplicateCaseVariantNames_throwsAmbiguousTableNameException() throws Exception
     {
         // No op. This dataSet is only a wrapper for another dataSet which is
         // why duplicates cannot occur.

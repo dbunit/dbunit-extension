@@ -56,13 +56,13 @@ class ReplacementTableTest extends AbstractTableTest
     }
 
     @Override
-    public void testGetMissingValue() throws Exception
+    public void testGetMissingValue_withMissingCells_returnsExpectedValues() throws Exception
     {
         // TODO test something usefull
     }
 
     @Test
-    void testObjectReplacement() throws Exception
+    void testObjectReplacement_withObjectReplacements_replacesMatchingValues() throws Exception
     {
         final String tableName = "TABLE_NAME";
         final BigDecimal trueObject = new BigDecimal((double) 1);
@@ -105,7 +105,7 @@ class ReplacementTableTest extends AbstractTableTest
     }
 
     @Test
-    void testSubstringReplacement() throws Exception
+    void testSubstringReplacement_withSubstringMapping_replacesAllOccurrences() throws Exception
     {
         final String tableName = "TABLE_NAME";
 
@@ -146,7 +146,7 @@ class ReplacementTableTest extends AbstractTableTest
      * Tests that replacement will fail properly when strict replacement fails.
      */
     @Test
-    void testStrictReplacement() throws Exception
+    void testStrictReplacement_withUnmatchedDelimitedValue_throwsDataSetException() throws Exception
     {
         final String tableName = "TABLE_NAME";
         final String replacedColumnName = "REPLACED_COLUMN";
@@ -210,7 +210,7 @@ class ReplacementTableTest extends AbstractTableTest
     }
 
     @Test
-    void testDelimitedSubstringReplacement() throws Exception
+    void testDelimitedSubstringReplacement_withDelimiters_replacesDelimitedSubstrings() throws Exception
     {
         final String tableName = "TABLE_NAME";
 
@@ -272,7 +272,7 @@ class ReplacementTableTest extends AbstractTableTest
     }
 
     @Test
-    void testDelimitedSubstringReplacementWithIdenticalDelimiters()
+    void testDelimitedSubstringReplacementWithIdenticalDelimiters_withSameStartAndEndDelimiter_replacesCorrectly()
             throws Exception
     {
         final String tableName = "TABLE_NAME";
@@ -333,7 +333,7 @@ class ReplacementTableTest extends AbstractTableTest
     }
 
     @Test
-    void testAddNullReplacementSubstring() throws Exception
+    void testAddNullReplacementSubstring_withNullArgs_throwsNullPointerException() throws Exception
     {
         final ReplacementTable replacementTable =
                 new ReplacementTable(new DefaultTable("TABLE"));

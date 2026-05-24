@@ -59,7 +59,7 @@ public class XlsTableTest extends AbstractTableTest
 
     @Override
     @Test
-    public void testGetMissingValue() throws Exception
+    public void testGetMissingValue_withMissingCells_returnsExpectedValues() throws Exception
     {
         final int row = 0;
         final Object[] expected = {"row 0 col 0", null, "row 0 col 2"};
@@ -77,7 +77,7 @@ public class XlsTableTest extends AbstractTableTest
     }
 
     @Test
-    void testEmptyTableColumns() throws Exception
+    void testEmptyTableColumns_withEmptyTable_returnsDefinedColumns() throws Exception
     {
         final Column[] expectedColumns =
                 new Column[] {new Column("COLUMN0", DataType.UNKNOWN),
@@ -96,7 +96,7 @@ public class XlsTableTest extends AbstractTableTest
     }
 
     @Test
-    void testEmptySheet() throws Exception
+    void testEmptySheet_withEmptyWorksheet_returnsEmptyColumns() throws Exception
     {
         final ITable table = createDataSet().getTable("EMPTY_SHEET");
 
@@ -105,7 +105,7 @@ public class XlsTableTest extends AbstractTableTest
     }
 
     @Test
-    void testDifferentDatatypes() throws Exception
+    void testDifferentDatatypes_withMixedColumnTypes_returnsCorrectValues() throws Exception
     {
         final int row = 0;
         final ITable table =
@@ -157,7 +157,7 @@ public class XlsTableTest extends AbstractTableTest
     }
 
     @Test
-    void testNumberAsText() throws Exception
+    void testNumberAsText_withNumericCellsAsText_returnsStringValues() throws Exception
     {
         final int row = 0;
         final ITable table = createDataSet().getTable("TABLE_NUMBER_AS_TEXT");

@@ -64,7 +64,7 @@ class PrimaryKeyFilteredTableWrapperTest extends AbstractHSQLTestCase
     }
 
     @Test
-    void testConstructorNullTable() throws DataSetException
+    void testConstructorNullTable_withNullTable_throwsIllegalArgumentException() throws DataSetException
     {
         final Set<Object> empty = new HashSet<>();
         final IllegalArgumentException actual =
@@ -75,7 +75,7 @@ class PrimaryKeyFilteredTableWrapperTest extends AbstractHSQLTestCase
     }
 
     @Test
-    void testConstructorNullSet() throws DataSetException
+    void testConstructorNullSet_withNullSet_throwsIllegalArgumentException() throws DataSetException
     {
         final IllegalArgumentException actual = assertThrows(
                 IllegalArgumentException.class,
@@ -86,7 +86,7 @@ class PrimaryKeyFilteredTableWrapperTest extends AbstractHSQLTestCase
     }
 
     @Test
-    void testDenyEverything() throws DataSetException
+    void testDenyEverything_withEmptyPkSet_returnsEmptyTable() throws DataSetException
     {
         final PrimaryKeyFilteredTableWrapper table =
                 new PrimaryKeyFilteredTableWrapper(this.fTable,
@@ -97,14 +97,14 @@ class PrimaryKeyFilteredTableWrapperTest extends AbstractHSQLTestCase
     }
 
     @Test
-    void testAllowEverything() throws DataSetException
+    void testAllowEverything_withAllPks_returnsFullTable() throws DataSetException
     {
         final Set<Object> allowedPKs = getPKs(this.fTable);
         allowEveryThingTest(allowedPKs);
     }
 
     @Test
-    void testAllowEverythingWithClonedSet() throws DataSetException
+    void testAllowEverythingWithClonedSet_withClonedPkSet_returnsFullTable() throws DataSetException
     {
         final Set<Object> allowedPKs = getPKs(this.fTable);
         final Set<Object> newSet = new HashSet<>(allowedPKs);
@@ -112,19 +112,19 @@ class PrimaryKeyFilteredTableWrapperTest extends AbstractHSQLTestCase
     }
 
     @Test
-    void testFilterLast() throws DataSetException
+    void testFilterLast_withFirstRowExcluded_returnsRemainingRows() throws DataSetException
     {
         doFilter(new String[] {E1, E2, E3});
     }
 
     @Test
-    void testFilterFirst() throws DataSetException
+    void testFilterFirst_withLastRowExcluded_returnsRemainingRows() throws DataSetException
     {
         doFilter(new String[] {E2, E3, E4});
     }
 
     @Test
-    void testFilterMiddle() throws DataSetException
+    void testFilterMiddle_withMiddleRowsExcluded_returnsFirstAndLastRows() throws DataSetException
     {
         doFilter(new String[] {E1, E4});
     }

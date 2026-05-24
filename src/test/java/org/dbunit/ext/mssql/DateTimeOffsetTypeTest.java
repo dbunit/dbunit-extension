@@ -43,21 +43,21 @@ class DateTimeOffsetTypeTest
     }
 
     @Test
-    void testTypeCastWithNull() throws TypeCastException
+    void testTypeCastWithNull_withNullInput_returnsNull() throws TypeCastException
     {
         final Object result = type.typeCast(null);
         assertThat(result).isNull();
     }
 
     @Test
-    void testTypeCastWithOffsetDateTime() throws TypeCastException
+    void testTypeCastWithOffsetDateTime_withOffsetDateTimeInput_returnsSameInstance() throws TypeCastException
     {
         final Object result = type.typeCast(OffsetDateTime.MIN);
         assertThat(result).isSameAs(OffsetDateTime.MIN);
     }
 
     @Test
-    void testTypeCastWithValidTemporalAccessor() throws TypeCastException
+    void testTypeCastWithValidTemporalAccessor_withZonedDateTime_returnsEquivalentOffsetDateTime() throws TypeCastException
     {
         final ZonedDateTime now = ZonedDateTime.now();
         final Object result = type.typeCast(now);
@@ -65,7 +65,7 @@ class DateTimeOffsetTypeTest
     }
 
     @Test
-    void testTypeCastWithInvalidTemporalAccessor() throws TypeCastException
+    void testTypeCastWithInvalidTemporalAccessor_withLocalDateTimeInput_throwsTypeCastException() throws TypeCastException
     {
         assertThrows(TypeCastException.class,
                 () -> type.typeCast(LocalDateTime.now()),
@@ -74,7 +74,7 @@ class DateTimeOffsetTypeTest
     }
 
     @Test
-    void testTypeCastWithISO_8601_String() throws TypeCastException
+    void testTypeCastWithISO_8601_String_withIso8601String_returnsExpectedOffsetDateTime() throws TypeCastException
     {
         final Object result = type.typeCast("2000-01-01T01:00:00Z");
         assertThat(result).isEqualTo(
@@ -82,7 +82,7 @@ class DateTimeOffsetTypeTest
     }
 
     @Test
-    void testTypeCastWithSqlServerStringWithoutNanos() throws TypeCastException
+    void testTypeCastWithSqlServerStringWithoutNanos_withSqlServerFormatWithoutNanos_returnsExpectedOffsetDateTime() throws TypeCastException
     {
         final Object result = type.typeCast("2000-01-01 01:00:00 +00:00");
         assertThat(result).isEqualTo(
@@ -90,7 +90,7 @@ class DateTimeOffsetTypeTest
     }
 
     @Test
-    void testTypeCastWithSqlServerStringWithNanos() throws TypeCastException
+    void testTypeCastWithSqlServerStringWithNanos_withSqlServerFormatWithNanos_returnsExpectedOffsetDateTime() throws TypeCastException
     {
         final Object result =
                 type.typeCast("2000-01-01 01:00:00.123000 +00:00");
@@ -99,7 +99,7 @@ class DateTimeOffsetTypeTest
     }
 
     @Test
-    void testTypeCastWithInvalidObject() throws TypeCastException
+    void testTypeCastWithInvalidObject_withPlainObjectInput_throwsTypeCastException() throws TypeCastException
     {
         assertThrows(TypeCastException.class, () -> type.typeCast(new Object()),
                 "Should not be possible to convert due to invalid string format");

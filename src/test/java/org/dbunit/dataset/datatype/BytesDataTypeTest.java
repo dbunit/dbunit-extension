@@ -64,7 +64,7 @@ class BytesDataTypeTest extends AbstractDataTypeTest
 
     @Override
     @Test
-    public void testToString() throws Exception
+    public void testToString_withDataType_returnsExpectedString() throws Exception
     {
         final String[] expected = {"BINARY", "VARBINARY", "LONGVARBINARY",
                 // "BLOB",
@@ -79,7 +79,7 @@ class BytesDataTypeTest extends AbstractDataTypeTest
 
     @Override
     @Test
-    public void testGetTypeClass() throws Exception
+    public void testGetTypeClass_returnsExpectedClass() throws Exception
     {
         for (final DataType element : TYPES)
         {
@@ -90,7 +90,7 @@ class BytesDataTypeTest extends AbstractDataTypeTest
 
     @Override
     @Test
-    public void testIsNumber() throws Exception
+    public void testIsNumber_returnsExpectedBoolean() throws Exception
     {
         for (final DataType element : TYPES)
         {
@@ -100,7 +100,7 @@ class BytesDataTypeTest extends AbstractDataTypeTest
 
     @Override
     @Test
-    public void testIsDateTime() throws Exception
+    public void testIsDateTime_returnsExpectedBoolean() throws Exception
     {
         for (final DataType element : TYPES)
         {
@@ -110,7 +110,7 @@ class BytesDataTypeTest extends AbstractDataTypeTest
 
     @Override
     @Test
-    public void testTypeCast() throws Exception
+    public void testTypeCast_withCompatibleInput_returnsExpectedValue() throws Exception
     {
         final Object[] values = {null, "", "YWJjZA==",
                 new byte[] {0, 1, 2, 3, 4, 5},
@@ -143,7 +143,7 @@ class BytesDataTypeTest extends AbstractDataTypeTest
     }
 
     @Test
-    void testTypeCastFileName() throws Exception
+    void testTypeCastFileName_withFilePathValue_returnsFileContentsAsBytes() throws Exception
     {
         final File file = new File("LICENSE.txt");
 
@@ -166,7 +166,7 @@ class BytesDataTypeTest extends AbstractDataTypeTest
 
     @Override
     @Test
-    public void testTypeCastNone() throws Exception
+    public void testTypeCastNone_withNullInput_returnsNull() throws Exception
     {
         for (final DataType type : TYPES)
         {
@@ -177,7 +177,7 @@ class BytesDataTypeTest extends AbstractDataTypeTest
 
     @Override
     @Test
-    public void testTypeCastInvalid() throws Exception
+    public void testTypeCastInvalid_withIncompatibleInput_throwsTypeCastException() throws Exception
     {
         final Object[] values = {new Object(), Integer.valueOf(1234),};
 
@@ -196,7 +196,7 @@ class BytesDataTypeTest extends AbstractDataTypeTest
 
     @Override
     @Test
-    public void testCompareEquals() throws Exception
+    public void testCompareEquals_withEqualValues_returnsZero() throws Exception
     {
         final Object[] values1 =
                 {null, "", "YWJjZA==", new byte[] {0, 1, 2, 3, 4, 5},};
@@ -221,7 +221,7 @@ class BytesDataTypeTest extends AbstractDataTypeTest
 
     @Override
     @Test
-    public void testCompareInvalid() throws Exception
+    public void testCompareInvalid_withInvalidInput_throwsTypeCastException() throws Exception
     {
         final Object[] values1 = {new Object(), new java.util.Date()};
         final Object[] values2 = {null, null};
@@ -247,7 +247,7 @@ class BytesDataTypeTest extends AbstractDataTypeTest
 
     @Override
     @Test
-    public void testCompareDifferent() throws Exception
+    public void testCompareDifferent_withDifferentValues_returnsNonZero() throws Exception
     {
         final Object[] less = {null, new byte[] {'a', 'a', 'c', 'd'},
                 new byte[] {0, 1, 2, 3, 4, 5},};
@@ -270,7 +270,7 @@ class BytesDataTypeTest extends AbstractDataTypeTest
 
     @Override
     @Test
-    public void testSqlType() throws Exception
+    public void testSqlType_returnsExpectedSqlType() throws Exception
     {
         final int[] sqlTypes =
                 {Types.BINARY, Types.VARBINARY, Types.LONGVARBINARY,
@@ -291,7 +291,7 @@ class BytesDataTypeTest extends AbstractDataTypeTest
 
     @Override
     @Test
-    public void testForObject() throws Exception
+    public void testForObject_withValidInput_returnsDataType() throws Exception
     {
         assertThat(DataType.forObject(new byte[0]))
                 .isEqualTo(DataType.VARBINARY);
@@ -299,7 +299,7 @@ class BytesDataTypeTest extends AbstractDataTypeTest
 
     @Override
     @Test
-    public void testAsString() throws Exception
+    public void testAsString_withValidInput_returnsStringRepresentation() throws Exception
     {
         final byte[][] values = {new byte[0], new byte[] {'a', 'b', 'c', 'd'},};
 
@@ -317,7 +317,7 @@ class BytesDataTypeTest extends AbstractDataTypeTest
 
     @Override
     @Test
-    public void testGetSqlValue() throws Exception
+    public void testGetSqlValue_withValidStatement_returnsExpectedValue() throws Exception
     {
         final byte[][] expected =
                 {null, new byte[0], new byte[] {'a', 'b', 'c', 'd'},
@@ -343,7 +343,7 @@ class BytesDataTypeTest extends AbstractDataTypeTest
     }
 
     @Test
-    void testSetSqlValue() throws Exception
+    void testSetSqlValue_withBytesValue_callsSetObjectOnStatement() throws Exception
     {
 
         final Object[] expected =
@@ -371,7 +371,7 @@ class BytesDataTypeTest extends AbstractDataTypeTest
      * Assert calls ResultSet.getBytes(columnIndex) before ResultSet.wasNull().
      */
     @Test
-    public void testGetSqlValueCallOrder()
+    public void testGetSqlValueCallOrder_afterGetSqlValue_callsGetBytesBeforeWasNull()
             throws TypeCastException, SQLException
     {
         final int columnIndex = 1;

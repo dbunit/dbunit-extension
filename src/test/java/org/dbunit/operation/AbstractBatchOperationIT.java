@@ -46,7 +46,7 @@ class AbstractBatchOperationIT extends AbstractDatabaseIT
 {
 
     @Test
-    void testGetOperationMetaDataAndMissingColumns() throws Exception
+    void testGetOperationMetaData_withMissingDataSetColumns_returnsMetaDataFromDatabase() throws Exception
     {
         final Reader in = TestUtils.getFileReader("xml/missingColumnTest.xml");
         final IDataSet xmlDataSet = new XmlDataSet(in);
@@ -107,7 +107,7 @@ class AbstractBatchOperationIT extends AbstractDatabaseIT
     }
 
     @Test
-    void testGetOperationMetaDataAndUnknownColumns() throws Exception
+    void testGetOperationMetaData_withUnknownColumn_throwsNoSuchColumnException() throws Exception
     {
         final String tableName = "PK_TABLE";
         final Reader in = TestUtils.getFileReader("xml/unknownColumnTest.xml");

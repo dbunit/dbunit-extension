@@ -46,7 +46,7 @@ class MckoiDataTypeFactoryTest extends AbstractDataTypeFactoryTest
     }
 
     @Test
-    void testCreateJavaObjectDataType() throws Exception
+    void testCreateJavaObjectDataType_withDistinctSqlType_returnsJavaObjectType() throws Exception
     {
         DataType expected = null, actual = null;
         final int sqlType = Types.DISTINCT;

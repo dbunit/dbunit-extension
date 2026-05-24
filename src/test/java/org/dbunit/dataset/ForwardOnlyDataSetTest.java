@@ -54,7 +54,7 @@ public class ForwardOnlyDataSetTest extends DefaultDataSetTest
 
     @Override
     @Test
-    void testGetTableNames() throws Exception
+    void testGetTableNames_withPopulatedDataSet_returnsAllTableNames() throws Exception
     {
         final IDataSet ds = createDataSet();
         assertThrows(UnsupportedOperationException.class,
@@ -64,7 +64,7 @@ public class ForwardOnlyDataSetTest extends DefaultDataSetTest
 
     @Override
     @Test
-    void testGetTable() throws Exception
+    void testGetTable_withKnownTableName_returnsTable() throws Exception
     {
         final String[] tableNames = getExpectedNames();
         final IDataSet ds = createDataSet();
@@ -75,7 +75,7 @@ public class ForwardOnlyDataSetTest extends DefaultDataSetTest
 
     @Override
     @Test
-    void testGetTableMetaData() throws Exception
+    void testGetTableMetaData_withKnownTableName_returnsMetaData() throws Exception
     {
         final String[] tableNames = getExpectedNames();
         final IDataSet ds = createDataSet();
@@ -87,7 +87,7 @@ public class ForwardOnlyDataSetTest extends DefaultDataSetTest
 
     @Override
     @Test
-    public void testReverseIterator() throws Exception
+    public void testReverseIterator_withPopulatedDataSet_iteratesAllTablesInReverseOrder() throws Exception
     {
         final IDataSet ds = createDataSet();
         assertThrows(UnsupportedOperationException.class,
@@ -97,49 +97,49 @@ public class ForwardOnlyDataSetTest extends DefaultDataSetTest
 
     @Override
     @Disabled("Cannot test! Unsupported feature.")
-    public void testGetTableNamesDefensiveCopy() throws Exception
+    public void testGetTableNamesDefensiveCopy_onMultipleCalls_returnsNewArrayEachTime() throws Exception
     {
         // Cannot test! Unsupported feature.
     }
 
     @Override
     @Disabled("Cannot test! Unsupported feature.")
-    public void testGetUnknownTable() throws Exception
+    public void testGetUnknownTable_withUnknownTableName_throwsNoSuchTableException() throws Exception
     {
         // Cannot test! Unsupported feature.
     }
 
     @Override
     @Disabled("Cannot test! Unsupported feature.")
-    public void testGetUnknownTableMetaData() throws Exception
+    public void testGetUnknownTableMetaData_withUnknownTableName_throwsNoSuchTableException() throws Exception
     {
         // Cannot test! Unsupported feature.
     }
 
     @Override
     @Disabled("Cannot test! Unsupported feature.")
-    public void testGetTablesDefensiveCopy() throws Exception
+    public void testGetTablesDefensiveCopy_onMultipleCalls_returnsNewArrayEachTime() throws Exception
     {
         // Cannot test! Unsupported feature.
     }
 
     @Override
     @Disabled("Cannot test! Unsupported feature.")
-    public void testGetCaseInsensitiveTable() throws Exception
+    public void testGetCaseInsensitiveTable_withLowercaseTableName_returnsTable() throws Exception
     {
         // Cannot test! Unsupported feature.
     }
 
     @Override
     @Disabled("Cannot test! Unsupported feature.")
-    public void testGetCaseInsensitiveTableMetaData() throws Exception
+    public void testGetCaseInsensitiveTableMetaData_withLowercaseTableName_returnsMetaData() throws Exception
     {
         // Cannot test! Unsupported feature.
     }
 
     @Override
     @Disabled("No op. This dataSet is only a wrapper for another dataSet which is why duplicates cannot occur.")
-    public void testCreateDuplicateDataSet() throws Exception
+    public void testCreateDuplicateDataSet_withDuplicateTableNames_throwsAmbiguousTableNameException() throws Exception
     {
         // No op. This dataSet is only a wrapper for another dataSet which is
         // why duplicates cannot occur.
@@ -147,7 +147,7 @@ public class ForwardOnlyDataSetTest extends DefaultDataSetTest
 
     @Override
     @Disabled("No op. This dataSet is only a wrapper for another dataSet which is why duplicates cannot occur.")
-    public void testCreateMultipleCaseDuplicateDataSet() throws Exception
+    public void testCreateMultipleCaseDuplicateDataSet_withDuplicateCaseVariantNames_throwsAmbiguousTableNameException() throws Exception
     {
         // No op. This dataSet is only a wrapper for another dataSet which is
         // why duplicates cannot occur.

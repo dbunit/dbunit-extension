@@ -33,7 +33,7 @@ class DatabaseUnitExceptionTest
 {
 
     @Test
-    void testNestedException()
+    void testConstructor_withNestedException_setsCause()
     {
         final IllegalStateException nested =
                 new IllegalStateException("bla bla");
@@ -42,7 +42,7 @@ class DatabaseUnitExceptionTest
     }
 
     @Test
-    void testNestedExceptionWithMessage()
+    void testConstructor_withMessageAndNestedException_setsMessageAndCause()
     {
         final String msg = "a dbunit exception message";
         final IllegalStateException nested =

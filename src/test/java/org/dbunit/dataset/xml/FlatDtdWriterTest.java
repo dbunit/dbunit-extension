@@ -21,7 +21,7 @@ import org.junit.jupiter.api.Test;
 class FlatDtdWriterTest
 {
     @Test
-    void testWriteSequenceModel() throws Exception
+    void testWriteSequenceModel_withTwoTables_writesDtdWithSequenceModel() throws Exception
     {
         final String expectedOutput = "<!ELEMENT dataset (\n" + "    TABLE1*,\n"
                 + "    TABLE2*)>\n" + "\n" + "<!ELEMENT TABLE1 EMPTY>\n"
@@ -54,7 +54,7 @@ class FlatDtdWriterTest
     }
 
     @Test
-    void testWriteChoiceModel() throws Exception
+    void testWriteChoiceModel_withTwoTablesAndChoiceModel_writesDtdWithChoiceModel() throws Exception
     {
         final String expectedOutput = "<!ELEMENT dataset (\n" + "   (TABLE1|\n"
                 + "    TABLE2)*)>\n" + "\n" + "<!ELEMENT TABLE1 EMPTY>\n"

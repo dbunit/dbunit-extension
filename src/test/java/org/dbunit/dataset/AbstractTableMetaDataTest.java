@@ -48,7 +48,7 @@ public class AbstractTableMetaDataTest
     private DatabaseMetaData mockDatabaseMetData;
 
     @Test
-    public void testValidator() throws Exception
+    public void testValidator_withSupportedDbProduct_returnsNullMessage() throws Exception
     {
         final AbstractTableMetaData metaData = new AbstractTableMetaData()
         {

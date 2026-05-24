@@ -34,7 +34,7 @@ class LowerCaseTableMetaDataTest
 {
 
     @Test
-    void testGetTableName() throws Exception
+    void testGetTableName_withUpperCaseTableName_returnsLowerCaseName() throws Exception
     {
         final String original = "TABLE_NAME";
         final String expected = original.toLowerCase();
@@ -47,7 +47,7 @@ class LowerCaseTableMetaDataTest
     }
 
     @Test
-    void testGetColumns() throws Exception
+    void testGetColumns_withUpperCaseColumns_returnsLowerCaseColumns() throws Exception
     {
         final Column[] columns = new Column[] {
                 new Column("NUMBER_COLUMN", DataType.NUMERIC, "qwerty",
@@ -83,7 +83,7 @@ class LowerCaseTableMetaDataTest
     }
 
     @Test
-    void testGetPrimaryKeys() throws Exception
+    void testGetPrimaryKeys_withUpperCasePrimaryKeys_returnsLowerCaseKeys() throws Exception
     {
         final Column[] columns = new Column[] {
                 new Column("NUMBER_COLUMN", DataType.NUMERIC, "qwerty",

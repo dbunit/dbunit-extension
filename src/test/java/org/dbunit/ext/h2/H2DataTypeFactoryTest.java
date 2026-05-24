@@ -44,7 +44,7 @@ class H2DataTypeFactoryTest extends AbstractDataTypeFactoryTest
     }
 
     @Test
-    void testCreateBooleanDataType() throws Exception
+    void testCreateBooleanDataType_withBitSqlType_returnsBooleanType() throws Exception
     {
         final int sqlType = Types.BIT;
         final String sqlTypeName = "BOOLEAN";

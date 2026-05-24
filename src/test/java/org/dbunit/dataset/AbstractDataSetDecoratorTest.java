@@ -48,14 +48,14 @@ public abstract class AbstractDataSetDecoratorTest extends AbstractDataSetTest
     }
 
     @Override
-    public final void testCreateDuplicateDataSet() throws Exception
+    public final void testCreateDuplicateDataSet_withDuplicateTableNames_throwsAmbiguousTableNameException() throws Exception
     {
         // No op. This dataSet is only a wrapper for another dataSet which is
         // why duplicates cannot occur.
     }
 
     @Override
-    public final void testCreateMultipleCaseDuplicateDataSet() throws Exception
+    public final void testCreateMultipleCaseDuplicateDataSet_withDuplicateCaseVariantNames_throwsAmbiguousTableNameException() throws Exception
     {
         // No op. This dataSet is only a wrapper for another dataSet which is
         // why duplicates cannot occur.

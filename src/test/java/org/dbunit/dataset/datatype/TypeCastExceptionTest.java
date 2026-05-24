@@ -33,7 +33,7 @@ class TypeCastExceptionTest
 {
 
     @Test
-    void testCreationWithNullValue()
+    void testCreationWithNullValue_withNullValue_setsNullInMessage()
     {
         final TypeCastException exception =
                 new TypeCastException(null, DataType.BIGINT);
@@ -42,7 +42,7 @@ class TypeCastExceptionTest
     }
 
     @Test
-    void testCreationWithNullDatatype()
+    void testCreationWithNullDatatype_withNullDataType_setsNullInMessage()
     {
         final String value = "myStringObject";
         final TypeCastException exception =

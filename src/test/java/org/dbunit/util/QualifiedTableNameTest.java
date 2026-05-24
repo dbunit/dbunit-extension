@@ -52,7 +52,7 @@ class QualifiedTableNameTest
     }
 
     @Test
-    void testQualifiedTableNameNotPresentUsingDefaultSchema()
+    void testQualifiedTableNameNotPresentUsingDefaultSchema_withDefaultSchema_usesDefaultSchema()
     {
         final QualifiedTableName qualifiedTableName =
                 new QualifiedTableName("MYTABLE", "DEFAULT_SCHEMA");
@@ -63,7 +63,7 @@ class QualifiedTableNameTest
     }
 
     @Test
-    void testQualifiedTableNameNotPresentAndNoDefaultSchema()
+    void testQualifiedTableNameNotPresentAndNoDefaultSchema_withNullSchema_returnsUnqualifiedName()
     {
         final QualifiedTableName qualifiedTableName =
                 new QualifiedTableName("MYTABLE", null);
@@ -73,7 +73,7 @@ class QualifiedTableNameTest
     }
 
     @Test
-    void testQualifiedTableNameNotPresentAndEmptyDefaultSchema()
+    void testQualifiedTableNameNotPresentAndEmptyDefaultSchema_withEmptySchema_returnsUnqualifiedName()
     {
         final QualifiedTableName qualifiedTableName =
                 new QualifiedTableName("MYTABLE", "");
@@ -83,7 +83,7 @@ class QualifiedTableNameTest
     }
 
     @Test
-    void testGetQualifiedTableName()
+    void testGetQualifiedTableName_withEscapePattern_returnsEscapedQualifiedName()
     {
         final String qualifiedName =
                 new QualifiedTableName("MY_SCHEMA.MY_TABLE", null, "'?'")
@@ -128,7 +128,7 @@ class QualifiedTableNameTest
     }
 
     @Test
-    void testConstructorWithNullTable()
+    void testConstructorWithNullTable_withNullTableName_throwsNullPointerException()
     {
         try
         {

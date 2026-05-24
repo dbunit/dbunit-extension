@@ -91,7 +91,7 @@ class DatabaseConfigTest
     }
 
     @Test
-    void testSetPropertyToNullWhereNotAllowed() throws Exception
+    void testSetPropertyToNullWhereNotAllowed_withNotNullableProperty_throwsIllegalArgumentException() throws Exception
     {
         final DatabaseConfig config = new DatabaseConfig();
         final String expectedMsg =
@@ -109,7 +109,7 @@ class DatabaseConfigTest
     }
 
     @Test
-    void testSetPropertyToNullWhereAllowed() throws Exception
+    void testSetPropertyToNullWhereAllowed_withNullableProperty_setsPropertyToNull() throws Exception
     {
         final DatabaseConfig config = new DatabaseConfig();
         config.setProperty(DatabaseConfig.PROPERTY_PRIMARY_KEY_FILTER, null);
@@ -119,7 +119,7 @@ class DatabaseConfigTest
     }
 
     @Test
-    void testSetFeatureViaSetPropertyMethod() throws Exception
+    void testSetFeatureViaSetPropertyMethod_withStringTrue_setsFeatureToTrue() throws Exception
     {
         final DatabaseConfig config = new DatabaseConfig();
         config.setProperty(DatabaseConfig.FEATURE_BATCHED_STATEMENTS, "true");
@@ -131,7 +131,7 @@ class DatabaseConfigTest
     }
 
     @Test
-    void testSetFeatureViaSetFeatureMethod() throws Exception
+    void testSetFeatureViaSetFeatureMethod_withBooleanTrue_setsFeatureToTrue() throws Exception
     {
         final DatabaseConfig config = new DatabaseConfig();
         config.setFeature(DatabaseConfig.FEATURE_BATCHED_STATEMENTS, true);

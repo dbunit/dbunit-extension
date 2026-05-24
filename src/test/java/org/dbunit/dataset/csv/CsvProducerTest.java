@@ -64,7 +64,7 @@ class CsvProducerTest
             TestUtils.getFileName("csv/orders");
 
     @Test
-    void testProduceFromFolder() throws DataSetException
+    void testProduceFromFolder_withCsvDirectory_returnsTwoTablesWithCorrectRowCounts() throws DataSetException
     {
         final CsvProducer producer = new CsvProducer(THE_DIRECTORY);
         final CachedDataSet consumer = new CachedDataSet();
@@ -91,7 +91,7 @@ class CsvProducerTest
     }
 
     @Test
-    void testProduceAndInsertFromFolder()
+    void testProduceAndInsertFromFolder_withCsvDirectory_insertsRowsIntoDatabase()
             throws DatabaseUnitException, ClassNotFoundException, SQLException
     {
         produceAndInsertToDatabase();
@@ -118,7 +118,7 @@ class CsvProducerTest
     }
 
     @Test
-    void testInsertOperationWithCsvFormat()
+    void testInsertOperationWithCsvFormat_withCsvFormatOperation_insertsCorrectRowCount()
             throws SQLException, DatabaseUnitException
     {
         final Operation operation = new Operation();
@@ -139,7 +139,7 @@ class CsvProducerTest
     }
 
     @Test
-    void testExportTaskWithCsvFormat()
+    void testExportTaskWithCsvFormat_withInsertedData_exportsToCsvFiles()
             throws DatabaseUnitException, SQLException
     {
         produceAndInsertToDatabase();

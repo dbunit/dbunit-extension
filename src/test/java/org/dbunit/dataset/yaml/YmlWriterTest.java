@@ -65,7 +65,7 @@ public class YmlWriterTest
     }
 
     @Test
-    void testWrite() throws Exception
+    void testWrite_withTwoTables_writesExpectedYamlOutput() throws Exception
     {
         final String expectedOutput = "TABLE1:\n" + "  - COL0: t1c0r0\n"
                 + "    COL1: t1c1r0\n" + "  - COL0: t1c0r1\n"
@@ -83,7 +83,7 @@ public class YmlWriterTest
     }
 
     @Test
-    void testWriteEmptyTable() throws Exception
+    void testWriteEmptyTable_withOneEmptyTable_writesEmptyArraySyntax() throws Exception
     {
         final String expectedOutput =
                 "TEST_TABLE:\n" + "  - COL0: value\n" + "EMPTY_TABLE: []\n";
@@ -99,7 +99,7 @@ public class YmlWriterTest
     }
 
     @Test
-    void testWriteNullValue() throws Exception
+    void testWriteNullValue_withNullCellValue_omitsNullKeyFromYamlRow() throws Exception
     {
         final String expectedOutput = "TEST_TABLE:\n" + "  - COL0: c0r0\n"
                 + "    COL1: c1r0\n" + "  - COL0: c0r1\n";
@@ -127,7 +127,7 @@ public class YmlWriterTest
     }
 
     @Test
-    void testWriteFlow() throws Exception
+    void testWriteFlow_withFlowStyleEnabled_writesFlowStyleOutput() throws Exception
     {
         final String expectedOutput = "{\n" + "  TABLE1: [\n" + "    {\n"
                 + "      COL0: t1c0r0,\n" + "      COL1: t1c1r0\n" + "    },\n"

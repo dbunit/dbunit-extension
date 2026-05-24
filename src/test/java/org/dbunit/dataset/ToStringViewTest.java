@@ -20,7 +20,7 @@ class ToStringViewTest
     private final Logger LOG = LoggerFactory.getLogger(ToStringViewTest.class);
 
     @Test
-    void testForwardOnlyResultSetTable()
+    void testForwardOnlyResultSetTable_withNullTable_logsNullOutput()
     {
         // TODO existing test is an IT
         final ForwardOnlyResultSetTable table = null;
@@ -28,7 +28,7 @@ class ToStringViewTest
     }
 
     @Test
-    void testScrollableResultSetTable() throws Exception
+    void testScrollableResultSetTable_withNullTable_logsNullOutput() throws Exception
     {
         // TODO existing test is an IT
         // ScrollableResultSetTableTest test =
@@ -38,7 +38,7 @@ class ToStringViewTest
     }
 
     @Test
-    void testCompositeTable() throws Exception
+    void testCompositeTable_withCompositeTable_logsToStringOutput() throws Exception
     {
         final CompositeTableTest test = new CompositeTableTest();
         final ITable table = test.createTable();
@@ -46,7 +46,7 @@ class ToStringViewTest
     }
 
     @Test
-    void testDefaultTable() throws Exception
+    void testDefaultTable_withDefaultTable_logsToStringOutput() throws Exception
     {
         final DefaultTableTest test = new DefaultTableTest();
         final ITable table = test.createTable();
@@ -54,7 +54,7 @@ class ToStringViewTest
     }
 
     @Test
-    void testCachedTable()
+    void testCachedTable_withNullTable_logsNullOutput()
     {
         // TODO no existing test to use
         final CachedTable table = null;
@@ -62,7 +62,7 @@ class ToStringViewTest
     }
 
     @Test
-    void testCachedResultSetTable()
+    void testCachedResultSetTable_withNullTable_logsNullOutput()
     {
         // TODO existing test is an IT
         final CachedResultSetTable table = null;
@@ -70,7 +70,7 @@ class ToStringViewTest
     }
 
     @Test
-    void testSortedTable() throws Exception
+    void testSortedTable_withSortedTable_logsToStringOutput() throws Exception
     {
         final SortedTableTest test = new SortedTableTest();
         final ITable table = test.createTable();

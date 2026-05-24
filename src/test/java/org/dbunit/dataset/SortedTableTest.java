@@ -75,7 +75,7 @@ public class SortedTableTest extends AbstractTableTest
     }
 
     @Test
-    void testSetUseComparableTooLate() throws Exception
+    void testSetUseComparableTooLate_afterTableAccessed_throwsIllegalStateException() throws Exception
     {
         final ITable table = createTable();
         final SortedTable sortedTable = new SortedTable(table);
@@ -95,7 +95,7 @@ public class SortedTableTest extends AbstractTableTest
     }
 
     @Test
-    void testSortByComparable() throws Exception
+    void testSortByComparable_withNumericColumn_sortsNumerically() throws Exception
     {
         // Sort by column0 which is a numeric column
         final String columnName = "COLUMN0";
@@ -124,7 +124,7 @@ public class SortedTableTest extends AbstractTableTest
      * @throws Exception
      */
     @Test
-    void testSortByString() throws Exception
+    void testSortByString_withNumericColumn_sortsByStringValue() throws Exception
     {
         // Sort by column0 which is a numeric column
         final String columnName = "COLUMN0";
@@ -148,7 +148,7 @@ public class SortedTableTest extends AbstractTableTest
 
     @Override
     @Test
-    public void testGetMissingValue() throws Exception
+    public void testGetMissingValue_withMissingCells_returnsExpectedValues() throws Exception
     {
         final String columnName = "COLUMN2";
         final Object[] expected = {null, null, null, "0", "1"};
@@ -166,7 +166,7 @@ public class SortedTableTest extends AbstractTableTest
     }
 
     @Test
-    void testCustomColumnsWithUnknownColumnName() throws Exception
+    void testCustomColumnsWithUnknownColumnName_withUndefinedSortColumn_throwsNoSuchColumnException() throws Exception
     {
         final String[] sortColumnNames =
                 new String[] {"COLUMN2", "COLUMNXY_UNDEFINED"};
@@ -184,7 +184,7 @@ public class SortedTableTest extends AbstractTableTest
     }
 
     @Test
-    void testCustomColumnsWithUnknownColumn() throws Exception
+    void testCustomColumnsWithUnknownColumn_withUndefinedSortColumnObject_throwsNoSuchColumnException() throws Exception
     {
         final Column[] sortColumns = new Column[] {
                 new Column("COLUMN2", DataType.UNKNOWN, Column.NULLABLE),
@@ -202,7 +202,7 @@ public class SortedTableTest extends AbstractTableTest
     }
 
     @Test
-    void testCustomColumnsWithDifferentColumnTypesButSameName() throws Exception
+    void testCustomColumnsWithDifferentColumnTypesButSameName_withDifferentTypeForSortColumn_usesActualTableColumn() throws Exception
     {
         final Column sortColumn =
                 new Column("COLUMN2", DataType.CHAR, Column.NO_NULLS);

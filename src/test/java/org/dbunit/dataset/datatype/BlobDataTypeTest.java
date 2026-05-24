@@ -56,13 +56,13 @@ class BlobDataTypeTest
     private ResultSet mockedResultSet;
 
     @Test
-    void testGetSqlType()
+    void testGetSqlType_withBlobDataType_returnsBlobSqlType()
     {
         assertThat(TYPE.getSqlType()).isEqualTo(Types.BLOB);
     }
 
     @Test
-    void testSetSqlValue() throws Exception
+    void testSetSqlValue_withBlobValue_callsSetObjectOnStatement() throws Exception
     {
         // Create a hsqldb specific blob
         final byte[] byteArray = {1, 2, 3, 4, 5, 6};
@@ -74,13 +74,13 @@ class BlobDataTypeTest
     }
 
     @Test
-    void testAsString() throws Exception
+    void testAsString_withBlobDataType_returnsBlobString() throws Exception
     {
         assertThat(TYPE).as("name").hasToString("BLOB");
     }
 
     @Test
-    void testGetTypeClass() throws Exception
+    void testGetTypeClass_withBlobDataType_returnsByteArrayClass() throws Exception
     {
         assertThat(TYPE.getTypeClass()).as("class").isEqualTo(byte[].class);
     }
@@ -89,7 +89,7 @@ class BlobDataTypeTest
      * Assert calls ResultSet.getBlob(columnIndex) before ResultSet.wasNull().
      */
     @Test
-    public void testGetSqlValueCallOrder()
+    public void testGetSqlValueCallOrder_afterGetSqlValue_callsGetBlobBeforeWasNull()
             throws TypeCastException, SQLException
     {
         final int columnIndex = 1;

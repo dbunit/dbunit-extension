@@ -35,7 +35,7 @@ class DefaultPrepAndExpectedTestCaseTest
             new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester);
 
     @Test
-    void testConfigureTest() throws Exception
+    void testConfigureTest_withTablesAndDataFiles_setsConfiguredState() throws Exception
     {
         final String[] prepDataFiles = {PREP_DATA_FILE_NAME};
         final String[] expectedDataFiles = {EXP_DATA_FILE_NAME};
@@ -59,7 +59,7 @@ class DefaultPrepAndExpectedTestCaseTest
     }
 
     @Test
-    void testRunTest() throws Exception
+    void testRunTest_withTestSteps_executesStepsAndReturnsTrueResult() throws Exception
     {
         final VerifyTableDefinition[] tables = {};
         final String[] prepDataFiles = {};

@@ -268,7 +268,7 @@ public class DatabaseDataSet_MultiSchemaTest
     }
 
     @Test
-    void testSchemaCaseSensitivity() throws Exception
+    void testSchemaCaseSensitivity_withCaseDifference_treatedAsSameSchema() throws Exception
     {
         final IDataSet set = makeDataSet(DATABASE, USERNAME_ADMIN,
                 PASSWORD_NONE, SCHEMA_NONE, IS_USING_QUALIFIED_TABLE_NAMES);

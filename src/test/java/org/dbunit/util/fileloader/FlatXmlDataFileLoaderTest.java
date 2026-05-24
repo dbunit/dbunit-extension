@@ -51,7 +51,7 @@ class FlatXmlDataFileLoaderTest
      * Test can load the specified file.
      */
     @Test
-    void testLoad() throws DataSetException
+    void testLoad_withValidFlatXmlFile_returnsNonEmptyDataSet() throws DataSetException
     {
         final String filename = "/xml/flatXmlDataSetTest.xml";
         final IDataSet ds = loader.load(filename);

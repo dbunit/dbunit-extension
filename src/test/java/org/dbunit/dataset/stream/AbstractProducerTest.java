@@ -73,7 +73,7 @@ public abstract class AbstractProducerTest
     protected abstract IDataSetProducer createProducer() throws Exception;
 
     @Test
-    public void testProduce() throws Exception
+    public void testProduce_withExpectedTablesAndRows_producesCorrectDataSetOutput() throws Exception
     {
         // Setup consumer
         final MockDataSetConsumer consumer = new MockDataSetConsumer();
@@ -107,7 +107,7 @@ public abstract class AbstractProducerTest
     }
 
     @Test
-    public void testProduceWithoutConsumer() throws Exception
+    public void testProduceWithoutConsumer_withNoConsumerSet_doesNotThrowException() throws Exception
     {
         final IDataSetProducer producer = createProducer();
         producer.produce();

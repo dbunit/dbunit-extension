@@ -65,27 +65,36 @@ public abstract class AbstractTableFilterTest extends AbstractTest
         return dataSet;
     }
 
-    public abstract void testAccept() throws Exception;
-
-    public abstract void testIsCaseInsensitiveValidName() throws Exception;
-
-    public abstract void testIsValidNameAndInvalid() throws Exception;
-
-    public abstract void testGetTableNames() throws Exception;
-
-    public abstract void testGetCaseInsensitiveTableNames() throws Exception;
-
-    public abstract void testGetReverseTableNames() throws Exception;
-
-    public abstract void testGetTableNamesAndTableNotInDecoratedDataSet()
+    public abstract void testAccept_withFilter_acceptsExpectedTables()
             throws Exception;
 
-    public abstract void testIterator() throws Exception;
+    public abstract void testIsCaseInsensitiveValidName_withMixedCaseName_acceptsAsValid()
+            throws Exception;
 
-    public abstract void testCaseInsensitiveIterator() throws Exception;
+    public abstract void testIsValidNameAndInvalid_withInvalidName_rejectsName()
+            throws Exception;
 
-    public abstract void testReverseIterator() throws Exception;
+    public abstract void testGetTableNames_withFilter_returnsFilteredTableNames()
+            throws Exception;
 
-    public abstract void testIteratorAndTableNotInDecoratedDataSet()
+    public abstract void testGetCaseInsensitiveTableNames_withLowercaseNames_returnsMatchingTables()
+            throws Exception;
+
+    public abstract void testGetReverseTableNames_withFilter_returnsFilteredTablesInReverseOrder()
+            throws Exception;
+
+    public abstract void testGetTableNamesAndTableNotInDecoratedDataSet_withMissingTable_excludesMissingTable()
+            throws Exception;
+
+    public abstract void testIterator_withFilter_iteratesFilteredTables()
+            throws Exception;
+
+    public abstract void testCaseInsensitiveIterator_withMixedCaseFilter_iteratesMatchingTables()
+            throws Exception;
+
+    public abstract void testReverseIterator_withFilter_iteratesFilteredTablesInReverse()
+            throws Exception;
+
+    public abstract void testIteratorAndTableNotInDecoratedDataSet_withMissingTable_iteratesAvailableTables()
             throws Exception;
 }

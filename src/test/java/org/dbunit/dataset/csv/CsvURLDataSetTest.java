@@ -41,7 +41,7 @@ class CsvURLDataSetTest
 {
 
     @Test
-    void testNullColumns() throws DataSetException, MalformedURLException
+    void testNullColumns_withCsvHavingNullValue_returnsNullColumnValue() throws DataSetException, MalformedURLException
     {
         final URL csvDir = TestUtils.getFile("csv/orders/").toURL();
         final CsvURLDataSet dataSet = new CsvURLDataSet(csvDir);
@@ -51,7 +51,7 @@ class CsvURLDataSetTest
     }
 
     @Test
-    void testSpacesInColumns() throws DataSetException, MalformedURLException
+    void testSpacesInColumns_withCsvHavingLeadingSpaces_preservesSpacesInValues() throws DataSetException, MalformedURLException
     {
         final URL csvDir = TestUtils.getFile("csv/accounts/").toURL();
         final CsvURLDataSet dataSet = new CsvURLDataSet(csvDir);

@@ -52,7 +52,7 @@ class ForeignKeyRelationshipEdgeTest
             };
 
     @Test
-    void testEqualsHashCode()
+    void testEqualsHashCode_withEqualAndUnequalEdges_returnsCorrectHashCodes()
     {
         assertThat(e1).isEqualByComparingTo(equal)
                 .isNotEqualByComparingTo(notEqual1)
@@ -61,7 +61,7 @@ class ForeignKeyRelationshipEdgeTest
     }
 
     @Test
-    void testCompareTo()
+    void testCompareTo_withEqualAndUnequalEdges_returnsCorrectOrdering()
     {
         assertThat(e1.compareTo(equal))
                 .as("Equal instances have different compareTo.").isZero();

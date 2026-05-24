@@ -43,7 +43,7 @@ public class Oracle10DataTypeFactoryTest extends OracleDataTypeFactoryTest
 
     @Override
     @Test
-    public void testCreateBlobDataType() throws Exception
+    public void testCreateBlobDataType_withBlobSqlType_returnsBlobDataType() throws Exception
     {
         final int sqlType = Types.BLOB;
         final String sqlTypeName = "BLOB";
@@ -56,7 +56,7 @@ public class Oracle10DataTypeFactoryTest extends OracleDataTypeFactoryTest
 
     @Override
     @Test
-    public void testCreateClobDataType() throws Exception
+    public void testCreateClobDataType_withClobSqlType_returnsClobDataType() throws Exception
     {
         final int sqlType = Types.CLOB;
         final String sqlTypeName = "CLOB";

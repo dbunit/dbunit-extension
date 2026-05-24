@@ -34,7 +34,7 @@ class EdgeTest
 {
 
     @Test
-    void testEqualsHashCode()
+    void testEqualsHashCode_withEqualAndUnequalEdges_returnsCorrectHashCodes()
     {
         final Edge e1 = new Edge("table1", "table2");
         final Edge e2 = new Edge("table1", "table2");
@@ -51,7 +51,7 @@ class EdgeTest
     }
 
     @Test
-    void testCompare()
+    void testCompare_withEqualAndUnequalEdges_returnsCorrectComparisonResult()
     {
         final Edge e1 = new Edge("table1", "table2");
         final Edge e2 = new Edge("table1", "table2");

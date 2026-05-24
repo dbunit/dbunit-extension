@@ -79,13 +79,13 @@ public class XlsTableWriteTest extends XlsTableTest
 
     @Override
     @Test
-    protected void testGetValue() throws Exception
+    protected void testGetValue_withValidRowAndColumn_returnsExpectedValue() throws Exception
     {
-        assertDoesNotThrow(() -> super.testGetValue());
+        assertDoesNotThrow(() -> super.testGetValue_withValidRowAndColumn_returnsExpectedValue());
     }
 
     @Test
-    void testWriteMultipleTable() throws Exception
+    void testWriteMultipleTable_withFiveTables_writesAllTablesToFile() throws Exception
     {
         final int tableCount = 5;
         final ITable sourceTable = super.createTable();

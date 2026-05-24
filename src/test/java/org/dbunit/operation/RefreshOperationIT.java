@@ -55,7 +55,7 @@ class RefreshOperationIT extends AbstractDatabaseIT
 {
 
     @Test
-    void testExecute() throws Exception
+    void testExecute_withFlatXmlDataSet_upsertsRows() throws Exception
     {
         final Reader reader =
                 TestUtils.getFileReader("xml/refreshOperationTest.xml");
@@ -65,7 +65,7 @@ class RefreshOperationIT extends AbstractDatabaseIT
     }
 
     @Test
-    void testExecuteCaseInsensitive() throws Exception
+    void testExecute_withLowerCaseDataSet_upsertsRows() throws Exception
     {
         final Reader reader =
                 TestUtils.getFileReader("xml/refreshOperationTest.xml");
@@ -75,7 +75,7 @@ class RefreshOperationIT extends AbstractDatabaseIT
     }
 
     @Test
-    void testExecuteForwardOnly() throws Exception
+    void testExecute_withForwardOnlyDataSet_upsertsRows() throws Exception
     {
         final Reader reader =
                 TestUtils.getFileReader("xml/refreshOperationTest.xml");
@@ -118,7 +118,7 @@ class RefreshOperationIT extends AbstractDatabaseIT
     }
 
     @Test
-    void testExecuteAndNoPrimaryKeys() throws Exception
+    void testExecute_withTableHavingNoPrimaryKey_throwsNoPrimaryKeyException() throws Exception
     {
         final String tableName = "TEST_TABLE";
 
@@ -140,7 +140,7 @@ class RefreshOperationIT extends AbstractDatabaseIT
     }
 
     @Test
-    void testExecuteWithEmptyTable() throws Exception
+    void testExecute_withEmptyTable_noStatementCreated() throws Exception
     {
         final Column[] columns = {new Column("c1", DataType.VARCHAR)};
         final ITable table = new DefaultTable(
@@ -164,7 +164,7 @@ class RefreshOperationIT extends AbstractDatabaseIT
     }
 
     @Test
-    void testExecuteUnknownColumn() throws Exception
+    void testExecute_withColumnNotInDatabase_throwsNoSuchColumnException() throws Exception
     {
         final String tableName = "table";
 

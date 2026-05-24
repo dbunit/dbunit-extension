@@ -34,7 +34,7 @@ class BatchStatementDecoratorTest
 {
 
     @Test
-    void testAddBatch() throws Exception
+    void testAddBatch_withMultipleValues_executesOneFormattedBatch() throws Exception
     {
         final String template = "START VAL0 = ?, VAL1 = ?, VAL2 = ? END";
         final String expected =
@@ -65,7 +65,7 @@ class BatchStatementDecoratorTest
     }
 
     @Test
-    void testMultipleAddBatch() throws Exception
+    void testMultipleAddBatch_withThreeValues_executesThreeFormattedBatches() throws Exception
     {
         final String template = "I am ?";
         final String[] expected =

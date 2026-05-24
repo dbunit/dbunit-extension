@@ -86,7 +86,7 @@ class IsActualEqualToExpectedWithEmptyFailMessageValueComparerTest
     }
 
     @Test
-    void testGetFailPhrase()
+    void testGetFailPhrase_returnsNullForBackwardsCompatibility()
     {
         final String actual = sut.getFailPhrase();
 
@@ -97,7 +97,7 @@ class IsActualEqualToExpectedWithEmptyFailMessageValueComparerTest
     }
 
     @Test
-    void testMakeFailMessage() throws Exception
+    void testMakeFailMessage_withNullValues_returnsEmptyString() throws Exception
     {
         final Object expectedValue = null;
         final Object actualValue = null;

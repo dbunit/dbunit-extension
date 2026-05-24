@@ -44,7 +44,7 @@ class MySqlDataTypeFactoryTest extends AbstractDataTypeFactoryTest
     }
 
     @Test
-    void testCreateLongtextDataType() throws Exception
+    void testCreateLongtextDataType_withLongtextTypeName_returnsClobDataType() throws Exception
     {
         final DataType actual =
                 createFactory().createDataType(Types.OTHER, "longtext");
@@ -53,7 +53,7 @@ class MySqlDataTypeFactoryTest extends AbstractDataTypeFactoryTest
     }
 
     @Test
-    void testCreateLongtextUpperCaseDataType() throws Exception
+    void testCreateLongtextUpperCaseDataType_withUppercaseLongtextTypeName_returnsClobDataType() throws Exception
     {
         // MySql 5 reports the datatypes in uppercase, so this here must also
         // work
@@ -64,7 +64,7 @@ class MySqlDataTypeFactoryTest extends AbstractDataTypeFactoryTest
     }
 
     @Test
-    void testCreateBooleanDataType() throws Exception
+    void testCreateBooleanDataType_withBitTypeName_returnsBooleanDataType() throws Exception
     {
         final DataType actual =
                 createFactory().createDataType(Types.OTHER, "bit");
@@ -73,7 +73,7 @@ class MySqlDataTypeFactoryTest extends AbstractDataTypeFactoryTest
     }
 
     @Test
-    void testCreateBooleanUpperCaseDataType() throws Exception
+    void testCreateBooleanUpperCaseDataType_withUppercaseBitTypeName_returnsBooleanDataType() throws Exception
     {
         // MySql 5 reports the datatypes in uppercase, so this here must also
         // work
@@ -84,7 +84,7 @@ class MySqlDataTypeFactoryTest extends AbstractDataTypeFactoryTest
     }
 
     @Test
-    void testCreatePointDataType() throws Exception
+    void testCreatePointDataType_withPointTypeName_returnsBinaryDataType() throws Exception
     {
         final DataType actual =
                 createFactory().createDataType(Types.OTHER, "point");
@@ -93,7 +93,7 @@ class MySqlDataTypeFactoryTest extends AbstractDataTypeFactoryTest
     }
 
     @Test
-    void testCreatePointUpperCaseDataType() throws Exception
+    void testCreatePointUpperCaseDataType_withUppercasePointTypeName_returnsBinaryDataType() throws Exception
     {
         // MySql 5 reports the datatypes in uppercase, so this here must also
         // work
@@ -104,7 +104,7 @@ class MySqlDataTypeFactoryTest extends AbstractDataTypeFactoryTest
     }
 
     @Test
-    void testCreateTinyintUnsignedDatatype() throws Exception
+    void testCreateTinyintUnsignedDatatype_withTinyintUnsignedTypeName_returnsTinyintDataType() throws Exception
     {
         final int sqlType = Types.BIT; // MySqlConnector/J reports
         // "TINYINT UNSIGNED" columns as
@@ -119,7 +119,7 @@ class MySqlDataTypeFactoryTest extends AbstractDataTypeFactoryTest
     }
 
     @Test
-    void testCreateIntegerUnsignedDatatype() throws Exception
+    void testCreateIntegerUnsignedDatatype_withIntegerUnsignedTypeName_returnsBigintDataType() throws Exception
     {
         final int sqlType = Types.INTEGER;
         final String sqlTypeName =

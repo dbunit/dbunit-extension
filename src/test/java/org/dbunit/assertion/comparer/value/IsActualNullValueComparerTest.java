@@ -45,7 +45,7 @@ class IsActualNullValueComparerTest
     }
 
     @Test
-    void testMakeFailMessage() throws Exception
+    void testMakeFailMessage_returnsNonNullMessage() throws Exception
     {
         final String actual = sut.makeFailMessage();
 

@@ -47,7 +47,7 @@ class UuidAwareBytesDataTypeTest extends BytesDataTypeTest
 
     @Override
     @Test
-    public void testTypeCast() throws Exception
+    public void testTypeCast_withCompatibleInput_returnsExpectedValue() throws Exception
     {
         final Object[] values =
                 {null, "uuid'2aad615a-d8e1-11e2-b8ed-50e549c9b654'"};
@@ -72,7 +72,7 @@ class UuidAwareBytesDataTypeTest extends BytesDataTypeTest
     }
 
     @Test
-    void testCompareEqualsUuidAware() throws Exception
+    void testCompareEqualsUuidAware_withUuidAndBytesValues_returnsZero() throws Exception
     {
         final Object[] values1 =
                 {null, "uuid'2aad615a-d8e1-11e2-b8ed-50e549c9b654'"};
@@ -98,7 +98,7 @@ class UuidAwareBytesDataTypeTest extends BytesDataTypeTest
     }
 
     @Test
-    void testSetSqlValueWithUuid() throws Exception
+    void testSetSqlValueWithUuid_withUuidStringValue_callsSetObjectWithBytes() throws Exception
     {
 
         final String[] given = {"uuid'2aad615a-d8e1-11e2-b8ed-50e549c9b654'"};
@@ -139,7 +139,7 @@ class UuidAwareBytesDataTypeTest extends BytesDataTypeTest
      * @throws Exception
      */
     @Test
-    void testSetSqlValueWithSomethingThatLooksLikeUuidButIsNot()
+    void testSetSqlValueWithSomethingThatLooksLikeUuidButIsNot_withMalformedUuid_savesAsRawBytes()
             throws Exception
     {
 

@@ -70,7 +70,7 @@ class YmlDataSetTest extends AbstractDataSetTest
     @Override
     @Disabled("Not applicable, Yaml is always case-sensitive")
     @Test
-    public void testCreateMultipleCaseDuplicateDataSet() throws Exception
+    public void testCreateMultipleCaseDuplicateDataSet_withDuplicateCaseVariantNames_throwsAmbiguousTableNameException() throws Exception
     {
         // Not applicable, Yaml is always case-sensitive
     }
@@ -78,7 +78,7 @@ class YmlDataSetTest extends AbstractDataSetTest
     @Override
     @Disabled("Not applicable, Yaml is always case-sensitive")
     @Test
-    public void testGetCaseInsensitiveTable() throws Exception
+    public void testGetCaseInsensitiveTable_withLowercaseTableName_returnsTable() throws Exception
     {
         // Not applicable, Yaml is always case-sensitive
     }
@@ -86,13 +86,13 @@ class YmlDataSetTest extends AbstractDataSetTest
     @Override
     @Disabled("Not applicable, Yaml is always case-sensitive")
     @Test
-    public void testGetCaseInsensitiveTableMetaData() throws Exception
+    public void testGetCaseInsensitiveTableMetaData_withLowercaseTableName_returnsMetaData() throws Exception
     {
         // Not applicable, Yaml is always case-sensitive
     }
 
     @Test
-    void testWrite() throws Exception
+    void testWrite_withValidDataSet_writesAndReadsBackEquivalentData() throws Exception
     {
         final IDataSet expectedDataSet = createDataSet();
         final File tempFile = File.createTempFile("dataSetTest", ".yml");

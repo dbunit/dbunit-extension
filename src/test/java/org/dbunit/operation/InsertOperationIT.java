@@ -105,7 +105,7 @@ public class InsertOperationIT extends AbstractDatabaseIT
     // }
 
     @Test
-    void testInsertClob() throws Exception
+    void testExecute_withClobData_insertsClobSuccessfully() throws Exception
     {
         // execute this test only if the target database support CLOB
         final DatabaseEnvironment environment =
@@ -131,7 +131,7 @@ public class InsertOperationIT extends AbstractDatabaseIT
     }
 
     @Test
-    void testInsertBlob() throws Exception
+    void testExecute_withBlobData_insertsBlobSuccessfully() throws Exception
     {
         // execute this test only if the target database support BLOB
         final DatabaseEnvironment environment =
@@ -157,7 +157,7 @@ public class InsertOperationIT extends AbstractDatabaseIT
     }
 
     @Test
-    void testInsertSdoGeometry() throws Exception
+    void testExecute_withSdoGeometryData_insertsSdoGeometrySuccessfully() throws Exception
     {
         // execute this test only if the target database supports SDO_GEOMETRY
         final DatabaseEnvironment environment =
@@ -183,7 +183,7 @@ public class InsertOperationIT extends AbstractDatabaseIT
     }
 
     @Test
-    void testInsertXmlType() throws Exception
+    void testExecute_withXmlTypeData_insertsXmlTypeSuccessfully() throws Exception
     {
         // execute this test only if the target database support CLOB
         final DatabaseEnvironment environment =
@@ -209,7 +209,7 @@ public class InsertOperationIT extends AbstractDatabaseIT
     }
 
     @Test
-    void testMissingColumns() throws Exception
+    void testExecute_withMissingColumns_nullsUnspecifiedColumns() throws Exception
     {
         final Reader in = TestUtils.getFileReader("xml/missingColumnTest.xml");
         final IDataSet xmlDataSet = new XmlDataSet(in);
@@ -277,7 +277,7 @@ public class InsertOperationIT extends AbstractDatabaseIT
     }
 
     @Test
-    void testExecute() throws Exception
+    void testExecute_withXmlDataSet_insertsAllRows() throws Exception
     {
         final Reader in =
                 TestUtils.getFileReader("xml/insertOperationTest.xml");
@@ -287,7 +287,7 @@ public class InsertOperationIT extends AbstractDatabaseIT
     }
 
     @Test
-    void testExecuteCaseInsensitive() throws Exception
+    void testExecute_withLowerCaseDataSet_insertsAllRows() throws Exception
     {
         final Reader in =
                 TestUtils.getFileReader("xml/insertOperationTest.xml");
@@ -297,7 +297,7 @@ public class InsertOperationIT extends AbstractDatabaseIT
     }
 
     @Test
-    void testExecuteForwardOnly() throws Exception
+    void testExecute_withForwardOnlyDataSet_insertsAllRows() throws Exception
     {
         final Reader in =
                 TestUtils.getFileReader("xml/insertOperationTest.xml");

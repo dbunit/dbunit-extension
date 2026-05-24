@@ -55,7 +55,7 @@ class CaseInsensitiveTableTest extends XmlTableTest
 
     @Override
     @Test
-    public void testTableMetaData() throws Exception
+    public void testTableMetaData_withFourColumns_returnsColumnMetaData() throws Exception
     {
         final Column[] columns = createTable().getTableMetaData().getColumns();
         assertThat(columns).as("column count").hasSize(COLUMN_COUNT);

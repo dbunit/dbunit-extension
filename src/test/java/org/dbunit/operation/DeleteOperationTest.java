@@ -44,7 +44,7 @@ import org.junit.jupiter.api.Test;
 class DeleteOperationTest
 {
     @Test
-    void testMockExecute() throws Exception
+    void testExecute_withMockObjects_deletesRowsWithPrimaryKeyInWhereClause() throws Exception
     {
         final String schemaName = "schema";
         final String tableName1 = "table1";
@@ -97,7 +97,7 @@ class DeleteOperationTest
     }
 
     @Test
-    void testExecuteWithEscapedNames() throws Exception
+    void testExecute_withEscapePatternConfigured_columnAndTableNamesEscaped() throws Exception
     {
         final String schemaName = "schema";
         final String tableName = "table";
@@ -145,7 +145,7 @@ class DeleteOperationTest
     }
 
     @Test
-    void testExecuteWithEmptyTable() throws Exception
+    void testExecute_withEmptyTable_noStatementCreated() throws Exception
     {
         final Column[] columns = {new Column("c1", DataType.VARCHAR)};
         final ITable table = new DefaultTable(

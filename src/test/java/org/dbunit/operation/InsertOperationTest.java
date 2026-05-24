@@ -48,7 +48,7 @@ import org.junit.jupiter.api.Test;
 class InsertOperationTest
 {
     @Test
-    void testMockExecute() throws Exception
+    void testExecute_withMockObjects_insertsAllColumns() throws Exception
     {
         final String schemaName = "schema";
         final String tableName = "table";
@@ -92,7 +92,7 @@ class InsertOperationTest
     }
 
     @Test
-    void testExecuteWithBlanksDisabledAndEmptyString() throws Exception
+    void testExecute_withBlanksDisabledAndEmptyStringValue_throwsIllegalArgumentException() throws Exception
     {
         final String schemaName = "schema";
         final String tableName = "table";
@@ -135,7 +135,7 @@ class InsertOperationTest
     }
 
     @Test
-    void testExecuteWithBlanksDisabledAndNonEmptyStrings() throws Exception
+    void testExecute_withBlanksDisabledAndNonEmptyValues_insertsSuccessfully() throws Exception
     {
         final String schemaName = "schema";
         final String tableName = "table";
@@ -182,7 +182,7 @@ class InsertOperationTest
     }
 
     @Test
-    void testExecuteWithBlanksAllowed() throws Exception
+    void testExecute_withBlanksAllowed_insertsEmptyStringAsEmptyLiteral() throws Exception
     {
         final String schemaName = "schema";
         final String tableName = "table";
@@ -232,7 +232,7 @@ class InsertOperationTest
     }
 
     @Test
-    void testExecuteUnknownColumn() throws Exception
+    void testExecute_withColumnNotInDatabase_throwsNoSuchColumnException() throws Exception
     {
         final String tableName = "table";
 
@@ -280,7 +280,7 @@ class InsertOperationTest
     }
 
     @Test
-    void testExecuteIgnoreNone() throws Exception
+    void testExecute_withNoValueFields_omitsNoValueColumnsFromInsertSql() throws Exception
     {
         final String schemaName = "schema";
         final String tableName = "table";
@@ -332,7 +332,7 @@ class InsertOperationTest
     }
 
     @Test
-    void testExecuteWithEscapedNames() throws Exception
+    void testExecute_withEscapePatternConfigured_schemaTableAndColumnNamesEscaped() throws Exception
     {
         final String schemaName = "schema";
         final String tableName = "table";
@@ -378,7 +378,7 @@ class InsertOperationTest
     }
 
     @Test
-    void testExecuteWithEmptyTable() throws Exception
+    void testExecute_withEmptyTable_noStatementCreated() throws Exception
     {
         final Column[] columns = {new Column("c1", DataType.VARCHAR)};
         final ITable table = new DefaultTable(
@@ -402,7 +402,7 @@ class InsertOperationTest
     }
 
     @Test
-    void testDefaultValues() throws Exception
+    void testExecute_withDefaultValueNotNullColumn_excludesColumnFromInsert() throws Exception
     {
         final String schemaName = "schema";
         final String tableName = "table";

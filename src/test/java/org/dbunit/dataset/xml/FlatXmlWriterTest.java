@@ -43,7 +43,7 @@ public class FlatXmlWriterTest
 {
 
     @Test
-    void testWrite() throws Exception
+    void testWrite_withTwoTables_writesExpectedFlatXmlOutput() throws Exception
     {
         final String expectedOutput = "<dataset>\n"
                 + "  <TABLE1 COL0=\"t1v1\" COL1=\"t1v2\"/>\n"
@@ -60,7 +60,7 @@ public class FlatXmlWriterTest
     }
 
     @Test
-    void testWriteWithDocType() throws Exception
+    void testWriteWithDocType_withDocTypeSet_includesDoctypeInOutput() throws Exception
     {
         final String expectedOutput =
                 "<!DOCTYPE dataset SYSTEM \"dataset.dtd\">\n" + "<dataset>\n"
@@ -79,7 +79,7 @@ public class FlatXmlWriterTest
     }
 
     @Test
-    void testWriteExcludeEmptyTable() throws Exception
+    void testWriteExcludeEmptyTable_withIncludeEmptyTableFalse_omitsEmptyTableFromOutput() throws Exception
     {
         final String expectedOutput = "<dataset>\n"
                 + "  <TEST_TABLE COL0=\"value\"/>\n" + "</dataset>\n";
@@ -96,7 +96,7 @@ public class FlatXmlWriterTest
     }
 
     @Test
-    void testWriteIncludeEmptyTable() throws Exception
+    void testWriteIncludeEmptyTable_withIncludeEmptyTableTrue_includesEmptyTableInOutput() throws Exception
     {
         final String expectedOutput =
                 "<dataset>\n" + "  <TEST_TABLE COL0=\"value\"/>\n"
@@ -114,7 +114,7 @@ public class FlatXmlWriterTest
     }
 
     @Test
-    void testWriteNullValue() throws Exception
+    void testWriteNullValue_withNullCellValue_omitsNullAttributeFromRow() throws Exception
     {
         final String expectedOutput =
                 "<dataset>\n" + "  <TEST_TABLE COL0=\"c0r0\" COL1=\"c1r0\"/>\n"
@@ -143,7 +143,7 @@ public class FlatXmlWriterTest
     }
 
     @Test
-    void testWritePrettyPrintDisabled() throws Exception
+    void testWritePrettyPrintDisabled_withPrettyPrintFalse_writesCompactOutput() throws Exception
     {
         final String expectedOutput = "<dataset>"
                 + "<TABLE1 COL0=\"t1v1\" COL1=\"t1v2\"/>" + "</dataset>";

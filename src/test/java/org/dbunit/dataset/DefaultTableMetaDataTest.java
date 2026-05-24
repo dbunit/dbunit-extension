@@ -41,7 +41,7 @@ class DefaultTableMetaDataTest
     }
 
     @Test
-    void testGetTableName() throws Exception
+    void testGetTableName_withTableName_returnsTableName() throws Exception
     {
         final String expected = "tableName";
         final ITableMetaData metaData = createMetaData(expected, null, null);
@@ -51,7 +51,7 @@ class DefaultTableMetaDataTest
     }
 
     @Test
-    void testGetColumns() throws Exception
+    void testGetColumns_withColumns_returnsAllColumns() throws Exception
     {
         final Column[] columns =
                 new Column[] {new Column("numberColumn", DataType.NUMERIC),
@@ -73,7 +73,7 @@ class DefaultTableMetaDataTest
     }
 
     @Test
-    void testGetPrimaryKeys() throws Exception
+    void testGetPrimaryKeys_withKeyNames_returnsPrimaryKeyColumns() throws Exception
     {
         final Column[] columns =
                 new Column[] {new Column("numberColumn", DataType.NUMERIC),
@@ -95,7 +95,7 @@ class DefaultTableMetaDataTest
     }
 
     @Test
-    void testGetPrimaryKeysColumnDontMatch() throws Exception
+    void testGetPrimaryKeysColumnDontMatch_withNonExistentKeyName_returnsEmptyKeys() throws Exception
     {
         final Column[] columns =
                 new Column[] {new Column("numberColumn", DataType.NUMERIC),

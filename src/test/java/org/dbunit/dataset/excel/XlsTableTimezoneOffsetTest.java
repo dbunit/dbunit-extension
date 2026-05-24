@@ -43,7 +43,7 @@ class XlsTableTimezoneOffsetTest
      * '-Duser.timezone="Europe/Berlin"' (or any other valid timezone ID)
      */
     @Test
-    void testTimestampTzOffsets(final SoftAssertions softly) throws Exception
+    void testTimestampTzOffsets_withNonUtcTimezone_readsCorrectTimestampValues(final SoftAssertions softly) throws Exception
     {
         // uncomment to see available timezones
         // System.err.println(Arrays.toString(TimeZone.getAvailableIDs()));

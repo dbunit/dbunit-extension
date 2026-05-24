@@ -20,7 +20,7 @@ public class ClobDataTypeTest
      * Assert calls ResultSet.getClob(columnIndex) before ResultSet.wasNull().
      */
     @Test
-    public void testGetSqlValueCallOrder()
+    public void testGetSqlValueCallOrder_afterGetSqlValue_callsGetClobBeforeWasNull()
             throws TypeCastException, SQLException
     {
         final int columnIndex = 1;

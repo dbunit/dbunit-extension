@@ -55,7 +55,7 @@ public class YmlTableTest extends AbstractTableTest
 
     @Override
     @Test
-    public void testGetMissingValue() throws Exception
+    public void testGetMissingValue_withMissingCells_returnsExpectedValues() throws Exception
     {
         final Object[][] expected = {{"row 0 col 0", null, null},
                 {null, "row 1 col 1", null}, {null, null, "row 2 col 2"}};

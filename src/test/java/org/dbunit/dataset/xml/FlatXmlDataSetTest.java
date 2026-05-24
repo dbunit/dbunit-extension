@@ -82,7 +82,7 @@ public class FlatXmlDataSetTest extends AbstractDataSetTest
     }
 
     @Test
-    void testMissingColumnAndEnableDtdMetadata() throws Exception
+    void testMissingColumnAndEnableDtdMetadata_withDtdEnabled_returnsAllColumns() throws Exception
     {
         final FlatXmlDataSetBuilder builder = new FlatXmlDataSetBuilder();
         builder.setDtdMetadata(true);
@@ -95,7 +95,7 @@ public class FlatXmlDataSetTest extends AbstractDataSetTest
     }
 
     @Test
-    void testMissingColumnAndDisableDtdMetadata() throws Exception
+    void testMissingColumnAndDisableDtdMetadata_withDtdDisabled_returnsOnlyPresentColumns() throws Exception
     {
         final FlatXmlDataSetBuilder builder = new FlatXmlDataSetBuilder();
         builder.setDtdMetadata(false);
@@ -108,7 +108,7 @@ public class FlatXmlDataSetTest extends AbstractDataSetTest
     }
 
     @Test
-    void testMissingColumnAndDisableDtdMetadataEnableSensing() throws Exception
+    void testMissingColumnAndDisableDtdMetadataEnableSensing_withColumnSensing_detectsAllColumnsAcrossRows() throws Exception
     {
         final FlatXmlDataSetBuilder builder = new FlatXmlDataSetBuilder();
         builder.setDtdMetadata(false);
@@ -131,7 +131,7 @@ public class FlatXmlDataSetTest extends AbstractDataSetTest
     }
 
     @Test
-    void testWrite() throws Exception
+    void testWrite_withValidDataSet_writesAndReadsBackEquivalentData() throws Exception
     {
         final IDataSet expectedDataSet = createDataSet();
         final File tempFile = File.createTempFile("flatXmlDataSetTest", ".xml");
@@ -188,7 +188,7 @@ public class FlatXmlDataSetTest extends AbstractDataSetTest
     }
 
     @Test
-    void testReadFlatXmlWithDifferentCaseInDtd() throws Exception
+    void testReadFlatXmlWithDifferentCaseInDtd_withMismatchedDtdCase_loadsDataSet() throws Exception
     {
         // The creation of such a dataset should work
         final IDataSet ds = new FlatXmlDataSetBuilder()
@@ -227,7 +227,7 @@ public class FlatXmlDataSetTest extends AbstractDataSetTest
      */
     @Override
     @Test
-    public void testCreateDuplicateDataSet() throws Exception
+    public void testCreateDuplicateDataSet_withDuplicateTableNames_throwsAmbiguousTableNameException() throws Exception
     {
         final IDataSet dataSet = createDuplicateDataSet();
         final ITable[] tables = dataSet.getTables();
@@ -249,7 +249,7 @@ public class FlatXmlDataSetTest extends AbstractDataSetTest
      */
     @Override
     @Test
-    public void testCreateMultipleCaseDuplicateDataSet() throws Exception
+    public void testCreateMultipleCaseDuplicateDataSet_withDuplicateCaseVariantNames_throwsAmbiguousTableNameException() throws Exception
     {
         final IDataSet dataSet = createMultipleCaseDuplicateDataSet();
         final ITable[] tables = dataSet.getTables();
@@ -263,7 +263,7 @@ public class FlatXmlDataSetTest extends AbstractDataSetTest
     }
 
     @Test
-    void testCreateDuplicateDataSetWithVaryingColumnsAndColumnSensing()
+    void testCreateDuplicateDataSetWithVaryingColumnsAndColumnSensing_withColumnSensing_mergesDuplicateTablesColumns()
             throws Exception
     {
         final String xmlString = "<dataset>"
@@ -299,7 +299,7 @@ public class FlatXmlDataSetTest extends AbstractDataSetTest
     }
 
     @Test
-    void testCreateDataSetWithVaryingColumnCasingAndColumnSensing()
+    void testCreateDataSetWithVaryingColumnCasingAndColumnSensing_withCaseVariantColumns_unifiedIntoSingleTable()
             throws Exception
     {
         final String xmlContent = "<dataset>"

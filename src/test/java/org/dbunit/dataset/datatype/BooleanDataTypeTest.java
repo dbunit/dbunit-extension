@@ -53,14 +53,14 @@ public class BooleanDataTypeTest extends AbstractDataTypeTest
 
     @Override
     @Test
-    public void testToString() throws Exception
+    public void testToString_withDataType_returnsExpectedString() throws Exception
     {
         assertThat(THIS_TYPE).as("name").hasToString("BOOLEAN");
     }
 
     @Override
     @Test
-    public void testGetTypeClass() throws Exception
+    public void testGetTypeClass_returnsExpectedClass() throws Exception
     {
         assertThat(THIS_TYPE.getTypeClass()).as("class")
                 .isEqualTo(Boolean.class);
@@ -68,20 +68,20 @@ public class BooleanDataTypeTest extends AbstractDataTypeTest
 
     @Override
     @Test
-    public void testIsNumber() throws Exception
+    public void testIsNumber_returnsExpectedBoolean() throws Exception
     {
         assertThat(THIS_TYPE.isNumber()).as("is number").isFalse();
     }
 
     @Override
     @Test
-    public void testIsDateTime() throws Exception
+    public void testIsDateTime_returnsExpectedBoolean() throws Exception
     {
         assertThat(THIS_TYPE.isDateTime()).as("is date/time").isFalse();
     }
 
     @Override
-    public void testTypeCast() throws Exception
+    public void testTypeCast_withCompatibleInput_returnsExpectedValue() throws Exception
     {
         final Object[] values = {null, "1", // Strings
                 "0", "true", "false", "4894358", // TODO should it be possible
@@ -113,14 +113,14 @@ public class BooleanDataTypeTest extends AbstractDataTypeTest
 
     @Override
     @Test
-    public void testTypeCastNone() throws Exception
+    public void testTypeCastNone_withNullInput_returnsNull() throws Exception
     {
         assertThat(THIS_TYPE.typeCast(ITable.NO_VALUE)).as("typecast").isNull();
     }
 
     @Override
     @Test
-    public void testTypeCastInvalid() throws Exception
+    public void testTypeCastInvalid_withIncompatibleInput_throwsTypeCastException() throws Exception
     {
         final Object[] values = {"bla"};
 
@@ -135,7 +135,7 @@ public class BooleanDataTypeTest extends AbstractDataTypeTest
 
     @Override
     @Test
-    public void testCompareEquals() throws Exception
+    public void testCompareEquals_withEqualValues_returnsZero() throws Exception
     {
         final Object[] values1 = {null, "1", "0", Boolean.TRUE, Boolean.FALSE,};
         final Object[] values2 =
@@ -154,7 +154,7 @@ public class BooleanDataTypeTest extends AbstractDataTypeTest
 
     @Override
     @Test
-    public void testCompareInvalid() throws Exception
+    public void testCompareInvalid_withInvalidInput_throwsTypeCastException() throws Exception
     {
         final Object[] values1 = {"bla", Boolean.FALSE,};
         final Object[] values2 = {Boolean.TRUE, "bla",};
@@ -176,7 +176,7 @@ public class BooleanDataTypeTest extends AbstractDataTypeTest
 
     @Override
     @Test
-    public void testCompareDifferent() throws Exception
+    public void testCompareDifferent_withDifferentValues_returnsNonZero() throws Exception
     {
         final Object[] less = {null, null, Boolean.FALSE,};
         final Object[] greater = {Boolean.TRUE, Boolean.FALSE, Boolean.TRUE,};
@@ -194,7 +194,7 @@ public class BooleanDataTypeTest extends AbstractDataTypeTest
 
     @Override
     @Test
-    public void testSqlType() throws Exception
+    public void testSqlType_returnsExpectedSqlType() throws Exception
     {
         assertThat(DataType.forSqlType(Types.BOOLEAN)).as("forSqlType")
                 .isEqualTo(THIS_TYPE);
@@ -206,14 +206,14 @@ public class BooleanDataTypeTest extends AbstractDataTypeTest
 
     @Override
     @Test
-    public void testForObject() throws Exception
+    public void testForObject_withValidInput_returnsDataType() throws Exception
     {
         assertThat(DataType.forObject(Boolean.TRUE)).isEqualTo(THIS_TYPE);
     }
 
     @Override
     @Test
-    public void testAsString() throws Exception
+    public void testAsString_withValidInput_returnsStringRepresentation() throws Exception
     {
         final Boolean[] values = {Boolean.TRUE, Boolean.FALSE,};
 
@@ -231,7 +231,7 @@ public class BooleanDataTypeTest extends AbstractDataTypeTest
 
     @Override
     @Test
-    public void testGetSqlValue() throws Exception
+    public void testGetSqlValue_withValidStatement_returnsExpectedValue() throws Exception
     {
         final Object[] expected = {null, Boolean.TRUE, Boolean.FALSE,};
         // First invocation we want to say it was null using lenient to ignore
@@ -257,7 +257,7 @@ public class BooleanDataTypeTest extends AbstractDataTypeTest
      * ResultSet.wasNull().
      */
     @Test
-    public void testGetSqlValueCallOrder()
+    public void testGetSqlValueCallOrder_afterGetSqlValue_callsGetBooleanBeforeWasNull()
             throws TypeCastException, SQLException
     {
         final int columnIndex = 1;

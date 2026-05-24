@@ -91,7 +91,7 @@ public abstract class AbstractMetaDataBasedSearchCallbackTestCase
             IDatabaseConnection connection2);
 
     @Test
-    void testAllInput() throws Exception
+    void testAllInput_withAllInputValues_producesExpectedSearchOutput() throws Exception
     {
         final IDatabaseConnection connection = getConnection();
 

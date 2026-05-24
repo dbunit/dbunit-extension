@@ -37,7 +37,7 @@ class DataSetUtilsTest
 {
 
     @Test
-    void testGetQualifiedName() throws Exception
+    void testGetQualifiedName_withPrefixAndName_returnsQualifiedName() throws Exception
     {
         assertThat(DataSetUtils.getQualifiedName("prefix", "name"))
                 .as("prefix + name").isEqualTo("prefix.name");
@@ -62,7 +62,7 @@ class DataSetUtilsTest
     }
 
     @Test
-    void testGetEscapedName() throws Exception
+    void testGetEscapedName_withEscapePattern_returnsEscapedName() throws Exception
     {
         assertThat(DataSetUtils.getEscapedName("name", "'?'"))
                 .isEqualTo("'name'");
@@ -82,7 +82,7 @@ class DataSetUtilsTest
     }
 
     @Test
-    void testGetColumn() throws Exception
+    void testGetColumn_withColumnName_returnsMatchingColumn() throws Exception
     {
         final Column[] columns =
                 new Column[] {new Column("c0", DataType.UNKNOWN),
@@ -99,7 +99,7 @@ class DataSetUtilsTest
     }
 
     @Test
-    void testGetColumnCaseInsensitive() throws Exception
+    void testGetColumnCaseInsensitive_withMixedCaseName_returnsMatchingColumn() throws Exception
     {
         final Column[] columns =
                 new Column[] {new Column("c0", DataType.UNKNOWN),
@@ -116,7 +116,7 @@ class DataSetUtilsTest
     }
 
     @Test
-    void testGetTables() throws Exception
+    void testGetTables_withDataSet_returnsAllTablesInOrder() throws Exception
     {
         final String[] expected = {"t0", "t1", "t2", "t3"};
         final ITable[] testTables =
@@ -134,7 +134,7 @@ class DataSetUtilsTest
     }
 
     @Test
-    void testGetTablesByNames() throws Exception
+    void testGetTablesByNames_withTableNames_returnsMatchingTables() throws Exception
     {
         final String[] expected = {"t0", "t2"};
         final ITable[] testTables =
@@ -152,7 +152,7 @@ class DataSetUtilsTest
     }
 
     @Test
-    void testGetReserseNames() throws Exception
+    void testGetReserseNames_withDataSet_returnsTableNamesInReverseOrder() throws Exception
     {
         final String[] expected = {"t3", "t2", "t1", "t0"};
         final ITable[] testTables =
@@ -169,7 +169,7 @@ class DataSetUtilsTest
     }
 
     @Test
-    void testGetSqlValueString() throws Exception
+    void testGetSqlValueString_withVariousTypesAndValues_returnsCorrectSqlString() throws Exception
     {
         final ValueStringData[] values = new ValueStringData[] {
                 new ValueStringData(null, DataType.REAL, "NULL"),

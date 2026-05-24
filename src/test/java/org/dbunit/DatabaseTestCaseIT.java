@@ -51,7 +51,7 @@ class DatabaseTestCaseIT
      * @throws Exception
      */
     @Test
-    void testConfigureConnection() throws Exception
+    void testConfigureConnection_withCustomBatchSize_setsConfigPropertyOnConnection() throws Exception
     {
         final DatabaseEnvironment dbEnv = DatabaseEnvironment.getInstance();
         final IDatabaseConnection conn = dbEnv.getConnection();

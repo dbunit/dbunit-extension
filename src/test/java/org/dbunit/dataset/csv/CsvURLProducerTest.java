@@ -66,7 +66,7 @@ class CsvURLProducerTest
     private static final String THE_DIRECTORY = "csv/orders";
 
     @Test
-    void testProduceFromFolder() throws DataSetException, MalformedURLException
+    void testProduceFromFolder_withCsvDirectoryUrl_returnsTwoTablesWithCorrectRowCounts() throws DataSetException, MalformedURLException
     {
         final CsvURLProducer producer =
                 new CsvURLProducer(TestUtils.getFile(THE_DIRECTORY).toURL(),
@@ -75,7 +75,7 @@ class CsvURLProducerTest
     }
 
     @Test
-    void testProduceFromJar() throws DataSetException, IOException
+    void testProduceFromJar_withJarFileUrl_returnsTwoTablesWithCorrectRowCounts() throws DataSetException, IOException
     {
         final File file = TestUtils.getFile(THE_DIRECTORY + "/orders.jar");
         final URL jarFile = new URL("jar:" + file.toURL() + "!/");
@@ -112,7 +112,7 @@ class CsvURLProducerTest
     }
 
     @Test
-    void testProduceAndInsertFromFolder() throws ClassNotFoundException,
+    void testProduceAndInsertFromFolder_withCsvDirectory_insertsRowsIntoDatabase() throws ClassNotFoundException,
             MalformedURLException, DatabaseUnitException, SQLException
     {
         produceAndInsertToDatabase();
@@ -141,7 +141,7 @@ class CsvURLProducerTest
     }
 
     @Test
-    void testInsertOperationWithCsvFormat()
+    void testInsertOperationWithCsvFormat_withCsvFormatOperation_insertsCorrectRowCount()
             throws SQLException, DatabaseUnitException
     {
         final Operation operation = new Operation();
@@ -162,7 +162,7 @@ class CsvURLProducerTest
     }
 
     @Test
-    void testExportTaskWithCsvFormat()
+    void testExportTaskWithCsvFormat_withInsertedData_exportsToCsvFiles()
             throws MalformedURLException, DatabaseUnitException, SQLException
     {
         produceAndInsertToDatabase();

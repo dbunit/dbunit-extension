@@ -36,7 +36,7 @@ class HandlersTest
     Pipeline pipeline;
 
     @Test
-    void testEmptyFields()
+    void testEmptyFields_withCommaDelimitedEmptyFields_returnsEmptyProducts()
             throws IllegalInputCharacterException, PipelineException
     {
         pipeline.putFront(SeparatorHandler.ENDPIECE());
@@ -56,7 +56,7 @@ class HandlersTest
     }
 
     @Test
-    void testUnquotedFieldsParser()
+    void testUnquotedFieldsParser_withUnquotedInput_splitsByCommaDelimiter()
             throws IllegalInputCharacterException, PipelineException
     {
 
@@ -75,7 +75,7 @@ class HandlersTest
     }
 
     @Test
-    void testQuotedFieldWithEscapedCharacterAssembler()
+    void testQuotedFieldWithEscapedCharacterAssembler_withEscapedQuoteInField_returnsUnescapedContent()
             throws PipelineException, IllegalInputCharacterException
     {
         pipeline.putFront(SeparatorHandler.ENDPIECE());
@@ -93,7 +93,7 @@ class HandlersTest
     }
 
     @Test
-    void testUnquotedFieldWithEscapedCharacterAssembler()
+    void testUnquotedFieldWithEscapedCharacterAssembler_withBackslashInField_returnsRawContent()
             throws PipelineException, IllegalInputCharacterException
     {
         pipeline.putFront(SeparatorHandler.ENDPIECE());
@@ -112,7 +112,7 @@ class HandlersTest
     }
 
     @Test
-    void testEscapedFieldAssembler()
+    void testEscapedFieldAssembler_withMixedQuotedAndEscapedFields_returnsThreeProducts()
             throws PipelineException, IllegalInputCharacterException
     {
         final String words = "\"He\"llo, \"World, !\", \\\"St. James O\"Connor";
@@ -155,7 +155,7 @@ class HandlersTest
     }
 
     @Test
-    void testQuotedFieldAssembler()
+    void testQuotedFieldAssembler_withQuotedInput_returnsContentWithoutQuotes()
             throws IllegalInputCharacterException, PipelineException
     {
         pipeline.putFront(SeparatorHandler.ENDPIECE());
@@ -172,7 +172,7 @@ class HandlersTest
     }
 
     @Test
-    void testQuotedFieldsParser()
+    void testQuotedFieldsParser_withMultipleQuotedFields_returnsFourProducts()
             throws IllegalInputCharacterException, PipelineException
     {
         pipeline.putFront(SeparatorHandler.ENDPIECE());
@@ -279,7 +279,7 @@ class HandlersTest
     }
 
     @Test
-    void testEscapeHandler()
+    void testEscapeHandler_withEscapeSequence_returnsUnescapedCharacter()
             throws PipelineException, IllegalInputCharacterException
     {
         final String accepted = "\\\"";
@@ -292,7 +292,7 @@ class HandlersTest
     }
 
     @Test
-    void testWhitespaceHandler() throws Exception
+    void testWhitespaceHandler_withSpaceAndTabInput_acceptsWhitespaceCharacters() throws Exception
     {
 
         final String accepted = " \t";
@@ -307,7 +307,7 @@ class HandlersTest
     }
 
     @Test
-    void testUnquotedHandler()
+    void testUnquotedHandler_withAlphanumericInput_acceptsAlnumAndRejectsWhitespace()
             throws IllegalInputCharacterException, PipelineException
     {
         final String accepted =

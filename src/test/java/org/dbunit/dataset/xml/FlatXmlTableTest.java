@@ -52,7 +52,7 @@ class FlatXmlTableTest extends AbstractTableTest
 
     @Override
     @Test
-    public void testGetMissingValue() throws Exception
+    public void testGetMissingValue_withMissingCells_returnsExpectedValues() throws Exception
     {
         final int row = 0;
         final Object[] expected = {"row 1 col 0", null, "row 1 col 2"};
@@ -70,7 +70,7 @@ class FlatXmlTableTest extends AbstractTableTest
     }
 
     @Test
-    void testLoadCRLF() throws Exception
+    void testLoadCRLF_withEscapedNewlineAndCarriageReturn_returnsLiteralChars() throws Exception
     {
         final int row = 0;
         final Object[] expected = {"row 0 \n col 0 \r"}; // in the expected

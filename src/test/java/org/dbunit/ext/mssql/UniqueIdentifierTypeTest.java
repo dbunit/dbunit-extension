@@ -75,7 +75,7 @@ class UniqueIdentifierTypeTest
      * @throws SQLException
      */
     @Test
-    void testGetSqlValueWithBadValue() throws SQLException
+    void testGetSqlValueWithBadValue_withInvalidUuidString_throwsTypeCastException() throws SQLException
     {
         when(mockResultSet.getString(anyInt()))
                 .thenAnswer(invocation -> existingUuid.toString() + "Z");
@@ -92,7 +92,7 @@ class UniqueIdentifierTypeTest
      * @throws TypeCastException
      */
     @Test
-    void testGetValue() throws TypeCastException, SQLException
+    void testGetValue_withValidUuidString_returnsUuidObject() throws TypeCastException, SQLException
     {
         when(mockResultSet.getString(anyInt()))
                 .thenAnswer(invocation -> existingUuid.toString());

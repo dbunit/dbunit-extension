@@ -41,7 +41,7 @@ public class ForwardOnlyTableTest extends DefaultTableTest
 
     @Override
     @Test
-    void testGetRowCount() throws Exception
+    void testGetRowCount_withSixRowTable_returnsRowCount() throws Exception
     {
         final ITable table = createTable();
         assertThrows(UnsupportedOperationException.class,
@@ -51,7 +51,7 @@ public class ForwardOnlyTableTest extends DefaultTableTest
 
     @Override
     @Test
-    void testGetValueRowBounds() throws Exception
+    void testGetValueRowBounds_withOutOfBoundsRow_throwsRowOutOfBoundsException() throws Exception
     {
         final int[] rows = new int[] {ROW_COUNT, ROW_COUNT + 1};
         final ITable table = createTable();
@@ -68,7 +68,7 @@ public class ForwardOnlyTableTest extends DefaultTableTest
     }
 
     @Test
-    void testGetValueIterateBackward() throws Exception
+    void testGetValueIterateBackward_whenAccessingPreviousRow_throwsUnsupportedOperation() throws Exception
     {
         final ITable table = createTable();
         for (int i = 0; i < ROW_COUNT; i++)
@@ -93,7 +93,7 @@ public class ForwardOnlyTableTest extends DefaultTableTest
     }
 
     @Test
-    void testGetValueOnEmptyTable() throws Exception
+    void testGetValueOnEmptyTable_withEmptyTable_throwsRowOutOfBoundsException() throws Exception
     {
         final MockTableMetaData metaData =
                 new MockTableMetaData("TABLE", new String[] {"C1"});
@@ -109,9 +109,9 @@ public class ForwardOnlyTableTest extends DefaultTableTest
      */
     @Override
     @Test
-    public void testGetMissingValue() throws Exception
+    public void testGetMissingValue_withMissingCells_returnsExpectedValues() throws Exception
     {
-        super.testGetMissingValue();
+        super.testGetMissingValue_withMissingCells_returnsExpectedValues();
     }
 
 }

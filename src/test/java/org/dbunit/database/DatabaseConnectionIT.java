@@ -49,7 +49,7 @@ class DatabaseConnectionIT extends AbstractDatabaseConnectionIT
     }
 
     @Test
-    void testCreateNullConnection() throws Exception
+    void testCreateNullConnection_withNullJdbcConnection_throwsNullPointerException() throws Exception
     {
         assertThrows(NullPointerException.class,
                 () -> new DatabaseConnection(null),
@@ -57,7 +57,7 @@ class DatabaseConnectionIT extends AbstractDatabaseConnectionIT
     }
 
     @Test
-    void testCreateConnectionWithNonExistingSchemaAndStrictValidation()
+    void testCreateConnectionWithNonExistingSchemaAndStrictValidation_withInvalidSchemaAndValidateTrue_throwsDatabaseUnitException()
             throws Exception
     {
         final DatabaseEnvironment environment = getEnvironment();
@@ -78,7 +78,7 @@ class DatabaseConnectionIT extends AbstractDatabaseConnectionIT
     }
 
     @Test
-    void testCreateConnectionWithNonExistingSchemaAndLenientValidation()
+    void testCreateConnectionWithNonExistingSchemaAndLenientValidation_withInvalidSchemaAndValidateFalse_createsConnectionSuccessfully()
             throws Exception
     {
         final DatabaseEnvironment environment = getEnvironment();
@@ -93,7 +93,7 @@ class DatabaseConnectionIT extends AbstractDatabaseConnectionIT
     }
 
     @Test
-    void testCreateConnectionWithSchemaDbStoresUpperCaseIdentifiers()
+    void testCreateConnectionWithSchemaDbStoresUpperCaseIdentifiers_whenDbStoresUpperCase_normalizesSchemaToUpperCase()
             throws Exception
     {
         final IDatabaseConnection validConnection = super.getConnection();
@@ -121,7 +121,7 @@ class DatabaseConnectionIT extends AbstractDatabaseConnectionIT
     }
 
     @Test
-    void testCreateConnectionWithSchemaDbStoresLowerCaseIdentifiers()
+    void testCreateConnectionWithSchemaDbStoresLowerCaseIdentifiers_whenDbStoresLowerCase_normalizesSchemaToLowerCase()
             throws Exception
     {
         final IDatabaseConnection validConnection = super.getConnection();
@@ -149,7 +149,7 @@ class DatabaseConnectionIT extends AbstractDatabaseConnectionIT
     }
 
     @Test
-    void testCreateQueryWithPreparedStatement() throws Exception
+    void testCreateQueryWithPreparedStatement_withReusedPreparedStatement_returnsCorrectTableForEachExecution() throws Exception
     {
         final IDatabaseConnection connection = super.getConnection();
         final PreparedStatement pstmt = connection.getConnection()

@@ -136,7 +136,7 @@ class QueryDataSetIT extends AbstractDataSetTest
     // Test methods
 
     @Test
-    void testGetSelectPartialData() throws Exception
+    void testGetSelectPartialData_withWhereClause_returnsFilteredRows() throws Exception
     {
 
         final QueryDataSet ptds = new QueryDataSet(_connection);
@@ -150,7 +150,7 @@ class QueryDataSetIT extends AbstractDataSetTest
     }
 
     @Test
-    void testGetAllColumnsWithStar() throws Exception
+    void testGetAllColumnsWithStar_withStarQuery_returnsAllColumns() throws Exception
     {
 
         final QueryDataSet ptds = new QueryDataSet(_connection);
@@ -163,7 +163,7 @@ class QueryDataSetIT extends AbstractDataSetTest
     }
 
     @Test
-    void testGetAllRowsSingleColumn() throws Exception
+    void testGetAllRowsSingleColumn_withSingleColumnQuery_returnsAllRows() throws Exception
     {
 
         final QueryDataSet ptds = new QueryDataSet(_connection);
@@ -175,7 +175,7 @@ class QueryDataSetIT extends AbstractDataSetTest
     }
 
     @Test
-    void testOnlySpecifiedColumnsReturned() throws Exception
+    void testOnlySpecifiedColumnsReturned_withSpecificColumnQuery_throwsForUnqueriedColumn() throws Exception
     {
 
         final QueryDataSet ptds = new QueryDataSet(_connection);
@@ -195,7 +195,7 @@ class QueryDataSetIT extends AbstractDataSetTest
     }
 
     @Test
-    void testGetSelectPartialData2() throws Exception
+    void testGetSelectPartialData2_withColumnAndRowFilter_returnsFilteredResult() throws Exception
     {
 
         final QueryDataSet ptds = new QueryDataSet(_connection);
@@ -210,7 +210,7 @@ class QueryDataSetIT extends AbstractDataSetTest
     }
 
     @Test
-    void testCombinedWhere() throws Exception
+    void testCombinedWhere_withMultipleWhereConditions_returnsMatchingRow() throws Exception
     {
 
         final QueryDataSet ptds = new QueryDataSet(_connection);
@@ -225,7 +225,7 @@ class QueryDataSetIT extends AbstractDataSetTest
     }
 
     @Test
-    void testMultipleTables() throws Exception
+    void testMultipleTables_withTwoQueriedTables_returnsCorrectDataForEach() throws Exception
     {
         ITable table = null;
 
@@ -246,7 +246,7 @@ class QueryDataSetIT extends AbstractDataSetTest
     }
 
     @Test
-    void testMultipleTablesWithMissingWhere() throws Exception
+    void testMultipleTablesWithMissingWhere_withNullQuery_addsTableWithoutFilter() throws Exception
     {
         final QueryDataSet ptds = new QueryDataSet(_connection);
         ptds.addTable("SECOND_TABLE",

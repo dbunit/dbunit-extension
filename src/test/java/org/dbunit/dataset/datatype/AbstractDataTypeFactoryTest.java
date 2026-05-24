@@ -40,7 +40,7 @@ public abstract class AbstractDataTypeFactoryTest
     }
 
     @Test
-    void testCreateDataType() throws Exception
+    void testCreateDataType_withStandardTypes_returnsExpectedDataTypes() throws Exception
     {
         final DataType[] expectedTypes = new DataType[] {DataType.UNKNOWN,
                 DataType.CHAR, DataType.VARCHAR, DataType.LONGVARCHAR,
@@ -65,7 +65,7 @@ public abstract class AbstractDataTypeFactoryTest
     }
 
     @Test
-    public void testCreateDateDataType() throws Exception
+    public void testCreateDateDataType_withDateSqlType_returnsDateDataType() throws Exception
     {
         final int sqlType = Types.DATE;
         final String sqlTypeName = "DATE";
@@ -77,7 +77,7 @@ public abstract class AbstractDataTypeFactoryTest
     }
 
     @Test
-    public void testCreateBlobDataType() throws Exception
+    public void testCreateBlobDataType_withBlobSqlType_returnsBlobDataType() throws Exception
     {
         final int sqlType = Types.BLOB;
         final String sqlTypeName = "BLOB";
@@ -90,7 +90,7 @@ public abstract class AbstractDataTypeFactoryTest
     }
 
     @Test
-    public void testCreateClobDataType() throws Exception
+    public void testCreateClobDataType_withClobSqlType_returnsClobDataType() throws Exception
     {
         final int sqlType = Types.CLOB;
         final String sqlTypeName = "CLOB";

@@ -71,7 +71,7 @@ public class DefaultTableTest extends AbstractTableTest
 
     @Override
     @Test
-    public void testGetMissingValue() throws Exception
+    public void testGetMissingValue_withMissingCells_returnsExpectedValues() throws Exception
     {
         final String columnName = "COLUMN0";
         final Object expected = ITable.NO_VALUE;
