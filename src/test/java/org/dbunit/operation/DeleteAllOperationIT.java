@@ -24,14 +24,9 @@ package org.dbunit.operation;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import org.dbunit.AbstractDatabaseIT;
-import org.dbunit.database.DatabaseConfig;
-import org.dbunit.database.MockDatabaseConnection;
-import org.dbunit.database.statement.MockBatchStatement;
-import org.dbunit.database.statement.MockStatementFactory;
 import org.dbunit.dataset.AbstractDataSetTest;
 import org.dbunit.dataset.DataSetUtils;
 import org.dbunit.dataset.DefaultDataSet;
-import org.dbunit.dataset.DefaultTable;
 import org.dbunit.dataset.EmptyTableDataSet;
 import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.ITable;
@@ -70,80 +65,6 @@ class DeleteAllOperationIT extends AbstractDatabaseIT
     }
 
     @Test
-    void testMockExecute() throws Exception
-    {
-        final String schemaName = "schema";
-        final String tableName = "table";
-        final String expected =
-                getExpectedStament(schemaName + "." + tableName);
-
-        final IDataSet dataSet =
-                new DefaultDataSet(new DefaultTable(tableName));
-
-        // setup mock objects
-        final MockBatchStatement statement = new MockBatchStatement();
-        statement.addExpectedBatchString(expected);
-        statement.setExpectedExecuteBatchCalls(1);
-        statement.setExpectedClearBatchCalls(1);
-        statement.setExpectedCloseCalls(1);
-
-        final MockStatementFactory factory = new MockStatementFactory();
-        factory.setExpectedCreateStatementCalls(1);
-        factory.setupStatement(statement);
-
-        final MockDatabaseConnection connection = new MockDatabaseConnection();
-        connection.setupDataSet(dataSet);
-        connection.setupSchema(schemaName);
-        connection.setupStatementFactory(factory);
-        connection.setExpectedCloseCalls(0);
-
-        // execute operation
-        getDeleteAllOperation().execute(connection, dataSet);
-
-        statement.verify();
-        factory.verify();
-        connection.verify();
-    }
-
-    @Test
-    void testExecuteWithEscapedNames() throws Exception
-    {
-        final String schemaName = "schema";
-        final String tableName = "table";
-        final String expected =
-                getExpectedStament("'" + schemaName + "'.'" + tableName + "'");
-
-        final IDataSet dataSet =
-                new DefaultDataSet(new DefaultTable(tableName));
-
-        // setup mock objects
-        final MockBatchStatement statement = new MockBatchStatement();
-        statement.addExpectedBatchString(expected);
-        statement.setExpectedExecuteBatchCalls(1);
-        statement.setExpectedClearBatchCalls(1);
-        statement.setExpectedCloseCalls(1);
-
-        final MockStatementFactory factory = new MockStatementFactory();
-        factory.setExpectedCreateStatementCalls(1);
-        factory.setupStatement(statement);
-
-        final MockDatabaseConnection connection = new MockDatabaseConnection();
-        connection.setupDataSet(dataSet);
-        connection.setupSchema(schemaName);
-        connection.setupStatementFactory(factory);
-        connection.setExpectedCloseCalls(0);
-
-        // execute operation
-        connection.getConfig()
-                .setProperty(DatabaseConfig.PROPERTY_ESCAPE_PATTERN, "'?'");
-        getDeleteAllOperation().execute(connection, dataSet);
-
-        statement.verify();
-        factory.verify();
-        connection.verify();
-    }
-
-    @Test
     void testExecute() throws Exception
     {
         final IDataSet databaseDataSet = _connection.createDataSet();
@@ -176,7 +97,7 @@ class DeleteAllOperationIT extends AbstractDatabaseIT
      * The AbstractDataSetTest.removeExtraTestTables() is required when you run
      * on something besides hypersone (like mssql or oracle) to deal with the
      * extra tables that may not have data.
-     * 
+     *
      * Need something like getDefaultTables or something that is totally cross
      * dbms.
      */

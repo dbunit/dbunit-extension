@@ -21,22 +21,24 @@
 
 package org.dbunit.operation;
 
-import org.junit.platform.suite.api.SelectClasses;
-import org.junit.platform.suite.api.Suite;
-
 /**
+ * Unit tests for {@link TruncateTableOperation} using mock objects.
+ *
  * @author Manuel Laflamme
+ * @since Apr 13, 2003
  * @version $Revision$
- * @since Feb 19, 2002
  */
-@Suite
-@SelectClasses({AbstractBatchOperationIT.class,
-        CloseConnectionOperationTest.class, CompositeOperationIT.class,
-        DeleteAllOperationIT.class, DeleteOperationIT.class,
-        InsertOperationIT.class, RefreshOperationIT.class,
-        TransactionOperationIT.class, TruncateTableOperationIT.class,
-        UpdateOperationIT.class,})
-public class AllTestsSuite
+class TruncateTableOperationTest extends DeleteAllOperationTest
 {
+    @Override
+    protected DatabaseOperation getDeleteAllOperation()
+    {
+        return new TruncateTableOperation();
+    }
 
+    @Override
+    protected String getExpectedStament(final String tableName)
+    {
+        return "truncate table " + tableName;
+    }
 }
