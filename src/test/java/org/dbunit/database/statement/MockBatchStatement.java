@@ -25,11 +25,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.sql.SQLException;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
 
 /**
+ * Mock implementation of {@link IBatchStatement} for use in unit tests.
+ * Records all SQL strings added via {@link #addBatch(String)} for later
+ * verification, either via exact-match {@link #verify()} or via
+ * {@link #getCapturedSql()} for pattern-based assertions.
+ *
  * @author Manuel Laflamme
  * @version $Revision$
  * @since Mar 16, 2002
@@ -73,6 +79,18 @@ public class MockBatchStatement implements IBatchStatement
     public void setExpectedCloseCalls(final int callsCount)
     {
         _expectedCloseCalls = callsCount;
+    }
+
+    /**
+     * Returns the SQL strings that were actually passed to {@link #addBatch(String)},
+     * in the order they were added. Useful for pattern-based assertions when exact
+     * string matching via {@link #addExpectedBatchString(String)} is too strict.
+     *
+     * @return unmodifiable view of the captured SQL strings
+     */
+    public List<String> getCapturedSql()
+    {
+        return Collections.unmodifiableList(_actualBatchStrings);
     }
 
     public void verify()
