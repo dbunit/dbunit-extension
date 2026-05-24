@@ -196,6 +196,38 @@ dataSet.addTable("BAR");
 
 Uses to create datasets programmatically.
 
+[#datasetbuilder]
+=== link:apidocs/org/dbunit/dataset/DataSetBuilder.html[DataSetBuilder]
+
+Fluent builder for creating datasets programmatically without XML files.
+Column data types default to `UNKNOWN` and are resolved at runtime by DbUnit.
+
+Single-table example:
+
+[source,java]
+----
+IDataSet dataSet = new DataSetBuilder()
+    .table("FOO")
+        .columns("ID", "NAME")
+        .row(1, "Alice")
+        .row(2, "Bob")
+    .build();
+----
+
+Multi-table example:
+
+[source,java]
+----
+IDataSet dataSet = new DataSetBuilder()
+    .table("FOO")
+        .columns("ID", "NAME")
+        .row(1, "Alice")
+    .table("BAR")
+        .columns("X")
+        .row(42)
+    .build();
+----
+
 [#compositedataset]
 === link:apidocs/org/dbunit/dataset/CompositeDataSet.html[CompositeDataSet]
 
