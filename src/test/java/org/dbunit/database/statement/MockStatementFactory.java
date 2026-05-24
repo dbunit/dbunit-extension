@@ -30,6 +30,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.dbunit.database.IDatabaseConnection;
 
 /**
+ * Mock implementation of {@link IStatementFactory} for use in unit tests.
+ * Tracks the number of statement creation calls and delegates to a configured
+ * {@link IBatchStatement}.
+ *
+ * <p>Use {@link #forSingleBatch(String...)} to create a fully-wired factory
+ * expecting exactly one batch execution of the given SQL statements, reducing
+ * per-test setup boilerplate.
+ *
  * @author Manuel Laflamme
  * @version $Revision$
  * @since Mar 16, 2002
@@ -42,6 +50,45 @@ public class MockStatementFactory implements IStatementFactory
     private Integer _expectedCreatePreparedStatementCalls;
     private AtomicInteger _createStatementCalls = new AtomicInteger();
     private AtomicInteger _createPreparedStatementCalls = new AtomicInteger();
+
+    /**
+     * Creates a {@link MockStatementFactory} pre-wired with a {@link MockBatchStatement}
+     * expecting exactly the given SQL statements in a single batch execution.
+     * Equivalent to manually creating and configuring both a {@link MockBatchStatement}
+     * and a {@link MockStatementFactory}, but in one call.
+     *
+     * <p>Call {@link #getBatchStatement()} on the returned factory to access the
+     * underlying {@link MockBatchStatement} for additional assertions such as
+     * {@link MockBatchStatement#getCapturedSql()}.
+     *
+     * @param expectedSql the SQL strings expected to be batched, in order
+     * @return a fully configured factory ready for use in a test
+     */
+    public static MockStatementFactory forSingleBatch(final String... expectedSql)
+    {
+        final MockBatchStatement statement = new MockBatchStatement();
+        statement.addExpectedBatchStrings(expectedSql);
+        statement.setExpectedExecuteBatchCalls(1);
+        statement.setExpectedClearBatchCalls(1);
+        statement.setExpectedCloseCalls(1);
+
+        final MockStatementFactory factory = new MockStatementFactory();
+        factory.setExpectedCreatePreparedStatementCalls(1);
+        factory.setupStatement(statement);
+        return factory;
+    }
+
+    /**
+     * Returns the {@link MockBatchStatement} configured via {@link #setupStatement(IBatchStatement)}.
+     * Useful after using {@link #forSingleBatch(String...)} to access the underlying
+     * statement for pattern-based assertions via {@link MockBatchStatement#getCapturedSql()}.
+     *
+     * @return the configured batch statement, or {@code null} if none was set
+     */
+    public MockBatchStatement getBatchStatement()
+    {
+        return (MockBatchStatement) _batchStatement;
+    }
 
     public void setupStatement(final IBatchStatement batchStatement)
     {

@@ -782,18 +782,17 @@
           <version>${jacocoPluginVersion}</version>
           <executions>
             <execution>
+              <id>jacoco-prepare-agent</id>
               <goals>
                 <goal>prepare-agent</goal>
               </goals>
             </execution>
-<!--
-enable this to generate coverage report HTML files during build (same as site)
             <execution>
+              <id>jacoco-report</id>
               <goals>
                 <goal>report</goal>
               </goals>
             </execution>
--->
           </executions>
         </plugin>
         <plugin>
