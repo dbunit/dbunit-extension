@@ -25,7 +25,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import org.dbunit.AbstractDatabaseIT;
 import org.dbunit.database.IDatabaseConnection;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -33,14 +32,15 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 /**
+ * Unit tests for {@link CloseConnectionOperation}.
+ *
  * @author Manuel Laflamme
  * @version $Revision$
  * @since Mar 6, 2002
  */
 @ExtendWith(MockitoExtension.class)
-class CloseConnectionOperationIT extends AbstractDatabaseIT
+class CloseConnectionOperationTest
 {
-
     @Mock
     private IDatabaseConnection connection;
 
@@ -50,12 +50,8 @@ class CloseConnectionOperationIT extends AbstractDatabaseIT
     @Test
     void testMockExecute() throws Exception
     {
-
-        // execute operation
         new CloseConnectionOperation(operation).execute(connection, null);
         verify(operation, times(1)).execute(any(), any());
         verify(connection, times(1)).close();
-
     }
-
 }
