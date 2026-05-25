@@ -28,6 +28,7 @@ import java.io.FileReader;
 import java.io.Reader;
 
 import org.dbunit.AbstractDatabaseIT;
+import org.dbunit.database.DatabaseConfig;
 import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.ITableMetaData;
@@ -75,6 +76,19 @@ public class DeleteOperationIT extends AbstractDatabaseIT
         final IDataSet dataSet = new XmlDataSet(in);
 
         testExecute(new LowerCaseDataSet(dataSet));
+    }
+
+    @Test
+    void testExecute_withBatchedStatements_deletesMatchingRowsByPrimaryKey() throws Exception
+    {
+        final Reader in = new FileReader(
+                TestUtils.getFile("xml/deleteOperationTest.xml"));
+        final IDataSet dataSet = new XmlDataSet(in);
+
+        _connection.getConfig()
+                .setFeature(DatabaseConfig.FEATURE_BATCHED_STATEMENTS, true);
+
+        testExecute(dataSet);
     }
 
     void testExecute(final IDataSet dataSet) throws Exception

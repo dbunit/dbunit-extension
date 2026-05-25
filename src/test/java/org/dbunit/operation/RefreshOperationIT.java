@@ -28,6 +28,7 @@ import java.io.Reader;
 
 import org.dbunit.AbstractDatabaseIT;
 import org.dbunit.Assertion;
+import org.dbunit.database.DatabaseConfig;
 import org.dbunit.database.MockDatabaseConnection;
 import org.dbunit.database.statement.MockBatchStatement;
 import org.dbunit.database.statement.MockStatementFactory;
@@ -137,6 +138,18 @@ class RefreshOperationIT extends AbstractDatabaseIT
         // verify table after
         assertThat(_connection.getRowCount(tableName)).as("row count before")
                 .isEqualTo(6);
+    }
+
+    @Test
+    void testExecute_withBatchedStatements_refreshesAllRows() throws Exception
+    {
+        final Reader reader =
+                TestUtils.getFileReader("xml/refreshOperationTest.xml");
+        final IDataSet dataSet = new FlatXmlDataSetBuilder().build(reader);
+
+        _connection.getConfig().setFeature(DatabaseConfig.FEATURE_BATCHED_STATEMENTS, true);
+
+        testExecute(dataSet);
     }
 
     @Test

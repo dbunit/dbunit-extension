@@ -26,8 +26,12 @@ import static org.assertj.core.api.Assertions.catchThrowableOfType;
 
 import java.io.StringReader;
 import java.math.BigDecimal;
+import java.util.Map;
 
 import org.dbunit.DatabaseEnvironment;
+import org.dbunit.assertion.comparer.value.ValueComparer;
+import org.dbunit.assertion.comparer.value.ValueComparers;
+import org.dbunit.assertion.comparer.value.builder.ColumnValueComparerMapBuilder;
 import org.dbunit.database.IDatabaseConnection;
 import org.dbunit.dataset.Column;
 import org.dbunit.dataset.CompositeDataSet;
@@ -40,6 +44,7 @@ import org.dbunit.dataset.FilteredDataSet;
 import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.ITableMetaData;
+import org.dbunit.dataset.SortedTable;
 import org.dbunit.dataset.datatype.DataType;
 import org.dbunit.dataset.xml.FlatXmlDataSetBuilder;
 import org.dbunit.dataset.xml.XmlDataSet;
@@ -589,6 +594,79 @@ public class DbUnitAssertIT
                 "BLABLA_TABLE_NOT_NEEDED_HERE", expectedColumn, actualColumn,
                 assertion.getDefaultFailureHandler()).getDataType();
         assertThat(dataType).isEqualTo(DataType.UNKNOWN);
+    }
+
+    @Test
+    void testAssertEquals_withSortedTable_toleratesDbRowOrder() throws Exception
+    {
+        final DatabaseEnvironment env = DatabaseEnvironment.getInstance();
+        final IDatabaseConnection connection = env.getConnection();
+
+        final Column[] columns = new Column[]{
+                new Column("COLUMN0", DataType.VARCHAR),
+                new Column("COLUMN1", DataType.VARCHAR),
+                new Column("COLUMN2", DataType.VARCHAR),
+                new Column("COLUMN3", DataType.VARCHAR)
+        };
+        final DefaultTable insertTable = new DefaultTable("TEST_TABLE", columns);
+        insertTable.addRow(new Object[]{"gamma", "3", "3", "3"});
+        insertTable.addRow(new Object[]{"alpha", "1", "1", "1"});
+        insertTable.addRow(new Object[]{"beta", "2", "2", "2"});
+        DatabaseOperation.CLEAN_INSERT.execute(connection,
+                new DefaultDataSet(insertTable));
+
+        final DefaultTable expectedTable = new DefaultTable("TEST_TABLE", columns);
+        expectedTable.addRow(new Object[]{"alpha", "1", "1", "1"});
+        expectedTable.addRow(new Object[]{"beta", "2", "2", "2"});
+        expectedTable.addRow(new Object[]{"gamma", "3", "3", "3"});
+
+        final ITable actualDbTable =
+                connection.createDataSet().getTable("TEST_TABLE");
+        final SortedTable sortedExpected =
+                new SortedTable(expectedTable, new String[]{"COLUMN0"});
+        final SortedTable sortedActual =
+                new SortedTable(actualDbTable, new String[]{"COLUMN0"});
+
+        assertion.assertEquals(sortedExpected, sortedActual);
+    }
+
+    @Test
+    void testAssertWithValueComparer_greaterThanColumn_passesWhenActualLarger() throws Exception
+    {
+        final Column[] columns = new Column[]{new Column("AMOUNT", DataType.INTEGER)};
+
+        final DefaultTable expected = new DefaultTable("T", columns);
+        expected.addRow(new Object[]{100});
+
+        final DefaultTable actual = new DefaultTable("T", columns);
+        actual.addRow(new Object[]{200});
+
+        new DbUnitValueComparerAssert().assertWithValueComparer(expected, actual,
+                ValueComparers.isActualGreaterThanExpected);
+    }
+
+    @Test
+    void testAssertWithValueComparer_globalDefaultAndPerColumnOverride_correctComparerUsed()
+            throws Exception
+    {
+        final Column[] columns = new Column[]{
+                new Column("ID", DataType.INTEGER),
+                new Column("SCORE", DataType.INTEGER)
+        };
+
+        final DefaultTable expected = new DefaultTable("T", columns);
+        expected.addRow(new Object[]{1, 50});
+
+        final DefaultTable actual = new DefaultTable("T", columns);
+        actual.addRow(new Object[]{1, 99});
+
+        final Map<String, ValueComparer> columnComparers =
+                new ColumnValueComparerMapBuilder()
+                        .add("SCORE", ValueComparers.isActualGreaterThanExpected)
+                        .build();
+
+        new DbUnitValueComparerAssert().assertWithValueComparer(expected, actual,
+                ValueComparers.isActualEqualToExpected, columnComparers);
     }
 
     /**

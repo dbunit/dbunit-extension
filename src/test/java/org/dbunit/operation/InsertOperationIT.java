@@ -30,13 +30,17 @@ import org.dbunit.AbstractDatabaseIT;
 import org.dbunit.Assertion;
 import org.dbunit.DatabaseEnvironment;
 import org.dbunit.TestFeature;
+import org.dbunit.database.DatabaseConfig;
 import org.dbunit.dataset.Column;
 import org.dbunit.dataset.DataSetUtils;
+import org.dbunit.dataset.DefaultDataSet;
+import org.dbunit.dataset.DefaultTable;
 import org.dbunit.dataset.ForwardOnlyDataSet;
 import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.LowerCaseDataSet;
 import org.dbunit.dataset.SortedTable;
+import org.dbunit.dataset.datatype.DataType;
 import org.dbunit.dataset.xml.FlatXmlDataSetBuilder;
 import org.dbunit.dataset.xml.XmlDataSet;
 import org.dbunit.testutil.TestUtils;
@@ -304,6 +308,83 @@ public class InsertOperationIT extends AbstractDatabaseIT
         final IDataSet dataSet = new XmlDataSet(in);
 
         testExecute(new ForwardOnlyDataSet(dataSet));
+    }
+
+    @Test
+    void testExecute_batchedStatements_allRowsInserted() throws Exception
+    {
+        final Reader in = TestUtils.getFileReader("xml/insertOperationTest.xml");
+        final IDataSet dataSet = new XmlDataSet(in);
+
+        _connection.getConfig().setFeature(DatabaseConfig.FEATURE_BATCHED_STATEMENTS, true);
+
+        final ITable[] tablesBefore = DataSetUtils.getTables(_connection.createDataSet());
+        DatabaseOperation.INSERT.execute(_connection, dataSet);
+        final ITable[] tablesAfter = DataSetUtils.getTables(_connection.createDataSet());
+
+        assertThat(tablesAfter).as("table count.").hasSameSizeAs(tablesBefore);
+        for (final ITable table : tablesAfter)
+        {
+            final String name = table.getTableMetaData().getTableName();
+            if (name.startsWith("EMPTY"))
+            {
+                final SortedTable expectedTable =
+                        new SortedTable(dataSet.getTable(name),
+                                dataSet.getTable(name).getTableMetaData());
+                final SortedTable actualTable = new SortedTable(table);
+                Assertion.assertEquals(expectedTable, actualTable);
+            }
+        }
+    }
+
+    @Test
+    void testExecute_nullValues_insertedAsNull() throws Exception
+    {
+        final String tableName = "EMPTY_TABLE";
+        final Column[] columns = new Column[]{
+                new Column("COLUMN0", DataType.VARCHAR),
+                new Column("COLUMN1", DataType.VARCHAR),
+                new Column("COLUMN2", DataType.VARCHAR),
+                new Column("COLUMN3", DataType.VARCHAR)
+        };
+        final DefaultTable table = new DefaultTable(tableName, columns);
+        table.addRow(new Object[]{"notNull", null, null, null});
+        final IDataSet dataSet = new DefaultDataSet(table);
+
+        assertThat(_connection.getRowCount(tableName)).as("count before.").isZero();
+
+        DatabaseOperation.INSERT.execute(_connection, dataSet);
+
+        final ITable actual = _connection.createDataSet().getTable(tableName);
+        assertThat(actual.getRowCount()).as("count after.").isEqualTo(1);
+        assertThat(actual.getValue(0, "COLUMN0")).as("COLUMN0.").isEqualTo("notNull");
+        assertThat(actual.getValue(0, "COLUMN1")).as("COLUMN1.").isNull();
+        assertThat(actual.getValue(0, "COLUMN2")).as("COLUMN2.").isNull();
+    }
+
+    @Test
+    void testExecute_emptyStringWithAllowEmptyFields_insertedAsEmptyString() throws Exception
+    {
+        final String tableName = "EMPTY_TABLE";
+        final Column[] columns = new Column[]{
+                new Column("COLUMN0", DataType.VARCHAR),
+                new Column("COLUMN1", DataType.VARCHAR),
+                new Column("COLUMN2", DataType.VARCHAR),
+                new Column("COLUMN3", DataType.VARCHAR)
+        };
+        final DefaultTable table = new DefaultTable(tableName, columns);
+        table.addRow(new Object[]{"hasValue", "", "", ""});
+        final IDataSet dataSet = new DefaultDataSet(table);
+
+        _connection.getConfig().setFeature(DatabaseConfig.FEATURE_ALLOW_EMPTY_FIELDS, true);
+
+        assertThat(_connection.getRowCount(tableName)).as("count before.").isZero();
+
+        DatabaseOperation.INSERT.execute(_connection, dataSet);
+
+        final ITable actual = _connection.createDataSet().getTable(tableName);
+        assertThat(actual.getRowCount()).as("count after.").isEqualTo(1);
+        assertThat(actual.getValue(0, "COLUMN0")).as("COLUMN0.").isEqualTo("hasValue");
     }
 
     private void testExecute(final IDataSet dataSet)
