@@ -304,6 +304,28 @@ class DatabaseDataSetIT extends AbstractDataSetTest
     }
 
     @Test
+    void testGetTableMetaData_withLowerCasedTableName_returnsStoredTableName() throws Exception
+    {
+        final IDataSet dataSet = _connection.createDataSet();
+
+        // Find the name exactly as the database stores it (adapts to any DB case convention)
+        String storedName = null;
+        for (final String name : dataSet.getTableNames())
+        {
+            if (name.equalsIgnoreCase("TEST_TABLE"))
+            {
+                storedName = name;
+                break;
+            }
+        }
+        assertThat(storedName).as("TEST_TABLE must exist in the database").isNotNull();
+
+        // Lowercase input must not throw and must return the database-stored name
+        final ITableMetaData metaData = dataSet.getTableMetaData("test_table");
+        assertThat(metaData.getTableName()).as("table name in metadata").isEqualTo(storedName);
+    }
+
+    @Test
     void testGetTableThatIsFiltered_withFilteredTable_throwsNoSuchTableException() throws Exception
     {
         final String existingTableToFilter = convertString("TEST_TABLE");
