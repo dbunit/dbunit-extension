@@ -44,7 +44,7 @@ public class HypersonicEnvironment extends DatabaseEnvironment
     public static Connection createJdbcConnection(String databaseName)
             throws Exception
     {
-        Class.forName("org.hsqldb.jdbcDriver");
+        Class.forName("org.hsqldb.jdbc.JDBCDriver");
         Connection connection = DriverManager
                 .getConnection("jdbc:hsqldb:" + databaseName, "sa", "");
         return connection;

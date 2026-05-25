@@ -65,7 +65,7 @@ class TablesDependencyHelperTest
         for (int i = 0; i < sqlFileList.length; i++)
         {
             final File sql = TestUtils.getFile("sql/" + sqlFileList[i]);
-            DdlExecutor.executeDdlFile(sql, this.jdbcConnection);
+            DdlExecutor.executeDdlFile(sql, this.jdbcConnection, false);
         }
         this.connection = new DatabaseConnection(jdbcConnection);
     }

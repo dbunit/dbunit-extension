@@ -92,20 +92,3 @@ INSERT INTO B VALUES ('B5','C2','E1','H1');
 INSERT INTO B VALUES ('B6','C2','E1','H2');
 INSERT INTO B VALUES ('B7','C2','E2','H1');
 INSERT INTO B VALUES ('B8','C2','E2','H2');
-
-/*
-  Tabelas para testar o filtro de datasets.
-  Dependencias diretas:
-  
-  B1 => C1, E1, H1
-  C1 => A1, F1
-  E1 => A1, G1
-  H1 => none
-  A1 => D1
-  D1 => D1
-  G1 => A1
-  F1 => D1
-  
-*/
-
-

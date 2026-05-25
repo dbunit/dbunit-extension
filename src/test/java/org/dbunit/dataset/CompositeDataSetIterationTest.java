@@ -60,7 +60,7 @@ class CompositeDataSetIterationTest
         this.jdbcConnection =
                 HypersonicEnvironment.createJdbcConnection("mem:tempdb");
         DdlExecutor.executeDdlFile(TestUtils.getFile("sql/" + sqlFile),
-                jdbcConnection);
+                jdbcConnection, false);
         this.connection = new DatabaseConnection(jdbcConnection);
         final DatabaseConfig config = connection.getConfig();
         config.setProperty(DatabaseConfig.PROPERTY_DATATYPE_FACTORY,
