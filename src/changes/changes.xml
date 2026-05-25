@@ -33,6 +33,7 @@
       <action dev="jeffjensen" type="fix" due-to="jeffjensen">Escape SQL LIKE wildcard characters in table name metadata lookups and normalize table names to stored case in FK dependency searches.</action>
       <action dev="jeffjensen" type="update" due-to="jeffjensen">Use database profile connection in FK-graph and pattern tests instead of hardcoded HSQLDB connections.</action>
       <action dev="jeffjensen" type="update" due-to="jeffjensen">Skip case-sensitive table name tests on databases that do not support mixed-case quoted identifiers.</action>
+      <action dev="jeffjensen" type="add" due-to="jeffjensen">Add Mockito unit test and live Oracle integration test for OracleSdoGeometryDataType.getSqlValue, verifying null geometry returns the "NULL" sentinel and non-null geometry returns a parseable string.</action>
     </release>
     <release version="3.1.0" date="May 11, 2026" description="Lower DefaultPrepAndExpectedTestCase log levels, build DB config, GitHub CI, reproducible builds, change to Central Portal publishing, IsActualGreaterThanExpectedWithIgnoreMillisValueComparer, IsActualGreaterThanOrEqualToExpectedWithIgnoreMillisValueComparer, GitHub config, convert docs to Asciidoc, version bumps, DefaultPrepAndExpectedTestCase.runTestSteps(), auto-publish SNAPSHOTS">
       <action dev="jeffjensen" type="add" issue="717" system="github" due-to="jeffjensen">Configure GitHub CI.</action>

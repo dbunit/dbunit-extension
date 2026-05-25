@@ -23,26 +23,39 @@ package org.dbunit.ext.oracle;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.fail;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
 import java.sql.Types;
+
+import oracle.jdbc.OracleResultSet;
+import oracle.sql.ORAData;
+import oracle.sql.ORADataFactory;
 
 import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.datatype.AbstractDataTypeTest;
 import org.dbunit.dataset.datatype.DataType;
 import org.dbunit.dataset.datatype.TypeCastException;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 /**
  * @author
  * @version
  */
 
+@ExtendWith(MockitoExtension.class)
 public class OracleSdoGeometryDataTypeTest extends AbstractDataTypeTest
 {
     private final static DataType THIS_TYPE =
             OracleDataTypeFactory.ORACLE_SDO_GEOMETRY_TYPE;
+
+    @Mock
+    private OracleResultSet mockedOracleResultSet;
 
     /**
      *
@@ -494,9 +507,18 @@ public class OracleSdoGeometryDataTypeTest extends AbstractDataTypeTest
     }
 
     @Override
-    @Disabled("This had no assertion from original. why? i don't know")
     @Test
     public void testGetSqlValue_withValidStatement_returnsExpectedValue() throws Exception
     {
+        when(mockedOracleResultSet.getORAData(eq(1), any(ORADataFactory.class))).thenReturn(null);
+        assertThat(THIS_TYPE.getSqlValue(1, mockedOracleResultSet)).as("null ORAData returns NULL sentinel string")
+                .isEqualTo("NULL");
+
+        final String expectedString = "sdo_geometry(123, null, null, null, null)";
+        final ORAData mockedData = org.mockito.Mockito.mock(ORAData.class);
+        when(mockedData.toString()).thenReturn(expectedString);
+        when(mockedOracleResultSet.getORAData(eq(1), any(ORADataFactory.class))).thenReturn(mockedData);
+        assertThat(THIS_TYPE.getSqlValue(1, mockedOracleResultSet)).as("non-null ORAData returns its toString()")
+                .isEqualTo(expectedString);
     }
 }
