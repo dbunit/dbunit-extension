@@ -13,7 +13,7 @@
   </properties>
 
   <body>
-    <release version="3.1.1-SNAPSHOT" date="TBD" description="GH action updates, extract UTs from ITs, rename test methods, add DataSetBuilder, improve test infra, improve UT coverage">
+    <release version="3.1.1-SNAPSHOT" date="TBD" description="GH action updates, extract UTs from ITs, rename test methods, add DataSetBuilder, improve test infra, improve UT coverage, bump HSQLDB">
       <!-- dependabot:dep=actions/deploy-pages:new=5:pr=27 -->
       <action dev="dependabot" type="update" due-to="Dependabot">Update github_actions dependency actions/deploy-pages from 4 to 5 (#27).</action>
       <!-- dependabot:dep=actions/setup-java:new=5:pr=27 -->
@@ -27,6 +27,7 @@
       <action dev="jeffjensen" type="add" fixed-issues="551,733" system="github" due-to="jeffjensen">Add DataSetBuilder for easing in-memory data set creation.</action>
       <action dev="jeffjensen" type="add" issue="729" system="github" due-to="jeffjensen">Improve test infrastructure by adding InMemoryDatabaseConnection and MockBatchStatement, and updating MockStatementFactory.</action>
       <action dev="jeffjensen" type="add" issue="730" system="github" due-to="jeffjensen">Add many unit tests to improve unit test coverage.</action>
+      <action dev="jeffjensen" type="update" issue="731" system="github" due-to="jeffjensen">Bump HSQLDB from 1.8.0.10 to 2.7.4 and update DDL and driver references for JDBC 4.0 compliance.</action>
     </release>
     <release version="3.1.0" date="May 11, 2026" description="Lower DefaultPrepAndExpectedTestCase log levels, build DB config, GitHub CI, reproducible builds, change to Central Portal publishing, IsActualGreaterThanExpectedWithIgnoreMillisValueComparer, IsActualGreaterThanOrEqualToExpectedWithIgnoreMillisValueComparer, GitHub config, convert docs to Asciidoc, version bumps, DefaultPrepAndExpectedTestCase.runTestSteps(), auto-publish SNAPSHOTS">
       <action dev="jeffjensen" type="add" issue="717" system="github" due-to="jeffjensen">Configure GitHub CI.</action>

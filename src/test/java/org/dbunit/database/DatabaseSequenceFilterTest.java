@@ -72,7 +72,7 @@ class DatabaseSequenceFilterTest
                 {"D", "A", "F", "C", "G", "E", "H", "B",};
 
         DdlExecutor.executeDdlFile(TestUtils.getFile("sql/hypersonic_fk.sql"),
-                _jdbcConnection);
+                _jdbcConnection, false);
         final IDatabaseConnection connection =
                 new DatabaseConnection(_jdbcConnection);
 
@@ -96,7 +96,7 @@ class DatabaseSequenceFilterTest
 
         DdlExecutor.executeDdlFile(
                 TestUtils.getFile("sql/hypersonic_cyclic.sql"),
-                _jdbcConnection);
+                _jdbcConnection, false);
         final IDatabaseConnection connection =
                 new DatabaseConnection(_jdbcConnection);
 
@@ -125,7 +125,7 @@ class DatabaseSequenceFilterTest
 
         DdlExecutor.executeDdlFile(
                 TestUtils.getFile("sql/hypersonic_case_sensitive_test.sql"),
-                _jdbcConnection);
+                _jdbcConnection, false);
         final IDatabaseConnection connection =
                 new DatabaseConnection(_jdbcConnection);
 

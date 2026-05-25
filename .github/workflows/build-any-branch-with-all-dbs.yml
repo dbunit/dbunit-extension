@@ -38,7 +38,7 @@ jobs:
         database: [
           {name: 'Derby', profile: 'derby-10-14', url: ''},
           {name: 'H2', profile: 'h2-1-4', url: ''},
-          {name: 'HSQLDB', profile: 'hsqldb-1-8', url: ''},
+          {name: 'HSQLDB', profile: 'hsqldb-2-7', url: ''},
           {name: 'MSSQL', profile: 'mssql-2022', url: 'jdbc:sqlserver://localhost:1433;DatabaseName=dbunit;user=sa;password=theSaPassword1234;Trusted_Connection=True;SelectMethod=cursor'},
           {name: 'MySQL', profile: 'mysql-9-20', url: 'jdbc:mysql://localhost:3306/dbunit'},
           {name: 'Oracle 18', profile: 'oracle-18', url: ''},
@@ -59,4 +59,3 @@ jobs:
       - name: Submit dependencies to GitHub
         if: github.actor != 'dependabot[bot]'
         uses: advanced-security/maven-dependency-submission-action@v5
-

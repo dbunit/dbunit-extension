@@ -1,6 +1,6 @@
 derby-10-14
 h2-1-4
-hsqldb-1-8
+hsqldb-2-7
 mssql-2022
 mysql-9-20
 oracle-18

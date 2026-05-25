@@ -66,7 +66,7 @@ public abstract class AbstractMetaDataBasedSearchCallbackTestCase
         this.jdbcConnection =
                 HypersonicEnvironment.createJdbcConnection("mem:tempdb");
         DdlExecutor.executeDdlFile(TestUtils.getFile("sql/" + this.sqlFile),
-                this.jdbcConnection);
+                this.jdbcConnection, false);
         this.connection = new DatabaseConnection(jdbcConnection);
     }
 

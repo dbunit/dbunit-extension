@@ -320,7 +320,7 @@ class DatabaseTableMetaDataIT extends AbstractDatabaseIT
                 HypersonicEnvironment.createJdbcConnection("tempdb");
         DdlExecutor.executeDdlFile(
                 TestUtils.getFile("sql/hypersonic_dataset_pattern_test.sql"),
-                jdbcConnection);
+                jdbcConnection, false);
         final IDatabaseConnection connection =
                 new DatabaseConnection(jdbcConnection);
 
@@ -356,7 +356,7 @@ class DatabaseTableMetaDataIT extends AbstractDatabaseIT
                 HypersonicEnvironment.createJdbcConnection("tempdb");
         DdlExecutor.executeDdlFile(
                 TestUtils.getFile("sql/hypersonic_case_sensitive_test.sql"),
-                jdbcConnection);
+                jdbcConnection, false);
         final IDatabaseConnection connection =
                 new DatabaseConnection(jdbcConnection);
 
