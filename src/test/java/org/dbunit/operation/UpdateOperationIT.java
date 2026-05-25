@@ -30,12 +30,17 @@ import org.dbunit.AbstractDatabaseIT;
 import org.dbunit.Assertion;
 import org.dbunit.DatabaseEnvironment;
 import org.dbunit.TestFeature;
+import org.dbunit.database.DatabaseConfig;
+import org.dbunit.dataset.Column;
 import org.dbunit.dataset.CompositeDataSet;
+import org.dbunit.dataset.DefaultDataSet;
+import org.dbunit.dataset.DefaultTable;
 import org.dbunit.dataset.ForwardOnlyDataSet;
 import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.LowerCaseDataSet;
 import org.dbunit.dataset.NoPrimaryKeyException;
+import org.dbunit.dataset.datatype.DataType;
 import org.dbunit.dataset.xml.FlatXmlDataSetBuilder;
 import org.dbunit.dataset.xml.XmlDataSet;
 import org.dbunit.testutil.TestUtils;
@@ -310,6 +315,73 @@ class UpdateOperationIT extends AbstractDatabaseIT
         // verify table after
         assertThat(_connection.getRowCount(tableName)).as("row count before")
                 .isEqualTo(6);
+    }
+
+    @Test
+    void testExecute_batchedStatements_allRowsUpdated() throws Exception
+    {
+        final String tableName = "PK_TABLE";
+        final Reader in =
+                new FileReader(TestUtils.getFile("xml/updateOperationTest.xml"));
+        final IDataSet dataSet = new XmlDataSet(in);
+
+        _connection.getConfig().setFeature(DatabaseConfig.FEATURE_BATCHED_STATEMENTS, true);
+
+        final ITable tableBefore = createOrderedTable(tableName, "PK0");
+        assertThat(tableBefore.getRowCount()).as("row count before.").isEqualTo(3);
+
+        DatabaseOperation.UPDATE.execute(_connection, dataSet);
+
+        final ITable tableAfter = createOrderedTable(tableName, "PK0");
+        assertThat(tableAfter.getRowCount()).as("row count after.").isEqualTo(3);
+        assertThat(tableAfter.getValue(1, "NORMAL0")).as("NORMAL0.").hasToString("toto");
+        assertThat(tableAfter.getValue(1, "NORMAL1")).as("NORMAL1.").hasToString("qwerty");
+    }
+
+    @Test
+    void testExecute_nullValues_updatedAsNull() throws Exception
+    {
+        final String tableName = "PK_TABLE";
+        final Column[] columns = new Column[]{
+                new Column("PK0", DataType.NUMERIC),
+                new Column("PK1", DataType.NUMERIC),
+                new Column("PK2", DataType.NUMERIC),
+                new Column("NORMAL0", DataType.VARCHAR),
+                new Column("NORMAL1", DataType.VARCHAR)
+        };
+        final DefaultTable table = new DefaultTable(tableName, columns);
+        table.addRow(new Object[]{0, 0, 0, "updatedValue", null});
+        final IDataSet dataSet = new DefaultDataSet(table);
+
+        DatabaseOperation.UPDATE.execute(_connection, dataSet);
+
+        final ITable actual = createOrderedTable(tableName, "PK0");
+        assertThat(actual.getValue(0, "NORMAL0")).as("NORMAL0.").hasToString("updatedValue");
+        assertThat(actual.getValue(0, "NORMAL1")).as("NORMAL1.").isNull();
+    }
+
+    @Test
+    void testExecute_emptyStringWithAllowEmptyFields_updatedAsEmptyString() throws Exception
+    {
+        final String tableName = "PK_TABLE";
+        final Column[] columns = new Column[]{
+                new Column("PK0", DataType.NUMERIC),
+                new Column("PK1", DataType.NUMERIC),
+                new Column("PK2", DataType.NUMERIC),
+                new Column("NORMAL0", DataType.VARCHAR),
+                new Column("NORMAL1", DataType.VARCHAR)
+        };
+        final DefaultTable table = new DefaultTable(tableName, columns);
+        table.addRow(new Object[]{0, 0, 0, "", "keepValue"});
+        final IDataSet dataSet = new DefaultDataSet(table);
+
+        _connection.getConfig().setFeature(DatabaseConfig.FEATURE_ALLOW_EMPTY_FIELDS, true);
+
+        DatabaseOperation.UPDATE.execute(_connection, dataSet);
+
+        final ITable actual = createOrderedTable(tableName, "PK0");
+        assertThat(actual.getRowCount()).as("row count.").isEqualTo(3);
+        assertThat(actual.getValue(0, "NORMAL1")).as("NORMAL1.").hasToString("keepValue");
     }
 
     private void testExecute(final IDataSet dataSet) throws Exception
