@@ -243,11 +243,34 @@ public class OrderedTableNameMap
 	}
 
     /**
+     * Returns the original table name as it was added to this map, performing a
+     * case-insensitive lookup when {@code caseSensitiveTableNames} is false.
+     * This is needed to retrieve the database-stored name when the caller supplies
+     * a differently-cased name (e.g. lowercase from a {@code LowerCaseDataSet}).
+     *
+     * @param tableName The input table name to look up
+     * @return The original stored table name, or {@code tableName} if not found
+     */
+    public String getOriginalTableName(String tableName)
+    {
+        String normalizedInput = getTableName(tableName);
+        for (Iterator it = _tableNames.iterator(); it.hasNext();)
+        {
+            String storedName = (String) it.next();
+            if (getTableName(storedName).equals(normalizedInput))
+            {
+                return storedName;
+            }
+        }
+        return tableName;
+    }
+
+    /**
      * Returns the table name in the correct case (for example as upper case string)
      * @param tableName The input table name to be resolved
      * @return The table name for the given string in the correct case.
      */
-    public String getTableName(String tableName) 
+    public String getTableName(String tableName)
     {
         if(LOGGER.isDebugEnabled())
             LOGGER.debug("getTableName(tableName={}) - start", tableName);

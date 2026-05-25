@@ -312,8 +312,11 @@ public class DatabaseDataSet extends AbstractDataSet
             return metaData;
         }
 
-        // Create metadata and cache it
-        metaData = new DatabaseTableMetaData(tableName, _connection, true, super.isCaseSensitiveTableNames());
+        // Create metadata and cache it, using the database-stored table name so
+        // that validation succeeds on case-sensitive databases when the caller
+        // supplied a differently-cased name (e.g. from a LowerCaseDataSet).
+        String storedTableName = _tableMap.getOriginalTableName(tableName);
+        metaData = new DatabaseTableMetaData(storedTableName, _connection, true, super.isCaseSensitiveTableNames());
         // Put the metadata object into the cache map
         _tableMap.update(tableName, metaData);
 
