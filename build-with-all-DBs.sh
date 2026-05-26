@@ -3,8 +3,13 @@
 log() {
     local build=$1
     local action=$2
-    echo "========> $build $action"
+    echo "========> $(date '+%Y-%m-%d %H:%M:%S')	$build $action"
 }
+
+if ! docker info >/dev/null 2>&1; then
+    echo "Error: Docker daemon is not responding" >&2
+    exit 1
+fi
 
 LOG_FILE_DIR="build-logs"
 

@@ -3,7 +3,13 @@ function log {
         [string]$build,
         [string]$action
     )
-    Write-Output "========> $build $action"
+    Write-Output "========> $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')	$build $action"
+}
+
+& docker info *> $null
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Error: Docker daemon is not responding"
+    Exit 1
 }
 
 $logFileDir="build-logs"
