@@ -23,8 +23,7 @@ package org.dbunit.ext.postgresql;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.sql.Types;
-
+import org.dbunit.dataset.datatype.AbstractDataType;
 import org.dbunit.dataset.datatype.TypeCastException;
 import org.junit.jupiter.api.Test;
 
@@ -34,8 +33,14 @@ import org.junit.jupiter.api.Test;
  * @author DbUnit.org
  * @since 2.4.6
  */
-class GenericEnumTypeTest
+class GenericEnumTypeTest extends AbstractPostgresqlStringDataTypeTest
 {
+    @Override
+    protected AbstractDataType createType()
+    {
+        return new GenericEnumType("test_enum");
+    }
+
     @Test
     void testConstructor_withValidSqlTypeName_storesSqlTypeName()
     {
@@ -51,33 +56,6 @@ class GenericEnumTypeTest
         assertThatThrownBy(() -> new GenericEnumType(null))
                 .as("Constructor should throw NullPointerException when sqlTypeName is null.")
                 .isInstanceOf(NullPointerException.class);
-    }
-
-    @Test
-    void testGetSqlType_onNewInstance_returnsTypesOther()
-    {
-        final GenericEnumType type = new GenericEnumType("status_enum");
-        assertThat(type.getSqlType())
-                .as("getSqlType() should return Types.OTHER.")
-                .isEqualTo(Types.OTHER);
-    }
-
-    @Test
-    void testIsNumber_onNewInstance_returnsFalse()
-    {
-        final GenericEnumType type = new GenericEnumType("status_enum");
-        assertThat(type.isNumber())
-                .as("isNumber() should return false for enum type.")
-                .isFalse();
-    }
-
-    @Test
-    void testGetTypeClass_onNewInstance_returnsStringClass()
-    {
-        final GenericEnumType type = new GenericEnumType("status_enum");
-        assertThat(type.getTypeClass())
-                .as("getTypeClass() should return String.class.")
-                .isEqualTo(String.class);
     }
 
     @Test

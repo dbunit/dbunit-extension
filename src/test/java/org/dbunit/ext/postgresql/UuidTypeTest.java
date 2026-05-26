@@ -22,9 +22,9 @@ package org.dbunit.ext.postgresql;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.sql.Types;
 import java.util.UUID;
 
+import org.dbunit.dataset.datatype.AbstractDataType;
 import org.dbunit.dataset.datatype.TypeCastException;
 import org.junit.jupiter.api.Test;
 
@@ -34,33 +34,12 @@ import org.junit.jupiter.api.Test;
  * @author DbUnit.org
  * @since 2.4.5
  */
-class UuidTypeTest
+class UuidTypeTest extends AbstractPostgresqlStringDataTypeTest
 {
-    @Test
-    void testGetSqlType_onNewInstance_returnsTypesOther()
+    @Override
+    protected AbstractDataType createType()
     {
-        final UuidType type = new UuidType();
-        assertThat(type.getSqlType())
-                .as("getSqlType() should return Types.OTHER for uuid type.")
-                .isEqualTo(Types.OTHER);
-    }
-
-    @Test
-    void testIsNumber_onNewInstance_returnsFalse()
-    {
-        final UuidType type = new UuidType();
-        assertThat(type.isNumber())
-                .as("isNumber() should return false for uuid type.")
-                .isFalse();
-    }
-
-    @Test
-    void testGetTypeClass_onNewInstance_returnsStringClass()
-    {
-        final UuidType type = new UuidType();
-        assertThat(type.getTypeClass())
-                .as("getTypeClass() should return String.class.")
-                .isEqualTo(String.class);
+        return new UuidType();
     }
 
     @Test

@@ -22,8 +22,7 @@ package org.dbunit.ext.postgresql;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.sql.Types;
-
+import org.dbunit.dataset.datatype.AbstractDataType;
 import org.dbunit.dataset.datatype.TypeCastException;
 import org.junit.jupiter.api.Test;
 
@@ -33,33 +32,12 @@ import org.junit.jupiter.api.Test;
  * @author DbUnit.org
  * @since 2.4.6
  */
-class IntervalTypeTest
+class IntervalTypeTest extends AbstractPostgresqlStringDataTypeTest
 {
-    @Test
-    void testGetSqlType_onNewInstance_returnsTypesOther()
+    @Override
+    protected AbstractDataType createType()
     {
-        final IntervalType type = new IntervalType();
-        assertThat(type.getSqlType())
-                .as("getSqlType() should return Types.OTHER for interval type.")
-                .isEqualTo(Types.OTHER);
-    }
-
-    @Test
-    void testIsNumber_onNewInstance_returnsFalse()
-    {
-        final IntervalType type = new IntervalType();
-        assertThat(type.isNumber())
-                .as("isNumber() should return false for interval type.")
-                .isFalse();
-    }
-
-    @Test
-    void testGetTypeClass_onNewInstance_returnsStringClass()
-    {
-        final IntervalType type = new IntervalType();
-        assertThat(type.getTypeClass())
-                .as("getTypeClass() should return String.class.")
-                .isEqualTo(String.class);
+        return new IntervalType();
     }
 
     @Test
