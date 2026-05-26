@@ -21,6 +21,11 @@
 
 package org.dbunit.dataset;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
+import org.dbunit.dataset.datatype.DataType;
+import org.junit.jupiter.api.Test;
+
 /**
  * @author Manuel Laflamme
  * @version $Revision$
@@ -37,5 +42,47 @@ public class CompositeTableTest extends DefaultTableTest
                 createTable(COLUMN_COUNT, 2, 4),};
 
         return new CompositeTable(metaData, tables);
+    }
+
+    // -------------------------------------------------------------------------
+    // CompositeTable(String newName, ITable) constructor
+    // -------------------------------------------------------------------------
+
+    @Test
+    void testConstructor_withNewName_usesNewNameInMetaData() throws Exception
+    {
+        final Column[] columns = new Column[] {new Column("ID", DataType.INTEGER)};
+        final DefaultTable original = new DefaultTable("ORIGINAL", columns);
+        original.addRow(new Object[] {1});
+
+        final CompositeTable renamed = new CompositeTable("RENAMED", original);
+
+        assertThat(renamed.getTableMetaData().getTableName()).as("new name used.").isEqualTo("RENAMED");
+    }
+
+    @Test
+    void testConstructor_withNewName_preservesColumns() throws Exception
+    {
+        final Column[] columns = new Column[] {
+                new Column("ID", DataType.INTEGER),
+                new Column("NAME", DataType.VARCHAR)};
+        final DefaultTable original = new DefaultTable("ORIGINAL", columns);
+
+        final CompositeTable renamed = new CompositeTable("RENAMED", original);
+
+        assertThat(renamed.getTableMetaData().getColumns()).as("columns preserved.").hasSize(2);
+    }
+
+    @Test
+    void testConstructor_withNewName_preservesRowData() throws Exception
+    {
+        final Column[] columns = new Column[] {new Column("VAL", DataType.VARCHAR)};
+        final DefaultTable original = new DefaultTable("ORIGINAL", columns);
+        original.addRow(new Object[] {"hello"});
+
+        final CompositeTable renamed = new CompositeTable("RENAMED", original);
+
+        assertThat(renamed.getRowCount()).as("row count preserved.").isEqualTo(1);
+        assertThat(renamed.getValue(0, "VAL")).as("row data preserved.").isEqualTo("hello");
     }
 }
