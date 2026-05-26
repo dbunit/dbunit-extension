@@ -77,18 +77,18 @@ public class TablesDependencyHelper {
      * pointing to the PK of one of the root tables).
      * @param connection database connection
      * @param rootTables array of root tables described above
-     * @return name of all tables that depend on the root tables (including the root tables), 
+     * @return name of all tables that depend on the root tables (including the root tables),
      * in the right order for insertions
      * @throws SearchException if an exception occurred while calculating the order
      */
-    public static String[] getDependentTables( IDatabaseConnection connection, String[] rootTables ) 
-    throws SearchException 
+    public static String[] getDependentTables( IDatabaseConnection connection, String[] rootTables )
+    throws SearchException
     {
         logger.debug("getDependentTables(connection={}, rootTables={}) - start", connection, rootTables);
 
         ImportedKeysSearchCallback callback = new ImportedKeysSearchCallback(connection);
         DepthFirstSearch search = new DepthFirstSearch();
-        Set tables = search.search( rootTables, callback );
+        Set tables = search.search( normalizeToStoredCase(connection, rootTables), callback );
         return CollectionsHelper.setToStrings( tables );
     }
 
@@ -108,7 +108,7 @@ public class TablesDependencyHelper {
 
         ExportedKeysSearchCallback callback = new ExportedKeysSearchCallback(connection);
         DepthFirstSearch search = new DepthFirstSearch();
-        Set tables = search.search( new String[]{rootTable}, callback );
+        Set tables = search.search( normalizeToStoredCase(connection, new String[]{rootTable}), callback );
         return CollectionsHelper.setToStrings( tables );
     }
 
@@ -146,7 +146,7 @@ public class TablesDependencyHelper {
 
         ImportedAndExportedKeysSearchCallback callback = new ImportedAndExportedKeysSearchCallback(connection);
         DepthFirstSearch search = new DepthFirstSearch();
-        Set tables = search.search(rootTables, callback);
+        Set tables = search.search(normalizeToStoredCase(connection, rootTables), callback);
         return CollectionsHelper.setToStrings(tables);
     }
 
@@ -174,7 +174,7 @@ public class TablesDependencyHelper {
         ImportedKeysSearchCallbackFilteredByPKs callback = new ImportedKeysSearchCallbackFilteredByPKs(connection, rootTables);
         ITableFilter filter = callback.getFilter();
         DepthFirstSearch search = new DepthFirstSearch();
-        String[] tableNames = rootTables.getTableNames(); 
+        String[] tableNames = normalizeToStoredCase(connection, rootTables.getTableNames());
         Set tmpTables = search.search( tableNames, callback );
         String[] dependentTables  = CollectionsHelper.setToStrings( tmpTables );
         IDataSet tmpDataset = connection.createDataSet( dependentTables );
@@ -201,10 +201,10 @@ public class TablesDependencyHelper {
     {
         logger.debug("getAllDataset(connection={}, rootTables={}) - start", connection, rootTables);
 
-        ImportedAndExportedKeysSearchCallbackFilteredByPKs callback = new ImportedAndExportedKeysSearchCallbackFilteredByPKs(connection, rootTables);    
+        ImportedAndExportedKeysSearchCallbackFilteredByPKs callback = new ImportedAndExportedKeysSearchCallbackFilteredByPKs(connection, rootTables);
         ITableFilter filter = callback.getFilter();
         DepthFirstSearch search = new DepthFirstSearch();
-        String[] tableNames = rootTables.getTableNames(); 
+        String[] tableNames = normalizeToStoredCase(connection, rootTables.getTableNames());
         Set tmpTables = search.search( tableNames, callback );
         String[] dependentTables  = CollectionsHelper.setToStrings( tmpTables );
         IDataSet tmpDataset = connection.createDataSet( dependentTables );
@@ -229,7 +229,7 @@ public class TablesDependencyHelper {
         ExportedKeysSearchCallback callback = new ExportedKeysSearchCallback(connection);
         // Do a depthFirstSearch with a recursion depth of 1
         DepthFirstSearch search = new DepthFirstSearch(1);
-        Set tables = search.search( new String[]{tableName}, callback );
+        Set tables = search.search( normalizeToStoredCase(connection, new String[]{tableName}), callback );
         return tables;
     }
 
@@ -250,8 +250,44 @@ public class TablesDependencyHelper {
         ImportedKeysSearchCallback callback = new ImportedKeysSearchCallback(connection);
         // Do a depthFirstSearch with a recursion depth of 1
         DepthFirstSearch search = new DepthFirstSearch(1);
-        Set tables = search.search( new String[]{tableName}, callback );
+        Set tables = search.search( normalizeToStoredCase(connection, new String[]{tableName}), callback );
         return tables;
+    }
+
+    /**
+     * Lowercases the given table names when the database stores unquoted
+     * identifiers in lowercase (e.g. PostgreSQL), so that
+     * {@link DepthFirstSearch}'s visited-node set stays consistent with the
+     * lowercase FK-metadata names returned by the driver. For databases that
+     * store uppercase or mixed-case identifiers the names are returned as-is,
+     * because uppercase normalization would corrupt quoted mixed-case
+     * identifiers that are already in their stored form.
+     *
+     * @param connection the database connection used to determine stored identifier case.
+     * @param tableNames the table names to normalize.
+     * @return the table names lowercased if needed, otherwise the original array.
+     * @throws SearchException if the JDBC connection cannot be obtained.
+     */
+    private static String[] normalizeToStoredCase(final IDatabaseConnection connection,
+            final String[] tableNames) throws SearchException
+    {
+        try
+        {
+            if (!connection.getConnection().getMetaData().storesLowerCaseIdentifiers())
+            {
+                return tableNames;
+            }
+            final String[] normalized = new String[tableNames.length];
+            for (int i = 0; i < tableNames.length; i++)
+            {
+                normalized[i] = tableNames[i].toLowerCase();
+            }
+            return normalized;
+        }
+        catch (final SQLException e)
+        {
+            throw new SearchException(e);
+        }
     }
 
 }
