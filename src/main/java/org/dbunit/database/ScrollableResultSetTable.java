@@ -71,7 +71,7 @@ public class ScrollableResultSetTable extends AbstractResultSetTable
     public ScrollableResultSetTable(ITableMetaData metaData,
             IDatabaseConnection connection) throws DataSetException, SQLException
     {
-        super(metaData, connection);
+        super(metaData, connection, ResultSet.TYPE_SCROLL_INSENSITIVE);
 
         try
         {
@@ -93,7 +93,7 @@ public class ScrollableResultSetTable extends AbstractResultSetTable
     public ScrollableResultSetTable(String tableName, String selectStatement,
             IDatabaseConnection connection) throws DataSetException, SQLException
     {
-        super(tableName, selectStatement, connection);
+        super(tableName, selectStatement, connection, false, ResultSet.TYPE_SCROLL_INSENSITIVE);
 
         try
         {
