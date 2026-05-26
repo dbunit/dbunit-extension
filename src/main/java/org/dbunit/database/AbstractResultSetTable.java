@@ -64,19 +64,37 @@ public abstract class AbstractResultSetTable extends AbstractTable
     }
     
     /**
-     * @param tableName
-     * @param selectStatement
-     * @param connection
-     * @param caseSensitiveTableNames
-     * @throws DataSetException
-     * @throws SQLException
+     * @param tableName the table name.
+     * @param selectStatement the SQL select statement.
+     * @param connection the database connection.
+     * @param caseSensitiveTableNames whether table names are case-sensitive.
+     * @throws DataSetException if metadata retrieval fails.
+     * @throws SQLException if statement creation or execution fails.
      * @since 2.4.1
      */
     public AbstractResultSetTable(String tableName, String selectStatement,
             IDatabaseConnection connection, boolean caseSensitiveTableNames)
             throws DataSetException, SQLException
     {
-    	_statement = createStatement(connection);
+        this(tableName, selectStatement, connection, caseSensitiveTableNames, ResultSet.TYPE_FORWARD_ONLY);
+    }
+
+    /**
+     * Creates a table from a table name, SQL, and connection using the given ResultSet type.
+     *
+     * @param tableName the table name.
+     * @param selectStatement the SQL select statement.
+     * @param connection the database connection.
+     * @param caseSensitiveTableNames whether table names are case-sensitive.
+     * @param resultSetType the JDBC ResultSet type (e.g. {@link ResultSet#TYPE_SCROLL_INSENSITIVE}).
+     * @throws DataSetException if metadata retrieval fails.
+     * @throws SQLException if statement creation or execution fails.
+     */
+    protected AbstractResultSetTable(String tableName, String selectStatement,
+            IDatabaseConnection connection, boolean caseSensitiveTableNames, int resultSetType)
+            throws DataSetException, SQLException
+    {
+        _statement = createStatement(connection, resultSetType);
 
         try
         {
@@ -91,22 +109,40 @@ public abstract class AbstractResultSetTable extends AbstractTable
         }
     }
 
-	public AbstractResultSetTable(ITableMetaData metaData,
+    public AbstractResultSetTable(ITableMetaData metaData,
             IDatabaseConnection connection) throws DataSetException, SQLException
     {
-		_statement = createStatement(connection);
-		
-        String escapePattern = (String)connection.getConfig().getProperty(
-                DatabaseConfig.PROPERTY_ESCAPE_PATTERN);
+        this(metaData, connection, ResultSet.TYPE_FORWARD_ONLY);
+    }
+
+    /**
+     * Creates a table from a metadata descriptor and a connection using the given ResultSet type.
+     *
+     * @param metaData the table metadata.
+     * @param connection the database connection.
+     * @param resultSetType the JDBC ResultSet type (e.g. {@link ResultSet#TYPE_SCROLL_INSENSITIVE}).
+     * @throws DataSetException if metadata retrieval fails.
+     * @throws SQLException if statement creation or execution fails.
+     */
+    protected AbstractResultSetTable(ITableMetaData metaData,
+            IDatabaseConnection connection, int resultSetType)
+            throws DataSetException, SQLException
+    {
+        _statement = createStatement(connection, resultSetType);
+
+        String escapePattern = (String) connection.getConfig()
+                .getProperty(DatabaseConfig.PROPERTY_ESCAPE_PATTERN);
 
         try
         {
             String schema = connection.getSchema();
             String selectStatement = getSelectStatement(schema, metaData, escapePattern);
 
-            if(logger.isDebugEnabled())
+            if (logger.isDebugEnabled())
+            {
                 logger.debug("Query: {}", selectStatement);
-            
+            }
+
             _resultSet = _statement.executeQuery(selectStatement);
             _metaData = metaData;
         }
@@ -118,12 +154,29 @@ public abstract class AbstractResultSetTable extends AbstractTable
         }
     }
 
-    private Statement createStatement(IDatabaseConnection connection) throws SQLException 
+    private Statement createStatement(IDatabaseConnection connection) throws SQLException
     {
-        logger.trace("createStatement() - start");
+        return createStatement(connection, ResultSet.TYPE_FORWARD_ONLY);
+    }
+
+    /**
+     * Creates a {@link Statement} with the specified ResultSet type.
+     * Subclasses use this to request scrollable result sets.
+     *
+     * @param connection the database connection.
+     * @param resultSetType one of {@link ResultSet#TYPE_FORWARD_ONLY},
+     *            {@link ResultSet#TYPE_SCROLL_INSENSITIVE}, or
+     *            {@link ResultSet#TYPE_SCROLL_SENSITIVE}.
+     * @return a configured statement.
+     * @throws SQLException if statement creation fails.
+     */
+    protected Statement createStatement(IDatabaseConnection connection, int resultSetType)
+            throws SQLException
+    {
+        logger.trace("createStatement(resultSetType={}) - start", resultSetType);
 
         Connection jdbcConnection = connection.getConnection();
-        Statement stmt = jdbcConnection.createStatement();
+        Statement stmt = jdbcConnection.createStatement(resultSetType, ResultSet.CONCUR_READ_ONLY);
         connection.getConfig().getConfigurator().configureStatement(stmt);
         return stmt;
     }
