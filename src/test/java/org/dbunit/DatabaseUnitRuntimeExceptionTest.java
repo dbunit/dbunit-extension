@@ -31,57 +31,31 @@ import org.junit.jupiter.api.Test;
  * @since 1.0
  */
 class DatabaseUnitRuntimeExceptionTest
+        extends AbstractDbUnitExceptionTest<DatabaseUnitRuntimeException>
 {
-    @Test
-    void testConstructor_noArgs_createsExceptionWithNullMessage()
+    @Override
+    protected DatabaseUnitRuntimeException createException()
     {
-        final DatabaseUnitRuntimeException ex = new DatabaseUnitRuntimeException();
-        assertThat(ex.getMessage())
-                .as("No-arg constructor should produce an exception with null message.")
-                .isNull();
-        assertThat(ex.getCause())
-                .as("No-arg constructor should produce an exception with null cause.")
-                .isNull();
+        return new DatabaseUnitRuntimeException();
     }
 
-    @Test
-    void testConstructor_withMessage_setsMessage()
+    @Override
+    protected DatabaseUnitRuntimeException createException(final String message)
     {
-        final String message = "runtime error occurred";
-        final DatabaseUnitRuntimeException ex = new DatabaseUnitRuntimeException(message);
-        assertThat(ex.getMessage())
-                .as("Constructor with message should store the message.")
-                .isEqualTo(message);
-        assertThat(ex.getCause())
-                .as("Constructor with message only should have null cause.")
-                .isNull();
+        return new DatabaseUnitRuntimeException(message);
     }
 
-    @Test
-    void testConstructor_withMessageAndCause_setsBoth()
+    @Override
+    protected DatabaseUnitRuntimeException createException(
+            final String message, final Throwable cause)
     {
-        final String message = "wrapped error";
-        final IllegalStateException cause = new IllegalStateException("underlying cause");
-        final DatabaseUnitRuntimeException ex = new DatabaseUnitRuntimeException(message, cause);
-        assertThat(ex.getMessage())
-                .as("Constructor with message and cause should store the message.")
-                .isEqualTo(message);
-        assertThat(ex.getCause())
-                .as("Constructor with message and cause should store the cause.")
-                .isEqualTo(cause);
+        return new DatabaseUnitRuntimeException(message, cause);
     }
 
-    @Test
-    void testConstructor_withCauseOnly_setsMessageFromCauseToString()
+    @Override
+    protected DatabaseUnitRuntimeException createException(final Throwable cause)
     {
-        final IllegalArgumentException cause = new IllegalArgumentException("bad argument");
-        final DatabaseUnitRuntimeException ex = new DatabaseUnitRuntimeException(cause);
-        assertThat(ex.getCause())
-                .as("Constructor with cause only should store the cause.")
-                .isEqualTo(cause);
-        assertThat(ex.getMessage())
-                .as("Constructor with cause only should use cause.toString() as message.")
-                .isEqualTo(cause.toString());
+        return new DatabaseUnitRuntimeException(cause);
     }
 
     @Test

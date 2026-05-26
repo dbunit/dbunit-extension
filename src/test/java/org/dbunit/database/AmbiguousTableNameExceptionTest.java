@@ -22,6 +22,7 @@ package org.dbunit.database;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import org.dbunit.AbstractDbUnitExceptionTest;
 import org.dbunit.dataset.DataSetException;
 import org.junit.jupiter.api.Test;
 
@@ -31,46 +32,31 @@ import org.junit.jupiter.api.Test;
  * @since 3.2.0
  */
 class AmbiguousTableNameExceptionTest
+        extends AbstractDbUnitExceptionTest<AmbiguousTableNameException>
 {
-    @Test
-    void testNoArgConstructor_withNoArgs_createsExceptionWithNullMessage()
+    @Override
+    protected AmbiguousTableNameException createException()
     {
-        final AmbiguousTableNameException actual = new AmbiguousTableNameException();
-
-        assertThat(actual).as("exception instance.").isNotNull();
-        assertThat(actual.getMessage()).as("message.").isNull();
-        assertThat(actual.getCause()).as("cause.").isNull();
+        return new AmbiguousTableNameException();
     }
 
-    @Test
-    void testMessageConstructor_withMessage_storesMessage()
+    @Override
+    protected AmbiguousTableNameException createException(final String message)
     {
-        final String message = "Table 'MY_TABLE' is ambiguous";
-        final AmbiguousTableNameException actual = new AmbiguousTableNameException(message);
-
-        assertThat(actual.getMessage()).as("message.").isEqualTo(message);
-        assertThat(actual.getCause()).as("cause.").isNull();
+        return new AmbiguousTableNameException(message);
     }
 
-    @Test
-    void testMessageAndCauseConstructor_withMessageAndCause_storesBoth()
+    @Override
+    protected AmbiguousTableNameException createException(
+            final String message, final Throwable cause)
     {
-        final String message = "Ambiguous table detected";
-        final Throwable cause = new RuntimeException("underlying problem");
-        final AmbiguousTableNameException actual = new AmbiguousTableNameException(message, cause);
-
-        assertThat(actual.getMessage()).as("message.").isEqualTo(message);
-        assertThat(actual.getCause()).as("cause.").isSameAs(cause);
+        return new AmbiguousTableNameException(message, cause);
     }
 
-    @Test
-    void testCauseOnlyConstructor_withCause_wrapsThrowable()
+    @Override
+    protected AmbiguousTableNameException createException(final Throwable cause)
     {
-        final Throwable cause = new IllegalStateException("root cause");
-        final AmbiguousTableNameException actual = new AmbiguousTableNameException(cause);
-
-        assertThat(actual.getCause()).as("cause.").isSameAs(cause);
-        assertThat(actual.getMessage()).as("message contains cause class.").contains("IllegalStateException");
+        return new AmbiguousTableNameException(cause);
     }
 
     @Test
