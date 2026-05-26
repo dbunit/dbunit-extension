@@ -21,14 +21,13 @@
 package org.dbunit.database.search;
 
 import org.dbunit.database.IDatabaseConnection;
-import org.junit.jupiter.api.BeforeEach;
 
 /**
  * @author Felipe Leme (dbunit@felipeal.net)
  * @version $Revision$
  * @since Aug 28, 2005
  */
-public class ImportNodesFilterSearchCallbackTest
+public class ImportNodesFilterSearchCallbackIT
         extends AbstractMetaDataBasedSearchCallbackTestCase
 {
 
@@ -59,10 +58,16 @@ public class ImportNodesFilterSearchCallbackTest
                     new String[] {"G", "D", "A", "F", "C", "E", "H", "B"},
                     new String[] {"G", "D", "A", "F", "C", "E", "H", "B"}};
 
-    @BeforeEach
-    public void setup() throws Exception
+    @Override
+    protected String getSqlFile()
     {
-        super.setUpConnectionWithFile(SQL_FILE);
+        return SQL_FILE;
+    }
+
+    @Override
+    protected String[] getTestTableNames()
+    {
+        return new String[] {"B", "C", "E", "H", "F", "G", "A", "D"};
     }
 
     @Override

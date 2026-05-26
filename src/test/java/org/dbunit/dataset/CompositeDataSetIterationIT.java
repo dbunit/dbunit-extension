@@ -24,17 +24,12 @@ package org.dbunit.dataset;
 import static org.junit.jupiter.api.Assertions.fail;
 
 import java.io.FileOutputStream;
-import java.sql.Connection;
 
+import org.dbunit.AbstractDatabaseIT;
 import org.dbunit.DdlExecutor;
-import org.dbunit.HypersonicEnvironment;
-import org.dbunit.database.DatabaseConfig;
-import org.dbunit.database.DatabaseConnection;
-import org.dbunit.database.IDatabaseConnection;
 import org.dbunit.database.QueryDataSet;
 import org.dbunit.dataset.datatype.DataType;
 import org.dbunit.dataset.xml.FlatXmlDataSet;
-import org.dbunit.ext.hsqldb.HsqldbDataTypeFactory;
 import org.dbunit.testutil.TestUtils;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -42,45 +37,51 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Test Case for issue #1721870
- * 
+ *
  * @author Sebastien Le Callonnec
  * @version $Revision$
  * @since Mar 11, 2008
  */
-class CompositeDataSetIterationTest
+class CompositeDataSetIterationIT extends AbstractDatabaseIT
 {
 
-    private Connection jdbcConnection;
     private final String sqlFile = "hypersonic_simple_dataset.sql";
-    private IDatabaseConnection connection;
 
     @BeforeEach
-    protected void setUp() throws Exception
+    protected void setUpTables() throws Exception
     {
-        this.jdbcConnection =
-                HypersonicEnvironment.createJdbcConnection("mem:tempdb");
+        DdlExecutor.dropTables(_connection.getConnection(), "A", "B", "C");
         DdlExecutor.executeDdlFile(TestUtils.getFile("sql/" + sqlFile),
-                jdbcConnection, false);
-        this.connection = new DatabaseConnection(jdbcConnection);
-        final DatabaseConfig config = connection.getConfig();
-        config.setProperty(DatabaseConfig.PROPERTY_DATATYPE_FACTORY,
-                new HsqldbDataTypeFactory());
+                _connection.getConnection(), false);
     }
 
     @AfterEach
-    protected void tearDown() throws Exception
+    protected void tearDownTables() throws Exception
     {
+        DdlExecutor.dropTables(_connection.getConnection(), "A", "B", "C");
+        refreshConnection();
+    }
 
-        HypersonicEnvironment.shutdown(this.jdbcConnection);
-        this.jdbcConnection.close();
+    /**
+     * Replaces {@code _connection} with a fresh connection after test tables
+     * have been dropped, so that {@code AbstractDatabaseIT.tearDown()} uses an
+     * up-to-date dataset that does not include the dropped tables.
+     *
+     * @throws Exception
+     */
+    private void refreshConnection() throws Exception
+    {
+        _connection.close();
+        _connection = getDatabaseTester().getConnection();
+        setUpDatabaseConfig(_connection.getConfig());
     }
 
     @Test
-    void testMe_withCompositeDataSet_writesAllTablesToXml() throws Exception
+    void testMe() throws Exception
     {
 
         // 1. QueryDataSet
-        final QueryDataSet queryDataSet = new QueryDataSet(connection);
+        final QueryDataSet queryDataSet = new QueryDataSet(_connection);
         queryDataSet.addTable("B", "select * from B");
         queryDataSet.addTable("C", "select * from C");
 
@@ -110,7 +111,8 @@ class CompositeDataSetIterationTest
         {
             FlatXmlDataSet.write(compositeDataSet,
                     new FileOutputStream("target/full.xml"));
-        } catch (final Exception e)
+        }
+        catch (final Exception e)
         {
             fail(e.getMessage());
         }

@@ -31,16 +31,16 @@ import org.junit.platform.suite.api.Suite;
  */
 @Suite
 @SelectClasses({ForeignKeyRelationshipEdgeTest.class,
-        ImportAndExportNodesFilterSearchCallbackTest.class,
-        ImportNodesFilterSearchCallbackTest.class,
-        ImportAndExportKeysSearchCallbackOwnFileTest.class,
+        ImportAndExportNodesFilterSearchCallbackIT.class,
+        ImportNodesFilterSearchCallbackIT.class,
+        ImportAndExportKeysSearchCallbackIT.class,
         ImportedKeysFilteredByPKsCyclicTest.class,
         ImportedKeysFilteredByPKsSingleTest.class,
         ImportedKeysFilteredByPKsTest.class,
         ImportedAndExportedKeysFilteredByPKsCyclicTest.class,
         ImportedAndExportedKeysFilteredByPKsSingleTest.class,
         ImportedAndExportedKeysFilteredByPKsTest.class,
-        TablesDependencyHelperTest.class})
+        TablesDependencyHelperIT.class})
 public class AllTestsSuite
 {
 }
