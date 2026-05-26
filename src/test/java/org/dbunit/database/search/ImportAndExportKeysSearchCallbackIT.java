@@ -21,23 +21,28 @@
 package org.dbunit.database.search;
 
 import org.dbunit.database.IDatabaseConnection;
-import org.junit.jupiter.api.BeforeEach;
 
 /**
  * @author Felipe Leme (dbunit@felipeal.net)
  * @version $Revision$
  * @since Aug 28, 2005
  */
-public class ImportAndExportKeysSearchCallbackOwnFileTest
+public class ImportAndExportKeysSearchCallbackIT
         extends AbstractMetaDataBasedSearchCallbackTestCase
 {
 
     public static final String SQL_FILE = "hypersonic_import_export.sql";
 
-    @BeforeEach
-    public void setup() throws Exception
+    @Override
+    protected String getSqlFile()
     {
-        super.setUpConnectionWithFile(SQL_FILE);
+        return SQL_FILE;
+    }
+
+    @Override
+    protected String[] getTestTableNames()
+    {
+        return new String[] {"C", "D", "E", "A", "B", "F"};
     }
 
     public static final String[][] SINGLE_INPUT = new String[][] {

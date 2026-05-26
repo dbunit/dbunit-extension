@@ -32,7 +32,7 @@ import org.junit.platform.suite.api.Suite;
 @SelectClasses({org.dbunit.database.statement.AllTestsSuite.class,
         CachedResultSetTableIT.class, DatabaseConfigTest.class,
         DatabaseConnectionIT.class, DatabaseDataSetIT.class,
-        DatabaseSequenceFilterTest.class, DatabaseTableIteratorTest.class,
+        DatabaseSequenceFilterIT.class, DatabaseTableIteratorTest.class,
         DatabaseTableMetaDataIT.class, ForwardOnlyResultSetTableIT.class,
         QueryDataSetIT.class, PrimaryKeyFilteredTableWrapperTest.class,
         JdbcDatabaseTesterConnectionIT.class,

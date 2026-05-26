@@ -31,8 +31,15 @@ import java.io.IOException;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.SQLSyntaxErrorException;
+import java.sql.DatabaseMetaData;
+import java.sql.ResultSet;
 import java.sql.Statement;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Set;
 import java.util.StringTokenizer;
+import java.util.TreeSet;
 
 /**
  * Test Helper class for Executing DDL.
@@ -223,6 +230,110 @@ public final class DdlExecutor
         {
             statement.close();
         }
+    }
+
+    /**
+     * Drops the specified tables from the given {@link Connection}. First drops
+     * FK constraints that reference any of the specified tables to handle both
+     * acyclic and cyclic FK graphs, then drops the tables themselves. Tables or
+     * constraints that do not exist are silently ignored.
+     *
+     * @param connection
+     *            The {@link Connection} to execute the DROP statements against.
+     * @param tableNames
+     *            The names of the tables to drop.
+     * @throws Exception
+     */
+    public static void dropTables(final Connection connection,
+            final String... tableNames) throws Exception
+    {
+        dropFkConstraintsAmong(connection, tableNames);
+        for (final String table : tableNames)
+        {
+            try (final Statement stmt = connection.createStatement())
+            {
+                stmt.execute("DROP TABLE " + table);
+            }
+            catch (final SQLException e)
+            {
+                LOG.debug("Could not drop table {}: {}", table,
+                        e.getMessage());
+            }
+        }
+    }
+
+    /**
+     * Drops all FK constraints among the specified tables by querying
+     * {@link DatabaseMetaData} for exported keys and issuing ALTER TABLE DROP
+     * CONSTRAINT statements. Constraints that fail to drop are silently ignored.
+     *
+     * @param connection
+     *            The {@link Connection} to use.
+     * @param tableNames
+     *            The names of the tables whose inter-table FK constraints should
+     *            be dropped.
+     * @throws Exception
+     */
+    private static void dropFkConstraintsAmong(final Connection connection,
+            final String... tableNames) throws Exception
+    {
+        // Case-insensitive: PostgreSQL stores lowercase but callers may pass uppercase
+        final Set<String> tableSet =
+                new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+        tableSet.addAll(Arrays.asList(tableNames));
+        final Map<String, String> constraintsToDrop = new LinkedHashMap<>();
+        final DatabaseMetaData metaData = connection.getMetaData();
+        for (final String tableName : tableNames)
+        {
+            final String storedName = normalizeIdentifier(metaData, tableName);
+            try (final ResultSet rs =
+                    metaData.getExportedKeys(null, null, storedName))
+            {
+                while (rs.next())
+                {
+                    final String fkTableName = rs.getString("FKTABLE_NAME");
+                    final String fkName = rs.getString("FK_NAME");
+                    if (tableSet.contains(fkTableName) && fkName != null)
+                    {
+                        constraintsToDrop.put(fkTableName + "." + fkName,
+                                "ALTER TABLE " + fkTableName
+                                        + " DROP CONSTRAINT " + fkName);
+                    }
+                }
+            }
+            catch (final SQLException e)
+            {
+                LOG.debug(
+                        "Could not query exported keys for table {}: {}",
+                        tableName, e.getMessage());
+            }
+        }
+        for (final String sql : constraintsToDrop.values())
+        {
+            try (final Statement stmt = connection.createStatement())
+            {
+                stmt.execute(sql);
+            }
+            catch (final SQLException e)
+            {
+                LOG.debug("Could not drop constraint: {}: {}", sql,
+                        e.getMessage());
+            }
+        }
+    }
+
+    private static String normalizeIdentifier(final DatabaseMetaData metaData,
+            final String identifier) throws SQLException
+    {
+        if (metaData.storesLowerCaseIdentifiers())
+        {
+            return identifier.toLowerCase();
+        }
+        if (metaData.storesUpperCaseIdentifiers())
+        {
+            return identifier.toUpperCase();
+        }
+        return identifier;
     }
 
     private static String readSqlFromFile(final File ddlFile) throws IOException

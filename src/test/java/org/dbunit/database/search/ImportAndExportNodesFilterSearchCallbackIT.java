@@ -27,8 +27,8 @@ import org.dbunit.database.IDatabaseConnection;
  * @version $Revision$
  * @since Aug 28, 2005
  */
-public class ImportAndExportNodesFilterSearchCallbackTest
-        extends ImportNodesFilterSearchCallbackTest
+public class ImportAndExportNodesFilterSearchCallbackIT
+        extends ImportNodesFilterSearchCallbackIT
 {
 
     @Override

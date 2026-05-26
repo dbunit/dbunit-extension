@@ -2,11 +2,8 @@ package org.dbunit.database;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.sql.Connection;
-
 import org.dbunit.AbstractDatabaseIT;
 import org.dbunit.DdlExecutor;
-import org.dbunit.HypersonicEnvironment;
 import org.dbunit.dataset.Column;
 import org.dbunit.dataset.Columns;
 import org.dbunit.dataset.IDataSet;
@@ -22,6 +19,20 @@ import org.junit.jupiter.api.Test;
 class ResultSetTableMetaDataIT extends AbstractDatabaseIT
 {
 
+    /**
+     * Replaces {@code _connection} with a fresh connection after test tables
+     * have been dropped, so that {@code AbstractDatabaseIT.tearDown()} uses an
+     * up-to-date dataset that does not include the dropped tables.
+     *
+     * @throws Exception
+     */
+    private void refreshConnection() throws Exception
+    {
+        _connection.close();
+        _connection = getDatabaseTester().getConnection();
+        setUpDatabaseConfig(_connection.getConfig());
+    }
+
     protected IDataSet createDataSet() throws Exception
     {
         return _connection.createDataSet();
@@ -30,20 +41,17 @@ class ResultSetTableMetaDataIT extends AbstractDatabaseIT
     /**
      * Tests the pattern-like column retrieval from the database. DbUnit should
      * not interpret any table names as regex patterns.
-     * 
+     *
      * @throws Exception
      */
     @Test
-    void testGetColumnsForTablesMatchingSamePattern_withPatternLikeTableName_returnsCorrectColumns() throws Exception
+    void testGetColumns_withPatternLikeTableName_doesNotInterpretUnderscoreAsPattern() throws Exception
     {
-        final Connection jdbcConnection =
-                HypersonicEnvironment.createJdbcConnection("tempdb");
+        DdlExecutor.dropTables(_connection.getConnection(),
+                "PATTERN_LIKE_TABLE_XX", "PATTERN_LIKE_TABLE_X_");
         DdlExecutor.executeDdlFile(
                 TestUtils.getFile("sql/hypersonic_dataset_pattern_test.sql"),
-                jdbcConnection, false);
-        final IDatabaseConnection connection =
-                new DatabaseConnection(jdbcConnection);
-
+                _connection.getConnection(), false);
         try
         {
             final String tableName = "PATTERN_LIKE_TABLE_X_";
@@ -51,7 +59,7 @@ class ResultSetTableMetaDataIT extends AbstractDatabaseIT
 
             final String sql = "select * from " + tableName;
             final ForwardOnlyResultSetTable resultSetTable =
-                    new ForwardOnlyResultSetTable(tableName, sql, connection);
+                    new ForwardOnlyResultSetTable(tableName, sql, _connection);
             final ResultSetTableMetaData metaData =
                     (ResultSetTableMetaData) resultSetTable.getTableMetaData();
 
@@ -64,13 +72,16 @@ class ResultSetTableMetaDataIT extends AbstractDatabaseIT
                 final Column column =
                         Columns.getColumn(columnNames[i], columns);
                 assertThat(column.getColumnName()).as(columnNames[i])
-                        .isEqualTo(columnNames[i]);
+                        .isEqualToIgnoringCase(columnNames[i]);
             }
-        } finally
+        }
+        finally
         {
-            HypersonicEnvironment.shutdown(jdbcConnection);
-            jdbcConnection.close();
-            HypersonicEnvironment.deleteFiles("tempdb");
+            // Close the old connection first to release the open ResultSet cursor
+            // held by ForwardOnlyResultSetTable; otherwise Derby refuses DROP TABLE.
+            refreshConnection();
+            DdlExecutor.dropTables(_connection.getConnection(),
+                    "PATTERN_LIKE_TABLE_XX", "PATTERN_LIKE_TABLE_X_");
         }
     }
 

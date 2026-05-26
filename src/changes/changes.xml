@@ -13,7 +13,7 @@
   </properties>
 
   <body>
-    <release version="3.1.1-SNAPSHOT" date="TBD" description="GH action updates, extract UTs from ITs, rename test methods, add DataSetBuilder, improve test infra, improve UT coverage, bump HSQLDB, improve IT coverage, fix table lookup with case-sensitive databases, fix metadata table name lookups">
+    <release version="3.1.1-SNAPSHOT" date="TBD" description="GH action updates, extract UTs from ITs, rename test methods, add DataSetBuilder, improve test infra, improve UT coverage, bump HSQLDB, improve IT coverage, fix table lookup with case-sensitive databases, fix metadata table name lookups, convert UTs to ITs">
       <!-- dependabot:dep=actions/deploy-pages:new=5:pr=27 -->
       <action dev="dependabot" type="update" due-to="Dependabot">Update github_actions dependency actions/deploy-pages from 4 to 5 (#27).</action>
       <!-- dependabot:dep=actions/setup-java:new=5:pr=27 -->
@@ -31,6 +31,8 @@
       <action dev="jeffjensen" type="add" issue="731" system="github" due-to="jeffjensen">Add many integration tests to improve integration test coverage.</action>
       <action dev="jeffjensen" type="fix" fixed-issues="705,734" system="github" due-to="jeffjensen">Fix table lookup failure with case-sensitive databases when creating DatabaseTableMetaData.</action>
       <action dev="jeffjensen" type="fix" issue="737" system="github" due-to="jeffjensen">Escape SQL LIKE wildcard characters in table name metadata lookups and normalize table names to stored case in FK dependency searches.</action>
+      <action dev="jeffjensen" type="update" issue="736" system="github" due-to="jeffjensen">Use database profile connection in FK-graph and pattern tests instead of hardcoded HSQLDB connections.</action>
+      <action dev="jeffjensen" type="update" issue="736" system="github" due-to="jeffjensen">Skip case-sensitive table name tests on databases that do not support mixed-case quoted identifiers.</action>
     </release>
     <release version="3.1.0" date="May 11, 2026" description="Lower DefaultPrepAndExpectedTestCase log levels, build DB config, GitHub CI, reproducible builds, change to Central Portal publishing, IsActualGreaterThanExpectedWithIgnoreMillisValueComparer, IsActualGreaterThanOrEqualToExpectedWithIgnoreMillisValueComparer, GitHub config, convert docs to Asciidoc, version bumps, DefaultPrepAndExpectedTestCase.runTestSteps(), auto-publish SNAPSHOTS">
       <action dev="jeffjensen" type="add" issue="717" system="github" due-to="jeffjensen">Configure GitHub CI.</action>

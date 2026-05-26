@@ -25,16 +25,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
+import org.junit.jupiter.api.Assumptions;
+
 import org.dbunit.AbstractDatabaseIT;
 import org.dbunit.DatabaseEnvironment;
 import org.dbunit.DdlExecutor;
-import org.dbunit.HypersonicEnvironment;
 import org.dbunit.TestFeature;
 import org.dbunit.dataset.Column;
 import org.dbunit.dataset.Columns;
@@ -59,6 +59,20 @@ class DatabaseTableMetaDataIT extends AbstractDatabaseIT
 
     public static final String TEST_TABLE = "TEST_TABLE";
 
+    /**
+     * Replaces {@code _connection} with a fresh connection after test tables
+     * have been dropped, so that {@code AbstractDatabaseIT.tearDown()} uses an
+     * up-to-date dataset that does not include the dropped tables.
+     *
+     * @throws Exception
+     */
+    private void refreshConnection() throws Exception
+    {
+        _connection.close();
+        _connection = getDatabaseTester().getConnection();
+        setUpDatabaseConfig(_connection.getConfig());
+    }
+
     protected IDataSet createDataSet() throws Exception
     {
         return _connection.createDataSet();
@@ -71,7 +85,7 @@ class DatabaseTableMetaDataIT extends AbstractDatabaseIT
     }
 
     @Test
-    void testGetPrimaryKeys_withPkTable_returnsAllThreePrimaryKeyColumns() throws Exception
+    void testGetPrimaryKeys_withPkTable_returnsAllPrimaryKeyColumns() throws Exception
     {
         final String tableName = "PK_TABLE";
         // String[] expected = {"PK0"};
@@ -91,7 +105,7 @@ class DatabaseTableMetaDataIT extends AbstractDatabaseIT
     }
 
     @Test
-    void testGetNoPrimaryKeys_withTestTable_returnsEmptyPrimaryKeyArray() throws Exception
+    void testGetPrimaryKeys_withTableHavingNoPk_returnsEmptyArray() throws Exception
     {
         final String tableName = TEST_TABLE;
 
@@ -119,7 +133,7 @@ class DatabaseTableMetaDataIT extends AbstractDatabaseIT
     }
 
     @Test
-    void testGetNoColumns_withUnknownTableAndNoValidation_returnsEmptyColumnArray() throws Exception
+    void testGetColumns_withUnknownTableAndNoValidation_returnsEmptyColumnArray() throws Exception
     {
         // Since the "unknown_table" does not exist it also does not have any
         // columns
@@ -134,7 +148,7 @@ class DatabaseTableMetaDataIT extends AbstractDatabaseIT
     }
 
     @Test
-    void testColumnIsNullable_withPkTableColumns_returnsCorrectNullability() throws Exception
+    void testGetColumns_withPkTable_returnsCorrectNullabilityForEachColumn() throws Exception
     {
         final String tableName = "PK_TABLE";
         final String[] notNullable = {"PK0", "PK1", "PK2"};
@@ -165,7 +179,7 @@ class DatabaseTableMetaDataIT extends AbstractDatabaseIT
     }
 
     @Test
-    void testUnsupportedColumnDataType_withFactoryReturningUnknown_returnsEmptyColumnArray() throws Exception
+    void testGetColumns_whenDataTypeFactoryReturnsUnknown_returnsEmptyColumnArray() throws Exception
     {
         final IDataTypeFactory dataTypeFactory = new DefaultDataTypeFactory()
         {
@@ -189,7 +203,7 @@ class DatabaseTableMetaDataIT extends AbstractDatabaseIT
     }
 
     @Test
-    void testColumnDataType_withMultiTypeTable_returnsCorrectDataTypes() throws Exception
+    void testGetColumns_withMultitypeTable_returnsCorrectDataTypeForEachColumn() throws Exception
     {
         final String tableName = "EMPTY_MULTITYPE_TABLE";
 
@@ -269,7 +283,7 @@ class DatabaseTableMetaDataIT extends AbstractDatabaseIT
      * @throws Exception
      */
     @Test
-    void testCaseInsensitiveAndI18n_withTurkishLocale_findsTableSuccessfully() throws Exception
+    void testGetTable_withTurkishLocaleActive_findsTableIgnoringLocaleSpecificUpperCase() throws Exception
     {
         // To test bug report #1537894 where the user has a turkish locale set
         // on his box
@@ -310,27 +324,24 @@ class DatabaseTableMetaDataIT extends AbstractDatabaseIT
     /**
      * Tests the pattern-like column retrieval from the database. DbUnit should
      * not interpret any table names as regex patterns.
-     * 
+     *
      * @throws Exception
      */
     @Test
-    void testGetColumnsForTablesMatchingSamePattern_withUnderscoreInTableName_returnsOnlyExactMatchColumns() throws Exception
+    void testGetColumns_withPatternLikeTableName_doesNotInterpretUnderscoreAsPattern() throws Exception
     {
-        final Connection jdbcConnection =
-                HypersonicEnvironment.createJdbcConnection("tempdb");
+        DdlExecutor.dropTables(_connection.getConnection(),
+                "PATTERN_LIKE_TABLE_XX", "PATTERN_LIKE_TABLE_X_");
         DdlExecutor.executeDdlFile(
                 TestUtils.getFile("sql/hypersonic_dataset_pattern_test.sql"),
-                jdbcConnection, false);
-        final IDatabaseConnection connection =
-                new DatabaseConnection(jdbcConnection);
-
+                _connection.getConnection(), false);
         try
         {
             final String tableName = "PATTERN_LIKE_TABLE_X_";
             final String[] columnNames = {"VARCHAR_COL_XUNDERSCORE"};
 
             final ITableMetaData metaData =
-                    connection.createDataSet().getTableMetaData(tableName);
+                    _connection.createDataSet().getTableMetaData(tableName);
             final Column[] columns = metaData.getColumns();
             assertThat(columns).as("column count").hasSize(columnNames.length);
 
@@ -339,27 +350,45 @@ class DatabaseTableMetaDataIT extends AbstractDatabaseIT
                 final Column column =
                         Columns.getColumn(columnNames[i], columns);
                 assertThat(column.getColumnName()).as(columnNames[i])
-                        .isEqualTo(columnNames[i]);
+                        .isEqualToIgnoringCase(columnNames[i]);
             }
-        } finally
+        }
+        finally
         {
-            HypersonicEnvironment.shutdown(jdbcConnection);
-            jdbcConnection.close();
-            HypersonicEnvironment.deleteFiles("tempdb");
+            DdlExecutor.dropTables(_connection.getConnection(),
+                    "PATTERN_LIKE_TABLE_XX", "PATTERN_LIKE_TABLE_X_");
+            refreshConnection();
         }
     }
 
     @Test
-    void testCaseSensitive_withMixedCaseTableAndWrongCaseLookup_throwsNoSuchTableException() throws Exception
+    void testCreation_withCaseSensitiveEnabled_onlyFindsMixedCaseTable() throws Exception
     {
-        final Connection jdbcConnection =
-                HypersonicEnvironment.createJdbcConnection("tempdb");
+        final java.sql.DatabaseMetaData dbMeta =
+                _connection.getConnection().getMetaData();
+        Assumptions.assumeTrue(
+                dbMeta.supportsMixedCaseQuotedIdentifiers(),
+                "Skip: database does not treat quoted identifiers as case-sensitive.");
+        Assumptions.assumeTrue(
+                "\"".equals(dbMeta.getIdentifierQuoteString()),
+                "Skip: database does not use ANSI double-quote identifier syntax.");
+        Assumptions.assumeFalse(
+                dbMeta.storesLowerCaseIdentifiers(),
+                "Skip: database stores unquoted identifiers in lowercase.");
+        DdlExecutor.dropTables(_connection.getConnection(),
+                "UPPER_CASE_TABLE");
+        try
+        {
+            DdlExecutor.executeSql(_connection.getConnection(),
+                    "DROP TABLE \"MixedCaseTable\"");
+        }
+        catch (final Exception ignored)
+        {
+            // MixedCaseTable may not exist on first run
+        }
         DdlExecutor.executeDdlFile(
                 TestUtils.getFile("sql/hypersonic_case_sensitive_test.sql"),
-                jdbcConnection, false);
-        final IDatabaseConnection connection =
-                new DatabaseConnection(jdbcConnection);
-
+                _connection.getConnection(), false);
         try
         {
             final String tableName = "MixedCaseTable";
@@ -367,8 +396,18 @@ class DatabaseTableMetaDataIT extends AbstractDatabaseIT
             final boolean validate = true;
             final boolean caseSensitive = true;
 
+            // Skip databases (e.g. MSSQL with case-insensitive collation) that find
+            // 'MixedCaseTable' even when queried as 'MIXEDCASETABLE'.
+            final String schemaName = _connection.getSchema();
+            try (java.sql.ResultSet wrongCaseRs = _connection.getConnection().getMetaData()
+                    .getTables(null, schemaName, tableNameWrongCase, null))
+            {
+                Assumptions.assumeFalse(wrongCaseRs.next(),
+                        "Skip: database finds 'MixedCaseTable' via 'MIXEDCASETABLE' (case-insensitive identifiers).");
+            }
+
             final ITableMetaData metaData = new DatabaseTableMetaData(tableName,
-                    connection, validate, caseSensitive);
+                    _connection, validate, caseSensitive);
             final Column[] columns = metaData.getColumns();
             assertThat(columns).hasSize(1);
             assertThat(columns[0].getColumnName()).isEqualTo("COL1");
@@ -377,16 +416,26 @@ class DatabaseTableMetaDataIT extends AbstractDatabaseIT
             final NoSuchTableException expected =
                     assertThrows(NoSuchTableException.class, () -> {
                         new DatabaseTableMetaData(tableNameWrongCase,
-                                connection, validate, caseSensitive);
+                                _connection, validate, caseSensitive);
                     }, "Should not be able to create DatabaseTableMetaData with non-existing table name "
                             + tableNameWrongCase + ". Created ");
             assertThat(expected.getMessage().indexOf(tableNameWrongCase))
                     .isNotNegative();
-        } finally
+        }
+        finally
         {
-            HypersonicEnvironment.shutdown(jdbcConnection);
-            jdbcConnection.close();
-            HypersonicEnvironment.deleteFiles("tempdb");
+            DdlExecutor.dropTables(_connection.getConnection(),
+                    "UPPER_CASE_TABLE");
+            try
+            {
+                DdlExecutor.executeSql(_connection.getConnection(),
+                        "DROP TABLE \"MixedCaseTable\"");
+            }
+            catch (final Exception ignored)
+            {
+                // ignore if already dropped
+            }
+            refreshConnection();
         }
     }
 
@@ -398,7 +447,7 @@ class DatabaseTableMetaDataIT extends AbstractDatabaseIT
      * @throws Exception
      */
     @Test
-    void testFullyQualifiedTableName_withSchemaQualifiedTableName_returnsFullyQualifiedName() throws Exception
+    void testGetTableName_withFullyQualifiedSchemaTableName_returnsSchemaPrefixedName() throws Exception
     {
         final DatabaseEnvironment environment =
                 DatabaseEnvironment.getInstance();
@@ -416,7 +465,7 @@ class DatabaseTableMetaDataIT extends AbstractDatabaseIT
     }
 
     @Test
-    void testDbStoresUpperCaseTableNames_whenDbStoresUpperCase_normalizesTableNameToUpperCase() throws Exception
+    void testGetTableName_whenDatabaseStoresUpperCase_returnsUpperCasedTableName() throws Exception
     {
         final IDatabaseConnection connection = getConnection();
         final DatabaseMetaData metaData =
@@ -438,7 +487,7 @@ class DatabaseTableMetaDataIT extends AbstractDatabaseIT
     }
 
     @Test
-    void testDbStoresLowerCaseTableNames_whenDbStoresLowerCase_normalizesTableNameToLowerCase() throws Exception
+    void testGetTableName_whenDatabaseStoresLowerCase_returnsLowerCasedTableName() throws Exception
     {
         final IDatabaseConnection connection = getConnection();
         final DatabaseMetaData metaData =
