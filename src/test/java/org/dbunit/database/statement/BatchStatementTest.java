@@ -23,36 +23,19 @@ package org.dbunit.database.statement;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.sql.Connection;
 import java.sql.SQLException;
 
-import org.dbunit.database.IDatabaseConnection;
-import org.dbunit.database.InMemoryDatabaseConnection;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /**
  * Unit tests for {@link BatchStatement}.
  */
-class BatchStatementTest
+class BatchStatementTest extends AbstractStatementTest
 {
-    private IDatabaseConnection dbConn;
-    private Connection conn;
-
-    @BeforeEach
-    void setUp() throws Exception
+    @Override
+    protected String createTestTableDdl()
     {
-        dbConn = InMemoryDatabaseConnection.create();
-        conn = dbConn.getConnection();
-        conn.createStatement().execute(
-                "CREATE TABLE TEST_BATCH (ID INTEGER, NAME VARCHAR(50))");
-    }
-
-    @AfterEach
-    void tearDown() throws Exception
-    {
-        dbConn.close();
+        return "CREATE TABLE TEST_BATCH (ID INTEGER, NAME VARCHAR(50))";
     }
 
     @Test

@@ -22,16 +22,11 @@ package org.dbunit.database.statement;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.Statement;
 
-import org.dbunit.database.IDatabaseConnection;
 import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.datatype.DataType;
-import org.dbunit.database.InMemoryDatabaseConnection;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -41,24 +36,12 @@ import org.junit.jupiter.api.Test;
  * not support JDBC batch updates. It executes the prepared statement immediately on
  * {@link SimplePreparedStatement#addBatch()} and accumulates the update count.
  */
-class SimplePreparedStatementTest
+class SimplePreparedStatementTest extends AbstractStatementTest
 {
-    private IDatabaseConnection dbConn;
-    private Connection conn;
-
-    @BeforeEach
-    void setUp() throws Exception
+    @Override
+    protected String createTestTableDdl()
     {
-        dbConn = InMemoryDatabaseConnection.create();
-        conn = dbConn.getConnection();
-        conn.createStatement().execute(
-                "CREATE TABLE TEST_SIMPLE_PREP (ID INTEGER, NAME VARCHAR(50))");
-    }
-
-    @AfterEach
-    void tearDown() throws Exception
-    {
-        dbConn.close();
+        return "CREATE TABLE TEST_SIMPLE_PREP (ID INTEGER, NAME VARCHAR(50))";
     }
 
     @Test

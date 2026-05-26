@@ -22,14 +22,9 @@ package org.dbunit.database.statement;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.Statement;
 
-import org.dbunit.database.IDatabaseConnection;
-import org.dbunit.database.InMemoryDatabaseConnection;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -38,24 +33,12 @@ import org.junit.jupiter.api.Test;
  * <p>{@link CompoundStatement} concatenates all added SQL strings with semicolons
  * and executes the combined string as a single JDBC {@code executeUpdate} call.
  */
-class CompoundStatementTest
+class CompoundStatementTest extends AbstractStatementTest
 {
-    private IDatabaseConnection dbConn;
-    private Connection conn;
-
-    @BeforeEach
-    void setUp() throws Exception
+    @Override
+    protected String createTestTableDdl()
     {
-        dbConn = InMemoryDatabaseConnection.create();
-        conn = dbConn.getConnection();
-        conn.createStatement().execute(
-                "CREATE TABLE TEST_COMPOUND (ID INTEGER, NAME VARCHAR(50))");
-    }
-
-    @AfterEach
-    void tearDown() throws Exception
-    {
-        dbConn.close();
+        return "CREATE TABLE TEST_COMPOUND (ID INTEGER, NAME VARCHAR(50))";
     }
 
     @Test

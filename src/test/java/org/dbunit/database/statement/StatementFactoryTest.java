@@ -23,10 +23,6 @@ package org.dbunit.database.statement;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import org.dbunit.database.DatabaseConfig;
-import org.dbunit.database.IDatabaseConnection;
-import org.dbunit.database.InMemoryDatabaseConnection;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -36,22 +32,12 @@ import org.junit.jupiter.api.Test;
  * and {@link IPreparedBatchStatement} implementations depending on whether the
  * {@link DatabaseConfig#FEATURE_BATCHED_STATEMENTS} feature is enabled.
  */
-class StatementFactoryTest
+class StatementFactoryTest extends AbstractStatementTest
 {
-    private IDatabaseConnection dbConn;
-
-    @BeforeEach
-    void setUp() throws Exception
+    @Override
+    protected String createTestTableDdl()
     {
-        dbConn = InMemoryDatabaseConnection.create();
-        dbConn.getConnection().createStatement().execute(
-                "CREATE TABLE TEST_SF (ID INTEGER, NAME VARCHAR(50))");
-    }
-
-    @AfterEach
-    void tearDown() throws Exception
-    {
-        dbConn.close();
+        return "CREATE TABLE TEST_SF (ID INTEGER, NAME VARCHAR(50))";
     }
 
     @Test
