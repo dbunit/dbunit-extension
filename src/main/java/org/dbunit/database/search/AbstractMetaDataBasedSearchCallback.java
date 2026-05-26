@@ -178,12 +178,18 @@ public abstract class AbstractMetaDataBasedSearchCallback extends AbstractNodesF
         
         ResultSet rs = null;
         try {
-            IMetadataHandler metadataHandler = (IMetadataHandler) 
+            IMetadataHandler metadataHandler = (IMetadataHandler)
                     this.connection.getConfig().getProperty(DatabaseConfig.PROPERTY_METADATA_HANDLER);
-            // Validate if the table exists
-            if(!metadataHandler.tableExists(metaData, schema, tableName))
+            // Validate if the table exists; fall back to DB-corrected case for databases
+            // (e.g. PostgreSQL) that store unquoted identifiers in a different case than supplied.
+            if (!metadataHandler.tableExists(metaData, schema, tableName))
             {
-                throw new NoSuchTableException("The table '"+tableName+"' does not exist in schema '"+schema+"'");
+                String correctedTableName = SQLHelper.correctCase(tableName, conn);
+                if (correctedTableName.equals(tableName) || !metadataHandler.tableExists(metaData, schema, correctedTableName))
+                {
+                    throw new NoSuchTableException("The table '"+tableName+"' does not exist in schema '"+schema+"'");
+                }
+                tableName = correctedTableName;
             }
 
             switch (type) {

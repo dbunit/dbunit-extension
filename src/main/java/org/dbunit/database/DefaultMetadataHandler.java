@@ -109,15 +109,16 @@ public class DefaultMetadataHandler implements IMetadataHandler {
         return schemaName;
     }
     
-    public boolean tableExists(DatabaseMetaData metaData, String schemaName, String tableName) 
-    throws SQLException 
+    public boolean tableExists(DatabaseMetaData metaData, String schemaName, String tableName)
+    throws SQLException
     {
         if(logger.isTraceEnabled())
-            logger.trace("tableExists(metaData={}, schemaName={}, tableName={}) - start", 
+            logger.trace("tableExists(metaData={}, schemaName={}, tableName={}) - start",
                     new Object[] {metaData, schemaName, tableName} );
-        
-        ResultSet tableRs = metaData.getTables(null, schemaName, tableName, null);
-        try 
+
+        String escapedTableName = escapePattern(metaData, tableName);
+        ResultSet tableRs = metaData.getTables(null, schemaName, escapedTableName, null);
+        try
         {
             return tableRs.next();
         }
@@ -125,6 +126,19 @@ public class DefaultMetadataHandler implements IMetadataHandler {
         {
             SQLHelper.close(tableRs);
         }
+    }
+
+    private String escapePattern(DatabaseMetaData metaData, String identifier) throws SQLException
+    {
+        String escape = metaData.getSearchStringEscape();
+        if (escape == null || escape.isEmpty())
+        {
+            return identifier;
+        }
+        return identifier
+                .replace(escape, escape + escape)
+                .replace("_", escape + "_")
+                .replace("%", escape + "%");
     }
 
     public ResultSet getTables(DatabaseMetaData metaData, String schemaName, String[] tableType) 
