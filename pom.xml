@@ -110,7 +110,7 @@
     <versionsMavenPluginVersion>2.21.0</versionsMavenPluginVersion>
 
     <!-- docker images -->
-    <docker.image.name.db2-11>ibmcom/db2:11.5.8.0</docker.image.name.db2-11>
+    <docker.image.name.db2-11>icr.io/db2_community/db2:11.5.9.0</docker.image.name.db2-11>
     <docker.image.name.mssql-2022>mcr.microsoft.com/mssql/server:2022-latest</docker.image.name.mssql-2022>
     <docker.image.name.mysql.9-20>mysql:9.2.0</docker.image.name.mysql.9-20>
     <docker.image.name.oracle-18>gvenzl/oracle-xe:18.4.0-faststart</docker.image.name.oracle-18>
@@ -1676,14 +1676,24 @@
                 <image>
                   <name>${docker.image.name.db2-11}</name>
                   <run>
+                    <privileged>true</privileged>
                     <ports>
                       <port>${database.port.db2}:50000</port>
                     </ports>
                     <env>
+                      <DB2INSTANCE>${dbunit.profile.user}</DB2INSTANCE>
                       <DBNAME>${dbunit.profile.user}</DBNAME>
                       <DB2INST1_PASSWORD>${dbunit.profile.password}</DB2INST1_PASSWORD>
                       <LICENSE>accept</LICENSE>
+                      <!-- Skip auto-tuning and update check to shorten startup time -->
+                      <AUTOCONFIG>false</AUTOCONFIG>
+                      <UPDATEAVAIL>NO</UPDATEAVAIL>
                     </env>
+                    <volumes>
+                      <bind>
+                        <volume>${project.basedir}/src/test/resources/db2-tune.sh:/var/custom/db2-tune.sh</volume>
+                      </bind>
+                    </volumes>
                     <wait>
                       <log>${docker.image.ready.message.db2}</log>
                       <!-- DB2 has extra slow startup, needs long wait -->

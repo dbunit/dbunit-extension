@@ -32,10 +32,11 @@ jobs:
   integration-tests:
     needs: [compile-and-unit-test]
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     strategy:
       matrix:
         database: [
+          {name: 'DB2', profile: 'db2-11-5', url: ''},
           {name: 'Derby', profile: 'derby-10-14', url: ''},
           {name: 'H2', profile: 'h2-1-4', url: ''},
           {name: 'HSQLDB', profile: 'hsqldb-2-7', url: ''},

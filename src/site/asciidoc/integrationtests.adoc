@@ -145,11 +145,11 @@ The valid feature names, their descriptions, and the databases that do not suppo
 
 |`BLOB`
 |Binary Large Object column type; tests inserting and updating BLOB data.
-|Derby, H2, HSQLDB, MySQL, MSSQL, PostgreSQL
+|DB2, Derby, H2, HSQLDB, MySQL, MSSQL, PostgreSQL
 
 |`CLOB`
 |Character Large Object column type; tests inserting and updating CLOB data.
-|Derby, H2, HSQLDB, MySQL, MSSQL, PostgreSQL
+|DB2, Derby, H2, HSQLDB, MySQL, MSSQL, PostgreSQL
 
 |`VARBINARY`
 |Variable-length binary column type; tests VARBINARY column presence in table metadata.
@@ -165,7 +165,7 @@ The valid feature names, their descriptions, and the databases that do not suppo
 
 |`INSERT_IDENTITY`
 |MS SQL Server identity column insert (`SET IDENTITY_INSERT`); tests `InsertIdentityOperation`.
-|Derby, H2, HSQLDB, MySQL, Oracle, PostgreSQL
+|DB2, Derby, H2, HSQLDB, MySQL, Oracle, PostgreSQL
 
 |`TRUNCATE_TABLE`
 |`TRUNCATE TABLE` statement; tests `TruncateTableOperation`.
@@ -173,11 +173,11 @@ The valid feature names, their descriptions, and the databases that do not suppo
 
 |`SDO_GEOMETRY`
 |Oracle Spatial Data Object geometry type; tests `OracleSdoGeometryDataType`.
-|Derby, H2, HSQLDB, MySQL, MSSQL, PostgreSQL
+|DB2, Derby, H2, HSQLDB, MySQL, MSSQL, PostgreSQL
 
 |`XML_TYPE`
 |Oracle `XMLTYPE` column type; tests inserting and updating XML_TYPE_TABLE rows.
-|Derby, H2, HSQLDB, MySQL, MSSQL, PostgreSQL
+|DB2, Derby, H2, HSQLDB, MySQL, MSSQL, PostgreSQL
 |===
 
 == Running Integration Tests with IDEs
