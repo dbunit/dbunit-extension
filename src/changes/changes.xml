@@ -13,7 +13,7 @@
   </properties>
 
   <body>
-    <release version="3.1.1-SNAPSHOT" date="TBD" description="GH action updates, extract UTs from ITs, rename test methods, add DataSetBuilder, improve test infra, improve UT coverage, bump HSQLDB, improve IT coverage, fix table lookup with case-sensitive databases, fix metadata table name lookups, convert UTs to ITs, OracleSdoGeometryDataType test coverage, fix ScrollableResultSetTable">
+    <release version="3.1.1-SNAPSHOT" date="TBD" description="GH action updates, extract UTs from ITs, rename test methods, add DataSetBuilder, improve test infra, improve UT coverage, bump HSQLDB, improve IT coverage, fix table lookup with case-sensitive databases, fix metadata table name lookups, convert UTs to ITs, OracleSdoGeometryDataType test coverage, fix ScrollableResultSetTable, document profile unsupportedFeatures">
       <!-- dependabot:dep=actions/deploy-pages:new=5:pr=27 -->
       <action dev="dependabot" type="update" due-to="Dependabot">Update github_actions dependency actions/deploy-pages from 4 to 5 (#27).</action>
       <!-- dependabot:dep=actions/setup-java:new=5:pr=27 -->
@@ -35,6 +35,7 @@
       <action dev="jeffjensen" type="update" issue="736" system="github" due-to="jeffjensen">Skip case-sensitive table name tests on databases that do not support mixed-case quoted identifiers.</action>
       <action dev="jeffjensen" type="add" issue="738" system="github" due-to="jeffjensen">Add Mockito unit test and live Oracle integration test for OracleSdoGeometryDataType.getSqlValue, verifying null geometry returns the "NULL" sentinel and non-null geometry returns a parseable string.</action>
       <action dev="jeffjensen" type="fix" issue="739" system="github" due-to="jeffjensen">Fix ScrollableResultSetTable IDatabaseConnection-based constructors that always obtained a TYPE_FORWARD_ONLY statement, making scrollable result set support permanently broken. Rename ScrollableResultSetTableTest to ScrollableResultSetTableIT, add H2-based tests that prove the break and verify the fix, and remove SCROLLABLE_RESULTSET from the Oracle and H2 unsupported-feature lists.</action>
+      <action dev="jeffjensen" type="update" issue="743" system="github" due-to="jeffjensen">Document all valid dbunit.profile.unsupportedFeatures values with descriptions and per-database support matrix; fix stale H2 example that incorrectly listed SCROLLABLE_RESULTSET as unsupported.</action>
     </release>
     <release version="3.1.0" date="May 11, 2026" description="Lower DefaultPrepAndExpectedTestCase log levels, build DB config, GitHub CI, reproducible builds, change to Central Portal publishing, IsActualGreaterThanExpectedWithIgnoreMillisValueComparer, IsActualGreaterThanOrEqualToExpectedWithIgnoreMillisValueComparer, GitHub config, convert docs to Asciidoc, version bumps, DefaultPrepAndExpectedTestCase.runTestSteps(), auto-publish SNAPSHOTS">
       <action dev="jeffjensen" type="add" issue="717" system="github" due-to="jeffjensen">Configure GitHub CI.</action>

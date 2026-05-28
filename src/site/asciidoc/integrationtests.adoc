@@ -104,7 +104,7 @@ The properties include:
 * dbunit.profile.schema - database schema (may be case-sensitive)
 * dbunit.profile.user - database connection user name
 * dbunit.profile.password - database connection password
-* dbunit.profile.unsupportedFeatures - comma-separated list of features not to test
+* dbunit.profile.unsupportedFeatures - comma-separated list of `TestFeature` names to skip during IT execution; see <<unsupported-features-values>>
 * dbunit.profile.ddl - database-specific DDL script to create tables
 * dbunit.profile.multiLineSupport - true if database supports SQL line continuation
 
@@ -129,6 +129,56 @@ You can override the profile property values by:
   </profiles>
 </settings>
 ----
+
+[[unsupported-features-values]]
+=== Unsupported Features Values
+
+The `dbunit.profile.unsupportedFeatures` property accepts a comma-separated list of feature names.
+When a feature is listed, integration tests that exercise that feature are skipped for the active database profile.
+Feature names are case-sensitive and must match exactly.
+
+The valid feature names, their descriptions, and the databases that do not support each are:
+
+[cols="1,3,2", options="header"]
+|===
+|Feature |Description |Databases that do not support it
+
+|`BLOB`
+|Binary Large Object column type; tests inserting and updating BLOB data.
+|Derby, H2, HSQLDB, MySQL, MSSQL, PostgreSQL
+
+|`CLOB`
+|Character Large Object column type; tests inserting and updating CLOB data.
+|Derby, H2, HSQLDB, MySQL, MSSQL, PostgreSQL
+
+|`VARBINARY`
+|Variable-length binary column type; tests VARBINARY column presence in table metadata.
+|Derby
+
+|`TRANSACTION`
+|Transaction support; tests `TransactionOperation` wrapping database operations.
+|Derby
+
+|`SCROLLABLE_RESULTSET`
+|Scrollable result set cursors; tests `ScrollableResultSetTable` using `TYPE_SCROLL_INSENSITIVE` result sets.
+|Derby, HSQLDB, MySQL, MSSQL, PostgreSQL
+
+|`INSERT_IDENTITY`
+|MS SQL Server identity column insert (`SET IDENTITY_INSERT`); tests `InsertIdentityOperation`.
+|Derby, H2, HSQLDB, MySQL, Oracle, PostgreSQL
+
+|`TRUNCATE_TABLE`
+|`TRUNCATE TABLE` statement; tests `TruncateTableOperation`.
+|Derby, H2, HSQLDB
+
+|`SDO_GEOMETRY`
+|Oracle Spatial Data Object geometry type; tests `OracleSdoGeometryDataType`.
+|Derby, H2, HSQLDB, MySQL, MSSQL, PostgreSQL
+
+|`XML_TYPE`
+|Oracle `XMLTYPE` column type; tests inserting and updating XML_TYPE_TABLE rows.
+|Derby, H2, HSQLDB, MySQL, MSSQL, PostgreSQL
+|===
 
 == Running Integration Tests with IDEs
 
@@ -158,7 +208,7 @@ dbunit.profile.schema=PUBLIC
 dbunit.profile.user=sa
 dbunit.profile.password=
 dbunit.profile.ddl=h2.sql
-dbunit.profile.unsupportedFeatures=BLOB,CLOB,SCROLLABLE_RESULTSET,INSERT_IDENTITY,TRUNCATE_TABLE,SDO_GEOMETRY,XML_TYPE
+dbunit.profile.unsupportedFeatures=BLOB,CLOB,INSERT_IDENTITY,TRUNCATE_TABLE,SDO_GEOMETRY,XML_TYPE
 dbunit.profile.multiLineSupport=true
 ----
 
