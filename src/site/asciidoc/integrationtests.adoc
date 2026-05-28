@@ -157,11 +157,11 @@ The valid feature names, their descriptions, and the databases that do not suppo
 
 |`TRANSACTION`
 |Transaction support; tests `TransactionOperation` wrapping database operations.
-|Derby
+|None
 
 |`SCROLLABLE_RESULTSET`
 |Scrollable result set cursors; tests `ScrollableResultSetTable` using `TYPE_SCROLL_INSENSITIVE` result sets.
-|Derby, HSQLDB, MySQL, MSSQL, PostgreSQL
+|HSQLDB, MySQL, MSSQL, PostgreSQL
 
 |`INSERT_IDENTITY`
 |MS SQL Server identity column insert (`SET IDENTITY_INSERT`); tests `InsertIdentityOperation`.
@@ -169,7 +169,7 @@ The valid feature names, their descriptions, and the databases that do not suppo
 
 |`TRUNCATE_TABLE`
 |`TRUNCATE TABLE` statement; tests `TruncateTableOperation`.
-|Derby, H2, HSQLDB
+|None
 
 |`SDO_GEOMETRY`
 |Oracle Spatial Data Object geometry type; tests `OracleSdoGeometryDataType`.
@@ -207,8 +207,8 @@ dbunit.profile.url=jdbc:h2:target/h2/test
 dbunit.profile.schema=PUBLIC
 dbunit.profile.user=sa
 dbunit.profile.password=
-dbunit.profile.ddl=h2.sql
-dbunit.profile.unsupportedFeatures=BLOB,CLOB,INSERT_IDENTITY,TRUNCATE_TABLE,SDO_GEOMETRY,XML_TYPE
+dbunit.profile.ddl=hypersonic.sql
+dbunit.profile.unsupportedFeatures=BLOB,CLOB,INSERT_IDENTITY,SDO_GEOMETRY,XML_TYPE
 dbunit.profile.multiLineSupport=true
 ----
 
