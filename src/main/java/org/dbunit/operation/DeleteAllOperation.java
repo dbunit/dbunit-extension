@@ -71,6 +71,11 @@ public class DeleteAllOperation extends AbstractOperation
         return "delete from ";
     }
 
+    protected String getDeleteAllCommandSuffix(IDatabaseConnection connection) throws SQLException
+    {
+        return "";
+    }
+
     ////////////////////////////////////////////////////////////////////////////
     // DatabaseOperation class
 
@@ -113,6 +118,7 @@ public class DeleteAllOperation extends AbstractOperation
                 final StringBuilder sqlBuffer = new StringBuilder(128);
                 sqlBuffer.append(getDeleteAllCommand());
                 sqlBuffer.append(getQualifiedName(connection.getSchema(), tableName, connection));
+                sqlBuffer.append(getDeleteAllCommandSuffix(connection));
                 String sql = sqlBuffer.toString();
                 statement.addBatch(sql);
 

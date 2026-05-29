@@ -67,6 +67,22 @@ public class TruncateTableOperation extends DeleteAllOperation
         return "truncate table ";
     }
 
+    @Override
+    protected String getDeleteAllCommandSuffix(IDatabaseConnection connection) throws SQLException
+    {
+        java.sql.Connection jdbcConnection = connection.getConnection();
+        if (jdbcConnection == null)
+        {
+            return "";
+        }
+        String productName = jdbcConnection.getMetaData().getDatabaseProductName();
+        if (productName != null && productName.toLowerCase().startsWith("db2"))
+        {
+            return " IMMEDIATE";
+        }
+        return "";
+    }
+
     ////////////////////////////////////////////////////////////////////////////
     // DatabaseOperation class
 
