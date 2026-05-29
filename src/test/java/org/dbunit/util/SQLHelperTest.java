@@ -28,6 +28,7 @@ import static org.mockito.Mockito.when;
 
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 
 import org.dbunit.AbstractHSQLTestCase;
@@ -47,7 +48,16 @@ class SQLHelperTest extends AbstractHSQLTestCase
 {
 
     @Mock
+    private Connection mockConnection;
+
+    @Mock
     private DatabaseMetaData mockDatabaseMetaData;
+
+    @Mock
+    private ResultSet mockSchemasResultSet;
+
+    @Mock
+    private ResultSet mockCatalogsResultSet;
 
     @BeforeEach
     protected void setUp() throws Exception
@@ -71,6 +81,34 @@ class SQLHelperTest extends AbstractHSQLTestCase
                     "primary key column for table " + table + " does not match")
                     .isEqualTo(expectedPK);
         }
+    }
+
+    @Test
+    void testSchemaExists_withNullTableSchemRow_returnsFalse() throws SQLException
+    {
+        when(mockConnection.getMetaData()).thenReturn(mockDatabaseMetaData);
+        when(mockDatabaseMetaData.getSchemas()).thenReturn(mockSchemasResultSet);
+        when(mockSchemasResultSet.next()).thenReturn(true, false);
+        when(mockSchemasResultSet.getString("TABLE_SCHEM")).thenReturn(null);
+        when(mockDatabaseMetaData.getCatalogs()).thenReturn(mockCatalogsResultSet);
+        when(mockCatalogsResultSet.next()).thenReturn(false);
+
+        boolean result = SQLHelper.schemaExists(mockConnection, "DBUNIT");
+        assertThat(result).as("Schema should not be found when TABLE_SCHEM is null.").isFalse();
+    }
+
+    @Test
+    void testSchemaExists_withNullTableCatRow_returnsFalse() throws SQLException
+    {
+        when(mockConnection.getMetaData()).thenReturn(mockDatabaseMetaData);
+        when(mockDatabaseMetaData.getSchemas()).thenReturn(mockSchemasResultSet);
+        when(mockSchemasResultSet.next()).thenReturn(false);
+        when(mockDatabaseMetaData.getCatalogs()).thenReturn(mockCatalogsResultSet);
+        when(mockCatalogsResultSet.next()).thenReturn(true, false);
+        when(mockCatalogsResultSet.getString("TABLE_CAT")).thenReturn(null);
+
+        boolean result = SQLHelper.schemaExists(mockConnection, "DBUNIT");
+        assertThat(result).as("Schema should not be found when TABLE_CAT is null.").isFalse();
     }
 
     @Test

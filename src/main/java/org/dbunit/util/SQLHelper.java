@@ -146,7 +146,7 @@ public class SQLHelper {
             while(rs.next())
             {
                 String foundSchema = rs.getString("TABLE_SCHEM");
-                if(foundSchema.equals(schema))
+                if(schema.equals(foundSchema))
                 {
                     return true;
                 }
@@ -191,7 +191,7 @@ public class SQLHelper {
             while(rs.next())
             {
                 String foundCatalog = rs.getString("TABLE_CAT");
-                if(foundCatalog.equals(catalog))
+                if(catalog.equals(foundCatalog))
                 {
                     return true;
                 }
