@@ -22,9 +22,16 @@ package org.dbunit.dataset.datatype;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.sql.Date;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Time;
@@ -41,6 +48,7 @@ import java.util.TimeZone;
 import org.dbunit.dataset.ITable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.Mockito;
@@ -57,6 +65,9 @@ class TimestampDataTypeTest extends AbstractDataTypeTest
 
     @Mock
     private ResultSet mockedResultSet;
+
+    @Mock
+    private PreparedStatement mockedStatement;
 
     @Override
     @Test
@@ -165,6 +176,27 @@ class TimestampDataTypeTest extends AbstractDataTypeTest
         assertThat(THIS_TYPE.typeCast(ts2)).isEqualTo(ts1);
     }
 
+    @Test
+    void testTypeCast_withNonZeroMinutesTimezoneOffset_returnsCorrectTimestamp()
+            throws Exception
+    {
+        final Timestamp ts1 =
+                makeTimestamp(2021, 5, 26, 18, 42, 50, 900, "Asia/Kolkata");
+        final String ts2 = "2021-06-26 18:42:50.900 +0530";
+        assertThat(THIS_TYPE.typeCast(ts2)).as("IST +0530 timestamp.").isEqualTo(ts1);
+    }
+
+    @Test
+    void testTypeCast_withDateOnlyStringAndTimezoneOffset_returnsUtcMidnightTimestamp()
+            throws Exception
+    {
+        final Timestamp ts1 = makeTimestamp(2013, 0, 27, 0, 0, 0, "GMT+00:00");
+        final String ts2 = "2013-01-27 +0000";
+        assertThat(THIS_TYPE.typeCast(ts2))
+                .as("date-only string with UTC offset.")
+                .isEqualTo(ts1);
+    }
+
     @Override
     @Test
     public void testTypeCast_withCompatibleInput_returnsExpectedValue() throws Exception
@@ -226,6 +258,60 @@ class TimestampDataTypeTest extends AbstractDataTypeTest
     public void testTypeCastNone_withNullInput_returnsNull() throws Exception
     {
         assertThat(THIS_TYPE.typeCast(ITable.NO_VALUE)).as("typecast").isNull();
+    }
+
+    @Test
+    void testTypeCast_withTimestampInput_returnsSameInstance() throws Exception
+    {
+        final Timestamp input = new Timestamp(1234);
+        assertThat(THIS_TYPE.typeCast(input))
+                .as("typeCast of a Timestamp should return the same instance.")
+                .isSameAs(input);
+    }
+
+    @Test
+    void testTypeCast_withLongValue_returnsTimestampWithSameEpochMillis() throws Exception
+    {
+        final long epochMillis = 1359245761900L;
+        assertThat(THIS_TYPE.typeCast(epochMillis))
+                .as("Long value should be cast to a Timestamp with the same epoch millis.")
+                .isEqualTo(new Timestamp(epochMillis));
+    }
+
+    @Test
+    void testTypeCast_withDateOnlyStringWithoutTimezone_returnsTimestampAtLocalMidnight()
+            throws Exception
+    {
+        final String dateString = "2013-01-27";
+        final Timestamp expected =
+                new Timestamp(Date.valueOf(dateString).getTime());
+        assertThat(THIS_TYPE.typeCast(dateString))
+                .as("date-only string without timezone should parse as local-timezone midnight.")
+                .isEqualTo(expected);
+    }
+
+    @Test
+    void testTypeCast_withDateOnlyStringAndNegativeTimezoneOffset_returnsCorrectTimestamp()
+            throws Exception
+    {
+        final Timestamp expected = makeTimestamp(2013, 0, 27, 0, 0, 0, "GMT-05:00");
+        final String ts = "2013-01-27 -0500";
+        assertThat(THIS_TYPE.typeCast(ts))
+                .as("date-only string with negative UTC offset.")
+                .isEqualTo(expected);
+    }
+
+    @Test
+    void testTypeCast_withNanosecondPrecisionAndTimezoneOffset_preservesNanoseconds()
+            throws Exception
+    {
+        final Timestamp expected =
+                makeTimestamp(2013, 0, 27, 1, 22, 41, 123, "GMT+01:00");
+        expected.setNanos(123456789);
+        final String ts = "2013-01-27 01:22:41.123456789 +0100";
+        assertThat(THIS_TYPE.typeCast(ts))
+                .as("sub-millisecond nanoseconds should survive the timezone offset arithmetic.")
+                .isEqualTo(expected);
     }
 
     @Override
@@ -477,5 +563,275 @@ class TimestampDataTypeTest extends AbstractDataTypeTest
         final InOrder inOrder = Mockito.inOrder(mockedResultSet);
         inOrder.verify(mockedResultSet).getTimestamp(columnIndex);
         inOrder.verify(mockedResultSet).wasNull();
+    }
+
+    @Test
+    void testGetSqlValue_whenWasNullIsTrue_returnsNullRegardlessOfColumnValue()
+            throws TypeCastException, SQLException
+    {
+        when(mockedResultSet.getTimestamp(1)).thenReturn(new Timestamp(1234));
+        when(mockedResultSet.wasNull()).thenReturn(true);
+
+        assertThat(THIS_TYPE.getSqlValue(1, mockedResultSet))
+                .as("getSqlValue should return null when wasNull() is true.")
+                .isNull();
+    }
+
+    @Test
+    void testSetSqlValue_withUtcOffsetString_callsSetTimestampWithUtcCalendar()
+            throws TypeCastException, SQLException
+    {
+        final ArgumentCaptor<Calendar> calCaptor =
+                ArgumentCaptor.forClass(Calendar.class);
+
+        new TimestampDataType().setSqlValue("2024-03-31 00:00:00 +0000", 1,
+                mockedStatement);
+
+        verify(mockedStatement).setTimestamp(eq(1), any(Timestamp.class),
+                calCaptor.capture());
+        assertThat(calCaptor.getValue().getTimeZone().getRawOffset())
+                .as("calendar timezone raw offset for GMT+00:00.")
+                .isZero();
+    }
+
+    @Test
+    void testSetSqlValue_withPositiveOffsetString_callsSetTimestampWithMatchingCalendar()
+            throws TypeCastException, SQLException
+    {
+        final ArgumentCaptor<Calendar> calCaptor =
+                ArgumentCaptor.forClass(Calendar.class);
+
+        new TimestampDataType().setSqlValue("2024-03-31 00:00:00 +0800", 1,
+                mockedStatement);
+
+        verify(mockedStatement).setTimestamp(eq(1), any(Timestamp.class),
+                calCaptor.capture());
+        assertThat(calCaptor.getValue().getTimeZone().getRawOffset())
+                .as("calendar timezone raw offset for GMT+08:00.")
+                .isEqualTo(8 * 3600 * 1000);
+    }
+
+    @Test
+    void testSetSqlValue_withNegativeOffsetString_callsSetTimestampWithMatchingCalendar()
+            throws TypeCastException, SQLException
+    {
+        final ArgumentCaptor<Calendar> calCaptor =
+                ArgumentCaptor.forClass(Calendar.class);
+
+        new TimestampDataType().setSqlValue("1995-01-07 01:22:41.9 -0500", 1,
+                mockedStatement);
+
+        verify(mockedStatement).setTimestamp(eq(1), any(Timestamp.class),
+                calCaptor.capture());
+        assertThat(calCaptor.getValue().getTimeZone().getRawOffset())
+                .as("calendar timezone raw offset for GMT-05:00.")
+                .isEqualTo(-5 * 3600 * 1000);
+    }
+
+    @Test
+    void testSetSqlValue_withNoTimezoneString_callsSetTimestampWithoutCalendar()
+            throws TypeCastException, SQLException
+    {
+        new TimestampDataType().setSqlValue("1995-01-07 01:22:41.9", 1,
+                mockedStatement);
+
+        verify(mockedStatement).setTimestamp(eq(1), any(Timestamp.class));
+        verify(mockedStatement, never()).setTimestamp(anyInt(),
+                any(Timestamp.class), any(Calendar.class));
+    }
+
+    @Test
+    void testSetSqlValue_withTimestampObject_callsSetTimestampWithoutCalendar()
+            throws TypeCastException, SQLException
+    {
+        new TimestampDataType().setSqlValue(new Timestamp(1234), 1,
+                mockedStatement);
+
+        verify(mockedStatement).setTimestamp(eq(1), any(Timestamp.class));
+        verify(mockedStatement, never()).setTimestamp(anyInt(),
+                any(Timestamp.class), any(Calendar.class));
+    }
+
+    @Test
+    void testSetSqlValue_withUtilDateObject_callsSetTimestampWithoutCalendar()
+            throws TypeCastException, SQLException
+    {
+        new TimestampDataType().setSqlValue(new java.util.Date(1234), 1,
+                mockedStatement);
+
+        verify(mockedStatement).setTimestamp(eq(1), any(Timestamp.class));
+        verify(mockedStatement, never()).setTimestamp(anyInt(),
+                any(Timestamp.class), any(Calendar.class));
+    }
+
+    @Test
+    void testSetSqlValue_withLongValue_callsSetTimestampWithoutCalendar()
+            throws TypeCastException, SQLException
+    {
+        new TimestampDataType().setSqlValue(1234L, 1, mockedStatement);
+
+        verify(mockedStatement).setTimestamp(eq(1), any(Timestamp.class));
+        verify(mockedStatement, never()).setTimestamp(anyInt(),
+                any(Timestamp.class), any(Calendar.class));
+    }
+
+    @Test
+    void testSetSqlValue_withNullValue_callsSetTimestampWithNullTimestamp()
+            throws TypeCastException, SQLException
+    {
+        final ArgumentCaptor<Timestamp> tsCaptor =
+                ArgumentCaptor.forClass(Timestamp.class);
+
+        new TimestampDataType().setSqlValue(null, 1, mockedStatement);
+
+        verify(mockedStatement).setTimestamp(eq(1), tsCaptor.capture());
+        assertThat(tsCaptor.getValue()).as("timestamp for null input should be null.").isNull();
+        verify(mockedStatement, never()).setTimestamp(anyInt(),
+                any(Timestamp.class), any(Calendar.class));
+    }
+
+    @Test
+    void testSetSqlValue_withDateOnlyString_callsSetTimestampWithoutCalendar()
+            throws TypeCastException, SQLException
+    {
+        new TimestampDataType().setSqlValue("2024-03-31", 1, mockedStatement);
+
+        verify(mockedStatement).setTimestamp(eq(1), any(Timestamp.class));
+        verify(mockedStatement, never()).setTimestamp(anyInt(),
+                any(Timestamp.class), any(Calendar.class));
+    }
+
+    @Test
+    void testSetSqlValue_withRelativeSyntaxString_callsSetTimestampWithoutCalendar()
+            throws TypeCastException, SQLException
+    {
+        new TimestampDataType().setSqlValue("[NOW]", 1, mockedStatement);
+
+        verify(mockedStatement).setTimestamp(eq(1), any(Timestamp.class));
+        verify(mockedStatement, never()).setTimestamp(anyInt(),
+                any(Timestamp.class), any(Calendar.class));
+    }
+
+    @Test
+    void testSetSqlValue_withTimeObject_callsSetTimestampWithoutCalendar()
+            throws TypeCastException, SQLException
+    {
+        new TimestampDataType().setSqlValue(new java.sql.Time(1234), 1,
+                mockedStatement);
+
+        verify(mockedStatement).setTimestamp(eq(1), any(Timestamp.class));
+        verify(mockedStatement, never()).setTimestamp(anyInt(),
+                any(Timestamp.class), any(Calendar.class));
+    }
+
+    @Test
+    void testSetSqlValue_withNonZeroMinutesOffsetString_callsSetTimestampWithMatchingCalendar()
+            throws TypeCastException, SQLException
+    {
+        final ArgumentCaptor<Calendar> calCaptor =
+                ArgumentCaptor.forClass(Calendar.class);
+
+        new TimestampDataType().setSqlValue("2021-06-26 18:42:50.900 +0530", 1,
+                mockedStatement);
+
+        verify(mockedStatement).setTimestamp(eq(1), any(Timestamp.class),
+                calCaptor.capture());
+        assertThat(calCaptor.getValue().getTimeZone().getRawOffset())
+                .as("calendar timezone raw offset for GMT+05:30.")
+                .isEqualTo((5 * 60 + 30) * 60 * 1000);
+    }
+
+    @Test
+    void testSetSqlValue_withDateOnlyStringAndTimezone_callsSetTimestampWithCalendar()
+            throws TypeCastException, SQLException
+    {
+        final ArgumentCaptor<Calendar> calCaptor =
+                ArgumentCaptor.forClass(Calendar.class);
+
+        new TimestampDataType().setSqlValue("2013-01-27 +0000", 1,
+                mockedStatement);
+
+        verify(mockedStatement).setTimestamp(eq(1), any(Timestamp.class),
+                calCaptor.capture());
+        assertThat(calCaptor.getValue().getTimeZone().getRawOffset())
+                .as("calendar timezone raw offset for GMT+00:00.")
+                .isZero();
+    }
+
+    @Test
+    void testSetSqlValue_withTimezoneString_passesTypeCastResultAsTimestamp()
+            throws TypeCastException, SQLException
+    {
+        final String tsString = "2013-01-27 01:22:41.900 +0100";
+        final TimestampDataType type = new TimestampDataType();
+        final Timestamp expectedTs = (Timestamp) type.typeCast(tsString);
+        final ArgumentCaptor<Timestamp> tsCaptor =
+                ArgumentCaptor.forClass(Timestamp.class);
+
+        type.setSqlValue(tsString, 1, mockedStatement);
+
+        verify(mockedStatement).setTimestamp(eq(1), tsCaptor.capture(),
+                any(Calendar.class));
+        assertThat(tsCaptor.getValue())
+                .as("timestamp passed to setTimestamp should match typeCast result.")
+                .isEqualTo(expectedTs);
+    }
+
+    @Test
+    void testSetSqlValue_withNoValue_callsSetTimestampWithNull()
+            throws TypeCastException, SQLException
+    {
+        final ArgumentCaptor<Timestamp> tsCaptor =
+                ArgumentCaptor.forClass(Timestamp.class);
+
+        new TimestampDataType().setSqlValue(ITable.NO_VALUE, 1, mockedStatement);
+
+        verify(mockedStatement).setTimestamp(eq(1), tsCaptor.capture());
+        assertThat(tsCaptor.getValue())
+                .as("ITable.NO_VALUE should result in a null Timestamp.")
+                .isNull();
+        verify(mockedStatement, never()).setTimestamp(anyInt(),
+                any(Timestamp.class), any(Calendar.class));
+    }
+
+    @Test
+    void testCompare_withSameMomentInDifferentTimezones_returnsZero()
+            throws Exception
+    {
+        final String ts1 = "2013-01-27 01:22:41.900 +0100";
+        final String ts2 = "2013-01-27 00:22:41.900 +0000";
+        assertThat(THIS_TYPE.compare(ts1, ts2))
+                .as("same moment expressed in UTC+1 and UTC should compare equal.")
+                .isZero();
+    }
+
+    @Test
+    void testCompare_withDifferentMomentsInDifferentTimezones_returnsNonZero()
+            throws Exception
+    {
+        final String earlier = "2013-01-27 01:22:41.900 +0100";
+        final String later = "2013-01-27 01:22:41.900 +0000";
+        assertThat(THIS_TYPE.compare(earlier, later))
+                .as("UTC+1 wall-clock time is 1 hour earlier than same wall-clock in UTC.")
+                .isNegative();
+    }
+
+    @Test
+    void testCompare_withNullAndTimezoneString_returnsNegative() throws Exception
+    {
+        assertThat(THIS_TYPE.compare(null, "2013-01-27 01:22:41.900 +0100"))
+                .as("null should compare less than a non-null timezone-aware timestamp.")
+                .isNegative();
+    }
+
+    @Test
+    void testCompare_withTimestampAndEquivalentTimezoneString_returnsZero()
+            throws Exception
+    {
+        final Timestamp ts = makeTimestamp(2013, 0, 27, 1, 22, 41, 900, "GMT+01:00");
+        final String tsStr = "2013-01-27 01:22:41.900 +0100";
+        assertThat(THIS_TYPE.compare(ts, tsStr))
+                .as("Timestamp and its equivalent timezone string should compare equal.")
+                .isZero();
     }
 }

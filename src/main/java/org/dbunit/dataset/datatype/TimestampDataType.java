@@ -29,6 +29,7 @@ import java.sql.Timestamp;
 import java.sql.Types;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
+import java.util.Calendar;
 import java.util.TimeZone;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -205,7 +206,42 @@ public class TimestampDataType extends AbstractDataType
     {
         logger.debug("setSqlValue(value={}, column={}, statement={}) - start",
                 value, column, statement);
+        final Timestamp ts = (Timestamp) typeCast(value);
+        if (value instanceof String)
+        {
+            final String stringValue = (String) value;
+            setSqlValueFromString(stringValue, column, statement, ts);
+        } else
+        {
+            statement.setTimestamp(column, ts);
+        }
+    }
 
-        statement.setTimestamp(column, (java.sql.Timestamp) typeCast(value));
+    private void setSqlValueFromString(final String value, final int column,
+            final PreparedStatement statement, final Timestamp ts)
+            throws SQLException
+    {
+        final Matcher timezoneMatcher = TIMEZONE_REGEX.matcher(value);
+        if (timezoneMatcher.matches() && timezoneMatcher.group(2) != null)
+        {
+            final Calendar cal = makeCalendar(timezoneMatcher);
+            statement.setTimestamp(column, ts, cal);
+        } else
+        {
+            statement.setTimestamp(column, ts);
+        }
+    }
+
+    private Calendar makeCalendar(final Matcher timezoneMatcher)
+    {
+        final String zoneValue = timezoneMatcher.group(2);
+        final String sign = zoneValue.substring(0, 1);
+        final int hours = Integer.parseInt(zoneValue.substring(1, 3));
+        final int minutes = Integer.parseInt(zoneValue.substring(3, 5));
+        final String timezoneId =
+                String.format("GMT%s%02d:%02d", sign, hours, minutes);
+        final TimeZone timeZone = TimeZone.getTimeZone(timezoneId);
+        final Calendar cal = Calendar.getInstance(timeZone);
+        return cal;
     }
 }
