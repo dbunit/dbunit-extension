@@ -41,6 +41,7 @@ import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.csv.CsvDataSetWriter;
 import org.dbunit.dataset.excel.XlsDataSet;
 import org.dbunit.dataset.filter.ITableFilter;
+import org.dbunit.dataset.json.JsonDataSet;
 import org.dbunit.dataset.xml.FlatDtdDataSet;
 import org.dbunit.dataset.xml.FlatXmlWriter;
 import org.dbunit.dataset.xml.XmlDataSet;
@@ -137,7 +138,7 @@ public class Export extends AbstractStep
         }
         else
         {
-            throw new IllegalArgumentException("Type must be one of: 'flat'(default), 'xml', 'dtd', 'csv', 'xls' or 'yml' but was: " + format);
+            throw new IllegalArgumentException("Type must be one of: 'flat'(default), 'xml', 'dtd', 'csv', 'xls', 'yml' or 'json' but was: " + format);
         }
     }
 
@@ -148,7 +149,8 @@ public class Export extends AbstractStep
                 || format.equalsIgnoreCase(FORMAT_DTD)
                 || format.equalsIgnoreCase(FORMAT_CSV)
                 || format.equalsIgnoreCase(FORMAT_XLS)
-                || format.equalsIgnoreCase(FORMAT_YML);
+                || format.equalsIgnoreCase(FORMAT_YML)
+                || format.equalsIgnoreCase(FORMAT_JSON);
     }
 
     /**
@@ -279,6 +281,10 @@ public class Export extends AbstractStep
                     else if (_format.equalsIgnoreCase(FORMAT_YML))
                     {
                         YamlDataSet.write(dataset, out);
+                    }
+                    else if (_format.equalsIgnoreCase(FORMAT_JSON))
+                    {
+                        JsonDataSet.write(dataset, out);
                     }
                     else
                     {

@@ -70,8 +70,9 @@ programmatic/live sources, then the decorators that wrap any `IDataSet`/
 |link:datasets/flatxml.html[Flat XML] |`FlatXmlDataSet` — one XML element per row, the most commonly used file format.
 |link:datasets/xml.html[XML] |`XmlDataSet` — the original, more verbose XML format.
 |link:datasets/csv.html[CSV] |`CsvDataSet` — one CSV file per table, plus a `table-ordering.txt` manifest.
-|link:datasets/excel.html[Excel (XLS)] |`XlsDataSet` — one sheet per table.
+|link:datasets/json.html[JSON] |`JsonDataSet` — one top-level key per table, values as row-object arrays.
 |link:datasets/yaml.html[YAML] |`YamlDataSet` — one top-level key per table.
+|link:datasets/excel.html[Excel (XLS)] |`XlsDataSet` — one sheet per table.
 |link:datasets/sqlloader.html[SQL*Loader] |`SqlLoaderControlDataSet` — builds a dataset from Oracle SQL*Loader control files.
 |link:datasets/query.html[Query-Based] |`QueryDataSet` — tables populated from arbitrary SQL queries against a live connection.
 |link:datasets/streaming.html[Streaming Datasets] |`StreamingDataSet` — forward-only, low-memory access over a producer.

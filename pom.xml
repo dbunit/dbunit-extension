@@ -51,6 +51,7 @@
     <assertjCoreVersion>3.27.7</assertjCoreVersion>
     <checkstyleVersion>13.3.0</checkstyleVersion>
     <gsbaseVersion>2.0.1</gsbaseVersion>
+    <jacksonDatabindVersion>2.18.2</jacksonDatabindVersion>
     <jclOverSlf4jVersion>2.0.18</jclOverSlf4jVersion>
     <junitVersion>6.1.2</junitVersion>
     <logbackClassicVersion>1.6.1</logbackClassicVersion>
@@ -479,6 +480,11 @@
         <version>${mockitoVersion}</version>
       </dependency>
       <dependency>
+        <groupId>com.fasterxml.jackson.core</groupId>
+        <artifactId>jackson-databind</artifactId>
+        <version>${jacksonDatabindVersion}</version>
+      </dependency>
+      <dependency>
         <groupId>org.yaml</groupId>
         <artifactId>snakeyaml</artifactId>
         <version>${snakeyamlVersion}</version>
@@ -568,6 +574,11 @@
       <groupId>org.mockito</groupId>
       <artifactId>mockito-junit-jupiter</artifactId>
       <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+      <optional>true</optional>
     </dependency>
     <dependency>
       <groupId>org.yaml</groupId>

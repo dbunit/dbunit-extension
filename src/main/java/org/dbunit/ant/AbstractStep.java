@@ -40,6 +40,7 @@ import org.dbunit.dataset.ForwardOnlyDataSet;
 import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.csv.CsvProducer;
 import org.dbunit.dataset.excel.XlsDataSet;
+import org.dbunit.dataset.json.JsonProducer;
 import org.dbunit.dataset.stream.IDataSetProducer;
 import org.dbunit.dataset.stream.StreamingDataSet;
 import org.dbunit.dataset.xml.FlatDtdProducer;
@@ -79,6 +80,8 @@ public abstract class AbstractStep extends ProjectComponent implements DbUnitTas
     public static final String FORMAT_XLS = "xls";
     /** YAML data format identifier. */
     public static final String FORMAT_YML = "yml";
+    /** JSON data format identifier. */
+    public static final String FORMAT_JSON = "json";
 
     private boolean ordered = false;
 
@@ -226,9 +229,18 @@ public abstract class AbstractStep extends ProjectComponent implements DbUnitTas
             {
                 return new CachedDataSet(new YamlProducer(src), true);
             }
+            else if (format.equalsIgnoreCase(FORMAT_JSON))
+            {
+                final IDataSetProducer jsonProducer = new JsonProducer(src);
+                if (forwardonly)
+                {
+                    return new StreamingDataSet(jsonProducer);
+                }
+                return new CachedDataSet(jsonProducer, true);
+            }
             else
             {
-                throw new IllegalArgumentException("Type must be either 'flat'(default), 'xml', 'csv', 'xls', 'yml' or 'dtd' but was: " + format);
+                throw new IllegalArgumentException("Type must be either 'flat'(default), 'xml', 'csv', 'xls', 'yml', 'json' or 'dtd' but was: " + format);
             }
 
             if (forwardonly)
@@ -260,7 +272,8 @@ public abstract class AbstractStep extends ProjectComponent implements DbUnitTas
                 || format.equalsIgnoreCase(FORMAT_XML)
                 || format.equalsIgnoreCase(FORMAT_CSV)
                 || format.equalsIgnoreCase(FORMAT_XLS)
-                || format.equalsIgnoreCase(FORMAT_YML);
+                || format.equalsIgnoreCase(FORMAT_YML)
+                || format.equalsIgnoreCase(FORMAT_JSON);
     }
 
     /**
@@ -278,7 +291,7 @@ public abstract class AbstractStep extends ProjectComponent implements DbUnitTas
 
         if (!isDataFormat(format))
         {
-            throw new IllegalArgumentException("format must be either 'flat'(default), 'xml', 'csv', 'xls' or 'yml' but was: " + format);
+            throw new IllegalArgumentException("format must be either 'flat'(default), 'xml', 'csv', 'xls', 'yml' or 'json' but was: " + format);
         }
     }
 

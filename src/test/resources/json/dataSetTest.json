@@ -1,0 +1,28 @@
+{
+  "TEST_TABLE": [
+    {"COLUMN0": "row 0 col 0", "COLUMN1": "row 0 col 1", "COLUMN2": "row 0 col 2", "COLUMN3": "row 0 col 3"},
+    {"COLUMN0": "row 1 col 0", "COLUMN1": "row 1 col 1", "COLUMN2": "row 1 col 2", "COLUMN3": "row 1 col 3"},
+    {"COLUMN0": "row 2 col 0", "COLUMN1": "row 2 col 1", "COLUMN2": "row 2 col 2", "COLUMN3": "row 2 col 3"},
+    {"COLUMN0": "row 3 col 0", "COLUMN1": "row 3 col 1", "COLUMN2": "row 3 col 2", "COLUMN3": "row 3 col 3"},
+    {"COLUMN0": "row 4 col 0", "COLUMN1": "row 4 col 1", "COLUMN2": "row 4 col 2", "COLUMN3": "row 4 col 3"},
+    {"COLUMN0": "row 5 col 0", "COLUMN1": "row 5 col 1", "COLUMN2": "row 5 col 2", "COLUMN3": "row 5 col 3"}
+  ],
+  "SECOND_TABLE": [
+    {"COLUMN0": "row 0 col 0", "COLUMN1": "row 0 col 1", "COLUMN2": "row 0 col 2", "COLUMN3": "row 0 col 3"},
+    {"COLUMN0": "row 1 col 0", "COLUMN1": "row 1 col 1", "COLUMN2": "row 1 col 2", "COLUMN3": "row 1 col 3"},
+    {"COLUMN0": "row 2 col 0", "COLUMN1": "row 2 col 1", "COLUMN2": "row 2 col 2", "COLUMN3": "row 2 col 3"},
+    {"COLUMN0": "row 3 col 0", "COLUMN1": "row 3 col 1", "COLUMN2": "row 3 col 2", "COLUMN3": "row 3 col 3"},
+    {"COLUMN0": "row 4 col 0", "COLUMN1": "row 4 col 1", "COLUMN2": "row 4 col 2", "COLUMN3": "row 4 col 3"},
+    {"COLUMN0": "row 5 col 0", "COLUMN1": "row 5 col 1", "COLUMN2": "row 5 col 2", "COLUMN3": "row 5 col 3"}
+  ],
+  "EMPTY_TABLE": [],
+  "PK_TABLE": [
+    {"PK0": 0, "PK1": 0, "PK2": 0, "NORMAL0": "row 0", "NORMAL1": "0 wor"},
+    {"PK0": 1, "PK1": 1, "PK2": 1, "NORMAL0": "row 1", "NORMAL1": "1 wor"},
+    {"PK0": 2, "PK1": 2, "PK2": 2, "NORMAL0": "row 2", "NORMAL1": "2 wor"}
+  ],
+  "ONLY_PK_TABLE": [
+    {"PK0": 0}
+  ],
+  "EMPTY_MULTITYPE_TABLE": []
+}
