@@ -31,10 +31,10 @@ We will gladly help you as needed with your ideas and contributions and look to 
 |Date |News
 
 |TBD
-|Please try the 3.1.1-SNAPSHOT snapshot build and let us know how it works!
-Refer to the link:changes.html#a3.1.1-SNAPSHOT[changes report],
-the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.1.1+label%3Aenhancement[feature list],
-and the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.1.1+label%3Abug[bug list]
+|Please try the 3.2.0-SNAPSHOT snapshot build and let us know how it works!
+Refer to the link:changes.html#a3.2.0-SNAPSHOT[changes report],
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.2.0+label%3Aenhancement[feature list],
+and the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.2.0+label%3Abug[bug list]
 for the snapshot contents (and any subsequent updates).
 
 |2026-05-11
