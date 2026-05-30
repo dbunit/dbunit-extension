@@ -33,48 +33,48 @@ We will gladly help you as needed with your ideas and contributions and look to 
 |TBD
 |Please try the 3.2.0-SNAPSHOT snapshot build and let us know how it works!
 Refer to the link:changes.html#a3.2.0-SNAPSHOT[changes report],
-the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.2.0+label%3Aenhancement[feature list],
-and the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.2.0+label%3Abug[bug list]
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.2.0%20type%3AFeature[feature list],
+and the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.2.0%20type%3ABug[bug list]
 for the snapshot contents (and any subsequent updates).
 
 |2026-05-11
-|Release 3.1.0 available. Refer to the link:changes.html#a3.1.0[changes report], the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.1.0+label%3Aenhancement[feature list], and the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.1.0+label%3Abug[bug list] for the release contents.
+|Release 3.1.0 available. Refer to the link:changes.html#a3.1.0[changes report], the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.1.0%20type%3AFeature[feature list], and the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.1.0%20type%3ABug[bug list] for the release contents.
 
 |2025-01-25
-|Release 3.0.0 available. Refer to the link:changes.html#a3.0.0[changes report], the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.0.0+label%3Aenhancement[feature list], and the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.0.0+label%3Abug[bug list] for the release contents.
+|Release 3.0.0 available. Refer to the link:changes.html#a3.0.0[changes report], the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.0.0%20type%3AFeature[feature list], and the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.0.0%20type%3ABug[bug list] for the release contents.
 
 |2024-06-02
-|Release 2.8.0 available. Refer to the link:changes.html#a2.8.0[changes report], the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.8.0+label%3Aenhancement[feature list], and the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.8.0+label%3Abug[bug list] for the release contents.
+|Release 2.8.0 available. Refer to the link:changes.html#a2.8.0[changes report], the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.8.0%20type%3AFeature[feature list], and the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.8.0%20type%3ABug[bug list] for the release contents.
 
 |2022-02-12
-|Release 2.7.3 available. Refer to the link:changes.html#a2.7.3[changes report], the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.7.3+label%3Aenhancement[feature list], and the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.7.3+label%3Abug[bug list] for the release contents.
+|Release 2.7.3 available. Refer to the link:changes.html#a2.7.3[changes report], the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.7.3%20type%3AFeature[feature list], and the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.7.3%20type%3ABug[bug list] for the release contents.
 
 |2021-07-25
-|Release 2.7.2 available. Refer to the link:changes.html#a2.7.2[changes report], the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.7.2+label%3Aenhancement[feature list], and the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.7.2+label%3Abug[bug list] for the release contents.
+|Release 2.7.2 available. Refer to the link:changes.html#a2.7.2[changes report], the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.7.2%20type%3AFeature[feature list], and the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.7.2%20type%3ABug[bug list] for the release contents.
 
 |2021-07-22
-|Release 2.7.1 available. Refer to the link:changes.html#a2.7.1[changes report], the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.7.1+label%3Aenhancement[feature list], and the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.7.1+label%3Abug[bug list] for the release contents.
+|Release 2.7.1 available. Refer to the link:changes.html#a2.7.1[changes report], the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.7.1%20type%3AFeature[feature list], and the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.7.1%20type%3ABug[bug list] for the release contents.
 
 |2020-02-23
-|Release 2.7.0 available. Refer to the link:changes.html#a2.7.0[changes report], the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.7.0+label%3Aenhancement[feature list], and the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.7.0+label%3Abug[bug list] for the release contents.
+|Release 2.7.0 available. Refer to the link:changes.html#a2.7.0[changes report], the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.7.0%20type%3AFeature[feature list], and the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.7.0%20type%3ABug[bug list] for the release contents.
 
 |2018-10-14
-|Release 2.6.0 available. Refer to the link:changes.html#a2.6.0[changes report], the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.6.0+label%3Aenhancement[feature list], and the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.6.0+label%3Abug[bug list] for the release contents.
+|Release 2.6.0 available. Refer to the link:changes.html#a2.6.0[changes report], the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.6.0%20type%3AFeature[feature list], and the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.6.0%20type%3ABug[bug list] for the release contents.
 
 |2017-08-20
-|Release 2.5.4 available. Refer to the link:changes.html#a2.5.4[changes report], the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.5.4+label%3Aenhancement[feature list], and the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.5.4+label%3Abug[bug list] for the release contents.
+|Release 2.5.4 available. Refer to the link:changes.html#a2.5.4[changes report], the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.5.4%20type%3AFeature[feature list], and the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.5.4%20type%3ABug[bug list] for the release contents.
 
 |2016-08-21
-|Release 2.5.3 available. Refer to the link:changes.html#a2.5.3[changes report], the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.5.3+label%3Aenhancement[feature list], and the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.5.3+label%3Abug[bug list] for the release contents.
+|Release 2.5.3 available. Refer to the link:changes.html#a2.5.3[changes report], the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.5.3%20type%3AFeature[feature list], and the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.5.3%20type%3ABug[bug list] for the release contents.
 
 |2016-04-08
-|Release 2.5.2 available. Refer to the link:changes.html#a2.5.2[changes report], the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.5.2+label%3Aenhancement[feature list], and the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.5.2+label%3Abug[bug list] for the release contents.
+|Release 2.5.2 available. Refer to the link:changes.html#a2.5.2[changes report], the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.5.2%20type%3AFeature[feature list], and the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.5.2%20type%3ABug[bug list] for the release contents.
 
 |2015-04-11
-|Release 2.5.1 available. Refer to the link:changes.html#a2.5.1[changes report], the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.5.1+label%3Aenhancement[feature list], and the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.5.1+label%3Abug[bug list] for the release contents.
+|Release 2.5.1 available. Refer to the link:changes.html#a2.5.1[changes report], the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.5.1%20type%3AFeature[feature list], and the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.5.1%20type%3ABug[bug list] for the release contents.
 
 |2014-04-24
-|Release 2.5.0 available. Refer to the link:changes.html#a2.5.0[changes report], the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.5.0+label%3Aenhancement[feature list], and the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.5.0+label%3Abug[bug list] for the release contents.
+|Release 2.5.0 available. Refer to the link:changes.html#a2.5.0[changes report], the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.5.0%20type%3AFeature[feature list], and the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.5.0%20type%3ABug[bug list] for the release contents.
 
 |2012-09-30
 |Release 2.4.9 available. Refer to the link:changes.html#a2.4.9[changes report] for the release contents.
