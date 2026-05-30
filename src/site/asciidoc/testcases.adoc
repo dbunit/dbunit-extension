@@ -22,6 +22,10 @@ that predate this recommendation; see
 link:testcases/MigratingToIDatabaseTester.html[Migrating to IDatabaseTester]
 if you want to convert an existing `DBTestCase` subclass.
 
+On JUnit 5/6 (Jupiter), composition users can also skip writing the
+`@BeforeEach`/`@AfterEach` lifecycle calls entirely — see
+link:testcases/DbUnitExtension.html[DbUnitExtension].
+
 Whichever style you choose,
 link:testcases/PrepAndExpectedTestCase.html[PrepAndExpectedTestCase] is
 usually a better starting point than driving either one directly — it

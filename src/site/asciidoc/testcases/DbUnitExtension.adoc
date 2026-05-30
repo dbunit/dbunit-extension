@@ -1,0 +1,67 @@
+= DbUnitExtension
+Jeff Jensen
+
+== Overview
+
+link:/dbunit/apidocs/org/dbunit/junit/jupiter/DbUnitExtension.html[DbUnitExtension]
+is a JUnit 5/6 (Jupiter) extension that drives the
+link:IDatabaseTester.html[IDatabaseTester] setup/teardown lifecycle
+automatically, so a test class doesn't need its own `@BeforeEach`/`@AfterEach`
+pair calling `onSetup()`/`onTearDown()`.
+
+Register it with `@ExtendWith(DbUnitExtension.class)`. The test class still
+holds its own `IDatabaseTester` field — this is the same composition style as
+link:IDatabaseTester.html[the IDatabaseTester guide], just with the lifecycle
+calls automated instead of written by hand:
+
+[source,java]
+----
+@ExtendWith(DbUnitExtension.class)
+class AccountRepositoryTest
+{
+    IDatabaseTester databaseTester =
+            new JdbcDatabaseTester("org.h2.Driver", "jdbc:h2:mem:example;DB_CLOSE_DELAY=-1");
+
+    @BeforeEach
+    void loadDataset() throws Exception
+    {
+        databaseTester.setDataSet(new FlatXmlDataSetBuilder().build(new File("prep.xml")));
+        databaseTester.setTearDownOperation(DatabaseOperation.DELETE_ALL);
+    }
+
+    @Test
+    void testWithdraw_sufficientBalance_decrementsBalance() { ... }
+}
+----
+
+`@BeforeEach` methods still run first — configure the dataset and any
+operation overrides there. The extension then calls `onSetup()` immediately
+before the test method and `onTearDown()` immediately after it, even if the
+test method fails or `onSetup()` itself throws.
+
+== Field Discovery
+
+The extension finds the `IDatabaseTester` by scanning the test instance's
+fields, including inherited ones:
+
+* The nearest declaring class wins — a field on the test class itself takes
+  precedence over one on a superclass.
+* That class must declare exactly one non-static field assignable to
+  `IDatabaseTester`. No match anywhere in the hierarchy, or two-or-more
+  matches at the same class level, both fail fast with a descriptive
+  `IllegalStateException` rather than guessing.
+* Static fields are ignored.
+* Private fields are found; the field's own access modifier doesn't matter.
+
+NOTE: `@Nested` test classes are not supported — field discovery only walks
+the innermost test instance and its superclasses, not enclosing class
+instances, since a Java nested class does not extend its enclosing class.
+
+== When to Use This Instead of Manual Lifecycle Calls
+
+Reach for `DbUnitExtension` when a `@BeforeEach`/`@AfterEach` pair that only
+calls `onSetup()`/`onTearDown()` (as shown in link:IDatabaseTester.html[the
+IDatabaseTester guide]) would just be boilerplate repeated across every test
+class. Write the `@BeforeEach`/`@AfterEach` pair yourself instead when a test
+needs other logic around those calls, or targets a JUnit version this
+extension doesn't support.
