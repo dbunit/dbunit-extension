@@ -13,7 +13,7 @@
   </properties>
 
   <body>
-    <release version="3.2.0-SNAPSHOT" date="TBD" description="GH action updates, extract UTs from ITs, rename test methods, add DataSetBuilder, improve test infra, improve UT coverage, bump HSQLDB, improve IT coverage, fix table lookup with case-sensitive databases, fix metadata table name lookups, convert UTs to ITs, OracleSdoGeometryDataType test coverage, fix ScrollableResultSetTable, document profile unsupportedFeatures, correct profile unsupportedFeatures, configure DB2, fix SQLHelper NPE, fix TruncateTableOperation for DB2">
+    <release version="3.2.0-SNAPSHOT" date="TBD" description="GH action updates, extract UTs from ITs, rename test methods, add DataSetBuilder, improve test infra, improve UT coverage, bump HSQLDB, improve IT coverage, fix table lookup with case-sensitive databases, fix metadata table name lookups, convert UTs to ITs, OracleSdoGeometryDataType test coverage, fix ScrollableResultSetTable, document profile unsupportedFeatures, correct profile unsupportedFeatures, configure DB2, fix SQLHelper NPE, fix TruncateTableOperation for DB2, add JUnit 5/6 extension">
       <!-- dependabot:dep=actions/deploy-pages:new=5:pr=27 -->
       <action dev="dependabot" type="update" due-to="Dependabot">Update github_actions dependency actions/deploy-pages from 4 to 5 (#27).</action>
       <!-- dependabot:dep=actions/setup-java:new=5:pr=27 -->
@@ -41,6 +41,7 @@
       <action dev="jeffjensen" type="fix" issue="745" system="github" due-to="jeffjensen">Fix NullPointerException in SQLHelper.schemaExists() and catalogExists() when the JDBC driver returns null TABLE_SCHEM or TABLE_CAT values, as DB2 does.</action>
       <action dev="jeffjensen" type="fix" issue="746" system="github" due-to="jeffjensen">Fix TruncateTableOperation for DB2: add protected getDeleteAllCommandSuffix hook to DeleteAllOperation and override it in TruncateTableOperation to append IMMEDIATE, which DB2 requires in every TRUNCATE TABLE statement.</action>
       <action dev="jeffjensen" type="fix" issue="711" system="github" due-to="jeffjensen">Fix TimestampDataType.setSqlValue() to pass a Calendar matching the dataset timezone offset when setting a timestamp with timezone info, preventing the JDBC driver from applying the JVM local timezone and storing the wrong wall-clock time.</action>
+      <action dev="jeffjensen" type="add" issue="TBD" system="github" due-to="jeffjensen">Add DbUnitExtension, a JUnit 5/6 extension that manages IDatabaseTester lifecycle via BeforeTestExecutionCallback and AfterTestExecutionCallback, enabling composition-based DbUnit tests without subclassing DatabaseTestCase.</action>
     </release>
     <release version="3.1.0" date="May 11, 2026" description="Lower DefaultPrepAndExpectedTestCase log levels, build DB config, GitHub CI, reproducible builds, change to Central Portal publishing, IsActualGreaterThanExpectedWithIgnoreMillisValueComparer, IsActualGreaterThanOrEqualToExpectedWithIgnoreMillisValueComparer, GitHub config, convert docs to Asciidoc, version bumps, DefaultPrepAndExpectedTestCase.runTestSteps(), auto-publish SNAPSHOTS">
       <action dev="jeffjensen" type="add" issue="717" system="github" due-to="jeffjensen">Configure GitHub CI.</action>
