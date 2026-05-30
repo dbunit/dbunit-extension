@@ -25,8 +25,10 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.mockito.Mockito.when;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.lang.reflect.Field;
 
+import org.dbunit.Assertion;
 import org.dbunit.database.DatabaseConfig;
 import org.dbunit.database.IDatabaseConnection;
 import org.dbunit.dataset.Column;
@@ -34,6 +36,7 @@ import org.dbunit.dataset.DefaultDataSet;
 import org.dbunit.dataset.DefaultTable;
 import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.datatype.DataType;
+import org.dbunit.dataset.json.JsonDataSet;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
@@ -67,6 +70,30 @@ class ExportTest
                         + " destination directory even when the format"
                         + " attribute is given in upper case.")
                 .exists();
+    }
+
+    @Test
+    void testExecute_withJsonFormat_writesJsonOutput(
+            @TempDir final File tempDir) throws Exception
+    {
+        stubConnection();
+
+        final File dest = new File(tempDir, "json-out.json");
+        final Export export = new Export();
+        export.setFormat("json");
+        export.setDest(dest);
+
+        export.execute(connection);
+
+        assertThat(dest)
+                .as("JSON export must create the destination file.")
+                .exists();
+        final IDataSet actualDataSet;
+        try (FileInputStream in = new FileInputStream(dest))
+        {
+            actualDataSet = new JsonDataSet(in);
+        }
+        Assertion.assertEquals(buildDataSet(), actualDataSet);
     }
 
     @Test

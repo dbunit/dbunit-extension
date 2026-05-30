@@ -36,6 +36,7 @@ A few — `ITable`, `VerifyTableDefinition`, `IOperationListener`, and
 |anchor:xmldataset[]anchor:originalxmlsample[]`XmlDataSet` |link:datasets/xml.html[XML] — the original, more verbose XML format.
 |anchor:csvdataset[]`CsvDataSet` |link:datasets/csv.html[CSV] — one CSV file per table, plus a `table-ordering.txt` manifest.
 |anchor:xlsdataset[]`XlsDataSet` |link:datasets/excel.html[Excel (XLS)] — one sheet per table.
+|anchor:jsondataset[]`JsonDataSet` |link:datasets/json.html[JSON] — one top-level key per table, values as row-object arrays.
 |anchor:yamldataset[]`YamlDataSet` |link:datasets/yaml.html[YAML] — one top-level key per table.
 |`SqlLoaderControlDataSet` |link:datasets/sqlloader.html[SQL*Loader] — builds a dataset from Oracle SQL*Loader control files.
 |anchor:querydataset[]`QueryDataSet` |link:datasets/query.html[Query-Based] — tables populated from arbitrary SQL queries.

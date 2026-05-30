@@ -1,0 +1,19 @@
+{
+  "TEST_TABLE": [
+    {"COLUMN0": "row 0 col 0", "COLUMN1": "row 0 col 1", "COLUMN2": "row 0 col 2", "COLUMN3": "row 0 col 3"},
+    {"COLUMN0": "row 1 col 0", "COLUMN1": "row 1 col 1", "COLUMN2": "row 1 col 2", "COLUMN3": "row 1 col 3"},
+    {"COLUMN0": "row 2 col 0", "COLUMN1": "row 2 col 1", "COLUMN2": "row 2 col 2", "COLUMN3": "row 2 col 3"},
+    {"COLUMN0": "row 3 col 0", "COLUMN1": "row 3 col 1", "COLUMN2": "row 3 col 2", "COLUMN3": "row 3 col 3"},
+    {"COLUMN0": "row 4 col 0", "COLUMN1": "row 4 col 1", "COLUMN2": "row 4 col 2", "COLUMN3": "row 4 col 3"},
+    {"COLUMN0": "row 5 col 0", "COLUMN1": "row 5 col 1", "COLUMN2": "row 5 col 2", "COLUMN3": "row 5 col 3"}
+  ],
+  "MISSING_VALUES": [
+    {"COLUMN0": "row 0 col 0"},
+    {"COLUMN1": "row 1 col 1"},
+    {"COLUMN2": "row 2 col 2"}
+  ],
+  "NULL_ROW": [
+    null,
+    {"COLUMN0": "row 1 col 0"}
+  ]
+}

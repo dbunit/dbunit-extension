@@ -1,0 +1,73 @@
+= JSON
+
+link:/dbunit/apidocs/org/dbunit/dataset/json/JsonDataSet.html[JsonDataSet]
+reads and writes JSON dataset documents.
+Each top-level key corresponds to a table, where the value is an array of row objects.
+Each row is a JSON object of column:value pairs.
+
+JSON dataset document sample:
+
+[source,json]
+----
+{
+  "TEST_TABLE": [
+    {"COL0": "row 0 col 0", "COL1": "row 0 col 1", "COL2": "row 0 col 2"},
+    {"COL1": "row 1 col 1"}
+  ],
+  "SECOND_TABLE": [
+    {"COL0": "row 0 col 0", "COL1": "row 0 col 1"}
+  ],
+  "EMPTY_TABLE": []
+}
+----
+
+To specify null values, just omit the corresponding column key.
+In the above example, the missing COL0 and COL2 keys of TEST_TABLE's second row represent
+null values. Writing a dataset is the mirror image: any column whose value is null is
+omitted from that row's JSON object rather than written as a JSON `null`.
+
+In contrast to link:flatxml.html[Flat XML], table metadata is deduced from
+the sum of all rows for each table, not just the first — so a column that
+first appears on a later row is still picked up.
+
+Because columns are inferred entirely from row content, a table with declared
+columns but zero rows cannot carry that column information through JSON: an
+empty array has no rows to infer columns from, so writing such a table and
+reading it back produces a table with no columns instead. Formats that
+declare columns independently of row content, such as CSV's per-table header
+row, do not have this limitation.
+
+Table names are always case-sensitive — unlike some other formats, there is no
+case-insensitive table lookup fallback.
+
+A table name repeated as a second top-level key throws `AmbiguousTableNameException`
+while the document is being read.
+
+Load a dataset:
+
+[source,java]
+----
+IDataSet dataSet = new JsonDataSet(new File("dataset.json"));
+----
+
+Write a dataset:
+
+[source,java]
+----
+JsonDataSet.write(dataSet, new FileOutputStream("dataset.json"));
+----
+
+== Dependency
+
+dbUnit depends on https://github.com/FasterXML/jackson[Jackson] to read/write JSON
+files, but marks it `optional` so projects that don't use `JsonDataSet` don't pull
+it in. Add it yourself to use this format:
+
+[source,xml]
+----
+<dependency>
+  <groupId>com.fasterxml.jackson.core</groupId>
+  <artifactId>jackson-databind</artifactId>
+  <version>VERSION</version>
+</dependency>
+----
