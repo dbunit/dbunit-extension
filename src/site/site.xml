@@ -64,6 +64,7 @@
       <item name="Getting Started"   href="/howto.html"/>
       <item name="Test Integration"  href="/testcases.html">
         <item name="IDatabaseTester Guide"      href="/testcases/IDatabaseTester.html"/>
+        <item name="DbUnitExtension"            href="/testcases/DbUnitExtension.html"/>
         <item name="PrepAndExpectedTestCase"    href="/testcases/PrepAndExpectedTestCase.html"/>
         <item name="JdbcBasedDBTestCase"        href="/testcases/JdbcBasedDBTestCase.html"/>
         <item name="DataSourceBasedDBTestCase"  href="/testcases/DataSourceBasedDBTestCase.html"/>

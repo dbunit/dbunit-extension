@@ -103,6 +103,7 @@ org.dbunit
 ├── assertion/      DbUnitAssert, ValueComparer implementations
 ├── ext/            Database-specific overrides (db2/, h2/, hsqldb/, mssql/, mysql/, oracle/, postgresql/)
 ├── ant/            Apache Ant task support
+├── junit/jupiter/  DbUnitExtension: JUnit 5/6 (Jupiter) lifecycle integration
 └── util/           SQLHelper, QualifiedTableName, RelativeDateTimeParser, etc.
 ```
 
