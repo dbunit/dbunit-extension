@@ -929,7 +929,7 @@
           <version>${surefirePluginVersion}</version>
           <configuration>
             <skipTests>${surefirePluginSkip}</skipTests>
-            <argLine>-Duser.timezone=${test.timezone}</argLine>
+            <argLine>${argLine} -Duser.timezone=${test.timezone}</argLine>
             <redirectTestOutputToFile>true</redirectTestOutputToFile>
             <excludes>
               <exclude>**/Abstract*.java</exclude>
