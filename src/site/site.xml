@@ -31,8 +31,8 @@
     </head>
 
     <links>
-      <item name="" href="https://github.com/dbunit/dbunit-extension/actions/workflows/build-any-branch-with-all-dbs.yml">
-        <image src="https://github.com/dbunit/dbunit-extension/actions/workflows/build-any-branch-with-all-dbs.yml/badge.svg"/>
+      <item name="main" href="https://github.com/dbunit/dbunit-extension/actions/workflows/build-any-branch-with-all-dbs.yml?query=branch%3Amain">
+        <image src="https://github.com/dbunit/dbunit-extension/actions/workflows/build-any-branch-with-all-dbs.yml/badge.svg?branch=main"/>
       </item>
       <item name="" href="https://github.com/jvm-repo-rebuild/reproducible-central/blob/master/content/org/dbunit/README.md">
         <image src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/jvm-repo-rebuild/reproducible-central/master/content/org/dbunit/badge.json"/>
