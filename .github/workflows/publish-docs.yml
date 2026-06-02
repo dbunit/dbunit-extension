@@ -2,6 +2,12 @@ name: Build and Deploy Maven Site to GitHub Pages
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'src/site/**'
+      - '**/*.adoc'
+      - '**/*.md'
   workflow_run:
     workflows: ["Build any branch with all databases", "Record Dependabot update in changes.xml"]
     types: [completed]
@@ -22,7 +28,7 @@ env:
 
 jobs:
   build-site:
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -33,14 +39,20 @@ jobs:
     - name: Generate Maven site
       run: ${{ env.MAVEN_COMMAND }} ${{ env.MAVEN_CLI_COMMON }} site -Dproject.build.outputTimestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)
     - name: Upload Pages artifact
-      if: github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_run'
+      if: >-
+        github.event_name == 'workflow_dispatch' ||
+        github.event_name == 'push' ||
+        github.event_name == 'workflow_run'
       uses: actions/upload-pages-artifact@v5
       with:
         path: target/site/
 
   deploy:
     needs: build-site
-    if: github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_run'
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'push' ||
+      github.event_name == 'workflow_run'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment:

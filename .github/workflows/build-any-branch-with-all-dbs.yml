@@ -1,6 +1,16 @@
 name: Build any branch with all databases
 
-on: [push, pull_request]
+on:
+  push:
+    paths-ignore:
+      - 'src/site/**'
+      - '**/*.adoc'
+      - '**/*.md'
+  pull_request:
+    paths-ignore:
+      - 'src/site/**'
+      - '**/*.adoc'
+      - '**/*.md'
 
 env:
   MAVEN_COMMAND: ./mvnw
