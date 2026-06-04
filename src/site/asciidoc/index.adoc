@@ -37,6 +37,9 @@ the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+mileston
 and the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.2.0%20type%3ABug[bug list]
 for the snapshot contents (and any subsequent updates).
 
+|2026-05-18
+|After 24 years at SourceForge, DbUnit moved to GitHub in May 2026. Source code, issues, and CI now all live at https://github.com/dbunit/dbunit-extension. Thank you, SourceForge, for 24 years of hosting.
+
 |2026-05-11
 |Release 3.1.0 available. Refer to the link:changes.html#a3.1.0[changes report], the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.1.0%20type%3AFeature[feature list], and the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.1.0%20type%3ABug[bug list] for the release contents.
 
