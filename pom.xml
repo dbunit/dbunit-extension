@@ -50,7 +50,7 @@
     <poiVersion>5.2.5</poiVersion>
     <slf4jVersion>1.7.25</slf4jVersion>
     <snakeYamlVersion>2.2</snakeYamlVersion>
-    <xmlparserv2Version>23.7.0.25.01</xmlparserv2Version>
+    <xmlparserv2Version>23.26.2.0.0</xmlparserv2Version>
 
     <!-- Database driver versions -->
     <db2DriverVersion>12.1.0.0</db2DriverVersion>
