@@ -26,10 +26,10 @@ you can use it by performing the manual file edits first then running the releas
 .. Update release version
 .. Set release date to today
 
-. Update index.xml
+. Update index.adoc
 .. Add entry to release section; ensure correct links
 
-. Commit files "Prep release x.y.z"
+. Commit files "chore(release): Prep  x.y.z"
 
 . Tag the commit
 
@@ -51,7 +51,7 @@ mvnw deploy -Prelease
 mvnw site
 ----
 .. Review site results for issues and correct as necessary
-.. Publish: 
+.. Publish:
 Commits to master automatically build the site and publish to GitHub pages.
 
 *** Historical: Deploy to SourceForge;
@@ -65,7 +65,7 @@ mvnw site:deploy
 ----
 
 . Post Announcement Discussion https://github.com/dbunit/dbunit-extension/discussions/categories/announcements
-.. Consider using the changes plugin's announcement-generate goal 
+.. Consider using the changes plugin's announcement-generate goal
 +
 [source,bash]
 ----
