@@ -94,8 +94,8 @@
     <jarPluginVersion>3.5.0</jarPluginVersion>
     <javadocPluginVersion>3.12.0</javadocPluginVersion>
     <jdependPluginVersion>2.2.0</jdependPluginVersion>
-    <jxrPluginVersion>3.6.0</jxrPluginVersion>
-    <modernizer-maven-plugin>2.7.0</modernizer-maven-plugin>
+    <jxrluginVersion>3.6.0</jxrluginVersion>
+    <modernizer-maven-plugin>3.4.0</modernizer-maven-plugin>
     <pmdPluginVersion>3.28.0</pmdPluginVersion>
     <poiOoxmlVersion>5.2.5</poiOoxmlVersion>
     <projectInfoReportsPluginVersion>3.9.0</projectInfoReportsPluginVersion>
