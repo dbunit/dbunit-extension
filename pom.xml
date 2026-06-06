@@ -54,8 +54,8 @@
 
     <!-- Database driver versions -->
     <db2DriverVersion>12.1.0.0</db2DriverVersion>
-    <derbyDriverVersion>10.14.2.0</derbyDriverVersion>
-    <h2DriverVersion>1.4.200</h2DriverVersion>
+    <derbyDriverVersion>10.17.1.0</derbyDriverVersion>
+    <h2DriverVersion>2.4.240</h2DriverVersion>
     <hsqldbDriverVersion>2.7.4</hsqldbDriverVersion>
     <mysqlDriverVersion>8.0.31</mysqlDriverVersion>
     <!-- Oracle JDBC Driver compatible with JDK6, JDK7, and JDK8 -->
@@ -65,13 +65,13 @@
     <!-- Oracle JDBC Driver compatible with JDK8, JDK9,JDK10,and JDK11 -->
     <oracleJ8v18DriverVersion>18.3.0.0</oracleJ8v18DriverVersion>
     <!-- Oracle JDBC Driver compatible with JDK8, JDK9, and JDK11 -->
-    <oracleJ8v19DriverVersion>19.3.0.0</oracleJ8v19DriverVersion>
+    <oracleJ8v19DriverVersion>23.26.2.0.0</oracleJ8v19DriverVersion>
     <!-- Oracle JDBC Driver compatible with JDK10 and JDK11 -->
-    <oracleJ10v19DriverVersion>19.3.0.0</oracleJ10v19DriverVersion>
+    <oracleJ10v19DriverVersion>19.30.0.0</oracleJ10v19DriverVersion>
     <oracleXdbVersion>23.7.0.25.01</oracleXdbVersion>
-    <postgresqlDriverVersion>42.7.3</postgresqlDriverVersion>
-    <postgisDriverVersion>2023.1.0</postgisDriverVersion>
-    <sqlServer41DriverVersion>7.2.1.jre8</sqlServer41DriverVersion>
+    <postgresqlDriverVersion>42.7.11</postgresqlDriverVersion>
+    <postgisDriverVersion>2025.1.1</postgisDriverVersion>
+    <sqlServer41DriverVersion>13.4.0.jre8</sqlServer41DriverVersion>
 
     <!-- Maven plugin versions -->
     <asciidoctorMavenPluginVersion>3.2.0</asciidoctorMavenPluginVersion>
