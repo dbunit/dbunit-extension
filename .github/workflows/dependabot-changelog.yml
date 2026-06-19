@@ -74,7 +74,7 @@ jobs:
       #    the authoritative copy, not the PR's merge base.
       # ---------------------------------------------------------------
       - name: Checkout default branch
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.event.repository.default_branch }}
           token: ${{ secrets.GITHUB_TOKEN }}
