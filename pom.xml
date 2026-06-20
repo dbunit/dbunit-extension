@@ -5,7 +5,7 @@
 
   <groupId>org.dbunit</groupId>
   <artifactId>dbunit</artifactId>
-  <version>3.2.0</version>
+  <version>3.2.1-SNAPSHOT</version>
   <packaging>jar</packaging>
   <name>dbUnit Extension</name>
   <url>https://github.com/dbunit/dbunit-extension</url>
@@ -1040,7 +1040,6 @@
           </parameter>
         </configuration>
         <reportSets>
-<!--
           <reportSet>
             <id>3.2.0-to-snapshot</id>
             <reports>
@@ -1065,7 +1064,6 @@
               </newVersion>
             </configuration>
           </reportSet>
--->
           <reportSet>
             <id>3.1.0-to-3.2.0</id>
             <reports>
