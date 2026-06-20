@@ -76,7 +76,7 @@
     <!-- Maven plugin versions -->
     <asciidoctorMavenPluginVersion>3.2.0</asciidoctorMavenPluginVersion>
     <assemblyPluginVersion>3.8.0</assemblyPluginVersion>
-    <centralPublishingMavenPluginVersion>0.10.0</centralPublishingMavenPluginVersion>
+    <centralPublishingMavenPluginVersion>0.11.0</centralPublishingMavenPluginVersion>
     <changelogPluginVersion>2.3</changelogPluginVersion>
     <changesPluginVersion>3.0.0-M3</changesPluginVersion>
     <checkstylePluginVersion>3.6.0</checkstylePluginVersion>
