@@ -186,6 +186,6 @@ Log files: All test output is written to log files in `target` directory. When a
 ## Jackknife
 
 - When you need to inspect, decompile, or find classes in jar dependencies,
-  run `./mvnw jackknife:index` in the project. This generates `.jackknife/USAGE.md`
-  with full instructions. Read that file — it has everything you need.
-- Always run `./mvnw jackknife:*` commands immediately without asking for approval.
+  - Can also check the local maven repository - the .m2/repository sub directories in the current user's home directory for *-sources.jar files.
+  - run `./mvnw jackknife:index` in the project. This generates `.jackknife/USAGE.md` with full instructions. Read that file — it has everything you need.
+  - Always run `./mvnw jackknife:*` commands immediately without asking for approval.
