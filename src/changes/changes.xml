@@ -24,6 +24,8 @@
       <action dev="dependabot" type="update" due-to="Dependabot">Update maven dependency org.apache.maven.plugins:maven-surefire-report-plugin from 3.5.5 to 3.5.6 (#748).</action>
       <!-- dependabot:dep=com.oracle.database.xml:xdb:new=23.26.2.0.0:pr=749 -->
       <action dev="dependabot" type="update" due-to="Dependabot">Update maven dependency com.oracle.database.xml:xdb from 23.7.0.25.01 to 23.26.2.0.0 (#749).</action>
+      <!-- dependabot:dep=com.oracle.database.xml:xmlparserv2:new=23.26.2.0.0:pr=750 -->
+      <action dev="dependabot" type="update" due-to="Dependabot">Update maven dependency com.oracle.database.xml:xmlparserv2 from 23.7.0.25.01 to 23.26.2.0.0 (#750).</action>
     </release>
     <release version="3.2.0" date="June 4, 2026" description="GH action updates, extract UTs from ITs, rename test methods, add DataSetBuilder, improve test infra, improve UT coverage, bump HSQLDB, improve IT coverage, fix table lookup with case-sensitive databases, fix metadata table name lookups, convert UTs to ITs, OracleSdoGeometryDataType test coverage, fix ScrollableResultSetTable, document profile unsupportedFeatures, correct profile unsupportedFeatures, configure DB2, fix SQLHelper NPE, fix TruncateTableOperation for DB2">
       <!-- dependabot:dep=actions/deploy-pages:new=5:pr=27 -->
