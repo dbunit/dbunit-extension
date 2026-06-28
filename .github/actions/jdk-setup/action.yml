@@ -1,10 +1,46 @@
 name: "JDK Setup"
+description: "Set up Temurin JDK 21 with Maven dependency caching"
+inputs:
+  server-id:
+    description: "Maven settings.xml server id for Maven Central authentication."
+    required: false
+    default: ''
+  server-username:
+    description: "Environment variable name for the Maven Central username."
+    required: false
+    default: ''
+  server-password:
+    description: "Environment variable name for the Maven Central password."
+    required: false
+    default: ''
+  gpg-private-key:
+    description: "GPG private key to import for artifact signing."
+    required: false
+    default: ''
+  gpg-passphrase:
+    description: "Environment variable name for the GPG passphrase."
+    required: false
+    default: ''
 runs:
   using: "composite"
   steps:
-    - name: Set up JDK 8
-      uses: actions/setup-java@v4
+    - name: Set up JDK 21
+      if: ${{ inputs.server-id == '' }}
+      uses: actions/setup-java@v5
       with:
         java-version: '21'
         distribution: 'temurin'
         cache: maven
+
+    - name: Set up JDK 21 with Maven Central credentials
+      if: ${{ inputs.server-id != '' }}
+      uses: actions/setup-java@v5
+      with:
+        java-version: '21'
+        distribution: 'temurin'
+        cache: maven
+        server-id: ${{ inputs.server-id }}
+        server-username: ${{ inputs.server-username }}
+        server-password: ${{ inputs.server-password }}
+        gpg-private-key: ${{ inputs.gpg-private-key }}
+        gpg-passphrase: ${{ inputs.gpg-passphrase }}
