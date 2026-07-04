@@ -89,7 +89,7 @@
     <failsafePluginVersion>3.5.6</failsafePluginVersion>
     <gpgPluginVersion>3.2.8</gpgPluginVersion>
     <installPluginVersion>3.1.4</installPluginVersion>
-    <jacocoPluginVersion>0.8.14</jacocoPluginVersion>
+    <jacocoPluginVersion>0.8.15</jacocoPluginVersion>
     <japicmpPluginVersion>0.26.1</japicmpPluginVersion>
     <jarPluginVersion>3.5.0</jarPluginVersion>
     <javadocPluginVersion>3.12.0</javadocPluginVersion>
