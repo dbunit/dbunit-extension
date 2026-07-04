@@ -44,7 +44,7 @@
     <assertjCoreVersion>3.27.7</assertjCoreVersion>
     <gsbaseVersion>2.0.1</gsbaseVersion>
     <jclOverSlf4jVersion>2.0.18</jclOverSlf4jVersion>
-    <junitVersion>6.1.0</junitVersion>
+    <junitVersion>6.1.1</junitVersion>
     <logbackClassicVersion>1.5.34</logbackClassicVersion>
     <mockitoVersion>5.23.0</mockitoVersion>
     <poiVersion>5.2.5</poiVersion>
