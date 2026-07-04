@@ -53,7 +53,7 @@
     <xmlparserv2Version>23.26.2.0.0</xmlparserv2Version>
 
     <!-- Database driver versions -->
-    <db2DriverVersion>12.1.0.0</db2DriverVersion>
+    <db2DriverVersion>12.1.5.0</db2DriverVersion>
     <derbyDriverVersion>10.14.2.0</derbyDriverVersion>
     <h2DriverVersion>1.4.200</h2DriverVersion>
     <hsqldbDriverVersion>2.7.4</hsqldbDriverVersion>
