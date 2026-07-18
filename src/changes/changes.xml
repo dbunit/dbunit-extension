@@ -32,6 +32,10 @@
       <action dev="dependabot" type="update" due-to="Dependabot">Update maven dependency com.github.siom79.japicmp:japicmp-maven-plugin from 0.26.0 to 0.26.1 (#758).</action>
       <!-- dependabot:dep=ch.qos.logback:logback-classic:new=1.5.34:pr=759 -->
       <action dev="dependabot" type="update" due-to="Dependabot">Update maven dependency ch.qos.logback:logback-classic from 1.5.32 to 1.5.34 (#759).</action>
+      <!-- dependabot:dep=org.junit.jupiter:junit-jupiter:new=6.1.1:pr=761 -->
+      <action dev="dependabot" type="update" due-to="Dependabot">Update maven dependency org.junit.jupiter:junit-jupiter from 6.1.0 to 6.1.1 (#761).</action>
+      <!-- dependabot:dep=org.junit.platform:junit-platform-suite-engine:new=6.1.1:pr=761 -->
+      <action dev="dependabot" type="update" due-to="Dependabot">Update maven dependency org.junit.platform:junit-platform-suite-engine from 6.1.0 to 6.1.1 (#761).</action>
     </release>
     <release version="3.2.0" date="June 4, 2026" description="GH action updates, extract UTs from ITs, rename test methods, add DataSetBuilder, improve test infra, improve UT coverage, bump HSQLDB, improve IT coverage, fix table lookup with case-sensitive databases, fix metadata table name lookups, convert UTs to ITs, OracleSdoGeometryDataType test coverage, fix ScrollableResultSetTable, document profile unsupportedFeatures, correct profile unsupportedFeatures, configure DB2, fix SQLHelper NPE, fix TruncateTableOperation for DB2">
       <!-- dependabot:dep=actions/deploy-pages:new=5:pr=27 -->
