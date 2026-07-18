@@ -54,7 +54,7 @@
 
     <!-- Database driver versions -->
     <db2DriverVersion>12.1.5.0</db2DriverVersion>
-    <derbyDriverVersion>10.14.2.0</derbyDriverVersion>
+    <derbyDriverVersion>10.17.1.0</derbyDriverVersion>
     <h2DriverVersion>1.4.200</h2DriverVersion>
     <hsqldbDriverVersion>2.7.4</hsqldbDriverVersion>
     <mysqlDriverVersion>8.0.31</mysqlDriverVersion>
