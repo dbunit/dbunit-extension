@@ -40,6 +40,8 @@
       <action dev="dependabot" type="update" due-to="Dependabot">Update maven dependency ch.qos.logback:logback-classic from 1.5.34 to 1.5.37 (#762).</action>
       <!-- dependabot:dep=org.jacoco:jacoco-maven-plugin:new=0.8.15:pr=763 -->
       <action dev="dependabot" type="update" due-to="Dependabot">Update maven dependency org.jacoco:jacoco-maven-plugin from 0.8.14 to 0.8.15 (#763).</action>
+      <!-- dependabot:dep=com.ibm.db2:jcc:new=12.1.5.0:pr=764 -->
+      <action dev="dependabot" type="update" due-to="Dependabot">Update maven dependency com.ibm.db2:jcc from 12.1.0.0 to 12.1.5.0 (#764).</action>
     </release>
     <release version="3.2.0" date="June 4, 2026" description="GH action updates, extract UTs from ITs, rename test methods, add DataSetBuilder, improve test infra, improve UT coverage, bump HSQLDB, improve IT coverage, fix table lookup with case-sensitive databases, fix metadata table name lookups, convert UTs to ITs, OracleSdoGeometryDataType test coverage, fix ScrollableResultSetTable, document profile unsupportedFeatures, correct profile unsupportedFeatures, configure DB2, fix SQLHelper NPE, fix TruncateTableOperation for DB2">
       <!-- dependabot:dep=actions/deploy-pages:new=5:pr=27 -->
