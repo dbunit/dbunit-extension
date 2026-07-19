@@ -23,8 +23,11 @@ package org.dbunit.dataset.xml;
 import java.io.IOException;
 import java.io.StringReader;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.parsers.SAXParserFactory;
@@ -106,6 +109,13 @@ public class FlatXmlProducer extends DefaultHandler implements IDataSetProducer,
      * The ordered table name map which also holds the currently active {@link ITableMetaData}
      */
     private OrderedTableNameMap _orderedTableNameMap;
+    /**
+     * Upper-cased column names of the currently active table's metadata, used as a fast
+     * existence check in {@link #handleMissingColumns(Attributes)} instead of catching
+     * {@link NoSuchColumnException}. Rebuilt whenever the active metadata changes: a new
+     * table starts, or column sensing merges a new column into it.
+     */
+    private Set _activeColumnNamesUpperCase;
 
     
     public FlatXmlProducer(InputSource xmlSource)
@@ -250,9 +260,25 @@ public class FlatXmlProducer extends DefaultHandler implements IDataSetProducer,
      * @return <code>true</code> if the given tableName is a new one
      * which means that it differs from the last active table name.
      */
-    private boolean isNewTable(String tableName) 
+    private boolean isNewTable(String tableName)
     {
         return !_orderedTableNameMap.isLastTable(tableName);
+    }
+
+    /**
+     * Rebuilds {@link #_activeColumnNamesUpperCase} from the given metadata's columns.
+     * Must be called whenever the active table's metadata changes.
+     * @param metaData The new active metadata to index.
+     */
+    private void rebuildActiveColumnNames(ITableMetaData metaData) throws DataSetException
+    {
+        Column[] columns = metaData.getColumns();
+        Set columnNames = new HashSet(columns.length);
+        for (int i = 0; i < columns.length; i++)
+        {
+            columnNames.add(columns[i].getColumnName().toUpperCase(Locale.ENGLISH));
+        }
+        _activeColumnNamesUpperCase = columnNames;
     }
 
 
@@ -275,20 +301,20 @@ public class FlatXmlProducer extends DefaultHandler implements IDataSetProducer,
 			throws DataSetException
 	{
 		List columnsToMerge = new ArrayList();
-		
+
 		ITableMetaData activeMetaData = getActiveMetaData();
-		// Search all columns that do not yet exist and collect them
+		// Search all columns that do not yet exist and collect them. Checked against
+		// _activeColumnNamesUpperCase (a plain Set membership test) rather than by calling
+		// getColumnIndex() and catching NoSuchColumnException as an existence test.
 		int attributeLength = attributes.getLength();
 		for (int i = 0 ; i < attributeLength; i++)
 		{
-			try {
-			    activeMetaData.getColumnIndex(attributes.getQName(i));
-			} 
-			catch (NoSuchColumnException e) {
+			if (!_activeColumnNamesUpperCase.contains(attributes.getQName(i).toUpperCase(Locale.ENGLISH)))
+			{
 				columnsToMerge.add(new Column(attributes.getQName(i), DataType.UNKNOWN));
 			}
 		}
-		
+
 		if (!columnsToMerge.isEmpty())
 		{
 			if (_columnSensing)
@@ -296,9 +322,10 @@ public class FlatXmlProducer extends DefaultHandler implements IDataSetProducer,
 	    		logger.debug("Column sensing enabled. Will create a new metaData with potentially new columns if needed");
 	    		activeMetaData = mergeTableMetaData(columnsToMerge, activeMetaData);
 	    		_orderedTableNameMap.update(activeMetaData.getTableName(), activeMetaData);
+	    		rebuildActiveColumnNames(activeMetaData);
 	    		// We also need to recreate the table, copying the data already collected from the old one to the new one
 	    		_consumer.startTable(activeMetaData);
-	    	} 
+	    	}
 	    	else
 	    	{
 	    		final StringBuilder extraColumnNames = new StringBuilder();
@@ -445,7 +472,8 @@ public class FlatXmlProducer extends DefaultHandler implements IDataSetProducer,
                     activeMetaData = createTableMetaData(qName, attributes);
                     _orderedTableNameMap.add(activeMetaData.getTableName(), activeMetaData);
                 }
-                
+                rebuildActiveColumnNames(activeMetaData);
+
                 // Notify start of new table to consumer
                 _consumer.startTable(activeMetaData);
                 _lineNumber = 0;

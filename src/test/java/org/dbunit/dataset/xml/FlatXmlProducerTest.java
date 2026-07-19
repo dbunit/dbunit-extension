@@ -25,11 +25,13 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import java.io.File;
 import java.io.IOException;
 import java.io.StringReader;
+import java.util.Locale;
 
 import org.dbunit.dataset.Column;
 import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.DefaultDataSet;
 import org.dbunit.dataset.DefaultTable;
+import org.dbunit.dataset.datatype.DataType;
 import org.dbunit.dataset.stream.AbstractProducerTest;
 import org.dbunit.dataset.stream.IDataSetProducer;
 import org.dbunit.dataset.stream.MockDataSetConsumer;
@@ -210,6 +212,105 @@ class FlatXmlProducerTest extends AbstractProducerTest
                 "Should not be here!");
 
         consumer.verify();
+    }
+
+    @Test
+    void testProduce_newColumnAppearsMidTable_columnSensed() throws Exception
+    {
+        final String tableName = "TABLE_NAME";
+        final MockDataSetConsumer consumer = new MockDataSetConsumer();
+        consumer.addExpectedStartDataSet();
+        // Column sensing runs through a BufferedConsumer, which replays startTable/row
+        // once with the final, fully-merged metadata rather than forwarding the
+        // intermediate per-row startTable calls FlatXmlProducer issues internally.
+        consumer.addExpectedStartTable(tableName,
+                new Column[] {new Column("COL0", DataType.UNKNOWN),
+                        new Column("COL1", DataType.UNKNOWN)});
+        consumer.addExpectedRow(tableName, new Object[] {"value0", null});
+        consumer.addExpectedRow(tableName,
+                new Object[] {"value0b", "value1b"});
+        consumer.addExpectedEndTable(tableName);
+        consumer.addExpectedEndDataSet();
+
+        // No DTD, column sensing enabled: COL1 first appears on the second row.
+        final String content = "<?xml version=\"1.0\"?>" + "<dataset>"
+                + "<TABLE_NAME COL0=\"value0\"/>"
+                + "<TABLE_NAME COL0=\"value0b\" COL1=\"value1b\"/>"
+                + "</dataset>";
+        final InputSource source = new InputSource(new StringReader(content));
+        final IDataSetProducer producer =
+                new FlatXmlProducer(source, false, true);
+        producer.setConsumer(consumer);
+
+        producer.produce();
+        consumer.verify();
+    }
+
+    @Test
+    void testProduce_columnSensingDisabled_missingColumnIgnored() throws Exception
+    {
+        final String tableName = "TABLE_NAME";
+        final MockDataSetConsumer consumer = new MockDataSetConsumer();
+        consumer.addExpectedStartDataSet();
+        consumer.addExpectedStartTable(tableName,
+                new Column[] {new Column("COL0", DataType.UNKNOWN)});
+        consumer.addExpectedRow(tableName, new Object[] {"value0"});
+        // COL1 on the second row is not part of the metadata and column sensing is
+        // disabled, so it must be ignored rather than merged or thrown.
+        consumer.addExpectedRow(tableName, new Object[] {"value0b"});
+        consumer.addExpectedEndTable(tableName);
+        consumer.addExpectedEndDataSet();
+
+        final String content = "<?xml version=\"1.0\"?>" + "<dataset>"
+                + "<TABLE_NAME COL0=\"value0\"/>"
+                + "<TABLE_NAME COL0=\"value0b\" COL1=\"value1b\"/>"
+                + "</dataset>";
+        final InputSource source = new InputSource(new StringReader(content));
+        final IDataSetProducer producer =
+                new FlatXmlProducer(source, false, false);
+        producer.setConsumer(consumer);
+
+        producer.produce();
+        consumer.verify();
+    }
+
+    @Test
+    void testProduce_turkishLocaleAndCaseVariantColumnName_recognizesSameColumn() throws Exception
+    {
+        final Locale originalLocale = Locale.getDefault();
+        Locale.setDefault(new Locale("tr", "TR"));
+        try
+        {
+            final String tableName = "TABLE_NAME";
+            final MockDataSetConsumer consumer = new MockDataSetConsumer();
+            consumer.addExpectedStartDataSet();
+            consumer.addExpectedStartTable(tableName,
+                    new Column[] {new Column("id", DataType.UNKNOWN)});
+            consumer.addExpectedRow(tableName, new Object[] {"1"});
+            consumer.addExpectedRow(tableName, new Object[] {"2"});
+            consumer.addExpectedEndTable(tableName);
+            consumer.addExpectedEndDataSet();
+
+            // Row 2's "ID" is the same logical column as row 1's "id", just differently
+            // cased. Under the Turkish default locale, "id".toUpperCase() produces a
+            // dotted capital I ("İD") that does not equal "ID".toUpperCase() ("ID"),
+            // so a locale-sensitive comparison would wrongly treat row 2's ID as a new,
+            // unrelated column instead of recognizing it as "id".
+            final String content = "<?xml version=\"1.0\"?>" + "<dataset>"
+                    + "<TABLE_NAME id=\"1\"/>" + "<TABLE_NAME ID=\"2\"/>"
+                    + "</dataset>";
+            final InputSource source = new InputSource(new StringReader(content));
+            final IDataSetProducer producer =
+                    new FlatXmlProducer(source, false, true);
+            producer.setConsumer(consumer);
+
+            producer.produce();
+            consumer.verify();
+        }
+        finally
+        {
+            Locale.setDefault(originalLocale);
+        }
     }
 
 }
