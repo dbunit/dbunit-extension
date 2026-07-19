@@ -26,6 +26,7 @@ import java.math.BigDecimal;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.ss.usermodel.Cell;
@@ -73,9 +74,17 @@ public class XlsDataSetWriter
      * only create one per format and reuse the same style for all cells with
      * the same format.
      */
-    private static final Map<Workbook, Map> cellStyleMap = new HashMap<Workbook, Map>();
+    private static final Map<Workbook, Map<Short, CellStyle>> cellStyleMap = new ConcurrentHashMap<Workbook, Map<Short, CellStyle>>();
 
     private CellStyle dateCellStyle;
+
+    /**
+     * Per-write() cache of the numeric cell format code for a given {@link BigDecimal}
+     * scale, so {@link #setNumericCell(Cell, BigDecimal, Workbook)} only needs to build the
+     * format string and resolve it via the workbook's {@link DataFormat} once per distinct
+     * scale, not once per cell.
+     */
+    private Map<Integer, Short> numericFormatCodeByScale;
 
     /**
      * Write the specified dataset to the specified Excel document.
@@ -86,63 +95,83 @@ public class XlsDataSetWriter
         logger.debug("write(dataSet={}, out={}) - start", dataSet, out);
 
         Workbook workbook = createWorkbook();
-
-        this.dateCellStyle = createDateCellStyle(workbook);
-        
-        int index = 0;
-        ITableIterator iterator = dataSet.iterator();
-        while(iterator.next())
+        try
         {
-            // create the table i.e. sheet
-            ITable table = iterator.getTable();
-            ITableMetaData metaData = table.getTableMetaData();
-            Sheet sheet = workbook.createSheet(metaData.getTableName());
+            this.dateCellStyle = createDateCellStyle(workbook);
+            this.numericFormatCodeByScale = new HashMap<Integer, Short>();
 
-            // write table metadata i.e. first row in sheet
-            workbook.setSheetName(index, metaData.getTableName());
+            int index = 0;
+            ITableIterator iterator = dataSet.iterator();
+            while(iterator.next())
+            {
+                // create the table i.e. sheet
+                ITable table = iterator.getTable();
+                ITableMetaData metaData = table.getTableMetaData();
+                Sheet sheet = workbook.createSheet(metaData.getTableName());
 
-            Row headerRow = sheet.createRow(0);
-            Column[] columns = metaData.getColumns();
-            for (int j = 0; j < columns.length; j++)
-            {
-                Column column = columns[j];
-                Cell cell = headerRow.createCell(j);
-                cell.setCellValue(column.getColumnName());
-            }
-            
-            // write table data
-            for (int j = 0; j < table.getRowCount(); j++)
-            {
-                Row row = sheet.createRow(j + 1);
-                for (int k = 0; k < columns.length; k++)
+                // write table metadata i.e. first row in sheet
+                workbook.setSheetName(index, metaData.getTableName());
+
+                Row headerRow = sheet.createRow(0);
+                Column[] columns = metaData.getColumns();
+                for (int j = 0; j < columns.length; j++)
                 {
-                    Column column = columns[k];
-                    Object value = table.getValue(j, column.getColumnName());
-                    if (value != null)
+                    Column column = columns[j];
+                    Cell cell = headerRow.createCell(j);
+                    cell.setCellValue(column.getColumnName());
+                }
+
+                // write table data
+                for (int j = 0; j < table.getRowCount(); j++)
+                {
+                    Row row = sheet.createRow(j + 1);
+                    for (int k = 0; k < columns.length; k++)
                     {
-                        Cell cell = row.createCell(k);
-                        if(value instanceof Date){
-                            setDateCell(cell, (Date)value, workbook);
-                        }
-                        else if(value instanceof BigDecimal){
-                            setNumericCell(cell, (BigDecimal)value, workbook);
-                        }
-                        else if(value instanceof Long){
-                            setDateCell(cell, new Date( ((Long)value).longValue()), workbook);
-                        }
-                        else {
-                            cell.setCellValue(DataType.asString(value));
+                        Column column = columns[k];
+                        Object value = table.getValue(j, column.getColumnName());
+                        if (value != null)
+                        {
+                            Cell cell = row.createCell(k);
+                            if(value instanceof Date){
+                                setDateCell(cell, (Date)value, workbook);
+                            }
+                            else if(value instanceof BigDecimal){
+                                setNumericCell(cell, (BigDecimal)value, workbook);
+                            }
+                            else if(value instanceof Long){
+                                setDateCell(cell, new Date( ((Long)value).longValue()), workbook);
+                            }
+                            else {
+                                cell.setCellValue(DataType.asString(value));
+                            }
                         }
                     }
                 }
+
+                index++;
             }
 
-            index++;
+            // write xls document
+            workbook.write(out);
+            out.flush();
         }
-
-        // write xls document
-        workbook.write(out);
-        out.flush();
+        finally
+        {
+            // cellStyleMap is static and otherwise retains every workbook ever written,
+            // for the JVM's lifetime, once this method returns.
+            cellStyleMap.remove(workbook);
+            // The default HSSFWorkbook holds no closeable resources, but createWorkbook() is
+            // protected specifically so subclasses can substitute a disk-backed Workbook (e.g.
+            // POI's SXSSFWorkbook), which would otherwise leak its temp file here.
+            try
+            {
+                workbook.close();
+            }
+            catch (IOException e)
+            {
+                logger.warn("Failed to close workbook", e);
+            }
+        }
     }
     
     protected static CellStyle createDateCellStyle(Workbook workbook) {
@@ -162,14 +191,7 @@ public class XlsDataSetWriter
     protected static Map<Short, CellStyle> findWorkbookCellStyleMap(
             Workbook workbook)
     {
-        Map<Short, CellStyle> map = cellStyleMap.get(workbook);
-        if (map == null)
-        {
-            map = new HashMap<Short, CellStyle>();
-            cellStyleMap.put(workbook, map);
-        }
-
-        return map;
+        return cellStyleMap.computeIfAbsent(workbook, k -> new HashMap<Short, CellStyle>());
     }
 
     protected static CellStyle findCellStyle(Workbook workbook,
@@ -256,15 +278,25 @@ public class XlsDataSetWriter
 
         cell.setCellValue( ((BigDecimal)value).doubleValue() );
 
-        DataFormat df = workbook.createDataFormat();
         int scale = ((BigDecimal)value).scale();
+        Integer scaleKey = Integer.valueOf(scale <= 0 ? 0 : scale);
+        Short cachedFormat = numericFormatCodeByScale.get(scaleKey);
         short format;
-        if(scale <= 0){
-            format = df.getFormat("####");
+        if (cachedFormat != null)
+        {
+            format = cachedFormat.shortValue();
         }
-        else {
-            String zeros = createZeros(((BigDecimal)value).scale());
-            format = df.getFormat("####." + zeros);
+        else
+        {
+            DataFormat df = workbook.createDataFormat();
+            if(scale <= 0){
+                format = df.getFormat("####");
+            }
+            else {
+                String zeros = createZeros(scale);
+                format = df.getFormat("####." + zeros);
+            }
+            numericFormatCodeByScale.put(scaleKey, Short.valueOf(format));
         }
         if(logger.isDebugEnabled())
             logger.debug("Using format '{}' for value '{}'.", String.valueOf(format), value);
