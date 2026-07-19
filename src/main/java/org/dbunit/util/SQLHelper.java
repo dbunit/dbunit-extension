@@ -67,16 +67,20 @@ public class SQLHelper {
      * @param conn connection with the database
      * @param table table name
      * @return name of primary column for a table (assuming it's just 1 column).
-     * @throws SQLException raised while getting the meta data
+     * @throws SQLException Raised while getting the meta data, or if the table has no primary key.
      */
     public static String getPrimaryKeyColumn( Connection conn, String table ) throws SQLException {
         logger.debug("getPrimaryKeyColumn(conn={}, table={}) - start", conn, table);
 
         DatabaseMetaData metadata = conn.getMetaData();
-        ResultSet rs = metadata.getPrimaryKeys( null, null, table );
-        rs.next();
-        String pkColumn = rs.getString(4);
-        return pkColumn;
+        try (ResultSet rs = metadata.getPrimaryKeys( null, null, table ))
+        {
+            if (!rs.next())
+            {
+                throw new SQLException("No primary key found for table '" + table + "'.");
+            }
+            return rs.getString(4);
+        }
     }
 
     /**
