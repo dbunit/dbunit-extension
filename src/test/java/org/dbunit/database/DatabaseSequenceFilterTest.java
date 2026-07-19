@@ -30,8 +30,10 @@ import static org.mockito.Mockito.when;
 
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
+import java.sql.DriverManager;
 import java.sql.Statement;
 import java.util.Arrays;
+import java.util.List;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -98,6 +100,91 @@ class DatabaseSequenceFilterTest
         verify(spyMetaData, times(1)).getExportedKeys(any(), any(), eq("A"));
         verify(spyMetaData, times(1)).getExportedKeys(any(), any(), eq("B"));
         verify(spyMetaData, times(1)).getExportedKeys(any(), any(), eq("C"));
+    }
+
+    @Test
+    void testSort_diamondDependencies_returnsValidTopologicalOrder() throws Exception
+    {
+        connection = InMemoryDatabaseConnection.create();
+        final Statement stmt = connection.getConnection().createStatement();
+        stmt.execute("CREATE TABLE A (ID INT PRIMARY KEY)");
+        stmt.execute("CREATE TABLE B (ID INT PRIMARY KEY, A_ID INT REFERENCES A(ID))");
+        stmt.execute("CREATE TABLE C (ID INT PRIMARY KEY, A_ID INT REFERENCES A(ID))");
+        stmt.execute("CREATE TABLE D (ID INT PRIMARY KEY, B_ID INT REFERENCES B(ID), "
+                + "C_ID INT REFERENCES C(ID))");
+        stmt.close();
+
+        final String[] sorted = DatabaseSequenceFilter.sortTableNames(connection,
+                new String[] {"D", "C", "B", "A"});
+        final List<String> order = Arrays.asList(sorted);
+
+        assertThat(order.indexOf("A")).as("A must precede B, its dependent.")
+                .isLessThan(order.indexOf("B"));
+        assertThat(order.indexOf("A")).as("A must precede C, its dependent.")
+                .isLessThan(order.indexOf("C"));
+        assertThat(order.indexOf("B")).as("B must precede D, its dependent.")
+                .isLessThan(order.indexOf("D"));
+        assertThat(order.indexOf("C")).as("C must precede D, its dependent.")
+                .isLessThan(order.indexOf("D"));
+    }
+
+    @Test
+    void testSort_independentTables_preservesOriginalOrder() throws Exception
+    {
+        connection = InMemoryDatabaseConnection.create();
+        final Statement stmt = connection.getConnection().createStatement();
+        stmt.execute("CREATE TABLE X (ID INT PRIMARY KEY)");
+        stmt.execute("CREATE TABLE Y (ID INT PRIMARY KEY)");
+        stmt.execute("CREATE TABLE Z (ID INT PRIMARY KEY)");
+        stmt.close();
+
+        final String[] sorted = DatabaseSequenceFilter.sortTableNames(connection,
+                new String[] {"Z", "X", "Y"});
+
+        assertThat(Arrays.asList(sorted))
+                .as("Tables with no FK relationship between them should keep their input order.")
+                .containsExactly("Z", "X", "Y");
+    }
+
+    @Test
+    void testSort_chainReversedInput_reordersChain() throws Exception
+    {
+        connection = InMemoryDatabaseConnection.create();
+        final Statement stmt = connection.getConnection().createStatement();
+        stmt.execute("CREATE TABLE A (ID INT PRIMARY KEY)");
+        stmt.execute("CREATE TABLE B (ID INT PRIMARY KEY, A_ID INT REFERENCES A(ID))");
+        stmt.execute("CREATE TABLE C (ID INT PRIMARY KEY, B_ID INT REFERENCES B(ID))");
+        stmt.close();
+
+        final String[] sorted = DatabaseSequenceFilter.sortTableNames(connection,
+                new String[] {"C", "B", "A"});
+
+        assertThat(Arrays.asList(sorted))
+                .as("A reverse-order chain A<-B<-C must be fully reordered to A, B, C.")
+                .containsExactly("A", "B", "C");
+    }
+
+    @Test
+    void testSort_lowerCaseFoldingDatabaseAndMismatchedInputCase_doesNotThrowSpuriousCycleException()
+            throws Exception
+    {
+        final Connection realConnection = DriverManager.getConnection(
+                "jdbc:h2:mem:dbunit_seqfilter_lowercase;DATABASE_TO_LOWER=TRUE");
+        final Statement stmt = realConnection.createStatement();
+        stmt.execute("CREATE TABLE PARENT (ID INT PRIMARY KEY)");
+        stmt.execute(
+                "CREATE TABLE CHILD (ID INT PRIMARY KEY, PARENT_ID INT REFERENCES PARENT(ID))");
+        stmt.close();
+        connection = new DatabaseConnection(realConnection);
+
+        final String[] sorted = DatabaseSequenceFilter.sortTableNames(connection,
+                new String[] {"CHILD", "PARENT"});
+
+        assertThat(Arrays.asList(sorted))
+                .as("PARENT must precede CHILD without a spurious CyclicTablesDependencyException, "
+                        + "even though the database folds unquoted identifiers to lowercase and the "
+                        + "caller-supplied names ('CHILD', 'PARENT') do not match that stored case.")
+                .containsExactly("PARENT", "CHILD");
     }
 
 }
