@@ -27,12 +27,17 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.SortedSet;
 
-import org.dbunit.database.search.TablesDependencyHelper;
+import org.dbunit.database.search.ExportedKeysSearchCallback;
+import org.dbunit.database.search.ImportedKeysSearchCallback;
 import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.filter.SequenceTableFilter;
+import org.dbunit.util.search.DepthFirstSearch;
+import org.dbunit.util.search.ISearchCallback;
 import org.dbunit.util.search.SearchException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -95,10 +100,16 @@ public class DatabaseSequenceFilter extends SequenceTableFilter
 
         // Get dependencies for each table
         Map dependencies = new HashMap();
+        // Per-invocation edge caches, shared across all tables below, so that a node
+        // visited by more than one table's search (or by both its direct and transitive
+        // searches) only ever triggers one getImportedKeys/getExportedKeys JDBC round trip.
+        Map importedEdgesCache = new HashMap();
+        Map exportedEdgesCache = new HashMap();
         try {
             for (int i = 0; i < tableNames.length; i++) {
                 String tableName = tableNames[i];
-                DependencyInfo info = getDependencyInfo(connection, tableName);
+                DependencyInfo info = getDependencyInfo(connection, tableName,
+                        importedEdgesCache, exportedEdgesCache);
                 dependencies.put(tableName, info);
             }
         } catch (SearchException e) {
@@ -111,22 +122,22 @@ public class DatabaseSequenceFilter extends SequenceTableFilter
             DependencyInfo info = (DependencyInfo) iterator.next();
             info.checkCycles();
         }
-        
+
         return sort(tableNames, dependencies);
     }
-    
 
-    private static String[] sort(String[] tableNames, Map dependencies) 
+
+    private static String[] sort(String[] tableNames, Map dependencies)
     {
         logger.debug("sort(tableNames={}, dependencies={}) - start", tableNames, dependencies);
-        
+
         boolean reprocess = true;
         List tmpTableNames = Arrays.asList(tableNames);
         List sortedTableNames = null;
-        
+
         while (reprocess) {
             sortedTableNames = new LinkedList();
-            
+
             // re-order 'tmpTableNames' into 'sortedTableNames'
             for (Iterator i = tmpTableNames.iterator(); i.hasNext();)
             {
@@ -184,37 +195,126 @@ public class DatabaseSequenceFilter extends SequenceTableFilter
     }
 
     /**
-     * Creates the dependency information for the given table
-     * @param connection
-     * @param tableName
-     * @return The dependency information for the given table
-     * @throws SearchException
+     * Creates the dependency information for the given table.
+     * @param connection The database connection used to resolve foreign-key metadata.
+     * @param tableName The table name for which to compute dependency information.
+     * @param importedEdgesCache Per-{@code sortTableNames}-invocation cache of {@code ImportedKeysSearchCallback}
+     * edges, shared across all tables being sorted; keyed by table name.
+     * @param exportedEdgesCache Same as {@code importedEdgesCache}, for {@code ExportedKeysSearchCallback} edges.
+     * @return The dependency information for the given table.
+     * @throws SearchException If the JDBC connection cannot be obtained.
      */
     private static DependencyInfo getDependencyInfo(
-            IDatabaseConnection connection, String tableName) 
-    throws SearchException 
+            IDatabaseConnection connection, String tableName,
+            Map importedEdgesCache, Map exportedEdgesCache)
+    throws SearchException
     {
         logger.debug("getDependencyInfo(connection={}, tableName={}) - start", connection, tableName);
-        
-        // The tables dependency helpers makes a depth search for dependencies and returns the whole
-        // tree of dependent objects, not only the direct FK-PK related tables.
-        String[] allDependentTables = TablesDependencyHelper.getDependentTables(connection, tableName);
-        String[] allDependsOnTables = TablesDependencyHelper.getDependsOnTables(connection, tableName);
-        Set allDependentTablesSet = new HashSet(Arrays.asList(allDependentTables));
-        Set allDependsOnTablesSet = new HashSet(Arrays.asList(allDependsOnTables));
-        // Remove the table itself which is automatically included by the TablesDependencyHelper
-        allDependentTablesSet.remove(tableName);
-        allDependsOnTablesSet.remove(tableName);
-        
-        Set directDependsOnTablesSet = TablesDependencyHelper.getDirectDependsOnTables(connection, tableName);
-        Set directDependentTablesSet = TablesDependencyHelper.getDirectDependentTables(connection, tableName);
-        directDependsOnTablesSet.remove(tableName);
-        directDependentTablesSet.remove(tableName);
-        
-        DependencyInfo info = new DependencyInfo(tableName, 
-                directDependsOnTablesSet, directDependentTablesSet, 
+
+        // Equivalent to TablesDependencyHelper.getDependentTables/getDependsOnTables/
+        // getDirectDependentTables/getDirectDependsOnTables, inlined here (rather than calling
+        // those methods) so the same callback instance -- and therefore the same edge cache --
+        // can be reused for both the direct and transitive searches below. Each does a depth
+        // search for dependencies; the unlimited ones return the whole tree of dependent
+        // objects, not only the direct FK-PK related tables.
+        ISearchCallback importedCallback = new CachingSearchCallback(
+                new ImportedKeysSearchCallback(connection), importedEdgesCache);
+        ISearchCallback exportedCallback = new CachingSearchCallback(
+                new ExportedKeysSearchCallback(connection), exportedEdgesCache);
+        String[] normalizedRoot = normalizeToStoredCase(connection, new String[] {tableName});
+
+        Set allDependsOnTablesSet = new DepthFirstSearch().search(normalizedRoot, importedCallback);
+        Set allDependentTablesSet = new DepthFirstSearch().search(normalizedRoot, exportedCallback);
+        // Remove the table itself which is automatically included by the search
+        allDependentTablesSet.remove(normalizedRoot[0]);
+        allDependsOnTablesSet.remove(normalizedRoot[0]);
+
+        // Computed after the unlimited searches above: the root's edges (and, for the
+        // exported-keys direction, its direct dependents' edges too) are already cached by
+        // then, so these two calls are cache hits, not additional JDBC round trips.
+        Set directDependsOnTablesSet = new DepthFirstSearch(1).search(normalizedRoot, importedCallback);
+        Set directDependentTablesSet = new DepthFirstSearch(1).search(normalizedRoot, exportedCallback);
+        directDependsOnTablesSet.remove(normalizedRoot[0]);
+        directDependentTablesSet.remove(normalizedRoot[0]);
+
+        DependencyInfo info = new DependencyInfo(tableName,
+                directDependsOnTablesSet, directDependentTablesSet,
                 allDependsOnTablesSet, allDependentTablesSet);
         return info;
+    }
+
+    /**
+     * Lowercases the given table names when the database stores unquoted identifiers in
+     * lowercase (e.g. PostgreSQL), so that {@link DepthFirstSearch}'s visited-node set stays
+     * consistent with the lowercase FK-metadata names returned by the driver. Mirrors
+     * {@code TablesDependencyHelper.normalizeToStoredCase}, duplicated here (rather than reused)
+     * since it is private there and this class no longer calls through the helper's per-search
+     * factory methods -- doing so would prevent the callback (and therefore its edge cache) from
+     * being shared between the direct and transitive searches for the same table.
+     * @param connection The database connection used to determine stored identifier case.
+     * @param tableNames The table names to normalize.
+     * @return The table names lowercased if needed, otherwise the original array.
+     * @throws SearchException If the JDBC connection cannot be obtained.
+     */
+    private static String[] normalizeToStoredCase(IDatabaseConnection connection, String[] tableNames)
+    throws SearchException
+    {
+        try
+        {
+            if (!connection.getConnection().getMetaData().storesLowerCaseIdentifiers())
+            {
+                return tableNames;
+            }
+            String[] normalized = new String[tableNames.length];
+            for (int i = 0; i < tableNames.length; i++)
+            {
+                normalized[i] = tableNames[i].toLowerCase(Locale.ENGLISH);
+            }
+            return normalized;
+        }
+        catch (SQLException e)
+        {
+            throw new SearchException(e);
+        }
+    }
+
+    /**
+     * {@link ISearchCallback} decorator that memoizes {@link #getEdges(Object)} results in a
+     * shared map, so repeated visits to the same node -- across the direct and transitive
+     * searches for one table, and across different tables within one {@code sortTableNames}
+     * invocation -- reuse the previously fetched JDBC metadata instead of re-querying it.
+     */
+    private static class CachingSearchCallback implements ISearchCallback
+    {
+        private final ISearchCallback delegate;
+        private final Map edgesCache;
+
+        CachingSearchCallback(ISearchCallback delegate, Map edgesCache)
+        {
+            this.delegate = delegate;
+            this.edgesCache = edgesCache;
+        }
+
+        public SortedSet getEdges(Object fromNode) throws SearchException
+        {
+            if (edgesCache.containsKey(fromNode))
+            {
+                return (SortedSet) edgesCache.get(fromNode);
+            }
+            SortedSet edges = delegate.getEdges(fromNode);
+            edgesCache.put(fromNode, edges);
+            return edges;
+        }
+
+        public void nodeAdded(Object fromNode) throws SearchException
+        {
+            delegate.nodeAdded(fromNode);
+        }
+
+        public boolean searchNode(Object node) throws SearchException
+        {
+            return delegate.searchNode(node);
+        }
     }
 
 
