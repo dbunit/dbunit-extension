@@ -65,7 +65,14 @@ public class OrderedTableNameMap
 	 * which the table has been added
 	 */
 	private List _tableNames = new ArrayList();
-	
+
+	/**
+	 * Maps a case-normalized table name to the original-case name it was
+	 * added with, so {@link #getOriginalTableName(String)} can look it up
+	 * directly instead of scanning {@link #_tableNames}.
+	 */
+	private Map _originalTableNamesByNormalized = new HashMap();
+
 	private String _lastTableNameOverride;
 	
 	/**
@@ -200,6 +207,7 @@ public class OrderedTableNameMap
         else {
             this._tableMap.put(tableNameCorrectedCase, object);
             this._tableNames.add(tableName);
+            this._originalTableNamesByNormalized.put(tableNameCorrectedCase, tableName);
             // Reset the override of the lastTableName
             this._lastTableNameOverride = null;
         }
@@ -254,15 +262,8 @@ public class OrderedTableNameMap
     public String getOriginalTableName(String tableName)
     {
         String normalizedInput = getTableName(tableName);
-        for (Iterator it = _tableNames.iterator(); it.hasNext();)
-        {
-            String storedName = (String) it.next();
-            if (getTableName(storedName).equals(normalizedInput))
-            {
-                return storedName;
-            }
-        }
-        return tableName;
+        String originalName = (String) _originalTableNamesByNormalized.get(normalizedInput);
+        return originalName != null ? originalName : tableName;
     }
 
     /**
