@@ -23,6 +23,8 @@ package org.dbunit.util.search;
 
 import java.util.SortedSet;
 
+import org.junit.jupiter.api.Test;
+
 /**
  * @author Felipe Leme (dbunit@felipeal.net)
  * @version $Revision$
@@ -66,6 +68,7 @@ public class BiDirectionalEdgesDepthFirstSearchTest extends DepthFirstSearchTest
     // using unidirectional edges.
     // For, instance, on the graph C->A->B, C would never be reached from A or B
 
+    @Test
     public void testSingleReverseEdge() throws Exception
     {
         setInput(new String[] {A});
@@ -75,6 +78,7 @@ public class BiDirectionalEdgesDepthFirstSearchTest extends DepthFirstSearchTest
         doIt();
     }
 
+    @Test
     public void testSingleReverseEdgeInputB() throws Exception
     {
         setInput(new String[] {B});
@@ -84,6 +88,7 @@ public class BiDirectionalEdgesDepthFirstSearchTest extends DepthFirstSearchTest
         doIt();
     }
 
+    @Test
     public void testSingleReverseEdgeMultipleInput() throws Exception
     {
         setInput(new String[] {B, A});
@@ -93,6 +98,7 @@ public class BiDirectionalEdgesDepthFirstSearchTest extends DepthFirstSearchTest
         doIt();
     }
 
+    @Test
     public void testSingleReverseEdgeMultipleInputIncludingC() throws Exception
     {
         setInput(new String[] {C, B, A});
@@ -102,6 +108,7 @@ public class BiDirectionalEdgesDepthFirstSearchTest extends DepthFirstSearchTest
         doIt();
     }
 
+    @Test
     public void testOneInputTwoEdges() throws Exception
     {
         setInput(new String[] {B});
@@ -113,28 +120,29 @@ public class BiDirectionalEdgesDepthFirstSearchTest extends DepthFirstSearchTest
 
     // TODO: continue adding more tests uncommenting and adapting tests below...
     /*
-     * 
+     *
      * public void testSingleEdgeRepeatedInput() throws Exception { setInput(new
      * String[] { A, B, B, A, B }); addEdges(A, new String[] { B });
      * setOutput(new String[] { B, A }); doIt(); }
-     * 
+     *
      * public void testDisconnected() throws Exception { setInput(new String[] {
      * A, C }); addEdges(A, new String[] { B }); setOutput(new String[] { B, A,
      * C }); doIt(); }
-     * 
+     *
      * public void testDisconnectedInverseOrder() throws Exception {
      * setInput(new String[] { C, A }); addEdges(A, new String[] { B });
      * setOutput(new String[] { B, A, C }); doIt(); }
-     * 
+     *
      * public void testMultipleEdgesOneSource() throws Exception { setInput(new
      * String[] { A }); addEdges(A, new String[] { B, C }); setOutput(new
      * String[] { B, C, A }); doIt(); }
-     * 
+     *
      * public void testMultipleEdgesMultipleSources() throws Exception {
      * setInput(new String[] { A }); addEdges(A, new String[] { B, C });
      * addEdges(B, new String[] { D, C }); setOutput(new String[] { C, D, B, A
      * }); doIt(); }
      */
+    @Test
     public void testMultipleEdgesCycleFromA() throws Exception
     {
         setInput(new String[] {A});
@@ -145,6 +153,7 @@ public class BiDirectionalEdgesDepthFirstSearchTest extends DepthFirstSearchTest
         doIt();
     }
 
+    @Test
     public void testMultipleEdgesCycleFromB() throws Exception
     {
         setInput(new String[] {B});
@@ -155,6 +164,7 @@ public class BiDirectionalEdgesDepthFirstSearchTest extends DepthFirstSearchTest
         doIt();
     }
 
+    @Test
     public void testMultipleEdgesCycleFromBA() throws Exception
     {
         setInput(new String[] {B, A});
@@ -169,8 +179,9 @@ public class BiDirectionalEdgesDepthFirstSearchTest extends DepthFirstSearchTest
      * public void testSelfCyclic() throws Exception { setInput(new String[] { A
      * }); addEdges(A, new String[] { A }); setOutput(new String[] { A });
      * doIt(); }
-     * 
+     *
      */
+    @Test
     public void testCyclicAndSelfCyclic() throws Exception
     {
         setInput(new String[] {A});
@@ -181,6 +192,7 @@ public class BiDirectionalEdgesDepthFirstSearchTest extends DepthFirstSearchTest
         doIt();
     }
 
+    @Test
     public void testDisconnectedCycles() throws Exception
     {
         setInput(new String[] {A, D});
@@ -194,6 +206,7 @@ public class BiDirectionalEdgesDepthFirstSearchTest extends DepthFirstSearchTest
         doIt();
     }
 
+    @Test
     public void testConnectedCycle() throws Exception
     {
         setInput(new String[] {A});
@@ -206,6 +219,7 @@ public class BiDirectionalEdgesDepthFirstSearchTest extends DepthFirstSearchTest
         doIt();
     }
 
+    @Test
     public void testBigConnectedCycle() throws Exception
     {
         setInput(new String[] {A});

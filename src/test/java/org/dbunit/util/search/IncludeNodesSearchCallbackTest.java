@@ -23,6 +23,8 @@ package org.dbunit.util.search;
 
 import java.util.SortedSet;
 
+import org.junit.jupiter.api.Test;
+
 /**
  * @author Felipe Leme (dbunit@felipeal.net)
  * @version $Revision$
@@ -52,6 +54,7 @@ public class IncludeNodesSearchCallbackTest extends AbstractSearchTestCase
 
     }
 
+    @Test
     public void testSingleNode() throws Exception
     {
         setInput(new String[] {A});
@@ -60,6 +63,7 @@ public class IncludeNodesSearchCallbackTest extends AbstractSearchTestCase
         doIt();
     }
 
+    @Test
     public void testSingleEdgeAllowedA() throws Exception
     {
         setInput(new String[] {A});
@@ -69,6 +73,7 @@ public class IncludeNodesSearchCallbackTest extends AbstractSearchTestCase
         doIt();
     }
 
+    @Test
     public void testSingleEdgeAllowedB() throws Exception
     {
         setInput(new String[] {A});
@@ -77,6 +82,7 @@ public class IncludeNodesSearchCallbackTest extends AbstractSearchTestCase
         doIt();
     }
 
+    @Test
     public void testSingleEdgeMultipleInputAllowedB() throws Exception
     {
         setInput(new String[] {A, B});
@@ -86,6 +92,7 @@ public class IncludeNodesSearchCallbackTest extends AbstractSearchTestCase
         doIt();
     }
 
+    @Test
     public void testDisconnected() throws Exception
     {
         setInput(new String[] {A, C});
@@ -95,6 +102,7 @@ public class IncludeNodesSearchCallbackTest extends AbstractSearchTestCase
         doIt();
     }
 
+    @Test
     public void testDisconnectedAllowedC() throws Exception
     {
         setInput(new String[] {A, C});

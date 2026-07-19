@@ -21,6 +21,8 @@
 
 package org.dbunit.util.search;
 
+import org.junit.jupiter.api.Test;
+
 /**
  * @author Felipe Leme (dbunit@felipeal.net)
  * @version $Revision$
@@ -30,11 +32,13 @@ package org.dbunit.util.search;
 public class DepthFirstSearchTest extends AbstractSearchTestCase
 {
 
+    @Test
     public void testEmptyGraph() throws Exception
     {
         doIt();
     }
 
+    @Test
     public void testSingleNode() throws Exception
     {
         setInput(new String[] {A});
@@ -42,6 +46,7 @@ public class DepthFirstSearchTest extends AbstractSearchTestCase
         doIt();
     }
 
+    @Test
     public void testSingleEdge() throws Exception
     {
         setInput(new String[] {A});
@@ -50,6 +55,7 @@ public class DepthFirstSearchTest extends AbstractSearchTestCase
         doIt();
     }
 
+    @Test
     public void testSingleEdgeMultipleInput() throws Exception
     {
         setInput(new String[] {A, B});
@@ -58,6 +64,7 @@ public class DepthFirstSearchTest extends AbstractSearchTestCase
         doIt();
     }
 
+    @Test
     public void testSingleEdgeRepeatedInput() throws Exception
     {
         setInput(new String[] {A, B, B, A, B});
@@ -66,6 +73,7 @@ public class DepthFirstSearchTest extends AbstractSearchTestCase
         doIt();
     }
 
+    @Test
     public void testDisconnected() throws Exception
     {
         setInput(new String[] {A, C});
@@ -74,6 +82,7 @@ public class DepthFirstSearchTest extends AbstractSearchTestCase
         doIt();
     }
 
+    @Test
     public void testDisconnectedInverseOrder() throws Exception
     {
         setInput(new String[] {C, A});
@@ -82,6 +91,7 @@ public class DepthFirstSearchTest extends AbstractSearchTestCase
         doIt();
     }
 
+    @Test
     public void testMultipleEdgesOneSource() throws Exception
     {
         setInput(new String[] {A});
@@ -90,6 +100,7 @@ public class DepthFirstSearchTest extends AbstractSearchTestCase
         doIt();
     }
 
+    @Test
     public void testMultipleEdgesMultipleSources() throws Exception
     {
         setInput(new String[] {A});
@@ -99,6 +110,7 @@ public class DepthFirstSearchTest extends AbstractSearchTestCase
         doIt();
     }
 
+    @Test
     public void testMultipleEdgesCycleFromA() throws Exception
     {
         setInput(new String[] {A});
@@ -109,6 +121,7 @@ public class DepthFirstSearchTest extends AbstractSearchTestCase
         doIt();
     }
 
+    @Test
     public void testMultipleEdgesCycleFromB() throws Exception
     {
         setInput(new String[] {B});
@@ -119,6 +132,7 @@ public class DepthFirstSearchTest extends AbstractSearchTestCase
         doIt();
     }
 
+    @Test
     public void testMultipleEdgesCycleFromBA() throws Exception
     {
         setInput(new String[] {B, A});
@@ -129,6 +143,7 @@ public class DepthFirstSearchTest extends AbstractSearchTestCase
         doIt();
     }
 
+    @Test
     public void testSelfCyclic() throws Exception
     {
         setInput(new String[] {A});
@@ -137,6 +152,7 @@ public class DepthFirstSearchTest extends AbstractSearchTestCase
         doIt();
     }
 
+    @Test
     public void testCyclicAndSelfCyclic() throws Exception
     {
         setInput(new String[] {A});
@@ -147,6 +163,7 @@ public class DepthFirstSearchTest extends AbstractSearchTestCase
         doIt();
     }
 
+    @Test
     public void testDisconnectedCycles() throws Exception
     {
         setInput(new String[] {A, D});
@@ -160,6 +177,7 @@ public class DepthFirstSearchTest extends AbstractSearchTestCase
         doIt();
     }
 
+    @Test
     public void testConnectedCycle() throws Exception
     {
         setInput(new String[] {A});
@@ -172,6 +190,7 @@ public class DepthFirstSearchTest extends AbstractSearchTestCase
         doIt();
     }
 
+    @Test
     public void testBigConnectedCycle() throws Exception
     {
         setInput(new String[] {A});
@@ -184,6 +203,7 @@ public class DepthFirstSearchTest extends AbstractSearchTestCase
         doIt();
     }
 
+    @Test
     public void testMerge() throws Exception
     {
         setInput(new String[] {A, C});
