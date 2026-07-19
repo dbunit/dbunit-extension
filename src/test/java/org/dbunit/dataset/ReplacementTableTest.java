@@ -22,9 +22,11 @@ package org.dbunit.dataset;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
 import java.math.BigDecimal;
 import java.sql.Date;
+import java.time.Duration;
 
 import org.dbunit.Assertion;
 import org.dbunit.dataset.datatype.DataType;
@@ -330,6 +332,27 @@ class ReplacementTableTest extends AbstractTableTest
         expectedTable.addRow(expectedRow);
 
         Assertion.assertEquals(expectedTable, actualTable);
+    }
+
+    @Test
+    void testSubstringReplacement_withEmptyStringSubstring_doesNotHang() throws Exception
+    {
+        final String tableName = "TABLE_NAME";
+        final Column[] columns = new Column[] {new Column("VALUE", DataType.CHAR)};
+
+        final DefaultTable originalTable = new DefaultTable(tableName, columns);
+        originalTable.addRow(new Object[] {"some value"});
+        final ReplacementTable actualTable = new ReplacementTable(originalTable);
+        actualTable.addReplacementSubstring("", "replacement");
+
+        final Object result = assertTimeoutPreemptively(Duration.ofSeconds(5),
+                () -> actualTable.getValue(0, "VALUE"),
+                "Registering an empty-string substring replacement must not hang.");
+
+        assertThat(result)
+                .as("An empty-string substring has no occurrences to replace, so the value "
+                        + "should be returned unchanged.")
+                .isEqualTo("some value");
     }
 
     @Test

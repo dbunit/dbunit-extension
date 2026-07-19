@@ -134,28 +134,47 @@ public class ReplacementTable implements ITable
 
     /**
      * Replace occurrences of source in text with target. Operates directly on text.
+     * Searches text itself rather than a fresh text.toString() copy on every iteration.
      */
     private void replaceAll(StringBuilder text, String source, String target) {
+        if (source.length() == 0)
+        {
+            // An empty source matches at every position without ever advancing, so the loop
+            // below would never terminate.
+            return;
+        }
         int index = 0;
-        while((index = text.toString().indexOf(source, index)) != -1)
+        while((index = text.indexOf(source, index)) != -1)
         {
             text.replace(index, index+source.length(), target);
             index += target.length();
         }
     }
-    
+
     private String replaceStrings(String value, String lDelim, String rDelim) {
-        final StringBuilder buffer = new StringBuilder(value);
+        StringBuilder buffer = null;
 
         for (Iterator it = _substringMap.entrySet().iterator(); it.hasNext();)
         {
             Map.Entry entry = (Map.Entry)it.next();
             String original = (String)entry.getKey();
             String replacement = (String)entry.getValue();
-            replaceAll(buffer, lDelim + original + rDelim, replacement);
+            String source = lDelim + original + rDelim;
+
+            if (buffer == null)
+            {
+                // Materialize the StringBuilder only once a first hit occurs, so cells with
+                // no matching substring at all (the common case) allocate nothing.
+                if (value.indexOf(source) == -1)
+                {
+                    continue;
+                }
+                buffer = new StringBuilder(value);
+            }
+            replaceAll(buffer, source, replacement);
         }
 
-        return buffer == null ? value : buffer.toString();        
+        return buffer == null ? value : buffer.toString();
     }
     
     private String replaceSubstrings(String value)
@@ -246,10 +265,13 @@ public class ReplacementTable implements ITable
 
         Object value = _table.getValue(row, column);
 
-        // Object replacement
-        if (_objectMap.containsKey(value))
+        // Object replacement. A single get() covers the common case (a mapping with a
+        // non-null replacement); containsKey() is only needed to distinguish "no mapping"
+        // from "mapping to null" when get() itself returns null.
+        Object replacement = _objectMap.get(value);
+        if (replacement != null || _objectMap.containsKey(value))
         {
-            return _objectMap.get(value);
+            return replacement;
         }
 
         // Stop here if substring replacement not applicable
