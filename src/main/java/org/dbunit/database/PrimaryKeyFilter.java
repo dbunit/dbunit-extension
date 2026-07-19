@@ -244,7 +244,6 @@ public class PrimaryKeyFilter extends AbstractTableFilter {
     private void scanPKs(String table, String sql, Set allowedIds, List fkTables) throws SQLException
     {
         PreparedStatement pstmt = null;
-        ResultSet rs = null;
         try {
             pstmt = this.connection.getConnection().prepareStatement( sql );
             for(Iterator iterator = allowedIds.iterator(); iterator.hasNext(); ) {
@@ -253,17 +252,19 @@ public class PrimaryKeyFilter extends AbstractTableFilter {
                     this.logger.debug("Executing sql for ? = " + pk );
                 }
                 pstmt.setObject( 1, pk );
-                rs = pstmt.executeQuery();
-                while( rs.next() ) {
-                    for( int i=0; i<fkTables.size(); i++ ) {
-                        String newTable = (String) fkTables.get(i);
-                        Object fk = rs.getObject(i+1);
-                        if( fk != null ) {
-                            logger.debug("New ID: {}->{}", newTable, fk);
-                            addPKToScan( newTable, fk );
-                        } 
-                        else {
-                            logger.warn( "Found null FK for relationship {} =>{}", table, newTable );
+                try (ResultSet rs = pstmt.executeQuery())
+                {
+                    while( rs.next() ) {
+                        for( int i=0; i<fkTables.size(); i++ ) {
+                            String newTable = (String) fkTables.get(i);
+                            Object fk = rs.getObject(i+1);
+                            if( fk != null ) {
+                                logger.debug("New ID: {}->{}", newTable, fk);
+                                addPKToScan( newTable, fk );
+                            }
+                            else {
+                                logger.warn( "Found null FK for relationship {} =>{}", table, newTable );
+                            }
                         }
                     }
                 }
@@ -273,7 +274,7 @@ public class PrimaryKeyFilter extends AbstractTableFilter {
         }
         finally {
             // new in the finally block. has been in the catch only before
-            SQLHelper.close( rs, pstmt );
+            SQLHelper.close( pstmt );
         }
     }
 
@@ -304,7 +305,6 @@ public class PrimaryKeyFilter extends AbstractTableFilter {
         String sql = "SELECT " + pkColumn + " FROM " + fkTable + " WHERE " + fkColumn + " = ? ";
 
         PreparedStatement pstmt = null;
-        ResultSet rs = null;
         try {
             logger.debug("Preparing SQL query '{}'", sql);
 
@@ -315,14 +315,16 @@ public class PrimaryKeyFilter extends AbstractTableFilter {
                     this.logger.debug( "executing query '" + sql + "' for ? = " + pk );
                 }
                 pstmt.setObject( 1, pk );
-                rs = pstmt.executeQuery();
-                while( rs.next() ) {
-                    Object fk = rs.getObject(1);
-                    addPKToScan( fkTable, fk );
+                try (ResultSet rs = pstmt.executeQuery())
+                {
+                    while( rs.next() ) {
+                        Object fk = rs.getObject(1);
+                        addPKToScan( fkTable, fk );
+                    }
                 }
-            } 
+            }
         } finally {
-            SQLHelper.close( rs, pstmt );
+            SQLHelper.close( pstmt );
         }
     }
 

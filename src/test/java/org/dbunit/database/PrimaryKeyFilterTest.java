@@ -21,11 +21,26 @@
 package org.dbunit.database;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.util.SortedSet;
 import java.util.TreeSet;
 
 import org.dbunit.database.PrimaryKeyFilter.PkTableMap;
+import org.dbunit.database.search.ForeignKeyRelationshipEdge;
+import org.dbunit.dataset.Column;
+import org.dbunit.dataset.DefaultDataSet;
+import org.dbunit.dataset.DefaultTable;
+import org.dbunit.dataset.DefaultTableMetaData;
+import org.dbunit.dataset.IDataSet;
+import org.dbunit.dataset.datatype.DataType;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -254,5 +269,53 @@ class PrimaryKeyFilterTest
         final String result = filter.toString();
         assertThat(result).as("toString is not empty.").isNotBlank();
         assertThat(result).as("toString includes reverseScan flag.").contains("reverseScan=true");
+    }
+
+    // -------------------------------------------------------------------------
+    // PrimaryKeyFilter scanPKs result set closing tests
+    // -------------------------------------------------------------------------
+
+    @Test
+    void testIterator_multiplePksToScan_closesResultSetPerIteration() throws Exception
+    {
+        // CHILD has an FK column (PARENT_ID) referencing PARENT.ID.
+        final Column[] childColumns = new Column[] {
+                new Column("ID", DataType.NUMERIC),
+                new Column("PARENT_ID", DataType.NUMERIC)};
+        final DefaultTable childTable = new DefaultTable(
+                new DefaultTableMetaData("CHILD", childColumns, new String[] {"ID"}));
+        final Column[] parentColumns =
+                new Column[] {new Column("ID", DataType.NUMERIC)};
+        final DefaultTable parentTable = new DefaultTable(
+                new DefaultTableMetaData("PARENT", parentColumns, new String[] {"ID"}));
+        final IDataSet dataSet = new DefaultDataSet(childTable, parentTable);
+
+        final PreparedStatement pstmt = mock(PreparedStatement.class);
+        final ResultSet rs1 = mock(ResultSet.class);
+        final ResultSet rs2 = mock(ResultSet.class);
+        when(pstmt.executeQuery()).thenReturn(rs1, rs2);
+        final Connection connection = mock(Connection.class);
+        when(connection.prepareStatement(anyString())).thenReturn(pstmt);
+        final IDatabaseConnection databaseConnection = mock(IDatabaseConnection.class);
+        when(databaseConnection.getConnection()).thenReturn(connection);
+
+        final PkTableMap allowedPKs = new PkTableMap();
+        allowedPKs.add("CHILD", Integer.valueOf(1));
+        allowedPKs.add("CHILD", Integer.valueOf(2));
+
+        final PrimaryKeyFilter filter =
+                new PrimaryKeyFilter(databaseConnection, allowedPKs, false);
+        filter.nodeAdded("CHILD");
+        filter.nodeAdded("PARENT");
+        filter.edgeAdded(new ForeignKeyRelationshipEdge("CHILD", "PARENT",
+                "PARENT_ID", "ID"));
+
+        // searchPKs() -- and therefore scanPKs() -- runs synchronously inside iterator().
+        filter.iterator(dataSet, false);
+
+        verify(pstmt, times(2)).executeQuery();
+        // Each iteration's own ResultSet must be closed, not just the last one.
+        verify(rs1, times(1)).close();
+        verify(rs2, times(1)).close();
     }
 }
