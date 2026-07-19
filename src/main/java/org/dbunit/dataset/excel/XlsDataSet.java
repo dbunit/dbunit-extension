@@ -20,6 +20,7 @@
  */
 package org.dbunit.dataset.excel;
 
+import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -64,7 +65,13 @@ public class XlsDataSet extends AbstractDataSet
      */
     public XlsDataSet(File file) throws IOException, DataSetException
     {
-        this(new FileInputStream(file));
+        _tables = super.createTableNameMap();
+
+        try (InputStream in = new BufferedInputStream(new FileInputStream(file)))
+        {
+            Workbook workbook = createWorkbook(in);
+            loadSheets(workbook);
+        }
     }
 
     /**
@@ -74,19 +81,28 @@ public class XlsDataSet extends AbstractDataSet
     {
         _tables = super.createTableNameMap();
 
-        Workbook workbook;
-        try {
-            workbook = WorkbookFactory.create(in);
+        Workbook workbook = createWorkbook(in);
+        loadSheets(workbook);
+    }
+
+    private static Workbook createWorkbook(InputStream in) throws IOException
+    {
+        try
+        {
+            return WorkbookFactory.create(in);
         } catch (EncryptedDocumentException e) {
             throw new IOException(e);
         }
-		
+    }
+
+    private void loadSheets(Workbook workbook) throws DataSetException
+    {
         int sheetCount = workbook.getNumberOfSheets();
         for (int i = 0; i < sheetCount; i++)
         {
             ITable table = new XlsTable(workbook.getSheetName(i),
                     workbook.getSheetAt(i));
-            _tables.add(table.getTableMetaData().getTableName(), table);            
+            _tables.add(table.getTableMetaData().getTableName(), table);
         }
     }
 

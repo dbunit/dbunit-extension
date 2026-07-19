@@ -27,6 +27,8 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 
 import org.dbunit.Assertion;
 import org.dbunit.dataset.AbstractDataSetTest;
@@ -37,6 +39,8 @@ import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.ITable;
 import org.dbunit.testutil.TestUtils;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 
 /**
  * @author Manuel Laflamme
@@ -125,6 +129,34 @@ class XlsDataSetTest extends AbstractDataSetTest
         } finally
         {
             tempFile.delete();
+        }
+    }
+
+    @Test
+    @EnabledOnOs(OS.WINDOWS)
+    void testConstructor_withFile_closesUnderlyingFileStream() throws Exception
+    {
+        // Windows-only: proving stream closure via deletability relies on Windows' mandatory
+        // file locking, where an open FileInputStream blocks File.delete(). On Linux/macOS,
+        // unlink() succeeds regardless of open file descriptors, so this same assertion would
+        // pass even with the leak still present -- it would not be a meaningful regression guard
+        // there.
+        final File sourceFile = TestUtils.getFile("xml/dataSetTest.xls");
+        final File tempCopy = File.createTempFile("xlsDataSetTest", ".xls");
+        try
+        {
+            Files.copy(sourceFile.toPath(), tempCopy.toPath(),
+                    StandardCopyOption.REPLACE_EXISTING);
+
+            new XlsDataSet(tempCopy);
+
+            assertThat(tempCopy.delete())
+                    .as("the file should be deletable immediately after construction, "
+                            + "proving the internal FileInputStream was closed rather than leaked.")
+                    .isTrue();
+        } finally
+        {
+            tempCopy.delete();
         }
     }
 
