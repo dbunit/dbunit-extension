@@ -59,7 +59,10 @@ public class PreparedBatchStatement extends AbstractPreparedBatchStatement
     public void addValue(Object value, DataType dataType)
             throws TypeCastException, SQLException
     {
-        logger.debug("addValue(value={}, dataType={}) - start", value, dataType);
+        if (logger.isDebugEnabled())
+        {
+            logger.debug("addValue(value={}, dataType={}) - start", value, dataType);
+        }
 
         // Special NULL handling
         if (value == null || value == ITable.NO_VALUE)
