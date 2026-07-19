@@ -213,7 +213,8 @@ public class SortedTable extends AbstractTable
 
         if (_indexes == null)
         {
-            final Integer[] indexes = new Integer[getRowCount()];
+            final int rowCount = getRowCount();
+            final Integer[] indexes = new Integer[rowCount];
             for (int i = 0; i < indexes.length; i++)
             {
                 indexes[i] = i;
@@ -221,7 +222,11 @@ public class SortedTable extends AbstractTable
 
             try
             {
-                Arrays.sort(indexes, rowComparator);
+                final Comparator precomputedComparator =
+                        createPrecomputedKeyComparator(rowCount);
+                Arrays.sort(indexes,
+                        precomputedComparator != null ? precomputedComparator
+                                : rowComparator);
             } catch (final DatabaseUnitRuntimeException e)
             {
                 throw (DataSetException) e.getCause();
@@ -231,6 +236,60 @@ public class SortedTable extends AbstractTable
         }
 
         return _indexes[row].intValue();
+    }
+
+    /**
+     * Precomputes one sort key per (row, sort column) so the sort compares those keys directly
+     * instead of re-reading each cell -- and, in the default byString mode, re-running
+     * {@link DataType#asString(Object)} on it -- on every comparison. Memory cost is
+     * O(rows x sort columns) for the lifetime of this precompute call.
+     * <p>
+     * Only safe for the two built-in comparators ({@link RowComparator}, {@link
+     * RowComparatorByString}): their exact comparison mode (Comparable vs. string) is known, so
+     * an equivalent key can be precomputed for it. Gated by exact class, not <code>instanceof</code>,
+     * since both are non-final and reachable via the public {@link #setRowComparator(Comparator)}
+     * extension point -- a subclass overriding {@code compare(Column, Object, Object)} would have
+     * that override silently bypassed by the precomputed-key fast path. A {@link Comparator}
+     * supplied via {@link #setRowComparator(Comparator)} may implement arbitrary comparison logic,
+     * so its results cannot be safely precomputed; this method returns <code>null</code> in that
+     * case and the caller falls back to sorting with {@link #rowComparator} directly, reading
+     * cells as before.
+     *
+     * @param rowCount
+     *            The number of rows in the decorated table.
+     * @return A comparator over precomputed keys, or <code>null</code> if the current {@link
+     *         #rowComparator} is not exactly one of the two built-in ones.
+     * @throws DataSetException
+     */
+    private Comparator createPrecomputedKeyComparator(final int rowCount)
+            throws DataSetException
+    {
+        final boolean useComparable;
+        if (this.rowComparator.getClass() == RowComparator.class)
+        {
+            useComparable = true;
+        } else if (this.rowComparator.getClass() == RowComparatorByString.class)
+        {
+            useComparable = false;
+        } else
+        {
+            return null;
+        }
+
+        final Object[][] sortKeys = new Object[rowCount][_columns.length];
+        for (int row = 0; row < rowCount; row++)
+        {
+            for (int col = 0; col < _columns.length; col++)
+            {
+                final String columnName = _columns[col].getColumnName();
+                final Object value = _table.getValue(row, columnName);
+                sortKeys[row][col] =
+                        useComparable || value == null ? value
+                                : DataType.asString(value);
+            }
+        }
+
+        return new PrecomputedKeyComparator(sortKeys, _columns, useComparable);
     }
 
     /**
@@ -486,6 +545,70 @@ public class SortedTable extends AbstractTable
             final String stringValue2 = DataType.asString(value2);
             final int result = stringValue1.compareTo(stringValue2);
             return result;
+        }
+    }
+
+    /**
+     * Compares rows by their precomputed sort keys (see
+     * {@link SortedTable#createPrecomputedKeyComparator(int)}), reusing the exact null-ordering
+     * and per-column compare logic of {@link AbstractRowComparator#compare(Object, Object)}
+     * without re-reading or re-converting cell values.
+     */
+    private static final class PrecomputedKeyComparator implements Comparator
+    {
+        private final Object[][] sortKeys;
+        private final Column[] sortColumns;
+        private final boolean useComparable;
+
+        private PrecomputedKeyComparator(final Object[][] sortKeys,
+                final Column[] sortColumns, final boolean useComparable)
+        {
+            this.sortKeys = sortKeys;
+            this.sortColumns = sortColumns;
+            this.useComparable = useComparable;
+        }
+
+        @Override
+        public int compare(final Object o1, final Object o2)
+        {
+            final Object[] keys1 = sortKeys[((Integer) o1).intValue()];
+            final Object[] keys2 = sortKeys[((Integer) o2).intValue()];
+
+            for (int col = 0; col < sortColumns.length; col++)
+            {
+                final Object key1 = keys1[col];
+                final Object key2 = keys2[col];
+
+                if (key1 == null && key2 == null)
+                {
+                    continue;
+                }
+                if (key1 == null)
+                {
+                    return -1;
+                }
+                if (key2 == null)
+                {
+                    return 1;
+                }
+
+                final int result;
+                try
+                {
+                    result = useComparable
+                            ? sortColumns[col].getDataType().compare(key1,
+                                    key2)
+                            : ((String) key1).compareTo((String) key2);
+                } catch (final TypeCastException e)
+                {
+                    throw new DatabaseUnitRuntimeException(e);
+                }
+                if (result != 0)
+                {
+                    return result;
+                }
+            }
+            return 0;
         }
     }
 
