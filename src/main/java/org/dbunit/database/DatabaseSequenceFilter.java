@@ -21,16 +21,14 @@
 package org.dbunit.database;
 
 import java.sql.SQLException;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
+import java.util.TreeSet;
 
 import org.dbunit.database.search.ExportedKeysSearchCallback;
 import org.dbunit.database.search.ImportedKeysSearchCallback;
@@ -123,75 +121,94 @@ public class DatabaseSequenceFilter extends SequenceTableFilter
             info.checkCycles();
         }
 
-        return sort(tableNames, dependencies);
+        try {
+            return sort(connection, tableNames, dependencies);
+        } catch (SearchException e) {
+            throw new DataSetException("Exception while searching the dependent tables.", e);
+        }
     }
 
 
-    private static String[] sort(String[] tableNames, Map dependencies)
+    /**
+     * Topologically sorts {@code tableNames} via Kahn's algorithm, using each table's direct
+     * dependency info: an edge runs from a table to each of its direct dependents (the tables
+     * in its {@link DependencyInfo#getDirectDependentTablesSet()}), meaning the table must
+     * precede those dependents in the result. Cycles are assumed already rejected by
+     * {@link DependencyInfo#checkCycles()}, called earlier in {@link #sortTableNames}.
+     * @param connection The database connection used to resolve the stored identifier case.
+     * @param tableNames The table names to be ordered.
+     * @param dependencies Each table name's {@link DependencyInfo}, keyed by table name.
+     * @return The topologically sorted table names; when more than one valid order exists,
+     * ties break to the original {@code tableNames} order.
+     * @throws SearchException If the JDBC connection cannot be obtained.
+     */
+    private static String[] sort(IDatabaseConnection connection, String[] tableNames, Map dependencies)
+    throws SearchException
     {
         logger.debug("sort(tableNames={}, dependencies={}) - start", tableNames, dependencies);
 
-        boolean reprocess = true;
-        List tmpTableNames = Arrays.asList(tableNames);
-        List sortedTableNames = null;
+        int tableCount = tableNames.length;
+        // Dependency-set entries (below) come back in the database's native identifier case
+        // (e.g. lowercase on PostgreSQL), which can differ from the caller-supplied tableNames
+        // case; index by that same normalized case so the edge lookups below actually match.
+        String[] normalizedNames = normalizeToStoredCase(connection, tableNames);
+        Map<String, Integer> nameToIndex = new HashMap<String, Integer>(tableCount);
+        for (int i = 0; i < tableCount; i++)
+        {
+            nameToIndex.put(normalizedNames[i], i);
+        }
 
-        while (reprocess) {
-            sortedTableNames = new LinkedList();
-
-            // re-order 'tmpTableNames' into 'sortedTableNames'
-            for (Iterator i = tmpTableNames.iterator(); i.hasNext();)
+        // In-degree = how many of this table's direct dependencies (prerequisites), among the
+        // tables being sorted, have not yet been placed in the result.
+        int[] inDegree = new int[tableCount];
+        for (int i = 0; i < tableCount; i++)
+        {
+            DependencyInfo info = (DependencyInfo) dependencies.get(tableNames[i]);
+            for (Iterator it = info.getDirectDependsOnTablesSet().iterator(); it.hasNext();)
             {
-                boolean foundDependentInSortedTableNames = false;
-                String tmpTable = (String)i.next();
-                DependencyInfo tmpTableDependents = (DependencyInfo) dependencies.get(tmpTable);
-                
-
-                int sortedTableIndex = -1;
-                for (Iterator k = sortedTableNames.iterator(); k.hasNext();)
+                if (nameToIndex.containsKey(it.next()))
                 {
-                    String sortedTable = (String)k.next();
-                    if (tmpTableDependents.containsDirectDependsOn(sortedTable))
+                    inDegree[i]++;
+                }
+            }
+        }
+
+        // Indices (not names) of tables with no remaining prerequisites. A TreeSet always
+        // yields the smallest index first, so whenever several tables become ready at once,
+        // the one appearing earliest in the original tableNames order is emitted first.
+        TreeSet<Integer> ready = new TreeSet<Integer>();
+        for (int i = 0; i < tableCount; i++)
+        {
+            if (inDegree[i] == 0)
+            {
+                ready.add(i);
+            }
+        }
+
+        String[] sortedTableNames = new String[tableCount];
+        int sortedCount = 0;
+        while (!ready.isEmpty())
+        {
+            int index = ready.pollFirst();
+            String tableName = tableNames[index];
+            sortedTableNames[sortedCount++] = tableName;
+
+            DependencyInfo info = (DependencyInfo) dependencies.get(tableName);
+            for (Iterator it = info.getDirectDependentTablesSet().iterator(); it.hasNext();)
+            {
+                Integer dependentIndex = nameToIndex.get(it.next());
+                if (dependentIndex != null)
+                {
+                    inDegree[dependentIndex]--;
+                    if (inDegree[dependentIndex] == 0)
                     {
-                        sortedTableIndex = sortedTableNames.indexOf(sortedTable);
-                        foundDependentInSortedTableNames = true;
-                        break; // end for loop; we know the index
+                        ready.add(dependentIndex);
                     }
                 }
+            }
+        }
 
-                
-                // add 'tmpTable' to 'sortedTableNames'.
-                // Insert it before its first dependent if there are any,
-                // otherwise append it to the end of 'sortedTableNames'
-                if (foundDependentInSortedTableNames) {
-                    if (sortedTableIndex < 0) {
-                        throw new IllegalStateException(
-                            "sortedTableIndex should be 0 or greater, but is "
-                                + sortedTableIndex);
-                    }
-                    sortedTableNames.add(sortedTableIndex, tmpTable);
-                }
-                else
-                {
-                    sortedTableNames.add(tmpTable);
-                }
-            }
-            
-            
-            
-            // don't stop processing until we have a perfect run (no re-ordering)
-            if (tmpTableNames.equals(sortedTableNames))
-            {
-                reprocess = false;
-            }
-            else
-            {
-
-                tmpTableNames = null;
-                tmpTableNames = (List)((LinkedList)sortedTableNames).clone();
-            }
-        }// end 'while (reprocess)'
-        
-        return (String[])sortedTableNames.toArray(new String[0]);
+        return sortedTableNames;
     }
 
     /**
@@ -357,13 +374,6 @@ public class DatabaseSequenceFilter extends SequenceTableFilter
             this.allTableDependsOn = allTableDependsOn;
             this.allTableDependent = allTableDependent;
             this.tableName = tableName;
-        }
-
-        public boolean containsDirectDependent(String tableName) {
-            return this.directDependentTablesSet.contains(tableName);
-        }
-        public boolean containsDirectDependsOn(String tableName) {
-            return this.directDependsOnTablesSet.contains(tableName);
         }
 
         public String getTableName() {
