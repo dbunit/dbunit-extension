@@ -21,6 +21,10 @@
 
 package org.dbunit.util.search;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.util.Set;
+
 import org.junit.jupiter.api.Test;
 
 /**
@@ -211,6 +215,49 @@ public class DepthFirstSearchTest extends AbstractSearchTestCase
         addEdges(C, new String[] {A});
         setOutput(new String[] {B, A, C});
         doIt();
+    }
+
+    @Test
+    void testSearch_depthLimitOne_returnsOnlyDirectNodes() throws Exception
+    {
+        setInput(new String[] {A});
+        addEdges(A, new String[] {B});
+        addEdges(B, new String[] {C});
+
+        final Set actual = new DepthFirstSearch(1).search(fInput, getCallback());
+
+        assertThat(actual)
+                .as("Depth-limited search of 1 on A->B->C from {A} should include the direct dependency B but not the transitive dependency C.")
+                .containsExactlyInAnyOrder(A, B);
+    }
+
+    @Test
+    void testSearch_depthLimitOne_multipleChildren_allDirectIncluded() throws Exception
+    {
+        setInput(new String[] {A});
+        addEdges(A, new String[] {B, C});
+        addEdges(B, new String[] {D});
+
+        final Set actual = new DepthFirstSearch(1).search(fInput, getCallback());
+
+        assertThat(actual)
+                .as("Depth-limited search of 1 from A with two direct children B and C should include both, and not B's child D.")
+                .containsExactlyInAnyOrder(A, B, C);
+    }
+
+    @Test
+    void testSearch_depthLimitTwo_stopsAtGrandchildren() throws Exception
+    {
+        setInput(new String[] {A});
+        addEdges(A, new String[] {B});
+        addEdges(B, new String[] {C});
+        addEdges(C, new String[] {D});
+
+        final Set actual = new DepthFirstSearch(2).search(fInput, getCallback());
+
+        assertThat(actual)
+                .as("Depth-limited search of 2 on A->B->C->D from {A} should reach the grandchild C but not the great-grandchild D.")
+                .containsExactlyInAnyOrder(A, B, C);
     }
 
 }

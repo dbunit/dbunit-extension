@@ -212,7 +212,7 @@ public class DepthFirstSearch implements ISearchAlgorithm {
               // and recursively search these nodes
               IEdge edge = (IEdge) iterator.next();
               Object toNode = edge.getTo();
-              search(toNode, currentSearchDepth++);
+              search(toNode, currentSearchDepth + 1);
             }
           }
     }
@@ -270,7 +270,7 @@ public class DepthFirstSearch implements ISearchAlgorithm {
             Object toNode = edge.getTo();
             if ( toNode.equals(node) ) {
               Object fromNode = edge.getFrom();
-              reverseSearch(fromNode, currentSearchDepth++);
+              reverseSearch(fromNode, currentSearchDepth + 1);
             }
           }
         }
