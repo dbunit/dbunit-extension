@@ -25,6 +25,13 @@ import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
+import java.sql.Types;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
 import org.dbunit.dataset.AbstractTableMetaData;
 import org.dbunit.dataset.Column;
@@ -141,18 +148,27 @@ public class ResultSetTableMetaData extends AbstractTableMetaData
 
     	Connection connection = resultSet.getStatement().getConnection();
     	DatabaseMetaData databaseMetaData = connection.getMetaData();
-    	
+
         ResultSetMetaData metaData = resultSet.getMetaData();
         Column[] columns = new Column[metaData.getColumnCount()];
+        // Fast-path cache of one getColumns() result per distinct (schema, table) origin, so a
+        // multi-column table is not re-queried once per column. Only safe for the exact
+        // DefaultMetadataHandler class (not instanceof: e.g. Db2MetadataHandler extends it but
+        // overrides matches() with DB2-specific catalog handling that this cache bypasses) --
+        // custom/ext handlers keep the legacy per-column path below.
+        Map columnsByOrigin = columnFactory.getClass() == DefaultMetadataHandler.class
+                ? new HashMap()
+                : null;
         for (int i = 0; i < columns.length; i++)
         {
             int rsIndex = i+1;
-            
+
             // 1. try to create the column from the DatabaseMetaData object. The DatabaseMetaData
             // provides more information and is more precise so that it should always be used in
             // preference to the ResultSetMetaData object.
-            columns[i] = createColumnFromDbMetaData(metaData, rsIndex, databaseMetaData, dataTypeFactory, columnFactory);
-            
+            columns[i] = createColumnFromDbMetaData(metaData, rsIndex, databaseMetaData, dataTypeFactory,
+                    columnFactory, columnsByOrigin);
+
             // 2. If we could not create the Column from a DatabaseMetaData object, try to create it
             // from the ResultSetMetaData object directly
             if(columns[i] == null)
@@ -204,36 +220,39 @@ public class ResultSetTableMetaData extends AbstractTableMetaData
      * information about the column if possible
      * @param dataTypeFactory dbunit {@link IDataTypeFactory} needed to create the Column
      * @param metadataHandler the handler to be used for {@link DatabaseMetaData} handling
-     * @return The column or <code>null</code> if it can be not created using a 
-     * {@link DatabaseMetaData} object because of missing information in the 
+     * @param columnsByOrigin Fast-path cache of one getColumns() result per (schema, table)
+     * origin, or <code>null</code> to always use the legacy per-column lookup (see
+     * {@link #createMetaData(String, ResultSet, IDataTypeFactory, IMetadataHandler)}).
+     * @return The column or <code>null</code> if it can be not created using a
+     * {@link DatabaseMetaData} object because of missing information in the
      * {@link ResultSetMetaData} object
      * @throws SQLException
-     * @throws DataTypeException 
+     * @throws DataTypeException
      */
-    private Column createColumnFromDbMetaData(ResultSetMetaData rsMetaData, int rsIndex, 
+    private Column createColumnFromDbMetaData(ResultSetMetaData rsMetaData, int rsIndex,
             DatabaseMetaData databaseMetaData, IDataTypeFactory dataTypeFactory,
-            IMetadataHandler metadataHandler) 
-    throws SQLException, DataTypeException 
+            IMetadataHandler metadataHandler, Map columnsByOrigin)
+    throws SQLException, DataTypeException
     {
         if(logger.isTraceEnabled()){
-            logger.trace("createColumnFromMetaData(rsMetaData={}, rsIndex={}," + 
+            logger.trace("createColumnFromMetaData(rsMetaData={}, rsIndex={}," +
                     " databaseMetaData={}, dataTypeFactory={}, columnFactory={}) - start",
-                new Object[]{rsMetaData, String.valueOf(rsIndex), 
+                new Object[]{rsMetaData, String.valueOf(rsIndex),
                             databaseMetaData, dataTypeFactory, metadataHandler});
         }
-        
+
         // use DatabaseMetaData to retrieve the actual column definition
         String catalogName = rsMetaData.getCatalogName(rsIndex);
         String schemaName = rsMetaData.getSchemaName(rsIndex);
         String tableName = rsMetaData.getTableName(rsIndex);
         String columnName = rsMetaData.getColumnLabel(rsIndex);
-        
+
         // Due to a bug in the DB2 JDBC driver we have to trim the names
         catalogName = trim(catalogName);
         schemaName = trim(schemaName);
         tableName = trim(tableName);
         columnName = trim(columnName);
-        
+
         // Check if at least one of catalog/schema/table attributes is
         // not applicable (i.e. "" is returned). If so do not try
         // to get the column metadata from the DatabaseMetaData object.
@@ -252,14 +271,21 @@ public class ResultSetTableMetaData extends AbstractTableMetaData
             "Will not try to lookup column properties via DatabaseMetaData.getColumns.");
             return null;
         }
-        
+
         if(logger.isDebugEnabled())
             logger.debug("All attributes from the ResultSetMetaData are valid, " +
                     "trying to lookup values in DatabaseMetaData. catalog={}, schema={}, table={}, column={}",
                     new Object[]{catalogName, schemaName, tableName, columnName} );
-        
-        // All of the retrieved attributes are valid, 
-        // so lookup the column via DatabaseMetaData
+
+        if (columnsByOrigin != null)
+        {
+            return createColumnFromCache(columnsByOrigin, databaseMetaData, metadataHandler,
+                    catalogName, schemaName, tableName, columnName, dataTypeFactory);
+        }
+
+        // Legacy path (custom/ext IMetadataHandler): fetch and linearly scan per column, since
+        // a custom handler's getColumns()/matches() overrides cannot be safely replayed against
+        // cached rows.
         ResultSet columnsResultSet = metadataHandler.getColumns(databaseMetaData, schemaName, tableName);
 
         try
@@ -281,6 +307,97 @@ public class ResultSetTableMetaData extends AbstractTableMetaData
         {
             SQLHelper.close(columnsResultSet);
         }
+    }
+
+    /**
+     * Looks up a column's metadata from the per-(schema, table)-origin cache, lazily fetching
+     * and caching a whole table's columns (via a single {@code getColumns} call) on first need.
+     * Candidates are bucketed by {@link Locale#ENGLISH}-uppercased column name, then filtered by
+     * exact-case column name (only when {@link #_caseSensitiveMetaData} is set) and by catalog
+     * and table, using the same {@link SQLHelper#areEqualIgnoreNull(String, String, boolean)}
+     * semantics as the legacy {@code matches(...)} path -- a null/empty search catalog matches
+     * any row. The table check matters because {@code metadataHandler.getColumns} passes
+     * {@code tableName} to JDBC's {@code DatabaseMetaData#getColumns} as a LIKE pattern, not an
+     * exact match: a table name containing {@code _} or {@code %} (e.g. {@code USER_ACCOUNT})
+     * can make the driver also return columns from an unrelated, differently-named table whose
+     * name happens to match that pattern (e.g. {@code USERXACCOUNT}). The first remaining
+     * candidate, in {@code getColumns} row order, wins, consistent with a forward-scanning
+     * {@code scrollTo} match stopping at the first hit. A miss returns <code>null</code>, exactly
+     * like the not-found branch of the legacy per-column path.
+     */
+    private Column createColumnFromCache(Map columnsByOrigin, DatabaseMetaData databaseMetaData,
+            IMetadataHandler metadataHandler, String catalogName, String schemaName, String tableName,
+            String columnName, IDataTypeFactory dataTypeFactory)
+    throws SQLException, DataTypeException
+    {
+        String originKey = schemaName + '\0' + tableName;
+        Map columnsByName = (Map) columnsByOrigin.get(originKey);
+        if (columnsByName == null)
+        {
+            columnsByName = fetchColumnsByName(databaseMetaData, metadataHandler, schemaName, tableName);
+            columnsByOrigin.put(originKey, columnsByName);
+        }
+
+        List candidates = (List) columnsByName.get(columnName.toUpperCase(Locale.ENGLISH));
+        if (candidates == null)
+        {
+            return null;
+        }
+        for (Iterator it = candidates.iterator(); it.hasNext();)
+        {
+            ColumnMetaData data = (ColumnMetaData) it.next();
+            if (_caseSensitiveMetaData && !data.columnName.equals(columnName))
+            {
+                continue;
+            }
+            if (!SQLHelper.areEqualIgnoreNull(catalogName, data.catalogName, _caseSensitiveMetaData))
+            {
+                continue;
+            }
+            if (!SQLHelper.areEqualIgnoreNull(tableName, data.tableName, _caseSensitiveMetaData))
+            {
+                continue;
+            }
+            return data.toColumn(dataTypeFactory);
+        }
+        return null;
+    }
+
+    /**
+     * Fetches all columns for one (schema, table) origin in a single {@code getColumns} call and
+     * snapshots the fields {@link SQLHelper#createColumn} consumes, bucketed by
+     * {@link Locale#ENGLISH}-uppercased {@code COLUMN_NAME}. Rows are never dropped here (unlike
+     * the previous first-one-wins cache): when more than one row shares a column name -- e.g. the
+     * same schema/table existing in more than one catalog, since {@code getColumns} is invoked
+     * with a <code>null</code> catalog -- every candidate is kept so {@link #createColumnFromCache}
+     * can pick the one whose catalog (and, if case sensitive, exact-case name) actually matches.
+     */
+    private Map fetchColumnsByName(DatabaseMetaData databaseMetaData, IMetadataHandler metadataHandler,
+            String schemaName, String tableName)
+    throws SQLException
+    {
+        Map columnsByName = new HashMap();
+        ResultSet columnsResultSet = metadataHandler.getColumns(databaseMetaData, schemaName, tableName);
+        try
+        {
+            while (columnsResultSet.next())
+            {
+                ColumnMetaData data = ColumnMetaData.readFrom(columnsResultSet);
+                String key = data.columnName.toUpperCase(Locale.ENGLISH);
+                List candidates = (List) columnsByName.get(key);
+                if (candidates == null)
+                {
+                    candidates = new ArrayList();
+                    columnsByName.put(key, candidates);
+                }
+                candidates.add(data);
+            }
+        }
+        finally
+        {
+            SQLHelper.close(columnsResultSet);
+        }
+        return columnsByName;
     }
 
 
@@ -338,4 +455,87 @@ public class ResultSetTableMetaData extends AbstractTableMetaData
 		sb.append("]");
 		return sb.toString();
 	}
+
+    /**
+     * Snapshot of the {@code DatabaseMetaData#getColumns} row fields that
+     * {@link SQLHelper#createColumn(ResultSet, IDataTypeFactory, boolean)} consumes, so a
+     * table's columns can be fetched once and converted to {@link Column} objects afterwards
+     * without re-querying per column.
+     */
+    private static final class ColumnMetaData
+    {
+        private final String catalogName;
+        private final String tableName;
+        private final String columnName;
+        private final int sqlType;
+        private final String sqlTypeName;
+        private final int nullable;
+        private final String remarks;
+        private final String columnDefaultValue;
+        private final String isAutoIncrement;
+        private final String isGenerated;
+
+        private ColumnMetaData(String catalogName, String tableName, String columnName, int sqlType,
+                String sqlTypeName, int nullable, String remarks, String columnDefaultValue,
+                String isAutoIncrement, String isGenerated)
+        {
+            this.catalogName = catalogName;
+            this.tableName = tableName;
+            this.columnName = columnName;
+            this.sqlType = sqlType;
+            this.sqlTypeName = sqlTypeName;
+            this.nullable = nullable;
+            this.remarks = remarks;
+            this.columnDefaultValue = columnDefaultValue;
+            this.isAutoIncrement = isAutoIncrement;
+            this.isGenerated = isGenerated;
+        }
+
+        /**
+         * Reads the same {@code getColumns} result set columns, by the same indexes, as
+         * {@link SQLHelper#createColumn(ResultSet, IDataTypeFactory, boolean)}, plus
+         * {@code TABLE_CAT} so cache candidates can be matched by catalog too.
+         */
+        private static ColumnMetaData readFrom(ResultSet resultSet) throws SQLException
+        {
+            String catalogName = resultSet.getString(1);
+            String tableName = resultSet.getString(3);
+            String columnName = resultSet.getString(4);
+            int sqlType = resultSet.getInt(5);
+            // If Types.DISTINCT like SQL DOMAIN, then get Source Date Type of SQL-DOMAIN
+            if(sqlType == Types.DISTINCT)
+            {
+                sqlType = resultSet.getInt("SOURCE_DATA_TYPE");
+            }
+            String sqlTypeName = resultSet.getString(6);
+            int nullable = resultSet.getInt(11);
+            String remarks = resultSet.getString(12);
+            String columnDefaultValue = resultSet.getString(13);
+            String isAutoIncrement = resultSet.getString(23);
+            // some JDBC drivers do not have this column even though they claim to be compliant with JDBC 4.1 or later
+            String isGenerated = resultSet.getMetaData().getColumnCount() >= 24 ? resultSet.getString(24) : null;
+            return new ColumnMetaData(catalogName, tableName, columnName, sqlType, sqlTypeName, nullable,
+                    remarks, columnDefaultValue, isAutoIncrement, isGenerated);
+        }
+
+        /**
+         * Mirrors {@link SQLHelper#createColumn(ResultSet, IDataTypeFactory, boolean)}'s
+         * construction (always with {@code datatypeWarning=true}, as {@code ResultSetTableMetaData}
+         * calls it), operating on these cached field values instead of a live result set row.
+         */
+        private Column toColumn(IDataTypeFactory dataTypeFactory) throws DataTypeException
+        {
+            DataType dataType = dataTypeFactory.createDataType(sqlType, sqlTypeName, tableName, columnName);
+            if (dataType == DataType.UNKNOWN)
+            {
+                logger.warn(tableName + "." + columnName +
+                        " data type (" + sqlType + ", '" + sqlTypeName +
+                        "') not recognized and will be ignored. See FAQ for more information.");
+                return null;
+            }
+            return new Column(columnName, dataType, sqlTypeName, Column.nullableValue(nullable),
+                    columnDefaultValue, remarks, Column.AutoIncrement.autoIncrementValue(isAutoIncrement),
+                    Column.convertMetaDataBoolean(isGenerated));
+        }
+    }
 }
