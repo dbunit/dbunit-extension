@@ -354,6 +354,35 @@ class DbUnitAssertTest
         assertThat(diff.getActualValue()).as("actual value.").isEqualTo("Wrong");
     }
 
+    @Test
+    void testAssertEquals_multiRowMismatchTable_reportsDifferencePerCell()
+            throws DatabaseUnitException
+    {
+        final IDataSet expected = new DataSetBuilder()
+                .table("T").columns("ID", "NAME")
+                .row(1, "Alice")
+                .row(2, "Carol")
+                .row(3, "Erin")
+                .build();
+
+        final IDataSet actual = new DataSetBuilder()
+                .table("T").columns("ID", "NAME")
+                .row(9, "Bob")
+                .row(8, "Dave")
+                .row(7, "Frank")
+                .build();
+
+        final DiffCollectingFailureHandler handler = new DiffCollectingFailureHandler();
+        assertion.assertEquals(expected.getTable("T"), actual.getTable("T"), handler);
+
+        final int rowCount = 3;
+        final int columnCount = 2;
+        assertThat(handler.getDiffList())
+                .as("Every (row, column) cell should still be compared and reported once, "
+                        + "proving the hoisted row count does not skip or duplicate cells.")
+                .hasSize(rowCount * columnCount);
+    }
+
     // -------------------------------------------------------------------------
     // assertEquals with additionalColumnInfo
     // -------------------------------------------------------------------------
