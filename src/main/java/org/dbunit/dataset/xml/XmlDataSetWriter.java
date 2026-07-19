@@ -287,6 +287,29 @@ public class XmlDataSetWriter implements IDataSetConsumer
         {
             throw new DataSetException(e);
         }
+        catch (DataSetException e)
+        {
+            // Content already written for this document sits in the buffered
+            // underlying writer until close(); since a row failure here skips
+            // close() entirely (and close() itself would reject the now-unclosed
+            // tag stack), flush explicitly so already-written content isn't lost.
+            flushWriterQuietly();
+            throw e;
+        }
+    }
+
+    private void flushWriterQuietly()
+    {
+        logger.debug("flushWriterQuietly() - start");
+
+        try
+        {
+            _xmlWriter.flush();
+        }
+        catch (IOException e)
+        {
+            logger.warn("Failed to flush writer after a row error", e);
+        }
     }
 
     /**

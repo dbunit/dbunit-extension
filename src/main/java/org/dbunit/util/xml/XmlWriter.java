@@ -56,6 +56,7 @@ package org.dbunit.util.xml;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
@@ -456,6 +457,19 @@ public class XmlWriter
             throw new IOException("Tags are not all closed. " + "Possibly, "
                     + this.stack.pop() + " is unclosed. ");
         }
+    }
+
+    /**
+     * Flushes the underlying writer, without {@link #close()}'s unclosed-tags check.
+     * Intended for callers recovering from a write error mid-document, so already-written
+     * content reaches the underlying stream even though the document itself is incomplete.
+     * @throws IOException on a failure to flush the underlying writer.
+     */
+    public void flush() throws IOException
+    {
+        logger.debug("flush() - start");
+
+        this.out.flush();
     }
 
     /**
@@ -914,8 +928,10 @@ public class XmlWriter
         if (this.out != null)
         {
             setEncoding(charset);
-            // if (!(this.out instanceof BufferedWriter))
-            // this.out = new BufferedWriter(this.out);
+            if (!(this.out instanceof BufferedWriter))
+            {
+                this.out = new BufferedWriter(this.out);
+            }
         }
     }
 
