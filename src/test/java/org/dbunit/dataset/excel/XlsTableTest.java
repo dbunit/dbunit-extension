@@ -23,8 +23,16 @@ package org.dbunit.dataset.excel;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.math.BigDecimal;
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 import java.util.TimeZone;
 
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.dbunit.dataset.AbstractTableTest;
 import org.dbunit.dataset.Column;
 import org.dbunit.dataset.IDataSet;
@@ -172,6 +180,46 @@ public class XlsTableTest extends AbstractTableTest
             final Object actual = table.getValue(row, columnName).toString();
             assertThat(actual).as(columns[i].getColumnName())
                     .isEqualTo(expected[i]);
+        }
+    }
+
+    @Test
+    void testGetValue_manyNumericCellsSameFormat_returnsSameValuesAsUncached() throws Exception
+    {
+        final DecimalFormatSymbols symbols = new DecimalFormatSymbols();
+        symbols.setDecimalSeparator('.');
+        final String formatString = "0.00";
+
+        final Workbook workbook = new XSSFWorkbook();
+        final Sheet sheet = workbook.createSheet("NUMERIC_SHEET");
+        final CellStyle style = workbook.createCellStyle();
+        style.setDataFormat(workbook.createDataFormat().getFormat(formatString));
+
+        final Row headerRow = sheet.createRow(0);
+        headerRow.createCell(0).setCellValue("AMOUNT");
+
+        final int rowCount = 50;
+        for (int i = 0; i < rowCount; i++)
+        {
+            final Row row = sheet.createRow(i + 1);
+            final Cell cell = row.createCell(0);
+            cell.setCellValue(i + 0.125);
+            cell.setCellStyle(style);
+        }
+
+        final XlsTable table = new XlsTable("NUMERIC_SHEET", sheet);
+
+        for (int i = 0; i < rowCount; i++)
+        {
+            final BigDecimal expected = new BigDecimal(
+                    new DecimalFormat(formatString, symbols).format(i + 0.125));
+
+            final Object actual = table.getValue(i, "AMOUNT");
+
+            assertThat(actual)
+                    .as("row " + i
+                            + " cached DecimalFormat result should match the uncached result.")
+                    .isEqualTo(expected);
         }
     }
 }
