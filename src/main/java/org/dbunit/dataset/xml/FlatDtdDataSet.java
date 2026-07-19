@@ -21,6 +21,7 @@
 
 package org.dbunit.dataset.xml;
 
+import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -92,7 +93,7 @@ public class FlatDtdDataSet extends AbstractDataSet implements IDataSetConsumer
             throws IOException, DataSetException
     {
         logger.debug("write(dataSet={}, out={}) - start", dataSet, out);
-        write(dataSet, new OutputStreamWriter(out));
+        write(dataSet, new BufferedWriter(new OutputStreamWriter(out)));
     }
 
     /**

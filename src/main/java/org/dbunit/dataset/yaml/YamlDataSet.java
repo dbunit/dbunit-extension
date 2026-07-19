@@ -25,6 +25,7 @@ import org.dbunit.dataset.CachedDataSet;
 import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.IDataSet;
 
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -94,7 +95,7 @@ public class YamlDataSet extends CachedDataSet
     public static void write(IDataSet dataSet, OutputStream out)
     throws DataSetException
     {
-        write(dataSet, new OutputStreamWriter(out));
+        write(dataSet, new BufferedWriter(new OutputStreamWriter(out)));
     }
 
     /**
