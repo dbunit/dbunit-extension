@@ -111,11 +111,14 @@ public class TimestampDataType extends AbstractDataType
 
             String zoneValue = null;
 
-            final Matcher tzMatcher = TIMEZONE_REGEX.matcher(stringValue);
-            if (tzMatcher.matches() && tzMatcher.group(2) != null)
+            if (couldHaveTimezoneSuffix(stringValue))
             {
-                stringValue = tzMatcher.group(1);
-                zoneValue = tzMatcher.group(2);
+                final Matcher tzMatcher = TIMEZONE_REGEX.matcher(stringValue);
+                if (tzMatcher.matches() && tzMatcher.group(2) != null)
+                {
+                    stringValue = tzMatcher.group(1);
+                    zoneValue = tzMatcher.group(2);
+                }
             }
 
             Timestamp ts = null;
@@ -177,6 +180,31 @@ public class TimestampDataType extends AbstractDataType
         }
 
         throw new TypeCastException(value, this);
+    }
+
+    /**
+     * Cheaply rules out strings that {@link #TIMEZONE_REGEX} can never match, so
+     * the majority of plain timestamp values never pay for constructing a
+     * {@link Matcher} and running the greedy {@code (.*)}-leading pattern.
+     * <p>
+     * The regex requires its final five characters to be a sign character
+     * ({@code +} or {@code -}) followed by four digits. A string that is too
+     * short, or whose character at that position is not a sign, provably cannot
+     * match, so the full match can be skipped.
+     * @param value The candidate string.
+     * @return {@code true} if {@code value} is long enough and has a sign
+     *         character at the position the regex requires, meaning a full match
+     *         attempt is worthwhile.
+     */
+    private static boolean couldHaveTimezoneSuffix(final String value)
+    {
+        final int length = value.length();
+        if (length < 6)
+        {
+            return false;
+        }
+        final char signChar = value.charAt(length - 5);
+        return signChar == '+' || signChar == '-';
     }
 
     @Override
