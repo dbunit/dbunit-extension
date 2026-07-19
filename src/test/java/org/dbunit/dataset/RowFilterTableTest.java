@@ -1,6 +1,7 @@
 package org.dbunit.dataset;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 import org.dbunit.dataset.filter.IRowFilter;
 import org.dbunit.dataset.xml.FlatXmlDataSetBuilder;
@@ -56,5 +57,37 @@ class RowFilterTableTest
                 .isEqualTo("row 2 col 0");
         assertThat(rowFilterTable.getValue(2, "COLUMN0"))
                 .isEqualTo("row 3 col 0");
+    }
+
+    @Test
+    void testGetValue_withRowIndexAtOrAboveRowCount_throwsRowOutOfBoundsException()
+            throws Exception
+    {
+        final ITable testTable = getDataSet().getTable("TEST_TABLE");
+        final IRowFilter acceptNone = rowValueProvider -> false;
+        final ITable rowFilterTable = new RowFilterTable(testTable, acceptNone);
+
+        assertThat(rowFilterTable.getRowCount()).as("row count.").isZero();
+        assertThatExceptionOfType(RowOutOfBoundsException.class)
+                .as("accessing row 0 of an empty filtered table.")
+                .isThrownBy(() -> rowFilterTable.getValue(0, "COLUMN0"));
+    }
+
+    @Test
+    void testRowFilter_withNoRowsFilteredOut_returnsAllRowsInOriginalOrder()
+            throws Exception
+    {
+        final ITable testTable = getDataSet().getTable("TEST_TABLE");
+        final IRowFilter acceptAll = rowValueProvider -> true;
+        final ITable rowFilterTable = new RowFilterTable(testTable, acceptAll);
+
+        assertThat(rowFilterTable.getRowCount()).as("row count.")
+                .isEqualTo(testTable.getRowCount());
+        for (int row = 0; row < testTable.getRowCount(); row++)
+        {
+            assertThat(rowFilterTable.getValue(row, "COLUMN0"))
+                    .as("value at row " + row + ".")
+                    .isEqualTo(testTable.getValue(row, "COLUMN0"));
+        }
     }
 }

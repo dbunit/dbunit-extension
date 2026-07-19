@@ -46,8 +46,8 @@ public class RowFilterTable implements ITable, IRowValueProvider {
 	 * reference to the original table being wrapped 
 	 */
 	private final ITable originalTable;
-	/** mapping of filtered rows, i.e, each entry on this list has the value of 
-            the index on the original table corresponding to the desired index. 
+	/** mapping of filtered rows, i.e, each entry on this array has the value of
+            the index on the original table corresponding to the desired index.
             For instance, if the original table is:
             row   PK  Value
             0     pk1  v1
@@ -60,7 +60,7 @@ public class RowFilterTable implements ITable, IRowValueProvider {
             1     pk4  v4
             Consequently, the mapping will be {1, 3}
 	 */
-	private final List filteredRowIndexes;
+	private final int[] filteredRowIndexes;
 	/** 
 	 * logger 
 	 */
@@ -90,24 +90,29 @@ public class RowFilterTable implements ITable, IRowValueProvider {
 		this.filteredRowIndexes = setRows(rowFilter);
 	}
 
-	private List setRows(IRowFilter rowFilter) throws DataSetException {
+	private int[] setRows(IRowFilter rowFilter) throws DataSetException {
 
 		ITableMetaData tableMetadata = this.originalTable.getTableMetaData();
 		this.logger.debug("Setting rows for table {}",  tableMetadata.getTableName() );
 
 		int fullSize = this.originalTable.getRowCount();
-		List filteredRowIndexes = new ArrayList();
+		List matchedRowIndexes = new ArrayList();
 
 		for ( int row=0; row<fullSize; row++ ) {
 			this.currentRowIdx = row;
 			if(rowFilter.accept(this)) {
 				this.logger.debug("Adding row {}", row);
-				filteredRowIndexes.add(row);
+				matchedRowIndexes.add(row);
 			} else {
 				this.logger.debug("Discarding row {}", row);
 			}
 		}
-		return filteredRowIndexes;   
+
+		int[] filteredRowIndexes = new int[matchedRowIndexes.size()];
+		for ( int i=0; i<filteredRowIndexes.length; i++ ) {
+			filteredRowIndexes[i] = ((Integer) matchedRowIndexes.get(i)).intValue();
+		}
+		return filteredRowIndexes;
 	}
 
 
@@ -122,17 +127,17 @@ public class RowFilterTable implements ITable, IRowValueProvider {
 	public int getRowCount() {
 		logger.debug("getRowCount() - start");
 
-		return this.filteredRowIndexes.size();
+		return this.filteredRowIndexes.length;
 	}
 
-	public Object getValue(int row, String column) throws DataSetException 
+	public Object getValue(int row, String column) throws DataSetException
 	{
 	    if(logger.isDebugEnabled())
 	        logger.debug("getValue(row={}, columnName={}) - start", Integer.toString(row), column);
 
-		int max = this.filteredRowIndexes.size();
+		int max = this.filteredRowIndexes.length;
 		if ( row < max ) {
-			int realRow = ((Integer) this.filteredRowIndexes.get( row )).intValue();
+			int realRow = this.filteredRowIndexes[row];
 			Object value = this.originalTable.getValue(realRow, column);
 			return value;
 		} else {
