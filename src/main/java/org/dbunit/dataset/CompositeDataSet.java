@@ -21,6 +21,9 @@
 
 package org.dbunit.dataset;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.dbunit.database.AmbiguousTableNameException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -94,6 +97,7 @@ public class CompositeDataSet extends AbstractDataSet
                 addTable(iterator.getTable(), orderedTableMap, combine);
             }
         }
+        flattenCombinedTables(orderedTableMap);
 
         _tables = (ITable[]) orderedTableMap.orderedValues().toArray(new ITable[0]);
     }
@@ -179,6 +183,7 @@ public class CompositeDataSet extends AbstractDataSet
         {
             addTable(tables[i], orderedTableMap, true);
         }
+        flattenCombinedTables(orderedTableMap);
 
         _tables = (ITable[]) orderedTableMap.orderedValues().toArray(new ITable[0]);
     }
@@ -190,7 +195,7 @@ public class CompositeDataSet extends AbstractDataSet
      * @param combine
      * @throws AmbiguousTableNameException Can only occur when the combine flag is set to <code>false</code>.
      */
-    private void addTable(ITable newTable, OrderedTableNameMap tableMap, boolean combine) 
+    private void addTable(ITable newTable, OrderedTableNameMap tableMap, boolean combine)
     throws AmbiguousTableNameException
     {
     	if (logger.isDebugEnabled())
@@ -200,7 +205,7 @@ public class CompositeDataSet extends AbstractDataSet
     	}
 
         String tableName = newTable.getTableMetaData().getTableName();
-        
+
         // No merge required, simply add new table at then end of the list
         if (!combine)
         {
@@ -208,16 +213,55 @@ public class CompositeDataSet extends AbstractDataSet
             return;
         }
 
-        // Merge required, search for existing table with the same name
-        ITable existingTable = (ITable) tableMap.get(tableName);
-        if(existingTable != null) {
-            // Found existing table, merge existing and new tables together
-            tableMap.update(tableName, new CompositeTable(existingTable, newTable));
-            return;
+        // Merge required: accumulate same-name parts into a list, in encounter order.
+        // flattenCombinedTables() turns this into a single flat CompositeTable (or unwraps
+        // it if it turns out to have only one part) once every table has been seen --
+        // never the left-nested CompositeTable pairs a per-occurrence merge would produce.
+        List parts = (List) tableMap.get(tableName);
+        if (parts != null)
+        {
+            parts.add(newTable);
         }
-        else {
-            // No existing table found, add new table at the end of the list
-            tableMap.add(tableName, newTable);
+        else
+        {
+            parts = new ArrayList();
+            parts.add(newTable);
+            tableMap.add(tableName, parts);
+        }
+    }
+
+    /**
+     * Replaces each list of same-name table parts accumulated by {@link #addTable} with either
+     * the single part directly (if only one table used that name), or one flat {@link
+     * CompositeTable} wrapping all parts in encounter order -- matching the metadata and row
+     * ordering the old left-nested-pairs merge produced, without the O(parts) getRowCount()
+     * chain a nested CompositeTable.getValue would otherwise walk per access.
+     *
+     * @param tableMap The map being built by the constructor; entries not produced by a
+     * combine=true {@link #addTable} call (i.e. not a {@link List}) are left untouched.
+     */
+    private static void flattenCombinedTables(OrderedTableNameMap tableMap)
+    {
+        String[] tableNames = tableMap.getTableNames();
+        for (int i = 0; i < tableNames.length; i++)
+        {
+            String tableName = tableNames[i];
+            Object value = tableMap.get(tableName);
+            if (value instanceof List)
+            {
+                List parts = (List) value;
+                if (parts.size() == 1)
+                {
+                    tableMap.update(tableName, parts.get(0));
+                }
+                else
+                {
+                    ITable firstPart = (ITable) parts.get(0);
+                    ITable[] partsArray = (ITable[]) parts.toArray(new ITable[0]);
+                    tableMap.update(tableName,
+                            new CompositeTable(firstPart.getTableMetaData(), partsArray));
+                }
+            }
         }
     }
 

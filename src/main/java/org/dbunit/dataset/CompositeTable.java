@@ -91,6 +91,8 @@ public class CompositeTable extends AbstractTable {
     public int getRowCount() {
         logger.debug("getRowCount() - start");
 
+        // Not cached: the underlying tables (e.g. DefaultTable) are mutable and can grow
+        // after this CompositeTable is constructed, so a cached count could go stale.
         int totalCount = 0;
         for (int i = 0; i < _tables.length; i++) {
             ITable table = _tables[i];
