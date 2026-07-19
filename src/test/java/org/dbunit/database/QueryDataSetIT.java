@@ -28,6 +28,8 @@ import org.dbunit.DatabaseEnvironment;
 import org.dbunit.dataset.AbstractDataSetTest;
 import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.ITable;
+import org.dbunit.dataset.ITableIterator;
+import org.dbunit.dataset.ITableMetaData;
 import org.dbunit.dataset.NoSuchColumnException;
 import org.dbunit.operation.DatabaseOperation;
 import org.junit.jupiter.api.AfterEach;
@@ -252,5 +254,26 @@ class QueryDataSetIT extends AbstractDataSetTest
         ptds.addTable("SECOND_TABLE",
                 "SELECT * from SECOND_TABLE where COLUMN0='row 0 col 0' and COLUMN2='row 0 col 2'");
         ptds.addTable("PK_TABLE", null);
+    }
+
+    @Test
+    void testIteratorGetTableMetaData_calledBeforeGetTable_returnsConsistentDataAndMetaData()
+            throws Exception
+    {
+        final QueryDataSet ptds = new QueryDataSet(_connection);
+        ptds.addTable("PK_TABLE", "SELECT * FROM PK_TABLE where PK0 = 0");
+
+        final ITableIterator iterator = ptds.iterator();
+        assertThat(iterator.next()).as("PK_TABLE entry should be present.").isTrue();
+
+        // QueryTableIterator.getTableMetaData() delegates to getTable() and caches the
+        // result, rather than issuing its own separate query, so calling it first must
+        // not disturb the real JDBC cursor a subsequent getTable() call reads from.
+        final ITableMetaData metaData = iterator.getTableMetaData();
+        assertThat(metaData.getColumnIndex("PK0")).as("PK0 column index.").isZero();
+
+        final ITable table = iterator.getTable();
+        assertThat(table.getValue(0, "PK0")).as("PK0 value.").hasToString("0");
+        assertThat(table.getRowCount()).as("row count.").isEqualTo(1);
     }
 }
