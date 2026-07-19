@@ -13,7 +13,7 @@
   </properties>
 
   <body>
-    <release version="3.2.1-SNAPSHOT" date="June 4, 2026" description="Speed up column index lookups, suppress RowOutOfBoundsException stack traces, buffer XML, CSV, DTD, and YAML output, cache DecimalFormat in XlsTable, restore DepthFirstSearch tests, fix DepthFirstSearch depth limit, cache DatabaseSequenceFilter dependency edges, topological sort in DatabaseSequenceFilter, single column-metadata fetch in ResultSetTableMetaData, precompute sort keys in SortedTable, reduce assertion loop overhead, reduce ReplacementTable scanning, flatten CompositeDataSet table merging, detect columns without exception flow in FlatXmlProducer">
+    <release version="3.2.1-SNAPSHOT" date="June 4, 2026" description="Speed up column index lookups, suppress RowOutOfBoundsException stack traces, buffer XML, CSV, DTD, and YAML output, cache DecimalFormat in XlsTable, restore DepthFirstSearch tests, fix DepthFirstSearch depth limit, cache DatabaseSequenceFilter dependency edges, topological sort in DatabaseSequenceFilter, single column-metadata fetch in ResultSetTableMetaData, precompute sort keys in SortedTable, reduce assertion loop overhead, reduce ReplacementTable scanning, flatten CompositeDataSet table merging, detect columns without exception flow in FlatXmlProducer, fix PrimaryKeyFilter result set leak">
       <!-- dependabot:dep=actions/checkout:new=7:pr=756 -->
       <action dev="dependabot" type="update" due-to="Dependabot">Update github_actions dependency actions/checkout from 6 to 7 (#756).</action>
       <!-- dependabot:dep=org.apache.maven.plugins:maven-failsafe-plugin:new=3.5.6:pr=748 -->
@@ -89,6 +89,9 @@
       </action>
       <action dev="jeffjensen" type="update" issue="779" system="github" due-to="jeffjensen">
           Detect columns without exception-based control flow in FlatXmlProducer.
+      </action>
+      <action dev="jeffjensen" type="fix" issue="767" system="github" due-to="jeffjensen">
+          Close result sets per iteration in PrimaryKeyFilter scans instead of leaking them.
       </action>
     </release>
     <release version="3.2.0" date="June 4, 2026" description="GH action updates, extract UTs from ITs, rename test methods, add DataSetBuilder, improve test infra, improve UT coverage, bump HSQLDB, improve IT coverage, fix table lookup with case-sensitive databases, fix metadata table name lookups, convert UTs to ITs, OracleSdoGeometryDataType test coverage, fix ScrollableResultSetTable, document profile unsupportedFeatures, correct profile unsupportedFeatures, configure DB2, fix SQLHelper NPE, fix TruncateTableOperation for DB2">
