@@ -173,6 +173,84 @@ class ColumnsTest
                 "column count (table=MY_TABLE, expectedColCount=3, actualColCount=2)");
     }
 
+    @Test
+    void testMergeColumnsByName_withDisjointColumns_returnsReferenceThenMergeColumnsInOrder()
+            throws Exception
+    {
+        final Column ref0 = new Column("c0", DataType.UNKNOWN);
+        final Column ref1 = new Column("c1", DataType.UNKNOWN);
+        final Column merge0 = new Column("c2", DataType.UNKNOWN);
+        final Column merge1 = new Column("c3", DataType.UNKNOWN);
+
+        final Column[] result = Columns.mergeColumnsByName(
+                new Column[] {ref0, ref1}, new Column[] {merge0, merge1});
+
+        assertThat(result).as("merged columns, reference first, in order.")
+                .containsExactly(ref0, ref1, merge0, merge1);
+    }
+
+    @Test
+    void testMergeColumnsByName_withOverlappingColumnName_keepsReferenceInstance()
+            throws Exception
+    {
+        final Column ref0 = new Column("c0", DataType.UNKNOWN);
+        // Same name as ref0, but a distinct instance with a different data type.
+        final Column duplicateOfRef0 = new Column("c0", DataType.VARCHAR);
+        final Column merge1 = new Column("c1", DataType.UNKNOWN);
+
+        final Column[] result = Columns.mergeColumnsByName(
+                new Column[] {ref0}, new Column[] {duplicateOfRef0, merge1});
+
+        assertThat(result)
+                .as("the reference column instance wins on a name collision.")
+                .containsExactly(ref0, merge1);
+    }
+
+    @Test
+    void testMergeColumnsByName_withEmptyReferenceColumns_returnsAllMergeColumns()
+            throws Exception
+    {
+        final Column merge0 = new Column("c0", DataType.UNKNOWN);
+        final Column merge1 = new Column("c1", DataType.UNKNOWN);
+
+        final Column[] result = Columns.mergeColumnsByName(new Column[0],
+                new Column[] {merge0, merge1});
+
+        assertThat(result).as("all merge columns returned when reference is empty.")
+                .containsExactly(merge0, merge1);
+    }
+
+    @Test
+    void testMergeColumnsByName_withEmptyColumnsToMerge_returnsReferenceColumns()
+            throws Exception
+    {
+        final Column ref0 = new Column("c0", DataType.UNKNOWN);
+        final Column ref1 = new Column("c1", DataType.UNKNOWN);
+
+        final Column[] result = Columns.mergeColumnsByName(
+                new Column[] {ref0, ref1}, new Column[0]);
+
+        assertThat(result).as("reference columns returned unchanged.")
+                .containsExactly(ref0, ref1);
+    }
+
+    @Test
+    void testMergeColumnsByName_withDuplicateNamesInColumnsToMerge_keepsBothInstances()
+            throws Exception
+    {
+        final Column ref0 = new Column("c0", DataType.UNKNOWN);
+        final Column merge0 = new Column("c1", DataType.UNKNOWN);
+        // Same name as merge0, neither present in the reference columns.
+        final Column merge1 = new Column("c1", DataType.VARCHAR);
+
+        final Column[] result = Columns.mergeColumnsByName(
+                new Column[] {ref0}, new Column[] {merge0, merge1});
+
+        assertThat(result)
+                .as("neither merge-side duplicate is deduplicated against the other.")
+                .containsExactly(ref0, merge0, merge1);
+    }
+
     private ITableMetaData createMetaData(final Column[] columns)
     {
         final DefaultTableMetaData tableMetaData =
