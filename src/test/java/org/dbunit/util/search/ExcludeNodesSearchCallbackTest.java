@@ -23,6 +23,8 @@ package org.dbunit.util.search;
 
 import java.util.SortedSet;
 
+import org.junit.jupiter.api.Test;
+
 /**
  * @author Felipe Leme (dbunit@felipeal.net)
  * @version $Revision$
@@ -52,13 +54,15 @@ public class ExcludeNodesSearchCallbackTest extends AbstractSearchTestCase
 
     }
 
-    public void testSingleNode() throws Exception
+    @Test
+    void testSingleNode() throws Exception
     {
         setInput(new String[] {A});
         setDenied(new String[] {A});
         doIt();
     }
 
+    @Test
     public void testSingleEdgeDeniedA() throws Exception
     {
         setInput(new String[] {A});
@@ -67,6 +71,7 @@ public class ExcludeNodesSearchCallbackTest extends AbstractSearchTestCase
         doIt();
     }
 
+    @Test
     public void testSingleEdgeDeniedB() throws Exception
     {
         setInput(new String[] {A});
@@ -76,6 +81,7 @@ public class ExcludeNodesSearchCallbackTest extends AbstractSearchTestCase
         doIt();
     }
 
+    @Test
     public void testSingleEdgeMultipleInputDeniedB() throws Exception
     {
         setInput(new String[] {A, B});
@@ -85,6 +91,7 @@ public class ExcludeNodesSearchCallbackTest extends AbstractSearchTestCase
         doIt();
     }
 
+    @Test
     public void testSingleEdgeMultipleInputDeniedA() throws Exception
     {
         setInput(new String[] {A, B});
@@ -94,6 +101,7 @@ public class ExcludeNodesSearchCallbackTest extends AbstractSearchTestCase
         doIt();
     }
 
+    @Test
     public void testDisconnected() throws Exception
     {
         setInput(new String[] {A, C});
@@ -103,6 +111,7 @@ public class ExcludeNodesSearchCallbackTest extends AbstractSearchTestCase
         doIt();
     }
 
+    @Test
     public void testDisconnectedAllowedC() throws Exception
     {
         setInput(new String[] {A, C});
