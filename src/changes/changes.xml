@@ -13,7 +13,7 @@
   </properties>
 
   <body>
-    <release version="3.2.1-SNAPSHOT" date="June 4, 2026" description="Speed up column index lookups, suppress RowOutOfBoundsException stack traces">
+    <release version="3.2.1-SNAPSHOT" date="June 4, 2026" description="Speed up column index lookups, suppress RowOutOfBoundsException stack traces, buffer XML output">
       <!-- dependabot:dep=actions/checkout:new=7:pr=756 -->
       <action dev="dependabot" type="update" due-to="Dependabot">Update github_actions dependency actions/checkout from 6 to 7 (#756).</action>
       <!-- dependabot:dep=org.apache.maven.plugins:maven-failsafe-plugin:new=3.5.6:pr=748 -->
@@ -47,6 +47,9 @@
       </action>
       <action dev="jeffjensen" type="update" issue="770" system="github" due-to="jeffjensen">
           Stop capturing stack traces in RowOutOfBoundsException end-of-rows control flow; the exception no longer carries a stack trace.
+      </action>
+      <action dev="jeffjensen" type="update" issue="771" system="github" due-to="jeffjensen">
+          Buffer XML output in XmlWriter; callers must close or flush the writer to guarantee complete output.
       </action>
     </release>
     <release version="3.2.0" date="June 4, 2026" description="GH action updates, extract UTs from ITs, rename test methods, add DataSetBuilder, improve test infra, improve UT coverage, bump HSQLDB, improve IT coverage, fix table lookup with case-sensitive databases, fix metadata table name lookups, convert UTs to ITs, OracleSdoGeometryDataType test coverage, fix ScrollableResultSetTable, document profile unsupportedFeatures, correct profile unsupportedFeatures, configure DB2, fix SQLHelper NPE, fix TruncateTableOperation for DB2">

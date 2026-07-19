@@ -206,4 +206,25 @@ class XmlWriterTest
         final String actualXml = writer.toString();
         assertThat(actualXml).isEqualTo(expectedXml);
     }
+
+    @Test
+    void testClose_bufferedUnderlyingWriter_flushesAllContent() throws Exception
+    {
+        final StringWriter writer = new StringWriter();
+        final XmlWriter xmlWriter = new XmlWriter(writer);
+        xmlWriter.enablePrettyPrint(false);
+        final int elementCount = 2000;
+
+        final StringBuilder expectedXml = new StringBuilder();
+        for (int i = 0; i < elementCount; i++)
+        {
+            xmlWriter.writeEmptyElement("ROW" + i);
+            expectedXml.append("<ROW").append(i).append("/>");
+        }
+        xmlWriter.close();
+
+        assertThat(writer.toString())
+                .as("All buffered XML output should be flushed to the underlying writer after close().")
+                .isEqualTo(expectedXml.toString());
+    }
 }
