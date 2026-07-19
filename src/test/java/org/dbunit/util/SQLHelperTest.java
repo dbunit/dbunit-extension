@@ -22,6 +22,7 @@
 package org.dbunit.util;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -30,6 +31,7 @@ import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 
 import org.dbunit.AbstractHSQLTestCase;
 import org.junit.jupiter.api.BeforeEach;
@@ -59,6 +61,9 @@ class SQLHelperTest extends AbstractHSQLTestCase
     @Mock
     private ResultSet mockCatalogsResultSet;
 
+    @Mock
+    private ResultSet mockPrimaryKeysResultSet;
+
     @BeforeEach
     protected void setUp() throws Exception
     {
@@ -80,6 +85,65 @@ class SQLHelperTest extends AbstractHSQLTestCase
             assertThat(actualPK).as(
                     "primary key column for table " + table + " does not match")
                     .isEqualTo(expectedPK);
+        }
+    }
+
+    @Test
+    void testGetPrimaryKeyColumn_withMockedResultSet_closesResultSet() throws SQLException
+    {
+        when(mockConnection.getMetaData()).thenReturn(mockDatabaseMetaData);
+        when(mockDatabaseMetaData.getPrimaryKeys(null, null, "A"))
+                .thenReturn(mockPrimaryKeysResultSet);
+        when(mockPrimaryKeysResultSet.next()).thenReturn(true);
+        when(mockPrimaryKeysResultSet.getString(4)).thenReturn("PKA");
+
+        final String actualPK = SQLHelper.getPrimaryKeyColumn(mockConnection, "A");
+
+        assertThat(actualPK).as("primary key column.").isEqualTo("PKA");
+        verify(mockPrimaryKeysResultSet, times(1)).close();
+    }
+
+    @Test
+    void testGetPrimaryKeyColumn_withNoPrimaryKey_throwsSQLExceptionAndClosesResultSet()
+            throws SQLException
+    {
+        when(mockConnection.getMetaData()).thenReturn(mockDatabaseMetaData);
+        when(mockDatabaseMetaData.getPrimaryKeys(null, null, "NOPK"))
+                .thenReturn(mockPrimaryKeysResultSet);
+        when(mockPrimaryKeysResultSet.next()).thenReturn(false);
+
+        assertThatExceptionOfType(SQLException.class)
+                .as("a table with no primary key should raise a clear error instead of "
+                        + "an invalid-cursor error from an unconsumed empty ResultSet.")
+                .isThrownBy(() -> SQLHelper.getPrimaryKeyColumn(mockConnection, "NOPK"))
+                .withMessageContaining("NOPK");
+        verify(mockPrimaryKeysResultSet, times(1)).close();
+    }
+
+    @Test
+    void testGetPrimaryKeyColumn_withRealNoPkTable_throwsSQLException() throws SQLException
+    {
+        final Connection conn = getConnection().getConnection();
+        assertThat(conn).as("didn't get a connection").isNotNull();
+
+        try (Statement stmt = conn.createStatement())
+        {
+            stmt.execute("CREATE TABLE NOPK_TABLE (COL1 INT)");
+
+            assertThatExceptionOfType(SQLException.class)
+                    .as("a real table with no primary key should raise a clear "
+                            + "error, not an invalid-cursor error from an unconsumed "
+                            + "empty ResultSet, confirming the mocked-ResultSet "
+                            + "coverage above matches genuine driver behavior.")
+                    .isThrownBy(() -> SQLHelper.getPrimaryKeyColumn(conn, "NOPK_TABLE"))
+                    .withMessageContaining("NOPK_TABLE");
+        }
+        finally
+        {
+            try (Statement stmt = conn.createStatement())
+            {
+                stmt.execute("DROP TABLE NOPK_TABLE");
+            }
         }
     }
 
