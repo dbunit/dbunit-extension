@@ -21,6 +21,7 @@
 package org.dbunit.dataset.datatype;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -288,6 +289,17 @@ class TimestampDataTypeTest extends AbstractDataTypeTest
         assertThat(THIS_TYPE.typeCast(dateString))
                 .as("date-only string without timezone should parse as local-timezone midnight.")
                 .isEqualTo(expected);
+    }
+
+    @Test
+    void testTypeCast_withStringShorterThanTimezoneSuffixMinimumLength_throwsTypeCastException()
+            throws Exception
+    {
+        assertThatExceptionOfType(TypeCastException.class)
+                .as("A string shorter than the minimum possible timezone-suffix length "
+                        + "must still throw TypeCastException, not an index exception, "
+                        + "when the cheap timezone-suffix gate skips the regex.")
+                .isThrownBy(() -> THIS_TYPE.typeCast("a"));
     }
 
     @Test
