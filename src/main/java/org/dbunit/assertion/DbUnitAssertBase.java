@@ -552,7 +552,8 @@ public class DbUnitAssertBase
                         expectedTableName);
 
         // iterate over all rows
-        for (int rowNum = 0; rowNum < expectedTable.getRowCount(); rowNum++)
+        final int rowCount = expectedTable.getRowCount();
+        for (int rowNum = 0; rowNum < rowCount; rowNum++)
         {
             // iterate over all columns of the current row
             final int columnCount = comparisonCols.length;
@@ -591,10 +592,13 @@ public class DbUnitAssertBase
             final ValueComparer valueComparer = determineValueComparer(
                     columnName, defaultValueComparer, columnValueComparers);
 
-            log.debug(
-                    "compareData: comparing actualValue={}"
-                            + " to expectedValue={} with valueComparer={}",
-                    actualValue, expectedValue, valueComparer);
+            if (log.isDebugEnabled())
+            {
+                log.debug(
+                        "compareData: comparing actualValue={}"
+                                + " to expectedValue={} with valueComparer={}",
+                        actualValue, expectedValue, valueComparer);
+            }
             final String failMessage =
                     valueComparer.compare(expectedTable, actualTable, rowNum,
                             columnName, dataType, expectedValue, actualValue);
@@ -627,11 +631,14 @@ public class DbUnitAssertBase
         ValueComparer valueComparer = columnValueComparers.get(columnName);
         if (valueComparer == null)
         {
-            log.debug(
-                    "determineValueComparer: using defaultValueComparer='{}'"
-                            + " as columnName='{}' not found"
-                            + " in columnValueComparers='{}'",
-                    defaultValueComparer, columnName, columnValueComparers);
+            if (log.isDebugEnabled())
+            {
+                log.debug(
+                        "determineValueComparer: using defaultValueComparer='{}'"
+                                + " as columnName='{}' not found"
+                                + " in columnValueComparers='{}'",
+                        defaultValueComparer, columnName, columnValueComparers);
+            }
             valueComparer = defaultValueComparer;
         }
 

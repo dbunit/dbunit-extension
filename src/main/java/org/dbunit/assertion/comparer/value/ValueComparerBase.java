@@ -40,10 +40,14 @@ public abstract class ValueComparerBase implements ValueComparer
         failMessage = doCompare(expectedTable, actualTable, rowNum, columnName,
                 dataType, expectedValue, actualValue);
 
-        log.debug(
-                "compare: rowNum={}, columnName={}, expectedValue={},"
-                        + " actualValue={}, failMessage={}",
-                rowNum, columnName, expectedValue, actualValue, failMessage);
+        if (log.isDebugEnabled())
+        {
+            log.debug(
+                    "compare: rowNum={}, columnName={}, expectedValue={},"
+                            + " actualValue={}, failMessage={}",
+                    rowNum, columnName, expectedValue, actualValue,
+                    failMessage);
+        }
 
         return failMessage;
     }
