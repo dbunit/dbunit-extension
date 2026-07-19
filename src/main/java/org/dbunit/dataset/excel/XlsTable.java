@@ -25,7 +25,9 @@ import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.TimeZone;
 
 import org.apache.poi.ss.usermodel.Cell;
@@ -62,7 +64,15 @@ class XlsTable extends AbstractTable
     private final Sheet _sheet;
     
     private final DecimalFormatSymbols symbols = new DecimalFormatSymbols();
-    
+
+    /**
+     * Cache of {@link DecimalFormat} instances keyed by format string, avoiding
+     * reconstructing one on every numeric cell read.
+     * {@code DecimalFormat} is not thread-safe; this cache is per-table-instance state,
+     * consistent with the rest of {@link XlsTable}.
+     */
+    private final Map<String, DecimalFormat> decimalFormatCache = new HashMap<String, DecimalFormat>();
+
 
     public XlsTable(String sheetName, Sheet sheet) throws DataSetException
     {
@@ -261,7 +271,11 @@ class XlsTable extends AbstractTable
         {
             if(!formatString.equals("General") && !formatString.equals("@")) {
                 logger.debug("formatString={}", formatString);
-                DecimalFormat nf = new DecimalFormat(formatString, symbols);
+                DecimalFormat nf = decimalFormatCache.get(formatString);
+                if(nf == null) {
+                    nf = new DecimalFormat(formatString, symbols);
+                    decimalFormatCache.put(formatString, nf);
+                }
                 resultString = nf.format(cellValue);
             }
         }
