@@ -111,25 +111,7 @@ public class QueryTableIterator implements ITableIterator
     {
         logger.debug("getTableMetaData() - start");
 
-        QueryDataSet.TableEntry entry = (QueryDataSet.TableEntry)_tableEntries.get(_index);
-
-        // No query specified, use metadata from dataset
-        if (entry.getQuery() == null)
-        {
-            try
-            {
-                ITable table = _connection.createTable(entry.getTableName());
-                return table.getTableMetaData();
-            }
-            catch (SQLException e)
-            {
-                throw new DataSetException(e);
-            }
-        }
-        else
-        {
-            return getTable().getTableMetaData();
-        }
+        return getTable().getTableMetaData();
     }
 
     /**
