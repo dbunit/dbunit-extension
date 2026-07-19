@@ -23,6 +23,7 @@ package org.dbunit.dataset.csv;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -128,7 +129,7 @@ public class CsvDataSetWriter implements IDataSetConsumer {
         try {
             _activeMetaData = metaData;
             String tableName = _activeMetaData.getTableName();
-            setWriter(new FileWriter(getTheDirectory() + File.separator + tableName + ".csv"));
+            setWriter(new BufferedWriter(new FileWriter(getTheDirectory() + File.separator + tableName + ".csv")));
             writeColumnNames();
             getWriter().write(System.getProperty("line.separator"));
         } catch (IOException e) {
@@ -196,6 +197,24 @@ public class CsvDataSetWriter implements IDataSetConsumer {
             getWriter().write(System.getProperty("line.separator"));
         } catch (IOException e) {
             throw new DataSetException(e);
+        } catch (DataSetException e) {
+            // Rows already written for this table sit in the BufferedWriter until
+            // endTable() closes it; since a row failure here skips endTable()
+            // entirely, flush explicitly so they still reach disk.
+            flushWriterQuietly();
+            throw e;
+        }
+    }
+
+    private void flushWriterQuietly() {
+        logger.debug("flushWriterQuietly() - start");
+
+        try {
+            if (getWriter() != null) {
+                getWriter().flush();
+            }
+        } catch (IOException e) {
+            logger.warn("Failed to flush writer after a row error", e);
         }
     }
 
