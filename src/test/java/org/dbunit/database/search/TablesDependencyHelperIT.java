@@ -26,6 +26,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 import java.io.File;
 import java.sql.Connection;
 import java.util.HashSet;
+import java.util.Set;
 import java.util.TreeSet;
 
 import org.dbunit.AbstractDatabaseIT;
@@ -233,6 +234,77 @@ class TablesDependencyHelperIT extends AbstractDatabaseIT
         {
             DdlExecutor.dropTables(_connection.getConnection(), "C", "D", "E",
                     "A", "B", "F");
+            refreshConnection();
+        }
+    }
+
+    @Test
+    void testGetDirectDependentTables_withMultiHopChain_excludesTransitivePrerequisites()
+            throws Exception
+    {
+        DdlExecutor.dropTables(_connection.getConnection(), "B", "C", "E",
+                "H", "F", "G", "A", "D");
+        DdlExecutor.executeDdlFile(
+                TestUtils.getFile(
+                        "sql/" + ImportNodesFilterSearchCallbackIT.SQL_FILE),
+                _connection.getConnection(), false);
+        try
+        {
+            // Despite its name, getDirectDependentTables actually returns the tables
+            // the root's own FKs point to (its direct prerequisites), via
+            // ImportedKeysSearchCallback -- a longstanding, pre-existing naming quirk
+            // in this class, confirmed empirically, not introduced by this change.
+            // C's own FKs point directly to A and F; C reaches D only transitively,
+            // via A -> D (FKD). A direct-only (depth=1) query must exclude D.
+            final Set<String> actualOutput = TablesDependencyHelper
+                    .getDirectDependentTables(_connection, "C");
+
+            assertThat(actualOutput)
+                    .as("C's direct FK targets must be exactly {C, A, F}, "
+                            + "excluding D which is only reachable transitively via A.")
+                    .usingElementComparator(String.CASE_INSENSITIVE_ORDER)
+                    .containsExactlyInAnyOrder("C", "A", "F");
+        }
+        finally
+        {
+            DdlExecutor.dropTables(_connection.getConnection(), "B", "C", "E",
+                    "H", "F", "G", "A", "D");
+            refreshConnection();
+        }
+    }
+
+    @Test
+    void testGetDirectDependsOnTables_withMultiHopChain_excludesTransitiveDependents()
+            throws Exception
+    {
+        DdlExecutor.dropTables(_connection.getConnection(), "B", "C", "E",
+                "H", "F", "G", "A", "D");
+        DdlExecutor.executeDdlFile(
+                TestUtils.getFile(
+                        "sql/" + ImportNodesFilterSearchCallbackIT.SQL_FILE),
+                _connection.getConnection(), false);
+        try
+        {
+            // Despite its name, getDirectDependsOnTables actually returns the tables
+            // with a direct FK pointing at the root (its direct dependents), via
+            // ExportedKeysSearchCallback -- the same pre-existing naming quirk as
+            // above, in the opposite direction.
+            // C, E, and G each have a direct FKA pointing at A. B depends on A only
+            // transitively, via B -> C -> A (FKC then FKA). A direct-only (depth=1)
+            // query must exclude B.
+            final Set<String> actualOutput = TablesDependencyHelper
+                    .getDirectDependsOnTables(_connection, "A");
+
+            assertThat(actualOutput)
+                    .as("Tables with a direct FK to A must be exactly {A, C, E, G}, "
+                            + "excluding B which only depends on A transitively via C.")
+                    .usingElementComparator(String.CASE_INSENSITIVE_ORDER)
+                    .containsExactlyInAnyOrder("A", "C", "E", "G");
+        }
+        finally
+        {
+            DdlExecutor.dropTables(_connection.getConnection(), "B", "C", "E",
+                    "H", "F", "G", "A", "D");
             refreshConnection();
         }
     }
