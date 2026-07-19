@@ -26,6 +26,7 @@ import java.sql.SQLException;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Locale;
 import java.util.Map;
 
 import org.dbunit.DatabaseUnitRuntimeException;
@@ -46,8 +47,19 @@ import org.slf4j.LoggerFactory;
 public abstract class AbstractTableMetaData implements ITableMetaData
 {
 
-	private Map _columnsToIndexes;
-	
+	// volatile: _columnsToIndexes is the publication flag checked (unsynchronized) in
+	// getColumnIndex(); without it, the JMM permits a concurrent reader to observe this
+	// write before _exactColumnsToIndexes's, even though it is assigned second in program order.
+	private volatile Map _columnsToIndexes;
+
+	/**
+	 * Exact-case fast path for {@link #getColumnIndex(String)}, built alongside
+	 * {@link #_columnsToIndexes}. Only holds entries whose exact-case lookup agrees with
+	 * the uppercase-keyed lookup, so a hit here is always behavior-identical to the
+	 * uppercase path.
+	 */
+	private volatile Map<String, Integer> _exactColumnsToIndexes;
+
     /**
      * Logger for this class
      */
@@ -96,23 +108,35 @@ public abstract class AbstractTableMetaData implements ITableMetaData
 	 * @throws DataSetException 
 	 * @see org.dbunit.dataset.ITableMetaData#getColumnIndex(java.lang.String)
 	 */
-	public int getColumnIndex(String columnName) throws DataSetException 
+	public int getColumnIndex(String columnName) throws DataSetException
 	{
         logger.debug("getColumnIndex(columnName={}) - start", columnName);
 
-        if(this._columnsToIndexes == null) 
+        if(this._columnsToIndexes == null)
 		{
-			// lazily create the map
-			this._columnsToIndexes = createColumnIndexesMap(this.getColumns());
+			// lazily create the maps. _columnsToIndexes is the initialization flag checked
+			// above, so it must be published last: publishing it before _exactColumnsToIndexes
+			// is fully built would let a concurrent caller see this null-check pass and then
+			// NPE on a still-null _exactColumnsToIndexes below.
+			Column[] columns = this.getColumns();
+			Map colsToIndexes = createColumnIndexesMap(columns);
+			this._exactColumnsToIndexes = createExactColumnIndexesMap(columns, colsToIndexes);
+			this._columnsToIndexes = colsToIndexes;
 		}
-		
-        String columnNameUpperCase = columnName.toUpperCase();
+
+        Integer exactIndex = this._exactColumnsToIndexes.get(columnName);
+        if(exactIndex != null)
+        {
+            return exactIndex.intValue();
+        }
+
+        String columnNameUpperCase = columnName.toUpperCase(Locale.ENGLISH);
 		Integer colIndex = (Integer) this._columnsToIndexes.get(columnNameUpperCase);
 		if(colIndex != null)
 		{
 			return colIndex.intValue();
 		}
-		else 
+		else
 		{
 			throw new NoSuchColumnException(this.getTableName(), columnNameUpperCase,
 					" (Non-uppercase input column: " + columnName + ") in ColumnNameToIndexes cache map. " +
@@ -124,14 +148,39 @@ public abstract class AbstractTableMetaData implements ITableMetaData
 	 * @param columns The columns to be put into the hash table
 	 * @return A map having the key value pair [columnName, columnIndexInInputArray]
 	 */
-	private Map createColumnIndexesMap(Column[] columns) 
+	private Map createColumnIndexesMap(Column[] columns)
 	{
 		Map colsToIndexes = new HashMap(columns.length);
-		for (int i = 0; i < columns.length; i++) 
+		for (int i = 0; i < columns.length; i++)
 		{
-			colsToIndexes.put(columns[i].getColumnName().toUpperCase(), i);
+			colsToIndexes.put(columns[i].getColumnName().toUpperCase(Locale.ENGLISH), i);
 		}
 		return colsToIndexes;
+	}
+
+	/**
+	 * Builds the exact-case fast path map, keyed by the column's exact-case name.
+	 * A column is only included when its exact-case name resolves, via {@code colsToIndexes},
+	 * to the same index it occupies in the input array -- this is what makes an exact-map
+	 * hit behavior-identical to the uppercase path, even when duplicate case-insensitive
+	 * column names (e.g. "a" and "A") are present.
+	 * @param columns The columns to be put into the exact-case hash table.
+	 * @param colsToIndexes The fully-built uppercase columnName-to-index map to verify agreement against.
+	 * @return A map having the key value pair [exact-case columnName, columnIndexInInputArray].
+	 */
+	private Map<String, Integer> createExactColumnIndexesMap(Column[] columns, Map colsToIndexes)
+	{
+		Map<String, Integer> exactMap = new HashMap<String, Integer>(columns.length);
+		for (int i = 0; i < columns.length; i++)
+		{
+			String name = columns[i].getColumnName();
+			Integer upperIndex = (Integer) colsToIndexes.get(name.toUpperCase(Locale.ENGLISH));
+			if(upperIndex != null && upperIndex.intValue() == i)
+			{
+				exactMap.put(name, upperIndex);
+			}
+		}
+		return exactMap;
 	}
 
 	/**
