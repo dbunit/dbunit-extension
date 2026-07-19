@@ -26,6 +26,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 
+import org.dbunit.dataset.datatype.DataType;
 import org.dbunit.dataset.xml.FlatXmlDataSetBuilder;
 import org.dbunit.dataset.xml.XmlDataSet;
 import org.dbunit.testutil.TestUtils;
@@ -77,6 +78,44 @@ class CompositeDataSetTest extends AbstractDataSetTest
         assertThat(tableNames).as("table count combined").hasSize(2);
         assertThat(tableNames[0]).isEqualTo("DUPLICATE_TABLE");
         assertThat(tableNames[1]).isEqualTo("EMPTY_TABLE");
+    }
+
+    @Test
+    void testConstructor_threePartsSameTable_valuesReadableAcrossAllParts() throws Exception
+    {
+        final Column[] columns = new Column[] {new Column("ID", DataType.NUMERIC)};
+
+        final DefaultTable part1 = new DefaultTable("T", columns);
+        part1.addRow(new Object[] {Integer.valueOf(1)});
+        part1.addRow(new Object[] {Integer.valueOf(2)});
+
+        final DefaultTable part2 = new DefaultTable("T", columns);
+        part2.addRow(new Object[] {Integer.valueOf(3)});
+
+        final DefaultTable part3 = new DefaultTable("T", columns);
+        part3.addRow(new Object[] {Integer.valueOf(4)});
+        part3.addRow(new Object[] {Integer.valueOf(5)});
+
+        final CompositeDataSet dataSet =
+                new CompositeDataSet(new ITable[] {part1, part2, part3});
+        final ITable combined = dataSet.getTable("T");
+
+        assertThat(combined.getRowCount())
+                .as("row count should equal the sum of all three parts.")
+                .isEqualTo(5);
+
+        final Object[] expected = {Integer.valueOf(1), Integer.valueOf(2),
+                Integer.valueOf(3), Integer.valueOf(4), Integer.valueOf(5)};
+        for (int i = 0; i < expected.length; i++)
+        {
+            assertThat(combined.getValue(i, "ID"))
+                    .as("value at row " + i + " should be readable across all three parts.")
+                    .isEqualTo(expected[i]);
+        }
+
+        assertThat(combined.getTableMetaData())
+                .as("metadata should be taken from the first part.")
+                .isSameAs(part1.getTableMetaData());
     }
 
     private CompositeDataSet createCompositeDataSet(final boolean combined,
