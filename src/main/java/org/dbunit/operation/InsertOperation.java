@@ -109,7 +109,10 @@ public class InsertOperation extends AbstractBatchOperation
 
     protected BitSet getIgnoreMapping(ITable table, int row) throws DataSetException
     {
-    	logger.debug("getIgnoreMapping(table={}, row={}) - start", table, row);
+        if (logger.isDebugEnabled())
+        {
+            logger.debug("getIgnoreMapping(table={}, row={}) - start", table, row);
+        }
 
         Column[] columns = table.getTableMetaData().getColumns();
 
@@ -130,8 +133,11 @@ public class InsertOperation extends AbstractBatchOperation
     protected boolean equalsIgnoreMapping(BitSet ignoreMapping, ITable table,
             int row) throws DataSetException
     {
-    	logger.debug("equalsIgnoreMapping(ignoreMapping={}, table={}, row={}) - start",
-    			 ignoreMapping, table, row);
+        if (logger.isDebugEnabled())
+        {
+            logger.debug("equalsIgnoreMapping(ignoreMapping={}, table={}, row={}) - start",
+                    ignoreMapping, table, row);
+        }
 
         Column[] columns = table.getTableMetaData().getColumns();
 
