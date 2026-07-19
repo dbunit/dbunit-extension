@@ -28,6 +28,7 @@ import java.io.File;
 import java.io.IOException;
 
 import org.dbunit.dataset.datatype.DataType;
+import org.dbunit.dataset.datatype.TypeCastException;
 import org.dbunit.dataset.xml.FlatXmlDataSetBuilder;
 import org.dbunit.testutil.TestUtils;
 import org.junit.jupiter.api.Test;
@@ -221,6 +222,162 @@ public class SortedTableTest extends AbstractTableTest
         assertThat(actualSortColumn.getDataType()).isEqualTo(DataType.UNKNOWN);
         assertThat(actualSortColumn.getColumnName()).isEqualTo("COLUMN2");
         assertThat(actualSortColumn.getNullable()).isEqualTo(Column.NULLABLE);
+    }
+
+    @Test
+    void testSort_nullValuesInSortColumnByStringMode_sortsNullsFirst() throws Exception
+    {
+        final Column[] columns = new Column[] {new Column("COL0", DataType.VARCHAR)};
+        final DefaultTable table = new DefaultTable("NULL_ORDER_TABLE", columns);
+        table.addRow(new Object[] {"b"});
+        table.addRow(new Object[] {null});
+        table.addRow(new Object[] {"a"});
+
+        final SortedTable sortedTable = new SortedTable(table, new String[] {"COL0"});
+
+        final Object[] expected = {null, "a", "b"};
+        for (int i = 0; i < sortedTable.getRowCount(); i++)
+        {
+            assertThat(sortedTable.getValue(i, "COL0")).as("value row " + i + ".")
+                    .isEqualTo(expected[i]);
+        }
+    }
+
+    @Test
+    void testSort_nullValuesInSortColumnComparableMode_sortsNullsFirst() throws Exception
+    {
+        final Column[] columns = new Column[] {new Column("COL0", DataType.NUMERIC)};
+        final DefaultTable table = new DefaultTable("NULL_ORDER_TABLE", columns);
+        table.addRow(new Object[] {Integer.valueOf(2)});
+        table.addRow(new Object[] {null});
+        table.addRow(new Object[] {Integer.valueOf(1)});
+
+        final SortedTable sortedTable = new SortedTable(table, new String[] {"COL0"});
+        sortedTable.setUseComparable(true);
+
+        final Object[] expected = {null, Integer.valueOf(1), Integer.valueOf(2)};
+        for (int i = 0; i < sortedTable.getRowCount(); i++)
+        {
+            assertThat(sortedTable.getValue(i, "COL0")).as("value row " + i + ".")
+                    .isEqualTo(expected[i]);
+        }
+    }
+
+    @Test
+    void testGetValue_sortTriggered_readsEachSortCellOnce() throws Exception
+    {
+        final int rowCount = 5;
+        final Column[] columns = new Column[] {new Column("COL0", DataType.VARCHAR),
+                new Column("COL1", DataType.VARCHAR), new Column("COL2", DataType.VARCHAR)};
+        final DefaultTable table = new DefaultTable("PERF_TABLE", columns);
+        for (int i = 0; i < rowCount; i++)
+        {
+            table.addRow(new Object[] {String.valueOf(rowCount - i), "b" + i, "c" + i});
+        }
+        final CountingTable countingTable = new CountingTable(table);
+
+        final SortedTable sortedTable =
+                new SortedTable(countingTable, new String[] {"COL0", "COL1"});
+        // Trigger the lazy sort-key precompute. This getValue call also reads one additional
+        // cell -- the actually-requested value -- on top of the precompute itself.
+        sortedTable.getValue(0, "COL0");
+
+        final int sortColumnCount = sortedTable.getSortColumns().length;
+        final int expectedCalls = rowCount * sortColumnCount + 1;
+        assertThat(countingTable.getValueCallCount())
+                .as("Sorting should read each (row, sort column) cell exactly once during the precompute, "
+                        + "plus one call for the actually-requested cell.")
+                .isEqualTo(expectedCalls);
+    }
+
+    @Test
+    void testGetValue_customComparatorSubclassOverride_isNotBypassedByPrecompute()
+            throws Exception
+    {
+        final Column[] columns = new Column[] {new Column("COL0", DataType.VARCHAR)};
+        final DefaultTable table = new DefaultTable("REVERSED_TABLE", columns);
+        table.addRow(new Object[] {"a"});
+        table.addRow(new Object[] {"c"});
+        table.addRow(new Object[] {"b"});
+
+        final SortedTable sortedTable =
+                new SortedTable(table, new String[] {"COL0"});
+        // ReverseOrderComparator is a subclass of the built-in RowComparatorByString,
+        // installed through the public setRowComparator() extension point. The
+        // precomputed-key fast path must be gated by exact class, not instanceof,
+        // or this override is silently bypassed and the table sorts in the built-in
+        // (ascending) order instead of the subclass's overridden (descending) order.
+        sortedTable.setRowComparator(
+                new ReverseOrderComparator(table, sortedTable.getSortColumns()));
+
+        final Object[] actual = {sortedTable.getValue(0, "COL0"),
+                sortedTable.getValue(1, "COL0"), sortedTable.getValue(2, "COL0")};
+
+        assertThat(actual)
+                .as("A RowComparatorByString subclass installed via setRowComparator() "
+                        + "must have its overridden compare() honored, sorting "
+                        + "descending instead of the built-in ascending order.")
+                .containsExactly("c", "b", "a");
+    }
+
+    /**
+     * Subclass of the built-in string comparator, overriding {@code compare} to sort
+     * descending instead of ascending -- used to prove the precomputed-key fast path
+     * does not silently bypass a caller-supplied comparator's overridden behavior.
+     */
+    private static final class ReverseOrderComparator
+            extends SortedTable.RowComparatorByString
+    {
+        private ReverseOrderComparator(final ITable table, final Column[] sortColumns)
+        {
+            super(table, sortColumns);
+        }
+
+        @Override
+        protected int compare(final Column column, final Object value1,
+                final Object value2) throws TypeCastException
+        {
+            return -super.compare(column, value1, value2);
+        }
+    }
+
+    /**
+     * {@link ITable} decorator counting {@link #getValue(int, String)} calls, to prove the
+     * sort precompute reads each (row, sort column) cell exactly once.
+     */
+    private static final class CountingTable implements ITable
+    {
+        private final ITable delegate;
+        private int valueCallCount;
+
+        private CountingTable(final ITable delegate)
+        {
+            this.delegate = delegate;
+        }
+
+        int getValueCallCount()
+        {
+            return valueCallCount;
+        }
+
+        @Override
+        public ITableMetaData getTableMetaData()
+        {
+            return delegate.getTableMetaData();
+        }
+
+        @Override
+        public int getRowCount()
+        {
+            return delegate.getRowCount();
+        }
+
+        @Override
+        public Object getValue(final int row, final String columnName) throws DataSetException
+        {
+            valueCallCount++;
+            return delegate.getValue(row, columnName);
+        }
     }
 
 }
