@@ -35,7 +35,7 @@ Use the Maven wrapper (`./mvnw`) for all build operations.
 # Run integration tests against a specific database
 ./mvnw clean verify -Pderby-10-14
 ./mvnw clean verify -Ph2-1-4
-./mvnw clean verify -Phsqldb-1-8
+./mvnw clean verify -Phsqldb-2-7
 ./mvnw clean verify -Ppostgresql-16
 ./mvnw clean verify -Pmysql-9-20
 ./mvnw clean verify -Pmssql-2022
@@ -146,8 +146,8 @@ Integration tests use `DatabaseEnvironment` to bootstrap the target database fro
 - Commit Messages:
   - Adhere strictly to de facto standard Git commit message formatting.
   - Use Conventional Commits format.
-  - **Commit Types:** `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `build:`, `ci:`
-  - **Scopes:** any of the database names, `assertion`, `pom`, `log`, `docker`, `database`, `dataset`, `metadata`, `resultset`, `scripts`, `site`, `statement`
+  - **Commit Types:** `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `build:`, `ci:`, `perf:`
+  - **Scopes:** any of the database names, `assertion`, `pom`, `log`, `docker`, `database`, `dataset`, `metadata`, `resultset`, `scripts`, `site`, `statement`, `search`
   - Capitalize the first word after the type and scope.
   - You may suggest additional CC commit types and scopes when encountering situations where the changes do not fit into the approved lists above.
   - Reference GitHub issues in the commit footer with `Refs: <issue-number>` (e.g. `Refs: 123`).  Do not use a # before the number.
