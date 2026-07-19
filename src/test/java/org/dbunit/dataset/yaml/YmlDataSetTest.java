@@ -22,6 +22,8 @@ package org.dbunit.dataset.yaml;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -30,6 +32,7 @@ import java.io.OutputStream;
 
 import org.dbunit.Assertion;
 import org.dbunit.dataset.AbstractDataSetTest;
+import org.dbunit.dataset.DataSetBuilder;
 import org.dbunit.dataset.DataSetUtils;
 import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.ITable;
@@ -139,6 +142,30 @@ class YmlDataSetTest extends AbstractDataSetTest
         {
             tempFile.delete();
         }
+    }
+
+    @Test
+    void testWrite_largeDataSetToMemoryStream_writesCompleteOutput() throws Exception
+    {
+        final int rowCount = 2000;
+        final DataSetBuilder.TableBuilder builder =
+                new DataSetBuilder().table("MANY_ROWS").columns("ID", "NAME");
+        for (int i = 0; i < rowCount; i++)
+        {
+            builder.row(i, "name-" + i);
+        }
+        final IDataSet expectedDataSet = builder.build();
+
+        final ByteArrayOutputStream out = new ByteArrayOutputStream();
+        YamlDataSet.write(expectedDataSet, out);
+
+        final IDataSet actualDataSet =
+                new YamlDataSet(new ByteArrayInputStream(out.toByteArray()));
+
+        assertThat(actualDataSet.getTable("MANY_ROWS").getRowCount())
+                .as("All rows should be present in the in-memory stream after write() returns.")
+                .isEqualTo(rowCount);
+        Assertion.assertEquals(expectedDataSet, actualDataSet);
     }
 
 }
