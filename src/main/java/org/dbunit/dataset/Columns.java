@@ -23,7 +23,9 @@ package org.dbunit.dataset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.dbunit.dataset.filter.IColumnFilter;
 import org.slf4j.Logger;
@@ -282,25 +284,19 @@ public class Columns
     public static Column[] mergeColumnsByName(Column[] referenceColumns, Column[] columnsToMerge) {
         logger.debug("mergeColumnsByName(referenceColumns={}, columnsToMerge={}) - start", referenceColumns, columnsToMerge);
 
-        List resultList = new ArrayList(Arrays.asList(referenceColumns));
-        List columnsToMergeNotInRefList = new ArrayList(Arrays.asList(columnsToMerge));
-        
-        // All columns that exist in the referenceColumns
+        Set referenceColumnNames = new HashSet();
         for (int i = 0; i < referenceColumns.length; i++) {
-            Column refColumn = referenceColumns[i];
-            for (int k = 0; k < columnsToMerge.length; k++) {
-                Column columnToMerge = columnsToMerge[k];
-                // Check if this colToMerge exists in the refColumn
-                if(columnToMerge.getColumnName().equals(refColumn.getColumnName())) {
-                    // We found the column in the refColumns - so no candidate for adding to the result list
-                    columnsToMergeNotInRefList.remove(columnToMerge);
-                    break;
-                }
+            referenceColumnNames.add(referenceColumns[i].getColumnName());
+        }
+
+        List resultList = new ArrayList(Arrays.asList(referenceColumns));
+        // Add each "columnsToMerge" entry that is not already present among the referenceColumns
+        for (int k = 0; k < columnsToMerge.length; k++) {
+            Column columnToMerge = columnsToMerge[k];
+            if (!referenceColumnNames.contains(columnToMerge.getColumnName())) {
+                resultList.add(columnToMerge);
             }
         }
-        
-        // Add all "columnsToMerge" that have not been found in the referenceColumnList
-        resultList.addAll(columnsToMergeNotInRefList);
         return (Column[]) resultList.toArray(new Column[]{});
     }
 
