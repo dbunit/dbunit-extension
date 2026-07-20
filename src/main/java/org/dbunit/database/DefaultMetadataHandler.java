@@ -151,16 +151,27 @@ public class DefaultMetadataHandler implements IMetadataHandler {
         return metaData.getTables(null, schemaName, "%", tableType);
     }
 
-    public ResultSet getPrimaryKeys(DatabaseMetaData metaData, String schemaName, String tableName) 
+    public ResultSet getPrimaryKeys(DatabaseMetaData metaData, String schemaName, String tableName)
     throws SQLException
     {
         if(logger.isTraceEnabled())
-            logger.trace("getPrimaryKeys(metaData={}, schemaName={}, tableName={}) - start", 
+            logger.trace("getPrimaryKeys(metaData={}, schemaName={}, tableName={}) - start",
                     new Object[] {metaData, schemaName, tableName} );
 
         ResultSet resultSet = metaData.getPrimaryKeys(
                 null, schemaName, tableName);
         return resultSet;
+    }
+
+    /**
+     * {@inheritDoc}
+     * The inherited default {@code matchesColumn(...)} already mirrors this class's
+     * {@link #matches(ResultSet, String, String, String, String, boolean)}, so the cache fast
+     * path is safe to use.
+     */
+    public boolean supportsColumnCache()
+    {
+        return true;
     }
 
 }

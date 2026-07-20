@@ -126,16 +126,49 @@ public class MySqlMetadataHandler implements IMetadataHandler {
         return metaData.getTables(schemaName, null, "%", tableType);
     }
 
-    public ResultSet getPrimaryKeys(DatabaseMetaData metaData, String schemaName, String tableName) 
+    public ResultSet getPrimaryKeys(DatabaseMetaData metaData, String schemaName, String tableName)
     throws SQLException
     {
         if(logger.isTraceEnabled())
-            logger.trace("getPrimaryKeys(metaData={}, schemaName={}, tableName={}) - start", 
+            logger.trace("getPrimaryKeys(metaData={}, schemaName={}, tableName={}) - start",
                     new Object[] {metaData, schemaName, tableName} );
 
         ResultSet resultSet = metaData.getPrimaryKeys(
                 schemaName, null, tableName);
         return resultSet;
+    }
+
+    /**
+     * {@inheritDoc}
+     * Mirrors {@link #matches(ResultSet, String, String, String, String, boolean)}'s
+     * catalog/schema swap: MySQL's {@code getColumns} rows report only a catalog, not a schema,
+     * so when the search side expects a schema but the row has none, the row's catalog is
+     * compared against the searched schema instead.
+     */
+    public boolean matchesColumn(String searchCatalog, String actualCatalog,
+            String searchSchema, String actualSchema, String searchTable, String actualTable,
+            String searchColumn, String actualColumn, boolean caseSensitive)
+    {
+        if(searchSchema != null && actualSchema == null && searchCatalog == null && actualCatalog != null){
+            logger.debug("Switching catalog/schema because the are mutually null");
+            actualSchema = actualCatalog;
+            actualCatalog = null;
+        }
+
+        return areEqualIgnoreNull(searchCatalog, actualCatalog, caseSensitive) &&
+            areEqualIgnoreNull(searchSchema, actualSchema, caseSensitive) &&
+            areEqualIgnoreNull(searchTable, actualTable, caseSensitive) &&
+            areEqualIgnoreNull(searchColumn, actualColumn, caseSensitive);
+    }
+
+    /**
+     * {@inheritDoc}
+     * @return <code>true</code>, since {@link #matchesColumn} replicates this class's
+     * {@link #matches(ResultSet, String, String, String, String, boolean)} semantics.
+     */
+    public boolean supportsColumnCache()
+    {
+        return true;
     }
 
 }

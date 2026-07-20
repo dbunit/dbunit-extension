@@ -110,4 +110,31 @@ public class Db2MetadataHandler extends DefaultMetadataHandler {
         return SQLHelper.areEqualIgnoreNull(value1, value2, caseSensitive);
     }
 
+    /**
+     * {@inheritDoc}
+     * Mirrors {@link #matches(ResultSet, String, String, String, String, boolean)}'s
+     * catalog-mismatch tolerance, using {@link #areEqualIgnoreBothNull(String, String, boolean)}
+     * for the catalog comparison instead of the inherited default's
+     * {@link SQLHelper#areEqualIgnoreNull(String, String, boolean)}.
+     */
+    public boolean matchesColumn(String searchCatalog, String actualCatalog,
+            String searchSchema, String actualSchema, String searchTable, String actualTable,
+            String searchColumn, String actualColumn, boolean caseSensitive)
+    {
+        return areEqualIgnoreBothNull(searchCatalog, actualCatalog, caseSensitive)
+                && areEqualIgnoreNull(searchSchema, actualSchema, caseSensitive)
+                && areEqualIgnoreNull(searchTable, actualTable, caseSensitive)
+                && areEqualIgnoreNull(searchColumn, actualColumn, caseSensitive);
+    }
+
+    /**
+     * {@inheritDoc}
+     * @return <code>true</code>, since {@link #matchesColumn} replicates this class's
+     * {@link #matches(ResultSet, String, String, String, String, boolean)} semantics.
+     */
+    public boolean supportsColumnCache()
+    {
+        return true;
+    }
+
 }

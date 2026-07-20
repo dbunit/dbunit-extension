@@ -35,6 +35,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 
 import org.dbunit.dataset.Column;
+import org.dbunit.ext.db2.Db2MetadataHandler;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -90,6 +91,34 @@ class ResultSetTableMetaDataTest
                 .isEqualToIgnoringCase("NAME");
         assertThat(columns[2].getColumnName()).as("column 2 name.")
                 .isEqualToIgnoringCase("AMOUNT");
+
+        verify(spyMetaData, times(1)).getColumns(any(), any(), eq("MULTI_COL_TABLE"), eq("%"));
+    }
+
+    @Test
+    void testCreateMetaData_db2MetadataHandler_singleGetColumnsQuery() throws Exception
+    {
+        final Connection realConnection = InMemoryDatabaseConnection.create().getConnection();
+        final Statement ddlStmt = realConnection.createStatement();
+        ddlStmt.execute(CREATE_TABLE_SQL);
+        ddlStmt.close();
+
+        final DatabaseMetaData spyMetaData = spy(realConnection.getMetaData());
+        final Connection spyConnection = spy(realConnection);
+        when(spyConnection.getMetaData()).thenReturn(spyMetaData);
+        connection = new DatabaseConnection(spyConnection);
+        connection.getConfig().setProperty(DatabaseConfig.PROPERTY_METADATA_HANDLER,
+                new Db2MetadataHandler());
+
+        final Statement queryStmt = spyConnection.createStatement();
+        final ResultSet resultSet =
+                queryStmt.executeQuery("SELECT * FROM MULTI_COL_TABLE");
+
+        final ResultSetTableMetaData metaData =
+                new ResultSetTableMetaData("MULTI_COL_TABLE", resultSet, connection, false);
+        final Column[] columns = metaData.getColumns();
+
+        assertThat(columns).as("column count.").hasSize(3);
 
         verify(spyMetaData, times(1)).getColumns(any(), any(), eq("MULTI_COL_TABLE"), eq("%"));
     }
