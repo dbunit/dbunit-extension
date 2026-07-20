@@ -23,6 +23,7 @@ package org.dbunit.dataset.excel;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.math.BigDecimal;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -58,7 +59,19 @@ public class XlsDataSetWriter
 {
     private static final Logger logger = LoggerFactory.getLogger(XlsDataSetWriter.class);
 
+    /**
+     * @deprecated since 3.2.1, no longer used internally by {@link #createZeros(int)}; kept
+     * only for binary compatibility.
+     */
+    @Deprecated
     public static final String ZEROS = "0000000000000000000000000000000000000000000000000000";
+
+    /**
+     * Upper bound on the number of zero-padding characters {@link #createZeros(int)} builds,
+     * so a pathologically large {@link BigDecimal} scale cannot grow the format string or its
+     * backing allocation without bound.
+     */
+    private static final int MAX_FORMAT_ZEROS = 250;
 
     /**
      * A special format pattern used to create a custom {@link DataFormat} which
@@ -327,7 +340,10 @@ public class XlsDataSetWriter
 //    }
 
     private static String createZeros(int count) {
-        return ZEROS.substring(0, count);
+        final int boundedCount = Math.min(count, MAX_FORMAT_ZEROS);
+        final char[] zeros = new char[boundedCount];
+        Arrays.fill(zeros, '0');
+        return new String(zeros);
     }
     
     protected Workbook createWorkbook() {
