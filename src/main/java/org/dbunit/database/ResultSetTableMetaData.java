@@ -152,11 +152,12 @@ public class ResultSetTableMetaData extends AbstractTableMetaData
         ResultSetMetaData metaData = resultSet.getMetaData();
         Column[] columns = new Column[metaData.getColumnCount()];
         // Fast-path cache of one getColumns() result per distinct (schema, table) origin, so a
-        // multi-column table is not re-queried once per column. Only safe for the exact
-        // DefaultMetadataHandler class (not instanceof: e.g. Db2MetadataHandler extends it but
-        // overrides matches() with DB2-specific catalog handling that this cache bypasses) --
-        // custom/ext handlers keep the legacy per-column path below.
-        Map columnsByOrigin = columnFactory.getClass() == DefaultMetadataHandler.class
+        // multi-column table is not re-queried once per column. Only safe for a handler that
+        // declares supportsColumnCache() true, meaning its matchesColumn(...) override (if any)
+        // fully replicates its matches(...) semantics -- a custom handler that overrides
+        // matches(...) without also overriding matchesColumn(...)/supportsColumnCache() keeps the
+        // legacy per-column path below by inheriting the interface's conservative false default.
+        Map columnsByOrigin = columnFactory.supportsColumnCache()
                 ? new HashMap()
                 : null;
         for (int i = 0; i < columns.length; i++)
@@ -312,18 +313,19 @@ public class ResultSetTableMetaData extends AbstractTableMetaData
     /**
      * Looks up a column's metadata from the per-(schema, table)-origin cache, lazily fetching
      * and caching a whole table's columns (via a single {@code getColumns} call) on first need.
-     * Candidates are bucketed by {@link Locale#ENGLISH}-uppercased column name, then filtered by
-     * exact-case column name (only when {@link #_caseSensitiveMetaData} is set) and by catalog
-     * and table, using the same {@link SQLHelper#areEqualIgnoreNull(String, String, boolean)}
-     * semantics as the legacy {@code matches(...)} path -- a null/empty search catalog matches
-     * any row. The table check matters because {@code metadataHandler.getColumns} passes
-     * {@code tableName} to JDBC's {@code DatabaseMetaData#getColumns} as a LIKE pattern, not an
-     * exact match: a table name containing {@code _} or {@code %} (e.g. {@code USER_ACCOUNT})
-     * can make the driver also return columns from an unrelated, differently-named table whose
-     * name happens to match that pattern (e.g. {@code USERXACCOUNT}). The first remaining
-     * candidate, in {@code getColumns} row order, wins, consistent with a forward-scanning
-     * {@code scrollTo} match stopping at the first hit. A miss returns <code>null</code>, exactly
-     * like the not-found branch of the legacy per-column path.
+     * Candidates are bucketed by {@link Locale#ENGLISH}-uppercased column name, then filtered via
+     * {@link IMetadataHandler#matchesColumn(String, String, String, String, String, String,
+     * String, String, boolean)}, so a handler's own catalog/schema matching quirks (see e.g.
+     * {@code Db2MetadataHandler}, {@code MySqlMetadataHandler}) are replayed exactly as the
+     * legacy {@code matches(...)} path would apply them. The table check matters because
+     * {@code metadataHandler.getColumns} passes {@code tableName} to JDBC's
+     * {@code DatabaseMetaData#getColumns} as a LIKE pattern, not an exact match: a table name
+     * containing {@code _} or {@code %} (e.g. {@code USER_ACCOUNT}) can make the driver also
+     * return columns from an unrelated, differently-named table whose name happens to match that
+     * pattern (e.g. {@code USERXACCOUNT}). The first remaining candidate, in {@code getColumns}
+     * row order, wins, consistent with a forward-scanning {@code scrollTo} match stopping at the
+     * first hit. A miss returns <code>null</code>, exactly like the not-found branch of the
+     * legacy per-column path.
      */
     private Column createColumnFromCache(Map columnsByOrigin, DatabaseMetaData databaseMetaData,
             IMetadataHandler metadataHandler, String catalogName, String schemaName, String tableName,
@@ -346,15 +348,10 @@ public class ResultSetTableMetaData extends AbstractTableMetaData
         for (Iterator it = candidates.iterator(); it.hasNext();)
         {
             ColumnMetaData data = (ColumnMetaData) it.next();
-            if (_caseSensitiveMetaData && !data.columnName.equals(columnName))
-            {
-                continue;
-            }
-            if (!SQLHelper.areEqualIgnoreNull(catalogName, data.catalogName, _caseSensitiveMetaData))
-            {
-                continue;
-            }
-            if (!SQLHelper.areEqualIgnoreNull(tableName, data.tableName, _caseSensitiveMetaData))
+            boolean matches = metadataHandler.matchesColumn(catalogName, data.catalogName,
+                    schemaName, data.schemaName, tableName, data.tableName, columnName,
+                    data.columnName, _caseSensitiveMetaData);
+            if (!matches)
             {
                 continue;
             }
@@ -465,6 +462,7 @@ public class ResultSetTableMetaData extends AbstractTableMetaData
     private static final class ColumnMetaData
     {
         private final String catalogName;
+        private final String schemaName;
         private final String tableName;
         private final String columnName;
         private final int sqlType;
@@ -475,11 +473,12 @@ public class ResultSetTableMetaData extends AbstractTableMetaData
         private final String isAutoIncrement;
         private final String isGenerated;
 
-        private ColumnMetaData(String catalogName, String tableName, String columnName, int sqlType,
-                String sqlTypeName, int nullable, String remarks, String columnDefaultValue,
+        private ColumnMetaData(String catalogName, String schemaName, String tableName, String columnName,
+                int sqlType, String sqlTypeName, int nullable, String remarks, String columnDefaultValue,
                 String isAutoIncrement, String isGenerated)
         {
             this.catalogName = catalogName;
+            this.schemaName = schemaName;
             this.tableName = tableName;
             this.columnName = columnName;
             this.sqlType = sqlType;
@@ -494,11 +493,13 @@ public class ResultSetTableMetaData extends AbstractTableMetaData
         /**
          * Reads the same {@code getColumns} result set columns, by the same indexes, as
          * {@link SQLHelper#createColumn(ResultSet, IDataTypeFactory, boolean)}, plus
-         * {@code TABLE_CAT} so cache candidates can be matched by catalog too.
+         * {@code TABLE_CAT} and {@code TABLE_SCHEM} so cache candidates can be matched by
+         * catalog and schema too (see {@link IMetadataHandler#matchesColumn}).
          */
         private static ColumnMetaData readFrom(ResultSet resultSet) throws SQLException
         {
             String catalogName = resultSet.getString(1);
+            String schemaName = resultSet.getString(2);
             String tableName = resultSet.getString(3);
             String columnName = resultSet.getString(4);
             int sqlType = resultSet.getInt(5);
@@ -514,8 +515,8 @@ public class ResultSetTableMetaData extends AbstractTableMetaData
             String isAutoIncrement = resultSet.getString(23);
             // some JDBC drivers do not have this column even though they claim to be compliant with JDBC 4.1 or later
             String isGenerated = resultSet.getMetaData().getColumnCount() >= 24 ? resultSet.getString(24) : null;
-            return new ColumnMetaData(catalogName, tableName, columnName, sqlType, sqlTypeName, nullable,
-                    remarks, columnDefaultValue, isAutoIncrement, isGenerated);
+            return new ColumnMetaData(catalogName, schemaName, tableName, columnName, sqlType, sqlTypeName,
+                    nullable, remarks, columnDefaultValue, isAutoIncrement, isGenerated);
         }
 
         /**

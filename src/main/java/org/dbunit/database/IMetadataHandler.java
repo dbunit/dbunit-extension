@@ -24,6 +24,8 @@ import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
+import org.dbunit.util.SQLHelper;
+
 /**
  * Handler to specify the behavior for a lookup of column metadata using database metadata.
  * 
@@ -126,5 +128,56 @@ public interface IMetadataHandler
     public ResultSet getPrimaryKeys(DatabaseMetaData databaseMetaData, String schemaName, String tableName)
     throws SQLException;
 
+    /**
+     * Tests whether a candidate column's metadata values match the search criteria, using the
+     * same semantics as {@link #matches(ResultSet, String, String, String, String, boolean)} but
+     * operating on already-extracted values instead of a live {@link ResultSet} row. This lets a
+     * caller that batch-fetches and caches {@code DatabaseMetaData#getColumns} rows (see
+     * {@code ResultSetTableMetaData}) replay this handler's matching rules against a cached row
+     * without re-querying or holding a {@link ResultSet} open.
+     * <p>
+     * The default implementation mirrors {@link DefaultMetadataHandler}'s matching rules. A
+     * handler whose {@link #matches(ResultSet, String, String, String, String, boolean)} override
+     * differs must override this method the same way, and override
+     * {@link #supportsColumnCache()} to return {@code true}.
+     * @param searchCatalog The catalog to search for. If <code>null</code> or empty it is ignored in the comparison.
+     * @param actualCatalog The candidate row's catalog.
+     * @param searchSchema The schema to search for. If <code>null</code> or empty it is ignored in the comparison.
+     * @param actualSchema The candidate row's schema.
+     * @param searchTable The table to search for. If <code>null</code> or empty it is ignored in the comparison.
+     * @param actualTable The candidate row's table.
+     * @param searchColumn The column to search for. If <code>null</code> or empty it is ignored in the comparison.
+     * @param actualColumn The candidate row's column.
+     * @param caseSensitive Whether or not the comparison should be case sensitive.
+     * @return <code>true</code> if the candidate's values match the search criteria.
+     * @since 3.2.1
+     */
+    default boolean matchesColumn(String searchCatalog, String actualCatalog,
+            String searchSchema, String actualSchema, String searchTable, String actualTable,
+            String searchColumn, String actualColumn, boolean caseSensitive)
+    {
+        return SQLHelper.areEqualIgnoreNull(searchCatalog, actualCatalog, caseSensitive)
+                && SQLHelper.areEqualIgnoreNull(searchSchema, actualSchema, caseSensitive)
+                && SQLHelper.areEqualIgnoreNull(searchTable, actualTable, caseSensitive)
+                && SQLHelper.areEqualIgnoreNull(searchColumn, actualColumn, caseSensitive);
+    }
+
+    /**
+     * Whether {@code ResultSetTableMetaData}'s per-table column-metadata cache may safely use
+     * {@link #matchesColumn(String, String, String, String, String, String, String, String, boolean)}
+     * in place of the row-by-row {@link #matches(ResultSet, String, String, String, String, boolean)}
+     * scan for this handler.
+     * <p>
+     * Returns {@code false} by default, so a custom {@link IMetadataHandler} whose
+     * {@code matches(...)} override is not also replicated in {@code matchesColumn(...)} keeps
+     * the legacy per-column behavior. Override to return {@code true} only alongside a
+     * {@code matchesColumn(...)} override that fully replicates this handler's matching semantics.
+     * @return <code>true</code> if this handler's cache fast path is safe to use.
+     * @since 3.2.1
+     */
+    default boolean supportsColumnCache()
+    {
+        return false;
+    }
 
 }
