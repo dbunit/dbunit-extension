@@ -1,6 +1,7 @@
 package org.dbunit.dataset.excel;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
 import java.io.ByteArrayOutputStream;
@@ -8,6 +9,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -68,5 +70,43 @@ class XlsDataSetWriterTest
         assertThat(cellStyleMap)
                 .as("cellStyleMap should not retain any workbook's cell styles after write() returns.")
                 .isEmpty();
+    }
+
+    /**
+     * Test for issue 790. Without 790's changes, test fails with
+     * java.lang.StringIndexOutOfBoundsException because the zero-padding format string was
+     * built from a fixed 52-character constant.
+     */
+    @Test
+    void testWrite_withBigDecimalScaleGreaterThan52_doesNotThrowException()
+            throws DataSetException
+    {
+        final IDataSet dataSet = new DataSetBuilder().table("T")
+                .columns("AMOUNT").row(BigDecimal.ONE.setScale(60)).build();
+
+        final XlsDataSetWriter writer = new XlsDataSetWriter();
+
+        assertThatCode(() -> writer.write(dataSet, new ByteArrayOutputStream()))
+                .as("write() should support a BigDecimal scale beyond the previous "
+                        + "52-character ZEROS constant length.")
+                .doesNotThrowAnyException();
+    }
+
+    /**
+     * Test for issue 790's follow-up review: a pathologically large scale must not grow the
+     * zero-padding allocation or format string without bound.
+     */
+    @Test
+    void testCreateZeros_pathologicallyLargeScale_capsPaddingLength() throws Exception
+    {
+        final Method createZeros =
+                XlsDataSetWriter.class.getDeclaredMethod("createZeros", int.class);
+        createZeros.setAccessible(true);
+
+        final String zeros = (String) createZeros.invoke(null, 10_000);
+
+        assertThat(zeros.length())
+                .as("zero-padding length should be capped instead of growing unbounded.")
+                .isEqualTo(250);
     }
 }
