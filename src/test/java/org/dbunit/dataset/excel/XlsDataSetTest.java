@@ -71,6 +71,7 @@ class XlsDataSetTest extends AbstractDataSetTest
     }
 
     @Override
+    @Test
     public void testCreateMultipleCaseDuplicateDataSet_withDuplicateCaseVariantNames_throwsAmbiguousTableNameException() throws Exception
     {
         // Not supported

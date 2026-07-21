@@ -24,6 +24,7 @@ import org.dbunit.DatabaseEnvironment;
 import org.dbunit.dataset.AbstractTableTest;
 import org.dbunit.dataset.ITable;
 import org.dbunit.operation.DatabaseOperation;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author Manuel Laflamme
@@ -55,6 +56,7 @@ public class CachedResultSetTableIT extends AbstractTableTest
     }
 
     @Override
+    @Test
     public void testGetMissingValue_withMissingCells_returnsExpectedValues() throws Exception
     {
         // Do not test this!

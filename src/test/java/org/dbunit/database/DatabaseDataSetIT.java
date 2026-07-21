@@ -292,12 +292,14 @@ class DatabaseDataSetIT extends AbstractDataSetTest
     // }
 
     @Override
+    @Test
     public void testCreateDuplicateDataSet_withDuplicateTableNames_throwsAmbiguousTableNameException() throws Exception
     {
         // Cannot test! Unsupported feature.
     }
 
     @Override
+    @Test
     public void testCreateMultipleCaseDuplicateDataSet_withDuplicateCaseVariantNames_throwsAmbiguousTableNameException() throws Exception
     {
         // Cannot test! Unsupported feature.

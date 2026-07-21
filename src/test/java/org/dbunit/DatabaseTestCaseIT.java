@@ -26,6 +26,7 @@ import org.dbunit.database.DatabaseConfig;
 import org.dbunit.database.IDatabaseConnection;
 import org.dbunit.dataset.IDataSet;
 import org.dbunit.operation.DatabaseOperation;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -37,7 +38,9 @@ import org.junit.jupiter.api.Test;
 class DatabaseTestCaseIT
 {
 
-    public void testTearDownExceptionDoesNotObscureTestException()
+    @Test
+    @Disabled("TODO implement #1087040 tearDownOperation Exception obscures underlying problem")
+    void testTearDownExceptionDoesNotObscureTestException()
     {
         // TODO implement #1087040 tearDownOperation Exception obscures
         // underlying problem

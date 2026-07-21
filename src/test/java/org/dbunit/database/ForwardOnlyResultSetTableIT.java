@@ -76,6 +76,7 @@ class ForwardOnlyResultSetTableIT extends ForwardOnlyTableTest
     }
 
     @Override
+    @Test
     public void testGetMissingValue_withMissingCells_returnsExpectedValues() throws Exception
     {
         // Do not test this!

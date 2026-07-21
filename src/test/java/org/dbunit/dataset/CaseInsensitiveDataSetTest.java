@@ -23,6 +23,7 @@ package org.dbunit.dataset;
 
 import org.dbunit.dataset.xml.XmlDataSet;
 import org.dbunit.testutil.TestUtils;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author Manuel Laflamme
@@ -60,6 +61,7 @@ class CaseInsensitiveDataSetTest extends AbstractDataSetTest
     }
 
     @Override
+    @Test
     public void testCreateDuplicateDataSet_withDuplicateTableNames_throwsAmbiguousTableNameException() throws Exception
     {
         // No op. This dataSet is only a wrapper for another dataSet which is
@@ -67,6 +69,7 @@ class CaseInsensitiveDataSetTest extends AbstractDataSetTest
     }
 
     @Override
+    @Test
     public void testCreateMultipleCaseDuplicateDataSet_withDuplicateCaseVariantNames_throwsAmbiguousTableNameException() throws Exception
     {
         // No op. This dataSet is only a wrapper for another dataSet which is

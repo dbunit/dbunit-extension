@@ -16,6 +16,7 @@ import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.ITable;
 import org.dbunit.util.fileloader.DataFileLoader;
 import org.dbunit.util.fileloader.FlatXmlDataFileLoader;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 
@@ -53,7 +54,9 @@ class DefaultPrepAndExpectedTestCaseTest
         Assertion.assertEquals(expExpDs, tc.getExpectedDataset());
     }
 
-    public void testPreTest() throws Exception
+    @Test
+    @Disabled("TODO implement test")
+    void testPreTest() throws Exception
     {
         // TODO implement test
     }
@@ -75,43 +78,58 @@ class DefaultPrepAndExpectedTestCaseTest
                 .isTrue();
     }
 
-    public void testPostTest()
+    @Test
+    @Disabled("TODO implement test")
+    void testPostTest()
     {
         // TODO implement test
     }
 
-    public void testPostTest_false()
+    @Test
+    @Disabled("TODO implement test")
+    void testPostTest_false()
     {
         // TODO implement test
     }
 
-    public void testSetupData()
+    @Test
+    @Disabled("TODO implement test")
+    void testSetupData()
     {
         // TODO implement test
     }
 
-    public void testVerifyData()
+    @Test
+    @Disabled("TODO implement test")
+    void testVerifyData()
     {
         // TODO implement test
     }
 
-    public void testVerifyDataITableITableStringArrayStringArray()
+    @Test
+    @Disabled("TODO implement test")
+    void testVerifyDataITableITableStringArrayStringArray()
     {
         // TODO implement test
     }
 
-    public void testCleanupData()
+    @Test
+    @Disabled("TODO implement test")
+    void testCleanupData()
     {
         // TODO implement test
     }
 
-    public void testMakeCompositeDataSet()
+    @Test
+    @Disabled("TODO implement test")
+    void testMakeCompositeDataSet()
     {
         // TODO implement test
     }
 
     // TODO implement test - doesn't test anything yet
-    public void testApplyColumnFiltersBothNull() throws DataSetException
+    @Test
+    void testApplyColumnFiltersBothNull() throws DataSetException
     {
         final ITable table = new DefaultTable("test_table");
         final String[] excludeColumns = null;
@@ -120,6 +138,7 @@ class DefaultPrepAndExpectedTestCaseTest
     }
 
     // TODO implement test - doesn't test anything yet
+    @Test
     void testApplyColumnFiltersBothNotNull() throws DataSetException
     {
         final ITable table = new DefaultTable("test_table");

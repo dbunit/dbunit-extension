@@ -231,7 +231,8 @@ class HandlersTest
      * @throws IllegalInputCharacterException
      * @throws PipelineException
      */
-    public void testEmptyQuotedAndUnquotedFieldsParser()
+    @Test
+    void testEmptyQuotedAndUnquotedFieldsParser()
             throws IllegalInputCharacterException, PipelineException
     {
 
@@ -254,7 +255,7 @@ class HandlersTest
         assertThat(pipeline.getProducts().get(0)).hasToString("");
         assertThat(pipeline.getProducts().get(1)).hasToString("\\John \"Fox ");
         assertThat(pipeline.getProducts().get(2))
-                .hasToString("St. Moritz).isEqualTo( 2");
+                .hasToString("St. Moritz, 2");
         assertThat(pipeline.getProducts().get(3)).hasToString("\\");
 
         assertThat(pipeline.getProducts().get(4)).hasToString("\"Steve Wolf");
@@ -263,7 +264,7 @@ class HandlersTest
         assertThat(pipeline.getProducts().get(6)).hasToString("");
         assertThat(pipeline.getProducts().get(7)).hasToString("Again Here");
         assertThat(pipeline.getProducts().get(8))
-                .hasToString("and there).isEqualTo(of");
+                .hasToString("and there, of");
     }
 
     private void doNotAcceptHelper(final String toAccept,

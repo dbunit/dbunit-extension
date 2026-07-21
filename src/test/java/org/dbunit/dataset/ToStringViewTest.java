@@ -2,6 +2,7 @@ package org.dbunit.dataset;
 
 import org.dbunit.database.CachedResultSetTable;
 import org.dbunit.database.ForwardOnlyResultSetTable;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -77,14 +78,18 @@ class ToStringViewTest
         LOG.info("SortedTable.toString()={}", table);
     }
 
-    public void testStreamingTable()
+    @Test
+    @Disabled("StreamingTable is not a public class")
+    void testStreamingTable()
     {
         // StreamingTable is not a public class
         // StreamingTable table = null;
         // LOG.info("StreamingTable.toString()={}", table);
     }
 
-    public void testXlsTable()
+    @Test
+    @Disabled("XlsTable is not a public class")
+    void testXlsTable()
     {
         // XlsTable is not a public class
         // XlsTable table = null;

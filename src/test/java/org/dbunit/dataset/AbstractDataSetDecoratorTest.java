@@ -20,6 +20,8 @@
  */
 package org.dbunit.dataset;
 
+import org.junit.jupiter.api.Test;
+
 /**
  * Abstract class for testing {@link IDataSet} implementations which only
  * decorate another {@link IDataSet} implementation. The check for duplicate
@@ -48,6 +50,7 @@ public abstract class AbstractDataSetDecoratorTest extends AbstractDataSetTest
     }
 
     @Override
+    @Test
     public final void testCreateDuplicateDataSet_withDuplicateTableNames_throwsAmbiguousTableNameException() throws Exception
     {
         // No op. This dataSet is only a wrapper for another dataSet which is
@@ -55,6 +58,7 @@ public abstract class AbstractDataSetDecoratorTest extends AbstractDataSetTest
     }
 
     @Override
+    @Test
     public final void testCreateMultipleCaseDuplicateDataSet_withDuplicateCaseVariantNames_throwsAmbiguousTableNameException() throws Exception
     {
         // No op. This dataSet is only a wrapper for another dataSet which is

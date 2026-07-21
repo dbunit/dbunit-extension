@@ -81,6 +81,7 @@ public class BooleanDataTypeTest extends AbstractDataTypeTest
     }
 
     @Override
+    @Test
     public void testTypeCast_withCompatibleInput_returnsExpectedValue() throws Exception
     {
         final Object[] values = {null, "1", // Strings

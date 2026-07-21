@@ -96,6 +96,7 @@ public class ForwardOnlyDataSetTest extends DefaultDataSetTest
     }
 
     @Override
+    @Test
     @Disabled("Cannot test! Unsupported feature.")
     public void testGetTableNamesDefensiveCopy_onMultipleCalls_returnsNewArrayEachTime() throws Exception
     {
@@ -103,6 +104,7 @@ public class ForwardOnlyDataSetTest extends DefaultDataSetTest
     }
 
     @Override
+    @Test
     @Disabled("Cannot test! Unsupported feature.")
     public void testGetUnknownTable_withUnknownTableName_throwsNoSuchTableException() throws Exception
     {
@@ -110,6 +112,7 @@ public class ForwardOnlyDataSetTest extends DefaultDataSetTest
     }
 
     @Override
+    @Test
     @Disabled("Cannot test! Unsupported feature.")
     public void testGetUnknownTableMetaData_withUnknownTableName_throwsNoSuchTableException() throws Exception
     {
@@ -117,6 +120,7 @@ public class ForwardOnlyDataSetTest extends DefaultDataSetTest
     }
 
     @Override
+    @Test
     @Disabled("Cannot test! Unsupported feature.")
     public void testGetTablesDefensiveCopy_onMultipleCalls_returnsNewArrayEachTime() throws Exception
     {
@@ -124,6 +128,7 @@ public class ForwardOnlyDataSetTest extends DefaultDataSetTest
     }
 
     @Override
+    @Test
     @Disabled("Cannot test! Unsupported feature.")
     public void testGetCaseInsensitiveTable_withLowercaseTableName_returnsTable() throws Exception
     {
@@ -131,6 +136,7 @@ public class ForwardOnlyDataSetTest extends DefaultDataSetTest
     }
 
     @Override
+    @Test
     @Disabled("Cannot test! Unsupported feature.")
     public void testGetCaseInsensitiveTableMetaData_withLowercaseTableName_returnsMetaData() throws Exception
     {
@@ -138,6 +144,7 @@ public class ForwardOnlyDataSetTest extends DefaultDataSetTest
     }
 
     @Override
+    @Test
     @Disabled("No op. This dataSet is only a wrapper for another dataSet which is why duplicates cannot occur.")
     public void testCreateDuplicateDataSet_withDuplicateTableNames_throwsAmbiguousTableNameException() throws Exception
     {
@@ -146,6 +153,7 @@ public class ForwardOnlyDataSetTest extends DefaultDataSetTest
     }
 
     @Override
+    @Test
     @Disabled("No op. This dataSet is only a wrapper for another dataSet which is why duplicates cannot occur.")
     public void testCreateMultipleCaseDuplicateDataSet_withDuplicateCaseVariantNames_throwsAmbiguousTableNameException() throws Exception
     {

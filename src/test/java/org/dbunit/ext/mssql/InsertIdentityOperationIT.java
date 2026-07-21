@@ -143,7 +143,8 @@ class InsertIdentityOperationIT extends AbstractDatabaseIT
      * IDENTITY_INSERT is needed. Thanks to Gaetano Di Gregorio for finding the
      * bug.
      */
-    public void testIdentityInsertNoPK() throws Exception
+    @Test
+    void testIdentityInsertNoPK() throws Exception
     {
         final Reader in = TestUtils
                 .getFileReader("xml/insertIdentityOperationTestNoPK.xml");
@@ -175,7 +176,8 @@ class InsertIdentityOperationIT extends AbstractDatabaseIT
         }
     }
 
-    public void testSetCustomIdentityColumnFilter() throws Exception
+    @Test
+    void testSetCustomIdentityColumnFilter() throws Exception
     {
         _connection.getConfig().setProperty(
                 DatabaseConfig.PROPERTY_IDENTITY_COLUMN_FILTER,
