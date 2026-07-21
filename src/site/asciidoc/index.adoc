@@ -32,7 +32,8 @@ We will gladly help you as needed with your ideas and contributions and look to 
 
 |TBD
 |Please try the 3.3.0-SNAPSHOT snapshot build and let us know how it works!
-3.3.0 is a large performance improving release, with over 20 improvements.
+*It is a large performance improving release, with over 20 improvements.*
+See link:https://dbunit.github.io/dbunit-extension/repos.html#snapshots[SNAPSHOTS] for how to use them.
 Refer to the link:changes.html#a3.2.0-SNAPSHOT[changes report],
 the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.2.0%20type%3AFeature[feature list],
 and the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.2.0%20type%3ABug[bug list]

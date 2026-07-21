@@ -2,7 +2,7 @@
 <site xmlns="http://maven.apache.org/SITE/2.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xsi:schemaLocation="http://maven.apache.org/SITE/2.0.0 https://maven.apache.org/xsd/site-2.0.0.xsd">
 
-  <bannerLeft name="" href="https://dbunit.github.io/dbunit">
+  <bannerLeft name="" href="https://dbunit.github.io">
     <image src="/images/dbunit-logo.jpg"/>
   </bannerLeft>
 
@@ -10,9 +10,7 @@
     <image src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png" width="48px" height="48px"/>
   </bannerRight>
 
-  <!-- position can be
-       right, left, navigation-top, navigation-bottom, bottom
-    -->
+  <!-- position can be right, left, navigation-top, navigation-bottom, bottom -->
   <publishDate format="dd-MMM-yyyy" position="navigation-bottom" />
 
   <skin>
@@ -22,7 +20,6 @@
   </skin>
 
   <body>
-
     <head>
       <![CDATA[
       <link rel="icon" href="/images/favicon.ico" type="image/x-icon" />
@@ -112,8 +109,6 @@
       <item name="Integration Tests"    href="/integrationtests.html"/>
       <item name="Releasing"            href="/releasing.html"/>
     </menu>
-
     <menu ref="reports"/>
   </body>
-
 </site>
