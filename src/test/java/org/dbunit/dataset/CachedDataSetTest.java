@@ -48,6 +48,7 @@ class CachedDataSetTest extends AbstractDataSetDecoratorTest
     }
 
     @Override
+    @Test
     public void testGetTable_withKnownTableName_returnsTable() throws Exception
     {
         super.testGetTable_withKnownTableName_returnsTable();

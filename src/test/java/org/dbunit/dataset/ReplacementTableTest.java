@@ -58,6 +58,7 @@ class ReplacementTableTest extends AbstractTableTest
     }
 
     @Override
+    @Test
     public void testGetMissingValue_withMissingCells_returnsExpectedValues() throws Exception
     {
         // TODO test something usefull

@@ -229,11 +229,13 @@ public class NumberTolerantDataTypeTest extends AbstractDataTypeTest
     }
 
     @Override
+    @Test
     public void testSqlType_returnsExpectedSqlType() throws Exception
     {
     }
 
     @Override
+    @Test
     public void testForObject_withValidInput_returnsDataType() throws Exception
     {
     }

@@ -101,6 +101,7 @@ public class ScrollableResultSetTableIT extends AbstractTableTest
     }
 
     @Override
+    @Test
     public void testGetMissingValue_withMissingCells_returnsExpectedValues() throws Exception
     {
         // ScrollableResultSetTable does not have missing-cell semantics; skip this inherited test.

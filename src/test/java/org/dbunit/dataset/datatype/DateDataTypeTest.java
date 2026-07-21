@@ -84,6 +84,7 @@ class DateDataTypeTest extends AbstractDataTypeTest
     }
 
     @Override
+    @Test
     public void testTypeCast_withCompatibleInput_returnsExpectedValue() throws Exception
     {
         final Object[] values = {null, new java.sql.Date(1234), new Time(1234),

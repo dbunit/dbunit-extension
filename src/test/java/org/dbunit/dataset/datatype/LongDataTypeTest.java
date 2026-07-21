@@ -195,6 +195,7 @@ public class LongDataTypeTest extends AbstractDataTypeTest
     }
 
     @Override
+    @Test
     public void testSqlType_returnsExpectedSqlType() throws Exception
     {
         // This test was commented out in release 2.4.6 because the LongDataType

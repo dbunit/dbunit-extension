@@ -27,6 +27,7 @@ import java.io.FileReader;
 
 import org.dbunit.dataset.xml.FlatXmlDataSetBuilder;
 import org.dbunit.dataset.xml.FlatXmlDataSetTest;
+import org.junit.jupiter.api.Test;
 
 public class TableDecoratorDataSetTest extends AbstractDataSetDecoratorTest
 {
@@ -39,6 +40,7 @@ public class TableDecoratorDataSetTest extends AbstractDataSetDecoratorTest
                 t -> new ColumnFilterTable(t, (table, column) -> true));
     }
 
+    @Test
     @SuppressWarnings("deprecation")
     public void testTableDecoration() throws Exception
     {

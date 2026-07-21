@@ -148,6 +148,7 @@ class ExcludeTableFilterTest extends AbstractTableFilterTest
     }
 
     @Override
+    @Test
     @Disabled("Cannot test!")
     public void testGetReverseTableNames_withFilter_returnsFilteredTablesInReverseOrder() throws Exception
     {
@@ -197,6 +198,7 @@ class ExcludeTableFilterTest extends AbstractTableFilterTest
     }
 
     @Override
+    @Test
     @Disabled("Cannot test!")
     public void testReverseIterator_withFilter_iteratesFilteredTablesInReverse() throws Exception
     {

@@ -19,6 +19,7 @@ import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.ITableIterator;
 import org.dbunit.util.CollectionsHelper;
 import org.dbunit.util.search.SearchException;
+import org.junit.jupiter.api.Test;
 
 public abstract class AbstractSearchCallbackFilteredByPKsTestCase
         extends AbstractHSQLTestCase
@@ -148,6 +149,7 @@ public abstract class AbstractSearchCallbackFilteredByPKsTestCase
         }
     }
 
+    @Test
     public void testSetupTables_withFixtureData_allTablesExistWithCorrectSize() throws SQLException, DataSetException
     {
         final int[] sizes = setupTablesSizeFixture();
