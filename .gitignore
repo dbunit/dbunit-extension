@@ -15,3 +15,9 @@ dbunit.properties
 
 # AI related dirs
 .jackknife
+
+# maven-release-plugin working files (see src/site/asciidoc/releasing.adoc)
+release.properties
+pom.xml.releaseBackup
+pom.xml.tag
+pom.xml.next

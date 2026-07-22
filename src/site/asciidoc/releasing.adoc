@@ -3,20 +3,30 @@
 == Overview
 
 The following steps describe how to release dbUnit.
-While the Maven release plugin automates steps such as version change, commit, and deploy,
-dbUnit has manual file information update steps that are outside of its scope.
 
-While the below steps do not use the Maven release plugin,
-you can use it by performing the manual file edits first then running the release plugin steps.
+The Maven Release Plugin's release:prepare goal automates the version bump, build verification, commit, tag, and push.
+Pushing the resulting tag triggers the release.yml GitHub Actions workflow, which builds, signs, and deploys the release to Maven Central and publishes the GitHub Release.
+Local Central and GPG credentials are no longer needed to cut a release: release:prepare only runs a plain build (no signing, no deploy), and the workflow holds the deploy credentials instead.
+
+dbUnit still has manual file update steps that are outside the scope of the Maven Release Plugin: the japicmp comparison reportSets, site.xml menu entries, changes.xml release metadata, and the index.adoc news entry.
+These must be committed and pushed before running release:prepare, since the plugin requires a clean working tree and creates its own commits on top.
 
 == Release Steps
 
+. Confirm the commit to release is green on the
+link:https://github.com/dbunit/dbunit-extension/actions/workflows/build-any-branch-with-all-dbs.yml[build-any-branch-with-all-dbs.yml]
+workflow across all database profiles: the build that release:prepare runs below only exercises the default profile, so it will not catch a database-specific regression.
+
+. Review site results for issues and correct as necessary, whether the current published or a local gen.
+
+. Determine the release version
+
+. If needed, rename the "Release Version" (Milestone in GitHub Issues) used during development to the determined version
+
 . Update pom.xml
-.. Set _version_ to release version
-.. Set _project.build.outputTimestamp_ property to the release timestamp, typically today's date with midnight time
 .. Update japicmp-maven-plugin configuration
 ... Add _reportSet_ for prior version to new version comparison
-... Comment out _reportSet_ comparison to latest snapshot until a new snapshot exists
+... Comment out _reportSet_ comparison to latest snapshot until a new snapshot exists; keep its _id_ and _reportLinkName_ in sync when renaming it for the next cycle
 
 . Update site.xml
 .. Add menu entry for japicmp prior version to new version comparison
@@ -29,40 +39,55 @@ you can use it by performing the manual file edits first then running the releas
 . Update index.adoc
 .. Add entry to release section; ensure correct links
 
-. Commit files "chore(release): Prep  x.y.z"
+. Commit files "chore(release): Prep x.y.z"
 
-. Tag the commit
+. Push the commit to main
 
-. Push the commit
-
-. Build and deploy the release
+. Run the Maven Release Plugin
 +
 [source,bash]
 ----
-mvnw clean
-mvnw deploy -Prelease
+mvnw release:prepare
 ----
++
+This prompts for the release version, SCM release tag, and new development version -- defaulting respectively to the current SNAPSHOT with -SNAPSHOT stripped, dbunit-x.y.z (the pattern release.yml listens for), and the next SNAPSHOT.
+Pass -DreleaseVersion=, -Dtag=, -DdevelopmentVersion=, and -B instead to run non-interactively.
++
+It then, in order:
++
+--
+* Sets the pom.xml version to the release version and runs clean verify
+* Commits "[maven-release-plugin] prepare release dbunit-x.y.z" and tags it
+* Sets the pom.xml version to the new development version
+* Commits "[maven-release-plugin] prepare for next development iteration"
+* Pushes both commits and the tag to main
+--
++
+That push is what makes the release public -- it triggers the deploy and site publish below.
+Before it pushes, release:rollback undoes the local commits and tag.
+After it pushes, undo instead by reverting the commits and deleting the tag; the Maven Central deployment itself cannot be un-published.
+
+. Release deploy (automatic)
++
+The pushed tag triggers
+link:https://github.com/dbunit/dbunit-extension/actions/workflows/release.yml[release.yml], which verifies the tag matches the tagged commit's project.version, runs "mvnw deploy -Prelease -DskipTests" to sign and deploy to Maven Central (tests already ran during release:prepare), and creates the GitHub Release with auto-generated notes.
+Monitor the run and correct any issues.
 
 . Build and deploy the site
-.. Build site:
-+
-[source,bash]
-----
-mvnw site
-----
-.. Review site results for issues and correct as necessary
 .. Publish:
-Commits to master automatically build the site and publish to GitHub pages.
++
+The commits release:prepare pushed to main automatically trigger
+link:https://github.com/dbunit/dbunit-extension/actions/workflows/publish-docs.yml[publish-docs.yml], which builds the site and deploys it to GitHub Pages.
 
-*** Historical: Deploy to SourceForge;
-   reference how-to:
-   link:http://maven.apache.org/plugins/maven-site-plugin/examples/site-deploy-to-sourceforge.net.html[Deploying to sourceforge.net]
+. Clean up local release files
 +
 [source,bash]
 ----
-ssh -t sf-username,dbunit@shell.sourceforge.net create
-mvnw site:deploy
+mvnw release:clean
 ----
++
+Removes the local release.properties file and backup pom files that release:prepare leaves behind.
+Nothing else needs them once release.yml has taken over the deploy.
 
 . Post Announcement Discussion https://github.com/dbunit/dbunit-extension/discussions/categories/announcements
 .. Consider using the changes plugin's announcement-generate goal
@@ -74,9 +99,9 @@ mvnw changes:announcement-generate -Dchanges.version=theNewVersion
 +
 Review and adjust the text as desired before using.
 
-. Prepare next release in SCM
-.. Update pom.xml
-... Update to SNAPSHOT version
-... Update japicmp-maven-plugin configuration with comparison of latest release to new snapshot
-.. Update index.xml with new SNAPSHOT entry
-.. Update changes.xml with new SNAPSHOT entry
+. Finish preparing the next development iteration
+The release:prepare step above already bumped pom.xml to the new SNAPSHOT version and pushed it.
+The remaining dbUnit-specific files still need a manual follow-up commit, e.g. "build(pom): Prep x.y.z-SNAPSHOT development":
+.. Update pom.xml japicmp-maven-plugin configuration: uncomment the comparison of the release just shipped to the new snapshot
+.. Update index.adoc with a new SNAPSHOT news entry
+.. Update changes.xml with a new SNAPSHOT release entry (date="TBD"); required before the Dependabot changelog automation can append entries -- see CONTRIBUTING.md
