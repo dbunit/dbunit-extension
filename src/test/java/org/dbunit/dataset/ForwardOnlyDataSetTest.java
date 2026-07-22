@@ -20,9 +20,9 @@
  */
 package org.dbunit.dataset;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -97,68 +97,81 @@ public class ForwardOnlyDataSetTest extends DefaultDataSetTest
 
     @Override
     @Test
-    @Disabled("Cannot test! Unsupported feature.")
     public void testGetTableNamesDefensiveCopy_onMultipleCalls_returnsNewArrayEachTime() throws Exception
     {
-        // Cannot test! Unsupported feature.
+        final IDataSet ds = createDataSet();
+        assertThrows(UnsupportedOperationException.class,
+                () -> ds.getTableNames(),
+                "ForwardOnlyDataSet does not support getTableNames().");
     }
 
     @Override
     @Test
-    @Disabled("Cannot test! Unsupported feature.")
     public void testGetUnknownTable_withUnknownTableName_throwsNoSuchTableException() throws Exception
     {
-        // Cannot test! Unsupported feature.
+        final IDataSet ds = createDataSet();
+        assertThrows(UnsupportedOperationException.class,
+                () -> ds.getTable("UNKNOWN_TABLE"),
+                "ForwardOnlyDataSet does not support getTable(String), regardless of table name.");
     }
 
     @Override
     @Test
-    @Disabled("Cannot test! Unsupported feature.")
     public void testGetUnknownTableMetaData_withUnknownTableName_throwsNoSuchTableException() throws Exception
     {
-        // Cannot test! Unsupported feature.
+        final IDataSet ds = createDataSet();
+        assertThrows(UnsupportedOperationException.class,
+                () -> ds.getTableMetaData("UNKNOWN_TABLE"),
+                "ForwardOnlyDataSet does not support getTableMetaData(String), regardless of table name.");
     }
 
     @Override
     @Test
-    @Disabled("Cannot test! Unsupported feature.")
     public void testGetTablesDefensiveCopy_onMultipleCalls_returnsNewArrayEachTime() throws Exception
     {
-        // Cannot test! Unsupported feature.
+        final IDataSet ds = createDataSet();
+        assertThat(ds.getTables()).as("Should not be same instance.")
+                .isNotSameAs(ds.getTables());
     }
 
     @Override
     @Test
-    @Disabled("Cannot test! Unsupported feature.")
     public void testGetCaseInsensitiveTable_withLowercaseTableName_returnsTable() throws Exception
     {
-        // Cannot test! Unsupported feature.
+        final String[] tableNames = getExpectedNames();
+        final IDataSet ds = createDataSet();
+        assertThrows(UnsupportedOperationException.class,
+                () -> ds.getTable(tableNames[0].toLowerCase()),
+                "ForwardOnlyDataSet does not support case-insensitive lookup.");
     }
 
     @Override
     @Test
-    @Disabled("Cannot test! Unsupported feature.")
     public void testGetCaseInsensitiveTableMetaData_withLowercaseTableName_returnsMetaData() throws Exception
     {
-        // Cannot test! Unsupported feature.
+        final String[] tableNames = getExpectedNames();
+        final IDataSet ds = createDataSet();
+        assertThrows(UnsupportedOperationException.class,
+                () -> ds.getTableMetaData(tableNames[0].toLowerCase()),
+                "ForwardOnlyDataSet does not support case-insensitive lookup.");
     }
 
     @Override
     @Test
-    @Disabled("No op. This dataSet is only a wrapper for another dataSet which is why duplicates cannot occur.")
     public void testCreateDuplicateDataSet_withDuplicateTableNames_throwsAmbiguousTableNameException() throws Exception
     {
-        // No op. This dataSet is only a wrapper for another dataSet which is
-        // why duplicates cannot occur.
+        assertThrows(UnsupportedOperationException.class,
+                () -> createDuplicateDataSet(),
+                "ForwardOnlyDataSet only wraps another dataset, so duplicate table names cannot occur here.");
     }
 
     @Override
     @Test
-    @Disabled("No op. This dataSet is only a wrapper for another dataSet which is why duplicates cannot occur.")
     public void testCreateMultipleCaseDuplicateDataSet_withDuplicateCaseVariantNames_throwsAmbiguousTableNameException() throws Exception
     {
-        // No op. This dataSet is only a wrapper for another dataSet which is
-        // why duplicates cannot occur.
+        assertThrows(UnsupportedOperationException.class,
+                () -> createMultipleCaseDuplicateDataSet(),
+                "ForwardOnlyDataSet only wraps another dataset, so duplicate table names cannot occur here.");
     }
 
 }
