@@ -83,8 +83,9 @@
     <menu name="Upgrading DbUnit">
       <item name="Changes"                  href="/changes.html"/>
 <!--
-      <item name="3.2.0 to snapshot"        href="/3.2.1-to-snapshot.html"/>
+      <item name="3.3.0 to snapshot"        href="/3.3.0-to-snapshot.html"/>
 -->
+      <item name="3.2.0 to 3.3.0"           href="/3.2.0-to-3.3.0.html"/>
       <item name="3.1.0 to 3.2.0"           href="/3.1.0-to-3.2.0.html"/>
       <item name="3.0.0 to 3.1.0"           href="/3.0.0-to-3.1.0.html"/>
       <item name="2.8.0 to 3.0.0"           href="/2.8.0-to-3.0.0.html"/>
