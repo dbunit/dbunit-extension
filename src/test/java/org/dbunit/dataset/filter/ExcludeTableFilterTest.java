@@ -30,7 +30,6 @@ import org.dbunit.dataset.DefaultTable;
 import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.LowerCaseDataSet;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -149,10 +148,26 @@ class ExcludeTableFilterTest extends AbstractTableFilterTest
 
     @Override
     @Test
-    @Disabled("Cannot test!")
     public void testGetReverseTableNames_withFilter_returnsFilteredTablesInReverseOrder() throws Exception
     {
-        // Cannot test!
+        final String[] expectedNames =
+                DataSetUtils.reverseStringArray(getExpectedNames());
+        final ExcludeTableFilter filter = new ExcludeTableFilter();
+        filter.excludeTable(getExtraTableName());
+
+        final IDataSet dataSet = createDataSet();
+        assertThat(dataSet.getTableNames()).as("dataset names count")
+                .hasSizeGreaterThan(expectedNames.length);
+
+        final ITable[] reverseTables =
+                DataSetUtils.getTables(dataSet.reverseIterator());
+        final IDataSet reverseDataSet =
+                new DefaultDataSet(reverseTables, true);
+
+        final String[] actualNames = filter.getTableNames(reverseDataSet);
+        assertThat(actualNames).as("name count").hasSameSizeAs(expectedNames);
+        assertThat(Arrays.asList(actualNames)).as("names")
+                .isEqualTo(Arrays.asList(expectedNames));
     }
 
     @Override
@@ -199,10 +214,24 @@ class ExcludeTableFilterTest extends AbstractTableFilterTest
 
     @Override
     @Test
-    @Disabled("Cannot test!")
     public void testReverseIterator_withFilter_iteratesFilteredTablesInReverse() throws Exception
     {
-        // Cannot test!
+        final String[] expectedNames =
+                DataSetUtils.reverseStringArray(getExpectedNames());
+        final ExcludeTableFilter filter = new ExcludeTableFilter();
+        filter.excludeTable(getExtraTableName());
+
+        final IDataSet dataSet = createDataSet();
+        assertThat(dataSet.getTableNames()).as("dataset names count")
+                .hasSizeGreaterThan(expectedNames.length);
+
+        final ITable[] actualTables =
+                DataSetUtils.getTables(filter.iterator(dataSet, true));
+        final String[] actualNames =
+                new DefaultDataSet(actualTables).getTableNames();
+        assertThat(actualTables).as("table count").hasSameSizeAs(expectedNames);
+        assertThat(Arrays.asList(actualNames)).as("table names")
+                .isEqualTo(Arrays.asList(expectedNames));
     }
 
     @Override
