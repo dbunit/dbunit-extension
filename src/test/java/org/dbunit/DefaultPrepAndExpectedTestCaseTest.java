@@ -1,6 +1,7 @@
 package org.dbunit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 
 import java.sql.Connection;
 
@@ -10,16 +11,22 @@ import org.dbunit.database.MockDatabaseConnection;
 import org.dbunit.database.statement.IBatchStatement;
 import org.dbunit.database.statement.MockBatchStatement;
 import org.dbunit.database.statement.MockStatementFactory;
+import org.dbunit.dataset.Column;
 import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.DefaultTable;
 import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.ITable;
+import org.dbunit.dataset.datatype.DataType;
+import org.dbunit.operation.DatabaseOperation;
 import org.dbunit.util.fileloader.DataFileLoader;
 import org.dbunit.util.fileloader.FlatXmlDataFileLoader;
-import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
+@ExtendWith(MockitoExtension.class)
 class DefaultPrepAndExpectedTestCaseTest
 {
     @Mock
@@ -31,9 +38,18 @@ class DefaultPrepAndExpectedTestCaseTest
             "/xml/flatXmlDataSetTest.xml";
 
     private final DataFileLoader dataFileLoader = new FlatXmlDataFileLoader();
-    private final IDatabaseTester databaseTester = makeDatabaseTester();
-    private final DefaultPrepAndExpectedTestCase tc =
-            new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester);
+    private IDatabaseTester databaseTester;
+    private DefaultPrepAndExpectedTestCase tc;
+
+    @BeforeEach
+    void setUp()
+    {
+        // built here, not via field initializers, because @Mock injection
+        // (MockitoExtension) runs after field initializers but before
+        // @BeforeEach
+        databaseTester = makeDatabaseTester();
+        tc = new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester);
+    }
 
     @Test
     void testConfigureTest_withTablesAndDataFiles_setsConfiguredState() throws Exception
@@ -55,10 +71,25 @@ class DefaultPrepAndExpectedTestCaseTest
     }
 
     @Test
-    @Disabled("TODO implement test")
-    void testPreTest() throws Exception
+    void testPreTest_withTablesAndDataFiles_configuresDatasetAndExecutesSetUpOperation()
+            throws Exception
     {
-        // TODO implement test
+        final VerifyTableDefinition[] tables = {};
+        final String[] prepDataFiles = {};
+        final String[] expectedDataFiles = {};
+
+        tc.preTest(tables, prepDataFiles, expectedDataFiles);
+
+        assertThat(tc.getVerifyTableDefs())
+                .as("Configured tables do not match expected.")
+                .isEqualTo(tables);
+
+        final MockDatabaseConnection connection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        // 1 close from configureTest's case-sensitivity feature lookup,
+        // 1 close from the CLEAN_INSERT set up operation
+        connection.setExpectedCloseCalls(2);
+        connection.verify();
     }
 
     @Test
@@ -79,52 +110,108 @@ class DefaultPrepAndExpectedTestCaseTest
     }
 
     @Test
-    @Disabled("TODO implement test")
-    void testPostTest()
+    void testPostTest_withVerifyDataDefaultTrue_verifiesDataAndClosesConnectionOnce()
+            throws Exception
     {
-        // TODO implement test
+        tc.postTest();
+
+        final MockDatabaseConnection connection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        // 1 close from verifyData's own connection use,
+        // 1 close from cleanupData's case-sensitivity feature lookup
+        connection.setExpectedCloseCalls(2);
+        connection.verify();
     }
 
     @Test
-    @Disabled("TODO implement test")
-    void testPostTest_false()
+    void testPostTest_withVerifyDataFalse_skipsVerifyAndOnlyRunsCleanup()
+            throws Exception
     {
-        // TODO implement test
+        tc.postTest(false);
+
+        final MockDatabaseConnection connection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        // verifyData is skipped; the single close is cleanupData's
+        // case-sensitivity feature lookup (tearDownOperation defaults to NONE)
+        connection.setExpectedCloseCalls(1);
+        connection.verify();
     }
 
     @Test
-    @Disabled("TODO implement test")
-    void testSetupData()
+    void testSetupData_withDefaultConfiguration_executesSetUpOperation()
+            throws Exception
     {
-        // TODO implement test
+        tc.setupData();
+
+        final MockDatabaseConnection connection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        connection.setExpectedCloseCalls(1);
+        connection.verify();
     }
 
     @Test
-    @Disabled("TODO implement test")
-    void testVerifyData()
+    void testVerifyData_withNoVerifyTableDefinitions_completesWithoutThrowing()
+            throws Exception
     {
-        // TODO implement test
+        tc.verifyData();
+
+        final MockDatabaseConnection connection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        connection.setExpectedCloseCalls(1);
+        connection.verify();
     }
 
     @Test
-    @Disabled("TODO implement test")
-    void testVerifyDataITableITableStringArrayStringArray()
+    void testVerifyData_withTwoTablesAndColumnFilters_passesWhenEqual()
+            throws Exception
     {
-        // TODO implement test
+        final Column[] columns = {new Column("COL1", DataType.VARCHAR),
+                new Column("COL2", DataType.VARCHAR),
+                new Column("COL3", DataType.VARCHAR)};
+
+        final DefaultTable expectedTable = new DefaultTable("TEST_TABLE", columns);
+        expectedTable.addRow(new Object[] {"a", "b", "expected-only"});
+
+        final DefaultTable actualTable = new DefaultTable("TEST_TABLE", columns);
+        actualTable.addRow(new Object[] {"a", "b", "actual-only"});
+
+        final String[] excludeColumns = {"COL3"};
+        final String[] includeColumns = null;
+
+        assertThatCode(() -> tc.verifyData(expectedTable, actualTable,
+                excludeColumns, includeColumns, null, null))
+                        .as("Tables differing only in an excluded column must verify as equal.")
+                        .doesNotThrowAnyException();
     }
 
     @Test
-    @Disabled("TODO implement test")
-    void testCleanupData()
+    void testCleanupData_withDeleteAllTearDownOperation_executesTearDownOperation()
+            throws Exception
     {
-        // TODO implement test
+        databaseTester.setTearDownOperation(DatabaseOperation.DELETE_ALL);
+
+        tc.cleanupData();
+
+        final MockDatabaseConnection connection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        // 1 close from cleanupData's case-sensitivity feature lookup,
+        // 1 close from the DELETE_ALL tear down operation
+        connection.setExpectedCloseCalls(2);
+        connection.verify();
     }
 
     @Test
-    @Disabled("TODO implement test")
-    void testMakeCompositeDataSet()
+    void testMakeCompositeDataSet_withDataFiles_returnsDataSetWithMatchingTableNames()
+            throws Exception
     {
-        // TODO implement test
+        final String[] dataFiles = {PREP_DATA_FILE_NAME};
+
+        final IDataSet actual = tc.makeCompositeDataSet(dataFiles, "test");
+
+        final IDataSet expected = dataFileLoader.load(PREP_DATA_FILE_NAME);
+        assertThat(actual.getTableNames())
+                .as("Composite dataset table names do not match expected.")
+                .isEqualTo(expected.getTableNames());
     }
 
     // TODO implement test - doesn't test anything yet
