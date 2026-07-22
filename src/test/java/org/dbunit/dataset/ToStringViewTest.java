@@ -2,7 +2,6 @@ package org.dbunit.dataset;
 
 import org.dbunit.database.CachedResultSetTable;
 import org.dbunit.database.ForwardOnlyResultSetTable;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,6 +9,13 @@ import org.slf4j.LoggerFactory;
 /**
  * This class only logs out the toString() results for review, does not test
  * anything. Currently only ITables that subclass AbstractTable.
+ *
+ * <p>
+ * StreamingTable and XlsTable are not visible from this package, so their
+ * toString() review lives alongside their own test fixtures instead:
+ *
+ * @see org.dbunit.dataset.stream.StreamingTableToStringTest
+ * @see org.dbunit.dataset.excel.XlsTableToStringTest
  *
  * @author Jeff Jensen jeffjensen AT users.sourceforge.net
  * @author Last changed by: $Author$
@@ -76,23 +82,5 @@ class ToStringViewTest
         final SortedTableTest test = new SortedTableTest();
         final ITable table = test.createTable();
         LOG.info("SortedTable.toString()={}", table);
-    }
-
-    @Test
-    @Disabled("StreamingTable is not a public class")
-    void testStreamingTable()
-    {
-        // StreamingTable is not a public class
-        // StreamingTable table = null;
-        // LOG.info("StreamingTable.toString()={}", table);
-    }
-
-    @Test
-    @Disabled("XlsTable is not a public class")
-    void testXlsTable()
-    {
-        // XlsTable is not a public class
-        // XlsTable table = null;
-        // LOG.info("XlsTable.toString()={}", table);
     }
 }
