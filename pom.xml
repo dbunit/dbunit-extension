@@ -139,7 +139,7 @@
 
   <scm>
     <connection>scm:git:https://github.com/dbunit/dbunit-extension.git</connection>
-    <developerConnection>scm:git:git@github.com:dbunit/dbunit-extension.git</developerConnection>
+    <developerConnection>scm:git:https://github.com/dbunit/dbunit-extension.git</developerConnection>
     <url>https://github.com/dbunit/dbunit-extension.git</url>
     <tag>HEAD</tag>
   </scm>
