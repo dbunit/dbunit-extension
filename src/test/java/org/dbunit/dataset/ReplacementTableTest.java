@@ -61,7 +61,19 @@ class ReplacementTableTest extends AbstractTableTest
     @Test
     public void testGetMissingValue_withMissingCells_returnsExpectedValues() throws Exception
     {
-        // TODO test something usefull
+        final int row = 0;
+        final Object[] expected = {"row 1 col 0", null, "row 1 col 2"};
+
+        final ITable table = createDataSet().getTable("MISSING_VALUES");
+
+        final Column[] columns = table.getTableMetaData().getColumns();
+        assertThat(columns).as("column count").hasSameSizeAs(expected);
+        assertThat(table.getRowCount()).as("row count").isEqualTo(1);
+        for (int i = 0; i < columns.length; i++)
+        {
+            assertThat(table.getValue(row, columns[i].getColumnName()))
+                    .as("value " + i).isEqualTo(expected[i]);
+        }
     }
 
     @Test
