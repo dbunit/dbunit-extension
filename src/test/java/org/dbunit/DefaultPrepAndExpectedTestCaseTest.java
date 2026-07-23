@@ -2,6 +2,7 @@ package org.dbunit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.catchThrowable;
 
 import java.sql.Connection;
 
@@ -107,6 +108,41 @@ class DefaultPrepAndExpectedTestCaseTest
                 expectedDataFiles, testSteps);
         assertThat(actual).as("Did not receive expected value from runTest().")
                 .isTrue();
+    }
+
+    @Test
+    void testRunTest_whenTestStepsAndCleanupBothFail_throwsTestFailureWithCleanupSuppressed()
+            throws Exception
+    {
+        final RuntimeException cleanupFailure =
+                new RuntimeException("cleanup boom");
+        final DefaultPrepAndExpectedTestCase throwingTc =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader,
+                        databaseTester)
+                {
+                    @Override
+                    public void cleanupData() throws Exception
+                    {
+                        throw cleanupFailure;
+                    }
+                };
+
+        final RuntimeException testFailure = new RuntimeException("test boom");
+        final PrepAndExpectedTestCaseSteps steps = () -> {
+            throw testFailure;
+        };
+
+        final Throwable thrown = catchThrowable(() -> throwingTc.runTest(
+                new VerifyTableDefinition[] {}, new String[] {}, new String[] {},
+                steps));
+
+        assertThat(thrown)
+                .as("runTest() must rethrow the original test failure, not the"
+                        + " cleanup failure.")
+                .isSameAs(testFailure);
+        assertThat(thrown.getSuppressed())
+                .as("The cleanup failure must be attached as suppressed, not lost.")
+                .containsExactly(cleanupFailure);
     }
 
     @Test
