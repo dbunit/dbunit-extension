@@ -73,45 +73,37 @@ class SQLHelperDomainPostgreSQLIT
     }
 
     @Test
-    void xtestDomainDataTypes() throws Exception
+    void testDomainDataTypes_withCustomSqlDomains_mapsToUnderlyingSqlTypes() throws Exception
     {
         assertThat(_connection).as("didn't get a connection").isNotNull();
 
-        try
+        final ReplacementDataSet dataSet =
+                new ReplacementDataSet(new FlatXmlDataSetBuilder()
+                        .build(new InputSource(new StringReader(xmlData))));
+        dataSet.addReplacementObject("[NULL]", null);
+        dataSet.setStrictReplacement(true);
+
+        DatabaseOperation.CLEAN_INSERT.execute(_connection, dataSet);
+
+        // Check Types.
+        for (int i = 0; i < _connection.createDataSet()
+                .getTableMetaData("T1").getColumns().length; i++)
         {
-            final ReplacementDataSet dataSet =
-                    new ReplacementDataSet(new FlatXmlDataSetBuilder()
-                            .build(new InputSource(new StringReader(xmlData))));
-            dataSet.addReplacementObject("[NULL]", null);
-            dataSet.setStrictReplacement(true);
+            final Column c = _connection.createDataSet()
+                    .getTableMetaData("T1").getColumns()[i];
 
-            // THE TEST -> hopefully with no exception!!!
-            DatabaseOperation.CLEAN_INSERT.execute(_connection, dataSet);
-
-            // Check Types.
-            for (int i = 0; i < _connection.createDataSet()
-                    .getTableMetaData("T1").getColumns().length; i++)
+            if (c.getSqlTypeName().compareTo("mypk") == 0)
             {
-                final Column c = _connection.createDataSet()
-                        .getTableMetaData("T1").getColumns()[i];
-
-                if (c.getSqlTypeName().compareTo("mypk") == 0)
-                {
-                    assertThat(c.getDataType().getSqlType())
-                            .isEqualTo(java.sql.Types.INTEGER);
-                } else if (c.getSqlTypeName().compareTo("mystate") == 0)
-                {
-                    assertThat(c.getDataType().getSqlType())
-                            .isEqualTo(java.sql.Types.VARCHAR);
-                } else
-                {
-                    fail("we should not be here");
-                }
+                assertThat(c.getDataType().getSqlType())
+                        .isEqualTo(java.sql.Types.INTEGER);
+            } else if (c.getSqlTypeName().compareTo("mystate") == 0)
+            {
+                assertThat(c.getDataType().getSqlType())
+                        .isEqualTo(java.sql.Types.VARCHAR);
+            } else
+            {
+                fail("we should not be here");
             }
-        } catch (final Exception e)
-        {
-            assertThat("" + e).isEqualTo(
-                    "DatabaseOperation.CLEAN_INSERT... no exception");
         }
     }
 }
