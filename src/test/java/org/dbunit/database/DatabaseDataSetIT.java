@@ -285,12 +285,6 @@ class DatabaseDataSetIT extends AbstractDataSetTest
         }
     }
 
-    // public void testGetTableNamesAndCaseSensitive() throws Exception
-    // {
-    // DatabaseMetaData metaData = _connection.getConnection().getMetaData();
-    // metaData.
-    // }
-
     @Override
     @Test
     public void testCreateDuplicateDataSet_withDuplicateTableNames_throwsAmbiguousTableNameException() throws Exception
