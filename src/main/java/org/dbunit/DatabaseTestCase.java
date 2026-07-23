@@ -159,15 +159,60 @@ public abstract class DatabaseTestCase implements InvocationInterceptor {
         logger.debug("tearDown() - start");
 
         try {
-            final IDatabaseTester databaseTester = getDatabaseTester();
-            assertNotNull(databaseTester, "DatabaseTester is not set");
-            databaseTester.setTearDownOperation(getTearDownOperation());
-            databaseTester.setDataSet(getDataSet());
-            databaseTester.setOperationListener(getOperationListener());
-            databaseTester.onTearDown();
+            runTearDownOperation();
         } finally {
             tester = null;
         }
+    }
+
+    /**
+     * Runs tear down the same as {@link #tearDown()}, for use when a test
+     * failure is already in flight (e.g. calling this from a catch/finally
+     * around the test body). A tear-down failure never replaces the given
+     * testFailure; it is instead attached via {@link Throwable#addSuppressed}
+     * so the original failure remains the one reported, with the tear-down
+     * failure still visible alongside it.
+     *
+     * @param testFailure
+     *            The throwable already in flight from the test body, or
+     *            <code>null</code> if there is none, in which case this
+     *            behaves the same as {@link #tearDown()}.
+     * @throws Throwable
+     *             testFailure, if not <code>null</code>; otherwise a
+     *             tear-down failure, if one occurred.
+     * @since 3.4.0
+     */
+    protected void tearDown(final Throwable testFailure) throws Throwable
+    {
+        logger.debug("tearDown(testFailure={}) - start", testFailure);
+
+        if (testFailure == null)
+        {
+            tearDown();
+            return;
+        }
+
+        try {
+            try {
+                runTearDownOperation();
+            } finally {
+                tester = null;
+            }
+        } catch (final Throwable tearDownFailure) {
+            testFailure.addSuppressed(tearDownFailure);
+        }
+
+        throw testFailure;
+    }
+
+    private void runTearDownOperation() throws Exception
+    {
+        final IDatabaseTester databaseTester = getDatabaseTester();
+        assertNotNull(databaseTester, "DatabaseTester is not set");
+        databaseTester.setTearDownOperation(getTearDownOperation());
+        databaseTester.setDataSet(getDataSet());
+        databaseTester.setOperationListener(getOperationListener());
+        databaseTester.onTearDown();
     }
 
     /**
