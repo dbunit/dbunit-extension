@@ -157,7 +157,11 @@ public class MockDatabaseConnection implements IDatabaseConnection
     public ITable createTable(final String tableName)
             throws DataSetException, SQLException
     {
-        throw new UnsupportedOperationException();
+        if (_dataSet == null)
+        {
+            throw new UnsupportedOperationException();
+        }
+        return _dataSet.getTable(tableName);
     }
 
     @Override

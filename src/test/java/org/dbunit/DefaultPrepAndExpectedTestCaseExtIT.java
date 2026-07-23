@@ -70,20 +70,16 @@ class DefaultPrepAndExpectedTestCaseExtIT extends DefaultPrepAndExpectedTestCase
 
         configureTest(tables, prepDataFiles, expectedDataFiles);
 
-        // reopen connection as DefaultPrepAndExpectedTestCase#configureTest
-        // closes after it obtains feature setting
-        // maybe we need a KeepConnectionOpenOperationListener class?!
+        // reopen connection as configureTest() closes its own after
+        // obtaining the case-sensitivity feature setting; preTest() and
+        // postTest() then share and close this one connection themselves
+        // instead of each needing a fresh one (#800)
         final IDatabaseTester databaseTesterNew1 = makeDatabaseTester();
         setDatabaseTester(databaseTesterNew1);
         assertDoesNotThrow(() -> preTest(),
                 "Did not expect tc.postTest() to throw, but it did!");
 
         // skip modifying data and just verify the insert
-
-        // reopen connection as DefaultOperationListener closes it after inserts
-        // maybe we need a KeepConnectionOpenOperationListener class?!
-        final IDatabaseTester databaseTesterNew2 = makeDatabaseTester();
-        setDatabaseTester(databaseTesterNew2);
 
         postTest();
     }
@@ -101,20 +97,16 @@ class DefaultPrepAndExpectedTestCaseExtIT extends DefaultPrepAndExpectedTestCase
 
         configureTest(tables, prepDataFiles, expectedDataFiles);
 
-        // reopen connection as DefaultPrepAndExpectedTestCase#configureTest
-        // closes after it obtains feature setting
-        // maybe we need a KeepConnectionOpenOperationListener class?!
+        // reopen connection as configureTest() closes its own after
+        // obtaining the case-sensitivity feature setting; preTest() and
+        // postTest() then share and close this one connection themselves
+        // instead of each needing a fresh one (#800)
         final IDatabaseTester databaseTesterNew1 = makeDatabaseTester();
         setDatabaseTester(databaseTesterNew1);
 
         preTest();
 
         // skip modifying data and just verify the insert
-
-        // reopen connection as DefaultOperationListener closes it after inserts
-        // maybe we need a KeepConnectionOpenOperationListener class?!
-        final IDatabaseTester databaseTesterNew2 = makeDatabaseTester();
-        setDatabaseTester(databaseTesterNew2);
 
         assertThrows(DbComparisonFailure.class, () -> postTest(),
                 "Expected tc.postTest() to throw DbComparisonFailure, but it didn't");
