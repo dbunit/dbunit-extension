@@ -30,13 +30,14 @@ We will gladly help you as needed with your ideas and contributions and look to 
 |===
 |Date |News
 
-// |TBD
-// |Please try the 3.3.1-SNAPSHOT snapshot build and let us know how it works!
-// See link:https://dbunit.github.io/dbunit-extension/repos.html#snapshots[SNAPSHOTS] for how to use them.
-// Refer to the link:changes.html#a3.3.1-SNAPSHOT[changes report],
-// the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.3.1%20type%3AFeature[feature list], and
-// the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.3.1%20type%3ABug[bug list]
-// for the snapshot contents (and subsequent updates).
+|TBD
+|Please try the 3.4.0-SNAPSHOT snapshot build and let us know how it works!
+It has additional *performance improvements*.
+See link:https://dbunit.github.io/dbunit-extension/repos.html#snapshots[SNAPSHOTS] for how to use them.
+Refer to the link:changes.html#a3.4.0-SNAPSHOT[changes report],
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.4.0%20type%3AFeature[feature list], and
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.4.0%20type%3ABug[bug list]
+for the snapshot contents (and subsequent updates).
 
 |2026-07-22
 |Release 3.3.0 available.
