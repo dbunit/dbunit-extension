@@ -214,24 +214,42 @@ class DefaultPrepAndExpectedTestCaseTest
                 .isEqualTo(expected.getTableNames());
     }
 
-    // TODO implement test - doesn't test anything yet
     @Test
-    void testApplyColumnFiltersBothNull() throws DataSetException
+    void testApplyColumnFiltersBothNull_withNoFilters_returnsAllColumnsUnfiltered()
+            throws DataSetException
     {
-        final ITable table = new DefaultTable("test_table");
+        final Column[] columns = {new Column("COL1", DataType.VARCHAR),
+                new Column("COL2", DataType.VARCHAR),
+                new Column("COL3", DataType.VARCHAR)};
+        final ITable table = new DefaultTable("test_table", columns);
         final String[] excludeColumns = null;
         final String[] includeColumns = null;
-        tc.applyColumnFilters(table, excludeColumns, includeColumns);
+
+        final ITable filtered =
+                tc.applyColumnFilters(table, excludeColumns, includeColumns);
+
+        assertThat(filtered.getTableMetaData().getColumns())
+                .as("Columns should be unfiltered when both exclude and include are null.")
+                .isEqualTo(columns);
     }
 
-    // TODO implement test - doesn't test anything yet
     @Test
-    void testApplyColumnFiltersBothNotNull() throws DataSetException
+    void testApplyColumnFiltersBothNotNull_withExcludeAndInclude_includeAppliesBeforeExclude()
+            throws DataSetException
     {
-        final ITable table = new DefaultTable("test_table");
+        final Column[] columns = {new Column("COL1", DataType.VARCHAR),
+                new Column("COL2", DataType.VARCHAR),
+                new Column("COL3", DataType.VARCHAR)};
+        final ITable table = new DefaultTable("test_table", columns);
         final String[] excludeColumns = {"COL1"};
         final String[] includeColumns = {"COL2"};
-        tc.applyColumnFilters(table, excludeColumns, includeColumns);
+
+        final ITable filtered =
+                tc.applyColumnFilters(table, excludeColumns, includeColumns);
+
+        assertThat(filtered.getTableMetaData().getColumns())
+                .as("Include is applied before exclude, so only the included COL2 should remain.")
+                .containsExactly(new Column("COL2", DataType.VARCHAR));
     }
 
     private IDatabaseTester makeDatabaseTester()
