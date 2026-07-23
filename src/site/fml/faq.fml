@@ -366,6 +366,14 @@ IDataSet dataSet = new CachedDataSet(producer);
       Pair it with <a href="#keepconnectionopendbtestcase">a non-closing IOperationListener</a>, otherwise the
       cached connection is closed - and therefore rebuilt from scratch - after every setUp/tearDown.
       </p>
+      <p>
+      <a href="apidocs/org/dbunit/DefaultPrepAndExpectedTestCase.html">DefaultPrepAndExpectedTestCase</a>
+      manages its own connection for setupData(), verifyData() and cleanupData() rather than relying on
+      an IOperationListener, so pairing a shared CachingConnectionProvider with its databaseTester is not
+      by itself enough: also call
+      <a href="apidocs/org/dbunit/DefaultPrepAndExpectedTestCase.html#setCloseConnectionAfterTest(boolean)">setCloseConnectionAfterTest(false)</a>
+      so cleanupData() does not close a connection other tests still expect to reuse.
+      </p>
       <h5>
       2. Specify the database schema name 
       </h5>

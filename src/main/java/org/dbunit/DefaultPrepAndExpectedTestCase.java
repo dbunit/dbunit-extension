@@ -22,11 +22,13 @@ package org.dbunit;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.stream.Collectors;
 
 import org.dbunit.assertion.comparer.value.ValueComparer;
@@ -52,6 +54,20 @@ import org.slf4j.LoggerFactory;
  * Test case base class supporting prep data and expected data. Prep data is the
  * data needed for the test to run. Expected data is the data needed to compare
  * if the test ran successfully.
+ * <p>
+ * setupData(), verifyData(), and cleanupData() share one
+ * {@link org.dbunit.database.IDatabaseConnection} for a test's lifecycle,
+ * acquired lazily on first use and closed once by cleanupData(), instead of
+ * each acquiring (and often closing) its own. Calling any of those methods
+ * without an eventual cleanupData() call - e.g. testing them individually
+ * rather than through preTest()/postTest() - leaves that connection open.
+ * <p>
+ * If databaseTester is configured with a
+ * {@link org.dbunit.database.CachingConnectionProvider} shared across test
+ * methods, set {@link #setCloseConnectionAfterTest(boolean)} to false so
+ * cleanupData() does not close a connection other tests still expect to
+ * reuse; the provider's owner is then responsible for closing it once,
+ * itself, when the whole run finishes.
  *
  * @see org.dbunit.DefaultPrepAndExpectedTestCaseDiIT
  * @see org.dbunit.DefaultPrepAndExpectedTestCaseExtIT
@@ -75,10 +91,38 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     private IDatabaseTester databaseTester;
     private DataFileLoader dataFileLoader;
 
+    /**
+     * Whether lookupFeatureValue() and cleanupData() close the connection
+     * they are done with; false when databaseTester shares a
+     * CachingConnectionProvider across test methods and this instance must
+     * not close a connection other tests still expect to reuse.
+     *
+     * @since 3.4.0
+     */
+    private boolean closeConnectionAfterTest = true;
+
     // per test data
     private IDataSet prepDataSet = new DefaultDataSet();
     private IDataSet expectedDataSet = new DefaultDataSet();
     private VerifyTableDefinition[] verifyTableDefs = {};
+
+    /**
+     * Connection shared by setupData()/verifyData()/cleanupData() for one
+     * test's lifecycle instead of each acquiring (and often closing) its own;
+     * acquired lazily on first use, closed once by cleanupData().
+     *
+     * @since 3.4.0
+     */
+    private IDatabaseConnection connection;
+
+    /**
+     * isCaseSensitiveTableNames as resolved by configureTest(), cached so
+     * cleanupData() does not need a second connection just to re-read this
+     * same DatabaseConfig feature flag.
+     *
+     * @since 3.4.0
+     */
+    private Boolean cachedIsCaseSensitiveTableNames;
 
     private ExpectedDataSetAndVerifyTableDefinitionVerifier expectedDataSetAndVerifyTableDefinitionVerifier =
             new DefaultExpectedDataSetAndVerifyTableDefinitionVerifier();
@@ -103,6 +147,27 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     {
         this.dataFileLoader = dataFileLoader;
         this.databaseTester = databaseTester;
+    }
+
+    /**
+     * Create new instance with specified dataFileLoader and databaseTester.
+     *
+     * @param dataFileLoader
+     *            Load to use for loading the data files.
+     * @param databaseTester
+     *            Tester to use for database manipulation.
+     * @param closeConnectionAfterTest
+     *            Whether or not to close the database connection after each test.
+     *
+     * @since 3.4.0
+     */
+    public DefaultPrepAndExpectedTestCase(final DataFileLoader dataFileLoader,
+            final IDatabaseTester databaseTester,
+            final boolean closeConnectionAfterTest)
+    {
+        this.dataFileLoader = dataFileLoader;
+        this.databaseTester = databaseTester;
+        this.closeConnectionAfterTest = closeConnectionAfterTest;
     }
 
     /**
@@ -151,6 +216,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
                 DatabaseConfig.FEATURE_CASE_SENSITIVE_TABLE_NAMES);
         log.debug("configureTest: using case sensitive table names={}",
                 isCaseSensitiveTableNames);
+        this.cachedIsCaseSensitiveTableNames = isCaseSensitiveTableNames;
 
         this.prepDataSet = makeCompositeDataSet(prepDataFiles, "prep",
                 isCaseSensitiveTableNames);
@@ -163,23 +229,132 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     private boolean lookupFeatureValue(final String featureName)
             throws Exception
     {
-        boolean featureValue;
-
-        IDatabaseConnection connection = null;
+        final boolean acquiredConnectionHere = connection == null;
         try
         {
-            connection = getConnection();
-            final DatabaseConfig config = connection.getConfig();
-            featureValue = config.getFeature(featureName);
-        } finally
-        {
-            if (connection != null)
+            final IDatabaseConnection reusableConnection =
+                    getReusableConnection();
+            final DatabaseConfig config = reusableConnection.getConfig();
+            final boolean featureValue = config.getFeature(featureName);
+            if (acquiredConnectionHere)
             {
-                connection.close();
+                closeReusableConnection();
             }
+            return featureValue;
+        } catch (final Exception e)
+        {
+            if (acquiredConnectionHere)
+            {
+                closeReusableConnectionSuppressing(e);
+            }
+            throw e;
+        }
+    }
+
+    /**
+     * Return the connection shared by lookupFeatureValue(), setupData(),
+     * verifyData() and cleanupData() for the current test's lifecycle,
+     * acquiring it on first use instead of a fresh connection at each step.
+     *
+     * @return The shared connection.
+     * @throws Exception On dbUnit errors.
+     * @since 3.4.0
+     */
+    private IDatabaseConnection getReusableConnection() throws Exception
+    {
+        if (connection == null)
+        {
+            connection = getConnection();
+        }
+        return connection;
+    }
+
+    /**
+     * Release the connection shared by lookupFeatureValue(), setupData(),
+     * verifyData() and cleanupData(), if one was acquired: closes it and
+     * forgets it when {@link #closeConnectionAfterTest} is true (the
+     * default); otherwise leaves it open and keeps the field set, so a later
+     * lifecycle step's getReusableConnection() call keeps reusing it rather
+     * than acquiring - and silently orphaning - another one.
+     *
+     * @throws SQLException On close errors.
+     * @since 3.4.0
+     */
+    private void closeReusableConnection() throws SQLException
+    {
+        if (connection == null)
+        {
+            return;
         }
 
-        return featureValue;
+        if (!closeConnectionAfterTest)
+        {
+            // Keep the field set so this instance's own lifecycle keeps
+            // reusing the same connection even without a
+            // CachingConnectionProvider backing databaseTester.
+            return;
+        }
+
+        try
+        {
+            connection.close();
+        } finally
+        {
+            connection = null;
+        }
+    }
+
+    /**
+     * Close the reusable connection, attaching any close failure to the
+     * given primary throwable via
+     * {@link Throwable#addSuppressed(Throwable)} rather than letting it
+     * replace and hide the primary. Mirrors the exception safety of
+     * {@link #runTest} and {@code DatabaseTestCase.tearDown(Throwable)}.
+     *
+     * @param primary
+     *            The exception already in flight to attach a close failure
+     *            to.
+     * @since 3.4.0
+     */
+    private void closeReusableConnectionSuppressing(final Throwable primary)
+    {
+        try
+        {
+            closeReusableConnection();
+        } catch (final SQLException closeFailure)
+        {
+            primary.addSuppressed(closeFailure);
+        }
+    }
+
+    /**
+     * Make a {@link ReusableConnectionDatabaseTester} configured with the
+     * given dataset and databaseTester's setUpOperation and
+     * tearDownOperation, for setupData() or cleanupData() to run
+     * {@link IDatabaseTester#onSetup()} or {@link IDatabaseTester#onTearDown()}
+     * on, respectively. Setting both operations regardless of which one the
+     * caller uses is safe: {@link AbstractDatabaseTester#onSetup()} only
+     * reads setUpOperation and {@link AbstractDatabaseTester#onTearDown()}
+     * only reads tearDownOperation, so the other is simply never consulted.
+     *
+     * @param dataSet
+     *            The dataset to run the operation against.
+     * @return The configured tester.
+     * @throws Exception On dbUnit errors.
+     * @since 3.4.0
+     */
+    private IDatabaseTester makeReusableConnectionDatabaseTester(
+            final IDataSet dataSet) throws Exception
+    {
+        final IDatabaseTester reusableTester =
+                new ReusableConnectionDatabaseTester(
+                        this::getReusableConnection);
+        reusableTester.setSetUpOperation(getSetUpOperation());
+        reusableTester.setTearDownOperation(getTearDownOperation());
+        reusableTester.setDataSet(dataSet);
+        reusableTester.setOperationListener(
+                IOperationListener.NO_OP_OPERATION_LISTENER);
+        return reusableTester;
     }
 
     /**
@@ -286,14 +461,25 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
 
     /**
      * {@inheritDoc}
+     * <p>
+     * Runs the tear down operation against the connection shared with
+     * setupData() and verifyData() for this test's lifecycle, then closes it.
+     * See #800.
      */
     @Override
     public void cleanupData() throws Exception
     {
         try
         {
-            final boolean isCaseSensitiveTableNames = lookupFeatureValue(
-                    DatabaseConfig.FEATURE_CASE_SENSITIVE_TABLE_NAMES);
+            final boolean isCaseSensitiveTableNames;
+            if (cachedIsCaseSensitiveTableNames == null)
+            {
+                isCaseSensitiveTableNames = lookupFeatureValue(
+                        DatabaseConfig.FEATURE_CASE_SENSITIVE_TABLE_NAMES);
+            } else
+            {
+                isCaseSensitiveTableNames = cachedIsCaseSensitiveTableNames;
+            }
             log.debug("cleanupData: using case sensitive table names={}",
                     isCaseSensitiveTableNames);
 
@@ -310,14 +496,15 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
                 throw new IllegalStateException(DATABASE_TESTER_IS_NULL_MSG);
             }
 
-            databaseTester.setTearDownOperation(getTearDownOperation());
-            databaseTester.setDataSet(dataset);
-            databaseTester.setOperationListener(getOperationListener());
-            databaseTester.onTearDown();
+            final IDatabaseTester reusableTester =
+                    makeReusableConnectionDatabaseTester(dataset);
+            reusableTester.onTearDown();
             log.debug("cleanupData: Clean up done");
+            closeReusableConnection();
         } catch (final Exception e)
         {
             log.error("cleanupData: Exception:", e);
+            closeReusableConnectionSuppressing(e);
             throw e;
         }
     }
@@ -333,6 +520,10 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     /**
      * Use the provided databaseTester to prep the database with the provided
      * prep dataset. See {@link org.dbunit.IDatabaseTester#onSetup()}.
+     * <p>
+     * Executes against the connection shared with verifyData() and
+     * cleanupData() for this test's lifecycle rather than a fresh one, and
+     * leaves it open; cleanupData() closes it. See #800.
      *
      * @throws Exception
      */
@@ -346,7 +537,9 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
 
         try
         {
-            super.setUp();
+            final IDatabaseTester reusableTester =
+                    makeReusableConnectionDatabaseTester(getDataSet());
+            reusableTester.onSetup();
         } catch (final Exception e)
         {
             log.error("setupData: Exception with setting up data:", e);
@@ -369,7 +562,9 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     }
 
     /**
-     * {@inheritDoc} Uses the connection from the provided databaseTester.
+     * {@inheritDoc} Uses the connection from the provided databaseTester,
+     * shared with setupData() and cleanupData() for this test's lifecycle.
+     * Left open on return; cleanupData() closes it. See #800.
      */
     @Override
     public void verifyData() throws Exception
@@ -379,9 +574,9 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
             throw new IllegalStateException(DATABASE_TESTER_IS_NULL_MSG);
         }
 
-        final IDatabaseConnection connection = getConnection();
+        final IDatabaseConnection reusableConnection = getReusableConnection();
 
-        final DatabaseConfig config = connection.getConfig();
+        final DatabaseConfig config = reusableConnection.getConfig();
         expectedDataSetAndVerifyTableDefinitionVerifier.verify(verifyTableDefs,
                 expectedDataSet, config);
 
@@ -403,16 +598,12 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
             for (int i = 0; i < tableDefsCount; i++)
             {
                 final VerifyTableDefinition td = verifyTableDefs[i];
-                verifyData(connection, td);
+                verifyData(reusableConnection, td);
             }
         } catch (final Exception e)
         {
             log.error("verifyData: Exception:", e);
             throw e;
-        } finally
-        {
-            log.debug("verifyData: Verification done, closing connection");
-            connection.close();
         }
     }
 
@@ -868,6 +1059,39 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     }
 
     /**
+     * Get whether the connection lookupFeatureValue() and cleanupData() are
+     * done with is closed.
+     *
+     * @see {@link #closeConnectionAfterTest}.
+     *
+     * @return True if it is closed, false if not.
+     * @since 3.4.0
+     */
+    public boolean isCloseConnectionAfterTest()
+    {
+        return closeConnectionAfterTest;
+    }
+
+    /**
+     * Set whether the connection lookupFeatureValue() and cleanupData() are
+     * done with is closed. Default is true. Set to false when databaseTester
+     * shares a {@link org.dbunit.database.CachingConnectionProvider} across
+     * test methods, so this instance does not close a connection other tests
+     * still expect to reuse.
+     *
+     * @see {@link #closeConnectionAfterTest}.
+     *
+     * @param closeConnectionAfterTest
+     *            True to close it, false to leave it open.
+     * @since 3.4.0
+     */
+    public void setCloseConnectionAfterTest(
+            final boolean closeConnectionAfterTest)
+    {
+        this.closeConnectionAfterTest = closeConnectionAfterTest;
+    }
+
+    /**
      * Get the dataFileLoader.
      *
      * @see {@link #dataFileLoader}.
@@ -954,5 +1178,42 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     {
         this.expectedDataSetAndVerifyTableDefinitionVerifier =
                 expectedDataSetAndVerifyTableDefinitionVerifier;
+    }
+
+    /**
+     * {@link IDatabaseTester} that runs setUp/tearDown operations against a
+     * connection supplied by the given {@link Callable} instead of calling
+     * {@code getConnection()} on a wrapped {@link IDatabaseTester}, so
+     * repeated {@link #onSetup()}/{@link #onTearDown()} calls driven through
+     * this instance share whatever connection the supplier itself caches
+     * (here, {@link DefaultPrepAndExpectedTestCase#getReusableConnection()})
+     * rather than each opening a new one.
+     *
+     * @since 3.4.0
+     */
+    private static final class ReusableConnectionDatabaseTester
+            extends AbstractDatabaseTester
+    {
+        private final Callable<IDatabaseConnection> connectionSupplier;
+
+        /**
+         * Create new instance with the specified connection supplier.
+         *
+         * @param connectionSupplier
+         *            Supplies the connection to use; invoked once per
+         *            {@link #getConnection()} call, so it is responsible for
+         *            any caching of its own.
+         */
+        private ReusableConnectionDatabaseTester(
+                final Callable<IDatabaseConnection> connectionSupplier)
+        {
+            this.connectionSupplier = connectionSupplier;
+        }
+
+        @Override
+        public IDatabaseConnection getConnection() throws Exception
+        {
+            return connectionSupplier.call();
+        }
     }
 }

@@ -30,6 +30,8 @@ import org.dbunit.database.CachingConnectionProvider;
 import org.dbunit.database.IDatabaseConnection;
 import org.dbunit.dataset.IDataSet;
 import org.dbunit.operation.DatabaseOperation;
+import org.dbunit.util.fileloader.DataFileLoader;
+import org.dbunit.util.fileloader.FlatXmlDataFileLoader;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -41,6 +43,12 @@ import org.junit.jupiter.api.Test;
  * runs again on the next test), delivers the cross-test-method connection reuse issue #799 asks
  * for - and only when paired with a non-closing {@link IOperationListener}, staying fully
  * backward compatible otherwise.
+ * <p>
+ * Also proves {@link DefaultPrepAndExpectedTestCase} - which manages its own connection lifecycle
+ * rather than delegating to a listener (see issue #800) - only joins that cross-test reuse when
+ * {@link DefaultPrepAndExpectedTestCase#setCloseConnectionAfterTest(boolean)} is set to false;
+ * left at its default, it must not close a connection a shared provider is still using for
+ * other test methods (issue #801 code review feedback).
  *
  * @since 3.4.0
  */
@@ -125,6 +133,82 @@ class DatabaseTesterConnectionReuseIT
         {
             sharedProvider.close();
         }
+    }
+
+    @Test
+    void testDefaultPrepAndExpectedTestCase_acrossFreshInstancesSharingAProviderWithCloseDisabled_reusesOneConnection()
+            throws Exception
+    {
+        final CachingConnectionProvider sharedProvider = new CachingConnectionProvider();
+        final List<IDatabaseConnection> connectionsUsed = new ArrayList<>();
+        try
+        {
+            for (int simulatedTestMethod = 0; simulatedTestMethod < 3; simulatedTestMethod++)
+            {
+                final IDatabaseTester tester = newSharedProviderTester(sharedProvider);
+                final DefaultPrepAndExpectedTestCase tc = newTestCase(tester);
+                tc.setCloseConnectionAfterTest(false);
+
+                tc.configureTest(new VerifyTableDefinition[] {}, new String[] {},
+                        new String[] {});
+                tc.preTest();
+                tc.postTest();
+
+                connectionsUsed.add(tester.getConnection());
+            }
+
+            assertThat(new HashSet<>(connectionsUsed))
+                    .as("With closing disabled, DefaultPrepAndExpectedTestCase must not close the "
+                            + "connection a shared CachingConnectionProvider still has cached, so "
+                            + "3 simulated test methods - each building its own fresh tester and "
+                            + "test case pointed at the same provider - must all observe the same "
+                            + "underlying connection (issue #800/#801).")
+                    .hasSize(1);
+        } finally
+        {
+            sharedProvider.close();
+        }
+    }
+
+    @Test
+    void testDefaultPrepAndExpectedTestCase_acrossFreshInstancesSharingAProviderWithDefaultConfiguration_createsFreshConnectionsEveryTime()
+            throws Exception
+    {
+        final CachingConnectionProvider sharedProvider = new CachingConnectionProvider();
+        final List<IDatabaseConnection> connectionsUsed = new ArrayList<>();
+        try
+        {
+            for (int simulatedTestMethod = 0; simulatedTestMethod < 2; simulatedTestMethod++)
+            {
+                final IDatabaseTester tester = newSharedProviderTester(sharedProvider);
+                final DefaultPrepAndExpectedTestCase tc = newTestCase(tester);
+                // Deliberately not calling setCloseConnectionAfterTest(false).
+
+                tc.configureTest(new VerifyTableDefinition[] {}, new String[] {},
+                        new String[] {});
+                tc.preTest();
+                tc.postTest();
+
+                connectionsUsed.add(tester.getConnection());
+            }
+
+            assertThat(new HashSet<>(connectionsUsed))
+                    .as("Left at its default, DefaultPrepAndExpectedTestCase must stay fully "
+                            + "backward compatible: cleanupData() closes the connection it used, "
+                            + "so the CachingConnectionProvider must hand back a freshly "
+                            + "(re)created one to the next simulated test method, exactly like not "
+                            + "sharing a provider at all.")
+                    .hasSize(2);
+        } finally
+        {
+            sharedProvider.close();
+        }
+    }
+
+    private DefaultPrepAndExpectedTestCase newTestCase(final IDatabaseTester tester)
+    {
+        final DataFileLoader dataFileLoader = new FlatXmlDataFileLoader();
+        return new DefaultPrepAndExpectedTestCase(dataFileLoader, tester);
     }
 
     private IDatabaseTester newSharedProviderTester(final CachingConnectionProvider sharedProvider)
