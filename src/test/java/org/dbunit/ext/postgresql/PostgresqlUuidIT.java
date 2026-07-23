@@ -1,7 +1,6 @@
 package org.dbunit.ext.postgresql;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.io.StringReader;
 import java.sql.Statement;
@@ -76,44 +75,37 @@ class PostgresqlUuidIT
     }
 
     @Test
-    void xtestUUidDataType() throws Exception
+    void testUuidDataType_withUuidColumn_roundTripsThroughDatabase() throws Exception
     {
         assertThat(_connection).as("didn't get a connection").isNotNull();
         final DatabaseConfig config = _connection.getConfig();
         config.setProperty(DatabaseConfig.PROPERTY_DATATYPE_FACTORY,
                 new PostgresqlDataTypeFactory());
 
-        try
-        {
-            final ReplacementDataSet dataSet =
-                    new ReplacementDataSet(new FlatXmlDataSetBuilder()
-                            .build(new InputSource(new StringReader(xmlData))));
-            dataSet.addReplacementObject("[NULL]", null);
-            dataSet.setStrictReplacement(true);
+        final ReplacementDataSet dataSet =
+                new ReplacementDataSet(new FlatXmlDataSetBuilder()
+                        .build(new InputSource(new StringReader(xmlData))));
+        dataSet.addReplacementObject("[NULL]", null);
+        dataSet.setStrictReplacement(true);
 
-            IDataSet ids;
-            ids = _connection.createDataSet();
-            final ITableMetaData itmd = ids.getTableMetaData(testTable);
-            final Column[] cols = itmd.getColumns();
-            ids = _connection.createDataSet();
-            for (final Column col : cols)
-            {
-                assertThat(col.getDataType().getSqlType())
-                        .isEqualTo(Types.OTHER);
-                assertThat(col.getSqlTypeName()).isEqualTo("uuid");
-            }
-
-            DatabaseOperation.CLEAN_INSERT.execute(_connection, dataSet);
-            ids = _connection.createDataSet();
-            final ITable it = ids.getTable(testTable);
-            assertThat(it.getValue(0, "ID")).isNotNull()
-                    .isEqualTo("08004327-3f6c-4335-9738-0b2bf885cc43");
-            assertThat(it.getValue(1, "ID"))
-                    .isEqualTo("1a0e342a-02cc-43bf-9643-f9ea312dd349");
-        } catch (final Exception e)
+        IDataSet ids;
+        ids = _connection.createDataSet();
+        final ITableMetaData itmd = ids.getTableMetaData(testTable);
+        final Column[] cols = itmd.getColumns();
+        ids = _connection.createDataSet();
+        for (final Column col : cols)
         {
-            assertEquals("DatabaseOperation.CLEAN_INSERT... no exception",
-                    "" + e);
+            assertThat(col.getDataType().getSqlType())
+                    .isEqualTo(Types.OTHER);
+            assertThat(col.getSqlTypeName()).isEqualTo("uuid");
         }
+
+        DatabaseOperation.CLEAN_INSERT.execute(_connection, dataSet);
+        ids = _connection.createDataSet();
+        final ITable it = ids.getTable(testTable);
+        assertThat(it.getValue(0, "ID")).isNotNull()
+                .isEqualTo("08004327-3f6c-4335-9738-0b2bf885cc43");
+        assertThat(it.getValue(1, "ID"))
+                .isEqualTo("1a0e342a-02cc-43bf-9643-f9ea312dd349");
     }
 }
