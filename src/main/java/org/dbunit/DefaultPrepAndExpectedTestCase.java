@@ -224,7 +224,15 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
             // don't verify table data when test execution has errors as:
             // * a verify data failure masks the test error exception
             // * tables in unknown state and therefore probably not accurate
-            postTest(false);
+            try
+            {
+                postTest(false);
+            } catch (final Throwable cleanupFailure)
+            {
+                // never let a cleanup failure replace and hide the real test
+                // failure; keep e as the thrown exception, cleanupFailure alongside
+                e.addSuppressed(cleanupFailure);
+            }
             throw e;
         }
 

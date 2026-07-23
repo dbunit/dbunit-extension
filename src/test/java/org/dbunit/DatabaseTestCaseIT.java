@@ -21,12 +21,14 @@
 package org.dbunit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.catchThrowable;
+
+import java.sql.SQLException;
 
 import org.dbunit.database.DatabaseConfig;
 import org.dbunit.database.IDatabaseConnection;
 import org.dbunit.dataset.IDataSet;
 import org.dbunit.operation.DatabaseOperation;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -39,11 +41,108 @@ class DatabaseTestCaseIT
 {
 
     @Test
-    @Disabled("TODO implement #1087040 tearDownOperation Exception obscures underlying problem")
-    void testTearDownExceptionDoesNotObscureTestException()
+    void testTearDownExceptionDoesNotObscureTestException() throws Exception
     {
-        // TODO implement #1087040 tearDownOperation Exception obscures
-        // underlying problem
+        final IDatabaseConnection conn =
+                DatabaseEnvironment.getInstance().getConnection();
+
+        final SQLException tearDownFailure =
+                new SQLException("Simulated tear-down operation failure.");
+        final DatabaseOperation failingTearDownOperation =
+                new DatabaseOperation()
+                {
+                    @Override
+                    public void execute(final IDatabaseConnection connection,
+                            final IDataSet dataSet) throws SQLException
+                    {
+                        throw tearDownFailure;
+                    }
+                };
+
+        final DatabaseTestCase testSubject =
+                makeTestSubject(conn, failingTearDownOperation);
+        testSubject.setUp();
+
+        final RuntimeException testFailure =
+                new RuntimeException("Simulated test body failure.");
+
+        final Throwable propagated =
+                catchThrowable(() -> testSubject.tearDown(testFailure));
+
+        assertThat(propagated)
+                .as("The original test failure must propagate, not the tear-down failure.")
+                .isSameAs(testFailure);
+        assertThat(propagated.getSuppressed())
+                .as("The tear-down failure must be attached as suppressed, not lost.")
+                .containsExactly(tearDownFailure);
+    }
+
+    @Test
+    void testTearDownErrorDoesNotObscureTestException() throws Exception
+    {
+        final IDatabaseConnection conn =
+                DatabaseEnvironment.getInstance().getConnection();
+
+        final AssertionError tearDownFailure = new AssertionError(
+                "Simulated tear-down operation failure (an Error, not an Exception).");
+        final DatabaseOperation failingTearDownOperation =
+                new DatabaseOperation()
+                {
+                    @Override
+                    public void execute(final IDatabaseConnection connection,
+                            final IDataSet dataSet)
+                    {
+                        throw tearDownFailure;
+                    }
+                };
+
+        final DatabaseTestCase testSubject =
+                makeTestSubject(conn, failingTearDownOperation);
+        testSubject.setUp();
+
+        final RuntimeException testFailure =
+                new RuntimeException("Simulated test body failure.");
+
+        final Throwable propagated =
+                catchThrowable(() -> testSubject.tearDown(testFailure));
+
+        assertThat(propagated)
+                .as("The original test failure must propagate, not the tear-down Error.")
+                .isSameAs(testFailure);
+        assertThat(propagated.getSuppressed())
+                .as("The tear-down Error must be attached as suppressed, not lost.")
+                .containsExactly(tearDownFailure);
+    }
+
+    private DatabaseTestCase makeTestSubject(final IDatabaseConnection conn,
+            final DatabaseOperation tearDownOperation)
+    {
+        return new DatabaseTestCase()
+        {
+            @Override
+            protected IDatabaseConnection getConnection() throws Exception
+            {
+                return conn;
+            }
+
+            @Override
+            protected IDataSet getDataSet() throws Exception
+            {
+                return null;
+            }
+
+            @Override
+            protected DatabaseOperation getSetUpOperation() throws Exception
+            {
+                return DatabaseOperation.NONE;
+            }
+
+            @Override
+            protected DatabaseOperation getTearDownOperation() throws Exception
+            {
+                return tearDownOperation;
+            }
+        };
     }
 
     /**
