@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.catchThrowable;
 
 import java.sql.Connection;
+import java.util.Locale;
 
 import org.dbunit.database.DatabaseConfig;
 import org.dbunit.database.IDatabaseConnection;
@@ -232,6 +233,42 @@ class DefaultPrepAndExpectedTestCaseTest
                 excludeColumns, includeColumns, null, null))
                         .as("Tables differing only in an excluded column must verify as equal.")
                         .doesNotThrowAnyException();
+    }
+
+    @Test
+    void testVerifyData_withTurkishDefaultLocale_matchesAsciiIColumns()
+            throws Exception
+    {
+        final Locale original = Locale.getDefault();
+        Locale.setDefault(new Locale("tr", "TR"));
+        try
+        {
+            final Column[] actualColumns = {new Column("ID", DataType.VARCHAR)};
+            final DefaultTable actualTable =
+                    new DefaultTable("TEST_TABLE", actualColumns);
+            actualTable.addRow(new Object[] {"1"});
+
+            // expected column is DataType.UNKNOWN, as expected files normally
+            // are, so verifyData() must merge in the actual column via
+            // case-insensitive name matching; a Turkish default locale's
+            // dotless-i breaks that match ("ID".toLowerCase() becomes "ıd")
+            // unless the match pins Locale.ENGLISH
+            final Column[] expectedColumns =
+                    {new Column("id", DataType.UNKNOWN)};
+            final DefaultTable expectedTable =
+                    new DefaultTable("TEST_TABLE", expectedColumns);
+            expectedTable.addRow(new Object[] {"1"});
+
+            assertThatCode(() -> tc.verifyData(expectedTable, actualTable,
+                    null, null, null, null))
+                            .as("Column matching must use Locale.ENGLISH so a"
+                                    + " Turkish default locale does not break"
+                                    + " case-insensitive column matching.")
+                            .doesNotThrowAnyException();
+        } finally
+        {
+            Locale.setDefault(original);
+        }
     }
 
     @Test

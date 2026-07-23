@@ -26,6 +26,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
@@ -804,11 +805,12 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     {
         final Set<String> expectedColumnNames =
                 Arrays.stream(expectedColumns).map(Column::getColumnName)
-                        .map(String::toLowerCase).collect(Collectors.toSet());
+                        .map(name -> name.toLowerCase(Locale.ENGLISH))
+                        .collect(Collectors.toSet());
 
         final List<Column> expectedColumnsList = Arrays.stream(actualColumns)
-                .filter(col -> expectedColumnNames
-                        .contains(col.getColumnName().toLowerCase()))
+                .filter(col -> expectedColumnNames.contains(
+                        col.getColumnName().toLowerCase(Locale.ENGLISH)))
                 .collect(Collectors.toList());
         return expectedColumnsList
                 .toArray(new Column[expectedColumnsList.size()]);
