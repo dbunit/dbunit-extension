@@ -20,8 +20,6 @@
  */
 package org.dbunit;
 
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -553,6 +551,13 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
         }
     }
 
+    /**
+     * Legacy JUnit-3-era tear-down hook. Not invoked automatically under JUnit 5;
+     * kept for subclasses that drive the lifecycle manually. Calling it after a
+     * full {@link #runTest} or {@link #postTest} cycle cleans up a second time
+     * (parent tearDown() re-runs the tear down operation on the prep dataset with
+     * a fresh connection).
+     */
     @Override
     protected void tearDown() throws Exception
     {
@@ -594,14 +599,20 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     @Override
     protected DatabaseOperation getSetUpOperation() throws Exception
     {
-        assertNotNull(databaseTester, DATABASE_TESTER_IS_NULL_MSG);
+        if (databaseTester == null)
+        {
+            throw new IllegalStateException(DATABASE_TESTER_IS_NULL_MSG);
+        }
         return databaseTester.getSetUpOperation();
     }
 
     @Override
     protected DatabaseOperation getTearDownOperation() throws Exception
     {
-        assertNotNull(databaseTester, DATABASE_TESTER_IS_NULL_MSG);
+        if (databaseTester == null)
+        {
+            throw new IllegalStateException(DATABASE_TESTER_IS_NULL_MSG);
+        }
         return databaseTester.getTearDownOperation();
     }
 
@@ -996,14 +1007,14 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
                     dataFilesName);
         }
 
-        final List list = new ArrayList();
+        final List<IDataSet> list = new ArrayList<>();
         for (int i = 0; i < count; i++)
         {
             final IDataSet ds = dataFileLoader.load(dataFiles[i]);
             list.add(ds);
         }
 
-        final IDataSet[] dataSet = (IDataSet[]) list.toArray(new IDataSet[] {});
+        final IDataSet[] dataSet = list.toArray(new IDataSet[0]);
         return new CompositeDataSet(dataSet, true, isCaseSensitiveTableNames);
     }
 
@@ -1025,12 +1036,12 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
             final String[] excludeColumns, final String[] includeColumns)
             throws DataSetException
     {
-        ITable filteredTable = table;
-
         if (table == null)
         {
             throw new IllegalArgumentException("table is null");
         }
+
+        ITable filteredTable = table;
 
         // note: dbunit interprets an empty inclusion filter array as one
         // not wanting to compare anything!
@@ -1040,7 +1051,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
         } else
         {
             log.debug("applyColumnFilters: including columns='{}'",
-                    new Object[] {includeColumns});
+                    Arrays.toString(includeColumns));
             filteredTable = DefaultColumnFilter
                     .includedColumnsTable(filteredTable, includeColumns);
         }
@@ -1051,7 +1062,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
         } else
         {
             log.debug("applyColumnFilters: excluding columns='{}'",
-                    new Object[] {excludeColumns});
+                    Arrays.toString(excludeColumns));
             filteredTable = DefaultColumnFilter
                     .excludedColumnsTable(filteredTable, excludeColumns);
         }
