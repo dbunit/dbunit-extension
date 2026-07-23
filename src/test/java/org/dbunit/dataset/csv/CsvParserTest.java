@@ -34,6 +34,7 @@ import java.io.LineNumberReader;
 import java.util.List;
 
 import org.dbunit.dataset.common.handlers.IllegalInputCharacterException;
+import org.dbunit.dataset.common.handlers.Pipeline;
 import org.dbunit.dataset.common.handlers.PipelineException;
 import org.dbunit.testutil.TestUtils;
 import org.junit.jupiter.api.BeforeEach;
@@ -42,26 +43,42 @@ import org.junit.jupiter.api.Test;
 class CsvParserTest
 {
 
-    CsvParser parser;
+    CsvParserImpl parser;
 
-    /*
-     * public void testNewParserHasNotNullPipeline() {
-     * assertThat(parser.getPipeline()).isNotNull(); }
-     *
-     * public void testAfterEachParsingThePipelineIsEmpty() throws
-     * PipelineException, IllegalInputCharacterException {
-     *
-     * class MockPipeline extends Pipeline { boolean setProductCalled = false;
-     *
-     * protected void setProducts(List products) { assertThat(
-     * products.size()).isEqualTo(0); super.setProducts(products);
-     * setProductCalled = true; } }
-     *
-     * MockPipeline mockPipeline = new MockPipeline();
-     * parser.setPipeline(mockPipeline); parser.parse("");
-     * assertTrue("the set product method should be called to prepare a new list of products"
-     * , mockPipeline.setProductCalled); }
-     */
+    @Test
+    void testGetPipeline_withNewParser_returnsNonNullPipeline()
+    {
+        assertThat(parser.getPipeline()).as("Pipeline should not be null.")
+                .isNotNull();
+    }
+
+    @Test
+    void testParse_afterParsing_resetsPipelineProductsToEmptyList()
+            throws PipelineException, IllegalInputCharacterException
+    {
+        class MockPipeline extends Pipeline
+        {
+            boolean setProductCalled = false;
+
+            @Override
+            protected void setProducts(final List products)
+            {
+                assertThat(products)
+                        .as("Products should be empty before parsing.")
+                        .isEmpty();
+                super.setProducts(products);
+                setProductCalled = true;
+            }
+        }
+
+        final MockPipeline mockPipeline = new MockPipeline();
+        parser.setPipeline(mockPipeline);
+        parser.parse("");
+
+        assertThat(mockPipeline.setProductCalled)
+                .as("The set product method should be called to prepare a new list of products.")
+                .isTrue();
+    }
 
     @Test
     void testCanParseNonQuotedStrings_withCommaSeparatedInput_returnsTwoTokens()

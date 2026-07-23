@@ -118,30 +118,52 @@ public class BiDirectionalEdgesDepthFirstSearchTest extends DepthFirstSearchTest
         doIt();
     }
 
-    // TODO: continue adding more tests uncommenting and adapting tests below...
-    /*
-     *
-     * public void testSingleEdgeRepeatedInput() throws Exception { setInput(new
-     * String[] { A, B, B, A, B }); addEdges(A, new String[] { B });
-     * setOutput(new String[] { B, A }); doIt(); }
-     *
-     * public void testDisconnected() throws Exception { setInput(new String[] {
-     * A, C }); addEdges(A, new String[] { B }); setOutput(new String[] { B, A,
-     * C }); doIt(); }
-     *
-     * public void testDisconnectedInverseOrder() throws Exception {
-     * setInput(new String[] { C, A }); addEdges(A, new String[] { B });
-     * setOutput(new String[] { B, A, C }); doIt(); }
-     *
-     * public void testMultipleEdgesOneSource() throws Exception { setInput(new
-     * String[] { A }); addEdges(A, new String[] { B, C }); setOutput(new
-     * String[] { B, C, A }); doIt(); }
-     *
-     * public void testMultipleEdgesMultipleSources() throws Exception {
-     * setInput(new String[] { A }); addEdges(A, new String[] { B, C });
-     * addEdges(B, new String[] { D, C }); setOutput(new String[] { C, D, B, A
-     * }); doIt(); }
-     */
+    @Test
+    public void testSingleEdgeRepeatedInput() throws Exception
+    {
+        setInput(new String[] {A, B, B, A, B});
+        addEdges(A, new String[] {B});
+        setOutput(new String[] {B, A});
+        doIt();
+    }
+
+    @Test
+    public void testDisconnected() throws Exception
+    {
+        setInput(new String[] {A, C});
+        addEdges(A, new String[] {B});
+        setOutput(new String[] {B, A, C});
+        doIt();
+    }
+
+    @Test
+    public void testDisconnectedInverseOrder() throws Exception
+    {
+        setInput(new String[] {C, A});
+        addEdges(A, new String[] {B});
+        setOutput(new String[] {B, A, C});
+        doIt();
+    }
+
+    @Test
+    public void testMultipleEdgesOneSource() throws Exception
+    {
+        setInput(new String[] {A});
+        addEdges(A, new String[] {B, C});
+        setOutput(new String[] {B, C, A});
+        doIt();
+    }
+
+    @Test
+    public void testMultipleEdgesMultipleSources() throws Exception
+    {
+        setInput(new String[] {A});
+        addEdges(A, new String[] {B, C});
+        addEdges(B, new String[] {D, C});
+        setOutput(new String[] {C, D, B, A});
+        doIt();
+    }
+
     @Test
     public void testMultipleEdgesCycleFromA() throws Exception
     {
@@ -175,12 +197,15 @@ public class BiDirectionalEdgesDepthFirstSearchTest extends DepthFirstSearchTest
         doIt();
     }
 
-    /*
-     * public void testSelfCyclic() throws Exception { setInput(new String[] { A
-     * }); addEdges(A, new String[] { A }); setOutput(new String[] { A });
-     * doIt(); }
-     *
-     */
+    @Test
+    public void testSelfCyclic() throws Exception
+    {
+        setInput(new String[] {A});
+        addEdges(A, new String[] {A});
+        setOutput(new String[] {A});
+        doIt();
+    }
+
     @Test
     public void testCyclicAndSelfCyclic() throws Exception
     {

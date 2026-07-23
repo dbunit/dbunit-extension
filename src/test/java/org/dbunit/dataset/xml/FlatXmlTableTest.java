@@ -22,11 +22,13 @@
 package org.dbunit.dataset.xml;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import org.dbunit.dataset.AbstractTableTest;
 import org.dbunit.dataset.Column;
 import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.ITable;
+import org.dbunit.dataset.NoSuchColumnException;
 import org.dbunit.testutil.TestUtils;
 import org.junit.jupiter.api.Test;
 
@@ -92,13 +94,15 @@ class FlatXmlTableTest extends AbstractTableTest
         }
     }
 
-    // public void testGetValueAndNoSuchColumn() throws Exception
-    // {
-    // ITable table = createTable();
-    // String columnName = "Unknown";
-    //
-    // Object value = table.getValue(0, columnName);
-    // assertThat( value).as("no value").isNull();
-    // }
+    @Test
+    void testGetValue_withUnknownColumn_throwsNoSuchColumnException() throws Exception
+    {
+        final ITable table = createTable();
+        final String columnName = "Unknown";
+
+        assertThrows(NoSuchColumnException.class,
+                () -> table.getValue(0, columnName),
+                "Should have thrown a NoSuchColumnException.");
+    }
 
 }
