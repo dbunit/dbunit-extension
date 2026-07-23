@@ -22,6 +22,7 @@
 package org.dbunit.ant;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -58,7 +59,6 @@ import org.dbunit.util.FileHelper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.slf4j.Logger;
@@ -423,12 +423,12 @@ public class DbUnitTaskIT
         assertThat(emptyTable.getName()).as("name").isEqualTo("EMPTY_TABLE");
     }
 
-    @Disabled("Ant now ignores id errors and refid is always evaluated first")
     @Test
-    public void testWithBadQuerySet_withBothIdAndRefid_throwsBuildException()
+    public void testWithQuerySetIdAndRefid_withBothAttributesSet_resolvesRefidWithoutThrowing()
     {
-        expectBuildException("invalid-queryset",
-                "Cannot specify 'id' and 'refid' attributes together in queryset.");
+        assertThatCode(() -> rule.executeTarget("invalid-queryset"))
+                .as("Ant resolves the refid attribute first and no longer errors on the id/refid combination.")
+                .doesNotThrowAnyException();
     }
 
     @Test
