@@ -23,6 +23,7 @@ package org.dbunit;
 import java.sql.Connection;
 import java.sql.DriverManager;
 
+import org.dbunit.database.CachingConnectionProvider;
 import org.dbunit.database.DatabaseConnection;
 import org.dbunit.database.IDatabaseConnection;
 import org.slf4j.Logger;
@@ -44,6 +45,7 @@ public class JdbcDatabaseTester extends AbstractDatabaseTester
      */
     private static final Logger logger = LoggerFactory.getLogger(JdbcDatabaseTester.class);
 
+    private final CachingConnectionProvider connectionProvider;
     private String connectionUrl;
     private String driverClass;
     private String password;
@@ -91,7 +93,33 @@ public class JdbcDatabaseTester extends AbstractDatabaseTester
      * @since 2.4.3
      */
     public JdbcDatabaseTester( String driverClass, String connectionUrl, String username,
-            String password, String schema ) 
+            String password, String schema )
+    throws ClassNotFoundException
+    {
+        this(driverClass, connectionUrl, username, password, schema, null);
+    }
+
+    /**
+     * Creates a new JdbcDatabaseTester with the specified properties, reusing one
+     * {@link IDatabaseConnection} across calls via the given {@link CachingConnectionProvider}
+     * instead of creating a new one on every call.<br>
+     * Share the same <code>connectionProvider</code> instance across the testers created for each
+     * test to get reuse across test methods; pair it with {@link IOperationListener#NO_OP_OPERATION_LISTENER}
+     * (or an equivalent non-closing listener) so the cached connection is not closed after every
+     * {@link #onSetup()}/{@link #onTearDown()} call.
+     *
+     * @param driverClass the classname of the JDBC driver to use
+     * @param connectionUrl the connection url
+     * @param username a username that can has access to the database - can be <code>null</code>
+     * @param password the user's password - can be <code>null</code>
+     * @param schema the database schema to be tested - can be <code>null</code>
+     * @param connectionProvider caches and validates the connection across calls - can be
+     *            <code>null</code>, in which case a new connection is created on every call as before
+     * @throws ClassNotFoundException If the given <code>driverClass</code> was not found
+     * @since 3.4.0
+     */
+    public JdbcDatabaseTester( String driverClass, String connectionUrl, String username,
+            String password, String schema, CachingConnectionProvider connectionProvider )
     throws ClassNotFoundException
     {
         super(schema);
@@ -99,7 +127,8 @@ public class JdbcDatabaseTester extends AbstractDatabaseTester
         this.connectionUrl = connectionUrl;
         this.username = username;
         this.password = password;
-        
+        this.connectionProvider = connectionProvider;
+
         assertNotNullNorEmpty( "driverClass", driverClass );
         Class.forName( driverClass );
     }
@@ -108,6 +137,15 @@ public class JdbcDatabaseTester extends AbstractDatabaseTester
     {
         logger.debug("getConnection() - start");
 
+        if (connectionProvider != null)
+        {
+            return connectionProvider.getConnection(this::createConnection);
+        }
+        return createConnection();
+    }
+
+    private IDatabaseConnection createConnection() throws Exception
+    {
         assertNotNullNorEmpty( "connectionUrl", connectionUrl );
         Connection conn = null;
         if( username == null && password == null ){
@@ -127,6 +165,7 @@ public class JdbcDatabaseTester extends AbstractDatabaseTester
         sb.append(", username=").append(this.username);
         sb.append(", password=**********");
         sb.append(", schema=").append(super.getSchema());
+        sb.append(", connectionProvider=").append(this.connectionProvider);
         sb.append("]");
         return sb.toString();
     }

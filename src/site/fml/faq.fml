@@ -348,10 +348,23 @@ IDataSet dataSet = new CachedDataSet(producer);
       1. Reuse the same connection thorough your test suite
       </h5>
       <p>
-      Creating a new DbUnit connection every time has a cost. The overhead is much more than just creating a new JDBC connection. 
-      DbUnit needs to fetch the metadata of tables to retrieve the column data types. This information is cached in the DbUnit connection. 
-      So it is highly recommended to reuse the same DbUnit connection throughout your test suite; the more tables you have, 
-      the greater the benefits. 
+      Creating a new DbUnit connection every time has a cost. The overhead is much more than just creating a new JDBC connection.
+      DbUnit needs to fetch the metadata of tables to retrieve the column data types. This information is cached in the DbUnit connection.
+      So it is highly recommended to reuse the same DbUnit connection throughout your test suite; the more tables you have,
+      the greater the benefits.
+      </p>
+      <p>
+      Since DbUnit 3.4.0, <a href="apidocs/org/dbunit/database/CachingConnectionProvider.html">CachingConnectionProvider</a>
+      makes this safe and opt-in: construct one instance per target database, share that same instance across the
+      <a href="apidocs/org/dbunit/JdbcDatabaseTester.html">JdbcDatabaseTester</a>,
+      <a href="apidocs/org/dbunit/DataSourceDatabaseTester.html">DataSourceDatabaseTester</a>,
+      <a href="apidocs/org/dbunit/JndiDatabaseTester.html">JndiDatabaseTester</a> or
+      <a href="apidocs/org/dbunit/DefaultDatabaseTester.html">DefaultDatabaseTester</a> instances built for each test
+      (for example via a <code>static</code> field on a common test base class), and pass it to their constructor.
+      Unlike hand-holding a single connection open for the whole suite, it detects a dead or expired connection on
+      each call and transparently replaces it, so a transient database blip does not take down the rest of the run.
+      Pair it with <a href="#keepconnectionopendbtestcase">a non-closing IOperationListener</a>, otherwise the
+      cached connection is closed - and therefore rebuilt from scratch - after every setUp/tearDown.
       </p>
       <h5>
       2. Specify the database schema name 
@@ -701,7 +714,23 @@ public class MyXmlWriter extends org.dbunit.dataset.xml.XmlDataSetWriter {
               dbTester.onSetup();
               ...
           </source>
-          
+          Leaving the connection open like this is only half the story: nothing checks whether it is
+          still alive, so a single dropped connection can fail every remaining test in the run. Since
+          DbUnit 3.4.0, pairing NO_OP_OPERATION_LISTENER with
+          <a href="apidocs/org/dbunit/database/CachingConnectionProvider.html">CachingConnectionProvider</a>
+          makes this pattern safe to opt into: share one <code>CachingConnectionProvider</code> instance
+          across the testers built for each test, and it detects a dead or expired connection and
+          transparently replaces it instead of leaving your suite stuck with a broken one.
+          <source>
+              private static final CachingConnectionProvider CONNECTION_PROVIDER =
+                      new CachingConnectionProvider();
+              ...
+              IDatabaseTester dbTester = new DataSourceDatabaseTester(ds, schema, CONNECTION_PROVIDER);
+              dbTester.setOperationListener(IOperationListener.NO_OP_OPERATION_LISTENER);
+              dbTester.onSetup();
+              ...
+          </source>
+          See the <a href="#performance">performance FAQ</a> for more.
         </p>
       </answer>
     </faq>

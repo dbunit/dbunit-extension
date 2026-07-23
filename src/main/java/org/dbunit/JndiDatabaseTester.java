@@ -30,6 +30,7 @@ import javax.naming.InitialContext;
 import javax.naming.NamingException;
 import javax.sql.DataSource;
 
+import org.dbunit.database.CachingConnectionProvider;
 import org.dbunit.database.DatabaseConnection;
 import org.dbunit.database.IDatabaseConnection;
 
@@ -49,6 +50,7 @@ public class JndiDatabaseTester extends AbstractDatabaseTester
      */
     private static final Logger logger = LoggerFactory.getLogger(JndiDatabaseTester.class);
 
+    private final CachingConnectionProvider connectionProvider;
     private DataSource dataSource;
     private Properties environment;
     private boolean initialized = false;
@@ -77,13 +79,35 @@ public class JndiDatabaseTester extends AbstractDatabaseTester
 
     /**
      * Creates a JndiDatabaseTester with specific JNDI properties.
-     * 
+     *
      * @param environment A Properties object with JNDI properties. Can be <code>null</code>
      * @param lookupName the name of the resource in the JNDI context
      * @param schema The schema name to be used for new dbunit connections. Can be <code>null</code>
      * @since 2.4.5
      */
-    public JndiDatabaseTester(Properties environment, String lookupName, String schema) 
+    public JndiDatabaseTester(Properties environment, String lookupName, String schema)
+    {
+        this(environment, lookupName, schema, null);
+    }
+
+    /**
+     * Creates a JndiDatabaseTester with specific JNDI properties, reusing one
+     * {@link IDatabaseConnection} across calls via the given {@link CachingConnectionProvider}
+     * instead of creating a new one on every call.<br>
+     * Share the same <code>connectionProvider</code> instance across the testers created for each
+     * test to get reuse across test methods; pair it with {@link IOperationListener#NO_OP_OPERATION_LISTENER}
+     * (or an equivalent non-closing listener) so the cached connection is not closed after every
+     * {@link #onSetup()}/{@link #onTearDown()} call.
+     *
+     * @param environment A Properties object with JNDI properties. Can be <code>null</code>
+     * @param lookupName the name of the resource in the JNDI context
+     * @param schema The schema name to be used for new dbunit connections. Can be <code>null</code>
+     * @param connectionProvider caches and validates the connection across calls - can be
+     *            <code>null</code>, in which case a new connection is created on every call as before
+     * @since 3.4.0
+     */
+    public JndiDatabaseTester(Properties environment, String lookupName, String schema,
+            CachingConnectionProvider connectionProvider)
     {
         super(schema);
 
@@ -93,6 +117,7 @@ public class JndiDatabaseTester extends AbstractDatabaseTester
         }
         this.lookupName = lookupName;
         this.environment = environment;
+        this.connectionProvider = connectionProvider;
     }
 
     public IDatabaseConnection getConnection() throws Exception
@@ -103,6 +128,15 @@ public class JndiDatabaseTester extends AbstractDatabaseTester
             initialize();
         }
 
+        if (connectionProvider != null)
+        {
+            return connectionProvider.getConnection(this::createConnection);
+        }
+        return createConnection();
+    }
+
+    private IDatabaseConnection createConnection() throws Exception
+    {
         return new DatabaseConnection( dataSource.getConnection(), getSchema() );
     }
 
@@ -136,6 +170,7 @@ public class JndiDatabaseTester extends AbstractDatabaseTester
         sb.append(", initialized=").append(this.initialized);
         sb.append(", dataSource=").append(this.dataSource);
         sb.append(", schema=").append(super.getSchema());
+        sb.append(", connectionProvider=").append(this.connectionProvider);
         sb.append("]");
         return sb.toString();
     }
