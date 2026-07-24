@@ -22,6 +22,7 @@
 package org.dbunit.dataset.datatype;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
@@ -41,6 +42,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
+import java.util.Arrays;
 import java.util.Locale;
 
 import org.dbunit.dataset.ITable;
@@ -221,6 +223,103 @@ class BytesDataTypeTest extends AbstractDataTypeTest
 
         assertThat(actual).as("typeCast(URL) result.").isEqualTo(expected);
         verify(spyStream, times(1)).close();
+    }
+
+    @Test
+    void testTypeCast_textCommandInvalidEncoding_throwsTypeCastException()
+    {
+        final String value = "[text bogus-encoding]hello";
+        final BytesDataType dataType = new BytesDataType("BINARY", Types.BINARY);
+
+        assertThatExceptionOfType(TypeCastException.class)
+                .as("An unrecognized [text <encoding>] id must fail fast with"
+                        + " a typed exception instead of returning error text"
+                        + " as if it were the byte[] result.")
+                .isThrownBy(() -> dataType.typeCast(value));
+    }
+
+    @Test
+    void testTypeCast_base64CommandCorruptInput_throwsTypeCastException()
+    {
+        final String value = "[base64]!!!not-valid-base64!!!";
+        final BytesDataType dataType = new BytesDataType("BINARY", Types.BINARY);
+
+        assertThatExceptionOfType(TypeCastException.class)
+                .as("A value explicitly tagged [base64] that is not"
+                        + " decodable must fail fast with a typed exception"
+                        + " instead of silently becoming NULL.")
+                .isThrownBy(() -> dataType.typeCast(value));
+    }
+
+    @Test
+    void testTypeCast_fileCommandMissingFile_throwsTypeCastException()
+    {
+        final String value = "[file]/does/not/exist/dbunit-missing-file.bin";
+        final BytesDataType dataType = new BytesDataType("BINARY", Types.BINARY);
+
+        assertThatExceptionOfType(TypeCastException.class)
+                .as("A value explicitly tagged [file] that cannot be loaded"
+                        + " must fail fast with a typed exception instead of"
+                        + " storing an \"Error: ...\" message as the blob's"
+                        + " bytes.")
+                .isThrownBy(() -> dataType.typeCast(value));
+    }
+
+    @Test
+    void testTypeCast_urlCommandUnreachable_throwsTypeCastException()
+            throws Exception
+    {
+        final File missingFile =
+                new File("does-not-exist", "dbunit-missing-file.bin");
+        final String value = "[url]" + missingFile.toURI().toURL();
+        final BytesDataType dataType = new BytesDataType("BINARY", Types.BINARY);
+
+        assertThatExceptionOfType(TypeCastException.class)
+                .as("A value explicitly tagged [url] that cannot be loaded"
+                        + " must fail fast with a typed exception instead of"
+                        + " storing an \"Error: ...\" message as the blob's"
+                        + " bytes.")
+                .isThrownBy(() -> dataType.typeCast(value));
+    }
+
+    @Test
+    void testTypeCast_untaggedTextFallback_usesUtf8Bytes() throws Exception
+    {
+        final String nonAsciiValue = "café!";
+        final byte[] expected = nonAsciiValue.getBytes(StandardCharsets.UTF_8);
+        final BytesDataType dataType = new BytesDataType("BINARY", Types.BINARY);
+
+        final Object actual = dataType.typeCast(nonAsciiValue);
+
+        assertThat(actual)
+                .as("The untagged text fallback must encode with UTF-8"
+                        + " regardless of the platform default charset.")
+                .isEqualTo(expected);
+    }
+
+    @Test
+    void testTypeCast_untaggedLongInvalidBase64_fallsBackToUtf8Bytes()
+            throws Exception
+    {
+        // Longer than BytesDataType's private MAX_URI_LENGTH (256), so this
+        // skips the "assume URI" guess entirely and goes straight to the
+        // Base64 attempt; '!' is not a valid Base64 character
+        final char[] invalidBase64Chars = new char[300];
+        Arrays.fill(invalidBase64Chars, '!');
+        final String longInvalidBase64Value = new String(invalidBase64Chars);
+        final byte[] expected =
+                longInvalidBase64Value.getBytes(StandardCharsets.UTF_8);
+        final BytesDataType dataType = new BytesDataType("BINARY", Types.BINARY);
+
+        final Object actual = dataType.typeCast(longInvalidBase64Value);
+
+        assertThat(actual)
+                .as("An untagged value too long to plausibly be a URI, and"
+                        + " not valid Base64 either, must fall back to its"
+                        + " literal UTF-8 bytes like the shorter 'assume URI'"
+                        + " fallback does, instead of silently becoming"
+                        + " NULL.")
+                .isEqualTo(expected);
     }
 
     @Test
