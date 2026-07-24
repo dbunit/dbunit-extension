@@ -39,6 +39,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.slf4j.LoggerFactory;
+
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 
 /**
  * @author Felipe Leme (dbunit@felipeal.net)
@@ -48,7 +54,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class SQLHelperTest extends AbstractHSQLTestCase
 {
-
     @Mock
     private Connection mockConnection;
 
@@ -192,5 +197,79 @@ class SQLHelperTest extends AbstractHSQLTestCase
                 .contains(SQLHelper.ExceptionWrapper.NOT_AVAILABLE_TEXT);
         verify(mockDatabaseMetaData, times(1)).getDatabaseProductName();
         verify(mockDatabaseMetaData, times(1)).getDatabaseMajorVersion();
+    }
+
+    @Test
+    void testLogInfoIfValueChanged_valueChangedDebugEnabled_logsAtDebug()
+    {
+        final Logger sqlHelperLogger =
+                (Logger) LoggerFactory.getLogger(SQLHelper.class);
+        final ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        sqlHelperLogger.addAppender(appender);
+        try
+        {
+            SQLHelper.logInfoIfValueChanged("old", "new", "message",
+                    SQLHelperTest.class);
+
+            assertThat(appender.list).as("Should log events for changes.").hasSize(1);
+            assertThat(appender.list.get(0).getLevel())
+                    .as("SQLHelper.logInfoIfValueChanged() must log its message"
+                            + " at DEBUG level, matching the isDebugEnabled()"
+                            + " guard it uses.")
+                    .isEqualTo(Level.DEBUG);
+        } finally
+        {
+            sqlHelperLogger.detachAppender(appender);
+        }
+    }
+
+    @Test
+    void testLogInfoIfValueChanged_valueUnchanged_logsNothing()
+    {
+        final Logger sqlHelperLogger =
+                (Logger) LoggerFactory.getLogger(SQLHelper.class);
+        final ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        sqlHelperLogger.addAppender(appender);
+        try
+        {
+            SQLHelper.logInfoIfValueChanged("same", "same", "message",
+                    SQLHelperTest.class);
+
+            assertThat(appender.list)
+                    .as("No logged events when value is unchanged.").isEmpty();
+        } finally
+        {
+            sqlHelperLogger.detachAppender(appender);
+        }
+    }
+
+    @Test
+    void testLogInfoIfValueChanged_oldValueNullNewValueNonNull_logsAtDebug()
+    {
+        final Logger sqlHelperLogger =
+                (Logger) LoggerFactory.getLogger(SQLHelper.class);
+        final ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        sqlHelperLogger.addAppender(appender);
+        try
+        {
+            SQLHelper.logInfoIfValueChanged(null, "new", "message",
+                    SQLHelperTest.class);
+
+            assertThat(appender.list)
+                    .as("A null-to-value change must still be logged, not"
+                            + " silently skipped by the null-guard on oldValue.")
+                    .hasSize(1);
+            assertThat(appender.list.get(0).getLevel())
+                    .as("SQLHelper.logInfoIfValueChanged() must log its message"
+                            + " at DEBUG level, matching the isDebugEnabled()"
+                            + " guard it uses.")
+                    .isEqualTo(Level.DEBUG);
+        } finally
+        {
+            sqlHelperLogger.detachAppender(appender);
+        }
     }
 }

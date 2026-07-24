@@ -28,6 +28,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Locale;
+import java.util.Objects;
 
 import org.dbunit.DatabaseUnitRuntimeException;
 import org.dbunit.database.IMetadataHandler;
@@ -611,12 +612,12 @@ public class SQLHelper {
      */
     public static final void logInfoIfValueChanged(String oldValue, String newValue, String message, Class source)
     {
-        if(logger.isInfoEnabled())
+        if(logger.isDebugEnabled())
         {
-            if(oldValue != null && !oldValue.equals(newValue))
+            if(!Objects.equals(oldValue, newValue))
                 logger.debug("{}. {} oldValue={} newValue={}", new Object[] {source, message, oldValue, newValue});
-            }
         }
+    }
 
     /**
      * Checks whether two given values are unequal and if so print a log message (level DEBUG)
