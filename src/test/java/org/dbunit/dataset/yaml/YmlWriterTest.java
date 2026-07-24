@@ -30,6 +30,7 @@ import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.DefaultDataSet;
 import org.dbunit.dataset.DefaultTable;
 import org.dbunit.dataset.IDataSet;
+import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.datatype.DataType;
 import org.junit.jupiter.api.Test;
 
@@ -117,6 +118,34 @@ public class YmlWriterTest
         table.addRow();
         table.setValue(1, col0, "c0r1");
         table.setValue(1, col1, null);
+
+        final StringWriter stringWriter = new StringWriter();
+        final YamlWriter yamlWriter = new YamlWriter(stringWriter);
+        yamlWriter.write(new DefaultDataSet(table));
+
+        final String actualOutput = stringWriter.toString();
+        assertThat(actualOutput).as("output").isEqualTo(expectedOutput);
+    }
+
+    @Test
+    void testWriteNoValueCell_withNoValueCellValue_omitsKeyFromYamlRow() throws Exception
+    {
+        final String expectedOutput = "TEST_TABLE:\n" + "  - COL0: c0r0\n"
+                + "    COL1: c1r0\n" + "  - COL0: c0r1\n";
+
+        final String col0 = "COL0";
+        final String col1 = "COL1";
+        final Column[] columns =
+                new Column[] {new Column(col0, DataType.UNKNOWN),
+                        new Column(col1, DataType.UNKNOWN)};
+
+        final DefaultTable table = new DefaultTable("TEST_TABLE", columns);
+        table.addRow();
+        table.setValue(0, col0, "c0r0");
+        table.setValue(0, col1, "c1r0");
+        table.addRow();
+        table.setValue(1, col0, "c0r1");
+        table.setValue(1, col1, ITable.NO_VALUE);
 
         final StringWriter stringWriter = new StringWriter();
         final YamlWriter yamlWriter = new YamlWriter(stringWriter);

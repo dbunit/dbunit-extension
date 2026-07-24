@@ -96,7 +96,7 @@ class YamlWriter
                 {
                     String columnName = column.getColumnName();
                     Object value = table.getValue(row, columnName);
-                    if (value != null)
+                    if (value != null && value != ITable.NO_VALUE)
                     {
                         rowMap.put(columnName, value);
                     }

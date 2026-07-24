@@ -23,6 +23,7 @@ package org.dbunit.dataset.xml;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.io.StringReader;
 import java.io.StringWriter;
 
 import org.dbunit.dataset.Column;
@@ -30,6 +31,7 @@ import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.DefaultDataSet;
 import org.dbunit.dataset.DefaultTable;
 import org.dbunit.dataset.IDataSet;
+import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.datatype.DataType;
 import org.junit.jupiter.api.Test;
 
@@ -140,6 +142,58 @@ public class FlatXmlWriterTest
 
         final String actualOutput = stringWriter.toString();
         assertThat(actualOutput).as("output").isEqualTo(expectedOutput);
+    }
+
+    @Test
+    void testWriteNoValueCell_withNoValueCellValue_omitsAttributeFromRow() throws Exception
+    {
+        final String expectedOutput =
+                "<dataset>\n" + "  <TEST_TABLE COL0=\"c0r0\" COL1=\"c1r0\"/>\n"
+                        + "  <TEST_TABLE COL0=\"c0r1\"/>\n" + "</dataset>\n";
+
+        final String col0 = "COL0";
+        final String col1 = "COL1";
+        final Column[] columns =
+                new Column[] {new Column(col0, DataType.UNKNOWN),
+                        new Column(col1, DataType.UNKNOWN)};
+
+        final DefaultTable table = new DefaultTable("TEST_TABLE", columns);
+        table.addRow();
+        table.setValue(0, col0, "c0r0");
+        table.setValue(0, col1, "c1r0");
+        table.addRow();
+        table.setValue(1, col0, "c0r1");
+        table.setValue(1, col1, ITable.NO_VALUE);
+
+        final StringWriter stringWriter = new StringWriter();
+        final FlatXmlWriter xmlWriter = new FlatXmlWriter(stringWriter);
+        xmlWriter.write(new DefaultDataSet(table));
+
+        final String actualOutput = stringWriter.toString();
+        assertThat(actualOutput).as("output").isEqualTo(expectedOutput);
+    }
+
+    @Test
+    void testWrite_xmlDataSetWithNoneElement_omitsAttributeFromFlatXmlOutput() throws Exception
+    {
+        final String xmlDataSetInput = "<dataset>\n"
+                + "  <table name=\"TEST_TABLE\">\n"
+                + "    <column>COL0</column>\n" + "    <column>COL1</column>\n"
+                + "    <row>\n" + "      <value>c0r0</value>\n"
+                + "      <none/>\n" + "    </row>\n" + "  </table>\n"
+                + "</dataset>\n";
+
+        final IDataSet dataSet =
+                new XmlDataSet(new StringReader(xmlDataSetInput));
+
+        final StringWriter stringWriter = new StringWriter();
+        final FlatXmlWriter xmlWriter = new FlatXmlWriter(stringWriter);
+        xmlWriter.write(dataSet);
+
+        final String expectedOutput = "<dataset>\n"
+                + "  <TEST_TABLE COL0=\"c0r0\"/>\n" + "</dataset>\n";
+        assertThat(stringWriter.toString()).as("output")
+                .isEqualTo(expectedOutput);
     }
 
     @Test

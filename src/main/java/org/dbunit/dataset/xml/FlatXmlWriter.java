@@ -29,6 +29,7 @@ import java.nio.charset.Charset;
 import org.dbunit.dataset.Column;
 import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.IDataSet;
+import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.ITableMetaData;
 import org.dbunit.dataset.datatype.DataType;
 import org.dbunit.dataset.datatype.TypeCastException;
@@ -201,8 +202,9 @@ public class FlatXmlWriter implements IDataSetConsumer
                 String columnName = columns[i].getColumnName();
                 Object value = values[i];
 
-                // Skip null value
-                if (value == null)
+                // Skip null and no-value cells; omitting the attribute is
+                // flat XML's representation of "no value"
+                if (value == null || value == ITable.NO_VALUE)
                 {
                     continue;
                 }
