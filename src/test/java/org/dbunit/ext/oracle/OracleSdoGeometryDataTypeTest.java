@@ -29,6 +29,7 @@ import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
 import java.sql.Types;
+import java.util.Locale;
 
 import oracle.jdbc.OracleResultSet;
 import oracle.sql.ORAData;
@@ -520,5 +521,43 @@ public class OracleSdoGeometryDataTypeTest extends AbstractDataTypeTest
         when(mockedOracleResultSet.getORAData(eq(1), any(ORADataFactory.class))).thenReturn(mockedData);
         assertThat(THIS_TYPE.getSqlValue(1, mockedOracleResultSet)).as("non-null ORAData returns its toString()")
                 .isEqualTo(expectedString);
+    }
+
+    @Test
+    void testTypeCast_withTurkishDefaultLocaleAndLowerCaseInfoKeyword_parsesAsciiCorrectly()
+            throws Exception
+    {
+        final Locale original = Locale.getDefault();
+        Locale.setDefault(new Locale("tr", "TR"));
+        try
+        {
+            // "sdo_elem_info_array" contains the only lower-case 'i' among
+            // this parser's keywords (in "info") - under a Turkish default
+            // locale, an un-pinned toUpperCase() would fold it to a dotted
+            // capital 'İ' instead of plain ASCII 'I', desyncing it from the
+            // literal "SDO_ELEM_INFO_ARRAY" in the parser's regex and
+            // wrongly throwing TypeCastException.
+            final String value = "sdo_geometry(123, 45.6, mdsys.sdo_point_type"
+                    + " ( 987.34 , 56.3 , 3 ) ,"
+                    + " mdsys.sdo_elem_info_array(1,2) , sdo_ordinate_array())";
+
+            final Object actual = THIS_TYPE.typeCast(value);
+
+            assertThat(actual)
+                    .as("typeCast() must use toUpperCase(Locale.ENGLISH) so a"
+                            + " Turkish default locale does not break the"
+                            + " SDO_ELEM_INFO_ARRAY literal match.")
+                    .isEqualTo(new OracleSdoGeometry(new BigDecimal(123),
+                            new BigDecimal("45.6"),
+                            new OracleSdoPointType(new BigDecimal("987.34"),
+                                    new BigDecimal("56.3"),
+                                    new BigDecimal("3")),
+                            new OracleSdoElemInfoArray(new BigDecimal[] {
+                                    new BigDecimal(1), new BigDecimal(2)}),
+                            new OracleSdoOrdinateArray()));
+        } finally
+        {
+            Locale.setDefault(original);
+        }
     }
 }

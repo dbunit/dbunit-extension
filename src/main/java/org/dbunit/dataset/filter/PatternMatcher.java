@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory;
 import java.util.Set;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Locale;
 
 /**
  * @author Manuel Laflamme
@@ -59,7 +60,7 @@ class PatternMatcher
         }
         else
         {
-            _acceptedNames.add(patternName.toUpperCase());
+            _acceptedNames.add(patternName.toUpperCase(Locale.ENGLISH));
         }
     }
 
@@ -79,7 +80,7 @@ class PatternMatcher
     {
         logger.debug("accept(name={}) - start", name);
 
-        if (_acceptedNames.contains(name.toUpperCase()))
+        if (_acceptedNames.contains(name.toUpperCase(Locale.ENGLISH)))
         {
             return true;
         }

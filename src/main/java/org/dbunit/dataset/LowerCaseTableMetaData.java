@@ -21,6 +21,8 @@
 
 package org.dbunit.dataset;
 
+import java.util.Locale;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -67,7 +69,7 @@ public class LowerCaseTableMetaData extends AbstractTableMetaData
     public LowerCaseTableMetaData(String tableName, Column[] columns,
             Column[] primaryKeys) //throws DataSetException
     {
-        _tableName = tableName.toLowerCase();
+        _tableName = tableName.toLowerCase(Locale.ENGLISH);
         _columns = createLowerColumns(columns);
         _primaryKeys = createLowerColumns(primaryKeys);
     }
@@ -90,7 +92,7 @@ public class LowerCaseTableMetaData extends AbstractTableMetaData
         logger.debug("createLowerColumn(column={}) - start", column);
 
         return new Column(
-                column.getColumnName().toLowerCase(),
+                column.getColumnName().toLowerCase(Locale.ENGLISH),
                 column.getDataType(),
                 column.getSqlTypeName(),
                 column.getNullable(),

@@ -26,6 +26,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
+import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -163,7 +164,7 @@ public class OracleSdoGeometryDataType extends AbstractDataType
             try
             {
                 // all upper case for parse purposes
-                String upperVal = ((String) value).toUpperCase().trim();
+                String upperVal = ((String) value).toUpperCase(Locale.ENGLISH).trim();
                 if (NULL.equals(upperVal))
                 {
                     return null;

@@ -30,6 +30,7 @@ import org.dbunit.database.IDatabaseConnection;
 import org.dbunit.dataset.IDataSet;
 
 import java.sql.SQLException;
+import java.util.Locale;
 
 /**
  * Truncate tables present in the specified dataset. If the dataset does not
@@ -76,7 +77,7 @@ public class TruncateTableOperation extends DeleteAllOperation
             return "";
         }
         String productName = jdbcConnection.getMetaData().getDatabaseProductName();
-        if (productName != null && productName.toLowerCase().startsWith("db2"))
+        if (productName != null && productName.toLowerCase(Locale.ENGLISH).startsWith("db2"))
         {
             return " IMMEDIATE";
         }

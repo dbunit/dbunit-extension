@@ -1,6 +1,7 @@
 package org.dbunit.assertion;
 
 import java.util.Arrays;
+import java.util.Locale;
 import java.util.Map;
 
 import org.dbunit.DatabaseUnitException;
@@ -241,12 +242,12 @@ public class DbUnitAssertBase
     {
         log.debug("getSortedTableNames(dataSet={}) - start", dataSet);
 
-        final String[] names = dataSet.getTableNames();
+        final String[] names = dataSet.getTableNames().clone();
         if (!dataSet.isCaseSensitiveTableNames())
         {
             for (int i = 0; i < names.length; i++)
             {
-                names[i] = names[i].toUpperCase();
+                names[i] = names[i].toUpperCase(Locale.ENGLISH);
             }
         }
         Arrays.sort(names);

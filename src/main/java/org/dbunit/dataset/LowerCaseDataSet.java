@@ -21,6 +21,8 @@
 
 package org.dbunit.dataset;
 
+import java.util.Locale;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -89,7 +91,7 @@ public class LowerCaseDataSet extends AbstractDataSet
         String[] tableNames = super.getTableNames();
         for (int i = 0; i < tableNames.length; i++)
         {
-            tableNames[i] = tableNames[i].toLowerCase();
+            tableNames[i] = tableNames[i].toLowerCase(Locale.ENGLISH);
         }
         return tableNames;
     }
