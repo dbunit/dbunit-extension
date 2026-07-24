@@ -30,6 +30,7 @@ import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.sql.Blob;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -175,14 +176,18 @@ public class BytesDataType extends AbstractDataType
                             return stringValue.getBytes(charset);
                         } catch (final IllegalArgumentException e)
                         {
-                            return "Error:  [text " + encoding
-                                    + "] has an invalid encoding id.";
+                            throw new TypeCastException(value, this);
                         }
                     } else if ("BASE64".equals(command))
                     {
                         logger.debug(
                                 "Data explicitly states that given string is base46");
-                        return Base64.decode(stringValue);
+                        final byte[] decoded = Base64.decode(stringValue);
+                        if (decoded == null)
+                        {
+                            throw new TypeCastException(value, this);
+                        }
+                        return decoded;
                     } else if ("FILE".equals(command))
                     {
                         try
@@ -196,7 +201,7 @@ public class BytesDataType extends AbstractDataType
                                     "Could not load file following instruction >>"
                                             + value + "<<";
                             logger.error(errMsg);
-                            return ("Error:  " + errMsg).getBytes();
+                            throw new TypeCastException(errMsg, e);
                         }
                     } else if ("URL".equals(command))
                     {
@@ -211,7 +216,7 @@ public class BytesDataType extends AbstractDataType
                                     "Could not load URL following instruction >>"
                                             + value + "<<";
                             logger.error(errMsg);
-                            return ("Error:  " + errMsg).getBytes();
+                            throw new TypeCastException(errMsg, e);
                         }
                     }
                 }
@@ -221,9 +226,25 @@ public class BytesDataType extends AbstractDataType
             if (stringValue.length() == 0
                     || stringValue.length() > MAX_URI_LENGTH)
             {
-                logger.debug(
-                        "Assuming given string to be Base64 and not a URI");
-                return Base64.decode((String) value);
+                if (logger.isDebugEnabled())
+                {
+                    logger.debug(
+                            "Assuming given string to be Base64 and not a URI");
+                }
+                final byte[] decodedBytes = Base64.decode(stringValue);
+                if (decodedBytes == null && stringValue.length() > 0)
+                {
+                    // Same last-resort fallback as the "assume URI" branch
+                    // below: not valid Base64 either, so assume it is the
+                    // literal blob content
+                    if (logger.isDebugEnabled())
+                    {
+                        logger.debug(
+                                "Assuming given string to be content of the blob, encoded with UTF-8.");
+                    }
+                    return stringValue.getBytes(StandardCharsets.UTF_8);
+                }
+                return decodedBytes;
             }
 
             try
@@ -256,7 +277,7 @@ public class BytesDataType extends AbstractDataType
                             // we make a last attempt at doing so.
                             logger.debug(
                                     "Assuming given string to be content of the blob, encoded with UTF-8.");
-                            return stringValue.getBytes();
+                            return stringValue.getBytes(StandardCharsets.UTF_8);
                         } else
                         {
                             return decodedBytes;
