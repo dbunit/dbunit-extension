@@ -27,8 +27,12 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.sql.DatabaseMetaData;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Locale;
 
 import org.dbunit.dataset.datatype.DataType;
+import org.dbunit.dataset.datatype.DefaultDataTypeFactory;
 import org.dbunit.dataset.datatype.IDataTypeFactory;
 import org.dbunit.ext.mssql.MsSqlDataTypeFactory;
 import org.junit.jupiter.api.Test;
@@ -84,6 +88,65 @@ public class AbstractTableMetaDataTest
                 "Validation message should be null because DB product should be supported")
                 .isNull();
         verify(mockDatabaseMetData, times(1)).getDatabaseProductName();
+    }
+
+    @Test
+    void testValidator_withTurkishDefaultLocaleAndUpperCaseIInProductName_returnsNullMessage()
+            throws Exception
+    {
+        final Locale original = Locale.getDefault();
+        Locale.setDefault(new Locale("tr", "TR"));
+        try
+        {
+            final AbstractTableMetaData metaData = new AbstractTableMetaData()
+            {
+                @Override
+                public Column[] getColumns() throws DataSetException
+                {
+                    return null;
+                }
+
+                @Override
+                public Column[] getPrimaryKeys() throws DataSetException
+                {
+                    return null;
+                }
+
+                @Override
+                public String getTableName()
+                {
+                    return null;
+                }
+            };
+            // The valid-products constant is written already-lower-case (as
+            // real IDataTypeFactory implementations do, e.g. "mssql",
+            // "oracle"), while the live driver-reported product name below
+            // has the 'I's upper-case, needing to be folded to match - a
+            // Turkish default locale folds 'I' to dotless 'ı' instead of
+            // 'i', which would break the indexOf() match.
+            final IDataTypeFactory dataTypeFactory = new DefaultDataTypeFactory()
+            {
+                @Override
+                public Collection getValidDbProducts()
+                {
+                    return Collections.singletonList("productii");
+                }
+            };
+            when(mockDatabaseMetData.getDatabaseProductName())
+                    .thenReturn("ProductII");
+
+            final String validationMessage = metaData.validateDataTypeFactory(
+                    dataTypeFactory, mockDatabaseMetData);
+
+            assertThat(validationMessage)
+                    .as("validateDataTypeFactory() must use Locale.ENGLISH so"
+                            + " a Turkish default locale does not break the"
+                            + " case-insensitive product-name match.")
+                    .isNull();
+        } finally
+        {
+            Locale.setDefault(original);
+        }
     }
 
     @Test

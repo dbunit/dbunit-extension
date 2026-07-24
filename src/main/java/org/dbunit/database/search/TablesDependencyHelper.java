@@ -21,6 +21,7 @@
 package org.dbunit.database.search;
 
 import java.sql.SQLException;
+import java.util.Locale;
 import java.util.Set;
 
 import org.dbunit.database.IDatabaseConnection;
@@ -280,7 +281,7 @@ public class TablesDependencyHelper {
             final String[] normalized = new String[tableNames.length];
             for (int i = 0; i < tableNames.length; i++)
             {
-                normalized[i] = tableNames[i].toLowerCase();
+                normalized[i] = tableNames[i].toLowerCase(Locale.ENGLISH);
             }
             return normalized;
         }

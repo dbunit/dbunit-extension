@@ -23,6 +23,8 @@ package org.dbunit.dataset.datatype;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -30,10 +32,12 @@ import static org.mockito.Mockito.when;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
+import java.util.Locale;
 
 import org.dbunit.dataset.ITable;
 import org.dbunit.testutil.FileAsserts;
@@ -161,6 +165,41 @@ class BytesDataTypeTest extends AbstractDataTypeTest
                 FileAsserts.assertEquals(new ByteArrayInputStream(actual),
                         file);
             }
+        }
+    }
+
+    @Test
+    void testTypeCast_turkishLocaleFileCommand_recognizedAsFileCommand() throws Exception
+    {
+        final Locale original = Locale.getDefault();
+        Locale.setDefault(new Locale("tr", "TR"));
+        try
+        {
+            final File file = File.createTempFile("BytesDataTypeTest", ".bin");
+            file.deleteOnExit();
+            final byte[] expected =
+                    "dbunit turkish locale file command test"
+                            .getBytes(StandardCharsets.UTF_8);
+            Files.write(file.toPath(), expected);
+
+            final BytesDataType spyType =
+                    Mockito.spy(new BytesDataType("BINARY", Types.BINARY));
+
+            final Object actual =
+                    spyType.typeCast("[file]" + file.getPath());
+
+            assertThat(actual)
+                    .as("typeCast() must recognize the lower-case '[file]'"
+                            + " command and load the file's bytes.")
+                    .isEqualTo(expected);
+            // Only the fallback URI/file/Base64 guesser (taken when the
+            // "FILE" command is not recognized) ever calls loadURL() first;
+            // a buggy default-locale fold of "file" to "FİLE" under tr-TR
+            // would miss the command match and fall through to it.
+            verify(spyType, never()).loadURL(anyString());
+        } finally
+        {
+            Locale.setDefault(original);
         }
     }
 

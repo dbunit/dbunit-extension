@@ -239,9 +239,9 @@ public abstract class AbstractTableMetaData implements ITableMetaData
 	    Collection validDbProductCollection = productRelatable.getValidDbProducts();
 	    if (validDbProductCollection != null)
 	    {
-	        String lowerCaseDbProductName = databaseProductName.toLowerCase();
+	        String lowerCaseDbProductName = databaseProductName.toLowerCase(Locale.ENGLISH);
 	        for (Iterator iterator = validDbProductCollection.iterator(); iterator.hasNext();) {
-	            String validDbProduct = ((String) iterator.next()).toLowerCase();
+	            String validDbProduct = ((String) iterator.next()).toLowerCase(Locale.ENGLISH);
 	            if(lowerCaseDbProductName.indexOf(validDbProduct) > -1) {
 	                logger.debug("The current database '{}' fits to the configured data type factory '{}'. Validation successful.",
 	                        databaseProductName, dataTypeFactory);

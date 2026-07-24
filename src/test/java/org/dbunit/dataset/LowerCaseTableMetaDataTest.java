@@ -22,6 +22,8 @@ package org.dbunit.dataset;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.Locale;
+
 import org.dbunit.dataset.datatype.DataType;
 import org.junit.jupiter.api.Test;
 
@@ -37,7 +39,7 @@ class LowerCaseTableMetaDataTest
     void testGetTableName_withUpperCaseTableName_returnsLowerCaseName() throws Exception
     {
         final String original = "TABLE_NAME";
-        final String expected = original.toLowerCase();
+        final String expected = original.toLowerCase(Locale.ENGLISH);
 
         final ITableMetaData metaData = new LowerCaseTableMetaData(
                 new DefaultTableMetaData(original, new Column[0]));
@@ -67,7 +69,7 @@ class LowerCaseTableMetaDataTest
             final Column lowerColumn = lowerColumns[i];
 
             assertThat(lowerColumn.getColumnName()).as("name")
-                    .isEqualTo(column.getColumnName().toLowerCase());
+                    .isEqualTo(column.getColumnName().toLowerCase(Locale.ENGLISH));
             assertThat(
                     column.getColumnName().equals(lowerColumn.getColumnName()))
                             .as("name not equals").isFalse();
@@ -104,7 +106,7 @@ class LowerCaseTableMetaDataTest
             assertThat(keyNames[i]).as("name not equals")
                     .isNotEqualTo(keys[i].getColumnName());
             assertThat(keys[i].getColumnName()).as("key name")
-                    .isEqualTo(keyNames[i].toLowerCase());
+                    .isEqualTo(keyNames[i].toLowerCase(Locale.ENGLISH));
         }
     }
 

@@ -25,6 +25,7 @@ import org.dbunit.database.DatabaseConfig;
 import org.dbunit.database.DatabaseConnection;
 
 import java.sql.Connection;
+import java.util.Locale;
 
 /**
  *
@@ -43,7 +44,7 @@ public class OracleConnection extends DatabaseConnection
      */
     public OracleConnection(Connection connection, String schema) throws DatabaseUnitException
     {
-        super(connection, schema != null ? schema.toUpperCase() : null);
+        super(connection, schema != null ? schema.toUpperCase(Locale.ENGLISH) : null);
         getConfig().setProperty(DatabaseConfig.PROPERTY_DATATYPE_FACTORY,
                 new OracleDataTypeFactory());
     }

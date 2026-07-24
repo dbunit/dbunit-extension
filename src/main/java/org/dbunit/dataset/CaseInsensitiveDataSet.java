@@ -21,6 +21,8 @@
 
 package org.dbunit.dataset;
 
+import java.util.Locale;
+
 import org.dbunit.database.AmbiguousTableNameException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,7 +59,7 @@ public class CaseInsensitiveDataSet extends AbstractDataSet
         while(tableIterator.next()) {
             ITable table = (ITable) tableIterator.getTable();
             String tableName = table.getTableMetaData().getTableName();
-            orderedTableMap.add(tableName.toUpperCase(), tableName);
+            orderedTableMap.add(tableName.toUpperCase(Locale.ENGLISH), tableName);
         }
     }
 
@@ -65,7 +67,7 @@ public class CaseInsensitiveDataSet extends AbstractDataSet
     {
         logger.debug("getInternalTableName(tableName={}) - start", tableName);
 
-        String originalTableName = (String)orderedTableMap.get(tableName.toUpperCase());
+        String originalTableName = (String)orderedTableMap.get(tableName.toUpperCase(Locale.ENGLISH));
         if(originalTableName==null){
             throw new NoSuchTableException(tableName);
         }

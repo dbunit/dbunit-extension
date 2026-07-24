@@ -35,6 +35,7 @@ import java.sql.Blob;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -136,7 +137,7 @@ public class BytesDataType extends AbstractDataType
                 final Matcher matcher = inputPattern.matcher(stringValue);
                 if (matcher.matches())
                 {
-                    final String commandLine = matcher.group(1).toUpperCase();
+                    final String commandLine = matcher.group(1).toUpperCase(Locale.ENGLISH);
                     stringValue = matcher.group(2);
 
                     final String[] split = commandLine.split(" ");

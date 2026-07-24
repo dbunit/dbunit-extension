@@ -21,10 +21,14 @@
 
 package org.dbunit.dataset;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import java.io.FileReader;
+import java.util.Locale;
 
 import org.dbunit.dataset.xml.FlatXmlDataSetBuilder;
 import org.dbunit.dataset.xml.FlatXmlDataSetTest;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author Manuel Laflamme
@@ -57,6 +61,31 @@ public class LowerCaseDataSetTest extends AbstractDataSetDecoratorTest
         }
 
         return names;
+    }
+
+    @Test
+    void testGetTableNames_withTurkishDefaultLocaleAndUpperCaseIName_lowercasesAsciiCorrectly()
+            throws Exception
+    {
+        final Locale original = Locale.getDefault();
+        Locale.setDefault(new Locale("tr", "TR"));
+        try
+        {
+            final ITable table = new DefaultTable("ID");
+            final IDataSet lowerCaseDataSet =
+                    new LowerCaseDataSet(new DefaultDataSet(table));
+
+            final String[] actual = lowerCaseDataSet.getTableNames();
+
+            assertThat(actual)
+                    .as("getTableNames() must use Locale.ENGLISH so a"
+                            + " Turkish default locale does not turn 'I' into"
+                            + " a dotless 'ı'.")
+                    .containsExactly("id");
+        } finally
+        {
+            Locale.setDefault(original);
+        }
     }
 
 }
