@@ -56,7 +56,7 @@
     <derbyDriverVersion>10.14.2.0</derbyDriverVersion>
     <h2DriverVersion>1.4.200</h2DriverVersion>
     <hsqldbDriverVersion>2.7.4</hsqldbDriverVersion>
-    <mysqlDriverVersion>8.0.31</mysqlDriverVersion>
+    <mysqlDriverVersion>8.0.33</mysqlDriverVersion>
     <!-- Oracle JDBC Driver compatible with JDK6, JDK7, and JDK8 -->
     <oracleJ6DriverVersion>11.2.0.4</oracleJ6DriverVersion>
     <!-- Oracle JDBC Driver compatible with JDK8 -->
