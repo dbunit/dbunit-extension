@@ -25,6 +25,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.sql.DataSource;
 
+import org.dbunit.database.CachingConnectionProvider;
 import org.dbunit.database.DatabaseConnection;
 import org.dbunit.database.IDatabaseConnection;
 
@@ -45,6 +46,7 @@ public class DataSourceDatabaseTester extends AbstractDatabaseTester
 	 */
 	private static final Logger logger = LoggerFactory.getLogger(DataSourceDatabaseTester.class);
 
+	private final CachingConnectionProvider connectionProvider;
 	private DataSource dataSource;
 
 	/**
@@ -54,13 +56,7 @@ public class DataSourceDatabaseTester extends AbstractDatabaseTester
 	 */
 	public DataSourceDatabaseTester( DataSource dataSource )
 	{
-		super();
-
-        if (dataSource == null) {
-            throw new NullPointerException(
-                    "The parameter 'dataSource' must not be null");
-        }
-		this.dataSource = dataSource;
+		this(dataSource, null, null);
 	}
 
 	/**
@@ -69,15 +65,38 @@ public class DataSourceDatabaseTester extends AbstractDatabaseTester
 	 * @param schema The schema name to be used for new dbunit connections
 	 * @since 2.4.5
 	 */
-	public DataSourceDatabaseTester(DataSource dataSource, String schema) 
+	public DataSourceDatabaseTester(DataSource dataSource, String schema)
 	{
+        this(dataSource, schema, null);
+    }
+
+    /**
+     * Creates a new DataSourceDatabaseTester with the specified DataSource and schema name,
+     * reusing one {@link IDatabaseConnection} across calls via the given
+     * {@link CachingConnectionProvider} instead of creating a new one on every call.<br>
+     * Share the same <code>connectionProvider</code> instance across the testers created for
+     * each test to get reuse across test methods; pair it with
+     * {@link IOperationListener#NO_OP_OPERATION_LISTENER} (or an equivalent non-closing
+     * listener) so the cached connection is not closed after every {@link #onSetup()}/
+     * {@link #onTearDown()} call.
+     *
+     * @param dataSource the DataSource to pull connections from
+     * @param schema The schema name to be used for new dbunit connections - can be <code>null</code>
+     * @param connectionProvider caches and validates the connection across calls - can be
+     *            <code>null</code>, in which case a new connection is created on every call as before
+     * @since 3.4.0
+     */
+    public DataSourceDatabaseTester(DataSource dataSource, String schema,
+            CachingConnectionProvider connectionProvider)
+    {
         super(schema);
-        
+
         if (dataSource == null) {
             throw new NullPointerException(
                     "The parameter 'dataSource' must not be null");
         }
         this.dataSource = dataSource;
+        this.connectionProvider = connectionProvider;
     }
 
     public IDatabaseConnection getConnection() throws Exception
@@ -85,6 +104,15 @@ public class DataSourceDatabaseTester extends AbstractDatabaseTester
 		logger.debug("getConnection() - start");
 
 		assertTrue( "DataSource is not set", dataSource!=null );
+		if (connectionProvider != null)
+		{
+			return connectionProvider.getConnection(this::createConnection);
+		}
+		return createConnection();
+	}
+
+	private IDatabaseConnection createConnection() throws Exception
+	{
 		return new DatabaseConnection( dataSource.getConnection(), getSchema() );
 	}
 }

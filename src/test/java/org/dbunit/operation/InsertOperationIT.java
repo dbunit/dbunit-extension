@@ -54,60 +54,6 @@ import org.junit.jupiter.api.Test;
 public class InsertOperationIT extends AbstractDatabaseIT
 {
 
-    // public void testExecuteNullAsNone() throws Exception
-    // {
-    // String schemaName = "schema";
-    // String tableName = "table";
-    // String[] expected = {
-    // "insert into schema.table (c1, c2, c3) values ('toto', 1234, 'false')",
-    // "insert into schema.table (c2, c3) values (123.45, 'true')",
-    // "insert into schema.table (c1, c2, c3) values ('qwerty1', 1, 'true')",
-    // "insert into schema.table (c1, c2, c3) values ('qwerty2', 2, 'false')",
-    // "insert into schema.table (c3) values ('false')",
-    // };
-    //
-    // // setup table
-    // List valueList = new ArrayList();
-    // valueList.add(new Object[]{"toto", "1234", Boolean.FALSE});
-    // valueList.add(new Object[]{null, new Double("123.45"), "true"});
-    // valueList.add(new Object[]{"qwerty1", "1", Boolean.TRUE});
-    // valueList.add(new Object[]{"qwerty2", "2", Boolean.FALSE});
-    // valueList.add(new Object[]{null, null, Boolean.FALSE});
-    // Column[] columns = new Column[]{
-    // new Column("c1", DataType.VARCHAR),
-    // new Column("c2", DataType.NUMERIC),
-    // new Column("c3", DataType.BOOLEAN),
-    // };
-    // DefaultTable table = new DefaultTable(tableName, columns, valueList);
-    // IDataSet dataSet = new DefaultDataSet(table);
-    //
-    // // setup mock objects
-    // MockBatchStatement statement = new MockBatchStatement();
-    // statement.addExpectedBatchStrings(expected);
-    // statement.setExpectedExecuteBatchCalls(4);
-    // statement.setExpectedClearBatchCalls(4);
-    // statement.setExpectedCloseCalls(4);
-    //
-    // MockStatementFactory factory = new MockStatementFactory();
-    // factory.setExpectedCreatePreparedStatementCalls(4);
-    // factory.setupStatement(statement);
-    //
-    // MockDatabaseConnection connection = new MockDatabaseConnection();
-    // connection.setupDataSet(dataSet);
-    // connection.setupSchema(schemaName);
-    // connection.setupStatementFactory(factory);
-    // connection.setExpectedCloseCalls(0);
-    // DatabaseConfig config = connection.getConfig();
-    // config.setFeature(DatabaseConfig.FEATURE_NULL_AS_NONE, true);
-    //
-    // // execute operation
-    // new InsertOperation().execute(connection, dataSet);
-    //
-    // statement.verify();
-    // factory.verify();
-    // connection.verify();
-    // }
-
     @Test
     void testExecute_withClobData_insertsClobSuccessfully() throws Exception
     {

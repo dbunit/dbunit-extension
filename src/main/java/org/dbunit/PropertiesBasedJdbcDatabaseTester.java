@@ -21,6 +21,8 @@
 
 package org.dbunit;
 
+import org.dbunit.database.CachingConnectionProvider;
+
 /**
  * DatabaseTester that configures a DriverManager from environment properties.<br>
  * This class defines a set of keys for system properties that need to be
@@ -63,13 +65,41 @@ public class PropertiesBasedJdbcDatabaseTester extends JdbcDatabaseTester
      * values as initialization parameters
      * @throws Exception
      */
-    public PropertiesBasedJdbcDatabaseTester() throws Exception 
+    public PropertiesBasedJdbcDatabaseTester() throws Exception
     {
-        super(  System.getProperty(DBUNIT_DRIVER_CLASS), 
-                System.getProperty(DBUNIT_CONNECTION_URL), 
-                System.getProperty(DBUNIT_USERNAME), 
-                System.getProperty(DBUNIT_PASSWORD), 
+        super(  System.getProperty(DBUNIT_DRIVER_CLASS),
+                System.getProperty(DBUNIT_CONNECTION_URL),
+                System.getProperty(DBUNIT_USERNAME),
+                System.getProperty(DBUNIT_PASSWORD),
                 System.getProperty(DBUNIT_SCHEMA)
+            );
+    }
+
+    /**
+     * Creates a new {@link JdbcDatabaseTester} using specific {@link System#getProperty(String)}
+     * values as initialization parameters, reusing one {@link org.dbunit.database.IDatabaseConnection}
+     * across calls via the given {@link CachingConnectionProvider} instead of creating a new one on
+     * every call.<br>
+     * Share the same <code>connectionProvider</code> instance across the testers created for each
+     * test to get reuse across test methods; pair it with {@link IOperationListener#NO_OP_OPERATION_LISTENER}
+     * (or an equivalent non-closing listener) so the cached connection is not closed after every
+     * {@link #onSetup()}/{@link #onTearDown()} call.
+     *
+     * @param connectionProvider Caches and validates the connection across
+     *            calls. Can be <code>null</code>, in which case a new
+     *            connection is created on every call as before.
+     * @throws Exception If the configured driver class was not found
+     * @since 3.4.0
+     */
+    public PropertiesBasedJdbcDatabaseTester(final CachingConnectionProvider connectionProvider)
+            throws Exception
+    {
+        super(  System.getProperty(DBUNIT_DRIVER_CLASS),
+                System.getProperty(DBUNIT_CONNECTION_URL),
+                System.getProperty(DBUNIT_USERNAME),
+                System.getProperty(DBUNIT_PASSWORD),
+                System.getProperty(DBUNIT_SCHEMA),
+                connectionProvider
             );
     }
 
