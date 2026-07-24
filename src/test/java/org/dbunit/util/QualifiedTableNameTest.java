@@ -128,6 +128,46 @@ class QualifiedTableNameTest
     }
 
     @Test
+    void testGetQualifiedName_singleCharSchemaWithEscapePattern_escapesBothSegments()
+    {
+        final String qualifiedName =
+                new QualifiedTableName("A.TBL", null, "[?]")
+                        .getQualifiedName();
+        assertThat(qualifiedName).isEqualTo("[A].[TBL]");
+    }
+
+    @Test
+    void testGetQualifiedName_multiCharSchemaWithEscapePattern_escapesBothSegments()
+    {
+        final String qualifiedName =
+                new QualifiedTableName("MULTI.TBL", null, "[?]")
+                        .getQualifiedName();
+        assertThat(qualifiedName).isEqualTo("[MULTI].[TBL]");
+    }
+
+    @Test
+    void testGetQualifiedName_noDotWithEscapePattern_escapesSingleSegment()
+    {
+        final String qualifiedName =
+                new QualifiedTableName("TBL", "SCHEMA", "[?]")
+                        .getQualifiedName();
+        assertThat(qualifiedName).isEqualTo("[SCHEMA].[TBL]");
+    }
+
+    @Test
+    void testGetQualifiedName_singleCharMiddleSegmentWithEscapePattern_escapesEachRemainingSegment()
+    {
+        // Before the split > 0 fix, getEscapedName's recursive dot-split
+        // only triggered when the first segment was 2+ characters, so the
+        // single-character "X" segment here was escaped as one malformed
+        // token "[X.TABLE]" instead of two: "[X].[TABLE]".
+        final String qualifiedName =
+                new QualifiedTableName("CATALOG.X.TABLE", null, "[?]")
+                        .getQualifiedName();
+        assertThat(qualifiedName).isEqualTo("[X].[TABLE]");
+    }
+
+    @Test
     void testConstructorWithNullTable_withNullTableName_throwsNullPointerException()
     {
         try

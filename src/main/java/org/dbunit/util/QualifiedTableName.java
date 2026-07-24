@@ -196,6 +196,11 @@ public class QualifiedTableName
             name = getEscapedName(name, escapePattern);
         }
 
+        // A 3+-part original name (e.g. "CATALOG.X.TABLE") still contains a
+        // dot here after escaping its "X.TABLE" remainder, so this branch
+        // returns it as-is and silently drops prefix ("CATALOG") rather than
+        // qualifying with it - pre-existing behavior, not full 3-part
+        // support.
         if (prefix == null || prefix.equals("") || name.indexOf(".") >= 0)
         {
             return name;
@@ -230,7 +235,7 @@ public class QualifiedTableName
         }
     
         int split = name.indexOf(".");
-        if (split > 1)
+        if (split > 0)
         {
         	return getEscapedName(name.substring(0, split), escapePattern) + "." + getEscapedName(name.substring(split + 1), escapePattern);
         }
