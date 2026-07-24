@@ -21,7 +21,6 @@
 
 package org.dbunit.dataset.datatype;
 
-import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -64,7 +63,21 @@ public class BytesDataType extends AbstractDataType
         super(name, sqlType, byte[].class, false);
     }
 
-    private byte[] toByteArray(InputStream in, final int length)
+    /**
+     * Reads all remaining bytes from the given stream, then closes it.
+     * Callers transfer ownership of {@code in} to this method: they must not
+     * use or close it themselves.
+     *
+     * @param in
+     *            The stream to read and close.
+     * @param length
+     *            An estimate of the number of bytes to read, used to size
+     *            the result buffer.
+     * @return The bytes read from the stream.
+     * @throws IOException
+     *             On a read failure.
+     */
+    private byte[] toByteArray(final InputStream in, final int length)
             throws IOException
     {
         if (logger.isDebugEnabled())
@@ -73,12 +86,14 @@ public class BytesDataType extends AbstractDataType
         }
 
         final ByteArrayOutputStream out = new ByteArrayOutputStream(length);
-        in = new BufferedInputStream(in);
-        int i = in.read();
-        while (i != -1)
+        try (InputStream inputStream = in)
         {
-            out.write(i);
-            i = in.read();
+            final byte[] buffer = new byte[8192];
+            int bytesRead;
+            while ((bytesRead = inputStream.read(buffer)) != -1)
+            {
+                out.write(buffer, 0, bytesRead);
+            }
         }
         return out.toByteArray();
     }

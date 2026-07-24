@@ -31,6 +31,10 @@ import static org.mockito.Mockito.when;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.io.InputStream;
+import java.net.URL;
+import java.net.URLConnection;
+import java.net.URLStreamHandler;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.sql.PreparedStatement;
@@ -166,6 +170,57 @@ class BytesDataTypeTest extends AbstractDataTypeTest
                         file);
             }
         }
+    }
+
+    @Test
+    void testLoadFile_afterLoad_fileIsDeletable() throws Exception
+    {
+        final File file = File.createTempFile("BytesDataTypeTest", ".bin");
+        file.deleteOnExit();
+        Files.write(file.toPath(), new byte[] {1, 2, 3});
+
+        new BytesDataType("BINARY", Types.BINARY).loadFile(file.getPath());
+
+        assertThat(file.delete())
+                .as("loadFile() must close its file handle so the loaded"
+                        + " file can be deleted immediately afterward.")
+                .isTrue();
+    }
+
+    @Test
+    void testTypeCast_urlValue_closesStream() throws Exception
+    {
+        final byte[] expected = {1, 2, 3};
+        final InputStream spyStream =
+                Mockito.spy(new ByteArrayInputStream(expected));
+        final URLStreamHandler handler = new URLStreamHandler()
+        {
+            @Override
+            protected URLConnection openConnection(final URL u)
+            {
+                return new URLConnection(u)
+                {
+                    @Override
+                    public void connect()
+                    {
+                        // No connection setup needed for this test double.
+                    }
+
+                    @Override
+                    public InputStream getInputStream()
+                    {
+                        return spyStream;
+                    }
+                };
+            }
+        };
+        final URL url = new URL("spy", "test", -1, "/data", handler);
+
+        final Object actual =
+                new BytesDataType("BINARY", Types.BINARY).typeCast(url);
+
+        assertThat(actual).as("typeCast(URL) result.").isEqualTo(expected);
+        verify(spyStream, times(1)).close();
     }
 
     @Test
