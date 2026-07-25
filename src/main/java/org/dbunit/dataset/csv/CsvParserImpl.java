@@ -172,22 +172,19 @@ public class CsvParserImpl implements CsvParser {
         String anotherLine = lineNumberReader.readLine();
         if(anotherLine == null)
             return null;
-        boolean shouldProceed = false;
         while (columnsCollectedSoFar < expectedNumberOfColumns) {
             try {
                 buffer.append(anotherLine);
                 columns = parse(buffer.toString());
                 columnsCollectedSoFar = columns.size();
+                break;
             } catch (IllegalStateException e) {
                 resetThePipeline();
                 anotherLine = lineNumberReader.readLine();
                 if(anotherLine == null)
                     break;
                 buffer.append("\n");
-                shouldProceed = true;
             }
-            if (!shouldProceed)
-                break;
         }
         if (columnsCollectedSoFar != expectedNumberOfColumns) {
             String message = new StringBuilder("Expected ").append(expectedNumberOfColumns)
