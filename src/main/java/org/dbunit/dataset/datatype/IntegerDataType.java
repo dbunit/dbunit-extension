@@ -100,6 +100,7 @@ public class IntegerDataType extends AbstractDataType
     {
         logger.debug("getSqlValue(column={}, resultSet={}) - start", column,
                 resultSet);
+
         final int rawValue = resultSet.getInt(column);
         final Integer value = resultSet.wasNull() ? null : rawValue;
         logger.debug("getSqlValue: column={}, value={}", column, value);
@@ -111,8 +112,12 @@ public class IntegerDataType extends AbstractDataType
             final PreparedStatement statement)
             throws SQLException, TypeCastException
     {
-        logger.debug("setSqlValue(value={}, column={}, statement={}) - start",
-                value, column, statement);
+        if (logger.isDebugEnabled())
+        {
+            logger.debug(
+                    "setSqlValue(value={}, column={}, statement={}) - start",
+                    value, column, statement);
+        }
 
         statement.setInt(column, (Integer) typeCast(value));
     }

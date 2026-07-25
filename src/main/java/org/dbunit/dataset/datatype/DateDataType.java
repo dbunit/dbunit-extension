@@ -137,6 +137,7 @@ public class DateDataType extends AbstractDataType
     {
         logger.debug("getSqlValue(column={}, resultSet={}) - start", column,
                 resultSet);
+
         final java.sql.Date rawValue = resultSet.getDate(column);
         final java.sql.Date value = resultSet.wasNull() ? null : rawValue;
         logger.debug("getSqlValue: column={}, value={}", column, value);
@@ -148,8 +149,12 @@ public class DateDataType extends AbstractDataType
             final PreparedStatement statement)
             throws SQLException, TypeCastException
     {
-        logger.debug("setSqlValue(value={}, column={}, statement={}) - start",
-                value, column, statement);
+        if (logger.isDebugEnabled())
+        {
+            logger.debug(
+                    "setSqlValue(value={}, column={}, statement={}) - start",
+                    value, column, statement);
+        }
 
         statement.setDate(column, (java.sql.Date) typeCast(value));
     }

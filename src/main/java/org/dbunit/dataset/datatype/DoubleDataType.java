@@ -77,6 +77,7 @@ public class DoubleDataType extends AbstractDataType
     {
         logger.debug("getSqlValue(column={}, resultSet={}) - start", column,
                 resultSet);
+
         final double rawValue = resultSet.getDouble(column);
         final Double value = resultSet.wasNull() ? null : rawValue;
         logger.debug("getSqlValue: column={}, value={}", column, value);
@@ -88,8 +89,12 @@ public class DoubleDataType extends AbstractDataType
             final PreparedStatement statement)
             throws SQLException, TypeCastException
     {
-        logger.debug("setSqlValue(value={}, column={}, statement={}) - start",
-                value, column, statement);
+        if (logger.isDebugEnabled())
+        {
+            logger.debug(
+                    "setSqlValue(value={}, column={}, statement={}) - start",
+                    value, column, statement);
+        }
 
         statement.setDouble(column, ((Number) typeCast(value)).doubleValue());
     }
