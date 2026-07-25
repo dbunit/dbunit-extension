@@ -78,6 +78,7 @@ public class LongDataType extends AbstractDataType
     {
         logger.debug("getSqlValue(column={}, resultSet={}) - start", column,
                 resultSet);
+
         final long rawValue = resultSet.getLong(column);
         final Long value = resultSet.wasNull() ? null : rawValue;
         logger.debug("getSqlValue: column={}, value={}", column, value);
@@ -89,8 +90,12 @@ public class LongDataType extends AbstractDataType
             final PreparedStatement statement)
             throws SQLException, TypeCastException
     {
-        logger.debug("setSqlValue(value={}, column={}, statement={}) - start",
-                value, column, statement);
+        if (logger.isDebugEnabled())
+        {
+            logger.debug(
+                    "setSqlValue(value={}, column={}, statement={}) - start",
+                    value, column, statement);
+        }
 
         statement.setLong(column, ((Number) typeCast(value)).longValue());
     }

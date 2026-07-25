@@ -91,6 +91,7 @@ public class BigIntegerDataType extends AbstractDataType
     {
         logger.debug("getSqlValue(column={}, resultSet={}) - start", column,
                 resultSet);
+
         final BigDecimal rawValue = resultSet.getBigDecimal(column);
         final BigInteger value =
                 resultSet.wasNull() ? null : rawValue.toBigInteger();
@@ -103,8 +104,12 @@ public class BigIntegerDataType extends AbstractDataType
             final PreparedStatement statement)
             throws SQLException, TypeCastException
     {
-        logger.debug("setSqlValue(value={}, column={}, statement={}) - start",
-                value, column, statement);
+        if (logger.isDebugEnabled())
+        {
+            logger.debug(
+                    "setSqlValue(value={}, column={}, statement={}) - start",
+                    value, column, statement);
+        }
 
         final BigInteger val = (BigInteger) typeCast(value);
         final BigDecimal valueBigDecimal =

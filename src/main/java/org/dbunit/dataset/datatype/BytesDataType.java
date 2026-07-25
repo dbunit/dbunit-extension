@@ -401,6 +401,7 @@ public class BytesDataType extends AbstractDataType
     {
         logger.debug("getSqlValue(column={}, resultSet={}) - start", column,
                 resultSet);
+
         final byte[] rawValue = resultSet.getBytes(column);
         final byte[] value = resultSet.wasNull() ? null : rawValue;
         logger.debug("getSqlValue: column={}, value={}", column, value);
@@ -412,8 +413,12 @@ public class BytesDataType extends AbstractDataType
             final PreparedStatement statement)
             throws SQLException, TypeCastException
     {
-        logger.debug("setSqlValue(value={}, column={}, statement={}) - start",
-                value, column, statement);
+        if (logger.isDebugEnabled())
+        {
+            logger.debug(
+                    "setSqlValue(value={}, column={}, statement={}) - start",
+                    value, column, statement);
+        }
 
         super.setSqlValue(value, column, statement);
     }
