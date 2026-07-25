@@ -113,24 +113,18 @@ public class FileHelper
      * @param destFile the dest file
      * @throws IOException 
      */
-    public static void copyFile(File srcFile, File destFile) throws IOException 
+    public static void copyFile(File srcFile, File destFile) throws IOException
     {
         logger.debug("copyFile(srcFile={}, destFile={}) - start", srcFile, destFile);
 
-        // Create channel on the source
-        FileChannel srcChannel = new FileInputStream(srcFile).getChannel();
+        try (FileInputStream srcStream = new FileInputStream(srcFile);
+                FileOutputStream dstStream = new FileOutputStream(destFile))
+        {
+            FileChannel srcChannel = srcStream.getChannel();
+            FileChannel dstChannel = dstStream.getChannel();
 
-        // Create channel on the destination
-        FileChannel dstChannel = new FileOutputStream(destFile).getChannel();
-
-        try {
             // Copy file contents from source to destination
             dstChannel.transferFrom(srcChannel, 0, srcChannel.size());
-        }
-        finally {
-            // Close the channels
-            srcChannel.close();
-            dstChannel.close();
         }
     }
 
