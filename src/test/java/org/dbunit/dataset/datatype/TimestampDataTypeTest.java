@@ -326,6 +326,37 @@ class TimestampDataTypeTest extends AbstractDataTypeTest
                 .isEqualTo(expected);
     }
 
+    @Test
+    void testTypeCast_preEpochFractionalSecondWithTimezone_correctInstant()
+            throws Exception
+    {
+        final Timestamp expected =
+                makeTimestamp(1969, 11, 31, 23, 59, 58, 500, "GMT+01:00");
+        final String ts = "1969-12-31 23:59:58.5 +0100";
+        assertThat(THIS_TYPE.typeCast(ts))
+                .as("Truncating (not flooring) division on a negative"
+                        + " pre-epoch millis value shifted the result a full"
+                        + " second late.")
+                .isEqualTo(expected);
+    }
+
+    @Test
+    void testTypeCast_offsetProducesNegativeEncodedTime_normalizesNanos()
+            throws Exception
+    {
+        final Timestamp expected =
+                makeTimestamp(1969, 11, 31, 20, 0, 0, "GMT+00:00");
+        expected.setNanos(500);
+        final String ts = "1970-01-01 10:00:00.000000500 +1400";
+        assertThat(THIS_TYPE.typeCast(ts))
+                .as("An extreme positive zone offset applied to a timestamp"
+                        + " with sub-millisecond nanoseconds can drive the"
+                        + " internal encoded value negative; construction"
+                        + " must not throw IllegalArgumentException from a"
+                        + " negative nanos value.")
+                .isEqualTo(expected);
+    }
+
     @Override
     @Test
     public void testTypeCastInvalid_withIncompatibleInput_throwsTypeCastException() throws Exception
