@@ -29,16 +29,20 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.StringReader;
+import java.io.StringWriter;
 import java.io.Writer;
 
 import org.dbunit.Assertion;
 import org.dbunit.dataset.AbstractDataSetTest;
 import org.dbunit.dataset.Column;
 import org.dbunit.dataset.DataSetUtils;
+import org.dbunit.dataset.DefaultDataSet;
+import org.dbunit.dataset.DefaultTable;
 import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.ITableIterator;
 import org.dbunit.dataset.ITableMetaData;
+import org.dbunit.dataset.datatype.DataType;
 import org.dbunit.testutil.TestUtils;
 import org.junit.jupiter.api.Test;
 
@@ -185,6 +189,32 @@ public class FlatXmlDataSetTest extends AbstractDataSetTest
         {
             tempFile.delete();
         }
+    }
+
+    @Test
+    void testWrite_withSupplementaryCharacterCell_writesAndReadsBackEquivalentData()
+            throws Exception
+    {
+        final String emoji = "😀"; // U+1F600 GRINNING FACE
+        final String col0 = "COL0";
+        final Column[] columns = {new Column(col0, DataType.UNKNOWN)};
+        final DefaultTable table = new DefaultTable("TABLE1", columns);
+        table.addRow();
+        table.setValue(0, col0, emoji);
+        final IDataSet expectedDataSet = new DefaultDataSet(table);
+
+        final StringWriter out = new StringWriter();
+        FlatXmlDataSet.write(expectedDataSet, out);
+
+        final IDataSet actualDataSet = new FlatXmlDataSetBuilder()
+                .build(new StringReader(out.toString()));
+
+        assertThat(actualDataSet.getTable("TABLE1").getValue(0, col0))
+                .as("A supplementary character (outside the BMP) must"
+                        + " round-trip verbatim through flat XML"
+                        + " export/import instead of being split into two"
+                        + " invalid surrogate numeric entities.")
+                .isEqualTo(emoji);
     }
 
     @Test

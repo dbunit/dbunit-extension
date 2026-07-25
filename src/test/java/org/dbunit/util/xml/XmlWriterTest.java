@@ -24,10 +24,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.fail;
 
 import java.io.ByteArrayOutputStream;
+import java.io.StringReader;
 import java.io.StringWriter;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 
+import org.dbunit.dataset.Column;
+import org.dbunit.dataset.DefaultDataSet;
+import org.dbunit.dataset.DefaultTable;
+import org.dbunit.dataset.IDataSet;
+import org.dbunit.dataset.datatype.DataType;
+import org.dbunit.dataset.xml.XmlDataSet;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -205,6 +212,125 @@ class XmlWriterTest
 
         final String actualXml = writer.toString();
         assertThat(actualXml).isEqualTo(expectedXml);
+    }
+
+    @Test
+    void testEscapeXml_withMarkupCharacters_escapesUnchanged() throws Exception
+    {
+        final String text = "a & b < c > d \" e ' f";
+        final String expectedText =
+                "a &amp; b &lt; c &gt; d &quot; e &apos; f";
+        final String expectedXml = "<COLUMN1 ATTR=\"" + expectedText + "\">"
+                + expectedText + "</COLUMN1>\n";
+
+        final Writer writer = new StringWriter();
+        final XmlWriter xmlWriter = new XmlWriter(writer);
+        xmlWriter.writeElement("COLUMN1");
+        xmlWriter.writeAttribute("ATTR", text);
+        xmlWriter.writeText(text);
+        xmlWriter.endElement();
+        xmlWriter.close();
+
+        assertThat(writer.toString())
+                .as("Markup characters must still be entity-escaped the same"
+                        + " way after routing escapeXml() through code points.")
+                .isEqualTo(expectedXml);
+    }
+
+    @Test
+    void testWriteText_controlCharacter_replacedWithReplacementChar()
+            throws Exception
+    {
+        final String replacementChar = String.valueOf((char) 0xFFFD);
+        final String controlChar = String.valueOf((char) 0x01);
+        final String col0 = "COL0";
+        final Column[] columns = {new Column(col0, DataType.UNKNOWN)};
+        final DefaultTable table = new DefaultTable("TABLE1", columns);
+        table.addRow();
+        table.setValue(0, col0, "before" + controlChar + "after");
+        final IDataSet dataSet = new DefaultDataSet(table);
+
+        final StringWriter out = new StringWriter();
+        XmlDataSet.write(dataSet, out);
+        final String xml = out.toString();
+
+        assertThat(xml)
+                .as("A control character not representable in XML 1.0 must"
+                        + " be replaced with U+FFFD instead of written raw.")
+                .contains("before" + replacementChar + "after")
+                .doesNotContain(controlChar);
+
+        final IDataSet reread = new XmlDataSet(new StringReader(xml));
+        assertThat(reread.getTable("TABLE1").getValue(0, col0))
+                .as("The exported document must still be well-formed and"
+                        + " re-parseable, recovering the replacement"
+                        + " character.")
+                .isEqualTo("before" + replacementChar + "after");
+    }
+
+    @Test
+    void testWriteText_unpairedSurrogate_replacedWithReplacementChar()
+            throws Exception
+    {
+        final String replacementChar = String.valueOf((char) 0xFFFD);
+        final String loneHighSurrogate = String.valueOf((char) 0xD800);
+        final String col0 = "COL0";
+        final Column[] columns = {new Column(col0, DataType.UNKNOWN)};
+        final DefaultTable table = new DefaultTable("TABLE1", columns);
+        table.addRow();
+        table.setValue(0, col0, "before" + loneHighSurrogate + "after");
+        final IDataSet dataSet = new DefaultDataSet(table);
+
+        final StringWriter out = new StringWriter();
+        XmlDataSet.write(dataSet, out);
+        final String xml = out.toString();
+
+        assertThat(xml)
+                .as("A high surrogate with no matching low surrogate is not"
+                        + " representable in XML 1.0 (escapeXml() iterates"
+                        + " by code point, and codePointAt() returns an"
+                        + " unpaired surrogate as its own \"code point\"),"
+                        + " so it must be replaced with U+FFFD instead of"
+                        + " written raw or as a numeric entity to a"
+                        + " forbidden surrogate code point.")
+                .contains("before" + replacementChar + "after")
+                .doesNotContain(loneHighSurrogate);
+
+        final IDataSet reread = new XmlDataSet(new StringReader(xml));
+        assertThat(reread.getTable("TABLE1").getValue(0, col0))
+                .as("The exported document must still be well-formed and"
+                        + " re-parseable, recovering the replacement"
+                        + " character.")
+                .isEqualTo("before" + replacementChar + "after");
+    }
+
+    @Test
+    void testEscapeXml_withAdjacentControlAndMarkupCharacters_bothSubstitutedCorrectly()
+            throws Exception
+    {
+        final String replacementChar = String.valueOf((char) 0xFFFD);
+        final String controlChar = String.valueOf((char) 0x01);
+        // The control char and '&' are adjacent, back-to-back substitutions
+        // with nothing in between - exactly where index/last bookkeeping
+        // bugs in escapeXml()'s buffer-copying loop would hide
+        final String text = "a" + controlChar + "&b";
+        final String expectedText = "a" + replacementChar + "&amp;b";
+        final String expectedXml =
+                "<COLUMN1>" + expectedText + "</COLUMN1>\n";
+
+        final Writer writer = new StringWriter();
+        final XmlWriter xmlWriter = new XmlWriter(writer);
+        xmlWriter.writeElement("COLUMN1");
+        xmlWriter.writeText(text);
+        xmlWriter.endElement();
+        xmlWriter.close();
+
+        assertThat(writer.toString())
+                .as("Two adjacent substitutions (a replaced control"
+                        + " character immediately followed by an escaped"
+                        + " markup character) must both be applied, with"
+                        + " nothing dropped or duplicated between them.")
+                .isEqualTo(expectedXml);
     }
 
     @Test
