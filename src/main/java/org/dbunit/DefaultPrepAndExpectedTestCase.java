@@ -54,7 +54,7 @@ import org.slf4j.LoggerFactory;
  * data needed for the test to run. Expected data is the data needed to compare
  * if the test ran successfully.
  * <p>
- * setupData(), verifyData(), and cleanupData() share one
+ * configureTest(), setupData(), verifyData(), and cleanupData() share one
  * {@link org.dbunit.database.IDatabaseConnection} for a test's lifecycle,
  * acquired lazily on first use and closed once by cleanupData(), instead of
  * each acquiring (and often closing) its own. Calling any of those methods
@@ -202,6 +202,10 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
 
     /**
      * {@inheritDoc}
+     * <p>
+     * Executes against the connection shared with setupData(), verifyData()
+     * and cleanupData() for this test's lifecycle rather than a fresh one,
+     * and leaves it open; cleanupData() closes it. See #800.
      */
     @Override
     public void configureTest(
@@ -234,12 +238,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
             final IDatabaseConnection reusableConnection =
                     getReusableConnection();
             final DatabaseConfig config = reusableConnection.getConfig();
-            final boolean featureValue = config.getFeature(featureName);
-            if (acquiredConnectionHere)
-            {
-                closeReusableConnection();
-            }
-            return featureValue;
+            return config.getFeature(featureName);
         } catch (final Exception e)
         {
             if (acquiredConnectionHere)
