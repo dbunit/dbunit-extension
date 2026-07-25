@@ -75,6 +75,22 @@ class DefaultPrepAndExpectedTestCaseTest
     }
 
     @Test
+    void testConfigureTest_calledAlone_leavesConnectionOpen() throws Exception
+    {
+        tc.configureTest(new VerifyTableDefinition[] {}, new String[] {},
+                new String[] {});
+
+        final MockDatabaseConnection connection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        // configureTest() leaves the connection open for setupData()/
+        // verifyData()/cleanupData() to reuse, aligning it with those other
+        // lifecycle methods; called standalone here, cleanupData() never
+        // runs (#800, #825)
+        connection.setExpectedCloseCalls(0);
+        connection.verify();
+    }
+
+    @Test
     void testPreTest_withTablesAndDataFiles_configuresDatasetAndExecutesSetUpOperation()
             throws Exception
     {
@@ -90,11 +106,11 @@ class DefaultPrepAndExpectedTestCaseTest
 
         final MockDatabaseConnection connection =
                 (MockDatabaseConnection) databaseTester.getConnection();
-        // 1 close from configureTest's case-sensitivity feature lookup
-        // (self-contained, unchanged); setupData()'s CLEAN_INSERT acquires
-        // the connection shared with verifyData()/cleanupData() but leaves
-        // it open since cleanupData() has not run yet to close it (#800)
-        connection.setExpectedCloseCalls(1);
+        // configureTest()'s case-sensitivity feature lookup and setupData()'s
+        // CLEAN_INSERT now share the same connection instead of configureTest
+        // closing its own and setupData() reacquiring a second one; it stays
+        // open since cleanupData() has not run yet to close it (#800, #825)
+        connection.setExpectedCloseCalls(0);
         connection.verify();
     }
 
@@ -175,11 +191,11 @@ class DefaultPrepAndExpectedTestCaseTest
 
         final MockDatabaseConnection connection =
                 (MockDatabaseConnection) databaseTester.getConnection();
-        // verifyData is skipped, so no connection is shared/acquired for
-        // cleanupData() to later close; the single close is cleanupData's
-        // own fallback case-sensitivity feature lookup (configureTest() was
-        // not called), and its tearDownOperation defaults to NONE so no
-        // connection is acquired for tear down either
+        // verifyData is skipped, so cleanupData()'s own fallback
+        // case-sensitivity feature lookup (configureTest() was not called)
+        // is the first to acquire a connection; its tearDownOperation
+        // defaults to NONE so no further connection use happens, and
+        // cleanupData()'s final close is the single close for the lifecycle
         connection.setExpectedCloseCalls(1);
         connection.verify();
     }
@@ -433,10 +449,11 @@ class DefaultPrepAndExpectedTestCaseTest
         final MockDatabaseConnection connection =
                 (MockDatabaseConnection) databaseTester.getConnection();
         // configureTest() was not called, so cleanupData() falls back to its
-        // own case-sensitivity feature lookup (1 close); separately, it
-        // closes the connection it acquired to run the DELETE_ALL tear down
-        // operation (1 close) (#800)
-        connection.setExpectedCloseCalls(2);
+        // own case-sensitivity feature lookup; that connection is left open
+        // for the DELETE_ALL tear down operation to reuse instead of
+        // reacquiring a second one, so cleanupData()'s final close is the
+        // only close for the whole call (#800, #825)
+        connection.setExpectedCloseCalls(1);
         connection.verify();
     }
 
@@ -525,15 +542,14 @@ class DefaultPrepAndExpectedTestCaseTest
         tc.preTest();
         tc.postTest();
 
-        // configureTest() acquires its own self-contained connection
-        // (1 call); setupData() acquires a second connection, reused by
-        // verifyData() and by cleanupData()'s DELETE_ALL tear down
-        // operation, instead of a fresh connection at each of those steps
-        // (#800)
-        Mockito.verify(spyDatabaseTester, Mockito.times(2)).getConnection();
-        // 1 close from configureTest's feature lookup, 1 from cleanupData()
-        // closing the connection shared across setup/verify/tear down
-        connection.setExpectedCloseCalls(2);
+        // configureTest() acquires the one connection reused by setupData(),
+        // verifyData(), and by cleanupData()'s DELETE_ALL tear down
+        // operation, instead of configureTest closing its own and each
+        // later step reacquiring (#800, #825)
+        Mockito.verify(spyDatabaseTester, Mockito.times(1)).getConnection();
+        // cleanupData()'s final close is the only close across the whole
+        // configureTest/setupData/verifyData/cleanupData lifecycle
+        connection.setExpectedCloseCalls(1);
         connection.verify();
     }
 
