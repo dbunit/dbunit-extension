@@ -869,58 +869,6 @@ public class XmlWriter
         return buffer == null ? value : buffer.toString();
     }
 
-    private void setEncoding(String encoding)
-    {
-        logger.debug("setEncoding(encoding={}) - start", encoding);
-
-        Charset charset = null;
-
-        if (encoding == null && out instanceof OutputStreamWriter)
-        {
-            charset = Charset.forName(((OutputStreamWriter) out).getEncoding());
-        }
-
-        if (encoding != null)
-        {
-            final String ucEncoding = encoding.toUpperCase();
-
-            // Use official encoding names where we know them,
-            // avoiding the Java-only names. When using common
-            // encodings where we can easily tell if characters
-            // are out of range, we'll escape out-of-range
-            // characters using character refs for safety.
-
-            // I _think_ these are all the main synonyms for these!
-            if ("UTF8".equalsIgnoreCase(ucEncoding))
-            {
-                charset = StandardCharsets.UTF_8;
-            } else if ("US-ASCII".equalsIgnoreCase(ucEncoding) || "ASCII".equalsIgnoreCase(ucEncoding))
-            {
-                // dangerMask = (short)0xff80;
-                charset = StandardCharsets.US_ASCII;
-            } else if ("ISO-8859-1".equalsIgnoreCase(ucEncoding)
-                    || "8859_1".equalsIgnoreCase(ucEncoding)
-                    || "ISO8859_1".equalsIgnoreCase(ucEncoding))
-            {
-                // dangerMask = (short)0xff00;
-                charset = StandardCharsets.ISO_8859_1;
-            } else if ("UNICODE".equalsIgnoreCase(ucEncoding)
-                    || "UNICODE-BIG".equalsIgnoreCase(ucEncoding)
-                    || "UNICODE-LITTLE".equalsIgnoreCase(ucEncoding))
-            {
-                charset = StandardCharsets.UTF_16;
-
-                // TODO: UTF-16BE, UTF-16LE ... no BOM; what
-                // release of JDK supports those Unicode names?
-            }
-
-            // if (dangerMask != 0)
-            // stringBuf = new StringBuffer();
-        }
-
-        setEncoding(charset);
-    }
-
     private void setEncoding(Charset charset)
     {
         this.encoding = charset;
