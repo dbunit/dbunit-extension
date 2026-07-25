@@ -89,6 +89,13 @@ public abstract class AbstractDataSetTest extends AbstractTest
         nameList.remove("IDENTITY_TABLE");
         nameList.remove("DBUNIT.TEST_IDENTITY_NOT_PK");
         nameList.remove("TEST_IDENTITY_NOT_PK");
+        /*
+         * This table is created specifically for testing a NOT NULL column
+         * with a database default on HSQLDB. It should be ignored on other
+         * platforms.
+         */
+        nameList.remove("DBUNIT.DEFAULT_VALUE_TABLE");
+        nameList.remove("DEFAULT_VALUE_TABLE");
 
         names = nameList.toArray(new String[0]);
 

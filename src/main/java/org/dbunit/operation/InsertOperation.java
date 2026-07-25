@@ -121,8 +121,7 @@ public class InsertOperation extends AbstractBatchOperation
         {
             Column column = columns[i];
             Object value = table.getValue(row, column.getColumnName());
-            if (value == ITable.NO_VALUE
-                || (value == null && column.isNotNullable() && column.hasDefaultValue()))
+            if (wouldIgnore(column, value))
             {
                 ignoreMapping.set(i);
             }
@@ -143,14 +142,36 @@ public class InsertOperation extends AbstractBatchOperation
 
         for (int i = 0; i < columns.length; i++)
         {
-            boolean bit = ignoreMapping.get(i);
-            Object value = table.getValue(row, columns[i].getColumnName());
-            if ((bit && value != ITable.NO_VALUE) || (!bit && value == ITable.NO_VALUE))
+            Column column = columns[i];
+            Object value = table.getValue(row, column.getColumnName());
+            if (wouldIgnore(column, value) != ignoreMapping.get(i))
             {
                 return false;
             }
         }
 
         return true;
+    }
+
+    /**
+     * Determines whether a column's value would be omitted from the insert
+     * statement: either because no value was supplied at all, or because the
+     * value is {@code null} for a not-nullable column that has a database
+     * default, in which case the column is left out so the database applies
+     * its default instead of a {@code NULL} insert failing the constraint.
+     * Used by both {@link #getIgnoreMapping(ITable, int)} and
+     * {@link #equalsIgnoreMapping(BitSet, ITable, int)} so the two can never
+     * diverge.
+     *
+     * @param column
+     *            The column being evaluated.
+     * @param value
+     *            The row's value for that column.
+     * @return {@code true} if the column would be omitted from the insert.
+     */
+    private static boolean wouldIgnore(final Column column, final Object value)
+    {
+        return value == ITable.NO_VALUE || (value == null
+                && column.isNotNullable() && column.hasDefaultValue());
     }
 }
