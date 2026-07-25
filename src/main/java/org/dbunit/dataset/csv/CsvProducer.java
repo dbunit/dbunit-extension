@@ -123,14 +123,15 @@ public class CsvProducer implements IDataSetProducer {
             // though each row is redundant the moment _consumer.row() returns it.
             readData.set(0, null);
 
-            String tableName = theDataFile.getName().substring(0, theDataFile.getName().indexOf(".csv"));
+            String fileName = theDataFile.getName();
+            String tableName = fileName.substring(0, fileName.lastIndexOf(".csv"));
             ITableMetaData metaData = new DefaultTableMetaData(tableName, columns);
             _consumer.startTable(metaData);
             for (int i = 1 ; i < readData.size(); i++) {
                 List rowList = (List)readData.get(i);
                 Object[] row = rowList.toArray();
                 for(int col = 0; col < row.length; col++) {
-                    row[col] = row[col].equals(CsvDataSetWriter.NULL) ? null : row[col];
+                    row[col] = CsvDataSetWriter.NULL.equals(row[col]) ? null : row[col];
                 }
                 _consumer.row(row);
                 readData.set(i, null);
