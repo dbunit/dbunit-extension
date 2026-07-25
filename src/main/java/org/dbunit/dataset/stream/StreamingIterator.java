@@ -35,7 +35,12 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Asynchronous table iterator that uses a new Thread for asynchronous processing.
- * 
+ * <p>
+ * The producer runs on a daemon thread that communicates with this iterator through a
+ * bounded channel. If this iterator is abandoned before the producer reaches the end of
+ * the dataset, the producer thread stays parked waiting to put its next element onto the
+ * channel until the JVM exits; there is no method to cancel it early.
+ *
  * @author Manuel Laflamme
  * @author Last changed by: $Author$
  * @version $Revision$ $Date$
@@ -58,7 +63,7 @@ public class StreamingIterator implements ITableIterator
     /**
      * Variable to store an exception that might occur in the asynchronous consumer
      */
-	private Exception _asyncException;
+    private volatile Exception _asyncException;
 
 	
     /**
