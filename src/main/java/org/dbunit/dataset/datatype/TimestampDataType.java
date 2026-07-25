@@ -153,7 +153,8 @@ public class TimestampDataType extends AbstractDataType
                 final TimeZone localTZ = java.util.TimeZone.getDefault();
                 final int offset = localTZ.getOffset(tsTime);
                 final BigInteger localTZOffset = BigInteger.valueOf(offset);
-                BigInteger time = BigInteger.valueOf(tsTime / 1000 * 1000)
+                BigInteger time = BigInteger
+                        .valueOf(Math.floorDiv(tsTime, 1000L) * 1000L)
                         .add(localTZOffset).multiply(ONE_BILLION)
                         .add(BigInteger.valueOf(ts.getNanos()));
                 final int hours = Integer.parseInt(zoneValue.substring(1, 3));
@@ -172,8 +173,19 @@ public class TimestampDataType extends AbstractDataType
                 }
                 final BigInteger[] components =
                         time.divideAndRemainder(ONE_BILLION);
-                ts = new Timestamp(components[0].longValue());
-                ts.setNanos(components[1].intValue());
+                BigInteger millis = components[0];
+                BigInteger nanos = components[1];
+                if (nanos.signum() < 0)
+                {
+                    // BigInteger division truncates toward zero, so a
+                    // negative time produces a negative remainder here;
+                    // normalize to floor-mod so setNanos below never sees
+                    // a negative value.
+                    millis = millis.subtract(BigInteger.ONE);
+                    nanos = nanos.add(ONE_BILLION);
+                }
+                ts = new Timestamp(millis.longValue());
+                ts.setNanos(nanos.intValue());
             }
 
             return ts;
