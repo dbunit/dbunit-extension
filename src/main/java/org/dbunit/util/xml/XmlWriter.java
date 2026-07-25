@@ -64,7 +64,9 @@ import java.io.Writer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Deque;
+import java.util.List;
 
 /**
  * Makes writing XML much much easier. Improved from <a href=
@@ -94,6 +96,14 @@ public class XmlWriter
     public static final String DEFAULT_ENCODING = "UTF-8";
 
     public static final Charset DEFAULT_CHARSET = StandardCharsets.UTF_8;
+
+    /**
+     * Substituted in {@link #escapeXml(String, boolean)} for a code point
+     * that XML 1.0 cannot represent at all, such as a control character or
+     * an unpaired surrogate.
+     */
+    private static final String REPLACEMENT_CHARACTER =
+            String.valueOf((char) 0xFFFD);
 
     /**
      * Logger for this class
@@ -673,34 +683,65 @@ public class XmlWriter
         logger.debug("escapeXml(str={}, literally={}) - start", str,
                 Boolean.toString(literally));
 
-        char[] block = null;
-        int last = 0;
-        StringBuilder buffer = null;
         final int strLength = str.length();
+        StringBuilder buffer = null;
+        List<Integer> replacedCodePoints = null;
+        int last = 0;
         int index = 0;
 
-        for (index = 0; index < strLength; index++)
+        while (index < strLength)
         {
-            final char currentChar = str.charAt(index);
-            final String entity =
-                    convertCharacterToEntity(currentChar, literally);
+            final int codePoint = str.codePointAt(index);
+            final int charCount = Character.charCount(codePoint);
+
+            String replacement;
+            if (!isValidXmlChar(codePoint))
+            {
+                // Not representable in XML 1.0 at all (control characters
+                // other than tab/LF/CR, 0xFFFE/0xFFFF, unpaired surrogates):
+                // substitute the replacement character rather than emitting
+                // it raw or as a numeric entity, both of which would be
+                // unparseable.
+                replacement = REPLACEMENT_CHARACTER;
+                if (replacedCodePoints == null)
+                {
+                    replacedCodePoints = new ArrayList<>();
+                }
+                replacedCodePoints.add(codePoint);
+            } else if (charCount == 1)
+            {
+                // Valid BMP code point: markup entities, or pass through raw
+                // (still routed through convertCharacterToEntity so existing
+                // subclass overrides keep taking effect).
+                replacement = convertCharacterToEntity((char) codePoint, literally);
+            } else
+            {
+                // Valid supplementary code point: no markup character is
+                // outside the BMP, so it always passes through raw.
+                replacement = null;
+            }
 
             // If we found something to substitute, then copy over previous
             // data then do the substitution.
-            if (entity != null)
+            if (replacement != null)
             {
-                if (block == null)
-                {
-                    block = str.toCharArray();
-                }
                 if (buffer == null)
                 {
                     buffer = new StringBuilder();
                 }
-                buffer.append(block, last, index - last);
-                buffer.append(entity);
-                last = index + 1;
+                buffer.append(str, last, index);
+                buffer.append(replacement);
+                last = index + charCount;
             }
+
+            index += charCount;
+        }
+
+        if (replacedCodePoints != null)
+        {
+            logger.warn(
+                    "escapeXml replaced {} code point(s) not representable in XML 1.0 with the U+FFFD replacement character: {}",
+                    replacedCodePoints.size(), replacedCodePoints);
         }
 
         // nothing found, just return source
@@ -711,15 +752,7 @@ public class XmlWriter
 
         if (last < strLength)
         {
-            if (block == null)
-            {
-                block = str.toCharArray();
-            }
-            if (buffer == null)
-            {
-                buffer = new StringBuilder();
-            }
-            buffer.append(block, last, index - last);
+            buffer.append(str, last, strLength);
         }
 
         return buffer.toString();
