@@ -47,8 +47,6 @@
     <logbackClassicVersion>1.5.38</logbackClassicVersion>
     <mockitoVersion>5.23.0</mockitoVersion>
     <poiVersion>5.2.5</poiVersion>
-    <slf4jVersion>1.7.25</slf4jVersion>
-    <snakeYamlVersion>2.2</snakeYamlVersion>
     <xmlparserv2Version>23.26.2.0.0</xmlparserv2Version>
 
     <!-- Database driver versions -->
