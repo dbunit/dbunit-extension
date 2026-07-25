@@ -485,19 +485,36 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     @Override
     public void postTest(final boolean verifyData) throws Exception
     {
+        Throwable verifyFailure = null;
         try
         {
             if (verifyData)
             {
                 verifyData();
             }
+        } catch (final Throwable t)
+        {
+            verifyFailure = t;
+            throw t;
         } finally
         {
             // it is deliberate to have cleanup exceptions shadow verify
             // failures so user knows db is probably in unknown state (for
             // those not using an in-memory db or transaction rollback),
-            // otherwise would mask probable cause of subsequent test failures
-            cleanupData();
+            // otherwise would mask probable cause of subsequent test
+            // failures; the verify failure rides along as suppressed on the
+            // cleanup exception so it is not lost entirely
+            try
+            {
+                cleanupData();
+            } catch (final Throwable cleanupFailure)
+            {
+                if (verifyFailure != null)
+                {
+                    cleanupFailure.addSuppressed(verifyFailure);
+                }
+                throw cleanupFailure;
+            }
         }
     }
 
