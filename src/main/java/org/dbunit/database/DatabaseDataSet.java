@@ -316,7 +316,11 @@ public class DatabaseDataSet extends AbstractDataSet
         // that validation succeeds on case-sensitive databases when the caller
         // supplied a differently-cased name (e.g. from a LowerCaseDataSet).
         String storedTableName = _tableMap.getOriginalTableName(tableName);
-        metaData = new DatabaseTableMetaData(storedTableName, _connection, true, super.isCaseSensitiveTableNames());
+        // validate=false: existence is already proven by the containsTable()
+        // check above, backed by initialize()'s getTables() enumeration - no
+        // need for DatabaseTableMetaData to run its own redundant
+        // tableExists() metadata round trip.
+        metaData = new DatabaseTableMetaData(storedTableName, _connection, false, super.isCaseSensitiveTableNames());
         // Put the metadata object into the cache map
         _tableMap.update(tableName, metaData);
 
