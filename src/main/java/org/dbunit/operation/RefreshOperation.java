@@ -105,6 +105,7 @@ public class RefreshOperation extends AbstractOperation
             RowOperation insertRowOperation = new InsertRowOperation(connection,
                     metaData);
 
+            Throwable primaryFailure = null;
             try
             {
                 // refresh all rows
@@ -127,13 +128,54 @@ public class RefreshOperation extends AbstractOperation
             {
                 final String msg =
                     "Exception processing table name='" + tableName + "'";
-                throw new DatabaseUnitException(msg, e);
+                final DatabaseUnitException wrapped =
+                        new DatabaseUnitException(msg, e);
+                primaryFailure = wrapped;
+                throw wrapped;
             }
             finally
             {
-                // cleanup
-                updateRowOperation.close();
-                insertRowOperation.close();
+                // cleanup: run both closes even if the first fails, combining
+                // close failures via addSuppressed rather than letting the
+                // second silently replace the first. If a row-processing
+                // failure is already propagating (primaryFailure != null),
+                // attach any close failure to it as suppressed instead of
+                // letting the close failure replace the real cause.
+                SQLException closeFailure = null;
+                try
+                {
+                    updateRowOperation.close();
+                }
+                catch (final SQLException e)
+                {
+                    closeFailure = e;
+                }
+                try
+                {
+                    insertRowOperation.close();
+                }
+                catch (final SQLException e)
+                {
+                    if (closeFailure != null)
+                    {
+                        closeFailure.addSuppressed(e);
+                    }
+                    else
+                    {
+                        closeFailure = e;
+                    }
+                }
+                if (closeFailure != null)
+                {
+                    if (primaryFailure != null)
+                    {
+                        primaryFailure.addSuppressed(closeFailure);
+                    }
+                    else
+                    {
+                        throw closeFailure;
+                    }
+                }
             }
         }
 
@@ -265,8 +307,6 @@ public class RefreshOperation extends AbstractOperation
      */
     private class UpdateRowOperation extends RowOperation
     {
-        PreparedStatement _countStatement;
-
         public UpdateRowOperation(IDatabaseConnection connection,
                 ITableMetaData metaData)
                 throws DataSetException, SQLException
