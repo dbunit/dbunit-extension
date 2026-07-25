@@ -159,8 +159,6 @@ public class Base64
         catch (Exception e)
         {
             logger.error("main()", e);
-
-            e.printStackTrace();
         }
     }
 
@@ -311,7 +309,6 @@ public class Base64
         {
             logger.error("encodeObject()", e);
 
-            e.printStackTrace();
             return null;
         }   // end catch
         finally
@@ -581,14 +578,12 @@ public class Base64
         {
             logger.error("decodeToObject()", e);
 
-            e.printStackTrace();
             return null;
         }   // end catch
         catch (ClassNotFoundException e)
         {
             logger.error("decodeToObject()", e);
 
-            e.printStackTrace();
             return null;
         }   // end catch
         finally
@@ -662,7 +657,8 @@ public class Base64
             }   // end if: white space, equals sign or better
             else
             {
-                System.err.println("Bad Base64 input character at " + i + ": " + source[i] + "(decimal)");
+                logger.warn("Bad Base64 input character at {}: {}(decimal)",
+                        i, source[i]);
                 return null;
             }   // end else:
         }   // each input character
