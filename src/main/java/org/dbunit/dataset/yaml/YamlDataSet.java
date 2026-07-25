@@ -32,6 +32,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
+import java.nio.charset.StandardCharsets;
 
 /**
  * Reads and writes flat YAML-based dataset documents. Contrary to the flat XML layout,
@@ -90,12 +91,14 @@ public class YamlDataSet extends CachedDataSet
     }
 
     /**
-     * Write the specified dataset to the specified output stream as YAML.
+     * Writes the specified dataset to the specified output stream as YAML,
+     * encoded in UTF-8, matching what {@link YamlProducer} decodes.
      */
     public static void write(IDataSet dataSet, OutputStream out)
     throws DataSetException
     {
-        write(dataSet, new BufferedWriter(new OutputStreamWriter(out)));
+        write(dataSet, new BufferedWriter(
+                new OutputStreamWriter(out, StandardCharsets.UTF_8)));
     }
 
     /**

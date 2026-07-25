@@ -20,15 +20,20 @@
  */
 package org.dbunit.dataset.xml;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.Writer;
+import java.nio.charset.StandardCharsets;
 
 import org.dbunit.DatabaseEnvironment;
 import org.dbunit.database.IDatabaseConnection;
 import org.dbunit.dataset.AbstractDataSetTest;
+import org.dbunit.dataset.DataSetBuilder;
 import org.dbunit.dataset.FilteredDataSet;
 import org.dbunit.dataset.IDataSet;
 import org.dbunit.testutil.FileAsserts;
@@ -147,5 +152,24 @@ class FlatDtdDataSetIT extends AbstractDataSetTest
         {
             tempFile.delete();
         }
+    }
+
+    @Test
+    void testWrite_withNonAsciiTableName_writesUtf8Bytes() throws Exception
+    {
+        final IDataSet dataSet = new DataSetBuilder().table("café_TABLE")
+                .columns("ID").row(1).build();
+
+        final ByteArrayOutputStream out = new ByteArrayOutputStream();
+        FlatDtdDataSet.write(dataSet, out);
+
+        final String actualUtf8 =
+                new String(out.toByteArray(), StandardCharsets.UTF_8);
+        assertThat(actualUtf8)
+                .as("The DTD output stream must be encoded as UTF-8,"
+                        + " matching what the InputStream constructor's SAX"
+                        + " parsing assumes, regardless of the platform"
+                        + " default charset.")
+                .contains("café_TABLE");
     }
 }

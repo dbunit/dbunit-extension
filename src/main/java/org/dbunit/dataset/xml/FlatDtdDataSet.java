@@ -28,6 +28,7 @@ import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Reader;
 import java.io.Writer;
+import java.nio.charset.StandardCharsets;
 
 import org.dbunit.dataset.AbstractDataSet;
 import org.dbunit.dataset.DataSetException;
@@ -86,14 +87,17 @@ public class FlatDtdDataSet extends AbstractDataSet implements IDataSetConsumer
     }
 
     /**
-     * Write the specified dataset to the specified output stream as DTD.
+     * Writes the specified dataset to the specified output stream as DTD,
+     * encoded in UTF-8, matching what the {@code InputStream} constructor's
+     * SAX parsing assumes absent an explicit encoding declaration.
      * @see FlatDtdWriter
      */
     public static void write(IDataSet dataSet, OutputStream out)
             throws IOException, DataSetException
     {
         logger.debug("write(dataSet={}, out={}) - start", dataSet, out);
-        write(dataSet, new BufferedWriter(new OutputStreamWriter(out)));
+        write(dataSet, new BufferedWriter(
+                new OutputStreamWriter(out, StandardCharsets.UTF_8)));
     }
 
     /**
