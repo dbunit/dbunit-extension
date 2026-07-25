@@ -185,6 +185,122 @@ class DefaultPrepAndExpectedTestCaseTest
     }
 
     @Test
+    void testPostTest_whenVerifyFailsAndCleanupFails_throwsCleanupFailureWithVerifySuppressed()
+            throws Exception
+    {
+        final Error verifyFailure = new AssertionError("verify boom");
+        final RuntimeException cleanupFailure =
+                new RuntimeException("cleanup boom");
+        final DefaultPrepAndExpectedTestCase throwingTc =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader,
+                        databaseTester)
+                {
+                    @Override
+                    public void verifyData() throws Exception
+                    {
+                        throw verifyFailure;
+                    }
+
+                    @Override
+                    public void cleanupData() throws Exception
+                    {
+                        throw cleanupFailure;
+                    }
+                };
+
+        final Throwable thrown =
+                catchThrowable(() -> throwingTc.postTest(true));
+
+        assertThat(thrown)
+                .as("postTest() must rethrow the cleanup failure, which"
+                        + " deliberately shadows the verify failure to"
+                        + " signal an unknown database state.")
+                .isSameAs(cleanupFailure);
+        assertThat(thrown.getSuppressed())
+                .as("The shadowed verify failure must be attached as"
+                        + " suppressed instead of lost.")
+                .containsExactly(verifyFailure);
+    }
+
+    @Test
+    void testPostTest_whenVerifyFailsAndCleanupThrowsError_throwsCleanupErrorWithVerifySuppressed()
+            throws Exception
+    {
+        final RuntimeException verifyFailure =
+                new RuntimeException("verify boom");
+        final Error cleanupFailure = new AssertionError("cleanup boom");
+        final DefaultPrepAndExpectedTestCase throwingTc =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader,
+                        databaseTester)
+                {
+                    @Override
+                    public void verifyData() throws Exception
+                    {
+                        throw verifyFailure;
+                    }
+
+                    @Override
+                    public void cleanupData() throws Exception
+                    {
+                        throw cleanupFailure;
+                    }
+                };
+
+        final Throwable thrown =
+                catchThrowable(() -> throwingTc.postTest(true));
+
+        assertThat(thrown)
+                .as("postTest() must rethrow the cleanup Error, which"
+                        + " deliberately shadows the verify failure to"
+                        + " signal an unknown database state, the same as"
+                        + " when cleanup throws a checked Exception.")
+                .isSameAs(cleanupFailure);
+        assertThat(thrown.getSuppressed())
+                .as("The shadowed verify failure must be attached as"
+                        + " suppressed instead of lost, even when the"
+                        + " cleanup failure is an Error rather than an"
+                        + " Exception.")
+                .containsExactly(verifyFailure);
+    }
+
+    @Test
+    void testPostTest_whenVerifyFailsAndCleanupSucceeds_throwsVerifyFailureUnchanged()
+            throws Exception
+    {
+        final Error verifyFailure = new AssertionError("verify boom");
+        final DefaultPrepAndExpectedTestCase throwingTc =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader,
+                        databaseTester)
+                {
+                    @Override
+                    public void verifyData() throws Exception
+                    {
+                        throw verifyFailure;
+                    }
+                };
+
+        final Throwable thrown =
+                catchThrowable(() -> throwingTc.postTest(true));
+
+        assertThat(thrown)
+                .as("postTest() must rethrow the verify failure unchanged"
+                        + " when cleanup succeeds.")
+                .isSameAs(verifyFailure);
+        assertThat(thrown.getSuppressed())
+                .as("No exception is suppressed when cleanup succeeds.")
+                .isEmpty();
+    }
+
+    @Test
+    void testPostTest_whenVerifyAndCleanupBothSucceed_doesNotThrow()
+    {
+        assertThatCode(() -> tc.postTest(true))
+                .as("postTest() must not throw when both verifyData() and"
+                        + " cleanupData() succeed.")
+                .doesNotThrowAnyException();
+    }
+
+    @Test
     void testSetupData_withDefaultConfiguration_executesSetUpOperation()
             throws Exception
     {
