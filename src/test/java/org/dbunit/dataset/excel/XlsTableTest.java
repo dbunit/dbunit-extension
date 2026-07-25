@@ -184,6 +184,65 @@ public class XlsTableTest extends AbstractTableTest
     }
 
     @Test
+    void testGetRowCount_emptySheet_returnsZero() throws Exception
+    {
+        final Workbook workbook = new XSSFWorkbook();
+        final Sheet sheet = workbook.createSheet("EMPTY_NO_HEADER");
+
+        final XlsTable table = new XlsTable("EMPTY_NO_HEADER", sheet);
+
+        assertThat(table.getRowCount())
+                .as("A sheet with no rows at all (not even a header) must"
+                        + " report zero rows, not a negative count.")
+                .isZero();
+    }
+
+    @Test
+    void testGetRowCount_headerOnlySheet_returnsZero() throws Exception
+    {
+        final Workbook workbook = new XSSFWorkbook();
+        final Sheet sheet = workbook.createSheet("HEADER_ONLY");
+        final Row headerRow = sheet.createRow(0);
+        headerRow.createCell(0).setCellValue("COLUMN0");
+
+        final XlsTable table = new XlsTable("HEADER_ONLY", sheet);
+
+        assertThat(table.getRowCount())
+                .as("A sheet with only a header row and no data rows must"
+                        + " report zero rows.")
+                .isZero();
+    }
+
+    @Test
+    void testGetValue_physicallyMissingRow_returnsNull() throws Exception
+    {
+        final Workbook workbook = new XSSFWorkbook();
+        final Sheet sheet = workbook.createSheet("GAP_ROW");
+        final Row headerRow = sheet.createRow(0);
+        headerRow.createCell(0).setCellValue("COLUMN0");
+
+        // Create then remove the row backing ITable row 0 (sheet row 1) to
+        // force a physically-missing row inside the sheet.
+        final Row gapRow = sheet.createRow(1);
+        gapRow.createCell(0).setCellValue("will be removed");
+        sheet.removeRow(gapRow);
+
+        final Row dataRow = sheet.createRow(2);
+        dataRow.createCell(0).setCellValue("row1value");
+
+        final XlsTable table = new XlsTable("GAP_ROW", sheet);
+
+        assertThat(table.getValue(0, "COLUMN0"))
+                .as("A physically-missing row inside the sheet must produce"
+                        + " a null cell value instead of"
+                        + " NullPointerException.")
+                .isNull();
+        assertThat(table.getValue(1, "COLUMN0"))
+                .as("A row after the gap must still be read correctly.")
+                .isEqualTo("row1value");
+    }
+
+    @Test
     void testGetValue_manyNumericCellsSameFormat_returnsSameValuesAsUncached() throws Exception
     {
         final DecimalFormatSymbols symbols = new DecimalFormatSymbols();
