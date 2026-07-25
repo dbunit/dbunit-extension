@@ -147,7 +147,7 @@ Integration tests use `DatabaseEnvironment` to bootstrap the target database fro
   - Adhere strictly to de facto standard Git commit message formatting.
   - Use Conventional Commits format.
   - **Commit Types:** `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `build:`, `ci:`, `perf:`
-  - **Scopes:** any of the database names, `assertion`, `pom`, `log`, `docker`, `database`, `dataset`, `metadata`, `resultset`, `scripts`, `site`, `statement`, `search`, `util`, `ant`
+  - **Scopes:** any of the database names, `assertion`, `pom`, `log`, `docker`, `database`, `dataset`, `metadata`, `resultset`, `scripts`, `site`, `statement`, `search`, `util`, `ant`, `operation`
   - Capitalize the first word after the type and scope.
   - You may suggest additional CC commit types and scopes when encountering situations where the changes do not fit into the approved lists above.
   - Reference GitHub issues in the commit footer with `Refs: <issue-number>` (e.g. `Refs: 123`).  Do not use a # before the number.

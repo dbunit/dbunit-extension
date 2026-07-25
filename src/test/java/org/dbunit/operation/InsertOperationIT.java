@@ -44,6 +44,7 @@ import org.dbunit.dataset.datatype.DataType;
 import org.dbunit.dataset.xml.FlatXmlDataSetBuilder;
 import org.dbunit.dataset.xml.XmlDataSet;
 import org.dbunit.testutil.TestUtils;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -331,6 +332,42 @@ public class InsertOperationIT extends AbstractDatabaseIT
         final ITable actual = _connection.createDataSet().getTable(tableName);
         assertThat(actual.getRowCount()).as("count after.").isEqualTo(1);
         assertThat(actual.getValue(0, "COLUMN0")).as("COLUMN0.").isEqualTo("hasValue");
+    }
+
+    @Test
+    void testExecute_withDefaultValueNotNullColumnTurningNull_appliesDefaultOnSecondRow()
+            throws Exception
+    {
+        // DEFAULT_VALUE_TABLE (ID, STATUS NOT NULL DEFAULT 'PENDING') is
+        // only defined in the HSQLDB fixture DDL.
+        Assumptions.assumeTrue(
+                _connection.getConnection().getMetaData()
+                        .getDatabaseProductName().startsWith("HSQL"),
+                "Skip: DEFAULT_VALUE_TABLE is only defined in the HSQLDB fixture DDL.");
+
+        final String tableName = "DEFAULT_VALUE_TABLE";
+        final Column[] columns = {new Column("ID", DataType.INTEGER),
+                new Column("STATUS", DataType.VARCHAR,
+                        DataType.VARCHAR.toString(), Column.NO_NULLS,
+                        "'PENDING'")};
+        final DefaultTable table = new DefaultTable(tableName, columns);
+        table.addRow(new Object[] {"1", "ACTIVE"});
+        table.addRow(new Object[] {"2", null});
+        final IDataSet dataSet = new DefaultDataSet(table);
+
+        DatabaseOperation.CLEAN_INSERT.execute(_connection, dataSet);
+
+        final ITable actual = _connection.createDataSet().getTable(tableName);
+        assertThat(actual.getRowCount()).as("row count.").isEqualTo(2);
+        assertThat(actual.getValue(0, "STATUS")).as("row 1 STATUS.")
+                .isEqualTo("ACTIVE");
+        assertThat(actual.getValue(1, "STATUS"))
+                .as("row 2 STATUS - database default must apply since"
+                        + " equalsIgnoreMapping now regenerates the"
+                        + " statement instead of reusing row 1's, which"
+                        + " would otherwise bind NULL into this NOT NULL"
+                        + " column.")
+                .isEqualTo("PENDING");
     }
 
     private void testExecute(final IDataSet dataSet)

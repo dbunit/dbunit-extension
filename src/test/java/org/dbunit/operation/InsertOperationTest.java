@@ -450,4 +450,53 @@ class InsertOperationTest
         factory.verify();
         connection.verify();
     }
+
+    @Test
+    void testExecute_withDefaultValueNotNullColumnTurningNull_regeneratesStatement()
+            throws Exception
+    {
+        final String schemaName = "schema";
+        final String tableName = "table";
+        final String[] expected = {
+                "insert into schema.table (c1, c2) values (1, 'x')",
+                "insert into schema.table (c1) values (2)",};
+
+        // setup table: c2 disallows null but has a database default
+        final Column[] columns = new Column[] {
+                new Column("c1", DataType.NUMERIC, Column.NO_NULLS),
+                new Column("c2", DataType.VARCHAR, DataType.VARCHAR.toString(),
+                        Column.NO_NULLS, "'default'"),};
+        final DefaultTable table = new DefaultTable(tableName, columns);
+        table.addRow(new Object[] {"1", "x"});
+        table.addRow(new Object[] {"2", null});
+        final IDataSet dataSet = new DefaultDataSet(table);
+
+        // setup mock objects: without mirroring the null-with-default rule
+        // in equalsIgnoreMapping, row 2's differing shape goes undetected,
+        // the row 1 statement (which includes c2) is reused, and NULL is
+        // bound into the NOT NULL c2 column instead of leaving it out for
+        // the database default to apply
+        final MockBatchStatement statement = new MockBatchStatement();
+        statement.addExpectedBatchStrings(expected);
+        statement.setExpectedExecuteBatchCalls(2);
+        statement.setExpectedClearBatchCalls(2);
+        statement.setExpectedCloseCalls(2);
+
+        final MockStatementFactory factory = new MockStatementFactory();
+        factory.setExpectedCreatePreparedStatementCalls(2);
+        factory.setupStatement(statement);
+
+        final MockDatabaseConnection connection = new MockDatabaseConnection();
+        connection.setupDataSet(dataSet);
+        connection.setupSchema(schemaName);
+        connection.setupStatementFactory(factory);
+        connection.setExpectedCloseCalls(0);
+
+        // execute operation
+        new InsertOperation().execute(connection, dataSet);
+
+        statement.verify();
+        factory.verify();
+        connection.verify();
+    }
 }
