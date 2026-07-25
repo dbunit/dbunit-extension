@@ -40,7 +40,6 @@ import java.sql.SQLException;
  */
 public class TransactionOperation extends DatabaseOperation
 {
-
     /**
      * Logger for this class
      */
@@ -80,22 +79,49 @@ public class TransactionOperation extends DatabaseOperation
         }
         catch (DatabaseUnitException e)
         {
-            jdbcConnection.rollback();
+            handleException(jdbcConnection, e);
             throw e;
         }
         catch (SQLException e)
         {
-            jdbcConnection.rollback();
+            handleException(jdbcConnection, e);
             throw e;
         }
         catch (RuntimeException e)
         {
-            jdbcConnection.rollback();
+            handleException(jdbcConnection, e);
+            throw e;
+        }
+        catch (Error e)
+        {
+            handleException(jdbcConnection, e);
             throw e;
         }
         finally
         {
             jdbcConnection.setAutoCommit(true);
+        }
+    }
+
+    /**
+     * Rolls back the given connection, attaching a rollback failure to the
+     * given exception as suppressed instead of letting it replace and hide
+     * the exception that triggered the rollback.
+     *
+     * @param jdbcConnection
+     *            The connection to roll back.
+     * @param e
+     *            The exception that triggered the rollback.
+     */
+    private static void handleException(Connection jdbcConnection, Throwable e)
+    {
+        try
+        {
+            jdbcConnection.rollback();
+        }
+        catch (SQLException rollbackFailure)
+        {
+            e.addSuppressed(rollbackFailure);
         }
     }
 }
