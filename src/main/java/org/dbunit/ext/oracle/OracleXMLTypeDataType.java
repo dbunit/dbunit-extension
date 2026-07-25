@@ -20,6 +20,7 @@
  */
 package org.dbunit.ext.oracle;
 
+import java.nio.charset.StandardCharsets;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -36,8 +37,6 @@ import oracle.jdbc.OracleResultSet;
 
 /**
  *
- * TODO UnitTests are completely missing
- *
  * @author Phil Barr
  * @author Last changed by: $Author$
  * @version $Revision$ $Date$
@@ -52,6 +51,13 @@ public class OracleXMLTypeDataType extends BlobDataType
         super("SQLXML", Types.SQLXML);
     }
 
+    /**
+     * {@inheritDoc}
+     * <p>
+     * The XML content is converted to {@code byte[]} using UTF-8, matching
+     * {@link #setSqlValue(Object, int, PreparedStatement)}'s decoding of the
+     * same bytes back to a {@code String}.
+     */
     @Override
     public Object getSqlValue(final int column, final ResultSet resultSet)
             throws SQLException, TypeCastException
@@ -62,7 +68,7 @@ public class OracleXMLTypeDataType extends BlobDataType
         final SQLXML sqlXml = oracleResultSet.getSQLXML(column);
         if (sqlXml != null)
         {
-            data = sqlXml.getString().getBytes();
+            data = sqlXml.getString().getBytes(StandardCharsets.UTF_8);
         }
 
         // return the byte data (using typeCast to cast it to Base64 notation)
@@ -75,6 +81,13 @@ public class OracleXMLTypeDataType extends BlobDataType
         return typeCast;
     }
 
+    /**
+     * {@inheritDoc}
+     * <p>
+     * The decoded {@code byte[]} is converted back to a {@code String} using
+     * UTF-8, matching {@link #getSqlValue(int, ResultSet)}'s encoding of the
+     * same bytes.
+     */
     @Override
     public void setSqlValue(final Object value, final int column,
             final PreparedStatement statement)
@@ -88,7 +101,7 @@ public class OracleXMLTypeDataType extends BlobDataType
         // XML document in the parameter is Base64 encoded (it is entered in XML
         // parameter)
         final byte[] typeCast = (byte[]) typeCast(value);
-        final String string = new String(typeCast);
+        final String string = new String(typeCast, StandardCharsets.UTF_8);
 
         log.trace("setSqlValue: column={}, value={}, typeCast={}, string={}",
                 column, value, typeCast, string);

@@ -168,4 +168,26 @@ class YmlDataSetTest extends AbstractDataSetTest
         Assertion.assertEquals(expectedDataSet, actualDataSet);
     }
 
+    @Test
+    void testWrite_withNonAsciiValue_roundTripsAsUtf8() throws Exception
+    {
+        final String nonAsciiValue = "café";
+        final IDataSet expectedDataSet = new DataSetBuilder()
+                .table("NON_ASCII_TABLE").columns("VALUE").row(nonAsciiValue)
+                .build();
+
+        final ByteArrayOutputStream out = new ByteArrayOutputStream();
+        YamlDataSet.write(expectedDataSet, out);
+
+        final IDataSet actualDataSet =
+                new YamlDataSet(new ByteArrayInputStream(out.toByteArray()));
+
+        assertThat(actualDataSet.getTable("NON_ASCII_TABLE").getValue(0,
+                "VALUE"))
+                        .as("A non-ASCII value must round-trip through"
+                                + " UTF-8-encoded YAML regardless of the"
+                                + " platform default charset.")
+                        .isEqualTo(nonAsciiValue);
+    }
+
 }
