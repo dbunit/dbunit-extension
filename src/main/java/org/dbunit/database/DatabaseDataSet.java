@@ -175,7 +175,7 @@ public class DatabaseDataSet extends AbstractDataSet
         logger.debug("initialize() - start");
 
         DatabaseConfig config = _connection.getConfig();
-        boolean qualifiedTableNamesActive = Boolean.TRUE == config.getProperty(DatabaseConfig.FEATURE_QUALIFIED_TABLE_NAMES);
+        boolean qualifiedTableNamesActive = config.getFeature(DatabaseConfig.FEATURE_QUALIFIED_TABLE_NAMES);
         
         if(schema == null || !qualifiedTableNamesActive)
     {
