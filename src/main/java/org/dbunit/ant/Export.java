@@ -108,12 +108,7 @@ public class Export extends AbstractStep
     {
         logger.debug("setFormat(format={}) - start", format);
 
-        if (format.equalsIgnoreCase(FORMAT_FLAT)
-                || format.equalsIgnoreCase(FORMAT_XML)
-                || format.equalsIgnoreCase(FORMAT_DTD)
-                || format.equalsIgnoreCase(FORMAT_CSV)
-                || format.equalsIgnoreCase(FORMAT_XLS)
-                || format.equalsIgnoreCase(FORMAT_YML))
+        if (isSupportedFormat(format))
         {
             _format = format;
         }
@@ -121,6 +116,16 @@ public class Export extends AbstractStep
         {
             throw new IllegalArgumentException("Type must be one of: 'flat'(default), 'xml', 'dtd', 'xls' or 'yml' but was: " + format);
         }
+    }
+
+    private static boolean isSupportedFormat(String format)
+    {
+        return format.equalsIgnoreCase(FORMAT_FLAT)
+                || format.equalsIgnoreCase(FORMAT_XML)
+                || format.equalsIgnoreCase(FORMAT_DTD)
+                || format.equalsIgnoreCase(FORMAT_CSV)
+                || format.equalsIgnoreCase(FORMAT_XLS)
+                || format.equalsIgnoreCase(FORMAT_YML);
     }
 
     /**
@@ -182,12 +187,17 @@ public class Export extends AbstractStep
                 throw new DatabaseUnitException("'_dest' is a required attribute of the <export> step.");
             }
 
+            if (!isSupportedFormat(_format))
+            {
+                throw new IllegalArgumentException("The given format '"+_format+"' is not supported.");
+            }
+
             IDataSet dataset = getExportDataSet(connection);
 			log("dataset tables: " + Arrays.asList(dataset.getTableNames()), Project.MSG_VERBOSE);
 
 			
             // Write the dataset
-            if (_format.equals(FORMAT_CSV))
+            if (_format.equalsIgnoreCase(FORMAT_CSV))
             {
                 CsvDataSetWriter.write(dataset, _dest);
             }
