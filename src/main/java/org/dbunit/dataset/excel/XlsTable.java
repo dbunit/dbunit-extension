@@ -132,7 +132,7 @@ class XlsTable extends AbstractTable
     {
         logger.debug("getRowCount() - start");
 
-        return _sheet.getLastRowNum();
+        return Math.max(_sheet.getLastRowNum(), 0);
     }
 
     public ITableMetaData getTableMetaData()
@@ -149,7 +149,13 @@ class XlsTable extends AbstractTable
         assertValidRowIndex(row);
 
         int columnIndex = getColumnIndex(column);
-        Cell cell = _sheet.getRow(row + 1).getCell(columnIndex);
+        Row sheetRow = _sheet.getRow(row + 1);
+        if (sheetRow == null)
+        {
+            return null;
+        }
+
+        Cell cell = sheetRow.getCell(columnIndex);
         if (cell == null)
         {
             return null;
