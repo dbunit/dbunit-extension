@@ -22,13 +22,21 @@
 package org.dbunit.dataset.csv;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mockConstruction;
+import static org.mockito.Mockito.when;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Properties;
 
 import org.dbunit.DatabaseUnitException;
@@ -50,6 +58,8 @@ import org.dbunit.util.FileHelper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import org.mockito.MockedConstruction;
 
 class CsvProducerTest
 {
@@ -104,6 +114,63 @@ class CsvProducerTest
         assertThat(count).isEqualTo(ORDERS_ROWS_NUMBER);
         resultSet.close();
         statement.close();
+    }
+
+    @Test
+    void testProduce_withTableNameContainingCsvInMiddle_usesFullTableName(
+            @TempDir final File tempDir) throws Exception
+    {
+        Files.write(new File(tempDir, CsvDataSet.TABLE_ORDERING_FILE).toPath(),
+                "a.csvx\n".getBytes(StandardCharsets.UTF_8));
+        Files.write(new File(tempDir, "a.csvx.csv").toPath(),
+                "ID, DESCRIPTION\n1, \"first row\"\n"
+                        .getBytes(StandardCharsets.UTF_8));
+
+        final CsvProducer producer = new CsvProducer(tempDir);
+        final CachedDataSet consumer = new CachedDataSet();
+        producer.setConsumer(consumer);
+        producer.produce();
+
+        assertThat(consumer.getTableNames())
+                .as("A table name containing \".csv\" before the final suffix must not be truncated at the first occurrence.")
+                .containsExactly("a.csvx");
+    }
+
+    @Test
+    void testProduce_withNullCellValue_doesNotThrowNullPointerException(
+            @TempDir final File tempDir) throws Exception
+    {
+        // CsvParserImpl itself never emits a null cell (Pipeline always adds
+        // getCurrentProduct().toString()), so a mocked parser stands in here
+        // to reach the row[col] transform with a genuinely null value rather
+        // than the literal "null" sentinel string.
+        final List header = Arrays.asList("ID", "DESCRIPTION");
+        final List nullCellRow = Arrays.asList("1", null);
+        final List parsedRows = new ArrayList();
+        parsedRows.add(header);
+        parsedRows.add(nullCellRow);
+
+        Files.write(new File(tempDir, CsvDataSet.TABLE_ORDERING_FILE).toPath(),
+                "orders\n".getBytes(StandardCharsets.UTF_8));
+
+        try (MockedConstruction<CsvParserImpl> ignored = mockConstruction(
+                CsvParserImpl.class,
+                (mock, context) -> when(mock.parse(any(File.class)))
+                        .thenReturn(parsedRows)))
+        {
+            final CsvProducer producer = new CsvProducer(tempDir);
+            final CachedDataSet consumer = new CachedDataSet();
+            producer.setConsumer(consumer);
+
+            producer.produce();
+
+            final ITable table = consumer.getTable("orders");
+            assertThat(table.getValue(0, "DESCRIPTION"))
+                    .as("A null cell value from the parser must not throw a"
+                            + " NullPointerException from the NULL-token"
+                            + " check and must be preserved as null.")
+                    .isNull();
+        }
     }
 
     private void produceAndInsertToDatabase()
