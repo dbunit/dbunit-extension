@@ -21,6 +21,7 @@
 package org.dbunit.dataset.csv;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -31,6 +32,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.LineNumberReader;
+import java.io.StringReader;
 import java.util.List;
 
 import org.dbunit.dataset.common.handlers.IllegalInputCharacterException;
@@ -193,6 +195,39 @@ class CsvParserTest
         assertThat(parsed).hasSize(2);
         assertThat(parsed.get(0)).isEqualTo(" Hello, ");
         assertThat(parsed.get(1)).isEqualTo(" world ");
+    }
+
+    @Test
+    void testParse_multilineFieldEndingShortRow_throwsWithAccurateOffendingLine()
+    {
+        final String csv = "A,B,C\n\"AA\nAAA\",BB";
+
+        assertThatThrownBy(
+                () -> parser.parse(new StringReader(csv), "short-continuation"))
+                        .as("A multi-line field completing with too few columns must fail with an accurate, un-duplicated offending line.")
+                        .isInstanceOf(CsvParserException.class)
+                        .hasMessage(
+                                "Expected 3 columns on line 3, got 2. Offending line: \"AA\nAAA\",BB");
+    }
+
+    @Test
+    void testParse_multilineQuotedField_parsesAcrossLines() throws Exception
+    {
+        final String csv = "A,B\n\"AA\nAAA\",\"BB\nBBB\"";
+
+        final List rows =
+                parser.parse(new StringReader(csv), "legitimate-continuation");
+
+        assertThat(rows)
+                .as("The header row and the multi-line data row should both be present.")
+                .hasSize(2);
+        final List dataRow = (List) rows.get(1);
+        assertThat(dataRow.get(0))
+                .as("The first field should preserve its embedded newline.")
+                .isEqualTo("AA\nAAA");
+        assertThat(dataRow.get(1))
+                .as("The second field should preserve its embedded newline.")
+                .isEqualTo("BB\nBBB");
     }
 
     @BeforeEach
