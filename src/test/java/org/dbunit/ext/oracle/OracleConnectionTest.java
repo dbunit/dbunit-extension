@@ -27,8 +27,8 @@ import static org.mockito.Mockito.when;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
-import java.util.Locale;
 
+import org.dbunit.TurkishDefaultLocale;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -57,41 +57,34 @@ class OracleConnectionTest
     private ResultSet catalogsResultSet;
 
     @Test
+    @TurkishDefaultLocale
     void testConstructor_withTurkishDefaultLocaleAndLowerCaseSchema_uppercasesAsciiCorrectly()
             throws Exception
     {
-        final Locale original = Locale.getDefault();
-        Locale.setDefault(new Locale("tr", "TR"));
-        try
-        {
-            when(connection.getMetaData()).thenReturn(databaseMetaData);
-            when(databaseMetaData.getIdentifierQuoteString())
-                    .thenReturn("\"");
-            when(databaseMetaData.storesLowerCaseIdentifiers())
-                    .thenReturn(false);
-            when(databaseMetaData.storesUpperCaseIdentifiers())
-                    .thenReturn(false);
-            when(databaseMetaData.getSchemas()).thenReturn(schemasResultSet);
-            when(schemasResultSet.next()).thenReturn(false);
-            when(databaseMetaData.getCatalogs())
-                    .thenReturn(catalogsResultSet);
-            when(catalogsResultSet.next()).thenReturn(false);
+        when(connection.getMetaData()).thenReturn(databaseMetaData);
+        when(databaseMetaData.getIdentifierQuoteString())
+                .thenReturn("\"");
+        when(databaseMetaData.storesLowerCaseIdentifiers())
+                .thenReturn(false);
+        when(databaseMetaData.storesUpperCaseIdentifiers())
+                .thenReturn(false);
+        when(databaseMetaData.getSchemas()).thenReturn(schemasResultSet);
+        when(schemasResultSet.next()).thenReturn(false);
+        when(databaseMetaData.getCatalogs())
+                .thenReturn(catalogsResultSet);
+        when(catalogsResultSet.next()).thenReturn(false);
 
-            // Under a Turkish default locale, an un-pinned toUpperCase()
-            // would fold 'i' to a dotted capital 'İ' instead of plain ASCII
-            // 'I', desyncing the schema from what the driver reports.
-            final OracleConnection oracleConnection =
-                    new OracleConnection(connection, "id");
+        // Under a Turkish default locale, an un-pinned toUpperCase()
+        // would fold 'i' to a dotted capital 'İ' instead of plain ASCII
+        // 'I', desyncing the schema from what the driver reports.
+        final OracleConnection oracleConnection =
+                new OracleConnection(connection, "id");
 
-            assertThat(oracleConnection.getSchema())
-                    .as("OracleConnection's constructor must use"
-                            + " Locale.ENGLISH so a Turkish default locale"
-                            + " does not turn 'i' into a dotted capital"
-                            + " 'İ'.")
-                    .isEqualTo("ID");
-        } finally
-        {
-            Locale.setDefault(original);
-        }
+        assertThat(oracleConnection.getSchema())
+                .as("OracleConnection's constructor must use"
+                        + " Locale.ENGLISH so a Turkish default locale"
+                        + " does not turn 'i' into a dotted capital"
+                        + " 'İ'.")
+                .isEqualTo("ID");
     }
 }

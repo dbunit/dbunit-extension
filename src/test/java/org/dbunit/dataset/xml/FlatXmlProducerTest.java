@@ -25,8 +25,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import java.io.File;
 import java.io.IOException;
 import java.io.StringReader;
-import java.util.Locale;
 
+import org.dbunit.TurkishDefaultLocale;
 import org.dbunit.dataset.Column;
 import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.DefaultDataSet;
@@ -275,42 +275,34 @@ class FlatXmlProducerTest extends AbstractProducerTest
     }
 
     @Test
+    @TurkishDefaultLocale
     void testProduce_turkishLocaleAndCaseVariantColumnName_recognizesSameColumn() throws Exception
     {
-        final Locale originalLocale = Locale.getDefault();
-        Locale.setDefault(new Locale("tr", "TR"));
-        try
-        {
-            final String tableName = "TABLE_NAME";
-            final MockDataSetConsumer consumer = new MockDataSetConsumer();
-            consumer.addExpectedStartDataSet();
-            consumer.addExpectedStartTable(tableName,
-                    new Column[] {new Column("id", DataType.UNKNOWN)});
-            consumer.addExpectedRow(tableName, new Object[] {"1"});
-            consumer.addExpectedRow(tableName, new Object[] {"2"});
-            consumer.addExpectedEndTable(tableName);
-            consumer.addExpectedEndDataSet();
+        final String tableName = "TABLE_NAME";
+        final MockDataSetConsumer consumer = new MockDataSetConsumer();
+        consumer.addExpectedStartDataSet();
+        consumer.addExpectedStartTable(tableName,
+                new Column[] {new Column("id", DataType.UNKNOWN)});
+        consumer.addExpectedRow(tableName, new Object[] {"1"});
+        consumer.addExpectedRow(tableName, new Object[] {"2"});
+        consumer.addExpectedEndTable(tableName);
+        consumer.addExpectedEndDataSet();
 
-            // Row 2's "ID" is the same logical column as row 1's "id", just differently
-            // cased. Under the Turkish default locale, "id".toUpperCase() produces a
-            // dotted capital I ("İD") that does not equal "ID".toUpperCase() ("ID"),
-            // so a locale-sensitive comparison would wrongly treat row 2's ID as a new,
-            // unrelated column instead of recognizing it as "id".
-            final String content = "<?xml version=\"1.0\"?>" + "<dataset>"
-                    + "<TABLE_NAME id=\"1\"/>" + "<TABLE_NAME ID=\"2\"/>"
-                    + "</dataset>";
-            final InputSource source = new InputSource(new StringReader(content));
-            final IDataSetProducer producer =
-                    new FlatXmlProducer(source, false, true);
-            producer.setConsumer(consumer);
+        // Row 2's "ID" is the same logical column as row 1's "id", just differently
+        // cased. Under the Turkish default locale, "id".toUpperCase() produces a
+        // dotted capital I ("İD") that does not equal "ID".toUpperCase() ("ID"),
+        // so a locale-sensitive comparison would wrongly treat row 2's ID as a new,
+        // unrelated column instead of recognizing it as "id".
+        final String content = "<?xml version=\"1.0\"?>" + "<dataset>"
+                + "<TABLE_NAME id=\"1\"/>" + "<TABLE_NAME ID=\"2\"/>"
+                + "</dataset>";
+        final InputSource source = new InputSource(new StringReader(content));
+        final IDataSetProducer producer =
+                new FlatXmlProducer(source, false, true);
+        producer.setConsumer(consumer);
 
-            producer.produce();
-            consumer.verify();
-        }
-        finally
-        {
-            Locale.setDefault(originalLocale);
-        }
+        producer.produce();
+        consumer.verify();
     }
 
 }

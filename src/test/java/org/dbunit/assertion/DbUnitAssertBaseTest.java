@@ -23,8 +23,7 @@ package org.dbunit.assertion;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
-import java.util.Locale;
-
+import org.dbunit.TurkishDefaultLocale;
 import org.dbunit.dataset.IDataSet;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -43,27 +42,20 @@ class DbUnitAssertBaseTest
     private IDataSet dataSet;
 
     @Test
+    @TurkishDefaultLocale
     void testGetSortedTableNames_turkishLocaleUppercaseI_sortsAsEnglish() throws Exception
     {
-        final Locale original = Locale.getDefault();
-        Locale.setDefault(new Locale("tr", "TR"));
-        try
-        {
-            when(dataSet.getTableNames())
-                    .thenReturn(new String[] {"island", "beta"});
-            when(dataSet.isCaseSensitiveTableNames()).thenReturn(false);
+        when(dataSet.getTableNames())
+                .thenReturn(new String[] {"island", "beta"});
+        when(dataSet.isCaseSensitiveTableNames()).thenReturn(false);
 
-            final String[] actual = assertBase.getSortedTableNames(dataSet);
+        final String[] actual = assertBase.getSortedTableNames(dataSet);
 
-            assertThat(actual)
-                    .as("Table-name folding must use Locale.ENGLISH so a Turkish"
-                            + " default locale does not turn a lower-case 'i' into"
-                            + " a dotted capital I (U+0130) instead of ASCII 'I'.")
-                    .containsExactly("BETA", "ISLAND");
-        } finally
-        {
-            Locale.setDefault(original);
-        }
+        assertThat(actual)
+                .as("Table-name folding must use Locale.ENGLISH so a Turkish"
+                        + " default locale does not turn a lower-case 'i' into"
+                        + " a dotted capital I (U+0130) instead of ASCII 'I'.")
+                .containsExactly("BETA", "ISLAND");
     }
 
     @Test

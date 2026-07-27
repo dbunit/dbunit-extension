@@ -22,8 +22,7 @@ package org.dbunit.dataset.filter;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.Locale;
-
+import org.dbunit.TurkishDefaultLocale;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -32,25 +31,18 @@ import org.junit.jupiter.api.Test;
 class PatternMatcherTest
 {
     @Test
+    @TurkishDefaultLocale
     void testAccept_turkishLocaleDottedIName_matches()
     {
-        final Locale original = Locale.getDefault();
-        Locale.setDefault(new Locale("tr", "TR"));
-        try
-        {
-            final PatternMatcher matcher = new PatternMatcher();
-            matcher.addPattern("ISLAND_TABLE");
+        final PatternMatcher matcher = new PatternMatcher();
+        matcher.addPattern("ISLAND_TABLE");
 
-            assertThat(matcher.accept("island_table"))
-                    .as("accept() must fold the candidate name with"
-                            + " Locale.ENGLISH so a Turkish default locale's"
-                            + " dotted capital I does not break matching"
-                            + " against an already-uppercase-ASCII accepted"
-                            + " name.")
-                    .isTrue();
-        } finally
-        {
-            Locale.setDefault(original);
-        }
+        assertThat(matcher.accept("island_table"))
+                .as("accept() must fold the candidate name with"
+                        + " Locale.ENGLISH so a Turkish default locale's"
+                        + " dotted capital I does not break matching"
+                        + " against an already-uppercase-ASCII accepted"
+                        + " name.")
+                .isTrue();
     }
 }
