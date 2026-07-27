@@ -633,8 +633,8 @@ public class SQLHelper {
         {
             if (oldValue != null && !oldValue.equals(newValue))
                 logger.debug("{}. {} oldValue={} newValue={}", new Object[] {source, message, oldValue, newValue});
-            }
         }
+    }
 
     /**
      * @param tableName
