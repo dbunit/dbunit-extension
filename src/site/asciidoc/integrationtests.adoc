@@ -178,6 +178,10 @@ The valid feature names, their descriptions, and the databases that do not suppo
 |`XML_TYPE`
 |Oracle `XMLTYPE` column type; tests inserting and updating XML_TYPE_TABLE rows.
 |DB2, Derby, H2, HSQLDB, MySQL, MSSQL, PostgreSQL
+
+|`TIMESTAMP_WITH_TIMEZONE`
+|`TIMESTAMP WITH TIME ZONE` column type; tests `TimestampDataType` preserving the dataset's own offset instead of the JVM's default time zone.
+|DB2, Derby, MySQL, MSSQL, Oracle
 |===
 
 == Running Integration Tests with IDEs

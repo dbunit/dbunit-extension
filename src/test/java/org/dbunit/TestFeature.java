@@ -41,6 +41,8 @@ public class TestFeature
     public static final TestFeature SDO_GEOMETRY =
             new TestFeature("SDO_GEOMETRY");
     public static final TestFeature XML_TYPE = new TestFeature("XML_TYPE");
+    public static final TestFeature TIMESTAMP_WITH_TIMEZONE =
+            new TestFeature("TIMESTAMP_WITH_TIMEZONE");
 
     private final String _name;
 
