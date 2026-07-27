@@ -32,6 +32,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.sql.Date;
+import java.sql.ParameterMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -41,6 +42,7 @@ import java.sql.Types;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.OffsetDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
@@ -69,6 +71,9 @@ class TimestampDataTypeTest extends AbstractDataTypeTest
 
     @Mock
     private PreparedStatement mockedStatement;
+
+    @Mock
+    private ParameterMetaData mockedParameterMetaData;
 
     @Override
     @Test
@@ -818,6 +823,46 @@ class TimestampDataTypeTest extends AbstractDataTypeTest
         assertThat(tsCaptor.getValue())
                 .as("timestamp passed to setTimestamp should match typeCast result.")
                 .isEqualTo(expectedTs);
+    }
+
+    @Test
+    void testSetSqlValue_withTimezoneStringAndTimestampWithTimeZoneColumn_callsSetObjectWithOffsetDateTime()
+            throws TypeCastException, SQLException
+    {
+        when(mockedStatement.getParameterMetaData())
+                .thenReturn(mockedParameterMetaData);
+        when(mockedParameterMetaData.getParameterType(1))
+                .thenReturn(Types.TIMESTAMP_WITH_TIMEZONE);
+        final ArgumentCaptor<OffsetDateTime> odtCaptor =
+                ArgumentCaptor.forClass(OffsetDateTime.class);
+
+        new TimestampDataType().setSqlValue("2026-07-22 15:00:00 -0200", 1,
+                mockedStatement);
+
+        verify(mockedStatement).setObject(eq(1), odtCaptor.capture());
+        verify(mockedStatement, never()).setTimestamp(anyInt(),
+                any(Timestamp.class), any(Calendar.class));
+        assertThat(odtCaptor.getValue())
+                .as("a TIMESTAMP WITH TIME ZONE column must receive the dataset's own "
+                        + "offset rather than being routed through Calendar-based "
+                        + "setTimestamp, which some drivers tag with the JVM default "
+                        + "zone instead.")
+                .isEqualTo(OffsetDateTime.parse("2026-07-22T15:00:00-02:00"));
+    }
+
+    @Test
+    void testSetSqlValue_withTimezoneStringAndParameterMetaDataUnavailable_fallsBackToSetTimestampWithCalendar()
+            throws TypeCastException, SQLException
+    {
+        when(mockedStatement.getParameterMetaData())
+                .thenThrow(new SQLException("parameter metadata not supported"));
+
+        new TimestampDataType().setSqlValue("2026-07-22 15:00:00 -0200", 1,
+                mockedStatement);
+
+        verify(mockedStatement).setTimestamp(eq(1), any(Timestamp.class),
+                any(Calendar.class));
+        verify(mockedStatement, never()).setObject(anyInt(), any());
     }
 
     @Test

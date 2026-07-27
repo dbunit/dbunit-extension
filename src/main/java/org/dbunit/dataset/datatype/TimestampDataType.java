@@ -22,12 +22,15 @@
 package org.dbunit.dataset.datatype;
 
 import java.math.BigInteger;
+import java.sql.ParameterMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.sql.Types;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeParseException;
 import java.util.Calendar;
 import java.util.TimeZone;
@@ -270,10 +273,60 @@ public class TimestampDataType extends AbstractDataType
         if (timezoneMatcher.matches() && timezoneMatcher.group(2) != null)
         {
             final Calendar cal = makeCalendar(timezoneMatcher);
-            statement.setTimestamp(column, ts, cal);
+            if (isTimestampWithTimeZoneColumn(column, statement))
+            {
+                final ZoneId zoneId = cal.getTimeZone().toZoneId();
+                final OffsetDateTime offsetDateTime =
+                        OffsetDateTime.ofInstant(ts.toInstant(), zoneId);
+                statement.setObject(column, offsetDateTime);
+            } else
+            {
+                statement.setTimestamp(column, ts, cal);
+            }
         } else
         {
             statement.setTimestamp(column, ts);
+        }
+    }
+
+    /**
+     * Determines whether a prepared-statement parameter targets a column of
+     * SQL type {@code TIMESTAMP WITH TIME ZONE}.
+     * <p>
+     * {@link PreparedStatement#setTimestamp(int, Timestamp, Calendar)} only
+     * changes the wall-clock digits sent to the database. Some drivers write
+     * those digits into a time-zone-aware column tagged with the JVM's
+     * default time zone rather than the given calendar's zone, which
+     * silently discards the dataset's own time zone. Columns of this type
+     * must instead be written with
+     * {@link PreparedStatement#setObject(int, Object)} using an
+     * {@link OffsetDateTime}, which drivers supporting this SQL type map
+     * unambiguously.
+     * @param column The one-based parameter index.
+     * @param statement The statement the parameter belongs to.
+     * @return {@code true} if the parameter's declared SQL type is
+     *         {@link Types#TIMESTAMP_WITH_TIMEZONE}, {@code false} if it is
+     *         not, or if that could not be determined.
+     */
+    private boolean isTimestampWithTimeZoneColumn(final int column,
+            final PreparedStatement statement)
+    {
+        try
+        {
+            final ParameterMetaData parameterMetaData =
+                    statement.getParameterMetaData();
+            final int parameterType =
+                    parameterMetaData.getParameterType(column);
+            return parameterType == Types.TIMESTAMP_WITH_TIMEZONE;
+        } catch (final Exception e)
+        {
+            // Driver support for ParameterMetaData is inconsistent; treat any
+            // failure as "unknown" and fall back to the safe, existing
+            // behavior instead of failing the whole operation.
+            logger.debug(
+                    "Could not determine parameter type for column {}, assuming no timezone.",
+                    column, e);
+            return false;
         }
     }
 
