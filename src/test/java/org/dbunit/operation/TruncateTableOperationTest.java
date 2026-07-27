@@ -26,8 +26,8 @@ import static org.mockito.Mockito.when;
 
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
-import java.util.Locale;
 
+import org.dbunit.TurkishDefaultLocale;
 import org.dbunit.database.IDatabaseConnection;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -66,32 +66,25 @@ class TruncateTableOperationTest extends DeleteAllOperationTest
     }
 
     @Test
+    @TurkishDefaultLocale
     void testGetDeleteAllCommandSuffix_withTurkishDefaultLocaleAndDb2ProductName_appendsImmediate()
             throws Exception
     {
-        final Locale original = Locale.getDefault();
-        Locale.setDefault(new Locale("tr", "TR"));
-        try
-        {
-            when(connection.getConnection()).thenReturn(jdbcConnection);
-            when(jdbcConnection.getMetaData()).thenReturn(databaseMetaData);
-            when(databaseMetaData.getDatabaseProductName())
-                    .thenReturn("DB2/NT");
+        when(connection.getConnection()).thenReturn(jdbcConnection);
+        when(jdbcConnection.getMetaData()).thenReturn(databaseMetaData);
+        when(databaseMetaData.getDatabaseProductName())
+                .thenReturn("DB2/NT");
 
-            final String actual = new TruncateTableOperation()
-                    .getDeleteAllCommandSuffix(connection);
+        final String actual = new TruncateTableOperation()
+                .getDeleteAllCommandSuffix(connection);
 
-            // "db2" itself contains no I/i, so a Turkish default locale
-            // cannot actually break this specific match - this is a
-            // consistency/coverage test for the Locale.ENGLISH pin, not a
-            // demonstrated-bug regression test.
-            assertThat(actual)
-                    .as("DB2 product name must still get the IMMEDIATE"
-                            + " suffix under a Turkish default locale.")
-                    .isEqualTo(" IMMEDIATE");
-        } finally
-        {
-            Locale.setDefault(original);
-        }
+        // "db2" itself contains no I/i, so a Turkish default locale
+        // cannot actually break this specific match - this is a
+        // consistency/coverage test for the Locale.ENGLISH pin, not a
+        // demonstrated-bug regression test.
+        assertThat(actual)
+                .as("DB2 product name must still get the IMMEDIATE"
+                        + " suffix under a Turkish default locale.")
+                .isEqualTo(" IMMEDIATE");
     }
 }

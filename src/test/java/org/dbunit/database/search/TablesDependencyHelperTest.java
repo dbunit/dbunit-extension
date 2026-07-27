@@ -27,8 +27,8 @@ import static org.mockito.Mockito.when;
 import java.lang.reflect.Method;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
-import java.util.Locale;
 
+import org.dbunit.TurkishDefaultLocale;
 import org.dbunit.database.IDatabaseConnection;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -57,32 +57,25 @@ class TablesDependencyHelperTest
     private DatabaseMetaData databaseMetaData;
 
     @Test
+    @TurkishDefaultLocale
     void testNormalizeToStoredCase_withTurkishDefaultLocaleAndLowerCaseIdentifierDatabase_normalizesAsciiCorrectly()
             throws Exception
     {
-        final Locale original = Locale.getDefault();
-        Locale.setDefault(new Locale("tr", "TR"));
-        try
-        {
-            when(connection.getConnection()).thenReturn(jdbcConnection);
-            when(jdbcConnection.getMetaData()).thenReturn(databaseMetaData);
-            when(databaseMetaData.storesLowerCaseIdentifiers())
-                    .thenReturn(true);
+        when(connection.getConnection()).thenReturn(jdbcConnection);
+        when(jdbcConnection.getMetaData()).thenReturn(databaseMetaData);
+        when(databaseMetaData.storesLowerCaseIdentifiers())
+                .thenReturn(true);
 
-            final String[] actual = invokeNormalizeToStoredCase(connection,
-                    new String[] {"TABLE_ID"});
+        final String[] actual = invokeNormalizeToStoredCase(connection,
+                new String[] {"TABLE_ID"});
 
-            assertThat(actual)
-                    .as("normalizeToStoredCase() must use Locale.ENGLISH so a"
-                            + " Turkish default locale does not turn 'I' into"
-                            + " a dotless 'ı', which would desync the"
-                            + " normalized name from the lower-case FK"
-                            + " metadata names returned by the driver.")
-                    .containsExactly("table_id");
-        } finally
-        {
-            Locale.setDefault(original);
-        }
+        assertThat(actual)
+                .as("normalizeToStoredCase() must use Locale.ENGLISH so a"
+                        + " Turkish default locale does not turn 'I' into"
+                        + " a dotless 'ı', which would desync the"
+                        + " normalized name from the lower-case FK"
+                        + " metadata names returned by the driver.")
+                .containsExactly("table_id");
     }
 
     @Test

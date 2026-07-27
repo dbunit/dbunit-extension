@@ -43,8 +43,8 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
 import java.util.Arrays;
-import java.util.Locale;
 
+import org.dbunit.TurkishDefaultLocale;
 import org.dbunit.dataset.ITable;
 import org.dbunit.testutil.FileAsserts;
 import org.junit.jupiter.api.Test;
@@ -323,38 +323,31 @@ class BytesDataTypeTest extends AbstractDataTypeTest
     }
 
     @Test
+    @TurkishDefaultLocale
     void testTypeCast_turkishLocaleFileCommand_recognizedAsFileCommand() throws Exception
     {
-        final Locale original = Locale.getDefault();
-        Locale.setDefault(new Locale("tr", "TR"));
-        try
-        {
-            final File file = File.createTempFile("BytesDataTypeTest", ".bin");
-            file.deleteOnExit();
-            final byte[] expected =
-                    "dbunit turkish locale file command test"
-                            .getBytes(StandardCharsets.UTF_8);
-            Files.write(file.toPath(), expected);
+        final File file = File.createTempFile("BytesDataTypeTest", ".bin");
+        file.deleteOnExit();
+        final byte[] expected =
+                "dbunit turkish locale file command test"
+                        .getBytes(StandardCharsets.UTF_8);
+        Files.write(file.toPath(), expected);
 
-            final BytesDataType spyType =
-                    Mockito.spy(new BytesDataType("BINARY", Types.BINARY));
+        final BytesDataType spyType =
+                Mockito.spy(new BytesDataType("BINARY", Types.BINARY));
 
-            final Object actual =
-                    spyType.typeCast("[file]" + file.getPath());
+        final Object actual =
+                spyType.typeCast("[file]" + file.getPath());
 
-            assertThat(actual)
-                    .as("typeCast() must recognize the lower-case '[file]'"
-                            + " command and load the file's bytes.")
-                    .isEqualTo(expected);
-            // Only the fallback URI/file/Base64 guesser (taken when the
-            // "FILE" command is not recognized) ever calls loadURL() first;
-            // a buggy default-locale fold of "file" to "FİLE" under tr-TR
-            // would miss the command match and fall through to it.
-            verify(spyType, never()).loadURL(anyString());
-        } finally
-        {
-            Locale.setDefault(original);
-        }
+        assertThat(actual)
+                .as("typeCast() must recognize the lower-case '[file]'"
+                        + " command and load the file's bytes.")
+                .isEqualTo(expected);
+        // Only the fallback URI/file/Base64 guesser (taken when the
+        // "FILE" command is not recognized) ever calls loadURL() first;
+        // a buggy default-locale fold of "file" to "FİLE" under tr-TR
+        // would miss the command match and fall through to it.
+        verify(spyType, never()).loadURL(anyString());
     }
 
     @Override

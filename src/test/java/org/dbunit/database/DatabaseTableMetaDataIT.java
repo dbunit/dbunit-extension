@@ -36,6 +36,7 @@ import org.dbunit.AbstractDatabaseIT;
 import org.dbunit.DatabaseEnvironment;
 import org.dbunit.DdlExecutor;
 import org.dbunit.TestFeature;
+import org.dbunit.TurkishDefaultLocale;
 import org.dbunit.dataset.Column;
 import org.dbunit.dataset.Columns;
 import org.dbunit.dataset.IDataSet;
@@ -283,42 +284,31 @@ class DatabaseTableMetaDataIT extends AbstractDatabaseIT
      * @throws Exception
      */
     @Test
+    @TurkishDefaultLocale
     void testGetTable_withTurkishLocaleActive_findsTableIgnoringLocaleSpecificUpperCase() throws Exception
     {
         // To test bug report #1537894 where the user has a turkish locale set
-        // on his box
+        // on his box, where "i".toUpperCase() produces an "\u0131" ("I" with
+        // dot above) which is not equal to "I".
 
-        // Change the locale for this test
-        final Locale oldLocale = Locale.getDefault();
-        // Set the locale to turkish where "i".toUpperCase() produces an
-        // "\u0131" ("I" with dot above) which is not equal to "I".
-        Locale.setDefault(new Locale("tr", "TR"));
+        // Use the "EMPTY_MULTITYPE_TABLE" because it has an "I" in the
+        // name.
+        // Use as input a completely lower-case string so that the internal
+        // "toUpperCase()" has effect
+        // 2009-11-06 TODO John Hurst: not working in original form with
+        // MySQL.
+        // Is it because "internal toUpperCase() mentioned above is actually
+        // not being called?
+        // Investigate further.
+        // String tableName = "empty_multitype_table";
+        final String tableName = "EMPTY_MULTITYPE_TABLE";
 
-        try
-        {
-            // Use the "EMPTY_MULTITYPE_TABLE" because it has an "I" in the
-            // name.
-            // Use as input a completely lower-case string so that the internal
-            // "toUpperCase()" has effect
-            // 2009-11-06 TODO John Hurst: not working in original form with
-            // MySQL.
-            // Is it because "internal toUpperCase() mentioned above is actually
-            // not being called?
-            // Investigate further.
-            // String tableName = "empty_multitype_table";
-            final String tableName = "EMPTY_MULTITYPE_TABLE";
-
-            final IDataSet dataSet = this._connection.createDataSet();
-            final ITable table = dataSet.getTable(tableName);
-            // Should now find the table, regardless that we gave the tableName
-            // in lowerCase
-            assertThat(table).as("Table '" + tableName + "' was not found")
-                    .isNotNull();
-        } finally
-        {
-            // Reset locale
-            Locale.setDefault(oldLocale);
-        }
+        final IDataSet dataSet = this._connection.createDataSet();
+        final ITable table = dataSet.getTable(tableName);
+        // Should now find the table, regardless that we gave the tableName
+        // in lowerCase
+        assertThat(table).as("Table '" + tableName + "' was not found")
+                .isNotNull();
     }
 
     /**
