@@ -86,6 +86,9 @@
       <action dev="jeffjensen" type="fix" issue="808" system="github" due-to="jeffjensen">
           Fix the Ant export step rejecting format="CSV" in uppercase and leaving an empty output file behind for unsupported formats. Also, an unsupported format is now rejected before the database connection is queried for the export dataset, instead of after, since format validity doesn't depend on the connection.
       </action>
+      <action dev="jeffjensen" type="fix" issue="808" system="github" due-to="jeffjensen">
+          Fix Export.setFormat()'s IllegalArgumentException message omitting 'csv' from the list of valid formats, even though csv has always been accepted.
+      </action>
       <action dev="jeffjensen" type="fix" issue="809" system="github" due-to="jeffjensen">
           DefaultPrepAndExpectedTestCase.postTest now attaches a verify failure as suppressed on the cleanup exception that deliberately shadows it, instead of losing it.
       </action>

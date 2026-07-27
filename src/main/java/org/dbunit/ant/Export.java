@@ -114,7 +114,7 @@ public class Export extends AbstractStep
         }
         else
         {
-            throw new IllegalArgumentException("Type must be one of: 'flat'(default), 'xml', 'dtd', 'xls' or 'yml' but was: " + format);
+            throw new IllegalArgumentException("Type must be one of: 'flat'(default), 'xml', 'dtd', 'csv', 'xls' or 'yml' but was: " + format);
         }
     }
 
