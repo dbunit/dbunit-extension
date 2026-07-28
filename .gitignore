@@ -21,3 +21,7 @@ release.properties
 pom.xml.releaseBackup
 pom.xml.tag
 pom.xml.next
+
+# Python (.github/scripts/*.py and their pytest suites)
+__pycache__
+.pytest_cache

@@ -81,3 +81,139 @@ jobs:
             --title "$VERSION" \
             --generate-notes \
             --verify-tag
+
+  # Post a GitHub Discussion announcement (Announcements category) alongside the
+  # GitHub Release. Content is generated mechanically from changes.xml via the
+  # maven-changes-plugin's announcement-generate goal (same tool the site's
+  # changes.html report uses) — no AI call, fully reproducible. Isolated from
+  # github-release/release since it needs neither the built jar nor contents:write,
+  # so it runs in parallel once the Central deploy succeeds.
+  #
+  # NOTE: pinning/unpinning a Discussion has no public GraphQL mutation as of this
+  # writing (verified against the live schema: Discussion has no isPinned field,
+  # and there is no pinDiscussion/unpinDiscussion mutation). That step stays
+  # manual; this job prints direct links in the job summary for whoever is
+  # running the release to action by hand.
+  discussion-announcement:
+    needs: release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read # required for actions/checkout (job permissions replace, not merge with, workflow defaults)
+      discussions: write # required to create the Discussion via GraphQL
+    env:
+      GH_TOKEN: ${{ github.token }}
+      VERSION: ${{ needs.release.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/jdk-setup
+
+      - name: Generate announcement content from changes.xml
+        run: ${{ env.MAVEN_COMMAND }} ${{ env.MAVEN_CLI_COMMON }} changes:announcement-generate -Dchanges.version="$VERSION"
+
+      - name: Format announcement as a Discussion body
+        run: |
+          python3 .github/scripts/format-announcement.py \
+            --version "$VERSION" \
+            --output discussion-body.md
+
+      # Single query covers everything the later steps need: the repository's
+      # GraphQL node id, the Announcements category id, and any already-pinned
+      # posts. pinnedDiscussions only covers repository-wide (global) pins —
+      # GitHub's API has no way to list discussions pinned within just a
+      # category, so a release announcement pinned only in Announcements
+      # cannot be detected here; the summary below says so explicitly.
+      - name: Look up repository, Announcements category, and pinned posts
+        id: lookup
+        run: |
+          RESULT="$(gh api graphql -f query='
+            query($owner: String!, $name: String!) {
+              repository(owner: $owner, name: $name) {
+                id
+                discussionCategories(first: 25) { nodes { id name } }
+                pinnedDiscussions(first: 20) { nodes { discussion { id title url } } }
+              }
+            }' -f owner="$GITHUB_REPOSITORY_OWNER" -f name="${GITHUB_REPOSITORY#*/}")"
+
+          REPO_ID="$(jq -r '.data.repository.id' <<<"$RESULT")"
+          CATEGORY_ID="$(jq -r '.data.repository.discussionCategories.nodes[] | select(.name=="Announcements") | .id' <<<"$RESULT")"
+
+          if [ -z "$CATEGORY_ID" ]; then
+            echo "::error::Announcements discussion category not found."
+            exit 1
+          fi
+
+          echo "repo_id=${REPO_ID}" >> "$GITHUB_OUTPUT"
+          echo "category_id=${CATEGORY_ID}" >> "$GITHUB_OUTPUT"
+
+          jq -r '.data.repository.pinnedDiscussions.nodes[].discussion
+                 | select(.title | test("^dbUnit .+ Released$"))
+                 | "* [\(.title)](\(.url))"' <<<"$RESULT" > prior-release-announcements.md
+
+          if [ ! -s prior-release-announcements.md ]; then
+            echo "(none found)" > prior-release-announcements.md
+          fi
+
+      # Idempotent: a rerun (retry after a later-step failure, manual re-run) must
+      # not create a second "dbUnit X.Y.Z Released" post, so look for an existing
+      # one in the category first and reuse it instead of creating a duplicate.
+      - name: Create Discussion announcement
+        id: create
+        env:
+          REPO_ID: ${{ steps.lookup.outputs.repo_id }}
+          CATEGORY_ID: ${{ steps.lookup.outputs.category_id }}
+        run: |
+          TITLE="dbUnit ${VERSION} Released"
+
+          EXISTING="$(gh api graphql -f query='
+            query($owner: String!, $name: String!, $categoryId: ID!) {
+              repository(owner: $owner, name: $name) {
+                discussions(categoryId: $categoryId, first: 25, orderBy: {field: CREATED_AT, direction: DESC}) {
+                  nodes { title url }
+                }
+              }
+            }' -f owner="$GITHUB_REPOSITORY_OWNER" -f name="${GITHUB_REPOSITORY#*/}" -f categoryId="$CATEGORY_ID" \
+            | jq -r --arg title "$TITLE" '.data.repository.discussions.nodes[] | select(.title == $title) | .url' \
+            | head -n 1)"
+
+          if [ -n "$EXISTING" ]; then
+            echo "Discussion already exists for ${TITLE}: ${EXISTING}"
+            echo "url=${EXISTING}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          RESULT="$(gh api graphql -f query='
+            mutation($repositoryId: ID!, $categoryId: ID!, $title: String!, $body: String!) {
+              createDiscussion(input: {repositoryId: $repositoryId, categoryId: $categoryId, title: $title, body: $body}) {
+                discussion { id url }
+              }
+            }' -f repositoryId="$REPO_ID" \
+               -f categoryId="$CATEGORY_ID" \
+               -f title="$TITLE" \
+               -F body=@discussion-body.md)"
+
+          echo "url=$(jq -r '.data.createDiscussion.discussion.url' <<<"$RESULT")" >> "$GITHUB_OUTPUT"
+
+      - name: Summarize manual pin/unpin step
+        env:
+          DISCUSSION_URL: ${{ steps.create.outputs.url }}
+        run: |
+          {
+            echo "## Discussion announcement posted"
+            echo
+            echo "$DISCUSSION_URL"
+            echo
+            echo "GitHub's API has no pin/unpin mutation for Discussions — pin the new post by hand."
+            echo
+            echo "Repository-wide pinned posts matching a prior release title (unpin these too):"
+            echo
+            cat prior-release-announcements.md
+            echo
+            echo "GitHub's API also has no way to list posts pinned only within a"
+            echo "category, so also check the [Announcements category](https://github.com/dbunit/dbunit-extension/discussions/categories/announcements) directly for a pinned prior release post to unpin."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo "::notice title=Manual step needed::Pin ${DISCUSSION_URL}; unpin the prior release announcement both repository-wide and in the Announcements category — see job summary."
