@@ -44,8 +44,8 @@ import org.dbunit.dataset.datatype.DataType;
 import org.dbunit.dataset.xml.FlatXmlDataSetBuilder;
 import org.dbunit.dataset.xml.XmlDataSet;
 import org.dbunit.testutil.TestUtils;
-import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 
 /**
  * @author Manuel Laflamme
@@ -335,16 +335,12 @@ public class InsertOperationIT extends AbstractDatabaseIT
     }
 
     @Test
+    @EnabledIfSystemProperty(named = "dbunit.profile", matches = "hsqldb")
     void testExecute_withDefaultValueNotNullColumnTurningNull_appliesDefaultOnSecondRow()
             throws Exception
     {
         // DEFAULT_VALUE_TABLE (ID, STATUS NOT NULL DEFAULT 'PENDING') is
         // only defined in the HSQLDB fixture DDL.
-        Assumptions.assumeTrue(
-                _connection.getConnection().getMetaData()
-                        .getDatabaseProductName().startsWith("HSQL"),
-                "Skip: DEFAULT_VALUE_TABLE is only defined in the HSQLDB fixture DDL.");
-
         final String tableName = "DEFAULT_VALUE_TABLE";
         final Column[] columns = {new Column("ID", DataType.INTEGER),
                 new Column("STATUS", DataType.VARCHAR,
