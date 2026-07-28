@@ -14,25 +14,25 @@
 
   <body>
     <release version="3.4.0-SNAPSHOT" date="TBD" description="Un-skip and strengthen remaining disabled and no-op tests: implement DefaultPrepAndExpectedTestCaseTest stubs, convert ForwardOnlyDataSetTest no-ops to assertThrows, implement ExcludeTableFilterTest reverse-order tests, relocate ToStringViewTest's package-blocked cases, restore commented-out unit tests in CsvParserTest/FlatXmlTableTest/BiDirectionalEdgesDepthFirstSearchTest, implement ReplacementTableTest.testGetMissingValue, add assertions to applyColumnFilters tests, fix DatabaseTestCase tear-down exceptions obscuring test failures, rewrite obsolete DbUnitTaskIT queryset test, delete two dead commented-out test fragments, stop swallowing failures in PostgreSQL xtest* methods, add CachingConnectionProvider for opt-in IDatabaseConnection reuse across test methods, reduce DefaultPrepAndExpectedTestCase's per-test connection churn, fix DefaultPrepAndExpectedTestCase.runTest() losing a test failure to a cleanup exception, fix DefaultPrepAndExpectedTestCase column-name matching under non-English default locales, harmonize DefaultPrepAndExpectedTestCase's null-databaseTester handling on IllegalStateException, apply code-quality cleanups to DefaultPrepAndExpectedTestCase, pin remaining identifier case folding to Locale.ENGLISH for Turkish-family default locales, fix NullPointerException exporting NO_VALUE cells to flat XML and YAML dumping the raw sentinel, fix SQLHelper's schema-correction notice being silently dropped by a guard/call level mismatch, close BytesDataType file/URL streams and read them in chunks, fail fast on invalid BytesDataType [text]/[base64] values instead of silently storing garbage or NULL, fix QualifiedTableName escaping a single-character segment before a dot as part of the next segment, fix the Ant export step rejecting an uppercase CSV format and leaving an empty output file for unsupported formats, preserve the verify failure as suppressed when DefaultPrepAndExpectedTestCase.postTest's cleanup also fails, fix InsertOperation binding NULL into NOT NULL DEFAULT columns depending on row order, round-trip supplementary characters and replace unrepresentable control characters with U+FFFD in XML export, fix TimestampDataType mis-encoding pre-epoch fractional-second timestamps with a timezone suffix, roll back TransactionOperation on Error instead of implicitly committing, fix XlsTable negative row count and missing-row NullPointerException, pin YAML/DTD/OracleXMLType writer charsets to UTF-8 matching their readers, skip a redundant per-table metadata query in DatabaseDataSet.getTableMetaData, guard or remove per-cell debug logging in the datatype package, fix a data race that could mask the real producer failure in StreamingIterator, fix CsvParser duplicating the continuation line on a short multi-line parse, use DatabaseConfig.getFeature for the qualified-table-names check in DatabaseDataSet, fix FileHelper.copyFile leaking the source stream when the destination cannot be opened, keep DefaultPrepAndExpectedTestCase.configureTest's connection open for the test lifecycle instead of closing and immediately reacquiring it, remove a dead field and harden the close path in RefreshOperation, route Base64's stderr diagnostics through slf4j, remove XmlWriter's dead setEncoding(String) overload, fix CsvProducer truncating table names containing .csv before the final suffix, remove unused duplicate slf4jVersion/snakeYamlVersion pom properties, fix SQLHelper.logDebugIfValueChanged brace indentation, centralize duplicated Turkish-locale test setup into a shared @TurkishDefaultLocale JUnit 5 extension, fix TimestampDataType writing the wrong instant to TIMESTAMP WITH TIME ZONE columns when some JDBC drivers tag the value with the JVM's default time zone instead of the dataset's own time zone, replace InsertOperationIT's inline HSQLDB-only assumeTrue check with @EnabledIfSystemProperty">
-      <action dev="jeffjensen" type="test" issue="797" system="github" due-to="jeffjensen">
+      <action dev="jeffjensen" type="fix" issue="797" system="github" due-to="jeffjensen">
           Implement the 8 empty, @Disabled DefaultPrepAndExpectedTestCaseTest stub methods covering preTest, postTest, setupData, verifyData, cleanupData, and makeCompositeDataSet, using the class's existing Mockito-based connection harness. Move the test fixture's databaseTester/tc construction from field initializers to a @BeforeEach method so @Mock injection (MockitoExtension) completes before they are built.
       </action>
-      <action dev="jeffjensen" type="test" issue="797" system="github" due-to="jeffjensen">
+      <action dev="jeffjensen" type="fix" issue="797" system="github" due-to="jeffjensen">
           Convert 8 empty, @Disabled ForwardOnlyDataSetTest methods into assertThrows assertions proving ForwardOnlyDataSet's documented unsupported-operation contract, matching the pattern already used by the class's other overrides.
       </action>
-      <action dev="jeffjensen" type="test" issue="797" system="github" due-to="jeffjensen">
+      <action dev="jeffjensen" type="fix" issue="797" system="github" due-to="jeffjensen">
           Implement ExcludeTableFilterTest's 2 empty, @Disabled reverse-order tests, ported from the equivalent IncludeTableFilterTest methods.
       </action>
-      <action dev="jeffjensen" type="test" issue="797" system="github" due-to="jeffjensen">
+      <action dev="jeffjensen" type="fix" issue="797" system="github" due-to="jeffjensen">
           Move ToStringViewTest's testStreamingTable/testXlsTable out of their dead @Disabled state into new StreamingTableToStringTest and XlsTableToStringTest classes in the same package as StreamingTable/XlsTable, since both are only visible there.
       </action>
-      <action dev="jeffjensen" type="test" issue="797" system="github" due-to="jeffjensen">
+      <action dev="jeffjensen" type="fix" issue="797" system="github" due-to="jeffjensen">
           Restore 8 commented-out unit test methods across CsvParserTest, FlatXmlTableTest, and BiDirectionalEdgesDepthFirstSearchTest, migrating them to Jupiter/AssertJ. FlatXmlTableTest's unknown-column case now asserts the current, intentional NoSuchColumnException instead of the stale null-return expectation it originally encoded.
       </action>
-      <action dev="jeffjensen" type="test" issue="797" system="github" due-to="jeffjensen">
+      <action dev="jeffjensen" type="fix" issue="797" system="github" due-to="jeffjensen">
           Implement ReplacementTableTest.testGetMissingValue, which previously asserted nothing, mirroring the MISSING_VALUES fixture pattern already used by the sibling FlatXmlTableTest/XlsTableTest overrides of the same inherited test.
       </action>
-      <action dev="jeffjensen" type="test" issue="797" system="github" due-to="jeffjensen">
+      <action dev="jeffjensen" type="fix" issue="797" system="github" due-to="jeffjensen">
           Add real assertions to DefaultPrepAndExpectedTestCaseTest.testApplyColumnFiltersBothNull/BothNotNull, which previously discarded applyColumnFilters()'s result and asserted nothing, and document via the not-null case that include filtering is applied before exclude filtering.
       </action>
       <action dev="jeffjensen" type="fix" issue="141" system="github" due-to="jeffjensen">
@@ -41,28 +41,31 @@
       <action dev="jeffjensen" type="fix" issue="141" system="github" due-to="jeffjensen">
           Fix DefaultPrepAndExpectedTestCase.runTest() losing the original test failure when the cleanup path (postTest(false)) also throws: attach the cleanup failure to the original via addSuppressed instead of letting it replace and hide the real test failure, mirroring DatabaseTestCase.tearDown(Throwable).
       </action>
-      <action dev="jeffjensen" type="test" issue="797" system="github" due-to="jeffjensen">
+      <action dev="jeffjensen" type="fix" issue="797" system="github" due-to="jeffjensen">
           Rewrite DbUnitTaskIT's obsolete queryset id/refid test: it asserted the old behavior of throwing a BuildException when both attributes are set, but Ant resolves refid first and no longer errors on the combination; the test now asserts today's actual, no-throw behavior.
       </action>
-      <action dev="jeffjensen" type="test" issue="797" system="github" due-to="jeffjensen">
+      <action dev="jeffjensen" type="remove" issue="797" system="github" due-to="jeffjensen">
           Delete two commented-out test fragments that encoded no restorable behavior: InsertOperationIT's testExecuteNullAsNone referenced DatabaseConfig.FEATURE_NULL_AS_NONE, which does not exist anywhere in production code (an apparently never-implemented feature; the NO_VALUE-omission behavior it targeted is already covered by testExecute_withNoValueFields_omitsNoValueColumnsFromInsertSql in InsertOperationTest), and DatabaseDataSetIT's testGetTableNamesAndCaseSensitive was two lines cut off mid-statement with no coherent assertion, probing raw DatabaseMetaData introspection that dbunit's own case-sensitivity handling (FEATURE_CASE_SENSITIVE_TABLE_NAMES) does not use.
       </action>
-      <action dev="jeffjensen" type="test" issue="797" system="github" due-to="jeffjensen">
+      <action dev="jeffjensen" type="fix" issue="797" system="github" due-to="jeffjensen">
           Rename the stale JUnit3-era xtest*-prefixed methods in PostgresSQLOidIT, PostgresqlUuidIT, and SQLHelperDomainPostgreSQLIT to test*, and remove the try/catch wrapper around each body that reported a nonsense fixed message instead of the real failure whenever a non-assertion exception occurred (AssertionError is not an Exception, so real assertion failures already propagated normally; only the underlying operation's own failures were obscured). Verified against a Dockerized postgres:16.3.
       </action>
       <action dev="jeffjensen" type="add" issue="799" system="github" due-to="jeffjensen">
           Add CachingConnectionProvider: an opt-in, thread-safe cache for one IDatabaseConnection (and therefore its metadata cache) that detects a dead or expired connection and transparently replaces it instead of returning it or failing. Wire it into JdbcDatabaseTester, DataSourceDatabaseTester, JndiDatabaseTester, PropertiesBasedJdbcDatabaseTester, and DefaultDatabaseTester via new, additive constructor overloads, making the existing manual DefaultDatabaseTester + NO_OP_OPERATION_LISTENER reuse pattern safe to opt into without hand-wiring a static connection field. Update the FAQ's performance and keep-connection-open entries accordingly. Verified against hsqldb, h2, derby, and postgresql.
       </action>
       <action dev="jeffjensen" type="update" issue="800" system="github" due-to="jeffjensen">
-          Reduce DefaultPrepAndExpectedTestCase's per-test connection churn: setupData(), verifyData(), and cleanupData() now share one IDatabaseConnection acquired lazily and closed once by cleanupData(), instead of each step acquiring and often closing its own; configureTest() caches its resolved FEATURE_CASE_SENSITIVE_TABLE_NAMES value so cleanupData() no longer needs a second connection just to re-read it. Together these cut a 4-5-connection-per-test lifecycle down to 1-2. Add setCloseConnectionAfterTest(boolean), defaulting to true, so a databaseTester sharing a CachingConnectionProvider across test methods can opt this class out of closing a connection other tests still expect to reuse. Verified against all 9 supported databases (hsqldb, h2, derby, postgresql, mysql, mssql, db2, oracle-18, oracle-23).
+          Reduce DefaultPrepAndExpectedTestCase's per-test connection churn: setupData(), verifyData(), and cleanupData() now share one IDatabaseConnection acquired lazily and closed once by cleanupData(), instead of each step acquiring and often closing its own; configureTest() caches its resolved FEATURE_CASE_SENSITIVE_TABLE_NAMES value so cleanupData() no longer needs a second connection just to re-read it. Together these cut a 4-5-connection-per-test lifecycle down to 1-2. Verified against all 9 supported databases (hsqldb, h2, derby, postgresql, mysql, mssql, db2, oracle-18, oracle-23).
+      </action>
+      <action dev="jeffjensen" type="add" issue="800" system="github" due-to="jeffjensen">
+          Add DefaultPrepAndExpectedTestCase.setCloseConnectionAfterTest(boolean), defaulting to true, so a databaseTester sharing a CachingConnectionProvider across test methods can opt this class out of closing a connection other tests still expect to reuse.
       </action>
       <action dev="jeffjensen" type="fix" issue="206" system="github" due-to="jeffjensen">
           Fix DefaultPrepAndExpectedTestCase.makeExpectedTableColumns() column-name matching to use Locale.ENGLISH instead of the JVM default locale, so a Turkish default locale's dotless-i no longer breaks matching differently-cased ASCII column names, matching DatabaseDataSet.SchemaSet.normalizeSchema's existing convention.
       </action>
-      <action dev="jeffjensen" type="refactor" issue="802" system="github" due-to="jeffjensen">
+      <action dev="jeffjensen" type="fix" issue="802" system="github" due-to="jeffjensen">
           Harmonize DefaultPrepAndExpectedTestCase.getSetUpOperation()/getTearDownOperation() on throwing IllegalStateException for a null databaseTester, matching setupData()/verifyData()/cleanupData(), instead of JUnit's assertNotNull()/AssertionError; remove the now-unused assertNotNull import.
       </action>
-      <action dev="jeffjensen" type="refactor" issue="802" system="github" due-to="jeffjensen">
+      <action dev="jeffjensen" type="update" issue="802" system="github" due-to="jeffjensen">
           Code-quality cleanups in DefaultPrepAndExpectedTestCase: use generics in makeCompositeDataSet() instead of a raw List and unchecked array cast, move applyColumnFilters()'s null check ahead of first use, log include/exclude column filters with Arrays.toString() instead of a confusing single-element Object[] wrapper, and document the legacy JUnit-3-era tearDown() hook's non-invocation under JUnit 5 and its double-cleanup risk.
       </action>
       <action dev="jeffjensen" type="fix" issue="452" system="github" due-to="jeffjensen">
@@ -137,25 +140,25 @@
       <action dev="jeffjensen" type="update" issue="827" system="github" due-to="jeffjensen">
           Route Base64's bad-input console diagnostic through its slf4j logger at WARN instead of System.err.println, and remove four e.printStackTrace() calls that duplicated an adjacent logger.error() call to stderr.
       </action>
-      <action dev="jeffjensen" type="update" issue="828" system="github" due-to="jeffjensen">
+      <action dev="jeffjensen" type="remove" issue="828" system="github" due-to="jeffjensen">
           Remove XmlWriter's dead private setEncoding(String) overload, unreachable from setWriter and never matching the common "UTF-8" spelling even if it were called.
       </action>
       <action dev="jeffjensen" type="fix" issue="829" system="github" due-to="jeffjensen">
           Fix CsvProducer truncating a table name at the first ".csv" occurrence instead of the last, which misread a table named e.g. a.csvx back as a on round-trip; also null-safe the NULL-token comparison.
       </action>
-      <action dev="jeffjensen" type="update" issue="830" system="github" due-to="jeffjensen">
+      <action dev="jeffjensen" type="remove" issue="830" system="github" due-to="jeffjensen">
           Remove the unused, stale slf4jVersion and snakeYamlVersion pom properties, superseded by the actually-used slf4jApiVersion and snakeyamlVersion.
       </action>
-      <action dev="jeffjensen" type="fix" issue="832" system="github" due-to="jeffjensen">
+      <action dev="jeffjensen" type="update" issue="832" system="github" due-to="jeffjensen">
           Reindent SQLHelper.logDebugIfValueChanged's closing braces to match their actual nesting depth; cosmetic only, brace count was already balanced.
       </action>
-      <action dev="jeffjensen" type="test" issue="833" system="github" due-to="jeffjensen">
+      <action dev="jeffjensen" type="update" issue="833" system="github" due-to="jeffjensen">
           Centralize the duplicated Turkish-locale save/mutate/restore boilerplate across 13 test classes into a shared @TurkishDefaultLocale JUnit 5 extension.
       </action>
       <action dev="jeffjensen" type="fix" issue="831" system="github" due-to="yoshida16729438">
           Fix TimestampDataType writing the wrong instant to TIMESTAMP WITH TIME ZONE columns: the issue #711 fix's Calendar-based setTimestamp(Timestamp, Calendar) call let some JDBC drivers tag the stored value with the JVM's default time zone instead of the dataset's own time zone, silently discarding it. Detect such columns via PreparedStatement.getParameterMetaData() and write them with setObject(OffsetDateTime) instead, which drivers supporting the SQL type map unambiguously; columns without a time zone keep the existing Calendar-based behavior from #711 unchanged.
       </action>
-      <action dev="jeffjensen" type="test" issue="835" system="github" due-to="jeffjensen">
+      <action dev="jeffjensen" type="update" issue="835" system="github" due-to="jeffjensen">
           Replace InsertOperationIT's inline getDatabaseProductName()-based assumeTrue check, gating a test to HSQLDB only since DEFAULT_VALUE_TABLE is defined solely in its fixture DDL, with a method-level @EnabledIfSystemProperty(named = "dbunit.profile", matches = "hsqldb") annotation, matching existing class-level precedent elsewhere in the test suite.
       </action>
     </release>
