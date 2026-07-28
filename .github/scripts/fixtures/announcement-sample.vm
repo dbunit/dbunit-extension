@@ -1,0 +1,20 @@
+The dbUnit Extension team is pleased to announce the dbunit-3.4.0 release!
+
+dbUnit is a JUnit extension (also usable from Ant and Maven) targeted for
+database-driven projects that, among other things, puts your database into a
+known state between test runs.
+
+Changes in this version include:
+
+
+Fixed Bugs:
+o Fix a bug in TimestampDataType.  Issue: 831. Thanks to jeffjensen.
+o Fix a resource leak in InsertOperation.  Issue: 835. Thanks to jeffjensen.
+
+Changes:
+o Update maven dependency org.example:foo from 1.0.0 to 1.1.0 (#900). Thanks to Dependabot.
+o Speed up column lookups.  Issue: 840. Thanks to jeffjensen.
+
+
+Have fun!
+-dbUnit Extension team

@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<document xmlns="http://maven.apache.org/changes/2.0.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/changes/2.0.0 https://maven.apache.org/xsd/changes-2.0.0.xsd">
+  <body>
+    <release version="3.4.0" date="2026-07-28" description="Test-suite hardening and correctness fixes across export formats and timestamp handling">
+      <action dev="jeffjensen" type="fix" issue="831" system="github" due-to="jeffjensen">Fix a bug.</action>
+    </release>
+    <release version="3.3.0" date="2026-07-22" description="Performance improvements">
+      <action dev="jeffjensen" type="fix" issue="700" system="github" due-to="jeffjensen">Old fix.</action>
+    </release>
+  </body>
+</document>
