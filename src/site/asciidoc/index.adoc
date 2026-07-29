@@ -31,12 +31,12 @@ We will gladly help you as needed with your ideas and contributions and look to 
 |Date |News
 
 // |TBD
-// |Please try the 3.4.0-SNAPSHOT snapshot build and let us know how it works!
-// It adds an opt-in `CachingConnectionProvider` to cut *per-test connection overhead*, pins identifier matching to `Locale.ENGLISH` for Turkish-locale correctness, and fixes numerous timestamp, export-format, and resource-leak bugs.
+// |Please try the 3.4.1-SNAPSHOT snapshot build and let us know how it works!
+// It adds ...
 // See link:https://dbunit.github.io/dbunit-extension/repos.html#snapshots[SNAPSHOTS] for how to use them.
-// Refer to the link:changes.html#a3.4.0-SNAPSHOT[changes report],
-// the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.4.0%20type%3AFeature[feature list], and
-// the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.4.0%20type%3ABug[bug list]
+// Refer to the link:changes.html#a3.4.1-SNAPSHOT[changes report],
+// the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.4.1%20type%3AFeature[feature list], and
+// the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.4.1%20type%3ABug[bug list]
 // for the snapshot contents (and subsequent updates).
 
 |2026-07-28
