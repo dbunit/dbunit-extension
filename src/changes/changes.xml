@@ -26,6 +26,9 @@
       <action dev="jeffjensen" type="add" issue="843" system="github" due-to="jeffjensen">
           Fill in the JdbcBasedDBTestCase, DataSourceBasedDBTestCase, and JndiBasedDBTestCase pages, previously literal TODO stubs: each now documents what the class is, a minimal JUnit 5 example (including the @BeforeEach/@AfterEach super calls JUnit 5 requires that the prior "Getting Started" narrative omitted), and when to reach for it versus the IDatabaseTester composition alternative.
       </action>
+      <action dev="jeffjensen" type="update" issue="844" system="github" due-to="jeffjensen">
+          Expand datacomparisons/equality.adoc with the real equality-comparison examples (assertEquals usage, query-based snapshots, column-filtered comparison, row-ordering) moved from howto.adoc's "Dbunit data verification" section, bringing it to parity with its valuecomparer.adoc sibling.
+      </action>
     </release>
     <release version="3.4.0" date="Jul 28, 2026" description="Test-suite hardening (un-skip and strengthen dozens of disabled/no-op tests); add CachingConnectionProvider and reduce DefaultPrepAndExpectedTestCase's per-test connection churn; pin identifier case-folding to Locale.ENGLISH for Turkish-locale correctness; and a broad set of correctness fixes across export formats (XML, YAML, CSV, XLS, Ant), TimestampDataType timezone handling, InsertOperation/TransactionOperation, and resource-leak cleanups">
       <action dev="jeffjensen" type="fix" issue="797" system="github" due-to="jeffjensen">
