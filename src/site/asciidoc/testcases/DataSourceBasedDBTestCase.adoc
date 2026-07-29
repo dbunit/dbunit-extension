@@ -1,6 +1,76 @@
-= dbUnit Test Cases
+= DataSourceBasedDBTestCase
 Jeff Jensen
 
-== DataSourceBasedDBTestCase
+== Overview
 
-TODO
+link:/dbunit/apidocs/org/dbunit/DataSourceBasedDBTestCase.html[DataSourceBasedDBTestCase]
+is a link:/dbunit/apidocs/org/dbunit/DBTestCase.html[DBTestCase] subclass
+preconfigured to use a
+link:/dbunit/apidocs/org/dbunit/DataSourceDatabaseTester.html[DataSourceDatabaseTester] —
+it is `DBTestCase` and `DataSourceDatabaseTester` wired together, so you only
+implement `getDataSource()` and `getDataSet()`.
+
+== Example
+
+[source,java]
+----
+public class AccountTest extends DataSourceBasedDBTestCase
+{
+    @Override
+    protected DataSource getDataSource()
+    {
+        return myApplicationDataSource; // e.g. injected or looked up
+    }
+
+    @Override
+    protected IDataSet getDataSet() throws Exception
+    {
+        return new FlatXmlDataSetBuilder()
+                .build(getClass().getResourceAsStream("/dbunit/account-prep.xml"));
+    }
+
+    @BeforeEach
+    @Override
+    protected void setUp() throws Exception
+    {
+        super.setUp();
+    }
+
+    @AfterEach
+    @Override
+    protected void tearDown() throws Exception
+    {
+        super.tearDown();
+    }
+
+    @Test
+    void testWithdraw_sufficientBalance_decrementsBalance() throws Exception
+    {
+        // exercise the code under test, then assert with getConnection()
+        // or Assertion.assertEquals() — see Data Comparisons
+    }
+}
+----
+
+Optionally override `getSetUpOperation()`/`getTearDownOperation()` to change
+the default `CLEAN_INSERT`/`NONE` operations — see
+link:/operations.html[Database Operations].
+
+== When to Use It
+
+Reach for `DataSourceBasedDBTestCase` when a test class inherits its dbUnit
+setup directly (no dependency injection) and a `javax.sql.DataSource` is
+already available to obtain (e.g. from a connection pool or an application
+context lookup). If your test class already extends something else, or you
+use DI to inject the `DataSource`/tester directly, use
+link:IDatabaseTester.html[`IDatabaseTester`] composition instead — with
+`DataSourceDatabaseTester` as the field instead of the superclass:
+
+[source,java]
+----
+private final IDatabaseTester databaseTester =
+        new DataSourceDatabaseTester(myApplicationDataSource);
+----
+
+See link:IDatabaseTester.html[the IDatabaseTester guide] for the full
+composition-based pattern.

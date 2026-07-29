@@ -1,6 +1,77 @@
-= dbUnit Test Cases
+= JndiBasedDBTestCase
 Jeff Jensen
 
-== JndiBasedDBTestCase
+== Overview
 
-TODO
+link:/dbunit/apidocs/org/dbunit/JndiBasedDBTestCase.html[JndiBasedDBTestCase]
+is a link:/dbunit/apidocs/org/dbunit/DBTestCase.html[DBTestCase] subclass
+preconfigured to use a
+link:/dbunit/apidocs/org/dbunit/JndiDatabaseTester.html[JndiDatabaseTester] —
+it is `DBTestCase` and `JndiDatabaseTester` wired together, so you only
+implement `getLookupName()` and `getDataSet()`.
+
+== Example
+
+[source,java]
+----
+public class AccountTest extends JndiBasedDBTestCase
+{
+    @Override
+    protected String getLookupName()
+    {
+        return "java:comp/env/jdbc/AccountDataSource";
+    }
+
+    @Override
+    protected IDataSet getDataSet() throws Exception
+    {
+        return new FlatXmlDataSetBuilder()
+                .build(getClass().getResourceAsStream("/dbunit/account-prep.xml"));
+    }
+
+    @BeforeEach
+    @Override
+    protected void setUp() throws Exception
+    {
+        super.setUp();
+    }
+
+    @AfterEach
+    @Override
+    protected void tearDown() throws Exception
+    {
+        super.tearDown();
+    }
+
+    @Test
+    void testWithdraw_sufficientBalance_decrementsBalance() throws Exception
+    {
+        // exercise the code under test, then assert with getConnection()
+        // or Assertion.assertEquals() — see Data Comparisons
+    }
+}
+----
+
+Optionally override `getJNDIProperties()` (defaults to an empty
+`Properties`, i.e. the default JNDI context) and
+`getSetUpOperation()`/`getTearDownOperation()` to change the default
+`CLEAN_INSERT`/`NONE` operations — see link:/operations.html[Database
+Operations].
+
+== When to Use It
+
+Reach for `JndiBasedDBTestCase` when a test class inherits its dbUnit setup
+directly (no dependency injection) and the `javax.sql.DataSource` is looked
+up by JNDI name — typical inside a Java EE / application server environment.
+If your test class already extends something else, or you use DI instead of
+a JNDI lookup, use link:IDatabaseTester.html[`IDatabaseTester`] composition
+instead — with `JndiDatabaseTester` as the field instead of the superclass:
+
+[source,java]
+----
+private final IDatabaseTester databaseTester =
+        new JndiDatabaseTester("java:comp/env/jdbc/AccountDataSource");
+----
+
+See link:IDatabaseTester.html[the IDatabaseTester guide] for the full
+composition-based pattern.
