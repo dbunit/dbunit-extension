@@ -791,6 +791,7 @@ PostgresqlDataTypeFactory factory = new PostgresqlDataTypeFactory(){
           ]]>
         </source>
       </p>
+      <p>See <a href="datatypes.html#uuidawarebytes">UuidAwareBytesDataType</a> for details.</p>
       </answer>
     </faq>
   </part>

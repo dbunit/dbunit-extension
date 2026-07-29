@@ -29,6 +29,9 @@
       <action dev="jeffjensen" type="update" issue="844" system="github" due-to="jeffjensen">
           Expand datacomparisons/equality.adoc with the real equality-comparison examples (assertEquals usage, query-based snapshots, column-filtered comparison, row-ordering) moved from howto.adoc's "Dbunit data verification" section, bringing it to parity with its valuecomparer.adoc sibling.
       </action>
+      <action dev="jeffjensen" type="update" issue="845" system="github" due-to="jeffjensen">
+          Rewrite datatypes.adoc: its TOC listed 19 data types but the body documented only 2. Add a full reference table (Java type + notes) for all 19 org.dbunit.dataset.datatype types, and new detailed sections for NumberTolerantDataType/ToleratedDeltaMap, StringIgnoreCaseDataType, and UuidAwareBytesDataType (the latter's uuid'...' literal syntax was previously documented only in the FAQ, which now links here).
+      </action>
     </release>
     <release version="3.4.0" date="Jul 28, 2026" description="Test-suite hardening (un-skip and strengthen dozens of disabled/no-op tests); add CachingConnectionProvider and reduce DefaultPrepAndExpectedTestCase's per-test connection churn; pin identifier case-folding to Locale.ENGLISH for Turkish-locale correctness; and a broad set of correctness fixes across export formats (XML, YAML, CSV, XLS, Ant), TimestampDataType timezone handling, InsertOperation/TransactionOperation, and resource-leak cleanups">
       <action dev="jeffjensen" type="fix" issue="797" system="github" due-to="jeffjensen">

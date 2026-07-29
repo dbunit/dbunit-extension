@@ -4,27 +4,39 @@
 Most of the data types are self explanatory and are adapted to the database in use.
 Refer to the database documentation for its data types specifics.
 
-The following sections document data types within dbUnit.
+Every type below lives in
+link:apidocs/org/dbunit/dataset/datatype/package-summary.html[org.dbunit.dataset.datatype].
+Which SQL type maps to which of these is normally decided automatically —
+see link:properties.html#typefactory[the DataType Factory property] for how
+to override or extend the mapping, and
+link:databases.html[Database-Specific Guides] for vendor-specific types
+(Oracle `SDO_GEOMETRY`, PostgreSQL `citext`/`interval`/`inet`, MSSQL
+`uniqueidentifier`/`datetimeoffset`, and more) not covered here.
 
-. BigInteger
-. BinaryStream
-. Bit
-. <<blob,Blob>>
-. Boolean
-. Bytes
-. Clob
-. <<relativedatetime,Date>>
-. Double
-. Float
-. Integer
-. Long
-. Number
-. NumberTolerant
-. String
-. StringIgnoreCase
-. <<relativedatetime,Time>>
-. <<relativedatetime,Timestamp>>
-. UuidAwareBytes
+[cols="2,2,5", options="header"]
+|===
+|Type |Java Type |Notes
+
+|`BigIntegerDataType` |`java.math.BigInteger` |The default mapping for SQL `BIGINT`.
+|`BinaryStreamDataType` |`byte[]` |Reads via `ResultSet.getBinaryStream()` instead of `getBytes()`. Not registered by default — used by vendor factories for large binary values, e.g. Oracle's `LONG RAW` and streamed `BLOB` (`OracleDataTypeFactory`/`Oracle10DataTypeFactory`).
+|`BitDataType` |`Boolean` |The default mapping for SQL `BIT`; extends `BooleanDataType`.
+|`BlobDataType` |`byte[]` |The default mapping for SQL `BLOB`. See <<blob,Blob>> below for the `[TEXT\|BASE64\|FILE\|URL]` load syntax.
+|`BooleanDataType` |`Boolean` |The default mapping for SQL `BOOLEAN`.
+|`BytesDataType` |`byte[]` |Abstract base for the binary types above/below; not itself registered for any SQL type.
+|`ClobDataType` |`String` |The default mapping for SQL `CLOB`; extends `StringDataType`.
+|`DateDataType` |`java.sql.Date` |The default mapping for SQL `DATE`. See <<relativedatetime,Relative Date, Time, and Timestamp>> below.
+|`DoubleDataType` |`Double` |The default mapping for SQL `DOUBLE` *and* SQL `FLOAT` — see the naming note under `FloatDataType`.
+|`FloatDataType` |`Float` |The default mapping for SQL `REAL`. Confusingly, SQL `FLOAT` maps to `DoubleDataType`/Java `Double` while SQL `REAL` maps here, to Java `Float` — this mirrors `java.sql.Types`, not a dbUnit choice.
+|`IntegerDataType` |`Integer` |The default mapping for SQL `TINYINT`, `SMALLINT`, and `INTEGER`.
+|`LongDataType` |`Long` |An alternate `BIGINT` mapping using Java `Long` instead of `BigInteger`. Not registered by default (`DataType.BIGINT` uses `BigIntegerDataType`); wire it in yourself via a custom `IDataTypeFactory` if you prefer `Long`.
+|`NumberDataType` |`java.math.BigDecimal` |The default mapping for SQL `NUMERIC`/`DECIMAL`.
+|`NumberTolerantDataType` |`java.math.BigDecimal` |A `NumberDataType` variant comparing within a tolerance instead of requiring an exact match. See <<numbertolerant,NumberTolerantDataType>> below.
+|`StringDataType` |`String` |The default mapping for SQL `CHAR`, `VARCHAR`, `LONGVARCHAR`, `NCHAR`, `NVARCHAR`, and `LONGNVARCHAR`.
+|`StringIgnoreCaseDataType` |`String` |A `StringDataType` variant comparing case-insensitively. See <<stringignorecase,StringIgnoreCaseDataType>> below.
+|`TimeDataType` |`java.sql.Time` |The default mapping for SQL `TIME`. See <<relativedatetime,Relative Date, Time, and Timestamp>> below.
+|`TimestampDataType` |`java.sql.Timestamp` |The default mapping for SQL `TIMESTAMP`. See <<relativedatetime,Relative Date, Time, and Timestamp>> below.
+|`UuidAwareBytesDataType` |`byte[]` |The default mapping for SQL `BINARY`/`VARBINARY`/`LONGVARBINARY` — a `BytesDataType` variant additionally recognizing a UUID literal. See <<uuidawarebytes,UuidAwareBytesDataType>> below.
+|===
 
 [#blob]
 == Blob
@@ -115,6 +127,61 @@ Example:
                     COL1="row 0 col 1"
                     COL2="row 0 col 2"/>
 </dataset>
+----
+
+[#numbertolerant]
+== NumberTolerantDataType
+
+link:apidocs/org/dbunit/dataset/datatype/NumberTolerantDataType.html[NumberTolerantDataType JavaDoc]
+
+A `NumberDataType` that accepts a value within a tolerated delta instead of
+requiring an exact match — comparable to JUnit's
+`assertEquals(double, double, double delta)`. The delta can be an absolute
+amount or a percentage of the expected value.
+
+Register a tolerance per table/column by adding a
+link:apidocs/org/dbunit/dataset/datatype/ToleratedDeltaMap.ToleratedDelta.html[`ToleratedDeltaMap.ToleratedDelta`]
+to a `DefaultDataTypeFactory` (or a vendor factory extending it):
+
+[source,java]
+----
+DefaultDataTypeFactory factory = new DefaultDataTypeFactory();
+// allow ACCOUNT.BALANCE actual/expected values to differ by up to 0.01
+factory.addToleratedDelta(new ToleratedDeltaMap.ToleratedDelta("ACCOUNT", "BALANCE", 0.01));
+config.setProperty(DatabaseConfig.PROPERTY_DATATYPE_FACTORY, factory);
+----
+
+Pass `true` as a fourth constructor argument to treat the delta as a
+percentage of the expected value instead of an absolute amount. For
+comparisons that don't need per-column DataType registration, see the
+`ValueComparer`-based tolerance implementations instead — link:datacomparisons/valuecomparer.html[ValueComparer Comparison].
+
+[#stringignorecase]
+== StringIgnoreCaseDataType
+
+link:apidocs/org/dbunit/dataset/datatype/StringIgnoreCaseDataType.html[StringIgnoreCaseDataType JavaDoc]
+
+A `StringDataType` that compares values with `String.compareToIgnoreCase()`
+instead of exact equality. Like `NumberTolerantDataType`, register it for
+specific columns through a custom `IDataTypeFactory` (or by returning it
+directly from `createDataType()` for the columns that need case-insensitive
+comparison) set via `DatabaseConfig.PROPERTY_DATATYPE_FACTORY` — see
+link:properties.html#typefactory[the DataType Factory property].
+
+[#uuidawarebytes]
+== UuidAwareBytesDataType
+
+link:apidocs/org/dbunit/dataset/datatype/UuidAwareBytesDataType.html[UuidAwareBytesDataType JavaDoc]
+
+The default `DataType` for SQL `BINARY`/`VARBINARY`/`LONGVARBINARY` columns.
+It behaves like `BytesDataType`, plus recognizes a UUID literal so you don't
+have to base64- or hex-encode UUIDs stored in binary columns by hand. For the
+literal to be detected, the field value must be in the form
+`uuid'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'` (hex-encoded, big-endian):
+
+[source,xml]
+----
+<company id="uuid'791ae85a-d8d0-11e2-8c43-50e549c9b654'" name="ACME"/>
 ----
 
 [#relativedatetime]
