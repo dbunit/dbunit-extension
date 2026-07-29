@@ -26,6 +26,59 @@ It conveniently packages a turn-key test setup and verification process in one:
 . Cleans up the tables listed in the prep and expected datasets
   (per the configured teardown operation)
 
+== What This Automates For You
+
+Compared to hand-coding the same setup/verify/cleanup logic yourself — e.g. driving an
+link:../testcases/IDatabaseTester.html[IDatabaseTester] directly, or a raw JDBC-based
+test — `DefaultPrepAndExpectedTestCase` automatically handles several things that would
+otherwise need to be written by hand for every test:
+
+Multi-file dataset composition:: Each of the prep and expected data file arrays is
+loaded and merged into a single dataset for you
+(link:/dbunit/apidocs/org/dbunit/dataset/CompositeDataSet.html[CompositeDataSet] under
+the hood, combining same-named tables found across multiple files) — no manual
+`CompositeDataSet` construction needed just to split prep data across several files by
+table.
+
+Row ordering:: Both the actual (database) and expected tables are automatically wrapped
+in a link:../datasets/decorators.html#sortedtable[SortedTable] (sorted using each
+column's real data type, not string comparison) before they are compared. You never
+need a manual `ORDER BY` or to wrap tables in `SortedTable` yourself to make row order
+predictable.
+
+Column type/case reconciliation:: If the expected dataset's columns come back with an
+`UNKNOWN` data type (common for a `FlatXmlDataSet` with no DTD), the expected table's
+column definitions are derived from the actual database table's columns instead —
+matched case-insensitively (`Locale.ENGLISH`, so a Turkish default locale can't break
+matching) — so your expected data file's column name casing doesn't need to exactly
+match the database's, and you don't need to hand-declare column types.
+
+Column include/exclude filtering:: A
+link:/dbunit/apidocs/org/dbunit/VerifyTableDefinition.html[VerifyTableDefinition]'s
+column inclusion/exclusion filters are applied to both the actual and expected tables
+for you via
+link:/dbunit/apidocs/org/dbunit/dataset/filter/DefaultColumnFilter.html[DefaultColumnFilter]
+— see link:../filters.html[Filters] for the underlying mechanism you'd otherwise wire up
+by hand.
+
+ValueComparer dispatch:: A `VerifyTableDefinition`'s default and per-column
+link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html[ValueComparer]s
+are dispatched automatically per column during comparison (see
+link:../datacomparisons/valuecomparer.html[ValueComparer Comparison]) — you configure the
+map once on the `VerifyTableDefinition` instead of calling
+`Assertion.assertWithValueComparer()` yourself for each table.
+
+Expected-table/VerifyTableDefinition count check:: Before verifying, it confirms every
+table in the expected dataset has a corresponding `VerifyTableDefinition`, failing fast
+on a forgotten one instead of silently skipping verification for that table — see
+link:../properties.html#allowverifytabledefinitionexpectedtablecountmismatch[the
+property] to relax this if a mismatch is intentional.
+
+Setup/cleanup operations:: The configured setup and teardown
+link:../operations.html[DatabaseOperation]s (default `CLEAN_INSERT` / `NONE`) run
+automatically around your test steps — no manual `onSetup()`/`onTearDown()` calls
+needed when using `runTest()`.
+
 == Usage
 
 === Configure
