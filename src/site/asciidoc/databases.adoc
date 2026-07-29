@@ -1,0 +1,22 @@
+= Database-Specific Guides
+
+dbUnit provides vendor-specific `IDataTypeFactory`/`IMetadataHandler`
+implementations and, for some, a preconfigured `IDatabaseConnection` — see
+link:connections.html[Connections & Configuration] for how these plug in,
+and link:properties.html#typefactory[Properties] for the general
+registration mechanism.
+
+[cols="1,3", options="header"]
+|===
+|Database |What's special here
+
+|link:databases/db2.html[DB2] |A metadata handler fixing a catalog/schema column-matching bug.
+|link:databases/h2.html[H2] |`BOOLEAN`/`UUID` type recognition.
+|link:databases/hsqldb.html[HSQLDB] |`BOOLEAN` type recognition.
+|link:databases/mckoi.html[Mckoi] |SQL type name recognition for this niche/legacy database.
+|link:databases/mssql.html[MSSQL] |`uniqueidentifier`/`datetimeoffset` types, `InsertIdentityOperation` for explicit IDENTITY inserts.
+|link:databases/mysql.html[MySQL] |A metadata handler fixing qualified-table-name matching.
+|link:databases/netezza.html[Netezza] |A metadata handler for Netezza's catalog-as-schema behavior.
+|link:databases/oracle.html[Oracle] |Two factory versions, proprietary LOB/XMLType access, and full `SDO_GEOMETRY` spatial object modeling.
+|link:databases/postgresql.html[PostgreSQL] |`uuid`/`interval`/`inet`/`citext`/large-object/enum/PostGIS geometry types.
+|===

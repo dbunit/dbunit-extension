@@ -62,6 +62,9 @@
       <action dev="jeffjensen" type="add" issue="855" system="github" due-to="jeffjensen">
           Add 9 database-specific vendor guides under src/site/asciidoc/databases/ (db2, h2, hsqldb, mckoi, mssql, mysql, netezza, oracle, postgresql), one per org.dbunit.ext.* package, each previously represented only as a bare class-name bullet in properties.adoc's DataType Factory section. Each covers its IDataTypeFactory, IMetadataHandler (where one exists), connection preconfiguration class (where one exists), vendor-specific types/operations, and known quirks cross-linked to existing FAQ/properties entries instead of duplicating them. Oracle's page is the longest, covering both factory versions, proprietary LOB/XMLType access, and full SDO_GEOMETRY spatial object modeling. Nav wiring lands in WI-18.
       </action>
+      <action dev="jeffjensen" type="add" issue="856" system="github" due-to="jeffjensen">
+          Add databases.adoc index page listing all 9 vendor guides with a one-line "what's special here" teaser each, and wire the new top-level "Database-Specific Guides" site.xml menu with all 9 nested underneath.
+      </action>
     </release>
     <release version="3.4.0" date="Jul 28, 2026" description="Test-suite hardening (un-skip and strengthen dozens of disabled/no-op tests); add CachingConnectionProvider and reduce DefaultPrepAndExpectedTestCase's per-test connection churn; pin identifier case-folding to Locale.ENGLISH for Turkish-locale correctness; and a broad set of correctness fixes across export formats (XML, YAML, CSV, XLS, Ant), TimestampDataType timezone handling, InsertOperation/TransactionOperation, and resource-leak cleanups">
       <action dev="jeffjensen" type="fix" issue="797" system="github" due-to="jeffjensen">

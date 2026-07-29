@@ -94,6 +94,17 @@
       <item name="Connections &amp; Configuration" href="/connections.html">
         <item name="Properties &amp; Features" href="/properties.html"/>
       </item>
+      <item name="Database-Specific Guides" href="/databases.html">
+        <item name="DB2"           href="/databases/db2.html"/>
+        <item name="H2"            href="/databases/h2.html"/>
+        <item name="HSQLDB"        href="/databases/hsqldb.html"/>
+        <item name="Mckoi"         href="/databases/mckoi.html"/>
+        <item name="MSSQL"         href="/databases/mssql.html"/>
+        <item name="MySQL"         href="/databases/mysql.html"/>
+        <item name="Netezza"       href="/databases/netezza.html"/>
+        <item name="Oracle"        href="/databases/oracle.html"/>
+        <item name="PostgreSQL"    href="/databases/postgresql.html"/>
+      </item>
       <item name="Ant Task"          href="/anttask.html">
         <item name="Canoo WebTest Example" href="/anttask/canoo-webtest-example.html"/>
       </item>
