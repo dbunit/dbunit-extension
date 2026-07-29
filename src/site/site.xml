@@ -87,6 +87,7 @@
       </item>
       <item name="Best Practices"    href="/bestpractices.html"/>
       <item name="Core Components"   href="/components.html"/>
+      <item name="Database Operations" href="/operations.html"/>
       <item name="Data types"        href="/datatypes.html"/>
       <item name="Connections &amp; Configuration" href="/connections.html">
         <item name="Properties &amp; Features" href="/properties.html"/>

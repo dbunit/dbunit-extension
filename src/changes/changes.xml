@@ -41,6 +41,9 @@
       <action dev="jeffjensen" type="add" issue="848" system="github" due-to="jeffjensen">
           Extract datasets.adoc (IDataSet/ITable core contracts, DataSetBuilder) and 9 focused child pages under src/site/asciidoc/datasets/ (Flat XML, XML, CSV, Excel, YAML, Query-Based, Streaming, Data File Loader, Decorators) from components.adoc's kitchen-sink dataset-format catalog. Expanded the thinnest sections while extracting: CSV gained a full sample directory layout, Excel gained the Apache POI optional-dependency note, Streaming gained a DataSetProducerAdapter/BufferedConsumer mention, Data File Loader was written from scratch (previously only a two-line mention in howto.adoc), and Decorators absorbed SortedTable/SortedDataSet row-ordering content moved from howto.adoc.
       </action>
+      <action dev="jeffjensen" type="add" issue="849" system="github" due-to="jeffjensen">
+          Extract operations.adoc from components.adoc's DatabaseOperation table, adding the two entries missing from it: CloseConnectionOperation and the DatabaseOperation.TRANSACTION(op)/CLOSE_CONNECTION(op) factory methods.
+      </action>
     </release>
     <release version="3.4.0" date="Jul 28, 2026" description="Test-suite hardening (un-skip and strengthen dozens of disabled/no-op tests); add CachingConnectionProvider and reduce DefaultPrepAndExpectedTestCase's per-test connection churn; pin identifier case-folding to Locale.ENGLISH for Turkish-locale correctness; and a broad set of correctness fixes across export formats (XML, YAML, CSV, XLS, Ant), TimestampDataType timezone handling, InsertOperation/TransactionOperation, and resource-leak cleanups">
       <action dev="jeffjensen" type="fix" issue="797" system="github" due-to="jeffjensen">

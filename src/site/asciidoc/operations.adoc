@@ -1,0 +1,43 @@
+= Database Operations
+
+link:apidocs/org/dbunit/operation/DatabaseOperation.html[DatabaseOperation] is an abstract class that represents an operation performed on the database before and after each test.
+
+The two most useful operations are <<refresh,REFRESH>> and <<cleanInsert,CLEAN_INSERT>>.
+They are the ones you will deal usually with.
+They represent two testing strategies with different benefits and tradeoffs.
+
+[cols="1,3",options="header"]
+|===
+|Operation |Description
+
+|link:apidocs/org/dbunit/operation/UpdateOperation.html[DatabaseOperation.UPDATE] |This operation updates the database from the dataset contents. This operation assumes that table data already exists in the target database and fails if this is not the case.
+|[#insert]#link:apidocs/org/dbunit/operation/InsertOperation.html[DatabaseOperation.INSERT]# |This operation inserts the dataset contents into the database. This operation assumes that table data does not exist in the target database and fails if this is not the case. To prevent problems with foreign keys, tables must be sequenced appropriately in the dataset.
+|[#delete]#link:apidocs/org/dbunit/operation/DeleteOperation.html[DatabaseOperation.DELETE]# |This operation deletes only the dataset contents from the database. This operation does not delete the entire table contents but only data that are present in the dataset.
+|[#deleteall]#link:apidocs/org/dbunit/operation/DeleteAllOperation.html[DatabaseOperation.DELETE_ALL]# |Deletes all rows of tables present in the specified dataset. If the dataset does not contains a particular table, but that table exists in the database, the database table is not affected. Table are truncated in reverse sequence.
+|[#truncate]#link:apidocs/org/dbunit/operation/TruncateTableOperation.html[DatabaseOperation.TRUNCATE_TABLE]# |Truncate tables present in the specified dataset. If the dataset does not contains a particular table, but that table exists in the database, the database table is not affected. Table are truncated in reverse sequence.
+|[#refresh]#link:apidocs/org/dbunit/operation/RefreshOperation.html[DatabaseOperation.REFRESH]#
+|This operation literally refreshes dataset contents into the target database. +
+This means that data of existing rows are updated and non-existing row get inserted. +
+Any rows which exist in the database but not in dataset stay unaffected. +
+This approach is more appropriate for tests that assume other data may exist in the database. +
+If they are correctly written, tests using this strategy can even be performed on a populated database like a copy of a production database.
+
+|[#cleanInsert]#DatabaseOperation.CLEAN_INSERT# |This composite operation performs a <<deleteall,DELETE_ALL>> operation followed by an <<insert,INSERT>> operation. This is the safest approach to ensure that the database is in a known state. This is appropriate for tests that require the database to only contain a specific set of data.
+|DatabaseOperation.NONE |Empty operation that does absolutely nothing.
+|link:apidocs/org/dbunit/operation/CompositeOperation.html[CompositeOperation] |This operation combines multiple operations into a single one.
+|link:apidocs/org/dbunit/operation/TransactionOperation.html[TransactionOperation] |This operation decorates an operation and executes it within the context of a transaction.
+|[#closeconnectionoperation]#link:apidocs/org/dbunit/operation/CloseConnectionOperation.html[CloseConnectionOperation]# |This operation decorates an operation and closes the database connection after executing it.
+|[#InsertIdentityOperation]#link:apidocs/org/dbunit/ext/mssql/InsertIdentityOperation.html[InsertIdentityOperation]# |This operation decorates an insert operation and disables the MS SQL Server automatic identifier generation (IDENTITY) during its execution. Use following constants InsertIdentityOperation.INSERT, InsertIdentityOperation.CLEAN_INSERT or InsertIdentityOperation.REFRESH instead of those defined in DatabaseOperation.
+|===
+
+== Factory Methods for Decorators
+
+`TransactionOperation` and `CloseConnectionOperation` are also reachable as
+static factory methods on `DatabaseOperation`, for a shorter call at the
+point of use:
+
+[source,java]
+----
+DatabaseOperation.TRANSACTION(DatabaseOperation.CLEAN_INSERT).execute(connection, dataSet);
+DatabaseOperation.CLOSE_CONNECTION(DatabaseOperation.CLEAN_INSERT).execute(connection, dataSet);
+----
