@@ -16,6 +16,15 @@ Jeff Jensen
 Of course, set the correct version -
 either set a property as in the example or edit it directly.
 
+== Gradle Dependency
+
+[source,groovy]
+----
+dependencies {
+    testImplementation 'org.dbunit:dbunit:${dbunitVersion}'
+}
+----
+
 == Releases
 
 dbUnit releases are in link:http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.dbunit%22[Maven Central Releases].
