@@ -1,0 +1,101 @@
+= Canoo WebTest Example
+
+By Eric Pugh
+
+With dbUnit Ant tasks, dbUnit makes it much easier to run Canoo WebTest scripts for database centric applications.
+link:http://webtest.canoo.com[WebTest] is a tool to simulate a user's browser clicking through the pages on a web site.
+It allows you to create a series of Ant based tests for your website.
+In fact, this can be used to perform User Acceptance tests for websites built using non Java technologies like ColdFusion or ASP!
+This document walks you through a suggested format for storing tests.
+
+See link:/anttask.html[Ant Task] for the `<dbunit>` task reference this
+walkthrough builds on.
+
+=== Step 1: Create your dataset file
+
+Your first step is to create your dataset file that you want to load into your database before running your WebTest script.
+Use one of the link:/datasets.html[dataset formats].
+Put the various datasets you need in a `/data` directory.
+
+=== Step 2: Create your Ant build.xml file
+
+A suggested setup is to have a single build.xml file that is the entry point for all your tests.
+This would include a couple targets like:
+
+. `test`: Runs all the testSuites that you have created
+. `test:single`: Runs a single test in a specific testSuite
+. `test:suite`: Runs all the tests for a specific testSuite
+
+=== Step 3: Create your various Test Suites
+
+Once you have your build.xml file set up, you can now call the various TestSuites.
+Create a separate TestSuiteXXX.xml for the various modules that you would like to test.
+In your TestSuiteXXX.xml, you should have your default target testSuite call all the testcases you have defined:
+
+[source,xml]
+----
+<target name="testSuite">
+
+  <antcall target="unsubscribeEmailAddressWithEmail"/>
+  <antcall target="unsubscribeEmailAddressWithEmailID"/>
+  <antcall target="unsubscribeEmailAddressWithNewEmailAddress"/>
+
+  <antcall target="subscribeEmailAddressWithOptedOutEmail"/>
+  <antcall target="subscribeEmailAddressWithNewEmailAddress"/>
+  <antcall target="subscribeEmailAddressWithInvalidEmailAddress"/>
+
+</target>
+----
+
+This way you can either run all the test's in your Test Suite, or just run a specific one, all from build.xml!
+
+=== Step 4: Create your various Tests
+
+Now you need to write your various testcases.
+For more information on WebTest, please refer to the link:http://webtest.canoo.com[WebTest home page].
+If you have find you are duplicating pieces of XML, then place them in a `/includes` directory.
+If you have a single set of properties, then load them as part of build.xml by specifing them in your build.properties file.
+If you have multiple databases you need to connect to, then declare your sql connection properties in a TestSuiteXXX.properties file that you load on a per suite basis.
+In this example, we are using doing a clean insert into the database, and using the MSSQL_CLEAN_INSERT instead of CLEAN_INSERT because of the requirement to do identity column inserts.
+
+[source,xml]
+----
+<target name="subscribeEmailAddressWithOptedOutEmail">
+  <dbunit
+      driver="${sql.jdbcdriver}"
+      url="${sql.url}"
+      userid="${sql.username}"
+      password="${sql.password}">
+          <operation type="MSSQL_CLEAN_INSERT"
+                src="data/subscribeEmailAddressWithOptedOutEmail.xml"
+          format="flat"/>
+  </dbunit>
+  <testSpec name="subscribeEmailAddressWithOptedOutEmail">
+    &sharedConfiguration;
+    <steps>
+      <invoke stepid="main page"
+        url="/edm/subscribe.asp?e=subscribeEmailAddressWithOptedOutEmail@test.com"
+        save="subscribeEmailAddressWithNewEmailAddress"/>
+      <verifytext stepid="Make sure we received the success message"
+        text="You have been subscribed to the mailing list"/>
+
+    </steps>
+  </testSpec>
+</target>
+----
+
+== Sample Directory Layout
+
+When you are done, you will have a series of files that look like this:
+
+----
+\root\
+  build.xml
+  build.properties
+  TestSuiteEDM.xml
+  TestSuiteEDM.properties
+\root\data\
+  subscribeEmailAddressWithOptedOutEmail.xml
+\root\includes\
+  sharedConfiguration.xml
+----

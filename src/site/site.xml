@@ -65,6 +65,7 @@
       <item name="Data Comparisons"  href="/datacomparisons.html">
         <item name="Equality"        href="/datacomparisons/equality.html"/>
         <item name="ValueComparer"   href="/datacomparisons/valuecomparer.html"/>
+        <item name="Failure Handling" href="/datacomparisons/failurehandling.html"/>
       </item>
       <item name="Datasets"          href="/datasets.html">
         <item name="Flat XML"           href="/datasets/flatxml.html"/>
@@ -92,7 +93,9 @@
       <item name="Connections &amp; Configuration" href="/connections.html">
         <item name="Properties &amp; Features" href="/properties.html"/>
       </item>
-      <item name="Ant Task"          href="/anttask.html"/>
+      <item name="Ant Task"          href="/anttask.html">
+        <item name="Canoo WebTest Example" href="/anttask/canoo-webtest-example.html"/>
+      </item>
       <item name="Resources"         href="/resources.html"/>
     </menu>
 

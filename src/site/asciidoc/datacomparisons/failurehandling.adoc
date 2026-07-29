@@ -1,0 +1,48 @@
+= Failure Handling
+Jeff Jensen
+
+== Overview
+
+By default, dbUnit immediately fails when the first data difference is
+found. Since release 2.4 it is possible to register a custom
+link:/dbunit/apidocs/org/dbunit/assertion/FailureHandler.html[FailureHandler]
+which lets you specify what kind of exception is thrown and how differences
+are handled, instead of the default fail-fast behavior.
+
+`FailureHandler` combines two roles:
+
+* link:/dbunit/apidocs/org/dbunit/assertion/DifferenceListener.html[DifferenceListener]
+  — `handle(Difference diff)` is called for each mismatch found during a
+  comparison.
+* `FailureFactory` — builds the exception/error to throw for a given
+  failure.
+
+== Collecting All Differences Instead Of Failing Fast
+
+link:/dbunit/apidocs/org/dbunit/assertion/DiffCollectingFailureHandler.html[DiffCollectingFailureHandler]
+is a `FailureHandler` that does not throw on a data mismatch — it collects
+every
+link:/dbunit/apidocs/org/dbunit/assertion/Difference.html[Difference]
+(each exposing the expected/actual table, row index, column name, and
+expected/actual value) into a list you can evaluate afterwards, so you see
+every mismatch in one run instead of fixing them one assertion failure at a
+time.
+
+[source,java]
+----
+IDataSet dataSet = getDataSet();
+DiffCollectingFailureHandler myHandler = new DiffCollectingFailureHandler();
+
+// invoke the assertion with the custom handler
+Assertion.assertEquals(dataSet.getTable("TEST_TABLE"),
+                       dataSet.getTable("TEST_TABLE_WITH_WRONG_VALUE"),
+                       myHandler);
+
+// evaluate the results and throw a failure if you wish
+List<Difference> diffList = myHandler.getDiffList();
+Difference diff = diffList.get(0);
+----
+
+See link:equality.html[Equality Comparison] and
+link:valuecomparer.html[ValueComparer Comparison] for the comparison methods
+a `FailureHandler` plugs into.

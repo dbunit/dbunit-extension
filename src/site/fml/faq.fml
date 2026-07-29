@@ -485,7 +485,7 @@ ITable filteredTable = DefaultColumnFilter.excludedColumnsTable(originalTable, n
 </source>
 </p>
 <p>
-See also <a href="howto.html#compareignorecolumns">Ignoring some columns in comparison</a>.
+See also <a href="datacomparisons/equality.html#compareignorecolumns">Ignoring some columns in comparison</a>.
 </p>
       </answer>
     </faq> 
