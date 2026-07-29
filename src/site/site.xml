@@ -79,7 +79,7 @@
         <item name="Decorators"         href="/datasets/decorators.html"/>
       </item>
       <item name="Getting Started"   href="/howto.html"/>
-      <item name="Test Cases"        href="/testcases.html">
+      <item name="Test Integration"  href="/testcases.html">
         <item name="IDatabaseTester Guide"      href="/testcases/IDatabaseTester.html"/>
         <item name="PrepAndExpectedTestCase"    href="/testcases/PrepAndExpectedTestCase.html"/>
         <item name="JdbcBasedDBTestCase"        href="/testcases/JdbcBasedDBTestCase.html"/>

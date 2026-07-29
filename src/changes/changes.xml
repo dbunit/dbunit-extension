@@ -50,6 +50,9 @@
       <action dev="jeffjensen" type="update" issue="851" system="github" due-to="jeffjensen">
           Trim howto.adoc from a 518-line monolith into a short "Getting Started" orientation hub, redistributing its substantive content to the pages that now own each topic. Add datacomparisons/failurehandling.adoc (FailureHandler/DiffCollectingFailureHandler, for collecting every comparison difference instead of failing on the first) and anttask/canoo-webtest-example.adoc (the dated Ant+Canoo WebTest walkthrough), both nested in site.xml under their parent page. Fix the one remaining repo-wide cross-reference to a howto.html anchor this trim removed (src/site/fml/faq.fml's columnfilter entry).
       </action>
+      <action dev="jeffjensen" type="update" issue="852" system="github" due-to="jeffjensen">
+          Reframe testcases.adoc (site menu label "Test Integration", URL unchanged) to explicitly present composition (IDatabaseTester) and inheritance (DBTestCase and its 3 subclasses) side by side, recommending composition per CLAUDE.md's stated preference while keeping inheritance fully documented. Move the DBTestCase subclass setup steps here from howto.adoc, correcting the JUnit 5 @BeforeEach/@AfterEach gap identified while writing the DBTestCase-family pages in WI-05.
+      </action>
     </release>
     <release version="3.4.0" date="Jul 28, 2026" description="Test-suite hardening (un-skip and strengthen dozens of disabled/no-op tests); add CachingConnectionProvider and reduce DefaultPrepAndExpectedTestCase's per-test connection churn; pin identifier case-folding to Locale.ENGLISH for Turkish-locale correctness; and a broad set of correctness fixes across export formats (XML, YAML, CSV, XLS, Ant), TimestampDataType timezone handling, InsertOperation/TransactionOperation, and resource-leak cleanups">
       <action dev="jeffjensen" type="fix" issue="797" system="github" due-to="jeffjensen">

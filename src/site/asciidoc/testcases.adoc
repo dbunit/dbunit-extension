@@ -1,20 +1,151 @@
-= Test Cases
+= Test Integration
 Jeff Jensen
 
 == Overview
 
-dbUnit has multiple base test case classes - use these classes as the basis for your tests.
-All extend link:/dbunit/apidocs/org/dbunit/DBTestCase.html[DBTestCase] and the top
-level link:/dbunit/apidocs/org/dbunit/DBTestCase.html[DatabaseTestCase].
+dbUnit offers two ways to wire its setup/teardown lifecycle into a test
+class:
 
-Use the submenus to learn about each of them.
+* *Composition* — a test class holds an
+  link:testcases/IDatabaseTester.html[IDatabaseTester] field, constructed
+  directly or dependency-injected.
+* *Inheritance* — a test class extends
+  link:/dbunit/apidocs/org/dbunit/DBTestCase.html[DBTestCase] (or one of its
+  three subclasses below), which owns an `IDatabaseTester` internally.
+
+*Composition is the preferred style* — it doesn't compete for your test
+class's one available superclass, and fits naturally with dependency
+injection (Spring or otherwise). See link:testcases/IDatabaseTester.html[the
+IDatabaseTester guide] for the interface hierarchy, lifecycle, and a complete
+example. Inheritance remains fully supported for tests that prefer it, or
+that predate this recommendation; see
+link:testcases/MigratingToIDatabaseTester.html[Migrating to IDatabaseTester]
+if you want to convert an existing `DBTestCase` subclass.
+
+Whichever style you choose,
+link:testcases/PrepAndExpectedTestCase.html[PrepAndExpectedTestCase] is
+usually a better starting point than driving either one directly — it
+packages prep/verify/cleanup behind `runTest()`, needs no parent class, and
+works with both styles (it holds an `IDatabaseTester`, so it composes either
+way).
+
+== Inheritance: DBTestCase and Its Subclasses
+
+`DBTestCase` extends the top-level `DatabaseTestCase`. A template method,
+`getDataSet()`, is required to be implemented, returning the dataset for the
+test. `DBTestCase` relies on an `IDatabaseTester` to do its work; the default
+configuration uses `PropertiesBasedJdbcDatabaseTester`, which locates
+`DriverManager` configuration in System properties. The simplest way to
+configure it is in the constructor of your test class. You may modify this
+behavior by overriding `newDatabaseTester()`, using one of the subclasses
+below or your own `IDatabaseTester`.
+
+[cols="1,3", options="header"]
+|===
+|Class |Uses
+
+|link:testcases/JdbcBasedDBTestCase.html[JdbcBasedDBTestCase] |A `DriverManager` connection, via `JdbcDatabaseTester`.
+|link:testcases/DataSourceBasedDBTestCase.html[DataSourceBasedDBTestCase] |A `javax.sql.DataSource`, via `DataSourceDatabaseTester`.
+|link:testcases/JndiBasedDBTestCase.html[JndiBasedDBTestCase] |A `javax.sql.DataSource` located through JNDI, via `JndiDatabaseTester`.
+|===
+
+The following sample implementation returns a connection to an H2 in-memory
+database and an XML dataset:
+
+[source,java]
+----
+public class SampleTest extends DBTestCase
+{
+    public SampleTest(String name)
+    {
+        super(name);
+        System.setProperty(PropertiesBasedJdbcDatabaseTester.DBUNIT_DRIVER_CLASS, "org.h2.Driver");
+        System.setProperty(PropertiesBasedJdbcDatabaseTester.DBUNIT_CONNECTION_URL, "jdbc:h2:mem:sample;DB_CLOSE_DELAY=-1");
+        System.setProperty(PropertiesBasedJdbcDatabaseTester.DBUNIT_USERNAME, "sa");
+        System.setProperty(PropertiesBasedJdbcDatabaseTester.DBUNIT_PASSWORD, "");
+    }
+
+    @Override
+    protected IDataSet getDataSet() throws Exception
+    {
+        return new FlatXmlDataSetBuilder().build(new FileInputStream("dataset.xml"));
+    }
+
+    @BeforeEach
+    @Override
+    protected void setUp() throws Exception
+    {
+        super.setUp();
+    }
+
+    @AfterEach
+    @Override
+    protected void tearDown() throws Exception
+    {
+        super.tearDown();
+    }
+}
+----
+
+NOTE: `DatabaseTestCase.setUp()`/`tearDown()` are plain protected methods,
+not automatically invoked by JUnit 5 — override them with `@BeforeEach`/
+`@AfterEach` and call `super` as shown, matching every
+`DBTestCase`-subclass page linked above.
+
+=== Changing the Setup/Teardown Operation
+
+By default, dbUnit performs a link:operations.html#cleanInsert[CLEAN_INSERT]
+operation before executing each test and no cleanup operation afterward. You
+can modify this behavior by overriding `getSetUpOperation()` and
+`getTearDownOperation()`:
+
+[source,java]
+----
+public class SampleTest extends DBTestCase
+{
+    ...
+    @Override
+    protected DatabaseOperation getSetUpOperation() throws Exception
+    {
+        return DatabaseOperation.REFRESH;
+    }
+
+    @Override
+    protected DatabaseOperation getTearDownOperation() throws Exception
+    {
+        return DatabaseOperation.DELETE_ALL;
+    }
+    ...
+}
+----
+
+=== Customizing DatabaseConfig
+
+Override `setUpDatabaseConfig(DatabaseConfig config)` to change dbUnit
+configuration settings for the connection:
+
+[source,java]
+----
+public class SampleTest extends DBTestCase
+{
+    ...
+    @Override
+    protected void setUpDatabaseConfig(DatabaseConfig config)
+    {
+        config.setProperty(DatabaseConfig.PROPERTY_BATCH_SIZE, 97);
+        config.setFeature(DatabaseConfig.FEATURE_BATCHED_STATEMENTS, true);
+    }
+    ...
+}
+----
 
 == General Notes
 
 . For additional examples, refer to the ITs for the specific test case.
 . To change the setup or teardown operation (e.g. change the teardown to
-  org.dbunit.operation.DatabaseOperation.DELETE_ALL), set the setUpOperation or
-  tearDownOperation property on the databaseTester.
-. To set DatabaseConfig features/properties, one way is to extend the
-  test case class and override the setUpDatabaseConfig(DatabaseConfig config)
-  method from DatabaseTestCase.
+  `org.dbunit.operation.DatabaseOperation.DELETE_ALL`), set the
+  `setUpOperation` or `tearDownOperation` property on the databaseTester —
+  see link:operations.html[Database Operations].
+. To set `DatabaseConfig` features/properties, one way is to extend the test
+  case class and override the `setUpDatabaseConfig(DatabaseConfig config)`
+  method from `DatabaseTestCase`, as shown above.
