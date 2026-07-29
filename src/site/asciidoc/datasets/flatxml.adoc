@@ -1,0 +1,42 @@
+= Flat XML
+
+link:/dbunit/apidocs/org/dbunit/dataset/xml/FlatXmlDataSet.html[FlatXmlDataSet]
+reads and writes flat XML dataset documents.
+Each XML element corresponds to a table row.
+Each XML element name corresponds to a table name.
+The XML attributes correspond to table columns.
+
+Flat XML dataset document sample:
+
+[source,xml]
+----
+<!DOCTYPE dataset SYSTEM "my-dataset.dtd">
+<dataset>
+    <TEST_TABLE COL0="row 0 col 0"
+                COL1="row 0 col 1"
+                COL2="row 0 col 2"/>
+    <TEST_TABLE COL1="row 1 col 1"/>
+    <SECOND_TABLE COL0="row 0 col 0"
+                  COL1="row 0 col 1" />
+    <EMPTY_TABLE/>
+</dataset>
+----
+
+To specify null values, omit corresponding attribute.
+In the above example, missing COL0 and COL2 attributes of TEST_TABLE second row represents null values.
+
+Table metadata is deduced from the first row of each table by default, whereas it is possible to enable the _column sensing_ feature as described in link:/faq.html#differentcolumnnumber[differentcolumnnumber].
+*Beware you may get a NoSuchColumnException if the first row of a table has one or more null values.*
+Because of that, this is highly recommended to use DTD.
+DbUnit will use the columns declared in the DTD as table metadata.
+DbUnit only support external system URI.
+The URI can be absolute or relative.
+
+Another way to cope with this problem is to use the link:decorators.html#replacementdataset[ReplacementDataSet].
+
+Build one with link:/dbunit/apidocs/org/dbunit/dataset/xml/FlatXmlDataSetBuilder.html[FlatXmlDataSetBuilder]:
+
+[source,java]
+----
+IDataSet dataSet = new FlatXmlDataSetBuilder().build(new File("dataset.xml"));
+----

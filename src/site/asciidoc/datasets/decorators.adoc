@@ -1,0 +1,146 @@
+= Decorators
+
+These wrap an existing `IDataSet`/`ITable` to add or change behavior without
+altering or copying the underlying source.
+
+[#compositedataset]
+== CompositeDataSet
+
+link:/dbunit/apidocs/org/dbunit/dataset/CompositeDataSet.html[CompositeDataSet]
+combines multiple datasets into a single logical dataset.
+
+[#filtereddataset]
+== FilteredDataSet
+
+link:/dbunit/apidocs/org/dbunit/dataset/FilteredDataSet.html[FilteredDataSet]
+is a decorator that exposes only some tables from a decorated dataset,
+pluggable with different filtering strategies. Some strategies include/
+exclude tables without altering their order, while others expose tables in a
+different order.
+
+This page covers `SequenceTableFilter`, an ordering decoration you construct
+directly with `FilteredDataSet`. The other table filter strategies
+(`IncludeTableFilter`, `ExcludeTableFilter`, and the auto-ordering
+`DatabaseSequenceFilter`) are covered in full, alongside column and row
+filters, in link:/filters.html[Filters].
+
+`SequenceTableFilter` exposes a configured table sequence — the original
+filtering strategy from dbUnit 1.x, useful for imposing an explicit
+insert/comparison order:
+
+[source,java]
+----
+ITableFilter filter = new SequenceTableFilter(new String[] {"FOO", "BAR"});
+IDataSet orderedDataSet = new FilteredDataSet(filter, dataSet);
+----
+
+[#sortedtable]
+== SortedDataSet / SortedTable
+
+By default, a database table snapshot taken by dbUnit is sorted by primary
+key. If a table has no primary key, or its primary key is
+database-generated, row ordering is not predictable and comparisons against
+it may fail spuriously.
+
+`SortedTable` decorates a single `ITable` with a sorted view, without
+copying the underlying data:
+
+[source,java]
+----
+Assertion.assertEquals(new SortedTable(expected),
+      new SortedTable(actual, expected.getTableMetaData()));
+----
+
+`SortedDataSet` does the same for every table in an `IDataSet`:
+
+[source,java]
+----
+IDataSet sortedDataSet = new SortedDataSet(dataSet);
+----
+
+Note that `SortedTable` uses the string value of each column for sorting by
+default, so a numeric column sorts like _1, 10, 11, 12, 2, 3, 4_. To sort
+using the column's data type instead (_1, 2, 3, 4, 10, 11, 12_):
+
+[source,java]
+----
+SortedTable sortedTable1 = new SortedTable(table1, new String[]{"COLUMN1"});
+sortedTable1.setUseComparable(true); // must be invoked immediately after the constructor
+SortedTable sortedTable2 = new SortedTable(table2, new String[]{"COLUMN1"});
+sortedTable2.setUseComparable(true); // must be invoked immediately after the constructor
+Assertion.assertEquals(sortedTable1, sortedTable2);
+----
+
+[#replacementdataset]
+== ReplacementDataSet
+
+link:/dbunit/apidocs/org/dbunit/dataset/ReplacementDataSet.html[ReplacementDataSet]
+is a decorator that replaces placeholder objects from the decorated dataset
+with replacement objects. Substring substitution is also possible.
+
+Interestingly this provides a new way to specify null values in flat XML
+datasets. For example you can use a placeholder value, like `[NULL]` in your
+flat XML dataset and replace it with `null` at runtime.
+
+[source,xml]
+----
+<?xml version="1.0"?>
+<dataset>
+    <TEST_TABLE COL0="row 0 col 0"
+                COL1="[null]"/>
+    <TEST_TABLE COL1="row 1 col 0"
+                COL2="row 1 col 1"/>
+</dataset>
+----
+
+Loading the flat XML dataset:
+
+[source,java]
+----
+ReplacementDataSet dataSet = new ReplacementDataSet(new FlatXmlDataSet());
+dataSet.addReplacementObject("[NULL]", null);
+----
+
+You can choose to use a fail-fast replacement to ensure that all placeholders are actually set and no one is missing in the replacement map.
+If one is missing the replacement will fail immediately throwing an exception.
+(Note that the default behaviour is to leave the non-replaced placeholder there and proceeding work silently):
+
+[source,java]
+----
+replacementDataSet.setStrictReplacement(true);
+----
+
+link:fileloader.html[Data File Loader]'s `DataFileLoader` implementations
+wrap every loaded dataset in a `ReplacementDataSet` automatically, applying
+whatever replacement objects/substrings were configured on the loader.
+
+[#tabledecoratordataset]
+== TableDecoratorDataSet
+
+link:/dbunit/apidocs/org/dbunit/dataset/TableDecoratorDataSet.html[TableDecoratorDataSet]
+is a decorator that allows `ITable`s (and `ITableMetaData`s, by extension) to
+be wrapped. This is intended for use cases like filtering out columns from a
+table.
+
+For example, if your database supports generated (computed) columns, you could filter them out like so:
+
+[source,java]
+----
+dataset = new TableDecoratorDataSet(dataset, table -> new ColumnFilterTable(table, new GeneratedColumnFilter()));
+----
+
+See link:/filters.html[Filters] for `GeneratedColumnFilter` and the other
+column filters.
+
+[#cacheddataset]
+== CachedDataSet
+
+link:/dbunit/apidocs/org/dbunit/dataset/CachedDataSet.html[CachedDataSet]
+holds an in-memory copy of another dataset, or of a consumed
+`IDataSetProducer`'s content — decoupling the rest of your code from a
+one-shot/forward-only source such as a link:streaming.html[StreamingDataSet].
+
+[source,java]
+----
+IDataSet snapshot = new CachedDataSet(sourceDataSet);
+----

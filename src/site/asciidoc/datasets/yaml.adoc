@@ -1,0 +1,28 @@
+= YAML
+
+link:/dbunit/apidocs/org/dbunit/dataset/yaml/YamlDataSet.html[YamlDataSet]
+reads and writes YAML dataset documents.
+Each toplevel key corresponds to a table, where the value is a list of rows.
+Each row is a sequence of key:value pairs, where the key corresponds to the table column.
+
+YAML dataset document sample:
+
+[source,yaml]
+----
+TEST_TABLE:
+  - COL0: row 0 col 0
+    COL1: row 0 col 1
+    COL2: row 0 col 2
+  - COL1: row 1 col 1
+SECOND_TABLE:
+  - COL0: row 0 col 0
+    COL1: row 0 col 1
+EMPTY_TABLE:
+----
+
+To specify null values, just omit the corresponding column key.
+In the above example, missing COL0 and COL2 keys of TEST_TABLE second row represents null values.
+
+In contrast to link:flatxml.html[Flat XML], table metadata is deduced from
+the sum of all rows for each table, not just the first — so a column that
+first appears on a later row is still picked up.

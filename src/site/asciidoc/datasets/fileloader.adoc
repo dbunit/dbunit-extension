@@ -1,0 +1,59 @@
+= Data File Loader
+
+Nearly all tests need to load data from one or more files, particularly for
+prep or expected data. `org.dbunit.util.fileloader` has a set of data file
+loader classes that load datasets from files on the classpath, combining
+classpath-resource reading with
+link:decorators.html#replacementdataset[ReplacementDataSet] substitution —
+every dataset a loader returns has already had its configured replacement
+objects/substrings applied.
+
+[cols="1,2", options="header"]
+|===
+|Loader |Wraps
+
+|link:/dbunit/apidocs/org/dbunit/util/fileloader/FlatXmlDataFileLoader.html[FlatXmlDataFileLoader] |link:flatxml.html[FlatXmlDataSet]
+|link:/dbunit/apidocs/org/dbunit/util/fileloader/FullXmlDataFileLoader.html[FullXmlDataFileLoader] |link:xml.html[XmlDataSet]
+|link:/dbunit/apidocs/org/dbunit/util/fileloader/CsvDataFileLoader.html[CsvDataFileLoader] |link:csv.html[CsvDataSet] (via `CsvURLDataSet`)
+|link:/dbunit/apidocs/org/dbunit/util/fileloader/XlsDataFileLoader.html[XlsDataFileLoader] |link:excel.html[XlsDataSet]
+|===
+
+Each extends
+link:/dbunit/apidocs/org/dbunit/util/fileloader/AbstractDataFileLoader.html[AbstractDataFileLoader],
+which implements the shared
+link:/dbunit/apidocs/org/dbunit/util/fileloader/DataFileLoader.html[DataFileLoader]
+contract: `load(String filename)` resolves `filename` as a classpath
+resource (via `Class.getResource()`), delegates the actual parsing to the
+wrapped format, then wraps the result in a `ReplacementDataSet`. A
+`null`/empty filename returns an empty `DefaultDataSet` rather than
+throwing.
+
+A simple usage example:
+
+[source,java]
+----
+DataFileLoader loader = new FlatXmlDataFileLoader();
+IDataSet ds = loader.load("/the/package/prepData.xml");
+----
+
+== Replacement Objects and Substrings
+
+Every loader's constructors accept replacement object and replacement
+substring maps, used the same way as with `ReplacementDataSet` directly (see
+link:decorators.html#replacementdataset[Decorators]):
+
+[source,java]
+----
+Map<String, Object> replacementObjects = new HashMap<>();
+replacementObjects.put("[NULL]", null);
+
+DataFileLoader loader = new FlatXmlDataFileLoader(replacementObjects);
+IDataSet ds = loader.load("/the/package/prepData.xml");
+----
+
+You can also add or clear replacements after construction:
+`addReplacementObjects()`, `addReplacementSubstrings()`,
+`removeAllReplacementObjects()`, `removeAllReplacementSubstrings()`.
+
+See link:/testcases/PrepAndExpectedTestCase.html[PrepAndExpectedTestCase] for
+a `DataFileLoader` used as part of a full prep/expected test setup.

@@ -1,0 +1,59 @@
+= XML
+
+link:/dbunit/apidocs/org/dbunit/dataset/xml/XmlDataSet.html[XmlDataSet]
+reads and writes the original, verbose XML dataset document format. It must
+conform to the following DTD:
+
+[source,xml]
+----
+<?xml version="1.0" encoding="UTF-8"?>
+<!ELEMENT dataset (table+) | ANY>
+<!ELEMENT table (column*, row*)>
+<!ATTLIST table
+    name CDATA #REQUIRED
+>
+<!ELEMENT column (#PCDATA)>
+<!ELEMENT row (value | null | none)*>
+<!ELEMENT value (#PCDATA)>
+<!ELEMENT null EMPTY>
+----
+
+XML dataset document sample:
+
+[source,xml]
+----
+<!DOCTYPE dataset SYSTEM "dataset.dtd">
+<dataset>
+    <table name="TEST_TABLE">
+        <column>COL0</column>
+        <column>COL1</column>
+        <column>COL2</column>
+        <row>
+            <value>row 0 col 0</value>
+            <value>row 0 col 1</value>
+            <value>row 0 col 2</value>
+        </row>
+        <row>
+            <null/>
+            <value>row 1 col 1</value>
+            <null/>
+        </row>
+    </table>
+    <table name="SECOND_TABLE">
+        <column>COLUMN0</column>
+        <column>COLUMN1</column>
+        <row>
+            <value>row 0 col 0</value>
+            <value>row 0 col 1</value>
+        </row>
+    </table>
+    <table name='EMPTY_TABLE'>
+        <column>COLUMN0</column>
+        <column>COLUMN1</column>
+    </table>
+</dataset>
+----
+
+Compared to link:flatxml.html[Flat XML], this format is self-describing (the
+columns are explicit per table, rather than deduced from attributes) at the
+cost of considerably more verbose files.

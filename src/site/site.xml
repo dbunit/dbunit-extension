@@ -66,6 +66,17 @@
         <item name="Equality"        href="/datacomparisons/equality.html"/>
         <item name="ValueComparer"   href="/datacomparisons/valuecomparer.html"/>
       </item>
+      <item name="Datasets"          href="/datasets.html">
+        <item name="Flat XML"           href="/datasets/flatxml.html"/>
+        <item name="XML"                href="/datasets/xml.html"/>
+        <item name="CSV"                href="/datasets/csv.html"/>
+        <item name="Excel (XLS)"        href="/datasets/excel.html"/>
+        <item name="YAML"               href="/datasets/yaml.html"/>
+        <item name="Query-Based"        href="/datasets/query.html"/>
+        <item name="Streaming Datasets" href="/datasets/streaming.html"/>
+        <item name="Data File Loader"   href="/datasets/fileloader.html"/>
+        <item name="Decorators"         href="/datasets/decorators.html"/>
+      </item>
       <item name="Getting Started"   href="/howto.html"/>
       <item name="Test Cases"        href="/testcases.html">
         <item name="IDatabaseTester Guide"      href="/testcases/IDatabaseTester.html"/>

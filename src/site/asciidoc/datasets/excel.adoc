@@ -1,0 +1,26 @@
+= Excel (XLS)
+
+link:/dbunit/apidocs/org/dbunit/dataset/excel/XlsDataSet.html[XlsDataSet]
+reads and writes MS Excel dataset documents. Each sheet represents a table.
+The first row of a sheet defines the column names, and the remaining rows
+contain the data.
+
+[source,java]
+----
+IDataSet dataSet = new XlsDataSet(new File("dataset.xls"));
+----
+
+== Dependency
+
+dbUnit depends on https://poi.apache.org/[Apache POI] to read/write Excel
+files, but marks it `optional` so projects that don't use `XlsDataSet` don't
+pull it in. Add it yourself to use this format:
+
+[source,xml]
+----
+<dependency>
+  <groupId>org.apache.poi</groupId>
+  <artifactId>poi</artifactId>
+  <version>5.2.5</version>
+</dependency>
+----

@@ -1,0 +1,56 @@
+= CSV
+
+link:/dbunit/apidocs/org/dbunit/dataset/csv/CsvDataSet.html[CsvDataSet]
+reads and writes CSV dataset documents. Each CSV file represents a table —
+one CSV file per table.
+
+* CSV base filename must match table name.
+* Requires a file named `table-ordering.txt` containing all table names
+  (same as the base file name; case insensitive but best to match case), one
+  per line, sorted in insert order.
+* All data CSV files reside in the same directory as `table-ordering.txt`.
+* Numeric CSV data file fields must not have trailing spaces before the
+  comma-separator, as it will be interpreted as a String instead of a
+  number.
+* Specify null values as `null` without quotes.
+
+Sample directory layout for two tables, `TEST_TABLE` and `SECOND_TABLE`:
+
+----
+data/
+  table-ordering.txt
+  TEST_TABLE.csv
+  SECOND_TABLE.csv
+----
+
+`table-ordering.txt`:
+
+[source]
+----
+TEST_TABLE
+SECOND_TABLE
+----
+
+`TEST_TABLE.csv` — the second row's `COL0` and `COL2` are null:
+
+[source]
+----
+COL0,COL1,COL2
+row 0 col 0,row 0 col 1,row 0 col 2
+null,row 1 col 1,null
+----
+
+`SECOND_TABLE.csv`:
+
+[source]
+----
+COL0,COL1
+row 0 col 0,row 0 col 1
+----
+
+Load the directory as a dataset:
+
+[source,java]
+----
+IDataSet dataSet = new CsvDataSet(new File("data"));
+----

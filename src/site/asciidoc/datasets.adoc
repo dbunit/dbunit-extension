@@ -1,0 +1,82 @@
+= Datasets
+
+== Overview
+
+The link:apidocs/org/dbunit/dataset/IDataSet.html[IDataSet] interface
+represents a collection of tables — the primary abstraction dbUnit uses to
+manipulate tabular data, whether it comes from a file, a live database, or is
+built programmatically. Its core contract:
+
+* `getTableNames()` / `getTables()` / `getTable(String)` — the tables in the
+  dataset.
+* `iterator()` / `reverseIterator()` — insertion-order (and reverse) access,
+  used by e.g. `DatabaseOperation.INSERT`/`DELETE_ALL` to respect foreign-key
+  ordering.
+* `isCaseSensitiveTableNames()` — whether table name lookups are
+  case-sensitive.
+
+link:apidocs/org/dbunit/dataset/ITable.html[ITable] represents one table:
+its `ITableMetaData` (columns), row count, and `getValue(row, column)` cell
+access.
+
+== Building Datasets Programmatically
+
+link:apidocs/org/dbunit/dataset/DefaultDataSet.html[DefaultDataSet] is the
+basic mutable `IDataSet` implementation used to construct datasets in code
+rather than loading them from a file.
+
+link:apidocs/org/dbunit/dataset/DataSetBuilder.html[DataSetBuilder] is a
+fluent builder on top of it for the common case, avoiding hand-built
+`DefaultTable`/`Column` wiring. Column data types default to `UNKNOWN` and
+are resolved at runtime by dbUnit.
+
+Single-table example:
+
+[source,java]
+----
+IDataSet dataSet = new DataSetBuilder()
+    .table("FOO")
+        .columns("ID", "NAME")
+        .row(1, "Alice")
+        .row(2, "Bob")
+    .build();
+----
+
+Multi-table example:
+
+[source,java]
+----
+IDataSet dataSet = new DataSetBuilder()
+    .table("FOO")
+        .columns("ID", "NAME")
+        .row(1, "Alice")
+    .table("BAR")
+        .columns("X")
+        .row(42)
+    .build();
+----
+
+== Dataset Formats and Decorators
+
+Each of the following is a focused page — file-based formats first, then the
+programmatic/live sources, then the decorators that wrap any `IDataSet`/
+`ITable` to add behavior:
+
+[cols="1,3", options="header"]
+|===
+|Page |Covers
+
+|link:datasets/flatxml.html[Flat XML] |`FlatXmlDataSet` — one XML element per row, the most commonly used file format.
+|link:datasets/xml.html[XML] |`XmlDataSet` — the original, more verbose XML format.
+|link:datasets/csv.html[CSV] |`CsvDataSet` — one CSV file per table, plus a `table-ordering.txt` manifest.
+|link:datasets/excel.html[Excel (XLS)] |`XlsDataSet` — one sheet per table.
+|link:datasets/yaml.html[YAML] |`YamlDataSet` — one top-level key per table.
+|link:datasets/sqlloader.html[SQL*Loader] |`SqlLoaderControlDataSet` — builds a dataset from Oracle SQL*Loader control files.
+|link:datasets/query.html[Query-Based] |`QueryDataSet` — tables populated from arbitrary SQL queries against a live connection.
+|link:datasets/streaming.html[Streaming Datasets] |`StreamingDataSet` — forward-only, low-memory access over a producer.
+|link:datasets/fileloader.html[Data File Loader] |`DataFileLoader` implementations — load a dataset file from the classpath, with `ReplacementDataSet` substitution built in.
+|link:datasets/decorators.html[Decorators] |`CompositeDataSet`, `FilteredDataSet`, `SortedTable`/`SortedDataSet`, `ReplacementDataSet`, `TableDecoratorDataSet`, `CachedDataSet`.
+|===
+
+For a live database as a dataset source (`IDatabaseConnection.createDataSet()`),
+see link:connections.html[Connections & Configuration].
