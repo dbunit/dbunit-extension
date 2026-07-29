@@ -55,7 +55,7 @@ public class AccountTest extends JndiBasedDBTestCase
 Optionally override `getJNDIProperties()` (defaults to an empty
 `Properties`, i.e. the default JNDI context) and
 `getSetUpOperation()`/`getTearDownOperation()` to change the default
-`CLEAN_INSERT`/`NONE` operations — see link:/operations.html[Database
+`CLEAN_INSERT`/`NONE` operations — see link:../operations.html[Database
 Operations].
 
 == When to Use It

@@ -14,8 +14,8 @@ maps Mckoi's SQL type names (`BOOLEAN`, `CHAR`/`CHARACTER`, `VARCHAR`/
 integer/numeric family, `DATE`/`TIME`/`TIMESTAMP`, the binary family, and
 `JAVA_OBJECT`) onto the matching `DataType` constants. Register it via
 `DatabaseConfig.PROPERTY_DATATYPE_FACTORY` — see
-link:/properties.html#typefactory[Properties] and
-link:/connections.html[Connections & Configuration].
+link:../properties.html#typefactory[Properties] and
+link:../connections.html[Connections & Configuration].
 
 == IMetadataHandler
 
@@ -38,4 +38,4 @@ None beyond the SQL type name mapping above.
 == Known Quirks
 
 None specific to dbUnit beyond the standard
-link:/faq.html[FAQ] entries.
+link:../faq.html[FAQ] entries.

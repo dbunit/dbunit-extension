@@ -55,5 +55,5 @@ You can also add or clear replacements after construction:
 `addReplacementObjects()`, `addReplacementSubstrings()`,
 `removeAllReplacementObjects()`, `removeAllReplacementSubstrings()`.
 
-See link:/testcases/PrepAndExpectedTestCase.html[PrepAndExpectedTestCase] for
+See link:../testcases/PrepAndExpectedTestCase.html[PrepAndExpectedTestCase] for
 a `DataFileLoader` used as part of a full prep/expected test setup.

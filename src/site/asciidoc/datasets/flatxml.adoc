@@ -25,7 +25,7 @@ Flat XML dataset document sample:
 To specify null values, omit corresponding attribute.
 In the above example, missing COL0 and COL2 attributes of TEST_TABLE second row represents null values.
 
-Table metadata is deduced from the first row of each table by default, whereas it is possible to enable the _column sensing_ feature as described in link:/faq.html#differentcolumnnumber[differentcolumnnumber].
+Table metadata is deduced from the first row of each table by default, whereas it is possible to enable the _column sensing_ feature as described in link:../faq.html#differentcolumnnumber[differentcolumnnumber].
 *Beware you may get a NoSuchColumnException if the first row of a table has one or more null values.*
 Because of that, this is highly recommended to use DTD.
 DbUnit will use the columns declared in the DTD as table metadata.

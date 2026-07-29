@@ -13,8 +13,8 @@ maps Netezza's JDBC type codes (its own constants, since several diverge from
 `VARFIXEDCHAR`/`NUCL`/`PROT` as char, `INT8` as bigint) onto the matching
 `DataType` constants. Register it via
 `DatabaseConfig.PROPERTY_DATATYPE_FACTORY` — see
-link:/properties.html#typefactory[Properties] and
-link:/connections.html[Connections & Configuration].
+link:../properties.html#typefactory[Properties] and
+link:../connections.html[Connections & Configuration].
 
 == IMetadataHandler
 

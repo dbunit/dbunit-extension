@@ -12,7 +12,7 @@ an actual null value.
 
 NOTE: This format is Oracle-specific tooling, even though the class lives in
 the vendor-neutral `dataset` package rather than `org.dbunit.ext.oracle` —
-see link:/databases/oracle.html[the Oracle vendor guide] for the rest of
+see link:../databases/oracle.html[the Oracle vendor guide] for the rest of
 dbUnit's Oracle-specific support.
 
 == Directory Layout

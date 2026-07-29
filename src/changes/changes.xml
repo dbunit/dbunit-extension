@@ -80,6 +80,9 @@
       <action dev="jeffjensen" type="update" issue="861" system="github" due-to="jeffjensen">
           Add a Gradle dependency snippet to repos.adoc, which was previously Maven-only.
       </action>
+      <action dev="jeffjensen" type="fix" issue="862" system="github" due-to="jeffjensen">
+          Final link audit for the documentation overhaul: fix 33 pages across testcases/, datasets/, datacomparisons/, databases/, and anttask/ that linked to root-level or cross-directory site pages with a site-root-relative path (e.g. link:/operations.html[...]); the AsciiDoc link macro emits such paths literally, breaking navigation once deployed under GitHub Pages' /dbunit-extension/ subpath (confirmed against the rendered site.xml-driven nav, which does compute correct relative paths, unlike body-content links). Reorder site.xml's "Using DbUnit" menu to match this plan's target structure exactly. Confirmed every .adoc page is nav-reachable except the intentionally excluded components.adoc (WI-12) and the empty README.adoc (WI-02).
+      </action>
     </release>
     <release version="3.4.0" date="Jul 28, 2026" description="Test-suite hardening (un-skip and strengthen dozens of disabled/no-op tests); add CachingConnectionProvider and reduce DefaultPrepAndExpectedTestCase's per-test connection churn; pin identifier case-folding to Locale.ENGLISH for Turkish-locale correctness; and a broad set of correctness fixes across export formats (XML, YAML, CSV, XLS, Ant), TimestampDataType timezone handling, InsertOperation/TransactionOperation, and resource-leak cleanups">
       <action dev="jeffjensen" type="fix" issue="797" system="github" due-to="jeffjensen">

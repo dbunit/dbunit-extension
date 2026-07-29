@@ -19,8 +19,8 @@ Oracle has *two* factory versions:
 |===
 
 Register either via `DatabaseConfig.PROPERTY_DATATYPE_FACTORY` — see
-link:/properties.html#typefactory[Properties] and
-link:/connections.html[Connections & Configuration].
+link:../properties.html#typefactory[Properties] and
+link:../connections.html[Connections & Configuration].
 
 == IMetadataHandler
 
@@ -95,16 +95,16 @@ semantics — this page only covers how dbUnit represents it in datasets.
 Oracle 10g+'s recycle bin renames dropped tables to `BIN$...` names that are
 case-sensitive, which can break dbUnit's assumption of case-insensitive
 table-name uniqueness within a schema. Enable
-link:/properties.html#skiporaclereyclebintables[`FEATURE_SKIP_ORACLE_RECYCLEBIN_TABLES`]
+link:../properties.html#skiporaclereyclebintables[`FEATURE_SKIP_ORACLE_RECYCLEBIN_TABLES`]
 to filter them out (until the underlying Oracle driver bug reporting them to
 dbUnit is fixed).
 
 Oracle schema names must be given in uppercase — see `OracleConnection`
 above and the FAQ's
-link:/faq.html#AmbiguousTableNameException[AmbiguousTableNameException]
+link:../faq.html#AmbiguousTableNameException[AmbiguousTableNameException]
 entry.
 
 For loading data already prepared for Oracle's SQL*Loader tool, see
-link:/datasets/sqlloader.html[SQL*Loader] — Oracle-specific tooling, though
+link:../datasets/sqlloader.html[SQL*Loader] — Oracle-specific tooling, though
 the supporting class lives in the vendor-neutral `org.dbunit.dataset`
 package.

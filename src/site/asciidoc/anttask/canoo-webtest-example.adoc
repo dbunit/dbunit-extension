@@ -8,13 +8,13 @@ It allows you to create a series of Ant based tests for your website.
 In fact, this can be used to perform User Acceptance tests for websites built using non Java technologies like ColdFusion or ASP!
 This document walks you through a suggested format for storing tests.
 
-See link:/anttask.html[Ant Task] for the `<dbunit>` task reference this
+See link:../anttask.html[Ant Task] for the `<dbunit>` task reference this
 walkthrough builds on.
 
 === Step 1: Create your dataset file
 
 Your first step is to create your dataset file that you want to load into your database before running your WebTest script.
-Use one of the link:/datasets.html[dataset formats].
+Use one of the link:../datasets.html[dataset formats].
 Put the various datasets you need in a `/data` directory.
 
 === Step 2: Create your Ant build.xml file

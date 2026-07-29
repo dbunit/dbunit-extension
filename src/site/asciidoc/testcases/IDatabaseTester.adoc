@@ -21,7 +21,7 @@ This is the *preferred* style. Reach for it over a `DBTestCase` subclass when:
   not implicit behavior inherited from a base class.
 
 `DBTestCase` and its subclasses remain fully supported for tests that prefer
-inheritance — see link:/testcases.html[Test Integration] for both styles
+inheritance — see link:../testcases.html[Test Integration] for both styles
 side by side, and link:MigratingToIDatabaseTester.html[Migrating to
 IDatabaseTester] for converting existing `DBTestCase` subclasses.
 
@@ -67,12 +67,12 @@ like `DataSourceDatabaseTester`.
   on.
 . `onSetup()` — call at the start of a test (e.g. `@BeforeEach`). Executes
   `getSetUpOperation()` (default
-  link:/operations.html[`CLEAN_INSERT`]) against the dataset.
+  link:../operations.html[`CLEAN_INSERT`]) against the dataset.
 . `onTearDown()` — call at the end of a test (e.g. `@AfterEach`). Executes
   `getTearDownOperation()` (default `NONE` — teardown is opt-in; set it
   explicitly, e.g. to `DELETE_ALL`, if you want automatic cleanup).
 . `setSetUpOperation(DatabaseOperation)` / `setTearDownOperation(DatabaseOperation)`
-  — override either default. See link:/operations.html[Database Operations]
+  — override either default. See link:../operations.html[Database Operations]
   for the full set.
 
 [source,java]
@@ -155,9 +155,9 @@ void setUp() throws Exception
 
 Share one `CachingConnectionProvider` instance across every test method that
 should reuse the connection — typically a `static` field on a common test
-base class. See link:/connections.html[Connections & Configuration] for how
+base class. See link:../connections.html[Connections & Configuration] for how
 `CachingConnectionProvider` fits alongside `IDatabaseConnection`, and
-link:/bestpractices.html[Best Practices] for when connection reuse across
+link:../bestpractices.html[Best Practices] for when connection reuse across
 test methods is (and isn't) a good idea.
 
 == Complete Example

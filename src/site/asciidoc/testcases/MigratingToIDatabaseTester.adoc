@@ -5,7 +5,7 @@ Jeff Jensen
 
 This guide covers migrating test-*writing style* — from a `DBTestCase`
 subclass to `IDatabaseTester` composition — as opposed to
-link:/migration.html[the Migration Guide], which covers dbUnit-version API
+link:../migration.html[the Migration Guide], which covers dbUnit-version API
 differences and stops at 2.4.3→2.4.4 (~2009). dbUnit 3.0.0 dropped JUnit 4
 for JUnit 5; this is a good opportunity to also move off inheritance-based
 setup if you haven't already.
@@ -126,14 +126,14 @@ interface hierarchy and lifecycle.
 
 == What Does NOT Change
 
-* Dataset files (Flat XML, CSV, YAML, etc.) — link:/datasets.html[Datasets]
+* Dataset files (Flat XML, CSV, YAML, etc.) — link:../datasets.html[Datasets]
   is unaffected by which test-writing style loads them.
 * `DatabaseOperation` choices — `getSetUpOperation()`/`getTearDownOperation()`
   overrides become `setSetUpOperation()`/`setTearDownOperation()` calls on the
   `IDatabaseTester`, same defaults, same
-  link:/operations.html[operations] to choose from.
+  link:../operations.html[operations] to choose from.
 * Assertion/verification code — `Assertion`/`DbUnitAssert` and
-  link:/datacomparisons.html[Data Comparisons] work identically regardless
+  link:../datacomparisons.html[Data Comparisons] work identically regardless
   of how the test case obtained its connection.
 
 == Legacy: Raw TestCase + IDatabaseTester (Pre-3.0.0)

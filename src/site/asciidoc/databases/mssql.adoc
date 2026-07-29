@@ -12,8 +12,8 @@ maps SQL Server's `nchar`/`nvarchar`/`ntext` to the matching `CHAR`/
 `VARCHAR`/`LONGVARCHAR`, and its `uniqueidentifier` and `datetimeoffset`
 types to the dedicated classes below. Register it via
 `DatabaseConfig.PROPERTY_DATATYPE_FACTORY` — see
-link:/properties.html#typefactory[Properties] and
-link:/connections.html[Connections & Configuration].
+link:../properties.html#typefactory[Properties] and
+link:../connections.html[Connections & Configuration].
 
 == IMetadataHandler
 
@@ -44,18 +44,18 @@ SQL Server's `yyyy-MM-dd HH:mm:ss[.n] xxx` wire format.
 
 === InsertIdentityOperation
 
-link:/operations.html#InsertIdentityOperation[InsertIdentityOperation]
+link:../operations.html#InsertIdentityOperation[InsertIdentityOperation]
 (`org.dbunit.ext.mssql`) decorates an insert operation and toggles `SET
 IDENTITY_INSERT` so explicit primary-key values can be inserted into an
 `IDENTITY` column — normally SQL Server generates that value itself and
 rejects an explicit one. Use its `INSERT`, `CLEAN_INSERT`, or `REFRESH`
 constants instead of the equivalents on `DatabaseOperation`. See
-link:/operations.html[Database Operations] for the rest of the operation
+link:../operations.html[Database Operations] for the rest of the operation
 family this decorates.
 
 === identityColumnFilter Property
 
-link:/properties.html#identitycolumnfilter[`identityColumnFilter`] overrides
+link:../properties.html#identitycolumnfilter[`identityColumnFilter`] overrides
 how dbUnit detects `IDENTITY` columns, if the default detection doesn't fit
 your schema.
 
@@ -65,5 +65,5 @@ Using the Microsoft driver
 (`com.microsoft.sqlserver.jdbc.SQLServerDriver`) with
 `InsertIdentityOperation` can raise "Can't start a cloned connection" — add
 `SelectMethod=cursor` to the JDBC URL. See the FAQ:
-link:/faq.html#clonedconnection[Why am I getting a "Can't start a cloned
+link:../faq.html#clonedconnection[Why am I getting a "Can't start a cloned
 connection" exception when I use InsertIdentityOperation?]

@@ -13,8 +13,8 @@ recognizes `uuid`, `interval`, `inet`, `geometry`, `citext`, `oid`, and
 (via an overridable hook) custom enum types, mapping each to the dedicated
 classes below; everything else delegates to `DefaultDataTypeFactory`.
 Register it via `DatabaseConfig.PROPERTY_DATATYPE_FACTORY` — see
-link:/properties.html#typefactory[Properties] and
-link:/connections.html[Connections & Configuration].
+link:../properties.html#typefactory[Properties] and
+link:../connections.html[Connections & Configuration].
 
 == IMetadataHandler
 
@@ -66,7 +66,7 @@ PostgresqlDataTypeFactory factory = new PostgresqlDataTypeFactory() {
 ----
 
 See the FAQ for more:
-link:/faq.html#postgresqlEnumTypes[Are Postgresql enum types supported by
+link:../faq.html#postgresqlEnumTypes[Are Postgresql enum types supported by
 dbunit?]
 
 == Known Quirks

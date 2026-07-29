@@ -54,7 +54,7 @@ public class AccountTest extends DataSourceBasedDBTestCase
 
 Optionally override `getSetUpOperation()`/`getTearDownOperation()` to change
 the default `CLEAN_INSERT`/`NONE` operations — see
-link:/operations.html[Database Operations].
+link:../operations.html[Database Operations].
 
 == When to Use It
 

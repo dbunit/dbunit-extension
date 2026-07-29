@@ -10,8 +10,8 @@ link:/dbunit/apidocs/org/dbunit/ext/h2/H2DataTypeFactory.html[H2DataTypeFactory]
 maps H2's `BOOLEAN` to `DataType.BOOLEAN` and `UUID` to `DataType.NVARCHAR`,
 delegating everything else to `DefaultDataTypeFactory`. Register it via
 `DatabaseConfig.PROPERTY_DATATYPE_FACTORY` — see
-link:/properties.html#typefactory[Properties] and
-link:/connections.html[Connections & Configuration].
+link:../properties.html#typefactory[Properties] and
+link:../connections.html[Connections & Configuration].
 
 == IMetadataHandler
 
@@ -34,4 +34,4 @@ None beyond the `BOOLEAN`/`UUID` mapping above.
 == Known Quirks
 
 None specific to dbUnit beyond the standard
-link:/faq.html[FAQ] entries.
+link:../faq.html[FAQ] entries.

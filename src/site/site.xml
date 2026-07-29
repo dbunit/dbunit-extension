@@ -61,10 +61,14 @@
     <menu name="Using DbUnit">
       <item name="About DbUnit"      href="/index.html"/>
       <item name="dbUnit in 5 Minutes" href="/fiveminutes.html"/>
-      <item name="Data Comparisons"  href="/datacomparisons.html">
-        <item name="Equality"        href="/datacomparisons/equality.html"/>
-        <item name="ValueComparer"   href="/datacomparisons/valuecomparer.html"/>
-        <item name="Failure Handling" href="/datacomparisons/failurehandling.html"/>
+      <item name="Getting Started"   href="/howto.html"/>
+      <item name="Test Integration"  href="/testcases.html">
+        <item name="IDatabaseTester Guide"      href="/testcases/IDatabaseTester.html"/>
+        <item name="PrepAndExpectedTestCase"    href="/testcases/PrepAndExpectedTestCase.html"/>
+        <item name="JdbcBasedDBTestCase"        href="/testcases/JdbcBasedDBTestCase.html"/>
+        <item name="DataSourceBasedDBTestCase"  href="/testcases/DataSourceBasedDBTestCase.html"/>
+        <item name="JndiBasedDBTestCase"        href="/testcases/JndiBasedDBTestCase.html"/>
+        <item name="Migrating to IDatabaseTester" href="/testcases/MigratingToIDatabaseTester.html"/>
       </item>
       <item name="Datasets"          href="/datasets.html">
         <item name="Flat XML"           href="/datasets/flatxml.html"/>
@@ -78,17 +82,11 @@
         <item name="Data File Loader"   href="/datasets/fileloader.html"/>
         <item name="Decorators"         href="/datasets/decorators.html"/>
       </item>
-      <item name="Getting Started"   href="/howto.html"/>
-      <item name="Test Integration"  href="/testcases.html">
-        <item name="IDatabaseTester Guide"      href="/testcases/IDatabaseTester.html"/>
-        <item name="PrepAndExpectedTestCase"    href="/testcases/PrepAndExpectedTestCase.html"/>
-        <item name="JdbcBasedDBTestCase"        href="/testcases/JdbcBasedDBTestCase.html"/>
-        <item name="DataSourceBasedDBTestCase"  href="/testcases/DataSourceBasedDBTestCase.html"/>
-        <item name="JndiBasedDBTestCase"        href="/testcases/JndiBasedDBTestCase.html"/>
-        <item name="Migrating to IDatabaseTester" href="/testcases/MigratingToIDatabaseTester.html"/>
+      <item name="Data Comparisons"  href="/datacomparisons.html">
+        <item name="Equality"        href="/datacomparisons/equality.html"/>
+        <item name="ValueComparer"   href="/datacomparisons/valuecomparer.html"/>
+        <item name="Failure Handling" href="/datacomparisons/failurehandling.html"/>
       </item>
-      <item name="Best Practices"    href="/bestpractices.html"/>
-      <item name="Database Testing Concepts" href="/intro.html"/>
       <item name="Database Operations" href="/operations.html"/>
       <item name="Filters"           href="/filters.html"/>
       <item name="Data types"        href="/datatypes.html"/>
@@ -106,6 +104,8 @@
         <item name="Oracle"        href="/databases/oracle.html"/>
         <item name="PostgreSQL"    href="/databases/postgresql.html"/>
       </item>
+      <item name="Best Practices"    href="/bestpractices.html"/>
+      <item name="Database Testing Concepts" href="/intro.html"/>
       <item name="Ant Task"          href="/anttask.html">
         <item name="Canoo WebTest Example" href="/anttask/canoo-webtest-example.html"/>
       </item>

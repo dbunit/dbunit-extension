@@ -60,7 +60,7 @@ public class AccountTest extends JdbcBasedDBTestCase
 
 Optionally override `getUsername()`/`getPassword()` (both default to `null`),
 and `getSetUpOperation()`/`getTearDownOperation()` to change the default
-`CLEAN_INSERT`/`NONE` operations — see link:/operations.html[Database
+`CLEAN_INSERT`/`NONE` operations — see link:../operations.html[Database
 Operations].
 
 == When to Use It

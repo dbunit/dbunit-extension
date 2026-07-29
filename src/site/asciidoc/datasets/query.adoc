@@ -12,8 +12,8 @@ dataSet.addTable("FOO", "SELECT * FROM TABLE WHERE COL='VALUE'");
 dataSet.addTable("BAR");
 ----
 
-`connection` is an link:/connections.html[IDatabaseConnection]. Unlike
+`connection` is an link:../connections.html[IDatabaseConnection]. Unlike
 `IDatabaseConnection.createQueryTable()` (a single ad hoc table, see
-link:/datacomparisons/equality.html#assertquery[Using a Query to Take the
+link:../datacomparisons/equality.html#assertquery[Using a Query to Take the
 Database Snapshot]), `QueryDataSet` accumulates several query-defined tables
 into one dataset.

@@ -22,7 +22,7 @@ This page covers `SequenceTableFilter`, an ordering decoration you construct
 directly with `FilteredDataSet`. The other table filter strategies
 (`IncludeTableFilter`, `ExcludeTableFilter`, and the auto-ordering
 `DatabaseSequenceFilter`) are covered in full, alongside column and row
-filters, in link:/filters.html[Filters].
+filters, in link:../filters.html[Filters].
 
 `SequenceTableFilter` exposes a configured table sequence — the original
 filtering strategy from dbUnit 1.x, useful for imposing an explicit
@@ -129,7 +129,7 @@ For example, if your database supports generated (computed) columns, you could f
 dataset = new TableDecoratorDataSet(dataset, table -> new ColumnFilterTable(table, new GeneratedColumnFilter()));
 ----
 
-See link:/filters.html[Filters] for `GeneratedColumnFilter` and the other
+See link:../filters.html[Filters] for `GeneratedColumnFilter` and the other
 column filters.
 
 [#cacheddataset]

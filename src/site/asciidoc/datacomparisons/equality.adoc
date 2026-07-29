@@ -88,9 +88,9 @@ Assertion.assertEquals(expected, filteredTable);
 
 A limitation of this technique is that you cannot use a DTD with your
 expected flat XML dataset — with a DTD you need to filter columns from both
-the expected and the actual table. See link:/filters.html[Filters] for the
+the expected and the actual table. See link:../filters.html[Filters] for the
 full column/row/table filtering picture, and the FAQ about
-link:/faq.html#columnfilter[excluding some table columns at runtime].
+link:../faq.html#columnfilter[excluding some table columns at runtime].
 
 [#roworder]
 == Row Ordering
@@ -103,5 +103,5 @@ fail spuriously.
 Either order your database snapshot manually with
 `IDatabaseConnection.createQueryTable` and an `ORDER BY` clause, or wrap both
 tables in the `SortedTable` decorator — see
-link:/datasets/decorators.html[Decorators] for `SortedTable` usage,
+link:../datasets/decorators.html[Decorators] for `SortedTable` usage,
 including sorting by column data type instead of string value.
