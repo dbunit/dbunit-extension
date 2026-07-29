@@ -68,10 +68,11 @@
       </item>
       <item name="Getting Started"   href="/howto.html"/>
       <item name="Test Cases"        href="/testcases.html">
-        <item name="DataSourceBasedDBTestCase"  href="/testcases/DataSourceBasedDBTestCase.html"/>
-        <item name="JdbcBasedDBTestCase"        href="/testcases/JdbcBasedDBTestCase.html"/>
-        <item name="JndiBasedDBTestCase"        href="/testcases/JndiBasedDBTestCase.html"/>
+        <item name="IDatabaseTester Guide"      href="/testcases/IDatabaseTester.html"/>
         <item name="PrepAndExpectedTestCase"    href="/testcases/PrepAndExpectedTestCase.html"/>
+        <item name="JdbcBasedDBTestCase"        href="/testcases/JdbcBasedDBTestCase.html"/>
+        <item name="DataSourceBasedDBTestCase"  href="/testcases/DataSourceBasedDBTestCase.html"/>
+        <item name="JndiBasedDBTestCase"        href="/testcases/JndiBasedDBTestCase.html"/>
       </item>
       <item name="Best Practices"    href="/bestpractices.html"/>
       <item name="Core Components"   href="/components.html"/>

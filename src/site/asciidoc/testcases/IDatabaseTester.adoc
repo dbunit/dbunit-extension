@@ -1,0 +1,209 @@
+= IDatabaseTester
+Jeff Jensen
+
+== Overview
+
+link:/dbunit/apidocs/org/dbunit/IDatabaseTester.html[IDatabaseTester]
+adds dbUnit's setup/teardown lifecycle to a test class by composition —
+a test class holds an `IDatabaseTester` field (constructed directly or
+dependency-injected) instead of extending
+link:/dbunit/apidocs/org/dbunit/DBTestCase.html[DBTestCase].
+
+This is the *preferred* style. Reach for it over a `DBTestCase` subclass when:
+
+* Your test class already extends something else — Java allows only one
+  superclass, and a forced `DBTestCase` base class competes with any other
+  base class your test infrastructure needs.
+* You use dependency injection (e.g. Spring) and want the database tester
+  wired in like any other collaborator, rather than configured through
+  inherited setter calls.
+* You want the setup/teardown mechanics visible and testable as an object,
+  not implicit behavior inherited from a base class.
+
+`DBTestCase` and its subclasses remain fully supported for tests that prefer
+inheritance — see link:/testcases.html[Test Integration] for both styles
+side by side, and link:MigratingToIDatabaseTester.html[Migrating to
+IDatabaseTester] for converting existing `DBTestCase` subclasses.
+
+== Interface Hierarchy
+
+link:/dbunit/apidocs/org/dbunit/IDatabaseTester.html[IDatabaseTester] is the
+interface; link:/dbunit/apidocs/org/dbunit/AbstractDatabaseTester.html[AbstractDatabaseTester]
+implements its setup/teardown/listener plumbing and leaves only
+`getConnection()` to each concrete subclass:
+
+[cols="1,3", options="header"]
+|===
+|Implementation |How it obtains a connection
+
+|link:/dbunit/apidocs/org/dbunit/DefaultDatabaseTester.html[DefaultDatabaseTester]
+|Wraps an already-constructed
+link:/dbunit/apidocs/org/dbunit/database/IDatabaseConnection.html[IDatabaseConnection],
+or (since 3.4.0) a `Callable<IDatabaseConnection>` factory paired with a
+<<CachingConnectionProvider,`CachingConnectionProvider`>>.
+
+|link:/dbunit/apidocs/org/dbunit/JdbcDatabaseTester.html[JdbcDatabaseTester]
+|Opens connections via `DriverManager`, given a driver class name and JDBC URL
+(plus optional username/password/schema).
+
+|link:/dbunit/apidocs/org/dbunit/PropertiesBasedJdbcDatabaseTester.html[PropertiesBasedJdbcDatabaseTester]
+|A `JdbcDatabaseTester` that reads its driver class, URL, username, password,
+and schema from System properties (`dbunit.driverClass`,
+`dbunit.connectionUrl`, `dbunit.username`, `dbunit.password`,
+`dbunit.schema`) instead of constructor arguments.
+
+|link:/dbunit/apidocs/org/dbunit/DataSourceDatabaseTester.html[DataSourceDatabaseTester]
+|Pulls connections from a `javax.sql.DataSource` — the natural fit when a DI
+container already manages a pooled `DataSource`.
+
+|link:/dbunit/apidocs/org/dbunit/JndiDatabaseTester.html[JndiDatabaseTester]
+|Looks up a `javax.sql.DataSource` from a JNDI context by name, then behaves
+like `DataSourceDatabaseTester`.
+|===
+
+== Lifecycle
+
+. `setDataSet(IDataSet)` — sets the dataset the setup/teardown operations act
+  on.
+. `onSetup()` — call at the start of a test (e.g. `@BeforeEach`). Executes
+  `getSetUpOperation()` (default
+  link:/operations.html[`CLEAN_INSERT`]) against the dataset.
+. `onTearDown()` — call at the end of a test (e.g. `@AfterEach`). Executes
+  `getTearDownOperation()` (default `NONE` — teardown is opt-in; set it
+  explicitly, e.g. to `DELETE_ALL`, if you want automatic cleanup).
+. `setSetUpOperation(DatabaseOperation)` / `setTearDownOperation(DatabaseOperation)`
+  — override either default. See link:/operations.html[Database Operations]
+  for the full set.
+
+[source,java]
+----
+private final IDatabaseTester databaseTester =
+        new JdbcDatabaseTester("org.h2.Driver", "jdbc:h2:mem:example;DB_CLOSE_DELAY=-1");
+
+@BeforeEach
+void setUp() throws Exception
+{
+    databaseTester.setDataSet(new FlatXmlDataSetBuilder().build(new File("prep.xml")));
+    databaseTester.setTearDownOperation(DatabaseOperation.DELETE_ALL);
+    databaseTester.onSetup();
+}
+
+@AfterEach
+void tearDown() throws Exception
+{
+    databaseTester.onTearDown();
+}
+----
+
+TIP: link:PrepAndExpectedTestCase.html[`PrepAndExpectedTestCase`] packages
+this lifecycle (plus expected-data verification) behind `runTest()`/
+`preTest()`/`postTest()`, and is usually a better starting point than driving
+`onSetup()`/`onTearDown()` directly — see its page for the full API.
+
+== IOperationListener Hooks
+
+link:/dbunit/apidocs/org/dbunit/IOperationListener.html[IOperationListener]
+observes connection handling around `onSetup()`/`onTearDown()`. Set one with
+`setOperationListener()`:
+
+* `connectionRetrieved(IDatabaseConnection)` — called right after a
+  connection is created or retrieved, before the operation runs. Apply
+  per-connection `DatabaseConfig` customizations here (data type factory,
+  feature flags, etc.).
+* `operationSetUpFinished(IDatabaseConnection)` — called after `onSetup()`'s
+  operation completes.
+* `operationTearDownFinished(IDatabaseConnection)` — called after
+  `onTearDown()`'s operation completes.
+
+The default listener (`DefaultOperationListener`) closes the connection in
+both `*Finished` callbacks — a fresh connection every `onSetup()`/
+`onTearDown()` call. Set
+`IOperationListener.NO_OP_OPERATION_LISTENER` (or a custom non-closing
+listener) when a connection needs to survive past one call — most commonly
+when pairing with a `CachingConnectionProvider`, below.
+
+[#CachingConnectionProvider]
+== Pairing With CachingConnectionProvider
+
+`org.dbunit.database.CachingConnectionProvider` (new in 3.4.0)
+caches one `IDatabaseConnection` and reuses it across many `getConnection()`
+calls instead of opening a new one every time, transparently replacing it if
+it goes stale or is closed. Every `IDatabaseTester` implementation above
+accepts one via an additive constructor overload. Pair it with
+`NO_OP_OPERATION_LISTENER` — otherwise the default listener closes the
+connection the provider is trying to reuse:
+
+[source,java]
+----
+private static final CachingConnectionProvider CONNECTION_PROVIDER =
+        new CachingConnectionProvider();
+
+private IDatabaseTester databaseTester;
+
+@BeforeEach
+void setUp() throws Exception
+{
+    databaseTester = new JdbcDatabaseTester("org.h2.Driver",
+            "jdbc:h2:mem:example;DB_CLOSE_DELAY=-1", null, null, null,
+            CONNECTION_PROVIDER);
+    databaseTester.setOperationListener(IOperationListener.NO_OP_OPERATION_LISTENER);
+    databaseTester.setDataSet(myDataSet);
+    databaseTester.setTearDownOperation(DatabaseOperation.DELETE_ALL);
+    databaseTester.onSetup();
+}
+----
+
+Share one `CachingConnectionProvider` instance across every test method that
+should reuse the connection — typically a `static` field on a common test
+base class. See link:/connections.html[Connections & Configuration] for how
+`CachingConnectionProvider` fits alongside `IDatabaseConnection`, and
+link:/bestpractices.html[Best Practices] for when connection reuse across
+test methods is (and isn't) a good idea.
+
+== Complete Example
+
+[source,java]
+----
+class AccountRepositoryTest
+{
+    private static final String DBUNIT_DATA_DIR = "/dbunit/account/";
+
+    private final IDatabaseTester databaseTester =
+            new JdbcDatabaseTester("org.h2.Driver",
+                    "jdbc:h2:mem:accountRepositoryTest;DB_CLOSE_DELAY=-1");
+
+    @BeforeEach
+    void setUp() throws Exception
+    {
+        final IDataSet prepDataSet = new FlatXmlDataSetBuilder()
+                .build(getClass().getResourceAsStream(DBUNIT_DATA_DIR + "account-prep.xml"));
+
+        databaseTester.setDataSet(prepDataSet);
+        databaseTester.setTearDownOperation(DatabaseOperation.DELETE_ALL);
+        databaseTester.onSetup();
+    }
+
+    @AfterEach
+    void tearDown() throws Exception
+    {
+        databaseTester.onTearDown();
+    }
+
+    @Test
+    void testWithdraw_sufficientBalance_decrementsBalance() throws Exception
+    {
+        final AccountRepository repository =
+                new AccountRepository(databaseTester.getConnection().getConnection());
+
+        repository.withdraw(1L, 50);
+
+        final IDataSet expectedDataSet = new FlatXmlDataSetBuilder()
+                .build(getClass().getResourceAsStream(DBUNIT_DATA_DIR + "account-expected.xml"));
+        final ITable expectedTable = expectedDataSet.getTable("account");
+        final ITable actualTable = databaseTester.getConnection()
+                .createDataSet(new String[] { "account" }).getTable("account");
+
+        Assertion.assertEquals(expectedTable, actualTable);
+    }
+}
+----

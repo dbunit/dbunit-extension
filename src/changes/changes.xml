@@ -20,6 +20,9 @@
       <action dev="jeffjensen" type="add" issue="841" system="github" due-to="jeffjensen">
           Add the "dbUnit in 5 Minutes" tutorial (fiveminutes.adoc): a complete, runnable walkthrough using the recommended DefaultPrepAndExpectedTestCase + JdbcDatabaseTester composition style against an in-memory H2 database, placed first in the "Using DbUnit" site menu.
       </action>
+      <action dev="jeffjensen" type="add" issue="842" system="github" due-to="jeffjensen">
+          Add the IDatabaseTester guide (testcases/IDatabaseTester.adoc), documenting the composition-based testing style CLAUDE.md and the site's own examples already prefer but that had no dedicated page: the interface hierarchy, setup/teardown lifecycle, IOperationListener hooks, and pairing with the new CachingConnectionProvider for connection reuse across test methods.
+      </action>
     </release>
     <release version="3.4.0" date="Jul 28, 2026" description="Test-suite hardening (un-skip and strengthen dozens of disabled/no-op tests); add CachingConnectionProvider and reduce DefaultPrepAndExpectedTestCase's per-test connection churn; pin identifier case-folding to Locale.ENGLISH for Turkish-locale correctness; and a broad set of correctness fixes across export formats (XML, YAML, CSV, XLS, Ant), TimestampDataType timezone handling, InsertOperation/TransactionOperation, and resource-leak cleanups">
       <action dev="jeffjensen" type="fix" issue="797" system="github" due-to="jeffjensen">
