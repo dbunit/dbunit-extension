@@ -61,7 +61,6 @@
     <menu name="Using DbUnit">
       <item name="About DbUnit"      href="/index.html"/>
       <item name="dbUnit in 5 Minutes" href="/fiveminutes.html"/>
-      <item name="Database Testing"  href="/intro.html"/>
       <item name="Data Comparisons"  href="/datacomparisons.html">
         <item name="Equality"        href="/datacomparisons/equality.html"/>
         <item name="ValueComparer"   href="/datacomparisons/valuecomparer.html"/>
@@ -89,6 +88,7 @@
         <item name="Migrating to IDatabaseTester" href="/testcases/MigratingToIDatabaseTester.html"/>
       </item>
       <item name="Best Practices"    href="/bestpractices.html"/>
+      <item name="Database Testing Concepts" href="/intro.html"/>
       <item name="Database Operations" href="/operations.html"/>
       <item name="Filters"           href="/filters.html"/>
       <item name="Data types"        href="/datatypes.html"/>

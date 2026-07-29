@@ -1,5 +1,11 @@
 = Database Testing
 
+NOTE: This page is background/motivational reading — an early-2000s essay
+explaining *why* database testing matters — not dbUnit-specific
+instructions. If you're looking for how to use dbUnit, start with
+link:fiveminutes.html[dbUnit in 5 Minutes] or link:howto.html[Getting
+Started].
+
 Richard Dallaway notes about database unit testing inspired me the realization of the DbUnit framework.
 I think this is a very good text about this subject.
 Hopefully he gave me the permission to present excerpts from his notes here.

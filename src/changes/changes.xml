@@ -74,6 +74,9 @@
       <action dev="jeffjensen" type="update" issue="859" system="github" due-to="jeffjensen">
           Add a CachingConnectionProvider subsection to bestpractices.adoc's "Connection management strategies", presenting it as the recommended modern approach for connection reuse across test methods ahead of the dated "override closeConnection() with an empty body" technique, which the page previously covered without mentioning the new (3.4.0-SNAPSHOT) alternative at all.
       </action>
+      <action dev="jeffjensen" type="update" issue="860" system="github" due-to="jeffjensen">
+          Reframe intro.adoc: it is a reprinted early-2000s philosophical essay that read as if it might be current dbUnit-specific guidance. Add a framing note at the top pointing new users to the 5-minute tutorial/Getting Started first, rename its site.xml menu label to "Database Testing Concepts", and reposition it later in the menu, near Best Practices, instead of near the top.
+      </action>
     </release>
     <release version="3.4.0" date="Jul 28, 2026" description="Test-suite hardening (un-skip and strengthen dozens of disabled/no-op tests); add CachingConnectionProvider and reduce DefaultPrepAndExpectedTestCase's per-test connection churn; pin identifier case-folding to Locale.ENGLISH for Turkish-locale correctness; and a broad set of correctness fixes across export formats (XML, YAML, CSV, XLS, Ant), TimestampDataType timezone handling, InsertOperation/TransactionOperation, and resource-leak cleanups">
       <action dev="jeffjensen" type="fix" issue="797" system="github" due-to="jeffjensen">
