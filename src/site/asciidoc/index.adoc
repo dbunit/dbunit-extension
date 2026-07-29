@@ -9,6 +9,14 @@ While dbUnit is most commonly used in automated tests using a database to setup,
 
 Note: Since 3.0.0, DbUnit supports JUnit 5 and drops JUnit 4 support.
 
+== Where to Start
+
+New to dbUnit? link:fiveminutes.html[dbUnit in 5 Minutes] is the fastest way
+to see it work. From there, link:howto.html[Getting Started] orients you
+toward what you need next, link:testcases.html[Test Integration] covers the
+two ways to wire dbUnit into a test class, and link:datasets.html[Datasets]
+covers the dataset file formats prep/expected data is written in.
+
 == Downloading dbUnit
 
 Refer to link:repos.html[Maven Repositories] for obtaining releases and snapshots (pre-releases/work in progress).

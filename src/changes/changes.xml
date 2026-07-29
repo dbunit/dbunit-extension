@@ -68,6 +68,9 @@
       <action dev="jeffjensen" type="add" issue="857" system="github" due-to="jeffjensen">
           Add datasets/sqlloader.adoc documenting org.dbunit.dataset.sqlloader (SqlLoaderControlDataSet), which had zero documentation anywhere in the site: what it is, the control-files directory layout, and a minimal loading example drawn from the class's own test fixtures. Cross-linked from the Oracle vendor guide since this format is Oracle-specific tooling despite living in the vendor-neutral dataset package.
       </action>
+      <action dev="jeffjensen" type="update" issue="858" system="github" due-to="jeffjensen">
+          Add a "Where to Start" paragraph to index.adoc linking to dbUnit in 5 Minutes, Getting Started, Test Integration, and Datasets — the homepage previously had no body-text links to any of these, leaving discovery entirely to the left nav.
+      </action>
     </release>
     <release version="3.4.0" date="Jul 28, 2026" description="Test-suite hardening (un-skip and strengthen dozens of disabled/no-op tests); add CachingConnectionProvider and reduce DefaultPrepAndExpectedTestCase's per-test connection churn; pin identifier case-folding to Locale.ENGLISH for Turkish-locale correctness; and a broad set of correctness fixes across export formats (XML, YAML, CSV, XLS, Ant), TimestampDataType timezone handling, InsertOperation/TransactionOperation, and resource-leak cleanups">
       <action dev="jeffjensen" type="fix" issue="797" system="github" due-to="jeffjensen">
