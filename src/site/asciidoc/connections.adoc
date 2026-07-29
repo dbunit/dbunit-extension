@@ -1,0 +1,89 @@
+= Connections & Configuration
+
+== IDatabaseConnection
+
+The link:apidocs/org/dbunit/database/IDatabaseConnection.html[IDatabaseConnection]
+interface represents a dbUnit connection to a database: it wraps a JDBC
+connection, and is the factory for creating datasets/tables from the live
+database (`createDataSet()`, `createQueryTable()`, `createTable()`), reading
+row counts, and accessing the connection's link:properties.html[DatabaseConfig].
+
+[cols="1,3", options="header"]
+|===
+|Class |Description
+
+|link:apidocs/org/dbunit/database/DatabaseConnection.html[DatabaseConnection]
+|Wraps a plain JDBC `java.sql.Connection`.
+
+|link:apidocs/org/dbunit/database/DatabaseDataSourceConnection.html[DatabaseDataSourceConnection]
+|Wraps a `javax.sql.DataSource` (constructed directly, or looked up via JNDI).
+|===
+
+These are typically not constructed directly in test code — an
+link:testcases/IDatabaseTester.html[IDatabaseTester] implementation
+constructs and returns one from `getConnection()`. Reach for them directly
+only when writing a custom `IDatabaseTester`/`DBTestCase` subclass, or when
+using dbUnit outside a test (e.g. a one-off import/export script).
+
+[#databasedataset]
+== DatabaseDataSet
+
+link:apidocs/org/dbunit/database/DatabaseDataSet.html[DatabaseDataSet] is
+the `IDataSet` adapter that provides access to a database instance as a
+dataset. It is not usually instantiated directly, but obtained from the
+factory method `IDatabaseConnection.createDataSet()`.
+
+[#cachingconnectionprovider]
+== CachingConnectionProvider
+
+link:apidocs/org/dbunit/database/CachingConnectionProvider.html[CachingConnectionProvider]
+(new in 3.4.0) caches a single `IDatabaseConnection` — and the table
+metadata it accumulates — so it can be reused across many test methods
+instead of being rebuilt on every call. A `Callable<IDatabaseConnection>`
+supplies the connection-creation logic; the factory runs only when there is
+no cached connection yet, or the previously cached one is no longer alive
+(checked with `Connection.isValid(int)`), in which case the dead connection
+is closed and transparently replaced.
+
+Construct one instance per target database and share it across the
+link:apidocs/org/dbunit/JdbcDatabaseTester.html[JdbcDatabaseTester],
+link:apidocs/org/dbunit/DataSourceDatabaseTester.html[DataSourceDatabaseTester],
+link:apidocs/org/dbunit/JndiDatabaseTester.html[JndiDatabaseTester], or
+link:apidocs/org/dbunit/DefaultDatabaseTester.html[DefaultDatabaseTester]
+instances created for each test — typically a `static` field on a common
+test base class:
+
+[source,java]
+----
+private static final CachingConnectionProvider CONNECTION_PROVIDER =
+        new CachingConnectionProvider();
+
+@BeforeEach
+void setUp() throws Exception
+{
+    final IDatabaseTester tester = new JdbcDatabaseTester(driverClass,
+            connectionUrl, username, password, schema, CONNECTION_PROVIDER);
+    // The default IOperationListener closes the connection after every
+    // onSetup()/onTearDown() call, which would defeat the cache. Pair it
+    // with a listener that leaves the connection open, e.g.:
+    tester.setOperationListener(IOperationListener.NO_OP_OPERATION_LISTENER);
+    ...
+}
+----
+
+*Thread safety.* Access to the cached connection is synchronized, so
+concurrent callers cannot create or replace it at the same time. The
+returned `IDatabaseConnection` — and the underlying JDBC `Connection` it
+wraps — is not itself synchronized, so this is only appropriate for test
+suites that run sequentially, not test methods executing concurrently
+against the same cached connection.
+
+*Metadata staleness.* Because the whole point of reuse is avoiding
+re-fetching table metadata, a cached connection's `DatabaseDataSet` does not
+notice schema changes (new/dropped/altered tables) made after it was first
+cached. Do not share a provider across tests that alter DDL mid-run.
+
+See link:testcases/IDatabaseTester.html[the IDatabaseTester guide] for the
+full setup/teardown lifecycle this fits into, and
+link:bestpractices.html[Best Practices] for when connection reuse across test
+methods is (and isn't) a good idea.
