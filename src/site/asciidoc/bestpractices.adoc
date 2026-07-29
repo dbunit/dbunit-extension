@@ -49,6 +49,41 @@ This can reduce the time required to run your tests but also introduces more ris
 
 Here are the recommended connection management strategies depending whether you test from a remote client or an in-container strategy:
 
+=== CachingConnectionProvider (Recommended)
+
+link:connections.html#cachingconnectionprovider[CachingConnectionProvider]
+(new in 3.4.0) is the way to reuse one connection — and its
+accumulated table metadata — across every test method that needs it,
+regardless of whether you connect via `DriverManager`, a `DataSource`, or
+JNDI. Share one instance across the
+link:testcases/IDatabaseTester.html[IDatabaseTester] instances created for
+each test, typically via a `static` field on a common test base class, and
+pair it with `IOperationListener.NO_OP_OPERATION_LISTENER` so the shared
+connection isn't closed after every setup/teardown call:
+
+[source,java]
+----
+private static final CachingConnectionProvider CONNECTION_PROVIDER =
+        new CachingConnectionProvider();
+
+@BeforeEach
+void setUp() throws Exception
+{
+    final IDatabaseTester tester = new JdbcDatabaseTester(driverClass,
+            connectionUrl, username, password, schema, CONNECTION_PROVIDER);
+    tester.setOperationListener(IOperationListener.NO_OP_OPERATION_LISTENER);
+    ...
+}
+----
+
+Prefer this over the `DatabaseTestCase`/`closeConnection()` technique below
+for new tests — it detects and transparently replaces a dead or expired
+connection instead of just never closing one, and works the same way across
+all four `IDatabaseTester` implementations. See
+link:connections.html#cachingconnectionprovider[Connections & Configuration]
+for thread-safety and metadata-staleness caveats before sharing a provider
+across tests that alter DDL mid-run.
+
 === Remote client with DatabaseTestCase
 
 You should try to reuse the same connection for the entire test suite to reduce the overhead of creating a new connection for each test.
