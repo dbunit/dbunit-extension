@@ -2,8 +2,7 @@
 
 link:apidocs/org/dbunit/operation/DatabaseOperation.html[DatabaseOperation] is an abstract class that represents an operation performed on the database before and after each test.
 
-The two most useful operations are <<refresh,REFRESH>> and <<cleanInsert,CLEAN_INSERT>>.
-They are the ones you will deal usually with.
+The two most common operations are <<deleteall,DELETE_ALL>> and <<cleanInsert,CLEAN_INSERT>>.
 They represent two testing strategies with different benefits and tradeoffs.
 
 [cols="1,3",options="header"]

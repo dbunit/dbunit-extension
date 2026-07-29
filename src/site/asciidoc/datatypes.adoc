@@ -107,7 +107,7 @@ Example:
 ----
 <!DOCTYPE dataset SYSTEM "my-dataset.dtd">
 <dataset>
-    <TABLE_WITHBLOB COL0="[FILE]/path/to file to download"
+    <TABLE_WITHBLOB COL0="[FILE]/path/to file to insert contents"
                     COL1="row 0 col 1"
                     COL2="row 0 col 2"/>
 </dataset>

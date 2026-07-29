@@ -78,18 +78,16 @@ link:/dbunit/apidocs/org/dbunit/dataset/ReplacementDataSet.html[ReplacementDataS
 is a decorator that replaces placeholder objects from the decorated dataset
 with replacement objects. Substring substitution is also possible.
 
-Interestingly this provides a new way to specify null values in flat XML
-datasets. For example you can use a placeholder value, like `[NULL]` in your
+This provides a declarative way to specify null values in flat XML
+datasets. For example, use a placeholder value like `[NULL]` in the
 flat XML dataset and replace it with `null` at runtime.
 
 [source,xml]
 ----
 <?xml version="1.0"?>
 <dataset>
-    <TEST_TABLE COL0="row 0 col 0"
-                COL1="[null]"/>
-    <TEST_TABLE COL1="row 1 col 0"
-                COL2="row 1 col 1"/>
+    <TEST_TABLE COL0="row 0 col 0" COL1="[NULL]"/>
+    <TEST_TABLE COL1="row 1 col 0" COL2="row 1 col 1"/>
 </dataset>
 ----
 
