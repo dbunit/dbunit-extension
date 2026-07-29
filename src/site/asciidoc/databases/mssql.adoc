@@ -1,0 +1,69 @@
+= MSSQL
+
+== Overview
+
+`org.dbunit.ext.mssql` provides Microsoft SQL Server-specific type
+recognition and operations for dbUnit.
+
+== IDataTypeFactory
+
+link:/dbunit/apidocs/org/dbunit/ext/mssql/MsSqlDataTypeFactory.html[MsSqlDataTypeFactory]
+maps SQL Server's `nchar`/`nvarchar`/`ntext` to the matching `CHAR`/
+`VARCHAR`/`LONGVARCHAR`, and its `uniqueidentifier` and `datetimeoffset`
+types to the dedicated classes below. Register it via
+`DatabaseConfig.PROPERTY_DATATYPE_FACTORY` — see
+link:/properties.html#typefactory[Properties] and
+link:/connections.html[Connections & Configuration].
+
+== IMetadataHandler
+
+Not overridden — the default handler applies.
+
+== Connection Preconfiguration Class
+
+link:/dbunit/apidocs/org/dbunit/ext/mssql/MsSqlConnection.html[MsSqlConnection]
+wraps a JDBC `Connection` and pre-registers `MsSqlDataTypeFactory`:
+
+[source,java]
+----
+IDatabaseConnection connection = new MsSqlConnection(jdbcConnection, schema);
+----
+
+== Vendor-Specific Types
+
+=== UniqueIdentifierType
+
+link:/dbunit/apidocs/org/dbunit/ext/mssql/UniqueIdentifierType.html[UniqueIdentifierType]
+maps SQL Server's `uniqueidentifier` column type to `java.util.UUID`.
+
+=== DateTimeOffsetType
+
+link:/dbunit/apidocs/org/dbunit/ext/mssql/DateTimeOffsetType.html[DateTimeOffsetType]
+(since 2.7.0) maps `datetimeoffset` to `java.time.OffsetDateTime`, parsing
+SQL Server's `yyyy-MM-dd HH:mm:ss[.n] xxx` wire format.
+
+=== InsertIdentityOperation
+
+link:/operations.html#InsertIdentityOperation[InsertIdentityOperation]
+(`org.dbunit.ext.mssql`) decorates an insert operation and toggles `SET
+IDENTITY_INSERT` so explicit primary-key values can be inserted into an
+`IDENTITY` column — normally SQL Server generates that value itself and
+rejects an explicit one. Use its `INSERT`, `CLEAN_INSERT`, or `REFRESH`
+constants instead of the equivalents on `DatabaseOperation`. See
+link:/operations.html[Database Operations] for the rest of the operation
+family this decorates.
+
+=== identityColumnFilter Property
+
+link:/properties.html#identitycolumnfilter[`identityColumnFilter`] overrides
+how dbUnit detects `IDENTITY` columns, if the default detection doesn't fit
+your schema.
+
+== Known Quirks
+
+Using the Microsoft driver
+(`com.microsoft.sqlserver.jdbc.SQLServerDriver`) with
+`InsertIdentityOperation` can raise "Can't start a cloned connection" — add
+`SelectMethod=cursor` to the JDBC URL. See the FAQ:
+link:/faq.html#clonedconnection[Why am I getting a "Can't start a cloned
+connection" exception when I use InsertIdentityOperation?]

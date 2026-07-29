@@ -1,0 +1,50 @@
+= DB2
+
+== Overview
+
+`org.dbunit.ext.db2` provides IBM DB2-specific type recognition and metadata
+handling for dbUnit.
+
+== IDataTypeFactory
+
+link:/dbunit/apidocs/org/dbunit/ext/db2/Db2DataTypeFactory.html[Db2DataTypeFactory]
+recognizes DB2's `DB2XML.XMLVARCHAR`/`DB2XML.XMLCLOB`/`DB2XML.XMLFILE`
+distinct types (mapped to `StringDataType`), delegating everything else to
+`DefaultDataTypeFactory`. Register it via
+`DatabaseConfig.PROPERTY_DATATYPE_FACTORY` — see
+link:/properties.html#typefactory[Properties] and
+link:/connections.html[Connections & Configuration].
+
+== IMetadataHandler
+
+link:/dbunit/apidocs/org/dbunit/ext/db2/Db2MetadataHandler.html[Db2MetadataHandler]
+fixes a column-matching bug in the default handler: with at least the
+db2jcc-9.5 driver, `DatabaseMetaData` doesn't return the same catalog/schema
+values for a table that the columns `ResultSet` does (observed: catalog
+`"BLA"` with a `null` catalog name, but schema `"BLA"` matching schema name
+`"BLA"`). `Db2MetadataHandler` tolerates an empty-string/`null` catalog
+mismatch that the default handler treats as a hard mismatch, so column
+lookups succeed instead of throwing.
+
+== Connection Preconfiguration Class
+
+link:/dbunit/apidocs/org/dbunit/ext/db2/Db2Connection.html[Db2Connection]
+wraps a JDBC `Connection` and pre-registers both `Db2DataTypeFactory` and
+`Db2MetadataHandler`:
+
+[source,java]
+----
+IDatabaseConnection connection = new Db2Connection(jdbcConnection, schema);
+----
+
+== Vendor-Specific Types
+
+The `DB2XML.*` distinct types above; otherwise standard SQL types.
+
+== Known Quirks
+
+DB2's older JDBC 1.0 driver doesn't support the JDBC 2.0 batch-update
+features dbUnit uses, producing an `UnsatisfiedLinkError` — install the JDBC
+2.0 driver. See the FAQ:
+link:/faq.html#UnsatisfiedLinkError[Why am I getting an "UnsatisfiedLinkError"
+with the DB2 driver?]

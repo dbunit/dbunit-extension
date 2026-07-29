@@ -1,0 +1,52 @@
+= MySQL
+
+== Overview
+
+`org.dbunit.ext.mysql` provides MySQL/MariaDB-specific type recognition and
+metadata handling for dbUnit.
+
+== IDataTypeFactory
+
+link:/dbunit/apidocs/org/dbunit/ext/mysql/MySqlDataTypeFactory.html[MySqlDataTypeFactory]
+handles several MySQL-specific mappings: `longtext` as `CLOB`, `bit` as
+`BOOLEAN` (MySQL 5.0+) or `TINYINT` depending on context, `point` as
+`BINARY`, and the `UNSIGNED` integer family (e.g. an unsigned `INTEGER`
+needs `BIGINT` to hold its full range without overflow — see MySQL
+Connector/J's
+https://dev.mysql.com/doc/connector-j/en/connector-j-reference-type-conversions.html[type
+conversion reference]). Register it via
+`DatabaseConfig.PROPERTY_DATATYPE_FACTORY` — see
+link:/properties.html#typefactory[Properties] and
+link:/connections.html[Connections & Configuration].
+
+== IMetadataHandler
+
+link:/dbunit/apidocs/org/dbunit/ext/mysql/MySqlMetadataHandler.html[MySqlMetadataHandler]
+fixes qualified-table-name matching (link:/properties.html#qualifiedtablenames[the
+qualified table names feature]) for MySQL, where the default handler's
+catalog/schema comparison doesn't line up with how MySQL reports them.
+Symptom without it: a `NoSuchColumnException` for a column you can see
+exists.
+
+== Connection Preconfiguration Class
+
+link:/dbunit/apidocs/org/dbunit/ext/mysql/MySqlConnection.html[MySqlConnection]
+wraps a JDBC `Connection` and pre-registers both `MySqlDataTypeFactory` and
+`MySqlMetadataHandler`:
+
+[source,java]
+----
+IDatabaseConnection connection = new MySqlConnection(jdbcConnection, schema);
+----
+
+== Vendor-Specific Types
+
+The `longtext`/`bit`/`point`/`UNSIGNED` handling above; otherwise standard
+SQL types.
+
+== Known Quirks
+
+Forgetting to register `MySqlMetadataHandler` is the most common cause of a
+spurious `NoSuchColumnException` on MySQL. See the FAQ:
+link:/faq.html#NoSuchColumnException[Why am I getting a "NoSuchColumnException"
+but I am sure that the column actually exists?]

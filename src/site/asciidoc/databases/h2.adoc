@@ -1,0 +1,37 @@
+= H2
+
+== Overview
+
+`org.dbunit.ext.h2` provides H2-specific type recognition for dbUnit.
+
+== IDataTypeFactory
+
+link:/dbunit/apidocs/org/dbunit/ext/h2/H2DataTypeFactory.html[H2DataTypeFactory]
+maps H2's `BOOLEAN` to `DataType.BOOLEAN` and `UUID` to `DataType.NVARCHAR`,
+delegating everything else to `DefaultDataTypeFactory`. Register it via
+`DatabaseConfig.PROPERTY_DATATYPE_FACTORY` — see
+link:/properties.html#typefactory[Properties] and
+link:/connections.html[Connections & Configuration].
+
+== IMetadataHandler
+
+Not overridden — the default handler applies.
+
+== Connection Preconfiguration Class
+
+link:/dbunit/apidocs/org/dbunit/ext/h2/H2Connection.html[H2Connection] wraps
+a JDBC `Connection` and pre-registers `H2DataTypeFactory`:
+
+[source,java]
+----
+IDatabaseConnection connection = new H2Connection(jdbcConnection, schema);
+----
+
+== Vendor-Specific Types
+
+None beyond the `BOOLEAN`/`UUID` mapping above.
+
+== Known Quirks
+
+None specific to dbUnit beyond the standard
+link:/faq.html[FAQ] entries.

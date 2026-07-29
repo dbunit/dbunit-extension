@@ -1,0 +1,110 @@
+= Oracle
+
+== Overview
+
+`org.dbunit.ext.oracle` provides Oracle-specific type recognition,
+including proprietary LOB access, `XMLType`, and full `SDO_GEOMETRY`
+spatial object modeling. This is the most involved of the vendor packages.
+
+== IDataTypeFactory
+
+Oracle has *two* factory versions:
+
+[cols="1,3", options="header"]
+|===
+|Factory |Use when
+
+|link:/dbunit/apidocs/org/dbunit/ext/oracle/OracleDataTypeFactory.html[OracleDataTypeFactory] |The general-purpose factory. Maps Oracle `DATE` to `TIMESTAMP` (Oracle's `DATE` carries a time component), recognizes `TIMESTAMP*` variants, `XMLTYPE`, `BLOB`/`CLOB`/`NCLOB`, `NVARCHAR2`/`NCHAR*`, `FLOAT`, `LONG RAW`, `BINARY_DOUBLE`/`BINARY_FLOAT`, `ROWID`, and `SDO_GEOMETRY`.
+|link:/dbunit/apidocs/org/dbunit/ext/oracle/Oracle10DataTypeFactory.html[Oracle10DataTypeFactory] |Extends `OracleDataTypeFactory` for Oracle 10g+: handles `CLOB` as a plain string and `BLOB` as a binary stream instead of Oracle's proprietary LOB access classes — the approach Oracle itself recommends for 10g and newer (avoids known proprietary-LOB pitfalls). Prefer this factory unless you specifically need the proprietary LOB classes below.
+|===
+
+Register either via `DatabaseConfig.PROPERTY_DATATYPE_FACTORY` — see
+link:/properties.html#typefactory[Properties] and
+link:/connections.html[Connections & Configuration].
+
+== IMetadataHandler
+
+Not overridden — the default handler applies.
+
+== Connection Preconfiguration Class
+
+link:/dbunit/apidocs/org/dbunit/ext/oracle/OracleConnection.html[OracleConnection]
+wraps a JDBC `Connection` and pre-registers `OracleDataTypeFactory`. It also
+upper-cases the given schema name — Oracle schema names must be matched in
+uppercase (see `AmbiguousTableNameException` in the FAQ):
+
+[source,java]
+----
+IDatabaseConnection connection = new OracleConnection(jdbcConnection, schema);
+----
+
+== Vendor-Specific Types
+
+=== Proprietary BLOB/CLOB/NCLOB Access
+
+`OracleDataTypeFactory` uses
+link:/dbunit/apidocs/org/dbunit/ext/oracle/OracleBlobDataType.html[OracleBlobDataType],
+link:/dbunit/apidocs/org/dbunit/ext/oracle/OracleClobDataType.html[OracleClobDataType],
+and
+link:/dbunit/apidocs/org/dbunit/ext/oracle/OracleNClobDataType.html[OracleNClobDataType]
+(which extends `OracleClobDataType`) by default, using Oracle's proprietary
+LOB APIs (via `Connection.unwrap()` to reach the vendor-specific statement/
+result set). `Oracle10DataTypeFactory` replaces `BLOB`/`CLOB` handling with
+the plain stream/string approach above — the generally recommended choice.
+
+=== XMLType Support
+
+link:/dbunit/apidocs/org/dbunit/ext/oracle/OracleXMLTypeDataType.html[OracleXMLTypeDataType]
+(extends `BlobDataType`) reads/writes Oracle's `XMLTYPE`/`SYS.XMLTYPE`
+columns, again via `Connection.unwrap()` to reach Oracle's JDBC extensions.
+
+[#sdogeometry]
+=== SDO_GEOMETRY Spatial Objects
+
+link:/dbunit/apidocs/org/dbunit/ext/oracle/OracleSdoGeometryDataType.html[OracleSdoGeometryDataType]
+parses and writes Oracle Spatial's `SDO_GEOMETRY` object type directly in
+dataset field values, e.g.:
+
+[source,xml]
+----
+<cola_markets mkt_id="2" name="cola_b"
+    shape="SDO_GEOMETRY(2003, NULL, NULL, SDO_ELEM_INFO_ARRAY(1,1003,1), SDO_ORDINATE_ARRAY(5,1, 8,1, 8,6, 5,7, 5,1))"/>
+----
+
+It's backed by four supporting classes, generated with Oracle's `jpub` tool
+and lightly customized for dbUnit (`equals()`/`hashCode()` added for test
+comparisons):
+
+[cols="1,3", options="header"]
+|===
+|Class |Corresponds to
+
+|link:/dbunit/apidocs/org/dbunit/ext/oracle/OracleSdoGeometry.html[OracleSdoGeometry] |`MDSYS.SDO_GEOMETRY` — `SDO_GTYPE`, `SDO_SRID`, `SDO_POINT`, `SDO_ELEM_INFO`, `SDO_ORDINATES`.
+|link:/dbunit/apidocs/org/dbunit/ext/oracle/OracleSdoPointType.html[OracleSdoPointType] |`MDSYS.SDO_POINT_TYPE`.
+|link:/dbunit/apidocs/org/dbunit/ext/oracle/OracleSdoElemInfoArray.html[OracleSdoElemInfoArray] |`MDSYS.SDO_ELEM_INFO_ARRAY`.
+|link:/dbunit/apidocs/org/dbunit/ext/oracle/OracleSdoOrdinateArray.html[OracleSdoOrdinateArray] |`MDSYS.SDO_ORDINATE_ARRAY`.
+|===
+
+`OracleSdoHelper` is an internal (package-private) helper shared among these
+four for array-aware `equals()`/`hashCode()`; it isn't part of the public
+API. See the Oracle Spatial Developer's Guide for the full `SDO_GEOMETRY`
+semantics — this page only covers how dbUnit represents it in datasets.
+
+== Known Quirks
+
+Oracle 10g+'s recycle bin renames dropped tables to `BIN$...` names that are
+case-sensitive, which can break dbUnit's assumption of case-insensitive
+table-name uniqueness within a schema. Enable
+link:/properties.html#skiporaclereyclebintables[`FEATURE_SKIP_ORACLE_RECYCLEBIN_TABLES`]
+to filter them out (until the underlying Oracle driver bug reporting them to
+dbUnit is fixed).
+
+Oracle schema names must be given in uppercase — see `OracleConnection`
+above and the FAQ's
+link:/faq.html#AmbiguousTableNameException[AmbiguousTableNameException]
+entry.
+
+For loading data already prepared for Oracle's SQL*Loader tool, see
+link:/datasets/sqlloader.html[SQL*Loader] — Oracle-specific tooling, though
+the supporting class lives in the vendor-neutral `org.dbunit.dataset`
+package.

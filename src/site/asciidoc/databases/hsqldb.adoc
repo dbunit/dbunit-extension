@@ -1,0 +1,38 @@
+= HSQLDB
+
+== Overview
+
+`org.dbunit.ext.hsqldb` provides HSQLDB-specific type recognition for
+dbUnit.
+
+== IDataTypeFactory
+
+link:/dbunit/apidocs/org/dbunit/ext/hsqldb/HsqldbDataTypeFactory.html[HsqldbDataTypeFactory]
+maps HSQLDB's `BOOLEAN` to `DataType.BOOLEAN`, delegating everything else to
+`DefaultDataTypeFactory`. Register it via
+`DatabaseConfig.PROPERTY_DATATYPE_FACTORY` — see
+link:/properties.html#typefactory[Properties] and
+link:/connections.html[Connections & Configuration].
+
+== IMetadataHandler
+
+Not overridden — the default handler applies.
+
+== Connection Preconfiguration Class
+
+link:/dbunit/apidocs/org/dbunit/ext/hsqldb/HsqldbConnection.html[HsqldbConnection]
+wraps a JDBC `Connection` and pre-registers `HsqldbDataTypeFactory`:
+
+[source,java]
+----
+IDatabaseConnection connection = new HsqldbConnection(jdbcConnection, schema);
+----
+
+== Vendor-Specific Types
+
+None beyond the `BOOLEAN` mapping above.
+
+== Known Quirks
+
+None specific to dbUnit beyond the standard
+link:/faq.html[FAQ] entries.

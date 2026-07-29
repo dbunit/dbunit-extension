@@ -1,0 +1,48 @@
+= Netezza
+
+== Overview
+
+`org.dbunit.ext.netezza` provides IBM Netezza-specific type recognition and
+metadata handling for dbUnit.
+
+== IDataTypeFactory
+
+link:/dbunit/apidocs/org/dbunit/ext/netezza/NetezzaDataTypeFactory.html[NetezzaDataTypeFactory]
+maps Netezza's JDBC type codes (its own constants, since several diverge from
+`java.sql.Types`, e.g. `BOOLEAN`, `INTERVAL`/`TIMETZ` as timestamps,
+`VARFIXEDCHAR`/`NUCL`/`PROT` as char, `INT8` as bigint) onto the matching
+`DataType` constants. Register it via
+`DatabaseConfig.PROPERTY_DATATYPE_FACTORY` — see
+link:/properties.html#typefactory[Properties] and
+link:/connections.html[Connections & Configuration].
+
+== IMetadataHandler
+
+link:/dbunit/apidocs/org/dbunit/ext/netezza/NetezzaMetadataHandler.html[NetezzaMetadataHandler]
+accounts for Netezza exposing only a catalog, no schema: it treats the
+catalog as the schema when matching and looking up columns/tables/primary
+keys, so dbUnit's schema-based lookups work against a database that doesn't
+have schemas in the JDBC sense.
+
+== Connection Preconfiguration Class
+
+None — Netezza has no dedicated `IDatabaseConnection` subclass. Register
+`NetezzaDataTypeFactory` and `NetezzaMetadataHandler` directly on a plain
+`DatabaseConnection`'s `DatabaseConfig`:
+
+[source,java]
+----
+IDatabaseConnection connection = new DatabaseConnection(jdbcConnection, schema);
+DatabaseConfig config = connection.getConfig();
+config.setProperty(DatabaseConfig.PROPERTY_DATATYPE_FACTORY, new NetezzaDataTypeFactory());
+config.setProperty(DatabaseConfig.PROPERTY_METADATA_HANDLER, new NetezzaMetadataHandler());
+----
+
+== Vendor-Specific Types
+
+None beyond the JDBC-type-code mapping above.
+
+== Known Quirks
+
+The catalog-as-schema behavior above is Netezza's most common surprise;
+`NetezzaMetadataHandler` handles it automatically once registered.

@@ -1,0 +1,75 @@
+= PostgreSQL
+
+== Overview
+
+`org.dbunit.ext.postgresql` provides PostgreSQL-specific type recognition
+for dbUnit, covering several PostgreSQL types with no standard JDBC
+equivalent.
+
+== IDataTypeFactory
+
+link:/dbunit/apidocs/org/dbunit/ext/postgresql/PostgresqlDataTypeFactory.html[PostgresqlDataTypeFactory]
+recognizes `uuid`, `interval`, `inet`, `geometry`, `citext`, `oid`, and
+(via an overridable hook) custom enum types, mapping each to the dedicated
+classes below; everything else delegates to `DefaultDataTypeFactory`.
+Register it via `DatabaseConfig.PROPERTY_DATATYPE_FACTORY` — see
+link:/properties.html#typefactory[Properties] and
+link:/connections.html[Connections & Configuration].
+
+== IMetadataHandler
+
+Not overridden — the default handler applies.
+
+== Connection Preconfiguration Class
+
+None — PostgreSQL has no dedicated `IDatabaseConnection` subclass. Register
+`PostgresqlDataTypeFactory` directly on a plain `DatabaseConnection`'s
+`DatabaseConfig`:
+
+[source,java]
+----
+IDatabaseConnection connection = new DatabaseConnection(jdbcConnection, schema);
+connection.getConfig().setProperty(DatabaseConfig.PROPERTY_DATATYPE_FACTORY,
+        new PostgresqlDataTypeFactory());
+----
+
+== Vendor-Specific Types
+
+[cols="1,3", options="header"]
+|===
+|Type |Covers
+
+|link:/dbunit/apidocs/org/dbunit/ext/postgresql/PostgreSQLOidDataType.html[PostgreSQLOidDataType] |Large objects (`oid`), read/written via the driver's large-object API.
+|link:/dbunit/apidocs/org/dbunit/ext/postgresql/CitextType.html[CitextType] |Case-insensitive text (`citext`).
+|link:/dbunit/apidocs/org/dbunit/ext/postgresql/IntervalType.html[IntervalType] |`interval` values.
+|link:/dbunit/apidocs/org/dbunit/ext/postgresql/InetType.html[InetType] |`inet` (IP address/network) values.
+|link:/dbunit/apidocs/org/dbunit/ext/postgresql/UuidType.html[UuidType] |`uuid` values.
+|link:/dbunit/apidocs/org/dbunit/ext/postgresql/GeometryType.html[GeometryType] |`geometry` (PostGIS) values, read/written as their string representation.
+|===
+
+=== GenericEnumType
+
+link:/dbunit/apidocs/org/dbunit/ext/postgresql/GenericEnumType.html[GenericEnumType]
+adapts between PostgreSQL's native enum types and Strings, using reflection
+(`PGobject.setType()`) so dbUnit doesn't need a compile-time dependency on
+the PostgreSQL driver's internal types. PostgreSQL reports a custom enum
+type generically, so `PostgresqlDataTypeFactory` cannot recognize one on its
+own — override `isEnumType(String sqlTypeName)`:
+
+[source,java]
+----
+PostgresqlDataTypeFactory factory = new PostgresqlDataTypeFactory() {
+    public boolean isEnumType(String sqlTypeName) {
+        return "abc_enum".equalsIgnoreCase(sqlTypeName);
+    }
+};
+----
+
+See the FAQ for more:
+link:/faq.html#postgresqlEnumTypes[Are Postgresql enum types supported by
+dbunit?]
+
+== Known Quirks
+
+Enum type support requires the `isEnumType()` override above — see
+GenericEnumType.
