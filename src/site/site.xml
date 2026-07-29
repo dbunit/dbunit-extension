@@ -60,6 +60,7 @@
 
     <menu name="Using DbUnit">
       <item name="About DbUnit"      href="/index.html"/>
+      <item name="dbUnit in 5 Minutes" href="/fiveminutes.html"/>
       <item name="Database Testing"  href="/intro.html"/>
       <item name="Data Comparisons"  href="/datacomparisons.html">
         <item name="Equality"        href="/datacomparisons/equality.html"/>

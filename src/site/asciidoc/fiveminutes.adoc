@@ -1,0 +1,169 @@
+= dbUnit in 5 Minutes
+
+In 5 minutes you'll write a database test that prepares data, exercises your code, and verifies the result.
+
+== Prerequisites
+
+* JDK 8 or newer.
+* JUnit 5 (`org.junit.jupiter:junit-jupiter`) on your test classpath.
+* An in-memory database for the example — this tutorial uses
+  https://www.h2database.com/[H2] so there's nothing to install or run.
+
+== Step 1 — Add the Dependency
+
+[source,xml]
+----
+<dependency>
+  <groupId>org.dbunit</groupId>
+  <artifactId>dbunit</artifactId>
+  <version>${dbunitVersion}</version>
+  <scope>test</scope>
+</dependency>
+----
+
+See link:repos.html[Maven Repositories] for Gradle coordinates and full
+release/snapshot details.
+Also add H2 to your test classpath:
+
+[source,xml]
+----
+<dependency>
+  <groupId>com.h2database</groupId>
+  <artifactId>h2</artifactId>
+  <version>1.4.200</version>
+  <scope>test</scope>
+</dependency>
+----
+
+== Step 2 — Write a Prep Dataset
+
+The prep dataset is the data your test needs in the database before it runs.
+This one puts two rows into an `account` table
+(classpath resource `/dbunit/account-prep.xml`):
+
+[source,xml]
+----
+<?xml version='1.0' encoding='UTF-8'?>
+<dataset>
+    <account id="1" name="Alice" balance="100"/>
+    <account id="2" name="Bob" balance="200"/>
+</dataset>
+----
+
+== Step 3 — Write an Expected Dataset
+
+The expected dataset is the table state your test verifies against, after the
+code under test runs.
+This test withdraws 50 from account 1, so its balance drops to 50; account 2
+is untouched
+(classpath resource `/dbunit/account-expected.xml`):
+
+[source,xml]
+----
+<?xml version='1.0' encoding='UTF-8'?>
+<dataset>
+    <account id="1" name="Alice" balance="50"/>
+    <account id="2" name="Bob" balance="200"/>
+</dataset>
+----
+
+== Step 4 — Write the Test
+
+Use link:/dbunit/apidocs/org/dbunit/DefaultPrepAndExpectedTestCase.html[DefaultPrepAndExpectedTestCase]
+composed with a
+link:/dbunit/apidocs/org/dbunit/JdbcDatabaseTester.html[JdbcDatabaseTester] —
+this is the recommended composition-based style (see
+link:testcases/IDatabaseTester.html[the IDatabaseTester guide] for why it's
+preferred over extending `DBTestCase`).
+
+[source,java]
+----
+package com.example;
+
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.Statement;
+
+import org.dbunit.DefaultPrepAndExpectedTestCase;
+import org.dbunit.JdbcDatabaseTester;
+import org.dbunit.PrepAndExpectedTestCase;
+import org.dbunit.VerifyTableDefinition;
+import org.dbunit.operation.DatabaseOperation;
+import org.dbunit.util.fileloader.DataFileLoader;
+import org.dbunit.util.fileloader.FlatXmlDataFileLoader;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+
+class AccountWithdrawalTest
+{
+    private static final String DRIVER_CLASS = "org.h2.Driver";
+    private static final String CONNECTION_URL = "jdbc:h2:mem:dbunit5min;DB_CLOSE_DELAY=-1";
+
+    private static final String DATA_DIR = "/dbunit/";
+    private static final String ACCOUNT_PREP = DATA_DIR + "account-prep.xml";
+    private static final String ACCOUNT_EXPECTED = DATA_DIR + "account-expected.xml";
+
+    @BeforeAll
+    static void createSchema() throws Exception
+    {
+        try (Connection connection = DriverManager.getConnection(CONNECTION_URL);
+                Statement statement = connection.createStatement())
+        {
+            statement.execute("CREATE TABLE account (id INT PRIMARY KEY, name VARCHAR(50), balance INT)");
+        }
+    }
+
+    @Test
+    void testWithdraw_sufficientBalance_decrementsBalance() throws Exception
+    {
+        final JdbcDatabaseTester databaseTester = new JdbcDatabaseTester(DRIVER_CLASS, CONNECTION_URL);
+        databaseTester.setTearDownOperation(DatabaseOperation.DELETE_ALL);
+        final DataFileLoader dataFileLoader = new FlatXmlDataFileLoader();
+        final PrepAndExpectedTestCase testCase =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester);
+
+        final VerifyTableDefinition[] verifyTables = { new VerifyTableDefinition("account", null) };
+        final String[] prepDataFiles = { ACCOUNT_PREP };
+        final String[] expectedDataFiles = { ACCOUNT_EXPECTED };
+
+        testCase.runTest(verifyTables, prepDataFiles, expectedDataFiles, () -> {
+            // the code under test: withdraw 50 from account 1
+            try (Connection connection = DriverManager.getConnection(CONNECTION_URL);
+                    Statement statement = connection.createStatement())
+            {
+                statement.execute("UPDATE account SET balance = balance - 50 WHERE id = 1");
+            }
+            return null;
+        });
+    }
+}
+----
+
+The `IDatabaseTester` composing the test case supplies the setup/teardown
+operations: it defaults to `CLEAN_INSERT` (truncate + insert) for setup and
+`NONE` for teardown, so the explicit `setTearDownOperation(DELETE_ALL)` above
+is what makes cleanup actually happen. Both are configurable, see
+link:testcases/IDatabaseTester.html[IDatabaseTester] and
+link:operations.html[Database Operations].
+
+== Step 5 — Run It
+
+[source,bash]
+----
+mvn test
+----
+
+== What Just Happened
+
+`runTest()` loaded `account-prep.xml` and inserted its rows, ran your test
+step (the withdrawal), verified the `account` table matches
+`account-expected.xml`, and then cleaned up the table — all in one call.
+
+== Where to Go Next
+
+* link:testcases.html[Test Integration] — the other ways to write dbUnit tests,
+  including extending `DBTestCase`.
+* link:datasets.html[Datasets] — other dataset formats (CSV, YAML, Excel, and more).
+* link:datacomparisons.html[Data Comparisons] — comparing data with more than
+  strict equality, using `ValueComparer`.
+* link:databases.html[Database-Specific Guides] — if you're not using H2 or HSQLDB.
