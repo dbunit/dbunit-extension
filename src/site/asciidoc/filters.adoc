@@ -1,0 +1,44 @@
+= Filters
+
+dbUnit can filter which tables, columns, and rows participate in an
+operation or comparison. This page consolidates table filters (this page),
+column filters, and row filters.
+
+== Table Filters
+
+Table filters (`org.dbunit.dataset.filter`) decide which tables from a
+larger dataset are exposed, and in what order — used via
+link:datasets/decorators.html#filtereddataset[FilteredDataSet].
+
+[#databasesequencefilter]
+=== DatabaseSequenceFilter
+
+link:apidocs/org/dbunit/database/DatabaseSequenceFilter.html[DatabaseSequenceFilter]
+automatically determines table order using foreign/exported keys
+information. This strategy is vendor independent and should work with any
+JDBC driver that implements the `DatabaseMetaData.getExportedKeys()` method.
+
+Support simple multi-level dependency like this:
+
+[source,text]
+----
+   A
+  / \
+ B   C
+    / \
+   D   E
+----
+
+[source,java]
+----
+IDatabaseConnection conn = new DatabaseConnection(jdbcConn);
+
+ITableFilter filter = new DatabaseSequenceFilter(conn);
+IDataSet dataset = new FilteredDataSet(filter, conn.createDataSet());
+
+FlatXmlDataSet.write(dataset, new File(fileName));
+----
+
+See link:datasets/decorators.html#filtereddataset[Decorators] for
+`SequenceTableFilter`, the explicit-ordering alternative to this
+auto-ordering strategy.

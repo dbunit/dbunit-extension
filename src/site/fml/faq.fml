@@ -175,7 +175,7 @@ public class DatabaseExportSample
          need to explicitly activate client values writing. The way to activate this feature is vendor-specific. 
          <br/>
 		DbUnit provides this functionality for MS SQL Server with the 
-		<a href="components.html#InsertIdentityOperation">InsertIdentityOperation</a> class. 
+		<a href="operations.html#InsertIdentityOperation">InsertIdentityOperation</a> class.
       </p>
       </answer>
     </faq>
@@ -185,7 +185,7 @@ public class DatabaseExportSample
      How to specify NULL values with flat XML dataset?
       </question>
       <answer>
-      <p>See <a href="components.html#FlatXmlDataSet">FlatXmlDataSet documentation</a></p>
+      <p>See <a href="datasets/flatxml.html">FlatXmlDataSet documentation</a></p>
       </answer>
     </faq>  
     
@@ -310,7 +310,7 @@ config.setProperty(DatabaseConfig.PROPERTY_RESULTSET_TABLE_FACTORY, new ForwardO
     Database Import:
     </h5>
     <p>
-    Use the very efficient <a href="components.html#streamingdataset">StreamingDataSet</a> to load your XML dataset when 
+    Use the very efficient <a href="datasets/streaming.html">StreamingDataSet</a> to load your XML dataset when
     working with forward only database operations like UPDATE, INSERT, REFRESH. 
     </p>
 
@@ -420,7 +420,7 @@ IDataSet dataSet = new CachedDataSet(producer);
         dataset; deletes on the other hand are done in reverse order.  You must therefore order 
         your tables and rows appropriately in your datasets to prevent foreign keys constraint violation.
         <br/>
-    Since version 2.0, the <a href="components.html#filtereddataset">DatabaseSequenceFilter</a> 
+    Since version 2.0, the <a href="filters.html#databasesequencefilter">DatabaseSequenceFilter</a>
     can now be used to automatically determine the tables order using foreign/exported keys information. 
         <br/>
     The following sample demonstrates how to use this class to export a flat XML dataset:

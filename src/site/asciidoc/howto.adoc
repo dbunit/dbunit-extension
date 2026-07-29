@@ -56,7 +56,7 @@ public class SampleTest
 Your test need some data to work with.
 This means you must create a dataset.
 In most situations you will work with xml datasets.
-You can manually create a link:components.html#FlatXmlDataSet[flat XML dataset] from scratch or create one by link:faq.html#extract[exporting] some data from your database.
+You can manually create a link:datasets/flatxml.html[flat XML dataset] from scratch or create one by link:faq.html#extract[exporting] some data from your database.
 
 === Step 2: Extend a DBTestCase class
 
@@ -105,7 +105,7 @@ public class SampleTest extends DBTestCase
 
 === Step 3: (Optional) Implement getSetUpOperation() and getTearDownOperation() methods
 
-By default, Dbunit performs a link:components.html#cleanInsert[CLEAN_INSERT] operation before executing each test and performs no cleanup operation afterward.
+By default, Dbunit performs a link:operations.html#cleanInsert[CLEAN_INSERT] operation before executing each test and performs no cleanup operation afterward.
 You can modify this behavior by overriding `getSetUpOperation()` and `getTearDownOperation()`.
 
 The following example demonstrates how you can easily override the operation executed before or after your test.
