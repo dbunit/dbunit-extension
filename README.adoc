@@ -1,0 +1,31 @@
+= DbUnit
+
+image:https://github.com/dbunit/dbunit-extension/actions/workflows/build-any-branch-with-all-dbs.yml/badge.svg?branch=main["Build Status", link="https://github.com/dbunit/dbunit-extension/actions/workflows/build-any-branch-with-all-dbs.yml?query=branch%3Amain"]
+image:https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/jvm-repo-rebuild/reproducible-central/master/content/org/dbunit/badge.json["Reproducible Builds", link="https://github.com/jvm-repo-rebuild/reproducible-central/blob/master/content/org/dbunit/README.md"]
+
+DbUnit is a mature, proven JUnit extension founded in 2002.
+It is targeted at database projects that, among other things, puts the database into a known state between test runs.
+This is an excellent way to avoid the myriad of problems that can occur when one test case corrupts the data and causes subsequent tests to fail or exacerbate the damage.
+
+New here? The fastest way to get started is the
+https://dbunit.github.io/dbunit-extension/fiveminutes.html[dbUnit in 5 Minutes] tutorial.
+
+== Documentation
+
+The full documentation site, including guides, reference pages, and the FAQ, is at
+https://dbunit.github.io/dbunit-extension/.
+
+== Using dbUnit
+
+DbUnit is published to Maven Central under `org.dbunit:dbunit`.
+See https://dbunit.github.io/dbunit-extension/repos.html[Maven Repositories] for the dependency snippet and snapshot repository setup.
+
+== Getting Help
+
+If you found a bug or have an enhancement request, create an issue at
+https://github.com/dbunit/dbunit-extension/issues.
+
+If you have questions, ideas, or want to get involved, start a discussion at
+https://github.com/dbunit/dbunit-extension/discussions.
+
+We are a small team working on improvements and issues along the way and need more help — we will gladly help you as needed with your ideas and contributions and look to add you as a committer when ready.

@@ -14,6 +14,9 @@
 
   <body>
     <release version="3.4.1-SNAPSHOT" date="TBD" description="">
+      <action dev="jeffjensen" type="add" issue="840" system="github" due-to="jeffjensen">
+          Add repo-root README.adoc, rendered natively by GitHub via Asciidoctor, so the repository landing page shows a pitch, build/reproducible-build badges, a pointer to the "dbUnit in 5 Minutes" tutorial, and links to the documentation site, Maven coordinates, GitHub Discussions, and CONTRIBUTING.md instead of nothing.
+      </action>
     </release>
     <release version="3.4.0" date="Jul 28, 2026" description="Test-suite hardening (un-skip and strengthen dozens of disabled/no-op tests); add CachingConnectionProvider and reduce DefaultPrepAndExpectedTestCase's per-test connection churn; pin identifier case-folding to Locale.ENGLISH for Turkish-locale correctness; and a broad set of correctness fixes across export formats (XML, YAML, CSV, XLS, Ant), TimestampDataType timezone handling, InsertOperation/TransactionOperation, and resource-leak cleanups">
       <action dev="jeffjensen" type="fix" issue="797" system="github" due-to="jeffjensen">
