@@ -4,6 +4,11 @@ To migrate from an older DbUnit release to a newer one you can find some useful 
 
 Be sure to review the link:changes-report.html[Changes Report] for more current details.
 
+NOTE: Looking to migrate a test *class* from extending `DBTestCase` to
+`IDatabaseTester` composition, rather than upgrading between dbUnit
+versions? See
+link:testcases/MigratingToIDatabaseTester.html[Migrating to IDatabaseTester].
+
 == 2.4.3 to 2.4.4
 
 There has been a very small change to the API.

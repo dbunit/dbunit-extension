@@ -1,0 +1,177 @@
+= Migrating to IDatabaseTester
+Jeff Jensen
+
+== Why Migrate
+
+This guide covers migrating test-*writing style* — from a `DBTestCase`
+subclass to `IDatabaseTester` composition — as opposed to
+link:/migration.html[the Migration Guide], which covers dbUnit-version API
+differences and stops at 2.4.3→2.4.4 (~2009). dbUnit 3.0.0 dropped JUnit 4
+for JUnit 5; this is a good opportunity to also move off inheritance-based
+setup if you haven't already.
+
+Reasons to migrate:
+
+* *Dependency injection.* An `IDatabaseTester` field is just another
+  collaborator to inject (Spring or otherwise), rather than inherited setup
+  configured through overridden methods.
+* *No forced base class.* Java allows only one superclass; composition frees
+  it for other test infrastructure your project already relies on.
+* *Testability of the setup itself.* An `IDatabaseTester` field is a visible,
+  swappable object, not implicit behavior mixed into the test class via
+  inheritance.
+
+`DBTestCase` and its subclasses remain fully supported — this is a
+recommendation, not a deprecation.
+
+== Before / After
+
+Before — a `JdbcBasedDBTestCase` subclass:
+
+[source,java]
+----
+public class AccountTest extends JdbcBasedDBTestCase
+{
+    @Override
+    protected String getDriverClass()
+    {
+        return "org.h2.Driver";
+    }
+
+    @Override
+    protected String getConnectionUrl()
+    {
+        return "jdbc:h2:mem:accountTest;DB_CLOSE_DELAY=-1";
+    }
+
+    @Override
+    protected IDataSet getDataSet() throws Exception
+    {
+        return new FlatXmlDataSetBuilder()
+                .build(getClass().getResourceAsStream("/dbunit/account-prep.xml"));
+    }
+
+    @BeforeEach
+    @Override
+    protected void setUp() throws Exception
+    {
+        super.setUp();
+    }
+
+    @AfterEach
+    @Override
+    protected void tearDown() throws Exception
+    {
+        super.tearDown();
+    }
+
+    @Test
+    void testWithdraw_sufficientBalance_decrementsBalance() throws Exception
+    {
+        // exercise the code under test, then assert
+    }
+}
+----
+
+After — the same test using `IDatabaseTester` composition:
+
+[source,java]
+----
+class AccountTest
+{
+    private final IDatabaseTester databaseTester =
+            new JdbcDatabaseTester("org.h2.Driver",
+                    "jdbc:h2:mem:accountTest;DB_CLOSE_DELAY=-1");
+
+    @BeforeEach
+    void setUp() throws Exception
+    {
+        final IDataSet prepDataSet = new FlatXmlDataSetBuilder()
+                .build(getClass().getResourceAsStream("/dbunit/account-prep.xml"));
+        databaseTester.setDataSet(prepDataSet);
+        databaseTester.onSetup();
+    }
+
+    @AfterEach
+    void tearDown() throws Exception
+    {
+        databaseTester.onTearDown();
+    }
+
+    @Test
+    void testWithdraw_sufficientBalance_decrementsBalance() throws Exception
+    {
+        // exercise the code under test, then assert
+    }
+}
+----
+
+The class no longer extends anything dbUnit-specific, and the wiring is
+explicit instead of spread across overridden template methods.
+
+== Class Mapping
+
+[cols="1,1", options="header"]
+|===
+|DBTestCase subclass |IDatabaseTester equivalent
+
+|link:JdbcBasedDBTestCase.html[JdbcBasedDBTestCase] |`JdbcDatabaseTester`
+|link:DataSourceBasedDBTestCase.html[DataSourceBasedDBTestCase] |`DataSourceDatabaseTester`
+|link:JndiBasedDBTestCase.html[JndiBasedDBTestCase] |`JndiDatabaseTester`
+|`DBTestCase` (default, `PropertiesBasedJdbcDatabaseTester`) |`PropertiesBasedJdbcDatabaseTester` (same class, used directly instead of via inheritance)
+|===
+
+See link:IDatabaseTester.html[the IDatabaseTester guide] for the full
+interface hierarchy and lifecycle.
+
+== What Does NOT Change
+
+* Dataset files (Flat XML, CSV, YAML, etc.) — link:/datasets.html[Datasets]
+  is unaffected by which test-writing style loads them.
+* `DatabaseOperation` choices — `getSetUpOperation()`/`getTearDownOperation()`
+  overrides become `setSetUpOperation()`/`setTearDownOperation()` calls on the
+  `IDatabaseTester`, same defaults, same
+  link:/operations.html[operations] to choose from.
+* Assertion/verification code — `Assertion`/`DbUnitAssert` and
+  link:/datacomparisons.html[Data Comparisons] work identically regardless
+  of how the test case obtained its connection.
+
+== Legacy: Raw TestCase + IDatabaseTester (Pre-3.0.0)
+
+Before JUnit 5 (dbUnit releases prior to 3.0.0, which supported JUnit 4),
+projects not extending `DBTestCase` at all drove an `IDatabaseTester`
+manually from a plain `TestCase`'s `setUp()`/`tearDown()`:
+
+[source,java]
+----
+public class SampleTest extends TestCase
+{
+    private IDatabaseTester databaseTester;
+
+    public SampleTest(String name)
+    {
+        super(name);
+    }
+
+    protected void setUp() throws Exception
+    {
+        databaseTester = new JdbcDatabaseTester("org.hsqldb.jdbcDriver",
+            "jdbc:hsqldb:sample", "sa", "");
+
+        IDataSet dataSet = null; // initialize your dataset here
+
+        databaseTester.setDataSet(dataSet);
+        databaseTester.onSetup(); // will call default setUpOperation
+    }
+
+    protected void tearDown() throws Exception
+    {
+        databaseTester.onTearDown(); // will call default tearDownOperation
+    }
+}
+----
+
+This is what `IDatabaseTester` composition (above) descends from — the
+difference today is only that JUnit 5's `@BeforeEach`/`@AfterEach`
+annotations replace JUnit 3/4's `setUp()`/`tearDown()` method-name
+convention.

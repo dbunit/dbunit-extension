@@ -53,6 +53,9 @@
       <action dev="jeffjensen" type="update" issue="852" system="github" due-to="jeffjensen">
           Reframe testcases.adoc (site menu label "Test Integration", URL unchanged) to explicitly present composition (IDatabaseTester) and inheritance (DBTestCase and its 3 subclasses) side by side, recommending composition per CLAUDE.md's stated preference while keeping inheritance fully documented. Move the DBTestCase subclass setup steps here from howto.adoc, correcting the JUnit 5 @BeforeEach/@AfterEach gap identified while writing the DBTestCase-family pages in WI-05.
       </action>
+      <action dev="jeffjensen" type="add" issue="853" system="github" due-to="jeffjensen">
+          Add testcases/MigratingToIDatabaseTester.adoc: why migrate a test class's *writing style* from DBTestCase to IDatabaseTester composition (as opposed to migration.adoc, which only covers dbUnit-version API differences), a before/after code pair, a DBTestCase-subclass-to-IDatabaseTester class mapping table, what does not change, and the pre-3.0.0 raw-TestCase+IDatabaseTester legacy pattern moved here from howto.adoc. Cross-link from migration.adoc since some readers will look for "migration" there first.
+      </action>
     </release>
     <release version="3.4.0" date="Jul 28, 2026" description="Test-suite hardening (un-skip and strengthen dozens of disabled/no-op tests); add CachingConnectionProvider and reduce DefaultPrepAndExpectedTestCase's per-test connection churn; pin identifier case-folding to Locale.ENGLISH for Turkish-locale correctness; and a broad set of correctness fixes across export formats (XML, YAML, CSV, XLS, Ant), TimestampDataType timezone handling, InsertOperation/TransactionOperation, and resource-leak cleanups">
       <action dev="jeffjensen" type="fix" issue="797" system="github" due-to="jeffjensen">

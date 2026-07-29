@@ -85,6 +85,7 @@
         <item name="JdbcBasedDBTestCase"        href="/testcases/JdbcBasedDBTestCase.html"/>
         <item name="DataSourceBasedDBTestCase"  href="/testcases/DataSourceBasedDBTestCase.html"/>
         <item name="JndiBasedDBTestCase"        href="/testcases/JndiBasedDBTestCase.html"/>
+        <item name="Migrating to IDatabaseTester" href="/testcases/MigratingToIDatabaseTester.html"/>
       </item>
       <item name="Best Practices"    href="/bestpractices.html"/>
       <item name="Database Operations" href="/operations.html"/>
