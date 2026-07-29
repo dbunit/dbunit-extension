@@ -1,0 +1,72 @@
+= SQL*Loader
+
+link:/dbunit/apidocs/org/dbunit/dataset/sqlloader/SqlLoaderControlDataSet.html[SqlLoaderControlDataSet]
+(`org.dbunit.dataset.sqlloader`) builds a dataset from a directory of
+Oracle SQL*Loader control (`.ctl`) files, importing data already prepared
+for Oracle's SQL*Loader tool without converting it to another dbUnit format
+first. It is a `CachedDataSet` fed by
+link:/dbunit/apidocs/org/dbunit/dataset/sqlloader/SqlLoaderControlProducer.html[SqlLoaderControlProducer]/
+link:/dbunit/apidocs/org/dbunit/dataset/sqlloader/SqlLoaderControlParser.html[SqlLoaderControlParser],
+and translates the literal string `"null"` in the underlying data files into
+an actual null value.
+
+NOTE: This format is Oracle-specific tooling, even though the class lives in
+the vendor-neutral `dataset` package rather than `org.dbunit.ext.oracle` —
+see link:/databases/oracle.html[the Oracle vendor guide] for the rest of
+dbUnit's Oracle-specific support.
+
+== Directory Layout
+
+A control-files directory needs one `.ctl` file per table, matching the
+table's name, plus a table-order manifest listing which tables to import in
+which order:
+
+----
+sqlloader/
+  tables.lst
+  COUNTRY.ctl
+  COUNTRY.csv
+----
+
+`tables.lst` — the ordered table names:
+
+[source]
+----
+COUNTRY
+----
+
+`COUNTRY.ctl` — a standard SQL*Loader control file:
+
+[source]
+----
+LOAD DATA
+INFILE '.\COUNTRY.csv'
+APPEND INTO TABLE COUNTRY
+FIELDS TERMINATED BY ";" OPTIONALLY ENCLOSED BY '"' TRAILING NULLCOLS
+(
+ID    INTEGER EXTERNAL,
+NAME    CHAR,
+ISO_ABBR    CHAR
+)
+----
+
+`COUNTRY.csv` — the data file the control file's `INFILE` points at:
+
+[source]
+----
+1;AFGHANISTAN;AF
+2;ALBANIA;AL
+3;ALGERIA;DZ
+----
+
+== Loading It
+
+[source,java]
+----
+File ctlDir = new File("src/test/resources/sqlloader");
+File orderedTablesFile = new File("src/test/resources/sqlloader/tables.lst");
+IDataSet dataSet = new SqlLoaderControlDataSet(ctlDir, orderedTablesFile);
+----
+
+An overload also accepts the ordered table names directly as a `List`
+instead of a manifest file.

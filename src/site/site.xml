@@ -73,6 +73,7 @@
         <item name="CSV"                href="/datasets/csv.html"/>
         <item name="Excel (XLS)"        href="/datasets/excel.html"/>
         <item name="YAML"               href="/datasets/yaml.html"/>
+        <item name="SQL*Loader"         href="/datasets/sqlloader.html"/>
         <item name="Query-Based"        href="/datasets/query.html"/>
         <item name="Streaming Datasets" href="/datasets/streaming.html"/>
         <item name="Data File Loader"   href="/datasets/fileloader.html"/>
