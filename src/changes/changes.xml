@@ -13,7 +13,7 @@
   </properties>
 
   <body>
-    <release version="3.4.0-SNAPSHOT" date="TBD" description="Test-suite hardening (un-skip and strengthen dozens of disabled/no-op tests); add CachingConnectionProvider and reduce DefaultPrepAndExpectedTestCase's per-test connection churn; pin identifier case-folding to Locale.ENGLISH for Turkish-locale correctness; and a broad set of correctness fixes across export formats (XML, YAML, CSV, XLS, Ant), TimestampDataType timezone handling, InsertOperation/TransactionOperation, and resource-leak cleanups">
+    <release version="3.4.0" date="Jul 28, 2026" description="Test-suite hardening (un-skip and strengthen dozens of disabled/no-op tests); add CachingConnectionProvider and reduce DefaultPrepAndExpectedTestCase's per-test connection churn; pin identifier case-folding to Locale.ENGLISH for Turkish-locale correctness; and a broad set of correctness fixes across export formats (XML, YAML, CSV, XLS, Ant), TimestampDataType timezone handling, InsertOperation/TransactionOperation, and resource-leak cleanups">
       <action dev="jeffjensen" type="fix" issue="797" system="github" due-to="jeffjensen">
           Implement the 8 empty, @Disabled DefaultPrepAndExpectedTestCaseTest stub methods covering preTest, postTest, setupData, verifyData, cleanupData, and makeCompositeDataSet, using the class's existing Mockito-based connection harness. Move the test fixture's databaseTester/tc construction from field initializers to a @BeforeEach method so @Mock injection (MockitoExtension) completes before they are built.
       </action>
