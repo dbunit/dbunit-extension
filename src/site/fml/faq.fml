@@ -485,10 +485,11 @@ ITable filteredTable = DefaultColumnFilter.excludedColumnsTable(originalTable, n
 </source>
 </p>
 <p>
-See also <a href="datacomparisons/equality.html#compareignorecolumns">Ignoring some columns in comparison</a>.
+See also <a href="datacomparisons/equality.html#compareignorecolumns">Ignoring some columns in comparison</a>
+and <a href="filters.html">Filters</a> for the full column/row/table filtering picture.
 </p>
       </answer>
-    </faq> 
+    </faq>
     
     <faq id="rowfilter">
         <question>
@@ -511,6 +512,7 @@ IRowFilter rowFilter = new IRowFilter() {
 ITable filteredTable = new RowFilterTable(iTable, rowFilter);
             </source>
             </p>
+            <p>See <a href="filters.html">Filters</a> for the full column/row/table filtering picture.</p>
         </answer>
     </faq>
 

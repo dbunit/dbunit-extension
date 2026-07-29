@@ -1,14 +1,36 @@
 = Filters
 
 dbUnit can filter which tables, columns, and rows participate in an
-operation or comparison. This page consolidates table filters (this page),
-column filters, and row filters.
+operation or comparison — this page consolidates all three.
 
 == Table Filters
 
 Table filters (`org.dbunit.dataset.filter`) decide which tables from a
-larger dataset are exposed, and in what order — used via
-link:datasets/decorators.html#filtereddataset[FilteredDataSet].
+larger dataset are exposed, and in what order, via
+link:datasets/decorators.html#filtereddataset[FilteredDataSet]. Every
+strategy implements
+link:apidocs/org/dbunit/dataset/filter/ITableFilter.html[ITableFilter]
+(itself extending the simpler
+link:apidocs/org/dbunit/dataset/filter/ITableFilterSimple.html[ITableFilterSimple],
+just `accept(String tableName)`).
+
+=== IncludeTableFilter / ExcludeTableFilter
+
+link:apidocs/org/dbunit/dataset/filter/IncludeTableFilter.html[IncludeTableFilter]
+exposes only tables matching a name pattern, without changing table order;
+link:apidocs/org/dbunit/dataset/filter/ExcludeTableFilter.html[ExcludeTableFilter]
+does the opposite, hiding matching tables. Both support wildcards:
+
+[source,java]
+----
+ITableFilter filter = new IncludeTableFilter(new String[] {"ACCOUNT*"});
+IDataSet filteredDataSet = new FilteredDataSet(filter, dataSet);
+----
+
+=== SequenceTableFilter
+
+Imposes an explicit table order — see
+link:datasets/decorators.html#filtereddataset[Decorators].
 
 [#databasesequencefilter]
 === DatabaseSequenceFilter
@@ -39,6 +61,87 @@ IDataSet dataset = new FilteredDataSet(filter, conn.createDataSet());
 FlatXmlDataSet.write(dataset, new File(fileName));
 ----
 
-See link:datasets/decorators.html#filtereddataset[Decorators] for
-`SequenceTableFilter`, the explicit-ordering alternative to this
-auto-ordering strategy.
+`org.dbunit.database.search.TablesDependencyHelper` is the static
+convenience API backing this filter's traversal — `getDependentTables()`,
+`getDependsOnTables()`, and their transitive `getAllDependentTables()`
+variants, plus `getDataset()`/`getAllDataset()` to go straight from a set of
+root tables to a dependency-ordered `IDataSet`. Reach for it directly when
+you need the table list or a ready-made dataset rather than a filter to wrap
+around an existing one.
+
+[#primarykeyfilter]
+=== PrimaryKeyFilter
+
+link:apidocs/org/dbunit/database/PrimaryKeyFilter.html[PrimaryKeyFilter]
+(`org.dbunit.database`) restricts related tables' rows to those reachable,
+via foreign key, from a starting set of primary key values — e.g. "only the
+orders belonging to these 3 customers, and only those customers' addresses."
+*It does not support composite/multi-column primary keys.*
+
+== Column Filters
+
+=== IColumnFilter / DefaultColumnFilter
+
+link:apidocs/org/dbunit/dataset/filter/IColumnFilter.html[IColumnFilter]
+decides, per table and column, whether a column is included. The FAQ
+example below excludes primary-key and timestamp columns commonly generated
+by the code under test rather than supplied by the test:
+
+[source,java]
+----
+DefaultColumnFilter columnFilter = new DefaultColumnFilter();
+columnFilter.excludeColumn("PK*");
+columnFilter.excludeColumn("*TIME");
+
+FilteredTableMetaData metaData =
+        new FilteredTableMetaData(originalTable.getTableMetaData(), columnFilter);
+ITable filteredTable = new CompositeTable(metaData, originalTable);
+----
+
+link:apidocs/org/dbunit/dataset/filter/DefaultColumnFilter.html[DefaultColumnFilter]
+supports wildcards and offers `includedColumnsTable()`/
+`excludedColumnsTable()` convenience methods to build a filtered `ITable` in
+one call:
+
+[source,java]
+----
+ITable filteredTable = DefaultColumnFilter.excludedColumnsTable(originalTable,
+        new String[] {"PK*", "*TIME"});
+----
+
+See link:datacomparisons/equality.html#compareignorecolumns[Ignoring Some
+Columns in Comparison] for this same mechanism used specifically to align an
+actual table's columns with a narrower expected table.
+
+=== GeneratedColumnFilter
+
+link:apidocs/org/dbunit/dataset/filter/GeneratedColumnFilter.html[GeneratedColumnFilter]
+(3.0.0+) is an `IColumnFilter` that excludes database-generated columns
+(`Column.getGeneratedColumn()`), for databases that expose that metadata.
+Apply it via
+link:datasets/decorators.html#tabledecoratordataset[TableDecoratorDataSet]:
+
+[source,java]
+----
+dataset = new TableDecoratorDataSet(dataset,
+        table -> new ColumnFilterTable(table, new GeneratedColumnFilter()));
+----
+
+== Row Filters
+
+link:apidocs/org/dbunit/dataset/filter/IRowFilter.html[IRowFilter] queries
+column values via an
+link:apidocs/org/dbunit/dataset/IRowValueProvider.html[IRowValueProvider]
+and returns `true` to accept the row or `false` to filter it out. Wrap an
+`ITable` in
+link:apidocs/org/dbunit/dataset/RowFilterTable.html[RowFilterTable] to apply
+it:
+
+[source,java]
+----
+IRowFilter rowFilter = rowValueProvider -> {
+    Object columnValue = rowValueProvider.getColumnValue("COLUMN1");
+    return "customerAbroad".equalsIgnoreCase((String) columnValue);
+};
+ITable filteredTable = new RowFilterTable(iTable, rowFilter);
+----

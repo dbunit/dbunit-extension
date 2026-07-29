@@ -56,6 +56,9 @@
       <action dev="jeffjensen" type="add" issue="853" system="github" due-to="jeffjensen">
           Add testcases/MigratingToIDatabaseTester.adoc: why migrate a test class's *writing style* from DBTestCase to IDatabaseTester composition (as opposed to migration.adoc, which only covers dbUnit-version API differences), a before/after code pair, a DBTestCase-subclass-to-IDatabaseTester class mapping table, what does not change, and the pre-3.0.0 raw-TestCase+IDatabaseTester legacy pattern moved here from howto.adoc. Cross-link from migration.adoc since some readers will look for "migration" there first.
       </action>
+      <action dev="jeffjensen" type="update" issue="854" system="github" due-to="jeffjensen">
+          Expand filters.adoc (seeded in WI-12 with only DatabaseSequenceFilter) into the full consolidated Filters guide: table filters (IncludeTableFilter/ExcludeTableFilter, SequenceTableFilter, PrimaryKeyFilter, and the TablesDependencyHelper convenience API behind DatabaseSequenceFilter), column filters (IColumnFilter/DefaultColumnFilter, GeneratedColumnFilter), and row filters (IRowFilter/RowFilterTable, previously documented only in the FAQ). Add cross-links from the FAQ's columnfilter and rowfilter entries to this page.
+      </action>
     </release>
     <release version="3.4.0" date="Jul 28, 2026" description="Test-suite hardening (un-skip and strengthen dozens of disabled/no-op tests); add CachingConnectionProvider and reduce DefaultPrepAndExpectedTestCase's per-test connection churn; pin identifier case-folding to Locale.ENGLISH for Turkish-locale correctness; and a broad set of correctness fixes across export formats (XML, YAML, CSV, XLS, Ant), TimestampDataType timezone handling, InsertOperation/TransactionOperation, and resource-leak cleanups">
       <action dev="jeffjensen" type="fix" issue="797" system="github" due-to="jeffjensen">
