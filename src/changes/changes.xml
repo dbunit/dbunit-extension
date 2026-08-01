@@ -115,6 +115,9 @@
       <action dev="jeffjensen" type="fix" issue="874" system="github" due-to="jeffjensen">
           Fix the "dbUnit in 5 Minutes" tutorial's contradictory prerequisites: it told new users "JDK 8 or newer" immediately above "JUnit 5 (org.junit.jupiter:junit-jupiter) on your test classpath", but the current JUnit Jupiter coordinates (6.x) cannot load on Java 8-16. Clarify that JDK 17+ is needed to build/run the tutorial's test, while JDK 8 remains sufficient for dbUnit's core API alone.
       </action>
+      <action dev="jeffjensen" type="remove" issue="875" system="github" due-to="jeffjensen">
+          Remove the two Eclipse launch configs ("dbUnit tests - derby.launch", "dbUnit tests - hsqldb.launch"), last updated in 2024 and still set to Eclipse's JUnit 4 test loader, which cannot discover or run this project's pure-Jupiter test suite at all; both also carried dbunit.profile.unsupportedFeatures VM arguments that had drifted from the current *-dbunit.properties files. Removed rather than fixed, per maintainer confirmation that no one relies on Eclipse-native (non-Maven) test runs for these profiles.
+      </action>
     </release>
     <release version="3.4.0" date="Jul 28, 2026" description="Test-suite hardening (un-skip and strengthen dozens of disabled/no-op tests); add CachingConnectionProvider and reduce DefaultPrepAndExpectedTestCase's per-test connection churn; pin identifier case-folding to Locale.ENGLISH for Turkish-locale correctness; and a broad set of correctness fixes across export formats (XML, YAML, CSV, XLS, Ant), TimestampDataType timezone handling, InsertOperation/TransactionOperation, and resource-leak cleanups">
       <action dev="jeffjensen" type="fix" issue="797" system="github" due-to="jeffjensen">
