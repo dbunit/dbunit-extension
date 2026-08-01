@@ -220,7 +220,9 @@ class FlatDtdProducerTest extends AbstractProducerTest
         // a SAXParseException the way the previous "<!ELEMENT dataset (\n)>"
         // output did.
         final StringWriter dtdWriter = new StringWriter();
-        new FlatDtdWriter(dtdWriter).write(new DefaultDataSet());
+        final DefaultDataSet emptyDataSet = new DefaultDataSet();
+        final FlatDtdWriter flatDtdWriter = new FlatDtdWriter(dtdWriter);
+        flatDtdWriter.write(emptyDataSet);
 
         final FlatDtdDataSet consumer = new FlatDtdDataSet();
         final InputSource source =
@@ -230,7 +232,8 @@ class FlatDtdProducerTest extends AbstractProducerTest
 
         producer.produce();
 
-        assertThat(consumer.getTables()).isEmpty();
+        assertThat(consumer.getTables()).as("The empty DTD must produce no tables.")
+                .isEmpty();
     }
 
 }

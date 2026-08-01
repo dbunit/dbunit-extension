@@ -115,7 +115,7 @@ class FlatDtdWriterTest
         dtdWriter.write(new DefaultDataSet());
 
         final String actualOutput = stringWriter.toString();
-        assertThat(actualOutput).as("output").isEqualTo(expectedOutput);
+        assertThat(actualOutput).as("Generated DTD output.").isEqualTo(expectedOutput);
     }
 
 }
