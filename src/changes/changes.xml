@@ -118,6 +118,9 @@
       <action dev="jeffjensen" type="remove" issue="875" system="github" due-to="jeffjensen">
           Remove the two Eclipse launch configs ("dbUnit tests - derby.launch", "dbUnit tests - hsqldb.launch"), last updated in 2024 and still set to Eclipse's JUnit 4 test loader, which cannot discover or run this project's pure-Jupiter test suite at all; both also carried dbunit.profile.unsupportedFeatures VM arguments that had drifted from the current *-dbunit.properties files. Removed rather than fixed, per maintainer confirmation that no one relies on Eclipse-native (non-Maven) test runs for these profiles.
       </action>
+      <action dev="jeffjensen" type="remove" issue="876" system="github" due-to="jeffjensen">
+          Remove the dead org.hamcrest:* pattern from dependabot.yml's test-dependencies group: hamcrest has not been a dependency since the JUnit migration (no hamcrestVersion property, no org.hamcrest import anywhere), so the pattern has silently matched zero packages on every Dependabot run.
+      </action>
     </release>
     <release version="3.4.0" date="Jul 28, 2026" description="Test-suite hardening (un-skip and strengthen dozens of disabled/no-op tests); add CachingConnectionProvider and reduce DefaultPrepAndExpectedTestCase's per-test connection churn; pin identifier case-folding to Locale.ENGLISH for Turkish-locale correctness; and a broad set of correctness fixes across export formats (XML, YAML, CSV, XLS, Ant), TimestampDataType timezone handling, InsertOperation/TransactionOperation, and resource-leak cleanups">
       <action dev="jeffjensen" type="fix" issue="797" system="github" due-to="jeffjensen">

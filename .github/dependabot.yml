@@ -21,7 +21,6 @@ updates:
         patterns:
           - "org.junit*:*"
           - "org.mockito:*"
-          - "org.hamcrest:*"
           - "org.assertj:*"
         update-types: ["minor", "patch"]
       # JDBC drivers and embedded databases used in integration tests
