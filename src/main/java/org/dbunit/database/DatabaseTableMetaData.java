@@ -382,6 +382,10 @@ public class DatabaseTableMetaData extends AbstractTableMetaData
                 if (primaryKeysFilter != null) {
                 	_primaryKeys = Columns.getColumns(getTableName(), getColumns(),
                             primaryKeysFilter);
+                    if (_primaryKeys.length == 0) {
+                        String[] pkNames = getPrimaryKeyNames();
+                        _primaryKeys = Columns.getColumns(pkNames, getColumns());
+                    }
                 } else {
                 	String[] pkNames = getPrimaryKeyNames();
                     _primaryKeys = Columns.getColumns(pkNames, getColumns());
