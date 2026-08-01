@@ -26,9 +26,11 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.StringReader;
+import java.io.StringWriter;
 
 import org.dbunit.dataset.Column;
 import org.dbunit.dataset.DataSetException;
+import org.dbunit.dataset.DefaultDataSet;
 import org.dbunit.dataset.stream.AbstractProducerTest;
 import org.dbunit.dataset.stream.IDataSetProducer;
 import org.dbunit.dataset.stream.MockDataSetConsumer;
@@ -207,6 +209,28 @@ class FlatDtdProducerTest extends AbstractProducerTest
         assertThat(consumer.getTables()).hasSize(2);
         assertThat(consumer.getTable("TEST_TABLE")).isNotNull();
         assertThat(consumer.getTable("SECOND_TABLE")).isNotNull();
+    }
+
+    @Test
+    void testProduce_withFlatDtdWriterOutputForEmptyDataSet_producesNoTablesWithoutError()
+            throws Exception
+    {
+        // Round-trips FlatDtdWriter's ANY content model for a zero-table
+        // dataset back through this producer, confirming it does not raise
+        // a SAXParseException the way the previous "<!ELEMENT dataset (\n)>"
+        // output did.
+        final StringWriter dtdWriter = new StringWriter();
+        new FlatDtdWriter(dtdWriter).write(new DefaultDataSet());
+
+        final FlatDtdDataSet consumer = new FlatDtdDataSet();
+        final InputSource source =
+                new InputSource(new StringReader(dtdWriter.toString()));
+        final FlatDtdProducer producer = new FlatDtdProducer(source);
+        producer.setConsumer(consumer);
+
+        producer.produce();
+
+        assertThat(consumer.getTables()).isEmpty();
     }
 
 }
