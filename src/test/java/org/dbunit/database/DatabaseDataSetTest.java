@@ -24,12 +24,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
+import java.sql.Connection;
 import java.sql.DatabaseMetaData;
+import java.sql.ResultSet;
 import java.sql.Statement;
 
 import org.dbunit.dataset.ITableMetaData;
@@ -37,6 +42,11 @@ import org.dbunit.dataset.NoSuchTableException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.InOrder;
+import org.slf4j.LoggerFactory;
+
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
 
 /**
  * Unit tests for {@link DatabaseDataSet}, using a real in-memory H2 database
@@ -106,5 +116,52 @@ class DatabaseDataSetTest
                         + " even though DatabaseTableMetaData no longer"
                         + " re-validates existence itself.")
                 .isThrownBy(() -> dataSet.getTableMetaData("UNKNOWN_TABLE"));
+    }
+
+    @Test
+    void testInitialize_withDebugLoggingEnabled_queriesDatabaseInfoBeforeCreatingResultSet()
+            throws Exception
+    {
+        final Logger dataSetLogger =
+                (Logger) LoggerFactory.getLogger(DatabaseDataSet.class);
+        final Level originalLevel = dataSetLogger.getLevel();
+        dataSetLogger.setLevel(Level.DEBUG);
+        try
+        {
+            final DatabaseMetaData databaseMetaData = mock(DatabaseMetaData.class);
+            final Connection jdbcConnection = mock(Connection.class);
+            when(jdbcConnection.getMetaData()).thenReturn(databaseMetaData);
+
+            final ResultSet tablesResultSet = mock(ResultSet.class);
+            final IMetadataHandler metadataHandler = mock(IMetadataHandler.class);
+            when(metadataHandler.getTables(any(DatabaseMetaData.class), anyString(),
+                    any())).thenReturn(tablesResultSet);
+
+            final DatabaseConfig config = new DatabaseConfig();
+            config.setProperty(DatabaseConfig.PROPERTY_METADATA_HANDLER,
+                    metadataHandler);
+
+            final IDatabaseConnection mockedConnection = mock(IDatabaseConnection.class);
+            when(mockedConnection.getConnection()).thenReturn(jdbcConnection);
+            when(mockedConnection.getConfig()).thenReturn(config);
+            when(mockedConnection.getSchema()).thenReturn(SCHEMA_NAME);
+
+            final DatabaseDataSet dataSet = new DatabaseDataSet(mockedConnection, true);
+
+            dataSet.getTableNames();
+
+            // SQLHelper.getDatabaseInfo() must run, and thus query the driver
+            // name, before the metadata ResultSet is created below - not
+            // after, where intervening DatabaseMetaData calls could
+            // invalidate an already-open ResultSet on single-cursor drivers.
+            final InOrder order = inOrder(databaseMetaData, metadataHandler);
+            order.verify(databaseMetaData).getDriverName();
+            order.verify(metadataHandler).getTables(any(DatabaseMetaData.class),
+                    anyString(), any());
+        }
+        finally
+        {
+            dataSetLogger.setLevel(originalLevel);
+        }
     }
 }

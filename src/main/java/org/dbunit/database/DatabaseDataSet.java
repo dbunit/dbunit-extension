@@ -204,11 +204,15 @@ public class DatabaseDataSet extends AbstractDataSet
             String[] tableType = (String[])config.getProperty(DatabaseConfig.PROPERTY_TABLE_TYPE);
             IMetadataHandler metadataHandler = (IMetadataHandler) config.getProperty(DatabaseConfig.PROPERTY_METADATA_HANDLER);
 
+            if(logger.isDebugEnabled())
+            {
+                logger.debug(SQLHelper.getDatabaseInfo(databaseMetaData));
+            }
+
             ResultSet resultSet = metadataHandler.getTables(databaseMetaData, schema, tableType);
 
             if(logger.isDebugEnabled())
             {
-                logger.debug(SQLHelper.getDatabaseInfo(jdbcConnection.getMetaData()));
                 logger.debug("metadata resultset={}", resultSet);
             }
 
