@@ -44,7 +44,7 @@
     <gsbaseVersion>2.0.1</gsbaseVersion>
     <jclOverSlf4jVersion>2.0.18</jclOverSlf4jVersion>
     <junitVersion>6.1.2</junitVersion>
-    <logbackClassicVersion>1.5.38</logbackClassicVersion>
+    <logbackClassicVersion>1.6.1</logbackClassicVersion>
     <mockitoVersion>5.23.0</mockitoVersion>
     <poiVersion>5.2.5</poiVersion>
     <xmlparserv2Version>23.26.2.0.0</xmlparserv2Version>
