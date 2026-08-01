@@ -105,4 +105,17 @@ class FlatDtdWriterTest
         assertThat(actualOutput).as("output").isEqualTo(expectedOutput);
     }
 
+    @Test
+    void testWrite_withEmptyDataSet_writesAnyContentModel() throws Exception
+    {
+        final String expectedOutput = "<!ELEMENT dataset ANY>\n" + "\n";
+
+        final StringWriter stringWriter = new StringWriter();
+        final FlatDtdWriter dtdWriter = new FlatDtdWriter(stringWriter);
+        dtdWriter.write(new DefaultDataSet());
+
+        final String actualOutput = stringWriter.toString();
+        assertThat(actualOutput).as("output").isEqualTo(expectedOutput);
+    }
+
 }

@@ -69,12 +69,23 @@ public class FlatDtdWriter //implements IDataSetConsumer
         String[] tableNames = dataSet.getTableNames();
 
         // dataset element
-        printOut.print("<!ELEMENT dataset (\n");
-        for (int i = 0; i < tableNames.length; i++)
+        if (tableNames.length == 0)
         {
-            _contentModel.write(printOut, tableNames[i], i, tableNames.length);
+            // An empty parenthesized content model, e.g. "(\n)", is not
+            // valid DTD syntax. ANY tolerates the whitespace that a
+            // pretty-printed empty "<dataset></dataset>" typically contains,
+            // unlike EMPTY which rejects any content at all.
+            printOut.print("<!ELEMENT dataset ANY>\n");
         }
-        printOut.print(")>\n");
+        else
+        {
+            printOut.print("<!ELEMENT dataset (\n");
+            for (int i = 0; i < tableNames.length; i++)
+            {
+                _contentModel.write(printOut, tableNames[i], i, tableNames.length);
+            }
+            printOut.print(")>\n");
+        }
         printOut.print("\n");
 
         // tables
