@@ -47,6 +47,7 @@ import org.dbunit.dataset.datatype.DataType;
 import org.dbunit.dataset.datatype.DataTypeException;
 import org.dbunit.dataset.datatype.DefaultDataTypeFactory;
 import org.dbunit.dataset.datatype.IDataTypeFactory;
+import org.dbunit.dataset.filter.IColumnFilter;
 import org.dbunit.testutil.TestUtils;
 import org.junit.jupiter.api.Test;
 
@@ -114,6 +115,36 @@ class DatabaseTableMetaDataIT extends AbstractDatabaseIT
                 createDataSet().getTableMetaData(tableName);
         final Column[] columns = metaData.getPrimaryKeys();
         assertThat(columns).as("pk count").isEmpty();
+    }
+
+    @Test
+    void testGetPrimaryKeys_withFilterYieldingNoColumns_fallsBackToDatabaseDeclaredPrimaryKeys()
+            throws Exception
+    {
+        final String tableName = "PK_TABLE";
+        final String[] expected = {"PK0", "PK1", "PK2"};
+        final IColumnFilter noMatchFilter = (filterTableName, column) -> false;
+
+        _connection.getConfig().setProperty(
+                DatabaseConfig.PROPERTY_PRIMARY_KEY_FILTER, noMatchFilter);
+        try
+        {
+            final ITableMetaData metaData =
+                    createDataSet().getTableMetaData(tableName);
+            final Column[] columns = metaData.getPrimaryKeys();
+
+            assertThat(columns).as("pk count").hasSize(expected.length);
+            for (int i = 0; i < columns.length; i++)
+            {
+                assertThat(columns[i].getColumnName()).as("name")
+                        .isEqualTo(convertString(expected[i]));
+            }
+        }
+        finally
+        {
+            _connection.getConfig().setProperty(
+                    DatabaseConfig.PROPERTY_PRIMARY_KEY_FILTER, null);
+        }
     }
 
     @Test

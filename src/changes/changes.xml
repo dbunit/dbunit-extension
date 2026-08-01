@@ -129,6 +129,9 @@
       <action dev="jeffjensen" type="fix" issue="492" system="github" due-to="jeffjensen">
           Fix AbstractDatabaseConnection.getRowCount(String, String) ignoring DatabaseConfig.PROPERTY_ESCAPE_PATTERN, mirroring the escape-pattern handling createTable() already applies, so a configured escape pattern is no longer silently dropped from the generated "select count(*)" SQL.
       </action>
+      <action dev="jeffjensen" type="fix" issue="628" system="github" due-to="jeffjensen">
+          Fix DatabaseTableMetaData.getPrimaryKeys() returning an empty array whenever a configured PROPERTY_PRIMARY_KEY_FILTER matches zero columns for a table, instead of falling back to the table's database-declared primary key. Note: this makes the fallback unconditional whenever a filter yields zero columns for a table, which now overrides a filter deliberately configured to declare "this table has no PK".
+      </action>
     </release>
     <release version="3.4.0" date="Jul 28, 2026" description="Test-suite hardening (un-skip and strengthen dozens of disabled/no-op tests); add CachingConnectionProvider and reduce DefaultPrepAndExpectedTestCase's per-test connection churn; pin identifier case-folding to Locale.ENGLISH for Turkish-locale correctness; and a broad set of correctness fixes across export formats (XML, YAML, CSV, XLS, Ant), TimestampDataType timezone handling, InsertOperation/TransactionOperation, and resource-leak cleanups">
       <action dev="jeffjensen" type="fix" issue="797" system="github" due-to="jeffjensen">
