@@ -23,7 +23,6 @@ package org.dbunit.assertion;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.Test;
-import org.opentest4j.AssertionFailedError;
 
 /**
  * Unit tests for {@link JUnitFailureFactory}, which also exercises the
@@ -34,13 +33,13 @@ class JUnitFailureFactoryTest
     private final JUnitFailureFactory factory = new JUnitFailureFactory();
 
     @Test
-    void testCreateFailure_withMessageOnly_returnsAssertionFailedError()
+    void testCreateFailure_withMessageOnly_returnsDbAssertionFailedError()
     {
         final String message = "simple failure";
 
         final Error error = factory.createFailure(message);
 
-        assertThat(error).as("error type.").isInstanceOf(AssertionFailedError.class);
+        assertThat(error).as("error type.").isInstanceOf(DbAssertionFailedError.class);
         assertThat(error.getMessage()).as("message.").isEqualTo(message);
     }
 
