@@ -97,6 +97,9 @@
       <action dev="dependabot" type="update" due-to="Dependabot">Update maven dependency org.junit.platform:junit-platform-suite-engine from 6.1.1 to 6.1.2 (#818).</action>
       <!-- dependabot:dep=ch.qos.logback:logback-classic:new=1.6.0:pr=819 -->
       <action dev="dependabot" type="update" due-to="Dependabot">Update maven dependency ch.qos.logback:logback-classic from 1.5.38 to 1.6.0 (#819).</action>
+      <action dev="jeffjensen" type="fix" issue="870" system="github" due-to="jeffjensen">
+          Replace TransactionOperationIT's dead JUnit-3-era runTest(String) feature gate (a leftover from the JUnit migration, never invoked under Jupiter) with a real @BeforeEach Assumptions.assumeTrue(environmentHasFeature(TestFeature.TRANSACTION)) check, restoring the class's intended skip-on-unsupported-database protection.
+      </action>
     </release>
     <release version="3.4.0" date="Jul 28, 2026" description="Test-suite hardening (un-skip and strengthen dozens of disabled/no-op tests); add CachingConnectionProvider and reduce DefaultPrepAndExpectedTestCase's per-test connection churn; pin identifier case-folding to Locale.ENGLISH for Turkish-locale correctness; and a broad set of correctness fixes across export formats (XML, YAML, CSV, XLS, Ant), TimestampDataType timezone handling, InsertOperation/TransactionOperation, and resource-leak cleanups">
       <action dev="jeffjensen" type="fix" issue="797" system="github" due-to="jeffjensen">
