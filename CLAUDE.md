@@ -174,6 +174,7 @@ Integration tests use `DatabaseEnvironment` to bootstrap the target database fro
     - Valid entries for the type field are: add, fix, update, remove
     - Keep the release element's `description` attribute a short 1-2 sentence summary of the release's overall themes (e.g. "Test-suite hardening, connection-reuse caching, and assorted correctness fixes across export formats and timestamp handling"), not a per-entry concatenation. Update it only when a new theme is introduced, not on every `<action>` added — full detail belongs in each action's own text.
   - Tests that require a database to work are "integration tests", and therefore use the IT suffix.
+  - When creating a github issue, set the applicable labels, assignee, and issue type, and milestone as best can determine.  ask if needed.
 
 - dbUnit Core Specific Items:
 
