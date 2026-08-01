@@ -25,7 +25,9 @@ import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
 import org.dbunit.DatabaseUnitRuntimeException;
 import org.dbunit.dataset.AbstractDataSet;
@@ -38,6 +40,7 @@ import org.dbunit.dataset.ITableIterator;
 import org.dbunit.dataset.ITableMetaData;
 import org.dbunit.dataset.NoSuchTableException;
 import org.dbunit.dataset.OrderedTableNameMap;
+import org.dbunit.dataset.datatype.DataType;
 import org.dbunit.dataset.filter.ITableFilterSimple;
 import org.dbunit.util.QualifiedTableName;
 import org.dbunit.util.SQLHelper;
@@ -116,10 +119,18 @@ public class DatabaseDataSet extends AbstractDataSet
     static String getSelectStatement(String schema, ITableMetaData metaData, String escapePattern)
     throws DataSetException
     {
+        return getSelectStatement(schema, metaData, escapePattern, false);
+    }
+
+    static String getSelectStatement(String schema, ITableMetaData metaData, String escapePattern,
+            boolean sortAllColumnsWhenNoPrimaryKey)
+    throws DataSetException
+    {
         if (logger.isDebugEnabled())
         {
-            logger.debug("getSelectStatement(schema={}, metaData={}, escapePattern={}) - start",
-                    schema, metaData, escapePattern);
+            logger.debug("getSelectStatement(schema={}, metaData={}, escapePattern={}, "
+                    + "sortAllColumnsWhenNoPrimaryKey={}) - start",
+                    schema, metaData, escapePattern, sortAllColumnsWhenNoPrimaryKey);
         }
 
         Column[] columns = metaData.getColumns();
@@ -128,6 +139,12 @@ public class DatabaseDataSet extends AbstractDataSet
         if(columns.length==0){
             throw new DatabaseUnitRuntimeException("At least one column is required to build a valid select statement. "+
                     "Cannot load data for " + metaData);
+        }
+
+        Column[] sortColumns = primaryKeys;
+        if (sortColumns.length == 0 && sortAllColumnsWhenNoPrimaryKey)
+        {
+            sortColumns = nonLobColumns(columns);
         }
 
         // select
@@ -150,7 +167,7 @@ public class DatabaseDataSet extends AbstractDataSet
                 metaData.getTableName(), schema, escapePattern).getQualifiedName());
 
         // order by
-        for (int i = 0; i < primaryKeys.length; i++)
+        for (int i = 0; i < sortColumns.length; i++)
         {
             if (i == 0)
             {
@@ -160,11 +177,34 @@ public class DatabaseDataSet extends AbstractDataSet
             {
                 sqlBuffer.append(", ");
             }
-            sqlBuffer.append(new QualifiedTableName(primaryKeys[i].getColumnName(), null, escapePattern).getQualifiedName());
+            sqlBuffer.append(new QualifiedTableName(sortColumns[i].getColumnName(), null, escapePattern).getQualifiedName());
 
         }
 
         return sqlBuffer.toString();
+    }
+
+    /**
+     * Filters out CLOB/BLOB columns, which many databases (notably Oracle) reject in an
+     * {@code ORDER BY} clause.
+     *
+     * @param columns The columns to filter.
+     * @return A new array containing every column from <code>columns</code> whose data type is
+     * not {@link DataType#CLOB} or {@link DataType#BLOB}.
+     */
+    private static Column[] nonLobColumns(Column[] columns)
+    {
+        List<Column> nonLobColumns = new ArrayList<Column>(columns.length);
+        for (int i = 0; i < columns.length; i++)
+        {
+            Column column = columns[i];
+            DataType dataType = column.getDataType();
+            if (dataType != DataType.CLOB && dataType != DataType.BLOB)
+            {
+                nonLobColumns.add(column);
+            }
+        }
+        return nonLobColumns.toArray(new Column[0]);
     }
 
     /**

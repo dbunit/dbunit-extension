@@ -132,11 +132,14 @@ public abstract class AbstractResultSetTable extends AbstractTable
 
         String escapePattern = (String) connection.getConfig()
                 .getProperty(DatabaseConfig.PROPERTY_ESCAPE_PATTERN);
+        boolean sortAllColumnsWhenNoPrimaryKey = connection.getConfig().getFeature(
+                DatabaseConfig.FEATURE_SORT_ALL_COLUMNS_WHEN_NO_PRIMARY_KEY);
 
         try
         {
             String schema = connection.getSchema();
-            String selectStatement = getSelectStatement(schema, metaData, escapePattern);
+            String selectStatement = getSelectStatement(schema, metaData, escapePattern,
+                    sortAllColumnsWhenNoPrimaryKey);
 
             if (logger.isDebugEnabled())
             {
@@ -181,10 +184,12 @@ public abstract class AbstractResultSetTable extends AbstractTable
         return stmt;
     }
 
-    static String getSelectStatement(String schema, ITableMetaData metaData, String escapePattern)
+    static String getSelectStatement(String schema, ITableMetaData metaData, String escapePattern,
+            boolean sortAllColumnsWhenNoPrimaryKey)
             throws DataSetException
     {
-        return DatabaseDataSet.getSelectStatement(schema, metaData, escapePattern);
+        return DatabaseDataSet.getSelectStatement(schema, metaData, escapePattern,
+                sortAllColumnsWhenNoPrimaryKey);
     }
 
     ////////////////////////////////////////////////////////////////////////////

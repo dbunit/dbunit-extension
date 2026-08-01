@@ -70,6 +70,11 @@ _Note:_ this feature was not compatible with the <<escapepattern,escape pattern>
 |http://www.dbunit.org/features/allowEmptyFields
 |false
 |Allow to call INSERT/UPDATE with empty strings ('').
+
+|anchor:sortallcolumnswhennoprimarykey[]`FEATURE_SORT_ALL_COLUMNS_WHEN_NO_PRIMARY_KEY`
+|http://www.dbunit.org/features/sortAllColumnsWhenNoPrimaryKey
+|false
+|When a table has no primary key, sort its `SELECT` by every non-LOB column instead of leaving row order database-defined (and thus nondeterministic). CLOB/BLOB columns are always excluded from the sort even when this feature is enabled, since some databases (notably Oracle) reject LOB columns in `ORDER BY`.
 |===
 
 == Properties
