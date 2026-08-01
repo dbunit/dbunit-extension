@@ -165,34 +165,6 @@ public abstract class AbstractDatabaseIT extends DatabaseTestCase
     // return DatabaseOperation.DELETE_ALL;
     // }
 
-    /**
-     * This method is used so sub-classes can disable the tests according to
-     * some characteristics of the environment
-     *
-     * @param testName
-     *            name of the test to be checked
-     * @return flag indicating if the test should be executed or not
-     */
-    protected boolean runTest(final String testName)
-    {
-        return true;
-    }
-
-    protected void runTest() throws Throwable
-    {
-        if (runTest(getName()))
-        {
-            // super.runTest();
-        } else
-        {
-            if (logger.isDebugEnabled())
-            {
-                logger.debug("Skipping test " + getClass().getName() + "."
-                        + getName());
-            }
-        }
-    }
-
     public static boolean environmentHasFeature(final TestFeature feature)
     {
         try

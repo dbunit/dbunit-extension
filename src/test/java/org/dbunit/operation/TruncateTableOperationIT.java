@@ -20,7 +20,6 @@
  */
 package org.dbunit.operation;
 
-import org.dbunit.TestFeature;
 import org.junit.jupiter.api.condition.DisabledIfSystemProperty;
 
 /**
@@ -42,12 +41,6 @@ public class TruncateTableOperationIT extends DeleteAllOperationIT
     protected String getExpectedStament(final String tableName)
     {
         return "truncate table " + tableName;
-    }
-
-    @Override
-    protected boolean runTest(final String testName)
-    {
-        return environmentHasFeature(TestFeature.TRUNCATE_TABLE);
     }
 
 }

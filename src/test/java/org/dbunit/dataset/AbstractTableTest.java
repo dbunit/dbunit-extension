@@ -147,17 +147,4 @@ public abstract class AbstractTableTest
                 "Should throw a NoSuchColumnException!");
 
     }
-
-    /**
-     * This method is used so sub-classes can disable the tests according to
-     * some characteristics of the environment
-     * 
-     * @param testName
-     *            name of the test to be checked
-     * @return flag indicating if the test should be executed or not
-     */
-    protected boolean runTest(final String testName)
-    {
-        return true;
-    }
 }
