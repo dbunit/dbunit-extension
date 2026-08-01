@@ -89,6 +89,8 @@
       <action dev="jeffjensen" type="update" issue="864" system="github" due-to="jeffjensen">
           Convert properties.adoc's per-item Feature Flags and Properties subsections into two consolidated tables (Flag/Feature ID/Default/Description; Property ID/Default/Description/Note), preserving all 17 existing anchors that other pages link to. Discovered and worked around a pre-existing rendering limitation in this project's Doxia/Asciidoctor table integration: the `a|` AsciiDoc-content cell style is not processed at all (anchors, bullet lists, and inline formatting inside it render as literal unprocessed text, confirmed empirically and reproduced against the unmodified pre-session file) -- plain `|` cells work correctly, including inline anchors, links, xrefs, and `+` explicit line breaks, so both new tables use plain cells exclusively.
       </action>
+      <!-- dependabot:dep=org.apache.maven.plugins:maven-jar-plugin:new=3.5.1:pr=817 -->
+      <action dev="dependabot" type="update" due-to="Dependabot">Update maven dependency org.apache.maven.plugins:maven-jar-plugin from 3.5.0 to 3.5.1 (#817).</action>
     </release>
     <release version="3.4.0" date="Jul 28, 2026" description="Test-suite hardening (un-skip and strengthen dozens of disabled/no-op tests); add CachingConnectionProvider and reduce DefaultPrepAndExpectedTestCase's per-test connection churn; pin identifier case-folding to Locale.ENGLISH for Turkish-locale correctness; and a broad set of correctness fixes across export formats (XML, YAML, CSV, XLS, Ant), TimestampDataType timezone handling, InsertOperation/TransactionOperation, and resource-leak cleanups">
       <action dev="jeffjensen" type="fix" issue="797" system="github" due-to="jeffjensen">
