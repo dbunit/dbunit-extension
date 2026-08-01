@@ -109,6 +109,9 @@
       <action dev="jeffjensen" type="fix" issue="872" system="github" due-to="jeffjensen">
           Fix DbUnitAssertBase's JUnit-detection classpath probe, a leftover from the JUnit migration: it checked for junit.framework.Assert (JUnit 3/4), a class never present since the vintage engine was dropped, permanently disabling the JUnitFailureFactory path. Point the probe at org.junit.jupiter.api.Assertions instead. JUnitFailureFactory continues to return dbUnit's own DbComparisonFailure/DbAssertionFailedError (not a JUnit-framework-specific type) so that no dbUnit user incurs a runtime dependency on any particular test framework's failure classes; removed the stale comments and "TODO Junit5 update" left over from when this was last touched.
       </action>
+      <action dev="jeffjensen" type="fix" issue="873" system="github" due-to="jeffjensen">
+          Split the enforcer plugin's requireJavaVersion rule from compileSource into a new enforcerJavaVersion property (17), since JUnit 6's class files require Java 17 to load (verified: bytecode major version 61) -- a build attempted on the previously-declared minimum, Java 8, could not run tests at all. compileSource (1.8) is unchanged and continues to set the shipped jar's bytecode level for consumers who don't need dbUnit's JUnit test-support classes.
+      </action>
     </release>
     <release version="3.4.0" date="Jul 28, 2026" description="Test-suite hardening (un-skip and strengthen dozens of disabled/no-op tests); add CachingConnectionProvider and reduce DefaultPrepAndExpectedTestCase's per-test connection churn; pin identifier case-folding to Locale.ENGLISH for Turkish-locale correctness; and a broad set of correctness fixes across export formats (XML, YAML, CSV, XLS, Ant), TimestampDataType timezone handling, InsertOperation/TransactionOperation, and resource-leak cleanups">
       <action dev="jeffjensen" type="fix" issue="797" system="github" due-to="jeffjensen">

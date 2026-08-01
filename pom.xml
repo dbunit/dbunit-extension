@@ -29,7 +29,12 @@
     <project.scm.id>github</project.scm.id>
 
     <!-- General values -->
+    <!-- Bytecode level of the shipped jar, for consumer compatibility. -->
     <compileSource>1.8</compileSource>
+    <!-- Minimum JDK to build/test dbUnit itself: junit-jupiter 6.x class files
+         require Java 17 to load (verified: bytecode major version 61), so this
+         must stay >= 17 regardless of compileSource above. -->
+    <enforcerJavaVersion>17</enforcerJavaVersion>
     <checkstyle.excludes>org/dbunit/util/concurrent/*.java</checkstyle.excludes>
     <mavenVersion>3.0.4</mavenVersion>
     <!-- non-UTC timezone for testing -->
@@ -697,7 +702,7 @@
                 <version>${mavenVersion}</version>
               </requireMavenVersion>
               <requireJavaVersion>
-                <version>${compileSource}</version>
+                <version>${enforcerJavaVersion}</version>
               </requireJavaVersion>
               <requirePluginVersions>
                 <phases>compile</phases>
