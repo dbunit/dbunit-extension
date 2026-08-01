@@ -67,7 +67,7 @@ public class DbUnitAssertBase
     {
         try
         {
-            Class.forName("junit.framework.Assert");
+            Class.forName("org.junit.jupiter.api.Assertions");
             // JUnit available
             return new JUnitFailureFactory();
         } catch (final ClassNotFoundException e)

@@ -20,11 +20,15 @@
  */
 package org.dbunit.assertion;
 
-import org.opentest4j.AssertionFailedError;
-
 /**
  * Adapter that lets dbunit create JUnit failure objects.
- * 
+ * <p>
+ * Returns dbUnit's own {@link DbComparisonFailure}/{@link DbAssertionFailedError}
+ * rather than a JUnit-framework-specific failure type. dbUnit's own types are used
+ * even when JUnit is confirmed present (see {@link org.dbunit.assertion.DbUnitAssertBase})
+ * so that the object returned here never requires a runtime dependency on any
+ * particular test framework's failure classes.
+ *
  * @author gommma (gommma AT users.sourceforge.net)
  * @author Last changed by: $Author$
  * @version $Revision$ $Date$
@@ -33,10 +37,6 @@ import org.opentest4j.AssertionFailedError;
 public class JUnitFailureFactory implements FailureFactory {
     @Override
     public Error createFailure(final String message, final String expected, final String actual) {
-        // Return the org.opentest4j.AssertionFailedError object
-        // TODO Junit5 update something changed the message returned does not include
-        // the actual and exected
-        // adding it here for now.
         return new DbComparisonFailure(
                 message,
                 expected, actual);
@@ -44,7 +44,6 @@ public class JUnitFailureFactory implements FailureFactory {
 
     @Override
     public Error createFailure(final String message) {
-        // Return the org.opentest4j.AssertionFailedError object
-        return new AssertionFailedError(message);
+        return new DbAssertionFailedError(message);
     }
 }
