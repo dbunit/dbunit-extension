@@ -40,6 +40,8 @@ import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.xml.XmlDataSet;
 import org.dbunit.testutil.TestUtils;
+import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -60,10 +62,11 @@ class TransactionOperationIT extends AbstractDatabaseIT
     @Mock
     private DatabaseOperation mockOperation;
 
-    @Override
-    protected boolean runTest(final String testName)
+    @BeforeEach
+    void assumeTransactionsSupported()
     {
-        return environmentHasFeature(TestFeature.TRANSACTION);
+        Assumptions.assumeTrue(environmentHasFeature(TestFeature.TRANSACTION),
+                "Skip: database profile does not support transactions.");
     }
 
     @Test
