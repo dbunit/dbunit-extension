@@ -61,7 +61,9 @@ link:/dbunit/apidocs/org/dbunit/dataset/filter/DefaultColumnFilter.html[DefaultC
 — see link:../filters.html[Filters] for the underlying mechanism you'd otherwise wire up
 by hand.
 
-ValueComparer dispatch:: A `VerifyTableDefinition`'s default and per-column
+ValueComparer dispatch:: A
+link:/dbunit/apidocs/org/dbunit/VerifyTableDefinition.html[VerifyTableDefinition]'s
+default and per-column
 link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html[ValueComparer]s
 are dispatched automatically per column during comparison (see
 link:../datacomparisons/valuecomparer.html[ValueComparer Comparison]) — you configure the
