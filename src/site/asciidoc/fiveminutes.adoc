@@ -4,8 +4,10 @@ In 5 minutes you'll write a database test that prepares data, exercises your cod
 
 == Prerequisites
 
-* JDK 8 or newer.
-* JUnit 5 (`org.junit.jupiter:junit-jupiter`) on your test classpath.
+* JDK 17 or newer to build and run this tutorial's test (JUnit 6 requires it). The
+  dbUnit library itself still targets Java 8 bytecode, so JDK 8 remains enough if you
+  only use its core API without JUnit's test-support classes.
+* JUnit 5 or 6 (`org.junit.jupiter:junit-jupiter`) on your test classpath.
 * An in-memory database for the example — this tutorial uses
   https://www.h2database.com/[H2] so there's nothing to install or run.
 
