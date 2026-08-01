@@ -103,6 +103,9 @@
       <action dev="jeffjensen" type="remove" issue="869" system="github" due-to="jeffjensen">
           Remove the dead JUnit-3-era runTest(String)/runTest() gating-hook override chain from AbstractDatabaseIT, AbstractTableTest, TruncateTableOperationIT, and InsertIdentityOperationIT: a leftover from the JUnit migration, never invoked under Jupiter (there is no TestCase base to call it), and redundant with each class's already-active @EnabledIfSystemProperty/@DisabledIfSystemProperty gating.
       </action>
+      <action dev="jeffjensen" type="remove" issue="871" system="github" due-to="jeffjensen">
+          Remove 27 orphaned JUnit Platform @Suite/@SelectClasses aggregator classes (AllTestsSuite/AllAssertionTestSuite/DatabaseTestSuite across nearly every package): a leftover JUnit 3/4-era "suite of suites" pattern that Surefire/Failsafe's filename-pattern test discovery (**/*Test.java, **/*IT.java) never executed, confirmed unreferenced by any CI workflow, build script, site doc, or IDE configuration.
+      </action>
     </release>
     <release version="3.4.0" date="Jul 28, 2026" description="Test-suite hardening (un-skip and strengthen dozens of disabled/no-op tests); add CachingConnectionProvider and reduce DefaultPrepAndExpectedTestCase's per-test connection churn; pin identifier case-folding to Locale.ENGLISH for Turkish-locale correctness; and a broad set of correctness fixes across export formats (XML, YAML, CSV, XLS, Ant), TimestampDataType timezone handling, InsertOperation/TransactionOperation, and resource-leak cleanups">
       <action dev="jeffjensen" type="fix" issue="797" system="github" due-to="jeffjensen">
