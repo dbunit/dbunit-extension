@@ -30,6 +30,7 @@ import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.stream.Collectors;
 
+import org.dbunit.assertion.FailureHandler;
 import org.dbunit.assertion.comparer.value.ValueComparer;
 import org.dbunit.database.DatabaseConfig;
 import org.dbunit.database.IDatabaseConnection;
@@ -67,6 +68,13 @@ import org.slf4j.LoggerFactory;
  * cleanupData() does not close a connection other tests still expect to
  * reuse; the provider's owner is then responsible for closing it once,
  * itself, when the whole run finishes.
+ * <p>
+ * The {@code verifyData()} method hands assertion failures to
+ * {@link org.dbunit.assertion.DefaultFailureHandler} by default, which throws
+ * on the first mismatch found. Set {@link #setFailureHandler(FailureHandler)}
+ * to, for example, a {@link org.dbunit.assertion.DiffCollectingFailureHandler}
+ * to collect every {@link org.dbunit.assertion.Difference} instead; that is
+ * not the default since most tests want to keep failing fast.
  *
  * @see "org.dbunit.DefaultPrepAndExpectedTestCaseDiIT, a composition-based (DI) usage example in the test sources"
  * @see "org.dbunit.DefaultPrepAndExpectedTestCaseExtIT, an inheritance-based usage example in the test sources"
@@ -126,6 +134,22 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
 
     private ExpectedDataSetAndVerifyTableDefinitionVerifier expectedDataSetAndVerifyTableDefinitionVerifier =
             new DefaultExpectedDataSetAndVerifyTableDefinitionVerifier();
+
+    /**
+     * FailureHandler for verifyData()'s assertion failures. Null (the
+     * default) leaves compareData() using
+     * {@link org.dbunit.Assertion#assertWithValueComparer(ITable, ITable, Column[], ValueComparer, Map)}'s
+     * own {@link org.dbunit.assertion.DefaultFailureHandler}, configured with
+     * the additionalColumnInfo computed by {@link #makeAdditionalColumnInfo};
+     * that default is intentional so most tests keep failing fast on the
+     * first mismatch. Set this, for example to a
+     * {@link org.dbunit.assertion.DiffCollectingFailureHandler}, only when a
+     * test needs to collect every {@link org.dbunit.assertion.Difference}
+     * instead.
+     *
+     * @since 3.4.1
+     */
+    private FailureHandler failureHandler;
 
     final TableFormatter tableFormatter = new TableFormatter();
 
@@ -1067,6 +1091,11 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
 
     /**
      * Compare the tables, enables easy overriding.
+     * <p>
+     * Uses {@link #failureHandler} when set; otherwise defers to
+     * {@link Assertion#assertWithValueComparer(ITable, ITable, Column[], ValueComparer, Map)}'s
+     * own {@link org.dbunit.assertion.DefaultFailureHandler}, configured with
+     * additionalColumnInfo.
      *
      * @param expectedTable the table containing all expected results.
      * @param actualTable the table containing all actual results.
@@ -1081,9 +1110,17 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
             final Map<String, ValueComparer> columnValueComparers)
             throws DatabaseUnitException
     {
-        Assertion.assertWithValueComparer(expectedTable, actualTable,
-                additionalColumnInfo, defaultValueComparer,
-                columnValueComparers);
+        if (failureHandler == null)
+        {
+            Assertion.assertWithValueComparer(expectedTable, actualTable,
+                    additionalColumnInfo, defaultValueComparer,
+                    columnValueComparers);
+        } else
+        {
+            Assertion.assertWithValueComparer(expectedTable, actualTable,
+                    failureHandler, defaultValueComparer,
+                    columnValueComparers);
+        }
     }
 
     /**
@@ -1422,6 +1459,33 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     {
         this.expectedDataSetAndVerifyTableDefinitionVerifier =
                 expectedDataSetAndVerifyTableDefinitionVerifier;
+    }
+
+    /**
+     * Get the failureHandler.
+     *
+     * @see #failureHandler
+     *
+     * @return The failureHandler.
+     * @since 3.4.1
+     */
+    public FailureHandler getFailureHandler()
+    {
+        return failureHandler;
+    }
+
+    /**
+     * Set the failureHandler.
+     *
+     * @see #failureHandler
+     *
+     * @param failureHandler
+     *            The failureHandler to set.
+     * @since 3.4.1
+     */
+    public void setFailureHandler(final FailureHandler failureHandler)
+    {
+        this.failureHandler = failureHandler;
     }
 
     /**

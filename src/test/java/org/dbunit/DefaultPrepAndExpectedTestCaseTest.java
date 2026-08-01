@@ -7,6 +7,7 @@ import static org.assertj.core.api.Assertions.catchThrowable;
 import java.sql.Connection;
 
 import org.dbunit.assertion.DbComparisonFailure;
+import org.dbunit.assertion.DiffCollectingFailureHandler;
 import org.dbunit.database.DatabaseConfig;
 import org.dbunit.database.IDatabaseConnection;
 import org.dbunit.database.MockDatabaseConnection;
@@ -513,6 +514,73 @@ class DefaultPrepAndExpectedTestCaseTest
                                 + " Turkish default locale does not break"
                                 + " case-insensitive column matching.")
                         .doesNotThrowAnyException();
+    }
+
+    @Test
+    void testGetFailureHandler_withDefaultConfiguration_returnsNull()
+    {
+        assertThat(tc.getFailureHandler())
+                .as("Default must be null so verifyData() keeps using"
+                        + " Assertion's own default FailureHandler, matching"
+                        + " pre-existing behavior for callers who have not"
+                        + " configured a custom FailureHandler.")
+                .isNull();
+    }
+
+    @Test
+    void testVerifyData_withMismatchAndNoFailureHandlerConfigured_throwsError()
+            throws Exception
+    {
+        final Column[] columns = {new Column("COL1", DataType.VARCHAR)};
+
+        final DefaultTable expectedTable =
+                new DefaultTable("TEST_TABLE", columns);
+        expectedTable.addRow(new Object[] {"expected"});
+
+        final DefaultTable actualTable =
+                new DefaultTable("TEST_TABLE", columns);
+        actualTable.addRow(new Object[] {"actual"});
+
+        final Throwable thrown = catchThrowable(() -> tc.verifyData(
+                expectedTable, actualTable, null, null, null, null));
+
+        assertThat(thrown)
+                .as("Without a configured FailureHandler, verifyData() must"
+                        + " keep failing fast on the first mismatch, matching"
+                        + " pre-existing behavior.")
+                .isInstanceOf(DbComparisonFailure.class);
+    }
+
+    @Test
+    void testVerifyData_withMismatchAndDiffCollectingFailureHandlerConfigured_collectsDifferenceInsteadOfThrowing()
+            throws Exception
+    {
+        final Column[] columns = {new Column("COL1", DataType.VARCHAR)};
+
+        final DefaultTable expectedTable =
+                new DefaultTable("TEST_TABLE", columns);
+        expectedTable.addRow(new Object[] {"expected"});
+
+        final DefaultTable actualTable =
+                new DefaultTable("TEST_TABLE", columns);
+        actualTable.addRow(new Object[] {"actual"});
+
+        final DiffCollectingFailureHandler diffCollectingFailureHandler =
+                new DiffCollectingFailureHandler();
+        tc.setFailureHandler(diffCollectingFailureHandler);
+
+        assertThatCode(() -> tc.verifyData(expectedTable, actualTable, null,
+                null, null, null))
+                        .as("A configured FailureHandler that collects"
+                                + " differences instead of throwing must be"
+                                + " used instead of the default fail-fast"
+                                + " handler.")
+                        .doesNotThrowAnyException();
+
+        assertThat(diffCollectingFailureHandler.getDiffList())
+                .as("The mismatch must be recorded by the configured"
+                        + " DiffCollectingFailureHandler.")
+                .hasSize(1);
     }
 
     @Test
