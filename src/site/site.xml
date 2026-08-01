@@ -47,7 +47,7 @@
       <item name="FAQ"               href="/faq.html"/>
       <item name="Wiki"              href="http://dbunit.wikidot.com/"/>
       <item name="Get support"       href="https://github.com/dbunit/dbunit-extension/discussions"/>
-      <item name="Get source"        href="/source-repository.html"/>
+      <item name="Get source"        href="/scm.html"/>
       <item name="Browse source"     href="/xref/index.html"/>
       <item name="JavaDocs"          href="/apidocs/index.html"/>
       <item name="DBUnit AT Open Hub"   href="https://www.openhub.net/p/dbunit"/>
