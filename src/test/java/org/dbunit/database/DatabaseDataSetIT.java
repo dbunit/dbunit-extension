@@ -30,6 +30,7 @@ import org.dbunit.dataset.Column;
 import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.DefaultTableMetaData;
 import org.dbunit.dataset.IDataSet;
+import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.ITableMetaData;
 import org.dbunit.dataset.NoSuchTableException;
 import org.dbunit.dataset.datatype.DataType;
@@ -175,6 +176,76 @@ class DatabaseDataSetIT extends AbstractDataSetTest
         final String sql =
                 DatabaseDataSet.getSelectStatement(schemaName, metaData, null);
         assertThat(sql).as("select statement").isEqualTo(expected);
+    }
+
+    @Test
+    void testGetSelectStatement_withNoPrimaryKeyAndSortFeatureDisabled_omitsOrderByClause()
+            throws Exception
+    {
+        final String schemaName = "schema";
+        final String tableName = "table";
+        final Column[] columns = new Column[] {new Column("c1", DataType.UNKNOWN),
+                new Column("c2", DataType.UNKNOWN),};
+        final String expected = "select c1, c2 from schema.table";
+
+        final ITableMetaData metaData = new DefaultTableMetaData(tableName, columns);
+        final String sql =
+                DatabaseDataSet.getSelectStatement(schemaName, metaData, null, false);
+        assertThat(sql).as("select statement").isEqualTo(expected);
+    }
+
+    @Test
+    void testGetSelectStatement_withNoPrimaryKeyAndSortFeatureEnabled_sortsByAllColumns()
+            throws Exception
+    {
+        final String schemaName = "schema";
+        final String tableName = "table";
+        final Column[] columns = new Column[] {new Column("c1", DataType.UNKNOWN),
+                new Column("c2", DataType.UNKNOWN),};
+        final String expected = "select c1, c2 from schema.table order by c1, c2";
+
+        final ITableMetaData metaData = new DefaultTableMetaData(tableName, columns);
+        final String sql =
+                DatabaseDataSet.getSelectStatement(schemaName, metaData, null, true);
+        assertThat(sql).as("select statement").isEqualTo(expected);
+    }
+
+    @Test
+    void testGetSelectStatement_withNoPrimaryKeyLobColumnAndSortFeatureEnabled_excludesLobColumnsFromOrderBy()
+            throws Exception
+    {
+        final String schemaName = "schema";
+        final String tableName = "table";
+        final Column[] columns = new Column[] {new Column("c1", DataType.UNKNOWN),
+                new Column("blob_col", DataType.BLOB),
+                new Column("clob_col", DataType.CLOB),
+                new Column("c2", DataType.UNKNOWN),};
+        final String expected =
+                "select c1, blob_col, clob_col, c2 from schema.table order by c1, c2";
+
+        final ITableMetaData metaData = new DefaultTableMetaData(tableName, columns);
+        final String sql =
+                DatabaseDataSet.getSelectStatement(schemaName, metaData, null, true);
+        assertThat(sql).as("select statement").isEqualTo(expected);
+    }
+
+    @Test
+    void testGetTable_withNoPrimaryKeyTableAndSortFeatureEnabled_executesWithoutSqlError()
+            throws Exception
+    {
+        // TEST_TABLE has no primary key. Its row count is not asserted here
+        // since it depends on fixture state shared with other IT classes;
+        // this test only confirms the ORDER BY clause the enabled feature
+        // adds does not itself cause a SQLException.
+        final String tableName = "TEST_TABLE";
+        final IDatabaseConnection connection = new DatabaseConnection(
+                _connection.getConnection(), _connection.getSchema());
+        connection.getConfig().setFeature(
+                DatabaseConfig.FEATURE_SORT_ALL_COLUMNS_WHEN_NO_PRIMARY_KEY, true);
+
+        final ITable table = connection.createDataSet().getTable(tableName);
+
+        assertThat(table.getRowCount()).as("row count").isGreaterThanOrEqualTo(0);
     }
 
     @Test

@@ -88,6 +88,8 @@ public class DatabaseConfig
         "http://www.dbunit.org/features/skipOracleRecycleBinTables";
     public static final String FEATURE_ALLOW_EMPTY_FIELDS =
             "http://www.dbunit.org/features/allowEmptyFields";
+    public static final String FEATURE_SORT_ALL_COLUMNS_WHEN_NO_PRIMARY_KEY =
+            "http://www.dbunit.org/features/sortAllColumnsWhenNoPrimaryKey";
 
     /**
      * A list of all properties as {@link ConfigProperty} objects. 
@@ -111,6 +113,7 @@ public class DatabaseConfig
         new ConfigProperty(FEATURE_SKIP_ORACLE_RECYCLEBIN_TABLES, Boolean.class, false),
         new ConfigProperty(FEATURE_ALLOW_EMPTY_FIELDS, Boolean.class, false),
         new ConfigProperty(PROPERTY_ALLOW_VERIFYTABLEDEFINITION_EXPECTEDTABLE_COUNT_MISMATCH, Boolean.class, false),
+        new ConfigProperty(FEATURE_SORT_ALL_COLUMNS_WHEN_NO_PRIMARY_KEY, Boolean.class, false),
     };
 
     /**
@@ -150,6 +153,7 @@ public class DatabaseConfig
         setFeature(FEATURE_CASE_SENSITIVE_TABLE_NAMES, false);
         setFeature(FEATURE_DATATYPE_WARNING, true);
         setFeature(FEATURE_ALLOW_EMPTY_FIELDS, false);
+        setFeature(FEATURE_SORT_ALL_COLUMNS_WHEN_NO_PRIMARY_KEY, false);
 
         setProperty(PROPERTY_STATEMENT_FACTORY, PREPARED_STATEMENT_FACTORY);
         setProperty(PROPERTY_RESULTSET_TABLE_FACTORY, RESULT_SET_TABLE_FACTORY);

@@ -135,6 +135,9 @@
       <action dev="jeffjensen" type="fix" issue="460" system="github" due-to="jeffjensen">
           Fix DatabaseDataSet.initialize() querying the driver/database info for debug logging after already opening the table metadata ResultSet instead of before, which could silently invalidate that still-open ResultSet on JDBC drivers that allow only a single active cursor per connection (e.g. SQL Anywhere, some legacy Sybase drivers).
       </action>
+      <action dev="jeffjensen" type="add" issue="171" system="github" due-to="jeffjensen">
+          Add opt-in DatabaseConfig.FEATURE_SORT_ALL_COLUMNS_WHEN_NO_PRIMARY_KEY, defaulting to off. When enabled, a table with no primary key is selected with an ORDER BY over all of its non-LOB columns instead of leaving row order database-defined (and thus nondeterministic); CLOB/BLOB columns are always excluded from that fallback sort since some databases (notably Oracle) reject LOB columns in ORDER BY.
+      </action>
     </release>
     <release version="3.4.0" date="Jul 28, 2026" description="Test-suite hardening (un-skip and strengthen dozens of disabled/no-op tests); add CachingConnectionProvider and reduce DefaultPrepAndExpectedTestCase's per-test connection churn; pin identifier case-folding to Locale.ENGLISH for Turkish-locale correctness; and a broad set of correctness fixes across export formats (XML, YAML, CSV, XLS, Ant), TimestampDataType timezone handling, InsertOperation/TransactionOperation, and resource-leak cleanups">
       <action dev="jeffjensen" type="fix" issue="797" system="github" due-to="jeffjensen">
