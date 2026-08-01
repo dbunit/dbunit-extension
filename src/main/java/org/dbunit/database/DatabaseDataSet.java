@@ -40,6 +40,8 @@ import org.dbunit.dataset.ITableIterator;
 import org.dbunit.dataset.ITableMetaData;
 import org.dbunit.dataset.NoSuchTableException;
 import org.dbunit.dataset.OrderedTableNameMap;
+import org.dbunit.dataset.datatype.BlobDataType;
+import org.dbunit.dataset.datatype.ClobDataType;
 import org.dbunit.dataset.datatype.DataType;
 import org.dbunit.dataset.filter.ITableFilterSimple;
 import org.dbunit.util.QualifiedTableName;
@@ -186,11 +188,14 @@ public class DatabaseDataSet extends AbstractDataSet
 
     /**
      * Filters out CLOB/BLOB columns, which many databases (notably Oracle) reject in an
-     * {@code ORDER BY} clause.
+     * {@code ORDER BY} clause. Checks by type rather than identity against {@link DataType#CLOB}/
+     * {@link DataType#BLOB} so vendor-specific LOB data types are also excluded, e.g. a
+     * {@code OracleDataTypeFactory}-produced column typed {@code OracleClobDataType} or
+     * {@code OracleBlobDataType}, neither of which equals the generic singleton.
      *
      * @param columns The columns to filter.
      * @return A new array containing every column from <code>columns</code> whose data type is
-     * not {@link DataType#CLOB} or {@link DataType#BLOB}.
+     * not a {@link ClobDataType} or {@link BlobDataType}.
      */
     private static Column[] nonLobColumns(Column[] columns)
     {
@@ -199,7 +204,7 @@ public class DatabaseDataSet extends AbstractDataSet
         {
             Column column = columns[i];
             DataType dataType = column.getDataType();
-            if (dataType != DataType.CLOB && dataType != DataType.BLOB)
+            if (!(dataType instanceof ClobDataType) && !(dataType instanceof BlobDataType))
             {
                 nonLobColumns.add(column);
             }
