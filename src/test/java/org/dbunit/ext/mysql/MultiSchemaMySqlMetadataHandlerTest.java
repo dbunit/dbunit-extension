@@ -22,6 +22,7 @@
 package org.dbunit.ext.mysql;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
@@ -70,11 +71,11 @@ class MultiSchemaMySqlMetadataHandlerTest
 
         final ResultSet merged = handler.getTables(metaData, null, null);
 
-        assertThat(merged.next()).as("first row present").isTrue();
-        assertThat(merged.getString(3)).as("first table name").isEqualTo("ORDERS");
-        assertThat(merged.next()).as("second row present").isTrue();
-        assertThat(merged.getString(3)).as("second table name").isEqualTo("PRODUCTS");
-        assertThat(merged.next()).as("no third row").isFalse();
+        assertThat(merged.next()).as("first row present.").isTrue();
+        assertThat(merged.getString(3)).as("first table name.").isEqualTo("ORDERS");
+        assertThat(merged.next()).as("second row present.").isTrue();
+        assertThat(merged.getString(3)).as("second table name.").isEqualTo("PRODUCTS");
+        assertThat(merged.next()).as("no third row.").isFalse();
         verify(metaData, never()).getTables(eq("information_schema"), any(), any(), any());
     }
 
@@ -88,9 +89,29 @@ class MultiSchemaMySqlMetadataHandlerTest
 
         final ResultSet actual = handler.getTables(metaData, "shop1", null);
 
-        assertThat(actual).as("single-schema call bypasses catalog enumeration")
+        assertThat(actual).as("single-schema call bypasses catalog enumeration.")
                 .isSameAs(expected);
         verify(metaData, never()).getCatalogs();
+    }
+
+    @Test
+    void testGetTables_withNoSchemaConfigured_closesAlreadyOpenedResultSetsWhenALaterCatalogFails()
+            throws SQLException
+    {
+        final DatabaseMetaData metaData = mock(DatabaseMetaData.class);
+        final ResultSet catalogs =
+                mockRowsResultSet(new String[] {"TABLE_CAT"}, row("shop1"), row("shop2"));
+        final ResultSet shop1Tables = mockRowsResultSet(
+                new String[] {"TABLE_CAT", "TABLE_SCHEM", "TABLE_NAME"},
+                row("shop1", null, "ORDERS"));
+        final SQLException shop2Failure = new SQLException("shop2 unreachable");
+        when(metaData.getCatalogs()).thenReturn(catalogs);
+        when(metaData.getTables("shop1", null, "%", null)).thenReturn(shop1Tables);
+        when(metaData.getTables("shop2", null, "%", null)).thenThrow(shop2Failure);
+
+        assertThatThrownBy(() -> handler.getTables(metaData, null, null))
+                .as("The second catalog's failure must propagate.").isSameAs(shop2Failure);
+        verify(shop1Tables).close();
     }
 
     @Test
@@ -103,7 +124,7 @@ class MultiSchemaMySqlMetadataHandlerTest
 
         final ResultSet merged = handler.getTables(metaData, null, null);
 
-        assertThat(merged.next()).as("no rows when only system catalogs are visible").isFalse();
+        assertThat(merged.next()).as("no rows when only system catalogs are visible.").isFalse();
     }
 
     @Test
@@ -124,11 +145,11 @@ class MultiSchemaMySqlMetadataHandlerTest
 
         final ResultSet merged = handler.getColumns(metaData, null, "ORDERS");
 
-        assertThat(merged.next()).as("first row present").isTrue();
-        assertThat(merged.getString(1)).as("first row catalog").isEqualTo("shop1");
-        assertThat(merged.next()).as("second row present").isTrue();
-        assertThat(merged.getString(1)).as("second row catalog").isEqualTo("shop2");
-        assertThat(merged.next()).as("no third row").isFalse();
+        assertThat(merged.next()).as("first row present.").isTrue();
+        assertThat(merged.getString(1)).as("first row catalog.").isEqualTo("shop1");
+        assertThat(merged.next()).as("second row present.").isTrue();
+        assertThat(merged.getString(1)).as("second row catalog.").isEqualTo("shop2");
+        assertThat(merged.next()).as("no third row.").isFalse();
     }
 
     @Test
@@ -141,7 +162,7 @@ class MultiSchemaMySqlMetadataHandlerTest
 
         final ResultSet actual = handler.getColumns(metaData, "shop1", "ORDERS");
 
-        assertThat(actual).as("single-schema call bypasses catalog enumeration")
+        assertThat(actual).as("single-schema call bypasses catalog enumeration.")
                 .isSameAs(expected);
         verify(metaData, never()).getCatalogs();
     }
@@ -160,7 +181,7 @@ class MultiSchemaMySqlMetadataHandlerTest
         final ResultSet merged = handler.getColumns(metaData, null, "ORDERS");
 
         assertThat(merged.next()).isTrue();
-        assertThat(merged.getInt("SOURCE_DATA_TYPE")).as("named-column lookup").isEqualTo(12);
+        assertThat(merged.getInt("SOURCE_DATA_TYPE")).as("named-column lookup.").isEqualTo(12);
     }
 
     @Test
@@ -179,11 +200,11 @@ class MultiSchemaMySqlMetadataHandlerTest
 
         final ResultSet merged = handler.getPrimaryKeys(metaData, null, "ORDERS");
 
-        assertThat(merged.next()).as("first row present").isTrue();
-        assertThat(merged.getString(1)).as("first PK column").isEqualTo("ID");
-        assertThat(merged.next()).as("second row present").isTrue();
-        assertThat(merged.getString(1)).as("second PK column").isEqualTo("ORDER_ID");
-        assertThat(merged.next()).as("no third row").isFalse();
+        assertThat(merged.next()).as("first row present.").isTrue();
+        assertThat(merged.getString(1)).as("first PK column.").isEqualTo("ID");
+        assertThat(merged.next()).as("second row present.").isTrue();
+        assertThat(merged.getString(1)).as("second PK column.").isEqualTo("ORDER_ID");
+        assertThat(merged.next()).as("no third row.").isFalse();
     }
 
     @Test
@@ -202,7 +223,7 @@ class MultiSchemaMySqlMetadataHandlerTest
 
         final boolean exists = handler.tableExists(metaData, null, "ORDERS");
 
-        assertThat(exists).as("found in the second catalog").isTrue();
+        assertThat(exists).as("found in the second catalog.").isTrue();
     }
 
     @Test
@@ -220,7 +241,7 @@ class MultiSchemaMySqlMetadataHandlerTest
 
         final boolean exists = handler.tableExists(metaData, null, "ORDERS");
 
-        assertThat(exists).as("not found in any catalog").isFalse();
+        assertThat(exists).as("not found in any catalog.").isFalse();
     }
 
     @Test
@@ -234,7 +255,7 @@ class MultiSchemaMySqlMetadataHandlerTest
 
         final boolean exists = handler.tableExists(metaData, "shop1", "ORDERS");
 
-        assertThat(exists).as("single-schema call bypasses catalog enumeration").isTrue();
+        assertThat(exists).as("single-schema call bypasses catalog enumeration.").isTrue();
         verify(metaData, never()).getCatalogs();
     }
 

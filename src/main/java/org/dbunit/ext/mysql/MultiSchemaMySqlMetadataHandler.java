@@ -37,6 +37,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
+import org.dbunit.util.SQLHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -79,6 +80,13 @@ public class MultiSchemaMySqlMetadataHandler extends MySqlMetadataHandler
     private static final Set<String> SYSTEM_CATALOGS = new HashSet<String>(Arrays.asList(
             "information_schema", "mysql", "performance_schema", "sys"));
 
+    /**
+     * Lazily-populated cache of {@link #listUserCatalogs}'s result, since one instance of this
+     * handler is configured per connection (see the class Javadoc) and the visible catalogs are
+     * not expected to change over that connection's lifetime.
+     */
+    private List<String> userCatalogs;
+
     @Override
     public ResultSet getTables(final DatabaseMetaData metaData, final String schemaName,
             final String[] tableType) throws SQLException
@@ -89,11 +97,19 @@ public class MultiSchemaMySqlMetadataHandler extends MySqlMetadataHandler
         }
 
         final List<ResultSet> perCatalog = new ArrayList<ResultSet>();
-        for (final String catalog : listUserCatalogs(metaData))
+        try
         {
-            perCatalog.add(super.getTables(metaData, catalog, tableType));
+            for (final String catalog : listUserCatalogs(metaData))
+            {
+                perCatalog.add(super.getTables(metaData, catalog, tableType));
+            }
+            return InMemoryMetadataResultSet.merge(perCatalog);
         }
-        return InMemoryMetadataResultSet.merge(perCatalog);
+        catch (final SQLException e)
+        {
+            closeAll(perCatalog);
+            throw e;
+        }
     }
 
     @Override
@@ -106,11 +122,19 @@ public class MultiSchemaMySqlMetadataHandler extends MySqlMetadataHandler
         }
 
         final List<ResultSet> perCatalog = new ArrayList<ResultSet>();
-        for (final String catalog : listUserCatalogs(databaseMetaData))
+        try
         {
-            perCatalog.add(super.getColumns(databaseMetaData, catalog, tableName));
+            for (final String catalog : listUserCatalogs(databaseMetaData))
+            {
+                perCatalog.add(super.getColumns(databaseMetaData, catalog, tableName));
+            }
+            return InMemoryMetadataResultSet.merge(perCatalog);
         }
-        return InMemoryMetadataResultSet.merge(perCatalog);
+        catch (final SQLException e)
+        {
+            closeAll(perCatalog);
+            throw e;
+        }
     }
 
     @Override
@@ -123,11 +147,19 @@ public class MultiSchemaMySqlMetadataHandler extends MySqlMetadataHandler
         }
 
         final List<ResultSet> perCatalog = new ArrayList<ResultSet>();
-        for (final String catalog : listUserCatalogs(metaData))
+        try
         {
-            perCatalog.add(super.getPrimaryKeys(metaData, catalog, tableName));
+            for (final String catalog : listUserCatalogs(metaData))
+            {
+                perCatalog.add(super.getPrimaryKeys(metaData, catalog, tableName));
+            }
+            return InMemoryMetadataResultSet.merge(perCatalog);
         }
-        return InMemoryMetadataResultSet.merge(perCatalog);
+        catch (final SQLException e)
+        {
+            closeAll(perCatalog);
+            throw e;
+        }
     }
 
     @Override
@@ -151,6 +183,7 @@ public class MultiSchemaMySqlMetadataHandler extends MySqlMetadataHandler
 
     /**
      * Lists the catalogs visible to the connection, excluding MySQL's own system catalogs.
+     * Cached after the first call; see {@link #userCatalogs}.
      *
      * @param metaData The database metadata to list catalogs from.
      * @return The visible, non-system catalog names.
@@ -158,6 +191,11 @@ public class MultiSchemaMySqlMetadataHandler extends MySqlMetadataHandler
      */
     private List<String> listUserCatalogs(final DatabaseMetaData metaData) throws SQLException
     {
+        if (userCatalogs != null)
+        {
+            return userCatalogs;
+        }
+
         final List<String> catalogs = new ArrayList<String>();
         final ResultSet catalogResultSet = metaData.getCatalogs();
         try
@@ -180,7 +218,22 @@ public class MultiSchemaMySqlMetadataHandler extends MySqlMetadataHandler
         {
             logger.debug("listUserCatalogs() - found {}", catalogs);
         }
+        userCatalogs = catalogs;
         return catalogs;
+    }
+
+    /**
+     * Closes every result set in the given list, null- and already-closed-safe.
+     *
+     * @param resultSets The result sets to close.
+     * @throws SQLException If closing one of them fails.
+     */
+    private static void closeAll(final List<ResultSet> resultSets) throws SQLException
+    {
+        for (final ResultSet resultSet : resultSets)
+        {
+            SQLHelper.close(resultSet);
+        }
     }
 
     /**
@@ -225,9 +278,9 @@ public class MultiSchemaMySqlMetadataHandler extends MySqlMetadataHandler
             final Map<String, Integer> columnIndexByLabel = new HashMap<String, Integer>();
             int columnCount = 0;
             boolean first = true;
-            for (final ResultSet source : sources)
+            try
             {
-                try
+                for (final ResultSet source : sources)
                 {
                     if (first)
                     {
@@ -250,10 +303,10 @@ public class MultiSchemaMySqlMetadataHandler extends MySqlMetadataHandler
                         rows.add(row);
                     }
                 }
-                finally
-                {
-                    source.close();
-                }
+            }
+            finally
+            {
+                closeAll(sources);
             }
 
             final InMemoryMetadataResultSet handler =
