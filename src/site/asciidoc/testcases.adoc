@@ -88,7 +88,7 @@ public class SampleTest extends DBTestCase
 ----
 
 NOTE: `DatabaseTestCase.setUp()`/`tearDown()` are plain protected methods,
-not automatically invoked by JUnit 5 — override them with `@BeforeEach`/
+not automatically invoked by JUnit 5/6 — override them with `@BeforeEach`/
 `@AfterEach` and call `super` as shown, matching every
 `DBTestCase`-subclass page linked above.
 

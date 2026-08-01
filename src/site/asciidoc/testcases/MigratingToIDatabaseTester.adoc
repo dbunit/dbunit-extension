@@ -172,6 +172,6 @@ public class SampleTest extends TestCase
 ----
 
 This is what `IDatabaseTester` composition (above) descends from — the
-difference today is only that JUnit 5's `@BeforeEach`/`@AfterEach`
+difference today is only that JUnit 5/6's `@BeforeEach`/`@AfterEach`
 annotations replace JUnit 3/4's `setUp()`/`tearDown()` method-name
 convention.
