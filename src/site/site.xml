@@ -122,18 +122,21 @@
       <item name="3.1.0 to 3.2.0"           href="/3.1.0-to-3.2.0.html"/>
       <item name="3.0.0 to 3.1.0"           href="/3.0.0-to-3.1.0.html"/>
       <item name="2.8.0 to 3.0.0"           href="/2.8.0-to-3.0.0.html"/>
-      <item name="2.7.3 to 2.8.0"           href="/2.7.3-to-2.8.0.html"/>
-      <item name="2.7.2 to 2.7.3"           href="/2.7.2-to-2.7.3.html"/>
-      <item name="2.7.1 to 2.7.2"           href="/2.7.1-to-2.7.2.html"/>
-      <item name="2.7.0 to 2.7.1"           href="/2.7.0-to-2.7.1.html"/>
-      <item name="2.6.0 to 2.7.0"           href="/2.6.0-to-2.7.0.html"/>
-      <item name="2.5.4 to 2.6.0"           href="/2.5.4-to-2.6.0.html"/>
-      <item name="2.5.3 to 2.5.4"           href="/2.5.3-to-2.5.4.html"/>
-      <item name="2.5.2 to 2.5.3"           href="/2.5.2-to-2.5.3.html"/>
-      <item name="2.5.1 to 2.5.2"           href="/2.5.1-to-2.5.2.html"/>
-      <item name="2.5.0 to 2.5.1"           href="/2.5.0-to-2.5.1.html"/>
-      <item name="2.4.9 to 2.5.0"           href="/2.4.9-to-2.5.0.html"/>
-      <item name="2.4.8 to 2.4.9"           href="/2.4.8-to-2.4.9.html"/>
+
+      <item name="2.x Upgrades"               href="2.7.3-to-2.8.0.html" collapse="true">
+        <item name="2.7.3 to 2.8.0"           href="/2.7.3-to-2.8.0.html"/>
+        <item name="2.7.2 to 2.7.3"           href="/2.7.2-to-2.7.3.html"/>
+        <item name="2.7.1 to 2.7.2"           href="/2.7.1-to-2.7.2.html"/>
+        <item name="2.7.0 to 2.7.1"           href="/2.7.0-to-2.7.1.html"/>
+        <item name="2.6.0 to 2.7.0"           href="/2.6.0-to-2.7.0.html"/>
+        <item name="2.5.4 to 2.6.0"           href="/2.5.4-to-2.6.0.html"/>
+        <item name="2.5.3 to 2.5.4"           href="/2.5.3-to-2.5.4.html"/>
+        <item name="2.5.2 to 2.5.3"           href="/2.5.2-to-2.5.3.html"/>
+        <item name="2.5.1 to 2.5.2"           href="/2.5.1-to-2.5.2.html"/>
+        <item name="2.5.0 to 2.5.1"           href="/2.5.0-to-2.5.1.html"/>
+        <item name="2.4.9 to 2.5.0"           href="/2.4.9-to-2.5.0.html"/>
+        <item name="2.4.8 to 2.4.9"           href="/2.4.8-to-2.4.9.html"/>
+      </item>
       <item name="Older Migration Guide"    href="/migration.html"/>
     </menu>
 
