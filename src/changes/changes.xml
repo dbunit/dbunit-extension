@@ -121,6 +121,9 @@
       <action dev="jeffjensen" type="remove" issue="876" system="github" due-to="jeffjensen">
           Remove the dead org.hamcrest:* pattern from dependabot.yml's test-dependencies group: hamcrest has not been a dependency since the JUnit migration (no hamcrestVersion property, no org.hamcrest import anywhere), so the pattern has silently matched zero packages on every Dependabot run.
       </action>
+      <action dev="jeffjensen" type="update" issue="877" system="github" due-to="jeffjensen">
+          Generalize current-tense "JUnit 5" wording to "JUnit 5/6" in fiveminutes.adoc, testcases.adoc, and testcases/MigratingToIDatabaseTester.adoc, now that the project ships and tests against JUnit 6 (same org.junit.jupiter:junit-jupiter coordinates, so this is a wording generalization, not a correction). Left historical-milestone text (index.adoc's "Since 3.0.0..." framing) and changes.xml action text untouched, since those describe what was true at the time.
+      </action>
     </release>
     <release version="3.4.0" date="Jul 28, 2026" description="Test-suite hardening (un-skip and strengthen dozens of disabled/no-op tests); add CachingConnectionProvider and reduce DefaultPrepAndExpectedTestCase's per-test connection churn; pin identifier case-folding to Locale.ENGLISH for Turkish-locale correctness; and a broad set of correctness fixes across export formats (XML, YAML, CSV, XLS, Ant), TimestampDataType timezone handling, InsertOperation/TransactionOperation, and resource-leak cleanups">
       <action dev="jeffjensen" type="fix" issue="797" system="github" due-to="jeffjensen">
