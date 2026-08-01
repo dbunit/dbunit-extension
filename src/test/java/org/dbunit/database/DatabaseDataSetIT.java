@@ -36,6 +36,8 @@ import org.dbunit.dataset.NoSuchTableException;
 import org.dbunit.dataset.datatype.DataType;
 import org.dbunit.dataset.filter.DefaultColumnFilter;
 import org.dbunit.dataset.filter.ITableFilterSimple;
+import org.dbunit.ext.oracle.OracleBlobDataType;
+import org.dbunit.ext.oracle.OracleClobDataType;
 import org.dbunit.util.QualifiedTableName;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -219,6 +221,29 @@ class DatabaseDataSetIT extends AbstractDataSetTest
         final Column[] columns = new Column[] {new Column("c1", DataType.UNKNOWN),
                 new Column("blob_col", DataType.BLOB),
                 new Column("clob_col", DataType.CLOB),
+                new Column("c2", DataType.UNKNOWN),};
+        final String expected =
+                "select c1, blob_col, clob_col, c2 from schema.table order by c1, c2";
+
+        final ITableMetaData metaData = new DefaultTableMetaData(tableName, columns);
+        final String sql =
+                DatabaseDataSet.getSelectStatement(schemaName, metaData, null, true);
+        assertThat(sql).as("select statement").isEqualTo(expected);
+    }
+
+    @Test
+    void testGetSelectStatement_withNoPrimaryKeyVendorLobColumnAndSortFeatureEnabled_excludesLobColumnsFromOrderBy()
+            throws Exception
+    {
+        // OracleClobDataType/OracleBlobDataType are distinct DataType instances
+        // from the generic DataType.CLOB/DataType.BLOB singletons, so this
+        // guards against a reference-equality check missing vendor-specific
+        // LOB types.
+        final String schemaName = "schema";
+        final String tableName = "table";
+        final Column[] columns = new Column[] {new Column("c1", DataType.UNKNOWN),
+                new Column("blob_col", new OracleBlobDataType()),
+                new Column("clob_col", new OracleClobDataType()),
                 new Column("c2", DataType.UNKNOWN),};
         final String expected =
                 "select c1, blob_col, clob_col, c2 from schema.table order by c1, c2";
