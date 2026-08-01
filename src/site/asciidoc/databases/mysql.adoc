@@ -28,6 +28,18 @@ catalog/schema comparison doesn't line up with how MySQL reports them.
 Symptom without it: a `NoSuchColumnException` for a column you can see
 exists.
 
+For a connection not restricted to a single schema — e.g. connecting as
+`root` specifically to work across several schemas at once — use
+link:/dbunit/apidocs/org/dbunit/ext/mysql/MultiSchemaMySqlMetadataHandler.html[MultiSchemaMySqlMetadataHandler]
+instead. MySQL Connector/J's `nullCatalogMeansCurrent` default treats a
+`null` catalog as "the connection's current catalog only" rather than "every
+catalog", so `MySqlMetadataHandler` alone can silently hide tables in every
+schema but one, surfacing as `NoSuchTableException` for a table you can see
+exists. `MultiSchemaMySqlMetadataHandler` works around this by enumerating
+and unioning results across the connection's visible schemas itself; pair it
+with link:../properties.html#qualifiedtablenames[the qualified table names
+feature] so same-named tables in different schemas stay distinguishable.
+
 == Connection Preconfiguration Class
 
 link:/dbunit/apidocs/org/dbunit/ext/mysql/MySqlConnection.html[MySqlConnection]
