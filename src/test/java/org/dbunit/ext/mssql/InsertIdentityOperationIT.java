@@ -27,7 +27,6 @@ import java.io.Reader;
 
 import org.dbunit.AbstractDatabaseIT;
 import org.dbunit.Assertion;
-import org.dbunit.TestFeature;
 import org.dbunit.database.DatabaseConfig;
 import org.dbunit.dataset.Column;
 import org.dbunit.dataset.DataSetUtils;
@@ -52,12 +51,6 @@ import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 @EnabledIfSystemProperty(named = "dbunit.profile", matches = "mssql")
 class InsertIdentityOperationIT extends AbstractDatabaseIT
 {
-    @Override
-    protected boolean runTest(final String testName)
-    {
-        return environmentHasFeature(TestFeature.INSERT_IDENTITY);
-    }
-
     @Test
     void testExecuteXML_withXmlDataSet_insertsIdentityRows() throws Exception
     {
