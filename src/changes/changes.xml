@@ -126,6 +126,9 @@
       </action>
       <!-- dependabot:dep=actions/setup-java:new=5.6.0:pr=879 -->
       <action dev="dependabot" type="update" due-to="Dependabot">Update github_actions dependency actions/setup-java from 5 to 5.6.0 (#879).</action>
+      <action dev="jeffjensen" type="fix" issue="492" system="github" due-to="jeffjensen">
+          Fix AbstractDatabaseConnection.getRowCount(String, String) ignoring DatabaseConfig.PROPERTY_ESCAPE_PATTERN, mirroring the escape-pattern handling createTable() already applies, so a configured escape pattern is no longer silently dropped from the generated "select count(*)" SQL.
+      </action>
     </release>
     <release version="3.4.0" date="Jul 28, 2026" description="Test-suite hardening (un-skip and strengthen dozens of disabled/no-op tests); add CachingConnectionProvider and reduce DefaultPrepAndExpectedTestCase's per-test connection churn; pin identifier case-folding to Locale.ENGLISH for Turkish-locale correctness; and a broad set of correctness fixes across export formats (XML, YAML, CSV, XLS, Ant), TimestampDataType timezone handling, InsertOperation/TransactionOperation, and resource-leak cleanups">
       <action dev="jeffjensen" type="fix" issue="797" system="github" due-to="jeffjensen">

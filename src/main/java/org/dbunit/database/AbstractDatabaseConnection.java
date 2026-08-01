@@ -160,9 +160,12 @@ public abstract class AbstractDatabaseConnection implements IDatabaseConnection
         final StringBuilder sqlBuffer = new StringBuilder(128);
         sqlBuffer.append("select count(*) from ");
 
+        String escapePattern = (String) getConfig()
+                .getProperty(DatabaseConfig.PROPERTY_ESCAPE_PATTERN);
+
         // add table name and schema (schema only if available)
-        QualifiedTableName qualifiedTableName =
-                new QualifiedTableName(tableName, this.getSchema());
+        QualifiedTableName qualifiedTableName = new QualifiedTableName(
+                tableName, this.getSchema(), escapePattern);
         String qualifiedName = qualifiedTableName.getQualifiedName();
         sqlBuffer.append(qualifiedName);
         if (whereClause != null)
