@@ -69,6 +69,32 @@ public class DefaultTableTest extends AbstractTableTest
         return new DefaultTableMetaData("myTable", columns);
     }
 
+    @Test
+    void testGetValueByIndex_withValidRowAndIndex_returnsExpectedValue() throws Exception
+    {
+        final int columnCount = COLUMN_COUNT;
+        final int rowCount = ROW_COUNT;
+        final ITable table = createTable(columnCount, rowCount, 0);
+
+        for (int i = 0; i < rowCount; i++)
+        {
+            for (int j = 0; j < columnCount; j++)
+            {
+                final Object expected = table.getValue(i, "COLUMN" + j);
+                final Object actual = table.getValue(i, j);
+                assertThat(actual).as("row=%d col=%d", i, j).isEqualTo(expected);
+            }
+        }
+    }
+
+    @Test
+    void testGetValueByIndex_withOutOfBoundsRow_throwsRowOutOfBoundsException() throws Exception
+    {
+        final ITable table = createTable(COLUMN_COUNT, ROW_COUNT, 0);
+        org.junit.jupiter.api.Assertions.assertThrows(RowOutOfBoundsException.class,
+                () -> table.getValue(ROW_COUNT, 0));
+    }
+
     @Override
     @Test
     public void testGetMissingValue_withMissingCells_returnsExpectedValues() throws Exception

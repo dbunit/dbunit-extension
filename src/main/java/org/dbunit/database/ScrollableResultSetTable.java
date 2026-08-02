@@ -125,13 +125,21 @@ public class ScrollableResultSetTable extends AbstractResultSetTable
         if(logger.isDebugEnabled())
             logger.debug("getValue(row={}, columnName={}) - start", Integer.toString(row), columnName);
 
+        return getValue(row, getColumnIndex(columnName));
+    }
+
+    @Override
+    public Object getValue(int row, int columnIndex) throws DataSetException
+    {
+        if(logger.isDebugEnabled())
+            logger.debug("getValue(row={}, columnIndex={}) - start", row, columnIndex);
+
         assertValidRowIndex(row);
 
         try
         {
             _resultSet.absolute(row + 1);
 
-            int columnIndex = getColumnIndex(columnName);
             Column column = _metaData.getColumns()[columnIndex];
             return column.getDataType().getSqlValue(columnIndex + 1, _resultSet);
         }

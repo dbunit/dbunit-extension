@@ -263,8 +263,20 @@ public class ReplacementTable implements ITable
         if(logger.isDebugEnabled())
             logger.debug("getValue(row={}, columnName={}) - start", row, column);
 
-        Object value = _table.getValue(row, column);
+        return applyReplacements(_table.getValue(row, column));
+    }
 
+    @Override
+    public Object getValue(int row, int columnIndex) throws DataSetException
+    {
+        if(logger.isDebugEnabled())
+            logger.debug("getValue(row={}, columnIndex={}) - start", row, columnIndex);
+
+        return applyReplacements(_table.getValue(row, columnIndex));
+    }
+
+    private Object applyReplacements(Object value) throws DataSetException
+    {
         // Object replacement. A single get() covers the common case (a mapping with a
         // non-null replacement); containsKey() is only needed to distinguish "no mapping"
         // from "mapping to null" when get() itself returns null.

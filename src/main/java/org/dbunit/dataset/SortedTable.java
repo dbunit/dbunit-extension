@@ -382,6 +382,20 @@ public class SortedTable extends AbstractTable
         return _table.getValue(getOriginalRowIndex(row), columnName);
     }
 
+    @Override
+    public Object getValue(final int row, final int columnIndex)
+            throws DataSetException
+    {
+        if (logger.isDebugEnabled())
+        {
+            logger.debug("getValue(row={}, columnIndex={}) - start", row, columnIndex);
+        }
+
+        assertValidRowIndex(row);
+
+        return _table.getValue(getOriginalRowIndex(row), columnIndex);
+    }
+
     // //////////////////////////////////////////////////////////////////////////
     // Comparator interface
 

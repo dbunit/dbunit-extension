@@ -197,6 +197,17 @@ public class DefaultTable extends AbstractTable
         return rowValues[getColumnIndex(column)];
     }
 
+    @Override
+    public Object getValue(int row, int columnIndex) throws DataSetException
+    {
+        if(logger.isDebugEnabled())
+            logger.debug("getValue(row={}, columnIndex={}) - start", row, columnIndex);
+
+        assertValidRowIndex(row);
+
+        return ((Object[]) _rowList.get(row))[columnIndex];
+    }
+
     public String toString()
     {
     	final StringBuilder sb = new StringBuilder();

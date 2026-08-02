@@ -149,9 +149,12 @@ public abstract class AbstractBatchOperation extends AbstractOperation
 
             ITableMetaData metaData =
                     getOperationMetaData(connection, table.getTableMetaData());
+            ITableMetaData tableMetaData = table.getTableMetaData();
             BitSet ignoreMapping = null;
             OperationData operationData = null;
             IPreparedBatchStatement statement = null;
+            Column[] columns = null;
+            int[] tableColumnIndexes = null;
 
             try
             {
@@ -166,8 +169,7 @@ public abstract class AbstractBatchOperation extends AbstractOperation
                         int row = i;
 
                         // If current row have a different ignore value mapping
-                        // than
-                        // previous one, we generate a new statement
+                        // than previous one, we generate a new statement
                         if (ignoreMapping == null
                                 || !equalsIgnoreMapping(ignoreMapping, table,
                                         row))
@@ -185,10 +187,16 @@ public abstract class AbstractBatchOperation extends AbstractOperation
                                     ignoreMapping, connection);
                             statement = factory.createPreparedBatchStatement(
                                     operationData.getSql(), connection);
+
+                            // Pre-resolve column indices in the source table once per
+                            // operationData to avoid a per-row, per-column HashMap
+                            // lookup inside the inner loop below.
+                            columns = operationData.getColumns();
+                            tableColumnIndexes = resolveTableColumnIndexes(
+                                    columns, ignoreMapping, tableMetaData);
                         }
 
                         // for each column
-                        Column[] columns = operationData.getColumns();
                         for (int j = 0; j < columns.length; j++)
                         {
                             // Bind value only if not in ignore mapping
@@ -199,8 +207,8 @@ public abstract class AbstractBatchOperation extends AbstractOperation
                                 try
                                 {
                                     DataType dataType = column.getDataType();
-                                    Object value =
-                                            table.getValue(row, columnName);
+                                    Object value = table.getValue(row,
+                                            tableColumnIndexes[j]);
 
                                     if ("".equals(value) && !allowEmptyFields)
                                     {
@@ -246,6 +254,37 @@ public abstract class AbstractBatchOperation extends AbstractOperation
                 }
             }
         }
+    }
+
+    /**
+     * Resolves the zero-based column index in the source table's metadata for each
+     * operation column. This is done once per operationData so the inner row loop can
+     * use {@link ITable#getValue(int, int)} (index-based) instead of
+     * {@link ITable#getValue(int, String)} (HashMap-based), reducing per-cell
+     * overhead from O(R&times;C) map lookups to O(C).
+     *
+     * @param columns The operation columns in binding order.
+     * @param ignoreMapping Bits set for columns that are excluded from this operation.
+     * @param tableMetaData The metadata of the source table being read.
+     * @return An array of length {@code columns.length} where entry {@code j} is
+     *         the column index in {@code tableMetaData} for {@code columns[j]}, or 0
+     *         for ignored columns.
+     * @throws DataSetException if a column name cannot be resolved.
+     */
+    private int[] resolveTableColumnIndexes(Column[] columns,
+            BitSet ignoreMapping, ITableMetaData tableMetaData)
+            throws DataSetException
+    {
+        int[] indexes = new int[columns.length];
+        for (int j = 0; j < columns.length; j++)
+        {
+            if (!ignoreMapping.get(j))
+            {
+                indexes[j] = tableMetaData
+                        .getColumnIndex(columns[j].getColumnName());
+            }
+        }
+        return indexes;
     }
 
     protected void handleColumnHasNoValue(String tableName, String columnName)

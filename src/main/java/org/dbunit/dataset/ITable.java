@@ -55,6 +55,26 @@ public interface ITable
      * equals or greater than <code>getRowCount</code>
      */
     public Object getValue(int row, String column) throws DataSetException;
+
+    /**
+     * Returns this table value for the specified row and zero-based column index.
+     *
+     * <p>This default implementation resolves the column name from the table metadata
+     * and delegates to {@link #getValue(int, String)}. Implementations that store data
+     * in an array or access a JDBC {@code ResultSet} by position should override this
+     * method to skip the name-to-index lookup, reducing per-cell overhead from a
+     * {@code HashMap} lookup to a direct array access.</p>
+     *
+     * @param row The row index, starting with 0.
+     * @param columnIndex The zero-based column index.
+     * @return The value at the specified row and column.
+     * @throws DataSetException if an error occurs.
+     * @since 2.8
+     */
+    default Object getValue(int row, int columnIndex) throws DataSetException
+    {
+        return getValue(row, getTableMetaData().getColumns()[columnIndex].getColumnName());
+    }
 }
 
 

@@ -147,6 +147,31 @@ public class SortedTableTest extends AbstractTableTest
         }
     }
 
+    @Test
+    void testGetValueByIndex_withSortedTable_returnsValueMatchingNameBasedAccess() throws Exception
+    {
+        final Column[] columns = new Column[] {
+                new Column("COLUMN0", DataType.VARCHAR),
+                new Column("COLUMN1", DataType.VARCHAR),
+                new Column("COLUMN2", DataType.VARCHAR)};
+        final DefaultTable backing = new DefaultTable("TEST_TABLE", columns);
+        backing.addRow(new Object[] {"c", "y", "1"});
+        backing.addRow(new Object[] {"a", "z", "2"});
+        backing.addRow(new Object[] {"b", "x", "3"});
+        final SortedTable sorted = new SortedTable(backing, new String[] {"COLUMN0"});
+
+        final int rowCount = sorted.getRowCount();
+        for (int i = 0; i < rowCount; i++)
+        {
+            for (int j = 0; j < columns.length; j++)
+            {
+                final Object byName = sorted.getValue(i, columns[j].getColumnName());
+                final Object byIndex = sorted.getValue(i, j);
+                assertThat(byIndex).as("row=%d col=%d", i, j).isEqualTo(byName);
+            }
+        }
+    }
+
     @Override
     @Test
     public void testGetMissingValue_withMissingCells_returnsExpectedValues() throws Exception
