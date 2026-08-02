@@ -1,0 +1,80 @@
+= JavaDoc Conventions
+
+[#overview]
+== Overview
+
+Every public class and method gets JavaDoc. It is the primary reference most consumers
+read (the generated link:/dbunit/apidocs/index.html[JavaDoc site]), and it is what
+Checkstyle's `JavadocType`/`JavadocStyle` checks look for on public scope — see
+link:javastyle.html[Java Style & Tooling] for what is (and is not) automatically checked.
+
+[#file-header]
+== File Header
+
+Every source file opens with the project's LGPL license header:
+
+[source,java]
+----
+/*
+ *
+ * The DbUnit Database Testing Framework
+ * Copyright (C)2002-2026, DbUnit.org
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *
+ */
+----
+
+The copyright line's end year and holder reflect the file's current state (confirmed
+against a class added in 2026: `Copyright (C)2002-2026, DbUnit.org`) — copy the header
+from a recently-touched file rather than an old one, so the year isn't stale on arrival.
+
+[#style-rules]
+== Style Rules
+
+For the topic sentence of a class or method, each `@param`, and `@return`: write
+complete sentences, start with a capital letter, and end with a period.
+
+[#since]
+== `@since`
+
+Tag the dbUnit version a class or method was introduced in with `@since`. This lets
+users and developers track when a piece of API appeared.
+
+[#style-mechanics]
+== Style Mechanics
+
+Use `{@link}` to cross-reference other types and members rather than plain text, `<p>`
+to open a new paragraph, and `<pre>` for runnable code fragments. For example (from
+`CachingConnectionProvider`):
+
+[source,java]
+----
+/**
+ * Caches a single {@link IDatabaseConnection} so that it - and the table
+ * metadata it accumulates - can be reused across many test methods instead of
+ * being rebuilt on every call.
+ *
+ * <p>
+ * A {@link Callable} supplies the connection-creation logic; the factory is
+ * only invoked when there is no cached connection yet, or when the
+ * previously cached one is no longer {@linkplain Connection#isValid(int)
+ * alive}.
+ */
+----
+
+Prefer this descriptive, cross-linked prose style over a bare restatement of the
+signature — explain *why* and *when*, not just *what*, since the signature already says
+what.

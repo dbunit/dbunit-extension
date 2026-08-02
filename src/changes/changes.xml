@@ -162,6 +162,9 @@
       <action dev="jeffjensen" type="add" issue="887" system="github" due-to="jeffjensen">
           Add codingstandards/javastyle.adoc, the first page of a new "Developing DbUnit" contributor documentation section: general Java style rules, the Eclipse formatter tooling (java-codestyle-formatter.xml, plus the smaller legacy java-codestyle-formatter.epf), Checkstyle (confirmed wired only under Maven's reporting section, so it does not fail the build), Modernizer (confirmed bound to the verify phase and does fail the build), Lombok usage, and logger placement, none previously documented on the site.
       </action>
+      <action dev="jeffjensen" type="add" issue="888" system="github" due-to="jeffjensen">
+          Add codingstandards/javadoc.adoc, documenting the JavaDoc file-header, style, and tagging conventions. Corrects the prior @author/@since class-header example against actual current practice, confirmed by checking CachingConnectionProvider (added 3.4.0): class-level @since is still expected on new classes, but new @author tags are not.
+      </action>
     </release>
     <release version="3.4.0" date="Jul 28, 2026" description="Test-suite hardening (un-skip and strengthen dozens of disabled/no-op tests); add CachingConnectionProvider and reduce DefaultPrepAndExpectedTestCase's per-test connection churn; pin identifier case-folding to Locale.ENGLISH for Turkish-locale correctness; and a broad set of correctness fixes across export formats (XML, YAML, CSV, XLS, Ant), TimestampDataType timezone handling, InsertOperation/TransactionOperation, and resource-leak cleanups">
       <action dev="jeffjensen" type="fix" issue="797" system="github" due-to="jeffjensen">
