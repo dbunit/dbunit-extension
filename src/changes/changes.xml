@@ -13,7 +13,7 @@
   </properties>
 
   <body>
-    <release version="3.4.1-SNAPSHOT" date="TBD" description="">
+    <release version="3.4.1-SNAPSHOT" date="TBD" description="A documentation-site overhaul (new tutorials, 9 database vendor guides, and consolidated Filters/Datasets/Operations pages); an opt-in all-column sort for tables without a primary key; MultiSchemaMySqlMetadataHandler for multi-schema MySQL connections; and multiple bug fixes including escape-pattern handling, primary-key filter fallback, empty-dataset DTD export, and DatabaseDataSet initialization order">
       <action dev="jeffjensen" type="add" issue="840" system="github" due-to="jeffjensen">
           Add repo-root README.adoc, rendered natively by GitHub via Asciidoctor, so the repository landing page shows a pitch, build/reproducible-build badges, a pointer to the "dbUnit in 5 Minutes" tutorial, and links to the documentation site, Maven coordinates, GitHub Discussions, and CONTRIBUTING.md instead of nothing.
       </action>
