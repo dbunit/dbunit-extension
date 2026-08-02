@@ -13,7 +13,7 @@
   </properties>
 
   <body>
-    <release version="3.4.1-SNAPSHOT" date="TBD" description="A documentation-site overhaul (new tutorials, 9 database vendor guides, and consolidated Filters/Datasets/Operations pages); an opt-in all-column sort for tables without a primary key; MultiSchemaMySqlMetadataHandler for multi-schema MySQL connections; and multiple bug fixes including escape-pattern handling, primary-key filter fallback, empty-dataset DTD export, and DatabaseDataSet initialization order">
+    <release version="3.4.1-SNAPSHOT" date="TBD" description="A documentation-site overhaul (new tutorials, 9 database vendor guides, a class-by-class Core Components reference, and consolidated Filters/Datasets/Operations pages); an opt-in all-column sort for tables without a primary key; MultiSchemaMySqlMetadataHandler for multi-schema MySQL connections; and multiple bug fixes including escape-pattern handling, primary-key filter fallback, empty-dataset DTD export, and DatabaseDataSet initialization order">
       <action dev="jeffjensen" type="add" issue="840" system="github" due-to="jeffjensen">
           Add repo-root README.adoc, rendered natively by GitHub via Asciidoctor, so the repository landing page shows a pitch, build/reproducible-build badges, a pointer to the "dbUnit in 5 Minutes" tutorial, and links to the documentation site, Maven coordinates, GitHub Discussions, and CONTRIBUTING.md instead of nothing.
       </action>
@@ -155,6 +155,9 @@
       </action>
       <action dev="jeffjensen" type="add" issue="884" system="github" due-to="jeffjensen">
           Add components/assertion.adoc, a new Core Components reference page documenting how Assertion, DbUnitAssert, and DbUnitValueComparerAssert relate (the static facade and the two instance-based engines it delegates to) and their full method surface, previously introduced only in service of the equality-comparison topic.
+      </action>
+      <action dev="jeffjensen" type="update" issue="885" system="github" due-to="jeffjensen">
+          Rewrite components.adoc from an anchor-preserving redirect stub into a real class-by-class "Core Components" index, grouped by area, linking to each class's topic page (or its new dedicated page, for the 4 classes that didn't have one). Add it back to site.xml's "Using DbUnit" nav, between Database-Specific Guides and Best Practices.
       </action>
     </release>
     <release version="3.4.0" date="Jul 28, 2026" description="Test-suite hardening (un-skip and strengthen dozens of disabled/no-op tests); add CachingConnectionProvider and reduce DefaultPrepAndExpectedTestCase's per-test connection churn; pin identifier case-folding to Locale.ENGLISH for Turkish-locale correctness; and a broad set of correctness fixes across export formats (XML, YAML, CSV, XLS, Ant), TimestampDataType timezone handling, InsertOperation/TransactionOperation, and resource-leak cleanups">

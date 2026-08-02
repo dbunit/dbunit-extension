@@ -1,144 +1,112 @@
 = Core Components
 
-This page's content has moved to focused pages, listed below by former
-section. Update any bookmarks/links — this page is kept only so existing
-external links (search engines, old blog posts, etc.) don't 404, and is no
-longer in the site navigation.
+A class-by-class index of dbUnit's core abstractions, grouped by area. If you already
+know which task you're doing, use the rest of *Using DbUnit* instead — those pages are
+organized around workflows ("how do I load a CSV dataset," "how do I run an operation").
+This page is for the other direction: you already have a class in hand — from JavaDoc, a
+stack trace, or someone else's code — and want to know what it is and where it's covered.
 
-[#databaseconnection]
-== IDatabaseConnection
+Most classes below link straight to the topic page that already covers them in depth.
+A few — `ITable`, `VerifyTableDefinition`, `IOperationListener`, and
+`Assertion`/`DbUnitAssert` — didn't have a page anywhere else, so they get one here.
 
-Moved, see link:connections.html[Connections & Configuration].
+[#connections]
+== Connections & Configuration
 
-[#dataset]
-== IDataSet
+[cols="1,3", options="header"]
+|===
+|Class |Covered
 
-Moved, see link:datasets.html[Datasets].
+|anchor:databaseconnection[]`link:apidocs/org/dbunit/database/IDatabaseConnection.html[IDatabaseConnection]`, `DatabaseConnection`, `DatabaseDataSourceConnection` |link:connections.html[Connections & Configuration] — wraps a JDBC connection or `DataSource`; the factory for creating datasets/tables from a live database.
+|anchor:databasedataset[]`DatabaseDataSet` |link:connections.html#databasedataset[Connections & Configuration] — the `IDataSet` adapter over a live database connection.
+|`CachingConnectionProvider` |link:connections.html#cachingconnectionprovider[Connections & Configuration] — caches/reuses one `IDatabaseConnection` across test methods.
+|`DatabaseConfig` |link:properties.html[Properties & Features] — the feature-flag/property configuration object for a connection.
+|===
 
-[#flatxmldataset]
-=== FlatXmlDataSet
+[#datasets-tables]
+== Datasets & Tables
 
-Moved, see link:datasets/flatxml.html[Flat XML].
+[cols="1,3", options="header"]
+|===
+|Class |Covered
 
-[#xmldataset]
-=== XmlDataSet
+|anchor:dataset[]`link:apidocs/org/dbunit/dataset/IDataSet.html[IDataSet]`, anchor:defaultdataset[]`DefaultDataSet`, anchor:datasetbuilder[]`DataSetBuilder` |link:datasets.html[Datasets] — a named collection of `ITable`s, and the fluent builder for constructing one in code.
+|`link:components/itable.html[ITable]`, `ITableMetaData`, `Column`, `Columns`, `ITableIterator` |*New:* link:components/itable.html[ITable & Table Metadata] — one table's contract, schema, and cell access.
+|anchor:flatxmldataset[]`FlatXmlDataSet` |link:datasets/flatxml.html[Flat XML] — one XML element per row, the most commonly used file format.
+|anchor:xmldataset[]anchor:originalxmlsample[]`XmlDataSet` |link:datasets/xml.html[XML] — the original, more verbose XML format.
+|anchor:csvdataset[]`CsvDataSet` |link:datasets/csv.html[CSV] — one CSV file per table, plus a `table-ordering.txt` manifest.
+|anchor:xlsdataset[]`XlsDataSet` |link:datasets/excel.html[Excel (XLS)] — one sheet per table.
+|anchor:yamldataset[]`YamlDataSet` |link:datasets/yaml.html[YAML] — one top-level key per table.
+|`SqlLoaderControlDataSet` |link:datasets/sqlloader.html[SQL*Loader] — builds a dataset from Oracle SQL*Loader control files.
+|anchor:querydataset[]`QueryDataSet` |link:datasets/query.html[Query-Based] — tables populated from arbitrary SQL queries.
+|anchor:streamingdataset[]`StreamingDataSet` |link:datasets/streaming.html[Streaming Datasets] — forward-only, low-memory access over a producer.
+|`DataFileLoader` and implementations |link:datasets/fileloader.html[Data File Loader] — loads a dataset file from the classpath, with `ReplacementDataSet` substitution built in.
+|anchor:compositedataset[]`CompositeDataSet`, anchor:replacementdataset[]`ReplacementDataSet`, anchor:tabledecoratordataset[]`TableDecoratorDataSet`, `SortedDataSet`/`SortedTable`, `CachedDataSet` |link:datasets/decorators.html[Decorators] — wrap an existing `IDataSet`/`ITable` to add behavior.
+|anchor:filtereddataset[]`FilteredDataSet` |link:datasets/decorators.html#filtereddataset[Decorators] for the `SequenceTableFilter` ordering strategy; link:filters.html[Filters] for `DatabaseSequenceFilter`, `IncludeTableFilter`, and `ExcludeTableFilter`.
+|===
 
-Moved, see link:datasets/xml.html[XML].
+[#operations]
+== Database Operations
 
-[#originalxmlsample]
-=== XML dataset document sample
+[cols="1,3", options="header"]
+|===
+|Class |Covered
 
-Moved, see link:datasets/xml.html[XML].
+|anchor:databaseoperation[]`link:apidocs/org/dbunit/operation/DatabaseOperation.html[DatabaseOperation]` |link:operations.html[Database Operations] — abstract base for a database mutation performed before/after a test.
+|anchor:insert[]`DatabaseOperation.INSERT` |link:operations.html#insert[Database Operations]
+|anchor:delete[]`DatabaseOperation.DELETE` |link:operations.html#delete[Database Operations]
+|anchor:deleteall[]`DatabaseOperation.DELETE_ALL` |link:operations.html#deleteall[Database Operations]
+|anchor:truncate[]`DatabaseOperation.TRUNCATE_TABLE` |link:operations.html#truncate[Database Operations]
+|anchor:refresh[]`DatabaseOperation.REFRESH` |link:operations.html#refresh[Database Operations]
+|anchor:cleanInsert[]`DatabaseOperation.CLEAN_INSERT` |link:operations.html#cleanInsert[Database Operations]
+|`DatabaseOperation.NONE`, `CompositeOperation`, `TransactionOperation`, `CloseConnectionOperation` |link:operations.html[Database Operations]
+|anchor:InsertIdentityOperation[]`InsertIdentityOperation` |link:operations.html#InsertIdentityOperation[Database Operations] — MSSQL-specific, toggles `IDENTITY_INSERT`.
+|===
 
-[#yamldataset]
-=== YamlDataSet
+[#comparisons-assertions]
+== Data Comparisons & Assertions
 
-Moved, see link:datasets/yaml.html[YAML].
+[cols="1,3", options="header"]
+|===
+|Class |Covered
 
-[#streamingdataset]
-=== StreamingDataSet
+|anchor:valuecomparer[]`link:apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html[ValueComparer]` |link:datacomparisons/valuecomparer.html[ValueComparer Comparison] — pluggable per-column comparison beyond plain equality.
+|`FailureHandler`, `DifferenceListener`, `Difference` |link:datacomparisons/failurehandling.html[Failure Handling] — customize what happens when a comparison finds a mismatch.
+|`link:components/assertion.html[Assertion]`, `DbUnitAssert`, `DbUnitValueComparerAssert` |*New:* link:components/assertion.html[Assertion & DbUnitAssert] — the static facade and the two instance-based engines it delegates to.
+|===
 
-Moved, see link:datasets/streaming.html[Streaming Datasets].
+[#filters]
+== Filters
 
-[#databasedataset]
-=== DatabaseDataSet
+[cols="1,3", options="header"]
+|===
+|Class |Covered
 
-Moved, see link:connections.html#databasedataset[Connections & Configuration].
+|`ITableFilter`/`ITableFilterSimple`, `IncludeTableFilter`, `ExcludeTableFilter`, `SequenceTableFilter`, `DatabaseSequenceFilter`, `PrimaryKeyFilter` |link:filters.html[Filters] — which tables (and in what order) participate in an operation or comparison.
+|`IColumnFilter`, `DefaultColumnFilter`, `GeneratedColumnFilter` |link:filters.html[Filters] — which columns participate.
+|`IRowFilter`, `RowFilterTable` |link:filters.html[Filters] — which rows participate.
+|===
 
-[#querydataset]
-=== QueryDataSet
+[#datatypes]
+== Data Types
 
-Moved, see link:datasets/query.html[Query-Based].
+[cols="1,3", options="header"]
+|===
+|Class |Covered
 
-[#defaultdataset]
-=== DefaultDataSet
+|`DataType`, `IDataTypeFactory`, `DefaultDataTypeFactory` |link:datatypes.html[Data Types] — maps SQL types to Java types; register a vendor-specific factory via `DatabaseConfig.PROPERTY_DATATYPE_FACTORY`.
+|===
 
-Moved, see link:datasets.html[Datasets].
+[#test-integration]
+== Test Integration
 
-[#datasetbuilder]
-=== DataSetBuilder
+[cols="1,3", options="header"]
+|===
+|Class |Covered
 
-Moved, see link:datasets.html[Datasets].
-
-[#compositedataset]
-=== CompositeDataSet
-
-Moved, see link:datasets/decorators.html#compositedataset[Decorators].
-
-[#filtereddataset]
-=== FilteredDataSet
-
-Moved: the `SequenceTableFilter` strategy is now at
-link:datasets/decorators.html#filtereddataset[Decorators]; the
-`DatabaseSequenceFilter` auto-ordering strategy, `IncludeTableFilter`, and
-`ExcludeTableFilter` are now at link:filters.html[Filters].
-
-[#xlsdataset]
-=== XlsDataSet
-
-Moved, see link:datasets/excel.html[Excel (XLS)].
-
-[#replacementdataset]
-=== ReplacementDataSet
-
-Moved, see link:datasets/decorators.html#replacementdataset[Decorators].
-
-[#csvdataset]
-=== CsvDataSet
-
-Moved, see link:datasets/csv.html[CSV].
-
-[#tabledecoratordataset]
-=== TableDecoratorDataSet
-
-Moved, see link:datasets/decorators.html#tabledecoratordataset[Decorators].
-
-[#databaseoperation]
-== DatabaseOperation
-
-Moved, see link:operations.html[Database Operations].
-
-[#insert]
-=== DatabaseOperation.INSERT
-
-Moved, see link:operations.html#insert[Database Operations].
-
-[#delete]
-=== DatabaseOperation.DELETE
-
-Moved, see link:operations.html#delete[Database Operations].
-
-[#deleteall]
-=== DatabaseOperation.DELETE_ALL
-
-Moved, see link:operations.html#deleteall[Database Operations].
-
-[#truncate]
-=== DatabaseOperation.TRUNCATE_TABLE
-
-Moved, see link:operations.html#truncate[Database Operations].
-
-[#refresh]
-=== DatabaseOperation.REFRESH
-
-Moved, see link:operations.html#refresh[Database Operations].
-
-[#cleanInsert]
-=== DatabaseOperation.CLEAN_INSERT
-
-Moved, see link:operations.html#cleanInsert[Database Operations].
-
-[#InsertIdentityOperation]
-=== InsertIdentityOperation
-
-Moved, see link:operations.html#InsertIdentityOperation[Database Operations].
-
-[#valuecomparer]
-== ValueComparer
-
-Moved, see link:datacomparisons/valuecomparer.html[ValueComparer Comparison].
-
-[#verifytabledefinition]
-== VerifyTableDefinition
-
-Moved, see link:testcases/PrepAndExpectedTestCase.html[PrepAndExpectedTestCase].
+|`IDatabaseTester` and implementations |link:testcases/IDatabaseTester.html[IDatabaseTester Guide] — the preferred, composition-based way to wire dbUnit into a test.
+|`DBTestCase` and subclasses |link:testcases.html[Test Integration] — the inheritance-based alternative.
+|`PrepAndExpectedTestCase`, `PrepAndExpectedTestCaseSteps` |link:testcases/PrepAndExpectedTestCase.html[PrepAndExpectedTestCase] — turn-key prep/verify/cleanup test case.
+|anchor:verifytabledefinition[]`link:components/verifytabledefinition.html[VerifyTableDefinition]` |*New:* link:components/verifytabledefinition.html[VerifyTableDefinition] — defines one table to verify: column filters and `ValueComparer`s.
+|`link:components/ioperationlistener.html[IOperationListener]` |*New:* link:components/ioperationlistener.html[IOperationListener] — hooks into connection setup/teardown lifecycle events.
+|===

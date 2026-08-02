@@ -104,6 +104,12 @@
         <item name="Oracle"        href="/databases/oracle.html"/>
         <item name="PostgreSQL"    href="/databases/postgresql.html"/>
       </item>
+      <item name="Core Components"   href="/components.html">
+        <item name="ITable &amp; Table Metadata"      href="/components/itable.html"/>
+        <item name="VerifyTableDefinition"            href="/components/verifytabledefinition.html"/>
+        <item name="IOperationListener"               href="/components/ioperationlistener.html"/>
+        <item name="Assertion &amp; DbUnitAssert"      href="/components/assertion.html"/>
+      </item>
       <item name="Best Practices"    href="/bestpractices.html"/>
       <item name="Database Testing Concepts" href="/intro.html"/>
       <item name="Ant Task"          href="/anttask.html">
