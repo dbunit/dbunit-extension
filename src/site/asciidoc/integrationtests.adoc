@@ -76,7 +76,7 @@ More easily,
 use the convenience script `start-database-via-profile.ps1` or `start-database-via-profile.sh`,
 as applicable,
 located in the root directory,
-e.g. `start-database-via-profile.ps1 Ppostgresql-16`
+e.g. `start-database-via-profile.ps1 postgresql-16`
 
 Running the script with no arguments lists the valid profile names.
 
@@ -88,6 +88,27 @@ created by copying from an existing database properties file in the same directo
 Refer to the next sections for more information on
 the properties
 and running ITs in IDEs.
+
+== Stopping a Database Started for IDE Testing
+
+The `pre-integration-test` goal only starts the database's Docker container. Unlike a full
+`./mvnw verify` run, it never reaches the `post-integration-test` phase that would
+otherwise stop the container again, so the database keeps running — deliberately, so it
+stays available for as long as the IDE needs it — until stopped explicitly.
+
+To stop it, run the Maven docker-maven-plugin's stop goal and specify the same Maven
+profile used to start it, e.g. `./mvnw io.fabric8:docker-maven-plugin:stop -Ppostgresql-16`
+
+More easily,
+use the convenience script `stop-database-via-profile.ps1` or `stop-database-via-profile.sh`,
+as applicable,
+located in the root directory,
+e.g. `stop-database-via-profile.ps1 postgresql-16`
+
+Running the script with no arguments lists the valid profile names.
+
+Derby, H2, and HSQLDB need no stop step: they run embedded and in-memory rather than as
+Docker containers, so nothing is left running once the IDE process exits.
 
 == Integration Tests Database Properties
 
@@ -110,7 +131,7 @@ The properties include:
 
 Each Maven database integration test profile loads these properties from
 its corresponding .properties file located in the `src/test/resources` directory root.
-You can override the profile property values by:
+Override the profile property values by:
 
 * specifying system property command line arguments with -D
 * setting them in Maven's settings.xml file,
@@ -238,3 +259,11 @@ including the integration test profiles such as "postgresql-16".
 It's important to occasionally run a clean build to ensure no problems are
 hidden by existing compiled classes, resource files, or other prior build remnants.
 Simply run the Maven clean goal: `mvnw clean`.
+
+== Troubleshooting
+
+All test output is written to log files in the `target` directory. When a test failure
+needs deeper investigation, grep the log file for the exception directly rather than
+relying solely on the Failsafe report summary — the summary is a good starting point,
+but it doesn't always surface the actual root-cause exception, especially for failures
+several layers down (e.g. inside a JDBC driver or a Docker-started database container).
