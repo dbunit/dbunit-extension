@@ -1,0 +1,52 @@
+= Branching & Pull Requests
+
+[#fork-and-branch]
+== Fork & Branch
+
+Fork the repository and create a feature branch from `main` — the current default
+branch. Never work directly on `main`; if you're not already on a branch, create one
+first.
+
+[#keep-current]
+== Keep Current With `main`
+
+Rebase your branch on `main` to stay up to date. Always check whether you need a rebase
+just before opening a pull request or asking for re-review — `main` may have moved since
+you branched.
+
+[#opening-a-pr]
+== Opening the Pull Request
+
+Open the PR from your fork with a clear description of the change and its motivation.
+Reference the tracking issue — see link:issues.html[Issues] for creating one, and
+link:../commits.html[Commit Requirements] for the `Refs:` footer format.
+
+[#before-merge]
+== What Must Be True Before Merge
+
+* Tests updated or added to cover the change — see
+  link:../codingstandards/testconventions.html[Test Conventions].
+* A `changes.xml` entry is present — see link:../changelog.html[Changelog].
+* Commit messages meet the Conventional Commits requirements — see
+  link:../commits.html[Commit Requirements].
+* The CI workflow is green on the branch — see
+  link:continuousintegration.html[Continuous Integration] for which workflow that is and
+  what it actually covers.
+
+[#review]
+== Review
+
+The easier you make it for a reviewer to apply and understand your change, the more
+likely it lands quickly. Respond to review feedback with `fixup!` commits (see
+link:../commits.html[Commit Requirements]) rather than a force-pushed rewrite, until
+asked to squash.
+
+There is no `CODEOWNERS` file or pull request template in this repository today —
+review is informal maintainer review, not an automated gate.
+
+[#discussions]
+== Questions During Review
+
+For questions, assistance, or other help on an open PR, comment directly on it, or use
+link:https://github.com/dbunit/dbunit-extension/discussions[GitHub Discussions] for
+broader questions not tied to a specific PR.

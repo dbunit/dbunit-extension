@@ -177,6 +177,9 @@
       <action dev="jeffjensen" type="add" issue="892" system="github" due-to="jeffjensen">
           Add github/issues.adoc, the first page of a new GitHub Workflow section: when to file an issue, the two issue templates, required labels/assignee/type/milestone metadata, and referencing an issue from a commit footer.
       </action>
+      <action dev="jeffjensen" type="add" issue="893" system="github" due-to="jeffjensen">
+          Add github/pullrequests.adoc: fork/branch-from-main, keeping current with main, opening a PR, what must be true before merge, and review expectations. Corrects devguide.adoc's stale "Keep Current with Master" guidance and confirms no CODEOWNERS or PR template exists today, rather than implying a gate that isn't there.
+      </action>
     </release>
     <release version="3.4.0" date="Jul 28, 2026" description="Test-suite hardening (un-skip and strengthen dozens of disabled/no-op tests); add CachingConnectionProvider and reduce DefaultPrepAndExpectedTestCase's per-test connection churn; pin identifier case-folding to Locale.ENGLISH for Turkish-locale correctness; and a broad set of correctness fixes across export formats (XML, YAML, CSV, XLS, Ant), TimestampDataType timezone handling, InsertOperation/TransactionOperation, and resource-leak cleanups">
       <action dev="jeffjensen" type="fix" issue="797" system="github" due-to="jeffjensen">
