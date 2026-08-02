@@ -11,7 +11,9 @@ The
 link:/dbunit/apidocs/org/dbunit/Assertion.html[Assertion]
 and
 link:/dbunit/apidocs/org/dbunit/assertion/DbUnitAssert.html[DbUnitAssert]
-classes have `assertEquals()` methods for the equality comparisons:
+classes have `assertEquals()` methods for the equality comparisons (see
+link:../components/assertion.html[Assertion & DbUnitAssert] for the full class
+reference):
 
 [source,java]
 ----

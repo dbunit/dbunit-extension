@@ -1,0 +1,80 @@
+= Assertion & DbUnitAssert
+
+[#overview]
+== Overview
+
+Three classes make up dbUnit's assertion entry point:
+
+link:/dbunit/apidocs/org/dbunit/Assertion.html[Assertion] (`org.dbunit`, since 1.3):: A
+`static`-method facade with a `private` constructor — it cannot be instantiated. Every
+method is a one-line delegation to one of two singleton instances it holds internally.
+This is the legacy API, kept for backward compatibility and as the quick/common path.
+
+link:/dbunit/apidocs/org/dbunit/assertion/DbUnitAssert.html[DbUnitAssert] (`org.dbunit.assertion`,
+since 2.4.0):: The instance-based, equality-comparison engine `Assertion` delegates its
+equality methods to. This is the modern entry point: construct (or subclass) one
+directly when you want to customize assertion behavior, per its own JavaDoc — `Assertion`
+itself cannot be customized, since it's a facade of static methods.
+
+link:/dbunit/apidocs/org/dbunit/assertion/DbUnitValueComparerAssert.html[DbUnitValueComparerAssert]
+(`org.dbunit.assertion`, since 2.6.0):: The `ValueComparer`-based sibling of
+`DbUnitAssert` — `Assertion`'s `assertWithValueComparer` overloads delegate here instead.
+See link:../datacomparisons/valuecomparer.html[ValueComparer Comparison] for the
+comparison strategy and full usage examples; this page only covers how the classes
+relate.
+
+`DbUnitAssert` and `DbUnitValueComparerAssert` both extend a common
+`DbUnitAssertBase` (since 2.6.0) for shared logic, rather than one extending the other.
+
+[#delegation]
+== How Assertion Delegates
+
+`Assertion` holds one private singleton of each instance-based class, and exposes both
+via accessors:
+
+[source,java]
+----
+public static DbUnitAssert getEqualsInstance()
+public static DbUnitValueComparerAssert getValueCompareInstance()
+----
+
+Every `Assertion.assertEquals(...)`/`assertEqualsIgnoreCols(...)`/
+`assertEqualsByQuery(...)` call forwards to `getEqualsInstance()` 's method of the same
+name and arguments; every `Assertion.assertWithValueComparer(...)` overload forwards to
+`getValueCompareInstance()`. Reach for `getEqualsInstance()`/`getValueCompareInstance()`
+(or construct your own `DbUnitAssert`/`DbUnitValueComparerAssert` directly) when you need
+a customized subclass instead of the static facade's fixed behavior.
+
+[#methods]
+== Method Surface
+
+[cols="2,1,3", options="header"]
+|===
+|Method family |Since |Purpose
+
+|`assertEquals(IDataSet, IDataSet[, FailureHandler])` |1.3 (`FailureHandler` overload: 2.4) |Compare every table in two datasets, by equality.
+|`assertEquals(ITable, ITable[, Column[]\|FailureHandler])` |1.3 (`Column[]` / `FailureHandler` overloads: 2.3.0/2.4) |Compare one table to another, by equality. The `Column[]` overload supplies additional column metadata for tables whose own metadata is incomplete.
+|`assertEqualsIgnoreCols(IDataSet\|ITable, ..., String[] ignoreCols)` |1.3 |Equality comparison excluding specific columns — see link:../filters.html[Filters] for the underlying column-filter mechanism this wraps.
+|`assertEqualsByQuery(IDataSet\|ITable, IDatabaseConnection, ..., String sqlQuery, String[] ignoreCols)` |1.3 |Compare expected data against the live result of an arbitrary SQL query, instead of a whole table snapshot.
+|`assertWithValueComparer(IDataSet\|ITable, ..., ValueComparer defaultValueComparer, Map columnValueComparers)` |2.6.0 |Compare using a pluggable `ValueComparer` per column instead of plain equality — see link:../datacomparisons/valuecomparer.html[ValueComparer Comparison].
+|===
+
+Every family also has a `FailureHandler`-accepting overload — see
+link:../datacomparisons/failurehandling.html[Failure Handling] for customizing what
+happens when a comparison finds a difference (collect all differences instead of
+failing fast, throw a custom exception type, etc.).
+
+[#when-to-use]
+== When To Use Which
+
+`Assertion` 's static methods are the quick, common path — no instance to manage, and
+what most examples throughout this site use directly (e.g.
+`Assertion.assertEquals(expectedTable, actualTable)`). Reach for `DbUnitAssert`/
+`DbUnitValueComparerAssert` directly — constructing your own instance, or a subclass
+overriding specific methods — when you need to customize comparison behavior beyond
+what `Assertion` 's fixed static delegation allows.
+
+This page covers the classes themselves; for the comparison strategies and full
+worked examples, see link:../datacomparisons/equality.html[Equality],
+link:../datacomparisons/valuecomparer.html[ValueComparer Comparison], and
+link:../datacomparisons/failurehandling.html[Failure Handling].
