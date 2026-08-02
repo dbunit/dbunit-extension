@@ -1,0 +1,242 @@
+= DbUnit Performance Analysis and Remediation Plan
+:toc: left
+:toclevels: 2
+:sectnums:
+
+== Purpose
+
+This document records the top seven performance issues identified in a review of
+the DbUnit core hot paths (dataset read, dataset write/operation, and assertion),
+and proposes a concrete fix for each. Findings are ordered by expected impact.
+
+The review focused on the code paths exercised on every row and every cell of a
+dataset, because those dominate the cost of a typical `CLEAN_INSERT` +
+`assertEquals` test cycle. Several classes (for example `SortedTable`,
+`ReplacementTable`, `RowOutOfBoundsException`, `OrderedTableNameMap`,
+`DatabaseSequenceFilter`) already carry recent, effective optimizations; those
+are intentionally *not* listed below. What remains are the highest-value
+opportunities that are still open.
+
+NOTE: Each proposed fix must preserve existing public behavior and be covered by
+unit tests (`*Test`) and, where a live database is required, integration tests
+(`*IT`), per project conventions. Micro-optimizations should be validated with a
+representative wide-table / many-row dataset, not just correctness tests.
+
+== Summary table
+
+[cols="1,4,1,1", options="header"]
+|===
+| # | Issue | Area | Impact
+| 1 | Per-cell column-name→index lookup in the batch write loop | `operation` | High
+| 2 | Per-cell `ValueComparer` re-resolution during assertion | `assertion` | High
+| 3 | Column-name resolution multiplied by `ITable` decorator depth | `dataset` | High
+| 4 | Redundant JDBC metadata round-trips in `DatabaseDataSet.initialize` | `database` | Medium
+| 5 | `SELECT` rebuilt with per-column object allocation on every table read | `database` | Medium
+| 6 | `FlatXmlProducer` re-scans/uppercases every attribute per row | `dataset` | Medium
+| 7 | Eager debug-argument construction on per-value hot paths | `dataset` | Low
+|===
+
+== Findings
+
+=== Per-cell column-name→index lookup in the batch write loop
+
+*Where:* `org.dbunit.operation.AbstractBatchOperation.execute(...)`
+(`src/main/java/org/dbunit/operation/AbstractBatchOperation.java`), the nested
+row/column loop that binds statement values.
+
+*Problem:* For every cell the loop calls `table.getValue(row, columnName)` using
+the column *name*. Each such call resolves the name to an index through
+`ITableMetaData.getColumnIndex(String)`, which performs a `HashMap` lookup (with
+an uppercase fallback path). For a table of `R` rows and `C` columns this is
+`R × C` map lookups, even though the set of columns and their order is fixed for
+the whole table. In addition, `operationData.getColumns()` is fetched inside the
+loop, and `isEmpty(table)` performs an extra name-based `getValue` probe before
+the loop starts.
+
+*Fix:*
+
+* Hoist `operationData.getColumns()` into a local `Column[]` outside the row loop
+  (it is invariant while the ignore-mapping is unchanged).
+* Resolve each bound column's index against the table's metadata *once* before
+  the row loop, into an `int[]`, and bind by index inside the loop. This requires
+  an index-based read path — see finding #3 for the shared enabler.
+* Keep the existing name-based API as the fallback so behavior is unchanged when
+  a custom `ITable` does not support index access.
+
+*Expected impact:* High. This is the write side of every `INSERT`/`REFRESH`/
+`UPDATE`, and it runs for the entire dataset on `setUp`.
+
+=== Per-cell `ValueComparer` re-resolution during assertion
+
+*Where:* `org.dbunit.assertion.DbUnitAssertBase.compareData(...)`
+(`src/main/java/org/dbunit/assertion/DbUnitAssertBase.java`, the
+`(row, column)` overload around lines 570–610 and
+`determineValueComparer(...)`).
+
+*Problem:* The comparison is driven by a doubly-nested loop over rows and
+comparison columns. For *every cell* it:
+
+* reads `expectedTable.getValue(rowNum, columnName)` and
+  `actualTable.getValue(rowNum, columnName)` by name (two map lookups per cell,
+  per table), and
+* calls `determineValueComparer(columnName, ...)`, which does a
+  `columnValueComparers.get(columnName)` map lookup — even though the chosen
+  comparer is fixed for a given column and never varies by row.
+
+*Fix:* Resolve everything that is column-invariant *once per column* before the
+row loop:
+
+* Precompute the resolved `ValueComparer` per `ComparisonColumn` (the column
+  object already carries the `DataType`; extend the per-column precomputation to
+  also hold its comparer).
+* Resolve the expected/actual column indices once per column and read cell values
+  by index (shared with finding #3).
+
+This turns per-cell map lookups into per-column lookups, i.e. from `R × C` to `C`
+for comparer resolution.
+
+*Expected impact:* High. This is the read/verify side of every assertion-based
+test.
+
+=== Column-name resolution multiplied by `ITable` decorator depth
+
+*Where:* the `ITable` decorators, e.g.
+`SortedTable`, `ReplacementTable`, `FilteredDataSet`/column-filter tables,
+`ColumnFilterTable`, `CaseInsensitiveTable`, `CompositeTable`
+(`src/main/java/org/dbunit/dataset/*.java`). `ITable` exposes only
+`getValue(int row, String column)`.
+
+*Problem:* Because the only value accessor is name-keyed, a single logical cell
+read travels down a decorator stack (a common stack is
+`SortedTable → ReplacementTable → DefaultTable`), and *each* layer re-resolves the
+same column *name* to an index via its own `getColumnIndex`/metadata `HashMap`
+lookup. With a stack depth of `N`, the effective cost is `N × R × C` map lookups.
+This is the root cause that amplifies findings #1 and #2.
+
+*Fix:* Introduce an internal index-based read path so a resolved column index can
+be threaded down the stack without re-resolution at each layer. Options, least to
+most invasive:
+
+* Add a package-private/optional index-aware interface (e.g.
+  `getValue(int row, int columnIndex)`) implemented by the common decorators and
+  leaf tables, with `AbstractTable` providing a name-based default that delegates
+  to it. Callers in the batch and assertion loops (findings #1, #2) resolve the
+  index once and use the index path when available.
+* Where a decorator does not reorder or rename columns (e.g. `ReplacementTable`),
+  have it pass the index straight through.
+
+Keep `getValue(int, String)` fully working for third-party tables that do not
+implement the index path.
+
+*Expected impact:* High for decorator-heavy datasets; this is the enabler that
+makes #1 and #2 pay off end-to-end.
+
+=== Redundant JDBC metadata round-trips in `DatabaseDataSet.initialize`
+
+*Where:* `org.dbunit.database.DatabaseDataSet.initialize(String)`
+(`src/main/java/org/dbunit/database/DatabaseDataSet.java`, lines ~240–255).
+
+*Problem:* The method calls `jdbcConnection.getMetaData()` up to three times in
+immediate succession (once for `databaseMetaData`, then twice inside the Sybase
+guard: `SQLHelper.isSybaseDb(jdbcConnection.getMetaData())` and
+`jdbcConnection.getMetaData().getUserName()`), and the Sybase product detection is
+re-run on *every* schema initialization even though the product cannot change for
+the life of the connection.
+
+*Fix:*
+
+* Fetch `DatabaseMetaData` once into a local and reuse it for the Sybase check and
+  the `getUserName()` call.
+* Memoize the "is Sybase" determination (and any other product-level probe) on the
+  connection/dataset so repeated `initialize(schema)` calls for additional schemas
+  do not repeat the driver round-trips.
+
+*Expected impact:* Medium. `getMetaData()` and product probes can be surprisingly
+expensive on some drivers, and this runs on first access and for each new schema.
+
+=== `SELECT` rebuilt with per-column object allocation on every table read
+
+*Where:* `org.dbunit.database.DatabaseDataSet.getSelectStatement(...)`
+(`src/main/java/org/dbunit/database/DatabaseDataSet.java`, lines ~127–187).
+
+*Problem:* Building the select statement allocates a fresh `QualifiedTableName`
+object for *each* column (and again for each order-by/PK column) on every
+invocation, and the whole SQL string is reconstructed on every table read. For
+wide tables read repeatedly, this is avoidable allocation and string-building
+churn.
+
+*Fix:*
+
+* Compute the qualified/escaped column identifiers without a per-column
+  `QualifiedTableName` allocation (the escape pattern and quoting logic can be
+  applied directly, or a single helper reused).
+* Cache the generated `SELECT` on the (effectively immutable) `ITableMetaData`
+  once columns and primary keys are known, keyed by the parameters that affect it
+  (`schema`, `escapePattern`, `sortAllColumnsWhenNoPrimaryKey`), so re-reads of the
+  same table reuse the string.
+
+*Expected impact:* Medium; scales with table width and number of table reads.
+
+=== `FlatXmlProducer` re-scans and uppercases every attribute per row
+
+*Where:* `org.dbunit.dataset.xml.FlatXmlProducer.handleMissingColumns(Attributes)`
+and `startElement(...)`
+(`src/main/java/org/dbunit/dataset/xml/FlatXmlProducer.java`, lines ~300–345 and
+the `startElement` call site).
+
+*Problem:* `handleMissingColumns` is invoked for *every row element* and, for
+every attribute, calls `attributes.getQName(i).toUpperCase(Locale.ENGLISH)` and a
+`Set.contains` check. This allocation-and-scan runs even when
+`columnSensing == false`, where its only effect is to emit a warning — so for the
+common (non-sensing) case the entire per-attribute uppercase scan is wasted work
+repeated on every row.
+
+*Fix:*
+
+* When `columnSensing` is disabled, perform the "extra columns" detection at most
+  once (e.g. on the first row of a table) rather than on every row, since the
+  attribute set for the warning does not change per row.
+* Avoid re-uppercasing each `QName` per row — the active-column set is already
+  normalized; compare without allocating a new uppercase string per attribute
+  where possible.
+
+*Expected impact:* Medium for large flat-XML datasets; the cost is proportional to
+`rows × attributes`.
+
+=== Eager debug-argument construction on per-value hot paths
+
+*Where:* multiple `getValue(...)` implementations, e.g.
+`XlsTable` (unguarded `logger.debug(...)`),
+and the guarded-but-eager `Integer.toString(row)` pattern in `DefaultTable`,
+`ForwardOnlyResultSetTable`, `ColumnFilterTable`, `SortedTable`, and others.
+
+*Problem:* Two related patterns add avoidable per-cell work:
+
+* Some hot `getValue` methods log *without* an `isDebugEnabled()` guard, always
+  autoboxing/allocating argument arrays even in production where debug is off.
+* Several guarded calls still pass `Integer.toString(row)`, i.e. build the string
+  eagerly; while guarded calls only pay this when debug is enabled, the explicit
+  `toString` is unnecessary because SLF4J defers formatting.
+
+*Fix:* Standardize the hot-path logging idiom:
+
+* Guard per-cell/per-row `logger.debug(...)` with `isDebugEnabled()` (or rely on
+  SLF4J parameterized logging) consistently.
+* Pass the raw `int`/`Object` arguments and let SLF4J format lazily; drop the
+  explicit `Integer.toString(...)` and `new Object[]{...}` construction.
+
+*Expected impact:* Low individually, but these methods are the single most
+frequently called in the library, so the cleanup is cheap and safe.
+
+== Suggested sequencing
+
+1. Land finding #3 first (index-based read path). It is the enabler that unlocks
+   the full benefit of #1 and #2 without touching the public `ITable` contract.
+2. Then #1 and #2, which convert the batch-write and assertion loops to
+   index-based, per-column resolution.
+3. #4 and #5 are independent `database`-package changes and can proceed in
+   parallel.
+4. #6 and #7 are localized, low-risk cleanups suitable as standalone commits.
+
+Each change should be its own atomic commit with accompanying tests and, where a
+behavioral or configuration surface is touched, a `changes.xml` entry.
