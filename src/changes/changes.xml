@@ -201,6 +201,9 @@
       <action dev="jeffjensen" type="update" issue="900" system="github" due-to="jeffjensen">
           Cross-link the new changelog.adoc from releasing.adoc's two changes.xml touch points, replacing a "see CONTRIBUTING.md" pointer to content that has moved.
       </action>
+      <action dev="jeffjensen" type="add" issue="901" system="github" due-to="jeffjensen">
+          Commit CONTRIBUTING.md as a short GitHub-native quick start pointing at the new "Developing DbUnit" site section instead of duplicating it: keeps the build/test commands inline, condenses the submitting-changes steps, and removes the ~80-line changes.xml/Dependabot-automation deep dive now owned by changelog.adoc. Fixes two stale "master" references (confirmed the real target branch is "main" via .github/workflows/dependabot-changelog.yml) and an overstated "enforced by Checkstyle" code-style claim.
+      </action>
     </release>
     <release version="3.4.0" date="Jul 28, 2026" description="Test-suite hardening (un-skip and strengthen dozens of disabled/no-op tests); add CachingConnectionProvider and reduce DefaultPrepAndExpectedTestCase's per-test connection churn; pin identifier case-folding to Locale.ENGLISH for Turkish-locale correctness; and a broad set of correctness fixes across export formats (XML, YAML, CSV, XLS, Ant), TimestampDataType timezone handling, InsertOperation/TransactionOperation, and resource-leak cleanups">
       <action dev="jeffjensen" type="fix" issue="797" system="github" due-to="jeffjensen">
