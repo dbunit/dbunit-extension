@@ -147,8 +147,20 @@
     </menu>
 
     <menu name="Developing DbUnit">
-      <item name="Building"             href="/building.html"/>
       <item name="Developers Guide"     href="/devguide.html"/>
+      <item name="Coding Standards"     href="/codingstandards.html">
+        <item name="Java Style &amp; Tooling" href="/codingstandards/javastyle.html"/>
+        <item name="JavaDoc Conventions"      href="/codingstandards/javadoc.html"/>
+        <item name="Test Conventions"         href="/codingstandards/testconventions.html"/>
+      </item>
+      <item name="Commit Requirements"  href="/commits.html"/>
+      <item name="Changelog"            href="/changelog.html"/>
+      <item name="GitHub Workflow"      href="/github.html">
+        <item name="Issues"                        href="/github/issues.html"/>
+        <item name="Branching &amp; Pull Requests"  href="/github/pullrequests.html"/>
+        <item name="Continuous Integration"         href="/github/continuousintegration.html"/>
+      </item>
+      <item name="Building"             href="/building.html"/>
       <item name="Integration Tests"    href="/integrationtests.html"/>
       <item name="Releasing"            href="/releasing.html"/>
     </menu>
