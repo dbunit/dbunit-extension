@@ -17,6 +17,44 @@ Once you have them all, you can build DbUnit by just typing *mvnw*! The items be
 . Obtain DbUnit code, either current or released source (see *Quick Links* on left menu)
 . On the root directory, simply type `mvnw` in the command line. (If you need to clean up the binaries, run `mvnw clean install` instead.) The jar file will be generated in the target directory.
 
+== Quality Gates
+
+Several plugins run as part of the normal build lifecycle and can change whether it
+succeeds:
+
+[cols="1,2,2", options="header"]
+|===
+|Plugin |When it runs |Fails the build?
+
+|Modernizer |`verify` phase |*Yes* (`failOnViolations=true`) — flags use of an API with
+a more modern equivalent for the project's target Java version. Skip locally with
+`-DmodernizerPluginSkip=true` (the same property the `-Prelease` and per-database
+profiles set internally).
+|Enforcer |`validate` phase (the `enforce` goal's default binding — the execution in
+`pom.xml` doesn't override it) |*Yes* — checks the Maven and Java versions in use,
+required plugin versions, and that referenced profile IDs actually exist.
+|Checkstyle |`site` (reporting only) |*No.* `checkstyle.xml`'s ruleset is wired only
+under the `reporting` section — no execution binds a `check` goal to any lifecycle
+phase, so a violation shows up in the generated report (`mvnw site`) but does not fail
+`mvnw verify`/`mvnw install`/CI. Follow link:codingstandards/javastyle.html[Java Style &
+Tooling]'s rules anyway; don't rely on the build to catch a violation for you.
+|JaCoCo |`test`/`verify` (report generation) |No — produces a coverage report, does not
+gate the build on a coverage threshold.
+|japicmp |`site` (reporting only) |No — compares the current API against a prior
+release and reports differences; see link:releasing.html[Releasing] for how its
+`reportSets` are updated each release cycle.
+|===
+
+Surefire also has a skip property, `-DsurefirePluginSkip=true`, used internally by the
+release profiles (tests already ran earlier in the pipeline by the time those profiles
+build); it isn't something you'd normally pass locally.
+
+Both Surefire and Failsafe force `-Duser.timezone=Europe/Berlin` on every test run, so
+timestamp/timezone-sensitive behavior is exercised the same way in CI regardless of the
+runner's own locale. A test launched directly from an IDE skips this unless its run
+configuration sets the same system property — see
+link:codingstandards/testconventions.html[Test Conventions].
+
 == Creating the site
 
 Run `mvnw site` in the command line; the site will be available on `target/site/index.html`. Note that you might get an _OutOfMemoryExceptionError_; if that happens, you must increase the heap size through the _MAVEN_OPTS_ variable (for instance, on Unix systems, you could run `MAVEN_OPTS=-mx512M mvnw site`).

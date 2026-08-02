@@ -192,6 +192,9 @@
       <action dev="jeffjensen" type="update" issue="897" system="github" due-to="jeffjensen">
           Rewrite devguide.adoc from a stale, kitchen-sink page (SourceForge-era license/JavaDoc example, an Fnnn/Bnnn commit-prefix convention contradicting actual Conventional Commits usage, "master" instead of "main," and a dead mail-lists.html link) into the "Developing DbUnit" section's orientation hub, with a Contributor Quick Start checklist and links to every page in the section. Wire site.xml's "Developing DbUnit" menu to the full new nested structure (Coding Standards and GitHub Workflow each with 3 children).
       </action>
+      <action dev="jeffjensen" type="update" issue="898" system="github" due-to="jeffjensen">
+          Add a Quality Gates section to building.adoc listing what runs where and whether it fails the build, confirmed directly against pom.xml: Modernizer and Enforcer do fail the build, Checkstyle/JaCoCo/japicmp do not. Also note the Europe/Berlin fixed test timezone Surefire and Failsafe both force, previously undocumented anywhere on the site.
+      </action>
     </release>
     <release version="3.4.0" date="Jul 28, 2026" description="Test-suite hardening (un-skip and strengthen dozens of disabled/no-op tests); add CachingConnectionProvider and reduce DefaultPrepAndExpectedTestCase's per-test connection churn; pin identifier case-folding to Locale.ENGLISH for Turkish-locale correctness; and a broad set of correctness fixes across export formats (XML, YAML, CSV, XLS, Ant), TimestampDataType timezone handling, InsertOperation/TransactionOperation, and resource-leak cleanups">
       <action dev="jeffjensen" type="fix" issue="797" system="github" due-to="jeffjensen">
