@@ -1,0 +1,70 @@
+= VerifyTableDefinition
+
+[#overview]
+== Overview
+
+link:/dbunit/apidocs/org/dbunit/VerifyTableDefinition.html[VerifyTableDefinition]
+(`org.dbunit`, since 2.4.8) defines one database table to verify: which columns to
+include or exclude from the comparison, and which
+link:../datacomparisons/valuecomparer.html[ValueComparer] (if any) to use per column.
+It is consumed by
+link:../testcases/PrepAndExpectedTestCase.html[PrepAndExpectedTestCase] — one instance
+per table you want verified after a test runs.
+
+[#fields]
+== Fields
+
+[cols="1,3", options="header"]
+|===
+|Field (getter) |Description
+
+|`tableName` (`getTableName()`) |The table's name — the only required piece of state; every constructor rejects a `null` table with `IllegalArgumentException`.
+|`columnExclusionFilters` (`getColumnExclusionFilters()`) |Columns to leave out of the comparison; `null`/empty means exclude none.
+|`columnInclusionFilters` (`getColumnInclusionFilters()`) |Columns to restrict the comparison to; `null` means include all, empty means include none.
+|`defaultValueComparer` (`getDefaultValueComparer()`, since 2.6.0) |The `ValueComparer` used for any column not present in `columnValueComparers`. `null` defaults to equality comparison.
+|`columnValueComparers` (`getColumnValueComparers()`, since 2.6.0) |A `Map<String, ValueComparer>` of per-column comparers, keyed by column name.
+|===
+
+[#constructors]
+== Constructors
+
+`VerifyTableDefinition` has 5 constructor overloads. All of them delegate to the
+5-argument canonical form; pick whichever overload matches what you need to configure:
+
+[cols="3,3", options="header"]
+|===
+|Signature |When to use it
+
+|`VerifyTableDefinition(String table, String[] excludeColumns)` |All columns compared (equality) except the excluded ones — the common case.
+|`VerifyTableDefinition(String table, ValueComparer defaultValueComparer, Map<String, ValueComparer> columnValueComparers)` |All columns compared, no exclusions, but with `ValueComparer`-based comparison instead of plain equality.
+|`VerifyTableDefinition(String table, String[] excludeColumns, ValueComparer defaultValueComparer, Map<String, ValueComparer> columnValueComparers)` |Exclusions plus `ValueComparer`-based comparison.
+|`VerifyTableDefinition(String table, String[] excludeColumns, String[] includeColumns)` |Explicit include *and* exclude column filters, equality comparison.
+|`VerifyTableDefinition(String table, String[] excludeColumns, String[] includeColumns, ValueComparer defaultValueComparer, Map<String, ValueComparer> columnValueComparers)` |The canonical form — every other constructor is a convenience overload of this one, filling unspecified arguments with `null`.
+|===
+
+[#verifier]
+== VerifyTableDefinitionVerifier
+
+Every constructor's last step is
+`verifyTableDefinitionVerifier.verify(this)`, using a
+link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/verifier/DefaultVerifyTableDefinitionVerifier.html[DefaultVerifyTableDefinitionVerifier]
+by default. It catches one specific configuration conflict: a column listed in both
+`columnExclusionFilters` and `columnValueComparers` — excluded from comparison, yet also
+given a specific comparer — and throws `IllegalStateException` with a message naming the
+table and column. This is a fail-fast check at construction time, not at comparison
+time, so a misconfigured `VerifyTableDefinition` breaks loudly wherever it's built
+(commonly a static field or factory method) rather than surfacing later as a confusing
+assertion failure.
+
+`getVerifyTableDefinitionVerifier()`/`setVerifyTableDefinitionVerifier()` expose the
+verifier instance for reuse (e.g. calling `.verify(...)` again manually) or replacement
+with a custom `VerifyTableDefinitionVerifier`. Note the setter has no automatic effect on
+verification already performed — construction always verifies using the default
+verifier, since the setter can only be called on an instance that already exists.
+
+[#usage]
+== Usage Examples
+
+This page covers the class's shape. For full usage — static shared instances,
+test-specific factory methods, and wiring `ValueComparer`s per table — see
+link:../testcases/PrepAndExpectedTestCase.html[PrepAndExpectedTestCase].

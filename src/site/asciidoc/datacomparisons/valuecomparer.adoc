@@ -80,7 +80,9 @@ link:/dbunit/apidocs/org/dbunit/PrepAndExpectedTestCase.html[PrepAndExpectedTest
 directly supports
 link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html[ValueComparer]
 in addition to equality comparison via
-link:/dbunit/apidocs/org/dbunit/VerifyTableDefinition.html[VerifyTableDefinition].
+link:/dbunit/apidocs/org/dbunit/VerifyTableDefinition.html[VerifyTableDefinition]
+(see link:../components/verifytabledefinition.html[VerifyTableDefinition] for the
+class reference).
 See
 link:/dbunit/testcases/PrepAndExpectedTestCase.html[PrepAndExpectedTestCase overview]
 for examples with it.
