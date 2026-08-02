@@ -1,0 +1,13 @@
+= Coding Standards
+
+DbUnit's coding standards cover both hand-followed conventions and the tooling that
+partially automates or enforces them. Pick the focused page for what you need:
+
+link:codingstandards/javastyle.html[Java Style & Tooling]:: General Java style rules,
+the Eclipse formatter, Checkstyle, and Modernizer.
+
+link:codingstandards/javadoc.html[JavaDoc Conventions]:: The file header, what needs
+JavaDoc, and `@since`/`@author` tagging.
+
+link:codingstandards/testconventions.html[Test Conventions]:: Test class/method naming,
+AssertJ usage, and the fixed test timezone — for writing dbUnit's own test suite.
