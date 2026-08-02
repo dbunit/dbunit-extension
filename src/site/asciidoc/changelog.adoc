@@ -1,0 +1,125 @@
+= Changelog (changes.xml)
+
+[#overview]
+== Overview
+
+`src/changes/changes.xml` is how users see what changed release to release: the
+`maven-changes-plugin` renders it into the site's Changes report. Every user-facing
+change gets an `<action>` entry.
+
+[#required-attributes]
+== Required Attributes
+
+Populate all five on every entry — ask when a value is unknown rather than guessing:
+
+[cols="1,3", options="header"]
+|===
+|Attribute |Meaning
+
+|`dev` |The GitHub username of the person making the change.
+|`type` |One of `add`, `fix`, `update`, `remove` — see below.
+|`issue` |The GitHub issue number this change addresses (no `#`).
+|`system` |Always `"github"`.
+|`due-to` |Who to credit for the change — usually the same as `dev`, but distinct for
+externally-contributed changes credited to someone else.
+|===
+
+[#type-values]
+== Valid `type` Values
+
+* `add` — new functionality or a new page.
+* `fix` — a bug fix.
+* `update` — a change to something that already exists.
+* `remove` — something taken away.
+
+[#placement]
+== Placement
+
+Add new `<action>` entries at the bottom of the *current SNAPSHOT release's* action
+list — the `<release>` element with `date="TBD"`. Don't insert in the middle or at the
+top; append.
+
+[#same-commit-rule]
+== The Same-Commit Rule
+
+A `changes.xml` entry ships in the *same commit* as the change it describes, not a
+follow-up commit. This is a specific case of the general bundling rule — see
+link:commits.html[Commit Requirements].
+
+[#release-description]
+== The Release `description` Attribute
+
+The `<release>` element's own `description` attribute is a short 1-2 sentence summary
+of that release's *overall themes* — not a concatenation of every entry. Update it only
+when a new theme is introduced, by extending the existing text; full detail belongs in
+each `<action>`'s own body, not here.
+
+[#new-development-cycle]
+== Starting a New Development Cycle
+
+Immediately after a release is cut, hand-add a new release block at the top of
+`<body>`, before any automation (including Dependabot's, below) can append to it:
+
+[source,xml]
+----
+<release version="X.Y.Z-SNAPSHOT" date="TBD" description="Brief summary">
+</release>
+----
+
+See link:releasing.html[Releasing] for where this fits in the full release procedure.
+
+[#dependabot-automation]
+== Automated Entries for Dependabot PRs
+
+Dependency updates opened by Dependabot get a `changes.xml` entry automatically after
+each such PR merges to `main`, via
+`.github/workflows/dependabot-changelog.yml`. You do not need to hand-edit
+`changes.xml` for routine dependency bumps.
+
+The workflow:
+
+* Triggers on `pull_request: closed`, when the PR was merged and the author is
+  `dependabot[bot]`.
+* Uses `dependabot/fetch-metadata` to extract dependency names/versions from the PR
+  (handles grouped-update PRs correctly).
+* Calls `.github/scripts/append-changes-entry.py` once per updated dependency to append
+  one `<action>` entry.
+* Commits with `[skip ci]` and pushes to `main`. If branch protection requires a PR, the
+  workflow opens a `chore/changelog-pr-NNN` branch, creates a draft PR, and enables
+  auto-merge.
+
+=== Disabling for a Specific PR
+
+Add the `skip-changelog` label to a Dependabot PR before it merges; the workflow's
+condition checks for it and skips the job. The workflow's own fallback PRs are labeled
+`skip-changelog` automatically, to avoid looping.
+
+=== Manual Backfill
+
+If the automation fails (for example, no `-SNAPSHOT` release existed yet at merge time),
+replay it:
+
+* From the GitHub UI: *Actions -> Record Dependabot update in changes.xml -> Run
+  workflow*, filling in the PR number, dependency name, versions, update type, and
+  ecosystem.
+* Or run the script directly:
++
+[source,bash]
+----
+python3 .github/scripts/append-changes-entry.py \
+  --pr-number     42 \
+  --dependency-name "org.assertj:assertj-core" \
+  --previous-version "3.25.0" \
+  --new-version   "3.26.0" \
+  --update-type   "version-update:semver-minor" \
+  --ecosystem     "maven"
+----
+
+The script is idempotent — running it twice with the same arguments produces only one
+`<action>` entry. Its own tests run via:
+
+[source,bash]
+----
+cd .github/scripts
+pytest test_append_changes_entry.py -v
+----
