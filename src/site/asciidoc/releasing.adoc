@@ -32,7 +32,8 @@ workflow across all database profiles: the build that release:prepare runs below
 .. Add menu entry for japicmp prior version to new version comparison
 .. Comment out comparison to latest snapshot until a new snapshot exists
 
-. Update changes.xml
+. Update changes.xml (see link:changelog.html[Changelog] for the full attribute/schema
+reference)
 .. Update release version
 .. Set release date to today
 
@@ -104,4 +105,4 @@ The release:prepare step above already bumped pom.xml to the new SNAPSHOT versio
 The remaining dbUnit-specific files still need a manual follow-up commit, e.g. "build(pom): Prep x.y.z-SNAPSHOT development":
 .. Update pom.xml japicmp-maven-plugin configuration: uncomment the comparison of the release just shipped to the new snapshot
 .. Update index.adoc with a new SNAPSHOT news entry
-.. Update changes.xml with a new SNAPSHOT release entry (date="TBD"); required before the Dependabot changelog automation can append entries -- see CONTRIBUTING.md
+.. Update changes.xml with a new SNAPSHOT release entry (date="TBD"); required before the Dependabot changelog automation can append entries -- see link:changelog.html[Changelog]
