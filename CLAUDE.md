@@ -153,6 +153,7 @@ Integration tests use `DatabaseEnvironment` to bootstrap the target database fro
   - Reference GitHub issues in the commit footer with `Refs: <issue-number>` (e.g. `Refs: 123`).  Do not use a # before the number.
   - Do not put the issue number in the message topic.
   - Use * for bullets, not -.
+  - In commits, do not refer to files that are not committed.
 
 - Java:
   - Use Eclipse code formatter settings file `java-codestyle-formatter.xml` when modifying or creating files (in dbUnit)
@@ -165,6 +166,11 @@ Integration tests use `DatabaseEnvironment` to bootstrap the target database fro
     - Prefer assertJ.
     - Prefer to add ".as()" with a fail message ending with a period.
 
+- GitHub
+  - When creating a github issue, set the applicable labels, assignee, and issue type, and milestone as best can determine.  ask if needed.
+  - Do not create GitHub issues for verification-type tasks, only create them for features, bugs, and file changing actions.
+  - In issues, do not refer to files that are not committed.
+
 - dbUnit Organization:
 
   - changes.xml file
@@ -174,7 +180,6 @@ Integration tests use `DatabaseEnvironment` to bootstrap the target database fro
     - Valid entries for the type field are: add, fix, update, remove
     - Keep the release element's `description` attribute a short 1-2 sentence summary of the release's overall themes (e.g. "Test-suite hardening, connection-reuse caching, and assorted correctness fixes across export formats and timestamp handling"), not a per-entry concatenation. Update it only when a new theme is introduced, not on every `<action>` added — full detail belongs in each action's own text.
   - Tests that require a database to work are "integration tests", and therefore use the IT suffix.
-  - When creating a github issue, set the applicable labels, assignee, and issue type, and milestone as best can determine.  ask if needed.
 
 - dbUnit Core Specific Items:
 
