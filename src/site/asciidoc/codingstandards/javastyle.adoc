@@ -1,0 +1,88 @@
+= Java Style & Tooling
+
+[#overview]
+== Overview
+
+DbUnit's Java style favors clarity and immutability over cleverness. This page covers
+the conventions contributors follow by hand and the tooling that partially automates or
+enforces them.
+
+[#general-style]
+== General Style
+
+* Prefer writing clear code and use inline comments sparingly.
+* Prefer single statements over compound statements — nested calls on one line are
+  harder to read and debug than the equivalent broken out.
+* Prefer separate local variables over compound statements for readability.
+* Favor immutability. Try not to need setters.
+* Prefer constructors with arguments over no-args constructors plus setters.
+* Prefer constructor injection.
+* Write positive `if` statements when paired with an `else`.
+* Remove any blank line immediately after an opening curly brace.
+* Do not create `utils` or `helpers` packages or classes. Always create a focused
+  package or class instead — `utils`/`helpers` names are a dumping ground, not a
+  cohesive responsibility.
+
+[#formatting-tooling]
+== Formatting Tooling
+
+Import `java-codestyle-formatter.xml` (repo root) as the project's Eclipse formatter
+profile: *Window -> Preferences -> Java -> Code Style -> Formatter -> Import...* This is
+the authoritative, comprehensive formatter profile and the one to use.
+
+When a change would otherwise mix formatting noise with logic changes, commit the
+formatting correction separately first, with the message "Reformat only." Mixing
+formatting corrections with logic changes creates difficult code reviews and difficult
+historical change reviews. See link:../commits.html[Commit Requirements] for the general
+atomic-commit rule this specializes.
+
+[#cleanup-profile]
+== Cleanup Profile
+
+Import `code-cleanup-eclipse.xml` (repo root),
+a companion Eclipse *code cleanup* settings file (covering save actions such as import
+organization, unused-code removal, and similar automated cleanups, as distinct from pure
+formatting):
+*Window -> Preferences -> Java -> Code Style -> Clean Up -> Import...*
+
+[#checkstyle]
+== Checkstyle
+
+`checkstyle.xml` (repo root) defines the project's Checkstyle rules. The current ruleset
+is intentionally minimal:
+
+* Import hygiene: `AvoidStarImport`, `IllegalImport`, `RedundantImport`, `UnusedImports`.
+* Public-scope JavaDoc presence and style: `JavadocType`, `JavadocStyle` — see
+  link:javadoc.html[JavaDoc Conventions] for what to actually write.
+
+`org/dbunit/util/concurrent/*.java` is excluded from these checks (the
+`checkstyle.excludes` property in `pom.xml`), as vendored/adapted code held to a
+different bar than the rest of the codebase.
+
+Checkstyle is wired only under Maven's `reporting` section today — it produces a report
+you can view via `mvnw site`, but no lifecycle-phase execution binds a `check` goal
+anywhere in `pom.xml`, so a Checkstyle violation does *not* fail `mvnw verify`,
+`mvnw install`, or CI. Follow the ruleset anyway; don't rely on the build to catch a
+violation for you.
+
+[#modernizer]
+== Modernizer
+
+`modernizer-maven-plugin` runs during the `verify` phase with `failOnViolations=true`:
+unlike Checkstyle, a Modernizer violation *does* fail the build. It flags use of an API
+that has a more modern equivalent for the project's target Java version (for example, an
+old collections idiom with a direct newer replacement) and requires switching to the
+modern form.
+
+[#lombok]
+== Lombok
+
+Where Lombok is already a dependency, use its annotations — `@AllArgsConstructor`,
+`@NoArgsConstructor`, `@Getter`, `@Setter`, and similar — instead of hand-written
+boilerplate, consistent with the constructor-injection and immutability preferences
+above.
+
+[#logger-placement]
+== Logger Placement
+
+When a class is not annotated `@Slf4j`, declare its `Logger` field first in the class.
