@@ -1,0 +1,13 @@
+= GitHub Workflow
+
+DbUnit development happens on GitHub: a fork-based pull request workflow, GitHub Issues
+for tracking work, and GitHub Actions for CI. Pick the focused page for what you need:
+
+link:github/issues.html[Issues]:: When to file one, the issue templates, and the
+required labels/assignee/type/milestone metadata.
+
+link:github/pullrequests.html[Branching & Pull Requests]:: Forking, branching from
+`main`, opening a PR, and what must be true before merge.
+
+link:github/continuousintegration.html[Continuous Integration]:: The two workflows to
+monitor, their actual trigger conditions, and what CI does not cover.
