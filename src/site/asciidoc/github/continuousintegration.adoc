@@ -1,0 +1,48 @@
+= Continuous Integration
+
+[#workflows-to-monitor]
+== Workflows To Monitor
+
+Two GitHub Actions workflows matter for a branch's coding work in progress:
+
+`build-any-branch-with-all-dbs.yml`::
+link:https://github.com/dbunit/dbunit-extension/actions/workflows/build-any-branch-with-all-dbs.yml[Monitor
+this workflow's runs]. Triggers on push and pull request, *except* when every changed
+path is documentation (`src/site/**`, `**/*.adoc`, `**/*.md`) — a pure documentation
+change never triggers it. Compiles, runs unit tests, then runs the full multi-database
+integration-test matrix.
+
+`publish-docs.yml`::
+link:https://github.com/dbunit/dbunit-extension/actions/workflows/publish-docs.yml[Monitor
+this workflow's runs]. Triggers on push to `main` touching documentation paths, on a
+`workflow_run` chain after the workflow above (and after the Dependabot changelog
+workflow) completes, and manually via `workflow_dispatch`. *It only runs against
+`main`* — there is no `pull_request` trigger — so no feature branch ever gets a
+published-site preview from CI. The only pre-merge check for a documentation change is
+rendering the site locally: `mvnw clean install site` (see link:../building.html[Building]).
+
+[#what-ci-does-not-cover]
+== What CI Does Not Cover
+
+Two more workflows exist but aren't something your pull request runs directly:
+
+* `release.yml` — triggered only by pushing a `dbunit-*` tag, deploys to Maven Central.
+  See link:../releasing.html[Releasing].
+* The Dependabot changelog workflow — triggered by a merged Dependabot PR. See
+  link:../changelog.html[Changelog].
+
+[#legacy-ci-config]
+== Legacy CI Configuration
+
+`.travis.yml`, `.gitlab-ci.yml`, `Jenkinsfile`, and `.gitbugtraq` still exist at the
+repository root from before the project's move to GitHub Actions. They are not part of
+the current pipeline — if you find one, it's a historical artifact, not a second CI
+system to satisfy.
+
+[#dependency-submission]
+== Dependency Graph Submission
+
+`build-any-branch-with-all-dbs.yml` also runs
+`advanced-security/maven-dependency-submission-action`, keeping GitHub's dependency
+graph current. It's skipped when the actor is `dependabot[bot]`, to avoid redundant
+submissions on dependency-bump PRs.
