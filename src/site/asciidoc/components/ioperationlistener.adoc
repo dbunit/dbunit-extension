@@ -1,0 +1,82 @@
+= IOperationListener
+
+[#overview]
+== Overview
+
+link:/dbunit/apidocs/org/dbunit/IOperationListener.html[IOperationListener] (`org.dbunit`,
+since 2.4.4) observes an link:../connections.html[IDatabaseConnection]'s lifecycle
+around an link:../testcases/IDatabaseTester.html[IDatabaseTester]'s `onSetup()`/
+`onTearDown()` calls. Set one with `IDatabaseTester.setOperationListener()`. This page
+is the class-shape reference; see
+link:../testcases/IDatabaseTester.html#IOperationListenerHooks[the IDatabaseTester
+guide] for how the 3 hooks fit into the setup/teardown lifecycle in practice.
+
+[#hooks]
+== The 3 Hook Methods
+
+[cols="2,3", options="header"]
+|===
+|Method |Called
+
+|`connectionRetrieved(IDatabaseConnection connection)` |Immediately after a connection is newly created or an existing one is retrieved, before the operation runs. Apply `DatabaseConfig` customizations here.
+|`operationSetUpFinished(IDatabaseConnection connection)` |After `IDatabaseTester.onSetup()`'s operation completes.
+|`operationTearDownFinished(IDatabaseConnection connection)` |After `IDatabaseTester.onTearDown()`'s operation completes.
+|===
+
+Both `*Finished` methods exist so a listener can decide whether the connection should
+be closed at that point — the two built-in implementations below make opposite choices.
+
+[#defaultoperationlistener]
+== DefaultOperationListener
+
+link:/dbunit/apidocs/org/dbunit/DefaultOperationListener.html[DefaultOperationListener] is the
+default implementation used when none is explicitly set. Confirmed directly against its
+source: `connectionRetrieved()` is a no-op; both `operationSetUpFinished()` and
+`operationTearDownFinished()` close the connection. In other words, a fresh connection
+is created (or retrieved) for every single `onSetup()`/`onTearDown()` call unless a
+different listener is configured.
+
+[#noop]
+== IOperationListener.NO_OP_OPERATION_LISTENER
+
+`IOperationListener.NO_OP_OPERATION_LISTENER` is a static, trace-logging implementation
+that never closes the connection. Use it (or a custom non-closing listener) whenever a
+connection needs to survive past a single `onSetup()`/`onTearDown()` call — most
+commonly when pairing an `IDatabaseTester` with a
+link:../connections.html#cachingconnectionprovider[CachingConnectionProvider], which
+would otherwise have its cached connection closed out from under it after the very
+first use:
+
+[source,java]
+----
+databaseTester.setOperationListener(IOperationListener.NO_OP_OPERATION_LISTENER);
+----
+
+[#custom]
+== Writing a Custom Listener
+
+A custom listener isn't limited to open/close decisions — since every hook receives the
+live `IDatabaseConnection`, it's a convenient place for cross-cutting setup/teardown
+concerns such as logging or metrics:
+
+[source,java]
+----
+IOperationListener listener = new IOperationListener()
+{
+    public void connectionRetrieved(IDatabaseConnection connection)
+    {
+        log.debug("Connection retrieved: {}", connection);
+    }
+
+    public void operationSetUpFinished(IDatabaseConnection connection)
+    {
+        log.debug("Setup finished for: {}", connection);
+    }
+
+    public void operationTearDownFinished(IDatabaseConnection connection)
+    {
+        log.debug("Teardown finished for: {}", connection);
+    }
+};
+databaseTester.setOperationListener(listener);
+----

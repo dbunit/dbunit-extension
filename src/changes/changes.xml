@@ -150,6 +150,9 @@
       <action dev="jeffjensen" type="add" issue="882" system="github" due-to="jeffjensen">
           Add components/verifytabledefinition.adoc, a new Core Components reference page documenting VerifyTableDefinition's fields, all 5 constructor overloads, and its DefaultVerifyTableDefinitionVerifier construction-time validation, previously explained only through usage examples on PrepAndExpectedTestCase.adoc.
       </action>
+      <action dev="jeffjensen" type="add" issue="883" system="github" due-to="jeffjensen">
+          Add components/ioperationlistener.adoc, a new Core Components reference page documenting IOperationListener's 3 hook methods, DefaultOperationListener's connection-closing behavior, and NO_OP_OPERATION_LISTENER, previously undocumented anywhere in the site beyond one unexplained code reference.
+      </action>
     </release>
     <release version="3.4.0" date="Jul 28, 2026" description="Test-suite hardening (un-skip and strengthen dozens of disabled/no-op tests); add CachingConnectionProvider and reduce DefaultPrepAndExpectedTestCase's per-test connection churn; pin identifier case-folding to Locale.ENGLISH for Turkish-locale correctness; and a broad set of correctness fixes across export formats (XML, YAML, CSV, XLS, Ant), TimestampDataType timezone handling, InsertOperation/TransactionOperation, and resource-leak cleanups">
       <action dev="jeffjensen" type="fix" issue="797" system="github" due-to="jeffjensen">

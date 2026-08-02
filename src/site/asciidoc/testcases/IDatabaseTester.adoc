@@ -100,10 +100,12 @@ this lifecycle (plus expected-data verification) behind `runTest()`/
 `preTest()`/`postTest()`, and is usually a better starting point than driving
 `onSetup()`/`onTearDown()` directly — see its page for the full API.
 
+[#IOperationListenerHooks]
 == IOperationListener Hooks
 
 link:/dbunit/apidocs/org/dbunit/IOperationListener.html[IOperationListener]
-observes connection handling around `onSetup()`/`onTearDown()`. Set one with
+(see link:../components/ioperationlistener.html[IOperationListener] for the full class
+reference) observes connection handling around `onSetup()`/`onTearDown()`. Set one with
 `setOperationListener()`:
 
 * `connectionRetrieved(IDatabaseConnection)` — called right after a

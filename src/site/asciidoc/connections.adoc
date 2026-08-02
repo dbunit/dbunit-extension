@@ -71,6 +71,10 @@ void setUp() throws Exception
 }
 ----
 
+See link:components/ioperationlistener.html[IOperationListener] for the full hook
+reference, including why the default listener would otherwise close this cached
+connection.
+
 *Thread safety.* Access to the cached connection is synchronized, so
 concurrent callers cannot create or replace it at the same time. The
 returned `IDatabaseConnection` — and the underlying JDBC `Connection` it
