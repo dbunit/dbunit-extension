@@ -3,9 +3,20 @@
 image:https://github.com/dbunit/dbunit-extension/actions/workflows/build-any-branch-with-all-dbs.yml/badge.svg?branch=main["Build Status", link="https://github.com/dbunit/dbunit-extension/actions/workflows/build-any-branch-with-all-dbs.yml?query=branch%3Amain"]
 image:https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/jvm-repo-rebuild/reproducible-central/master/content/org/dbunit/badge.json["Reproducible Builds", link="https://github.com/jvm-repo-rebuild/reproducible-central/blob/master/content/org/dbunit/README.md"]
 
-DbUnit is a mature, proven JUnit extension founded in 2002.
-It is targeted at database projects that, among other things, puts the database into a known state between test runs.
+DbUnit is a mature, proven JUnit extension, founded in 2002,
+targeted at database-driven projects that, among other things,
+puts the database into a known state between test runs.
 This is an excellent way to avoid the myriad of problems that can occur when one test case corrupts the data and causes subsequent tests to fail or exacerbate the damage.
+
+dbUnit hooks into JUnit 5/6 (Jupiter; JUnit 4 support was dropped in 3.0.0)
+either by composing an `IDatabaseTester` into your test class (the preferred style)
+or by extending `DBTestCase`.
+
+* Reads and writes Flat XML, XML, CSV, YAML, and Excel datasets, built from files, code, or a live query.
+* `INSERT`, `UPDATE`, `DELETE`, `REFRESH` (upsert), `CLEAN_INSERT`, and other composable database operations.
+* `ValueComparer` assertions beyond strict equality — tolerance (numeric and timestamp), greater-than/less-than, null checks, string containment, and ignore-millis timestamps.
+* Vendor-specific support for 9 databases — DB2, H2, HSQLDB, Mckoi, MSSQL, MySQL, Netezza, Oracle, and PostgreSQL.
+* Usable outside of tests too, via its https://dbunit.github.io/dbunit-extension/anttask.html[Ant Integration] task or the companion dbunit-maven-plugin, for data import/export.
 
 New here? The fastest way to get started is the
 https://dbunit.github.io/dbunit-extension/fiveminutes.html[dbUnit in 5 Minutes] tutorial.

@@ -1,13 +1,21 @@
 = About DbUnit
 
-DbUnit is a mature, proven JUnit extension founded in 2002.
-
-It is a JUnit extension targeted at database projects that, among other things, puts the database into a known state between test runs.
+DbUnit is a mature, proven JUnit extension, founded in 2002,
+targeted at database-driven projects that, among other things,
+puts the database into a known state between test runs.
 This is an excellent way to avoid the myriad of problems that can occur when one test case corrupts the data and causes subsequent tests to fail or exacerbate the damage.
 
-While dbUnit is most commonly used in automated tests using a database to setup, verify, and cleanup the database tables, it is also a convenient utility for importing and exporting data, whether via code or the dbunit-maven-plugin.
+dbUnit hooks into JUnit 5/6 (Jupiter) — JUnit 4 support was dropped in 3.0.0
+— either by composing an link:testcases/IDatabaseTester.html[`IDatabaseTester`] into your test class (the preferred style)
+or by extending link:/dbunit/apidocs/org/dbunit/DBTestCase.html[`DBTestCase`].
+Outside of tests, it is also a convenient utility for importing and exporting data — from code, via link:anttask.html[Ant Integration], or through the companion dbunit-maven-plugin.
 
-Note: Since 3.0.0, DbUnit supports JUnit 5 and drops JUnit 4 support.
+== What dbUnit Provides
+
+* *Dataset formats* — link:datasets.html[Flat XML, XML, CSV, YAML, and Excel], plus building datasets in code or reading them straight from a live query.
+* *Database operations* — `INSERT`, `UPDATE`, `DELETE`, `DELETE_ALL`, `TRUNCATE_TABLE`, `REFRESH` (upsert), and `CLEAN_INSERT` (truncate + insert), composable and transaction-wrappable.
+* *Flexible assertions* — link:datacomparisons.html[`ValueComparer`] implementations go beyond strict equality: tolerance (numeric and timestamp), greater-than/less-than, null checks, string containment, and ignore-millis timestamp comparisons.
+* *Broad database support* — vendor-specific type and metadata handling for 9 databases: DB2, H2, HSQLDB, Mckoi, MSSQL, MySQL, Netezza, Oracle, and PostgreSQL; see link:databases.html[Database-Specific Guides].
 
 == Where to Start
 
