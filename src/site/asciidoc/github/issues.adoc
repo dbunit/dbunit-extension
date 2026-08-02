@@ -1,0 +1,39 @@
+= Issues
+
+[#when-to-file]
+== When to File One
+
+Before starting non-trivial work, check whether a tracking issue already exists; if not,
+link:https://github.com/dbunit/dbunit-extension/issues/new/choose[create one]. This
+gives reviewers context and gives your commits' `Refs:` footer
+(link:../commits.html[Commit Requirements]) something to point at.
+
+[#templates]
+== Issue Templates
+
+Two forms are available when creating an issue:
+
+* *Bug report* (`.github/ISSUE_TEMPLATE/bug_report.md`) — for something that doesn't
+  work as documented.
+* *Feature request* (`.github/ISSUE_TEMPLATE/feature_request.md`) — for new
+  functionality or an enhancement.
+
+[#required-metadata]
+== Required Metadata
+
+Set these at creation time, to your best judgement — ask the maintainer when unclear:
+
+* *Labels* — e.g. `documentation`, `type: build`, `db: postgresql`, `area: dataset`.
+  Browse the repository's existing label list for the full set.
+* *Assignee* — who is doing the work, if known at creation time.
+* *Issue type* — `Bug`, `Feature`, or `Task` (GitHub's built-in issue-type field, not a
+  label).
+* *Milestone* — the "Release Version" the issue targets, e.g. `3.4.1`. See
+  link:../releasing.html[Releasing] for how a milestone's name changes when a release is
+  cut.
+
+[#referencing]
+== Referencing an Issue
+
+Reference the issue number from your commits' footer, `Refs: <number>` — see
+link:../commits.html[Commit Requirements] for the full commit-message format.
