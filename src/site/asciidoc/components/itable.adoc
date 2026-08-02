@@ -1,0 +1,134 @@
+= ITable & Table Metadata
+
+== Overview
+
+link:/dbunit/apidocs/org/dbunit/dataset/ITable.html[ITable] (`org.dbunit.dataset`) is the
+atomic unit link:../datasets.html[IDataSet] collects — a dataset is a named group of
+`ITable`s. Its contract is deliberately small:
+
+[source,java]
+----
+public interface ITable
+{
+    ITableMetaData getTableMetaData();
+    int getRowCount();
+    Object getValue(int row, String column) throws DataSetException;
+}
+----
+
+`getValue(row, column)` uses a zero-based row index and looks the column up by name.
+The sentinel constant `ITable.NO_VALUE` is a marker object some `ITable` implementations
+return in place of `null` — check identity (`==`) against it rather than assuming a
+`null` return always means "no value."
+
+See link:../datasets.html[Datasets] for how `IDataSet` assembles many `ITable`s from a
+file, a live database, or code.
+
+[#itablemetadata]
+== ITableMetaData
+
+link:/dbunit/apidocs/org/dbunit/dataset/ITableMetaData.html[ITableMetaData] describes one
+table's shape, independent of its row data:
+
+* `getTableName()` — the table's name.
+* `getColumns()` — this table's columns, as recognized by dbUnit. An empty array is a
+  legitimate result (e.g. every column resolved to a type the configured
+  `IDataTypeFactory` doesn't recognize) — not exceptional, per the interface's own
+  contract.
+* `getPrimaryKeys()` — the subset of `getColumns()` that make up the primary key.
+* `getColumnIndex(String columnName)` — the zero-based index of a column by name;
+  throws `NoSuchColumnException` if it doesn't exist.
+
+[#column]
+== Column
+
+link:/dbunit/apidocs/org/dbunit/dataset/Column.html[Column] describes one column:
+
+[cols="1,3", options="header"]
+|===
+|Attribute |Description
+
+|`columnName` |The column's name (`getColumnName()`).
+|`dataType` |The dbUnit link:../datatypes.html[DataType] (`getDataType()`) — see Data Types for the full type catalog rather than repeating it here.
+|`sqlTypeName` |The JDBC driver's SQL type name (`getSqlTypeName()`), from `DatabaseMetaData.getColumns()`'s `TYPE_NAME` column.
+|`nullable` |One of `Column.NO_NULLS`, `Column.NULLABLE`, or `Column.NULLABLE_UNKNOWN` (`getNullable()`); `isNotNullable()` is a convenience check against `NO_NULLS`.
+|`defaultValue` |The database's default value for the column, or `null` (`hasDefaultValue()`/`getDefaultValue()`).
+|`remarks` |Free-text remarks from the database metadata, or `null`.
+|`autoIncrement` |Auto-increment/identity setting, or `null` if not applicable.
+|`generatedColumn` |Whether the column is database-generated, or `null` if unknown — see link:../filters.html[Filters]' `GeneratedColumnFilter`, which filters on this flag.
+|===
+
+`Column` has several constructor overloads, from the minimal `Column(String columnName,
+DataType dataType)` (defaults `nullable` to `NULLABLE_UNKNOWN` and everything else to
+`null`) up to the full 8-argument constructor. Most test code never constructs a
+`Column` directly — it comes back from `ITableMetaData.getColumns()` or a dataset
+format's parser.
+
+[#columns]
+== Columns
+
+link:/dbunit/apidocs/org/dbunit/dataset/Columns.html[Columns] (`org.dbunit.dataset`, since
+2.3.0) is a `final` class of `static` helper methods for working with `Column[]`
+arrays — not a collection type itself. The commonly-used ones:
+
+* `getColumn(String columnName, Column[] columns)` — case-insensitive linear search;
+  returns `null` if not found.
+* `getColumnValidated(String columnName, Column[] columns, String tableName)` — same
+  search, but throws `NoSuchColumnException` instead of returning `null`.
+* `findColumnsByName(String[] columnNames, ITableMetaData tableMetaData)` /
+  `findColumnsByName(Column[] columns, ITableMetaData tableMetaData)` — resolve several
+  columns at once against a table's metadata, via `ITableMetaData.getColumnIndex()`
+  rather than a linear scan.
+
+[#itableiterator]
+== ITableIterator
+
+link:/dbunit/apidocs/org/dbunit/dataset/ITableIterator.html[ITableIterator] is the cursor
+`IDataSet.iterator()`/`reverseIterator()` return: `next()` advances to the next table
+(initially positioned before the first), `getTableMetaData()`/`getTable()` access the
+current one. `link:../operations.html[DatabaseOperation]`s like `INSERT`/`DELETE_ALL`
+walk a dataset with these iterators, which is why table order inside an `IDataSet`
+matters for foreign-key-respecting operations.
+
+[#itable-exceptions]
+== Common Exceptions
+
+[cols="1,3", options="header"]
+|===
+|Exception |Thrown when
+
+|`NoSuchColumnException` |A column name doesn't exist in the table's metadata (e.g. `ITableMetaData.getColumnIndex()`, `Columns.getColumnValidated()`).
+|`RowOutOfBoundsException` |A row index passed to `getValue()` is negative or `>= getRowCount()`.
+|`NoSuchTableException` |A table name doesn't exist in an `IDataSet` (e.g. `IDataSet.getTable(String)`).
+|===
+
+All three extend `DataSetException`.
+
+[#itable-implementations]
+== Implementations
+
+Most code never implements `ITable` directly — it works through one of these, or a
+decorator (below):
+
+[cols="1,3", options="header"]
+|===
+|Class |Description
+
+|`AbstractTable` |Base class most implementations extend; supplies row/column index validation helpers (`assertValidRowIndex()`, `assertValidColumn()`) so concrete subclasses only need to implement the 3-method `ITable` contract itself.
+|`DefaultTable` |The basic in-memory, `java.util.List`-backed implementation — what `DataSetBuilder` (see link:../datasets.html[Datasets]) builds under the hood.
+|`CachedTable` |Eagerly copies another `ITable`'s rows into memory (extends `DefaultTable`) — a detached snapshot, useful when the source table's underlying data may change or become unavailable (e.g. a closed `ResultSet`-backed table) after this snapshot is taken.
+|===
+
+This page intentionally does not re-describe the decorator implementations that wrap an
+existing `ITable` to add behavior — `SortedTable`, `ReplacementTable`, `CompositeTable`,
+`RowFilterTable`, `ColumnFilterTable`, and `FilteredTableMetaData` already have a home:
+see link:../datasets/decorators.html[Decorators] and link:../filters.html[Filters].
+
+[#itable-custom]
+== Implementing Your Own
+
+Implement `ITable` directly when adapting a data source dbUnit has no built-in format
+for — e.g. an in-house tabular format, or a system you'd rather stream from than load
+entirely into memory. link:../datasets/streaming.html[Streaming Datasets] is the
+closest existing example of a custom, producer-based source and a reasonable model to
+follow.

@@ -17,7 +17,8 @@ built programmatically. Its core contract:
 
 link:apidocs/org/dbunit/dataset/ITable.html[ITable] represents one table:
 its `ITableMetaData` (columns), row count, and `getValue(row, column)` cell
-access.
+access. See link:components/itable.html[ITable & Table Metadata] for the full
+class reference.
 
 == Building Datasets Programmatically
 

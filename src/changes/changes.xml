@@ -144,6 +144,9 @@
       <action dev="jeffjensen" type="add" issue="533" system="github" due-to="jeffjensen">
           Add MultiSchemaMySqlMetadataHandler, for a MySQL connection not restricted to a single schema (e.g. connecting as "root" specifically to work across several schemas at once with FEATURE_QUALIFIED_TABLE_NAMES enabled). MySqlMetadataHandler passes a null schema straight through as the JDBC catalog argument, which the JDBC spec defines as "search every catalog" but which MySQL Connector/J instead treats as "the connection's current catalog only" by default, silently hiding every other catalog's tables and producing NoSuchTableException for one of them. The new handler works around this by enumerating the connection's visible catalogs (skipping information_schema/mysql/performance_schema/sys) and unioning the per-catalog getTables()/getColumns()/getPrimaryKeys()/tableExists() results itself whenever no single schema is configured.
       </action>
+      <action dev="jeffjensen" type="add" issue="881" system="github" due-to="jeffjensen">
+          Add components/itable.adoc, a new Core Components reference page documenting ITable, ITableMetaData, Column, Columns, and ITableIterator, previously covered only in two sentences on datasets.adoc.
+      </action>
     </release>
     <release version="3.4.0" date="Jul 28, 2026" description="Test-suite hardening (un-skip and strengthen dozens of disabled/no-op tests); add CachingConnectionProvider and reduce DefaultPrepAndExpectedTestCase's per-test connection churn; pin identifier case-folding to Locale.ENGLISH for Turkish-locale correctness; and a broad set of correctness fixes across export formats (XML, YAML, CSV, XLS, Ant), TimestampDataType timezone handling, InsertOperation/TransactionOperation, and resource-leak cleanups">
       <action dev="jeffjensen" type="fix" issue="797" system="github" due-to="jeffjensen">
