@@ -165,6 +165,9 @@
       <action dev="jeffjensen" type="add" issue="888" system="github" due-to="jeffjensen">
           Add codingstandards/javadoc.adoc, documenting the JavaDoc file-header, style, and tagging conventions. Corrects the prior @author/@since class-header example against actual current practice, confirmed by checking CachingConnectionProvider (added 3.4.0): class-level @since is still expected on new classes, but new @author tags are not.
       </action>
+      <action dev="jeffjensen" type="add" issue="889" system="github" due-to="jeffjensen">
+          Add codingstandards/testconventions.adoc, documenting dbUnit's own test-suite conventions (Test/IT/AT suffixes, the test method naming pattern, AssertJ whole-object assertion preference, and the Europe/Berlin fixed test timezone), each illustrated with a real example from the current test suite rather than an invented one. Explicitly disambiguates from the existing Test Integration page, which covers using dbUnit's own testers, not writing dbUnit's tests.
+      </action>
     </release>
     <release version="3.4.0" date="Jul 28, 2026" description="Test-suite hardening (un-skip and strengthen dozens of disabled/no-op tests); add CachingConnectionProvider and reduce DefaultPrepAndExpectedTestCase's per-test connection churn; pin identifier case-folding to Locale.ENGLISH for Turkish-locale correctness; and a broad set of correctness fixes across export formats (XML, YAML, CSV, XLS, Ant), TimestampDataType timezone handling, InsertOperation/TransactionOperation, and resource-leak cleanups">
       <action dev="jeffjensen" type="fix" issue="797" system="github" due-to="jeffjensen">

@@ -1,0 +1,82 @@
+= Test Conventions
+
+[#overview]
+== Overview
+
+This page covers writing dbUnit's *own* test suite as a contributor. Looking for how to
+use `IDatabaseTester`/`DBTestCase` in your *own* project's tests? See
+link:../testcases.html[Test Integration] instead — that page is about testing with
+dbUnit; this one is about testing dbUnit itself.
+
+[#types-and-suffixes]
+== Test Types & Suffixes
+
+* `<ClassName>Test` — a unit test. No database required; runs in the normal Maven
+  `test` phase via Surefire.
+* `<ClassName>IT` — an integration test. Any test that requires a database to work is
+  an integration test, even if the logic under test looks simple. Runs in the Maven
+  `integration-test` phase via Failsafe. See link:../integrationtests.html[Integration
+  Tests] for how to run these against a specific database.
+
+[#method-naming]
+== Test Method Naming
+
+`test<MethodName>_<StartingStateConditions>_<AssertedOutcome>`. For example, from
+`TableFormatterTest`:
+
+[source,java]
+----
+void testFormatSimpleTable_withTwoRows_returnsFormattedTableString() throws Exception
+----
+
+The method under test is `formatSimpleTable` (conceptually — `TableFormatter.format`),
+the starting condition is "with two rows," and the asserted outcome is "returns a
+formatted table string."
+
+[#coverage]
+== Coverage Expectation
+
+Every change needs unit test coverage added or updated to cover it — proving a bug fix
+actually fixes the reported problem, and proving a new feature works. Tests also carry
+long-term value beyond the immediate change: they prove future changes don't break the
+behavior they cover.
+
+[#assertions]
+== Assertions
+
+Prefer AssertJ. Prefer asserting the actual object against an expected object as a
+whole, rather than field-by-field or value-by-value. The same `TableFormatterTest`
+example above does this correctly — it builds one `expected` string and asserts the
+whole thing in a single `isEqualTo`, rather than checking fragments of the output
+individually:
+
+[source,java]
+----
+final String expected =
+        "****** table: MY_TABLE ** row count: 2 ******\n"
+                + "COL1                |COL2                |\n"
+                + "====================|====================|\n"
+                + "my string value     |39284.1             |\n"
+                + "my string value2    |2                   |\n";
+assertThat(actual).isEqualTo(expected);
+----
+
+Use an `.as()` for the test fail message on an assertion
+and end the message with a period
+so it doesn't combine with the subsequent JUnit message,
+e.g. `assertThat(actual.getMessage()).as("Should have null message.").isNull();`.
+
+[#fixed-timezone]
+== Fixed Test Timezone
+
+Surefire and Failsafe both force `-Duser.timezone=Europe/Berlin` on every test run
+(confirmed in `pom.xml`'s plugin configuration) — so timestamp/timezone-sensitive
+behavior is exercised consistently in CI regardless of the runner's own locale. A test
+launched directly from an IDE skips this unless you configure the run configuration to
+match. See link:../building.html[Building]'s Quality Gates section for the mechanics.
+
+[#java-style]
+== Java Style
+
+This page covers test-specific conventions only. For general Java style, see
+link:javastyle.html[Java Style & Tooling].
