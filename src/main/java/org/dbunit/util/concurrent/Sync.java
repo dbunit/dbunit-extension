@@ -183,8 +183,8 @@ package org.dbunit.util.concurrent;
  *
  *  void swapValue(Cell other) {
  *    try {
- *      while (!trySwap(this, other) &&
- *            !tryswap(other, this)) 
+ *      while (!trySwap(this, other) &amp;&amp;
+ *            !tryswap(other, this))
  *        Thread.sleep(1);
  *    }
  *    catch (InterruptedException ex) { return; }
@@ -230,7 +230,7 @@ package org.dbunit.util.concurrent;
  *     // Two phase. 
  *     // First spin without pausing.
  *     int purespins = 10; 
- *     for (int i = 0; i < purespins; ++i) {
+ *     for (int i = 0; i &lt; purespins; ++i) {
  *       if (lock.attempt(0))
  *         return true;
  *     }

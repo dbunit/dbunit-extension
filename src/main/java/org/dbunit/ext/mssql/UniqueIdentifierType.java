@@ -32,8 +32,8 @@ import org.dbunit.dataset.datatype.TypeCastException;
  * <code>UniqueIdentifierType</code> provides support for the "uniqueidentifier" column in Microsoft SQLServer
  * databases. It users the {@link UUID}
  *
- * @Author Darryl L. Pierce <dpierce@redhat.com>
- * @Since 02 February 2011
+ * @author Darryl L. Pierce dpierce AT redhat.com
+ * @since 02 February 2011
  * @version $Revision$
  */
 public class UniqueIdentifierType extends AbstractDataType {

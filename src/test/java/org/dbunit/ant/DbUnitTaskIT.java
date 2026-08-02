@@ -72,7 +72,6 @@ import org.slf4j.LoggerFactory;
  * @author Last changed by: $Author$
  * @version $Revision$ $Date$
  * @since Jun 10, 2002
- * @see org.dbunit.ant.AntTest
  */
 public class DbUnitTaskIT
 {

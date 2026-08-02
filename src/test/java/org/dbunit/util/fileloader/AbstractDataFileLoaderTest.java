@@ -40,7 +40,7 @@ public class AbstractDataFileLoaderTest
     FlatXmlDataFileLoader loader = null;
 
     /**
-     * {@inheritDoc}
+     * Initialize the loader instance used by each test.
      */
     @BeforeEach
     protected void setUp() throws Exception

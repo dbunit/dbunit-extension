@@ -22,7 +22,6 @@ package org.dbunit.dataset.xml;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.io.UnsupportedEncodingException;
 import java.io.Writer;
 import java.nio.charset.Charset;
 
@@ -74,9 +73,8 @@ public class XmlDataSetWriter implements IDataSetConsumer
 
     /**
      * @param outputStream The stream to which the XML will be written.
-     * @param encoding The encoding to be used for the {@link XmlWriter}.
-     * Can be null. See {@link XmlWriter#XmlWriter(OutputStream, String)}.
-     * @throws UnsupportedEncodingException
+     * @param charset The character set to be used for the {@link XmlWriter}.
+     * Can be null. See {@link XmlWriter#XmlWriter(OutputStream, Charset)}.
      */
     public XmlDataSetWriter(OutputStream outputStream, Charset charset)
     {

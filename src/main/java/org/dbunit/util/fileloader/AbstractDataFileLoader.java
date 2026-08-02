@@ -55,8 +55,8 @@ public abstract class AbstractDataFileLoader implements DataFileLoader {
 
     /**
      * Create new instance with replacement objects.
-     * 
-     * @param replacementObjects
+     *
+     * @param ro
      *            The replacement objects for use with
      *            {@link org.dbunit.dataset.ReplacementDataSet}.
      */

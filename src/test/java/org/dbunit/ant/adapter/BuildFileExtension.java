@@ -41,7 +41,7 @@ import org.junit.jupiter.api.extension.ExtensionContext;
  * @author Andrew Johnson
  * @author Last changed by: $Author$
  * @version $Revision$ $Date$
- * @see org.apache.tools.ant.BuildFileRule
+ * @see "org.apache.tools.ant.BuildFileRule, the JUnit 4 ant-testutils rule this extension replaces"
  * @since Sep 21, 2024
  */
 public class BuildFileExtension implements AfterEachCallback {

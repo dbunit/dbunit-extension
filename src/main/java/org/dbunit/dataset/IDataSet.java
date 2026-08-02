@@ -40,7 +40,7 @@ public interface IDataSet
     /**
      * Returns the specified table metadata.
      *
-     * @throws AmbiguousTableNameException if dataset contains multiple tables
+     * @throws org.dbunit.database.AmbiguousTableNameException if dataset contains multiple tables
      *      having the specified name. Use {@link #iterator} to access
      *      to all tables.
      * @throws NoSuchTableException if dataset do not contains the specified
@@ -52,7 +52,7 @@ public interface IDataSet
     /**
      * Returns the specified table.
      *
-     * @throws AmbiguousTableNameException if dataset contains multiple tables
+     * @throws org.dbunit.database.AmbiguousTableNameException if dataset contains multiple tables
      *      having the specified name. Use {@link #iterator} to access
      *      to all tables.
      * @throws NoSuchTableException if dataset do not contains the specified

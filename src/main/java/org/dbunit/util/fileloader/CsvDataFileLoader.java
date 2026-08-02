@@ -33,8 +33,8 @@ import org.dbunit.dataset.csv.CsvURLDataSet;
  * @author Jeff Jensen jeffjensen AT users.sourceforge.net
  * @author Last changed by: $Author$
  * @version $Revision$ $Date$
- * @since <dbunit-version>
- * 
+ * @since 2.4.8
+ *
  */
 public class CsvDataFileLoader extends AbstractDataFileLoader {
     /** Create new instance. */
@@ -43,8 +43,8 @@ public class CsvDataFileLoader extends AbstractDataFileLoader {
 
     /**
      * Create new instance with replacement objects.
-     * 
-     * @param replacementObjects
+     *
+     * @param ro
      *            The replacement objects for use with
      *            {@link org.dbunit.dataset.ReplacementDataSet}.
      */

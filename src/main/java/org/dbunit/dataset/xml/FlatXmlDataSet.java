@@ -78,7 +78,7 @@ import java.nio.charset.Charset;
  *   builder.setColumnSensing(true);
  *   IDataSet dataSet = builder.build();
  *   
- *   // or dbunit release <= 2.4.6:
+ *   // or dbunit release &lt;= 2.4.6:
  *   boolean enableColumnSensing = true;
  *   IDataSet dataSet = new FlatXmlDataSet(
  *            new File("src/xml/flatXmlTableTest.xml"), false, enableColumnSensing);

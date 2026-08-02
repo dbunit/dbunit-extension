@@ -44,8 +44,8 @@ public class XlsDataFileLoader extends AbstractDataFileLoader {
 
     /**
      * Create new instance with replacement objects.
-     * 
-     * @param replacementObjects
+     *
+     * @param ro
      *            The replacement objects for use with
      *            {@link org.dbunit.dataset.ReplacementDataSet}.
      */

@@ -276,13 +276,13 @@ public class DbUnitAssertBase
      *            when the column name for the table is not in the
      *            tableColumnValueComparers {@link Map}. Can be
      *            <code>null</code> and will default to
-     *            {@link #getDefaultValueComparer()}.
+     *            {@link ValueComparerDefaults#getDefaultValueComparer()}.
      * @param tableColumnValueComparers
      *            {@link Map} of {@link ValueComparer}s to use for specific
      *            tables and columns. Key is table name, value is {@link Map} of
      *            column name in the table to {@link ValueComparer}s. Can be
      *            <code>null</code> and will default to using
-     *            {@link #getDefaultColumnValueComparerMapForTable(String)} or,
+     *            {@link ValueComparerDefaults#getDefaultColumnValueComparerMapForTable(String)} or,
      *            if that is empty, defaultValueComparer for all columns in all
      *            tables.
      * @throws DatabaseUnitException
@@ -370,14 +370,14 @@ public class DbUnitAssertBase
      *            {@link ValueComparer} to use with column value comparisons
      *            when the column name for the table is not in the
      *            columnValueComparers {@link Map}. Can be <code>null</code> and
-     *            will default to {@link #getDefaultValueComparer()}.
+     *            will default to {@link ValueComparerDefaults#getDefaultValueComparer()}.
      * @param columnValueComparers
      *            {@link Map} of {@link ValueComparer}s to use for specific
      *            columns. Key is column name in the table, value is
      *            {@link ValueComparer} to use in comparing expected to actual
      *            column values. Can be <code>null</code> and will default to
      *            using
-     *            {@link #getDefaultColumnValueComparerMapForTable(String)} or,
+     *            {@link ValueComparerDefaults#getDefaultColumnValueComparerMapForTable(String)} or,
      *            if that is empty, defaultValueComparer for all columns in the
      *            table.
      * @throws DatabaseUnitException
@@ -494,14 +494,14 @@ public class DbUnitAssertBase
      *            {@link ValueComparer} to use with column value comparisons
      *            when the column name for the table is not in the
      *            columnValueComparers {@link Map}. Can be <code>null</code> and
-     *            will default to {@link #getDefaultValueComparer()}.
+     *            will default to {@link ValueComparerDefaults#getDefaultValueComparer()}.
      * @param columnValueComparers
      *            {@link Map} of {@link ValueComparer}s to use for specific
      *            columns. Key is column name in the table, value is
      *            {@link ValueComparer} to use in comparing expected to actual
      *            column values. Can be <code>null</code> and will default to
      *            using
-     *            {@link #getDefaultColumnValueComparerMapForTable(String)} or,
+     *            {@link ValueComparerDefaults#getDefaultColumnValueComparerMapForTable(String)} or,
      *            if that is empty, defaultValueComparer for all columns in the
      *            table.
      * @throws DataSetException

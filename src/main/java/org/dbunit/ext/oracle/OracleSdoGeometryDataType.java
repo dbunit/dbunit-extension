@@ -115,7 +115,7 @@ import org.slf4j.LoggerFactory;
  * @author clucas@e-miles.com
  * @author Last changed by: $Author$
  * @version $Revision$ $Date$
- * @since <dbunit-version>
+ * @since 2.4.7
  */
 public class OracleSdoGeometryDataType extends AbstractDataType
 {

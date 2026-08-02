@@ -60,8 +60,8 @@ import org.slf4j.LoggerFactory;
  *   protected Object[] items = ... whatever kinds of items being managed
  *   protected boolean[] used = new boolean[MAX_AVAILABLE];
  *
- *   protected synchronized Object getNextAvailableItem() { 
- *     for (int i = 0; i < MAX_AVAILABLE; ++i) {
+ *   protected synchronized Object getNextAvailableItem() {
+ *     for (int i = 0; i &lt; MAX_AVAILABLE; ++i) {
  *       if (!used[i]) {
  *          used[i] = true;
  *          return items[i];
@@ -70,8 +70,8 @@ import org.slf4j.LoggerFactory;
  *     return null; // not reached 
  *   }
  *
- *   protected synchronized boolean markAsUnused(Object item) { 
- *     for (int i = 0; i < MAX_AVAILABLE; ++i) {
+ *   protected synchronized boolean markAsUnused(Object item) {
+ *     for (int i = 0; i &lt; MAX_AVAILABLE; ++i) {
  *       if (item == items[i]) {
  *          if (used[i]) {
  *            used[i] = false;
@@ -181,7 +181,7 @@ public class Semaphore implements Sync  {
    * Release N permits. <code>release(n)</code> is
    * equivalent in effect to:
    * <pre>
-   *   for (int i = 0; i < n; ++i) release();
+   *   for (int i = 0; i &lt; n; ++i) release();
    * </pre>
    * <p>
    * But may be more efficient in some semaphore implementations.

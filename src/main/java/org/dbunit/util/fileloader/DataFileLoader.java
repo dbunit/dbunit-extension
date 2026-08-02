@@ -52,7 +52,7 @@ public interface DataFileLoader {
      *             DataSetException wrapped in a DatabaseUnitRuntimeException
      *             when file load errors occur.
      */
-    IDataSet load(String fileName);
+    IDataSet load(String filename);
 
     /**
      * Load the specified URL file into a dbUnit dataset. The type of dbUnit

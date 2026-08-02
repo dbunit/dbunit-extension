@@ -253,7 +253,7 @@ public class FlatXmlDataSetTest extends AbstractDataSetTest
      * datasets. It allows the occurrence of the same table multiple times in
      * arbitrary locations.
      * 
-     * @see org.dbunit.dataset.AbstractDataSetTest#testCreateDuplicateDataSet()
+     * @see org.dbunit.dataset.AbstractDataSetTest#testCreateDuplicateDataSet_withDuplicateTableNames_throwsAmbiguousTableNameException()
      */
     @Override
     @Test
@@ -275,7 +275,7 @@ public class FlatXmlDataSetTest extends AbstractDataSetTest
      * datasets. It allows the occurrence of the same table multiple times in
      * arbitrary locations.
      * 
-     * @see org.dbunit.dataset.AbstractDataSetTest#testCreateMultipleCaseDuplicateDataSet()
+     * @see org.dbunit.dataset.AbstractDataSetTest#testCreateMultipleCaseDuplicateDataSet_withDuplicateCaseVariantNames_throwsAmbiguousTableNameException()
      */
     @Override
     @Test

@@ -68,8 +68,8 @@ import org.slf4j.LoggerFactory;
  * reuse; the provider's owner is then responsible for closing it once,
  * itself, when the whole run finishes.
  *
- * @see org.dbunit.DefaultPrepAndExpectedTestCaseDiIT
- * @see org.dbunit.DefaultPrepAndExpectedTestCaseExtIT
+ * @see "org.dbunit.DefaultPrepAndExpectedTestCaseDiIT, a composition-based (DI) usage example in the test sources"
+ * @see "org.dbunit.DefaultPrepAndExpectedTestCaseExtIT, an inheritance-based usage example in the test sources"
  *
  * @author Jeff Jensen jeffjensen AT users.sourceforge.net
  * @author Last changed by: $Author$
@@ -950,9 +950,9 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * Don't add excluded columns to additionalColumnInfo as they are not found
      * and generate a not found message in the fail message.
      *
-     * @param expectedTable
-     *            Not null.
      * @param excludeColumns
+     *            Not null.
+     * @param allColumns
      *            Not null.
      */
     protected Column[] makeAdditionalColumnInfo(final String[] excludeColumns,
