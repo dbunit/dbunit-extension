@@ -3,19 +3,29 @@ Felipe Leme
 
 == Overview
 
-Building DbUnit is quite simple. You need the following software installed:
+Building DbUnit requires:
 
 * link:http://www.oracle.com/technetwork/java/javase/downloads/index.html[Java SE SDK 8+]
-* link:http://maven.apache.org[Maven 3]
 * Git client
 
-Once you have them all, you can build DbUnit by just typing *mvnw*! The items below describe every step.
+DbUnit ships with the https://maven.apache.org/wrapper/[Maven Wrapper] at the repository
+root — `mvnw` for Unix/macOS/Git Bash, `mvnw.cmd` for Windows — so installing Maven
+manually isn't necessary. The wrapper downloads and runs the exact Maven version pinned in
+`.mvn/wrapper/maven-wrapper.properties` the first time it's invoked,
+so every contributor and CI runner builds with the same known Maven version,
+regardless of what the system may have installed.
+
+Always invoke `./mvnw` rather than a separately installed `mvn`.
+
+Once having Java and Git, build DbUnit by just typing `./mvnw`! The items below describe every step.
 
 == Generating the JAR
 
-. Install Java SE SDK and Maven.
+. Install the Java SE SDK and a Git client.
 . Obtain DbUnit code, either current or released source (see *Quick Links* on left menu)
-. On the root directory, simply type `mvnw` in the command line. (If you need to clean up the binaries, run `mvnw clean install` instead.) The jar file will be generated in the target directory.
+. On the root directory, simply type `./mvnw` in the command line.
+The jar file generates in the target directory.
+(To clean up the binaries, run `./mvnw clean install` instead.)
 
 == Quality Gates
 
@@ -35,9 +45,9 @@ profiles set internally).
 required plugin versions, and that referenced profile IDs actually exist.
 |Checkstyle |`site` (reporting only) |*No.* `checkstyle.xml`'s ruleset is wired only
 under the `reporting` section — no execution binds a `check` goal to any lifecycle
-phase, so a violation shows up in the generated report (`mvnw site`) but does not fail
-`mvnw verify`/`mvnw install`/CI. Follow link:codingstandards/javastyle.html[Java Style &
-Tooling]'s rules anyway; don't rely on the build to catch a violation for you.
+phase, so a violation shows up in the generated report (`./mvnw site`) but does not fail
+`./mvnw verify`/`./mvnw install`/CI. Follow link:codingstandards/javastyle.html[Java Style &
+Tooling]'s rules anyway; don't rely on the build to catch all violations.
 |JaCoCo |`test`/`verify` (report generation) |No — produces a coverage report, does not
 gate the build on a coverage threshold.
 |japicmp |`site` (reporting only) |No — compares the current API against a prior
@@ -47,7 +57,7 @@ release and reports differences; see link:releasing.html[Releasing] for how its
 
 Surefire also has a skip property, `-DsurefirePluginSkip=true`, used internally by the
 release profiles (tests already ran earlier in the pipeline by the time those profiles
-build); it isn't something you'd normally pass locally.
+build); it isn't something typically used with local builds.
 
 Both Surefire and Failsafe force `-Duser.timezone=Europe/Berlin` on every test run, so
 timestamp/timezone-sensitive behavior is exercised the same way in CI regardless of the
@@ -55,17 +65,22 @@ runner's own locale. A test launched directly from an IDE skips this unless its 
 configuration sets the same system property — see
 link:codingstandards/testconventions.html[Test Conventions].
 
-== Creating the site
+== Generating the Site
 
-Run `mvnw site` in the command line; the site will be available on `target/site/index.html`. Note that you might get an _OutOfMemoryExceptionError_; if that happens, you must increase the heap size through the _MAVEN_OPTS_ variable (for instance, on Unix systems, you could run `MAVEN_OPTS=-mx512M mvnw site`).
+The CI workflow generates and publishes the site gen from the main branch.
 
-== Updating the repository and site
+To locally build the site,
+run `./mvnw site` in the command line; the site will be available on `target/site/index.html`. Note that an _OutOfMemoryExceptionError_ may occur; if that happens, increase the heap size through the _MAVEN_OPTS_ variable (for instance, on Unix systems, run `MAVEN_OPTS=-mx512M ./mvnw site`).
 
-Once new code is committed, it is necessary to update the Maven repository with new snapshots, and also update the site. These 2 tasks can be done with a simple command:
+== Deploying SNAPSHOT Builds
+
+The CI workflow deploys SNAPSHOT builds from the main branch.
+
+To manually deploy a SNAPSHOT build, also specify the source and javadoc goals so they are published along with the jar:
 
 [source,bash]
 ----
-mvnw clean source:jar javadoc:jar deploy site site:deploy
+./mvnw clean source:jar javadoc:jar deploy
 ----
 
 == Verify Reproducible Build
@@ -74,14 +89,14 @@ mvnw clean source:jar javadoc:jar deploy site site:deploy
 +
 [source,bash]
 ----
-mvnw clean install
+./mvnw clean install
 ----
 
 . Run the reproducible build comparison step:
 +
 [source,bash]
 ----
-mvnw clean verify artifact:compare
+./mvnw clean verify artifact:compare
 ----
 
 . Review the compare output for issues to fix.
