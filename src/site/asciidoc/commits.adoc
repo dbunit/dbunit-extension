@@ -1,0 +1,96 @@
+= Commit Requirements
+
+[#overview]
+== Overview
+
+DbUnit commits follow Conventional Commits, kept atomic, with a small number of
+project-specific bundling rules. This page is the reference for all of it.
+
+[#atomic-commits]
+== Atomic Commits
+
+One logical change per commit. If a session produces multiple unrelated fixes, commit
+each independently, even if they were discovered together while working on something
+else.
+
+[#bundling-rules]
+== What Ships in the Same Commit
+
+* *Doc updates* ship in the same commit as the feature or bug change they document —
+  never a follow-up commit.
+* *Consequence changes* ship in the same commit as the change that caused them. For
+  example: if a fix makes a previously-broken feature start working, and that now
+  requires updating something else to reflect the feature working, that update is a
+  consequence of the fix and belongs in the fix's commit, not a separate one.
+* A `changes.xml` entry ships in the same commit as the change it describes — see
+  link:changelog.html[Changelog] for the entry format itself.
+
+[#fixing-up]
+== Fixing Up Unmerged Commits
+
+When a commit that hasn't yet merged to `main` needs a change, target it directly
+instead of adding an unrelated new commit:
+
+[source,bash]
+----
+git commit --fixup <sha>
+----
+
+This prefixes the new commit's message with `fixup!` followed by the target commit's
+own subject line. Create multiple `fixup!` commits as needed, one per target commit, if
+several need changes. Squash them into their targets before merge, e.g.:
+
+[source,bash]
+----
+git rebase --autosquash main
+----
+
+[#renames]
+== Renames
+
+Always use `git mv`, never a delete followed by a separate add — this preserves the
+file's history.
+
+[#conventional-commits]
+== Conventional Commits Format
+
+[source]
+----
+type(scope): Capitalized subject
+----
+
+*Types:* `feat`, `fix`, `docs`, `refactor`, `test`, `build`, `ci`, `perf`.
+
+*Scopes:* any database name, `assertion`, `pom`, `log`, `docker`, `database`, `dataset`,
+`metadata`, `resultset`, `scripts`, `site`, `statement`, `search`, `util`, `ant`,
+`operation`. `site` is the scope used for `src/site` documentation changes — every page
+on this "Developing DbUnit" menu was itself committed with `docs(site):`. Suggest an
+additional type or scope when a change genuinely doesn't fit the approved lists.
+
+*Rules:*
+
+* Capitalize the first word after `type(scope):`.
+* Use `*` for bullets in the body, not `-`.
+* Reference the tracking issue in the footer: `Refs: <issue-number>` — no `#` before
+  the number.
+* Never put the issue number in the subject line.
+
+[#branching]
+== Branching
+
+Always work on a branch other than `main`; create one first if you're not already on
+one. See link:github/pullrequests.html[Branching & Pull Requests] for the fork/branch/PR
+mechanics this rule feeds into.
+
+[#further-reading]
+== Further Reading
+
+General commit-message background, compatible with the Conventional Commits rules
+above:
+
+* link:https://chris.beams.io/posts/git-commit/#seven-rules[How to Write a Git Commit
+  Message] (Chris Beams)
+* link:https://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html[A Note
+  About Git Commit Messages] (Tim Pope)
+* link:https://wiki.openstack.org/wiki/GitCommitMessages[GitCommitMessages] (OpenStack
+  wiki)

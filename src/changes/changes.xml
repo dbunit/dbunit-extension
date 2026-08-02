@@ -171,6 +171,9 @@
       <action dev="jeffjensen" type="add" issue="890" system="github" due-to="jeffjensen">
           Add changelog.adoc, the single reference for changes.xml conventions: required attributes, valid type values, placement, the release description guidance, starting a new development cycle, and the Dependabot changelog automation (moved here from CONTRIBUTING.md, correcting its stale "master" references to "main").
       </action>
+      <action dev="jeffjensen" type="add" issue="891" system="github" due-to="jeffjensen">
+          Add commits.adoc, documenting the full commit-requirements reference: atomic commits, same-commit bundling rules, the fixup!/autosquash workflow, git mv for renames, and the Conventional Commits type/scope/footer schema. Supersedes devguide.adoc's stale Fnnn/Bnnn ticket-prefix commit-message convention, which contradicted the Conventional Commits format actually in use.
+      </action>
     </release>
     <release version="3.4.0" date="Jul 28, 2026" description="Test-suite hardening (un-skip and strengthen dozens of disabled/no-op tests); add CachingConnectionProvider and reduce DefaultPrepAndExpectedTestCase's per-test connection churn; pin identifier case-folding to Locale.ENGLISH for Turkish-locale correctness; and a broad set of correctness fixes across export formats (XML, YAML, CSV, XLS, Ant), TimestampDataType timezone handling, InsertOperation/TransactionOperation, and resource-leak cleanups">
       <action dev="jeffjensen" type="fix" issue="797" system="github" due-to="jeffjensen">
