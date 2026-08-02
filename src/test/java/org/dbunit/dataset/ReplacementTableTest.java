@@ -57,6 +57,48 @@ class ReplacementTableTest extends AbstractTableTest
         return new ReplacementDataSet(fds);
     }
 
+    @Test
+    void testGetValueByIndex_withObjectReplacement_returnsReplacedValueMatchingNameBasedAccess() throws Exception
+    {
+        final Column[] columns = new Column[] {
+                new Column("C0", DataType.VARCHAR),
+                new Column("C1", DataType.VARCHAR),
+                new Column("C2", DataType.VARCHAR)};
+        final DefaultTable backing = new DefaultTable("T", columns);
+        backing.addRow(new Object[] {"original", "keep", null});
+
+        final ReplacementTable replacement = new ReplacementTable(backing);
+        replacement.addReplacementObject("original", "replaced");
+        replacement.addReplacementObject(null, "was-null");
+
+        for (int j = 0; j < columns.length; j++)
+        {
+            final Object byName = replacement.getValue(0, columns[j].getColumnName());
+            final Object byIndex = replacement.getValue(0, j);
+            assertThat(byIndex).as("col=%d", j).isEqualTo(byName);
+        }
+    }
+
+    @Test
+    void testGetValueByIndex_withSubstringReplacement_returnsReplacedValueMatchingNameBasedAccess() throws Exception
+    {
+        final Column[] columns = new Column[] {
+                new Column("C0", DataType.VARCHAR),
+                new Column("C1", DataType.VARCHAR)};
+        final DefaultTable backing = new DefaultTable("T", columns);
+        backing.addRow(new Object[] {"hello world", "no match"});
+
+        final ReplacementTable replacement = new ReplacementTable(backing);
+        replacement.addReplacementSubstring("world", "there");
+
+        for (int j = 0; j < columns.length; j++)
+        {
+            final Object byName = replacement.getValue(0, columns[j].getColumnName());
+            final Object byIndex = replacement.getValue(0, j);
+            assertThat(byIndex).as("col=%d", j).isEqualTo(byName);
+        }
+    }
+
     @Override
     @Test
     public void testGetMissingValue_withMissingCells_returnsExpectedValues() throws Exception
