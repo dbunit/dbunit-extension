@@ -95,7 +95,6 @@
     <japicmpPluginVersion>0.26.1</japicmpPluginVersion>
     <jarPluginVersion>3.5.1</jarPluginVersion>
     <javadocPluginVersion>3.12.0</javadocPluginVersion>
-    <jdependPluginVersion>2.2.0</jdependPluginVersion>
     <jxrPluginVersion>3.6.0</jxrPluginVersion>
     <modernizer-maven-plugin>2.7.0</modernizer-maven-plugin>
     <pmdPluginVersion>3.28.0</pmdPluginVersion>
@@ -840,11 +839,6 @@
           </executions>
         </plugin>
         <plugin>
-          <groupId>org.codehaus.mojo</groupId>
-          <artifactId>jdepend-maven-plugin</artifactId>
-          <version>${jdependPluginVersion}</version>
-        </plugin>
-        <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-jxr-plugin</artifactId>
           <version>${jxrPluginVersion}</version>
@@ -1585,11 +1579,6 @@
           <minimumTokens>100</minimumTokens>
           <targetJdk>${compileSource}</targetJdk>
         </configuration>
-      </plugin>
-      <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>jdepend-maven-plugin</artifactId>
-        <version>${jdependPluginVersion}</version>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
