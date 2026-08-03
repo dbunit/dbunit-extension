@@ -629,35 +629,101 @@ public class DbUnitAssertBase
                 determineValidColumnValueComparers(columnValueComparers,
                         expectedTableName);
 
+        // Pre-resolve per-column data that is row-invariant.
+        // This reduces ValueComparer resolution and column-index lookup from
+        // O(R*C) map lookups to O(C), and lets the inner loop use
+        // ITable.getValue(int, int) — direct array access — instead of the
+        // name-based ITable.getValue(int, String) HashMap path.
+        final int columnCount = comparisonCols.length;
+        final ValueComparer[] columnComparers = new ValueComparer[columnCount];
+        final int[] expectedColIndexes = new int[columnCount];
+        final int[] actualColIndexes = new int[columnCount];
+        final ITableMetaData expectedMeta = expectedTable.getTableMetaData();
+        final ITableMetaData actualMeta = actualTable.getTableMetaData();
+        for (int j = 0; j < columnCount; j++)
+        {
+            final String colName = comparisonCols[j].getColumnName();
+            columnComparers[j] = determineValueComparer(colName,
+                    validDefaultValueComparer, validColumnValueComparers);
+            expectedColIndexes[j] = expectedMeta.getColumnIndex(colName);
+            actualColIndexes[j] = actualMeta.getColumnIndex(colName);
+        }
+
         // iterate over all rows
         final int rowCount = expectedTable.getRowCount();
         for (int rowNum = 0; rowNum < rowCount; rowNum++)
         {
-            // iterate over all columns of the current row
-            final int columnCount = comparisonCols.length;
             for (int columnNum = 0; columnNum < columnCount; columnNum++)
             {
-                compareData(expectedTable, actualTable, comparisonCols,
-                        failureHandler, validDefaultValueComparer,
-                        validColumnValueComparers, rowNum, columnNum);
+                compareDataCell(expectedTable, actualTable, comparisonCols,
+                        failureHandler, rowNum, columnNum,
+                        columnComparers[columnNum],
+                        expectedColIndexes[columnNum],
+                        actualColIndexes[columnNum]);
             }
         }
     }
 
     /**
-     * Compares a single expected and actual cell value at the given row and column, failing
-     * via the given failure handler on mismatch.
+     * Compares a single cell value using pre-resolved column indices and a
+     * pre-determined {@link ValueComparer}.
      *
-     * @param expectedTable {@link ITable} containing all expected results.
-     * @param actualTable {@link ITable} containing all actual results.
-     * @param comparisonCols the columns to be compared, also including the correct {@link DataType}s.
-     * @param failureHandler the failure handler used if the assert fails because of a data mismatch.
-     * @param defaultValueComparer the default value comparer, used when the column has none configured.
-     * @param columnValueComparers the per-column value comparers to use.
-     * @param rowNum the row index of the cell to compare.
-     * @param columnNum the index, into comparisonCols, of the column to compare.
-     * @throws DatabaseUnitException if the cell comparison fails.
+     * <p>Called from the row loop in
+     * {@link #compareData(ITable, ITable, ComparisonColumn[], FailureHandler, ValueComparer, Map)}.
+     * The caller resolves all column-invariant state (comparer, indices) once before
+     * the loop, so this method pays only the per-cell costs: two index-based
+     * {@link ITable#getValue(int, int)} reads and the value comparison itself.</p>
+     *
+     * @param expectedTable The expected table.
+     * @param actualTable The actual table.
+     * @param comparisonCols The columns being compared.
+     * @param failureHandler The handler invoked when a difference is found.
+     * @param rowNum The current row index.
+     * @param columnNum The current column index within {@code comparisonCols}.
+     * @param valueComparer The pre-resolved {@link ValueComparer} for this column.
+     * @param expectedColIndex The zero-based column index in {@code expectedTable}.
+     * @param actualColIndex The zero-based column index in {@code actualTable}.
+     * @throws DatabaseUnitException if comparison or value retrieval fails.
      */
+    private void compareDataCell(final ITable expectedTable,
+            final ITable actualTable, final ComparisonColumn[] comparisonCols,
+            final FailureHandler failureHandler, final int rowNum,
+            final int columnNum, final ValueComparer valueComparer,
+            final int expectedColIndex, final int actualColIndex)
+            throws DatabaseUnitException
+    {
+        final ComparisonColumn compareColumn = comparisonCols[columnNum];
+        final String columnName = compareColumn.getColumnName();
+        final DataType dataType = compareColumn.getDataType();
+
+        final Object expectedValue =
+                expectedTable.getValue(rowNum, expectedColIndex);
+        final Object actualValue =
+                actualTable.getValue(rowNum, actualColIndex);
+
+        if (skipCompare(columnName, expectedValue, actualValue))
+        {
+            log.trace(
+                    "skipCompare: ignoring comparison" + " {}={} on column={}",
+                    expectedValue, actualValue, columnName);
+        } else
+        {
+            if (log.isDebugEnabled())
+            {
+                log.debug(
+                        "compareData: comparing actualValue={}"
+                                + " to expectedValue={} with valueComparer={}",
+                        actualValue, expectedValue, valueComparer);
+            }
+            final String failMessage =
+                    valueComparer.compare(expectedTable, actualTable, rowNum,
+                            columnName, dataType, expectedValue, actualValue);
+
+            failIfNecessary(expectedTable, actualTable, failureHandler, rowNum,
+                    columnName, expectedValue, actualValue, failMessage);
+        }
+    }
+
     protected void compareData(final ITable expectedTable,
             final ITable actualTable, final ComparisonColumn[] comparisonCols,
             final FailureHandler failureHandler,

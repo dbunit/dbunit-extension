@@ -23,12 +23,19 @@ package org.dbunit.assertion;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import org.dbunit.DatabaseUnitException;
+import org.dbunit.assertion.comparer.value.IsActualEqualToExpectedValueComparer;
+import org.dbunit.assertion.comparer.value.NeverFailsValueComparer;
+import org.dbunit.assertion.comparer.value.ValueComparer;
 import org.dbunit.dataset.Column;
+import org.dbunit.dataset.DataSetBuilder;
+import org.dbunit.dataset.DefaultTable;
 import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.datatype.DataType;
-import org.dbunit.dataset.DataSetBuilder;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -487,6 +494,94 @@ class DbUnitAssertTest
     // -------------------------------------------------------------------------
     // Multiple rows: mismatch on second row
     // -------------------------------------------------------------------------
+
+    // -------------------------------------------------------------------------
+    // assertWithValueComparer — per-column ValueComparer pre-resolution
+    // -------------------------------------------------------------------------
+
+    @Test
+    void testAssertWithValueComparer_withNeverFailsComparerForDifferentColumn_doesNotThrow()
+            throws DatabaseUnitException
+    {
+        final IDataSet expected = new DataSetBuilder()
+                .table("T").columns("ID", "NAME")
+                .row(1, "Alice")
+                .row(2, "Bob")
+                .build();
+
+        final IDataSet actual = new DataSetBuilder()
+                .table("T").columns("ID", "NAME")
+                .row(1, "Alice")
+                .row(2, "DIFFERENT")
+                .build();
+
+        // NAME has different values but the per-column override says "never fail"
+        final Map<String, ValueComparer> columnComparers = new HashMap<>();
+        columnComparers.put("NAME", new NeverFailsValueComparer());
+
+        assertion.assertWithValueComparer(expected.getTable("T"),
+                actual.getTable("T"), null, new IsActualEqualToExpectedValueComparer(),
+                columnComparers);
+    }
+
+    @Test
+    void testAssertWithValueComparer_withStrictComparerForDifferentColumn_throwsDbComparisonFailure()
+            throws DatabaseUnitException
+    {
+        final IDataSet expected = new DataSetBuilder()
+                .table("T").columns("ID", "NAME")
+                .row(1, "Alice")
+                .build();
+
+        final IDataSet actual = new DataSetBuilder()
+                .table("T").columns("ID", "NAME")
+                .row(99, "Alice")
+                .build();
+
+        // NAME matches but ID differs; the strict default comparer should catch it
+        final Map<String, ValueComparer> columnComparers = new HashMap<>();
+        columnComparers.put("NAME", new NeverFailsValueComparer());
+
+        assertThatThrownBy(() ->
+            assertion.assertWithValueComparer(expected.getTable("T"),
+                    actual.getTable("T"), null,
+                    new IsActualEqualToExpectedValueComparer(), columnComparers))
+                .as("ID mismatch triggers the default (strict) comparer.")
+                .isInstanceOf(DbComparisonFailure.class)
+                .hasMessageContaining("ID");
+    }
+
+    @Test
+    void testAssertWithValueComparer_withManyRowsAndColumns_reportsAllDifferencesCorrectly()
+            throws DatabaseUnitException
+    {
+        final int rowCount = 20;
+        final Column[] columns = new Column[] {
+                new Column("C0", DataType.VARCHAR),
+                new Column("C1", DataType.VARCHAR),
+                new Column("C2", DataType.VARCHAR),
+                new Column("C3", DataType.VARCHAR),
+                new Column("C4", DataType.VARCHAR)};
+
+        final DefaultTable expectedTable = new DefaultTable("T", columns);
+        final DefaultTable actualTable = new DefaultTable("T", columns);
+        for (int i = 0; i < rowCount; i++)
+        {
+            expectedTable.addRow(new Object[] {
+                    "e0r" + i, "e1r" + i, "e2r" + i, "e3r" + i, "e4r" + i});
+            actualTable.addRow(new Object[] {
+                    "a0r" + i, "a1r" + i, "a2r" + i, "a3r" + i, "a4r" + i});
+        }
+
+        final DiffCollectingFailureHandler handler = new DiffCollectingFailureHandler();
+        assertion.assertWithValueComparer(expectedTable, actualTable, handler,
+                new IsActualEqualToExpectedValueComparer(), null);
+
+        assertThat(handler.getDiffList())
+                .as("All %d row × %d col cells should be reported as differences.",
+                        rowCount, columns.length)
+                .hasSize(rowCount * columns.length);
+    }
 
     @Test
     void testAssertEquals_withMismatchOnSecondRow_throwsAndMentionsRowIndex()
