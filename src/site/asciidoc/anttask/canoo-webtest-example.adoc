@@ -11,13 +11,13 @@ This document walks you through a suggested format for storing tests.
 See link:../anttask.html[Ant Task] for the `<dbunit>` task reference this
 walkthrough builds on.
 
-=== Step 1: Create your dataset file
+== Step 1: Create your dataset file
 
 Your first step is to create your dataset file that you want to load into your database before running your WebTest script.
 Use one of the link:../datasets.html[dataset formats].
 Put the various datasets you need in a `/data` directory.
 
-=== Step 2: Create your Ant build.xml file
+== Step 2: Create your Ant build.xml file
 
 A suggested setup is to have a single build.xml file that is the entry point for all your tests.
 This would include a couple targets like:
@@ -26,7 +26,7 @@ This would include a couple targets like:
 . `test:single`: Runs a single test in a specific testSuite
 . `test:suite`: Runs all the tests for a specific testSuite
 
-=== Step 3: Create your various Test Suites
+== Step 3: Create your various Test Suites
 
 Once you have your build.xml file set up, you can now call the various TestSuites.
 Create a separate TestSuiteXXX.xml for the various modules that you would like to test.
@@ -49,7 +49,7 @@ In your TestSuiteXXX.xml, you should have your default target testSuite call all
 
 This way you can either run all the test's in your Test Suite, or just run a specific one, all from build.xml!
 
-=== Step 4: Create your various Tests
+== Step 4: Create your various Tests
 
 Now you need to write your various testcases.
 For more information on WebTest, please refer to the link:http://webtest.canoo.com[WebTest home page].

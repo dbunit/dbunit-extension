@@ -7,7 +7,7 @@ The steps required to add the DbUnit task to your system are:
 1. Add the DbUnit jar to Ant's classpath. You may alternatively use the 'classpath' attribute of `<taskdef>`.
 
 2. Add a `<taskdef>` element to your build script as follows:
-
++
 [source,xml]
 ----
 <taskdef name="dbunit" classname="org.dbunit.ant.DbUnitTask"/>
@@ -106,30 +106,30 @@ You can specify individual tables or queries to export by nesting them under the
 *table*: Use nested `<table>` elements to export specific tables.
 
 [cols="1,3,1",options="header"]
-!===
-!Attribute !Description !Required
-!name !Name of the database table to export. !Yes
-!===
+|===
+|Attribute |Description |Required
+|name |Name of the database table to export. |Yes
+|===
 
 *query*: Use nested `<query>` elements to export data according to a sql statement.
 
 [cols="1,3,1",options="header"]
-!===
-!Attribute !Description !Required
-!name !Name to reference the sql statement. !Yes
-!sql !The sql to execute. You can use either SELECT * from Mytable or SELECT col1, col4 from MyTable !Yes
-!===
+|===
+|Attribute |Description |Required
+|name |Name to reference the sql statement. |Yes
+|sql |The sql to execute. You can use either SELECT * from Mytable or SELECT col1, col4 from MyTable |Yes
+|===
 
 *queryset*: Use a `<queryset>` element to establish a group of `<query>` elements which can be referenced throughout the Ant project.
 Also use nested `<queryset>`s to include more than one `<query>` element for a table.
 QuerySets are joined together using a link:datasets/decorators.html#compositedataset[CompositeDataSet].
 
 [cols="1,3,1",options="header"]
-!===
-!Attribute !Description !Required
-!id !Unique identifier for this element instance which can be referred to using 'refid'. !No
-!refid !The reference 'id' of the queryset to refer to. !No
-!===
+|===
+|Attribute |Description |Required
+|id |Unique identifier for this element instance which can be referred to using 'refid'. |No
+|refid |The reference 'id' of the queryset to refer to. |No
+|===
 
 Nested elements of queryset:
 
@@ -172,19 +172,19 @@ Use nested `<compare>` elements to validate the content of the database against 
 *table*: Use nested `<table>` elements to compare specific tables.
 
 [cols="1,3,1",options="header"]
-!===
-!Attribute !Description !Required
-!name !Name of the database table to compare. !Yes
-!===
+|===
+|Attribute |Description |Required
+|name |Name of the database table to compare. |Yes
+|===
 
 *query*: Use nested `<query>` elements to compare data according to a sql statement.
 
 [cols="1,3,1",options="header"]
-!===
-!Attribute !Description !Required
-!name !Name of the database table to compare. !Yes
-!sql !The sql to execute. You can use either SELECT * from Mytable or SELECT col1, col4 from MyTable !Yes
-!===
+|===
+|Attribute |Description |Required
+|name |Name of the database table to compare. |Yes
+|sql |The sql to execute. You can use either SELECT * from Mytable or SELECT col1, col4 from MyTable |Yes
+|===
 
 == Examples
 
