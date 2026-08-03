@@ -40,18 +40,23 @@
     <!-- non-UTC timezone for testing -->
     <test.timezone>Europe/Berlin</test.timezone>
 
+    <spotbugs.maven.effort>Max</spotbugs.maven.effort>
+    <spotbugs.maven.threshold>Low</spotbugs.maven.threshold>
+
     <!-- Framework versions -->
     <antJunitlauncherVersion>1.10.17</antJunitlauncherVersion>
     <antTestUtilVersion>1.10.12</antTestUtilVersion>
     <antVersion>1.10.17</antVersion>
     <assertj.version>3.25.1</assertj.version>
     <assertjCoreVersion>3.27.7</assertjCoreVersion>
+    <checkstyleVersion>13.3.0</checkstyleVersion>
     <gsbaseVersion>2.0.1</gsbaseVersion>
     <jclOverSlf4jVersion>2.0.18</jclOverSlf4jVersion>
     <junitVersion>6.1.2</junitVersion>
     <logbackClassicVersion>1.6.1</logbackClassicVersion>
     <mockitoVersion>5.23.0</mockitoVersion>
     <poiVersion>5.2.5</poiVersion>
+    <spotbugsAnnotationsVersion>4.9.8</spotbugsAnnotationsVersion>
     <xmlparserv2Version>23.26.2.0.0</xmlparserv2Version>
 
     <!-- Database driver versions -->
@@ -89,6 +94,7 @@
     <!-- FIXME maven picking 1.2 specified in parent; fix with parent change -->
     <enforcerPluginVersion>3.6.3</enforcerPluginVersion>
     <failsafePluginVersion>3.5.6</failsafePluginVersion>
+    <findbugsSlf4jRulesetVersion>1.5.0</findbugsSlf4jRulesetVersion>
     <gpgPluginVersion>3.2.8</gpgPluginVersion>
     <installPluginVersion>3.1.4</installPluginVersion>
     <jacocoPluginVersion>0.8.15</jacocoPluginVersion>
@@ -107,6 +113,7 @@
     <slf4jApiVersion>2.0.18</slf4jApiVersion>
     <snakeyamlVersion>2.6</snakeyamlVersion>
     <sourcePluginVersion>3.4.0</sourcePluginVersion>
+    <spotbugsMavenPluginVersion>4.10.3.0</spotbugsMavenPluginVersion>
     <surefirePluginVersion>3.5.6</surefirePluginVersion>
     <versionsMavenPluginVersion>2.21.0</versionsMavenPluginVersion>
 
@@ -565,6 +572,14 @@
       <groupId>com.oracle.database.jdbc</groupId>
       <artifactId>ojdbc8</artifactId>
     </dependency>
+
+    <!-- code audits -->
+    <dependency>
+      <groupId>com.github.spotbugs</groupId>
+      <artifactId>spotbugs-annotations</artifactId>
+      <version>${spotbugsAnnotationsVersion}</version>
+      <optional>true</optional>
+    </dependency>
   </dependencies>
 
   <build>
@@ -626,6 +641,31 @@
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-checkstyle-plugin</artifactId>
           <version>${checkstylePluginVersion}</version>
+          <dependencies>
+            <dependency>
+              <groupId>com.puppycrawl.tools</groupId>
+              <artifactId>checkstyle</artifactId>
+              <version>${checkstyleVersion}</version>
+            </dependency>
+          </dependencies>
+          <configuration>
+            <!-- <configLocation>/checkstyle/checkstyle-build-ruleset.xml</configLocation> -->
+            <!-- <propertiesLocation>/checkstyle/checkstyle-maven.properties</propertiesLocation> -->
+            <failsOnError>true</failsOnError>
+            <resourceIncludes>**/*.properties, **/*.xml</resourceIncludes>
+            <excludeGeneratedSources>true</excludeGeneratedSources>
+            <consoleOutput>true</consoleOutput>
+            <linkXRef>false</linkXRef>
+          </configuration>
+          <executions>
+            <execution>
+              <id>checkstyle_in_build</id>
+              <phase>compile</phase>
+              <goals>
+                <goal>checkstyle</goal>
+              </goals>
+            </execution>
+          </executions>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
@@ -866,6 +906,32 @@
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-pmd-plugin</artifactId>
           <version>${pmdPluginVersion}</version>
+          <configuration>
+            <targetJdk>${compileSource}</targetJdk>
+            <minimumTokens>100</minimumTokens>
+            <verbose>true</verbose>
+            <analysisCache>true</analysisCache>
+            <linkXRef>false</linkXRef>
+            <excludeRoots>
+              <excludeRoot>${project.build.directory}</excludeRoot>
+            </excludeRoots>
+            <!--
+            TODO create build ruleset
+            <rulesets>
+              <ruleset>/pmd/pmd-build-ruleset.xml</ruleset>
+            </rulesets>
+            -->
+          </configuration>
+          <executions>
+            <execution>
+              <id>pmd_in_build</id>
+              <phase>compile</phase>
+              <goals>
+                <goal>check</goal>
+                <goal>cpd-check</goal>
+              </goals>
+            </execution>
+          </executions>
         </plugin>
         <plugin>
           <groupId>org.codehaus.mojo</groupId>
@@ -925,6 +991,41 @@
               <phase>verify</phase>
               <goals>
                 <goal>jar-no-fork</goal>
+              </goals>
+            </execution>
+          </executions>
+        </plugin>
+        <plugin>
+          <groupId>com.github.spotbugs</groupId>
+          <artifactId>spotbugs-maven-plugin</artifactId>
+          <version>${spotbugsMavenPluginVersion}</version>
+          <configuration>
+            <debug>false</debug>
+            <effort>${spotbugs.maven.effort}</effort>
+            <threshold>${spotbugs.maven.threshold}</threshold>
+            <xmlOutput>true</xmlOutput>
+            <!-- Exclusions from SpotBugs scan -->
+            <!--
+            TODO enable this when file exists
+            <excludeFilterFile>/spotbugs/spotbugs-filters-exclude.xml</excludeFilterFile>
+            -->
+            <!--
+            TODO fix all the issues and commit enabled
+            <plugins>
+              <plugin>
+                <groupId>jp.skypencil.findbugs.slf4j</groupId>
+                <artifactId>bug-pattern</artifactId>
+                <version>${findbugsSlf4jRulesetVersion}</version>
+              </plugin>
+            </plugins>
+            -->
+          </configuration>
+          <executions>
+            <execution>
+              <id>spotbugs_in_build</id>
+              <phase>compile</phase>
+              <goals>
+                <goal>check</goal>
               </goals>
             </execution>
           </executions>
@@ -999,6 +1100,27 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-enforcer-plugin</artifactId>
       </plugin>
+<!--
+      TODO fix all the issues and enable committed
+      <plugin>
+        <groupId>com.github.spotbugs</groupId>
+        <artifactId>spotbugs-maven-plugin</artifactId>
+      </plugin>
+-->
+<!--
+      TODO fix all the issues and enable committed
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-pmd-plugin</artifactId>
+      </plugin>
+-->
+<!--
+      TODO fix all the issues and enable committed
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-checkstyle-plugin</artifactId>
+      </plugin>
+-->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-failsafe-plugin</artifactId>
@@ -1573,12 +1695,6 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-pmd-plugin</artifactId>
         <version>${pmdPluginVersion}</version>
-        <configuration>
-          <linkXref>true</linkXref>
-          <sourceEncoding>utf-8</sourceEncoding>
-          <minimumTokens>100</minimumTokens>
-          <targetJdk>${compileSource}</targetJdk>
-        </configuration>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
