@@ -835,6 +835,11 @@
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-javadoc-plugin</artifactId>
           <version>${javadocPluginVersion}</version>
+          <configuration>
+            <additionalOptions>
+              <additionalOption>-Xdoclint:all,-missing</additionalOption>
+            </additionalOptions>
+          </configuration>
           <executions>
             <execution>
               <id>attach-javadocs</id>
