@@ -27,11 +27,14 @@ import java.sql.Statement;
 
 import org.dbunit.dataset.AbstractTable;
 import org.dbunit.dataset.DataSetException;
+import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.ITableMetaData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * Abstract base for {@link ITable} implementations backed directly by a JDBC {@link ResultSet}.
+ *
  * @author Manuel Laflamme
  * @since Apr 10, 2003
  * @version $Revision$

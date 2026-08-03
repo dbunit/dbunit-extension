@@ -39,6 +39,8 @@ public interface IDatabaseTester
     /**
      * Close the specified connection.
      *
+     * @param connection the connection to close.
+     * @throws Exception if the connection cannot be closed.
      * @deprecated since 2.4.4 define a user defined
      *             {@link #setOperationListener(IOperationListener)} in advance
      */
@@ -47,32 +49,44 @@ public interface IDatabaseTester
 
     /**
      * Returns the test database connection.
+     *
+     * @return the test database connection.
+     * @throws Exception if the connection cannot be retrieved or created.
      */
     IDatabaseConnection getConnection() throws Exception;
 
     /**
      * Returns the test dataset.
+     *
+     * @return the test dataset.
      */
     IDataSet getDataSet();
 
     /**
      * Gets the DatabaseOperation to call when starting the test.
+     *
+     * @return the setup {@link DatabaseOperation}.
      */
     DatabaseOperation getSetUpOperation();
 
     /**
      * Gets the DatabaseOperation to call when ending the test.
+     *
+     * @return the tear-down {@link DatabaseOperation}.
      */
     DatabaseOperation getTearDownOperation();
 
     /**
      * Sets the test dataset to use.
+     *
+     * @param dataSet the test dataset to use.
      */
     void setDataSet(IDataSet dataSet);
 
     /**
      * Sets the schema value.
      *
+     * @param schema the schema name.
      * @deprecated since 2.4.3 Should not be used anymore. Every concrete
      *             {@link IDatabaseTester} implementation that needs a schema
      *             has the possibility to set it somehow in the constructor
@@ -82,25 +96,35 @@ public interface IDatabaseTester
 
     /**
      * Sets the DatabaseOperation to call when starting the test.
+     *
+     * @param setUpOperation the setup {@link DatabaseOperation}.
      */
     void setSetUpOperation(DatabaseOperation setUpOperation);
 
     /**
      * Sets the DatabaseOperation to call when ending the test.
+     *
+     * @param tearDownOperation the tear-down {@link DatabaseOperation}.
      */
     void setTearDownOperation(DatabaseOperation tearDownOperation);
 
     /**
      * TestCases must call this method inside setUp()
+     *
+     * @throws Exception if the setup operation fails.
      */
     void onSetup() throws Exception;
 
     /**
      * TestCases must call this method inside tearDown()
+     *
+     * @throws Exception if the tear-down operation fails.
      */
     void onTearDown() throws Exception;
 
     /**
+     * Sets the listener notified of connection-retrieval and setup/tear-down events.
+     *
      * @param operationListener
      *            The operation listener that is invoked on specific events in
      *            the {@link IDatabaseTester}.

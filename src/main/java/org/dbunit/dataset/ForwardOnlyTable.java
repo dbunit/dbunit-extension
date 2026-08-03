@@ -24,6 +24,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * {@link ITable} decorator that wraps another table and enforces forward-only,
+ * non-counted row access.
+ *
  * @author Manuel Laflamme
  * @since Apr 9, 2003
  * @version $Revision$

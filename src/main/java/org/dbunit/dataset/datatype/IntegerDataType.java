@@ -31,6 +31,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * {@link DataType} mapping integer SQL column types to {@link Integer}.
+ *
  * @author Manuel Laflamme
  * @version $Revision$
  */

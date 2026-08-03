@@ -29,6 +29,8 @@ import org.dbunit.database.IDatabaseConnection;
 import java.sql.SQLException;
 
 /**
+ * {@link IStatementFactory} that creates non-prepared {@link SimpleStatement} instances.
+ *
  * @author Manuel Laflamme
  * @version $Revision$
  * @since Mar 15, 2002

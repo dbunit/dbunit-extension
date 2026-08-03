@@ -30,6 +30,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * Writes a flat DTD document describing a dataset's tables and columns.
+ *
  * @author Manuel Laflamme
  * @author Last changed by: $Author$
  * @version $Revision$ $Date$
@@ -125,6 +127,9 @@ public class FlatDtdWriter //implements IDataSetConsumer
     }
 
     /**
+     * Abstract strategy for rendering a DTD element's content model (the part
+     * between the parentheses in an &lt;!ELEMENT&gt; declaration).
+     *
      * @author Manuel Laflamme
      * @author Last changed by: $Author$
      * @version $Revision$ $Date$
@@ -150,6 +155,9 @@ public class FlatDtdWriter //implements IDataSetConsumer
 
     
     /**
+     * {@link ContentModel} that renders table names as a comma-separated,
+     * ordered sequence.
+     *
      * @author Manuel Laflamme
      * @author Last changed by: $Author$
      * @version $Revision$ $Date$
@@ -189,6 +197,8 @@ public class FlatDtdWriter //implements IDataSetConsumer
     }
 
     /**
+     * {@link ContentModel} that renders table names as a pipe-separated choice group.
+     *
      * @author Manuel Laflamme
      * @author Last changed by: $Author$
      * @version $Revision$ $Date$

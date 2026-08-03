@@ -25,6 +25,9 @@ import java.util.Arrays;
 
 
 /**
+ * Straightforward {@link ITableMetaData} implementation holding an explicit table
+ * name, column list, and primary keys.
+ *
  * @author Manuel Laflamme
  * @version $Revision$
  * @since Feb 17, 2002

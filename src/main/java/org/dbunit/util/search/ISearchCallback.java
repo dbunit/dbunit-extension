@@ -39,8 +39,7 @@ public interface ISearchCallback {
      * 
      * @param fromNode node from
      * @return all edges originating from this node.
-     * @throws Exception
-     *           exception wrapper
+     * @throws SearchException if the edges originating from the node cannot be determined.
      */
     SortedSet getEdges(Object fromNode) throws SearchException;
 
@@ -49,8 +48,7 @@ public interface ISearchCallback {
      * 
      * @param fromNode
      *          node that has been added.
-     * @throws Exception
-     *           exception wrapper
+     * @throws SearchException if the callback cannot process the added node.
      */
     void nodeAdded(Object fromNode) throws SearchException;
 
@@ -60,8 +58,7 @@ public interface ISearchCallback {
      * @param node
      *          node to be filtered
      * @return true if the node should be searched
-     * @throws Exception
-     *           exception wrapper
+     * @throws SearchException if the callback cannot decide whether the node should be searched.
      */
     boolean searchNode(Object node) throws SearchException;
 }

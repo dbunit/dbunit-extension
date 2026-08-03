@@ -31,6 +31,8 @@ import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.xml.XmlDataSet;
 
 /**
+ * {@link DataFileLoader} that loads full-format XML dataset files.
+ *
  * @author Jeff Jensen jeffjensen AT users.sourceforge.net
  * @author Last changed by: $Author$
  * @version $Revision$ $Date$

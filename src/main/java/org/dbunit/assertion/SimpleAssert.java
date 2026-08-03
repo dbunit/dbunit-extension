@@ -53,6 +53,9 @@ public class SimpleAssert
     /**
      * Asserts that propertyName is not a null String and has a length greater
      * than zero.
+     *
+     * @param propertyName the name of the property being validated, used in the failure message.
+     * @param property the property value to validate.
      */
     protected void assertNotNullNorEmpty( String propertyName, String property )
     {

@@ -22,6 +22,8 @@ package org.dbunit;
 
 
 /**
+ * Base unchecked exception for errors raised by the DbUnit framework.
+ *
  * @author Manuel Laflamme
  * @author Last changed by: $Author$
  * @version $Revision$ $Date$

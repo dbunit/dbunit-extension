@@ -31,6 +31,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * {@link DataType} mapping floating-point SQL column types to {@link Double}.
+ *
  * @author Manuel Laflamme
  * @version $Revision$
  */

@@ -24,6 +24,9 @@ package org.dbunit.operation;
 import org.dbunit.DatabaseUnitException;
 
 /**
+ * Signals that a transaction could not be started because another transaction
+ * is already active.
+ *
  * @author Manuel Laflamme
  * @version $Revision$
  * @since Feb 21, 2002

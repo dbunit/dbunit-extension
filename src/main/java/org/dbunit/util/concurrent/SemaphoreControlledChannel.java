@@ -81,10 +81,8 @@ public abstract class SemaphoreControlledChannel implements BoundedChannel {
     capacity_ = capacity;
     Class[] longarg = { Long.TYPE };
     Constructor ctor = semaphoreClass.getDeclaredConstructor(longarg);
-    Long[] cap = {Long.valueOf(capacity)};
-    putGuard_ = (Semaphore)(ctor.newInstance(cap));
-    Long[] zero = {0L};
-    takeGuard_ = (Semaphore)(ctor.newInstance(zero));
+    putGuard_ = (Semaphore)(ctor.newInstance(Long.valueOf(capacity)));
+    takeGuard_ = (Semaphore)(ctor.newInstance(Long.valueOf(0L)));
   }
 
 

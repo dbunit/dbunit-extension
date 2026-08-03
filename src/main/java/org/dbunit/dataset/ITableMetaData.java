@@ -45,14 +45,14 @@ public interface ITableMetaData
      * Note that it is <b>not</b> an exceptional case within dbunit when a {@link ITableMetaData}
      * does not have a column. 
      * @return The columns for this table
-     * @throws DataSetException
+     * @throws DataSetException if the columns cannot be determined.
      */
     public Column[] getColumns() throws DataSetException;
 
     /**
      * Returns this table primary key columns.
      * @return this table primary key columns.
-     * @throws DataSetException
+     * @throws DataSetException if the primary key columns cannot be determined.
      */
     public Column[] getPrimaryKeys() throws DataSetException;
 

@@ -26,6 +26,8 @@ import org.slf4j.LoggerFactory;
 
 
 /**
+ * Abstract helper that assists a {@link PipelineComponent} in processing a character.
+ *
  * @author fede
  * @author Last changed by: $Author$
  * @version $Revision$ $Date$

@@ -25,6 +25,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * {@link PipelineComponent} that matches the CSV quote character.
+ *
  * @author fede
  * @author Last changed by: $Author$
  * @version $Revision$ $Date$

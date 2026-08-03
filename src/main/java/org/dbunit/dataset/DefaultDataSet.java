@@ -103,7 +103,6 @@ public class DefaultDataSet extends AbstractDataSet
 
     /**
      * Initializes the {@link _orderedTableNameMap} of the parent class if it is not initialized yet.
-     * @throws DataSetException
      * @since 2.4.6
      */
     protected void initialize()

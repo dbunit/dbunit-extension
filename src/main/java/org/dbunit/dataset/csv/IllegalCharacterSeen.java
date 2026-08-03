@@ -23,6 +23,8 @@ package org.dbunit.dataset.csv;
 
 
 /**
+ * Signals that an unexpected character was encountered while producing CSV output.
+ *
  * @author fede
  * @author Last changed by: $Author$
  * @version $Revision$ $Date$

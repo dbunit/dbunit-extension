@@ -46,6 +46,9 @@ import java.util.Map;
 import java.util.Set;
 
 /**
+ * {@link IDataSetProducer} that parses a YAML dataset document and streams
+ * table/row events.
+ *
  * @author Björn Beskow
  * @version $Revision$ $Date$
  */

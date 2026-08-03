@@ -25,6 +25,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * {@link PipelineComponent} that matches whitespace characters during CSV field parsing.
+ *
  * @author fede
  * @author Last changed by: $Author$
  * @version $Revision$ $Date$

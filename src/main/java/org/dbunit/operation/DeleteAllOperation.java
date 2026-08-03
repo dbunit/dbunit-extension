@@ -43,7 +43,7 @@ import java.util.Set;
  * does not contains a particular table, but that table exists in the database,
  * the database table is not affected. Table are truncated in
  * reverse sequence.
- * <p/>
+ * <p>
  * This operation has the same effect of as {@link TruncateTableOperation}.
  * TruncateTableOperation is faster, and it is non-logged, meaning it cannot be
  * rollback. DeleteAllOperation is more portable because not all database vendor

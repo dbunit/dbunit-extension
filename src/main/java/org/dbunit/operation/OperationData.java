@@ -26,6 +26,8 @@ import java.util.Arrays;
 import org.dbunit.dataset.Column;
 
 /**
+ * Pairs a SQL statement with the columns whose values are bound as its parameters.
+ *
  * @author Manuel Laflamme
  * @version $Revision$
  * @since Mar 16, 2002

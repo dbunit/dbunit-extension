@@ -75,8 +75,8 @@ public class CitextType
 
         try {
             Class aPGObjectClass = super.loadClass("org.postgresql.util.PGobject", connection);
-            Constructor ct = aPGObjectClass.getConstructor(null);
-            tempCitext = ct.newInstance(null);
+            Constructor ct = aPGObjectClass.getConstructor();
+            tempCitext = ct.newInstance();
 
             Method setTypeMethod = aPGObjectClass.getMethod("setType", new Class[]{String.class});
             setTypeMethod.invoke(tempCitext, new Object[]{"citext"});

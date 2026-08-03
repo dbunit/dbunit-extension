@@ -70,14 +70,12 @@ import org.slf4j.LoggerFactory;
  *        example, a variable that is always associated with a
  *        particular object can use that object's lock.
  * </ul>
- * <p>
  * <b>Update methods</b><br>
  * Each class supports several kinds of update methods:
  * <ul>
  *   <li> A <code>set</code> method that sets to a new value and returns 
  *    previous value. For example, for a SynchronizedBoolean b,
  *    <code>boolean old = b.set(true)</code> performs a test-and-set.
- * <p>
  *   <li> A  <code>commit</code> method that sets to new value only
  *    if currently holding a given value.
  * 
@@ -104,10 +102,8 @@ import org.slf4j.LoggerFactory;
  *    int compute(int l) { ... some kind of computation ...  }
  *  }
  * </pre>
- * <p>
- *   <li>A <code>swap</code> method that atomically swaps with another 
+ *   <li>A <code>swap</code> method that atomically swaps with another
  *    object of the same class using a deadlock-avoidance strategy.
- * <p>
  *    <li> Update-in-place methods appropriate to the type. All
  *    numerical types support:
  *     <ul>
@@ -171,10 +167,6 @@ import org.slf4j.LoggerFactory;
  *   implement any of these standard interfaces because there are
  *   many cases where it would not make sense. However, you can
  *   easily make simple subclasses that add the appropriate declarations.
- *
- *  <p>
- *
- *
  *
  * <p>[<a href="http://gee.cs.oswego.edu/dl/classes/EDU/oswego/cs/dl/util/concurrent/intro.html"> Introduction to this package. </a>]</p>
  * 

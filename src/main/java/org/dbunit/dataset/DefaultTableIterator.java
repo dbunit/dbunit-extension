@@ -24,6 +24,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * {@link ITableIterator} over a fixed, in-memory array of {@link ITable}s.
+ *
  * @author Manuel Laflamme
  * @since Apr 5, 2003
  * @version $Revision$

@@ -40,11 +40,11 @@ import java.util.regex.Pattern;
  * supported units. There can be multiple 'diff's and they can be specified in
  * any order.<br>
  * 'time' is a string that can be parsed by
- * <code>LocalTime#parse()</cde>. If specified, it is used instead of the current time.<br>
+ * <code>LocalTime#parse()</code>. If specified, it is used instead of the current time.<br>
  * Both 'diff' and 'time' are optional.<br>
  * Whitespaces are allowed before and after each 'diff'.
  * </p>
- * <h3>Unit</h3>
+ * <h2>Unit</h2>
  * <ul>
  * <li>y : years</li>
  * <li>M : months</li>

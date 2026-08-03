@@ -75,8 +75,8 @@ public class UuidType
 
         try {
             Class aPGObjectClass = super.loadClass("org.postgresql.util.PGobject", connection);
-            Constructor ct = aPGObjectClass.getConstructor(null);
-            tempUUID = ct.newInstance(null);
+            Constructor ct = aPGObjectClass.getConstructor();
+            tempUUID = ct.newInstance();
 
             Method setTypeMethod = aPGObjectClass.getMethod("setType", new Class[]{String.class});
             setTypeMethod.invoke(tempUUID, new Object[]{"uuid"});

@@ -29,7 +29,7 @@ import org.slf4j.LoggerFactory;
  * in order to hand it some information, event, or task. 
  * <p> If you only need threads to synch up without
  * exchanging information, consider using a Barrier. If you need
- * bidirectional exchanges, consider using a Rendezvous.  <p>
+ * bidirectional exchanges, consider using a Rendezvous.
  *
  * <p>Read the
  * <a href="http://gee.cs.oswego.edu/dl/classes/EDU/oswego/cs/dl/util/concurrent/intro.html">introduction to this package</a> 

@@ -21,6 +21,9 @@
 package org.dbunit.dataset.common.handlers;
 
 /**
+ * Holds the configurable separator, quote, and escape characters used by a CSV
+ * parsing {@link Pipeline}.
+ *
  * @author gommma (gommma AT users.sourceforge.net)
  * @author Last changed by: $Author$
  * @version $Revision$ $Date$

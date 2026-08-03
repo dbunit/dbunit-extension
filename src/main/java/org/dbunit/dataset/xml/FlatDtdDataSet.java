@@ -46,6 +46,9 @@ import org.slf4j.LoggerFactory;
 import org.xml.sax.InputSource;
 
 /**
+ * {@link org.dbunit.dataset.IDataSet} built by consuming table metadata declared
+ * in a flat DTD document.
+ *
  * @author Manuel Laflamme
  * @author Last changed by: $Author$
  * @version $Revision$ $Date$

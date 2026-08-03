@@ -28,6 +28,8 @@ import java.sql.Connection;
 import java.util.Locale;
 
 /**
+ * {@link DatabaseConnection} specialization that configures Oracle-specific
+ * connection behavior.
  *
  * @author manuel.laflamme
  * @since Sep 3, 2003

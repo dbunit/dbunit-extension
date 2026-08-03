@@ -680,9 +680,13 @@
             <source>${compileSource}</source>
             <target>${compileSource}</target>
             <release>8</release>
-            <compilerVersion>${compileSource}</compilerVersion>
             <debug>true</debug>
             <fork>true</fork>
+            <compilerArgs>
+              <!-- Java 8 bytecode target is intentional, for consumer compatibility; silence the
+                   resulting "source/target value 8 is obsolete" advisory noise. -->
+              <arg>-Xlint:-options</arg>
+            </compilerArgs>
           </configuration>
         </plugin>
         <plugin>
@@ -756,48 +760,18 @@
           <version>${failsafePluginVersion}</version>
           <configuration>
             <redirectTestOutputToFile>true</redirectTestOutputToFile>
-            <systemProperties>
-              <property>
-                <name>derby.stream.error.file</name>
-                <value>${project.build.directory}/derby.log</value>
-              </property>
-              <property>
-                <name>dbunit.profile</name>
-                <value>${dbunit.profile}</value>
-              </property>
-              <property>
-                <name>dbunit.profile.driverClass</name>
-                <value>${dbunit.profile.driverClass}</value>
-              </property>
-              <property>
-                <name>dbunit.profile.url</name>
-                <value>${dbunit.profile.url}</value>
-              </property>
-              <property>
-                <name>dbunit.profile.schema</name>
-                <value>${dbunit.profile.schema}</value>
-              </property>
-              <property>
-                <name>dbunit.profile.user</name>
-                <value>${dbunit.profile.user}</value>
-              </property>
-              <property>
-                <name>dbunit.profile.password</name>
-                <value>${dbunit.profile.password}</value>
-              </property>
-              <property>
-                <name>dbunit.profile.unsupportedFeatures</name>
-                <value>${dbunit.profile.unsupportedFeatures}</value>
-              </property>
-              <property>
-                <name>dbunit.profile.ddl</name>
-                <value>${dbunit.profile.ddl}</value>
-              </property>
-              <property>
-                <name>dbunit.profile.multiLineSupport</name>
-                <value>${dbunit.profile.multiLineSupport}</value>
-              </property>
-            </systemProperties>
+            <systemPropertyVariables>
+              <derby.stream.error.file>${project.build.directory}/derby.log</derby.stream.error.file>
+              <dbunit.profile>${dbunit.profile}</dbunit.profile>
+              <dbunit.profile.driverClass>${dbunit.profile.driverClass}</dbunit.profile.driverClass>
+              <dbunit.profile.url>${dbunit.profile.url}</dbunit.profile.url>
+              <dbunit.profile.schema>${dbunit.profile.schema}</dbunit.profile.schema>
+              <dbunit.profile.user>${dbunit.profile.user}</dbunit.profile.user>
+              <dbunit.profile.password>${dbunit.profile.password}</dbunit.profile.password>
+              <dbunit.profile.unsupportedFeatures>${dbunit.profile.unsupportedFeatures}</dbunit.profile.unsupportedFeatures>
+              <dbunit.profile.ddl>${dbunit.profile.ddl}</dbunit.profile.ddl>
+              <dbunit.profile.multiLineSupport>${dbunit.profile.multiLineSupport}</dbunit.profile.multiLineSupport>
+            </systemPropertyVariables>
           </configuration>
           <executions>
             <execution>
@@ -861,14 +835,6 @@
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-javadoc-plugin</artifactId>
           <version>${javadocPluginVersion}</version>
-          <!--
-            see https://sourceforge.net/p/dbunit/code.git/merge-requests/25/
-            FIXME remove -Xdoclint:none after JavaDoc cleanup.
-          -->
-          <configuration>
-            <additionalparam>-Xdoclint:none</additionalparam>
-            <doclint>none</doclint>
-          </configuration>
           <executions>
             <execution>
               <id>attach-javadocs</id>
@@ -1044,44 +1010,17 @@
             <includes>
               <include>**/*Test.java</include>
             </includes>
-            <systemProperties>
-              <property>
-                <name>dbunit.profile</name>
-                <value>${dbunit.profile}</value>
-              </property>
-              <property>
-                <name>dbunit.profile.driverClass</name>
-                <value>${dbunit.profile.driverClass}</value>
-              </property>
-              <property>
-                <name>dbunit.profile.url</name>
-                <value>${dbunit.profile.url}</value>
-              </property>
-              <property>
-                <name>dbunit.profile.schema</name>
-                <value>${dbunit.profile.schema}</value>
-              </property>
-              <property>
-                <name>dbunit.profile.user</name>
-                <value>${dbunit.profile.user}</value>
-              </property>
-              <property>
-                <name>dbunit.profile.password</name>
-                <value>${dbunit.profile.password}</value>
-              </property>
-              <property>
-                <name>dbunit.profile.unsupportedFeatures</name>
-                <value>${dbunit.profile.unsupportedFeatures}</value>
-              </property>
-              <property>
-                <name>dbunit.profile.ddl</name>
-                <value>${dbunit.profile.ddl}</value>
-              </property>
-              <property>
-                <name>dbunit.profile.multiLineSupport</name>
-                <value>${dbunit.profile.multiLineSupport}</value>
-              </property>
-            </systemProperties>
+            <systemPropertyVariables>
+              <dbunit.profile>${dbunit.profile}</dbunit.profile>
+              <dbunit.profile.driverClass>${dbunit.profile.driverClass}</dbunit.profile.driverClass>
+              <dbunit.profile.url>${dbunit.profile.url}</dbunit.profile.url>
+              <dbunit.profile.schema>${dbunit.profile.schema}</dbunit.profile.schema>
+              <dbunit.profile.user>${dbunit.profile.user}</dbunit.profile.user>
+              <dbunit.profile.password>${dbunit.profile.password}</dbunit.profile.password>
+              <dbunit.profile.unsupportedFeatures>${dbunit.profile.unsupportedFeatures}</dbunit.profile.unsupportedFeatures>
+              <dbunit.profile.ddl>${dbunit.profile.ddl}</dbunit.profile.ddl>
+              <dbunit.profile.multiLineSupport>${dbunit.profile.multiLineSupport}</dbunit.profile.multiLineSupport>
+            </systemPropertyVariables>
           </configuration>
         </plugin>
         <plugin>
@@ -1709,12 +1648,6 @@
               <head>To do:</head>
             </tag>
           </tags>
-          <!--
-            see https://sourceforge.net/p/dbunit/code.git/merge-requests/25/
-            FIXME remove -Xdoclint:none after JavaDoc cleanup.
-          -->
-          <additionalparam>-Xdoclint:none</additionalparam>
-          <doclint>none</doclint>
         </configuration>
       </plugin>
       <plugin>

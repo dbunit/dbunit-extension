@@ -32,6 +32,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * {@link DataType} mapping the SQL BIGINT type to {@link Long}.
+ *
  * @author Manuel Laflamme
  * @version $Revision$
  */

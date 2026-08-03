@@ -45,6 +45,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * {@link IDataSetProducer} that streams table and row events by parsing CSV files.
+ *
  * @author Federico Spinazzi
  * @author Last changed by: $Author$
  * @version $Revision$ $Date$

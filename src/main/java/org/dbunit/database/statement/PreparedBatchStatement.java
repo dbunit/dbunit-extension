@@ -32,6 +32,9 @@ import java.sql.Connection;
 import java.sql.SQLException;
 
 /**
+ * {@link IPreparedBatchStatement} that accumulates bound rows using the JDBC
+ * {@code addBatch()}/{@code executeBatch()} mechanism.
+ *
  * @author Manuel Laflamme
  * @version $Revision$
  * @since Mar 16, 2002

@@ -54,7 +54,6 @@ import org.slf4j.LoggerFactory;
  * and NAME_INFO and my test tries to delete only the INDIVIDUALS, the
  * NAME_INFO.IND_ID constraint would be violated)
  * <p>
- * <p>
  * Each queryset is internally converted to a <code>QueryDataSet</code> and then
  * combined using a <code>CompositeDataSet</code>. This means that you can use
  * more than one <code>query</code> element for any given table provided they

@@ -31,11 +31,13 @@ import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.excel.XlsDataSet;
 
 /**
+ * {@link DataFileLoader} that loads Excel (.xls) dataset files.
+ *
  * @author Jeff Jensen jeffjensen AT users.sourceforge.net
  * @author Last changed by: $Author$
  * @version $Revision$ $Date$
  * @since 2.4.8
- * 
+ *
  */
 public class XlsDataFileLoader extends AbstractDataFileLoader {
     /** Create new instance. */

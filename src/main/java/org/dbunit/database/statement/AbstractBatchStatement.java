@@ -29,6 +29,8 @@ import java.sql.SQLException;
 import java.sql.Statement;
 
 /**
+ * Abstract base {@link IBatchStatement} implementation.
+ *
  * @author Manuel Laflamme
  * @version $Revision$
  * @since Mar 15, 2002
@@ -41,6 +43,10 @@ public abstract class AbstractBatchStatement implements IBatchStatement
      */
     private static final Logger logger = LoggerFactory.getLogger(AbstractBatchStatement.class);
 
+    /**
+     * The wrapped JDBC statement that batched SQL is accumulated on and
+     * executed through.
+     */
     protected final Statement _statement;
 
     AbstractBatchStatement(Connection connection) throws SQLException

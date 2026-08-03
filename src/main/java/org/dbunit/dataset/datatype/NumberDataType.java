@@ -31,6 +31,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * {@link DataType} mapping numeric SQL column types to {@link java.math.BigDecimal}.
+ *
  * @author Manuel Laflamme
  * @version $Revision$
  * @since Feb 17, 2002

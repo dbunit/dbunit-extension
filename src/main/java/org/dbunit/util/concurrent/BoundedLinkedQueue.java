@@ -41,10 +41,10 @@ import org.slf4j.LoggerFactory;
  * normally does not hurt much performance-wise: When the
  * queue is not empty or full, most puts and
  * takes are still usually able to execute concurrently.
- * @see LinkedQueue 
- * @see BoundedBuffer 
- * <p>[<a href="http://gee.cs.oswego.edu/dl/classes/EDU/oswego/cs/dl/util/concurrent/intro.html"> Introduction to this package. </a>] <p>
- * 
+ * @see LinkedQueue
+ * @see BoundedBuffer
+ * <p>[<a href="http://gee.cs.oswego.edu/dl/classes/EDU/oswego/cs/dl/util/concurrent/intro.html"> Introduction to this package. </a>]
+ *
  * @author Doug Lea
  * @author Last changed by: $Author$
  * @version $Revision$ $Date$

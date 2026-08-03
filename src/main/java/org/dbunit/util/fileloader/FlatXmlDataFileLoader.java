@@ -29,6 +29,8 @@ import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.xml.FlatXmlDataSetBuilder;
 
 /**
+ * {@link DataFileLoader} that loads flat XML dataset files.
+ *
  * @author Jeff Jensen jeffjensen AT users.sourceforge.net
  * @author Last changed by: $Author$
  * @version $Revision$ $Date$
@@ -109,9 +111,9 @@ public class FlatXmlDataFileLoader extends AbstractDataFileLoader {
 
     /**
      * Get the builder.
-     * 
-     * @see {@link builder}.
-     * 
+     *
+     * @see #builder
+     *
      * @return The builder.
      */
     public FlatXmlDataSetBuilder getBuilder() {
@@ -120,9 +122,9 @@ public class FlatXmlDataFileLoader extends AbstractDataFileLoader {
 
     /**
      * Set the builder.
-     * 
-     * @see {@link builder}.
-     * 
+     *
+     * @see #builder
+     *
      * @param builder
      *            The builder to set.
      */

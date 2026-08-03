@@ -23,6 +23,8 @@ package org.dbunit.dataset.datatype;
 import java.sql.Types;
 
 /**
+ * {@link BooleanDataType} specialization mapping the SQL BIT type.
+ *
  * @author gommma
  * @author Last changed by: $Author$
  * @version $Revision$ $Date$

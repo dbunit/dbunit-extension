@@ -110,7 +110,6 @@ import org.slf4j.LoggerFactory;
  * in test cases. Note that I did have to bash the jpub startup script (change classpath)
  * because it assumes oracle 10g database but I ran it with 11g.  Theoretically, this
  * process can be repeated for other custom oracle object data types.
- * </p>
  *
  * @author clucas@e-miles.com
  * @author Last changed by: $Author$

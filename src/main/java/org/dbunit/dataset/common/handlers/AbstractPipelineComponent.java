@@ -24,6 +24,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * Abstract base {@link PipelineComponent} implementation shared by the CSV
+ * field-parsing handlers.
+ *
  * @author fede
  * @author Last changed by: $Author$
  * @version $Revision$ $Date$

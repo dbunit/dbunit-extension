@@ -36,6 +36,7 @@ import oracle.jdbc.OraclePreparedStatement;
 import oracle.jdbc.OracleResultSet;
 
 /**
+ * {@link BlobDataType} specialization mapping Oracle's XMLTYPE column type.
  *
  * @author Phil Barr
  * @author Last changed by: $Author$

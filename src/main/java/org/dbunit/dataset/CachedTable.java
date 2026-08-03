@@ -24,6 +24,9 @@ package org.dbunit.dataset;
 
 
 /**
+ * {@link ITable} implementation that fully loads and caches another table's rows
+ * and metadata in memory.
+ *
  * @author Manuel Laflamme
  * @since Apr 10, 2003
  * @version $Revision$

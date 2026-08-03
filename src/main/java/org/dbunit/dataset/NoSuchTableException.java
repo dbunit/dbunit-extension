@@ -23,6 +23,8 @@ package org.dbunit.dataset;
 
 
 /**
+ * Signals that a dataset does not contain a table with the requested name.
+ *
  * @author Manuel Laflamme
  * @version $Revision$
  * @since Feb 17, 2002

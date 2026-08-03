@@ -31,6 +31,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * {@link BytesDataType} specialization mapping the SQL BLOB type to a {@code byte[]}.
+ *
  * @author Manuel Laflamme
  * @version $Revision$
  * @since Jan 12, 2004

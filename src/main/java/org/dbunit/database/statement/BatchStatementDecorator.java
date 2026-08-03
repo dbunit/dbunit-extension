@@ -34,9 +34,13 @@ import java.util.List;
 import java.util.StringTokenizer;
 
 /**
+ * Decorator that adapts a plain {@link IBatchStatement} to the {@link IPreparedBatchStatement}
+ * interface by substituting bound values directly into the SQL text instead of using JDBC
+ * bind parameters.
+ *
  * @author Manuel Laflamme
  * @version $Revision$
- * @since Mar 16, 2002 
+ * @since Mar 16, 2002
  */
 public class BatchStatementDecorator implements IPreparedBatchStatement
 {

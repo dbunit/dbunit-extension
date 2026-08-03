@@ -25,6 +25,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * {@link PipelineComponent} that matches alphanumeric characters.
+ *
  * @author fede
  * @author Last changed by: $Author$
  * @version $Revision$ $Date$

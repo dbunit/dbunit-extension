@@ -34,12 +34,17 @@ public interface IDataSet
      * Returns names of tables in this dataset in proper sequence. Multiple
      * occurrence of the same name may be returned if multiple tables having
      * the same name are present in the dataset.
+     *
+     * @return the table names, in proper sequence.
+     * @throws DataSetException if the table names cannot be determined.
      */
     public String[] getTableNames() throws DataSetException;
 
     /**
      * Returns the specified table metadata.
      *
+     * @param tableName the name of the table to look up.
+     * @return the metadata of the specified table.
      * @throws org.dbunit.database.AmbiguousTableNameException if dataset contains multiple tables
      *      having the specified name. Use {@link #iterator} to access
      *      to all tables.
@@ -52,6 +57,8 @@ public interface IDataSet
     /**
      * Returns the specified table.
      *
+     * @param tableName the name of the table to look up.
+     * @return the specified table.
      * @throws org.dbunit.database.AmbiguousTableNameException if dataset contains multiple tables
      *      having the specified name. Use {@link #iterator} to access
      *      to all tables.
@@ -64,17 +71,25 @@ public interface IDataSet
      * Returns tables in this dataset in proper sequence. Multiple tables having
      * the same name but different data may be returned.
      *
+     * @return the tables in this dataset, in proper sequence.
+     * @throws DataSetException if the tables cannot be determined.
      * @deprecated Use {@link #iterator} or {@link #reverseIterator} instead.
      */
     public ITable[] getTables() throws DataSetException;
 
     /**
      * Returns an iterator over the tables in this dataset in proper sequence.
+     *
+     * @return an iterator over the tables in this dataset.
+     * @throws DataSetException if the iterator cannot be created.
      */
     public ITableIterator iterator() throws DataSetException;
 
     /**
      * Returns an iterator over the tables in this dataset in reverse sequence.
+     *
+     * @return an iterator over the tables in this dataset, in reverse sequence.
+     * @throws DataSetException if the iterator cannot be created.
      */
     public ITableIterator reverseIterator() throws DataSetException;
     

@@ -76,7 +76,7 @@ public class LowerCaseTableMetaData extends AbstractTableMetaData
 
     private Column[] createLowerColumns(Column[] columns)
     {
-        logger.debug("createLowerColumns(columns={}) - start", columns);
+        logger.debug("createLowerColumns(columns={}) - start", (Object) columns);
 
         Column[] lowerColumns = new Column[columns.length];
         for (int i = 0; i < columns.length; i++)

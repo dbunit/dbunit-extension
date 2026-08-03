@@ -22,6 +22,8 @@
 package org.dbunit.dataset.common.handlers;
 
 /**
+ * Placeholder class reserved for CSV line-ending handling.
+ *
  * @author fede
  * @author Last changed by: $Author$
  * @version $Revision$ $Date$

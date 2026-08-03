@@ -231,13 +231,13 @@ public class DbUnitAssert extends DbUnitAssertBase
      * Asserts that the two specified tables are equals. This method ignores the
      * table names, the columns order, the columns data type and which columns
      * are composing the primary keys. <br />
-     * Example: <code><pre>
+     * Example: <pre><code>
      * ITable actualTable = ...;
      * ITable expectedTable = ...;
      * ITableMetaData metaData = actualTable.getTableMetaData();
      * Column[] additionalInfoCols = Columns.getColumns(new String[] {"MY_PK_COLUMN"}, metaData.getColumns());
      * assertEquals(expectedTable, actualTable, additionalInfoCols);
-     * </pre></code>
+     * </code></pre>
      *
      * @param expectedTable
      *            Table containing all expected results.
@@ -272,13 +272,13 @@ public class DbUnitAssert extends DbUnitAssertBase
      * Asserts that the two specified tables are equals. This method ignores the
      * table names, the columns order, the columns data type and which columns
      * are composing the primary keys. <br />
-     * Example: <code><pre>
+     * Example: <pre><code>
      * ITable actualTable = ...;
      * ITable expectedTable = ...;
      * ITableMetaData metaData = actualTable.getTableMetaData();
      * FailureHandler failureHandler = new DefaultFailureHandler();
      * assertEquals(expectedTable, actualTable, failureHandler);
-     * </pre></code>
+     * </code></pre>
      *
      * @param expectedTable
      *            Table containing all expected results.

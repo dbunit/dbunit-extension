@@ -30,6 +30,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
+ * {@link IBatchStatement} that executes plain (non-prepared) SQL statements.
+ *
  * @author Manuel Laflamme
  * @version $Revision$
  * @since Feb 20, 2002

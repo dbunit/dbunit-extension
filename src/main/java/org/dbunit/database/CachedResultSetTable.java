@@ -29,6 +29,8 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 
 /**
+ * {@link IResultSetTable} that eagerly loads and caches an entire {@link ResultSet} in memory.
+ *
  * @author Manuel Laflamme
  * @version $Revision$
  * @since Feb 20, 2002

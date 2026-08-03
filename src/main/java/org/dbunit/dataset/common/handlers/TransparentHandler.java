@@ -25,6 +25,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * {@link PipelineComponent} that accepts any character without altering the
+ * field being assembled.
+ *
  * @author fede
  * @author Last changed by: $Author$
  * @version $Revision$ $Date$

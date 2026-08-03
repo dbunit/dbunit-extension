@@ -21,6 +21,8 @@
 package org.dbunit.dataset;
 
 /**
+ * Iterator over the {@link ITable}s of an {@link IDataSet}.
+ *
  * @author Manuel Laflamme
  * @since Apr 5, 2003
  * @version $Revision$

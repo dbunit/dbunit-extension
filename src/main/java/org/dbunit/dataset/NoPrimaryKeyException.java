@@ -23,6 +23,8 @@ package org.dbunit.dataset;
 
 
 /**
+ * Signals that a table has no primary key column where one is required.
+ *
  * @author Manuel Laflamme
  * @version $Revision$
  * @since Feb 19, 2002

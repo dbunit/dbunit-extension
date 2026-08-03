@@ -31,6 +31,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * {@link IResultSetTableFactory} that creates forward-only, non-cached {@link IResultSetTable} instances.
+ *
  * @author manuel.laflamme
  * @author Last changed by: $Author$
  * @version $Revision$ $Date$

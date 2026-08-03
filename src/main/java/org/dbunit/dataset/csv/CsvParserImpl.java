@@ -47,6 +47,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * {@link CsvParser} implementation that tokenizes a line of CSV text using the
+ * {@link org.dbunit.dataset.common.handlers.Pipeline} character-handling framework.
+ *
  * @author fede
  * @author Last changed by: $Author$
  * @version $Revision$ $Date$

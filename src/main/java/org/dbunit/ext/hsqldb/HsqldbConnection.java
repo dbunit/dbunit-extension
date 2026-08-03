@@ -27,6 +27,9 @@ import org.dbunit.database.DatabaseConnection;
 import java.sql.Connection;
 
 /**
+ * {@link DatabaseConnection} specialization that configures HSQLDB-specific
+ * connection behavior.
+ *
  * @author Klas Axell
  * @author Last changed by: $Author$
  * @version $Revision$ $Date$

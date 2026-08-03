@@ -474,6 +474,8 @@ public class DatabaseConfig
     
     
     /**
+     * Descriptor for a single named, typed, nullable {@link DatabaseConfig} property.
+     *
      * @author gommma (gommma AT users.sourceforge.net)
      * @author Last changed by: $Author$
      * @version $Revision$ $Date$

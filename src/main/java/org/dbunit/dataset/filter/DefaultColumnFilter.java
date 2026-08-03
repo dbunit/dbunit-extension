@@ -65,7 +65,7 @@ public class DefaultColumnFilter implements IColumnFilter
      */
     public void includeColumns(Column[] columns)
     {
-        logger.debug("includeColumns(columns={}) - start", columns);
+        logger.debug("includeColumns(columns={}) - start", (Object) columns);
 
         for (int i = 0; i < columns.length; i++)
         {
@@ -91,7 +91,7 @@ public class DefaultColumnFilter implements IColumnFilter
      */
     public void excludeColumns(Column[] columns)
     {
-        logger.debug("excludeColumns(columns={} - start", columns);
+        logger.debug("excludeColumns(columns={}) - start", (Object) columns);
 
         for (int i = 0; i < columns.length; i++)
         {

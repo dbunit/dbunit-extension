@@ -45,7 +45,6 @@ import java.nio.charset.Charset;
  *       correspond to table columns.
  * <p>
  * Flat XML dataset document sample:
- * <p>
  * <pre>
  * &lt;!DOCTYPE dataset SYSTEM "my-dataset.dtd"&gt;
  * &lt;dataset&gt;
@@ -85,8 +84,7 @@ import java.nio.charset.Charset;
  * </pre>
  * </li>
  * </ul>
- * </p>
- * 
+ *
  * @author Manuel Laflamme
  * @author gommma (gommma AT users.sourceforge.net)
  * @author Last changed by: $Author$
