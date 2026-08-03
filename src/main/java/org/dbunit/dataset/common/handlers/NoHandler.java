@@ -24,6 +24,9 @@ package org.dbunit.dataset.common.handlers;
 
 
 /**
+ * Sentinel {@link PipelineComponent} placed at the end of a pipeline that rejects
+ * any character not handled by an earlier component.
+ *
  * @author fede
  * @author Last changed by: $Author$
  * @version $Revision$ $Date$

@@ -23,6 +23,8 @@ package org.dbunit.dataset;
 
 
 /**
+ * Signals that a requested row index is outside a table's valid range.
+ *
  * @author Manuel Laflamme
  * @version $Revision$
  * @since Feb 17, 2002

@@ -29,6 +29,9 @@ import org.dbunit.dataset.datatype.TypeCastException;
 import java.sql.SQLException;
 
 /**
+ * Decorator around an {@link IPreparedBatchStatement} that automatically executes
+ * the accumulated batch once a configured row-count threshold is reached.
+ *
  * @author Manuel Laflamme
  * @since Jun 12, 2003
  * @version $Revision$

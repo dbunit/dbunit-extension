@@ -30,6 +30,8 @@ import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.csv.CsvURLDataSet;
 
 /**
+ * {@link DataFileLoader} that loads CSV dataset files.
+ *
  * @author Jeff Jensen jeffjensen AT users.sourceforge.net
  * @author Last changed by: $Author$
  * @version $Revision$ $Date$

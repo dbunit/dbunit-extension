@@ -28,6 +28,9 @@ import java.sql.Connection;
 import java.sql.SQLException;
 
 /**
+ * {@link IBatchStatement} that accumulates plain SQL statements using the JDBC
+ * {@code addBatch()}/{@code executeBatch()} mechanism.
+ *
  * @author Manuel Laflamme
  * @version $Revision$
  * @since Feb 20, 2002

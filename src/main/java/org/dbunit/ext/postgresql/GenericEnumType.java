@@ -92,8 +92,8 @@ public class GenericEnumType extends AbstractDataType {
 
         try {
             Class aPGObjectClass = super.loadClass("org.postgresql.util.PGobject", connection);
-            Constructor ct = aPGObjectClass.getConstructor(null);
-            tempEnum = ct.newInstance(null);
+            Constructor ct = aPGObjectClass.getConstructor();
+            tempEnum = ct.newInstance();
 
             Method setTypeMethod = aPGObjectClass.getMethod("setType", new Class[]{String.class});
             setTypeMethod.invoke(tempEnum, new Object[]{this.sqlTypeName});

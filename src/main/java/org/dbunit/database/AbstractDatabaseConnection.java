@@ -38,6 +38,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * Base implementation of {@link IDatabaseConnection} that lazily creates and caches the
+ * connection's whole-database {@link IDataSet} and owns its {@link DatabaseConfig}.
+ *
  * @author Manuel Laflamme
  * @version $Revision$
  * @since Mar 6, 2002
@@ -54,6 +57,9 @@ public abstract class AbstractDatabaseConnection implements IDatabaseConnection
     private IDataSet _dataSet = null;
     private final DatabaseConfig _databaseConfig;
 
+    /**
+     * Creates a connection with a new, default {@link DatabaseConfig}.
+     */
     public AbstractDatabaseConnection()
     {
         _databaseConfig = new DatabaseConfig();
@@ -77,7 +83,7 @@ public abstract class AbstractDatabaseConnection implements IDatabaseConnection
     public IDataSet createDataSet(String[] tableNames)
             throws DataSetException, SQLException
     {
-        logger.debug("createDataSet(tableNames={}) - start", tableNames);
+        logger.debug("createDataSet(tableNames={}) - start", (Object) tableNames);
 
         return new FilteredDataSet(tableNames, createDataSet());
     }

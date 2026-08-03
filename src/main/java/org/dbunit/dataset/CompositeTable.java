@@ -27,6 +27,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * {@link ITable} that pairs explicit {@link ITableMetaData} with row data drawn
+ * from one or more other tables.
+ *
  * @author Manuel Laflamme
  * @version $Revision$
  * @since Feb 17, 2002

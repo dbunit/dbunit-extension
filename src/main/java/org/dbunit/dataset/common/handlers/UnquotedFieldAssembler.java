@@ -28,6 +28,9 @@ import org.slf4j.LoggerFactory;
 
 
 /**
+ * {@link PipelineComponent} that assembles an unquoted CSV field value from its
+ * constituent characters.
+ *
  * @author fede
  * @author Last changed by: $Author$
  * @version $Revision$ $Date$

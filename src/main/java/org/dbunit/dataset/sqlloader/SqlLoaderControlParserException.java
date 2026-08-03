@@ -23,6 +23,8 @@ package org.dbunit.dataset.sqlloader;
 import org.dbunit.DatabaseUnitRuntimeException;
 
 /**
+ * Signals an error while parsing a SQL*Loader control (.ctl) file.
+ *
  * @author Stephan Strittmatter (stritti AT users.sourceforge.net)
  * @author Last changed by: $Author$
  * @version $Revision$ $Date$

@@ -187,8 +187,8 @@ public class QualifiedTableName
             String escapePattern)
     {
         if(logger.isDebugEnabled())
-            logger.debug("getQualifiedName(prefix={}, name={}, escapePattern={}) - start", 
-                    new String[] {prefix, name, escapePattern});
+            logger.debug("getQualifiedName(prefix={}, name={}, escapePattern={}) - start",
+                    prefix, name, escapePattern);
 
         if (escapePattern != null)
         {

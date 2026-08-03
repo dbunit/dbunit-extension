@@ -29,6 +29,9 @@ import org.dbunit.dataset.ITable;
 import java.sql.Types;
 
 /**
+ * {@link DataType} fallback used for SQL types that DbUnit does not otherwise
+ * recognize, mapped to {@link Object}.
+ *
  * @author Manuel Laflamme
  * @version $Revision$
  */

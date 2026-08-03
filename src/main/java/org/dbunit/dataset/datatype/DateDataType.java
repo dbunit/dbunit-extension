@@ -33,6 +33,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * {@link DataType} mapping the SQL DATE type to {@link java.sql.Date}.
+ *
  * @author Manuel Laflamme
  * @version $Revision$
  * @since Feb 19, 2002

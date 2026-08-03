@@ -52,6 +52,8 @@ import org.slf4j.LoggerFactory;
 import org.xml.sax.InputSource;
 
 /**
+ * Abstract base implementation of a {@link DbUnitTaskStep} executed by the DbUnit Ant task.
+ *
  * @author Manuel Laflamme
  * @author Last changed by: $Author$
  * @version $Revision$ $Date$

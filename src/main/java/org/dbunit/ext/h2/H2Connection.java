@@ -27,6 +27,8 @@ import org.dbunit.database.DatabaseConnection;
 import java.sql.Connection;
 
 /**
+ * {@link DatabaseConnection} specialization that configures H2-specific connection
+ * behavior.
  *
  * @author Felipe Leme
  * @author Last changed by: $Author$

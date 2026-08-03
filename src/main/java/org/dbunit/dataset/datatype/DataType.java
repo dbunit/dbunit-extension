@@ -123,6 +123,10 @@ public abstract class DataType
 
     /**
      * Returns the specified value typecasted to this <code>DataType</code>
+     *
+     * @param value the value to typecast.
+     * @return the typecast value.
+     * @throws TypeCastException if the value cannot be typecast to this <code>DataType</code>.
      */
     public abstract Object typeCast(Object value) throws TypeCastException;
 
@@ -132,6 +136,10 @@ public abstract class DataType
      * <p>
      * The two values are typecast to this DataType before being compared.
      *
+     * @param o1 the first value to compare.
+     * @param o2 the second value to compare.
+     * @return a negative integer, zero, or a positive integer as <code>o1</code>
+     *         is less than, equal to, or greater than <code>o2</code>.
      * @throws TypeCastException
      *             if the arguments' types prevent them from being compared by
      *             this Comparator.
@@ -140,16 +148,22 @@ public abstract class DataType
 
     /**
      * Returns the corresponding {@link java.sql.Types}.
+     *
+     * @return the corresponding {@link java.sql.Types} constant.
      */
     public abstract int getSqlType();
 
     /**
      * Returns the runtime class of the typecast result.
+     *
+     * @return the runtime class of the typecast result.
      */
     public abstract Class getTypeClass();
 
     /**
      * Returns the SQL type name for user types (null for basic SQL types)
+     *
+     * @return the SQL type name for user types, or <code>null</code> for basic SQL types.
      */
     public String getSqlTypeName()
     {
@@ -159,29 +173,49 @@ public abstract class DataType
     /**
      * Returns <code>true</code> if this <code>DataType</code> represents a
      * number.
+     *
+     * @return <code>true</code> if this <code>DataType</code> represents a number.
      */
     public abstract boolean isNumber();
 
     /**
      * Returns <code>true</code> if this <code>DataType</code> represents a date
      * and/or time.
+     *
+     * @return <code>true</code> if this <code>DataType</code> represents a date and/or time.
      */
     public abstract boolean isDateTime();
 
     /**
      * Returns the specified column value from the specified resultset object.
+     *
+     * @param column the column index to read, starting at 1.
+     * @param resultSet the result set to read the column value from.
+     * @return the column value.
+     * @throws SQLException if a database access error occurs.
+     * @throws TypeCastException if the value cannot be typecast to this <code>DataType</code>.
      */
     public abstract Object getSqlValue(int column, ResultSet resultSet)
             throws SQLException, TypeCastException;
 
     /**
      * Set the specified value to the specified prepared statement object.
+     *
+     * @param value the value to bind.
+     * @param column the parameter index to bind to, starting at 1.
+     * @param statement the prepared statement to bind the value on.
+     * @throws SQLException if a database access error occurs.
+     * @throws TypeCastException if the value cannot be typecast to this <code>DataType</code>.
      */
     public abstract void setSqlValue(Object value, int column,
             PreparedStatement statement) throws SQLException, TypeCastException;
 
     /**
      * Typecast the specified value to string.
+     *
+     * @param value the value to typecast.
+     * @return the typecast value.
+     * @throws TypeCastException if the value cannot be typecast to a string.
      */
     public static String asString(Object value) throws TypeCastException
     {
@@ -194,6 +228,9 @@ public abstract class DataType
      * Returns the <code>DataType</code> corresponding to the specified Sql
      * type. See {@link java.sql.Types}.
      *
+     * @param sqlType the {@link java.sql.Types} constant to look up.
+     * @return the corresponding <code>DataType</code>, or {@code DataType.UNKNOWN} if not recognized.
+     * @throws DataTypeException if the corresponding <code>DataType</code> cannot be determined.
      */
     public static DataType forSqlType(int sqlType) throws DataTypeException
     {
@@ -214,6 +251,9 @@ public abstract class DataType
      * Returns the <code>DataType</code> corresponding to the specified Sql type
      * name.
      *
+     * @param sqlTypeName the Sql type name to look up.
+     * @return the corresponding <code>DataType</code>, or {@code DataType.UNKNOWN} if not recognized.
+     * @throws DataTypeException if the corresponding <code>DataType</code> cannot be determined.
      * @deprecated Should not be used anymore
      */
     public static DataType forSqlTypeName(String sqlTypeName)
@@ -236,6 +276,9 @@ public abstract class DataType
      * Returns the <code>DataType</code> corresponding to the specified value
      * runtime class. This method returns <code>DataType.UNKNOWN</code> if the
      * value is <code>null</code> or runtime class not recognized.
+     *
+     * @param value the value whose runtime class is to be mapped.
+     * @return the corresponding <code>DataType</code>, or {@code DataType.UNKNOWN} if not recognized.
      */
     public static DataType forObject(Object value)
     {

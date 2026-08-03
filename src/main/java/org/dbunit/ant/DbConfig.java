@@ -109,6 +109,9 @@ public class DbConfig extends ProjectComponent
     }
 
     /**
+     * A named boolean feature flag, as configured in the Ant &lt;dbconfig&gt;
+     * task's &lt;feature&gt; element.
+     *
      * @author gommma (gommma AT users.sourceforge.net)
      * @author Last changed by: $Author$
      * @version $Revision$ $Date$

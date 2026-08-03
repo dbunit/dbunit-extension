@@ -31,8 +31,7 @@ package org.dbunit.util.concurrent;
  * However, this interface allows implementations that instead
  * employ queueing or pooling, or perform additional
  * bookkeeping.
- * <p>
- * 
+ *
  * <p>[<a href="http://gee.cs.oswego.edu/dl/classes/EDU/oswego/cs/dl/util/concurrent/intro.html"> Introduction to this package. </a>]
  * 
  * @author Doug Lea

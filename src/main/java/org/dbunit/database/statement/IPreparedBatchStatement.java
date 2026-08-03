@@ -27,6 +27,9 @@ import org.dbunit.dataset.datatype.TypeCastException;
 import java.sql.SQLException;
 
 /**
+ * A batched, parameterized JDBC statement to which typed column values are bound
+ * before execution.
+ *
  * @author Manuel Laflamme
  * @version $Revision$
  * @since Mar 15, 2002

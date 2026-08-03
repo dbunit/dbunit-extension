@@ -36,6 +36,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * Abstract base {@link DatabaseOperation} implementation providing shared
+ * row-iteration and column-filtering behavior.
+ *
  * @author Manuel Laflamme
  * @since Jan 17, 2004
  * @version $Revision$

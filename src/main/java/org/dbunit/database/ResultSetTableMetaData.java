@@ -66,9 +66,8 @@ import org.slf4j.LoggerFactory;
  * directly (for example {@link ResultSetMetaData#getColumnType(int)}. (This is also the way
  * dbunit worked until the 2.4 release)
  * </li>
- * </ol> 
- * </p>
- * 
+ * </ol>
+ *
  * @author gommma (gommma AT users.sourceforge.net)
  * @author Last changed by: $Author$
  * @version $Revision$ $Date$

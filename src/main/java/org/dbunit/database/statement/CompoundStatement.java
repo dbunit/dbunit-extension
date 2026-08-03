@@ -28,9 +28,12 @@ import java.sql.Connection;
 import java.sql.SQLException;
 
 /**
+ * {@link IBatchStatement} that accumulates multiple plain SQL statements and
+ * executes them together.
+ *
  * @author Manuel Laflamme
  * @version $Revision$
- * @since Feb 20, 2002 
+ * @since Feb 20, 2002
  */
 public class CompoundStatement extends AbstractBatchStatement
 {

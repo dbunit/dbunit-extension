@@ -34,6 +34,9 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 
 /**
+ * {@link BlobDataType} specialization that works around Oracle JDBC driver
+ * BLOB handling quirks.
+ *
  * @author Manuel Laflamme
  * @author Last changed by: $Author$
  * @version $Revision$ $Date$

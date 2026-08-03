@@ -32,6 +32,8 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 
 /**
+ * {@link IResultSetTable} implementation backed by a forward-only, non-cached {@link ResultSet}.
+ *
  * @author Manuel Laflamme
  * @since Apr 10, 2003
  * @version $Revision$

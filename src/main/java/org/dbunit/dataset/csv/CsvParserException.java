@@ -24,6 +24,8 @@ package org.dbunit.dataset.csv;
 import org.dbunit.DatabaseUnitRuntimeException;
 
 /**
+ * Signals an error while parsing CSV input.
+ *
  * @author fede
  * @author Last changed by: $Author$
  * @version $Revision$ $Date$

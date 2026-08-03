@@ -39,7 +39,7 @@ public interface ISearchAlgorithm {
    * @param nodesFrom input nodes
    * @param callback helper callback
    * @return all nodes, in the right dependent order (like a LinkedHashSet)
-   * @throws Exception exception wrapper
+   * @throws SearchException if the search fails.
    */
     Set search(Set nodesFrom, ISearchCallback callback) throws SearchException;
 

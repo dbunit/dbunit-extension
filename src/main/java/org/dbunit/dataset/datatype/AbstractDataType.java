@@ -126,7 +126,7 @@ public abstract class AbstractDataType extends DataType
      *            method call
      * @return The result of the {@link Comparable#compareTo(Object)}
      *         invocation.
-     * @throws TypeCastException
+     * @throws TypeCastException if either value cannot be cast to a {@link Comparable}.
      */
     protected int compareNonNulls(final Object value1, final Object value2)
             throws TypeCastException

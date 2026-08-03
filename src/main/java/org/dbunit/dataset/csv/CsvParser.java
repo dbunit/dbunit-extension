@@ -29,6 +29,8 @@ import org.dbunit.dataset.common.handlers.IllegalInputCharacterException;
 import org.dbunit.dataset.common.handlers.PipelineException;
 
 /**
+ * Parses a line of CSV text into its individual field values.
+ *
  * @author fede
  * @author Last changed by: $Author$
  * @version $Revision$ $Date$

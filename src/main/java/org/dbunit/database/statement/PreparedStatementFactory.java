@@ -30,6 +30,8 @@ import org.dbunit.database.IDatabaseConnection;
 import java.sql.SQLException;
 
 /**
+ * {@link IStatementFactory} that creates {@link SimplePreparedStatement} instances.
+ *
  * @author Manuel Laflamme
  * @version $Revision$
  * @since Mar 20, 2002

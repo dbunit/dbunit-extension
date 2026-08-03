@@ -29,6 +29,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * Chain-of-responsibility pipeline of {@link PipelineComponent}s that parses
+ * CSV field text one character at a time.
+ *
  * @author fede
  * @author Last changed by: $Author$
  * @version $Revision$ $Date$

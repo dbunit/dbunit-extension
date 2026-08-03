@@ -23,10 +23,12 @@ package org.dbunit.util.search;
 import java.util.Set;
 
 /**
+ * Search callback that restricts traversal to a fixed set of allowed nodes.
+ *
  * @author Felipe Leme (dbunit@felipeal.net)
  * @version $Revision$
  * @since Aug 25, 2005
- * 
+ *
  */
 public abstract class AbstractIncludeNodesSearchCallback extends
     AbstractNodesFilterSearchCallback {

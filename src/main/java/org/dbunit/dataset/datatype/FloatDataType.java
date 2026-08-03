@@ -32,6 +32,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * {@link DataType} mapping the SQL REAL type to {@link Float}.
+ *
  * @author Manuel Laflamme
  * @version $Revision$
  */

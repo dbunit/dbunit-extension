@@ -26,6 +26,8 @@ import org.dbunit.database.IDatabaseConnection;
 import java.sql.SQLException;
 
 /**
+ * Factory that creates the JDBC statement wrapper used to execute a database operation.
+ *
  * @author Manuel Laflamme
  * @version $Revision$
  * @since Mar 16, 2002

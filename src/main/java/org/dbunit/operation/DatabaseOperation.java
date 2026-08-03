@@ -36,21 +36,43 @@ import java.sql.SQLException;
  */
 public abstract class DatabaseOperation
 {
-    /** @see DummyOperation */
+    /**
+     * No-op that does nothing to the database.
+     * @see DummyOperation
+     */
     public static final DatabaseOperation NONE = new DummyOperation();
-    /** @see UpdateOperation */
+    /**
+     * Updates existing rows matching the dataset's primary keys.
+     * @see UpdateOperation
+     */
     public static final DatabaseOperation UPDATE = new UpdateOperation();
-    /** @see InsertOperation */
+    /**
+     * Inserts the dataset's rows.
+     * @see InsertOperation
+     */
     public static final DatabaseOperation INSERT = new InsertOperation();
-    /** @see RefreshOperation */
+    /**
+     * Updates existing rows and inserts rows that do not yet exist (upsert).
+     * @see RefreshOperation
+     */
     public static final DatabaseOperation REFRESH = new RefreshOperation();
-    /** @see DeleteOperation */
+    /**
+     * Deletes rows matching the dataset's primary keys.
+     * @see DeleteOperation
+     */
     public static final DatabaseOperation DELETE = new DeleteOperation();
-    /** @see DeleteAllOperation */
+    /**
+     * Deletes all rows of the dataset's tables.
+     * @see DeleteAllOperation
+     */
     public static final DatabaseOperation DELETE_ALL = new DeleteAllOperation();
-    /** @see TruncateTableOperation */
+    /**
+     * Truncates the dataset's tables.
+     * @see TruncateTableOperation
+     */
     public static final DatabaseOperation TRUNCATE_TABLE = new TruncateTableOperation();
     /**
+     * Deletes all rows of the dataset's tables, then inserts the dataset's rows.
      * @see DeleteAllOperation
      * @see InsertOperation
      * @see CompositeOperation
@@ -58,12 +80,22 @@ public abstract class DatabaseOperation
     public static final DatabaseOperation CLEAN_INSERT = new CompositeOperation(
             DELETE_ALL, INSERT);
 
-    /** @see TransactionOperation */
+    /**
+     * Wraps the given operation so it runs within its own transaction.
+     * @param operation the operation to wrap.
+     * @return the wrapped, transactional operation.
+     * @see TransactionOperation
+     */
     public static final DatabaseOperation TRANSACTION(DatabaseOperation operation) {
         return new TransactionOperation(operation);
     }
 
-    /** @see CloseConnectionOperation */
+    /**
+     * Wraps the given operation so it closes the connection after executing.
+     * @param operation the operation to wrap.
+     * @return the wrapped operation.
+     * @see CloseConnectionOperation
+     */
     public static final DatabaseOperation CLOSE_CONNECTION(DatabaseOperation operation) {
         return new CloseConnectionOperation(operation);
     }
@@ -74,6 +106,8 @@ public abstract class DatabaseOperation
      *
      * @param connection the database connection.
      * @param dataSet the dataset to be used by this operation.
+     * @throws DatabaseUnitException if a DbUnit-specific error occurs while executing the operation.
+     * @throws SQLException if a database access error occurs while executing the operation.
      */
     public abstract void execute(IDatabaseConnection connection,
             IDataSet dataSet) throws DatabaseUnitException, SQLException;

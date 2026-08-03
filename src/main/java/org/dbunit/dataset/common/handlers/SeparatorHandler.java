@@ -26,6 +26,8 @@ import org.slf4j.LoggerFactory;
 
 
 /**
+ * {@link PipelineComponent} that matches the CSV field separator character.
+ *
  * @author fede
  * @author Last changed by: $Author$
  * @version $Revision$ $Date$

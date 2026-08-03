@@ -29,6 +29,8 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
 /**
+ * Abstract base {@link IPreparedBatchStatement} implementation.
+ *
  * @author Manuel Laflamme
  * @version $Revision$
  * @since Mar 16, 2002

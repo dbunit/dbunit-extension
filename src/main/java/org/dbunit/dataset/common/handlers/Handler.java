@@ -23,6 +23,9 @@ package org.dbunit.dataset.common.handlers;
 
 
 /**
+ * Base contract for an object that decides whether and how to handle a single
+ * character during CSV parsing.
+ *
  * @author fede
  * @author Last changed by: $Author$
  * @version $Revision$ $Date$

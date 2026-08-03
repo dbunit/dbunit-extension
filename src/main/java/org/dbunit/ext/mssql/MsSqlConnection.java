@@ -36,6 +36,9 @@ import java.sql.Connection;
 import java.sql.SQLException;
 
 /**
+ * {@link DatabaseConnection} specialization that configures Microsoft SQL Server-specific
+ * connection behavior.
+ *
  * @author Manuel Laflamme
  * @since May 19, 2003
  * @version $Revision$
@@ -91,7 +94,7 @@ public class MsSqlConnection extends DatabaseConnection
 
     public IDataSet createDataSet(String[] tableNames) throws SQLException, DataSetException
     {
-        logger.debug("createDataSet(tableNames={}) - start", tableNames);
+        logger.debug("createDataSet(tableNames={}) - start", (Object) tableNames);
 
         IDataSet dataSet = super.createDataSet(tableNames);
         return new FilteredDataSet(_filter, dataSet);

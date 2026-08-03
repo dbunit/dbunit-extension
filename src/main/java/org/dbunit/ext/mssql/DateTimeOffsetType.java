@@ -33,6 +33,8 @@ import org.dbunit.dataset.datatype.AbstractDataType;
 import org.dbunit.dataset.datatype.TypeCastException;
 
 /**
+ * {@link AbstractDataType} mapping Microsoft SQL Server's DATETIMEOFFSET type.
+ *
  * @author Richard DiCroce
  * @since 2.7.0
  */

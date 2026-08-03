@@ -57,7 +57,20 @@ public abstract class AbstractBatchOperation extends AbstractOperation
             LoggerFactory.getLogger(AbstractBatchOperation.class);
 
     private static final BitSet EMPTY_BITSET = new BitSet();
+
+    /**
+     * Whether the tables of the dataset are processed in reverse order, as
+     * needed by operations (for example deletes) that must respect
+     * foreign-key dependency order in the opposite direction of inserts.
+     */
     protected boolean _reverseRowOrder = false;
+
+    /**
+     * Default constructor.
+     */
+    protected AbstractBatchOperation()
+    {
+    }
 
     static boolean isEmpty(ITable table) throws DataSetException
     {
@@ -86,6 +99,10 @@ public abstract class AbstractBatchOperation extends AbstractOperation
     /**
      * Returns list of tables this operation is applied to. This method allow
      * subclass to do filtering.
+     *
+     * @param dataSet the dataset whose tables are to be iterated.
+     * @return an iterator over the tables this operation applies to.
+     * @throws DatabaseUnitException if the iterator cannot be created.
      */
     protected ITableIterator iterator(IDataSet dataSet)
             throws DatabaseUnitException
@@ -248,6 +265,13 @@ public abstract class AbstractBatchOperation extends AbstractOperation
         }
     }
 
+    /**
+     * Reports that a column required to have a value was empty, respecting
+     * the {@code DatabaseConfig.FEATURE_ALLOW_EMPTY_FIELDS} setting.
+     *
+     * @param tableName the name of the table containing the column.
+     * @param columnName the name of the column that had no value.
+     */
     protected void handleColumnHasNoValue(String tableName, String columnName)
     {
         final String tableColumnName = tableName + "." + columnName;

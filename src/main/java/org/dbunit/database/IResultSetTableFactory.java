@@ -27,6 +27,7 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
 /**
+ * Factory that creates {@link IResultSetTable} instances for a given query.
  *
  * @author manuel.laflamme
  * @since Jul 17, 2003

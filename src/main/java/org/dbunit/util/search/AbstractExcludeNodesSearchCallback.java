@@ -23,10 +23,12 @@ package org.dbunit.util.search;
 import java.util.Set;
 
 /**
+ * Search callback that excludes a fixed set of denied nodes from traversal.
+ *
  * @author Felipe Leme (dbunit@felipeal.net)
  * @version $Revision$
  * @since Aug 25, 2005
- * 
+ *
  */
 public abstract class AbstractExcludeNodesSearchCallback extends
     AbstractNodesFilterSearchCallback {

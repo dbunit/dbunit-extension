@@ -404,7 +404,6 @@ public class Column
          * <li>equalsIgnoreCase &quot;YES&quot; or equals &quot;1&quot; then {@link AutoIncrement#YES} is returned</li>
          * <li></li>
          * </ul>
-         * </p>
          * @param isAutoIncrement The String from the JDBC driver.
          * @return The enumeration
          */

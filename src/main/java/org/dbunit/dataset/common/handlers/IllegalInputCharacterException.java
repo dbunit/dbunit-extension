@@ -24,6 +24,9 @@ package org.dbunit.dataset.common.handlers;
 import org.dbunit.DatabaseUnitRuntimeException;
 
 /**
+ * Signals that a character could not be handled by any component in the CSV
+ * parsing pipeline.
+ *
  * @author fede
  * @author Last changed by: $Author$
  * @version $Revision$ $Date$

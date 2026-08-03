@@ -262,7 +262,7 @@ public class Columns
      */
     public static String getColumnNamesAsString(Column[] columns)
     {
-        logger.debug("getColumnNamesAsString(columns={}) - start", columns);
+        logger.debug("getColumnNamesAsString(columns={}) - start", (Object) columns);
 
         String[] names = new String[columns.length];
         for (int i = 0; i < columns.length; i++)

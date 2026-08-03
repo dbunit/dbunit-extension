@@ -22,6 +22,9 @@
 package org.dbunit.dataset.common.handlers;
 
 /**
+ * A {@link Handler} that can be chained into a {@link Pipeline} of successors
+ * for character-by-character CSV field parsing.
+ *
  * @author fede
  * @author Last changed by: $Author$
  * @version $Revision$ $Date$

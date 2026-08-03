@@ -277,7 +277,7 @@ public class DataSetUtils
      */
     public static String[] reverseStringArray(String[] array)
 	{
-		logger.debug("reverseStringArray(array={}) - start", array);
+		logger.debug("reverseStringArray(array={}) - start", (Object) array);
         String[] newArray = new String[array.length];
         for (int i = 0; i < array.length; i++)
         {

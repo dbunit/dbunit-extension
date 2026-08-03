@@ -38,6 +38,9 @@ public abstract class AbstractDataSet implements IDataSet
 {
     //TODO (matthias) Use a DataSetBuilder PLUS IDataSet to avoid this ugly lazy initialization with loads of protected internals a user must know...
 
+    /**
+     * Lazily-initialized map of this dataset's tables, keyed by table name.
+     */
     protected OrderedTableNameMap _orderedTableNameMap;
 
     /**
@@ -91,7 +94,7 @@ public abstract class AbstractDataSet implements IDataSet
 
     /**
      * Initializes the tables of this dataset
-     * @throws DataSetException
+     * @throws DataSetException if the tables cannot be gathered, for example due to a duplicate table name.
      * @since 2.4
      */
     protected void initialize() throws DataSetException
@@ -132,7 +135,7 @@ public abstract class AbstractDataSet implements IDataSet
      * Creates an iterator which provides access to all tables of this dataset
      * @param reversed Whether the created iterator should be a reversed one or not
      * @return The created {@link ITableIterator}
-     * @throws DataSetException
+     * @throws DataSetException if the iterator cannot be created.
      */
     protected abstract ITableIterator createIterator(boolean reversed)
             throws DataSetException;

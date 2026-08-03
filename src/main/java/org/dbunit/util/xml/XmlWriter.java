@@ -614,7 +614,7 @@ public class XmlWriter
     // <person name="fred" age="12"><phone>425343</phone><bob/></person>
     static public void main(final String[] args) throws IOException
     {
-        logger.debug("main(args={}) - start", args);
+        logger.debug("main(args={}) - start", (Object) args);
 
         test1();
         test2();

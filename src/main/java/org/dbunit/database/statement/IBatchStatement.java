@@ -24,18 +24,42 @@ package org.dbunit.database.statement;
 import java.sql.SQLException;
 
 /**
+ * A JDBC statement wrapper that batches SQL statements for execution.
+ *
  * @author Manuel Laflamme
  * @version $Revision$
- * @since Mar 15, 2002 
+ * @since Mar 15, 2002
  */
 public interface IBatchStatement
 {
+    /**
+     * Adds a SQL statement to the current batch.
+     *
+     * @param sql the SQL statement to add.
+     * @throws SQLException if a database access error occurs.
+     */
     void addBatch(String sql) throws SQLException;
 
+    /**
+     * Executes the accumulated batch of SQL statements.
+     *
+     * @return the number of rows affected, summed across the batch.
+     * @throws SQLException if a database access error occurs.
+     */
     int executeBatch() throws SQLException;
 
+    /**
+     * Discards the accumulated batch of SQL statements without executing them.
+     *
+     * @throws SQLException if a database access error occurs.
+     */
     void clearBatch() throws SQLException;
 
+    /**
+     * Closes the underlying JDBC statement.
+     *
+     * @throws SQLException if a database access error occurs.
+     */
     void close() throws SQLException;
 }
 

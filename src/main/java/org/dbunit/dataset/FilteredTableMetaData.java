@@ -30,6 +30,8 @@ import java.util.List;
 import java.util.ArrayList;
 
 /**
+ * {@link ITableMetaData} that exposes only the columns accepted by an {@link IColumnFilter}.
+ *
  * @author Manuel Laflamme
  * @version $Revision$
  * @since May 11, 2004

@@ -32,6 +32,8 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 
 /**
+ * {@link IResultSetTable} implementation backed by a scrollable {@link ResultSet} cursor.
+ *
  * @author Manuel Laflamme
  * @version $Revision$
  * @since Feb 17, 2002

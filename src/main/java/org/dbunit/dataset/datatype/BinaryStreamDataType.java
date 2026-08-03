@@ -32,6 +32,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * {@link BytesDataType} specialization that reads binary SQL column values as a stream.
+ *
  * @author fede
  * @author Last changed by: $Author$
  * @version $Revision$ $Date$

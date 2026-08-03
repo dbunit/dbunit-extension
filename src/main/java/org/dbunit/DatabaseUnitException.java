@@ -23,6 +23,8 @@ package org.dbunit;
 
 
 /**
+ * Base checked exception for errors raised by the DbUnit framework.
+ *
  * @author Manuel Laflamme
  * @version $Revision$
  */

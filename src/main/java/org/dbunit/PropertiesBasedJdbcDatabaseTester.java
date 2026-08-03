@@ -27,7 +27,7 @@ import org.dbunit.database.CachingConnectionProvider;
  * DatabaseTester that configures a DriverManager from environment properties.<br>
  * This class defines a set of keys for system properties that need to be
  * present in the environment before using it. Example:
- * <xmp>
+ * <pre>
  * System.setProperty( PropertiesBasedJdbcDatabaseTester.DBUNIT_DRIVER_CLASS,
  *             "com.mycompany.myDriver" );
  * System.setProperty( PropertiesBasedJdbcDatabaseTester.DBUNIT_CONNECTION_URL,
@@ -38,7 +38,7 @@ import org.dbunit.database.CachingConnectionProvider;
  *             "mypasswd" );
  * System.setProperty( PropertiesBasedJdbcDatabaseTester.DBUNIT_SCHEMA,
  *             "myschema" );
- * </xmp>
+ * </pre>
  *
  * @author Andres Almiray(aalmiray@users.sourceforge.net)
  * @author Felipe Leme (dbunit@felipeal.net)

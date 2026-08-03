@@ -28,7 +28,7 @@ import java.util.List;
  * were found without throwing an exception.
  * <p>
  * You can use it as follows:
- * <code><pre>
+ * <pre><code>
  * IDataSet dataSet = getDataSet();
  * DiffCollectingFailureHandler myHandler = new DiffCollectingFailureHandler();
  * //invoke the assertion with the custom handler
@@ -39,8 +39,8 @@ import java.util.List;
  * List diffList = myHandler.getDiffList();
  * Difference diff = (Difference)diffList.get(0);
  * ...
- * </pre></code>
- * 
+ * </code></pre>
+ *
  * @author gommma (gommma AT users.sourceforge.net)
  * @author Last changed by: $Author$
  * @version $Revision$ $Date$

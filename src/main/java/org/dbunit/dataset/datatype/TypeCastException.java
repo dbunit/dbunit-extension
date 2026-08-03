@@ -22,6 +22,8 @@
 package org.dbunit.dataset.datatype;
 
 /**
+ * Signals that a value could not be cast to the Java type required by a {@link DataType}.
+ *
  * @author Manuel Laflamme
  * @version $Revision$
  */

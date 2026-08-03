@@ -56,6 +56,9 @@ import org.xml.sax.XMLReader;
 import org.xml.sax.helpers.DefaultHandler;
 
 /**
+ * {@link IDataSetProducer} that parses a flat XML dataset document via SAX and
+ * streams table/row events.
+ *
  * @author Manuel Laflamme
  * @author Last changed by: $Author$
  * @version $Revision$ $Date$

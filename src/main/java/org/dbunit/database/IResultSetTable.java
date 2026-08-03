@@ -25,6 +25,8 @@ import org.dbunit.dataset.ITable;
 
 
 /**
+ * An {@link ITable} backed by a JDBC result set that must be closed after use.
+ *
  * @author Manuel Laflamme
  * @since Apr 10, 2003
  * @version $Revision$

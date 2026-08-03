@@ -73,12 +73,17 @@ public abstract class AbstractDatabaseTester extends SimpleAssert implements IDa
     private DatabaseOperation tearDownOperation = DatabaseOperation.NONE;
     private IOperationListener operationListener;
 
+    /**
+     * Creates a tester with no schema.
+     */
     public AbstractDatabaseTester()
     {
         this(null);
     }
 
     /**
+     * Creates a tester for the given schema.
+     *
      * @param schema
      *            The schema to be tested. Can be <code>null</code>
      * @since 2.4.3
@@ -146,6 +151,8 @@ public abstract class AbstractDatabaseTester extends SimpleAssert implements IDa
 
     /**
      * Returns the schema value.
+     *
+     * @return the schema value, or {@code null} if none is set.
      */
     protected String getSchema()
     {

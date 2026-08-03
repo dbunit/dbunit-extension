@@ -24,6 +24,8 @@ package org.dbunit.dataset.datatype;
 import org.dbunit.dataset.DataSetException;
 
 /**
+ * Base checked exception for errors related to {@link DataType} value conversion.
+ *
  * @author Manuel Laflamme
  * @version $Revision$
  */

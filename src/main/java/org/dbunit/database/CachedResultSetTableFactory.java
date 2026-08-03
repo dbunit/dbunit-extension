@@ -29,6 +29,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * {@link IResultSetTableFactory} that creates fully cached, disconnected {@link IResultSetTable} instances.
+ *
  * @author manuel.laflamme
  * @author Last changed by: $Author$
  * @version $Revision$ $Date$

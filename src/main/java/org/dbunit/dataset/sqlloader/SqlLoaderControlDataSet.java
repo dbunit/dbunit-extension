@@ -32,21 +32,21 @@ import org.dbunit.dataset.IDataSet;
  * files. It handles translations of "null"(the string), into null.
  * <p>
  * Example usage:
- * <code><pre>
+ * <pre><code>
  * File ctlDir = new File("src/sqlloader");
  * File orderedTablesFile = new File("src/sqlloader/tables.lst");
  * IDataSet dataSet = new SqlLoaderControlDataSet(ctlDir, orderedTablesFile);
- * </pre></code>
+ * </code></pre>
  * The file <code>orderedTablesFile</code> must contain the names of the tables to
  * be imported. As a convention the .ctl file must have the same name as the table names file.
  * Here an example of the &quot;tables.lst&quot; file:
  * <br>
  * <table border="1">
+ * <caption>Example tables.lst content</caption>
  * <tr><td>LANGUAGE<br>COUNTRY</td></tr>
  * </table>
  * The <code>ctlDir</code> directory must then contain the files <code>COUNTRY.ctl</code>
  * and <code>LANGUAGE.ctl</code>.
- * </p>
  * 
  * @author Stephan Strittmatter (stritti AT users.sourceforge.net), gommma (gommma AT users.sourceforge.net)
  * @author Last changed by: $Author$

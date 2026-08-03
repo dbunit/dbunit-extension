@@ -30,6 +30,8 @@ import org.dbunit.database.IDatabaseConnection;
 import java.sql.SQLException;
 
 /**
+ * Abstract base {@link IStatementFactory} implementation.
+ *
  * @author Manuel Laflamme
  * @version $Revision$
  * @since Apr 10, 2002

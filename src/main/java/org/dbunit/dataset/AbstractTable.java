@@ -24,6 +24,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * Abstract base implementation of {@link ITable}, providing common column-lookup
+ * and value-formatting behavior for concrete table implementations.
+ *
  * @author Manuel Laflamme
  * @version $Revision$
  * @since Feb 17, 2002

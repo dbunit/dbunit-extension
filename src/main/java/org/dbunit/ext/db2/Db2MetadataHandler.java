@@ -51,7 +51,7 @@ public class Db2MetadataHandler extends DefaultMetadataHandler {
      * problem that the {@link DatabaseMetaData} does not return the same values for catalog and schema
      * like the columns {@link ResultSet} does. The debugging constellation is as follows
      * <pre>
-     * catalog="BLA", catalogName=<null>
+     * catalog="BLA", catalogName=&lt;null&gt;
      * schema="BLA", schemaName="BLA"
      * </pre>
      * This problem is taken into account by this metadata handler.

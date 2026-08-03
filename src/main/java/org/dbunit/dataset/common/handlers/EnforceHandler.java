@@ -25,6 +25,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * Pipeline component that delegates to the first wrapped {@link PipelineComponent} able to
+ * handle a character, throwing {@link IllegalInputCharacterException} if none of them can.
+ *
  * @author fede
  * @author Last changed by: $Author$
  * @version $Revision$ $Date$
@@ -52,7 +55,7 @@ public class EnforceHandler extends AbstractPipelineComponent {
     }
 
     public static final PipelineComponent ENFORCE(PipelineComponent [] components) {
-        logger.debug("ENFORCE(components={}) - start", components);
+        logger.debug("ENFORCE(components={}) - start", (Object) components);
 
         return createPipelineComponent(new EnforceHandler(components), new ENFORCE());
     }
@@ -87,7 +90,7 @@ public class EnforceHandler extends AbstractPipelineComponent {
     }
 
     protected void setEnforcedComponents(PipelineComponent[] enforcedComponents) {
-        logger.debug("setEnforcedComponents(enforcedComponents={}) - start", enforcedComponents);
+        logger.debug("setEnforcedComponents(enforcedComponents={}) - start", (Object) enforcedComponents);
 
         this.enforcedComponents = enforcedComponents;
     }

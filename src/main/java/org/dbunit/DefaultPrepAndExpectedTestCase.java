@@ -1107,7 +1107,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     /**
      * Get the databaseTester.
      *
-     * @see {@link #databaseTester}.
+     * @see #databaseTester
      *
      * @return The databaseTester.
      */
@@ -1120,7 +1120,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     /**
      * Set the databaseTester.
      *
-     * @see {@link #databaseTester}.
+     * @see #databaseTester
      *
      * @param databaseTester
      *            The databaseTester to set.
@@ -1134,7 +1134,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * Get whether the connection lookupFeatureValue() and cleanupData() are
      * done with is closed.
      *
-     * @see {@link #closeConnectionAfterTest}.
+     * @see #closeConnectionAfterTest
      *
      * @return True if it is closed, false if not.
      * @since 3.4.0
@@ -1151,7 +1151,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * test methods, so this instance does not close a connection other tests
      * still expect to reuse.
      *
-     * @see {@link #closeConnectionAfterTest}.
+     * @see #closeConnectionAfterTest
      *
      * @param closeConnectionAfterTest
      *            True to close it, false to leave it open.
@@ -1166,7 +1166,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     /**
      * Get the dataFileLoader.
      *
-     * @see {@link #dataFileLoader}.
+     * @see #dataFileLoader
      *
      * @return The dataFileLoader.
      */
@@ -1178,7 +1178,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     /**
      * Set the dataFileLoader.
      *
-     * @see {@link #dataFileLoader}.
+     * @see #dataFileLoader
      *
      * @param dataFileLoader
      *            The dataFileLoader to set.
@@ -1191,7 +1191,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     /**
      * Set the prepDs.
      *
-     * @see {@link #prepDataSet}.
+     * @see #prepDataSet
      *
      * @param prepDataSet
      *            The prepDs to set.
@@ -1204,7 +1204,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     /**
      * Set the expectedDs.
      *
-     * @see {@link #expectedDataSet}.
+     * @see #expectedDataSet
      *
      * @param expectedDataSet
      *            The expectedDs to set.
@@ -1217,7 +1217,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     /**
      * Get the tableDefs.
      *
-     * @see {@link #verifyTableDefs}.
+     * @see #verifyTableDefs
      *
      * @return The tableDefs.
      */
@@ -1229,7 +1229,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     /**
      * Set the tableDefs.
      *
-     * @see {@link #verifyTableDefs}.
+     * @see #verifyTableDefs
      *
      * @param verifyTableDefs
      *            The tableDefs to set.

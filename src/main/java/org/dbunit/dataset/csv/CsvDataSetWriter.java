@@ -44,6 +44,8 @@ import org.dbunit.dataset.stream.DataSetProducerAdapter;
 import org.dbunit.dataset.stream.IDataSetConsumer;
 
 /**
+ * {@link IDataSetConsumer} that writes a dataset's tables and rows to CSV files.
+ *
  * @author fede
  * @since 24-set-2003 15.27.05
  * @version $Revision$

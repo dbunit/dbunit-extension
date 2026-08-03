@@ -27,6 +27,8 @@ import org.dbunit.database.DatabaseConnection;
 import java.sql.Connection;
 
 /**
+ * {@link DatabaseConnection} specialization that configures MySQL-specific
+ * connection behavior.
  *
  * @author manuel.laflamme
  * @since Sep 4, 2003

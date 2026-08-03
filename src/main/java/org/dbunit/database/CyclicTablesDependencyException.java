@@ -25,6 +25,9 @@ import java.util.Set;
 import org.dbunit.dataset.DataSetException;
 
 /**
+ * Signals that a set of tables has a foreign-key dependency cycle that cannot be
+ * resolved into a linear ordering.
+ *
  * @author Manuel Laflamme
  * @since Mar 23, 2003
  * @version $Revision$
