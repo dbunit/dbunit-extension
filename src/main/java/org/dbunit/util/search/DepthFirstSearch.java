@@ -49,6 +49,9 @@ public class DepthFirstSearch implements ISearchAlgorithm {
   private Set scannedNodes;
   private Set reverseScannedNodes;
 
+  /**
+   * Logger for this class.
+   */
   protected final Logger logger = LoggerFactory.getLogger(getClass());
   
   // result of the search
@@ -93,6 +96,10 @@ public class DepthFirstSearch implements ISearchAlgorithm {
 
   /**
    * Alternative option to search() that takes an array of nodes as input (instead of a Set)
+   * @param nodesFrom the nodes to start the search from.
+   * @param callback the callback used to help the search.
+   * @return the set of nodes found by the search, including the input nodes and their dependencies.
+   * @throws SearchException if an exception occurs while getting the edges.
    * @see ISearchAlgorithm
    */
   public Set search(Object[] nodesFrom, ISearchCallback callback)

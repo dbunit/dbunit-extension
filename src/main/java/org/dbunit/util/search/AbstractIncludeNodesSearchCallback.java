@@ -33,11 +33,21 @@ import java.util.Set;
 public abstract class AbstractIncludeNodesSearchCallback extends
     AbstractNodesFilterSearchCallback {
 
+  /**
+   * Creates a callback that restricts traversal to the given allowed nodes.
+   *
+   * @param allowedNodes the nodes to allow during traversal.
+   */
   public AbstractIncludeNodesSearchCallback(Set allowedNodes) {
     super();
     setAllowedNodes(allowedNodes);
   }
 
+  /**
+   * Creates a callback that restricts traversal to the given allowed nodes.
+   *
+   * @param allowedNodes the nodes to allow during traversal.
+   */
   public AbstractIncludeNodesSearchCallback(Object[] allowedNodes) {
     super();
     setAllowedNodes(allowedNodes);

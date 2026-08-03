@@ -39,6 +39,14 @@ import java.sql.Connection;
 public class Db2Connection extends DatabaseConnection
 {
 
+    /**
+     * Creates a DB2 connection, pre-configuring the DB2-specific data type factory and
+     * metadata handler.
+     *
+     * @param connection the adapted JDBC connection.
+     * @param schema the database schema.
+     * @throws DatabaseUnitException if the connection cannot be adapted.
+     */
     public Db2Connection(Connection connection, String schema) throws DatabaseUnitException
     {
         super(connection, schema);

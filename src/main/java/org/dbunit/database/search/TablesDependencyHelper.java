@@ -153,7 +153,19 @@ public class TablesDependencyHelper {
 
     // TODO: javadoc (and unit tests) from down here...
 
-    public static IDataSet getDataset(IDatabaseConnection connection,String rootTable, Set allowedIds) 
+    /**
+     * Returns a dataset containing the given root table and all tables that depend on it,
+     * filtered to the given allowed primary key values of the root table.
+     *
+     * @param connection database connection.
+     * @param rootTable root table described above.
+     * @param allowedIds the allowed primary key values of the root table.
+     * @return a dataset containing the root table and its dependent tables, filtered by the allowed ids.
+     * @throws SearchException if an exception occurred while calculating the order.
+     * @throws SQLException if a database access error occurs.
+     * @throws DataSetException if the dataset cannot be created.
+     */
+    public static IDataSet getDataset(IDatabaseConnection connection,String rootTable, Set allowedIds)
     throws SearchException, SQLException, DataSetException
     {
         if (logger.isDebugEnabled())
@@ -167,8 +179,19 @@ public class TablesDependencyHelper {
         return getDataset(connection, map);
     }
 
-    public static IDataSet getDataset( IDatabaseConnection connection, PkTableMap rootTables ) 
-    throws SearchException, SQLException, DataSetException 
+    /**
+     * Returns a dataset containing the given root tables and all tables that depend on them,
+     * filtered to the given allowed primary key values.
+     *
+     * @param connection database connection.
+     * @param rootTables map of root tables to their allowed primary key values.
+     * @return a dataset containing the root tables and their dependent tables, filtered by the allowed ids.
+     * @throws SearchException if an exception occurred while calculating the order.
+     * @throws SQLException if a database access error occurs.
+     * @throws DataSetException if the dataset cannot be created.
+     */
+    public static IDataSet getDataset( IDatabaseConnection connection, PkTableMap rootTables )
+    throws SearchException, SQLException, DataSetException
     {
         logger.debug("getDataset(connection={}, rootTables={}) - start", connection, rootTables);
 
@@ -183,8 +206,20 @@ public class TablesDependencyHelper {
         return dataset;
     }
 
-    public static IDataSet getAllDataset( IDatabaseConnection connection, String rootTable, Set allowedPKs ) 
-    throws SearchException, SQLException, DataSetException 
+    /**
+     * Returns a dataset with the given root table plus every table that directly or transitively
+     * depends on or is depended on by it, filtered to the given allowed primary keys.
+     *
+     * @param connection The connection to be used for the database lookup.
+     * @param rootTable The table to start the search from.
+     * @param allowedPKs The primary keys of the root table to allow in the result.
+     * @return the resulting dataset.
+     * @throws SearchException if the search fails.
+     * @throws SQLException if a database access error occurs.
+     * @throws DataSetException if the resulting dataset cannot be built.
+     */
+    public static IDataSet getAllDataset( IDatabaseConnection connection, String rootTable, Set allowedPKs )
+    throws SearchException, SQLException, DataSetException
     {
         if (logger.isDebugEnabled())
         {
@@ -197,8 +232,19 @@ public class TablesDependencyHelper {
         return getAllDataset( connection, map );
     }
 
-    public static IDataSet getAllDataset( IDatabaseConnection connection, PkTableMap rootTables ) 
-    throws SearchException, SQLException, DataSetException 
+    /**
+     * Returns a dataset with the given root tables plus every table that directly or transitively
+     * depends on or is depended on by them, filtered to the given allowed primary keys.
+     *
+     * @param connection The connection to be used for the database lookup.
+     * @param rootTables The tables to start the search from, mapped to their allowed primary keys.
+     * @return the resulting dataset.
+     * @throws SearchException if the search fails.
+     * @throws SQLException if a database access error occurs.
+     * @throws DataSetException if the resulting dataset cannot be built.
+     */
+    public static IDataSet getAllDataset( IDatabaseConnection connection, PkTableMap rootTables )
+    throws SearchException, SQLException, DataSetException
     {
         logger.debug("getAllDataset(connection={}, rootTables={}) - start", connection, rootTables);
 
@@ -216,9 +262,9 @@ public class TablesDependencyHelper {
     /**
      * Returns a set of tables on which the given table directly depends on.
      * @param connection The connection to be used for the database lookup.
-     * @param tableName
+     * @param tableName The table to look up direct dependencies for.
      * @return a set of tables on which the given table directly depends on.
-     * @throws SearchException
+     * @throws SearchException if the search fails.
      * @since 2.4
      */
     public static Set getDirectDependsOnTables(IDatabaseConnection connection,
@@ -237,9 +283,9 @@ public class TablesDependencyHelper {
     /**
      * Returns a set of tables which directly depend on the given table.
      * @param connection The connection to be used for the database lookup.
-     * @param tableName
+     * @param tableName The table to look up direct dependents for.
      * @return a set of tables on which the given table directly depends on.
-     * @throws SearchException
+     * @throws SearchException if the search fails.
      * @since 2.4
      */
     public static Set getDirectDependentTables(IDatabaseConnection connection,

@@ -31,6 +31,11 @@ package org.dbunit.dataset.csv;
  * @since Sep 12, 2004 (pre 2.3)
  */
 public class IllegalCharacterSeen extends CsvParserException {
+    /**
+     * Constructs an <code>IllegalCharacterSeen</code> with the specified detail message.
+     *
+     * @param message the detail message.
+     */
     public IllegalCharacterSeen(String message) {
         super(message);
     }

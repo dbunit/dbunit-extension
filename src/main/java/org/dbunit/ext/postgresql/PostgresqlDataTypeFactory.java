@@ -63,6 +63,11 @@ public class PostgresqlDataTypeFactory extends DefaultDataTypeFactory
         return DATABASE_PRODUCTS;
     }
 
+    /**
+     * Returns the database product names supported by this factory.
+     *
+     * @return the database product names supported by this factory.
+     */
     public static Collection getDatabaseProducts()
     {
         return DATABASE_PRODUCTS;

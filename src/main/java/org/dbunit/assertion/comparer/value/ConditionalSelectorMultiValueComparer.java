@@ -20,6 +20,13 @@ public class ConditionalSelectorMultiValueComparer extends ValueComparerBase
     private final ValueComparerSelector valueComparerSelector;
     private final Map<Object, ValueComparer> valueComparers;
 
+    /**
+     * Creates a comparer that selects a {@link ValueComparer} from the given map using the
+     * given selector.
+     *
+     * @param valueComparers the map of value comparers to select from.
+     * @param valueComparerSelector the selector used to choose a value comparer from the map.
+     */
     public ConditionalSelectorMultiValueComparer(final Map<Object, ValueComparer> valueComparers,
             final ValueComparerSelector valueComparerSelector) {
         assertNotNull(valueComparerSelector, "valueComparerSelector is null.");

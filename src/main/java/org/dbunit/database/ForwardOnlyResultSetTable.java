@@ -49,18 +49,43 @@ public class ForwardOnlyResultSetTable extends AbstractResultSetTable
     private int _lastRow = -1;
     private boolean _eot = false; // End of table flag
 
+    /**
+     * Creates a table wrapping the given already-executed result set.
+     *
+     * @param metaData the table metadata.
+     * @param resultSet the result set backing this table's rows.
+     * @throws SQLException if statement creation or execution fails.
+     * @throws DataSetException if metadata retrieval fails.
+     */
     public ForwardOnlyResultSetTable(ITableMetaData metaData,
             ResultSet resultSet) throws SQLException, DataSetException
     {
         super(metaData, resultSet);
     }
 
+    /**
+     * Creates a table from a metadata descriptor and a connection, using a forward-only result set.
+     *
+     * @param metaData the table metadata.
+     * @param connection the database connection.
+     * @throws DataSetException if metadata retrieval fails.
+     * @throws SQLException if statement creation or execution fails.
+     */
     public ForwardOnlyResultSetTable(ITableMetaData metaData,
             IDatabaseConnection connection) throws DataSetException, SQLException
     {
         super(metaData, connection);
     }
 
+    /**
+     * Creates a table from a table name, SQL statement, and connection.
+     *
+     * @param tableName the table name.
+     * @param selectStatement the SQL select statement.
+     * @param connection the database connection.
+     * @throws DataSetException if metadata retrieval fails.
+     * @throws SQLException if statement creation or execution fails.
+     */
     public ForwardOnlyResultSetTable(String tableName, String selectStatement,
             IDatabaseConnection connection) throws DataSetException, SQLException
     {

@@ -39,8 +39,10 @@ public class OperationData
     private final Column[] _columns;
 
     /**
-     * @param sql
-     * @param columns
+     * Constructs an <code>OperationData</code> pairing the given SQL statement with its bound columns.
+     *
+     * @param sql the SQL statement.
+     * @param columns the columns whose values are bound as the statement's parameters.
      */
     public OperationData(String sql, Column[] columns)
     {
@@ -48,11 +50,21 @@ public class OperationData
         _columns = columns;
     }
 
+    /**
+     * Returns the SQL statement.
+     *
+     * @return the SQL statement.
+     */
     public String getSql()
     {
         return _sql;
     }
 
+    /**
+     * Returns the columns whose values are bound as the statement's parameters.
+     *
+     * @return the columns whose values are bound as the statement's parameters.
+     */
     public Column[] getColumns()
     {
         return _columns;

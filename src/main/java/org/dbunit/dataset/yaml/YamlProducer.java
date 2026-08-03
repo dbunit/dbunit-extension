@@ -67,11 +67,22 @@ public class YamlProducer implements IDataSetProducer
 
     private Yaml _yaml;
 
+    /**
+     * Creates a producer reading YAML from the given file.
+     *
+     * @param file the YAML file to read.
+     * @throws IOException if the file cannot be opened.
+     */
     public YamlProducer(File file) throws IOException
     {
         this(new FileInputStream(file));
     }
 
+    /**
+     * Creates a producer reading YAML from the given stream.
+     *
+     * @param inputStream the stream to read YAML from.
+     */
     public YamlProducer(InputStream inputStream)
     {
         this._inputStream = inputStream;

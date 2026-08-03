@@ -32,8 +32,36 @@ package org.dbunit.dataset.common.handlers;
  * @since 2.2 (Sep 12, 2004)
  */
 public interface Handler {
+    /**
+     * Handles the given character.
+     *
+     * @param c the character to handle.
+     * @throws IllegalInputCharacterException if the character is not valid in the current context.
+     * @throws PipelineException if the character cannot be processed by the pipeline.
+     */
     public void handle(char c) throws IllegalInputCharacterException, PipelineException;
+
+    /**
+     * Determines whether this handler can handle the given character.
+     *
+     * @param c the character to check.
+     * @return <code>true</code> if this handler can handle the character.
+     * @throws IllegalInputCharacterException if the character is not valid in the current context.
+     */
     public boolean canHandle(char c) throws IllegalInputCharacterException;
+
+    /**
+     * Notifies this handler that no more input will be provided.
+     *
+     * @throws IllegalStateException if this handler is not in a state where input can end.
+     */
     public void noMoreInput() throws IllegalStateException;
+
+    /**
+     * Determines whether this handler allows input to end at this point.
+     *
+     * @return <code>true</code> if ending input now is allowed.
+     * @throws IllegalStateException if the handler's state cannot be evaluated.
+     */
     public boolean allowForNoMoreInput() throws IllegalStateException;
 }

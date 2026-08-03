@@ -56,6 +56,9 @@ public class DataSetUtils
      * the tables order.
      *
      * @deprecated Use Assertion.assertEquals
+     * @param expectedDataSet the dataset containing all expected results.
+     * @param actualDataSet the dataset containing all actual results.
+     * @throws Exception if an error occurs during comparison.
      */
     public static void assertEquals(IDataSet expectedDataSet,
             IDataSet actualDataSet) throws Exception
@@ -72,6 +75,9 @@ public class DataSetUtils
      * keys.
      *
      * @deprecated Use Assertion.assertEquals
+     * @param expectedTable the table containing all expected results.
+     * @param actualTable the table containing all actual results.
+     * @throws Exception if an error occurs during comparison.
      */
     public static void assertEquals(ITable expectedTable, ITable actualTable)
             throws Exception
@@ -123,8 +129,10 @@ public class DataSetUtils
     }
 
     /**
-     * @param name
-     * @param escapePattern
+     * Escapes the given name using the given escape pattern.
+     *
+     * @param name the name to escape.
+     * @param escapePattern the escape pattern to apply, may be <code>null</code>.
      * @return The escaped name if the escape pattern is not null
      * @deprecated since 2.3.0. Prefer usage of {@link QualifiedTableName#getQualifiedName()} creating a new {@link QualifiedTableName} object
      */
@@ -142,6 +150,7 @@ public class DataSetUtils
      * @param value the value
      * @param dataType the value data type
      * @return the SQL string value
+     * @throws TypeCastException if the value cannot be cast to a string using the given data type.
      */
     public static String getSqlValueString(Object value, DataType dataType)
             throws TypeCastException
@@ -219,6 +228,7 @@ public class DataSetUtils
      * @param names the names of the tables to search.
      * @param dataSet the dataset from which the tables must be searched.
      * @return the tables or an empty array if no tables are found.
+     * @throws DataSetException if a named table cannot be retrieved from the dataset.
      */
     public static ITable[] getTables(String[] names, IDataSet dataSet)
             throws DataSetException
@@ -237,6 +247,10 @@ public class DataSetUtils
 
     /**
      * Returns the tables from the specified dataset.
+     *
+     * @param dataSet the dataset to get the tables from.
+     * @return the tables from the specified dataset.
+     * @throws DataSetException if the tables cannot be retrieved.
      */
     public static ITable[] getTables(IDataSet dataSet) throws DataSetException
     {
@@ -247,6 +261,10 @@ public class DataSetUtils
 
     /**
      * Returns the tables from the specified iterator.
+     *
+     * @param iterator the iterator to get the tables from.
+     * @return the tables from the specified iterator.
+     * @throws DataSetException if the tables cannot be retrieved.
      */
     public static ITable[] getTables(ITableIterator iterator) throws DataSetException
     {
@@ -262,6 +280,10 @@ public class DataSetUtils
 
     /**
      * Returns the table names from the specified dataset in reverse order.
+     *
+     * @param dataSet the dataset to get the table names from.
+     * @return the table names from the specified dataset, in reverse order.
+     * @throws DataSetException if the table names cannot be retrieved.
      */
     public static String[] getReverseTableNames(IDataSet dataSet)
             throws DataSetException
@@ -272,7 +294,7 @@ public class DataSetUtils
 
     /**
      * reverses a String array.
-     * @param array
+     * @param array the array to reverse.
      * @return String[] - reversed array.
      */
     public static String[] reverseStringArray(String[] array)

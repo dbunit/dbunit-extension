@@ -67,6 +67,7 @@ public class PrimaryKeyFilter extends AbstractTableFilter {
 
     private final boolean reverseScan;
 
+    /** Logger for this class. */
     protected final Logger logger = LoggerFactory.getLogger(getClass());
 
     // cache the primary keys
@@ -98,6 +99,11 @@ public class PrimaryKeyFilter extends AbstractTableFilter {
         this.pksToScanPerTable = new PkTableMap(allowedPKs);
     }
 
+    /**
+     * Records the given node as a known table name.
+     *
+     * @param node the table name node added to the dependency graph.
+     */
     public void nodeAdded(Object node) {
         this.tableNames.add( node );
         if ( this.logger.isDebugEnabled() ) {
@@ -105,6 +111,11 @@ public class PrimaryKeyFilter extends AbstractTableFilter {
         }
     }
 
+    /**
+     * Records the given foreign key relationship in the direct and reverse edge caches.
+     *
+     * @param edge the foreign key relationship added to the dependency graph.
+     */
     public void edgeAdded(ForeignKeyRelationshipEdge edge) {
         if ( this.logger.isDebugEnabled() ) {
             this.logger.debug("edgeAdded: " + edge );
@@ -462,6 +473,9 @@ public class PrimaryKeyFilter extends AbstractTableFilter {
         private final LinkedHashMap pksPerTable;
         private final Logger logger = LoggerFactory.getLogger(PkTableMap.class);
 
+        /**
+         * Default constructor.
+         */
         public PkTableMap()
         {
             this.pksPerTable = new LinkedHashMap();
@@ -469,7 +483,7 @@ public class PrimaryKeyFilter extends AbstractTableFilter {
 
         /**
          * Copy constructor
-         * @param allowedPKs
+         * @param allowedPKs the map to copy.
          */
         public PkTableMap(PkTableMap allowedPKs) {
             this.pksPerTable = new LinkedHashMap();
@@ -483,37 +497,83 @@ public class PrimaryKeyFilter extends AbstractTableFilter {
             }
         }
 
+        /**
+         * Returns the number of tables in this map.
+         *
+         * @return the number of tables in this map.
+         */
         public int size() {
             return pksPerTable.size();
         }
 
+        /**
+         * Returns whether this map has no tables.
+         *
+         * @return {@code true} if this map has no tables.
+         */
         public boolean isEmpty() {
             return pksPerTable.isEmpty();
         }
 
+        /**
+         * Returns whether the given primary key is allowed for the given table.
+         *
+         * @param table the table name.
+         * @param pkObject the primary key value to check.
+         * @return {@code true} if the given primary key is allowed for the given table.
+         */
         public boolean contains(String table, Object pkObject) {
             Set pksPerTable = this.get(table);
             return (pksPerTable != null && pksPerTable.contains(pkObject));
         }
 
+        /**
+         * Removes the given table and its associated primary keys from this map.
+         *
+         * @param tableName the table name to remove.
+         */
         public void remove(String tableName) {
             this.pksPerTable.remove(tableName);
         }
 
+        /**
+         * Associates the given table with the given primary keys, replacing any existing association.
+         *
+         * @param table the table name.
+         * @param pkObjects the primary keys to associate with the table.
+         */
         public void put(String table, SortedSet pkObjects) {
             this.pksPerTable.put(table, pkObjects);
         }
 
+        /**
+         * Adds a single allowed primary key for the given table.
+         *
+         * @param tableName the table name.
+         * @param pkObject the primary key value to add.
+         */
         public void add(String tableName, Object pkObject) {
             Set pksPerTable = getCreateIfNeeded(tableName);
             pksPerTable.add(pkObject);
         }
 
+        /**
+         * Adds the given allowed primary keys for the given table.
+         *
+         * @param tableName the table name.
+         * @param pkObjectsToAdd the primary key values to add.
+         */
         public void addAll(String tableName, Set pkObjectsToAdd) {
             Set pksPerTable = this.getCreateIfNeeded(tableName);
             pksPerTable.addAll(pkObjectsToAdd);
         }
 
+        /**
+         * Returns the primary keys allowed for the given table.
+         *
+         * @param tableName the table name.
+         * @return the primary keys allowed for the given table, or {@code null} if the table is not present.
+         */
         public SortedSet get(String tableName) {
             return (SortedSet) this.pksPerTable.get(tableName);
         }
@@ -528,10 +588,20 @@ public class PrimaryKeyFilter extends AbstractTableFilter {
             return pksPerTable;
         }
 
+        /**
+         * Returns the table names in this map.
+         *
+         * @return the table names in this map.
+         */
         public String[] getTableNames() {
             return (String[]) this.pksPerTable.keySet().toArray(new String[0]);
         }
 
+        /**
+         * Removes every table not in the given list, and every table whose allowed primary keys are empty.
+         *
+         * @param tableNames the table names to retain.
+         */
         public void retainOnly(List tableNames) {
 
             List tablesToRemove = new ArrayList();

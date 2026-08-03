@@ -55,6 +55,8 @@ public class QueryTableIterator implements ITableIterator
     private int _index = -1;
 
     /**
+     * Constructs an iterator over the given table entries.
+     *
      * @param tableEntries list of {@link TableEntry} objects
      * @param connection The database connection needed to load data
      */
@@ -96,6 +98,11 @@ public class QueryTableIterator implements ITableIterator
         return _index < _tableEntries.size();
     }
 
+    /**
+     * Advances to the next table without closing the current one.
+     *
+     * @return <code>true</code> if there is a next table.
+     */
     public boolean nextWithoutClosing()
     {
         _index++;

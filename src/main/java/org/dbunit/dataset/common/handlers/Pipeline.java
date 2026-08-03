@@ -51,6 +51,9 @@ public class Pipeline implements Handler {
     private PipelineComponent noHandler;
     private PipelineConfig pipelineConfig = new PipelineConfig();
 
+    /**
+     * Default constructor.
+     */
     public Pipeline() {
         setComponents(new LinkedList());
         setProducts(new ArrayList());
@@ -69,12 +72,22 @@ public class Pipeline implements Handler {
         putFront(TransparentHandler.IGNORE());
     }
 
+    /**
+     * Returns the piece currently being accumulated.
+     *
+     * @return the piece currently being accumulated.
+     */
     public StringBuilder getCurrentProduct() {
         logger.debug("getCurrentProduct() - start");
 
         return currentProduct;
     }
 
+    /**
+     * Sets the piece currently being accumulated.
+     *
+     * @param currentProduct the piece currently being accumulated.
+     */
     public void setCurrentProduct(StringBuilder currentProduct) {
         logger.debug("setCurrentProduct(currentProduct={}) - start", currentProduct);
 
@@ -97,6 +110,9 @@ public class Pipeline implements Handler {
 
     }
 
+    /**
+     * Completes the current piece, adding it to {@link #getProducts()} and starting a new one.
+     */
     public void thePieceIsDone() {
         logger.debug("thePieceIsDone() - start");
 
@@ -104,12 +120,22 @@ public class Pipeline implements Handler {
         prepareNewPiece();
     }
 
+    /**
+     * Returns the completed pieces produced so far.
+     *
+     * @return the completed pieces produced so far.
+     */
     public List getProducts() {
         logger.debug("getProducts() - start");
 
         return products;
     }
 
+    /**
+     * Sets the completed pieces produced so far.
+     *
+     * @param products the completed pieces produced so far.
+     */
     protected void setProducts(List products) {
         logger.debug("setProducts(products={}) - start", products);
 
@@ -128,6 +154,11 @@ public class Pipeline implements Handler {
         this.components = components;
     }
 
+    /**
+     * Inserts the given component at the front of the pipeline.
+     *
+     * @param component the component to insert.
+     */
     public void putFront(PipelineComponent component) {
         logger.debug("putFront(component={}) - start", component);
 
@@ -136,6 +167,12 @@ public class Pipeline implements Handler {
         getComponents().addFirst(component);
     }
 
+    /**
+     * Removes and returns the component at the front of the pipeline.
+     *
+     * @return the component that was at the front of the pipeline.
+     * @throws PipelineException if the front component is the last handler and cannot be removed.
+     */
     public PipelineComponent removeFront() throws PipelineException {
         logger.debug("removeFront() - start");
 
@@ -144,6 +181,12 @@ public class Pipeline implements Handler {
         return first;
     }
 
+    /**
+     * Removes the given component from the pipeline.
+     *
+     * @param component the component to remove.
+     * @throws PipelineException if the component is the last handler, or is not present in the pipeline.
+     */
     public void remove(PipelineComponent component) throws PipelineException {
         logger.debug("remove(component={}) - start", component);
 
@@ -188,6 +231,9 @@ public class Pipeline implements Handler {
         this.noHandler = noHandler;
     }
 
+    /**
+     * Clears the completed pieces produced so far.
+     */
     public void resetProducts() {
         logger.debug("resetProducts() - start");
 
@@ -201,10 +247,20 @@ public class Pipeline implements Handler {
         //thePieceIsDone();
     }
 
+    /**
+     * Returns the configuration used by this pipeline's components.
+     *
+     * @return the configuration used by this pipeline's components.
+     */
     public PipelineConfig getPipelineConfig() {
         return pipelineConfig;
     }
 
+    /**
+     * Sets the configuration used by this pipeline's components.
+     *
+     * @param pipelineConfig the configuration used by this pipeline's components.
+     */
     public void setPipelineConfig(PipelineConfig pipelineConfig) {
         this.pipelineConfig = pipelineConfig;
     }

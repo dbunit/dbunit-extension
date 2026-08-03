@@ -69,15 +69,22 @@ public class LinkedQueue implements Channel {
    **/
   protected int waitingForTake_ = 0;  
 
+  /**
+   * Default constructor.
+   */
   public LinkedQueue() {
-    head_ = new LinkedNode(null); 
+    head_ = new LinkedNode(null);
     last_ = head_;
   }
 
-  /** Main mechanics for put/offer **/
+  /**
+   * Main mechanics for put/offer.
+   *
+   * @param x the value to insert.
+   **/
   protected void insert(Object x) {
         logger.debug("insert(x=" + x + ") - start");
- 
+
     synchronized(putLock_) {
       LinkedNode p = new LinkedNode(x);
       synchronized(last_) {
@@ -89,7 +96,11 @@ public class LinkedQueue implements Channel {
     }
   }
 
-  /** Main mechanics for take/poll **/
+  /**
+   * Main mechanics for take/poll.
+   *
+   * @return the extracted value, or {@code null} if the queue is empty.
+   **/
   protected synchronized Object extract() {
         logger.debug("extract() - start");
 
@@ -168,6 +179,11 @@ public class LinkedQueue implements Channel {
   }    
 
 
+  /**
+   * Returns whether the queue is empty.
+   *
+   * @return {@code true} if the queue is empty, {@code false} otherwise.
+   */
   public boolean isEmpty() {
         logger.debug("isEmpty() - start");
 

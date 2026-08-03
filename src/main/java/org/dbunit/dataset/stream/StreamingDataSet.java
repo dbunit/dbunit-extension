@@ -47,6 +47,11 @@ public class StreamingDataSet extends AbstractDataSet
     private IDataSetProducer _source;
     private int _iteratorCount;
 
+    /**
+     * Creates a dataset that asynchronously consumes the given producer.
+     *
+     * @param source the producer to consume.
+     */
     public StreamingDataSet(IDataSetProducer source)
     {
         _source = source;
@@ -81,7 +86,7 @@ public class StreamingDataSet extends AbstractDataSet
 
     /**
      * Not supported.
-     * @throws UnsupportedOperationException
+     * @throws UnsupportedOperationException always.
      */
     public String[] getTableNames() throws DataSetException
     {
@@ -90,7 +95,7 @@ public class StreamingDataSet extends AbstractDataSet
 
     /**
      * Not supported.
-     * @throws UnsupportedOperationException
+     * @throws UnsupportedOperationException always.
      */
     public ITableMetaData getTableMetaData(String tableName) throws DataSetException
     {
@@ -101,7 +106,7 @@ public class StreamingDataSet extends AbstractDataSet
 
     /**
      * Not supported.
-     * @throws UnsupportedOperationException
+     * @throws UnsupportedOperationException always.
      */
     public ITable getTable(String tableName) throws DataSetException
     {

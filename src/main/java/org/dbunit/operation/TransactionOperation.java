@@ -49,6 +49,8 @@ public class TransactionOperation extends DatabaseOperation
 
     /**
      * Creates a TransactionOperation that decorates the specified operation.
+     *
+     * @param operation the operation to decorate.
      */
     public TransactionOperation(DatabaseOperation operation)
     {

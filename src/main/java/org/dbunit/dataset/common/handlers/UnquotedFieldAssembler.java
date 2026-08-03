@@ -26,7 +26,6 @@ import java.util.LinkedList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 /**
  * {@link PipelineComponent} that assembles an unquoted CSV field value from its
  * constituent characters.
@@ -45,6 +44,9 @@ public class UnquotedFieldAssembler extends AbstractPipelineComponent {
 
     LinkedList addedComponents;
 
+    /**
+     * Default constructor.
+     */
     public UnquotedFieldAssembler() {
         setAddedComponents(new LinkedList());
         getPipeline().putFront(SeparatorHandler.ENDPIECE());
@@ -71,6 +73,9 @@ public class UnquotedFieldAssembler extends AbstractPipelineComponent {
         return true;
     }
 
+    /**
+     * Helper that notifies the pipeline the current field is done.
+     */
     static protected class ASSEMBLE extends Helper {
 
         /**

@@ -49,20 +49,43 @@ import org.dbunit.dataset.DataSetException;
  */
 public class AmbiguousTableNameException extends DataSetException
 {
+    /**
+     * Constructs an <code>AmbiguousTableNameException</code> with no detail
+     * message and no encapsulated exception.
+     */
     public AmbiguousTableNameException()
     {
     }
 
+    /**
+     * Constructs an <code>AmbiguousTableNameException</code> with the specified detail
+     * message and no encapsulated exception.
+     *
+     * @param msg the detail message, typically the ambiguous table name.
+     */
     public AmbiguousTableNameException(String msg)
     {
         super(msg);
     }
 
+    /**
+     * Constructs an <code>AmbiguousTableNameException</code> with the specified detail
+     * message and encapsulated exception.
+     *
+     * @param msg the detail message, typically the ambiguous table name.
+     * @param e the encapsulated exception.
+     */
     public AmbiguousTableNameException(String msg, Throwable e)
     {
         super(msg, e);
     }
 
+    /**
+     * Constructs an <code>AmbiguousTableNameException</code> with the encapsulated
+     * exception and use string representation as detail message.
+     *
+     * @param e the encapsulated exception.
+     */
     public AmbiguousTableNameException(Throwable e)
     {
         super(e);

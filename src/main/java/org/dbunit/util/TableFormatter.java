@@ -37,6 +37,9 @@ import org.dbunit.dataset.ITableMetaData;
 public class TableFormatter
 {
 
+    /**
+     * Default constructor.
+     */
     public TableFormatter()
     {
 
@@ -47,9 +50,9 @@ public class TableFormatter
      * given
      * <code>length</code>.
      *
-     * @param s
-     * @param length
-     * @param padChar
+     * @param s the string to pad.
+     * @param length the desired length of the resulting string.
+     * @param padChar the character to pad with.
      * @return The padded string
      */
     public static final String padLeft(String s, int length, char padChar)
@@ -67,9 +70,9 @@ public class TableFormatter
      * Pads the given String with the given <code>padChar</code> up to the given
      * <code>length</code>.
      *
-     * @param s
-     * @param length
-     * @param padChar
+     * @param s the string to pad.
+     * @param length the desired length of the resulting string.
+     * @param padChar the character to pad with.
      * @return The padded string
      */
     public static final String padRight(String s, int length, char padChar)
@@ -121,7 +124,7 @@ public class TableFormatter
      * @param table
      *         The table to be formatted in a beautiful way
      * @return The table data as a formatted String
-     * @throws DataSetException
+     * @throws DataSetException if the table data cannot be read.
      */
     public String format(ITable table) throws DataSetException
     {

@@ -24,7 +24,6 @@ package org.dbunit.dataset.common.handlers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 /**
  * {@link PipelineComponent} that matches the CSV field separator character.
  *
@@ -35,6 +34,7 @@ import org.slf4j.LoggerFactory;
  */
 public class SeparatorHandler extends AbstractPipelineComponent {
 
+    /** The default CSV field separator character. */
     public static final char DEFAULT_SEPARATOR_CHAR = ',';
 
     /**
@@ -42,22 +42,37 @@ public class SeparatorHandler extends AbstractPipelineComponent {
      */
     private static final Logger logger = LoggerFactory.getLogger(SeparatorHandler.class);
 
-    private SeparatorHandler() 
+    private SeparatorHandler()
     {
     }
-    
+
+    /**
+     * Creates a handler that accepts the separator character.
+     *
+     * @return the new pipeline component.
+     */
     public static final PipelineComponent ACCEPT () {
         logger.debug("ACCEPT() - start");
 
         return createPipelineComponent(new SeparatorHandler(), new ACCEPT());
     }
 
+    /**
+     * Creates a handler that ignores the separator character.
+     *
+     * @return the new pipeline component.
+     */
     public static final PipelineComponent IGNORE () {
         logger.debug("IGNORE() - start");
 
         return createPipelineComponent(new SeparatorHandler(), new IGNORE());
     }
 
+    /**
+     * Creates a handler that ends the current field on the separator character.
+     *
+     * @return the new pipeline component.
+     */
     public static final PipelineComponent ENDPIECE () {
         logger.debug("ENDPIECE() - start");
 
@@ -75,6 +90,9 @@ public class SeparatorHandler extends AbstractPipelineComponent {
         return false; //throw new IllegalInputCharacterException("Cannot handle character '" + c + "'");
     }
 
+    /**
+     * Helper that ends the current field, notifying the pipeline the piece is done.
+     */
     static protected class ENDPIECE extends Helper {
 
         /**

@@ -37,20 +37,39 @@ public class RowOutOfBoundsException extends DataSetException
      *  serialization-compatible with 3.2.0 and stable across all releases from here on. */
     private static final long serialVersionUID = 3366609800061836144L;
 
+    /**
+     * Default constructor.
+     */
     public RowOutOfBoundsException()
     {
     }
 
+    /**
+     * Constructs a <code>RowOutOfBoundsException</code> with the specified detail message.
+     *
+     * @param msg the detail message.
+     */
     public RowOutOfBoundsException(String msg)
     {
         super(msg);
     }
 
+    /**
+     * Constructs a <code>RowOutOfBoundsException</code> with the specified detail message and cause.
+     *
+     * @param msg the detail message.
+     * @param e the cause.
+     */
     public RowOutOfBoundsException(String msg, Throwable e)
     {
         super(msg, e);
     }
 
+    /**
+     * Constructs a <code>RowOutOfBoundsException</code> with the specified cause.
+     *
+     * @param e the cause.
+     */
     public RowOutOfBoundsException(Throwable e)
     {
         super(e);

@@ -79,6 +79,10 @@ public class Column
 
     /**
      * Creates a Column object.
+     *
+     * @param columnName the column name.
+     * @param dataType the data type.
+     * @param nullable whether or not the column is nullable.
      */
     public Column(String columnName, DataType dataType, Nullable nullable)
     {
@@ -87,6 +91,11 @@ public class Column
 
     /**
      * Creates a Column object.
+     *
+     * @param columnName the column name.
+     * @param dataType the data type.
+     * @param sqlTypeName the SQL name of the column which comes from the JDBC driver.
+     * @param nullable whether or not the column is nullable.
      */
     public Column(String columnName, DataType dataType, String sqlTypeName,
             Nullable nullable)
@@ -152,18 +161,30 @@ public class Column
         _generatedColumn = generatedColumn;
     }
 
+    /**
+     * Returns whether the database has a default value configured for this column.
+     *
+     * @return <code>true</code> if this column has a default value.
+     */
     public boolean hasDefaultValue()
     {
         return _defaultValue != null;
     }
-    
+
+    /**
+     * Returns whether this column definitely does not allow <code>NULL</code> values.
+     *
+     * @return <code>true</code> if this column is not nullable.
+     */
     public boolean isNotNullable()
     {
         return _nullable== Column.NO_NULLS;
     }
-    
+
     /**
      * Returns this column name.
+     *
+     * @return this column name.
      */
     public String getColumnName()
     {
@@ -172,6 +193,8 @@ public class Column
 
     /**
      * Returns this column data type.
+     *
+     * @return this column data type.
      */
     public DataType getDataType()
     {
@@ -180,6 +203,8 @@ public class Column
 
     /**
      * Returns this column sql data type name.
+     *
+     * @return this column sql data type name.
      */
     public String getSqlTypeName()
     {
@@ -188,6 +213,8 @@ public class Column
 
     /**
      * Returns <code>true</code> if this column is nullable.
+     *
+     * @return this column's nullability.
      */
     public Nullable getNullable()
     {
@@ -195,15 +222,19 @@ public class Column
     }
 
     /**
-     * @return The default value the database uses for this column 
+     * Returns the default value the database uses for this column.
+     *
+     * @return The default value the database uses for this column
      * if not specified in the insert column list
      */
     public String getDefaultValue()
     {
         return _defaultValue;
     }
-    
+
     /**
+     * Returns the remarks set on the database for this column.
+     *
      * @return The remarks set on the database for this column
      * @since 2.4.3
      */
@@ -211,8 +242,10 @@ public class Column
     {
         return _remarks;
     }
-    
+
     /**
+     * Returns the auto-increment property for this column.
+     *
      * @return The auto-increment property for this column
      * @since 2.4.3
      */
@@ -220,8 +253,10 @@ public class Column
     {
         return _autoIncrement;
     }
-    
+
     /**
+     * Returns whether the column is a generated column.
+     *
      * @return Whether the column is a generated column
      * @since 3.0.0
      */
@@ -238,6 +273,7 @@ public class Column
      * {@link java.sql.DatabaseMetaData#columnNoNulls},
      * {@link java.sql.DatabaseMetaData#columnNullable},
      * {@link java.sql.DatabaseMetaData#columnNullableUnknown}
+     * @return the corresponding Nullable constant.
      */
     public static Nullable nullableValue(int nullable)
     {
@@ -265,6 +301,7 @@ public class Column
      * Returns the appropriate Nullable constant.
      *
      * @param nullable <code>true</code> if null is allowed
+     * @return the corresponding Nullable constant.
      */
     public static Nullable nullableValue(boolean nullable)
     {
@@ -376,10 +413,14 @@ public class Column
      */
     public static class AutoIncrement
     {
+        /** Indicates that the column is auto-incremented. */
         public static final AutoIncrement YES = new AutoIncrement("YES");
+        /** Indicates that the column is not auto-incremented. */
         public static final AutoIncrement NO = new AutoIncrement("NO");
+        /** Indicates that whether the column is auto-incremented is unknown. */
         public static final AutoIncrement UNKNOWN = new AutoIncrement("UNKNOWN");
-        
+
+
         /**
          * Logger for this class
          */
@@ -391,7 +432,12 @@ public class Column
             this.key = key;
         }
         
-        public String getKey() 
+        /**
+         * Returns the key identifying this auto-increment value.
+         *
+         * @return the key identifying this auto-increment value.
+         */
+        public String getKey()
         {
             return key;
         }

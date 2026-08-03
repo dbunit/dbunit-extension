@@ -42,6 +42,11 @@ public class ForwardOnlyTable implements ITable
     private final ITable _table;
     private int _lastRow = -1;
 
+    /**
+     * Creates a forward-only decorator over the given table.
+     *
+     * @param table the table to decorate.
+     */
     public ForwardOnlyTable(ITable table)
     {
         _table = table;

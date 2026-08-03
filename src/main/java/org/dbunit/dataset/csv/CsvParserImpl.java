@@ -64,6 +64,9 @@ public class CsvParserImpl implements CsvParser {
 
     private Pipeline pipeline;
 
+    /**
+     * Default constructor.
+     */
     public CsvParserImpl() {
         resetThePipeline();
     }
@@ -118,6 +121,15 @@ public class CsvParserImpl implements CsvParser {
         }
     }
     
+    /**
+     * Parses the CSV content read from the given reader.
+     *
+     * @param reader the reader to parse.
+     * @param source a description of the source being read, used in error messages.
+     * @return the parsed rows, each a list of field values, first row being the column names.
+     * @throws IOException if the reader cannot be read.
+     * @throws CsvParserException if the CSV content is malformed.
+     */
     public List parse(Reader reader, String source) throws IOException, CsvParserException {
         logger.debug("parse(reader={}, source={}) - start", reader, source);
 

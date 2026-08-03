@@ -67,16 +67,30 @@ public abstract class AbstractStep extends ProjectComponent implements DbUnitTas
      */
     private static final Logger logger = LoggerFactory.getLogger(AbstractStep.class);
 
+    /** Flat XML data format identifier. */
     public static final String FORMAT_FLAT = "flat";
+    /** XML data format identifier. */
     public static final String FORMAT_XML = "xml";
+    /** DTD (metadata-only) format identifier. */
     public static final String FORMAT_DTD = "dtd";
+    /** CSV data format identifier. */
     public static final String FORMAT_CSV = "csv";
+    /** Excel data format identifier. */
     public static final String FORMAT_XLS = "xls";
+    /** YAML data format identifier. */
     public static final String FORMAT_YML = "yml";
 
     private boolean ordered = false;
 
-    
+    /**
+     * Builds a dataset from the given connection, restricted to the given tables and queries.
+     *
+     * @param connection the database connection.
+     * @param tables the list of {@link Table}, {@link Query}, and {@link QuerySet} elements
+     *            configuring which tables/queries to include; the whole database is used if empty.
+     * @return the assembled dataset.
+     * @throws DatabaseUnitException if building the dataset fails.
+     */
     protected IDataSet getDatabaseDataSet(IDatabaseConnection connection,
             List tables) throws DatabaseUnitException
     {
@@ -113,7 +127,6 @@ public abstract class AbstractStep extends ProjectComponent implements DbUnitTas
             throw new DatabaseUnitException(e);
         }
     }
-
 
     private ForwardOnlyDataSet[] createForwardOnlyDataSetArray(List<QueryDataSet> dataSets) throws DataSetException, SQLException {
         ForwardOnlyDataSet[] forwardOnlyDataSets = new ForwardOnlyDataSet[dataSets.size()];
@@ -168,7 +181,15 @@ public abstract class AbstractStep extends ProjectComponent implements DbUnitTas
         return queryDataSets;
 	}
 
-
+	/**
+	 * Loads a dataset from the given source file in the given format.
+	 *
+	 * @param src the source file.
+	 * @param format the data format, one of the <code>FORMAT_*</code> constants.
+	 * @param forwardonly <code>true</code> to stream the dataset forward-only instead of caching it.
+	 * @return the loaded dataset.
+	 * @throws DatabaseUnitException if loading the dataset fails.
+	 */
 	protected IDataSet getSrcDataSet(File src, String format,
             boolean forwardonly) throws DatabaseUnitException
     {
@@ -222,7 +243,6 @@ public abstract class AbstractStep extends ProjectComponent implements DbUnitTas
         }
     }
     
-
     /**
 	 * Checks if the given format is a format which contains tabular data.
 	 * @param format The format to check
@@ -262,12 +282,11 @@ public abstract class AbstractStep extends ProjectComponent implements DbUnitTas
         }
     }
 
-	
 	/**
 	 * Creates and returns an {@link InputSource}
 	 * @param file The file for which an {@link InputSource} should be created
 	 * @return The input source for the given file
-	 * @throws MalformedURLException
+	 * @throws MalformedURLException if the file's path cannot be converted to a URL.
 	 */
 	public static InputSource getInputSource(File file) throws MalformedURLException
 	{
@@ -275,12 +294,22 @@ public abstract class AbstractStep extends ProjectComponent implements DbUnitTas
         return source;
 	}
 	
-    public boolean isOrdered() 
+    /**
+     * Returns whether the resulting dataset's tables must be ordered.
+     *
+     * @return <code>true</code> if the resulting dataset's tables must be ordered.
+     */
+    public boolean isOrdered()
     {
         return ordered;
     }
 
-    public void setOrdered(boolean ordered) 
+    /**
+     * Sets whether the resulting dataset's tables must be ordered.
+     *
+     * @param ordered <code>true</code> if the resulting dataset's tables must be ordered.
+     */
+    public void setOrdered(boolean ordered)
     {
         this.ordered = ordered;
     }

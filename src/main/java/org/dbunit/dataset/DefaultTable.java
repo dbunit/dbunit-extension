@@ -47,6 +47,8 @@ public class DefaultTable extends AbstractTable
 
     /**
      * Creates a new empty table with specified metadata and values.
+     * @param metaData the table metadata.
+     * @param list the mutable row list backing this table.
      * @deprecated Use public mutators to initialize table values instead
      */
     public DefaultTable(ITableMetaData metaData, List list)
@@ -57,6 +59,7 @@ public class DefaultTable extends AbstractTable
 
     /**
      * Creates a new empty table having the specified name.
+     * @param tableName the table name.
      */
     public DefaultTable(String tableName)
     {
@@ -66,6 +69,9 @@ public class DefaultTable extends AbstractTable
 
     /**
      * Creates a new empty table with specified metadata and values.
+     * @param tableName the table name.
+     * @param columns the table columns.
+     * @param list the mutable row list backing this table.
      * @deprecated Use public mutators to initialize table values instead
      */
     public DefaultTable(String tableName, Column[] columns, List list)
@@ -76,6 +82,8 @@ public class DefaultTable extends AbstractTable
 
     /**
      * Creates a new empty table with specified metadata.
+     * @param tableName the table name.
+     * @param columns the table columns.
      */
     public DefaultTable(String tableName, Column[] columns)
     {
@@ -83,6 +91,10 @@ public class DefaultTable extends AbstractTable
         _rowList = new ArrayList();
     }
 
+    /**
+     * Creates a new empty table with the specified metadata.
+     * @param metaData the table metadata.
+     */
     public DefaultTable(ITableMetaData metaData)
     {
         _metaData = metaData;
@@ -91,6 +103,7 @@ public class DefaultTable extends AbstractTable
 
     /**
      * Inserts a new empty row. You can add values with {@link #setValue}.
+     * @throws DataSetException if the row cannot be added.
      */
     public void addRow() throws DataSetException
     {
@@ -105,6 +118,7 @@ public class DefaultTable extends AbstractTable
      * @param values The array of values. Each value correspond to the column at the
      * same index from {@link ITableMetaData#getColumns}.
      * @see #getTableMetaData
+     * @throws DataSetException if the row cannot be added.
      */
     public void addRow(Object[] values) throws DataSetException
     {
@@ -116,6 +130,7 @@ public class DefaultTable extends AbstractTable
     /**
      * Inserts all rows from the specified table.
      * @param table The source table.
+     * @throws DataSetException if the rows cannot be added.
      */
     public void addTableRows(ITable table) throws DataSetException
     {

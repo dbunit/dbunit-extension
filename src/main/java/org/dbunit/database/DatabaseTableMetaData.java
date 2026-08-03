@@ -164,12 +164,12 @@ public class DatabaseTableMetaData extends AbstractTableMetaData
     }
 
     /**
-     * @param tableName
-     * @param resultSet
-     * @param dataTypeFactory
+     * @param tableName the name of the database table.
+     * @param resultSet the JDBC result set that is used to retrieve the columns.
+     * @param dataTypeFactory the data type factory used to resolve column data types.
      * @return The table metadata created for the given parameters
-     * @throws DataSetException
-     * @throws SQLException
+     * @throws DataSetException if metadata retrieval fails.
+     * @throws SQLException if a database access error occurs.
      * @deprecated since 2.3.0. use {@link ResultSetTableMetaData#ResultSetTableMetaData(String, ResultSet, IDataTypeFactory, boolean)}
      */
     public static ITableMetaData createMetaData(String tableName,
@@ -188,12 +188,12 @@ public class DatabaseTableMetaData extends AbstractTableMetaData
 
     
     /**
-     * @param tableName
-     * @param resultSet
-     * @param connection
+     * @param tableName the name of the database table.
+     * @param resultSet the JDBC result set that is used to retrieve the columns.
+     * @param connection the connection which is needed to retrieve some configuration values.
      * @return The table metadata created for the given parameters
-     * @throws SQLException
-     * @throws DataSetException
+     * @throws SQLException if a database access error occurs.
+     * @throws DataSetException if metadata retrieval fails.
      * @deprecated since 2.3.0. use {@link org.dbunit.database.ResultSetTableMetaData#ResultSetTableMetaData(String, ResultSet, IDatabaseConnection, boolean)}
      */
     public static ITableMetaData createMetaData(String tableName,

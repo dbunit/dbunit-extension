@@ -37,6 +37,8 @@ public interface IDataTypeFactory
      *            SQL type from {@link java.sql.Types}
      * @param sqlTypeName
      *            Data source dependent type name
+     * @return the {@link DataType} corresponding to the given SQL type.
+     * @throws DataTypeException if the corresponding {@link DataType} cannot be determined.
      */
     public DataType createDataType(int sqlType, String sqlTypeName)
             throws DataTypeException;
@@ -59,7 +61,9 @@ public interface IDataTypeFactory
      * @param columnName
      *            The database column in the given table for which the type is
      *            created
-     * 
+     * @return the {@link DataType} corresponding to the given SQL type, honoring any configured
+     *         tolerance for the given table/column.
+     * @throws DataTypeException if the corresponding {@link DataType} cannot be determined.
      * @since 2.3.0
      */
     public DataType createDataType(int sqlType, String sqlTypeName,

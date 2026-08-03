@@ -47,6 +47,15 @@ public class IsActualContainingExpectedStringValueComparer
         return isExpected;
     }
 
+    /**
+     * Returns whether the actual value, converted to a string, contains the expected value,
+     * also converted to a string.
+     *
+     * @param expectedValue the expected value.
+     * @param actualValue the actual value.
+     * @return <code>true</code> if the actual value's string form contains the expected value's string form.
+     * @throws TypeCastException if either value cannot be converted to a string.
+     */
     protected boolean isContaining(final Object expectedValue,
             final Object actualValue) throws TypeCastException
     {

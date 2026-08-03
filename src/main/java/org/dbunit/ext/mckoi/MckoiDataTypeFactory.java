@@ -45,7 +45,6 @@ public class MckoiDataTypeFactory extends DefaultDataTypeFactory {
      */
     private static final Logger logger = LoggerFactory.getLogger(MckoiDataTypeFactory.class);
 
-
     /**
      * Database product names supported.
      */
@@ -58,7 +57,6 @@ public class MckoiDataTypeFactory extends DefaultDataTypeFactory {
     {
       return DATABASE_PRODUCTS;
     }
-
 
     public DataType createDataType(int sqlType, String sqlTypeName) throws DataTypeException {
         DataType retValue = super.createDataType(sqlType, sqlTypeName);
@@ -103,5 +101,3 @@ public class MckoiDataTypeFactory extends DefaultDataTypeFactory {
     }
 }
 
-
- 	  	 

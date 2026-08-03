@@ -50,8 +50,9 @@ public class Oracle10DataTypeFactory extends OracleDataTypeFactory
      */
     private static final Logger logger = LoggerFactory.getLogger(Oracle10DataTypeFactory.class);
 
-	
+    /** Data type used for CLOB columns, handled as a character stream. */
     protected static final DataType CLOB_AS_STRING = new StringDataType("CLOB", Types.CLOB);
+    /** Data type used for BLOB columns, handled as a binary stream. */
     protected static final DataType BLOB_AS_STREAM = new BinaryStreamDataType("BLOB", Types.BLOB);
 
     public DataType createDataType(int sqlType, String sqlTypeName) throws DataTypeException

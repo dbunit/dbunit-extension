@@ -38,10 +38,10 @@ import java.sql.SQLException;
 public class CachedResultSetTable extends CachedTable implements IResultSetTable
 {
     /**
-     * @param metaData
-     * @param resultSet
-     * @throws SQLException
-     * @throws DataSetException
+     * @param metaData the table metadata.
+     * @param resultSet the result set to load into memory.
+     * @throws SQLException if reading the result set fails.
+     * @throws DataSetException if metadata retrieval fails.
      * @deprecated since 2.3.0 prefer direct usage of {@link ForwardOnlyResultSetTable#ForwardOnlyResultSetTable(ITableMetaData, ResultSet)} and then invoke {@link CachedResultSetTable#CachedResultSetTable(IResultSetTable)}
      */
     public CachedResultSetTable(ITableMetaData metaData, ResultSet resultSet)
@@ -51,11 +51,11 @@ public class CachedResultSetTable extends CachedTable implements IResultSetTable
     }
 
     /**
-     * @param metaData
-     * @param connection
-     * @throws SQLException
-     * @throws DataSetException
-     * @deprecated since 2.4.4 prefer direct usage of {@link ForwardOnlyResultSetTable#ForwardOnlyResultSetTable(ITableMetaData, IDatabaseConnection)} and then invoke {@link CachedResultSetTable#CachedResultSetTable(IResultSetTable)} 
+     * @param metaData the table metadata.
+     * @param connection the database connection to query.
+     * @throws SQLException if executing the query fails.
+     * @throws DataSetException if metadata retrieval fails.
+     * @deprecated since 2.4.4 prefer direct usage of {@link ForwardOnlyResultSetTable#ForwardOnlyResultSetTable(ITableMetaData, IDatabaseConnection)} and then invoke {@link CachedResultSetTable#CachedResultSetTable(IResultSetTable)}
      */
     public CachedResultSetTable(ITableMetaData metaData,
             IDatabaseConnection connection) throws SQLException, DataSetException
@@ -63,6 +63,13 @@ public class CachedResultSetTable extends CachedTable implements IResultSetTable
         this(new ForwardOnlyResultSetTable(metaData, connection));
     }
 
+    /**
+     * Creates a table that eagerly loads and caches all rows of the given table, then closes it.
+     *
+     * @param table the source table to load into memory.
+     * @throws DataSetException if loading the rows fails.
+     * @throws SQLException if reading the underlying result set fails.
+     */
     public CachedResultSetTable(IResultSetTable table) throws DataSetException, SQLException
     {
         super(table.getTableMetaData());

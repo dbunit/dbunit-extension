@@ -119,6 +119,9 @@ public class ReplacementDataSet extends AbstractDataSet
 
     /**
      * Sets substring delimiters.
+     *
+     * @param startDelimiter the substring marking the start of a replaceable token.
+     * @param endDelimiter the substring marking the end of a replaceable token.
      */
     public void setSubstringDelimiters(String startDelimiter, String endDelimiter)
     {

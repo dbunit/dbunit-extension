@@ -76,8 +76,6 @@ public class DatabaseEnvironment
      * <p>
      * Following is a few properties as an example of the content of
      * "dbunit.properties":
-     * <p>
-     *
      * <pre>
      * database.profile=h2
      * dbunit.profile.driverClass=org.hsqldb.jdbcDriver

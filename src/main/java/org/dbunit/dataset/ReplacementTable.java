@@ -60,6 +60,15 @@ public class ReplacementTable implements ITable
         this(table, new HashMap(), new HashMap(), null, null);
     }
 
+    /**
+     * Create a new ReplacementTable object that decorates the specified table.
+     *
+     * @param table the decorated table.
+     * @param objectMap the object replacement mappings.
+     * @param substringMap the substring replacement mappings.
+     * @param startDelimiter the substring marking the start of a replaceable token, or <code>null</code>.
+     * @param endDelimiter the substring marking the end of a replaceable token, or <code>null</code>.
+     */
     public ReplacementTable(ITable table, Map objectMap, Map substringMap,
             String startDelimiter, String endDelimiter)
     {
@@ -118,6 +127,9 @@ public class ReplacementTable implements ITable
 
     /**
      * Sets substring delimiters.
+     *
+     * @param startDelimiter the substring marking the start of a replaceable token.
+     * @param endDelimiter the substring marking the end of a replaceable token.
      */
     public void setSubstringDelimiters(String startDelimiter, String endDelimiter)
     {

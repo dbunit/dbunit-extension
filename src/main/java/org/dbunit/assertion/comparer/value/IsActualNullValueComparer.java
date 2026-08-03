@@ -25,6 +25,11 @@ public class IsActualNullValueComparer extends ValueComparerTemplateBase
         return actualValue == null;
     }
 
+    /**
+     * Returns the message used when the actual value is unexpectedly non-null.
+     *
+     * @return the message used when the actual value is unexpectedly non-null.
+     */
     protected String makeFailMessage()
     {
         return ACTUAL_VALUE_IS_NOT_NULL;

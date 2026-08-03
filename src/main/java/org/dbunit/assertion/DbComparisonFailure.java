@@ -33,11 +33,16 @@ public class DbComparisonFailure extends AssertionError
 {
     private static final long serialVersionUID = 1L;
 
+    /** The reason for the comparison failure. */
     private String reason;
+    /** The expected value. */
     private String expected;
+    /** The actual value. */
     private String actual;
 
     /**
+     * Constructs a <code>DbComparisonFailure</code> with the given reason, expected, and actual values.
+     *
      * @param reason The reason for the comparison failure
      * @param expected The expected value
      * @param actual The actual value
@@ -56,16 +61,28 @@ public class DbComparisonFailure extends AssertionError
         return buildMessage(this.reason, this.expected, this.actual);
     }
 
+    /**
+     * Returns the reason for the comparison failure.
+     * @return the reason for the comparison failure.
+     */
     public String getReason()
     {
         return reason;
     }
 
+    /**
+     * Returns the expected value.
+     * @return the expected value.
+     */
     public String getExpected()
     {
         return expected;
     }
 
+    /**
+     * Returns the actual value.
+     * @return the actual value.
+     */
     public String getActual()
     {
         return actual;

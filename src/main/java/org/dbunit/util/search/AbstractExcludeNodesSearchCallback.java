@@ -33,11 +33,21 @@ import java.util.Set;
 public abstract class AbstractExcludeNodesSearchCallback extends
     AbstractNodesFilterSearchCallback {
 
+  /**
+   * Creates a callback that excludes the given denied nodes.
+   *
+   * @param deniedNodes the nodes to exclude from traversal.
+   */
   public AbstractExcludeNodesSearchCallback(Set deniedNodes) {
     super();
     setDeniedNodes(deniedNodes);
   }
 
+  /**
+   * Creates a callback that excludes the given denied nodes.
+   *
+   * @param deniedNodes the nodes to exclude from traversal.
+   */
   public AbstractExcludeNodesSearchCallback(Object[] deniedNodes) {
     super();
     setDeniedNodes(deniedNodes);

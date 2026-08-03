@@ -35,8 +35,19 @@ import org.dbunit.database.IDatabaseConnection;
 public interface DbUnitTaskStep
 {
 
+    /**
+     * Executes this step using the given database connection.
+     *
+     * @param connection the database connection to use.
+     * @throws DatabaseUnitException if the step fails.
+     */
     public void execute(IDatabaseConnection connection) throws DatabaseUnitException;
 
+    /**
+     * Returns a message describing this step, for logging purposes.
+     *
+     * @return a message describing this step.
+     */
     public String getLogMessage();
 
 }

@@ -74,6 +74,10 @@ public class YamlDataSet extends CachedDataSet
 
     /**
      * Creates a YAML dataset based on a yaml file
+     *
+     * @param file the YAML file to load.
+     * @throws IOException if the file cannot be read.
+     * @throws DataSetException if the document cannot be parsed.
      */
     public YamlDataSet(File file) throws IOException, DataSetException
     {
@@ -84,6 +88,7 @@ public class YamlDataSet extends CachedDataSet
      * Creates a YAML dataset based on an inputstream
      *
      * @param inputStream An inputstream pointing to a YAML dataset
+     * @throws DataSetException if the document cannot be parsed.
      */
     public YamlDataSet(InputStream inputStream) throws DataSetException
     {
@@ -93,6 +98,10 @@ public class YamlDataSet extends CachedDataSet
     /**
      * Writes the specified dataset to the specified output stream as YAML,
      * encoded in UTF-8, matching what {@link YamlProducer} decodes.
+     *
+     * @param dataSet the dataset to write.
+     * @param out the stream to write the YAML document to.
+     * @throws DataSetException if the dataset cannot be read.
      */
     public static void write(IDataSet dataSet, OutputStream out)
     throws DataSetException
@@ -103,6 +112,10 @@ public class YamlDataSet extends CachedDataSet
 
     /**
      * Write the specified dataset to the specified writer as YAML.
+     *
+     * @param dataSet the dataset to write.
+     * @param out the writer to write the YAML document to.
+     * @throws DataSetException if the dataset cannot be read.
      */
     public static void write(IDataSet dataSet, Writer out)
     throws DataSetException

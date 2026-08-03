@@ -45,6 +45,9 @@ public class BigIntegerDataType extends AbstractDataType
     private static final Logger logger =
             LoggerFactory.getLogger(BigIntegerDataType.class);
 
+    /**
+     * Default constructor.
+     */
     public BigIntegerDataType()
     {
         super("BIGINT", Types.BIGINT, BigInteger.class, true);

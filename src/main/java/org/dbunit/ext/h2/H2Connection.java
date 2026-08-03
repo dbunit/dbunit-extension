@@ -37,6 +37,13 @@ import java.sql.Connection;
  */
 public class H2Connection extends DatabaseConnection
 {
+    /**
+     * Creates an H2 connection, pre-configuring the H2-specific data type factory.
+     *
+     * @param connection the adapted JDBC connection.
+     * @param schema the database schema.
+     * @throws DatabaseUnitException if the connection cannot be adapted.
+     */
     public H2Connection(Connection connection, String schema) throws DatabaseUnitException
     {
         super(connection, schema);

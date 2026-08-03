@@ -62,6 +62,10 @@ public class XlsDataSet extends AbstractDataSet
 
     /**
      * Creates a new XlsDataSet object that loads the specified Excel document.
+     *
+     * @param file the Excel document to load.
+     * @throws IOException if the file cannot be read.
+     * @throws DataSetException if the document cannot be parsed.
      */
     public XlsDataSet(File file) throws IOException, DataSetException
     {
@@ -76,6 +80,10 @@ public class XlsDataSet extends AbstractDataSet
 
     /**
      * Creates a new XlsDataSet object that loads the specified Excel document.
+     *
+     * @param in the Excel document to load.
+     * @throws IOException if the stream cannot be read.
+     * @throws DataSetException if the document cannot be parsed.
      */
     public XlsDataSet(InputStream in) throws IOException, DataSetException
     {
@@ -108,6 +116,11 @@ public class XlsDataSet extends AbstractDataSet
 
     /**
      * Write the specified dataset to the specified Excel document.
+     *
+     * @param dataSet the dataset to write.
+     * @param out the stream to write the Excel document to.
+     * @throws IOException if writing to the stream fails.
+     * @throws DataSetException if the dataset cannot be read.
      */
     public static void write(IDataSet dataSet, OutputStream out)
             throws IOException, DataSetException

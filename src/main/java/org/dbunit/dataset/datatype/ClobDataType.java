@@ -44,6 +44,9 @@ public class ClobDataType extends StringDataType
     private static final Logger logger =
             LoggerFactory.getLogger(ClobDataType.class);
 
+    /**
+     * Default constructor.
+     */
     public ClobDataType()
     {
         super("CLOB", Types.CLOB);

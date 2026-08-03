@@ -50,31 +50,44 @@ public abstract class DataType
     private static final Logger logger =
             LoggerFactory.getLogger(DataType.class);
 
+    /** The unrecognized/unmapped data type. */
     public static final DataType UNKNOWN = new UnknownDataType();
 
+    /** Maps the SQL CHAR type. */
     public static final DataType CHAR = new StringDataType("CHAR", Types.CHAR);
+    /** Maps the SQL VARCHAR type. */
     public static final DataType VARCHAR =
             new StringDataType("VARCHAR", Types.VARCHAR);
+    /** Maps the SQL LONGVARCHAR type. */
     public static final DataType LONGVARCHAR =
             new StringDataType("LONGVARCHAR", Types.LONGVARCHAR);
+    /** Maps the SQL CLOB type. */
     public static final DataType CLOB = new ClobDataType();
 
+    /** Maps the SQL NUMERIC type. */
     public static final DataType NUMERIC =
             new NumberDataType("NUMERIC", Types.NUMERIC);
+    /** Maps the SQL DECIMAL type. */
     public static final DataType DECIMAL =
             new NumberDataType("DECIMAL", Types.DECIMAL);
 
+    /** Maps the SQL BOOLEAN type. */
     public static final DataType BOOLEAN = new BooleanDataType();
+    /** Maps the SQL BIT type. */
     public static final DataType BIT = new BitDataType();
 
+    /** Maps the SQL TINYINT type. */
     public static final DataType TINYINT =
             new IntegerDataType("TINYINT", Types.TINYINT);
+    /** Maps the SQL SMALLINT type. */
     public static final DataType SMALLINT =
             new IntegerDataType("SMALLINT", Types.SMALLINT);
+    /** Maps the SQL INTEGER type. */
     public static final DataType INTEGER =
             new IntegerDataType("INTEGER", Types.INTEGER);
 
     // public static final DataType BIGINT = new LongDataType();
+    /** Maps the SQL BIGINT type. */
     public static final DataType BIGINT = new BigIntegerDataType();
     /**
      * Auxiliary for the BIGINT type using a long. Is currently only needed for
@@ -82,35 +95,49 @@ public abstract class DataType
      */
     public static final DataType BIGINT_AUX_LONG = new LongDataType();
 
+    /** Maps the SQL REAL type. */
     public static final DataType REAL = new FloatDataType();
 
+    /** Maps the SQL FLOAT type. */
     public static final DataType FLOAT =
             new DoubleDataType("FLOAT", Types.FLOAT);
+    /** Maps the SQL DOUBLE type. */
     public static final DataType DOUBLE =
             new DoubleDataType("DOUBLE", Types.DOUBLE);
 
     // To calculate consistent relative date and time.
+    /** Parser used to calculate consistent relative date and time values. */
     public static final RelativeDateTimeParser RELATIVE_DATE_TIME_PARSER =
             new RelativeDateTimeParser();
+    /** Maps the SQL DATE type. */
     public static final DataType DATE = new DateDataType();
+    /** Maps the SQL TIME type. */
     public static final DataType TIME = new TimeDataType();
+    /** Maps the SQL TIMESTAMP type. */
     public static final DataType TIMESTAMP = new TimestampDataType();
 
+    /** Maps the SQL BINARY type. */
     public static final DataType BINARY =
             new UuidAwareBytesDataType("BINARY", Types.BINARY);
+    /** Maps the SQL VARBINARY type. */
     public static final DataType VARBINARY =
             new UuidAwareBytesDataType("VARBINARY", Types.VARBINARY);
+    /** Maps the SQL LONGVARBINARY type. */
     public static final DataType LONGVARBINARY =
             new UuidAwareBytesDataType("LONGVARBINARY", Types.LONGVARBINARY);
+    /** Maps the SQL BLOB type. */
     public static final DataType BLOB = new BlobDataType();
 
     // New JDBC 4.0 types:
     // todo: ROWID = -8, NCLOB = 2011, SQLXML = 2009.
 
+    /** Maps the SQL NCHAR type. */
     public static final DataType NCHAR = new StringDataType("NCHAR", -15);
 
+    /** Maps the SQL NVARCHAR type. */
     public static final DataType NVARCHAR = new StringDataType("NVARCHAR", -9);
 
+    /** Maps the SQL LONGNVARCHAR type. */
     public static final DataType LONGNVARCHAR =
             new StringDataType("LONGNVARCHAR", -16);
 

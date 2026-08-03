@@ -105,6 +105,8 @@ public class QualifiedTableName
 	}
 
 	/**
+	 * Returns the schema name given in the constructor, if any.
+	 *
 	 * @return The schema name which can be null if no schema has been given in the constructor
 	 */
 	public String getSchema() {
@@ -112,6 +114,8 @@ public class QualifiedTableName
 	}
 
 	/**
+	 * Returns the plain, unqualified table name.
+	 *
 	 * @return The name of the plain, unqualified table
 	 */
 	public String getTable() {
@@ -119,9 +123,11 @@ public class QualifiedTableName
 	}
 
 	/**
+	 * Returns the table name qualified with its schema, if any.
+	 *
 	 * @return The qualified table name with the prepended schema if a schema is available
 	 */
-	public String getQualifiedName() 
+	public String getQualifiedName()
 	{
 		logger.debug("getQualifiedName() - start");
 		
@@ -133,6 +139,7 @@ public class QualifiedTableName
 	 * The qualified table name is <b>only</b> returned if the feature
 	 * {@link DatabaseConfig#FEATURE_QUALIFIED_TABLE_NAMES} is set. Otherwise the given
 	 * name is returned unqualified (i.e. without prepending the prefix/schema).
+	 * @param config the configuration providing the {@link DatabaseConfig#FEATURE_QUALIFIED_TABLE_NAMES} feature flag.
 	 * @return The qualified table name with the prepended schema if a schema is available.
 	 * The qualified table name is <b>only</b> returned if the feature 
 	 * {@link DatabaseConfig#FEATURE_QUALIFIED_TABLE_NAMES} is set in the given <code>config</code>.

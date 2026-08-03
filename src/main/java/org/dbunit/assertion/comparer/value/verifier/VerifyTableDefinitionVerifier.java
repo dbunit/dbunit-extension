@@ -13,6 +13,10 @@ import org.dbunit.assertion.comparer.value.ValueComparer;
  */
 public interface VerifyTableDefinitionVerifier
 {
-    /** Verify the {@link VerifyTableDefinition} is valid. */
+    /**
+     * Verify the {@link VerifyTableDefinition} is valid.
+     *
+     * @param verifyTableDefinition the table definition to verify.
+     */
     void verify(final VerifyTableDefinition verifyTableDefinition);
 }

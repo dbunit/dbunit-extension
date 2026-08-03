@@ -50,6 +50,7 @@ public class DefaultTableFilter extends AbstractTableFilter implements ITableFil
      * The following wildcard characters are supported:
      * '*' matches zero or more characters,
      * '?' matches one character.
+     * @param patternName the table name pattern to accept.
      */
     public void includeTable(String patternName)
     {
@@ -63,6 +64,7 @@ public class DefaultTableFilter extends AbstractTableFilter implements ITableFil
      * The following wildcard characters are supported:
      * '*' matches zero or more characters,
      * '?' matches one character.
+     * @param patternName the table name pattern to refuse.
      */
     public void excludeTable(String patternName)
     {

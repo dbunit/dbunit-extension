@@ -39,6 +39,8 @@ public interface ITableFilter extends ITableFilterSimple
      * Returns the table names allowed by this filter from the specified dataset.
      *
      * @param dataSet the filtered dataset
+     * @return the table names allowed by this filter.
+     * @throws DataSetException if retrieving the table names fails.
      */
     public String[] getTableNames(IDataSet dataSet) throws DataSetException;
 
@@ -46,6 +48,9 @@ public interface ITableFilter extends ITableFilterSimple
      * Returns iterator of tables allowed by this filter from the specified dataset.
      *
      * @param dataSet the filtered dataset
+     * @param reversed <code>true</code> to iterate in reverse order.
+     * @return the iterator of tables allowed by this filter.
+     * @throws DataSetException if creating the iterator fails.
      */
     public ITableIterator iterator(IDataSet dataSet, boolean reversed)
             throws DataSetException;

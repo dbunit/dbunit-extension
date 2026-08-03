@@ -40,12 +40,16 @@ import org.dbunit.dataset.datatype.TypeCastException;
  */
 public class DateTimeOffsetType extends AbstractDataType
 {
+    /** JDBC SQL type code for Microsoft SQL Server's DATETIMEOFFSET type. */
     public static final int TYPE = -155;
 
     /** @see https://docs.microsoft.com/en-us/sql/t-sql/data-types/datetimeoffset-transact-sql?view=sql-server-2017 */
     private static final DateTimeFormatter SQL_SERVER_FORMAT =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss[.n] xxx");
 
+    /**
+     * Default constructor.
+     */
     public DateTimeOffsetType()
     {
         super("datetimeoffset", TYPE, OffsetDateTime.class, false);

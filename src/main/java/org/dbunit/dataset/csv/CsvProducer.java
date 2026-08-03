@@ -63,10 +63,20 @@ public class CsvProducer implements IDataSetProducer {
     private IDataSetConsumer _consumer = EMPTY_CONSUMER;
     private String _theDirectory;
 
+    /**
+     * Creates a producer that reads CSV files from the given directory.
+     *
+     * @param theDirectory the path of the directory containing the CSV files.
+     */
     public CsvProducer(String theDirectory) {
         _theDirectory = theDirectory;
     }
 
+    /**
+     * Creates a producer that reads CSV files from the given directory.
+     *
+     * @param theDirectory the directory containing the CSV files.
+     */
     public CsvProducer(File theDirectory) {
         _theDirectory = theDirectory.getAbsolutePath();
     }
@@ -150,6 +160,8 @@ public class CsvProducer implements IDataSetProducer {
 
 	/**
 	 * Get a list of tables that this producer will create
+	 * @param base the base URL the table list file is resolved against.
+	 * @param tableList the name of the file, relative to base, listing the tables in load order.
 	 * @return a list of Strings, where each item is a CSV file relative to the base URL
 	 * @throws IOException when IO on the base URL has issues.
 	 */

@@ -40,7 +40,12 @@ public class SimpleAssert
     private static final Logger logger = LoggerFactory.getLogger(SimpleAssert.class);
 
     private FailureHandler failureHandler;
-    
+
+    /**
+     * Constructs a <code>SimpleAssert</code> reporting failures through the given handler.
+     *
+     * @param failureHandler the handler used to report failures.
+     */
     public SimpleAssert(FailureHandler failureHandler)
     {
         if (failureHandler == null) {
@@ -66,10 +71,15 @@ public class SimpleAssert
                 .length() > 0 );
     }
 
+    /**
+     * Evaluate if the given condition is <code>true</code> or not.
+     *
+     * @param condition condition to be tested
+     */
     public void assertTrue(boolean condition) {
         assertTrue(null, condition);
     }
-    
+
     /**
      * Evaluate if the given condition is <code>true</code> or not.
      * @param message message displayed if assertion is false
@@ -81,14 +91,30 @@ public class SimpleAssert
         }
     }
 
+    /**
+     * Evaluate that the given object is not <code>null</code>.
+     *
+     * @param object the object to check.
+     */
     public void assertNotNull(Object object) {
         assertTrue(null, object!=null);
     }
 
+    /**
+     * Evaluate that the given object is not <code>null</code>.
+     *
+     * @param message message displayed if assertion is false
+     * @param object the object to check.
+     */
     public void assertNotNull(String message, Object object) {
         assertTrue(message, object!=null);
     }
-    
+
+    /**
+     * Reports a failure through this instance's {@link FailureHandler}.
+     *
+     * @param message message displayed for the failure.
+     */
     public void fail(String message) {
         throw failureHandler.createFailure(message);
     }

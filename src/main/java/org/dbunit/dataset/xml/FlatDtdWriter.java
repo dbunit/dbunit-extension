@@ -45,24 +45,42 @@ public class FlatDtdWriter //implements IDataSetConsumer
      */
     private static final Logger logger = LoggerFactory.getLogger(FlatDtdWriter.class);
 
+    /** Content model rendering child elements as a sequence, e.g. <code>(A, B, C)</code>. */
     public static final ContentModel SEQUENCE = new SequenceModel();
+    /** Content model rendering child elements as a choice, e.g. <code>(A | B | C)</code>. */
     public static final ContentModel CHOICE   = new ChoiceModel();
 
     private Writer _writer;
     private ContentModel _contentModel;
 
+    /**
+     * Creates a writer that writes DTD content to the given writer, using the sequence content model.
+     *
+     * @param writer the writer to write to.
+     */
     public FlatDtdWriter(Writer writer)
     {
         _writer = writer;
         _contentModel = SEQUENCE;
     }
 
+    /**
+     * Sets the content model used to render tables' child elements.
+     *
+     * @param contentModel the content model to use.
+     */
     public void setContentModel(ContentModel contentModel)
     {
         logger.debug("setContentModel(contentModel={}) - start", contentModel);
         _contentModel = contentModel;
     }
 
+    /**
+     * Writes a DTD describing the given dataset's tables and columns.
+     *
+     * @param dataSet the dataset to write a DTD for.
+     * @throws DataSetException if reading the dataset fails.
+     */
     public void write(IDataSet dataSet) throws DataSetException
     {
         logger.debug("write(dataSet={}) - start", dataSet);
@@ -149,6 +167,14 @@ public class FlatDtdWriter //implements IDataSetConsumer
             return _name;
         }
 
+        /**
+         * Writes the given table's content-model declaration.
+         *
+         * @param writer the writer to write to.
+         * @param tableName the table name.
+         * @param tableIndex the index of the table among tableCount, used to decide separators.
+         * @param tableCount the total number of tables being written.
+         */
         public abstract void write(PrintWriter writer, String tableName,
                 int tableIndex, int tableCount);
     }

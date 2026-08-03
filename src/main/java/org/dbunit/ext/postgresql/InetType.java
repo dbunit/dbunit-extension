@@ -48,6 +48,9 @@ public class InetType
      */
     private static final Logger logger = LoggerFactory.getLogger(InetType.class);
 
+    /**
+     * Default constructor.
+     */
     public InetType() {
         super("inet", Types.OTHER, String.class, false);
     }

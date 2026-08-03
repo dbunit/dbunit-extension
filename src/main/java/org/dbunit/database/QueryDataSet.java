@@ -85,7 +85,7 @@ public class QueryDataSet extends AbstractDataSet
      * @param tableName The name of the table
      * @param query The query to retrieve data with for this table. Can be null which will select
      * all data (see {@link #addTable(String)} for details)
-     * @throws AmbiguousTableNameException 
+     * @throws AmbiguousTableNameException if the given table name was already added.
      */
     public void addTable(String tableName, String query) throws AmbiguousTableNameException
     {
@@ -97,7 +97,7 @@ public class QueryDataSet extends AbstractDataSet
      *  Adds a table with using 'SELECT * FROM <code>tableName</code>' as query.
      *
      * @param tableName The name of the table
-     * @throws AmbiguousTableNameException 
+     * @throws AmbiguousTableNameException if the given table name was already added.
      */
     public void addTable(String tableName) throws AmbiguousTableNameException
     {

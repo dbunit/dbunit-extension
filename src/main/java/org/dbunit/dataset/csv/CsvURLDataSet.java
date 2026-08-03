@@ -43,6 +43,9 @@ public class CsvURLDataSet extends CachedDataSet {
 	
 	/**
 	 * Create a Data Set from CSV files, using the base URL provided to find data.
+	 *
+	 * @param base the base URL that CSV files and the table ordering file are resolved against.
+	 * @throws DataSetException if reading the CSV files fails.
 	 */
 	public CsvURLDataSet(URL base) throws DataSetException
 	{

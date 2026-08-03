@@ -41,11 +41,19 @@ public abstract class JdbcBasedDBTestCase extends DBTestCase
      */
     private static final Logger logger = LoggerFactory.getLogger(JdbcBasedDBTestCase.class);
 
+    /**
+     * Default constructor.
+     */
     public JdbcBasedDBTestCase()
     {
         super();
     }
 
+    /**
+     * Constructs a test case with the given name.
+     *
+     * @param name the test case name.
+     */
     public JdbcBasedDBTestCase( String name )
     {
         super( name );
@@ -72,11 +80,15 @@ public abstract class JdbcBasedDBTestCase extends DBTestCase
 
     /**
      * Returns the test connection url.
+     *
+     * @return the test connection url.
      */
     protected abstract String getConnectionUrl();
 
     /**
      * Returns the JDBC driver classname.
+     *
+     * @return the JDBC driver classname.
      */
     protected abstract String getDriverClass();
 
@@ -84,6 +96,8 @@ public abstract class JdbcBasedDBTestCase extends DBTestCase
      * Returns the password for the connection.<br>
      * Subclasses may override this method to provide a custom password.<br>
      * Default implementations returns null.
+     *
+     * @return the password for the connection.
      */
     protected String getPassword()
     {
@@ -94,6 +108,8 @@ public abstract class JdbcBasedDBTestCase extends DBTestCase
      * Returns the username for the connection.<br>
      * Subclasses may override this method to provide a custom username.<br>
      * Default implementations returns null.
+     *
+     * @return the username for the connection.
      */
     protected String getUsername()
     {

@@ -34,17 +34,36 @@ public class SearchException extends DatabaseUnitException {
   
   private static final long serialVersionUID = -8369726048539373231L;
 
+  /**
+   * Default constructor.
+   */
   public SearchException() {
   }
 
+  /**
+   * Constructs a <code>SearchException</code> with the specified detail message.
+   *
+   * @param msg the detail message.
+   */
   public SearchException(String msg) {
     super(msg);
   }
 
+  /**
+   * Constructs a <code>SearchException</code> with the specified detail message and cause.
+   *
+   * @param msg the detail message.
+   * @param e the cause.
+   */
   public SearchException(String msg, Throwable e) {
     super(msg, e);
   }
 
+  /**
+   * Constructs a <code>SearchException</code> with the specified cause.
+   *
+   * @param e the cause.
+   */
   public SearchException(Throwable e) {
     super(e);
   }

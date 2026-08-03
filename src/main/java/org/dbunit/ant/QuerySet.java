@@ -117,30 +117,59 @@ public class QuerySet extends ProjectComponent
     private static String ERR_MSG =
             "Cannot specify 'id' and 'refid' attributes together in queryset.";
 
+    /**
+     * Default constructor.
+     */
     public QuerySet() {
         super();
     }
 
+    /**
+     * Adds a query to this queryset.
+     *
+     * @param query the query to add.
+     */
     public void addQuery(final Query query) {
         logger.debug("addQuery(query={}) - start", query);
 
         queries.add(query);
     }
 
+    /**
+     * Adds a filterset whose tokens are substituted into this queryset's query SQL.
+     *
+     * @param filterSet the filterset to add.
+     */
     public void addFilterSet(final FilterSet filterSet) {
         logger.debug("addFilterSet(filterSet={}) - start", filterSet);
 
         filterSets.add(filterSet);
     }
 
+    /**
+     * Returns the id under which this queryset can be referenced.
+     *
+     * @return the id under which this queryset can be referenced.
+     */
     public String getId() {
         return id;
     }
 
+    /**
+     * Returns the id of the queryset this queryset references.
+     *
+     * @return the id of the queryset this queryset references.
+     */
     public String getRefid() {
         return refid;
     }
 
+    /**
+     * Sets the id under which this queryset can be referenced.
+     *
+     * @param string the id under which this queryset can be referenced.
+     * @throws BuildException if <code>refid</code> is already set.
+     */
     public void setId(final String string) throws BuildException {
         logger.debug("setId(string={}) - start", string);
 
@@ -148,6 +177,12 @@ public class QuerySet extends ProjectComponent
         id = string;
     }
 
+    /**
+     * Sets the id of the queryset this queryset references.
+     *
+     * @param string the id of the queryset this queryset references.
+     * @throws BuildException if <code>id</code> is already set.
+     */
     public void setRefid(final String string) throws BuildException {
         logger.debug("setRefid(string={}) - start", string);
 
@@ -155,6 +190,11 @@ public class QuerySet extends ProjectComponent
         refid = string;
     }
 
+    /**
+     * Returns this queryset's queries, with filterset tokens substituted.
+     *
+     * @return this queryset's queries, with filterset tokens substituted.
+     */
     public List getQueries() {
         logger.debug("getQueries() - start");
 
@@ -179,6 +219,11 @@ public class QuerySet extends ProjectComponent
     }
 
 
+    /**
+     * Copies the queries from the given queryset into this one.
+     *
+     * @param referenced the queryset to copy queries from.
+     */
     public void copyQueriesFrom(final QuerySet referenced) {
         logger.debug("copyQueriesFrom(referenced={}) - start", referenced);
 
@@ -188,6 +233,15 @@ public class QuerySet extends ProjectComponent
         }
     }
 
+    /**
+     * Builds a {@link QueryDataSet} from this queryset's queries, resolving a referenced
+     * queryset first if {@link #getRefid()} is set.
+     *
+     * @param connection the database connection needed to load data.
+     * @return the resulting dataset.
+     * @throws SQLException if a database access error occurs.
+     * @throws AmbiguousTableNameException if a table name is added more than once.
+     */
     public QueryDataSet getQueryDataSet(final IDatabaseConnection connection)
             throws SQLException, AmbiguousTableNameException
     {

@@ -50,15 +50,22 @@ public class OracleDataTypeFactory extends DefaultDataTypeFactory
      */
     private static final Collection DATABASE_PRODUCTS = Arrays.asList(new String[] {"oracle"});
 
+    /** Data type for Oracle <code>BLOB</code> columns. */
     public static final DataType ORACLE_BLOB = new OracleBlobDataType();
+    /** Data type for Oracle <code>CLOB</code> columns. */
     public static final DataType ORACLE_CLOB = new OracleClobDataType();
+    /** Data type for Oracle <code>NCLOB</code> columns. */
     public static final DataType ORACLE_NCLOB = new OracleNClobDataType();
+    /** Data type for Oracle <code>XMLTYPE</code> columns. */
     public static final DataType ORACLE_XMLTYPE = new OracleXMLTypeDataType();
+    /** Data type for Oracle <code>SDO_GEOMETRY</code> columns. */
     public static final DataType ORACLE_SDO_GEOMETRY_TYPE = new OracleSdoGeometryDataType();
-    
+
+    /** Data type for Oracle <code>LONG RAW</code> columns. */
     public static final DataType LONG_RAW = new BinaryStreamDataType(
             "LONG RAW", Types.LONGVARBINARY);
-    
+
+    /** Data type for Oracle <code>ROWID</code> columns. */
     public static final DataType ROWID_TYPE = new StringDataType("ROWID", Types.OTHER);
 
     /**
@@ -163,4 +170,3 @@ public class OracleDataTypeFactory extends DefaultDataTypeFactory
     }
 }
 
- 	  	 

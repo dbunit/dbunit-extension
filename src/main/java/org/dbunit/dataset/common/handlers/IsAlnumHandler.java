@@ -43,16 +43,31 @@ public class IsAlnumHandler extends AbstractPipelineComponent {
     {
     }
 
+    /**
+     * Creates a handler that accepts alphanumeric characters.
+     *
+     * @return the new pipeline component.
+     */
     public static final PipelineComponent ACCEPT () {
         logger.debug("ACCEPT() - start");
         return createPipelineComponent(new IsAlnumHandler(), new ACCEPT());
     }
 
+    /**
+     * Creates a handler that ignores alphanumeric characters.
+     *
+     * @return the new pipeline component.
+     */
     public static final PipelineComponent IGNORE () {
         logger.debug("IGNORE() - start");
         return createPipelineComponent(new IsAlnumHandler(), new IGNORE());
     }
 
+    /**
+     * Creates a handler that starts a quoted field on an alphanumeric character.
+     *
+     * @return the new pipeline component.
+     */
     public static final PipelineComponent QUOTE () {
         logger.debug("QUOTE() - start");
         return createPipelineComponent(new IsAlnumHandler(), new QUOTE());
@@ -63,7 +78,6 @@ public class IsAlnumHandler extends AbstractPipelineComponent {
         return createPipelineComponent(new IsAlnumHandler(), new UNQUOTE());
     }
 */
-
 
     public boolean canHandle(char c) throws IllegalInputCharacterException {
         if(logger.isDebugEnabled())
@@ -78,7 +92,10 @@ public class IsAlnumHandler extends AbstractPipelineComponent {
         return false;
     }
 
-
+    /**
+     * Helper that starts a quoted field, re-arranging the pipeline to accept characters
+     * literally until the closing quote.
+     */
     static protected class QUOTE extends Helper {
 
         /**
@@ -101,13 +118,15 @@ public class IsAlnumHandler extends AbstractPipelineComponent {
         }
     }
 
+    /**
+     * Helper that ends a quoted field, restoring the pipeline's pre-quote state.
+     */
     static protected class UNQUOTE extends Helper {
 
         /**
          * Logger for this class
          */
         private static final Logger logger = LoggerFactory.getLogger(UNQUOTE.class);
-
 
         public void helpWith(char c) {
             if(logger.isDebugEnabled())

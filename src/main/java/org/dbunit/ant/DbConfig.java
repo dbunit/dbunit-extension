@@ -49,22 +49,35 @@ public class DbConfig extends ProjectComponent
 
     private Set properties = new HashSet();
     private Set features = new HashSet();
-    
+
+    /**
+     * Default constructor.
+     */
     public DbConfig()
     {
     }
 
+    /**
+     * Adds a property to be copied into the {@link DatabaseConfig} by {@link #copyTo(DatabaseConfig)}.
+     *
+     * @param property the property to add.
+     */
     public void addProperty(Property property)
     {
         logger.trace("addProperty(property={}) - start)", property);
-        
+
         this.properties.add(property);
     }
 
+    /**
+     * Adds a feature flag to be copied into the {@link DatabaseConfig} by {@link #copyTo(DatabaseConfig)}.
+     *
+     * @param feature the feature flag to add.
+     */
     public void addFeature(Feature feature)
     {
         logger.trace("addFeature(feature={}) - start)", feature);
-        
+
         this.features.add(feature);
     }
 
@@ -72,7 +85,7 @@ public class DbConfig extends ProjectComponent
      * Copies the parameters set in this configuration via ant into the given
      * {@link DatabaseConfig} that is used by the dbunit connection.
      * @param config The configuration object to be initialized/updated
-     * @throws DatabaseUnitException 
+     * @throws DatabaseUnitException if a property value cannot be converted to its required type.
      */
     public void copyTo(DatabaseConfig config) throws DatabaseUnitException 
     {
@@ -121,16 +134,32 @@ public class DbConfig extends ProjectComponent
     {
         private String name;
         private boolean value;
-        
+
+        /**
+         * Returns the feature name.
+         * @return the feature name.
+         */
         public String getName() {
             return name;
         }
+        /**
+         * Sets the feature name.
+         * @param name the feature name.
+         */
         public void setName(String name) {
             this.name = name;
         }
+        /**
+         * Returns the feature value.
+         * @return the feature value.
+         */
         public boolean isValue() {
             return value;
         }
+        /**
+         * Sets the feature value.
+         * @param value the feature value.
+         */
         public void setValue(boolean value) {
             this.value = value;
         }

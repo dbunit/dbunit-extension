@@ -51,6 +51,9 @@ public class CompositeOperation extends DatabaseOperation
 
     /**
      * Creates a new composite operation combining the two specified operations.
+     *
+     * @param action1 the first operation to execute.
+     * @param action2 the second operation to execute.
      */
     public CompositeOperation(DatabaseOperation action1, DatabaseOperation action2)
     {
@@ -59,6 +62,8 @@ public class CompositeOperation extends DatabaseOperation
 
     /**
      * Creates a new composite operation combining the specified operations.
+     *
+     * @param actions the operations to execute, in order.
      */
     public CompositeOperation(DatabaseOperation[] actions)
     {

@@ -36,12 +36,17 @@ public class BoundedBuffer implements BoundedChannel {
      */
     private static final Logger logger = LoggerFactory.getLogger(BoundedBuffer.class);
 
+  /** The elements. */
   protected final Object[]  array_;      // the elements
 
+  /** Circular index of the next element to take. */
   protected int takePtr_ = 0;            // circular indices
-  protected int putPtr_ = 0;       
+  /** Circular index of the next slot to put into. */
+  protected int putPtr_ = 0;
 
+  /** Number of occupied slots (the buffer's length). */
   protected int usedSlots_ = 0;          // length
+  /** Number of free slots (capacity - length). */
   protected int emptySlots_;             // capacity - length
 
   /**
@@ -51,6 +56,7 @@ public class BoundedBuffer implements BoundedChannel {
 
   /**
    * Create a BoundedBuffer with the given capacity.
+   * @param capacity the maximum number of elements the buffer can hold.
    * @exception IllegalArgumentException if capacity less or equal to zero
    **/
   public BoundedBuffer(int capacity) throws IllegalArgumentException {
@@ -67,10 +73,11 @@ public class BoundedBuffer implements BoundedChannel {
     this(DefaultChannelCapacity.get()); 
   }
 
-  /** 
+  /**
    * Return the number of elements in the buffer.
    * This is only a snapshot value, that may change
    * immediately after returning.
+   * @return the number of elements in the buffer.
    **/
   public synchronized int size() {
  return usedSlots_; 
@@ -80,6 +87,7 @@ public class BoundedBuffer implements BoundedChannel {
     return array_.length;
  }
 
+  /** Increments the empty-slot count and wakes a thread waiting to put. */
   protected void incEmptySlots() {
     synchronized(putMonitor_) {
       ++emptySlots_;
@@ -87,11 +95,16 @@ public class BoundedBuffer implements BoundedChannel {
     }
   }
 
+  /** Increments the used-slot count and wakes a thread waiting to take. */
   protected synchronized void incUsedSlots() {
     ++usedSlots_;
     notify();
   }
 
+  /**
+   * Inserts the given element into the buffer at putPtr_.
+   * @param x the element to insert.
+   */
   protected final void insert(Object x) {
         logger.debug("insert(x={}) - start", x);
  // mechanics of put
@@ -100,6 +113,10 @@ public class BoundedBuffer implements BoundedChannel {
     if (++putPtr_ >= array_.length) putPtr_ = 0;
   }
 
+  /**
+   * Removes and returns the element at takePtr_.
+   * @return the removed element.
+   */
   protected final Object extract() {
         logger.debug("extract() - start");
  // mechanics of take

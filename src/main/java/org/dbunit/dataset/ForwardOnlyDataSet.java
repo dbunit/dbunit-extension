@@ -42,6 +42,11 @@ public class ForwardOnlyDataSet extends AbstractDataSet
     private final IDataSet _dataSet;
     private int _iteratorCount;
 
+    /**
+     * Creates a forward-only decorator over the given dataset.
+     *
+     * @param dataSet the dataset to decorate.
+     */
     public ForwardOnlyDataSet(IDataSet dataSet)
     {
         _dataSet = dataSet;

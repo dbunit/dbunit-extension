@@ -32,6 +32,11 @@ import org.dbunit.DatabaseUnitRuntimeException;
  * @since 2.2 (Sep 12, 2004)
  */
 public class PipelineException extends DatabaseUnitRuntimeException {
+    /**
+     * Constructs a <code>PipelineException</code> with the specified detail message.
+     *
+     * @param message the detail message.
+     */
     public PipelineException(String message) {
         super(message);
     }

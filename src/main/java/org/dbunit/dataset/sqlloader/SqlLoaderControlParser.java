@@ -40,36 +40,41 @@ public interface SqlLoaderControlParser {
 
     /**
      * Parse.
-     * 
+     *
      * @param file the file
      * @return the list
-     * 
-     * @throws IOException
-     * @throws SqlLoaderControlParserException
+     *
+     * @throws IOException if the file cannot be read.
+     * @throws SqlLoaderControlParserException if the control file is malformed.
      */
     List parse(File file) throws IOException, SqlLoaderControlParserException;
 
     /**
      * Parse.
-     * 
+     *
      * @param url the URL
      * @return the list
-     * 
-     * @throws IOException
-     * @throws SqlLoaderControlParserException
+     *
+     * @throws IOException if the URL cannot be read.
+     * @throws SqlLoaderControlParserException if the control file is malformed.
      */
     List parse(URL url) throws IOException, SqlLoaderControlParserException;
 
     /**
      * Parse.
-     * 
+     *
      * @param csv the CSV data
      * @return the list
-     * 
-     * @throws IllegalInputCharacterException
-     * @throws PipelineException
+     *
+     * @throws IllegalInputCharacterException if the CSV data contains an unexpected character.
+     * @throws PipelineException if the CSV data cannot be parsed.
      */
     List parse(String csv) throws PipelineException, IllegalInputCharacterException;
 
+    /**
+     * Returns the name of the table parsed from the control file.
+     *
+     * @return the name of the table parsed from the control file.
+     */
     String getTableName();
 }

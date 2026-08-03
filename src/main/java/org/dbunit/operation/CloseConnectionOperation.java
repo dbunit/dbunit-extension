@@ -50,6 +50,8 @@ public class CloseConnectionOperation extends DatabaseOperation
     /**
      * Creates a CloseConnectionOperation object that decorates the specified
      * operation.
+     *
+     * @param operation the operation to decorate.
      */
     public CloseConnectionOperation(DatabaseOperation operation)
     {

@@ -50,6 +50,9 @@ public class UuidType
      */
     private static final Logger logger = LoggerFactory.getLogger(UuidType.class);
 
+    /**
+     * Default constructor.
+     */
     public UuidType() {
         super("uuid", Types.OTHER, String.class, false);
     }

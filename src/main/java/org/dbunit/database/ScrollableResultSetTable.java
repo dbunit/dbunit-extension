@@ -48,6 +48,14 @@ public class ScrollableResultSetTable extends AbstractResultSetTable
 
     private final int _rowCount;
 
+    /**
+     * Creates a table wrapping the given, already-scrolled result set.
+     *
+     * @param metaData the table's metadata.
+     * @param resultSet the scrollable result set to wrap.
+     * @throws SQLException if the result set is forward-only or a database access error occurs.
+     * @throws DataSetException if the row count cannot be determined.
+     */
     public ScrollableResultSetTable(ITableMetaData metaData, ResultSet resultSet)
             throws SQLException, DataSetException
     {
@@ -70,6 +78,14 @@ public class ScrollableResultSetTable extends AbstractResultSetTable
         }
     }
 
+    /**
+     * Creates a table that runs the default query for the given metadata and connection.
+     *
+     * @param metaData the table's metadata.
+     * @param connection the database connection to query.
+     * @throws DataSetException if the row count cannot be determined.
+     * @throws SQLException if the result set is forward-only or a database access error occurs.
+     */
     public ScrollableResultSetTable(ITableMetaData metaData,
             IDatabaseConnection connection) throws DataSetException, SQLException
     {
@@ -92,6 +108,15 @@ public class ScrollableResultSetTable extends AbstractResultSetTable
         }
     }
 
+    /**
+     * Creates a table that runs the given select statement.
+     *
+     * @param tableName the table's name.
+     * @param selectStatement the SQL select statement to run.
+     * @param connection the database connection to query.
+     * @throws DataSetException if the row count cannot be determined.
+     * @throws SQLException if the result set is forward-only or a database access error occurs.
+     */
     public ScrollableResultSetTable(String tableName, String selectStatement,
             IDatabaseConnection connection) throws DataSetException, SQLException
     {

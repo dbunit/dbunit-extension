@@ -50,6 +50,9 @@ public class CitextType
      */
     private static final Logger logger = LoggerFactory.getLogger(CitextType.class);
 
+    /**
+     * Default constructor.
+     */
     public CitextType() {
         super("citext", Types.OTHER, String.class, false);
     }

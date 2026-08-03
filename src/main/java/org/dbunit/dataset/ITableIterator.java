@@ -37,16 +37,23 @@ public interface ITableIterator
      *
      * @return <code>true</code> if the new current table is valid;
      * <code>false</code> if there are no more table
+     * @throws DataSetException if advancing to the next table fails.
      */
     public boolean next() throws DataSetException;
 
     /**
      * Returns the metadata of the current table.
+     *
+     * @return the metadata of the current table.
+     * @throws DataSetException if retrieving the metadata fails.
      */
     public ITableMetaData getTableMetaData() throws DataSetException;
 
     /**
      * Returns the current table.
+     *
+     * @return the current table.
+     * @throws DataSetException if retrieving the table fails.
      */
     public ITable getTable() throws DataSetException;
 }

@@ -33,13 +33,18 @@ package org.dbunit.dataset;
 public class NoSuchColumnException extends DataSetException
 {
     /**
+     * Constructs a <code>NoSuchColumnException</code> with no detail message.
+     *
      * @deprecated since 2.3.0. Prefer constructor taking a table/columnName as argument
      */
     public NoSuchColumnException()
     {
     }
-    
+
     /**
+     * Constructs a <code>NoSuchColumnException</code> with the specified detail message.
+     *
+     * @param msg the detail message.
      * @deprecated since 2.3.0. Prefer constructor taking a table/columnName as argument
      */
     public NoSuchColumnException(String msg)
@@ -71,8 +76,10 @@ public class NoSuchColumnException extends DataSetException
     }
 
 	/**
-	 * @param msg
-	 * @param e
+	 * Constructs a <code>NoSuchColumnException</code> with the specified detail message and cause.
+	 *
+	 * @param msg the detail message.
+	 * @param e the cause.
      * @deprecated since 2.3.0. Prefer constructor taking a table/columnName as argument
 	 */
 	public NoSuchColumnException(String msg, Throwable e)
@@ -81,7 +88,9 @@ public class NoSuchColumnException extends DataSetException
     }
 
     /**
-     * @param e
+     * Constructs a <code>NoSuchColumnException</code> with the specified cause.
+     *
+     * @param e the cause.
      * @deprecated since 2.3.0. Prefer constructor taking a table/columnName as argument
      */
     public NoSuchColumnException(Throwable e)

@@ -87,7 +87,7 @@ public class DatabaseDataSet extends AbstractDataSet
      * Creates a new database data set
      * @param connection The database connection
      * @param caseSensitiveTableNames Whether or not this dataset should use case sensitive table names
-     * @throws SQLException
+     * @throws SQLException if retrieving the database metadata fails.
      * @since 2.4
      */
     public DatabaseDataSet(IDatabaseConnection connection, boolean caseSensitiveTableNames) throws SQLException
@@ -100,7 +100,7 @@ public class DatabaseDataSet extends AbstractDataSet
      * @param connection The database connection
      * @param caseSensitiveTableNames Whether or not this dataset should use case sensitive table names
      * @param tableFilter Table filter to specify tables to be omitted in this dataset. Can be <code>null</code>.
-     * @throws SQLException
+     * @throws SQLException if retrieving the database metadata fails.
      * @since 2.4.3
      */
     public DatabaseDataSet(IDatabaseConnection connection, boolean caseSensitiveTableNames, ITableFilterSimple tableFilter)

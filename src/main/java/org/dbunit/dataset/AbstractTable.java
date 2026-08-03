@@ -39,6 +39,12 @@ public abstract class AbstractTable implements ITable {
     private static final Logger logger =
             LoggerFactory.getLogger(AbstractTable.class);
 
+    /**
+     * Validates that the given row index is within the bounds of this table.
+     *
+     * @param row the row index to validate.
+     * @throws DataSetException if the row index is out of bounds.
+     */
     protected void assertValidRowIndex(int row) throws DataSetException {
         if (logger.isDebugEnabled()) {
             logger.debug("assertValidRowIndex(row={}) - start", Integer
@@ -48,6 +54,13 @@ public abstract class AbstractTable implements ITable {
         assertValidRowIndex(row, getRowCount());
     }
 
+    /**
+     * Validates that the given row index is within the given row count.
+     *
+     * @param row the row index to validate.
+     * @param rowCount the number of rows to validate against.
+     * @throws DataSetException if the row index is out of bounds.
+     */
     protected void assertValidRowIndex(int row, int rowCount)
             throws DataSetException {
         if (logger.isDebugEnabled()) {
@@ -64,6 +77,12 @@ public abstract class AbstractTable implements ITable {
         }
     }
 
+    /**
+     * Validates that the given column name exists in this table.
+     *
+     * @param columnName the column name to validate.
+     * @throws DataSetException if no column with the given name exists in this table.
+     */
     protected void assertValidColumn(String columnName) throws DataSetException {
         logger.debug("assertValidColumn(columnName={}) - start", columnName);
 
@@ -74,6 +93,13 @@ public abstract class AbstractTable implements ITable {
                 .getTableName());
     }
 
+    /**
+     * Returns the index of the column with the given name.
+     *
+     * @param columnName the column name to look up.
+     * @return the index of the column with the given name.
+     * @throws DataSetException if no column with the given name exists in this table.
+     */
     protected int getColumnIndex(String columnName) throws DataSetException {
         logger.debug("getColumnIndex(columnName={}) - start", columnName);
 

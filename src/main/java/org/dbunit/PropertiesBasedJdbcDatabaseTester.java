@@ -63,7 +63,7 @@ public class PropertiesBasedJdbcDatabaseTester extends JdbcDatabaseTester
     /**
      * Creates a new {@link JdbcDatabaseTester} using specific {@link System#getProperty(String)}
      * values as initialization parameters
-     * @throws Exception
+     * @throws Exception if the configured driver class was not found.
      */
     public PropertiesBasedJdbcDatabaseTester() throws Exception
     {
@@ -88,7 +88,7 @@ public class PropertiesBasedJdbcDatabaseTester extends JdbcDatabaseTester
      * @param connectionProvider Caches and validates the connection across
      *            calls. Can be <code>null</code>, in which case a new
      *            connection is created on every call as before.
-     * @throws Exception If the configured driver class was not found
+     * @throws Exception if the configured driver class was not found.
      * @since 3.4.0
      */
     public PropertiesBasedJdbcDatabaseTester(final CachingConnectionProvider connectionProvider)

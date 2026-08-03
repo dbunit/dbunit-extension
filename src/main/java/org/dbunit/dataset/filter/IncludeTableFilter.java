@@ -53,6 +53,7 @@ public class IncludeTableFilter extends AbstractTableFilter implements ITableFil
 
     /**
      * Create a new IncludeTableFilter which allow access to specified tables.
+     * @param tableNames the names of the tables to allow.
      */
     public IncludeTableFilter(String[] tableNames)
     {
@@ -68,6 +69,7 @@ public class IncludeTableFilter extends AbstractTableFilter implements ITableFil
      * The following wildcard characters are supported:
      * '*' matches zero or more characters,
      * '?' matches one character.
+     * @param patternName the table name pattern to allow.
      */
     public void includeTable(String patternName)
     {
@@ -76,6 +78,10 @@ public class IncludeTableFilter extends AbstractTableFilter implements ITableFil
         _patternMatcher.addPattern(patternName);
     }
 
+    /**
+     * Returns whether no tables have been included yet.
+     * @return <code>true</code> if no tables have been included yet.
+     */
     public boolean isEmpty()
     {
         logger.debug("isEmpty() - start");

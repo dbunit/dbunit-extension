@@ -33,9 +33,17 @@ public class DbAssertionFailedError extends Error {
 
     private static final long serialVersionUID = 1L;
 
+    /**
+     * Constructs a <code>DbAssertionFailedError</code> with no detail message.
+     */
     public DbAssertionFailedError () {
     }
-    
+
+    /**
+     * Constructs a <code>DbAssertionFailedError</code> with the specified detail message.
+     *
+     * @param message the detail message.
+     */
     public DbAssertionFailedError (String message) {
         super (message);
     }

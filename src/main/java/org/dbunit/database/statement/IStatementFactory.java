@@ -34,9 +34,24 @@ import java.sql.SQLException;
  */
 public interface IStatementFactory
 {
+    /**
+     * Creates a batch statement for the given connection.
+     *
+     * @param connection the database connection to create the statement on.
+     * @return the new batch statement.
+     * @throws SQLException if creating the statement fails.
+     */
     IBatchStatement createBatchStatement(IDatabaseConnection connection)
             throws SQLException;
 
+    /**
+     * Creates a prepared batch statement for the given SQL and connection.
+     *
+     * @param sql the SQL statement to prepare.
+     * @param connection the database connection to create the statement on.
+     * @return the new prepared batch statement.
+     * @throws SQLException if creating the statement fails.
+     */
     IPreparedBatchStatement createPreparedBatchStatement(String sql,
             IDatabaseConnection connection) throws SQLException;
 }

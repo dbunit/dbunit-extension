@@ -16,6 +16,11 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Types;
 
+/**
+ * {@link BytesDataType} specialization for PostgreSQL's <code>oid</code> large object columns.
+ *
+ * @since 2.7.0
+ */
 public class PostgreSQLOidDataType
         extends BytesDataType {
 
@@ -24,6 +29,9 @@ public class PostgreSQLOidDataType
      */
     private static final Logger logger = LoggerFactory.getLogger(PostgreSQLOidDataType.class);
 
+    /**
+     * Default constructor.
+     */
     public PostgreSQLOidDataType() {
         super("OID", Types.BIGINT);
     }

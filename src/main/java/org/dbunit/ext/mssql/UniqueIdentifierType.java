@@ -39,6 +39,9 @@ import org.dbunit.dataset.datatype.TypeCastException;
 public class UniqueIdentifierType extends AbstractDataType {
     static final String UNIQUE_IDENTIFIER_TYPE = "uniqueidentifier";
 
+    /**
+     * Default constructor.
+     */
     public UniqueIdentifierType() {
         super(UNIQUE_IDENTIFIER_TYPE, Types.CHAR, UUID.class, false);
     }

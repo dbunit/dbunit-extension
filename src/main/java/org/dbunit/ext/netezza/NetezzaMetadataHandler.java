@@ -45,6 +45,9 @@ public class NetezzaMetadataHandler implements IMetadataHandler
 	 */
 	private static final Logger logger = LoggerFactory.getLogger(NetezzaMetadataHandler.class);
 
+	/**
+	 * Default constructor.
+	 */
 	public NetezzaMetadataHandler()
 	{
 		logger.debug("Created object of metadatahandler");

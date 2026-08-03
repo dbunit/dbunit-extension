@@ -26,17 +26,28 @@ public class IsActualWithinToleranceOfExpectedTimestampValueComparer
 {
     private final Logger log = LoggerFactory.getLogger(getClass());
 
+    /** One second, in milliseconds. */
     public static final long ONE_SECOND_IN_MILLIS = 1000;
+    /** Two seconds, in milliseconds. */
     public static final long TWO_SECONDS_IN_MILLIS = ONE_SECOND_IN_MILLIS * 2;
+    /** Three seconds, in milliseconds. */
     public static final long THREE_SECONDS_IN_MILLIS = ONE_SECOND_IN_MILLIS * 3;
+    /** Four seconds, in milliseconds. */
     public static final long FOUR_SECONDS_IN_MILLIS = ONE_SECOND_IN_MILLIS * 4;
+    /** Five seconds, in milliseconds. */
     public static final long FIVE_SECONDS_IN_MILLIS = ONE_SECOND_IN_MILLIS * 5;
 
+    /** One minute, in milliseconds. */
     public static final long ONE_MINUTE_IN_MILLIS = ONE_SECOND_IN_MILLIS * 60;
+    /** Two minutes, in milliseconds. */
     public static final long TWO_MINUTES_IN_MILLIS = ONE_MINUTE_IN_MILLIS * 2;
+    /** Three minutes, in milliseconds. */
     public static final long THREE_MINUTES_IN_MILLIS = ONE_MINUTE_IN_MILLIS * 3;
+    /** Four minutes, in milliseconds. */
     public static final long FOUR_MINUTES_IN_MILLIS = ONE_MINUTE_IN_MILLIS * 4;
+    /** Five minutes, in milliseconds. */
     public static final long FIVE_MINUTES_IN_MILLIS = ONE_MINUTE_IN_MILLIS * 5;
+    /** Ten minutes, in milliseconds. */
     public static final long TEN_MINUTES_IN_MILLIS = ONE_MINUTE_IN_MILLIS * 10;
 
     private long lowToleranceValueInMillis;
@@ -80,7 +91,14 @@ public class IsActualWithinToleranceOfExpectedTimestampValueComparer
         return isExpected;
     }
 
-    /** Since one is a known null, isExpected=true when they equal. */
+    /**
+     * Since one is a known null, isExpected=true when they equal.
+     *
+     * @param expectedValue the expected value, possibly null.
+     * @param actualValue the actual value, possibly null.
+     * @return <code>true</code> if expectedValue and actualValue are the same reference
+     *         (both null, or the same non-null instance).
+     */
     protected boolean isExpectedWithNull(final Object expectedValue,
             final Object actualValue)
     {
@@ -92,7 +110,15 @@ public class IsActualWithinToleranceOfExpectedTimestampValueComparer
         return isExpected;
     }
 
-    /** Neither is null so compare values with tolerance. */
+    /**
+     * Neither is null so compare values with tolerance.
+     *
+     * @param expectedValue the expected value, not null.
+     * @param actualValue the actual value, not null.
+     * @param dataType the data type used to cast both values to a {@link Timestamp}.
+     * @return <code>true</code> if actualValue is within tolerance of expectedValue.
+     * @throws TypeCastException if either value cannot be cast using dataType.
+     */
     protected boolean isExpectedWithoutNull(final Object expectedValue, final Object actualValue,
             final DataType dataType) throws TypeCastException {
         assertNotNull(expectedValue, "expectedValue is null.");
@@ -109,6 +135,15 @@ public class IsActualWithinToleranceOfExpectedTimestampValueComparer
         return isTolerant(diffTime);
     }
 
+    /**
+     * Casts the given value using the given data type, or returns it unchanged if the type
+     * is <code>null</code> or {@link DataType#UNKNOWN}.
+     *
+     * @param value the value to cast.
+     * @param type the data type to cast with, may be <code>null</code>.
+     * @return the cast value.
+     * @throws TypeCastException if the value cannot be cast using the given type.
+     */
     protected Object getCastedValue(final Object value, final DataType type)
             throws TypeCastException
     {
@@ -125,6 +160,12 @@ public class IsActualWithinToleranceOfExpectedTimestampValueComparer
         return castedValue;
     }
 
+    /**
+     * Returns whether the given time difference is within the configured tolerance range.
+     *
+     * @param diffTime the (non-negative) time difference, in milliseconds.
+     * @return <code>true</code> if diffTime is within the configured tolerance range.
+     */
     protected boolean isTolerant(final long diffTime)
     {
         final boolean isLowTolerant = diffTime >= lowToleranceValueInMillis;
@@ -141,12 +182,25 @@ public class IsActualWithinToleranceOfExpectedTimestampValueComparer
         return isTolerant;
     }
 
+    /**
+     * Returns the given {@link Timestamp} value's time in milliseconds.
+     *
+     * @param timestampValue the value to convert, must be a {@link Timestamp}.
+     * @return the timestamp's time in milliseconds.
+     */
     protected long convertValueToTimeInMillis(final Object timestampValue)
     {
         final Timestamp timestamp = (Timestamp) timestampValue;
         return timestamp.getTime();
     }
 
+    /**
+     * Returns the absolute time difference between the given times.
+     *
+     * @param actualTimeInMillis the actual time, in milliseconds.
+     * @param expectedTimeInMillis the expected time, in milliseconds.
+     * @return the absolute difference between the two times, in milliseconds.
+     */
     protected long calcTimeDifference(final long actualTimeInMillis,
             final long expectedTimeInMillis)
     {

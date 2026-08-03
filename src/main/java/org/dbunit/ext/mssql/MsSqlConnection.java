@@ -59,7 +59,7 @@ public class MsSqlConnection extends DatabaseConnection
      *
      * @param connection the adapted JDBC connection
      * @param schema the database schema
-     * @throws DatabaseUnitException 
+     * @throws DatabaseUnitException if setting up the connection fails.
      */
     public MsSqlConnection(Connection connection, String schema) throws DatabaseUnitException
     {
@@ -72,7 +72,7 @@ public class MsSqlConnection extends DatabaseConnection
      * Creates a new <code>MsSqlConnection</code>.
      *
      * @param connection the adapted JDBC connection
-     * @throws DatabaseUnitException 
+     * @throws DatabaseUnitException if setting up the connection fails.
      */
     public MsSqlConnection(Connection connection) throws DatabaseUnitException
     {

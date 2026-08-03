@@ -25,6 +25,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * Decorates an {@link ITable}, resolving column names case-insensitively.
+ *
  * @author Manuel Laflamme
  * @version $Revision$
  * @since Mar 27, 2002
@@ -40,6 +42,11 @@ public class CaseInsensitiveTable implements ITable
 
     private final ITable _table;
 
+    /**
+     * Creates a case-insensitive view of the given table.
+     *
+     * @param table the table to decorate.
+     */
     public CaseInsensitiveTable(ITable table)
     {
         _table = table;

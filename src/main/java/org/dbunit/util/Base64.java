@@ -132,7 +132,10 @@ public class Base64
     }
 
 
-    /** Testing. */
+    /**
+     * Testing.
+     * @param args command-line arguments (unused).
+     */
     public static void main(String[] args)
     {
         logger.debug("main(args=" + args + ") - start");
@@ -349,6 +352,7 @@ public class Base64
      * <code>encodeBytes( source, 0, source.length )</code>
      *
      * @param source The data to convert
+     * @return the Base64-encoded string.
      * @since 1.4
      */
     public static String encodeBytes(byte[] source)
@@ -366,6 +370,7 @@ public class Base64
      * @param source The data to convert
      * @param off Offset in array where conversion should begin
      * @param len Length of data to convert
+     * @return the Base64-encoded string.
      * @since 1.4
      */
     public static String encodeBytes(byte[] source, int off, int len)

@@ -34,14 +34,22 @@ import org.dbunit.dataset.DataSetException;
  */
 public class CyclicTablesDependencyException extends DataSetException
 {
+    /**
+     * Constructs a <code>CyclicTablesDependencyException</code> with the specified detail message.
+     *
+     * @param message the detail message.
+     */
     public CyclicTablesDependencyException(String message)
     {
         super(message);
     }
-    
+
     /**
-     * @param tableName
-     * @param cyclicTableNames
+     * Constructs a <code>CyclicTablesDependencyException</code> for the given table and its
+     * cyclic dependencies.
+     *
+     * @param tableName the table with a foreign-key dependency cycle.
+     * @param cyclicTableNames the names of the tables composing the cycle.
      * @since 2.4.2
      */
     public CyclicTablesDependencyException(String tableName, Set cyclicTableNames)

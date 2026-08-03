@@ -115,7 +115,7 @@ public class OrderedTableNameMap
 
 	/**
 	 * Checks if this map contains the given table name
-	 * @param tableName
+	 * @param tableName The table name to check
 	 * @return Returns <code>true</code> if the map of tables contains the given table name
 	 */
 	public boolean containsTable(String tableName) 
@@ -125,6 +125,8 @@ public class OrderedTableNameMap
 	}
 
     /**
+     * Checks whether the given table name matches the last table added to this map.
+     *
      * @param tableName The table name to check
      * @return <code>true</code> if the given tableName matches the last table that has been added to this map.
      */
@@ -147,7 +149,9 @@ public class OrderedTableNameMap
     }
 
     /**
-     * @return The name of the last table that has been added to this map. Returns <code>null</code> if no 
+     * Returns the name of the last table added to this map.
+     *
+     * @return The name of the last table that has been added to this map. Returns <code>null</code> if no
      * table has been added yet.
      */
     public String getLastTableName()
@@ -172,7 +176,13 @@ public class OrderedTableNameMap
     }
     
 
-    public void setLastTable(String tableName) throws NoSuchTableException 
+    /**
+     * Overrides the table returned by {@link #getLastTableName()} to the given, already-added table name.
+     *
+     * @param tableName The table name to set as the last table. Must already exist in this map.
+     * @throws NoSuchTableException If the given table name does not exist in this map.
+     */
+    public void setLastTable(String tableName) throws NoSuchTableException
     {
         if(LOGGER.isDebugEnabled())
             LOGGER.debug("setLastTable(name{}) - start", tableName);
@@ -214,9 +224,11 @@ public class OrderedTableNameMap
 	}
 	
     /**
+     * Returns the values of this map ordered in the sequence they have been added.
+     *
      * @return The values of this map ordered in the sequence they have been added
      */
-    public Collection orderedValues() 
+    public Collection orderedValues()
     {
         if(LOGGER.isDebugEnabled())
             LOGGER.debug("orderedValues() - start");

@@ -31,10 +31,15 @@ public class DbUnitAssertBase
 
     private FailureFactory junitFailureFactory = getJUnitFailureFactory();
 
+    /**
+     * The value comparer defaults used when no comparer is explicitly configured for a table/column.
+     */
     protected ValueComparerDefaults valueComparerDefaults =
             new DefaultValueComparerDefaults();
 
     /**
+     * Returns the default failure handler, without additional column info.
+     *
      * @return The default failure handler
      * @since 2.4
      */
@@ -44,6 +49,9 @@ public class DbUnitAssertBase
     }
 
     /**
+     * Returns the default failure handler, reporting the given additional columns on failure.
+     *
+     * @param additionalColumnInfo the additional columns to report on failure, may be <code>null</code>.
      * @return The default failure handler
      * @since 2.4
      */
@@ -79,9 +87,15 @@ public class DbUnitAssertBase
     }
 
     /**
+     * Builds the comparison columns to use for the assertion, pairing each expected column with
+     * its actual counterpart and resolving the correct datatype.
+     *
      * @param expectedTableName
+     *            the name of the table being compared, used for failure reporting.
      * @param expectedColumns
+     *            the expected columns, providing the comparison order.
      * @param actualColumns
+     *            the actual columns, matched positionally to expectedColumns.
      * @param failureHandler
      *            The {@link FailureHandler} to be used when no datatype can be
      *            determined
@@ -126,6 +140,12 @@ public class DbUnitAssertBase
         return false;
     }
 
+    /**
+     * Returns the given failure handler, or the default one if the given handler is <code>null</code>.
+     *
+     * @param failureHandler the failure handler to validate, may be <code>null</code>.
+     * @return the given failure handler, or the default one if <code>null</code>.
+     */
     protected FailureHandler determineFailureHandler(
             final FailureHandler failureHandler)
     {
@@ -143,6 +163,15 @@ public class DbUnitAssertBase
         return validFailureHandler;
     }
 
+    /**
+     * Compares the row counts of the two given tables, failing via the given failure handler on mismatch.
+     *
+     * @param expectedTable the table containing all expected results.
+     * @param actualTable the table containing all actual results.
+     * @param failureHandler the failure handler used to report a row count mismatch.
+     * @param expectedTableName the table name, used for failure reporting.
+     * @return <code>true</code> if both tables are empty, in which case column comparison can be skipped.
+     */
     protected boolean compareRowCounts(final ITable expectedTable,
             final ITable actualTable, final FailureHandler failureHandler,
             final String expectedTableName) throws Error
@@ -192,6 +221,16 @@ public class DbUnitAssertBase
         return isTablesEmpty;
     }
 
+    /**
+     * Compares the columns of the two given tables, failing via the given failure handler on mismatch.
+     *
+     * @param expectedColumns the expected columns.
+     * @param actualColumns the actual columns.
+     * @param expectedMetaData the metadata of the expected table.
+     * @param actualMetaData the metadata of the actual table.
+     * @param failureHandler the failure handler used to report a column mismatch.
+     * @throws DataSetException if the column difference cannot be computed.
+     */
     protected void compareColumns(final Column[] expectedColumns,
             final Column[] actualColumns, final ITableMetaData expectedMetaData,
             final ITableMetaData actualMetaData,
@@ -210,6 +249,13 @@ public class DbUnitAssertBase
         }
     }
 
+    /**
+     * Compares the number of expected and actual table names, failing via the given failure handler on mismatch.
+     *
+     * @param expectedNames the expected table names.
+     * @param actualNames the actual table names.
+     * @param failureHandler the failure handler used to report a table count mismatch.
+     */
     protected void compareTableCounts(final String[] expectedNames,
             final String[] actualNames, final FailureHandler failureHandler)
             throws Error
@@ -222,6 +268,13 @@ public class DbUnitAssertBase
         }
     }
 
+    /**
+     * Compares the expected and actual table names, failing via the given failure handler on mismatch.
+     *
+     * @param expectedNames the expected table names, sorted.
+     * @param actualNames the actual table names, sorted.
+     * @param failureHandler the failure handler used to report a table name mismatch.
+     */
     protected void compareTableNames(final String[] expectedNames,
             final String[] actualNames, final FailureHandler failureHandler)
             throws Error
@@ -237,6 +290,14 @@ public class DbUnitAssertBase
         }
     }
 
+    /**
+     * Returns the table names of the given dataset, sorted and upper-cased unless
+     * the dataset is case-sensitive.
+     *
+     * @param dataSet the dataset providing the table names.
+     * @return the sorted table names.
+     * @throws DataSetException if the table names cannot be retrieved.
+     */
     protected String[] getSortedTableNames(final IDataSet dataSet)
             throws DataSetException
     {
@@ -285,7 +346,8 @@ public class DbUnitAssertBase
      *            {@link ValueComparerDefaults#getDefaultColumnValueComparerMapForTable(String)} or,
      *            if that is empty, defaultValueComparer for all columns in all
      *            tables.
-     * @throws DatabaseUnitException
+     * @throws DatabaseUnitException if an expected table is missing from the actual dataset,
+     *            or a table comparison fails.
      */
     public void assertWithValueComparer(final IDataSet expectedDataSet,
             final IDataSet actualDataSet, final FailureHandler failureHandler,
@@ -324,6 +386,17 @@ public class DbUnitAssertBase
                 tableColumnValueComparers);
     }
 
+    /**
+     * Asserts each expected table against its corresponding actual table.
+     *
+     * @param expectedDataSet the dataset containing all expected results.
+     * @param actualDataSet the dataset containing all actual results.
+     * @param expectedNames the table names to compare, in comparison order.
+     * @param failureHandler the failure handler used if the assert fails because of a data mismatch.
+     * @param defaultValueComparer the default value comparer, used when a table/column has none configured.
+     * @param tableColumnValueComparers the per-table, per-column value comparers to use.
+     * @throws DatabaseUnitException if a table comparison fails.
+     */
     protected void compareTables(final IDataSet expectedDataSet,
             final IDataSet actualDataSet, final String[] expectedNames,
             final FailureHandler failureHandler,
@@ -380,7 +453,7 @@ public class DbUnitAssertBase
      *            {@link ValueComparerDefaults#getDefaultColumnValueComparerMapForTable(String)} or,
      *            if that is empty, defaultValueComparer for all columns in the
      *            table.
-     * @throws DatabaseUnitException
+     * @throws DatabaseUnitException if the tables' row counts, columns, or data do not match.
      */
     public void assertWithValueComparer(final ITable expectedTable,
             final ITable actualTable, final FailureHandler failureHandler,
@@ -443,6 +516,8 @@ public class DbUnitAssertBase
     }
 
     /**
+     * Compares the data of the two given tables using the default value comparers.
+     *
      * @param expectedTable
      *            Table containing all expected results.
      * @param actualTable
@@ -456,7 +531,7 @@ public class DbUnitAssertBase
      *            useful to quickly identify the rows for which the mismatch
      *            occurred (for example by printing an additional primary key
      *            column). Must not be <code>null</code> at this stage
-     * @throws DataSetException
+     * @throws DataSetException if a data comparison fails.
      * @since 2.4
      */
     protected void compareData(final ITable expectedTable,
@@ -477,6 +552,8 @@ public class DbUnitAssertBase
     }
 
     /**
+     * Compares the data of the two given tables using the given value comparers.
+     *
      * @param expectedTable
      *            {@link ITable} containing all expected results.
      * @param actualTable
@@ -504,7 +581,7 @@ public class DbUnitAssertBase
      *            {@link ValueComparerDefaults#getDefaultColumnValueComparerMapForTable(String)} or,
      *            if that is empty, defaultValueComparer for all columns in the
      *            table.
-     * @throws DataSetException
+     * @throws DatabaseUnitException if a data comparison fails.
      * @since 2.4
      * @since 2.6.0
      */
@@ -567,6 +644,20 @@ public class DbUnitAssertBase
         }
     }
 
+    /**
+     * Compares a single expected and actual cell value at the given row and column, failing
+     * via the given failure handler on mismatch.
+     *
+     * @param expectedTable {@link ITable} containing all expected results.
+     * @param actualTable {@link ITable} containing all actual results.
+     * @param comparisonCols the columns to be compared, also including the correct {@link DataType}s.
+     * @param failureHandler the failure handler used if the assert fails because of a data mismatch.
+     * @param defaultValueComparer the default value comparer, used when the column has none configured.
+     * @param columnValueComparers the per-column value comparers to use.
+     * @param rowNum the row index of the cell to compare.
+     * @param columnNum the index, into comparisonCols, of the column to compare.
+     * @throws DatabaseUnitException if the cell comparison fails.
+     */
     protected void compareData(final ITable expectedTable,
             final ITable actualTable, final ComparisonColumn[] comparisonCols,
             final FailureHandler failureHandler,
@@ -609,6 +700,18 @@ public class DbUnitAssertBase
         }
     }
 
+    /**
+     * Reports a failure to the given failure handler if the given fail message is not <code>null</code>.
+     *
+     * @param expectedTable the table containing all expected results.
+     * @param actualTable the table containing all actual results.
+     * @param failureHandler the failure handler to report the difference to.
+     * @param rowNum the row index of the compared cell.
+     * @param columnName the name of the compared column.
+     * @param expectedValue the expected cell value.
+     * @param actualValue the actual cell value.
+     * @param failMessage the comparison failure message, or <code>null</code> if the values matched.
+     */
     protected void failIfNecessary(final ITable expectedTable,
             final ITable actualTable, final FailureHandler failureHandler,
             final int rowNum, final String columnName,
@@ -625,6 +728,15 @@ public class DbUnitAssertBase
         }
     }
 
+    /**
+     * Returns the value comparer configured for the given column, or the default value comparer
+     * if the column has none configured.
+     *
+     * @param columnName the column name to look up.
+     * @param defaultValueComparer the value comparer to fall back to.
+     * @param columnValueComparers the per-column value comparers to look up columnName in.
+     * @return the value comparer to use for the given column.
+     */
     protected ValueComparer determineValueComparer(final String columnName,
             final ValueComparer defaultValueComparer,
             final Map<String, ValueComparer> columnValueComparers)
@@ -646,6 +758,13 @@ public class DbUnitAssertBase
         return valueComparer;
     }
 
+    /**
+     * Returns the given default value comparer, or {@link ValueComparerDefaults#getDefaultValueComparer()}
+     * if the given comparer is <code>null</code>.
+     *
+     * @param defaultValueComparer the value comparer to validate, may be <code>null</code>.
+     * @return the given value comparer, or the framework default if <code>null</code>.
+     */
     protected ValueComparer determineValidDefaultValueComparer(
             final ValueComparer defaultValueComparer)
     {
@@ -668,6 +787,14 @@ public class DbUnitAssertBase
         return validValueComparer;
     }
 
+    /**
+     * Returns the given per-table, per-column value comparer map, or
+     * {@link ValueComparerDefaults#getDefaultTableColumnValueComparerMap()} if the given map is
+     * <code>null</code>.
+     *
+     * @param tableColumnValueComparers the map to validate, may be <code>null</code>.
+     * @return the given map, or the framework default if <code>null</code>.
+     */
     protected Map<String, Map<String, ValueComparer>> determineValidTableColumnValueComparers(
             final Map<String, Map<String, ValueComparer>> tableColumnValueComparers)
     {
@@ -690,6 +817,15 @@ public class DbUnitAssertBase
         return validMap;
     }
 
+    /**
+     * Returns the given per-column value comparer map, or
+     * {@link ValueComparerDefaults#getDefaultColumnValueComparerMapForTable(String)} for the given
+     * table if the given map is <code>null</code>.
+     *
+     * @param columnValueComparers the map to validate, may be <code>null</code>.
+     * @param tableName the table name to look up the default map for, if needed.
+     * @return the given map, or the framework default if <code>null</code>.
+     */
     protected Map<String, ValueComparer> determineValidColumnValueComparers(
             final Map<String, ValueComparer> columnValueComparers,
             final String tableName)
@@ -713,6 +849,12 @@ public class DbUnitAssertBase
         return validMap;
     }
 
+    /**
+     * Sets the value comparer defaults used when no comparer is explicitly configured
+     * for a table/column.
+     *
+     * @param valueComparerDefaults the value comparer defaults to use.
+     */
     public void setValueComparerDefaults(
             final ValueComparerDefaults valueComparerDefaults)
     {

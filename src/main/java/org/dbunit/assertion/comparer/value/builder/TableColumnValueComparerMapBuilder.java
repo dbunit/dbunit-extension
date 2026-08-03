@@ -20,6 +20,7 @@ public class TableColumnValueComparerMapBuilder
     /**
      * Add all mappings from the specified table map to this builder.
      *
+     * @param tableColumnValueComparers the table map to add.
      * @return this for fluent syntax.
      */
     public TableColumnValueComparerMapBuilder add(
@@ -34,6 +35,7 @@ public class TableColumnValueComparerMapBuilder
      * Add all mappings from the specified
      * {@link TableColumnValueComparerMapBuilder} builder to this builder.
      *
+     * @param tableColumnValueComparerMapBuilder the builder whose mappings to add.
      * @return this for fluent syntax.
      */
     public TableColumnValueComparerMapBuilder add(
@@ -50,6 +52,8 @@ public class TableColumnValueComparerMapBuilder
      * Add all mappings from the specified column map to a column map for the
      * specified table in this builder.
      *
+     * @param tableName the table to add the column map for.
+     * @param columnValueComparers the column map to add.
      * @return this for fluent syntax.
      */
     public TableColumnValueComparerMapBuilder add(final String tableName,
@@ -66,6 +70,8 @@ public class TableColumnValueComparerMapBuilder
      * Add all mappings from the specified {@link ColumnValueComparerMapBuilder}
      * builder to a column map for the specified table in this builder.
      *
+     * @param tableName the table to add the column map for.
+     * @param columnValueComparerMapBuilder the builder whose column mappings to add.
      * @return this for fluent syntax.
      */
     public TableColumnValueComparerMapBuilder add(final String tableName,
@@ -83,6 +89,9 @@ public class TableColumnValueComparerMapBuilder
     /**
      * Add a table to column to {@link ValueComparer} mapping.
      *
+     * @param tableName the table the mapping applies to.
+     * @param columnName the column the mapping applies to.
+     * @param valueComparer the value comparer to map to the given table and column.
      * @return this for fluent syntax.
      */
     public TableColumnValueComparerMapBuilder add(final String tableName,
@@ -94,12 +103,22 @@ public class TableColumnValueComparerMapBuilder
         return this;
     }
 
-    /** @return The unmodifiable assembled map. */
+    /**
+     * Assembles and returns the built map.
+     *
+     * @return The unmodifiable assembled map.
+     */
     public Map<String, Map<String, ValueComparer>> build()
     {
         return Collections.unmodifiableMap(comparers);
     }
 
+    /**
+     * Returns the column map for the given table, creating and registering one if absent.
+     *
+     * @param tableName the table to find or create the column map for.
+     * @return the column map for the given table.
+     */
     protected Map<String, ValueComparer> findOrMakeColumnMap(
             final String tableName)
     {
@@ -113,6 +132,11 @@ public class TableColumnValueComparerMapBuilder
         return map;
     }
 
+    /**
+     * Creates a new, empty column-to-{@link ValueComparer} map.
+     *
+     * @return a new, empty column-to-{@link ValueComparer} map.
+     */
     protected Map<String, ValueComparer> makeColumnToValueComparerMap()
     {
         return new HashMap<>();

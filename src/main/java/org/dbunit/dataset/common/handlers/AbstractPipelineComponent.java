@@ -44,6 +44,11 @@ public abstract class AbstractPipelineComponent implements PipelineComponent {
 
     private Helper helper;
 
+    /**
+     * Returns the next component in the pipeline to which unhandled characters are delegated.
+     *
+     * @return the successor component, or <code>null</code> if none is set.
+     */
     protected PipelineComponent getSuccessor() {
         return successor;
     }
@@ -57,6 +62,11 @@ public abstract class AbstractPipelineComponent implements PipelineComponent {
         this.pipeline = pipeline;
     }
 
+    /**
+     * Returns the configuration of the pipeline this component belongs to.
+     *
+     * @return the pipeline configuration.
+     */
     protected PipelineConfig getPipelineConfig() {
         if(this.getPipeline() != null) {
             return this.getPipeline().getPipelineConfig();
@@ -70,7 +80,6 @@ public abstract class AbstractPipelineComponent implements PipelineComponent {
         logger.debug("setSuccessor(successor={}) - start", successor);
         this.successor = successor;
     }
-
 
     private StringBuilder getThePiece() {
         return getPipeline().getCurrentProduct();
@@ -102,6 +111,13 @@ public abstract class AbstractPipelineComponent implements PipelineComponent {
         return getHelper().allowForNoMoreInput();
     }
 
+    /**
+     * Links the given helper and handler to each other and returns the handler.
+     *
+     * @param handler the handler component to configure.
+     * @param helper the helper implementing the handler's character-handling behavior.
+     * @return the given handler, with its helper set.
+     */
     protected static PipelineComponent createPipelineComponent(AbstractPipelineComponent handler, Helper helper) {
         logger.debug("createPipelineComponent(handler={}, helper={}) - start", handler, helper);
         helper.setHandler(handler);
@@ -111,12 +127,17 @@ public abstract class AbstractPipelineComponent implements PipelineComponent {
 
     /**
      * Method invoked when the character should be accepted
-     * @param c
+     * @param c the character to accept.
      */
     public void accept(char c) {
         getThePiece().append(c);
     }
 
+    /**
+     * Returns the helper currently handling characters for this component.
+     *
+     * @return the current helper.
+     */
     protected Helper getHelper() {
         return helper;
     }
@@ -126,13 +147,21 @@ public abstract class AbstractPipelineComponent implements PipelineComponent {
         this.helper = helper;
     }
 
+    /**
+     * Helper that silently discards the character it is given.
+     */
     static protected class IGNORE extends Helper {
+
         public void helpWith(char c) {
             // IGNORE
         }
     }
 
+    /**
+     * Helper that forwards the character to its handler's {@link #accept(char)} method.
+     */
     static protected class ACCEPT extends Helper {
+
         public void helpWith(char c) {
             if(logger.isDebugEnabled())
                 logger.debug("helpWith(c={}) - start", c);

@@ -95,6 +95,7 @@ public class XmlWriter
      */
     public static final String DEFAULT_ENCODING = "UTF-8";
 
+    /** Default charset, {@value #DEFAULT_ENCODING}. */
     public static final Charset DEFAULT_CHARSET = StandardCharsets.UTF_8;
 
     /**
@@ -149,6 +150,8 @@ public class XmlWriter
 
     /**
      * Create an XmlWriter on top of an existing java.io.Writer.
+     *
+     * @param writer the writer to write to.
      */
     public XmlWriter(final Writer writer)
     {
@@ -157,6 +160,9 @@ public class XmlWriter
 
     /**
      * Create an XmlWriter on top of an existing java.io.Writer.
+     *
+     * @param writer the writer to write to.
+     * @param charset the charset to declare in the XML prolog, may be <code>null</code>.
      */
     public XmlWriter(final Writer writer, final Charset charset)
     {
@@ -166,7 +172,7 @@ public class XmlWriter
     /**
      * Create an XmlWriter on top of an existing {@link java.io.OutputStream}.
      *
-     * @param outputStream
+     * @param outputStream the stream to write to.
      * @param charset
      *         The charset to be used for writing to the given output stream.
      *         Can be <code>null</code>. If it is <code>null</code> the
@@ -240,6 +246,8 @@ public class XmlWriter
      *            String name of tag
      * @param text
      *            String of text to go inside the tag
+     * @return this writer.
+     * @throws IOException if writing fails.
      */
     public XmlWriter writeElementWithText(final String name, final String text)
             throws IOException
@@ -257,6 +265,8 @@ public class XmlWriter
      *
      * @param name
      *            String name of tag
+     * @return this writer.
+     * @throws IOException if writing fails.
      */
     public XmlWriter writeEmptyElement(final String name) throws IOException
     {
@@ -272,6 +282,8 @@ public class XmlWriter
      *
      * @param name
      *            String name of tag
+     * @return this writer.
+     * @throws IOException if writing fails.
      */
     public XmlWriter writeElement(final String name) throws IOException
     {
@@ -352,6 +364,8 @@ public class XmlWriter
      *            name of attribute.
      * @param value
      *            value of attribute.
+     * @return this writer.
+     * @throws IOException if writing fails.
      * @see #writeAttribute(String, String, boolean)
      */
     public XmlWriter writeAttribute(final String attr, final String value)
@@ -374,6 +388,8 @@ public class XmlWriter
      *            If the writer should be literally on the given value which
      *            means that meta characters will also be preserved by escaping
      *            them. Mainly preserves newlines and tabs.
+     * @return this writer.
+     * @throws IOException if writing fails.
      */
     public XmlWriter writeAttribute(final String attr, final String value,
             final boolean literally) throws IOException
@@ -411,6 +427,9 @@ public class XmlWriter
     /**
      * End the current element. This will throw an exception if it is called
      * when there is not a currently open element.
+     *
+     * @return this writer.
+     * @throws IOException if there is no currently open element, or writing fails.
      */
     public XmlWriter endElement() throws IOException
     {
@@ -455,6 +474,8 @@ public class XmlWriter
     /**
      * Close this writer. It does not close the underlying writer, but does
      * throw an exception if there are as yet unclosed tags.
+     *
+     * @throws IOException if there are unclosed tags, or flushing fails.
      */
     public void close() throws IOException
     {
@@ -488,7 +509,7 @@ public class XmlWriter
      * @param text
      *            The text to be written
      * @return This writer
-     * @throws IOException
+     * @throws IOException if writing fails.
      * @see #writeText(String, boolean)
      */
     public XmlWriter writeText(final String text) throws IOException
@@ -507,7 +528,7 @@ public class XmlWriter
      *            means that meta characters will also be preserved by escaping
      *            them. Mainly preserves newlines and tabs.
      * @return This writer
-     * @throws IOException
+     * @throws IOException if writing fails.
      */
     public XmlWriter writeText(final String text, final boolean literally)
             throws IOException
@@ -532,6 +553,8 @@ public class XmlWriter
      *
      * @param cdata
      *            of CDATA text.
+     * @return this writer.
+     * @throws IOException if writing fails.
      */
     public XmlWriter writeCData(String cdata) throws IOException
     {
@@ -576,6 +599,8 @@ public class XmlWriter
      *
      * @param comment
      *            of text to comment.
+     * @return this writer.
+     * @throws IOException if writing fails.
      */
     public XmlWriter writeComment(final String comment) throws IOException
     {
@@ -612,6 +637,12 @@ public class XmlWriter
 
     // Two example methods. They should output the same XML:
     // <person name="fred" age="12"><phone>425343</phone><bob/></person>
+    /**
+     * Runs {@link #test1()} and {@link #test2()}, printing their output for manual inspection.
+     *
+     * @param args ignored.
+     * @throws IOException if writing the example XML fails.
+     */
     static public void main(final String[] args) throws IOException
     {
         logger.debug("main(args={}) - start", (Object) args);
@@ -620,6 +651,11 @@ public class XmlWriter
         test2();
     }
 
+    /**
+     * Writes an example XML document using the fluent {@link #writeElement(String)} style.
+     *
+     * @throws IOException if writing the example XML fails.
+     */
     static public void test1() throws IOException
     {
         logger.debug("test1() - start");
@@ -635,6 +671,11 @@ public class XmlWriter
         System.err.println(writer.toString());
     }
 
+    /**
+     * Writes the same example XML document as {@link #test1()}, using the step-by-step style.
+     *
+     * @throws IOException if writing the example XML fails.
+     */
     static public void test2() throws IOException
     {
         logger.debug("test2() - start");
@@ -758,6 +799,14 @@ public class XmlWriter
         return buffer.toString();
     }
 
+    /**
+     * Returns the XML entity for the given character, if any.
+     *
+     * @param currentChar the character to convert.
+     * @param literally whether the character was written via a "literal" write method,
+     *            which affects which characters are converted.
+     * @return the XML entity for the given character, or <code>null</code> if it needs no entity.
+     */
     protected String convertCharacterToEntity(final char currentChar,
             final boolean literally)
     {
@@ -895,6 +944,12 @@ public class XmlWriter
         setWriter(writer, Charset.forName(encoding));
     }
 
+    /**
+     * Sets the writer and character set to write to.
+     *
+     * @param writer the writer to write to.
+     * @param charset the character set to encode the declaration with.
+     */
     final public void setWriter(final Writer writer, final Charset charset)
     {
         logger.debug("setWriter(writer={}, charset={}) - start", writer,
@@ -916,6 +971,12 @@ public class XmlWriter
         }
     }
 
+    /**
+     * Writes the XML declaration, if an encoding is set.
+     *
+     * @return this writer, for chaining.
+     * @throws IOException if writing to the underlying stream fails.
+     */
     public XmlWriter writeDeclaration() throws IOException
     {
         logger.debug("writeDeclaration() - start");
@@ -931,6 +992,14 @@ public class XmlWriter
         return this;
     }
 
+    /**
+     * Writes a <code>DOCTYPE</code> declaration for the dataset, if a system or public id is given.
+     *
+     * @param systemId the DTD's system id, or <code>null</code>.
+     * @param publicId the DTD's public id, or <code>null</code>.
+     * @return this writer, for chaining.
+     * @throws IOException if writing to the underlying stream fails.
+     */
     public XmlWriter writeDoctype(final String systemId, final String publicId)
             throws IOException
     {

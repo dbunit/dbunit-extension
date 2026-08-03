@@ -268,6 +268,8 @@ public interface Sync {
    *  been acquired, and that no 
    *  corresponding release should be performed. Conversely,
    *  a normal return guarantees that the acquire was successful.
+   *
+   * @throws InterruptedException if interrupted while waiting.
   **/
 
   public void acquire() throws InterruptedException;
@@ -287,13 +289,14 @@ public interface Sync {
    * will return at all without blocking indefinitely when used in
    * unintended ways. For example, deadlocks may be encountered
    * when called in an unintended context.
-   * <p>
+   *
    * @param msecs the number of milleseconds to wait.
-   * An argument less than or equal to zero means not to wait at all. 
+   * An argument less than or equal to zero means not to wait at all.
    * However, this may still require
    * access to a synchronization lock, which can impose unbounded
    * delay if there is a lot of contention among threads.
    * @return true if acquired
+   * @throws InterruptedException if interrupted while waiting.
   **/
 
   public boolean attempt(long msecs) throws InterruptedException;

@@ -43,15 +43,28 @@ public class Query
     private String name;
     private String sql;
 
+    /**
+     * Default constructor.
+     */
     public Query()
     {
     }
 
+    /**
+     * Returns the table name.
+     *
+     * @return the table name.
+     */
     public String getName()
     {
         return name;
     }
 
+    /**
+     * Sets the table name.
+     *
+     * @param name the table name.
+     */
     public void setName(String name)
     {
         logger.debug("setName(name={}) - start", name);
@@ -71,11 +84,21 @@ public class Query
         return result.toString();
     }
 
+    /**
+     * Returns the query's SQL.
+     *
+     * @return the query's SQL.
+     */
     public String getSql()
     {
         return sql;
     }
 
+    /**
+     * Sets the query's SQL.
+     *
+     * @param sql the query's SQL.
+     */
     public void setSql(String sql)
     {
         logger.debug("setSql(sql={}) - start", sql);

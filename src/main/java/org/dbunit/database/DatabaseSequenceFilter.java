@@ -63,6 +63,11 @@ public class DatabaseSequenceFilter extends SequenceTableFilter
 
     /**
      * Create a DatabaseSequenceFilter that only exposes specified table names.
+     *
+     * @param connection the database connection used to resolve table dependencies.
+     * @param tableNames the table names to expose, re-ordered to respect FK dependencies.
+     * @throws DataSetException if a table dependency cycle is detected.
+     * @throws SQLException if an exception is encountered in accessing the database.
      */
     public DatabaseSequenceFilter(IDatabaseConnection connection,
             String[] tableNames) throws DataSetException, SQLException
@@ -72,6 +77,10 @@ public class DatabaseSequenceFilter extends SequenceTableFilter
 
     /**
      * Create a DatabaseSequenceFilter that exposes all the database tables.
+     *
+     * @param connection the database connection used to resolve table dependencies.
+     * @throws DataSetException if a table dependency cycle is detected.
+     * @throws SQLException if an exception is encountered in accessing the database.
      */
     public DatabaseSequenceFilter(IDatabaseConnection connection)
             throws DataSetException, SQLException
@@ -85,7 +94,7 @@ public class DatabaseSequenceFilter extends SequenceTableFilter
      *
      * @param tableNames A string array of table names to be ordered.
      * @return The re-ordered array of table names.
-     * @throws DataSetException
+     * @throws DataSetException if a table dependency cycle is detected.
      * @throws SQLException If an exception is encountered in accessing the database.
      */
     static String[] sortTableNames(

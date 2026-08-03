@@ -31,20 +31,39 @@ package org.dbunit.dataset;
  */
 public class NoSuchTableException extends DataSetException
 {
+    /**
+     * Default constructor.
+     */
     public NoSuchTableException()
     {
     }
 
+    /**
+     * Constructs a <code>NoSuchTableException</code> with the specified detail message.
+     *
+     * @param msg the detail message.
+     */
     public NoSuchTableException(String msg)
     {
         super(msg);
     }
 
+    /**
+     * Constructs a <code>NoSuchTableException</code> with the specified detail message and cause.
+     *
+     * @param msg the detail message.
+     * @param e the cause.
+     */
     public NoSuchTableException(String msg, Throwable e)
     {
         super(msg, e);
     }
 
+    /**
+     * Constructs a <code>NoSuchTableException</code> with the specified cause.
+     *
+     * @param e the cause.
+     */
     public NoSuchTableException(Throwable e)
     {
         super(e);

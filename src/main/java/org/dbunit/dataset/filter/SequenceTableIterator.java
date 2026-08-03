@@ -49,6 +49,12 @@ public class SequenceTableIterator implements ITableIterator
     private final IDataSet _dataSet;
     private int _index = -1;
 
+    /**
+     * Creates an iterator that returns the given dataset's tables in the given name order.
+     *
+     * @param tableNames the table names, in the order they should be returned.
+     * @param dataSet the dataset providing the tables.
+     */
     public SequenceTableIterator(String[] tableNames, IDataSet dataSet)
     {
         _tableNames = tableNames;

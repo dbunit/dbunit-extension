@@ -34,7 +34,7 @@ public interface PrepAndExpectedTestCaseSteps
      * Run the specific test steps.
      *
      * @return User defined object from the test run.
-     * @throws Exception
+     * @throws Exception if the test steps fail.
      */
     Object run() throws Exception;
 }

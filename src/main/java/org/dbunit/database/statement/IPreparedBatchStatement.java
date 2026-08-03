@@ -36,15 +36,44 @@ import java.sql.SQLException;
  */
 public interface IPreparedBatchStatement
 {
+    /**
+     * Binds the given value, cast using the given data type, to the next parameter of the statement.
+     *
+     * @param value the value to bind.
+     * @param dataType the data type used to cast the value.
+     * @throws TypeCastException if the value cannot be cast to the given data type.
+     * @throws SQLException if binding the value to the statement fails.
+     */
     void addValue(Object value, DataType dataType) throws TypeCastException,
             SQLException;
 
+    /**
+     * Adds the currently bound parameters as a new row to the batch.
+     *
+     * @throws SQLException if adding the batch row fails.
+     */
     void addBatch() throws SQLException;
 
+    /**
+     * Executes all batched rows.
+     *
+     * @return the number of rows affected by each batched statement.
+     * @throws SQLException if executing the batch fails.
+     */
     int executeBatch() throws SQLException;
 
+    /**
+     * Clears all batched rows.
+     *
+     * @throws SQLException if clearing the batch fails.
+     */
     void clearBatch() throws SQLException;
 
+    /**
+     * Closes this statement.
+     *
+     * @throws SQLException if closing the statement fails.
+     */
     void close() throws SQLException;
 
 }

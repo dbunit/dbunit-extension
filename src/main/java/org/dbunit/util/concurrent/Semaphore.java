@@ -108,6 +108,8 @@ public class Semaphore implements Sync  {
    * Using a seed of one makes the semaphore act as a mutual exclusion lock.
    * Negative seeds are also allowed, in which case no acquires will proceed
    * until the number of releases has pushed the number of permits past 0.
+   *
+   * @param initialPermits the initial number of permits.
   **/
   public Semaphore(long initialPermits) {  permits_ = initialPermits; }
 
@@ -185,6 +187,7 @@ public class Semaphore implements Sync  {
    * </pre>
    * <p>
    * But may be more efficient in some semaphore implementations.
+   * @param n the number of permits to release.
    * @exception IllegalArgumentException if n is negative.
    **/
   public synchronized void release(long n) {
@@ -200,6 +203,8 @@ public class Semaphore implements Sync  {
    * Return the current number of available permits.
    * Returns an accurate, but possibly unstable value,
    * that may change immediately after returning.
+   *
+   * @return the current number of available permits.
    **/
   public synchronized long permits() {
     return permits_;

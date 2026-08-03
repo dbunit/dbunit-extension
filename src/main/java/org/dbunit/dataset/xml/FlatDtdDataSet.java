@@ -60,21 +60,44 @@ public class FlatDtdDataSet extends AbstractDataSet implements IDataSetConsumer
 
     private boolean _ready = false;
 
+    /**
+     * Default constructor.
+     */
     public FlatDtdDataSet()
     {
         initialize();
     }
 
+    /**
+     * Creates a dataset from the DTD content of the given input stream.
+     *
+     * @param in the input stream to read the DTD from.
+     * @throws DataSetException if the DTD content is invalid.
+     * @throws IOException if the input stream cannot be read.
+     */
     public FlatDtdDataSet(InputStream in) throws DataSetException, IOException
     {
         this(new FlatDtdProducer(new InputSource(in)));
     }
 
+    /**
+     * Creates a dataset from the DTD content of the given reader.
+     *
+     * @param reader the reader to read the DTD from.
+     * @throws DataSetException if the DTD content is invalid.
+     * @throws IOException if the reader cannot be read.
+     */
     public FlatDtdDataSet(Reader reader) throws DataSetException, IOException
     {
         this(new FlatDtdProducer(new InputSource(reader)));
     }
 
+    /**
+     * Creates a dataset that synchronously consumes the specified producer.
+     *
+     * @param producer the producer to consume.
+     * @throws DataSetException if consuming the producer fails.
+     */
     public FlatDtdDataSet(IDataSetProducer producer) throws DataSetException
     {
         initialize();
@@ -93,6 +116,11 @@ public class FlatDtdDataSet extends AbstractDataSet implements IDataSetConsumer
      * Writes the specified dataset to the specified output stream as DTD,
      * encoded in UTF-8, matching what the {@code InputStream} constructor's
      * SAX parsing assumes absent an explicit encoding declaration.
+     *
+     * @param dataSet the dataset to write a DTD for.
+     * @param out the stream to write to.
+     * @throws IOException if writing fails.
+     * @throws DataSetException if reading the dataset fails.
      * @see FlatDtdWriter
      */
     public static void write(IDataSet dataSet, OutputStream out)
@@ -105,6 +133,11 @@ public class FlatDtdDataSet extends AbstractDataSet implements IDataSetConsumer
 
     /**
      * Write the specified dataset to the specified writer as DTD.
+     *
+     * @param dataSet the dataset to write a DTD for.
+     * @param out the writer to write to.
+     * @throws IOException if writing fails.
+     * @throws DataSetException if reading the dataset fails.
      * @see FlatDtdWriter
      */
     public static void write(IDataSet dataSet, Writer out)

@@ -64,9 +64,12 @@ public class BufferedConsumer implements IDataSetConsumer {
 	
 	
 	/**
+	 * Creates a consumer that buffers all data until {@link #endDataSet()}, then flushes it
+	 * to the given wrapped consumer.
+	 *
 	 * @param wrappedConsumer The consumer that is wrapped
 	 */
-	public BufferedConsumer(IDataSetConsumer wrappedConsumer) 
+	public BufferedConsumer(IDataSetConsumer wrappedConsumer)
 	{
 		if (wrappedConsumer == null) {
 			throw new NullPointerException(

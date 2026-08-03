@@ -42,11 +42,21 @@ public class AllHandler extends AbstractPipelineComponent {
 
     private AllHandler () {}
 
+    /**
+     * Creates a handler that accepts every character it is given.
+     *
+     * @return a new accept-all pipeline component.
+     */
     public static final PipelineComponent ACCEPT () {
         logger.debug("ACCEPT() - start");
         return createPipelineComponent(new AllHandler(), new ACCEPT());
     }
 
+    /**
+     * Creates a handler that ignores every character it is given.
+     *
+     * @return a new ignore-all pipeline component.
+     */
     public static final PipelineComponent IGNORE () {
         logger.debug("IGNORE() - start");
         return createPipelineComponent(new AllHandler() {}, new IGNORE());

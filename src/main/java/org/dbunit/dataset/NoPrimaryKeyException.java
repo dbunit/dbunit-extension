@@ -31,20 +31,43 @@ package org.dbunit.dataset;
  */
 public class NoPrimaryKeyException extends DataSetException
 {
+    /**
+     * Constructs a <code>NoPrimaryKeyException</code> with no detail
+     * message and no encapsulated exception.
+     */
     public NoPrimaryKeyException()
     {
     }
 
+    /**
+     * Constructs a <code>NoPrimaryKeyException</code> with the specified detail
+     * message and no encapsulated exception.
+     *
+     * @param msg the detail message.
+     */
     public NoPrimaryKeyException(String msg)
     {
         super(msg);
     }
 
+    /**
+     * Constructs a <code>NoPrimaryKeyException</code> with the specified detail
+     * message and encapsulated exception.
+     *
+     * @param msg the detail message.
+     * @param e the encapsulated exception.
+     */
     public NoPrimaryKeyException(String msg, Throwable e)
     {
         super(msg, e);
     }
 
+    /**
+     * Constructs a <code>NoPrimaryKeyException</code> with the encapsulated
+     * exception and use string representation as detail message.
+     *
+     * @param e the encapsulated exception.
+     */
     public NoPrimaryKeyException(Throwable e)
     {
         super(e);

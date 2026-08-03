@@ -62,6 +62,7 @@ public class Operation extends AbstractStep
 
     private static final String DEFAULT_FORMAT = FORMAT_FLAT;
 
+    /** The name of the {@link DatabaseOperation} to execute, e.g. <code>"CLEAN_INSERT"</code>. */
     protected String _type = "CLEAN_INSERT";
     private String _format;
     private List<File> _sources = new ArrayList<>();
@@ -71,23 +72,43 @@ public class Operation extends AbstractStep
     private boolean _forwardOperation = true;
     private String _nullToken;
 
+    /**
+     * Returns the source files holding the operation's dataset.
+     *
+     * @return the source files holding the operation's dataset.
+     */
     public File[] getSrc()
     {
         return _sources.toArray(new File[_sources.size()]);
     }
 
+    /**
+     * Sets the source files holding the operation's dataset.
+     *
+     * @param sources the source files holding the operation's dataset.
+     */
     public void setSrc(File[] sources)
     {
         _sources.clear();
         _sources.addAll(Arrays.asList(sources));
     }
 
+    /**
+     * Sets the single source file holding the operation's dataset.
+     *
+     * @param src the source file holding the operation's dataset.
+     */
     public void setSrc(File src)
     {
         _sources.clear();
         _sources.add(src);
     }
 
+    /**
+     * Adds the files matched by the given Ant fileset to the operation's dataset sources.
+     *
+     * @param fileSet the Ant fileset to add.
+     */
     public void addConfiguredFileset(FileSet fileSet)
     {
         DirectoryScanner scanner = fileSet.getDirectoryScanner(getProject());
@@ -96,11 +117,21 @@ public class Operation extends AbstractStep
         }
     }
 
+    /**
+     * Returns the dataset format, defaulting to {@value #DEFAULT_FORMAT} when not set.
+     *
+     * @return the dataset format.
+     */
     public String getFormat()
     {
         return _format != null ? _format : DEFAULT_FORMAT;
     }
 
+    /**
+     * Sets the dataset format.
+     *
+     * @param format the dataset format.
+     */
     public void setFormat(String format)
     {
         logger.debug("setFormat(format={}) - start", format);
@@ -111,47 +142,93 @@ public class Operation extends AbstractStep
         _format = format;
     }
 
+    /**
+     * Returns whether multiple sources are combined into a single dataset.
+     *
+     * @return {@code true} if multiple sources are combined into a single dataset.
+     */
     public boolean isCombine()
     {
         return _combine;
     }
 
+    /**
+     * Sets whether multiple sources are combined into a single dataset.
+     *
+     * @param combine {@code true} to combine multiple sources into a single dataset.
+     */
     public void setCombine(boolean combine)
     {
         _combine = combine;
     }
 
+    /**
+     * Returns whether the operation runs within a transaction.
+     *
+     * @return {@code true} if the operation runs within a transaction.
+     */
     public boolean isTransaction()
     {
         return _transaction;
     }
 
+    /**
+     * Sets whether the operation runs within a transaction.
+     *
+     * @param transaction {@code true} to run the operation within a transaction.
+     */
     public void setTransaction(boolean transaction)
     {
         _transaction = transaction;
     }
 
-    public String getNullToken() 
+    /**
+     * Returns the token replaced with a null value in the dataset.
+     *
+     * @return the token replaced with a null value in the dataset.
+     */
+    public String getNullToken()
     {
         return _nullToken;
     }
 
-    public void setNullToken(final String nullToken) 
+    /**
+     * Sets the token to replace with a null value in the dataset.
+     *
+     * @param nullToken the token to replace with a null value in the dataset.
+     */
+    public void setNullToken(final String nullToken)
     {
         this._nullToken = nullToken;
     }
 
+    /**
+     * Returns the database operation resolved from {@link #setType(String)}.
+     *
+     * @return the database operation resolved from {@link #setType(String)}.
+     */
     public DatabaseOperation getDbOperation()
     {
         return _operation;
     }
 
+    /**
+     * Returns the operation type name.
+     *
+     * @return the operation type name.
+     */
     public String getType()
     {
         return _type;
     }
 
-    public void setType(String type) 
+    /**
+     * Sets the operation type, resolving it to the corresponding {@link DatabaseOperation}.
+     *
+     * @param type one of: UPDATE, INSERT, REFRESH, DELETE, DELETE_ALL, CLEAN_INSERT, NONE,
+     *            MSSQL_CLEAN_INSERT, MSSQL_INSERT, or MSSQL_REFRESH.
+     */
+    public void setType(String type)
     {
         logger.debug("setType(type={}) - start", type);
 

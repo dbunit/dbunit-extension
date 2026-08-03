@@ -43,6 +43,14 @@ public abstract class TimestampIgnoreMillisValueComparerBase
         return isExpected;
     }
 
+    /**
+     * Determines whether the actual value matches the expected value when at least one of them
+     * is <code>null</code>.
+     *
+     * @param expectedValue the expected value, possibly <code>null</code>.
+     * @param actualValue the actual value, possibly <code>null</code>.
+     * @return <code>true</code> if the values are considered equal.
+     */
     protected boolean isExpectedWithNull(final Object expectedValue,
             final Object actualValue)
     {
@@ -59,6 +67,16 @@ public abstract class TimestampIgnoreMillisValueComparerBase
         return isExpected;
     }
 
+    /**
+     * Determines whether the actual value matches the expected value, ignoring milliseconds,
+     * given that neither is <code>null</code>.
+     *
+     * @param dataType the column's data type.
+     * @param expectedValue the expected value, never <code>null</code>.
+     * @param actualValue the actual value, never <code>null</code>.
+     * @return <code>true</code> if the values are considered equal, ignoring milliseconds.
+     * @throws TypeCastException if a value cannot be converted for comparison.
+     */
     protected boolean isExpectedWithoutNull(final DataType dataType,
             final Object expectedValue, final Object actualValue)
             throws TypeCastException
@@ -81,6 +99,13 @@ public abstract class TimestampIgnoreMillisValueComparerBase
                 * (timeInMilliseconds / ONE_SECOND_IN_MILLIS);
     }
 
+    /**
+     * Converts the given value to milliseconds since the epoch.
+     *
+     * @param timestampValue the value to convert, a {@link Timestamp} or a {@link String}
+     *            formatted as <code>yyyy-MM-dd HH:mm:ss</code>.
+     * @return the value converted to milliseconds since the epoch, or 0 if the value is neither.
+     */
     protected long convertValueToTimeInMillis(final Object timestampValue)
     {
         final Timestamp timestamp;

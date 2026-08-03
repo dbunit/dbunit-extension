@@ -46,6 +46,10 @@ public abstract class AbstractStatementFactory implements IStatementFactory
 
     /**
      * Returns <code>true</code> if target database supports batch statement.
+     *
+     * @param connection the database connection to check.
+     * @return <code>true</code> if target database supports batch statement.
+     * @throws SQLException if checking the database metadata fails.
      */
     protected boolean supportBatchStatement(IDatabaseConnection connection)
             throws SQLException

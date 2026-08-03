@@ -43,6 +43,11 @@ public class ImportedKeysSearchCallback extends
      */
     private static final Logger logger = LoggerFactory.getLogger(ImportedKeysSearchCallback.class);
 
+    /**
+     * Creates a callback that gets the nodes reachable via imported (direct) foreign keys.
+     *
+     * @param connection connection where the edges will be calculated from.
+     */
     public ImportedKeysSearchCallback(IDatabaseConnection connection) {
         super(connection);
     }

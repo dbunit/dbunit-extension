@@ -162,6 +162,8 @@ public class DbUnitTask extends Task
 
     /**
      * Set the JDBC driver to be used.
+     *
+     * @param driver the fully qualified class name of the JDBC driver.
      */
     public void setDriver(final String driver)
     {
@@ -171,6 +173,8 @@ public class DbUnitTask extends Task
 
     /**
      * Set the DB connection url.
+     *
+     * @param url the JDBC connection URL.
      */
     public void setUrl(final String url)
     {
@@ -180,6 +184,8 @@ public class DbUnitTask extends Task
 
     /**
      * Set the user name for the DB connection.
+     *
+     * @param userId the database user name.
      */
     public void setUserid(final String userId)
     {
@@ -189,6 +195,8 @@ public class DbUnitTask extends Task
 
     /**
      * Set the password for the DB connection.
+     *
+     * @param password the database password.
      */
     public void setPassword(final String password)
     {
@@ -198,6 +206,8 @@ public class DbUnitTask extends Task
 
     /**
      * Set the schema for the DB connection.
+     *
+     * @param schema the database schema.
      */
     public void setSchema(final String schema)
     {
@@ -207,6 +217,8 @@ public class DbUnitTask extends Task
 
     /**
      * Set the flag for using the qualified table names.
+     *
+     * @param useQualifiedTableNames <code>true</code> to use qualified table names.
      */
     public void setUseQualifiedTableNames(final Boolean useQualifiedTableNames)
     {
@@ -218,6 +230,8 @@ public class DbUnitTask extends Task
      * Set the flag for supporting batch statements.
      * NOTE: This property cannot be used to force the usage of batch
      *       statement if your database does not support it.
+     *
+     * @param supportBatchStatement <code>true</code> to use batch statements.
      */
     public void setSupportBatchStatement(final Boolean supportBatchStatement)
     {
@@ -225,24 +239,44 @@ public class DbUnitTask extends Task
         this.supportBatchStatement = supportBatchStatement;
     }
 
+    /**
+     * Sets the flag for logging a warning on unsupported data types.
+     *
+     * @param datatypeWarning <code>true</code> to log a warning on unsupported data types.
+     */
     public void setDatatypeWarning(final Boolean datatypeWarning)
     {
         logger.trace("setDatatypeWarning(datatypeWarning={}) - start", String.valueOf(datatypeWarning));
         this.datatypeWarning = datatypeWarning;
     }
 
+    /**
+     * Sets the fully qualified class name of the {@link IDataTypeFactory} to use.
+     *
+     * @param datatypeFactory the fully qualified class name of the {@link IDataTypeFactory} to use.
+     */
     public void setDatatypeFactory(final String datatypeFactory)
     {
         logger.trace("setDatatypeFactory(datatypeFactory={}) - start", datatypeFactory);
         this.dataTypeFactory = datatypeFactory;
     }
 
+    /**
+     * Sets the pattern used to escape table and column names.
+     *
+     * @param escapePattern the pattern used to escape table and column names.
+     */
     public void setEscapePattern(final String escapePattern)
     {
         logger.trace("setEscapePattern(escapePattern={}) - start", escapePattern);
         this.escapePattern = escapePattern;
     }
 
+    /**
+     * Returns the generic {@link DatabaseConfig} configuration child element.
+     *
+     * @return the generic {@link DatabaseConfig} configuration child element.
+     */
     public DbConfig getDbConfig()
     {
         return dbConfig;
@@ -254,6 +288,11 @@ public class DbUnitTask extends Task
     //        this.dbConfig = dbConfig;
     //    }
 
+    /**
+     * Sets the generic {@link DatabaseConfig} configuration child element.
+     *
+     * @param dbConfig the generic {@link DatabaseConfig} configuration child element.
+     */
     public void addDbConfig(final DbConfig dbConfig)
     {
         logger.trace("addDbConfig(dbConfig={}) - start", dbConfig);
@@ -262,6 +301,8 @@ public class DbUnitTask extends Task
 
     /**
      * Set the classpath for loading the driver.
+     *
+     * @param classpath the classpath for loading the driver.
      */
     public void setClasspath(final Path classpath)
     {
@@ -278,6 +319,8 @@ public class DbUnitTask extends Task
 
     /**
      * Create the classpath for loading the driver.
+     *
+     * @return the classpath for loading the driver.
      */
     public Path createClasspath()
     {
@@ -292,6 +335,8 @@ public class DbUnitTask extends Task
 
     /**
      * Set the classpath for loading the driver using the classpath reference.
+     *
+     * @param r the reference to the classpath for loading the driver.
      */
     public void setClasspathRef(final Reference r)
     {
@@ -302,6 +347,8 @@ public class DbUnitTask extends Task
 
     /**
      * Gets the Steps.
+     *
+     * @return the steps to execute.
      */
     public List getSteps()
     {
@@ -310,6 +357,8 @@ public class DbUnitTask extends Task
 
     /**
      * Adds an Operation.
+     *
+     * @param operation the operation step to add.
      */
     public void addOperation(final Operation operation)
     {
@@ -320,6 +369,8 @@ public class DbUnitTask extends Task
 
     /**
      * Adds a Compare to the steps List.
+     *
+     * @param compare the compare step to add.
      */
     public void addCompare(final Compare compare)
     {
@@ -330,6 +381,8 @@ public class DbUnitTask extends Task
 
     /**
      * Adds an Export to the steps List.
+     *
+     * @param export the export step to add.
      */
     public void addExport(final Export export)
     {
@@ -338,7 +391,11 @@ public class DbUnitTask extends Task
         steps.add(export);
     }
 
-
+    /**
+     * Returns the size of batch inserts.
+     *
+     * @return the size of batch inserts.
+     */
     public String getBatchSize()
     {
         return batchSize;
@@ -346,24 +403,38 @@ public class DbUnitTask extends Task
 
     /**
      * sets the size of batch inserts.
-     * @param batchSize
+     * @param batchSize the size of batch inserts.
      */
     public void setBatchSize(final String batchSize)
     {
         this.batchSize = batchSize;
     }
 
-
+    /**
+     * Returns the JDBC fetch size used for result sets.
+     *
+     * @return the JDBC fetch size used for result sets.
+     */
     public String getFetchSize()
     {
         return fetchSize;
     }
 
+    /**
+     * Sets the JDBC fetch size used for result sets.
+     *
+     * @param fetchSize the JDBC fetch size used for result sets.
+     */
     public void setFetchSize(final String fetchSize)
     {
         this.fetchSize = fetchSize;
     }
 
+    /**
+     * Sets the flag for skipping Oracle recycle bin tables.
+     *
+     * @param skipOracleRecycleBinTables <code>true</code> to skip Oracle recycle bin tables.
+     */
     public void setSkipOracleRecycleBinTables(final Boolean skipOracleRecycleBinTables)
     {
         this.skipOracleRecycleBinTables = skipOracleRecycleBinTables;
@@ -409,6 +480,12 @@ public class DbUnitTask extends Task
         }
     }
 
+    /**
+     * Loads the JDBC driver and opens the configured database connection.
+     *
+     * @return the opened database connection.
+     * @throws SQLException if the connection cannot be opened.
+     */
     protected IDatabaseConnection createConnection() throws SQLException
     {
         logger.trace("createConnection() - start");
@@ -491,8 +568,8 @@ public class DbUnitTask extends Task
      * Creates the dbunit connection using the two given arguments. The configuration
      * properties of the dbunit connection are initialized using the fields of this class.
      *
-     * @param jdbcConnection
-     * @param dbSchema
+     * @param jdbcConnection the JDBC connection to adapt.
+     * @param dbSchema the database schema.
      * @return The dbunit connection
      */
     protected IDatabaseConnection createDatabaseConnection(final Connection jdbcConnection,

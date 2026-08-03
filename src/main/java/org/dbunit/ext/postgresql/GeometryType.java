@@ -11,7 +11,16 @@ import java.sql.Types;
 import org.dbunit.dataset.datatype.AbstractDataType;
 import org.dbunit.dataset.datatype.TypeCastException;
 
+/**
+ * Adapter to handle conversion between PostGIS
+ * native geometry type and Strings.
+ *
+ * @since 2.4.6
+ */
 public class GeometryType extends AbstractDataType {
+    /**
+     * Default constructor.
+     */
     public GeometryType() {
         super("geometry", Types.OTHER, String.class, false);
     }

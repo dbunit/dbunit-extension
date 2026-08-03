@@ -35,10 +35,19 @@ import org.dbunit.dataset.DataSetException;
  * @since Sep 12, 2004 (pre 2.3)
  */
 public class CsvDataSet extends CachedDataSet {
+	/**
+	 * Name of the file listing the tables in load order.
+	 */
 	public static final String TABLE_ORDERING_FILE = "table-ordering.txt";
-	
+
 //	private File dir;
-	
+
+    /**
+     * Creates a dataset from the CSV files in the given directory.
+     *
+     * @param dir the directory containing the CSV files.
+     * @throws DataSetException if reading the CSV files fails.
+     */
     public CsvDataSet(File dir) throws DataSetException {
         super(new CsvProducer(dir));
 //        this.dir = dir;

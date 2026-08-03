@@ -49,6 +49,12 @@ public class DatabaseTableIterator implements ITableIterator
     private IResultSetTable _currentTable;
     private int _index = -1;
 
+    /**
+     * Creates an iterator over the given table names, resolved from the given dataset.
+     *
+     * @param tableNames the names of the tables to iterate, in order.
+     * @param dataSet the dataset to resolve tables from.
+     */
     public DatabaseTableIterator(String[] tableNames, IDataSet dataSet)
     {
         _tableNames = tableNames;

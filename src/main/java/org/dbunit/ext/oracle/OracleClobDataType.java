@@ -71,6 +71,14 @@ public class OracleClobDataType extends ClobDataType
         statement.setObject(column, getClob(value, statement.getConnection()));
     }
 
+    /**
+     * Writes the given value into a temporary CLOB on the given connection.
+     *
+     * @param value the value to write, cast to a <code>String</code>.
+     * @param connection the connection to create the temporary CLOB on.
+     * @return the populated temporary CLOB.
+     * @throws TypeCastException if the value cannot be cast or writing fails.
+     */
     protected Object getClob(final Object value, final Connection connection)
             throws TypeCastException
     {

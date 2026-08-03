@@ -43,7 +43,7 @@ public interface IMetadataHandler
      * @param schemaName The schema name
      * @param tableName The table name
      * @return The result set containing all columns
-     * @throws SQLException
+     * @throws SQLException if a database access error occurs.
      * @since 2.4.4
      */
     ResultSet getColumns(DatabaseMetaData databaseMetaData, String schemaName, String tableName)
@@ -53,12 +53,12 @@ public interface IMetadataHandler
      * Checks if the given <code>resultSet</code> matches the given schema and table name.
      * The comparison is <b>case sensitive</b>.
      * @param resultSet A result set produced via {@link DatabaseMetaData#getColumns(String, String, String, String)}
-     * @param schema
-     * @param table
+     * @param schema the schema name to check.
+     * @param table the table name to check.
      * @param caseSensitive Whether or not the comparison should be case sensitive
      * @return <code>true</code> if the column metadata of the given <code>resultSet</code> matches
      * the given schema and table parameters.
-     * @throws SQLException
+     * @throws SQLException if a database access error occurs.
      * @see #matches(ResultSet, String, String, String, String, boolean)
      * @since 2.4.4
      */
@@ -76,7 +76,7 @@ public interface IMetadataHandler
      * @param caseSensitive Whether or not the comparison should be case sensitive
      * @return <code>true</code> if the column metadata of the given <code>resultSet</code> matches
      * the given schema and table parameters.
-     * @throws SQLException
+     * @throws SQLException if a database access error occurs.
      * @since 2.4.4
      */
     boolean matches(ResultSet resultSet, String catalog, String schema,
@@ -87,6 +87,7 @@ public interface IMetadataHandler
      * @param resultSet The result set pointing to a valid record in the database that was returned
      * by {@link DatabaseMetaData#getTables(String, String, String, String[])}.
      * @return The name of the schema from the given result set
+     * @throws SQLException if a database access error occurs.
      * @since 2.4.4
      */
     String getSchema(ResultSet resultSet)  throws SQLException;
@@ -99,7 +100,7 @@ public interface IMetadataHandler
      * @param tableName The table name to be searched
      * @return Returns <code>true</code> if the given table exists in the given schema.
      * Else returns <code>false</code>.
-     * @throws SQLException
+     * @throws SQLException if a database access error occurs.
      * @since 2.4.5
      */
     boolean tableExists(DatabaseMetaData databaseMetaData, String schemaName, String tableName)
@@ -111,18 +112,20 @@ public interface IMetadataHandler
      * @param schemaName schema for which the tables should be retrieved; <code>null</code> returns all schemas
      * @param tableTypes a list of table types to include; <code>null</code> returns all types
      * @return The ResultSet which is retrieved using {@link DatabaseMetaData#getTables(String, String, String, String[])}
-     * @throws SQLException
+     * @throws SQLException if a database access error occurs.
      * @since 2.4.5
      */
     ResultSet getTables(DatabaseMetaData databaseMetaData, String schemaName, String[] tableTypes)
     throws SQLException;
 
     /**
+     * Returns the primary keys of the given table.
+     *
      * @param databaseMetaData The database meta data
      * @param schemaName schema for which the tables should be retrieved; <code>null</code> returns all schemas
      * @param tableName table for which the primary keys are retrieved
      * @return The ResultSet which is retrieved using {@link DatabaseMetaData#getPrimaryKeys(String, String, String)}
-     * @throws SQLException
+     * @throws SQLException if a database access error occurs.
      * @since 2.4.5
      */
     public ResultSet getPrimaryKeys(DatabaseMetaData databaseMetaData, String schemaName, String tableName)

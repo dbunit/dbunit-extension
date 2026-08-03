@@ -87,15 +87,17 @@ public class ResultSetTableMetaData extends AbstractTableMetaData
 	private boolean _caseSensitiveMetaData;
 
 	/**
+	 * Creates the metadata for a result set, resolving column data types via the given connection.
+	 *
 	 * @param tableName The name of the database table
 	 * @param resultSet The JDBC result set that is used to retrieve the columns
 	 * @param connection The connection which is needed to retrieve some configuration values
 	 * @param caseSensitiveMetaData Whether or not the metadata is case sensitive
-	 * @throws DataSetException
-	 * @throws SQLException
+	 * @throws DataSetException if metadata retrieval fails.
+	 * @throws SQLException if a database access error occurs.
 	 */
 	public ResultSetTableMetaData(String tableName,
-            ResultSet resultSet, IDatabaseConnection connection, boolean caseSensitiveMetaData) 
+            ResultSet resultSet, IDatabaseConnection connection, boolean caseSensitiveMetaData)
 	throws DataSetException, SQLException 
 	{
 		super();
@@ -107,14 +109,14 @@ public class ResultSetTableMetaData extends AbstractTableMetaData
 	/**
 	 * @param tableName The name of the database table
 	 * @param resultSet The JDBC result set that is used to retrieve the columns
-	 * @param dataTypeFactory
+	 * @param dataTypeFactory the data type factory used to resolve column data types.
      * @param caseSensitiveMetaData Whether or not the metadata is case sensitive
-	 * @throws DataSetException
-	 * @throws SQLException
+	 * @throws DataSetException if metadata retrieval fails.
+	 * @throws SQLException if a database access error occurs.
      * @deprecated since 2.4.4. use {@link ResultSetTableMetaData#ResultSetTableMetaData(String, ResultSet, IDatabaseConnection, boolean)}
 	 */
 	public ResultSetTableMetaData(String tableName,
-            ResultSet resultSet, IDataTypeFactory dataTypeFactory, boolean caseSensitiveMetaData) 
+            ResultSet resultSet, IDataTypeFactory dataTypeFactory, boolean caseSensitiveMetaData)
 	throws DataSetException, SQLException 
 	{
 		super();

@@ -131,6 +131,8 @@ public class DefaultDataTypeFactory
     }
 
     /**
+     * Returns the tolerated delta objects configured on this factory.
+     *
      * @return The whole map of tolerated delta objects that have been set until
      *         now
      * @since 2.3.0

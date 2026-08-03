@@ -37,11 +37,22 @@ public class DefaultTableIterator implements ITableIterator
     private final ITable[] _tables;
     private int _index = -1;
 
+    /**
+     * Creates an iterator over the given tables, in their given order.
+     *
+     * @param tables the tables to iterate over.
+     */
     public DefaultTableIterator(ITable[] tables)
     {
         _tables = tables;
     }
 
+    /**
+     * Creates an iterator over the given tables, optionally in reverse order.
+     *
+     * @param tables the tables to iterate over.
+     * @param reversed <code>true</code> to iterate in reverse order.
+     */
     public DefaultTableIterator(ITable[] tables, boolean reversed)
     {
         if (reversed)

@@ -42,32 +42,59 @@ public class NetezzaDataTypeFactory extends DefaultDataTypeFactory
 	 */
 	private static final Logger logger = LoggerFactory.getLogger(NetezzaDataTypeFactory.class);
 
+	/** JDBC type code for Netezza's <code>RECADDR</code> type. */
 	public static final int RECADDR = 1;
+	/** JDBC type code for Netezza's <code>NUMERIC</code> type. */
 	public static final int NUMERIC = 2;
+	/** JDBC type code for Netezza's <code>DECIMAL</code> type. */
 	public static final int DECIMAL = 3;
+	/** JDBC type code for Netezza's <code>INTEGER</code> type. */
 	public static final int INTEGER = 4;
+	/** JDBC type code for Netezza's <code>SMALLINT</code> type. */
 	public static final int SMALLINT = 5;
+	/** JDBC type code for Netezza's <code>DOUBLE</code> type. */
 	public static final int DOUBLE = 8;
+	/** JDBC type code for Netezza's <code>INTERVAL</code> type. */
 	public static final int INTERVAL = 10;
+	/** JDBC type code for Netezza's <code>BOOLEAN</code> type. */
 	public static final int BOOLEAN = -7;
+	/** JDBC type code for Netezza's <code>CHAR</code> type. */
 	public static final int CHAR = -1;
+	/** JDBC type code for Netezza's <code>FLOAT</code> type. */
 	public static final int FLOAT = 6;
+	/** JDBC type code for Netezza's <code>REAL</code> type. */
 	public static final int REAL = 7;
+	/** JDBC type code for Netezza's <code>VARCHAR</code> type. */
 	public static final int VARCHAR = 12;
+	/** JDBC type code for Netezza's <code>DATE</code> type. */
 	public static final int DATE = 91;
+	/** JDBC type code for Netezza's <code>TIME</code> type. */
 	public static final int TIME = 92;
+	/** JDBC type code for Netezza's <code>TIMESTAMP</code> type. */
 	public static final int TIMESTAMP = 93;
+	/** JDBC type code for Netezza's <code>TIMETZ</code> type. */
 	public static final int TIMETZ = 1266;
+	/** JDBC type code for Netezza's <code>UNKNOWN</code> type. */
 	public static final int UNKNOWN = 18;
+	/** JDBC type code for Netezza's <code>BYTEINT</code> type. */
 	public static final int BYTEINT = -6;
+	/** JDBC type code for Netezza's <code>INT8</code> type. */
 	public static final int INT8 = 20;
+	/** JDBC type code for Netezza's <code>VARFIXEDCHAR</code> type. */
 	public static final int VARFIXEDCHAR = 21;
+	/** JDBC type code for Netezza's <code>NUCL</code> type. */
 	public static final int NUCL = 22;
+	/** JDBC type code for Netezza's <code>PROT</code> type. */
 	public static final int PROT = 23;
+	/** JDBC type code for Netezza's <code>BLOB</code> type. */
 	public static final int BLOB = 24;
+	/** JDBC type code for Netezza's <code>BIGINT</code> type. */
 	public static final int BIGINT = -5;
+	/** JDBC type code for Netezza's <code>NCHAR</code> type. */
 	public static final int NCHAR = -8;
+	/** JDBC type code for Netezza's <code>NVARCHAR</code> type. */
 	public static final int NVARCHAR = -9;
+	/** JDBC type code for Netezza's <code>NTEXT</code> type. */
 	public static final int NTEXT = 27;
 
 	public DataType createDataType(int sqlType, String sqlTypeName) throws DataTypeException
@@ -122,4 +149,3 @@ public class NetezzaDataTypeFactory extends DefaultDataTypeFactory
 	}
 }
 
- 	  	 

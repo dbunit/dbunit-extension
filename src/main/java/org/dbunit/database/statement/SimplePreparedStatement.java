@@ -50,6 +50,13 @@ public class SimplePreparedStatement extends AbstractPreparedBatchStatement
     private int _index;
     private int _result;
 
+    /**
+     * Creates a new <code>SimplePreparedStatement</code>.
+     *
+     * @param sql the SQL statement to prepare.
+     * @param connection the JDBC connection to prepare the statement on.
+     * @throws SQLException if preparing the statement fails.
+     */
     public SimplePreparedStatement(String sql, Connection connection)
             throws SQLException
     {

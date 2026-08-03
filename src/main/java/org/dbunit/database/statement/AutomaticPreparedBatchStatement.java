@@ -49,6 +49,12 @@ public class AutomaticPreparedBatchStatement implements IPreparedBatchStatement
     private int _threshold;
     private int _result = 0;
 
+    /**
+     * Creates a statement that automatically executes the batch once the given threshold is reached.
+     *
+     * @param statement the decorated statement to which batching is delegated.
+     * @param threshold the number of batched rows that triggers an automatic execution.
+     */
     public AutomaticPreparedBatchStatement(IPreparedBatchStatement statement, int threshold)
     {
         _statement = statement;

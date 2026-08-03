@@ -58,9 +58,10 @@ public class SequenceTableFilter implements ITableFilter
 
     /**
      * Creates a new SequenceTableFilter with specified table names sequence.
+     * @param tableNames the table names, in the sequence they should be exposed.
      * @throws AmbiguousTableNameException If the given array contains ambiguous names
      */
-    public SequenceTableFilter(String[] tableNames) 
+    public SequenceTableFilter(String[] tableNames)
     throws AmbiguousTableNameException
     {
         this(tableNames, false);
@@ -68,8 +69,8 @@ public class SequenceTableFilter implements ITableFilter
 
     /**
      * Creates a new SequenceTableFilter with specified table names sequence.
-     * @param tableNames
-     * @param caseSensitiveTableNames
+     * @param tableNames the table names, in the sequence they should be exposed.
+     * @param caseSensitiveTableNames whether table names are handled in a case sensitive way.
      * @throws AmbiguousTableNameException If the given array contains ambiguous names
      * @since 2.4.2
      */

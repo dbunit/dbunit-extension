@@ -46,6 +46,11 @@ public class ImportedAndExportedKeysSearchCallback extends AbstractMetaDataBased
 	 */
 	private static final Logger	logger = LoggerFactory.getLogger(ImportedAndExportedKeysSearchCallback.class);
 
+	/**
+	 * Creates a callback that gets the nodes reachable via both imported and exported foreign keys.
+	 *
+	 * @param connection connection where the edges will be calculated from.
+	 */
 	public ImportedAndExportedKeysSearchCallback(IDatabaseConnection connection)
 	{
 		super(connection);

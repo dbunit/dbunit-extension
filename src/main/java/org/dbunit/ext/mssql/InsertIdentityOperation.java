@@ -69,13 +69,16 @@ public class InsertIdentityOperation extends AbstractOperation
      */
     private static final Logger logger = LoggerFactory.getLogger(InsertIdentityOperation.class);
 
+    /** {@link DatabaseOperation#INSERT}, decorated to enable MS SQL identity insert. */
     public static final DatabaseOperation INSERT =
             new InsertIdentityOperation(DatabaseOperation.INSERT);
 
+    /** {@link DatabaseOperation#DELETE_ALL} followed by {@link #INSERT}. */
     public static final DatabaseOperation CLEAN_INSERT =
             new CompositeOperation(DatabaseOperation.DELETE_ALL,
                     new InsertIdentityOperation(DatabaseOperation.INSERT));
 
+    /** {@link DatabaseOperation#REFRESH}, decorated to enable MS SQL identity insert. */
     public static final DatabaseOperation REFRESH =
             new InsertIdentityOperation(DatabaseOperation.REFRESH);
 
@@ -124,6 +127,8 @@ public class InsertIdentityOperation extends AbstractOperation
     /**
      * Creates a new InsertIdentityOperation object that decorates the
      * specified operation.
+     *
+     * @param operation the operation to decorate.
      */
     public InsertIdentityOperation(DatabaseOperation operation)
     {

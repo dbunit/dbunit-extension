@@ -53,41 +53,62 @@ public class DatabaseConfig
      */
     private static final Logger logger = LoggerFactory.getLogger(DatabaseConfig.class);
 
+    /** Name of the property configuring the {@link IStatementFactory} implementation to use. */
     public static final String PROPERTY_STATEMENT_FACTORY =
             "http://www.dbunit.org/properties/statementFactory";
+    /** Name of the property configuring the {@link IResultSetTableFactory} implementation to use. */
     public static final String PROPERTY_RESULTSET_TABLE_FACTORY =
             "http://www.dbunit.org/properties/resultSetTableFactory";
+    /** Name of the property configuring the {@link IDataTypeFactory} implementation to use. */
     public static final String PROPERTY_DATATYPE_FACTORY =
             "http://www.dbunit.org/properties/datatypeFactory";
+    /** Name of the property configuring the pattern used to escape table and column names. */
     public static final String PROPERTY_ESCAPE_PATTERN =
             "http://www.dbunit.org/properties/escapePattern";
+    /** Name of the property configuring the JDBC table types considered when reading the database schema. */
     public static final String PROPERTY_TABLE_TYPE =
             "http://www.dbunit.org/properties/tableType";
+    /** Name of the property configuring the {@link IColumnFilter} used to determine primary key columns. */
     public static final String PROPERTY_PRIMARY_KEY_FILTER =
             "http://www.dbunit.org/properties/primaryKeyFilter";
+    /** Name of the property configuring the batch size used for batched statements. */
     public static final String PROPERTY_BATCH_SIZE =
     		"http://www.dbunit.org/properties/batchSize";
-	public static final String PROPERTY_FETCH_SIZE = 
+	/** Name of the property configuring the JDBC fetch size used for result sets. */
+	public static final String PROPERTY_FETCH_SIZE =
 			"http://www.dbunit.org/properties/fetchSize";
+	/** Name of the property configuring the {@link IMetadataHandler} implementation to use. */
 	public static final String PROPERTY_METADATA_HANDLER =
 	        "http://www.dbunit.org/properties/metadataHandler";
+	/**
+	 * Name of the property configuring whether verifying a table definition allows the expected
+	 * table to have a different column count.
+	 */
 	public static final String PROPERTY_ALLOW_VERIFYTABLEDEFINITION_EXPECTEDTABLE_COUNT_MISMATCH =
 	        "http://www.dbunit.org/properties/allowVerifytabledefinitionExpectedtableCountMismatch";
+    /** Name of the property configuring the {@link IColumnFilter} used to determine MS SQL identity columns. */
     public static final String PROPERTY_IDENTITY_COLUMN_FILTER =
             "http://www.dbunit.org/properties/mssql/identityColumnFilter";
 
+    /** Name of the feature controlling whether table names are treated as case sensitive. */
     public static final String FEATURE_CASE_SENSITIVE_TABLE_NAMES =
         "http://www.dbunit.org/features/caseSensitiveTableNames";
+    /** Name of the feature controlling whether table names are qualified with the schema name. */
     public static final String FEATURE_QUALIFIED_TABLE_NAMES =
         "http://www.dbunit.org/features/qualifiedTableNames";
+    /** Name of the feature controlling whether batched statements are used. */
     public static final String FEATURE_BATCHED_STATEMENTS =
         "http://www.dbunit.org/features/batchedStatements";
+    /** Name of the feature controlling whether unsupported data type warnings are logged. */
     public static final String FEATURE_DATATYPE_WARNING =
         "http://www.dbunit.org/features/datatypeWarning";
+    /** Name of the feature controlling whether Oracle recycle bin tables are skipped. */
     public static final String FEATURE_SKIP_ORACLE_RECYCLEBIN_TABLES =
         "http://www.dbunit.org/features/skipOracleRecycleBinTables";
+    /** Name of the feature controlling whether empty fields are allowed in flat XML datasets. */
     public static final String FEATURE_ALLOW_EMPTY_FIELDS =
             "http://www.dbunit.org/features/allowEmptyFields";
+    /** Name of the feature controlling whether all columns are used for sorting when a table has no primary key. */
     public static final String FEATURE_SORT_ALL_COLUMNS_WHEN_NO_PRIMARY_KEY =
             "http://www.dbunit.org/features/sortAllColumnsWhenNoPrimaryKey";
 
@@ -147,6 +168,9 @@ public class DatabaseConfig
     
     private final Configurator configurator;
 
+    /**
+     * Constructs a database config with the framework's default properties and features.
+     */
     public DatabaseConfig()
     {
         setFeature(FEATURE_BATCHED_STATEMENTS, false);
@@ -172,9 +196,11 @@ public class DatabaseConfig
     }
 
     /**
+     * Returns the configurator of this database config.
+     *
      * @return The configurator of this database config
      */
-    protected Configurator getConfigurator() 
+    protected Configurator getConfigurator()
     {
         return configurator;
     }
@@ -327,7 +353,7 @@ public class DatabaseConfig
      * specified as string.
      * @param stringProperties The properties as strings. The key of the properties can be either the long or
      * the short name.
-     * @throws DatabaseUnitException 
+     * @throws DatabaseUnitException if a string value cannot be converted to its required property type.
      */
     public void setPropertiesByString(Properties stringProperties) throws DatabaseUnitException
     {
@@ -487,6 +513,13 @@ public class DatabaseConfig
         private Class propertyType;
         private boolean nullable;
         
+        /**
+         * Creates a descriptor for a configuration property.
+         *
+         * @param property the property name.
+         * @param propertyType the allowed java type of the property's value.
+         * @param nullable whether the property's value may be <code>null</code>.
+         */
         public ConfigProperty(String property, Class propertyType, boolean nullable) {
             super();
             
@@ -504,14 +537,26 @@ public class DatabaseConfig
             this.nullable = nullable;
         }
         
+        /**
+         * Returns the property name.
+         * @return the property name.
+         */
         public String getProperty() {
             return property;
         }
 
+        /**
+         * Returns the allowed java type of the property's value.
+         * @return the allowed java type of the property's value.
+         */
         public Class getPropertyType() {
             return propertyType;
         }
 
+        /**
+         * Returns whether the property's value may be <code>null</code>.
+         * @return <code>true</code> if the property's value may be <code>null</code>.
+         */
         public boolean isNullable() {
             return nullable;
         }
@@ -572,6 +617,8 @@ public class DatabaseConfig
         private DatabaseConfig config;
         
         /**
+         * Creates a configurator backed by the given database config.
+         *
          * @param config The configuration to be used by this configurator
          * @since 2.4.4
          */

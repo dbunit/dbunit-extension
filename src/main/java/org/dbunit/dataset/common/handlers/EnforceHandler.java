@@ -48,12 +48,24 @@ public class EnforceHandler extends AbstractPipelineComponent {
     }
 
 
+    /**
+     * Creates a handler that enforces the given component to handle the character.
+     *
+     * @param component the component that must handle the character.
+     * @return the new pipeline component.
+     */
     public static final PipelineComponent ENFORCE(PipelineComponent component) {
         logger.debug("ENFORCE(component={}) - start", component);
 
         return EnforceHandler.ENFORCE(new PipelineComponent [] {component});
     }
 
+    /**
+     * Creates a handler that enforces the first of the given components able to handle the character.
+     *
+     * @param components the components, tried in order, one of which must handle the character.
+     * @return the new pipeline component.
+     */
     public static final PipelineComponent ENFORCE(PipelineComponent [] components) {
         logger.debug("ENFORCE(components={}) - start", (Object) components);
 
@@ -83,12 +95,22 @@ public class EnforceHandler extends AbstractPipelineComponent {
         super.setPipeline(pipeline);
     }
 
+    /**
+     * Returns the components tried, in order, to handle a character.
+     *
+     * @return the components tried, in order, to handle a character.
+     */
     protected PipelineComponent[] getEnforcedComponents() {
         logger.debug("getEnforcedComponents() - start");
 
         return enforcedComponents;
     }
 
+    /**
+     * Sets the components tried, in order, to handle a character.
+     *
+     * @param enforcedComponents the components tried, in order, to handle a character.
+     */
     protected void setEnforcedComponents(PipelineComponent[] enforcedComponents) {
         logger.debug("setEnforcedComponents(enforcedComponents={}) - start", (Object) enforcedComponents);
 

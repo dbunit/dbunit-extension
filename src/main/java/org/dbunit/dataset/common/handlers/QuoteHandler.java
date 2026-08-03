@@ -39,31 +39,50 @@ public class QuoteHandler extends AbstractPipelineComponent {
      */
     private static final Logger logger = LoggerFactory.getLogger(QuoteHandler.class);
 
+    /** The character that delimits a quoted CSV field. */
     public static final char QUOTE_CHAR = '"';
 
-
-    
     private QuoteHandler() {
     }
 
+    /**
+     * Creates a handler that accepts the quote character.
+     *
+     * @return the new pipeline component.
+     */
     public static final PipelineComponent ACCEPT() {
         logger.debug("ACCEPT() - start");
 
         return createPipelineComponent(new QuoteHandler(), new ACCEPT());
     }
 
+    /**
+     * Creates a handler that ignores the quote character.
+     *
+     * @return the new pipeline component.
+     */
     public static final PipelineComponent IGNORE() {
         logger.debug("IGNORE() - start");
 
         return createPipelineComponent(new QuoteHandler(), new IGNORE());
     }
 
+    /**
+     * Creates a handler that starts a quoted field on the quote character.
+     *
+     * @return the new pipeline component.
+     */
     public static final PipelineComponent QUOTE() {
         logger.debug("QUOTE() - start");
 
         return createPipelineComponent(new QuoteHandler(), new QUOTE());
     }
 
+    /**
+     * Creates a handler that ends a quoted field on the quote character.
+     *
+     * @return the new pipeline component.
+     */
     public static final PipelineComponent UNQUOTE() {
         logger.debug("UNQUOTE() - start");
 
@@ -80,7 +99,10 @@ public class QuoteHandler extends AbstractPipelineComponent {
         return false;
     }
 
-
+    /**
+     * Helper that starts a quoted field, re-arranging the pipeline to accept characters
+     * literally until the closing quote.
+     */
     static protected class QUOTE extends Helper {
 
         /**
@@ -102,6 +124,9 @@ public class QuoteHandler extends AbstractPipelineComponent {
 
     }
 
+    /**
+     * Helper that ends a quoted field, restoring the pipeline's pre-quote state.
+     */
     static protected class UNQUOTE extends Helper {
 
         /**

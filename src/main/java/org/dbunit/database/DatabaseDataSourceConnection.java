@@ -53,12 +53,33 @@ public class DatabaseDataSourceConnection extends AbstractDatabaseConnection
     private final String _password;
     private Connection _connection;
 
+    /**
+     * Creates a connection using the data source bound at the given JNDI name, in the given schema.
+     *
+     * @param context the JNDI context to look up the data source in.
+     * @param jndiName the JNDI name the data source is bound at.
+     * @param schema the database schema.
+     * @throws NamingException if the JNDI lookup fails.
+     * @throws SQLException if a database access error occurs.
+     */
     public DatabaseDataSourceConnection(InitialContext context, String jndiName,
             String schema) throws NamingException, SQLException
     {
         this((DataSource)context.lookup(jndiName), schema, null, null);
     }
 
+    /**
+     * Creates a connection using the data source bound at the given JNDI name, in the given schema,
+     * authenticating with the given credentials.
+     *
+     * @param context the JNDI context to look up the data source in.
+     * @param jndiName the JNDI name the data source is bound at.
+     * @param schema the database schema.
+     * @param user the database user.
+     * @param password the database password.
+     * @throws NamingException if the JNDI lookup fails.
+     * @throws SQLException if a database access error occurs.
+     */
     public DatabaseDataSourceConnection(InitialContext context, String jndiName,
             String schema, String user, String password)
             throws NamingException, SQLException
@@ -66,36 +87,86 @@ public class DatabaseDataSourceConnection extends AbstractDatabaseConnection
         this((DataSource)context.lookup(jndiName), schema, user, password);
     }
 
+    /**
+     * Creates a connection using the data source bound at the given JNDI name.
+     *
+     * @param context the JNDI context to look up the data source in.
+     * @param jndiName the JNDI name the data source is bound at.
+     * @throws NamingException if the JNDI lookup fails.
+     * @throws SQLException if a database access error occurs.
+     */
     public DatabaseDataSourceConnection(InitialContext context, String jndiName)
             throws NamingException, SQLException
     {
         this(context, jndiName, null);
     }
 
+    /**
+     * Creates a connection using the data source bound at the given JNDI name, authenticating
+     * with the given credentials.
+     *
+     * @param context the JNDI context to look up the data source in.
+     * @param jndiName the JNDI name the data source is bound at.
+     * @param user the database user.
+     * @param password the database password.
+     * @throws NamingException if the JNDI lookup fails.
+     * @throws SQLException if a database access error occurs.
+     */
     public DatabaseDataSourceConnection(InitialContext context, String jndiName,
             String user, String password) throws NamingException, SQLException
     {
         this(context, jndiName, null, user, password);
     }
 
+    /**
+     * Creates a connection using the given data source.
+     *
+     * @param dataSource the data source to adapt.
+     * @throws SQLException if a database access error occurs.
+     */
     public DatabaseDataSourceConnection(DataSource dataSource)
             throws SQLException
     {
         this(dataSource, null, null, null);
     }
 
+    /**
+     * Creates a connection using the given data source, authenticating with the given credentials.
+     *
+     * @param dataSource the data source to adapt.
+     * @param user the database user.
+     * @param password the database password.
+     * @throws SQLException if a database access error occurs.
+     */
     public DatabaseDataSourceConnection(DataSource dataSource, String user,
             String password) throws SQLException
     {
         this(dataSource, null, user, password);
     }
 
+    /**
+     * Creates a connection using the given data source, in the given schema.
+     *
+     * @param dataSource the data source to adapt.
+     * @param schema the database schema.
+     * @throws SQLException if a database access error occurs.
+     */
     public DatabaseDataSourceConnection(DataSource dataSource, String schema)
             throws SQLException
     {
         this(dataSource, schema, null, null);
     }
 
+    /**
+     * Creates a connection using the given data source, in the given schema, authenticating
+     * with the given credentials.
+     *
+     * @param dataSource the data source to adapt.
+     * @param schema the database schema.
+     * @param user the database user.
+     * @param password the database password.
+     * @throws SQLException if a database access error occurs.
+     */
     public DatabaseDataSourceConnection(DataSource dataSource, String schema,
             String user, String password) throws SQLException
     {
