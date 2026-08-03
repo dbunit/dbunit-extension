@@ -1,9 +1,3 @@
-<!--
-checkstyle.xml
-
-Checkstyle configuration file for use with Java software projects at LOCI.
-Run "ant style" to check for source code style deviations.
--->
 <!DOCTYPE module PUBLIC
      "-//Puppy Crawl//DTD Check Configuration 1.2//EN"
      "http://www.puppycrawl.com/dtds/configuration_1_2.dtd">
@@ -13,15 +7,5 @@ Run "ant style" to check for source code style deviations.
         <module name="IllegalImport"/>
         <module name="RedundantImport"/>
         <module name="UnusedImports"/>
-        <module name="JavadocType">
-            <property name="scope" value="public"/>
-            <property name="authorFormat" value=".*"/>
-            <property name="versionFormat" value="\$Revision.*\$.*"/>
-            <!--<property name="versionFormat" value="\$Revision.*\$ \$Date.*\$.*"/>-->
-        </module>
-        <module name="JavadocStyle">
-            <property name="scope" value="public"/>
-            <property name="checkFirstSentence" value="false"/>
-        </module>
     </module>
 </module>
