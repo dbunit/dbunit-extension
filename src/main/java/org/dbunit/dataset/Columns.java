@@ -226,7 +226,7 @@ public class Columns
      * 
      * @param metaData The metaData needed to get the columns to be sorted
      * @return The columns sorted by their column names, ignoring the case of the column names
-     * @throws DataSetException
+     * @throws DataSetException if the columns cannot be retrieved from the given metadata.
      */
     public static Column[] getSortedColumns(ITableMetaData metaData)
     throws DataSetException
@@ -303,10 +303,10 @@ public class Columns
     
 	/**
 	 * Returns the column difference of the two given {@link ITableMetaData} objects
-	 * @param expectedMetaData
-	 * @param actualMetaData
+	 * @param expectedMetaData the metadata of the expected results table.
+	 * @param actualMetaData the metadata of the actual results table.
 	 * @return The columns that differ in the both given {@link ITableMetaData} objects
-	 * @throws DataSetException
+	 * @throws DataSetException if the columns cannot be retrieved from the given metadata.
 	 */
 	public static ColumnDiff getColumnDiff(ITableMetaData expectedMetaData,
 			ITableMetaData actualMetaData) 
@@ -374,7 +374,7 @@ public class Columns
     	 * Creates the difference between the two metadata's columns
     	 * @param expectedMetaData The metadata of the expected results table
     	 * @param actualMetaData The metadata of the actual results table
-    	 * @throws DataSetException
+    	 * @throws DataSetException if the columns cannot be retrieved from the given metadata.
     	 */
     	public ColumnDiff(ITableMetaData expectedMetaData,
 				ITableMetaData actualMetaData) 
@@ -430,6 +430,8 @@ public class Columns
 		}
 
     	/**
+    	 * Returns whether there is a difference in the columns given in the constructor.
+    	 *
     	 * @return <code>true</code> if there is a difference in the columns given in the constructor
     	 */
     	public boolean hasDifference()
@@ -438,6 +440,8 @@ public class Columns
     	}
 
 		/**
+		 * Returns the columns that exist in the expected result but not in the actual.
+		 *
     	 * @return The columns that exist in the expected result but not in the actual
     	 */
     	public Column[] getExpected() {
@@ -445,6 +449,8 @@ public class Columns
 		}
 
 		/**
+		 * Returns the columns that exist in the actual result but not in the expected.
+		 *
 		 * @return The columns that exist in the actual result but not in the expected
 		 */
 		public Column[] getActual() {
@@ -452,6 +458,8 @@ public class Columns
 		}
 
 		/**
+		 * Returns {@link #getExpected()} as a formatted string.
+		 *
 		 * @return The value of {@link #getExpected()} as formatted string
 		 * @see #getExpected()
 		 */
@@ -460,6 +468,8 @@ public class Columns
 		}
 
 		/**
+		 * Returns {@link #getActual()} as a formatted string.
+		 *
 		 * @return The value of {@link #getActual()} as formatted string
 		 * @see #getActual()
 		 */
@@ -468,10 +478,12 @@ public class Columns
 		}
 
 		/**
+		 * Builds a pretty formatted message describing the column difference.
+		 *
 		 * @return A pretty formatted message that can be used for user information
-		 * @throws DataSetException
+		 * @throws DataSetException if the columns cannot be retrieved from the given metadata.
 		 */
-		public String getMessage() throws DataSetException 
+		public String getMessage() throws DataSetException
 		{
 	        logger.debug("getMessage() - start");
 

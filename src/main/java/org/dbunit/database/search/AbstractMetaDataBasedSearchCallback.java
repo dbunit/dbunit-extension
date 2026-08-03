@@ -73,24 +73,29 @@ public abstract class AbstractMetaDataBasedSearchCallback extends AbstractNodesF
         return connection;
     }
 
+    /** Identifies a lookup of imported (incoming) foreign keys. */
     protected static final int IMPORT = 0;
+    /** Identifies a lookup of exported (outgoing) foreign keys. */
     protected static final int EXPORT = 1;
 
-    /** 
-     * indexes of the column names on the MetaData result sets.
+    /**
+     * Indexes of the column names on the MetaData result sets.
      */
-    protected static final int[] TABLENAME_INDEXES = { 3, 7 };  
-    protected static final int[] SCHEMANAME_INDEXES = { 2, 6 };  
+    protected static final int[] TABLENAME_INDEXES = { 3, 7 };
+    /** Result set column indexes, by {@link #IMPORT}/{@link #EXPORT}, holding the schema name. */
+    protected static final int[] SCHEMANAME_INDEXES = { 2, 6 };
+    /** Result set column indexes, by {@link #IMPORT}/{@link #EXPORT}, holding the primary key column name. */
     protected static final int[] PK_INDEXES = { 4, 4 };
+    /** Result set column indexes, by {@link #IMPORT}/{@link #EXPORT}, holding the foreign key column name. */
     protected static final int[] FK_INDEXES = { 8, 8 };
 
 
     /**
      * Get the nodes using the direct foreign key dependency, i.e, if table A has
      * a FK for a table B, then getNodesFromImportedKeys(A) will return B.
-     * @param node table name 
+     * @param node table name
      * @return tables with direct FK dependency from node
-     * @throws SearchException
+     * @throws SearchException if the database metadata query fails.
      */
     protected SortedSet getNodesFromImportedKeys(Object node)
     throws SearchException {
@@ -108,9 +113,9 @@ public abstract class AbstractMetaDataBasedSearchCallback extends AbstractNodesF
      * or something similar, otherwise the generated sequence of tables might not
      * work when inserted in the database (as some tables might be missing).
      * <br>
-     * @param node table name 
+     * @param node table name
      * @return tables with reverse FK dependency from node
-     * @throws SearchException
+     * @throws SearchException if the database metadata query fails.
      */
     protected SortedSet getNodesFromExportedKeys(Object node)
     throws SearchException {
@@ -123,9 +128,9 @@ public abstract class AbstractMetaDataBasedSearchCallback extends AbstractNodesF
      * Get the nodes using the both direct and reverse foreign key dependency, i.e, 
      * if table C has a FK for a table A and table A has a FK for a table B, then 
      * getNodesFromImportAndExportedKeys(A) will return B and C.
-     * @param node table name 
+     * @param node table name
      * @return tables with reverse and direct FK dependency from node
-     * @throws SearchException
+     * @throws SearchException if the database metadata query fails.
      */
     protected SortedSet getNodesFromImportAndExportKeys(Object node)
     throws SearchException {

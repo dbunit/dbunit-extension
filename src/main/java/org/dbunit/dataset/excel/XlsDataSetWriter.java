@@ -55,7 +55,7 @@ import org.slf4j.LoggerFactory;
  * @version $Revision$ $Date$
  * @since 2.4.0
  */
-public class XlsDataSetWriter 
+public class XlsDataSetWriter
 {
     private static final Logger logger = LoggerFactory.getLogger(XlsDataSetWriter.class);
 
@@ -101,6 +101,11 @@ public class XlsDataSetWriter
 
     /**
      * Write the specified dataset to the specified Excel document.
+     *
+     * @param dataSet the dataset to write.
+     * @param out the stream to write the Excel document to.
+     * @throws IOException if writing to the stream fails.
+     * @throws DataSetException if the dataset cannot be read.
      */
     public void write(IDataSet dataSet, OutputStream out)
             throws IOException, DataSetException
@@ -187,12 +192,25 @@ public class XlsDataSetWriter
         }
     }
     
+    /**
+     * Returns the cell style used to render {@link Date} values stored as numbers.
+     *
+     * @param workbook the workbook to create the style in.
+     * @return the cell style used to render {@link Date} values stored as numbers.
+     */
     protected static CellStyle createDateCellStyle(Workbook workbook) {
         DataFormat format = workbook.createDataFormat();
         short dateFormatCode = format.getFormat(DATE_FORMAT_AS_NUMBER_DBUNIT);
         return getCellStyle(workbook, dateFormatCode);
     }
 
+    /**
+     * Returns the cell style for the given format code, creating and caching one if absent.
+     *
+     * @param workbook the workbook to find or create the style in.
+     * @param formatCode the data format code the style must have.
+     * @return the cell style for the given format code.
+     */
     protected static CellStyle getCellStyle(Workbook workbook, short formatCode)
     {
         Map<Short, CellStyle> map = findWorkbookCellStyleMap(workbook);
@@ -201,12 +219,27 @@ public class XlsDataSetWriter
         return cellStyle;
     }
 
+    /**
+     * Returns the cell style cache for the given workbook, creating one if absent.
+     *
+     * @param workbook the workbook to find or create the cell style cache for.
+     * @return the cell style cache for the given workbook.
+     */
     protected static Map<Short, CellStyle> findWorkbookCellStyleMap(
             Workbook workbook)
     {
         return cellStyleMap.computeIfAbsent(workbook, k -> new HashMap<Short, CellStyle>());
     }
 
+    /**
+     * Returns the cell style for the given format code from the given cache, creating and
+     * caching one if absent.
+     *
+     * @param workbook the workbook to create a new style in, if needed.
+     * @param formatCode the data format code the style must have.
+     * @param map the cell style cache to look up and populate.
+     * @return the cell style for the given format code.
+     */
     protected static CellStyle findCellStyle(Workbook workbook,
             Short formatCode, Map<Short, CellStyle> map)
     {
@@ -221,7 +254,14 @@ public class XlsDataSetWriter
         return cellStyle;
     }
 
-    protected void setDateCell(Cell cell, Date value, Workbook workbook) 
+    /**
+     * Sets the given cell to the given date value, stored as a number.
+     *
+     * @param cell the cell to set.
+     * @param value the date value to set.
+     * @param workbook the workbook the cell belongs to.
+     */
+    protected void setDateCell(Cell cell, Date value, Workbook workbook)
     {
 //        double excelDateValue = HSSFDateUtil.getExcelDate(value);
 //        cell.setCellValue(excelDateValue);
@@ -283,6 +323,13 @@ public class XlsDataSetWriter
 
     }
 
+    /**
+     * Sets the given cell to the given numeric value, preserving its scale.
+     *
+     * @param cell the cell to set.
+     * @param value the numeric value to set.
+     * @param workbook the workbook the cell belongs to.
+     */
     protected void setNumericCell(Cell cell, BigDecimal value, Workbook workbook)
     {
         if(logger.isDebugEnabled())
@@ -346,6 +393,11 @@ public class XlsDataSetWriter
         return new String(zeros);
     }
     
+    /**
+     * Creates the workbook written to by {@link #write(IDataSet, OutputStream)}.
+     *
+     * @return the new workbook.
+     */
     protected Workbook createWorkbook() {
         return new HSSFWorkbook();
     }

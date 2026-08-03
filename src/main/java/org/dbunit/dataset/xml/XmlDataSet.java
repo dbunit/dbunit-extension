@@ -68,6 +68,9 @@ public class XmlDataSet extends CachedDataSet
 
     /**
      * Creates an XmlDataSet with the specified xml reader.
+     *
+     * @param reader the reader to load the xml document from.
+     * @throws DataSetException if the document cannot be parsed.
      */
     public XmlDataSet(Reader reader) throws DataSetException
     {
@@ -76,6 +79,9 @@ public class XmlDataSet extends CachedDataSet
 
     /**
      * Creates an XmlDataSet with the specified xml input stream.
+     *
+     * @param in the stream to load the xml document from.
+     * @throws DataSetException if the document cannot be parsed.
      */
     public XmlDataSet(InputStream in) throws DataSetException
     {
@@ -84,6 +90,11 @@ public class XmlDataSet extends CachedDataSet
 
     /**
      * Write the specified dataset to the specified output stream as xml.
+     *
+     * @param dataSet the dataset to write.
+     * @param out the stream to write the xml document to.
+     * @throws IOException if writing to the stream fails.
+     * @throws DataSetException if the dataset cannot be read.
      */
     public static void write(IDataSet dataSet, OutputStream out)
             throws IOException, DataSetException
@@ -94,6 +105,12 @@ public class XmlDataSet extends CachedDataSet
 
     /**
      * Write the specified dataset to the specified output stream as xml (using specified encoding).
+     *
+     * @param dataSet the dataset to write.
+     * @param out the stream to write the xml document to.
+     * @param charset the character encoding to write the document in.
+     * @throws IOException if writing to the stream fails.
+     * @throws DataSetException if the dataset cannot be read.
      */
     public static void write(IDataSet dataSet, OutputStream out, Charset charset)
             throws IOException, DataSetException
@@ -107,6 +124,11 @@ public class XmlDataSet extends CachedDataSet
 
     /**
      * Write the specified dataset to the specified writer as xml.
+     *
+     * @param dataSet the dataset to write.
+     * @param writer the writer to write the xml document to.
+     * @throws IOException if writing to the writer fails.
+     * @throws DataSetException if the dataset cannot be read.
      */
     public static void write(IDataSet dataSet, Writer writer)
             throws IOException, DataSetException
@@ -117,6 +139,12 @@ public class XmlDataSet extends CachedDataSet
 
     /**
      * Write the specified dataset to the specified writer as xml.
+     *
+     * @param dataSet the dataset to write.
+     * @param writer the writer to write the xml document to.
+     * @param charset the character encoding to write the document in.
+     * @throws IOException if writing to the writer fails.
+     * @throws DataSetException if the dataset cannot be read.
      */
     public static void write(IDataSet dataSet, Writer writer, Charset charset)
             throws IOException, DataSetException

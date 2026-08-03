@@ -32,6 +32,11 @@ import org.dbunit.DatabaseUnitRuntimeException;
  * @since Sep 12, 2004 (pre 2.3)
  */
 public class CsvParserException extends DatabaseUnitRuntimeException {
+    /**
+     * Constructs a <code>CsvParserException</code> with the specified detail message.
+     *
+     * @param message the detail message.
+     */
     public CsvParserException(String message) {
         super(message);
     }

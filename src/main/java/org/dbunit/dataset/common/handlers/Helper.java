@@ -24,7 +24,6 @@ package org.dbunit.dataset.common.handlers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 /**
  * Abstract helper that assists a {@link PipelineComponent} in processing a character.
  *
@@ -44,6 +43,13 @@ public abstract class Helper {
 
     abstract void helpWith(char c) throws PipelineException;
 
+    /**
+     * Returns whether this helper allows input to end while it is active. The default
+     * implementation always allows it.
+     *
+     * @return <code>true</code> if ending input now is allowed.
+     * @throws IllegalStateException if this helper's state cannot be evaluated.
+     */
     public boolean allowForNoMoreInput() throws IllegalStateException {
         return true;
     }

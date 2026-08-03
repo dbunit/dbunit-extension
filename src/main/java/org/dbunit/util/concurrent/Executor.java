@@ -64,6 +64,9 @@ public interface Executor {
    * Further, the general contract of the method is to avoid,
    * suppress, or abort execution if interruption is detected
    * in any controllable context surrounding execution.
+   * @param command the command to execute.
+   * @throws InterruptedException if the current thread is interrupted before execution
+   *         could be arranged.
    **/
   public void execute(Runnable command) throws InterruptedException;
 

@@ -42,10 +42,18 @@ public abstract class DataSourceBasedDBTestCase extends DBTestCase
      */
     private static final Logger logger = LoggerFactory.getLogger(DataSourceBasedDBTestCase.class);
 
+   /**
+    * Creates a testCase with no name.
+    */
    public DataSourceBasedDBTestCase()
    {
    }
 
+   /**
+    * Creates a testCase with the given name.
+    *
+    * @param name the test case name.
+    */
    public DataSourceBasedDBTestCase( String name )
    {
       super( name );
@@ -65,6 +73,8 @@ public abstract class DataSourceBasedDBTestCase extends DBTestCase
 
    /**
     * Returns the test DataSource.
+    *
+    * @return the test DataSource.
     */
    protected abstract DataSource getDataSource();
 }

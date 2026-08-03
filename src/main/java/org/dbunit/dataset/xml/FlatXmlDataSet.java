@@ -101,7 +101,7 @@ public class FlatXmlDataSet extends CachedDataSet
     /**
      * Creates a new {@link FlatXmlDataSet} with the data of the given producer.
      * @param flatXmlProducer The producer that provides the {@link FlatXmlDataSet} content
-     * @throws DataSetException 
+     * @throws DataSetException if the dataset cannot be built.
      * @since 2.4.7
      */
     public FlatXmlDataSet(FlatXmlProducer flatXmlProducer) throws DataSetException
@@ -111,6 +111,9 @@ public class FlatXmlDataSet extends CachedDataSet
     
     /**
      * Creates an FlatXmlDataSet object with the specified InputSource.
+     * @param source the XML input source.
+     * @throws IOException if the input cannot be read.
+     * @throws DataSetException if the dataset cannot be built.
      * @deprecated since 2.4.7 - use {@link FlatXmlDataSetBuilder} to create a {@link FlatXmlDataSet}
      */
     public FlatXmlDataSet(InputSource source) throws IOException, DataSetException
@@ -123,6 +126,8 @@ public class FlatXmlDataSet extends CachedDataSet
      * Relative DOCTYPE uri are resolved from the xml file path.
      *
      * @param xmlFile the xml file
+     * @throws IOException if the input cannot be read.
+     * @throws DataSetException if the dataset cannot be built.
      * @deprecated since 2.4.7 - use {@link FlatXmlDataSetBuilder} to create a {@link FlatXmlDataSet}
      */
     public FlatXmlDataSet(File xmlFile) throws IOException, DataSetException
@@ -136,6 +141,8 @@ public class FlatXmlDataSet extends CachedDataSet
      *
      * @param xmlFile the xml file
      * @param dtdMetadata if <code>false</code> do not use DTD as metadata
+     * @throws IOException if the input cannot be read.
+     * @throws DataSetException if the dataset cannot be built.
      * @deprecated since 2.4.7 - use {@link FlatXmlDataSetBuilder} to create a {@link FlatXmlDataSet}
      */
     public FlatXmlDataSet(File xmlFile, boolean dtdMetadata)
@@ -152,6 +159,8 @@ public class FlatXmlDataSet extends CachedDataSet
      * @param dtdMetadata if <code>false</code> do not use DTD as metadata
      * @param columnSensing Whether or not the columns should be sensed automatically. Every XML row
      * is scanned for columns that have not been there in a previous column.
+     * @throws IOException if the input cannot be read.
+     * @throws DataSetException if the dataset cannot be built.
      * @deprecated since 2.4.7 - use {@link FlatXmlDataSetBuilder} to create a {@link FlatXmlDataSet}
      */
     public FlatXmlDataSet(File xmlFile, boolean dtdMetadata, boolean columnSensing)
@@ -169,6 +178,8 @@ public class FlatXmlDataSet extends CachedDataSet
      * @param columnSensing Whether or not the columns should be sensed automatically. Every XML row
      * is scanned for columns that have not been there in a previous column.
      * @param caseSensitiveTableNames Whether or not this dataset should use case sensitive table names
+     * @throws IOException if the input cannot be read.
+     * @throws DataSetException if the dataset cannot be built.
      * @deprecated since 2.4.7 - use {@link FlatXmlDataSetBuilder} to create a {@link FlatXmlDataSet}
      */
     public FlatXmlDataSet(File xmlFile, boolean dtdMetadata, boolean columnSensing, boolean caseSensitiveTableNames)
@@ -182,6 +193,8 @@ public class FlatXmlDataSet extends CachedDataSet
      * Relative DOCTYPE uri are resolved from the xml file path.
      *
      * @param xmlUrl the xml URL
+     * @throws IOException if the input cannot be read.
+     * @throws DataSetException if the dataset cannot be built.
      * @deprecated since 2.4.7 - use {@link FlatXmlDataSetBuilder} to create a {@link FlatXmlDataSet}
      */
     public FlatXmlDataSet(URL xmlUrl) throws IOException, DataSetException
@@ -195,6 +208,8 @@ public class FlatXmlDataSet extends CachedDataSet
      *
      * @param xmlUrl the xml URL
      * @param dtdMetadata if <code>false</code> do not use DTD as metadata
+     * @throws IOException if the input cannot be read.
+     * @throws DataSetException if the dataset cannot be built.
      * @deprecated since 2.4.7 - use {@link FlatXmlDataSetBuilder} to create a {@link FlatXmlDataSet}
      */
     public FlatXmlDataSet(URL xmlUrl, boolean dtdMetadata)
@@ -212,6 +227,8 @@ public class FlatXmlDataSet extends CachedDataSet
      * @param dtdMetadata if <code>false</code> do not use DTD as metadata
      * @param columnSensing Whether or not the columns should be sensed automatically. Every XML row
      * is scanned for columns that have not been there in a previous column.
+     * @throws IOException if the input cannot be read.
+     * @throws DataSetException if the dataset cannot be built.
      * @deprecated since 2.4.7 - use {@link FlatXmlDataSetBuilder} to create a {@link FlatXmlDataSet}
      */
     public FlatXmlDataSet(URL xmlUrl, boolean dtdMetadata, boolean columnSensing)
@@ -230,6 +247,8 @@ public class FlatXmlDataSet extends CachedDataSet
      * @param columnSensing Whether or not the columns should be sensed automatically. Every XML row
      * is scanned for columns that have not been there in a previous column.
      * @param caseSensitiveTableNames Whether or not this dataset should use case sensitive table names
+     * @throws IOException if the input cannot be read.
+     * @throws DataSetException if the dataset cannot be built.
      * @deprecated since 2.4.7 - use {@link FlatXmlDataSetBuilder} to create a {@link FlatXmlDataSet}
      */
     public FlatXmlDataSet(URL xmlUrl, boolean dtdMetadata, boolean columnSensing, boolean caseSensitiveTableNames)
@@ -245,6 +264,8 @@ public class FlatXmlDataSet extends CachedDataSet
      * Relative DOCTYPE uri are resolved from the current working directory.
      *
      * @param xmlReader the xml reader
+     * @throws IOException if the input cannot be read.
+     * @throws DataSetException if the dataset cannot be built.
      * @deprecated since 2.4.7 - use {@link FlatXmlDataSetBuilder} to create a {@link FlatXmlDataSet}
      */
     public FlatXmlDataSet(Reader xmlReader) throws IOException, DataSetException
@@ -258,6 +279,8 @@ public class FlatXmlDataSet extends CachedDataSet
      *
      * @param xmlReader the xml reader
      * @param dtdMetadata if <code>false</code> do not use DTD as metadata
+     * @throws IOException if the input cannot be read.
+     * @throws DataSetException if the dataset cannot be built.
      * @deprecated since 2.4.7 - use {@link FlatXmlDataSetBuilder} to create a {@link FlatXmlDataSet}
      */
     public FlatXmlDataSet(Reader xmlReader, boolean dtdMetadata)
@@ -276,6 +299,8 @@ public class FlatXmlDataSet extends CachedDataSet
      * is scanned for columns that have not been there in a previous column.
      * @param caseSensitiveTableNames Whether or not this dataset should use case sensitive table names
      * @since 2.4.3
+     * @throws IOException if the input cannot be read.
+     * @throws DataSetException if the dataset cannot be built.
      * @deprecated since 2.4.7 - use {@link FlatXmlDataSetBuilder} to create a {@link FlatXmlDataSet}
      */
     public FlatXmlDataSet(Reader xmlReader, boolean dtdMetadata, boolean columnSensing, boolean caseSensitiveTableNames)
@@ -290,6 +315,8 @@ public class FlatXmlDataSet extends CachedDataSet
      *
      * @param xmlReader the xml reader
      * @param dtdReader the dtd reader
+     * @throws IOException if the input cannot be read.
+     * @throws DataSetException if the dataset cannot be built.
      * @deprecated since 2.4.7 - use {@link FlatXmlDataSetBuilder} to create a {@link FlatXmlDataSet}
      */
     public FlatXmlDataSet(Reader xmlReader, Reader dtdReader)
@@ -303,6 +330,8 @@ public class FlatXmlDataSet extends CachedDataSet
      *
      * @param xmlReader the xml reader
      * @param metaDataSet the dataset used as metadata source.
+     * @throws IOException if the input cannot be read.
+     * @throws DataSetException if the dataset cannot be built.
      * @deprecated since 2.4.7 - use {@link FlatXmlDataSetBuilder} to create a {@link FlatXmlDataSet}
      */
     public FlatXmlDataSet(Reader xmlReader, IDataSet metaDataSet)
@@ -316,6 +345,8 @@ public class FlatXmlDataSet extends CachedDataSet
      * Relative DOCTYPE uri are resolved from the current working directory.
      *
      * @param xmlStream the xml input stream
+     * @throws IOException if the input cannot be read.
+     * @throws DataSetException if the dataset cannot be built.
      * @deprecated since 2.4.7 - use {@link FlatXmlDataSetBuilder} to create a {@link FlatXmlDataSet}
      */
     public FlatXmlDataSet(InputStream xmlStream) throws IOException, DataSetException
@@ -329,6 +360,8 @@ public class FlatXmlDataSet extends CachedDataSet
      *
      * @param xmlStream the xml input stream
      * @param dtdMetadata if <code>false</code> do not use DTD as metadata
+     * @throws IOException if the input cannot be read.
+     * @throws DataSetException if the dataset cannot be built.
      * @deprecated since 2.4.7 - use {@link FlatXmlDataSetBuilder} to create a {@link FlatXmlDataSet}
      */
     public FlatXmlDataSet(InputStream xmlStream, boolean dtdMetadata)
@@ -343,6 +376,8 @@ public class FlatXmlDataSet extends CachedDataSet
      *
      * @param xmlStream the xml input stream
      * @param dtdStream the dtd input stream
+     * @throws IOException if the input cannot be read.
+     * @throws DataSetException if the dataset cannot be built.
      * @deprecated since 2.4.7 - use {@link FlatXmlDataSetBuilder} to create a {@link FlatXmlDataSet}
      */
     public FlatXmlDataSet(InputStream xmlStream, InputStream dtdStream)
@@ -356,6 +391,8 @@ public class FlatXmlDataSet extends CachedDataSet
      *
      * @param xmlStream the xml input stream
      * @param metaDataSet the dataset used as metadata source.
+     * @throws IOException if the input cannot be read.
+     * @throws DataSetException if the dataset cannot be built.
      * @deprecated since 2.4.7 - use {@link FlatXmlDataSetBuilder} to create a {@link FlatXmlDataSet}
      */
     public FlatXmlDataSet(InputStream xmlStream, IDataSet metaDataSet)
@@ -366,6 +403,11 @@ public class FlatXmlDataSet extends CachedDataSet
 
     /**
      * Write the specified dataset to the specified output stream as xml.
+     *
+     * @param dataSet the dataset to write.
+     * @param out the stream to write to.
+     * @throws IOException if writing fails.
+     * @throws DataSetException if reading the dataset fails.
      */
     public static void write(IDataSet dataSet, OutputStream out)
             throws IOException, DataSetException
@@ -379,6 +421,11 @@ public class FlatXmlDataSet extends CachedDataSet
 
     /**
      * Write the specified dataset to the specified writer as xml.
+     *
+     * @param dataSet the dataset to write.
+     * @param writer the writer to write to.
+     * @throws IOException if writing fails.
+     * @throws DataSetException if reading the dataset fails.
      */
     public static void write(IDataSet dataSet, Writer writer)
             throws IOException, DataSetException
@@ -389,6 +436,12 @@ public class FlatXmlDataSet extends CachedDataSet
 
     /**
      * Write the specified dataset to the specified writer as xml.
+     *
+     * @param dataSet the dataset to write.
+     * @param writer the writer to write to.
+     * @param charset the charset to declare in the XML prolog, may be <code>null</code>.
+     * @throws IOException if writing fails.
+     * @throws DataSetException if reading the dataset fails.
      */
     public static void write(IDataSet dataSet, Writer writer, Charset charset)
             throws IOException, DataSetException
@@ -403,6 +456,11 @@ public class FlatXmlDataSet extends CachedDataSet
 
     /**
      * Write a DTD for the specified dataset to the specified output.
+     *
+     * @param dataSet the dataset to write a DTD for.
+     * @param out the stream to write to.
+     * @throws IOException if writing fails.
+     * @throws DataSetException if reading the dataset fails.
      * @deprecated use {@link FlatDtdDataSet#write}
      */
     public static void writeDtd(IDataSet dataSet, OutputStream out)

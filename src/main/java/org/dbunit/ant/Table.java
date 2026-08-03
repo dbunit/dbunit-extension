@@ -43,15 +43,28 @@ public class Table
 
     private String name;
 
+    /**
+     * Default constructor.
+     */
     public Table()
     {
     }
 
+    /**
+     * Returns the table name.
+     *
+     * @return the table name.
+     */
     public String getName()
     {
         return name;
     }
 
+    /**
+     * Sets the table name.
+     *
+     * @param name the table name.
+     */
     public void setName(String name)
     {
         logger.debug("setName(name={}) - start", name);

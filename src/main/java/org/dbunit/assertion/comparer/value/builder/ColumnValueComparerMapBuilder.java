@@ -20,6 +20,8 @@ public class ColumnValueComparerMapBuilder
     /**
      * Add a columnName to {@link ValueComparer} mapping.
      *
+     * @param columnName the column name to map.
+     * @param valueComparer the value comparer to associate with the column name.
      * @return this for fluent syntax.
      */
     public ColumnValueComparerMapBuilder add(final String columnName,
@@ -29,7 +31,11 @@ public class ColumnValueComparerMapBuilder
         return this;
     }
 
-    /** @return The assembled map. */
+    /**
+     * Builds the map of column name to {@link ValueComparer}.
+     *
+     * @return The assembled map.
+     */
     public Map<String, ValueComparer> build()
     {
         return Collections.unmodifiableMap(comparers);

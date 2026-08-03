@@ -49,17 +49,19 @@ import java.util.List;
 public class DiffCollectingFailureHandler extends DefaultFailureHandler 
 {
     private final List diffList = new ArrayList();
-    
-    public void handle(Difference diff) 
+
+    public void handle(Difference diff)
     {
         // Simply collect the difference without throwing an exception
         this.diffList.add(diff);
     }
 
     /**
+     * Returns the list of collected {@link Difference}s.
+     *
      * @return The list of collected {@link Difference}s
      */
-    public List getDiffList() 
+    public List getDiffList()
     {
         return diffList;
     }

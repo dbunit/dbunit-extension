@@ -32,6 +32,12 @@ import org.dbunit.dataset.DataSetException;
  */
 public interface IDataSetProducer
 {
+    /**
+     * Sets the consumer notified of this producer's dataset content.
+     *
+     * @param consumer the consumer to notify.
+     * @throws DataSetException if the consumer cannot be set.
+     */
     public void setConsumer(IDataSetConsumer consumer) throws DataSetException;
 
     /**
@@ -42,6 +48,8 @@ public interface IDataSetProducer
      * This method is synchronous: it will not return until processing has ended.
      * If a client application wants to terminate parsing early, it should
      * throw an exception from the listener.
+     *
+     * @throws DataSetException if processing the dataset source fails.
      */
     public void produce() throws DataSetException;
 }

@@ -56,8 +56,8 @@ public class NumberTolerantDataType extends NumberDataType
     /**
      * Creates a new number tolerant datatype
      * 
-     * @param name
-     * @param sqlType
+     * @param name the data type name.
+     * @param sqlType the SQL type code.
      * @param delta
      *            The tolerated delta to be used for the comparison
      */
@@ -73,6 +73,11 @@ public class NumberTolerantDataType extends NumberDataType
         this.toleratedDelta = delta;
     }
 
+    /**
+     * Returns the tolerated delta used for the comparison.
+     *
+     * @return the tolerated delta used for the comparison.
+     */
     public Precision getToleratedDelta()
     {
         return toleratedDelta;
@@ -168,8 +173,8 @@ public class NumberTolerantDataType extends NumberDataType
 
     /**
      * Checks if the given value is zero.
-     * 
-     * @param value
+     *
+     * @param value the value to check.
      * @return <code>true</code> if and only if the given value is zero.
      */
     public static final boolean isZero(BigDecimal value)

@@ -40,7 +40,9 @@ import org.slf4j.LoggerFactory;
  */
 public class MySqlDataTypeFactory extends DefaultDataTypeFactory
 {
+    /** Suffix MySQL appends to unsigned numeric type names, e.g. <code>"INT UNSIGNED"</code>. */
     public static final String UNSIGNED_SUFFIX = " UNSIGNED";
+    /** SQL type name reported by MySQL for an unsigned <code>TINYINT</code> column. */
     public static final String SQL_TYPE_NAME_TINYINT_UNSIGNED = "TINYINT" + UNSIGNED_SUFFIX;
 
     /**
@@ -51,6 +53,7 @@ public class MySqlDataTypeFactory extends DefaultDataTypeFactory
      * Database product names supported.
      */
     private static final Collection DATABASE_PRODUCTS = Arrays.asList(new String[] {"mysql"});
+
     /**
      * @see org.dbunit.dataset.datatype.IDbProductRelatable#getValidDbProducts()
      */
@@ -86,7 +89,6 @@ public class MySqlDataTypeFactory extends DefaultDataTypeFactory
         {
             return DataType.TINYINT;
         }
-
 
         // Special handling for "TINYINT UNSIGNED"
         if(SQL_TYPE_NAME_TINYINT_UNSIGNED.equalsIgnoreCase(sqlTypeName)){

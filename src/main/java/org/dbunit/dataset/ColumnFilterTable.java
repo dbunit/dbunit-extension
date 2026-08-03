@@ -51,11 +51,13 @@ public class ColumnFilterTable implements ITable
 
     
     /**
+     * Creates a table that filters some columns out from the given table.
+     *
      * @param table The table from which some columns should be filtered
      * @param columnFilter The filter defining which columns to be filtered
-     * @throws DataSetException
+     * @throws DataSetException if the filtered metadata cannot be built.
      */
-    public ColumnFilterTable(ITable table, IColumnFilter columnFilter) 
+    public ColumnFilterTable(ITable table, IColumnFilter columnFilter)
     throws DataSetException
     {
         if (columnFilter == null) {
@@ -93,7 +95,12 @@ public class ColumnFilterTable implements ITable
         return this.originalTable.getValue(row, column);
     }
 
-    public ITableMetaData getOriginalMetaData() 
+    /**
+     * Returns the metadata of the original, unfiltered table.
+     *
+     * @return the metadata of the original, unfiltered table.
+     */
+    public ITableMetaData getOriginalMetaData()
     {
         logger.debug("getOriginalMetaData() - start");
         return this.originalTable.getTableMetaData();

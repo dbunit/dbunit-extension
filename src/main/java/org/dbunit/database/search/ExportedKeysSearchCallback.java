@@ -44,6 +44,11 @@ public class ExportedKeysSearchCallback extends
      */
     private static final Logger logger = LoggerFactory.getLogger(ExportedKeysSearchCallback.class);
 
+    /**
+     * Creates a callback that gets the nodes reachable via exported (reverse) foreign keys.
+     *
+     * @param connection connection where the edges will be calculated from.
+     */
     public ExportedKeysSearchCallback(IDatabaseConnection connection) {
         super(connection);
     }

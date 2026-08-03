@@ -13,6 +13,7 @@ import org.dbunit.dataset.datatype.TypeCastException;
 public class IsActualGreaterThanOrEqualToExpectedWithIgnoreMillisValueComparer
         extends TimestampIgnoreMillisValueComparerBase
 {
+
     @Override
     protected boolean compareTimestamps(final DataType dataType,
             final long actualTime, final long expectedTime)

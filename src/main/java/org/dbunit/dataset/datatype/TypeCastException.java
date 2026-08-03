@@ -39,21 +39,45 @@ public class TypeCastException extends DataTypeException
     // super(msg);
     // }
 
+    /**
+     * Constructs a <code>TypeCastException</code> with the specified cause.
+     *
+     * @param e the cause.
+     */
     public TypeCastException(Throwable e)
     {
         super(e);
     }
 
+    /**
+     * Constructs a <code>TypeCastException</code> with the specified detail message and cause.
+     *
+     * @param msg the detail message.
+     * @param e the cause.
+     */
     public TypeCastException(String msg, Throwable e)
     {
         super(msg, e);
     }
 
+    /**
+     * Constructs a <code>TypeCastException</code> for the given value and target data type.
+     *
+     * @param value the value that could not be cast.
+     * @param dataType the target data type.
+     */
     public TypeCastException(Object value, DataType dataType)
     {
         super(buildMessage(value, dataType));
     }
 
+    /**
+     * Constructs a <code>TypeCastException</code> for the given value and target data type, with a cause.
+     *
+     * @param value the value that could not be cast.
+     * @param dataType the target data type.
+     * @param e the cause.
+     */
     public TypeCastException(Object value, DataType dataType, Throwable e)
     {
         super(buildMessage(value, dataType), e);

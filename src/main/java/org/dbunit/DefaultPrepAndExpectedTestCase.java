@@ -85,6 +85,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     private static final String DATABASE_TESTER_IS_NULL_MSG =
             "databaseTester is null; must configure or set it first";
 
+    /** Message prefix used for wrapped test failures. */
     public static final String TEST_ERROR_MSG = "DbUnit test error.";
 
     private IDatabaseTester databaseTester;
@@ -462,6 +463,8 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      *
      * @param testSteps
      *            The test steps to run.
+     * @return the user-defined object returned by the test steps.
+     * @throws Exception if the test steps fail.
      */
     protected Object runTestSteps(final PrepAndExpectedTestCaseSteps testSteps)
             throws Exception
@@ -590,7 +593,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * cleanupData() for this test's lifecycle rather than a fresh one, and
      * leaves it open; cleanupData() closes it. See #800.
      *
-     * @throws Exception
+     * @throws Exception if preparing the data fails.
      */
     public void setupData() throws Exception
     {
@@ -678,6 +681,13 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
         }
     }
 
+    /**
+     * Verifies a single table's actual data against its expected data.
+     *
+     * @param connection the database connection to load the actual data from.
+     * @param verifyTableDefinition the table definition to verify.
+     * @throws Exception if verifying the table fails.
+     */
     protected void verifyData(final IDatabaseConnection connection,
             final VerifyTableDefinition verifyTableDefinition) throws Exception
     {
@@ -701,6 +711,13 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
                 defaultValueComparer, columnValueComparers);
     }
 
+    /**
+     * Loads the given table's expected data from the expected dataset.
+     *
+     * @param tableName the name of the table to load.
+     * @return the table's expected data.
+     * @throws DataSetException if loading the table fails.
+     */
     public ITable loadTableDataFromDataSet(final String tableName)
             throws DataSetException
     {
@@ -723,6 +740,14 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
         return table;
     }
 
+    /**
+     * Loads the given table's actual data from the database.
+     *
+     * @param tableName the name of the table to load.
+     * @param connection the database connection to load the data from.
+     * @return the table's actual data.
+     * @throws Exception if loading the table fails.
+     */
     public ITable loadTableDataFromDatabase(final String tableName,
             final IDatabaseConnection connection) throws Exception
     {
@@ -770,7 +795,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      *            columns. Key is column name, value is the
      *            {@link ValueComparer}. Can be <code>null</code> and will
      *            default to defaultValueComparer for all columns in all tables.
-     * @throws DatabaseUnitException
+     * @throws DatabaseUnitException if the tables' row counts, columns, or data do not match.
      */
     protected void verifyData(final ITable expectedTable,
             final ITable actualTable, final String[] excludeColumns,
@@ -834,7 +859,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * If expected column definitions exist and are {@link DataType.UNKNOWN},
      * make them from actual table column definitions.
      *
-     * @throws DataSetException
+     * @throws DataSetException if the actual table's columns cannot be retrieved.
      */
     private Column[] makeExpectedTableColumns(final Column[] actualColumns,
             final ITableMetaData expectedTableMetaData) throws DataSetException
@@ -915,7 +940,16 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
         }
     }
 
-    /** Compare the tables, enables easy overriding. */
+    /**
+     * Compare the tables, enables easy overriding.
+     *
+     * @param expectedTable the table containing all expected results.
+     * @param actualTable the table containing all actual results.
+     * @param additionalColumnInfo the additional columns to include in failure messages.
+     * @param defaultValueComparer the value comparer used when no more specific comparer is configured.
+     * @param columnValueComparers the per-column value comparers to use.
+     * @throws DatabaseUnitException if the tables' row counts, columns, or data do not match.
+     */
     protected void compareData(final ITable expectedTable,
             final ITable actualTable, final Column[] additionalColumnInfo,
             final ValueComparer defaultValueComparer,
@@ -935,6 +969,8 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      *            Not null.
      * @param excludeColumns
      *            Nullable.
+     * @return the additional column info, excluding excludeColumns.
+     * @throws DataSetException if the expected table's columns cannot be retrieved.
      */
     protected Column[] makeAdditionalColumnInfo(final ITable expectedTable,
             final String[] excludeColumns) throws DataSetException
@@ -954,6 +990,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      *            Not null.
      * @param allColumns
      *            Not null.
+     * @return the additional column info, excluding excludeColumns.
      */
     protected Column[] makeAdditionalColumnInfo(final String[] excludeColumns,
             final Column[] allColumns)
@@ -1046,7 +1083,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * @param includeColumns
      *            The include filters; use null to mean include all.
      * @return The filtered table.
-     * @throws DataSetException
+     * @throws DataSetException if applying the filters fails.
      */
     public ITable applyColumnFilters(final ITable table,
             final String[] excludeColumns, final String[] includeColumns)
@@ -1240,11 +1277,21 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
         this.verifyTableDefs = verifyTableDefs;
     }
 
+    /**
+     * Returns the verifier used to check that verify table definitions and the expected dataset agree.
+     *
+     * @return the verifier used to check that verify table definitions and the expected dataset agree.
+     */
     public ExpectedDataSetAndVerifyTableDefinitionVerifier getExpectedDataSetAndVerifyTableDefinitionVerifier()
     {
         return expectedDataSetAndVerifyTableDefinitionVerifier;
     }
 
+    /**
+     * Sets the verifier used to check that verify table definitions and the expected dataset agree.
+     *
+     * @param expectedDataSetAndVerifyTableDefinitionVerifier the verifier to use.
+     */
     public void setExpectedDataSetAndVerifyTableDefinitionVerifier(
             final ExpectedDataSetAndVerifyTableDefinitionVerifier expectedDataSetAndVerifyTableDefinitionVerifier)
     {

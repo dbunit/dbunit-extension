@@ -75,7 +75,6 @@ public class ForwardOnlyResultSetTableFactory implements IResultSetTableFactory
         return createForwardOnlyResultSetTable(tableName, preparedStatement, connection);
     }
 
-    
     /**
      * Creates a new {@link ForwardOnlyResultSetTable} using the given {@link PreparedStatement} to
      * retrieve the data.
@@ -104,5 +103,4 @@ public class ForwardOnlyResultSetTableFactory implements IResultSetTableFactory
         return table;
     }
     
-
 }

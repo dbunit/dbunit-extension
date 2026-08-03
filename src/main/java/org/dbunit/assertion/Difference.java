@@ -45,6 +45,16 @@ public class Difference
     private Object actualValue;
     private String failMessage;
 
+    /**
+     * Creates a difference with no fail message.
+     *
+     * @param expectedTable the table containing the expected results.
+     * @param actualTable the table containing the actual results.
+     * @param rowIndex the row index of the differing cell.
+     * @param columnName the name of the differing column.
+     * @param expectedValue the expected cell value.
+     * @param actualValue the actual cell value.
+     */
     public Difference(final ITable expectedTable, final ITable actualTable,
             final int rowIndex, final String columnName,
             final Object expectedValue, final Object actualValue)
@@ -53,6 +63,17 @@ public class Difference
                 actualValue, "");
     }
 
+    /**
+     * Creates a difference with the given fail message.
+     *
+     * @param expectedTable the table containing the expected results.
+     * @param actualTable the table containing the actual results.
+     * @param rowIndex the row index of the differing cell.
+     * @param columnName the name of the differing column.
+     * @param expectedValue the expected cell value.
+     * @param actualValue the actual cell value.
+     * @param failMessage the comparison failure message.
+     */
     public Difference(final ITable expectedTable, final ITable actualTable,
             final int rowIndex, final String columnName,
             final Object expectedValue, final Object actualValue,
@@ -83,41 +104,73 @@ public class Difference
         return sb.toString();
     }
 
+    /**
+     * Returns the table containing the expected results.
+     * @return the table containing the expected results.
+     */
     public ITable getExpectedTable()
     {
         return expectedTable;
     }
 
+    /**
+     * Returns the table containing the actual results.
+     * @return the table containing the actual results.
+     */
     public ITable getActualTable()
     {
         return actualTable;
     }
 
+    /**
+     * Returns the row index of the differing cell.
+     * @return the row index of the differing cell.
+     */
     public int getRowIndex()
     {
         return rowIndex;
     }
 
+    /**
+     * Returns the name of the differing column.
+     * @return the name of the differing column.
+     */
     public String getColumnName()
     {
         return columnName;
     }
 
+    /**
+     * Returns the expected cell value.
+     * @return the expected cell value.
+     */
     public Object getExpectedValue()
     {
         return expectedValue;
     }
 
+    /**
+     * Returns the actual cell value.
+     * @return the actual cell value.
+     */
     public Object getActualValue()
     {
         return actualValue;
     }
 
+    /**
+     * Returns the comparison failure message.
+     * @return the comparison failure message.
+     */
     public String getFailMessage()
     {
         return failMessage;
     }
 
+    /**
+     * Sets the comparison failure message.
+     * @param failMessage the comparison failure message.
+     */
     public void setFailMessage(final String failMessage)
     {
         this.failMessage = failMessage;

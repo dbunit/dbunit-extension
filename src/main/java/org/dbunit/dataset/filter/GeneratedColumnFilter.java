@@ -31,6 +31,7 @@ import org.dbunit.dataset.Column;
  */
 public class GeneratedColumnFilter implements IColumnFilter
 {
+
     @Override
     public boolean accept(final String tableName, final Column column)
     {

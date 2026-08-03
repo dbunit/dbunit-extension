@@ -33,7 +33,7 @@ public interface ValueComparer
      * @param actualValue
      *            The current actual value for the column.
      * @return compare failure message or null if successful compare.
-     * @throws DatabaseUnitException
+     * @throws DatabaseUnitException if the comparison cannot be performed.
      */
     String compare(ITable expectedTable, ITable actualTable, int rowNum,
             String columnName, DataType dataType, Object expectedValue,

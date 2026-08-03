@@ -49,25 +49,44 @@ public abstract class DatabaseTestCase implements InvocationInterceptor {
 
     private final String name;
 
+    /**
+     * Default constructor.
+     */
     protected DatabaseTestCase() {
         this.name = null;
     }
 
+    /**
+     * Constructs a test case with the given name.
+     *
+     * @param name the test case name.
+     */
     protected DatabaseTestCase(final String name) {
         this.name = name;
     }
 
+    /**
+     * Returns this test case's name.
+     *
+     * @return this test case's name.
+     */
     public String getName() {
         return this.name;
     }
 
     /**
      * Returns the test database connection.
+     *
+     * @return the test database connection.
+     * @throws Exception if the connection cannot be retrieved or created.
      */
     protected abstract IDatabaseConnection getConnection() throws Exception;
 
     /**
      * Returns the test dataset.
+     *
+     * @return the test dataset.
+     * @throws Exception if the dataset cannot be retrieved or created.
      */
     protected abstract IDataSet getDataSet() throws Exception;
 
@@ -75,7 +94,9 @@ public abstract class DatabaseTestCase implements InvocationInterceptor {
      * Creates a IDatabaseTester for this testCase.<br>
      *
      * A {@link DefaultDatabaseTester} is used by default.
-     * @throws Exception
+     *
+     * @return the newly created database tester.
+     * @throws Exception if the database tester cannot be created.
      */
     protected IDatabaseTester newDatabaseTester() throws Exception{
         logger.debug("newDatabaseTester() - start");
@@ -100,7 +121,9 @@ public abstract class DatabaseTestCase implements InvocationInterceptor {
      * Gets the IDatabaseTester for this testCase.<br>
      * If the IDatabaseTester is not set yet, this method calls
      * newDatabaseTester() to obtain a new instance.
-     * @throws Exception
+     *
+     * @return the IDatabaseTester for this testCase.
+     * @throws Exception if a new database tester cannot be created.
      */
     protected IDatabaseTester getDatabaseTester() throws Exception {
         if ( this.tester == null ) {
@@ -112,6 +135,9 @@ public abstract class DatabaseTestCase implements InvocationInterceptor {
     /**
      * Close the specified connection. Override this method of you want to
      * keep your connection alive between tests.
+     *
+     * @param connection the connection to close.
+     * @throws Exception if the connection cannot be closed.
      * @deprecated since 2.4.4 define a user defined {@link #getOperationListener()} in advance
      */
     @Deprecated
@@ -125,6 +151,9 @@ public abstract class DatabaseTestCase implements InvocationInterceptor {
 
     /**
      * Returns the database operation executed in test setup.
+     *
+     * @return the database operation executed in test setup.
+     * @throws Exception if the operation cannot be determined.
      */
     protected DatabaseOperation getSetUpOperation() throws Exception
     {
@@ -133,6 +162,9 @@ public abstract class DatabaseTestCase implements InvocationInterceptor {
 
     /**
      * Returns the database operation executed in test cleanup.
+     *
+     * @return the database operation executed in test cleanup.
+     * @throws Exception if the operation cannot be determined.
      */
     protected DatabaseOperation getTearDownOperation() throws Exception
     {
@@ -142,6 +174,12 @@ public abstract class DatabaseTestCase implements InvocationInterceptor {
     ////////////////////////////////////////////////////////////////////////////
     // TestCase class
 
+    /**
+     * Prepares the database, using the database tester, connection, and dataset from
+     * {@link #getDatabaseTester()}, {@link #getConnection()}, and {@link #getDataSet()}.
+     *
+     * @throws Exception if the setup operation fails.
+     */
     protected void setUp() throws Exception
     {
         logger.debug("setUp() - start");
@@ -154,6 +192,11 @@ public abstract class DatabaseTestCase implements InvocationInterceptor {
         databaseTester.onSetup();
     }
 
+    /**
+     * Runs the tear-down operation and releases the database tester.
+     *
+     * @throws Exception if the tear-down operation fails.
+     */
     protected void tearDown() throws Exception
     {
         logger.debug("tearDown() - start");
@@ -216,6 +259,9 @@ public abstract class DatabaseTestCase implements InvocationInterceptor {
     }
 
     /**
+     * Returns the operation listener used by the database tester, creating a default one on
+     * first access.
+     *
      * @return The {@link IOperationListener} to be used by the {@link IDatabaseTester}.
      * @since 2.4.4
      */

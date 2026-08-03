@@ -53,11 +53,22 @@ public class DataSetProducerAdapter implements IDataSetProducer
     private final ITableIterator _iterator;
     private IDataSetConsumer _consumer = EMPTY_CONSUMER;
 
+    /**
+     * Creates a producer that reports the tables of the given iterator.
+     *
+     * @param iterator the iterator providing the tables to produce.
+     */
     public DataSetProducerAdapter(ITableIterator iterator)
     {
         _iterator = iterator;
     }
 
+    /**
+     * Creates a producer that reports the tables of the given dataset.
+     *
+     * @param dataSet the dataset providing the tables to produce.
+     * @throws DataSetException if the dataset's iterator cannot be created.
+     */
     public DataSetProducerAdapter(IDataSet dataSet) throws DataSetException
     {
         _iterator = dataSet.iterator();

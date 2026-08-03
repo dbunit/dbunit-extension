@@ -36,6 +36,13 @@ import java.sql.Connection;
  */
 public class MySqlConnection extends DatabaseConnection
 {
+    /**
+     * Creates a new <code>MySqlConnection</code>.
+     *
+     * @param connection the adapted JDBC connection.
+     * @param schema the database schema.
+     * @throws DatabaseUnitException if setting up the connection fails.
+     */
     public MySqlConnection(Connection connection, String schema) throws DatabaseUnitException
     {
         super(connection, schema);

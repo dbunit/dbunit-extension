@@ -33,12 +33,23 @@ package org.dbunit.dataset;
  */
 public class CachedTable extends DefaultTable
 {
+    /**
+     * Creates a table that eagerly loads and caches all rows of the given table.
+     *
+     * @param table the source table to load into memory.
+     * @throws DataSetException if loading the rows fails.
+     */
     public CachedTable(ITable table) throws DataSetException
     {
         super(table.getTableMetaData());
         addTableRows(table);
     }
 
+    /**
+     * Creates an empty cached table with the given metadata.
+     *
+     * @param metaData the table metadata.
+     */
     protected CachedTable(ITableMetaData metaData)
     {
         super(metaData);

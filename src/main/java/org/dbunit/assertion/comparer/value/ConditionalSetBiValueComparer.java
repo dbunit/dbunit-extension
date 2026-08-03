@@ -39,6 +39,9 @@ public class ConditionalSetBiValueComparer<T> extends ValueComparerBase
     private final ValueComparer notInValuesValueComparer;
 
     /**
+     * Creates a comparer that selects between two {@link ValueComparer}s based on whether a
+     * value derived from the actual row is present in a set of values.
+     *
      * @param actualValueFactory
      *            Factory to make the value to lookup in the values list.
      * @param values
@@ -88,6 +91,15 @@ public class ConditionalSetBiValueComparer<T> extends ValueComparerBase
         return failMessage;
     }
 
+    /**
+     * Returns whether the value derived from the given row of the actual table is present
+     * in {@link #values}.
+     *
+     * @param actualTable the actual table to derive the value from.
+     * @param rowNum the row number to derive the value from.
+     * @return <code>true</code> if the derived value is present in {@link #values}.
+     * @throws DataSetException if the value cannot be derived from the actual table.
+     */
     protected boolean isActualValueInValues(final ITable actualTable,
             final int rowNum) throws DataSetException
     {

@@ -51,11 +51,15 @@ public class MsSqlDataTypeFactory extends DefaultDataTypeFactory
     
     private static final DateTimeOffsetType DATE_TIME_OFFSET_TYPE = new DateTimeOffsetType();
 
+    /** JDBC type code for MS SQL Server's <code>nchar</code> type. */
     public static final int NCHAR = -8;
+    /** JDBC type code for MS SQL Server's <code>nvarchar</code> type. */
     public static final int NVARCHAR = -9;
+    /** JDBC type code for MS SQL Server's <code>ntext</code> type. */
     public static final int NTEXT = -10;
+    /** JDBC type code for MS SQL Server 2005's <code>ntext</code> type. */
     public static final int NTEXT_MSSQL_2005 = -16;
-    
+
     /**
      * @see org.dbunit.dataset.datatype.IDbProductRelatable#getValidDbProducts()
      */

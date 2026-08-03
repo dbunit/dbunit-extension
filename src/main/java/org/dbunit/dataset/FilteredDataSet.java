@@ -56,6 +56,8 @@ public class FilteredDataSet extends AbstractDataSet
      * Creates a FilteredDataSet that decorates the specified dataset and
      * exposes only the specified tables using {@link SequenceTableFilter} as
      * filtering strategy.
+     * @param tableNames the names of the tables to expose, in the order they should be exposed.
+     * @param dataSet the dataset to decorate.
      * @throws AmbiguousTableNameException If the given tableNames array contains ambiguous names
      */
     public FilteredDataSet(String[] tableNames, IDataSet dataSet) 

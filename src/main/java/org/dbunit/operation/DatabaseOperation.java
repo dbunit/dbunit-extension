@@ -36,6 +36,7 @@ import java.sql.SQLException;
  */
 public abstract class DatabaseOperation
 {
+
     /**
      * No-op that does nothing to the database.
      * @see DummyOperation

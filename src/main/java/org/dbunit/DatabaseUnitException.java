@@ -49,6 +49,8 @@ public class DatabaseUnitException extends Exception
     /**
      * Constructs an <code>DatabaseUnitException</code> with the specified detail
      * message and no encapsulated exception.
+     *
+     * @param msg the detail message.
      */
     public DatabaseUnitException(String msg)
     {
@@ -58,6 +60,9 @@ public class DatabaseUnitException extends Exception
     /**
      * Constructs an <code>DatabaseUnitException</code> with the specified detail
      * message and encapsulated exception.
+     *
+     * @param msg the detail message.
+     * @param e the encapsulated exception.
      */
     public DatabaseUnitException(String msg, Throwable e)
     {
@@ -67,6 +72,8 @@ public class DatabaseUnitException extends Exception
     /**
      * Constructs an <code>DatabaseUnitException</code> with the encapsulated
      * exception and use string representation as detail message.
+     *
+     * @param e the encapsulated exception.
      */
     public DatabaseUnitException(Throwable e)
     {
@@ -76,6 +83,7 @@ public class DatabaseUnitException extends Exception
     /**
      * Returns the nested exception or <code>null</code> if none.
      * @deprecated Use {@link #getCause()} to retrieve the nested exception
+     * @return the nested exception, or <code>null</code> if none.
      */
     public Throwable getException()
     {

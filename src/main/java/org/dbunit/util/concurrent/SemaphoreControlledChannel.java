@@ -38,17 +38,21 @@ public abstract class SemaphoreControlledChannel implements BoundedChannel {
      */
     private static final Logger logger = LoggerFactory.getLogger(SemaphoreControlledChannel.class);
 
+  /** Guards puts, holding one permit per free slot. */
   protected final Semaphore putGuard_;
+  /** Guards takes, holding one permit per filled slot. */
   protected final Semaphore takeGuard_;
+  /** The channel's fixed capacity. */
   protected int capacity_;
 
   /**
    * Create a channel with the given capacity and default
    * semaphore implementation
+   * @param capacity the channel's fixed capacity.
    * @exception IllegalArgumentException if capacity less or equal to zero
    **/
 
-  public SemaphoreControlledChannel(int capacity) 
+  public SemaphoreControlledChannel(int capacity)
    throws IllegalArgumentException {
     if (capacity <= 0) throw new IllegalArgumentException();
     capacity_ = capacity;
@@ -58,8 +62,10 @@ public abstract class SemaphoreControlledChannel implements BoundedChannel {
 
 
   /**
-   * Create a channel with the given capacity and 
+   * Create a channel with the given capacity and
    * semaphore implementations instantiated from the supplied class
+   * @param capacity the channel's fixed capacity.
+   * @param semaphoreClass the {@link Semaphore} subclass to instantiate for the put/take guards.
    * @exception IllegalArgumentException if capacity less or equal to zero.
    * @exception NoSuchMethodException If class does not have constructor 
    * that intializes permits
@@ -91,10 +97,12 @@ public abstract class SemaphoreControlledChannel implements BoundedChannel {
         logger.debug("capacity() - start");
  return capacity_; }
 
-  /** 
+  /**
    * Return the number of elements in the buffer.
    * This is only a snapshot value, that may change
    * immediately after returning.
+   *
+   * @return the number of elements in the buffer.
    **/
 
   public int size() {
@@ -103,11 +111,15 @@ public abstract class SemaphoreControlledChannel implements BoundedChannel {
 
   /**
    * Internal mechanics of put.
+   *
+   * @param x the value to insert.
    **/
   protected abstract void insert(Object x);
 
   /**
    * Internal mechanics of take.
+   *
+   * @return the extracted value.
    **/
   protected abstract Object extract();
 

@@ -35,7 +35,7 @@ public interface IRowValueProvider {
 	 * Returns the column value for the column with the given name of the currently processed row
      * @param columnName The db column name for which the value should be provided (current row's value)
      * @return The value of the given column in the current row
-     * @throws DataSetException
+     * @throws DataSetException if the value cannot be provided.
      */
     public Object getColumnValue(String columnName) throws DataSetException;
 }

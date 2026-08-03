@@ -33,35 +33,44 @@ public class SynchronizedInt extends SynchronizedVariable implements Comparable,
      */
     private static final Logger logger = LoggerFactory.getLogger(SynchronizedInt.class);
 
+  /** The current value. */
   protected int value_;
 
-  /** 
+  /**
    * Make a new SynchronizedInt with the given initial value,
    * and using its own internal lock.
+   *
+   * @param initialValue the initial value.
    **/
-  public SynchronizedInt(int initialValue) { 
-    super(); 
-    value_ = initialValue; 
+  public SynchronizedInt(int initialValue) {
+    super();
+    value_ = initialValue;
   }
 
-  /** 
+  /**
    * Make a new SynchronizedInt with the given initial value,
    * and using the supplied lock.
+   *
+   * @param initialValue the initial value.
+   * @param lock the synchronization lock to use.
    **/
-  public SynchronizedInt(int initialValue, Object lock) { 
-    super(lock); 
-    value_ = initialValue; 
+  public SynchronizedInt(int initialValue, Object lock) {
+    super(lock);
+    value_ = initialValue;
   }
 
-  /** 
-   * Return the current value 
+  /**
+   * Return the current value
+   *
+   * @return the current value.
    **/
   public final int get() {
  synchronized(lock_) { return value_; } }
 
-  /** 
+  /**
    * Set to newValue.
-   * @return the old value 
+   * @param newValue the new value.
+   * @return the old value
    **/
 
   public int set(int newValue) {
@@ -76,6 +85,8 @@ public class SynchronizedInt extends SynchronizedVariable implements Comparable,
 
   /**
    * Set value to newValue only if it is currently assumedValue.
+   * @param assumedValue the value the current value must equal for the update to happen.
+   * @param newValue the new value.
    * @return true if successful
    **/
   public boolean commit(int assumedValue, int newValue) {
@@ -95,7 +106,8 @@ public class SynchronizedInt extends SynchronizedVariable implements Comparable,
    * (Note: Ordering via identyHashCode is not strictly guaranteed
    * by the language specification to return unique, orderable
    * values, but in practice JVMs rely on them being unique.)
-   * @return the new value 
+   * @param other the SynchronizedInt to swap values with.
+   * @return the new value
    **/
 
   public int swap(SynchronizedInt other) {
@@ -138,7 +150,8 @@ public class SynchronizedInt extends SynchronizedVariable implements Comparable,
 
   /** 
    * Add amount to value (i.e., set value += amount)
-   * @return the new value 
+   * @param amount the amount to add.
+   * @return the new value
    **/
   public int add(int amount) {
     synchronized (lock_) {
@@ -148,7 +161,8 @@ public class SynchronizedInt extends SynchronizedVariable implements Comparable,
 
   /** 
    * Subtract amount from value (i.e., set value -= amount)
-   * @return the new value 
+   * @param amount the amount to subtract.
+   * @return the new value
    **/
   public int subtract(int amount) {
     synchronized (lock_) {
@@ -158,7 +172,8 @@ public class SynchronizedInt extends SynchronizedVariable implements Comparable,
 
   /** 
    * Multiply value by factor (i.e., set value *= factor)
-   * @return the new value 
+   * @param factor the factor to multiply by.
+   * @return the new value
    **/
   public synchronized int multiply(int factor) {
     synchronized (lock_) {
@@ -168,7 +183,8 @@ public class SynchronizedInt extends SynchronizedVariable implements Comparable,
 
   /** 
    * Divide value by factor (i.e., set value /= factor)
-   * @return the new value 
+   * @param factor the factor to divide by.
+   * @return the new value
    **/
   public int divide(int factor) {
     synchronized (lock_) {
@@ -200,7 +216,8 @@ public class SynchronizedInt extends SynchronizedVariable implements Comparable,
 
   /** 
    * Set value to value &amp; b.
-   * @return the new value 
+   * @param b the value to AND with.
+   * @return the new value
    **/
   public  int and(int b) {
     synchronized (lock_) {
@@ -211,7 +228,8 @@ public class SynchronizedInt extends SynchronizedVariable implements Comparable,
 
   /** 
    * Set value to value | b.
-   * @return the new value 
+   * @param b the value to OR with.
+   * @return the new value
    **/
   public  int or(int b) {
     synchronized (lock_) {
@@ -223,7 +241,8 @@ public class SynchronizedInt extends SynchronizedVariable implements Comparable,
 
   /** 
    * Set value to value ^ b.
-   * @return the new value 
+   * @param b the value to XOR with.
+   * @return the new value
    **/
   public  int xor(int b) {
     synchronized (lock_) {
@@ -232,12 +251,26 @@ public class SynchronizedInt extends SynchronizedVariable implements Comparable,
     }
   }
 
+  /**
+   * Compares the current value to the given int.
+   *
+   * @param other the value to compare against.
+   * @return a negative, zero, or positive integer as the current value is less than, equal to,
+   *         or greater than <code>other</code>.
+   */
   public int compareTo(int other) {
     logger.debug("compareTo(other={}) - start", String.valueOf(other));
     int val = get();
     return (val < other)? -1 : (val == other)? 0 : 1;
   }
 
+  /**
+   * Compares the current value to another {@code SynchronizedInt}'s value.
+   *
+   * @param other the instance to compare against.
+   * @return a negative, zero, or positive integer as the current value is less than, equal to,
+   *         or greater than <code>other</code>'s value.
+   */
   public int compareTo(SynchronizedInt other) {
      logger.debug("compareTo(other={}) - start", other);
     return compareTo(other.get());

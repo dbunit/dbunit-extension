@@ -46,16 +46,34 @@ public class LowerCaseDataSet extends AbstractDataSet
 
     private final IDataSet _dataSet;
 
+    /**
+     * Creates a dataset that lower-cases the table and column names of the given table.
+     *
+     * @param table the table to decorate.
+     * @throws DataSetException if the dataset cannot be built.
+     */
     public LowerCaseDataSet(ITable table) throws DataSetException
     {
         this(new DefaultDataSet(table));
     }
 
+    /**
+     * Creates a dataset that lower-cases the table and column names of the given tables.
+     *
+     * @param tables the tables to decorate.
+     * @throws DataSetException if the dataset cannot be built.
+     */
     public LowerCaseDataSet(ITable[] tables) throws DataSetException
     {
         this(new DefaultDataSet(tables));
     }
 
+    /**
+     * Creates a dataset that lower-cases the table and column names of the given dataset.
+     *
+     * @param dataSet the dataset to decorate.
+     * @throws DataSetException if the dataset cannot be built.
+     */
     public LowerCaseDataSet(IDataSet dataSet) throws DataSetException
     {
         _dataSet = dataSet;

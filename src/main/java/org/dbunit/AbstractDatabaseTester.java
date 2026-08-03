@@ -163,6 +163,8 @@ public abstract class AbstractDatabaseTester extends SimpleAssert implements IDa
 
     /**
      * Returns the DatabaseOperation to call when starting the test.
+     *
+     * @return the setup {@link DatabaseOperation}.
      */
     public DatabaseOperation getSetUpOperation()
     {
@@ -173,6 +175,8 @@ public abstract class AbstractDatabaseTester extends SimpleAssert implements IDa
 
     /**
      * Returns the DatabaseOperation to call when ending the test.
+     *
+     * @return the tear-down {@link DatabaseOperation}.
      */
     public DatabaseOperation getTearDownOperation()
     {

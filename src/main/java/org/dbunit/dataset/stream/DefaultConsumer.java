@@ -33,6 +33,7 @@ import org.dbunit.dataset.ITableMetaData;
  */
 public class DefaultConsumer implements IDataSetConsumer
 {
+
     public void startDataSet() throws DataSetException
     {
         // no op

@@ -206,28 +206,53 @@ public class VerifyTableDefinition
         verifyTableDefinitionVerifier.verify(this);
     }
 
+    /**
+     * Returns the table name.
+     *
+     * @return the table name.
+     */
     public String getTableName()
     {
         return tableName;
     }
 
+    /**
+     * Returns the column names excluded from verification.
+     *
+     * @return the column names excluded from verification.
+     */
     public String[] getColumnExclusionFilters()
     {
         return columnExclusionFilters;
     }
 
+    /**
+     * Returns the column names included in verification.
+     *
+     * @return the column names included in verification.
+     */
     public String[] getColumnInclusionFilters()
     {
         return columnInclusionFilters;
     }
 
-    /** @since 2.6.0 */
+    /**
+     * Returns the default value comparer used for columns without a specific one.
+     *
+     * @return the default value comparer used for columns without a specific one.
+     * @since 2.6.0
+     */
     public ValueComparer getDefaultValueComparer()
     {
         return defaultValueComparer;
     }
 
-    /** @since 2.6.0 */
+    /**
+     * Returns the per-column value comparers.
+     *
+     * @return the per-column value comparers.
+     * @since 2.6.0
+     */
     public Map<String, ValueComparer> getColumnValueComparers()
     {
         return columnValueComparers;
@@ -255,16 +280,32 @@ public class VerifyTableDefinition
         return sb.toString();
     }
 
+    /**
+     * Returns a null-safe string representation of the given array.
+     *
+     * @param array the array to format, possibly <code>null</code>.
+     * @return a null-safe string representation of the given array.
+     */
     protected String arrayToString(final String[] array)
     {
         return array == null ? "" : Arrays.toString(array);
     }
 
+    /**
+     * Returns the verifier used to validate this instance.
+     *
+     * @return the verifier used to validate this instance.
+     */
     public VerifyTableDefinitionVerifier getVerifyTableDefinitionVerifier()
     {
         return verifyTableDefinitionVerifier;
     }
 
+    /**
+     * Sets the verifier used to validate this instance.
+     *
+     * @param verifyTableDefinitionVerifier the verifier used to validate this instance.
+     */
     public void setVerifyTableDefinitionVerifier(
             final VerifyTableDefinitionVerifier verifyTableDefinitionVerifier)
     {

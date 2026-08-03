@@ -58,6 +58,7 @@ import org.slf4j.LoggerFactory;
  */
 public class SqlLoaderControlParserImpl implements SqlLoaderControlParser {
 
+    /** The character that separates fields in the SQLLoader control file. */
     public static final char SEPARATOR_CHAR = ';';
     
     /** The pipeline. */
@@ -235,8 +236,16 @@ public class SqlLoaderControlParserImpl implements SqlLoaderControlParser {
     	return dataFile;
 	}
 
-	protected String parseForRegexp(String controlFileContent, String regexp) 
-    throws IOException 
+	/**
+	 * Returns the first capture group of the given regexp matched against the given content.
+	 *
+	 * @param controlFileContent the content to search.
+	 * @param regexp the regular expression to match, with a single capture group.
+	 * @return the matched capture group, or <code>null</code> if the regexp does not match.
+	 * @throws IOException never thrown by this implementation.
+	 */
+	protected String parseForRegexp(String controlFileContent, String regexp)
+    throws IOException
     {
         logger.debug("parseForRegexp(controlFileContent={}, regexp={}) - start", controlFileContent, regexp);
 

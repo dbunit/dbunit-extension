@@ -31,15 +31,20 @@ package org.dbunit.dataset;
  */
 public interface ITable
 {
+    /** Sentinel returned by {@link #getValue(int, String)} to distinguish "no value" from a null value. */
     public static final Object NO_VALUE = new Object();
 
     /**
      * Returns this table metadata.
+     *
+     * @return this table metadata.
      */
     public ITableMetaData getTableMetaData();
 
     /**
      * Returns this table row count.
+     *
+     * @return this table row count.
      */
     public int getRowCount();
 

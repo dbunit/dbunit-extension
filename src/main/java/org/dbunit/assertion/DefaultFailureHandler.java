@@ -85,6 +85,8 @@ public class DefaultFailureHandler implements FailureHandler
     }
 
     /**
+     * Sets the failure factory used to create assertion errors.
+     *
      * @param failureFactory
      *            The {@link FailureFactory} to be used for creating assertion
      *            errors.
@@ -159,6 +161,14 @@ public class DefaultFailureHandler implements FailureHandler
         return sb.toString();
     }
 
+    /**
+     * Returns the value of the given column, resolving through a {@link ColumnFilterTable} wrapper if needed.
+     *
+     * @param table the table to read the value from.
+     * @param rowIndex the row index to read.
+     * @param columnName the column name to read.
+     * @return the column value, or an error message string if it could not be retrieved.
+     */
     protected Object getColumnValue(final ITable table, final int rowIndex,
             final String columnName)
     {
@@ -176,6 +186,13 @@ public class DefaultFailureHandler implements FailureHandler
         return value;
     }
 
+    /**
+     * Builds an error message describing why additional column info could not be retrieved.
+     *
+     * @param columnName the column name that could not be read.
+     * @param e the exception raised while reading the column.
+     * @return the formatted error message.
+     */
     protected String makeAdditionalColumnInfoErrorMessage(
             final String columnName, final DataSetException e)
     {
@@ -243,6 +260,12 @@ public class DefaultFailureHandler implements FailureHandler
         throw err;
     }
 
+    /**
+     * Builds the failure message for the given difference.
+     *
+     * @param diff the difference to describe.
+     * @return the formatted failure message.
+     */
     protected String buildMessage(final Difference diff)
     {
         final StringBuilder builder = new StringBuilder(200);
@@ -277,6 +300,12 @@ public class DefaultFailureHandler implements FailureHandler
         return builder.toString();
     }
 
+    /**
+     * Appends the difference's fail message, if any, to the given builder.
+     *
+     * @param diff the difference whose fail message should be appended.
+     * @param builder the builder to append to.
+     */
     protected void addFailMessage(final Difference diff,
             final StringBuilder builder)
     {
@@ -288,6 +317,12 @@ public class DefaultFailureHandler implements FailureHandler
         }
     }
 
+    /**
+     * Returns whether the given fail message is non-empty.
+     *
+     * @param failMessage the fail message to check.
+     * @return <code>true</code> if the given fail message is non-<code>null</code> and non-empty.
+     */
     protected boolean isFailMessage(final String failMessage)
     {
         return failMessage != null && !failMessage.isEmpty();
@@ -316,6 +351,7 @@ public class DefaultFailureHandler implements FailureHandler
      */
     public static class DefaultFailureFactory implements FailureFactory
     {
+
         public Error createFailure(final String message, final String expected,
                 final String actual)
         {

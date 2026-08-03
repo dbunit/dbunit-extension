@@ -89,6 +89,11 @@ public class XmlProducer extends DefaultHandler
     private StringBuilder _activeCharacters;
     private List _activeRowValues;
 
+    /**
+     * Creates a producer reading XML from the given source.
+     *
+     * @param inputSource the source to read XML from.
+     */
     public XmlProducer(InputSource inputSource)
     {
         _inputSource = inputSource;
@@ -108,6 +113,11 @@ public class XmlProducer extends DefaultHandler
         return metaData;
     }
 
+    /**
+     * Sets whether the XML parser validates the document against its DTD.
+     *
+     * @param validating <code>true</code> to validate the document against its DTD.
+     */
     public void setValidating(boolean validating)
     {
         _validating = validating;

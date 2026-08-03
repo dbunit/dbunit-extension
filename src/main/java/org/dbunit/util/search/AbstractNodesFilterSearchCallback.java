@@ -51,11 +51,17 @@ import org.slf4j.LoggerFactory;
 public abstract class AbstractNodesFilterSearchCallback implements
     ISearchCallback {
   
+  /**
+   * Logger for this class.
+   */
   protected final Logger logger = LoggerFactory.getLogger(getClass());
 
   // internal modes
+  /** No nodes are allowed or denied; {@link #searchNode(Object)} always returns <code>true</code>. */
   protected static final int NO_MODE = 0;
+  /** Only nodes set via {@link #setAllowedNodes(Set)} are allowed. */
   protected static final int ALLOW_MODE = 1;
+  /** Only nodes set via {@link #setDeniedNodes(Set)} are denied. */
   protected static final int DENY_MODE = 2;
   
   private int filteringMode = NO_MODE;

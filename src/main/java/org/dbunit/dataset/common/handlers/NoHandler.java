@@ -36,6 +36,11 @@ public class NoHandler extends AbstractPipelineComponent {
 
     private NoHandler() {}
 
+    /**
+     * Creates a handler that rejects every character.
+     *
+     * @return the new pipeline component.
+     */
     public static final PipelineComponent IGNORE () {
         return createPipelineComponent(new NoHandler(), new ACCEPT());
     }

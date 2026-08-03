@@ -48,10 +48,24 @@ public abstract class AbstractResultSetTable extends AbstractTable
      */
     private static final Logger logger = LoggerFactory.getLogger(AbstractResultSetTable.class);
 
+    /**
+     * The metadata of this table.
+     */
     protected ITableMetaData _metaData;
     private Statement _statement;
+    /**
+     * The result set backing this table's rows.
+     */
     protected ResultSet _resultSet;
 
+    /**
+     * Creates a table wrapping the given already-executed result set.
+     *
+     * @param metaData the table metadata.
+     * @param resultSet the result set backing this table's rows.
+     * @throws SQLException if statement creation or execution fails.
+     * @throws DataSetException if metadata retrieval fails.
+     */
     public AbstractResultSetTable(ITableMetaData metaData, ResultSet resultSet)
             throws SQLException, DataSetException
     {
@@ -59,14 +73,25 @@ public abstract class AbstractResultSetTable extends AbstractTable
         _resultSet = resultSet;
     }
 
+    /**
+     * Creates a table from a table name, SQL statement, and connection.
+     *
+     * @param tableName the table name.
+     * @param selectStatement the SQL select statement.
+     * @param connection the database connection.
+     * @throws DataSetException if metadata retrieval fails.
+     * @throws SQLException if statement creation or execution fails.
+     */
     public AbstractResultSetTable(String tableName, String selectStatement,
             IDatabaseConnection connection)
             throws DataSetException, SQLException
     {
         this(tableName, selectStatement, connection, false);
     }
-    
+
     /**
+     * Creates a table from a table name, SQL statement, and connection.
+     *
      * @param tableName the table name.
      * @param selectStatement the SQL select statement.
      * @param connection the database connection.
@@ -112,6 +137,14 @@ public abstract class AbstractResultSetTable extends AbstractTable
         }
     }
 
+    /**
+     * Creates a table from a metadata descriptor and a connection, using a forward-only result set.
+     *
+     * @param metaData the table metadata.
+     * @param connection the database connection.
+     * @throws DataSetException if metadata retrieval fails.
+     * @throws SQLException if statement creation or execution fails.
+     */
     public AbstractResultSetTable(ITableMetaData metaData,
             IDatabaseConnection connection) throws DataSetException, SQLException
     {

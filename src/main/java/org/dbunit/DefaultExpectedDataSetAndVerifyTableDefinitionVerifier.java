@@ -53,6 +53,14 @@ public class DefaultExpectedDataSetAndVerifyTableDefinitionVerifier
         }
     }
 
+    /**
+     * Logs the mismatch and delegates to {@link #failOnMismatch(DatabaseConfig, Set)}.
+     *
+     * @param verifyTableDefinitions the configured table definitions to verify.
+     * @param expectedTableNames the table names present in the expected dataset.
+     * @param config the database configuration in effect.
+     * @throws DataSetException if the mismatch is not allowed to be suppressed.
+     */
     protected void handleCountMismatch(
             final VerifyTableDefinition[] verifyTableDefinitions,
             final String[] expectedTableNames, final DatabaseConfig config)
@@ -74,6 +82,13 @@ public class DefaultExpectedDataSetAndVerifyTableDefinitionVerifier
         failOnMismatch(config, mismatchedTableNames);
     }
 
+    /**
+     * Returns the expected table names that have no corresponding {@link VerifyTableDefinition}.
+     *
+     * @param verifyTableDefinitions the configured table definitions to verify.
+     * @param expectedTableNames the table names present in the expected dataset.
+     * @return the expected table names with no corresponding {@link VerifyTableDefinition}.
+     */
     protected Set<String> makeMismatchedTableNamesList(
             final VerifyTableDefinition[] verifyTableDefinitions,
             final String[] expectedTableNames)
@@ -101,6 +116,13 @@ public class DefaultExpectedDataSetAndVerifyTableDefinitionVerifier
         return tables;
     }
 
+    /**
+     * Returns whether the given expected table name has a corresponding {@link VerifyTableDefinition}.
+     *
+     * @param verifyTableDefinitions the configured table definitions to search.
+     * @param expectedTableName the expected table name to look for.
+     * @return <code>true</code> if a corresponding {@link VerifyTableDefinition} exists.
+     */
     protected boolean isVerifyTableDefinitionsHasTable(
             final VerifyTableDefinition[] verifyTableDefinitions,
             final String expectedTableName)
@@ -119,6 +141,14 @@ public class DefaultExpectedDataSetAndVerifyTableDefinitionVerifier
         return isExpectedTableFound;
     }
 
+    /**
+     * Fails with a {@link DataSetException} listing the mismatched tables, unless
+     * {@link DatabaseConfig#PROPERTY_ALLOW_VERIFYTABLEDEFINITION_EXPECTEDTABLE_COUNT_MISMATCH} is set.
+     *
+     * @param config the database configuration in effect.
+     * @param mismatchCountTables the expected table names with no corresponding {@link VerifyTableDefinition}.
+     * @throws DataSetException if the mismatch is not allowed to be suppressed.
+     */
     protected void failOnMismatch(final DatabaseConfig config,
             final Set<String> mismatchCountTables) throws DataSetException
     {

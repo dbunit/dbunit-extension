@@ -49,6 +49,13 @@ public class CaseInsensitiveDataSet extends AbstractDataSet
     private final IDataSet _dataSet;
     private OrderedTableNameMap orderedTableMap;
 
+    /**
+     * Creates a case-insensitive view of the given dataset.
+     *
+     * @param dataSet the dataset to decorate.
+     * @throws AmbiguousTableNameException if two table names are equal case-insensitively.
+     * @throws DataSetException if reading the dataset's tables fails.
+     */
     public CaseInsensitiveDataSet(IDataSet dataSet) throws AmbiguousTableNameException, DataSetException
     {
         _dataSet = dataSet;

@@ -103,7 +103,6 @@ public class OracleBlobDataType extends BlobDataType
         return tempBlob;
     }
 
-
     private void freeTemporaryBlob(oracle.sql.BLOB tempBlob) throws TypeCastException
     {
         logger.debug("freeTemporaryBlob(tempBlob={}) - start", tempBlob);

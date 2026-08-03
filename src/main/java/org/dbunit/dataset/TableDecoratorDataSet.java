@@ -37,6 +37,12 @@ public class TableDecoratorDataSet extends AbstractDataSet
     private final IDataSet _dataSet;
     private final TableDecoratorFunction _decoratorFunction;
 
+    /**
+     * Creates a new <code>TableDecoratorDataSet</code> decorating each table of the given dataset.
+     *
+     * @param dataSet the decorated dataset.
+     * @param decoratorFunction the function applied to each table of the dataset.
+     */
     public TableDecoratorDataSet(final IDataSet dataSet,
             final TableDecoratorFunction decoratorFunction)
     {
@@ -80,9 +86,19 @@ public class TableDecoratorDataSet extends AbstractDataSet
         }
     }
 
+    /**
+     * A function that decorates a single {@link ITable}.
+     */
     @FunctionalInterface
     public interface TableDecoratorFunction
     {
+        /**
+         * Applies this function to the given table.
+         *
+         * @param table the table to decorate.
+         * @return the decorated table.
+         * @throws DataSetException if the table cannot be decorated.
+         */
         ITable apply(ITable table) throws DataSetException;
     }
 }

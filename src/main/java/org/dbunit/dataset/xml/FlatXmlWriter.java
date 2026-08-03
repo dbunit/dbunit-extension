@@ -62,12 +62,20 @@ public class FlatXmlWriter implements IDataSetConsumer
     private boolean _includeEmptyTable = false;
     private String _systemId = null;
 
+    /**
+     * Creates a writer that writes XML to the given output stream, using the platform default charset.
+     *
+     * @param out the stream to write to.
+     * @throws IOException if the writer cannot be created.
+     */
     public FlatXmlWriter(OutputStream out) throws IOException
     {
         this(out, null);
     }
 
     /**
+     * Creates a writer that writes XML to the given output stream.
+     *
      * @param outputStream The stream to which the XML will be written.
      * @param charset The character set to be used for the {@link XmlWriter}.
      * Can be null. See {@link XmlWriter#XmlWriter(OutputStream, Charset)}.
@@ -78,23 +86,44 @@ public class FlatXmlWriter implements IDataSetConsumer
         _xmlWriter.enablePrettyPrint(true);
     }
 
+    /**
+     * Creates a writer that writes XML to the given writer.
+     *
+     * @param writer the writer to write to.
+     */
     public FlatXmlWriter(Writer writer)
     {
         _xmlWriter = new XmlWriter(writer);
         _xmlWriter.enablePrettyPrint(true);
     }
 
+    /**
+     * Creates a writer that writes XML to the given writer.
+     *
+     * @param writer the writer to write to.
+     * @param charset the charset to declare in the XML prolog, may be <code>null</code>.
+     */
     public FlatXmlWriter(Writer writer, Charset charset)
     {
         _xmlWriter = new XmlWriter(writer, charset);
         _xmlWriter.enablePrettyPrint(true);
     }
 
+    /**
+     * Sets whether or not empty tables are included in the output.
+     *
+     * @param includeEmptyTable whether or not empty tables are included in the output.
+     */
     public void setIncludeEmptyTable(boolean includeEmptyTable)
     {
         _includeEmptyTable = includeEmptyTable;
     }
 
+    /**
+     * Sets the DOCTYPE system id to declare in the output.
+     *
+     * @param systemId the DOCTYPE system id.
+     */
     public void setDocType(String systemId)
     {
         _systemId = systemId;
@@ -114,7 +143,7 @@ public class FlatXmlWriter implements IDataSetConsumer
     /**
      * Writes the given {@link IDataSet} using this writer.
      * @param dataSet The {@link IDataSet} to be written
-     * @throws DataSetException
+     * @throws DataSetException if reading the dataset fails.
      */
     public void write(IDataSet dataSet) throws DataSetException
     {

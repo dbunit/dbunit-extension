@@ -46,7 +46,8 @@ public class Slot extends SemaphoreControlledChannel {
   /**
    * Create a buffer with the given capacity, using
    * the supplied Semaphore class for semaphores.
-   * @exception NoSuchMethodException If class does not have constructor 
+   * @param semaphoreClass the {@link Semaphore} subclass to instantiate for the put/take guards.
+   * @exception NoSuchMethodException If class does not have constructor
    * that intializes permits
    * @exception SecurityException if constructor information 
    * not accessible

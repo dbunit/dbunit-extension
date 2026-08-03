@@ -43,6 +43,9 @@ public class DefaultDataSet extends AbstractDataSet
      */
     private static final Logger logger = LoggerFactory.getLogger(DefaultDataSet.class);
 
+    /**
+     * Default constructor.
+     */
     public DefaultDataSet()
     {
     	super();
@@ -50,7 +53,7 @@ public class DefaultDataSet extends AbstractDataSet
 
     /**
      * Creates a default dataset which is empty initially
-     * @param caseSensitiveTableNames
+     * @param caseSensitiveTableNames Whether or not table names should be case sensitive
      * @since 2.4.2
      */
     public DefaultDataSet(boolean caseSensitiveTableNames)
@@ -58,24 +61,45 @@ public class DefaultDataSet extends AbstractDataSet
         super(caseSensitiveTableNames);
     }
 
+    /**
+     * Creates a default dataset consisting of the given table.
+     *
+     * @param table the table to add.
+     * @throws AmbiguousTableNameException never thrown for a single table.
+     */
     public DefaultDataSet(ITable table) throws AmbiguousTableNameException
     {
         this(new ITable[]{table});
     }
 
+    /**
+     * Creates a default dataset consisting of the given tables.
+     *
+     * @param table1 the first table to add.
+     * @param table2 the second table to add.
+     * @throws AmbiguousTableNameException if the two tables have the same name.
+     */
     public DefaultDataSet(ITable table1, ITable table2) throws AmbiguousTableNameException
     {
         this(new ITable[] {table1, table2});
     }
 
+    /**
+     * Creates a default dataset consisting of the given tables.
+     *
+     * @param tables the tables to add.
+     * @throws AmbiguousTableNameException if two tables have the same name.
+     */
     public DefaultDataSet(ITable[] tables) throws AmbiguousTableNameException
     {
         this(tables, false);
     }
-    
+
     /**
      * Creates a default dataset which consists of the given tables
-     * @param caseSensitiveTableNames
+     * @param tables the tables to add.
+     * @param caseSensitiveTableNames Whether or not table names should be case sensitive
+     * @throws AmbiguousTableNameException if two tables have the same name.
      * @since 2.4.2
      */
     public DefaultDataSet(ITable[] tables, boolean caseSensitiveTableNames) throws AmbiguousTableNameException
@@ -90,19 +114,20 @@ public class DefaultDataSet extends AbstractDataSet
 
     /**
      * Add a new table in this dataset.
-     * @throws AmbiguousTableNameException 
+     * @param table the table to add.
+     * @throws AmbiguousTableNameException if a table with the same name already exists.
      */
     public void addTable(ITable table) throws AmbiguousTableNameException
     {
         logger.debug("addTable(table={}) - start", table);
-        
+
         this.initialize();
-        
+
         super._orderedTableNameMap.add(table.getTableMetaData().getTableName(), table);
     }
 
     /**
-     * Initializes the {@link _orderedTableNameMap} of the parent class if it is not initialized yet.
+     * Initializes the {@link #_orderedTableNameMap} of the parent class if it is not initialized yet.
      * @since 2.4.6
      */
     protected void initialize()

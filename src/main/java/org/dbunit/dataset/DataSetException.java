@@ -33,20 +33,43 @@ import org.dbunit.DatabaseUnitException;
  */
 public class DataSetException extends DatabaseUnitException
 {
+    /**
+     * Constructs a <code>DataSetException</code> with no detail
+     * message and no encapsulated exception.
+     */
     public DataSetException()
     {
     }
 
+    /**
+     * Constructs a <code>DataSetException</code> with the specified detail
+     * message and no encapsulated exception.
+     *
+     * @param msg the detail message.
+     */
     public DataSetException(String msg)
     {
         super(msg);
     }
 
+    /**
+     * Constructs a <code>DataSetException</code> with the specified detail
+     * message and encapsulated exception.
+     *
+     * @param msg the detail message.
+     * @param e the encapsulated exception.
+     */
     public DataSetException(String msg, Throwable e)
     {
         super(msg, e);
     }
 
+    /**
+     * Constructs a <code>DataSetException</code> with the encapsulated
+     * exception and use string representation as detail message.
+     *
+     * @param e the encapsulated exception.
+     */
     public DataSetException(Throwable e)
     {
         super(e);

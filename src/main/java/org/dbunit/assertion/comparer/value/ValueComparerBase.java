@@ -55,6 +55,15 @@ public abstract class ValueComparerBase implements ValueComparer
     /**
      * Do the comparison and return a fail message or null if comparison passes.
      *
+     * @param expectedTable Table containing all expected results.
+     * @param actualTable Table containing all actual results.
+     * @param rowNum The current row number comparing.
+     * @param columnName The name of the current column comparing.
+     * @param dataType The {@link DataType} for the current column comparing.
+     * @param expectedValue The current expected value for the column.
+     * @param actualValue The current actual value for the column.
+     * @return compare failure message or null if successful compare.
+     * @throws DatabaseUnitException if the comparison cannot be performed.
      * @see ValueComparer#compare(ITable, ITable, int, String, DataType, Object,
      *      Object)
      */

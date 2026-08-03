@@ -176,6 +176,10 @@ public class DbUnitAssert extends DbUnitAssertBase
     /**
      * Asserts that the two specified dataset are equals. This method ignore the
      * tables order.
+     *
+     * @param expectedDataSet dataset containing all expected results.
+     * @param actualDataSet dataset containing all actual results.
+     * @throws DatabaseUnitException if an error occurs during comparison.
      */
     public void assertEquals(final IDataSet expectedDataSet,
             final IDataSet actualDataSet) throws DatabaseUnitException
@@ -190,6 +194,10 @@ public class DbUnitAssert extends DbUnitAssertBase
      * Asserts that the two specified dataset are equals. This method ignore the
      * tables order.
      *
+     * @param expectedDataSet dataset containing all expected results.
+     * @param actualDataSet dataset containing all actual results.
+     * @param failureHandler the failure handler used to report mismatches. Can be <code>null</code>.
+     * @throws DatabaseUnitException if an error occurs during comparison.
      * @since 2.4
      */
     public void assertEquals(final IDataSet expectedDataSet,
@@ -200,6 +208,16 @@ public class DbUnitAssert extends DbUnitAssertBase
                 null, null);
     }
 
+    /**
+     * Asserts each expected table against its corresponding actual table, using the default
+     * equality-based value comparer.
+     *
+     * @param expectedDataSet the dataset containing all expected results.
+     * @param actualDataSet the dataset containing all actual results.
+     * @param expectedNames the table names to compare, in comparison order.
+     * @param failureHandler the failure handler used if the assert fails because of a data mismatch.
+     * @throws DatabaseUnitException if a table comparison fails.
+     */
     protected void compareTables(final IDataSet expectedDataSet,
             final IDataSet actualDataSet, final String[] expectedNames,
             final FailureHandler failureHandler) throws DatabaseUnitException
@@ -217,7 +235,7 @@ public class DbUnitAssert extends DbUnitAssertBase
      *            Table containing all expected results.
      * @param actualTable
      *            Table containing all actual results.
-     * @throws DatabaseUnitException
+     * @throws DatabaseUnitException if an error occurs during comparison.
      */
     public void assertEquals(final ITable expectedTable,
             final ITable actualTable) throws DatabaseUnitException
@@ -249,7 +267,7 @@ public class DbUnitAssert extends DbUnitAssertBase
      *            be useful to quickly identify the columns for which the
      *            mismatch occurred (for example a primary key column). Can be
      *            <code>null</code>.
-     * @throws DatabaseUnitException
+     * @throws DatabaseUnitException if an error occurs during comparison.
      */
     public void assertEquals(final ITable expectedTable,
             final ITable actualTable, final Column[] additionalColumnInfo)
@@ -290,7 +308,7 @@ public class DbUnitAssert extends DbUnitAssertBase
      *            useful to quickly identify the rows for which the mismatch
      *            occurred (for example by printing an additional primary key
      *            column). Can be <code>null</code>.
-     * @throws DatabaseUnitException
+     * @throws DatabaseUnitException if an error occurs during comparison.
      * @since 2.4
      */
     public void assertEquals(final ITable expectedTable,
@@ -323,6 +341,8 @@ public class DbUnitAssert extends DbUnitAssertBase
         private DataType dataType;
 
         /**
+         * Creates a comparison column, resolving the {@link DataType} to use for comparison.
+         *
          * @param tableName
          *            The table name which is only needed for debugging output.
          * @param expectedColumn
@@ -345,6 +365,8 @@ public class DbUnitAssert extends DbUnitAssertBase
         }
 
         /**
+         * Returns the column actually being compared.
+         *
          * @return The column actually being compared.
          */
         public String getColumnName()
@@ -353,6 +375,8 @@ public class DbUnitAssert extends DbUnitAssertBase
         }
 
         /**
+         * Returns the {@link DataType} to use for the actual comparison.
+         *
          * @return The {@link DataType} to use for the actual comparison.
          */
         public DataType getDataType()

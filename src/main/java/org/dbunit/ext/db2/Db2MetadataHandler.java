@@ -42,6 +42,9 @@ public class Db2MetadataHandler extends DefaultMetadataHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(Db2MetadataHandler.class);
 
+    /**
+     * Default constructor.
+     */
     public Db2MetadataHandler() {
         super();
     }

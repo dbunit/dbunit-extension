@@ -17,6 +17,7 @@ import org.dbunit.dataset.ITable;
  */
 public class DbUnitValueComparerAssert extends DbUnitAssertBase
 {
+
     /**
      * Asserts the two specified {@link IDataSet}s comparing their columns using
      * the default {@link ValueComparer} and handles failures using the default
@@ -28,7 +29,7 @@ public class DbUnitValueComparerAssert extends DbUnitAssertBase
      *            {@link IDataSet} containing all expected results.
      * @param actualDataSet
      *            {@link IDataSet} containing all actual results.
-     * @throws DatabaseUnitException
+     * @throws DatabaseUnitException if an error occurs during comparison.
      */
     public void assertWithValueComparer(final IDataSet expectedDataSet,
             final IDataSet actualDataSet) throws DatabaseUnitException
@@ -54,7 +55,7 @@ public class DbUnitValueComparerAssert extends DbUnitAssertBase
      *            {@link ValueComparer} to use with all column value
      *            comparisons. Can be <code>null</code> and will default to
      *            {@link ValueComparerDefaults#getDefaultValueComparer()}.
-     * @throws DatabaseUnitException
+     * @throws DatabaseUnitException if an error occurs during comparison.
      */
     public void assertWithValueComparer(final IDataSet expectedDataSet,
             final IDataSet actualDataSet,
@@ -92,7 +93,7 @@ public class DbUnitValueComparerAssert extends DbUnitAssertBase
      *            {@link ValueComparerDefaults#getDefaultColumnValueComparerMapForTable(String)} or,
      *            if that is empty, defaultValueComparer for all columns in all
      *            tables.
-     * @throws DatabaseUnitException
+     * @throws DatabaseUnitException if an error occurs during comparison.
      */
     public void assertWithValueComparer(final IDataSet expectedDataSet,
             final IDataSet actualDataSet,
@@ -116,7 +117,7 @@ public class DbUnitValueComparerAssert extends DbUnitAssertBase
      *            {@link ITable} containing all expected results.
      * @param actualTable
      *            {@link ITable} containing all actual results.
-     * @throws DatabaseUnitException
+     * @throws DatabaseUnitException if an error occurs during comparison.
      */
     public void assertWithValueComparer(final ITable expectedTable,
             final ITable actualTable) throws DatabaseUnitException
@@ -143,7 +144,7 @@ public class DbUnitValueComparerAssert extends DbUnitAssertBase
      *            {@link ValueComparer} to use with all column value
      *            comparisons. Can be <code>null</code> and will default to
      *            {@link ValueComparerDefaults#getDefaultValueComparer()}.
-     * @throws DatabaseUnitException
+     * @throws DatabaseUnitException if an error occurs during comparison.
      */
     public void assertWithValueComparer(final ITable expectedTable,
             final ITable actualTable, final ValueComparer defaultValueComparer)
@@ -184,7 +185,7 @@ public class DbUnitValueComparerAssert extends DbUnitAssertBase
      *            {@link ValueComparerDefaults#getDefaultColumnValueComparerMapForTable(String)} or,
      *            if that is empty, defaultValueComparer for all columns in the
      *            table.
-     * @throws DatabaseUnitException
+     * @throws DatabaseUnitException if an error occurs during comparison.
      */
     public void assertWithValueComparer(final ITable expectedTable,
             final ITable actualTable, final ValueComparer defaultValueComparer,
@@ -228,7 +229,7 @@ public class DbUnitValueComparerAssert extends DbUnitAssertBase
      *            {@link ValueComparerDefaults#getDefaultColumnValueComparerMapForTable(String)} or,
      *            if that is empty, defaultValueComparer for all columns in the
      *            table.
-     * @throws DatabaseUnitException
+     * @throws DatabaseUnitException if an error occurs during comparison.
      */
     public void assertWithValueComparer(final ITable expectedTable,
             final ITable actualTable, final Column[] additionalColumnInfo,

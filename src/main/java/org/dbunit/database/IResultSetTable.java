@@ -33,5 +33,10 @@ import org.dbunit.dataset.ITable;
  */
 public interface IResultSetTable extends ITable
 {
+    /**
+     * Closes the underlying result set and releases its resources.
+     *
+     * @throws DataSetException if closing the result set fails.
+     */
     public void close() throws DataSetException;
 }

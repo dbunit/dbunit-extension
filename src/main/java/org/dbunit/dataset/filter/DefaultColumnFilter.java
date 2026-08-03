@@ -62,6 +62,7 @@ public class DefaultColumnFilter implements IColumnFilter
 
     /**
      * Add specified columns to accepted column name list.
+     * @param columns the columns to accept.
      */
     public void includeColumns(Column[] columns)
     {
@@ -78,6 +79,7 @@ public class DefaultColumnFilter implements IColumnFilter
      * The following wildcard characters are supported:
      * '*' matches zero or more characters,
      * '?' matches one character.
+     * @param columnPattern The column pattern to be refused.
      */
     public void excludeColumn(String columnPattern)
     {
@@ -88,6 +90,7 @@ public class DefaultColumnFilter implements IColumnFilter
 
     /**
      * Add specified columns to excluded column name list.
+     * @param columns the columns to exclude.
      */
     public void excludeColumns(Column[] columns)
     {
@@ -102,6 +105,10 @@ public class DefaultColumnFilter implements IColumnFilter
     /**
      * Returns a table backed by the specified table that only exposes specified
      * columns.
+     * @param table the table to filter.
+     * @param columnNames the names of the columns to expose.
+     * @return the filtered table.
+     * @throws DataSetException if the filtered metadata cannot be built.
      */
     public static ITable includedColumnsTable(ITable table, String[] columnNames)
             throws DataSetException
@@ -121,6 +128,10 @@ public class DefaultColumnFilter implements IColumnFilter
     /**
      * Returns a table backed by the specified table that only exposes specified
      * columns.
+     * @param table the table to filter.
+     * @param columns the columns to expose.
+     * @return the filtered table.
+     * @throws DataSetException if the filtered metadata cannot be built.
      */
     public static ITable includedColumnsTable(ITable table, Column[] columns)
             throws DataSetException
@@ -136,6 +147,10 @@ public class DefaultColumnFilter implements IColumnFilter
     /**
      * Returns a table backed by the specified table but with specified
      * columns excluded.
+     * @param table the table to filter.
+     * @param columnNames the names of the columns to exclude.
+     * @return the filtered table.
+     * @throws DataSetException if the filtered metadata cannot be built.
      */
     public static ITable excludedColumnsTable(ITable table, String[] columnNames)
             throws DataSetException
@@ -155,6 +170,10 @@ public class DefaultColumnFilter implements IColumnFilter
     /**
      * Returns a table backed by the specified table but with specified
      * columns excluded.
+     * @param table the table to filter.
+     * @param columns the columns to exclude.
+     * @return the filtered table.
+     * @throws DataSetException if the filtered metadata cannot be built.
      */
     public static ITable excludedColumnsTable(ITable table, Column[] columns)
             throws DataSetException
@@ -181,7 +200,6 @@ public class DefaultColumnFilter implements IColumnFilter
         }
         return false;
     }
-    
     
     public String toString()
     {

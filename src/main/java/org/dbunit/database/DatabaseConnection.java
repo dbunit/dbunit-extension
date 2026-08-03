@@ -53,7 +53,7 @@ public class DatabaseConnection extends AbstractDatabaseConnection
      * Creates a new <code>DatabaseConnection</code>.
      *
      * @param connection the adapted JDBC connection
-     * @throws DatabaseUnitException
+     * @throws DatabaseUnitException if the connection cannot be adapted.
      */
     public DatabaseConnection(Connection connection) throws DatabaseUnitException
     {
@@ -74,7 +74,7 @@ public class DatabaseConnection extends AbstractDatabaseConnection
      * </code>
      * The first one creates the "default" user where everything is interpreted by oracle in uppercase.
      * The second one is completely lowercase because of the quotes.
-     * @throws DatabaseUnitException 
+     * @throws DatabaseUnitException if the connection cannot be adapted.
      */
     public DatabaseConnection(Connection connection, String schema) throws DatabaseUnitException
     {
@@ -166,7 +166,7 @@ public class DatabaseConnection extends AbstractDatabaseConnection
      * @param validateStrict If <code>true</code> an exception is thrown when the given schema
      * does not exist according to the DatabaseMetaData. If <code>false</code> the validation
      * will only print a warning if the schema was not found.
-     * @throws DatabaseUnitException
+     * @throws DatabaseUnitException if schema validation fails.
      */
     private void validateSchema(boolean validateStrict) throws DatabaseUnitException
     {

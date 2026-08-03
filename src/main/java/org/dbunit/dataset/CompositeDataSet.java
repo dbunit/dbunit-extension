@@ -48,6 +48,9 @@ public class CompositeDataSet extends AbstractDataSet
     /**
      * Creates a composite dataset that combines specified datasets.
      * Tables having the same name are merged into one table.
+     *
+     * @param dataSets list of datasets
+     * @throws DataSetException if combining the datasets fails.
      */
     public CompositeDataSet(IDataSet[] dataSets) throws DataSetException
     {
@@ -62,6 +65,7 @@ public class CompositeDataSet extends AbstractDataSet
      * @param combine
      *      if <code>true</code>, tables having the same name are merged into
      *      one table.
+     * @throws DataSetException if combining the datasets fails.
      */
     public CompositeDataSet(IDataSet[] dataSets, boolean combine)
             throws DataSetException
@@ -79,6 +83,7 @@ public class CompositeDataSet extends AbstractDataSet
      *      one table.
      * @param caseSensitiveTableNames Whether or not table names are handled in a case sensitive
      * way over all datasets.
+     * @throws DataSetException if combining the datasets fails.
      * @since 2.4.2
      */
     public CompositeDataSet(IDataSet[] dataSets, boolean combine, boolean caseSensitiveTableNames)
@@ -105,6 +110,10 @@ public class CompositeDataSet extends AbstractDataSet
     /**
      * Creates a composite dataset that combines the two specified datasets.
      * Tables having the same name are merged into one table.
+     *
+     * @param dataSet1 first dataset
+     * @param dataSet2 second dataset
+     * @throws DataSetException if combining the datasets fails.
      */
     public CompositeDataSet(IDataSet dataSet1, IDataSet dataSet2)
             throws DataSetException
@@ -122,6 +131,7 @@ public class CompositeDataSet extends AbstractDataSet
      * @param combine
      *      if <code>true</code>, tables having the same name are merged into
      *      one table.
+     * @throws DataSetException if combining the datasets fails.
      */
     public CompositeDataSet(IDataSet dataSet1, IDataSet dataSet2, boolean combine)
             throws DataSetException
@@ -138,7 +148,8 @@ public class CompositeDataSet extends AbstractDataSet
      *      if <code>true</code>, tables having the same name are merged into
      *      one table.
      * @deprecated This constructor is useless when the combine parameter is
-     * <code>false</code>. Use overload that doesn't have the combine argument. 
+     * <code>false</code>. Use overload that doesn't have the combine argument.
+     * @throws DataSetException if combining the dataset's tables fails.
      */
     public CompositeDataSet(IDataSet dataSet, boolean combine)
             throws DataSetException
@@ -151,6 +162,7 @@ public class CompositeDataSet extends AbstractDataSet
      *
      * @param dataSet
      *      the dataset
+     * @throws DataSetException if combining the dataset's tables fails.
      */
     public CompositeDataSet(IDataSet dataSet) throws DataSetException
     {
@@ -160,6 +172,9 @@ public class CompositeDataSet extends AbstractDataSet
     /**
      * Creates a composite dataset that combines tables having identical name.
      * Tables having the same name are merged into one table.
+     *
+     * @param tables The tables to merge to one dataset
+     * @throws DataSetException if combining the tables fails.
      */
     public CompositeDataSet(ITable[] tables) throws DataSetException
     {
@@ -172,6 +187,7 @@ public class CompositeDataSet extends AbstractDataSet
      * @param tables The tables to merge to one dataset
      * @param caseSensitiveTableNames Whether or not table names are handled in a case sensitive
      * way over all datasets.
+     * @throws DataSetException if combining the tables fails.
      * @since 2.4.2
      */
     public CompositeDataSet(ITable[] tables, boolean caseSensitiveTableNames) throws DataSetException

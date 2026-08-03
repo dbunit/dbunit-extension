@@ -76,18 +76,32 @@ public class RelativeDateTimeParser
     private Clock clock;
     private LocalDateTime now;
 
+    /**
+     * Default constructor.
+     */
     public RelativeDateTimeParser()
     {
         // Use fixed clock to provide consistent 'now' values.
         this(Clock.fixed(Instant.now(), ZoneId.systemDefault()));
     }
 
+    /**
+     * Constructs a parser resolving <code>[now]</code> relative to the given clock.
+     *
+     * @param clock the clock used to resolve <code>[now]</code>.
+     */
     public RelativeDateTimeParser(Clock clock)
     {
         this.clock = clock;
         cacheLocalDateTime(clock);
     }
 
+    /**
+     * Parses a relative datetime expression such as <code>[now-1d]</code>.
+     *
+     * @param input the relative datetime expression to parse.
+     * @return the resolved date and time.
+     */
     public LocalDateTime parse(String input)
     {
         if (input == null || input.isEmpty())
@@ -125,11 +139,21 @@ public class RelativeDateTimeParser
         return datetime;
     }
 
+    /**
+     * Returns the clock used to resolve <code>[now]</code>.
+     *
+     * @return the clock used to resolve <code>[now]</code>.
+     */
     public Clock getClock()
     {
         return clock;
     }
 
+    /**
+     * Sets the clock used to resolve <code>[now]</code>.
+     *
+     * @param clock the clock used to resolve <code>[now]</code>.
+     */
     public void setClock(Clock clock)
     {
         this.clock = clock;

@@ -11,11 +11,18 @@ import static org.dbunit.assertion.comparer.value.IsActualWithinToleranceOfExpec
  */
 public abstract class ValueComparers
 {
+    /**
+     * Default constructor.
+     */
     protected ValueComparers()
     {
     }
 
-    /** @see IsActualEqualToExpectedValueComparer */
+    /**
+     * Compares actual and expected values for equality.
+     *
+     * @see IsActualEqualToExpectedValueComparer
+     */
     public static final ValueComparer isActualEqualToExpected =
             new IsActualEqualToExpectedValueComparer();
 
@@ -40,62 +47,112 @@ public abstract class ValueComparers
             new IsActualWithinToleranceOfExpectedTimestampValueComparer(0,
                     ONE_SECOND_IN_MILLIS);
 
-    /** @see IsActualNotEqualToExpectedValueComparer */
+    /**
+     * Compares actual and expected values for inequality.
+     *
+     * @see IsActualNotEqualToExpectedValueComparer
+     */
     public static final ValueComparer isActualNotEqualToExpected =
             new IsActualNotEqualToExpectedValueComparer();
 
-    /** @see IsActualGreaterThanExpectedValueComparer */
+    /**
+     * Checks whether the actual value is greater than the expected value.
+     *
+     * @see IsActualGreaterThanExpectedValueComparer
+     */
     public static final ValueComparer isActualGreaterThanExpected =
             new IsActualGreaterThanExpectedValueComparer();
 
-    /** @see IsActualGreaterThanOrEqualToExpectedValueComparer */
+    /**
+     * Checks whether the actual value is greater than or equal to the expected value.
+     *
+     * @see IsActualGreaterThanOrEqualToExpectedValueComparer
+     */
     public static final ValueComparer isActualGreaterThanOrEqualToExpected =
             new IsActualGreaterThanOrEqualToExpectedValueComparer();
 
-    /** @see IsActualLessThanOrEqualToExpectedValueComparer */
+    /**
+     * Checks whether the actual value is less than or equal to the expected value.
+     *
+     * @see IsActualLessThanOrEqualToExpectedValueComparer
+     */
     public static final ValueComparer isActualLessOrEqualToThanExpected =
             new IsActualLessThanOrEqualToExpectedValueComparer();
 
-    /** @see IsActualLessThanExpectedValueComparer */
+    /**
+     * Checks whether the actual value is less than the expected value.
+     *
+     * @see IsActualLessThanExpectedValueComparer
+     */
     public static final ValueComparer isActualLessThanExpected =
             new IsActualLessThanExpectedValueComparer();
 
-    /** @see IsActualNotNullValueComparer */
+    /**
+     * Checks whether the actual value is not null.
+     *
+     * @see IsActualNotNullValueComparer
+     */
     public static final ValueComparer isActualNotNullValueComparer =
             new IsActualNotNullValueComparer();
 
-    /** @see IsActualNullValueComparer */
+    /**
+     * Checks whether the actual value is null.
+     *
+     * @see IsActualNullValueComparer
+     */
     public static final ValueComparer isActualNullValueComparer =
             new IsActualNullValueComparer();
 
-    /** @see IsActualWithinToleranceOfExpectedTimestampValueComparer */
+    /**
+     * Checks whether the actual timestamp is up to one second newer than the expected timestamp.
+     *
+     * @see IsActualWithinToleranceOfExpectedTimestampValueComparer
+     */
     public static final ValueComparer isActualWithinOneSecondNewerOfExpectedTimestamp =
             new IsActualWithinToleranceOfExpectedTimestampValueComparer(0,
                     ONE_SECOND_IN_MILLIS);
 
-    /** @see IsActualWithinToleranceOfExpectedTimestampValueComparer */
+    /**
+     * Checks whether the actual timestamp is up to one second older than the expected timestamp.
+     *
+     * @see IsActualWithinToleranceOfExpectedTimestampValueComparer
+     */
     public static final ValueComparer isActualWithinOneSecondOlderOfExpectedTimestamp =
             new IsActualWithinToleranceOfExpectedTimestampValueComparer(
                     ONE_SECOND_IN_MILLIS, 0);
 
-    /** @see IsActualWithinToleranceOfExpectedTimestampValueComparer */
+    /**
+     * Checks whether the actual timestamp is up to one minute newer than the expected timestamp.
+     *
+     * @see IsActualWithinToleranceOfExpectedTimestampValueComparer
+     */
     public static final ValueComparer isActualWithinOneMinuteNewerOfExpectedTimestamp =
             new IsActualWithinToleranceOfExpectedTimestampValueComparer(0,
                     ONE_MINUTE_IN_MILLIS);
 
-    /** @see IsActualWithinToleranceOfExpectedTimestampValueComparer */
+    /**
+     * Checks whether the actual timestamp is up to one minute older than the expected timestamp.
+     *
+     * @see IsActualWithinToleranceOfExpectedTimestampValueComparer
+     */
     public static final ValueComparer isActualWithinOneMinuteOlderOfExpectedTimestamp =
             new IsActualWithinToleranceOfExpectedTimestampValueComparer(
                     ONE_MINUTE_IN_MILLIS, 0);
 
     /**
+     * Checks whether the actual value contains the expected string.
+     *
      * @see IsActualContainingExpectedStringValueComparer
      * @since 2.7.0
      */
     public static final ValueComparer isActualContainingExpectedStringValueComparer =
             new IsActualContainingExpectedStringValueComparer();
 
-    /** @see NeverFailsValueComparer */
+    /**
+     * Verifies nothing and never fails.
+     *
+     * @see NeverFailsValueComparer
+     */
     public static final ValueComparer neverFails =
             new NeverFailsValueComparer();
 }

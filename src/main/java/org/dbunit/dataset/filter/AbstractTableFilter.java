@@ -53,6 +53,10 @@ public abstract class AbstractTableFilter implements ITableFilter
      * Returns <code>true</code> if specified table is allowed by this filter.
      * This legacy method, now replaced by accept, still exist for compatibily
      * with older environment
+     *
+     * @param tableName the name of the table to check.
+     * @return <code>true</code> if specified table is allowed by this filter.
+     * @throws DataSetException if the check fails.
      */
     public abstract boolean isValidName(String tableName) throws DataSetException;
 

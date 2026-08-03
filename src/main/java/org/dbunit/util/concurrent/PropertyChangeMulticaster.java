@@ -110,6 +110,9 @@ public class PropertyChangeMulticaster implements Serializable {
 
   /**
    * Return the child associated with property, or null if no such
+   *
+   * @param propertyName the property name.
+   * @return the child multicaster associated with the property, or {@code null} if none.
    **/
 
   protected synchronized PropertyChangeMulticaster getChild(String propertyName) {
@@ -314,8 +317,10 @@ public class PropertyChangeMulticaster implements Serializable {
 
 
   /**
-   * Helper method to relay evt to all listeners. 
+   * Helper method to relay evt to all listeners.
    * Called by all public firePropertyChange methods.
+   *
+   * @param evt the event to relay to all listeners.
    **/
 
   protected void multicast(PropertyChangeEvent evt) {
@@ -466,6 +471,10 @@ public class PropertyChangeMulticaster implements Serializable {
 
 
   /**
+   * Serializes this instance, writing only the serializable listeners.
+   *
+   * @param s the stream to write to.
+   * @throws IOException if writing to the stream fails.
    * @serialData Null terminated list of <code>PropertyChangeListeners</code>.
    * <p>
    * At serialization time we skip non-serializable listeners and
@@ -476,16 +485,23 @@ public class PropertyChangeMulticaster implements Serializable {
         logger.debug("writeObject(s={}) - start", s);
 
     s.defaultWriteObject();
-    
-    for (int i = 0; i < listeners.length; i++) {      
+
+    for (int i = 0; i < listeners.length; i++) {
       if (listeners[i] instanceof Serializable) {
         s.writeObject(listeners[i]);
       }
     }
     s.writeObject(null);
   }
-  
-  
+
+
+  /**
+   * Deserializes this instance, restoring the listeners written by {@link #writeObject(ObjectOutputStream)}.
+   *
+   * @param s the stream to read from.
+   * @throws ClassNotFoundException if a serialized listener's class cannot be found.
+   * @throws IOException if reading from the stream fails.
+   */
   private void readObject(ObjectInputStream s) throws ClassNotFoundException, IOException {
         logger.debug("readObject(s={}) - start", s);
 

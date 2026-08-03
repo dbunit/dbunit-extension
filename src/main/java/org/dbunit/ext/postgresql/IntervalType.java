@@ -51,6 +51,9 @@ public class IntervalType extends AbstractDataType {
     private static final Logger logger = LoggerFactory.getLogger(IntervalType.class);
 
 
+    /**
+     * Default constructor.
+     */
     public IntervalType() {
         super("interval", Types.OTHER, String.class, false);
     }

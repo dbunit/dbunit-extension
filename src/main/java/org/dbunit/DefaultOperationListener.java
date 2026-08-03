@@ -41,7 +41,6 @@ public class DefaultOperationListener implements IOperationListener{
      */
     private static final Logger logger = LoggerFactory.getLogger(DefaultOperationListener.class);
 
-    
     public void connectionRetrieved(IDatabaseConnection connection) {
         logger.debug("connectionCreated(connection={}) - start", connection);
         // Is by default a no-op

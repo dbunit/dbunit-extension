@@ -35,20 +35,43 @@ public class ExclusiveTransactionException extends DatabaseUnitException
 {
     private static final long serialVersionUID = 1L;
 
+    /**
+     * Constructs an <code>ExclusiveTransactionException</code> with no detail
+     * message and no encapsulated exception.
+     */
     public ExclusiveTransactionException()
     {
     }
 
+    /**
+     * Constructs an <code>ExclusiveTransactionException</code> with the specified detail
+     * message and no encapsulated exception.
+     *
+     * @param msg the detail message.
+     */
     public ExclusiveTransactionException(String msg)
     {
         super(msg);
     }
 
+    /**
+     * Constructs an <code>ExclusiveTransactionException</code> with the specified detail
+     * message and encapsulated exception.
+     *
+     * @param msg the detail message.
+     * @param e the encapsulated exception.
+     */
     public ExclusiveTransactionException(String msg, Throwable e)
     {
         super(msg, e);
     }
 
+    /**
+     * Constructs an <code>ExclusiveTransactionException</code> with the encapsulated
+     * exception and use its message as detail message.
+     *
+     * @param e the encapsulated exception.
+     */
     public ExclusiveTransactionException(Throwable e)
     {
         super(e);

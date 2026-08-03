@@ -62,6 +62,13 @@ public class Assertion
     }
 
     /**
+     * Asserts that the two specified datasets' tables are equal, ignoring the given columns.
+     *
+     * @param expectedDataset dataset containing the expected results.
+     * @param actualDataset dataset containing the actual results.
+     * @param tableName name of the table to compare.
+     * @param ignoreCols columns to ignore during comparison.
+     * @throws DatabaseUnitException if an error occurs during comparison.
      * @see DbUnitAssert#assertEqualsIgnoreCols(IDataSet, IDataSet, String,
      *      String[])
      */
@@ -74,6 +81,12 @@ public class Assertion
     }
 
     /**
+     * Asserts that the two specified tables are equal, ignoring the given columns.
+     *
+     * @param expectedTable table containing the expected results.
+     * @param actualTable table containing the actual results.
+     * @param ignoreCols columns to ignore during comparison.
+     * @throws DatabaseUnitException if an error occurs during comparison.
      * @see DbUnitAssert#assertEqualsIgnoreCols(ITable, ITable, String[])
      */
     public static void assertEqualsIgnoreCols(final ITable expectedTable,
@@ -85,6 +98,15 @@ public class Assertion
     }
 
     /**
+     * Asserts that the specified dataset table matches the given query's result, ignoring the given columns.
+     *
+     * @param expectedDataset dataset containing the expected results.
+     * @param connection connection used to query the actual results.
+     * @param sqlQuery SQL query used to obtain the actual results.
+     * @param tableName name of the table being compared.
+     * @param ignoreCols columns to ignore during comparison.
+     * @throws DatabaseUnitException if an error occurs during comparison.
+     * @throws SQLException if an error occurs while executing the query.
      * @see DbUnitAssert#assertEqualsByQuery(IDataSet, IDatabaseConnection,
      *      String, String, String[])
      */
@@ -98,6 +120,15 @@ public class Assertion
     }
 
     /**
+     * Asserts that the specified table matches the given query's result, ignoring the given columns.
+     *
+     * @param expectedTable table containing the expected results.
+     * @param connection connection used to query the actual results.
+     * @param tableName name of the table being compared.
+     * @param sqlQuery SQL query used to obtain the actual results.
+     * @param ignoreCols columns to ignore during comparison.
+     * @throws DatabaseUnitException if an error occurs during comparison.
+     * @throws SQLException if an error occurs while executing the query.
      * @see DbUnitAssert#assertEqualsByQuery(ITable, IDatabaseConnection,
      *      String, String, String[])
      */
@@ -111,6 +142,11 @@ public class Assertion
     }
 
     /**
+     * Asserts that the two specified datasets are equal.
+     *
+     * @param expectedDataSet dataset containing the expected results.
+     * @param actualDataSet dataset containing the actual results.
+     * @throws DatabaseUnitException if an error occurs during comparison.
      * @see DbUnitAssert#assertEquals(IDataSet, IDataSet)
      */
     public static void assertEquals(final IDataSet expectedDataSet,
@@ -120,6 +156,12 @@ public class Assertion
     }
 
     /**
+     * Asserts that the two specified datasets are equal.
+     *
+     * @param expectedDataSet dataset containing the expected results.
+     * @param actualDataSet dataset containing the actual results.
+     * @param failureHandler the failure handler used to report mismatches.
+     * @throws DatabaseUnitException if an error occurs during comparison.
      * @see DbUnitAssert#assertEquals(IDataSet, IDataSet, FailureHandler)
      * @since 2.4
      */
@@ -132,6 +174,11 @@ public class Assertion
     }
 
     /**
+     * Asserts that the two specified tables are equal.
+     *
+     * @param expectedTable table containing the expected results.
+     * @param actualTable table containing the actual results.
+     * @throws DatabaseUnitException if an error occurs during comparison.
      * @see DbUnitAssert#assertEquals(ITable, ITable)
      */
     public static void assertEquals(final ITable expectedTable,
@@ -141,6 +188,12 @@ public class Assertion
     }
 
     /**
+     * Asserts that the two specified tables are equal.
+     *
+     * @param expectedTable table containing the expected results.
+     * @param actualTable table containing the actual results.
+     * @param additionalColumnInfo additional columns to include in failure messages.
+     * @throws DatabaseUnitException if an error occurs during comparison.
      * @see DbUnitAssert#assertEquals(ITable, ITable, Column[])
      */
     public static void assertEquals(final ITable expectedTable,
@@ -152,6 +205,12 @@ public class Assertion
     }
 
     /**
+     * Asserts that the two specified tables are equal.
+     *
+     * @param expectedTable table containing the expected results.
+     * @param actualTable table containing the actual results.
+     * @param failureHandler the failure handler used to report mismatches.
+     * @throws DatabaseUnitException if an error occurs during comparison.
      * @see DbUnitAssert#assertEquals(ITable, ITable, FailureHandler)
      * @since 2.4
      */
@@ -164,6 +223,13 @@ public class Assertion
     }
 
     /**
+     * Asserts that the two specified datasets are equal, using the given value comparers.
+     *
+     * @param expectedDataSet dataset containing the expected results.
+     * @param actualDataSet dataset containing the actual results.
+     * @param defaultValueComparer the value comparer used when no more specific comparer is configured.
+     * @param tableColumnValueComparers the per-table, per-column value comparers to use.
+     * @throws DatabaseUnitException if an error occurs during comparison.
      * @see DbUnitValueComparerAssert#assertWithValueComparer(IDataSet,
      *      IDataSet, ValueComparer, Map)
      * @since 2.6.0
@@ -179,6 +245,13 @@ public class Assertion
     }
 
     /**
+     * Asserts that the two specified tables are equal, using the given value comparers.
+     *
+     * @param expectedTable table containing the expected results.
+     * @param actualTable table containing the actual results.
+     * @param defaultValueComparer the value comparer used when no more specific comparer is configured.
+     * @param columnValueComparers the per-column value comparers to use.
+     * @throws DatabaseUnitException if an error occurs during comparison.
      * @see DbUnitValueComparerAssert#assertWithValueComparer(ITable, ITable,
      *      ValueComparer, Map)
      * @since 2.6.0
@@ -193,6 +266,14 @@ public class Assertion
     }
 
     /**
+     * Asserts that the two specified datasets are equal, using the given value comparers.
+     *
+     * @param expectedDataSet dataset containing the expected results.
+     * @param actualDataSet dataset containing the actual results.
+     * @param failureHandler the failure handler used to report mismatches.
+     * @param defaultValueComparer the value comparer used when no more specific comparer is configured.
+     * @param tableColumnValueComparers the per-table, per-column value comparers to use.
+     * @throws DatabaseUnitException if an error occurs during comparison.
      * @see DbUnitValueComparerAssert#assertWithValueComparer(IDataSet,
      *      IDataSet, FailureHandler, ValueComparer, Map)
      * @since 2.6.0
@@ -209,6 +290,14 @@ public class Assertion
     }
 
     /**
+     * Asserts that the two specified tables are equal, using the given value comparers.
+     *
+     * @param expectedTable table containing the expected results.
+     * @param actualTable table containing the actual results.
+     * @param additionalColumnInfo additional columns to include in failure messages.
+     * @param defaultValueComparer the value comparer used when no more specific comparer is configured.
+     * @param columnValueComparers the per-column value comparers to use.
+     * @throws DatabaseUnitException if an error occurs during comparison.
      * @see DbUnitValueComparerAssert#assertWithValueComparer(ITable, ITable,
      *      Column[], ValueComparer, Map)
      * @since 2.6.0
@@ -225,6 +314,14 @@ public class Assertion
     }
 
     /**
+     * Asserts that the two specified tables are equal, using the given value comparers.
+     *
+     * @param expectedTable table containing the expected results.
+     * @param actualTable table containing the actual results.
+     * @param failureHandler the failure handler used to report mismatches.
+     * @param defaultValueComparer the value comparer used when no more specific comparer is configured.
+     * @param columnValueComparers the per-column value comparers to use.
+     * @throws DatabaseUnitException if an error occurs during comparison.
      * @see DbUnitValueComparerAssert#assertWithValueComparer(ITable, ITable,
      *      FailureHandler, ValueComparer, Map)
      * @since 2.6.0
@@ -240,11 +337,22 @@ public class Assertion
                 columnValueComparers);
     }
 
+    /**
+     * Returns the shared {@link DbUnitAssert} instance used for equals-based comparisons.
+     *
+     * @return the shared {@link DbUnitAssert} instance.
+     */
     public static DbUnitAssert getEqualsInstance()
     {
         return EQUALS_INSTANCE;
     }
 
+    /**
+     * Returns the shared {@link DbUnitValueComparerAssert} instance used for value-comparer-based
+     * comparisons.
+     *
+     * @return the shared {@link DbUnitValueComparerAssert} instance.
+     */
     public static DbUnitValueComparerAssert getValueCompareInstance()
     {
         return VALUE_COMPARE_INSTANCE;

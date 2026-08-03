@@ -39,22 +39,39 @@ public class EscapeHandler extends AbstractPipelineComponent {
      */
     private static final Logger logger = LoggerFactory.getLogger(EscapeHandler.class);
 
+    /** Default character used to escape the quote and escape characters themselves. */
     public static final char DEFAULT_ESCAPE_CHAR = '\\';
 
     private EscapeHandler() {
     }
 
+    /**
+     * Creates a handler that accepts the escape character.
+     *
+     * @return the new pipeline component.
+     */
     public static final PipelineComponent ACCEPT() {
         logger.debug("ACCEPT() - start");
         return createPipelineComponent(new EscapeHandler(), new ACCEPT());
     }
 
     // @todo: make sense?
+    /**
+     * Creates a handler that ignores the escape character.
+     *
+     * @return the new pipeline component.
+     */
     public static final PipelineComponent IGNORE() {
         logger.debug("IGNORE() - start");
         return createPipelineComponent(new EscapeHandler(), new IGNORE());
     }
 
+    /**
+     * Creates a handler that processes the escape character by enforcing the next character
+     * to be accepted literally.
+     *
+     * @return the new pipeline component.
+     */
     public static final PipelineComponent ESCAPE() {
         logger.debug("ESCAPE() - start");
         return createPipelineComponent(new EscapeHandler(), new ESCAPE());

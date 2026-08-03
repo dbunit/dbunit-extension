@@ -48,24 +48,50 @@ public class LowerCaseTableMetaData extends AbstractTableMetaData
     private final Column[] _columns;
     private final Column[] _primaryKeys;
 
+    /**
+     * Creates metadata with lower-cased table and column names, and no primary keys.
+     *
+     * @param tableName the table name.
+     * @param columns the table columns.
+     */
     public LowerCaseTableMetaData(String tableName, Column[] columns)
             //throws DataSetException
     {
         this(tableName, columns, new Column[0]);
     }
 
+    /**
+     * Creates metadata with lower-cased table and column names, and the given primary key column names.
+     *
+     * @param tableName the table name.
+     * @param columns the table columns.
+     * @param primaryKeys the names of the primary key columns.
+     */
     public LowerCaseTableMetaData(String tableName, Column[] columns,
             String[] primaryKeys) //throws DataSetException
     {
         this(tableName, columns, Columns.getColumns(primaryKeys, columns) );
     }
 
+    /**
+     * Creates metadata with the lower-cased table and column names of the given metadata.
+     *
+     * @param metaData the metadata to lower-case.
+     * @throws DataSetException if the given metadata's columns cannot be retrieved.
+     */
     public LowerCaseTableMetaData(ITableMetaData metaData) throws DataSetException
     {
         this(metaData.getTableName(), metaData.getColumns(),
                 metaData.getPrimaryKeys());
     }
 
+    /**
+     * Creates metadata with lower-cased table and column names, and the given primary key columns.
+     *
+     * @param tableName the table name.
+     * @param columns the table columns.
+     * @param primaryKeys the primary key columns.
+     */
     public LowerCaseTableMetaData(String tableName, Column[] columns,
             Column[] primaryKeys) //throws DataSetException
     {

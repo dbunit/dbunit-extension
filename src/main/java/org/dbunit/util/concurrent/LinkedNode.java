@@ -23,10 +23,29 @@ package org.dbunit.util.concurrent;
  * @version $Revision$ $Date$
  * @since ? (pre 2.1)
  */
-public class LinkedNode { 
+public class LinkedNode {
+  /** The value held by this node. */
   public Object value;
+  /** The next node in the list, or {@code null} if this is the last node. */
   public LinkedNode next;
+
+  /**
+   * Default constructor.
+   */
   public LinkedNode() {}
+
+  /**
+   * Constructs a node holding the given value.
+   *
+   * @param x the value held by this node.
+   */
   public LinkedNode(Object x) { value = x; }
+
+  /**
+   * Constructs a node holding the given value and linked to the given next node.
+   *
+   * @param x the value held by this node.
+   * @param n the next node in the list.
+   */
   public LinkedNode(Object x, LinkedNode n) { value = x; next = n; }
 }

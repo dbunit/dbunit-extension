@@ -41,22 +41,49 @@ import oracle.jpub.runtime.MutableStruct;
  */
 public class OracleSdoPointType implements ORAData, ORADataFactory
 {
+  /** The Oracle SQL type name backing this struct, <code>MDSYS.SDO_POINT_TYPE</code>. */
   public static final String _SQL_NAME = "MDSYS.SDO_POINT_TYPE";
+  /** The Oracle JDBC type code backing this struct, {@link OracleTypes#STRUCT}. */
   public static final int _SQL_TYPECODE = OracleTypes.STRUCT;
 
+  /** The underlying mutable struct holding this point's attribute values. */
   protected MutableStruct _struct;
 
+  /** The JDBC type codes of this struct's attributes, in declaration order. */
   protected static int[] _sqlType =  { 2,2,2 };
+  /** The {@link ORADataFactory} for each struct-typed attribute, indexed by attribute position. */
   protected static ORADataFactory[] _factory = new ORADataFactory[3];
+  /** The shared {@link ORADataFactory} instance for this class. */
   protected static final OracleSdoPointType _OracleSdoPointTypeFactory = new OracleSdoPointType();
 
+  /**
+   * Returns the shared {@link ORADataFactory} for this class.
+   *
+   * @return the shared {@link ORADataFactory} for this class.
+   */
   public static ORADataFactory getORADataFactory()
   { return _OracleSdoPointTypeFactory; }
   /* constructors */
+  /**
+   * Initializes {@link #_struct} when requested.
+   *
+   * @param init {@code true} to (re)create {@link #_struct}.
+   */
   protected void _init_struct(boolean init)
   { if (init) _struct = new MutableStruct(new Object[3], _sqlType, _factory); }
+  /**
+   * Default constructor.
+   */
   public OracleSdoPointType()
   { _init_struct(true); }
+  /**
+   * Constructs a point with the given coordinate values.
+   *
+   * @param x the X attribute.
+   * @param y the Y attribute.
+   * @param z the Z attribute.
+   * @throws SQLException if setting an attribute fails.
+   */
   public OracleSdoPointType(java.math.BigDecimal x, java.math.BigDecimal y, java.math.BigDecimal z) throws SQLException
   { _init_struct(true);
     setX(x);
@@ -74,31 +101,76 @@ public class OracleSdoPointType implements ORAData, ORADataFactory
   /* ORADataFactory interface */
   public ORAData create(Datum d, int sqlType) throws SQLException
   { return create(null, d, sqlType); }
+  /**
+   * Populates (or creates) an {@code OracleSdoPointType} from the given datum.
+   *
+   * @param o the instance to populate, or {@code null} to create a new one.
+   * @param d the source datum, or {@code null} to return {@code null}.
+   * @param sqlType the JDBC type code of the source datum.
+   * @return the populated instance, or {@code null} if {@code d} is {@code null}.
+   * @throws SQLException if reading the datum fails.
+   */
   protected ORAData create(OracleSdoPointType o, Datum d, int sqlType) throws SQLException
   {
-    if (d == null) return null; 
+    if (d == null) return null;
     if (o == null) o = new OracleSdoPointType();
     o._struct = new MutableStruct((STRUCT) d, _sqlType, _factory);
     return o;
   }
   /* accessor methods */
+  /**
+   * Returns the X attribute.
+   *
+   * @return the X attribute.
+   * @throws SQLException if the underlying struct cannot be read.
+   */
   public java.math.BigDecimal getX() throws SQLException
   { return (java.math.BigDecimal) _struct.getAttribute(0); }
 
+  /**
+   * Sets the X attribute.
+   *
+   * @param x the new X attribute value.
+   * @throws SQLException if the underlying struct cannot be written.
+   */
   public void setX(java.math.BigDecimal x) throws SQLException
   { _struct.setAttribute(0, x); }
 
 
+  /**
+   * Returns the Y attribute.
+   *
+   * @return the Y attribute.
+   * @throws SQLException if the underlying struct cannot be read.
+   */
   public java.math.BigDecimal getY() throws SQLException
   { return (java.math.BigDecimal) _struct.getAttribute(1); }
 
+  /**
+   * Sets the Y attribute.
+   *
+   * @param y the new Y attribute value.
+   * @throws SQLException if the underlying struct cannot be written.
+   */
   public void setY(java.math.BigDecimal y) throws SQLException
   { _struct.setAttribute(1, y); }
 
 
+  /**
+   * Returns the Z attribute.
+   *
+   * @return the Z attribute.
+   * @throws SQLException if the underlying struct cannot be read.
+   */
   public java.math.BigDecimal getZ() throws SQLException
   { return (java.math.BigDecimal) _struct.getAttribute(2); }
 
+  /**
+   * Sets the Z attribute.
+   *
+   * @param z the new Z attribute value.
+   * @throws SQLException if the underlying struct cannot be written.
+   */
   public void setZ(java.math.BigDecimal z) throws SQLException
   { _struct.setAttribute(2, z); }
 

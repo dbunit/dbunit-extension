@@ -109,15 +109,31 @@ public class FlatDtdProducer implements IDataSetProducer, EntityResolver, DeclHa
     private String _rootModel;
     private final Map _columnListMap = new HashMap();
 
+    /**
+     * Default constructor.
+     */
     public FlatDtdProducer()
     {
     }
 
+    /**
+     * Creates a producer that reads the DTD from the given input source.
+     *
+     * @param inputSource the DTD input source.
+     */
     public FlatDtdProducer(final InputSource inputSource)
     {
         _inputSource = inputSource;
     }
 
+    /**
+     * Registers the given handler as the given XML reader's declaration handler.
+     *
+     * @param xmlReader the XML reader to configure.
+     * @param handler the declaration handler to register.
+     * @throws SAXNotRecognizedException if the reader does not recognize the declaration-handler property.
+     * @throws SAXNotSupportedException if the reader does not support the declaration-handler property.
+     */
     public static void setDeclHandler(final XMLReader xmlReader, final DeclHandler handler)
             throws SAXNotRecognizedException, SAXNotSupportedException
     {
@@ -125,6 +141,14 @@ public class FlatDtdProducer implements IDataSetProducer, EntityResolver, DeclHa
         xmlReader.setProperty(DECL_HANDLER_PROPERTY_NAME, handler);
     }
 
+    /**
+     * Registers the given handler as the given XML reader's lexical handler.
+     *
+     * @param xmlReader the XML reader to configure.
+     * @param handler the lexical handler to register.
+     * @throws SAXNotRecognizedException if the reader does not recognize the lexical-handler property.
+     * @throws SAXNotSupportedException if the reader does not support the lexical-handler property.
+     */
     public static void setLexicalHandler(final XMLReader xmlReader, final LexicalHandler handler)
             throws SAXNotRecognizedException, SAXNotSupportedException
     {
@@ -337,6 +361,13 @@ public class FlatDtdProducer implements IDataSetProducer, EntityResolver, DeclHa
         return columns;
     }
 
+    /**
+     * Strips DTD content-model syntax (parentheses, occurrence indicators) from the given
+     * table name, as parsed from an ELEMENT declaration.
+     *
+     * @param tableName the raw table name to clean up.
+     * @return the cleaned-up table name.
+     */
     protected String cleanupTableName(final String tableName)
     {
         String cleaned = tableName;

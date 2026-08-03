@@ -54,10 +54,12 @@ public class GenericEnumType extends AbstractDataType {
     private final String sqlTypeName;
 
     /**
+     * Creates a data type adapter for the given Postgres enum type.
+     *
      * @param sqlTypeName The name of the enum type needed to invoke the "setType()" method on
      * the PGObject class.
      */
-    public GenericEnumType(String sqlTypeName) 
+    public GenericEnumType(String sqlTypeName)
     {
         super(sqlTypeName, Types.OTHER, String.class, false);
         

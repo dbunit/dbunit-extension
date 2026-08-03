@@ -74,6 +74,9 @@ public class Export extends AbstractStep
     private Charset _encoding = StandardCharsets.UTF_8; // if no encoding set by script than the default encoding (UTF-8) of the wrietr is used
     private List _tables = new ArrayList();
 
+    /**
+     * Default constructor.
+     */
     public Export()
     {
     }
@@ -83,27 +86,47 @@ public class Export extends AbstractStep
         return filename != null ? filename.getAbsolutePath() : "null";
     }
 
+    /**
+     * Returns the destination file to export to.
+     * @return the destination file to export to.
+     */
     public File getDest()
     {
         return _dest;
     }
 
+    /**
+     * Returns the export format.
+     * @return the export format.
+     */
     public String getFormat()
     {
         return _format;
     }
 
+    /**
+     * Returns the tables and queries to export.
+     * @return the tables and queries to export.
+     */
     public List getTables()
     {
         return _tables;
     }
 
+    /**
+     * Sets the destination file to export to.
+     * @param dest the destination file to export to.
+     */
     public void setDest(File dest)
     {
         logger.debug("setDest(dest={}) - start", dest);
         _dest = dest;
     }
 
+    /**
+     * Sets the export format.
+     * @param format the export format.
+     */
     public void setFormat(String format)
     {
         logger.debug("setFormat(format={}) - start", format);
@@ -137,39 +160,67 @@ public class Export extends AbstractStep
         return this._encoding;
     }
 
+    /**
+     * Sets the encoding for XML output.
+     * @param encoding the name of the encoding for XML output.
+     */
     public void setEncoding(String encoding)
     {
         setEncoding(Charset.forName(encoding));
     }
 
+    /**
+     * Sets the encoding for XML output.
+     * @param encoding the encoding for XML output.
+     */
     public void setEncoding(Charset encoding)
     {
         this._encoding = encoding;
     }
 
+    /**
+     * Adds a table to export.
+     * @param table the table to export.
+     */
     public void addTable(Table table)
     {
         logger.debug("addTable(table={}) - start", table);
         _tables.add(table);
     }
 
+    /**
+     * Adds a query to export.
+     * @param query the query to export.
+     */
     public void addQuery(Query query)
     {
         logger.debug("addQuery(query={}) - start", query);
         _tables.add(query);
     }
 
+	/**
+	 * Adds a query set to export.
+	 * @param querySet the query set to export.
+	 */
 	public void addQuerySet(QuerySet querySet) {
         logger.debug("addQuerySet(querySet={}) - start", querySet);
         _tables.add(querySet);
 	}
-	
-    
+
+
+	/**
+	 * Returns the DOCTYPE to use for flat XML export.
+	 * @return the DOCTYPE to use for flat XML export.
+	 */
 	public String getDoctype()
     {
         return _doctype;
     }
 
+    /**
+     * Sets the DOCTYPE to use for flat XML export.
+     * @param doctype the DOCTYPE to use for flat XML export.
+     */
     public void setDoctype(String doctype)
     {
         logger.debug("setDoctype(doctype={}) - start", doctype);
@@ -256,10 +307,10 @@ public class Export extends AbstractStep
 
     /**
      * Creates the dataset that is finally used for the export
-     * @param connection
+     * @param connection the database connection to export from.
      * @return The final dataset used for the export
-     * @throws DatabaseUnitException
-     * @throws SQLException
+     * @throws DatabaseUnitException if building the dataset fails.
+     * @throws SQLException if a database access error occurs.
      */
     protected IDataSet getExportDataSet(IDatabaseConnection connection) 
     throws DatabaseUnitException, SQLException 

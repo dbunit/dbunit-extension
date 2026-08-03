@@ -39,6 +39,12 @@ public class StringIgnoreCaseDataType extends StringDataType
     private static final Logger logger =
             LoggerFactory.getLogger(StringIgnoreCaseDataType.class);
 
+    /**
+     * Creates a new <code>StringIgnoreCaseDataType</code>.
+     *
+     * @param name the data type name.
+     * @param sqlType the SQL type code.
+     */
     public StringIgnoreCaseDataType(String name, int sqlType)
     {
         super(name, sqlType);

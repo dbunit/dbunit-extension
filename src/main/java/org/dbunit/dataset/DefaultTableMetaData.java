@@ -39,12 +39,25 @@ public class DefaultTableMetaData extends AbstractTableMetaData
     private final Column[] _columns;
     private final Column[] _primaryKeys;
 
+    /**
+     * Creates metadata for a table with no primary keys.
+     *
+     * @param tableName the table name.
+     * @param columns the table columns.
+     */
     public DefaultTableMetaData(String tableName, Column[] columns)
             //throws DataSetException
     {
         this(tableName, columns, new String[0]);
     }
 
+    /**
+     * Creates metadata for a table with the given primary key column names.
+     *
+     * @param tableName the table name.
+     * @param columns the table columns.
+     * @param primaryKeys the names of the primary key columns.
+     */
     public DefaultTableMetaData(String tableName, Column[] columns,
             String[] primaryKeys) //throws DataSetException
     {
@@ -53,6 +66,13 @@ public class DefaultTableMetaData extends AbstractTableMetaData
         _primaryKeys = Columns.getColumns(primaryKeys, columns);
     }
 
+    /**
+     * Creates metadata for a table with the given primary key columns.
+     *
+     * @param tableName the table name.
+     * @param columns the table columns.
+     * @param primaryKeys the primary key columns.
+     */
     public DefaultTableMetaData(String tableName, Column[] columns,
             Column[] primaryKeys) //throws DataSetException
     {

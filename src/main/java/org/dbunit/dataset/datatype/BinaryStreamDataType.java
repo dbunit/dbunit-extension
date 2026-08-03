@@ -44,6 +44,12 @@ public class BinaryStreamDataType extends BytesDataType
     private static final Logger logger =
             LoggerFactory.getLogger(BinaryStreamDataType.class);
 
+    /**
+     * Constructs a data type with the given SQL type mapping.
+     *
+     * @param name the data type name.
+     * @param sqlType the {@link java.sql.Types} constant this data type maps to.
+     */
     public BinaryStreamDataType(final String name, final int sqlType)
     {
         super(name, sqlType);

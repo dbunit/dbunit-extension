@@ -43,6 +43,8 @@ public interface FailureFactory
     public Error createFailure(String message, String expected, String actual);
 
     /**
+     * Creates a new assertion failure object with only a message and no expected/actual values.
+     *
      * @param message The reason for the failure
      * @return The assertion failure object for this handler (can be JUnit or some other)
      * which can be thrown on an assertion failure

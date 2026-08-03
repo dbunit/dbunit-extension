@@ -34,6 +34,10 @@ public interface ITableFilterSimple
 {
     /**
      * Returns <code>true</code> if specified table is allowed by this filter.
+     *
+     * @param tableName the name of the table to check.
+     * @return <code>true</code> if specified table is allowed by this filter.
+     * @throws DataSetException if the check fails.
      */
     public boolean accept(String tableName) throws DataSetException;
 

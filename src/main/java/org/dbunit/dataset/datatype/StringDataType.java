@@ -45,6 +45,12 @@ public class StringDataType extends AbstractDataType
     private static final Logger logger =
             LoggerFactory.getLogger(StringDataType.class);
 
+    /**
+     * Creates a new <code>StringDataType</code>.
+     *
+     * @param name the data type name.
+     * @param sqlType the SQL type code.
+     */
     public StringDataType(final String name, final int sqlType)
     {
         super(name, sqlType, String.class, false);

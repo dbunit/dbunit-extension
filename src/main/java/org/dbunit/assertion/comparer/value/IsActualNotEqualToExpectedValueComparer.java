@@ -13,6 +13,7 @@ import org.dbunit.dataset.datatype.DataType;
  */
 public class IsActualNotEqualToExpectedValueComparer extends ValueComparerTemplateBase
 {
+
     @Override
     protected boolean isExpected(final ITable expectedTable,
             final ITable actualTable, final int rowNum, final String columnName,

@@ -48,6 +48,9 @@ public class CompositeTable extends AbstractTable {
     /**
      * Creates a composite table that combines the specified metadata with the
      * specified table.
+     *
+     * @param metaData the table metadata.
+     * @param table the table providing row data.
      */
     public CompositeTable(ITableMetaData metaData, ITable table) {
         _metaData = metaData;
@@ -57,6 +60,9 @@ public class CompositeTable extends AbstractTable {
     /**
      * Creates a composite table that combines the specified metadata with the
      * specified tables.
+     *
+     * @param metaData the table metadata.
+     * @param tables the tables providing row data.
      */
     public CompositeTable(ITableMetaData metaData, ITable[] tables) {
         _metaData = metaData;
@@ -66,6 +72,9 @@ public class CompositeTable extends AbstractTable {
     /**
      * Creates a composite table that combines the specified specified tables.
      * The metadata from the first table is used as metadata for the new table.
+     *
+     * @param table1 the first table, whose metadata is used for the new table.
+     * @param table2 the second table.
      */
     public CompositeTable(ITable table1, ITable table2) {
         _metaData = table1.getTableMetaData();
@@ -75,6 +84,10 @@ public class CompositeTable extends AbstractTable {
     /**
      * Creates a composite dataset that encapsulate the specified table with a
      * new name.
+     *
+     * @param newName the new table name.
+     * @param table the table to rename.
+     * @throws DataSetException if the new metadata cannot be built.
      */
     public CompositeTable(String newName, ITable table) throws DataSetException {
         ITableMetaData metaData = table.getTableMetaData();

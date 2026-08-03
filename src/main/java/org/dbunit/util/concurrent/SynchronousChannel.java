@@ -89,29 +89,43 @@ public class SynchronousChannel implements BoundedChannel {
          */
         private static final Logger logger = LoggerFactory.getLogger(Queue.class);
 
+    /** The first node in the queue, or {@code null} if empty. */
     protected LinkedNode head;
+    /** The last node in the queue, or {@code null} if empty. */
     protected LinkedNode last;
 
+    /**
+     * Appends the given node to the end of the queue.
+     *
+     * @param p the node to append.
+     */
     protected void enq(LinkedNode p) {
             logger.debug("enq(p={}) - start", p);
- 
-      if (last == null) 
+
+      if (last == null)
         last = head = p;
-      else 
+      else
         last = last.next = p;
     }
 
+    /**
+     * Removes and returns the node at the front of the queue.
+     *
+     * @return the node that was at the front of the queue, or {@code null} if empty.
+     */
     protected LinkedNode deq() {
             logger.debug("deq() - start");
 
       LinkedNode p = head;
-      if (p != null && (head = p.next) == null) 
+      if (p != null && (head = p.next) == null)
         last = null;
       return p;
     }
   }
 
+  /** Queue of nodes for puts waiting for a taker. */
   protected final Queue waitingPuts = new Queue();
+  /** Queue of nodes for takes waiting for a putter. */
   protected final Queue waitingTakes = new Queue();
 
   /**
@@ -129,7 +143,6 @@ public class SynchronousChannel implements BoundedChannel {
   public Object peek() {
         logger.debug("peek() - start");
   return null;  }
-
 
   public void put(Object x) throws InterruptedException {
         logger.debug("put(x={}) - start", x);
@@ -262,7 +275,6 @@ public class SynchronousChannel implements BoundedChannel {
   /*
     Offer and poll are just like put and take, except even messier.
    */
-
 
   public boolean offer(Object x, long msecs) throws InterruptedException {
 	  if(logger.isDebugEnabled())

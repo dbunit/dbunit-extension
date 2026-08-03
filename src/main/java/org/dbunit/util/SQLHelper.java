@@ -115,8 +115,8 @@ public class SQLHelper {
 
     /**
      * Closes the given result set in a null-safe way
-     * @param resultSet
-     * @throws SQLException
+     * @param resultSet the result set to close, may be <code>null</code>.
+     * @throws SQLException if closing the result set fails.
      */
     public static void close(ResultSet resultSet) throws SQLException {
         logger.debug("close(resultSet={}) - start", resultSet);
@@ -131,7 +131,7 @@ public class SQLHelper {
      * @param connection The connection to a database
      * @param schema The schema to be searched
      * @return Returns <code>true</code> if the given schema exists for the given connection.
-     * @throws SQLException
+     * @throws SQLException if a database access error occurs.
      * @since 2.3.0
      */
     public static boolean schemaExists(Connection connection, String schema)
@@ -218,7 +218,7 @@ public class SQLHelper {
      * @param tableName The table name to be searched
      * @return Returns <code>true</code> if the given table exists in the given schema.
      * Else returns <code>false</code>.
-     * @throws SQLException
+     * @throws SQLException if a database access error occurs.
      * @since 2.3.0
      * @deprecated since 2.4.5 - use {@link IMetadataHandler#tableExists(DatabaseMetaData, String, String)}
      */
@@ -239,9 +239,9 @@ public class SQLHelper {
 
     /**
      * Utility method for debugging to print all tables of the given metadata on the given stream
-     * @param metaData
-     * @param outputStream
-     * @throws SQLException
+     * @param metaData the database metadata to print the tables of.
+     * @param outputStream the stream to print to.
+     * @throws SQLException if a database access error occurs.
      */
     public static void printAllTables(DatabaseMetaData metaData, PrintStream outputStream) throws SQLException
     {
@@ -344,7 +344,7 @@ public class SQLHelper {
      * Prints the database and JDBC driver information to the given output stream
      * @param metaData The JDBC database metadata needed to retrieve database information
      * @param outputStream The stream to which the information is printed
-     * @throws SQLException
+     * @throws SQLException if a database access error occurs.
      */
     public static void printDatabaseInfo(DatabaseMetaData metaData, PrintStream outputStream) throws SQLException
     {
@@ -362,7 +362,7 @@ public class SQLHelper {
      * or not.
      * @param metaData The metadata to be checked whether it is a Sybase connection
      * @return <code>true</code> if and only if the given metadata belongs to a Sybase database.
-     * @throws SQLException
+     * @throws SQLException if a database access error occurs.
      */
     public static boolean isSybaseDb(DatabaseMetaData metaData) throws SQLException
     {
@@ -381,8 +381,8 @@ public class SQLHelper {
      * be created because of an unknown datatype.
      * @return The {@link Column} or <code>null</code> if the column could not be initialized because of an
      * unknown datatype.
-     * @throws SQLException
-     * @throws DataTypeException
+     * @throws SQLException if a database access error occurs.
+     * @throws DataTypeException if the column's data type cannot be determined.
      * @since 2.4.0
      */
     public static final Column createColumn(ResultSet resultSet,
@@ -440,7 +440,7 @@ public class SQLHelper {
      * @param caseSensitive Whether or not the comparison should be case sensitive or not
      * @return <code>true</code> if the column metadata of the given <code>resultSet</code> matches
      * the given schema and table parameters.
-     * @throws SQLException
+     * @throws SQLException if a database access error occurs.
      * @since 2.4.0
      * @deprecated since 2.4.4 - use {@link IMetadataHandler#matches(ResultSet, String, String, String, String, boolean)}
      */
@@ -463,7 +463,7 @@ public class SQLHelper {
      * @param caseSensitive Whether or not the comparison should be case sensitive or not
      * @return <code>true</code> if the column metadata of the given <code>resultSet</code> matches
      * the given schema and table parameters.
-     * @throws SQLException
+     * @throws SQLException if a database access error occurs.
      * @since 2.4.0
      * @deprecated since 2.4.4 - use {@link IMetadataHandler#matches(ResultSet, String, String, String, String, boolean)}
      */
@@ -499,6 +499,7 @@ public class SQLHelper {
      * for this specific case.
      * @param value1 The first value to compare. Is ignored if null or empty String
      * @param value2 The second value to be compared
+     * @param caseSensitive Whether or not the comparison should be case sensitive.
      * @return <code>true</code> if both values are equal or if the first value
      * is <code>null</code> or empty string.
      * @since 2.4.4

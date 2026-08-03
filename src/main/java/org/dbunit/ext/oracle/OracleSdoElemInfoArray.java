@@ -42,21 +42,36 @@ import oracle.jpub.runtime.MutableArray;
  */
 public class OracleSdoElemInfoArray implements ORAData, ORADataFactory
 {
+  /** The Oracle SQL type name backing this array, <code>MDSYS.SDO_ELEM_INFO_ARRAY</code>. */
   public static final String _SQL_NAME = "MDSYS.SDO_ELEM_INFO_ARRAY";
+  /** The Oracle JDBC type code backing this array, {@link OracleTypes#ARRAY}. */
   public static final int _SQL_TYPECODE = OracleTypes.ARRAY;
 
   MutableArray _array;
 
 private static final OracleSdoElemInfoArray _OracleSdoElemInfoArrayFactory = new OracleSdoElemInfoArray();
 
+  /**
+   * Returns the shared {@link ORADataFactory} for this class.
+   *
+   * @return the shared {@link ORADataFactory} for this class.
+   */
   public static ORADataFactory getORADataFactory()
   { return _OracleSdoElemInfoArrayFactory; }
   /* constructors */
+  /**
+   * Default constructor.
+   */
   public OracleSdoElemInfoArray()
   {
     this((java.math.BigDecimal[])null);
   }
 
+  /**
+   * Constructs an array wrapping the given elements.
+   *
+   * @param a the element values.
+   */
   public OracleSdoElemInfoArray(java.math.BigDecimal[] a)
   {
     _array = new MutableArray(2, a, null);
@@ -71,58 +86,123 @@ private static final OracleSdoElemInfoArray _OracleSdoElemInfoArrayFactory = new
   /* ORADataFactory interface */
   public ORAData create(Datum d, int sqlType) throws SQLException
   {
-    if (d == null) return null; 
+    if (d == null) return null;
     OracleSdoElemInfoArray a = new OracleSdoElemInfoArray();
     a._array = new MutableArray(2, (ARRAY) d, null);
     return a;
   }
 
+  /**
+   * Returns the number of elements in the array.
+   *
+   * @return the number of elements in the array.
+   * @throws SQLException if the underlying array cannot be read.
+   */
   public int length() throws SQLException
   {
     return _array.length();
   }
 
+  /**
+   * Returns the JDBC type code of the array's base element type.
+   *
+   * @return the JDBC type code of the array's base element type.
+   * @throws SQLException if the underlying array cannot be read.
+   */
   public int getBaseType() throws SQLException
   {
     return _array.getBaseType();
   }
 
+  /**
+   * Returns the SQL type name of the array's base element type.
+   *
+   * @return the SQL type name of the array's base element type.
+   * @throws SQLException if the underlying array cannot be read.
+   */
   public String getBaseTypeName() throws SQLException
   {
     return _array.getBaseTypeName();
   }
 
+  /**
+   * Returns the descriptor of the underlying Oracle array.
+   *
+   * @return the descriptor of the underlying Oracle array.
+   * @throws SQLException if the underlying array cannot be read.
+   */
   public ArrayDescriptor getDescriptor() throws SQLException
   {
     return _array.getDescriptor();
   }
 
   /* array accessor methods */
+  /**
+   * Returns the array's elements.
+   *
+   * @return the array's elements.
+   * @throws SQLException if the underlying array cannot be read.
+   */
   public java.math.BigDecimal[] getArray() throws SQLException
   {
     return (java.math.BigDecimal[]) _array.getObjectArray();
   }
 
+  /**
+   * Returns a range of the array's elements.
+   *
+   * @param index the index of the first element to return.
+   * @param count the number of elements to return.
+   * @return the requested range of the array's elements.
+   * @throws SQLException if the underlying array cannot be read.
+   */
   public java.math.BigDecimal[] getArray(long index, int count) throws SQLException
   {
     return (java.math.BigDecimal[]) _array.getObjectArray(index, count);
   }
 
+  /**
+   * Replaces the array's elements.
+   *
+   * @param a the new element values.
+   * @throws SQLException if the underlying array cannot be written.
+   */
   public void setArray(java.math.BigDecimal[] a) throws SQLException
   {
     _array.setObjectArray(a);
   }
 
+  /**
+   * Replaces a range of the array's elements starting at the given index.
+   *
+   * @param a the new element values.
+   * @param index the index of the first element to replace.
+   * @throws SQLException if the underlying array cannot be written.
+   */
   public void setArray(java.math.BigDecimal[] a, long index) throws SQLException
   {
     _array.setObjectArray(a, index);
   }
 
+  /**
+   * Returns a single element of the array.
+   *
+   * @param index the index of the element to return.
+   * @return the element at the given index.
+   * @throws SQLException if the underlying array cannot be read.
+   */
   public java.math.BigDecimal getElement(long index) throws SQLException
   {
     return (java.math.BigDecimal) _array.getObjectElement(index);
   }
 
+  /**
+   * Replaces a single element of the array.
+   *
+   * @param a the new element value.
+   * @param index the index of the element to replace.
+   * @throws SQLException if the underlying array cannot be written.
+   */
   public void setElement(java.math.BigDecimal a, long index) throws SQLException
   {
     _array.setObjectElement(a, index);

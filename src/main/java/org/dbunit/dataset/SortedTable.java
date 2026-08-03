@@ -63,7 +63,7 @@ public class SortedTable extends AbstractTable
      *            decorated table
      * @param columns
      *            columns to be used for sorting
-     * @throws DataSetException
+     * @throws DataSetException if a given column does not exist in the table.
      */
     public SortedTable(final ITable table, final Column[] columns)
             throws DataSetException
@@ -84,7 +84,7 @@ public class SortedTable extends AbstractTable
      *            true to use the column definitions specified by the columns
      *            parameter, false to use the column definitions from the
      *            specified table's metadata.
-     * @throws DataSetException
+     * @throws DataSetException if a given column does not exist in the table.
      */
     public SortedTable(final ITable table, final Column[] columns,
             final boolean useSpecifiedColumns) throws DataSetException
@@ -111,7 +111,7 @@ public class SortedTable extends AbstractTable
      *            decorated table
      * @param columnNames
      *            names of columns to be used for sorting
-     * @throws DataSetException
+     * @throws DataSetException if a given column does not exist in the table.
      */
     public SortedTable(final ITable table, final String[] columnNames)
             throws DataSetException
@@ -130,7 +130,7 @@ public class SortedTable extends AbstractTable
      * @param metaData
      *            The metadata used to retrieve all columns which in turn are
      *            used for sorting the table
-     * @throws DataSetException
+     * @throws DataSetException if a given column does not exist in the table.
      */
     public SortedTable(final ITable table, final ITableMetaData metaData)
             throws DataSetException
@@ -144,7 +144,7 @@ public class SortedTable extends AbstractTable
      *
      * @param table
      *            The decorated table
-     * @throws DataSetException
+     * @throws DataSetException if a given column does not exist in the table.
      */
     public SortedTable(final ITable table) throws DataSetException
     {
@@ -196,6 +196,8 @@ public class SortedTable extends AbstractTable
     }
 
     /**
+     * Returns the columns that are used for sorting the table.
+     *
      * @return The columns that are used for sorting the table
      */
     public Column[] getSortColumns()
@@ -300,7 +302,8 @@ public class SortedTable extends AbstractTable
      * or not. Default value is <code>false</code> which means that the old
      * string comparison is used. <br>
      *
-     * @param useComparable
+     * @param useComparable <code>true</code> to compare using the column's Comparable
+     *            implementation, <code>false</code> to compare using string values.
      * @since 2.3.0
      */
     public void setUseComparable(final boolean useComparable)
@@ -400,6 +403,8 @@ public class SortedTable extends AbstractTable
         private final Column[] _sortColumns;
 
         /**
+         * Constructs a comparator sorting rows of the given table by the given columns.
+         *
          * @param table
          *            The wrapped table to be sorted
          * @param sortColumns
@@ -463,6 +468,8 @@ public class SortedTable extends AbstractTable
         }
 
         /**
+         * Compares the two given values of the given column.
+         *
          * @param column
          *            The column to be compared
          * @param value1
@@ -470,7 +477,7 @@ public class SortedTable extends AbstractTable
          * @param value2
          *            The second value of the given column
          * @return 0 if both values are considered equal.
-         * @throws TypeCastException
+         * @throws TypeCastException if a value cannot be cast for comparison.
          */
         protected abstract int compare(Column column, Object value1,
                 Object value2) throws TypeCastException;
@@ -490,6 +497,13 @@ public class SortedTable extends AbstractTable
         private final Logger logger =
                 LoggerFactory.getLogger(RowComparator.class);
 
+        /**
+         * Constructs a comparator sorting rows of the given table by the given columns,
+         * using each column's Comparable implementation.
+         *
+         * @param table the wrapped table to be sorted.
+         * @param sortColumns the columns to be used for sorting in the given order.
+         */
         public RowComparator(final ITable table, final Column[] sortColumns)
         {
             super(table, sortColumns);
@@ -524,6 +538,13 @@ public class SortedTable extends AbstractTable
         private final Logger logger =
                 LoggerFactory.getLogger(RowComparatorByString.class);
 
+        /**
+         * Constructs a comparator sorting rows of the given table by the given columns,
+         * using each column's string value.
+         *
+         * @param table the wrapped table to be sorted.
+         * @param sortColumns the columns to be used for sorting in the given order.
+         */
         public RowComparatorByString(final ITable table,
                 final Column[] sortColumns)
         {

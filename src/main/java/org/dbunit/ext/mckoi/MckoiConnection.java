@@ -39,6 +39,13 @@ import java.sql.Connection;
 public class MckoiConnection extends DatabaseConnection
 {
 
+    /**
+     * Creates a new <code>MckoiConnection</code>.
+     *
+     * @param connection the adapted JDBC connection.
+     * @param schema the database schema.
+     * @throws DatabaseUnitException if setting up the connection fails.
+     */
     public MckoiConnection(Connection connection, String schema) throws DatabaseUnitException
     {
         super(connection, schema);

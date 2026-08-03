@@ -43,10 +43,18 @@ public abstract class DBTestCase extends DatabaseTestCase {
      */
     private static final Logger logger = LoggerFactory.getLogger(DBTestCase.class);
 
+  /**
+   * Creates a testCase with no name.
+   */
   public DBTestCase() {
     super();
   }
 
+  /**
+   * Creates a testCase with the given name.
+   *
+   * @param name the test case name.
+   */
   public DBTestCase(String name) {
     super(name);
   }

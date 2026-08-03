@@ -35,19 +35,42 @@ public class PipelineConfig
     private char separatorChar = SeparatorHandler.DEFAULT_SEPARATOR_CHAR;
     private char escapeChar = EscapeHandler.DEFAULT_ESCAPE_CHAR;
     
+    /**
+     * Default constructor.
+     */
     public PipelineConfig() {
-        
+
     }
-    
+
+    /**
+     * Returns the character that separates fields.
+     *
+     * @return the character that separates fields.
+     */
     public char getSeparatorChar() {
         return separatorChar;
     }
+    /**
+     * Sets the character that separates fields.
+     *
+     * @param separatorChar the character that separates fields.
+     */
     public void setSeparatorChar(char separatorChar) {
         this.separatorChar = separatorChar;
     }
+    /**
+     * Returns the character that escapes the next character.
+     *
+     * @return the character that escapes the next character.
+     */
     public char getEscapeChar() {
         return escapeChar;
     }
+    /**
+     * Sets the character that escapes the next character.
+     *
+     * @param escapeChar the character that escapes the next character.
+     */
     public void setEscapeChar(char escapeChar) {
         this.escapeChar = escapeChar;
     }

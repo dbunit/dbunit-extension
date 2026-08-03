@@ -61,11 +61,19 @@ public class Compare extends AbstractStep
     private List _tables = new ArrayList();
     private boolean _sort = false;
 
+    /**
+     * Returns the source file containing the expected dataset.
+     * @return the source file containing the expected dataset.
+     */
     public File getSrc()
     {
         return _src;
     }
 
+    /**
+     * Sets the source file containing the expected dataset.
+     * @param src the source file containing the expected dataset.
+     */
     public void setSrc(File src)
     {
         logger.debug("setSrc(src={}) - start", src);
@@ -73,6 +81,10 @@ public class Compare extends AbstractStep
         _src = src;
     }
 
+    /**
+     * Sets whether the compared tables must be sorted before comparison.
+     * @param sort <code>true</code> to sort the compared tables before comparison.
+     */
     public void setSort(boolean sort)
     {
         logger.debug("setSort(sort={}) - start", String.valueOf(sort));
@@ -80,11 +92,19 @@ public class Compare extends AbstractStep
         _sort = sort;
     }
 
+    /**
+     * Returns the format of the source file.
+     * @return the format of the source file.
+     */
     public String getFormat()
     {
         return _format != null ? _format : DEFAULT_FORMAT;
     }
 
+    /**
+     * Sets the format of the source file.
+     * @param format the format of the source file.
+     */
     public void setFormat(String format)
     {
         logger.debug("setFormat(format={}) - start", format);
@@ -95,11 +115,19 @@ public class Compare extends AbstractStep
         _format = format;
     }
 
+    /**
+     * Returns the tables and queries to compare.
+     * @return the tables and queries to compare.
+     */
     public List getTables()
     {
         return _tables;
     }
 
+    /**
+     * Adds a table to compare.
+     * @param table the table to compare.
+     */
     public void addTable(Table table)
     {
         logger.debug("addTable(table={}) - start", table);
@@ -107,6 +135,10 @@ public class Compare extends AbstractStep
         _tables.add(table);
     }
 
+    /**
+     * Adds a query to compare.
+     * @param query the query to compare.
+     */
     public void addQuery(Query query)
     {
         logger.debug("addQuery(query={}) - start", query);

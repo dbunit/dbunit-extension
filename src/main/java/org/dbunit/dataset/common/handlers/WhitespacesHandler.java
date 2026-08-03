@@ -41,12 +41,22 @@ public class WhitespacesHandler extends AbstractPipelineComponent {
 
     private WhitespacesHandler() {}
 
+    /**
+     * Creates a handler that ignores whitespace characters.
+     *
+     * @return the new pipeline component.
+     */
     public static final PipelineComponent IGNORE () {
         logger.debug("IGNORE() - start");
 
         return createPipelineComponent(new WhitespacesHandler(), new IGNORE());
     }
 
+    /**
+     * Creates a handler that accepts whitespace characters.
+     *
+     * @return the new pipeline component.
+     */
     public static final PipelineComponent ACCEPT () {
         logger.debug("ACCEPT() - start");
 

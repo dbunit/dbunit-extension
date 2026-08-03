@@ -91,7 +91,7 @@ public final class FlatXmlDataSetBuilder
      * Sets the flat XML input source from which the {@link FlatXmlDataSet} is to be built
      * @param inputSource The flat XML input as {@link InputSource}
      * @return The created {@link FlatXmlDataSet}
-     * @throws DataSetException 
+     * @throws DataSetException if the dataset cannot be built.
      */
     public FlatXmlDataSet build(InputSource inputSource) throws DataSetException
     {
@@ -102,7 +102,8 @@ public final class FlatXmlDataSetBuilder
      * Sets the flat XML input source from which the {@link FlatXmlDataSet} is to be built
      * @param xmlInputFile The flat XML input as {@link File}
      * @return The created {@link FlatXmlDataSet}
-     * @throws DataSetException 
+     * @throws MalformedURLException if the file's path cannot be converted to a URL.
+     * @throws DataSetException if the dataset cannot be built.
      */
     public FlatXmlDataSet build(File xmlInputFile) throws MalformedURLException, DataSetException
     {
@@ -115,7 +116,7 @@ public final class FlatXmlDataSetBuilder
      * Sets the flat XML input source from which the {@link FlatXmlDataSet} is to be built
      * @param xmlInputUrl The flat XML input as {@link URL}
      * @return The created {@link FlatXmlDataSet}
-     * @throws DataSetException 
+     * @throws DataSetException if the dataset cannot be built.
      */
     public FlatXmlDataSet build(URL xmlInputUrl) throws DataSetException
     {
@@ -127,7 +128,7 @@ public final class FlatXmlDataSetBuilder
      * Sets the flat XML input source from which the {@link FlatXmlDataSet} is to be built
      * @param xmlReader The flat XML input as {@link Reader}
      * @return The created {@link FlatXmlDataSet}
-     * @throws DataSetException 
+     * @throws DataSetException if the dataset cannot be built.
      */
     public FlatXmlDataSet build(Reader xmlReader) throws DataSetException
     {
@@ -139,7 +140,7 @@ public final class FlatXmlDataSetBuilder
      * Sets the flat XML input source from which the {@link FlatXmlDataSet} is to be built
      * @param xmlInputStream The flat XML input as {@link InputStream}
      * @return The created {@link FlatXmlDataSet}
-     * @throws DataSetException 
+     * @throws DataSetException if the dataset cannot be built.
      */
     public FlatXmlDataSet build(InputStream xmlInputStream) throws DataSetException
     {
@@ -161,10 +162,10 @@ public final class FlatXmlDataSetBuilder
     /**
      * Set the metadata information (column info etc.) to be used. May come from a DTD.
      * This has precedence to the other builder's properties.
-     * @param metaDataSet
+     * @param metaDataSet the metadata source.
      * @return this
      */
-    public FlatXmlDataSetBuilder setMetaDataSet(IDataSet metaDataSet) 
+    public FlatXmlDataSetBuilder setMetaDataSet(IDataSet metaDataSet)
     {
         this.metaDataSet = metaDataSet;
         return this;
@@ -174,8 +175,8 @@ public final class FlatXmlDataSetBuilder
      * Set the metadata information (column info etc.) to be used from the given DTD input.
      * This has precedence to the other builder's properties.
      * @param dtdReader A reader that provides the DTD content
-     * @throws DataSetException
-     * @throws IOException
+     * @throws DataSetException if the DTD content is invalid.
+     * @throws IOException if the reader cannot be read.
      * @return this
      */
     public FlatXmlDataSetBuilder setMetaDataSetFromDtd(Reader dtdReader) throws DataSetException, IOException
@@ -187,9 +188,9 @@ public final class FlatXmlDataSetBuilder
     /**
      * Set the metadata information (column info etc.) to be used from the given DTD input.
      * This has precedence to the other builder's properties.
-     * @param dtdStream
-     * @throws DataSetException
-     * @throws IOException
+     * @param dtdStream A stream that provides the DTD content
+     * @throws DataSetException if the DTD content is invalid.
+     * @throws IOException if the stream cannot be read.
      * @return this
      */
     public FlatXmlDataSetBuilder setMetaDataSetFromDtd(InputStream dtdStream) throws DataSetException, IOException
@@ -198,13 +199,17 @@ public final class FlatXmlDataSetBuilder
         return this;
     }
     
+    /**
+     * Whether or not DTD metadata is available to parse via a DTD handler.
+     * @return whether or not DTD metadata is available to parse via a DTD handler.
+     */
     public boolean isDtdMetadata() {
         return dtdMetadata;
     }
 
     /**
      * Whether or not DTD metadata is available to parse via a DTD handler.
-     * @param dtdMetadata
+     * @param dtdMetadata whether or not DTD metadata is available to parse via a DTD handler.
      * @return this
      */
     public FlatXmlDataSetBuilder setDtdMetadata(boolean dtdMetadata) {
@@ -212,6 +217,10 @@ public final class FlatXmlDataSetBuilder
         return this;
     }
 
+    /**
+     * Whether or not column sensing is enabled.
+     * @return whether or not column sensing is enabled.
+     */
     public boolean isColumnSensing() {
         return columnSensing;
     }
@@ -219,7 +228,7 @@ public final class FlatXmlDataSetBuilder
     /**
      * Since DBUnit 2.3.0 there is a functionality called "column sensing" which basically
      * reads in the whole XML into a buffer and dynamically adds new columns as they appear.
-     * @param columnSensing
+     * @param columnSensing whether or not column sensing is enabled.
      * @return this
      */
     public FlatXmlDataSetBuilder setColumnSensing(boolean columnSensing) {
@@ -227,13 +236,17 @@ public final class FlatXmlDataSetBuilder
         return this;
     }
 
+    /**
+     * Whether or not the created dataset should use case sensitive table names.
+     * @return whether or not the created dataset should use case sensitive table names.
+     */
     public boolean isCaseSensitiveTableNames() {
         return caseSensitiveTableNames;
     }
 
     /**
      * Whether or not the created dataset should use case sensitive table names
-     * @param caseSensitiveTableNames
+     * @param caseSensitiveTableNames whether or not the created dataset should use case sensitive table names.
      * @return this
      */
     public FlatXmlDataSetBuilder setCaseSensitiveTableNames(boolean caseSensitiveTableNames) {
@@ -265,10 +278,13 @@ public final class FlatXmlDataSetBuilder
     }
 
     /**
+     * Creates the producer used to build the {@link FlatXmlDataSet}, using this builder's
+     * configured metadata source or properties.
+     *
      * @param inputSource The XML input to be built
      * @return The producer which is used to create the {@link FlatXmlDataSet}
      */
-    protected FlatXmlProducer createProducer(InputSource inputSource) 
+    protected FlatXmlProducer createProducer(InputSource inputSource)
     {
         logger.trace("createProducer(inputSource={}) - start", inputSource);
         

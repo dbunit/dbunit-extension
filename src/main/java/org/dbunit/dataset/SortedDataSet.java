@@ -42,6 +42,12 @@ public class SortedDataSet extends AbstractDataSet
 
     private final IDataSet _dataSet;
 
+    /**
+     * Creates a new <code>SortedDataSet</code> decorating the given dataset.
+     *
+     * @param dataSet the decorated dataset.
+     * @throws DataSetException if a table cannot be sorted.
+     */
     public SortedDataSet(IDataSet dataSet) throws DataSetException
     {
         _dataSet = dataSet;

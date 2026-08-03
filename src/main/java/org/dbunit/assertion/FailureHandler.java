@@ -37,8 +37,8 @@ public interface FailureHandler extends DifferenceListener, FailureFactory
      * Returns a string to be appended to the assertion failure message. Is used to 
      * provide some more information about a failure (for example to print out some
      * PK columns for identifying the failed rows in the DB).
-     * @param expectedTable
-     * @param actualTable
+     * @param expectedTable the table containing the expected results.
+     * @param actualTable the table containing the actual results.
      * @param row The row for which the assertion failed
      * @param columnName The column for which the assertion failed
      * @return A string that is appended to the assertion failure message

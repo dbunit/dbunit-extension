@@ -38,16 +38,34 @@ public class FKRelationshipEdge extends Edge {
   private String fkColumn;
   private String pkColumn;
   
+  /**
+   * Creates an edge representing a FK.
+   *
+   * @param tableFrom table that has the FK.
+   * @param tableTo table that has the PK.
+   * @param fkColumn name of the FK column on tableFrom.
+   * @param pkColumn name of the PK column on tableTo.
+   */
   public FKRelationshipEdge(String tableFrom, String tableTo, String fkColumn, String pkColumn) {
     super(tableFrom, tableTo);
     this.fkColumn = fkColumn;
     this.pkColumn = pkColumn;
   }
 
+  /**
+   * Gets the name of the foreign key column in the relationship.
+   *
+   * @return name of the foreign key column in the relationship.
+   */
   public String getFKColumn() {
     return fkColumn;
   }
-  
+
+  /**
+   * Gets the name of the primary key column in the relationship.
+   *
+   * @return name of the primary key column in the relationship.
+   */
   public String getPKColumn() {
     return pkColumn;
   }

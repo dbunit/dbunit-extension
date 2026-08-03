@@ -36,6 +36,8 @@ public class TimeoutException extends InterruptedException {
   public final long duration;
   /**
    * Constructs a TimeoutException with given duration value.
+   *
+   * @param time the approximate time the operation lasted before timing out.
    **/
   public TimeoutException(long time) {
     duration = time;
@@ -44,6 +46,9 @@ public class TimeoutException extends InterruptedException {
   /**
      * Constructs a TimeoutException with the
      * specified duration value and detail message.
+     *
+     * @param time the approximate time the operation lasted before timing out.
+     * @param message the detail message.
      */
   public TimeoutException(long time, String message) {
     super(message);

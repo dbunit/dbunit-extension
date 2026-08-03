@@ -34,6 +34,11 @@ import org.dbunit.DatabaseUnitRuntimeException;
  */
 public class IllegalInputCharacterException extends DatabaseUnitRuntimeException 
 {
+    /**
+     * Constructs an <code>IllegalInputCharacterException</code> with the specified detail message.
+     *
+     * @param message the detail message.
+     */
     public IllegalInputCharacterException(String message) {
         super(message);
     }

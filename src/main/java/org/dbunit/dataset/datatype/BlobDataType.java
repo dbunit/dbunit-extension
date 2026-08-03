@@ -42,11 +42,20 @@ public class BlobDataType extends BytesDataType
     private static final Logger logger =
             LoggerFactory.getLogger(BlobDataType.class);
 
+    /**
+     * Default constructor.
+     */
     public BlobDataType()
     {
         super("BLOB", Types.BLOB);
     }
 
+    /**
+     * Constructs a data type with the given SQL type mapping.
+     *
+     * @param name the data type name.
+     * @param sqlType the {@link java.sql.Types} constant this data type maps to.
+     */
     public BlobDataType(final String name, final int sqlType)
     {
         super(name, sqlType);

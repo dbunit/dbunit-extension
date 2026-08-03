@@ -75,8 +75,8 @@ public abstract class AbstractTableMetaData implements ITableMetaData
     }
     
     /**
-     * @param columns
-     * @param keyNames
+     * @param columns the columns to search.
+     * @param keyNames the names of the primary key columns to find.
      * @return The primary key columns
      * @deprecated since 2.3.0 - use {@link Columns#getColumns(String[], Column[])}
      */
@@ -87,9 +87,9 @@ public abstract class AbstractTableMetaData implements ITableMetaData
     }
 
     /**
-     * @param tableName
-     * @param columns
-     * @param columnFilter
+     * @param tableName the name of the table, used for filter invocation.
+     * @param columns the columns to search.
+     * @param columnFilter the filter used to accept primary key columns.
      * @return The filtered primary key columns
      * @deprecated since 2.3.0 - use {@link Columns#getColumns(String[], Column[])}
      */
@@ -107,7 +107,9 @@ public abstract class AbstractTableMetaData implements ITableMetaData
 	/**
 	 * Provides the index of the column with the given name within this table.
 	 * Uses method {@link ITableMetaData#getColumns()} to retrieve all available columns.
-	 * @throws DataSetException 
+	 * @param columnName the name of the column to look up.
+	 * @return the index of the column with the given name.
+	 * @throws DataSetException if no column with the given name exists in this table.
 	 * @see org.dbunit.dataset.ITableMetaData#getColumnIndex(java.lang.String)
 	 */
 	public int getColumnIndex(String columnName) throws DataSetException
@@ -189,9 +191,9 @@ public abstract class AbstractTableMetaData implements ITableMetaData
 	 * Validates and returns the datatype factory of the given connection
 	 * @param connection The connection providing the {@link IDataTypeFactory}
 	 * @return The datatype factory of the given connection
-	 * @throws SQLException
+	 * @throws SQLException if retrieving the database metadata fails.
 	 */
-	public IDataTypeFactory getDataTypeFactory(IDatabaseConnection connection) 
+	public IDataTypeFactory getDataTypeFactory(IDatabaseConnection connection)
 	throws SQLException 
 	{
 		DatabaseConfig config = connection.getConfig();

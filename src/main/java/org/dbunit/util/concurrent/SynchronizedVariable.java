@@ -182,9 +182,14 @@ public class SynchronizedVariable implements Executor {
      */
     private static final Logger logger = LoggerFactory.getLogger(SynchronizedVariable.class);
 
+  /** The lock used for all synchronization for this object. */
   protected final Object lock_;
 
-  /** Create a SynchronizedVariable using the supplied lock **/
+  /**
+   * Create a SynchronizedVariable using the supplied lock
+   *
+   * @param lock the synchronization lock to use.
+   **/
   public SynchronizedVariable(Object lock) { lock_ = lock; }
 
   /** Create a SynchronizedVariable using itself as the lock **/
@@ -192,6 +197,8 @@ public class SynchronizedVariable implements Executor {
 
   /**
    * Return the lock used for all synchronization for this object
+   *
+   * @return the lock used for all synchronization for this object.
    **/
   public Object getLock() {
     return lock_;

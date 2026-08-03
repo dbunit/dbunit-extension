@@ -41,12 +41,17 @@ import oracle.jpub.runtime.MutableStruct;
  */
 public class OracleSdoGeometry implements ORAData, ORADataFactory
 {
+  /** The Oracle SQL type name backing this struct, <code>MDSYS.SDO_GEOMETRY</code>. */
   public static final String _SQL_NAME = "MDSYS.SDO_GEOMETRY";
+  /** The Oracle JDBC type code backing this struct, {@link OracleTypes#STRUCT}. */
   public static final int _SQL_TYPECODE = OracleTypes.STRUCT;
 
+  /** The underlying mutable struct holding this geometry's attribute values. */
   protected MutableStruct _struct;
 
+  /** The JDBC type codes of this struct's attributes, in declaration order. */
   protected static int[] _sqlType =  { 2,2,2002,2003,2003 };
+  /** The {@link ORADataFactory} for each struct-typed attribute, indexed by attribute position. */
   protected static ORADataFactory[] _factory = new ORADataFactory[5];
   static
   {
@@ -54,15 +59,39 @@ public class OracleSdoGeometry implements ORAData, ORADataFactory
     _factory[3] = OracleSdoElemInfoArray.getORADataFactory();
     _factory[4] = OracleSdoOrdinateArray.getORADataFactory();
   }
+  /** The shared {@link ORADataFactory} instance for this class. */
   protected static final OracleSdoGeometry _OracleSdoGeometryFactory = new OracleSdoGeometry();
 
+  /**
+   * Returns the shared {@link ORADataFactory} for this class.
+   *
+   * @return the shared {@link ORADataFactory} for this class.
+   */
   public static ORADataFactory getORADataFactory()
   { return _OracleSdoGeometryFactory; }
   /* constructors */
+  /**
+   * Initializes {@link #_struct} when requested.
+   *
+   * @param init {@code true} to (re)create {@link #_struct}.
+   */
   protected void _init_struct(boolean init)
   { if (init) _struct = new MutableStruct(new Object[5], _sqlType, _factory); }
+  /**
+   * Default constructor.
+   */
   public OracleSdoGeometry()
   { _init_struct(true); }
+  /**
+   * Constructs a geometry with the given attribute values.
+   *
+   * @param sdoGtype the SDO_GTYPE attribute.
+   * @param sdoSrid the SDO_SRID attribute.
+   * @param sdoPoint the SDO_POINT attribute.
+   * @param sdoElemInfo the SDO_ELEM_INFO attribute.
+   * @param sdoOrdinates the SDO_ORDINATES attribute.
+   * @throws SQLException if setting an attribute fails.
+   */
   public OracleSdoGeometry(java.math.BigDecimal sdoGtype, java.math.BigDecimal sdoSrid, OracleSdoPointType sdoPoint, OracleSdoElemInfoArray sdoElemInfo, OracleSdoOrdinateArray sdoOrdinates) throws SQLException
   { _init_struct(true);
     setSdoGtype(sdoGtype);
@@ -82,45 +111,114 @@ public class OracleSdoGeometry implements ORAData, ORADataFactory
   /* ORADataFactory interface */
   public ORAData create(Datum d, int sqlType) throws SQLException
   { return create(null, d, sqlType); }
+  /**
+   * Populates (or creates) an {@code OracleSdoGeometry} from the given datum.
+   *
+   * @param o the instance to populate, or {@code null} to create a new one.
+   * @param d the source datum, or {@code null} to return {@code null}.
+   * @param sqlType the JDBC type code of the source datum.
+   * @return the populated instance, or {@code null} if {@code d} is {@code null}.
+   * @throws SQLException if reading the datum fails.
+   */
   protected ORAData create(OracleSdoGeometry o, Datum d, int sqlType) throws SQLException
   {
-    if (d == null) return null; 
+    if (d == null) return null;
     if (o == null) o = new OracleSdoGeometry();
     o._struct = new MutableStruct((STRUCT) d, _sqlType, _factory);
     return o;
   }
   /* accessor methods */
+  /**
+   * Returns the SDO_GTYPE attribute.
+   *
+   * @return the SDO_GTYPE attribute.
+   * @throws SQLException if the underlying struct cannot be read.
+   */
   public java.math.BigDecimal getSdoGtype() throws SQLException
   { return (java.math.BigDecimal) _struct.getAttribute(0); }
 
+  /**
+   * Sets the SDO_GTYPE attribute.
+   *
+   * @param sdoGtype the new SDO_GTYPE attribute value.
+   * @throws SQLException if the underlying struct cannot be written.
+   */
   public void setSdoGtype(java.math.BigDecimal sdoGtype) throws SQLException
   { _struct.setAttribute(0, sdoGtype); }
 
 
+  /**
+   * Returns the SDO_SRID attribute.
+   *
+   * @return the SDO_SRID attribute.
+   * @throws SQLException if the underlying struct cannot be read.
+   */
   public java.math.BigDecimal getSdoSrid() throws SQLException
   { return (java.math.BigDecimal) _struct.getAttribute(1); }
 
+  /**
+   * Sets the SDO_SRID attribute.
+   *
+   * @param sdoSrid the new SDO_SRID attribute value.
+   * @throws SQLException if the underlying struct cannot be written.
+   */
   public void setSdoSrid(java.math.BigDecimal sdoSrid) throws SQLException
   { _struct.setAttribute(1, sdoSrid); }
 
 
+  /**
+   * Returns the SDO_POINT attribute.
+   *
+   * @return the SDO_POINT attribute.
+   * @throws SQLException if the underlying struct cannot be read.
+   */
   public OracleSdoPointType getSdoPoint() throws SQLException
   { return (OracleSdoPointType) _struct.getAttribute(2); }
 
+  /**
+   * Sets the SDO_POINT attribute.
+   *
+   * @param sdoPoint the new SDO_POINT attribute value.
+   * @throws SQLException if the underlying struct cannot be written.
+   */
   public void setSdoPoint(OracleSdoPointType sdoPoint) throws SQLException
   { _struct.setAttribute(2, sdoPoint); }
 
 
+  /**
+   * Returns the SDO_ELEM_INFO attribute.
+   *
+   * @return the SDO_ELEM_INFO attribute.
+   * @throws SQLException if the underlying struct cannot be read.
+   */
   public OracleSdoElemInfoArray getSdoElemInfo() throws SQLException
   { return (OracleSdoElemInfoArray) _struct.getAttribute(3); }
 
+  /**
+   * Sets the SDO_ELEM_INFO attribute.
+   *
+   * @param sdoElemInfo the new SDO_ELEM_INFO attribute value.
+   * @throws SQLException if the underlying struct cannot be written.
+   */
   public void setSdoElemInfo(OracleSdoElemInfoArray sdoElemInfo) throws SQLException
   { _struct.setAttribute(3, sdoElemInfo); }
 
 
+  /**
+   * Returns the SDO_ORDINATES attribute.
+   *
+   * @return the SDO_ORDINATES attribute.
+   * @throws SQLException if the underlying struct cannot be read.
+   */
   public OracleSdoOrdinateArray getSdoOrdinates() throws SQLException
   { return (OracleSdoOrdinateArray) _struct.getAttribute(4); }
 
+  /**
+   * Sets the SDO_ORDINATES attribute.
+   *
+   * @param sdoOrdinates the new SDO_ORDINATES attribute value.
+   * @throws SQLException if the underlying struct cannot be written.
+   */
   public void setSdoOrdinates(OracleSdoOrdinateArray sdoOrdinates) throws SQLException
   { _struct.setAttribute(4, sdoOrdinates); }
 

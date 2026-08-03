@@ -11,6 +11,7 @@ import java.util.Map;
  */
 public class DefaultValueComparerDefaults implements ValueComparerDefaults
 {
+
     @Override
     public ValueComparer getDefaultValueComparer()
     {

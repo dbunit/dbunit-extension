@@ -51,6 +51,15 @@ public abstract class AbstractOperation extends DatabaseOperation
      */
     private static final Logger logger = LoggerFactory.getLogger(AbstractOperation.class);
 
+    /**
+     * Qualifies the given table or column name with the given schema/catalog prefix,
+     * applying the connection's configured escape pattern.
+     *
+     * @param prefix the schema or catalog prefix.
+     * @param name the table or column name to qualify.
+     * @param connection the database connection providing the escape pattern configuration.
+     * @return the qualified name.
+     */
     protected String getQualifiedName(String prefix, String name, IDatabaseConnection connection)
     {
     	if (logger.isDebugEnabled())	

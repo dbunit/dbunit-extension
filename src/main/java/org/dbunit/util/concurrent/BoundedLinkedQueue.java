@@ -118,6 +118,7 @@ public class BoundedLinkedQueue implements BoundedChannel {
 
   /**
    * Create a queue with the given capacity
+   * @param capacity the maximum number of elements the queue can hold.
    * @exception IllegalArgumentException if capacity less or equal to zero
    **/
   public BoundedLinkedQueue(int capacity) {
@@ -137,9 +138,10 @@ public class BoundedLinkedQueue implements BoundedChannel {
   }
 
   /**
-   * Move put permits from take side to put side; 
+   * Move put permits from take side to put side;
    * return the number of put side permits that are available.
    * Call only under synch on puGuard_ AND this.
+   * @return the number of put side permits that are available.
    **/
   protected final int reconcilePutPermits() {
         logger.debug("reconcilePutPermits() - start");
@@ -162,6 +164,7 @@ public class BoundedLinkedQueue implements BoundedChannel {
    * of changing. The returned value will be unreliable in the presence of
    * active puts and takes, and should only be used as a heuristic
    * estimate, for example for resource monitoring purposes.
+   * @return the number of elements in the queue.
    **/
   public synchronized int size() {
         logger.debug("size() - start");
@@ -182,6 +185,7 @@ public class BoundedLinkedQueue implements BoundedChannel {
    * existing elements are NOT removed, but
    * incoming puts will not proceed until the number of elements
    * is less than the new capacity.
+   * @param newCapacity the new capacity.
    * @exception IllegalArgumentException if capacity less or equal to zero
    **/
 
@@ -202,7 +206,10 @@ public class BoundedLinkedQueue implements BoundedChannel {
   }
 
 
-  /** Main mechanics for take/poll **/
+  /**
+   * Main mechanics for take/poll
+   * @return the removed element, or <code>null</code> if the queue is empty.
+   **/
   protected synchronized Object extract() {
         logger.debug("extract() - start");
 
@@ -304,6 +311,7 @@ public class BoundedLinkedQueue implements BoundedChannel {
   /**
    * Create and insert a node.
    * Call only under synch on putGuard_
+   * @param x the element to insert.
    **/
   protected void insert(Object x) {
         logger.debug("insert(x=" + x + ") - start");
@@ -400,6 +408,10 @@ public class BoundedLinkedQueue implements BoundedChannel {
     return true;
   }
 
+  /**
+   * Returns whether the queue currently has no elements.
+   * @return <code>true</code> if the queue currently has no elements.
+   */
   public boolean isEmpty() {
         logger.debug("isEmpty() - start");
 

@@ -42,8 +42,10 @@ public class Edge implements IEdge {
     private final Comparable<String> nodeTo;
 
     /**
-     * @param nodeFrom
-     * @param nodeTo
+     * Creates an edge between the given nodes.
+     *
+     * @param nodeFrom the 'from' node.
+     * @param nodeTo the 'to' node.
      */
     public Edge(final Comparable<String> nodeFrom, final Comparable<String> nodeTo) {
         if (nodeFrom == null) {

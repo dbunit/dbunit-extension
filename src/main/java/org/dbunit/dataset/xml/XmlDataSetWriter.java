@@ -74,6 +74,8 @@ public class XmlDataSetWriter implements IDataSetConsumer
 
 
     /**
+     * Creates a new <code>XmlDataSetWriter</code>.
+     *
      * @param outputStream The stream to which the XML will be written.
      * @param charset The character set to be used for the {@link XmlWriter}.
      * Can be null. See {@link XmlWriter#XmlWriter(OutputStream, Charset)}.
@@ -84,12 +86,23 @@ public class XmlDataSetWriter implements IDataSetConsumer
         _xmlWriter.enablePrettyPrint(true);
     }
 
+    /**
+     * Creates a new <code>XmlDataSetWriter</code>.
+     *
+     * @param writer The writer to which the XML will be written.
+     */
     public XmlDataSetWriter(Writer writer)
     {
         _xmlWriter = new XmlWriter(writer);
         _xmlWriter.enablePrettyPrint(true);
     }
 
+    /**
+     * Creates a new <code>XmlDataSetWriter</code>.
+     *
+     * @param writer The writer to which the XML will be written.
+     * @param charset The character set to be used for the {@link XmlWriter}.
+     */
     public XmlDataSetWriter(Writer writer, Charset charset)
     {
         _xmlWriter = new XmlWriter(writer, charset);
@@ -119,7 +132,7 @@ public class XmlDataSetWriter implements IDataSetConsumer
     /**
      * Writes the given {@link IDataSet} using this writer.
      * @param dataSet The {@link IDataSet} to be written
-     * @throws DataSetException
+     * @throws DataSetException if the dataset cannot be read.
      */
     public void write(IDataSet dataSet) throws DataSetException
     {
@@ -317,7 +330,7 @@ public class XmlDataSetWriter implements IDataSetConsumer
      * Can be overridden to add custom behavior.
      * This implementation just invokes {@link XmlWriter#writeCData(String)}
      * @param stringValue The value to be written
-     * @throws IOException
+     * @throws IOException if writing to the underlying stream fails.
      * @since 2.4.4
      */
     protected void writeValueCData(String stringValue) throws IOException
@@ -331,7 +344,7 @@ public class XmlDataSetWriter implements IDataSetConsumer
      * Can be overridden to add custom behavior.
      * This implementation just invokes {@link XmlWriter#writeText(String)}.
      * @param stringValue The value to be written
-     * @throws IOException
+     * @throws IOException if writing to the underlying stream fails.
      * @since 2.4.4
      */
     protected void writeValue(String stringValue) throws IOException
@@ -341,6 +354,8 @@ public class XmlDataSetWriter implements IDataSetConsumer
     }
 
     /**
+     * Returns the {@link XmlWriter} that is used for writing out XML.
+     *
      * @return The {@link XmlWriter} that is used for writing out XML.
      * @since 2.4.4
      */

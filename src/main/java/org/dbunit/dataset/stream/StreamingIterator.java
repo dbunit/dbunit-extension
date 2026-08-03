@@ -71,7 +71,8 @@ public class StreamingIterator implements ITableIterator
      * the given source in an asynchronous way. Therefore a Thread is
      * created.
      * @param source The source of the data
-     * @throws DataSetException
+     * @throws DataSetException if the asynchronous producer thread is interrupted before
+     *         producing its first element.
      */
     public StreamingIterator(IDataSetProducer source) throws DataSetException
     {

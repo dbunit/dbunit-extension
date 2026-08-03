@@ -37,6 +37,13 @@ import java.sql.Connection;
  */
 public class HsqldbConnection extends DatabaseConnection
 {
+    /**
+     * Creates an HSQLDB connection, pre-configuring the HSQLDB-specific data type factory.
+     *
+     * @param connection the adapted JDBC connection.
+     * @param schema the database schema.
+     * @throws DatabaseUnitException if the connection cannot be adapted.
+     */
     public HsqldbConnection(Connection connection, String schema) throws DatabaseUnitException
     {
         super(connection, schema);

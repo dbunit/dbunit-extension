@@ -35,18 +35,39 @@ import java.sql.SQLException;
  */
 public interface IResultSetTableFactory
 {
+    /**
+     * Creates a table from a table name and a SQL select statement.
+     *
+     * @param tableName the table name.
+     * @param selectStatement the SQL select statement.
+     * @param connection the database connection.
+     * @return The table based on the SQL result set.
+     * @throws SQLException if executing the query fails.
+     * @throws DataSetException if metadata retrieval fails.
+     */
     public IResultSetTable createTable(String tableName, String selectStatement,
             IDatabaseConnection connection) throws SQLException, DataSetException;
 
+    /**
+     * Creates a table from a metadata descriptor and a connection.
+     *
+     * @param metaData the table metadata.
+     * @param connection the database connection.
+     * @return The table based on the SQL result set.
+     * @throws SQLException if executing the query fails.
+     * @throws DataSetException if metadata retrieval fails.
+     */
     public IResultSetTable createTable(ITableMetaData metaData,
             IDatabaseConnection connection) throws SQLException, DataSetException;
 
     /**
      * Creates a table from a preparedStatement
-     * @param tableName
-     * @param preparedStatement
-     * @param connection
+     * @param tableName the table name.
+     * @param preparedStatement the prepared statement to execute.
+     * @param connection the database connection.
      * @return The table based on a SQL result set
+     * @throws SQLException if executing the statement fails.
+     * @throws DataSetException if metadata retrieval fails.
      * @since 2.4.4
      */
     public IResultSetTable createTable(String tableName, PreparedStatement preparedStatement,

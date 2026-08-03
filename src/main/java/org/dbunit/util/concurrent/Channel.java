@@ -301,6 +301,7 @@ public interface Channel extends Puttable, Takable {
   /**
    * Return, but do not remove object at head of Channel,
    * or null if it is empty.
+   * @return the object at the head of the channel, or null if it is empty.
    **/
 
   public Object peek();

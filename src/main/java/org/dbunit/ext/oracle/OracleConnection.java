@@ -40,9 +40,9 @@ public class OracleConnection extends DatabaseConnection
     /**
      * Creates a oracle connection. Beware that the given schema is passed in to the parent class
      * as "upper case" string.
-     * @param connection
+     * @param connection the adapted JDBC connection.
      * @param schema The schema name
-     * @throws DatabaseUnitException
+     * @throws DatabaseUnitException if setting up the connection fails.
      */
     public OracleConnection(Connection connection, String schema) throws DatabaseUnitException
     {

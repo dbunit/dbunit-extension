@@ -41,10 +41,18 @@ public abstract class JndiBasedDBTestCase extends DBTestCase
      */
     private static final Logger logger = LoggerFactory.getLogger(JndiBasedDBTestCase.class);
 
+   /**
+    * Default constructor.
+    */
    public JndiBasedDBTestCase()
    {
    }
 
+   /**
+    * Constructs a test case with the given name.
+    *
+    * @param name the test case name.
+    */
    public JndiBasedDBTestCase( String name )
    {
       super( name );
@@ -65,6 +73,8 @@ public abstract class JndiBasedDBTestCase extends DBTestCase
 
    /**
     * Returns the JNDI lookup name for the test DataSource.
+    *
+    * @return the JNDI lookup name for the test DataSource.
     */
    protected abstract String getLookupName();
 
@@ -72,6 +82,8 @@ public abstract class JndiBasedDBTestCase extends DBTestCase
     * Returns the JNDI properties to use.<br>
     * Subclasses must override this method to provide customized JNDI
     * properties. Default implementation returns an empty Properties object.
+    *
+    * @return the JNDI properties to use.
     */
    protected Properties getJNDIProperties()
    {

@@ -81,9 +81,9 @@ public class SqlLoaderControlProducer implements IDataSetProducer {
      * 
      * @param controlFilesDir the control files directory
      * @param tableOrderFile the table order file
-     * @throws DataSetException 
+     * @throws DataSetException if the table order file cannot be read.
      */
-    public SqlLoaderControlProducer(String controlFilesDir, String tableOrderFile) 
+    public SqlLoaderControlProducer(String controlFilesDir, String tableOrderFile)
     throws DataSetException 
     {
         this(new File(controlFilesDir), new File(tableOrderFile));
@@ -94,9 +94,9 @@ public class SqlLoaderControlProducer implements IDataSetProducer {
      * 
      * @param controlFilesDir the control files directory
      * @param tableOrderFile the table order file
-     * @throws DataSetException 
+     * @throws DataSetException if the table order file cannot be read.
      */
-    public SqlLoaderControlProducer(File controlFilesDir, File tableOrderFile) 
+    public SqlLoaderControlProducer(File controlFilesDir, File tableOrderFile)
     throws DataSetException 
     {
         this.controlFilesDir = controlFilesDir;

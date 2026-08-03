@@ -121,16 +121,34 @@ public class FlatXmlProducer extends DefaultHandler implements IDataSetProducer,
     private Set _activeColumnNamesUpperCase;
 
     
+    /**
+     * Creates a producer that reads the given XML source, with DTD metadata enabled.
+     *
+     * @param xmlSource The input datasource
+     */
     public FlatXmlProducer(InputSource xmlSource)
     {
         this(xmlSource, true);
     }
 
+    /**
+     * Creates a producer that reads the given XML source.
+     *
+     * @param xmlSource The input datasource
+     * @param dtdMetadata Whether or not DTD metadata is available to parse via a DTD handler
+     */
     public FlatXmlProducer(InputSource xmlSource, boolean dtdMetadata)
     {
         this(xmlSource, dtdMetadata, false);
     }
 
+    /**
+     * Creates a producer that reads the given XML source, using the given dataset as
+     * the source of metadata instead of parsing a DTD.
+     *
+     * @param xmlSource The input datasource
+     * @param metaDataSet the dataset used as metadata source.
+     */
     public FlatXmlProducer(InputSource xmlSource, IDataSet metaDataSet)
     {
         _inputSource = xmlSource;
@@ -140,14 +158,23 @@ public class FlatXmlProducer extends DefaultHandler implements IDataSetProducer,
         initialize(false);
     }
 
+    /**
+     * Creates a producer that reads the given XML source, with DTD metadata enabled and
+     * resolved using the given entity resolver.
+     *
+     * @param xmlSource The input datasource
+     * @param resolver the entity resolver used to resolve the DTD.
+     */
     public FlatXmlProducer(InputSource xmlSource, EntityResolver resolver)
     {
         _inputSource = xmlSource;
         _resolver = resolver;
         initialize(true);
     }
-    
+
     /**
+     * Creates a producer that reads the given XML source.
+     *
      * @param xmlSource The input datasource
      * @param dtdMetadata Whether or not DTD metadata is available to parse via a DTD handler
      * @param columnSensing Whether or not the column sensing feature should be used (see FAQ)
@@ -156,8 +183,10 @@ public class FlatXmlProducer extends DefaultHandler implements IDataSetProducer,
     {
         this(xmlSource, dtdMetadata, columnSensing, false);
     }
-    
+
     /**
+     * Creates a producer that reads the given XML source.
+     *
      * @param xmlSource The input datasource
      * @param dtdMetadata Whether or not DTD metadata is available to parse via a DTD handler
      * @param columnSensing Whether or not the column sensing feature should be used (see FAQ)
@@ -184,6 +213,8 @@ public class FlatXmlProducer extends DefaultHandler implements IDataSetProducer,
     }
     
     /**
+     * Returns whether or not this producer works case sensitively.
+     *
      * @return Whether or not this producer works case sensitively
      * @since 2.4.7
      */
@@ -217,7 +248,7 @@ public class FlatXmlProducer extends DefaultHandler implements IDataSetProducer,
      * merges the existing columns with the potentially new ones.
      * @param columnsToMerge List of extra columns found, which need to be merge back into the metadata.
      * @return ITableMetaData The merged metadata object containing the new columns
-     * @throws DataSetException
+     * @throws DataSetException if the metadata cannot be merged.
      */
     private ITableMetaData mergeTableMetaData(List columnsToMerge, ITableMetaData originalMetaData) throws DataSetException
     {
@@ -298,7 +329,7 @@ public class FlatXmlProducer extends DefaultHandler implements IDataSetProducer,
      * </ul>
      * 
      * @param attributes  Attributed for the current row.
-     * @throws DataSetException
+     * @throws DataSetException if the metadata cannot be merged.
      */
 	protected void handleMissingColumns(Attributes attributes)
 			throws DataSetException
@@ -348,11 +379,21 @@ public class FlatXmlProducer extends DefaultHandler implements IDataSetProducer,
 		}
 	}
 	
+	/**
+	 * Sets whether or not the column sensing feature should be used.
+	 *
+	 * @param columnSensing whether or not the column sensing feature should be used.
+	 */
 	public void setColumnSensing(boolean columnSensing)
 	{
 		_columnSensing = columnSensing;
 	}
 
+    /**
+     * Sets whether or not the XML parser should validate against its DTD.
+     *
+     * @param validating whether or not the XML parser should validate against its DTD.
+     */
     public void setValidating(boolean validating)
     {
         _validating = validating;
@@ -512,6 +553,17 @@ public class FlatXmlProducer extends DefaultHandler implements IDataSetProducer,
         }
     }
 
+    /**
+     * Resolves the given attribute's column index in the active metadata and stores its value
+     * at that index in rowValues.
+     *
+     * @param attributes the current row's attributes.
+     * @param activeMetaData the active table metadata.
+     * @param rowValues the row value array to populate.
+     * @param i the index, into attributes, of the attribute to process.
+     * @throws DataSetException if resolving the column index fails.
+     * @throws NoSuchColumnException if the attribute has no corresponding column.
+     */
     protected void determineAndSetRowValue(Attributes attributes,
             ITableMetaData activeMetaData, Object[] rowValues, int i)
             throws DataSetException, NoSuchColumnException

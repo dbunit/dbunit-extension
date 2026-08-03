@@ -66,11 +66,24 @@ public class DeleteAllOperation extends AbstractOperation
     {
     }
 
+    /**
+     * Returns the SQL command prefix used to delete all rows of a table.
+     *
+     * @return the SQL command prefix used to delete all rows of a table.
+     */
     protected String getDeleteAllCommand()
     {
         return "delete from ";
     }
 
+    /**
+     * Returns a suffix appended to the delete-all SQL statement for the given connection.
+     * The default implementation returns an empty string.
+     *
+     * @param connection the database connection the statement will be executed on.
+     * @return the SQL statement suffix.
+     * @throws SQLException if determining the suffix requires a database access that fails.
+     */
     protected String getDeleteAllCommandSuffix(IDatabaseConnection connection) throws SQLException
     {
         return "";

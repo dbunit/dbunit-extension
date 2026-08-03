@@ -98,6 +98,13 @@ public class FileHelper
 		return success;
 	}
 
+	/**
+	 * Creates an {@link InputSource} for the given file.
+	 *
+	 * @param file the file to create an {@link InputSource} for.
+	 * @return the input source for the given file.
+	 * @throws MalformedURLException if the file's path cannot be converted to a URL.
+	 */
 	public static InputSource createInputSource(File file) throws MalformedURLException
 	{
         String uri = file/*.getAbsoluteFile()*/.toURI().toURL().toString();
@@ -111,7 +118,7 @@ public class FileHelper
      * 
      * @param srcFile the src file
      * @param destFile the dest file
-     * @throws IOException 
+     * @throws IOException if copying the file fails.
      */
     public static void copyFile(File srcFile, File destFile) throws IOException
     {
@@ -134,7 +141,7 @@ public class FileHelper
      * 
      * @param theFile the file to be read
      * @return a list of Strings, each one representing one line from the given file
-     * @throws IOException
+     * @throws IOException if the file cannot be read.
      */
     public static List readLines(File theFile) throws IOException 
     {

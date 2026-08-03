@@ -53,6 +53,14 @@ public abstract class AbstractDataType extends DataType
     private final Class _classType;
     private final boolean _isNumber;
 
+    /**
+     * Constructs a data type with the given SQL type mapping.
+     *
+     * @param name the data type name.
+     * @param sqlType the {@link java.sql.Types} constant this data type maps to.
+     * @param classType the Java class representing this data type's values.
+     * @param isNumber <code>true</code> if this data type represents a number.
+     */
     public AbstractDataType(final String name, final int sqlType,
             final Class classType, final boolean isNumber)
     {
@@ -223,12 +231,14 @@ public abstract class AbstractDataType extends DataType
     }
 
     /**
+     * Loads the given class using the class loader of the given connection.
+     *
      * @param clazz
      *            The fully qualified name of the class to be loaded
      * @param connection
      *            The JDBC connection needed to load the given class
      * @return The loaded class
-     * @throws ClassNotFoundException
+     * @throws ClassNotFoundException if the class cannot be located by the class loader.
      */
     protected final Class loadClass(final String clazz,
             final Connection connection) throws ClassNotFoundException
@@ -239,12 +249,14 @@ public abstract class AbstractDataType extends DataType
     }
 
     /**
+     * Loads the given class using the given class loader.
+     *
      * @param clazz
      *            The fully qualified name of the class to be loaded
      * @param classLoader
      *            The classLoader to be used to load the given class
      * @return The loaded class
-     * @throws ClassNotFoundException
+     * @throws ClassNotFoundException if the class cannot be located by the class loader.
      */
     protected final Class loadClass(final String clazz,
             final ClassLoader classLoader) throws ClassNotFoundException

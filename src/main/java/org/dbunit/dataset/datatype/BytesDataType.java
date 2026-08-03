@@ -61,6 +61,12 @@ public class BytesDataType extends AbstractDataType
     private static final Pattern inputPattern =
             Pattern.compile("^\\[(.*?)](.*)");
 
+    /**
+     * Constructs a data type with the given SQL type mapping.
+     *
+     * @param name the data type name.
+     * @param sqlType the {@link java.sql.Types} constant this data type maps to.
+     */
     public BytesDataType(final String name, final int sqlType)
     {
         super(name, sqlType, byte[].class, false);
@@ -101,6 +107,13 @@ public class BytesDataType extends AbstractDataType
         return out.toByteArray();
     }
 
+    /**
+     * Reads the entire contents of the given file into a byte array.
+     *
+     * @param filename the path of the file to read.
+     * @return the file's contents.
+     * @throws IOException if the file cannot be read.
+     */
     public byte[] loadFile(final String filename) throws IOException
     {
         // Not an URL, try as file name
@@ -108,6 +121,13 @@ public class BytesDataType extends AbstractDataType
         return toByteArray(new FileInputStream(file), (int) file.length());
     }
 
+    /**
+     * Reads the entire contents at the given URL into a byte array.
+     *
+     * @param urlAsString the URL to read from.
+     * @return the URL content.
+     * @throws IOException if the URL cannot be read.
+     */
     public byte[] loadURL(final String urlAsString) throws IOException
     {
         // Not an URL, try as file name
@@ -354,6 +374,15 @@ public class BytesDataType extends AbstractDataType
         }
     }
 
+    /**
+     * Lexicographically compares two byte arrays.
+     *
+     * @param v1 the first byte array.
+     * @param v2 the second byte array.
+     * @return a negative, zero, or positive value if v1 is less than, equal to, or greater
+     *         than v2, respectively.
+     * @throws TypeCastException never thrown by this implementation.
+     */
     public int compare(final byte[] v1, final byte[] v2)
             throws TypeCastException
     {

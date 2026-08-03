@@ -43,6 +43,9 @@ public abstract class AbstractPreparedBatchStatement implements IPreparedBatchSt
      */
     private static final Logger logger = LoggerFactory.getLogger(AbstractPreparedBatchStatement.class);
 
+    /**
+     * The prepared statement to which values are bound and batched.
+     */
     protected final PreparedStatement _statement;
 
     AbstractPreparedBatchStatement(String sql, Connection connection)

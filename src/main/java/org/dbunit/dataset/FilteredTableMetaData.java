@@ -48,6 +48,13 @@ public class FilteredTableMetaData extends AbstractTableMetaData
     private final Column[] _columns;
     private final Column[] _primaryKeys;
 
+    /**
+     * Creates metadata exposing only the columns of the given metadata accepted by the given filter.
+     *
+     * @param metaData the metadata to filter.
+     * @param columnFilter the filter defining which columns to expose.
+     * @throws DataSetException if the given metadata's columns cannot be retrieved.
+     */
     public FilteredTableMetaData(ITableMetaData metaData,
             IColumnFilter columnFilter) throws DataSetException
     {
@@ -56,6 +63,14 @@ public class FilteredTableMetaData extends AbstractTableMetaData
         _primaryKeys = getFilteredColumns(_tableName, metaData.getPrimaryKeys(), columnFilter);
     }
 
+    /**
+     * Returns the columns from the given array accepted by the given filter.
+     *
+     * @param tableName the name of the table the columns belong to, needed for the filter invocation.
+     * @param columns the columns to filter.
+     * @param columnFilter the filter defining which columns to accept.
+     * @return the accepted columns.
+     */
     public static Column[] getFilteredColumns(String tableName,
             Column[] columns, IColumnFilter columnFilter)
     {

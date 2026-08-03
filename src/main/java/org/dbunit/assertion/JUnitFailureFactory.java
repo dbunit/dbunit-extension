@@ -35,6 +35,7 @@ package org.dbunit.assertion;
  * @since 2.4.0
  */
 public class JUnitFailureFactory implements FailureFactory {
+
     @Override
     public Error createFailure(final String message, final String expected, final String actual) {
         return new DbComparisonFailure(

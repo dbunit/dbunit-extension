@@ -42,6 +42,8 @@ public class CachedDataSet extends AbstractDataSet implements IDataSetConsumer
 
     /**
      * Default constructor.
+     *
+     * @throws DataSetException if initialization fails.
      */
     public CachedDataSet() throws DataSetException {
         super();
@@ -50,6 +52,9 @@ public class CachedDataSet extends AbstractDataSet implements IDataSetConsumer
 
     /**
      * Creates a copy of the specified dataset.
+     *
+     * @param dataSet the dataset to copy.
+     * @throws DataSetException if copying the dataset fails.
      */
     public CachedDataSet(IDataSet dataSet) throws DataSetException
     {
@@ -67,6 +72,9 @@ public class CachedDataSet extends AbstractDataSet implements IDataSetConsumer
 
     /**
      * Creates a CachedDataSet that synchronously consume the specified producer.
+     *
+     * @param producer the producer to consume.
+     * @throws DataSetException if consuming the producer fails.
      */
     public CachedDataSet(IDataSetProducer producer) throws DataSetException
     {
@@ -75,9 +83,9 @@ public class CachedDataSet extends AbstractDataSet implements IDataSetConsumer
 
     /**
      * Creates a CachedDataSet that synchronously consume the specified producer.
-     * @param producer
+     * @param producer the producer to consume.
      * @param caseSensitiveTableNames Whether or not case sensitive table names should be used
-     * @throws DataSetException
+     * @throws DataSetException if consuming the producer fails.
      */
     public CachedDataSet(IDataSetProducer producer, boolean caseSensitiveTableNames) throws DataSetException
     {

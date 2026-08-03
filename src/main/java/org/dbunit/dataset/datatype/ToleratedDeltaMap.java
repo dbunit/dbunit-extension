@@ -50,9 +50,9 @@ public class ToleratedDeltaMap
 
     /**
      * Lookup a tolerated delta object by tableName and ColumnName.
-     * 
-     * @param tableName
-     * @param columnName
+     *
+     * @param tableName the name of the table.
+     * @param columnName the name of the column.
      * @return The object from the map or <code>null</code> if no such object
      *         was found
      */
@@ -75,6 +75,11 @@ public class ToleratedDeltaMap
         return res;
     }
 
+    /**
+     * Returns the map of tolerated deltas.
+     *
+     * @return the map of tolerated deltas.
+     */
     public Map getToleratedDeltas()
     {
         return _toleratedDeltas;
@@ -148,6 +153,8 @@ public class ToleratedDeltaMap
         private Precision toleratedDelta;
 
         /**
+         * Creates a tolerated delta for the given table/column, expressed as a <code>double</code>.
+         *
          * @param tableName
          *            The name of the table
          * @param columnName
@@ -166,6 +173,8 @@ public class ToleratedDeltaMap
         }
 
         /**
+         * Creates a tolerated delta for the given table/column, expressed as a <code>BigDecimal</code>.
+         *
          * @param tableName
          *            The name of the table
          * @param columnName
@@ -183,6 +192,8 @@ public class ToleratedDeltaMap
         }
 
         /**
+         * Creates a tolerated delta for the given table/column, optionally as a percentage.
+         *
          * @param tableName
          *            The name of the table
          * @param columnName
@@ -204,6 +215,8 @@ public class ToleratedDeltaMap
         }
 
         /**
+         * Creates a tolerated delta for the given table/column.
+         *
          * @param tableName
          *            The name of the table
          * @param columnName
@@ -223,16 +236,31 @@ public class ToleratedDeltaMap
             this.toleratedDelta = toleratedDelta;
         }
 
+        /**
+         * Returns the name of the table.
+         *
+         * @return the name of the table.
+         */
         public String getTableName()
         {
             return tableName;
         }
 
+        /**
+         * Returns the name of the column.
+         *
+         * @return the name of the column.
+         */
         public String getColumnName()
         {
             return columnName;
         }
 
+        /**
+         * Returns the tolerated delta.
+         *
+         * @return the tolerated delta.
+         */
         public Precision getToleratedDelta()
         {
             return toleratedDelta;
@@ -241,9 +269,9 @@ public class ToleratedDeltaMap
         /**
          * Checks whether or not the <code>tableName</code> and the
          * <code>columnName</code> match the ones of this object.
-         * 
-         * @param tableName
-         * @param columnName
+         *
+         * @param tableName the table name to check.
+         * @param columnName the column name to check.
          * @return <code>true</code> if both given values match those of this
          *         object.
          */
@@ -286,6 +314,8 @@ public class ToleratedDeltaMap
         private final BigDecimal delta;
 
         /**
+         * Creates a non-percentage precision with the given tolerated delta.
+         *
          * @param delta
          *            The allowed/tolerated difference
          */
@@ -295,6 +325,8 @@ public class ToleratedDeltaMap
         }
 
         /**
+         * Creates a precision with the given tolerated delta.
+         *
          * @param delta
          *            The allowed/tolerated difference
          * @param percentage
@@ -315,11 +347,21 @@ public class ToleratedDeltaMap
             this.percentage = percentage;
         }
 
+        /**
+         * Returns whether the delta is interpreted as a percentage.
+         *
+         * @return whether the delta is interpreted as a percentage.
+         */
         public boolean isPercentage()
         {
             return percentage;
         }
 
+        /**
+         * Returns the allowed/tolerated difference.
+         *
+         * @return the allowed/tolerated difference.
+         */
         public BigDecimal getDelta()
         {
             return delta;

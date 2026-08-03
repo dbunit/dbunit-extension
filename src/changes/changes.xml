@@ -215,6 +215,9 @@
       </action>
       <!-- dependabot:dep=actions/setup-java:new=5.7.0:pr=903 -->
       <action dev="dependabot" type="update" due-to="Dependabot">Update github_actions dependency actions/setup-java from 5.6.0 to 5.7.0 (#903).</action>
+      <action dev="jeffjensen" type="fix" issue="904" system="github" due-to="jeffjensen">
+          Fix the Javadoc @param/@return/@throws gaps across the main source tree that issue 902's from-scratch doclint pass left unaddressed since they are warnings, not build-failing errors: missing one-sentence summaries on classes/interfaces/methods/fields whose doc block was tag-only (doclint's "no main description"), entirely missing or description-less @param/@return/@throws tags, and missing field/method comments including on org.dbunit.assertion.DbComparisonFailure's and PropertyChangeMulticaster's private fields and readObject/writeObject methods, which doclint checks regardless of visibility once a class implements Serializable.
+      </action>
     </release>
     <release version="3.4.0" date="Jul 28, 2026" description="Test-suite hardening (un-skip and strengthen dozens of disabled/no-op tests); add CachingConnectionProvider and reduce DefaultPrepAndExpectedTestCase's per-test connection churn; pin identifier case-folding to Locale.ENGLISH for Turkish-locale correctness; and a broad set of correctness fixes across export formats (XML, YAML, CSV, XLS, Ant), TimestampDataType timezone handling, InsertOperation/TransactionOperation, and resource-leak cleanups">
       <action dev="jeffjensen" type="fix" issue="797" system="github" due-to="jeffjensen">

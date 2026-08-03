@@ -74,14 +74,30 @@ public class CsvDataSetWriter implements IDataSetConsumer {
     /** list of tables */
     private List tableList;
 
+    /**
+     * Creates a writer that writes CSV files to the given directory.
+     *
+     * @param theDirectory the path of the directory to write CSV files to.
+     */
     public CsvDataSetWriter(String theDirectory) {
         setTheDirectory(theDirectory);
     }
 
+    /**
+     * Creates a writer that writes CSV files to the given directory.
+     *
+     * @param theDirectory the directory to write CSV files to.
+     */
     public CsvDataSetWriter(File theDirectory) {
         setTheDirectory(theDirectory.getAbsolutePath());
     }
 
+    /**
+     * Writes the given dataset's tables and rows to CSV files.
+     *
+     * @param dataSet the dataset to write.
+     * @throws DataSetException if writing the dataset fails.
+     */
     public void write(IDataSet dataSet) throws DataSetException {
         logger.debug("write(dataSet={}) - start", dataSet);
 
@@ -226,6 +242,12 @@ public class CsvDataSetWriter implements IDataSetConsumer {
         return new StringBuilder(QUOTE).append(escape(stringValue)).append(QUOTE).toString();
     }
 
+    /**
+     * Escapes quote and backslash characters in the given string by prefixing them with a backslash.
+     *
+     * @param stringValue the string to escape.
+     * @return the escaped string.
+     */
     protected static String escape(String stringValue) {
         logger.debug("escape(stringValue={}) - start", stringValue);
 
@@ -243,30 +265,53 @@ public class CsvDataSetWriter implements IDataSetConsumer {
         return buffer.toString();
     }
 
+    /**
+     * Returns the writer for the currently active table.
+     * @return the writer for the currently active table.
+     */
     public Writer getWriter() {
         logger.debug("getWriter() - start");
 
         return writer;
     }
 
+    /**
+     * Sets the writer for the currently active table.
+     * @param writer the writer for the currently active table.
+     */
     public void setWriter(Writer writer) {
         logger.debug("setWriter(writer={}) - start", writer);
 
         this.writer = writer;
     }
 
+    /**
+     * Returns the directory CSV files are written to.
+     * @return the directory CSV files are written to.
+     */
     public String getTheDirectory() {
         logger.debug("getTheDirectory() - start");
 
         return theDirectory;
     }
 
+    /**
+     * Sets the directory CSV files are written to.
+     * @param theDirectory the directory CSV files are written to.
+     */
     public void setTheDirectory(String theDirectory) {
         logger.debug("setTheDirectory(theDirectory={}) - start", theDirectory);
 
         this.theDirectory = theDirectory;
     }
 
+    /**
+     * Writes the given dataset's tables and rows as CSV files to the given directory.
+     *
+     * @param dataset the dataset to write.
+     * @param dest the directory to write CSV files to.
+     * @throws DataSetException if writing the dataset fails.
+     */
     public static void write(IDataSet dataset, File dest) throws DataSetException {
         logger.debug("write(dataset={}, dest={}) - start", dataset, dest);
 

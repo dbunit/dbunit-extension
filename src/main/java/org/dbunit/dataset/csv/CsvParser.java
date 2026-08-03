@@ -37,7 +37,33 @@ import org.dbunit.dataset.common.handlers.PipelineException;
  * @since 2.2 (Sep 12, 2004)
  */
 public interface CsvParser {
+    /**
+     * Parses the CSV content of the given file.
+     *
+     * @param file the file to parse.
+     * @return the parsed rows, each a list of field values, first row being the column names.
+     * @throws IOException if the file cannot be read.
+     * @throws CsvParserException if the CSV content is malformed.
+     */
     List parse(File file) throws IOException, CsvParserException;
+
+    /**
+     * Parses the CSV content at the given URL.
+     *
+     * @param url the URL to parse.
+     * @return the parsed rows, each a list of field values, first row being the column names.
+     * @throws IOException if the URL cannot be read.
+     * @throws CsvParserException if the CSV content is malformed.
+     */
     List parse(URL url) throws IOException, CsvParserException;
+
+    /**
+     * Parses a single line of CSV text into its individual field values.
+     *
+     * @param csv the line of CSV text to parse.
+     * @return the parsed field values.
+     * @throws PipelineException if the character-handling pipeline fails.
+     * @throws IllegalInputCharacterException if the input contains a character no handler accepts.
+     */
     List parse(String csv) throws PipelineException, IllegalInputCharacterException;
 }

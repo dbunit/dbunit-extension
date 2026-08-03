@@ -33,21 +33,42 @@ import org.dbunit.dataset.DataSetException;
 public class DataTypeException extends DataSetException
 {
 
+    /**
+     * Constructs a <code>DataTypeException</code> with no detail message and no encapsulated
+     * exception.
+     */
     public DataTypeException()
     {
         super();
     }
 
+    /**
+     * Constructs a <code>DataTypeException</code> with the specified detail message.
+     *
+     * @param msg the detail message.
+     */
     public DataTypeException(String msg)
     {
         super(msg);
     }
 
+    /**
+     * Constructs a <code>DataTypeException</code> with the encapsulated exception.
+     *
+     * @param e the encapsulated exception.
+     */
     public DataTypeException(Throwable e)
     {
         super(e);
     }
 
+    /**
+     * Constructs a <code>DataTypeException</code> with the specified detail message and
+     * encapsulated exception.
+     *
+     * @param msg the detail message.
+     * @param e the encapsulated exception.
+     */
     public DataTypeException(String msg, Throwable e)
     {
         super(msg, e);

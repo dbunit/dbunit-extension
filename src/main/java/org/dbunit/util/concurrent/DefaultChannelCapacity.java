@@ -46,6 +46,7 @@ public class DefaultChannelCapacity {
    * Set the default capacity used in 
    * default (no-argument) constructor for BoundedChannels
    * that otherwise require a capacity argument.
+   * @param capacity the new default capacity.
    * @exception IllegalArgumentException if capacity less or equal to zero
    */
   public static void set(int capacity) {
@@ -60,6 +61,7 @@ public class DefaultChannelCapacity {
    * that otherwise require a capacity argument.
    * Initial value is <code>INITIAL_DEFAULT_CAPACITY</code>
    * @see #INITIAL_DEFAULT_CAPACITY
+   * @return the current default capacity.
    */
   public static int get() {
     return defaultCapacity_.get();

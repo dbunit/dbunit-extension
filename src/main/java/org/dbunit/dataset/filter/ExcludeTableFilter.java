@@ -55,6 +55,7 @@ public class ExcludeTableFilter extends AbstractTableFilter implements ITableFil
 
     /**
      * Create a new ExcludeTableFilter which prevent access to specified tables.
+     * @param tableNames the names of the tables to hide.
      */
     public ExcludeTableFilter(String[] tableNames)
     {
@@ -70,6 +71,7 @@ public class ExcludeTableFilter extends AbstractTableFilter implements ITableFil
      * The following wildcard characters are supported:
      * '*' matches zero or more characters,
      * '?' matches one character.
+     * @param patternName the table name pattern to hide.
      */
     public void excludeTable(String patternName)
     {
@@ -78,6 +80,10 @@ public class ExcludeTableFilter extends AbstractTableFilter implements ITableFil
         _patternMatcher.addPattern(patternName);
     }
 
+    /**
+     * Returns whether no tables have been excluded yet.
+     * @return <code>true</code> if no tables have been excluded yet.
+     */
     public boolean isEmpty()
     {
         logger.debug("isEmpty() - start");

@@ -74,7 +74,7 @@ public class RowFilterTable implements ITable, IRowValueProvider {
 	 * Creates a new {@link ITable} where some rows can be filtered out from the original table
 	 * @param table The table to be wrapped
 	 * @param rowFilter The row filter that checks for every row whether or not it should be filtered
-	 * @throws DataSetException
+	 * @throws DataSetException if building the filtered row set fails.
 	 */
 	public RowFilterTable(ITable table, IRowFilter rowFilter) throws DataSetException {
 		if ( table == null || rowFilter == null ) {
@@ -149,7 +149,7 @@ public class RowFilterTable implements ITable, IRowValueProvider {
 
 	/**
 	 * Returns the column value for the column with the given name of the currently processed row
-	 * @throws DataSetException 
+	 * @throws DataSetException if the value cannot be retrieved.
 	 * @see org.dbunit.dataset.IRowValueProvider#getColumnValue(java.lang.String)
 	 */
 	public Object getColumnValue(String columnName) throws DataSetException {

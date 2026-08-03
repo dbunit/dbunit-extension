@@ -42,6 +42,11 @@ public class TransparentHandler extends AbstractPipelineComponent {
 
     private TransparentHandler() {}
 
+    /**
+     * Creates a handler that accepts any character without altering the field being assembled.
+     *
+     * @return the new pipeline component.
+     */
     public static final PipelineComponent IGNORE () {
         logger.debug("IGNORE() - start");
 
