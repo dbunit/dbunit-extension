@@ -48,9 +48,12 @@ public abstract class AbstractDataSetTest extends AbstractTest
     /**
      * This method exclude BLOB_TABLE and CLOB_TABLE from the specified dataset
      * because BLOB and CLOB are not supported by all database vendor. It also
-     * excludes tables with Identity columns (MSSQL) because they are specific
-     * to MSSQL. TODO : should be refactored into the various
-     * DatabaseEnvironments!
+     * excludes tables used to test identity/generated columns, present across
+     * several - not just one - database environments' DDL and not seeded by
+     * the init dataset, in both their uppercase and lowercase forms: unlike
+     * the other vendors here, PostgreSQL folds unquoted identifiers to
+     * lowercase instead of uppercase. TODO : should be refactored into the
+     * various DatabaseEnvironments!
      */
     public static IDataSet removeExtraTestTables(final IDataSet dataSet)
             throws Exception
@@ -82,13 +85,18 @@ public abstract class AbstractDataSetTest extends AbstractTest
                 .filter(t -> t.startsWith("spt")).collect(Collectors.toList());
         nameList.removeAll(removeList);
         /*
-         * These tables are created specifically for testing identity columns on
-         * MSSQL server. They should be ignored on other platforms.
+         * These tables are created specifically for testing identity columns.
+         * They are not seeded by the init dataset, so ignore them here. Also
+         * remove the lowercase form: unlike the other database vendors,
+         * PostgreSQL folds unquoted identifiers to lowercase instead of
+         * uppercase.
          */
         nameList.remove("DBUNIT.IDENTITY_TABLE");
         nameList.remove("IDENTITY_TABLE");
+        nameList.remove("identity_table");
         nameList.remove("DBUNIT.TEST_IDENTITY_NOT_PK");
         nameList.remove("TEST_IDENTITY_NOT_PK");
+        nameList.remove("test_identity_not_pk");
         /*
          * This table is created specifically for testing a NOT NULL column
          * with a database default on HSQLDB. It should be ignored on other

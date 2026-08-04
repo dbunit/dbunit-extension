@@ -67,6 +67,24 @@ public class VerifyTableDefinition
             new DefaultVerifyTableDefinitionVerifier();
 
     /**
+     * Whether to sort the expected and actual tables by only this table's
+     * filtered columns (post exclude/include) instead of by all of the actual
+     * table's native columns. Default is <code>false</code>, preserving the
+     * historical sort-by-all-columns behavior for backward compatibility.
+     * <p>
+     * Set <code>true</code> for tables whose first column - or any excluded
+     * column - is a generated/surrogate value not under the test's control
+     * (e.g. an identity column assigned in an insertion order production code
+     * does not guarantee, such as with Hibernate batch inserts): sorting by all
+     * columns then sorts the actual table primarily by that unpredictable value
+     * while the expected table usually sorts differently by its data content -
+     * misaligning same-data rows and failing the comparison.
+     *
+     * @since 3.4.1
+     */
+    private boolean sortOnFilteredColumnsOnly;
+
+    /**
      * Create a valid instance with all columns compared except exclude the
      * specified columns.
      *
@@ -192,6 +210,86 @@ public class VerifyTableDefinition
             final ValueComparer defaultValueComparer,
             final Map<String, ValueComparer> columnValueComparers)
     {
+        this(table, excludeColumns, includeColumns, defaultValueComparer,
+                columnValueComparers, false);
+    }
+
+    /**
+     * Create a valid instance with all columns compared and exclude the
+     * specified columns, use the specified defaultValueComparer for all
+     * column comparisons not in the columnValueComparers {@link Map}, and
+     * specify whether to sort by only the filtered columns. The common case
+     * for opting into {@link #sortOnFilteredColumnsOnly} when include filters
+     * are not also needed.
+     *
+     * @param table
+     *            The name of the table - required.
+     * @param excludeColumns
+     *            The columns in the table to ignore (filter out) in expected vs
+     *            actual comparisons; null or empty array to exclude no columns.
+     * @param defaultValueComparer
+     *            {@link ValueComparer} to use with column value comparisons
+     *            when the column name for the table is not in the
+     *            columnValueComparers {@link Map}. Can be <code>null</code> and
+     *            will default.
+     * @param columnValueComparers
+     *            {@link Map} of {@link ValueComparer}s to use for specific
+     *            columns. Key is column name, value is {@link ValueComparer} to
+     *            use for comparison of that column. Can be <code>null</code>
+     *            and will default to defaultValueComparer for all columns in
+     *            all tables.
+     * @param sortOnFilteredColumnsOnly
+     *            True to sort the expected and actual tables by only this
+     *            table's filtered columns instead of by all of the actual
+     *            table's native columns. See {@link #sortOnFilteredColumnsOnly}.
+     * @since 3.4.1
+     */
+    public VerifyTableDefinition(final String table,
+            final String[] excludeColumns,
+            final ValueComparer defaultValueComparer,
+            final Map<String, ValueComparer> columnValueComparers,
+            final boolean sortOnFilteredColumnsOnly)
+    {
+        this(table, excludeColumns, null, defaultValueComparer,
+                columnValueComparers, sortOnFilteredColumnsOnly);
+    }
+
+    /**
+     * Create a valid instance specifying exclude and include columns, value
+     * comparers, and whether to sort by only the filtered columns.
+     *
+     * @param table
+     *            The name of the table.
+     * @param excludeColumns
+     *            The columns in the table to ignore (filter out) in expected vs
+     *            actual comparisons; null or empty array to exclude no columns.
+     * @param includeColumns
+     *            The columns in the table to include in expected vs actual
+     *            comparisons; null to include all columns, empty array to
+     *            include no columns.
+     * @param defaultValueComparer
+     *            {@link ValueComparer} to use with column value comparisons
+     *            when the column name for the table is not in the
+     *            columnValueComparers {@link Map}. Can be <code>null</code> and
+     *            will default.
+     * @param columnValueComparers
+     *            {@link Map} of {@link ValueComparer}s to use for specific
+     *            columns. Key is column name, value is {@link ValueComparer} to
+     *            use for comparison of that column. Can be <code>null</code>
+     *            and will default to defaultValueComparer for all columns in
+     *            all tables.
+     * @param sortOnFilteredColumnsOnly
+     *            True to sort the expected and actual tables by only this
+     *            table's filtered columns instead of by all of the actual
+     *            table's native columns. See {@link #sortOnFilteredColumnsOnly}.
+     * @since 3.4.1
+     */
+    public VerifyTableDefinition(final String table,
+            final String[] excludeColumns, final String[] includeColumns,
+            final ValueComparer defaultValueComparer,
+            final Map<String, ValueComparer> columnValueComparers,
+            final boolean sortOnFilteredColumnsOnly)
+    {
         if (table == null)
         {
             throw new IllegalArgumentException("table is null.");
@@ -202,6 +300,7 @@ public class VerifyTableDefinition
         columnInclusionFilters = includeColumns;
         this.defaultValueComparer = defaultValueComparer;
         this.columnValueComparers = columnValueComparers;
+        this.sortOnFilteredColumnsOnly = sortOnFilteredColumnsOnly;
 
         verifyTableDefinitionVerifier.verify(this);
     }
@@ -310,5 +409,37 @@ public class VerifyTableDefinition
             final VerifyTableDefinitionVerifier verifyTableDefinitionVerifier)
     {
         this.verifyTableDefinitionVerifier = verifyTableDefinitionVerifier;
+    }
+
+    /**
+     * Returns whether this table sorts by only its filtered columns instead
+     * of all native columns.
+     *
+     * @see #sortOnFilteredColumnsOnly
+     *
+     * @return True if it sorts by only its filtered columns, false if by all
+     *         native columns.
+     * @since 3.4.1
+     */
+    public boolean isSortOnFilteredColumnsOnly()
+    {
+        return sortOnFilteredColumnsOnly;
+    }
+
+    /**
+     * Sets whether this table sorts by only its filtered columns instead of
+     * all native columns. Default is <code>false</code>.
+     *
+     * @see #sortOnFilteredColumnsOnly
+     *
+     * @param sortOnFilteredColumnsOnly
+     *            True to sort by only its filtered columns, false to sort by
+     *            all native columns.
+     * @since 3.4.1
+     */
+    public void setSortOnFilteredColumnsOnly(
+            final boolean sortOnFilteredColumnsOnly)
+    {
+        this.sortOnFilteredColumnsOnly = sortOnFilteredColumnsOnly;
     }
 }

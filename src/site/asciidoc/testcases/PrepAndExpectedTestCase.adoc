@@ -44,7 +44,12 @@ Row ordering:: Both the actual (database) and expected tables are automatically 
 in a link:../datasets/decorators.html#sortedtable[SortedTable] (sorted using each
 column's real data type, not string comparison) before they are compared. You never
 need a manual `ORDER BY` or to wrap tables in `SortedTable` yourself to make row order
-predictable.
+predictable. By default the actual table sorts by all of its native columns and the
+expected table by only the columns its file declares; for a table whose
+generated/identity column is excluded from comparison and whose insertion order isn't
+guaranteed (e.g. Hibernate batch inserts), set
+link:../components/verifytabledefinition.html#sortmode[VerifyTableDefinition.sortOnFilteredColumnsOnly]
+to `true` so both tables sort by only their filtered columns instead.
 
 Column type/case reconciliation:: If the expected dataset's columns come back with an
 `UNKNOWN` data type (common for a `FlatXmlDataSet` with no DTD), the expected table's

@@ -71,6 +71,12 @@ sortedTable2.setUseComparable(true); // must be invoked immediately after the co
 Assertion.assertEquals(sortedTable1, sortedTable2);
 ----
 
+If you are comparing through
+link:../testcases/PrepAndExpectedTestCase.html[PrepAndExpectedTestCase] rather than
+wrapping tables in `SortedTable` yourself, see
+link:../components/verifytabledefinition.html#sortmode[VerifyTableDefinition.sortOnFilteredColumnsOnly]
+for its opt-in fix to this same generated-primary-key row-ordering problem.
+
 [#replacementdataset]
 == ReplacementDataSet
 
