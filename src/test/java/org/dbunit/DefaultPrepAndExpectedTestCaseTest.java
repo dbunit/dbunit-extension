@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.catchThrowable;
 
 import java.sql.Connection;
 
+import org.dbunit.assertion.DbComparisonFailure;
 import org.dbunit.database.DatabaseConfig;
 import org.dbunit.database.IDatabaseConnection;
 import org.dbunit.database.MockDatabaseConnection;
@@ -398,6 +399,90 @@ class DefaultPrepAndExpectedTestCaseTest
         assertThatCode(() -> tc.verifyData(expectedTable, actualTable,
                 excludeColumns, includeColumns, null, null))
                         .as("Tables differing only in an excluded column must verify as equal.")
+                        .doesNotThrowAnyException();
+    }
+
+    @Test
+    void testVerifyData_withSortOnFilteredColumnsOnlyFalse_generatedIdOutOfDataOrder_throwsOnMismatch()
+            throws Exception
+    {
+        final Column[] actualColumns = {new Column("ID", DataType.INTEGER),
+                new Column("COL1", DataType.VARCHAR)};
+        final DefaultTable actualTable =
+                new DefaultTable("TEST_TABLE", actualColumns);
+        actualTable.addRow(new Object[] {2, "Apple"});
+        actualTable.addRow(new Object[] {1, "Banana"});
+
+        final Column[] expectedColumns = {new Column("COL1", DataType.VARCHAR)};
+        final DefaultTable expectedTable =
+                new DefaultTable("TEST_TABLE", expectedColumns);
+        expectedTable.addRow(new Object[] {"Apple"});
+        expectedTable.addRow(new Object[] {"Banana"});
+
+        final String[] excludeColumns = {"ID"};
+
+        final Throwable thrown = catchThrowable(() -> tc.verifyData(
+                expectedTable, actualTable, excludeColumns, null, null, null,
+                false));
+
+        assertThat(thrown)
+                .as("Default sortOnFilteredColumnsOnly=false must sort the"
+                        + " actual table primarily by its excluded ID column,"
+                        + " misaligning same-data rows and failing the"
+                        + " comparison.")
+                .isInstanceOf(DbComparisonFailure.class);
+    }
+
+    @Test
+    void testVerifyData_withSortOnFilteredColumnsOnlyTrue_generatedIdOutOfDataOrder_passesWhenEqual()
+            throws Exception
+    {
+        final Column[] actualColumns = {new Column("ID", DataType.INTEGER),
+                new Column("COL1", DataType.VARCHAR)};
+        final DefaultTable actualTable =
+                new DefaultTable("TEST_TABLE", actualColumns);
+        actualTable.addRow(new Object[] {2, "Apple"});
+        actualTable.addRow(new Object[] {1, "Banana"});
+
+        final Column[] expectedColumns = {new Column("COL1", DataType.VARCHAR)};
+        final DefaultTable expectedTable =
+                new DefaultTable("TEST_TABLE", expectedColumns);
+        expectedTable.addRow(new Object[] {"Apple"});
+        expectedTable.addRow(new Object[] {"Banana"});
+
+        final String[] excludeColumns = {"ID"};
+
+        assertThatCode(() -> tc.verifyData(expectedTable, actualTable,
+                excludeColumns, null, null, null, true))
+                        .as("sortOnFilteredColumnsOnly=true must sort both"
+                                + " tables by only COL1, ignoring the excluded"
+                                + " ID column, so same-data rows line up"
+                                + " regardless of ID order.")
+                        .doesNotThrowAnyException();
+    }
+
+    @Test
+    void testVerifyData_withSortOnFilteredColumnsOnlyTrueAndAllColumnsExcluded_doesNotThrow()
+            throws Exception
+    {
+        final Column[] columns = {new Column("COL1", DataType.VARCHAR)};
+
+        final DefaultTable expectedTable =
+                new DefaultTable("TEST_TABLE", columns);
+        expectedTable.addRow(new Object[] {"expected-only"});
+
+        final DefaultTable actualTable = new DefaultTable("TEST_TABLE", columns);
+        actualTable.addRow(new Object[] {"actual-only"});
+
+        final String[] excludeColumns = {"COL1"};
+
+        // Excluding every column leaves makeSortColumns() with nothing to
+        // sort by; confirm SortedTable tolerates a zero-length sort-column
+        // list (a no-op, stable sort) instead of throwing.
+        assertThatCode(() -> tc.verifyData(expectedTable, actualTable,
+                excludeColumns, null, null, null, true))
+                        .as("Excluding every column must not throw even"
+                                + " though it leaves no columns to sort by.")
                         .doesNotThrowAnyException();
     }
 

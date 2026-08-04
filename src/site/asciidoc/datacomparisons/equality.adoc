@@ -107,3 +107,9 @@ Either order your database snapshot manually with
 tables in the `SortedTable` decorator — see
 link:../datasets/decorators.html[Decorators] for `SortedTable` usage,
 including sorting by column data type instead of string value.
+
+If you are comparing through
+link:../testcases/PrepAndExpectedTestCase.html[PrepAndExpectedTestCase] rather than
+calling `assertEquals` directly, see
+link:../components/verifytabledefinition.html#sortmode[VerifyTableDefinition.sortOnFilteredColumnsOnly]
+for its opt-in fix to this same problem.

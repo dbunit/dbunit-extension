@@ -158,6 +158,75 @@ class VerifyTableDefinitionTest
     }
 
     @Test
+    void testConstructor_withoutSortOnFilteredColumnsOnly_defaultsFalse()
+    {
+        final VerifyTableDefinition def =
+                new VerifyTableDefinition("MY_TABLE", (String[]) null);
+        assertThat(def.isSortOnFilteredColumnsOnly())
+                .as("isSortOnFilteredColumnsOnly() should default to false when"
+                        + " not set by the constructor.")
+                .isFalse();
+    }
+
+    @Test
+    void testConstructor_withSortOnFilteredColumnsOnlyTrue_storesSortOnFilteredColumnsOnly()
+    {
+        final VerifyTableDefinition def = new VerifyTableDefinition("ITEMS",
+                null, null, null, null, true);
+        assertThat(def.isSortOnFilteredColumnsOnly())
+                .as("isSortOnFilteredColumnsOnly() should return the value"
+                        + " passed to the six-argument constructor.")
+                .isTrue();
+    }
+
+    @Test
+    void testConstructor_withExcludeColumnsComparersAndSortOnFilteredColumnsOnly_storesAllAndLeavesIncludeColumnsNull()
+    {
+        final String[] excluded = {"ID"};
+        final ValueComparer comparer = new IsActualEqualToExpectedValueComparer();
+        final Map<String, ValueComparer> columnComparers =
+                Collections.singletonMap("PRICE", comparer);
+
+        final VerifyTableDefinition def = new VerifyTableDefinition("ITEMS",
+                excluded, comparer, columnComparers, true);
+
+        assertThat(def.getColumnExclusionFilters())
+                .as("getColumnExclusionFilters() should return the exclusion"
+                        + " columns passed to the five-argument constructor.")
+                .isEqualTo(excluded);
+        assertThat(def.getColumnInclusionFilters())
+                .as("getColumnInclusionFilters() should be null: this"
+                        + " constructor has no includeColumns parameter.")
+                .isNull();
+        assertThat(def.getDefaultValueComparer())
+                .as("getDefaultValueComparer() should return the comparer"
+                        + " passed to the five-argument constructor.")
+                .isEqualTo(comparer);
+        assertThat(def.getColumnValueComparers())
+                .as("getColumnValueComparers() should return the map passed"
+                        + " to the five-argument constructor.")
+                .isEqualTo(columnComparers);
+        assertThat(def.isSortOnFilteredColumnsOnly())
+                .as("isSortOnFilteredColumnsOnly() should return the value"
+                        + " passed to the five-argument constructor.")
+                .isTrue();
+    }
+
+    @Test
+    void testSetSortOnFilteredColumnsOnly_withTrue_updatesSortOnFilteredColumnsOnly()
+    {
+        final VerifyTableDefinition def =
+                new VerifyTableDefinition("MY_TABLE", (String[]) null);
+
+        def.setSortOnFilteredColumnsOnly(true);
+
+        assertThat(def.isSortOnFilteredColumnsOnly())
+                .as("isSortOnFilteredColumnsOnly() should return the value set"
+                        + " by setSortOnFilteredColumnsOnly().")
+                .isTrue();
+    }
+
+    @Test
     void testToString_withTableName_containsTableName()
     {
         final VerifyTableDefinition def =

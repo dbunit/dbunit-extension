@@ -5,9 +5,10 @@
 
 link:/dbunit/apidocs/org/dbunit/VerifyTableDefinition.html[VerifyTableDefinition]
 (`org.dbunit`, since 2.4.8) defines one database table to verify: which columns to
-include or exclude from the comparison, and which
-link:../datacomparisons/valuecomparer.html[ValueComparer] (if any) to use per column.
-It is consumed by
+include or exclude from the comparison, which
+link:../datacomparisons/valuecomparer.html[ValueComparer] (if any) to use per column, and
+(<<sortmode,since 3.4.1>>) whether row sorting for the comparison considers only those
+included/excluded columns. It is consumed by
 link:../testcases/PrepAndExpectedTestCase.html[PrepAndExpectedTestCase] — one instance
 per table you want verified after a test runs.
 
@@ -23,13 +24,14 @@ per table you want verified after a test runs.
 |`columnInclusionFilters` (`getColumnInclusionFilters()`) |Columns to restrict the comparison to; `null` means include all, empty means include none.
 |`defaultValueComparer` (`getDefaultValueComparer()`, since 2.6.0) |The `ValueComparer` used for any column not present in `columnValueComparers`. `null` defaults to equality comparison.
 |`columnValueComparers` (`getColumnValueComparers()`, since 2.6.0) |A `Map<String, ValueComparer>` of per-column comparers, keyed by column name.
+|`sortOnFilteredColumnsOnly` (`isSortOnFilteredColumnsOnly()`/`setSortOnFilteredColumnsOnly()`, since 3.4.1) |Whether comparison sorts both tables by only this table's filtered columns instead of all of the actual table's native columns. Default `false`. See <<sortmode,Sort Mode>> below.
 |===
 
 [#constructors]
 == Constructors
 
-`VerifyTableDefinition` has 5 constructor overloads. All of them delegate to the
-5-argument canonical form; pick whichever overload matches what you need to configure:
+`VerifyTableDefinition` has 7 constructor overloads. All of them delegate to the
+6-argument canonical form; pick whichever overload matches what you need to configure:
 
 [cols="3,3", options="header"]
 |===
@@ -38,8 +40,10 @@ per table you want verified after a test runs.
 |`VerifyTableDefinition(String table, String[] excludeColumns)` |All columns compared (equality) except the excluded ones — the common case.
 |`VerifyTableDefinition(String table, ValueComparer defaultValueComparer, Map<String, ValueComparer> columnValueComparers)` |All columns compared, no exclusions, but with `ValueComparer`-based comparison instead of plain equality.
 |`VerifyTableDefinition(String table, String[] excludeColumns, ValueComparer defaultValueComparer, Map<String, ValueComparer> columnValueComparers)` |Exclusions plus `ValueComparer`-based comparison.
+|`VerifyTableDefinition(String table, String[] excludeColumns, ValueComparer defaultValueComparer, Map<String, ValueComparer> columnValueComparers, boolean sortOnFilteredColumnsOnly)` |Exclusions plus `ValueComparer`-based comparison, with sort mode control (<<sortmode,since 3.4.1>>) — the common case for opting into `sortOnFilteredColumnsOnly` when include filters aren't also needed.
 |`VerifyTableDefinition(String table, String[] excludeColumns, String[] includeColumns)` |Explicit include *and* exclude column filters, equality comparison.
-|`VerifyTableDefinition(String table, String[] excludeColumns, String[] includeColumns, ValueComparer defaultValueComparer, Map<String, ValueComparer> columnValueComparers)` |The canonical form — every other constructor is a convenience overload of this one, filling unspecified arguments with `null`.
+|`VerifyTableDefinition(String table, String[] excludeColumns, String[] includeColumns, ValueComparer defaultValueComparer, Map<String, ValueComparer> columnValueComparers)` |Exclude/include filters plus `ValueComparer`-based comparison; sorts by all columns (`sortOnFilteredColumnsOnly` defaults to `false`).
+|`VerifyTableDefinition(String table, String[] excludeColumns, String[] includeColumns, ValueComparer defaultValueComparer, Map<String, ValueComparer> columnValueComparers, boolean sortOnFilteredColumnsOnly)` |The canonical form (<<sortmode,since 3.4.1>>) — every other constructor is a convenience overload of this one, filling unspecified arguments with `null`/`false`.
 |===
 
 [#verifier]
@@ -61,6 +65,60 @@ verifier instance for reuse (e.g. calling `.verify(...)` again manually) or repl
 with a custom `VerifyTableDefinitionVerifier`. Note the setter has no automatic effect on
 verification already performed — construction always verifies using the default
 verifier, since the setter can only be called on an instance that already exists.
+
+[#sortmode]
+== Sort Mode
+
+link:../testcases/PrepAndExpectedTestCase.html[PrepAndExpectedTestCase] sorts both the
+actual and expected tables before comparing them row-by-row. By default (`sortOnFilteredColumnsOnly`
+is `false`) it sorts the actual table by *all* of its native database columns and the
+expected table by only the columns its dataset file declares — typically every column
+*except* a generated/identity one, since its value is unknown ahead of time.
+
+That default breaks down for a table whose generated column is excluded from comparison
+when production code does not insert rows in a predictable order — for example, Hibernate
+reordering a batch insert. The database still assigns the excluded column's value in
+insertion order, so the actual table ends up sorted primarily by that unpredictable value
+while the expected table sorts by data content, misaligning same-data rows and failing
+the comparison even though both sides hold identical data. See
+https://github.com/dbunit/dbunit-extension/issues/672[issue #672].
+
+Set `sortOnFilteredColumnsOnly` to `true`
+to sort both actual and expected tables by only the columns that
+survive `columnExclusionFilters`/`columnInclusionFilters` instead — the same columns that
+end up compared — so an excluded generated column never participates in the sort:
+
+[source,java]
+----
+VerifyTableDefinition table = new VerifyTableDefinition(
+        "IDENTITY_TABLE", new String[] {"IDENTITY_TABLE_ID"});
+table.setSortOnFilteredColumnsOnly(true);
+----
+
+Or set it directly at construction time instead of calling the setter afterward. The
+common case — no include filter needed — uses the
+<<constructors,five-argument constructor>>:
+
+[source,java]
+----
+VerifyTableDefinition table = new VerifyTableDefinition("IDENTITY_TABLE",
+        new String[] {"IDENTITY_TABLE_ID"}, null, null, true);
+----
+
+If you also need an include filter, use the <<constructors,six-argument canonical
+constructor>> instead:
+
+[source,java]
+----
+VerifyTableDefinition table = new VerifyTableDefinition("IDENTITY_TABLE",
+        new String[] {"IDENTITY_TABLE_ID"}, null, null, null, true);
+----
+
+Default is `false`, preserving the historical sort-by-all-columns behavior. It remains
+safe whenever every column needed to tell otherwise-identical rows apart is present on
+both the actual and expected tables. Opt in per table whenever such a distinguishing
+column is absent from the expected table - typically because it is excluded from
+comparison - regardless of whether that column happens to be generated/identity or not.
 
 [#usage]
 == Usage Examples

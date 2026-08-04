@@ -702,13 +702,24 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
                 verifyTableDefinition.getColumnValueComparers();
         final ValueComparer defaultValueComparer =
                 verifyTableDefinition.getDefaultValueComparer();
+        final boolean sortOnFilteredColumnsOnly =
+                verifyTableDefinition.isSortOnFilteredColumnsOnly();
 
         final ITable expectedTable = loadTableDataFromDataSet(tableName);
         final ITable actualTable =
                 loadTableDataFromDatabase(tableName, connection);
 
-        verifyData(expectedTable, actualTable, excludeColumns, includeColumns,
-                defaultValueComparer, columnValueComparers);
+        if (sortOnFilteredColumnsOnly)
+        {
+            verifyData(expectedTable, actualTable, excludeColumns,
+                    includeColumns, defaultValueComparer, columnValueComparers,
+                    true);
+        } else
+        {
+            verifyData(expectedTable, actualTable, excludeColumns,
+                    includeColumns, defaultValueComparer,
+                    columnValueComparers);
+        }
     }
 
     /**
@@ -796,12 +807,61 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      *            {@link ValueComparer}. Can be <code>null</code> and will
      *            default to defaultValueComparer for all columns in all tables.
      * @throws DatabaseUnitException if the tables' row counts, columns, or data do not match.
+     * @see #verifyData(ITable, ITable, String[], String[], ValueComparer, Map, boolean)
+     *      to also control whether sorting considers only the filtered
+     *      columns; this overload always sorts by all native columns.
      */
     protected void verifyData(final ITable expectedTable,
             final ITable actualTable, final String[] excludeColumns,
             final String[] includeColumns,
             final ValueComparer defaultValueComparer,
             final Map<String, ValueComparer> columnValueComparers)
+            throws DatabaseUnitException
+    {
+        verifyData(expectedTable, actualTable, excludeColumns, includeColumns,
+                defaultValueComparer, columnValueComparers, false);
+    }
+
+    /**
+     * For the specified expected and actual tables (and excluding and including
+     * the specified columns), verify the actual data is as expected.
+     *
+     * @param expectedTable
+     *            The expected table to compare the actual table to.
+     * @param actualTable
+     *            The actual table to compare to the expected table.
+     * @param excludeColumns
+     *            The column names to exclude from comparison. See
+     *            {@link org.dbunit.dataset.filter.DefaultColumnFilter#excludeColumn(String)}
+     *            .
+     * @param includeColumns
+     *            The column names to only include in comparison. See
+     *            {@link org.dbunit.dataset.filter.DefaultColumnFilter#includeColumn(String)}
+     *            .
+     * @param defaultValueComparer
+     *            {@link ValueComparer} to use with column value comparisons
+     *            when the column name for the table is not in the
+     *            columnValueComparers {@link Map}. Can be <code>null</code> and
+     *            will default.
+     * @param columnValueComparers
+     *            {@link Map} of {@link ValueComparer}s to use for specific
+     *            columns. Key is column name, value is the
+     *            {@link ValueComparer}. Can be <code>null</code> and will
+     *            default to defaultValueComparer for all columns in all tables.
+     * @param sortOnFilteredColumnsOnly
+     *            True to sort the expected and actual tables by only the
+     *            columns that survive excludeColumns/includeColumns, instead
+     *            of by all of the actual table's native columns; see
+     *            {@link VerifyTableDefinition#isSortOnFilteredColumnsOnly()}.
+     * @throws DatabaseUnitException if the tables' row counts, columns, or data do not match.
+     * @since 3.4.1
+     */
+    protected void verifyData(final ITable expectedTable,
+            final ITable actualTable, final String[] excludeColumns,
+            final String[] includeColumns,
+            final ValueComparer defaultValueComparer,
+            final Map<String, ValueComparer> columnValueComparers,
+            final boolean sortOnFilteredColumnsOnly)
             throws DatabaseUnitException
     {
         final String methodName = "verifyData";
@@ -815,16 +875,31 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
         final Column[] expectedTableColumns = makeExpectedTableColumns(
                 actualTableColumns, expectedTableMetaData);
 
-        log.debug("{}: Sorting expected table using all columns", methodName);
+        final Column[] actualSortColumns;
+        final Column[] expectedSortColumns;
+        if (sortOnFilteredColumnsOnly)
+        {
+            log.debug("{}: Sorting using only filtered columns", methodName);
+            final String tableName = actualTableMetaData.getTableName();
+            actualSortColumns = makeSortColumns(actualTableColumns,
+                    excludeColumns, includeColumns, tableName);
+            expectedSortColumns = makeSortColumns(expectedTableColumns,
+                    excludeColumns, includeColumns, tableName);
+        } else
+        {
+            log.debug("{}: Sorting using all columns", methodName);
+            actualSortColumns = actualTableColumns;
+            expectedSortColumns = expectedTableColumns;
+        }
+
         final SortedTable expectedSortedTable =
-                new SortedTable(expectedTable, expectedTableColumns, true);
+                new SortedTable(expectedTable, expectedSortColumns, true);
         expectedSortedTable.setUseComparable(true);
         log.trace("{}: Sorted expected table={}", methodName,
                 expectedSortedTable);
 
-        log.debug("{}: Sorting actual table using all columns", methodName);
         final SortedTable actualSortedTable =
-                new SortedTable(actualTable, actualTableColumns);
+                new SortedTable(actualTable, actualSortColumns);
         actualSortedTable.setUseComparable(true);
         log.trace("{}: Sorted actual table={}", methodName, actualSortedTable);
 
@@ -853,6 +928,56 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
         compareData(expectedFilteredTable, actualFilteredTable,
                 additionalColumnInfo, defaultValueComparer,
                 columnValueComparers);
+    }
+
+    /**
+     * Reduces the given columns to those that survive the given exclude and
+     * include column filters, using the same matching semantics - including
+     * {@link DefaultColumnFilter}'s wildcard pattern support - as
+     * {@link #applyColumnFilters(ITable, String[], String[])}, so the sort
+     * key always matches the columns that end up compared.
+     *
+     * @param columns
+     *            The columns to filter.
+     * @param excludeColumns
+     *            The column names to exclude; null or empty to exclude none.
+     * @param includeColumns
+     *            The column names to only include; null to include all.
+     * @param tableName
+     *            The table name; passed only to
+     *            {@link DefaultColumnFilter#accept(String, Column)} for its
+     *            debug logging.
+     * @return The filtered columns, in columns' original order.
+     */
+    private Column[] makeSortColumns(final Column[] columns,
+            final String[] excludeColumns, final String[] includeColumns,
+            final String tableName)
+    {
+        final DefaultColumnFilter columnFilter = new DefaultColumnFilter();
+        if (includeColumns != null)
+        {
+            for (final String includeColumn : includeColumns)
+            {
+                columnFilter.includeColumn(includeColumn);
+            }
+        }
+        if (excludeColumns != null)
+        {
+            for (final String excludeColumn : excludeColumns)
+            {
+                columnFilter.excludeColumn(excludeColumn);
+            }
+        }
+
+        final List<Column> sortColumns = new ArrayList<>();
+        for (final Column column : columns)
+        {
+            if (columnFilter.accept(tableName, column))
+            {
+                sortColumns.add(column);
+            }
+        }
+        return sortColumns.toArray(new Column[sortColumns.size()]);
     }
 
     /**
