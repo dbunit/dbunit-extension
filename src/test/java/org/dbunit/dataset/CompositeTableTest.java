@@ -22,6 +22,7 @@
 package org.dbunit.dataset;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.dbunit.dataset.datatype.DataType;
 import org.junit.jupiter.api.Test;
@@ -84,5 +85,47 @@ public class CompositeTableTest extends DefaultTableTest
 
         assertThat(renamed.getRowCount()).as("row count preserved.").isEqualTo(1);
         assertThat(renamed.getValue(0, "VAL")).as("row data preserved.").isEqualTo("hello");
+    }
+
+    // -------------------------------------------------------------------------
+    // getValue(int, String) across parts with divergent columns (issue #708)
+    // -------------------------------------------------------------------------
+
+    @Test
+    void testGetValue_whenColumnMissingFromOnePartOwnMetaData_stillThrowsNoSuchColumnException()
+            throws Exception
+    {
+        // CompositeTable itself is deliberately left strict: a column exposed by
+        // the composite's own metadata but absent from a specific part's own
+        // metadata (e.g. two flat-XML files merged into the same table where
+        // only one declares an optional column) still throws here. Tolerating a
+        // missing column is InsertOperation's job (see InsertOperationTest and
+        // DeleteOperationTest for why that leniency must not live here: DELETE
+        // and UPDATE bind every requested column directly, with no ignore-mapping
+        // to keep a substituted NO_VALUE from silently becoming a NULL bind).
+        final Column[] columnsWithOptional = new Column[] {
+                new Column("COL1", DataType.INTEGER),
+                new Column("OPTIONAL_COL", DataType.VARCHAR)};
+        final DefaultTable partWithOptional =
+                new DefaultTable("TABLE_1", columnsWithOptional);
+        partWithOptional.addRow(new Object[] {1, "val2"});
+
+        final Column[] columnsWithoutOptional =
+                new Column[] {new Column("COL1", DataType.INTEGER)};
+        final DefaultTable partWithoutOptional =
+                new DefaultTable("TABLE_1", columnsWithoutOptional);
+        partWithoutOptional.addRow(new Object[] {1});
+
+        final CompositeTable combined = new CompositeTable(
+                partWithOptional.getTableMetaData(),
+                new ITable[] {partWithOptional, partWithoutOptional});
+
+        assertThat(combined.getValue(0, "OPTIONAL_COL"))
+                .as("value read from the part that declares the column.")
+                .isEqualTo("val2");
+        assertThatThrownBy(() -> combined.getValue(1, "OPTIONAL_COL"))
+                .as("column absent from the second part's own metadata must still"
+                        + " throw when read directly through CompositeTable.")
+                .isInstanceOf(NoSuchColumnException.class);
     }
 }

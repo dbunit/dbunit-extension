@@ -29,6 +29,7 @@ import org.dbunit.dataset.Column;
 import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.ITableMetaData;
+import org.dbunit.dataset.NoSuchColumnException;
 
 import java.util.BitSet;
 
@@ -120,7 +121,7 @@ public class InsertOperation extends AbstractBatchOperation
         for (int i = 0; i < columns.length; i++)
         {
             Column column = columns[i];
-            Object value = table.getValue(row, column.getColumnName());
+            Object value = getValueOrNoValueIfMissing(table, row, column);
             if (wouldIgnore(column, value))
             {
                 ignoreMapping.set(i);
@@ -143,7 +144,7 @@ public class InsertOperation extends AbstractBatchOperation
         for (int i = 0; i < columns.length; i++)
         {
             Column column = columns[i];
-            Object value = table.getValue(row, column.getColumnName());
+            Object value = getValueOrNoValueIfMissing(table, row, column);
             if (wouldIgnore(column, value) != ignoreMapping.get(i))
             {
                 return false;
@@ -151,6 +152,47 @@ public class InsertOperation extends AbstractBatchOperation
         }
 
         return true;
+    }
+
+    /**
+     * Reads the row's value for the given column, treating a column the row's
+     * underlying table does not itself declare as not supplied rather than an
+     * error. This tolerates a {@code CompositeDataSet} merging same-named
+     * tables whose column sets differ -- e.g. two flat-XML files feeding the
+     * same table where only one declares an optional column -- since such a
+     * table's own metadata (searched by {@link #getIgnoreMapping} and
+     * {@link #equalsIgnoreMapping} to build {@code columns}) can list a column
+     * that a specific row's backing part never itself had.
+     * <p>
+     * Deliberately local to {@code InsertOperation}: a missing column is only
+     * safe to treat as "not supplied" here because {@link #wouldIgnore} then
+     * omits it from the generated insert statement entirely. Other operations
+     * (update, delete) bind every requested column's value directly with no
+     * equivalent ignore-mapping, so a genuinely missing column there must keep
+     * throwing {@link NoSuchColumnException} instead of silently binding
+     * {@code NULL} into a {@code WHERE} clause.
+     *
+     * @param table
+     *            The table being read.
+     * @param row
+     *            The row index.
+     * @param column
+     *            The column to read.
+     * @return The row's value for the column, or {@link ITable#NO_VALUE} if
+     *         the row's underlying table does not have this column at all.
+     * @throws DataSetException
+     *             if the value cannot be retrieved for any other reason.
+     */
+    private static Object getValueOrNoValueIfMissing(final ITable table,
+            final int row, final Column column) throws DataSetException
+    {
+        try
+        {
+            return table.getValue(row, column.getColumnName());
+        } catch (final NoSuchColumnException e)
+        {
+            return ITable.NO_VALUE;
+        }
     }
 
     /**
