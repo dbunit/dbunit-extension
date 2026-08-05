@@ -28,6 +28,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import javax.sql.DataSource;
 
 import org.dbunit.database.CachingConnectionProvider;
+import org.dbunit.database.DatabaseConfig;
 import org.dbunit.database.IDatabaseConnection;
 import org.h2.jdbcx.JdbcDataSource;
 import org.junit.jupiter.api.AfterEach;
@@ -114,6 +115,53 @@ class DataSourceDatabaseTesterIT
         assertThatThrownBy(
                 () -> new DataSourceDatabaseTester(null, null, new CachingConnectionProvider()))
                         .as("The 3-arg constructor must reject a null DataSource just like the "
+                                + "pre-existing constructors do.")
+                        .isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    void testGetConnection_withDatabaseConfig_appliesConfiguredPropertiesToConnection()
+            throws Exception
+    {
+        final DatabaseConfig databaseConfig = new DatabaseConfig();
+        databaseConfig.setProperty(DatabaseConfig.PROPERTY_BATCH_SIZE, 500);
+        final DataSourceDatabaseTester tester =
+                new DataSourceDatabaseTester(newDataSource(), null, null, databaseConfig);
+
+        final IDatabaseConnection connection = tester.getConnection();
+
+        openedConnection = connection;
+        assertThat(connection.getConfig().getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE))
+                .as("The DatabaseConfig supplied to the constructor must be applied to every "
+                        + "connection this tester creates.")
+                .isEqualTo(500);
+    }
+
+    @Test
+    void testGetConnection_withDatabaseConfigAndProvider_appliesConfiguredPropertiesToCachedConnection()
+            throws Exception
+    {
+        final DatabaseConfig databaseConfig = new DatabaseConfig();
+        databaseConfig.setProperty(DatabaseConfig.PROPERTY_BATCH_SIZE, 500);
+        final CachingConnectionProvider provider = new CachingConnectionProvider();
+        final DataSourceDatabaseTester tester =
+                new DataSourceDatabaseTester(newDataSource(), null, provider, databaseConfig);
+
+        final IDatabaseConnection connection = tester.getConnection();
+
+        openedConnection = connection;
+        assertThat(connection.getConfig().getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE))
+                .as("The DatabaseConfig supplied to the constructor must be applied even when a "
+                        + "CachingConnectionProvider is used.")
+                .isEqualTo(500);
+    }
+
+    @Test
+    void testConstructor_withNullDataSourceAndProviderAndConfig_throwsNullPointerException()
+    {
+        assertThatThrownBy(() -> new DataSourceDatabaseTester(null, null,
+                new CachingConnectionProvider(), new DatabaseConfig()))
+                        .as("The 4-arg constructor must reject a null DataSource just like the "
                                 + "pre-existing constructors do.")
                         .isInstanceOf(NullPointerException.class);
     }

@@ -177,6 +177,7 @@ public class DatabaseConfig
         setFeature(FEATURE_QUALIFIED_TABLE_NAMES, false);
         setFeature(FEATURE_CASE_SENSITIVE_TABLE_NAMES, false);
         setFeature(FEATURE_DATATYPE_WARNING, true);
+        setFeature(FEATURE_SKIP_ORACLE_RECYCLEBIN_TABLES, false);
         setFeature(FEATURE_ALLOW_EMPTY_FIELDS, false);
         setFeature(FEATURE_SORT_ALL_COLUMNS_WHEN_NO_PRIMARY_KEY, false);
 
@@ -280,7 +281,24 @@ public class DatabaseConfig
         return _propertyMap.get(name);
     }
 
-    private Object convertIfNeeded(String property, Object value) 
+    /**
+     * Copies every known property and feature value from this config into the given target config.
+     *
+     * @param target The config to receive this config's property and feature values.
+     * @since 3.4.1
+     */
+    public void copyPropertiesInto(DatabaseConfig target)
+    {
+        logger.trace("copyPropertiesInto(target={}) - start", target);
+
+        for (ConfigProperty configProperty : ALL_PROPERTIES)
+        {
+            String property = configProperty.getProperty();
+            target.setProperty(property, getProperty(property));
+        }
+    }
+
+    private Object convertIfNeeded(String property, Object value)
     {
         logger.trace("convertIfNeeded(property={}, value={}) - start", property, value);
 

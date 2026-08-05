@@ -142,4 +142,39 @@ class DatabaseConfigTest
                 .isTrue();
     }
 
+    @Test
+    void testCopyPropertiesInto_withConfiguredPropertyAndFeature_copiesValuesToTargetConfig()
+            throws Exception
+    {
+        final DatabaseConfig source = new DatabaseConfig();
+        source.setProperty(DatabaseConfig.PROPERTY_BATCH_SIZE, 500);
+        source.setFeature(DatabaseConfig.FEATURE_BATCHED_STATEMENTS, true);
+        final DatabaseConfig target = new DatabaseConfig();
+
+        source.copyPropertiesInto(target);
+
+        assertThat(target.getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE))
+                .as("copyPropertiesInto() must copy a configured property value to the target config.")
+                .isEqualTo(500);
+        assertThat(target.getFeature(DatabaseConfig.FEATURE_BATCHED_STATEMENTS))
+                .as("copyPropertiesInto() must copy a configured feature value to the target config.")
+                .isTrue();
+    }
+
+    @Test
+    void testCopyPropertiesInto_withNullablePropertyAtDefault_overwritesTargetWithNull()
+            throws Exception
+    {
+        final DatabaseConfig source = new DatabaseConfig();
+        final DatabaseConfig target = new DatabaseConfig();
+        target.setProperty(DatabaseConfig.PROPERTY_ESCAPE_PATTERN, "[?]");
+
+        source.copyPropertiesInto(target);
+
+        assertThat(target.getProperty(DatabaseConfig.PROPERTY_ESCAPE_PATTERN))
+                .as("copyPropertiesInto() must overwrite the target's property even when the "
+                        + "source left it at its nullable default.")
+                .isNull();
+    }
+
 }
