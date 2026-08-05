@@ -24,6 +24,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.FileReader;
 import java.io.Reader;
+import java.io.StringReader;
 import java.sql.SQLException;
 
 import org.dbunit.AbstractDatabaseIT;
@@ -32,6 +33,7 @@ import org.dbunit.DatabaseEnvironment;
 import org.dbunit.TestFeature;
 import org.dbunit.database.DatabaseConfig;
 import org.dbunit.dataset.Column;
+import org.dbunit.dataset.CompositeDataSet;
 import org.dbunit.dataset.DataSetUtils;
 import org.dbunit.dataset.DefaultDataSet;
 import org.dbunit.dataset.DefaultTable;
@@ -332,6 +334,55 @@ public class InsertOperationIT extends AbstractDatabaseIT
         final ITable actual = _connection.createDataSet().getTable(tableName);
         assertThat(actual.getRowCount()).as("count after.").isEqualTo(1);
         assertThat(actual.getValue(0, "COLUMN0")).as("COLUMN0.").isEqualTo("hasValue");
+    }
+
+    @Test
+    void testExecute_withCompositeDataSetFromTwoFlatXmlDataSetsAndOneMissingAnOptionalColumn_insertsSuccessfully()
+            throws Exception
+    {
+        // Reproduces GitHub issue #708: two flat-XML datasets both insert into the
+        // same table, but only the first declares the optional column.
+        final String tableName = "EMPTY_TABLE";
+        final IDataSet dataSetWithOptionalColumn =
+                new FlatXmlDataSetBuilder().build(new StringReader("<dataset><"
+                        + tableName
+                        + " COLUMN0=\"row1\" COLUMN1=\"optionalValue\"/></dataset>"));
+        final IDataSet dataSetWithoutOptionalColumn =
+                new FlatXmlDataSetBuilder().build(new StringReader(
+                        "<dataset><" + tableName + " COLUMN0=\"row2\"/></dataset>"));
+        final IDataSet dataSet = new CompositeDataSet(dataSetWithOptionalColumn,
+                dataSetWithoutOptionalColumn);
+
+        assertThat(_connection.getRowCount(tableName)).as("count before.")
+                .isZero();
+
+        DatabaseOperation.INSERT.execute(_connection, dataSet);
+
+        final ITable actual = _connection.createDataSet().getTable(tableName);
+        assertThat(actual.getRowCount()).as("count after.").isEqualTo(2);
+
+        // Read back without an ORDER BY, so match rows by their COLUMN0 identifier
+        // instead of assuming a particular physical row order.
+        Object column1ForRow1 = null;
+        Object column1ForRow2 = null;
+        for (int i = 0; i < actual.getRowCount(); i++)
+        {
+            final Object column0Value = actual.getValue(i, "COLUMN0");
+            if ("row1".equals(column0Value))
+            {
+                column1ForRow1 = actual.getValue(i, "COLUMN1");
+            } else if ("row2".equals(column0Value))
+            {
+                column1ForRow2 = actual.getValue(i, "COLUMN1");
+            }
+        }
+
+        assertThat(column1ForRow1).as("row1 COLUMN1.").isEqualTo("optionalValue");
+        assertThat(column1ForRow2)
+                .as("row2 COLUMN1 - the second dataset never declared this"
+                        + " column, so it is omitted from the insert and the"
+                        + " database's own NULL applies.")
+                .isNull();
     }
 
     @Test

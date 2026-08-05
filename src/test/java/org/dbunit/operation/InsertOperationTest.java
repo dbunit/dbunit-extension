@@ -29,6 +29,7 @@ import org.dbunit.database.MockDatabaseConnection;
 import org.dbunit.database.statement.MockBatchStatement;
 import org.dbunit.database.statement.MockStatementFactory;
 import org.dbunit.dataset.Column;
+import org.dbunit.dataset.CompositeTable;
 import org.dbunit.dataset.DefaultDataSet;
 import org.dbunit.dataset.DefaultTable;
 import org.dbunit.dataset.DefaultTableMetaData;
@@ -315,6 +316,64 @@ class InsertOperationTest
 
         final MockStatementFactory factory = new MockStatementFactory();
         factory.setExpectedCreatePreparedStatementCalls(4);
+        factory.setupStatement(statement);
+
+        final MockDatabaseConnection connection = new MockDatabaseConnection();
+        connection.setupDataSet(dataSet);
+        connection.setupSchema(schemaName);
+        connection.setupStatementFactory(factory);
+        connection.setExpectedCloseCalls(0);
+
+        // execute operation
+        new InsertOperation().execute(connection, dataSet);
+
+        statement.verify();
+        factory.verify();
+        connection.verify();
+    }
+
+    @Test
+    void testExecute_withTwoDataSetsMergedOnSameTableAndOneMissingAnOptionalColumn_omitsColumnForThatPart()
+            throws Exception
+    {
+        // Reproduces GitHub issue #708: two flat-XML datasets both insert into
+        // TABLE_1, but only the first declares the optional column. Combining them
+        // (e.g. via CompositeDataSet) merges both parts under the first part's
+        // metadata, so InsertOperation sees OPTIONAL_COL as a column of the table
+        // even while reading rows that belong to the part that never declared it.
+        final String schemaName = "schema";
+        final String tableName = "TABLE_1";
+        final String[] expected = {
+                "insert into schema.TABLE_1 (COL1, OPTIONAL_COL) values (1, 'val2')",
+                "insert into schema.TABLE_1 (COL1) values (1)",};
+
+        final Column[] columnsWithOptional = new Column[] {
+                new Column("COL1", DataType.INTEGER),
+                new Column("OPTIONAL_COL", DataType.VARCHAR)};
+        final DefaultTable partWithOptional =
+                new DefaultTable(tableName, columnsWithOptional);
+        partWithOptional.addRow(new Object[] {"1", "val2"});
+
+        final Column[] columnsWithoutOptional =
+                new Column[] {new Column("COL1", DataType.INTEGER)};
+        final DefaultTable partWithoutOptional =
+                new DefaultTable(tableName, columnsWithoutOptional);
+        partWithoutOptional.addRow(new Object[] {"1"});
+
+        final CompositeTable combinedTable = new CompositeTable(
+                partWithOptional.getTableMetaData(),
+                new ITable[] {partWithOptional, partWithoutOptional});
+        final IDataSet dataSet = new DefaultDataSet(combinedTable);
+
+        // setup mock objects
+        final MockBatchStatement statement = new MockBatchStatement();
+        statement.addExpectedBatchStrings(expected);
+        statement.setExpectedExecuteBatchCalls(2);
+        statement.setExpectedClearBatchCalls(2);
+        statement.setExpectedCloseCalls(2);
+
+        final MockStatementFactory factory = new MockStatementFactory();
+        factory.setExpectedCreatePreparedStatementCalls(2);
         factory.setupStatement(statement);
 
         final MockDatabaseConnection connection = new MockDatabaseConnection();

@@ -21,16 +21,20 @@
 
 package org.dbunit.operation;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import org.dbunit.database.DatabaseConfig;
 import org.dbunit.database.MockDatabaseConnection;
 import org.dbunit.database.statement.MockBatchStatement;
 import org.dbunit.database.statement.MockStatementFactory;
 import org.dbunit.dataset.Column;
+import org.dbunit.dataset.CompositeTable;
 import org.dbunit.dataset.DefaultDataSet;
 import org.dbunit.dataset.DefaultTable;
 import org.dbunit.dataset.DefaultTableMetaData;
 import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.ITable;
+import org.dbunit.dataset.NoSuchColumnException;
 import org.dbunit.dataset.datatype.DataType;
 import org.junit.jupiter.api.Test;
 
@@ -164,6 +168,59 @@ class DeleteOperationTest
         // execute operation
         new DeleteOperation().execute(connection, dataSet);
 
+        factory.verify();
+        connection.verify();
+    }
+
+    @Test
+    void testExecute_withCompositeTablePartMissingPrimaryKeyColumn_throwsNoSuchColumnException()
+            throws Exception
+    {
+        // A CompositeTable part missing a column is tolerated by InsertOperation
+        // (issue #708, an optional data column), but DeleteOperation has no
+        // equivalent ignore-mapping: every primary key column is bound directly
+        // into the WHERE clause, so a part missing the key itself must still
+        // throw rather than silently bind SQL NULL and delete zero rows.
+        final String tableName = "TABLE_1";
+        final Column[] columnsWithKey = new Column[] {
+                new Column("ID", DataType.INTEGER),
+                new Column("NAME", DataType.VARCHAR)};
+        final String[] primaryKeys = {"ID"};
+        final DefaultTable partWithKey = new DefaultTable(
+                new DefaultTableMetaData(tableName, columnsWithKey, primaryKeys));
+        partWithKey.addRow(new Object[] {1, "first"});
+
+        final Column[] columnsWithoutKey =
+                new Column[] {new Column("NAME", DataType.VARCHAR)};
+        final DefaultTable partWithoutKey =
+                new DefaultTable(tableName, columnsWithoutKey);
+        partWithoutKey.addRow(new Object[] {"second"});
+
+        final CompositeTable combinedTable = new CompositeTable(
+                partWithKey.getTableMetaData(),
+                new ITable[] {partWithKey, partWithoutKey});
+        final IDataSet dataSet = new DefaultDataSet(combinedTable);
+
+        final MockBatchStatement statement = new MockBatchStatement();
+        statement.setExpectedExecuteBatchCalls(0);
+        statement.setExpectedClearBatchCalls(0);
+        statement.setExpectedCloseCalls(1);
+
+        final MockStatementFactory factory = new MockStatementFactory();
+        factory.setExpectedCreatePreparedStatementCalls(1);
+        factory.setupStatement(statement);
+
+        final MockDatabaseConnection connection = new MockDatabaseConnection();
+        connection.setupDataSet(dataSet);
+        connection.setupStatementFactory(factory);
+        connection.setExpectedCloseCalls(0);
+
+        assertThatThrownBy(() -> new DeleteOperation().execute(connection, dataSet))
+                .as("a primary key column missing from a CompositeTable part must"
+                        + " not be silently treated as not-supplied.")
+                .isInstanceOf(NoSuchColumnException.class);
+
+        statement.verify();
         factory.verify();
         connection.verify();
     }
