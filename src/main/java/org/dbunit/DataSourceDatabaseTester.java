@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory;
 import javax.sql.DataSource;
 
 import org.dbunit.database.CachingConnectionProvider;
+import org.dbunit.database.DatabaseConfig;
 import org.dbunit.database.DatabaseConnection;
 import org.dbunit.database.IDatabaseConnection;
 
@@ -47,6 +48,7 @@ public class DataSourceDatabaseTester extends AbstractDatabaseTester
 	private static final Logger logger = LoggerFactory.getLogger(DataSourceDatabaseTester.class);
 
 	private final CachingConnectionProvider connectionProvider;
+	private final DatabaseConfig databaseConfig;
 	private DataSource dataSource;
 
 	/**
@@ -89,6 +91,28 @@ public class DataSourceDatabaseTester extends AbstractDatabaseTester
     public DataSourceDatabaseTester(DataSource dataSource, String schema,
             CachingConnectionProvider connectionProvider)
     {
+        this(dataSource, schema, connectionProvider, null);
+    }
+
+    /**
+     * Creates a new DataSourceDatabaseTester with the specified DataSource, schema name,
+     * optional {@link CachingConnectionProvider}, and optional {@link DatabaseConfig} whose
+     * property and feature values are applied to every connection this tester creates -
+     * for example to set {@link DatabaseConfig#PROPERTY_DATATYPE_FACTORY} for a specific
+     * database without needing an {@link IOperationListener}.
+     *
+     * @param dataSource The DataSource to pull connections from.
+     * @param schema The schema name to be used for new dbunit connections - can be <code>null</code>.
+     * @param connectionProvider Caches and validates the connection across calls - can be
+     *            <code>null</code>, in which case a new connection is created on every call as before.
+     * @param databaseConfig The property and feature values to apply to every connection this
+     *            tester creates - can be <code>null</code>, in which case each connection keeps its
+     *            own default {@link DatabaseConfig}.
+     * @since 3.4.1
+     */
+    public DataSourceDatabaseTester(DataSource dataSource, String schema,
+            CachingConnectionProvider connectionProvider, DatabaseConfig databaseConfig)
+    {
         super(schema);
 
         if (dataSource == null) {
@@ -97,6 +121,7 @@ public class DataSourceDatabaseTester extends AbstractDatabaseTester
         }
         this.dataSource = dataSource;
         this.connectionProvider = connectionProvider;
+        this.databaseConfig = databaseConfig;
     }
 
     public IDatabaseConnection getConnection() throws Exception
@@ -113,6 +138,11 @@ public class DataSourceDatabaseTester extends AbstractDatabaseTester
 
 	private IDatabaseConnection createConnection() throws Exception
 	{
-		return new DatabaseConnection( dataSource.getConnection(), getSchema() );
+		IDatabaseConnection connection = new DatabaseConnection( dataSource.getConnection(), getSchema() );
+		if (databaseConfig != null)
+		{
+			databaseConfig.copyPropertiesInto(connection.getConfig());
+		}
+		return connection;
 	}
 }
