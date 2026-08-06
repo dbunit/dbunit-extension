@@ -1,0 +1,77 @@
+= MariaDB
+
+== Overview
+
+`org.dbunit.ext.mariadb` provides MariaDB-specific type recognition for
+dbUnit. MariaDB is wire- and SQL-compatible with MySQL, so its factory
+builds on link:mysql.html[MySQL]'s rather than duplicating it, but this
+page is self-contained — no need to read the MySQL page too.
+
+== IDataTypeFactory
+
+link:/dbunit/apidocs/org/dbunit/ext/mariadb/MariaDbDataTypeFactory.html[MariaDbDataTypeFactory]
+extends `MySqlDataTypeFactory`, so it inherits MySQL's mappings —
+`longtext` as `CLOB`, `bit` as `BOOLEAN`/`TINYINT` depending on context,
+`point` as `BINARY`, and the `UNSIGNED` integer family — and adds
+recognition of MariaDB-native types with no MySQL equivalent:
+
+[cols="1,3", options="header"]
+|===
+|Type |Handling
+
+|`UUID` (10.7+) |Reported as SQL type `OTHER`; mapped to `VARCHAR`.
+|`INET4` (10.10+) |Reported as SQL type `OTHER` via table metadata (a live query instead reports it as plain `CHAR`, indistinguishable from a real char column); mapped to `VARCHAR`.
+|`INET6` (10.10+) |Same as `INET4`.
+|`JSON` |A `LONGTEXT` alias enforced by a `CHECK` constraint, not a distinct SQL type — already works via the inherited `longtext` handling, no extra mapping needed.
+|===
+
+Register it via `DatabaseConfig.PROPERTY_DATATYPE_FACTORY` — see
+link:../properties.html#typefactory[Properties] and
+link:../connections.html[Connections & Configuration].
+
+== IMetadataHandler
+
+There is no MariaDB-specific `IMetadataHandler` — register MySQL's
+link:/dbunit/apidocs/org/dbunit/ext/mysql/MySqlMetadataHandler.html[MySqlMetadataHandler]
+instead, and treat it as a requirement rather than an option: MariaDB
+Connector/J needs it even more than MySQL does. MySQL Connector/J's
+`nullCatalogMeansCurrent` default already restricts an unfiltered
+`DatabaseMetaData#getTables()` call to the connection's current database;
+MariaDB Connector/J has no such default, so a connection using dbUnit's
+plain default handler sees every catalog's tables, including
+`information_schema`/`performance_schema` system tables. dbUnit then fails
+with a `SQLSyntaxErrorException` the moment it tries to operate on one of
+those leaked tables (e.g. during `DELETE_ALL`). `MySqlMetadataHandler`
+fixes this because it passes the schema as the JDBC catalog argument,
+which MariaDB Connector/J does honor even though it ignores the schema
+pattern argument. Equivalently — or in addition, for defense in depth —
+add `nullCatalogMeansCurrent=true` to the MariaDB JDBC URL to match MySQL
+Connector/J's own default.
+
+== Connection Preconfiguration Class
+
+None — MariaDB has no dedicated `IDatabaseConnection` subclass. Register
+`MariaDbDataTypeFactory` and `MySqlMetadataHandler` directly on a plain
+`DatabaseConnection`'s `DatabaseConfig`:
+
+[source,java]
+----
+IDatabaseConnection connection = new DatabaseConnection(jdbcConnection, schema);
+DatabaseConfig config = connection.getConfig();
+config.setProperty(DatabaseConfig.PROPERTY_DATATYPE_FACTORY, new MariaDbDataTypeFactory());
+config.setProperty(DatabaseConfig.PROPERTY_METADATA_HANDLER, new MySqlMetadataHandler());
+----
+
+== Vendor-Specific Types
+
+The `longtext`/`bit`/`point`/`UNSIGNED` handling inherited from MySQL,
+plus MariaDB's own `UUID`/`INET4`/`INET6` handling — see
+`IDataTypeFactory` above.
+
+== Known Quirks
+
+Forgetting to register `MySqlMetadataHandler` (or the
+`nullCatalogMeansCurrent=true` URL parameter) is the most common surprise
+on MariaDB: it surfaces as a `SQLSyntaxErrorException` naming an
+`information_schema`/`performance_schema` table rather than anything
+that looks like a configuration problem — see `IMetadataHandler` above.

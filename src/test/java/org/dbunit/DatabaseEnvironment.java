@@ -148,6 +148,9 @@ public class DatabaseEnvironment
             } else if (profileName.equals("mysql"))
             {
                 INSTANCE = new MySqlEnvironment(profile);
+            } else if (profileName.equals("mariadb"))
+            {
+                INSTANCE = new MariaDbEnvironment(profile);
             } else if (profileName.equals("derby"))
             {
                 INSTANCE = new DerbyEnvironment(profile);

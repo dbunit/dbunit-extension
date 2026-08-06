@@ -2,6 +2,7 @@ db2-11-5
 derby-10-14
 h2-1-4
 hsqldb-2-7
+mariadb-11-4
 mssql-2022
 mysql-9-20
 oracle-18

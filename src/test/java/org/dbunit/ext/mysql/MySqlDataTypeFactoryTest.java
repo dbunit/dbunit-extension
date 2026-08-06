@@ -34,7 +34,7 @@ import org.junit.jupiter.api.Test;
  * @since Sep 3, 2003
  * @version $Revision$
  */
-class MySqlDataTypeFactoryTest extends AbstractDataTypeFactoryTest
+public class MySqlDataTypeFactoryTest extends AbstractDataTypeFactoryTest
 {
 
     @Override

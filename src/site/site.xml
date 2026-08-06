@@ -97,6 +97,7 @@
         <item name="DB2"           href="/databases/db2.html"/>
         <item name="H2"            href="/databases/h2.html"/>
         <item name="HSQLDB"        href="/databases/hsqldb.html"/>
+        <item name="MariaDB"       href="/databases/mariadb.html"/>
         <item name="Mckoi"         href="/databases/mckoi.html"/>
         <item name="MSSQL"         href="/databases/mssql.html"/>
         <item name="MySQL"         href="/databases/mysql.html"/>
