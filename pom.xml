@@ -64,6 +64,7 @@
     <derbyDriverVersion>10.14.2.0</derbyDriverVersion>
     <h2DriverVersion>1.4.200</h2DriverVersion>
     <hsqldbDriverVersion>2.7.4</hsqldbDriverVersion>
+    <mariadbDriverVersion>3.5.3</mariadbDriverVersion>
     <mysqlDriverVersion>8.0.31</mysqlDriverVersion>
     <!-- Oracle JDBC Driver compatible with JDK6, JDK7, and JDK8 -->
     <oracleJ6DriverVersion>11.2.0.4</oracleJ6DriverVersion>
@@ -119,6 +120,7 @@
 
     <!-- docker images -->
     <docker.image.name.db2-11>icr.io/db2_community/db2:11.5.9.0</docker.image.name.db2-11>
+    <docker.image.name.mariadb-11-4>mariadb:11.4</docker.image.name.mariadb-11-4>
     <docker.image.name.mssql-2022>mcr.microsoft.com/mssql/server:2022-latest</docker.image.name.mssql-2022>
     <docker.image.name.mysql.9-20>mysql:9.2.0</docker.image.name.mysql.9-20>
     <docker.image.name.oracle-18>gvenzl/oracle-xe:18.4.0-faststart</docker.image.name.oracle-18>
@@ -126,6 +128,7 @@
     <docker.image.name.postgresql-16>postgres:16.3</docker.image.name.postgresql-16>
 
     <docker.image.ready.message.db2>Setup has completed.</docker.image.ready.message.db2>
+    <docker.image.ready.message.mariadb>(?s)Giving user dbunit access to schema dbunit.*mariadbd: ready for connections.</docker.image.ready.message.mariadb>
     <docker.image.ready.message.mssql>SQL Server is now ready for client connections.</docker.image.ready.message.mssql>
     <docker.image.ready.message.mysql>(?s)Giving user dbunit access to schema dbunit.*mysqld: ready for connections.</docker.image.ready.message.mysql>
     <docker.image.ready.message.oracle>DATABASE IS READY TO USE!</docker.image.ready.message.oracle>
@@ -133,6 +136,7 @@
 
     <!-- docker image configs -->
     <database.port.db2>50000</database.port.db2>
+    <database.port.mariadb>3306</database.port.mariadb>
     <database.port.mssql>1433</database.port.mssql>
     <database.port.mysql>3306</database.port.mysql>
     <database.port.oracle>1521</database.port.oracle>
@@ -342,6 +346,12 @@
         <groupId>org.hsqldb</groupId>
         <artifactId>hsqldb</artifactId>
         <version>${hsqldbDriverVersion}</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.mariadb.jdbc</groupId>
+        <artifactId>mariadb-java-client</artifactId>
+        <version>${mariadbDriverVersion}</version>
         <scope>test</scope>
       </dependency>
       <dependency>
@@ -1931,6 +1941,63 @@
         <dependency>
           <groupId>com.microsoft.sqlserver</groupId>
           <artifactId>mssql-jdbc</artifactId>
+        </dependency>
+        <dependency>
+          <groupId>com.oracle.database.jdbc</groupId>
+          <artifactId>ojdbc8</artifactId>
+        </dependency>
+      </dependencies>
+    </profile>
+    <profile>
+      <id>mariadb-11-4</id>
+      <properties>
+        <surefirePluginSkip>true</surefirePluginSkip>
+        <modernizerPluginSkip>true</modernizerPluginSkip>
+      </properties>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>properties-maven-plugin</artifactId>
+            <configuration>
+              <urls>
+                <url>file:///${basedir}/src/test/resources/mariadb-dbunit.properties</url>
+              </urls>
+            </configuration>
+          </plugin>
+          <plugin>
+            <groupId>io.fabric8</groupId>
+            <artifactId>docker-maven-plugin</artifactId>
+            <configuration>
+              <images>
+                <image>
+                  <name>${docker.image.name.mariadb-11-4}</name>
+                  <run>
+                    <ports>
+                      <port>${database.port.mariadb}:3306</port>
+                    </ports>
+                    <env>
+                      <MARIADB_ROOT_PASSWORD>${dbunit.profile.password}</MARIADB_ROOT_PASSWORD>
+                      <MARIADB_DATABASE>${dbunit.profile.user}</MARIADB_DATABASE>
+                      <MARIADB_USER>${dbunit.profile.user}</MARIADB_USER>
+                      <MARIADB_PASSWORD>${dbunit.profile.password}</MARIADB_PASSWORD>
+                      <TZ>America/Chicago</TZ>
+                    </env>
+                    <wait>
+                      <log>${docker.image.ready.message.mariadb}</log>
+                      <time>${docker.plugin.start.wait.time.ms}</time>
+                    </wait>
+                  </run>
+                </image>
+              </images>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+      <dependencies>
+        <dependency>
+          <groupId>org.mariadb.jdbc</groupId>
+          <artifactId>mariadb-java-client</artifactId>
         </dependency>
         <dependency>
           <groupId>com.oracle.database.jdbc</groupId>

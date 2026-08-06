@@ -2,8 +2,9 @@
 
 == Overview
 
-`org.dbunit.ext.mysql` provides MySQL/MariaDB-specific type recognition and
-metadata handling for dbUnit.
+`org.dbunit.ext.mysql` provides MySQL-specific type recognition and
+metadata handling for dbUnit. See link:mariadb.html[MariaDB] for MariaDB,
+which has its own dedicated factory and reuses MySQL's metadata handling.
 
 == IDataTypeFactory
 
