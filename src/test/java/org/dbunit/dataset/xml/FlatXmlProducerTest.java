@@ -20,19 +20,24 @@
  */
 package org.dbunit.dataset.xml;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.StringReader;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.dbunit.TurkishDefaultLocale;
 import org.dbunit.dataset.Column;
 import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.DefaultDataSet;
 import org.dbunit.dataset.DefaultTable;
+import org.dbunit.dataset.ITableMetaData;
 import org.dbunit.dataset.datatype.DataType;
 import org.dbunit.dataset.stream.AbstractProducerTest;
+import org.dbunit.dataset.stream.DefaultConsumer;
 import org.dbunit.dataset.stream.IDataSetProducer;
 import org.dbunit.dataset.stream.MockDataSetConsumer;
 import org.dbunit.testutil.TestUtils;
@@ -303,6 +308,100 @@ class FlatXmlProducerTest extends AbstractProducerTest
 
         producer.produce();
         consumer.verify();
+    }
+
+    @Test
+    void testProduce_sameColumnNameAcrossTables_reusesColumnNameStringInstance() throws Exception
+    {
+        // Two distinct tables sharing a column name, and no DTD/metaDataSet, so both
+        // tables' metadata is built straight from SAX attribute names.
+        final String content = "<?xml version=\"1.0\"?>" + "<dataset>"
+                + "<TABLE_A COL0=\"a0\"/>" + "<TABLE_B COL0=\"b0\"/>"
+                + "</dataset>";
+        final InputSource source = new InputSource(new StringReader(content));
+        final IDataSetProducer producer = new FlatXmlProducer(source);
+
+        final List<ITableMetaData> capturedMetaData = new ArrayList<>();
+        producer.setConsumer(new DefaultConsumer()
+        {
+            @Override
+            public void startTable(final ITableMetaData metaData) throws DataSetException
+            {
+                capturedMetaData.add(metaData);
+            }
+        });
+
+        producer.produce();
+
+        final String tableAColumnName =
+                capturedMetaData.get(0).getColumns()[0].getColumnName();
+        final String tableBColumnName =
+                capturedMetaData.get(1).getColumns()[0].getColumnName();
+
+        assertThat(tableBColumnName)
+                .as("FlatXmlProducer should reuse one column-name String instance "
+                        + "across tables sharing a column name instead of allocating "
+                        + "a duplicate copy per table.")
+                .isSameAs(tableAColumnName);
+    }
+
+    @Test
+    void testProduce_columnSensedNameMatchesLaterTable_reusesColumnNameStringInstance() throws Exception
+    {
+        // TABLE_A senses COL_SHARED via handleMissingColumns, introduced only on its
+        // second row; TABLE_B declares COL_SHARED directly in its first row, so its
+        // metadata comes from createTableMetaData instead. Column sensing must be
+        // enabled, or TABLE_A's second row would just log a warning and drop COL_SHARED.
+        final String content = "<?xml version=\"1.0\"?>" + "<dataset>"
+                + "<TABLE_A COL0=\"a0\"/>"
+                + "<TABLE_A COL0=\"a0b\" COL_SHARED=\"a1\"/>"
+                + "<TABLE_B COL_SHARED=\"b0\"/>" + "</dataset>";
+        final InputSource source = new InputSource(new StringReader(content));
+        final IDataSetProducer producer =
+                new FlatXmlProducer(source, false, true);
+
+        final List<ITableMetaData> capturedMetaData = new ArrayList<>();
+        producer.setConsumer(new DefaultConsumer()
+        {
+            @Override
+            public void startTable(final ITableMetaData metaData) throws DataSetException
+            {
+                capturedMetaData.add(metaData);
+            }
+        });
+
+        producer.produce();
+
+        final ITableMetaData tableAMetaData =
+                findTableMetaData(capturedMetaData, "TABLE_A");
+        final ITableMetaData tableBMetaData =
+                findTableMetaData(capturedMetaData, "TABLE_B");
+
+        final int sensedColumnIndex = tableAMetaData.getColumnIndex("COL_SHARED");
+        final int declaredColumnIndex = tableBMetaData.getColumnIndex("COL_SHARED");
+        final String sensedColumnName =
+                tableAMetaData.getColumns()[sensedColumnIndex].getColumnName();
+        final String declaredColumnName =
+                tableBMetaData.getColumns()[declaredColumnIndex].getColumnName();
+
+        assertThat(sensedColumnName)
+                .as("FlatXmlProducer should reuse the same column-name String "
+                        + "instance whether a column's metadata comes from column "
+                        + "sensing or from a later table's first row.")
+                .isSameAs(declaredColumnName);
+    }
+
+    private static ITableMetaData findTableMetaData(
+            final List<ITableMetaData> capturedMetaData, final String tableName)
+    {
+        for (final ITableMetaData metaData : capturedMetaData)
+        {
+            if (metaData.getTableName().equals(tableName))
+            {
+                return metaData;
+            }
+        }
+        throw new AssertionError("No captured metadata for table " + tableName + ".");
     }
 
 }
