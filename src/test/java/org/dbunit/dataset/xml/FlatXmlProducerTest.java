@@ -159,6 +159,47 @@ class FlatXmlProducerTest extends AbstractProducerTest
     }
 
     @Test
+    void testProduceMetaDataSet_withTableAbsentFromXmlBody_addsEmptyTableFromMetaDataSet() throws Exception
+    {
+        // Setup consumer
+        final String presentTable = "PRESENT_TABLE";
+        final String missingTable = "MISSING_TABLE";
+        // Deliberately different shapes (name and column count) per table, so a producer
+        // bug that mixed up which table's metadata to use would make this test fail
+        // instead of passing by coincidence.
+        final Column[] presentColumns = new Column[] {
+                new Column("PRESENT_COL", DataType.UNKNOWN, Column.NULLABLE)};
+        final Column[] missingColumns = new Column[] {
+                new Column("MISSING_COL0", DataType.UNKNOWN, Column.NULLABLE),
+                new Column("MISSING_COL1", DataType.UNKNOWN, Column.NULLABLE)};
+        final MockDataSetConsumer consumer = new MockDataSetConsumer();
+        consumer.addExpectedStartDataSet();
+        consumer.addExpectedEmptyTable(presentTable, presentColumns);
+        // MISSING_TABLE is declared in the supplied metaDataSet but never appears as a
+        // row element in the XML body; it must still be reported, with zero rows and its
+        // own column metadata, or a CLEAN_INSERT/DELETE_ALL relying on the produced
+        // dataset's table list would silently skip it (issue #496).
+        consumer.addExpectedEmptyTable(missingTable, missingColumns);
+        consumer.addExpectedEndDataSet();
+
+        // Setup producer
+        final String content = "<?xml version=\"1.0\"?>"
+                + "<!DOCTYPE dataset SYSTEM \"urn:/dummy.dtd\">" + "<dataset>"
+                + "<PRESENT_TABLE/>" + "</dataset>";
+        final InputSource source = new InputSource(new StringReader(content));
+        final DefaultDataSet metaDataSet = new DefaultDataSet();
+        metaDataSet.addTable(new DefaultTable(presentTable, presentColumns));
+        metaDataSet.addTable(new DefaultTable(missingTable, missingColumns));
+        final IDataSetProducer producer =
+                new FlatXmlProducer(source, metaDataSet);
+        producer.setConsumer(consumer);
+
+        // Produce and verify consumer
+        producer.produce();
+        consumer.verify();
+    }
+
+    @Test
     void testProduceCustomEntityResolver_withCustomEntityResolver_usesResolverToLoadDtd() throws Exception
     {
         // Setup consumer
@@ -180,6 +221,67 @@ class FlatXmlProducerTest extends AbstractProducerTest
         final String xmlContent = "<?xml version=\"1.0\"?>"
                 + "<!DOCTYPE dataset SYSTEM \"urn:/dummy.dtd\">" + "<dataset>"
                 + "<EMPTY_TABLE/>" + "</dataset>";
+        final InputSource xmlSource =
+                new InputSource(new StringReader(xmlContent));
+        final IDataSetProducer producer =
+                new FlatXmlProducer(xmlSource, new EntityResolver()
+                {
+                    @Override
+                    public InputSource resolveEntity(final String s,
+                            final String s1) throws SAXException, IOException
+                    {
+                        return dtdSource;
+                    }
+                });
+        producer.setConsumer(consumer);
+
+        // Produce and verify consumer
+        producer.produce();
+        consumer.verify();
+    }
+
+    @Test
+    void testProduce_withDtdTablesAbsentFromXmlBody_addsEmptyTablesInDtdOrder() throws Exception
+    {
+        // Setup consumer
+        final String presentTable = "PRESENT_TABLE";
+        final String missingTableA = "MISSING_TABLE_A";
+        final String missingTableB = "MISSING_TABLE_B";
+        // Deliberately different shapes (name and column count) per table, so a producer
+        // bug that mixed up which table's metadata to use would make this test fail
+        // instead of passing by coincidence.
+        final Column[] presentColumns = new Column[] {
+                new Column("PRESENT_COL", DataType.UNKNOWN, Column.NULLABLE)};
+        final Column[] missingAColumns = new Column[] {
+                new Column("MISSING_A_COL", DataType.UNKNOWN, Column.NULLABLE)};
+        final Column[] missingBColumns = new Column[] {
+                new Column("MISSING_B_COL0", DataType.UNKNOWN, Column.NULLABLE),
+                new Column("MISSING_B_COL1", DataType.UNKNOWN, Column.NULLABLE)};
+        final MockDataSetConsumer consumer = new MockDataSetConsumer();
+        consumer.addExpectedStartDataSet();
+        consumer.addExpectedStartTable(presentTable, presentColumns);
+        consumer.addExpectedRow(presentTable, new Object[] {"value0"});
+        consumer.addExpectedEndTable(presentTable);
+        // MISSING_TABLE_A/B are declared in the DTD but never appear as row elements;
+        // they must still be reported, with zero rows and their own DTD-sourced column
+        // metadata, in DTD declaration order, or a CLEAN_INSERT/DELETE_ALL relying on the
+        // produced dataset's table list would silently skip them (issue #496).
+        consumer.addExpectedEmptyTable(missingTableA, missingAColumns);
+        consumer.addExpectedEmptyTable(missingTableB, missingBColumns);
+        consumer.addExpectedEndDataSet();
+
+        // Setup producer
+        final String dtdContent =
+                "<!ELEMENT dataset (PRESENT_TABLE*,MISSING_TABLE_A*,MISSING_TABLE_B*)>"
+                        + "<!ATTLIST PRESENT_TABLE PRESENT_COL CDATA #IMPLIED>"
+                        + "<!ATTLIST MISSING_TABLE_A MISSING_A_COL CDATA #IMPLIED>"
+                        + "<!ATTLIST MISSING_TABLE_B MISSING_B_COL0 CDATA #IMPLIED MISSING_B_COL1 CDATA #IMPLIED>";
+        final InputSource dtdSource =
+                new InputSource(new StringReader(dtdContent));
+
+        final String xmlContent = "<?xml version=\"1.0\"?>"
+                + "<!DOCTYPE dataset SYSTEM \"urn:/dummy.dtd\">" + "<dataset>"
+                + "<PRESENT_TABLE PRESENT_COL=\"value0\"/>" + "</dataset>";
         final InputSource xmlSource =
                 new InputSource(new StringReader(xmlContent));
         final IDataSetProducer producer =
