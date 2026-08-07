@@ -333,6 +333,38 @@ public class FlatXmlProducer extends DefaultHandler implements IDataSetProducer,
     }
 
     /**
+     * Notifies the consumer of every table declared in {@link #_metaDataSet} (DTD or
+     * explicit metadata dataset) that never appeared as a row element in the XML body,
+     * as an empty table using that source's column metadata. Without this, a table with
+     * zero rows in a given fixture is silently absent from the produced dataset, which
+     * can make operations like {@code CLEAN_INSERT}/{@code DELETE_ALL} skip it entirely
+     * even though the DTD declares it. No-op when no DTD/metadata dataset is available,
+     * so behavior is unchanged for plain flat XML.
+     *
+     * @throws DataSetException if the consumer cannot be notified.
+     */
+    private void addMissingDtdTables() throws DataSetException
+    {
+        if (_metaDataSet == null)
+        {
+            return;
+        }
+
+        String[] dtdTableNames = _metaDataSet.getTableNames();
+        for (int i = 0; i < dtdTableNames.length; i++)
+        {
+            String dtdTableName = dtdTableNames[i];
+            if (!_orderedTableNameMap.containsTable(dtdTableName))
+            {
+                ITableMetaData metaData = _metaDataSet.getTableMetaData(dtdTableName);
+                _orderedTableNameMap.add(metaData.getTableName(), metaData);
+                _consumer.startTable(metaData);
+                _consumer.endTable();
+            }
+        }
+    }
+
+    /**
      * Rebuilds {@link #_activeColumnNamesUpperCase} from the given metadata's columns.
      * Must be called whenever the active table's metadata changes.
      * @param metaData The new active metadata to index.
@@ -652,6 +684,9 @@ public class FlatXmlProducer extends DefaultHandler implements IDataSetProducer,
                 {
                     _consumer.endTable();
                 }
+
+                // Notify consumer of DTD/metadata-declared tables no row element referenced
+                addMissingDtdTables();
 
                 // Notify end of dataset to consumer
                 _consumer.endDataSet();
