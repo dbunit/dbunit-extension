@@ -237,6 +237,8 @@
           Add DbUnitExtension, a JUnit 5/6 extension that manages IDatabaseTester lifecycle via BeforeTestExecutionCallback and AfterTestExecutionCallback, enabling composition-based DbUnit tests without subclassing DatabaseTestCase.
       </action>
       <action dev="jeffjensen" type="add" issue="752" system="github" due-to="jeffjensen">Add JsonDataSet, JsonProducer, and JsonWriter for reading and writing JSON-format datasets, including Ant &lt;export&gt;/&lt;operation&gt;/&lt;compare&gt; task support via a new "json" format; null column values are omitted on write and resolved from missing keys on read.</action>
+      <!-- dependabot:dep=com.fasterxml.jackson.core:jackson-databind:new=2.18.9:pr=914 -->
+      <action dev="dependabot" type="update" due-to="Dependabot">Update maven dependency com.fasterxml.jackson.core:jackson-databind from 2.18.2 to 2.18.9 (#914).</action>
     </release>
     <release version="3.4.0" date="Jul 28, 2026" description="Test-suite hardening (un-skip and strengthen dozens of disabled/no-op tests); add CachingConnectionProvider and reduce DefaultPrepAndExpectedTestCase's per-test connection churn; pin identifier case-folding to Locale.ENGLISH for Turkish-locale correctness; and a broad set of correctness fixes across export formats (XML, YAML, CSV, XLS, Ant), TimestampDataType timezone handling, InsertOperation/TransactionOperation, and resource-leak cleanups">
       <action dev="jeffjensen" type="fix" issue="797" system="github" due-to="jeffjensen">
