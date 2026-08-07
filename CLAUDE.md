@@ -161,7 +161,7 @@ Integration tests use `DatabaseEnvironment` to bootstrap the target database fro
   - Use Eclipse code cleanup settings file `code-cleanup-eclipse.xml` when modifying or creating files
   - If Lombok is available, use its annotations such as @AllArgsConstructor, @NoArgsConstructor, @Getter, @Setter.
   - If not using @Slf4j, then place the Logger variable first in the class.
-  - Write JavaDoc comments on all public classes and methods.
+  - Write JavaDoc comments on all public classes and methods in src/main.
   - In JavaDoc, use complete sentences, start with a capital letter and end with a period, for the topic body, parameters, and return.
   - Tests:
     - Prefer assertJ.
