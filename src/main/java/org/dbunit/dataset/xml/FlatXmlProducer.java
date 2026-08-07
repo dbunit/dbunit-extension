@@ -23,10 +23,12 @@ package org.dbunit.dataset.xml;
 import java.io.IOException;
 import java.io.StringReader;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 import javax.xml.parsers.ParserConfigurationException;
@@ -120,7 +122,19 @@ public class FlatXmlProducer extends DefaultHandler implements IDataSetProducer,
      */
     private Set _activeColumnNamesUpperCase;
 
-    
+    /**
+     * Canonical instances of column names built from SAX attribute names, keyed by
+     * themselves. Column names repeat across many rows of a table and often across
+     * different tables, but the SAX parser hands back a fresh String for each
+     * occurrence; routing every {@link Column} construction through this cache lets
+     * those repeats share one instance instead of each being retained separately for
+     * the life of the parsed dataset. Live only for the duration of a single
+     * {@link #produce()} call: (re)created at its start and cleared at its end, since
+     * the cache itself serves no purpose once the columns it produced are handed off
+     * to the consumer.
+     */
+    private Map<String, String> _columnNameCache;
+
     /**
      * Creates a producer that reads the given XML source, with DTD metadata enabled.
      *
@@ -237,13 +251,32 @@ public class FlatXmlProducer extends DefaultHandler implements IDataSetProducer,
         Column[] columns = new Column[attributes.getLength()];
         for (int i = 0; i < attributes.getLength(); i++)
         {
-            columns[i] = new Column(attributes.getQName(i), DataType.UNKNOWN);
+            String columnName = internColumnName(attributes.getQName(i));
+            columns[i] = new Column(columnName, DataType.UNKNOWN);
         }
 
         return new DefaultTableMetaData(tableName, columns);
     }
-    
-    
+
+    /**
+     * Returns a canonical String instance equal to the given column name, reusing a
+     * previously-cached instance when this parse has already seen that name.
+     *
+     * @param columnName The column name to canonicalize.
+     * @return A canonical String instance equal to columnName.
+     */
+    private String internColumnName(String columnName)
+    {
+        String cachedName = _columnNameCache.get(columnName);
+        if (cachedName != null)
+        {
+            return cachedName;
+        }
+
+        _columnNameCache.put(columnName, columnName);
+        return columnName;
+    }
+
     /**
      * merges the existing columns with the potentially new ones.
      * @param columnsToMerge List of extra columns found, which need to be merge back into the metadata.
@@ -345,7 +378,15 @@ public class FlatXmlProducer extends DefaultHandler implements IDataSetProducer,
 		{
 			if (!_activeColumnNamesUpperCase.contains(attributes.getQName(i).toUpperCase(Locale.ENGLISH)))
 			{
-				columnsToMerge.add(new Column(attributes.getQName(i), DataType.UNKNOWN));
+				// Only canonicalize a name that will actually be retained in metadata: when
+				// column sensing is disabled, this Column is discarded right after the warning
+				// below is built, and caching its name would just grow the cache for nothing.
+				String columnName = attributes.getQName(i);
+				if (_columnSensing)
+				{
+					columnName = internColumnName(columnName);
+				}
+				columnsToMerge.add(new Column(columnName, DataType.UNKNOWN));
 			}
 		}
 
@@ -418,6 +459,8 @@ public class FlatXmlProducer extends DefaultHandler implements IDataSetProducer,
     {
         logger.debug("produce() - start");
 
+        _columnNameCache = new HashMap<String, String>();
+
         try
         {
             SAXParserFactory saxParserFactory = SAXParserFactory.newInstance();
@@ -447,6 +490,12 @@ public class FlatXmlProducer extends DefaultHandler implements IDataSetProducer,
         catch (IOException e)
         {
             throw new DataSetException(e);
+        }
+        finally
+        {
+            // Only needed for the duration of a single parse; drop it immediately after
+            // instead of keeping it alive for as long as this producer instance is.
+            _columnNameCache = null;
         }
     }
 
