@@ -21,6 +21,7 @@
 package org.dbunit.database;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.spy;
@@ -37,6 +38,12 @@ import java.util.List;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
+
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 
 /**
  * Unit tests for {@link DatabaseSequenceFilter}, run against a real H2 in-memory database
@@ -185,6 +192,152 @@ class DatabaseSequenceFilterTest
                         + "even though the database folds unquoted identifiers to lowercase and the "
                         + "caller-supplied names ('CHILD', 'PARENT') do not match that stored case.")
                 .containsExactly("PARENT", "CHILD");
+    }
+
+    @Test
+    void testSort_cyclicFkConstraints_throwsCyclicTablesDependencyException() throws Exception
+    {
+        connection = InMemoryDatabaseConnection.create();
+        final Statement stmt = connection.getConnection().createStatement();
+        stmt.execute("CREATE TABLE A (ID INT PRIMARY KEY, B_ID INT)");
+        stmt.execute("CREATE TABLE B (ID INT PRIMARY KEY, A_ID INT)");
+        stmt.execute("ALTER TABLE A ADD CONSTRAINT FK_A_B FOREIGN KEY (B_ID) REFERENCES B(ID)");
+        stmt.execute("ALTER TABLE B ADD CONSTRAINT FK_B_A FOREIGN KEY (A_ID) REFERENCES A(ID)");
+        stmt.close();
+
+        assertThatThrownBy(() -> DatabaseSequenceFilter.sortTableNames(connection,
+                new String[] {"A", "B"}))
+                .as("A foreign key dependency cycle between A and B must be rejected by default.")
+                .isInstanceOf(CyclicTablesDependencyException.class);
+    }
+
+    @Test
+    void testSort_cyclicFkConstraintsWithSkipCycleCheckFeatureEnabled_doesNotThrowAndReturnsAllTableNames()
+            throws Exception
+    {
+        connection = InMemoryDatabaseConnection.create();
+        final Statement stmt = connection.getConnection().createStatement();
+        stmt.execute("CREATE TABLE A (ID INT PRIMARY KEY, B_ID INT)");
+        stmt.execute("CREATE TABLE B (ID INT PRIMARY KEY, A_ID INT)");
+        stmt.execute("ALTER TABLE A ADD CONSTRAINT FK_A_B FOREIGN KEY (B_ID) REFERENCES B(ID)");
+        stmt.execute("ALTER TABLE B ADD CONSTRAINT FK_B_A FOREIGN KEY (A_ID) REFERENCES A(ID)");
+        stmt.close();
+        connection.getConfig().setFeature(DatabaseConfig.FEATURE_SKIP_CYCLE_CHECK, true);
+
+        final String[] sorted = DatabaseSequenceFilter.sortTableNames(connection,
+                new String[] {"A", "B"});
+
+        assertThat(Arrays.asList(sorted))
+                .as("FEATURE_SKIP_CYCLE_CHECK must let a cyclic pair through without throwing, "
+                        + "still returning every requested table exactly once.")
+                .containsExactlyInAnyOrder("A", "B");
+    }
+
+    @Test
+    void testSort_cyclicPairWithNonCyclicParentAndSkipCycleCheckEnabled_ordersCycleAfterParentInInputOrder()
+            throws Exception
+    {
+        connection = InMemoryDatabaseConnection.create();
+        final Statement stmt = connection.getConnection().createStatement();
+        stmt.execute("CREATE TABLE PARENT (ID INT PRIMARY KEY)");
+        stmt.execute("CREATE TABLE A (ID INT PRIMARY KEY, "
+                + "PARENT_ID INT REFERENCES PARENT(ID), B_ID INT)");
+        stmt.execute("CREATE TABLE B (ID INT PRIMARY KEY, A_ID INT)");
+        stmt.execute("ALTER TABLE A ADD CONSTRAINT FK_A_B FOREIGN KEY (B_ID) REFERENCES B(ID)");
+        stmt.execute("ALTER TABLE B ADD CONSTRAINT FK_B_A FOREIGN KEY (A_ID) REFERENCES A(ID)");
+        stmt.close();
+        connection.getConfig().setFeature(DatabaseConfig.FEATURE_SKIP_CYCLE_CHECK, true);
+
+        final String[] sorted = DatabaseSequenceFilter.sortTableNames(connection,
+                new String[] {"B", "A", "PARENT"});
+        final List<String> order = Arrays.asList(sorted);
+
+        assertThat(order)
+                .as("Every requested table must still be present exactly once.")
+                .containsExactlyInAnyOrder("PARENT", "A", "B");
+        assertThat(order.indexOf("PARENT"))
+                .as("PARENT has no part in the A/B cycle, so it must still sort before its "
+                        + "dependent A even though the cycle check was skipped.")
+                .isLessThan(order.indexOf("A"));
+        assertThat(order.subList(order.indexOf("PARENT") + 1, order.size()))
+                .as("The cyclic A/B pair forms one component ordered after PARENT; its internal "
+                        + "order is unresolvable, so it falls back to the input order "
+                        + "(B before A).")
+                .containsExactly("B", "A");
+    }
+
+    @Test
+    void testSort_tableDependingOnCyclicMemberWithSkipCycleCheckEnabled_ordersDependentAfterWholeCycle()
+            throws Exception
+    {
+        connection = InMemoryDatabaseConnection.create();
+        final Statement stmt = connection.getConnection().createStatement();
+        stmt.execute("CREATE TABLE A (ID INT PRIMARY KEY, B_ID INT)");
+        stmt.execute("CREATE TABLE B (ID INT PRIMARY KEY, A_ID INT)");
+        stmt.execute("CREATE TABLE C (ID INT PRIMARY KEY, A_ID INT REFERENCES A(ID))");
+        stmt.execute("ALTER TABLE A ADD CONSTRAINT FK_A_B FOREIGN KEY (B_ID) REFERENCES B(ID)");
+        stmt.execute("ALTER TABLE B ADD CONSTRAINT FK_B_A FOREIGN KEY (A_ID) REFERENCES A(ID)");
+        stmt.close();
+        connection.getConfig().setFeature(DatabaseConfig.FEATURE_SKIP_CYCLE_CHECK, true);
+
+        final String[] sorted = DatabaseSequenceFilter.sortTableNames(connection,
+                new String[] {"C", "A", "B"});
+        final List<String> order = Arrays.asList(sorted);
+
+        assertThat(order)
+                .as("Every requested table must still be present exactly once.")
+                .containsExactlyInAnyOrder("A", "B", "C");
+        assertThat(order.indexOf("A"))
+                .as("C only depends on A, not on the A/B cycle as a whole, but A is unresolvable "
+                        + "on its own since it is part of that cycle; C must still sort after "
+                        + "the entire cycle rather than being stranded in raw input order ahead "
+                        + "of the table it actually requires.")
+                .isLessThan(order.indexOf("C"));
+        assertThat(order.indexOf("B"))
+                .as("B is part of the same cycle as A, so it must also precede C.")
+                .isLessThan(order.indexOf("C"));
+    }
+
+    @Test
+    void testSort_multiTableCyclicComponentWithSkipCycleCheckEnabled_logsOneWarningForWholeCycle()
+            throws Exception
+    {
+        connection = InMemoryDatabaseConnection.create();
+        final Statement stmt = connection.getConnection().createStatement();
+        stmt.execute("CREATE TABLE A (ID INT PRIMARY KEY, C_ID INT)");
+        stmt.execute("CREATE TABLE B (ID INT PRIMARY KEY, A_ID INT)");
+        stmt.execute("CREATE TABLE C (ID INT PRIMARY KEY, B_ID INT)");
+        stmt.execute("ALTER TABLE A ADD CONSTRAINT FK_A_C FOREIGN KEY (C_ID) REFERENCES C(ID)");
+        stmt.execute("ALTER TABLE B ADD CONSTRAINT FK_B_A FOREIGN KEY (A_ID) REFERENCES A(ID)");
+        stmt.execute("ALTER TABLE C ADD CONSTRAINT FK_C_B FOREIGN KEY (B_ID) REFERENCES B(ID)");
+        stmt.close();
+        connection.getConfig().setFeature(DatabaseConfig.FEATURE_SKIP_CYCLE_CHECK, true);
+
+        final Logger filterLogger =
+                (Logger) LoggerFactory.getLogger(DatabaseSequenceFilter.class);
+        final Level previousLevel = filterLogger.getLevel();
+        final ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        filterLogger.setLevel(Level.WARN);
+        filterLogger.addAppender(appender);
+        try
+        {
+            DatabaseSequenceFilter.sortTableNames(connection,
+                    new String[] {"A", "B", "C"});
+
+            assertThat(appender.list)
+                    .filteredOn(event -> event.getLevel() == Level.WARN)
+                    .as("A single 3-table cycle must log exactly one warning, not one per "
+                            + "member table, even though checkCycles() throws for each of the "
+                            + "three tables individually.")
+                    .hasSize(1);
+        }
+        finally
+        {
+            filterLogger.detachAppender(appender);
+            appender.stop();
+            filterLogger.setLevel(previousLevel);
+        }
     }
 
 }

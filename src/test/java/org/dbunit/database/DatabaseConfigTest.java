@@ -162,6 +162,17 @@ class DatabaseConfigTest
     }
 
     @Test
+    void testGetFeature_skipCycleCheckDefault_isFalse() throws Exception
+    {
+        final DatabaseConfig config = new DatabaseConfig();
+
+        assertThat(config.getFeature(DatabaseConfig.FEATURE_SKIP_CYCLE_CHECK))
+                .as("FEATURE_SKIP_CYCLE_CHECK must default to false, preserving the "
+                        + "pre-existing fail-on-cycle behavior for callers who never touch it.")
+                .isFalse();
+    }
+
+    @Test
     void testCopyPropertiesInto_withNullablePropertyAtDefault_overwritesTargetWithNull()
             throws Exception
     {
