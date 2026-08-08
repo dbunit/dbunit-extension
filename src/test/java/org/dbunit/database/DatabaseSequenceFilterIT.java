@@ -143,6 +143,47 @@ class DatabaseSequenceFilterIT extends AbstractDatabaseIT
     }
 
     @Test
+    void testGetTableNames_withCyclicFkConstraintsAndSkipCycleCheckFeatureEnabled_doesNotThrow()
+            throws Exception
+    {
+        final String[] testTableNames = {"A", "B", "C", "D", "E"};
+
+        DdlExecutor.dropTables(_connection.getConnection(), "A", "B", "C",
+                "D", "E");
+        DdlExecutor.executeDdlFile(
+                TestUtils.getFile("sql/hypersonic_cyclic.sql"),
+                _connection.getConnection(), false);
+        try
+        {
+            _connection.getConfig().setFeature(DatabaseConfig.FEATURE_SKIP_CYCLE_CHECK, true);
+            final IDataSet allTables = _connection.createDataSet();
+            final IDataSet databaseDataset =
+                    new FilteredDataSet(new IncludeTableFilter(testTableNames),
+                            allTables);
+
+            final ITableFilter filter = new DatabaseSequenceFilter(_connection);
+            final IDataSet filteredDataSet =
+                    new FilteredDataSet(filter, databaseDataset);
+            final String[] actualFiltered = filteredDataSet.getTableNames();
+            final String[] expectedFiltered = {"B", "A", "C", "D", "E"};
+
+            assertThat(actualFiltered)
+                    .as("FEATURE_SKIP_CYCLE_CHECK must let the A/C/D/E cycle through without "
+                            + "throwing, sorting independent table B before the cycle it is "
+                            + "really depended on by (via C's FK), and falling back to input "
+                            + "order (A, C, D, E) for the cycle's own members.")
+                    .usingElementComparator(String.CASE_INSENSITIVE_ORDER)
+                    .containsExactly(expectedFiltered);
+        }
+        finally
+        {
+            DdlExecutor.dropTables(_connection.getConnection(), "A", "B", "C",
+                    "D", "E");
+            refreshConnection();
+        }
+    }
+
+    @Test
     void testGetTableNames_withCaseSensitiveFeatureEnabled_returnsMixedCaseTableNames() throws Exception
     {
         final java.sql.DatabaseMetaData dbMeta =

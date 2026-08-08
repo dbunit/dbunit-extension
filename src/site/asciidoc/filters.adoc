@@ -69,6 +69,23 @@ root tables to a dependency-ordered `IDataSet`. Reach for it directly when
 you need the table list or a ready-made dataset rather than a filter to wrap
 around an existing one.
 
+==== Cyclic foreign-key dependencies
+
+A schema where two or more tables reference each other in a cycle (e.g. `A`
+has a FK to `B`, and `B` has a FK back to `A`) has no valid topological
+order, so `DatabaseSequenceFilter` rejects it with
+`CyclicTablesDependencyException` by default. Enable
+link:properties.html#skipcyclecheck[`FEATURE_SKIP_CYCLE_CHECK`] to opt out of
+that check; the cycle is then treated as a single unit for ordering purposes,
+so a table outside the cycle is still correctly sorted relative to it (a
+table with its own FK to a cyclic table still sorts after the whole cycle,
+not just after whichever cyclic member happened to be placed first) — only
+the relative order of the tables making up the cycle itself is left
+unresolved, falling back to their original input order. It becomes the
+caller's responsibility to make the cycle insertable — for example by
+leaving the cyclic FK column(s) null on the first pass and updating them
+afterwards, or by relying on database-side deferred constraint checking.
+
 [#primarykeyfilter]
 === PrimaryKeyFilter
 

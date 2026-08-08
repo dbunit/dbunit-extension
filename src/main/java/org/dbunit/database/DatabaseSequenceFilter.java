@@ -21,9 +21,11 @@
 package org.dbunit.database;
 
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -46,6 +48,14 @@ import org.slf4j.LoggerFactory;
  * name is a bit misleading since it is not at all related to database
  * sequences. It just brings database tables in a specific order.
  *
+ * <p>A foreign-key dependency cycle among the ordered tables is rejected with
+ * {@link CyclicTablesDependencyException} by default. Enable
+ * {@link DatabaseConfig#FEATURE_SKIP_CYCLE_CHECK} to opt out of that check for schemas whose
+ * cyclic references are handled another way (e.g. nullable FK columns populated in a later
+ * operation, or database-side deferred constraint checking); tables outside the cycle are
+ * still correctly ordered relative to it, and only the relative order of the cyclic tables
+ * themselves is left as-supplied (see {@link #sort}).
+ *
  * @author Manuel Laflamme
  * @author Erik Price
  * @author Last changed by: $Author$
@@ -59,14 +69,16 @@ public class DatabaseSequenceFilter extends SequenceTableFilter
      * Logger for this class
      */
     private static final Logger logger = LoggerFactory.getLogger(DatabaseSequenceFilter.class);
-  
+
 
     /**
      * Create a DatabaseSequenceFilter that only exposes specified table names.
      *
      * @param connection the database connection used to resolve table dependencies.
      * @param tableNames the table names to expose, re-ordered to respect FK dependencies.
-     * @throws DataSetException if a table dependency cycle is detected.
+     * @throws DataSetException if a table dependency cycle is detected and
+     * {@link DatabaseConfig#FEATURE_SKIP_CYCLE_CHECK} is not enabled on {@code connection}'s
+     * {@link DatabaseConfig}.
      * @throws SQLException if an exception is encountered in accessing the database.
      */
     public DatabaseSequenceFilter(IDatabaseConnection connection,
@@ -79,7 +91,9 @@ public class DatabaseSequenceFilter extends SequenceTableFilter
      * Create a DatabaseSequenceFilter that exposes all the database tables.
      *
      * @param connection the database connection used to resolve table dependencies.
-     * @throws DataSetException if a table dependency cycle is detected.
+     * @throws DataSetException if a table dependency cycle is detected and
+     * {@link DatabaseConfig#FEATURE_SKIP_CYCLE_CHECK} is not enabled on {@code connection}'s
+     * {@link DatabaseConfig}.
      * @throws SQLException if an exception is encountered in accessing the database.
      */
     public DatabaseSequenceFilter(IDatabaseConnection connection)
@@ -90,11 +104,18 @@ public class DatabaseSequenceFilter extends SequenceTableFilter
 
     /**
      * Re-orders a string array of table names, placing dependent ("parent")
-     * tables after their dependencies ("children").
+     * tables after their dependencies ("children"). Unless
+     * {@link DatabaseConfig#FEATURE_SKIP_CYCLE_CHECK} is enabled on {@code connection}'s
+     * {@link DatabaseConfig}, a foreign-key dependency cycle among {@code tableNames} is
+     * rejected. When that feature is enabled, a cyclic group of tables is instead treated as
+     * one unit for ordering purposes (see {@link #sort}): tables outside the cycle still
+     * respect their real foreign-key dependencies on it, but the relative order of the tables
+     * making up the cycle itself falls back to their original {@code tableNames} order.
      *
      * @param tableNames A string array of table names to be ordered.
      * @return The re-ordered array of table names.
-     * @throws DataSetException if a table dependency cycle is detected.
+     * @throws DataSetException if a table dependency cycle is detected and
+     * {@link DatabaseConfig#FEATURE_SKIP_CYCLE_CHECK} is not enabled.
      * @throws SQLException If an exception is encountered in accessing the database.
      */
     static String[] sortTableNames(
@@ -112,6 +133,7 @@ public class DatabaseSequenceFilter extends SequenceTableFilter
         // searches) only ever triggers one getImportedKeys/getExportedKeys JDBC round trip.
         Map importedEdgesCache = new HashMap();
         Map exportedEdgesCache = new HashMap();
+        String[] normalizedNames;
         try {
             for (int i = 0; i < tableNames.length; i++) {
                 String tableName = tableNames[i];
@@ -119,105 +141,223 @@ public class DatabaseSequenceFilter extends SequenceTableFilter
                         importedEdgesCache, exportedEdgesCache);
                 dependencies.put(tableName, info);
             }
+            // Dependency-set entries come back in the database's native identifier case (e.g.
+            // lowercase on PostgreSQL), which can differ from the caller-supplied tableNames
+            // case; normalize here so both sort()/componentsOf()'s edge lookups and the
+            // cycle-dedup below key on the same case as the intersect sets they compare against.
+            normalizedNames = normalizeToStoredCase(connection, tableNames);
         } catch (SearchException e) {
             throw new DataSetException("Exception while searching the dependent tables.", e);
         }
 
-        
-        // Check whether the table dependency info contains cycles
-        for (Iterator iterator = dependencies.values().iterator(); iterator.hasNext();) {
-            DependencyInfo info = (DependencyInfo) iterator.next();
-            info.checkCycles();
+        // Check whether the table dependency info contains cycles, unless the caller opted out
+        // via FEATURE_SKIP_CYCLE_CHECK. When skipping, log at most one warning per distinct
+        // cycle rather than once per table participating in it.
+        boolean skipCycleCheck =
+                connection.getConfig().getFeature(DatabaseConfig.FEATURE_SKIP_CYCLE_CHECK);
+        Set<String> reportedCyclicTables = new HashSet<String>();
+        for (int i = 0; i < tableNames.length; i++) {
+            DependencyInfo info = (DependencyInfo) dependencies.get(tableNames[i]);
+            try
+            {
+                info.checkCycles();
+            }
+            catch (CyclicTablesDependencyException e)
+            {
+                if (!skipCycleCheck)
+                {
+                    throw e;
+                }
+                if (reportedCyclicTables.add(normalizedNames[i]))
+                {
+                    reportedCyclicTables.addAll(info.getCyclicDependencies());
+                    logger.warn("Table dependency cycle detected but ignored because "
+                            + "FEATURE_SKIP_CYCLE_CHECK is enabled: {}", e.getMessage());
+                }
+            }
         }
 
-        try {
-            return sort(connection, tableNames, dependencies);
-        } catch (SearchException e) {
-            throw new DataSetException("Exception while searching the dependent tables.", e);
-        }
+        return sort(tableNames, normalizedNames, dependencies);
     }
 
 
     /**
-     * Topologically sorts {@code tableNames} via Kahn's algorithm, using each table's direct
-     * dependency info: an edge runs from a table to each of its direct dependents (the tables
-     * in its {@link DependencyInfo#getDirectDependentTablesSet()}), meaning the table must
-     * precede those dependents in the result. Cycles are assumed already rejected by
-     * {@link DependencyInfo#checkCycles()}, called earlier in {@link #sortTableNames}.
-     * @param connection The database connection used to resolve the stored identifier case.
+     * Topologically sorts {@code tableNames}. Tables are first grouped into strongly connected
+     * components (SCCs) via {@link #componentsOf}: two tables share a component exactly when
+     * {@link DependencyInfo#checkCycles()} would consider them part of the same cycle. With
+     * {@link DatabaseConfig#FEATURE_SKIP_CYCLE_CHECK} off, {@link #sortTableNames} has already
+     * rejected any real cycle via {@code checkCycles()}, so every component here is a
+     * singleton and this reduces to an ordinary per-table topological sort via Kahn's
+     * algorithm. When that feature lets a cycle through instead, the condensed graph of
+     * components -- always acyclic, since collapsing each cycle into one node cannot itself
+     * form a cycle -- is topologically sorted the same way, then each component is expanded
+     * back into its member tables in their original {@code tableNames} order. A table that
+     * merely depends on a cyclic table, without itself being part of the cycle, is therefore
+     * still correctly ordered after the whole component it depends on; only the relative order
+     * of tables within the same cyclic component is unresolved and falls back to
+     * {@code tableNames} order.
      * @param tableNames The table names to be ordered.
+     * @param normalizedNames {@code tableNames} normalized to the database's stored identifier
+     * case, in the same order (see {@link #normalizeToStoredCase}).
      * @param dependencies Each table name's {@link DependencyInfo}, keyed by table name.
      * @return The topologically sorted table names; when more than one valid order exists,
      * ties break to the original {@code tableNames} order.
-     * @throws SearchException If the JDBC connection cannot be obtained.
+     * @throws IllegalStateException if the condensed component graph turns out not to be
+     * acyclic, which would otherwise be an internal bug in {@link #componentsOf}.
      */
-    private static String[] sort(IDatabaseConnection connection, String[] tableNames, Map dependencies)
-    throws SearchException
+    private static String[] sort(String[] tableNames, String[] normalizedNames, Map dependencies)
     {
         logger.debug("sort(tableNames={}, dependencies={}) - start", tableNames, dependencies);
 
         int tableCount = tableNames.length;
-        // Dependency-set entries (below) come back in the database's native identifier case
-        // (e.g. lowercase on PostgreSQL), which can differ from the caller-supplied tableNames
-        // case; index by that same normalized case so the edge lookups below actually match.
-        String[] normalizedNames = normalizeToStoredCase(connection, tableNames);
         Map<String, Integer> nameToIndex = new HashMap<String, Integer>(tableCount);
         for (int i = 0; i < tableCount; i++)
         {
             nameToIndex.put(normalizedNames[i], i);
         }
 
-        // In-degree = how many of this table's direct dependencies (prerequisites), among the
-        // tables being sorted, have not yet been placed in the result.
-        int[] inDegree = new int[tableCount];
+        int[] componentOf = componentsOf(tableNames, normalizedNames, dependencies);
+        int componentCount = 0;
+        for (int i = 0; i < tableCount; i++)
+        {
+            componentCount = Math.max(componentCount, componentOf[i] + 1);
+        }
+
+        // Component-level direct-dependency edges, deduplicated (via Set) so that multiple
+        // cross-component table pairs don't inflate a component's in-degree.
+        List<Set<Integer>> componentDependsOn = new ArrayList<Set<Integer>>(componentCount);
+        List<Set<Integer>> componentDependents = new ArrayList<Set<Integer>>(componentCount);
+        for (int c = 0; c < componentCount; c++)
+        {
+            componentDependsOn.add(new HashSet<Integer>());
+            componentDependents.add(new HashSet<Integer>());
+        }
         for (int i = 0; i < tableCount; i++)
         {
             DependencyInfo info = (DependencyInfo) dependencies.get(tableNames[i]);
             for (Iterator it = info.getDirectDependsOnTablesSet().iterator(); it.hasNext();)
             {
-                if (nameToIndex.containsKey(it.next()))
+                Integer dependencyIndex = nameToIndex.get(it.next());
+                if (dependencyIndex != null && componentOf[dependencyIndex] != componentOf[i])
                 {
-                    inDegree[i]++;
+                    componentDependsOn.get(componentOf[i]).add(componentOf[dependencyIndex]);
+                }
+            }
+        }
+        for (int c = 0; c < componentCount; c++)
+        {
+            for (Integer dependency : componentDependsOn.get(c))
+            {
+                componentDependents.get(dependency).add(c);
+            }
+        }
+
+        // In-degree = how many other components this component directly depends on. A TreeSet
+        // always yields the smallest component id first; component ids are assigned in
+        // tableNames order (see componentsOf()), so whenever several components become ready at
+        // once, the one containing the earliest original table is emitted first.
+        int[] componentInDegree = new int[componentCount];
+        TreeSet<Integer> readyComponents = new TreeSet<Integer>();
+        for (int c = 0; c < componentCount; c++)
+        {
+            componentInDegree[c] = componentDependsOn.get(c).size();
+            if (componentInDegree[c] == 0)
+            {
+                readyComponents.add(c);
+            }
+        }
+
+        int[] sortedComponents = new int[componentCount];
+        int sortedComponentCount = 0;
+        while (!readyComponents.isEmpty())
+        {
+            int component = readyComponents.pollFirst();
+            sortedComponents[sortedComponentCount++] = component;
+
+            for (Integer dependentComponent : componentDependents.get(component))
+            {
+                componentInDegree[dependentComponent]--;
+                if (componentInDegree[dependentComponent] == 0)
+                {
+                    readyComponents.add(dependentComponent);
                 }
             }
         }
 
-        // Indices (not names) of tables with no remaining prerequisites. A TreeSet always
-        // yields the smallest index first, so whenever several tables become ready at once,
-        // the one appearing earliest in the original tableNames order is emitted first.
-        TreeSet<Integer> ready = new TreeSet<Integer>();
-        for (int i = 0; i < tableCount; i++)
+        // The condensed component graph is always acyclic by construction (see class Javadoc),
+        // so Kahn's algorithm above must schedule every component; a shortfall here means that
+        // guarantee was violated (e.g. an incomplete DepthFirstSearch closure), and continuing
+        // would silently return sortedTableNames with trailing null entries instead.
+        if (sortedComponentCount != componentCount)
         {
-            if (inDegree[i] == 0)
-            {
-                ready.add(i);
-            }
+            throw new IllegalStateException("Condensed table-dependency graph is not acyclic: "
+                    + "topologically sorted " + sortedComponentCount + " of " + componentCount
+                    + " components.");
         }
 
+        // Expand each component back into its member tables, in their original tableNames
+        // order, so a multi-table cyclic component's own internal order is the input order.
         String[] sortedTableNames = new String[tableCount];
         int sortedCount = 0;
-        while (!ready.isEmpty())
+        for (int s = 0; s < sortedComponentCount; s++)
         {
-            int index = ready.pollFirst();
-            String tableName = tableNames[index];
-            sortedTableNames[sortedCount++] = tableName;
-
-            DependencyInfo info = (DependencyInfo) dependencies.get(tableName);
-            for (Iterator it = info.getDirectDependentTablesSet().iterator(); it.hasNext();)
+            int component = sortedComponents[s];
+            for (int i = 0; i < tableCount; i++)
             {
-                Integer dependentIndex = nameToIndex.get(it.next());
-                if (dependentIndex != null)
+                if (componentOf[i] == component)
                 {
-                    inDegree[dependentIndex]--;
-                    if (inDegree[dependentIndex] == 0)
-                    {
-                        ready.add(dependentIndex);
-                    }
+                    sortedTableNames[sortedCount++] = tableNames[i];
                 }
             }
         }
 
         return sortedTableNames;
+    }
+
+    /**
+     * Assigns each table in {@code tableNames} to a strongly connected component, numbered in
+     * the order each component is first encountered while scanning {@code tableNames}. Two
+     * tables share a component exactly when {@link DependencyInfo#checkCycles()} would consider
+     * them part of the same cycle: each can transitively reach the other via direct foreign-key
+     * edges. A table outside any cycle -- the only possibility when {@link #sortTableNames} has
+     * not skipped its {@code checkCycles()} call -- forms its own singleton component.
+     * @param tableNames The table names being ordered.
+     * @param normalizedNames {@code tableNames} normalized to the database's stored identifier
+     * case, in the same order.
+     * @param dependencies Each table name's {@link DependencyInfo}, keyed by table name.
+     * @return Each table's component id, parallel to {@code tableNames}.
+     */
+    private static int[] componentsOf(String[] tableNames, String[] normalizedNames, Map dependencies)
+    {
+        int tableCount = tableNames.length;
+        int[] componentOf = new int[tableCount];
+        for (int i = 0; i < tableCount; i++)
+        {
+            componentOf[i] = -1;
+        }
+
+        int nextComponent = 0;
+        for (int i = 0; i < tableCount; i++)
+        {
+            if (componentOf[i] != -1)
+            {
+                continue;
+            }
+
+            DependencyInfo info = (DependencyInfo) dependencies.get(tableNames[i]);
+            Set mutuallyReachable = info.getCyclicDependencies();
+
+            componentOf[i] = nextComponent;
+            for (int j = i + 1; j < tableCount; j++)
+            {
+                if (componentOf[j] == -1 && mutuallyReachable.contains(normalizedNames[j]))
+                {
+                    componentOf[j] = nextComponent;
+                }
+            }
+            nextComponent++;
+        }
+        return componentOf;
     }
 
     /**
@@ -238,11 +378,11 @@ public class DatabaseSequenceFilter extends SequenceTableFilter
         logger.debug("getDependencyInfo(connection={}, tableName={}) - start", connection, tableName);
 
         // Equivalent to TablesDependencyHelper.getDependentTables/getDependsOnTables/
-        // getDirectDependentTables/getDirectDependsOnTables, inlined here (rather than calling
-        // those methods) so the same callback instance -- and therefore the same edge cache --
-        // can be reused for both the direct and transitive searches below. Each does a depth
-        // search for dependencies; the unlimited ones return the whole tree of dependent
-        // objects, not only the direct FK-PK related tables.
+        // getDirectDependsOnTables, inlined here (rather than calling those methods) so the
+        // same callback instance -- and therefore the same edge cache -- can be reused for
+        // both the direct and transitive searches below. Each does a depth search for
+        // dependencies; the unlimited ones return the whole tree of dependent objects, not
+        // only the direct FK-PK related tables.
         ISearchCallback importedCallback = new CachingSearchCallback(
                 new ImportedKeysSearchCallback(connection), importedEdgesCache);
         ISearchCallback exportedCallback = new CachingSearchCallback(
@@ -255,17 +395,13 @@ public class DatabaseSequenceFilter extends SequenceTableFilter
         allDependentTablesSet.remove(normalizedRoot[0]);
         allDependsOnTablesSet.remove(normalizedRoot[0]);
 
-        // Computed after the unlimited searches above: the root's edges (and, for the
-        // exported-keys direction, its direct dependents' edges too) are already cached by
-        // then, so these two calls are cache hits, not additional JDBC round trips.
+        // Computed after the unlimited search above: the root's edges are already cached by
+        // then, so this call is a cache hit, not an additional JDBC round trip.
         Set directDependsOnTablesSet = new DepthFirstSearch(1).search(normalizedRoot, importedCallback);
-        Set directDependentTablesSet = new DepthFirstSearch(1).search(normalizedRoot, exportedCallback);
         directDependsOnTablesSet.remove(normalizedRoot[0]);
-        directDependentTablesSet.remove(normalizedRoot[0]);
 
         DependencyInfo info = new DependencyInfo(tableName,
-                directDependsOnTablesSet, directDependentTablesSet,
-                allDependsOnTablesSet, allDependentTablesSet);
+                directDependsOnTablesSet, allDependsOnTablesSet, allDependentTablesSet);
         return info;
     }
 
@@ -344,10 +480,10 @@ public class DatabaseSequenceFilter extends SequenceTableFilter
     }
 
 
-    
+
     /**
      * Container of dependency information for one single table.
-     * 
+     *
      * @author gommma (gommma AT users.sourceforge.net)
      * @author Last changed by: $Author$
      * @version $Revision$ $Date$
@@ -361,25 +497,27 @@ public class DatabaseSequenceFilter extends SequenceTableFilter
         private static final Logger logger = LoggerFactory.getLogger(DatabaseSequenceFilter.class);
 
         private String tableName;
-        
+
         private Set allTableDependsOn;
         private Set allTableDependent;
-        
+
         private Set directDependsOnTablesSet;
-        private Set directDependentTablesSet;
-        
+
         /**
-         * @param tableName
-         * @param allTableDependsOn Tables that are required as prerequisite so that this one can exist
-         * @param allTableDependent Tables that need this one in order to be able to exist
+         * Creates the dependency information for one table.
+         *
+         * @param tableName The name of the table this information describes.
+         * @param directDependsOnTablesSet The tables this one directly references through a
+         * foreign key.
+         * @param allTableDependsOn Tables that are required as prerequisite so that this one can exist.
+         * @param allTableDependent Tables that need this one in order to be able to exist.
          */
-        public DependencyInfo(String tableName, 
-                Set directDependsOnTablesSet, Set directDependentTablesSet,
-                Set allTableDependsOn, Set allTableDependent) 
+        public DependencyInfo(String tableName,
+                Set directDependsOnTablesSet,
+                Set allTableDependsOn, Set allTableDependent)
         {
             super();
             this.directDependsOnTablesSet = directDependsOnTablesSet;
-            this.directDependentTablesSet = directDependentTablesSet;
             this.allTableDependsOn = allTableDependsOn;
             this.allTableDependent = allTableDependent;
             this.tableName = tableName;
@@ -396,13 +534,27 @@ public class DatabaseSequenceFilter extends SequenceTableFilter
         public Set getAllTableDependent() {
             return allTableDependent;
         }
-        
+
+        /**
+         * Returns the tables this one directly references through a foreign key.
+         *
+         * @return The direct prerequisite tables.
+         */
         public Set getDirectDependsOnTablesSet() {
             return directDependsOnTablesSet;
         }
 
-        public Set getDirectDependentTablesSet() {
-            return directDependentTablesSet;
+        /**
+         * Computes the tables sharing a foreign-key dependency cycle with this one, by
+         * intersecting the tables this one depends on with the tables that depend on it.
+         * @return The other tables in this table's dependency cycle, or an empty set if this
+         * table is not part of any cycle.
+         */
+        public Set getCyclicDependencies()
+        {
+            Set intersect = new HashSet(this.allTableDependsOn);
+            intersect.retainAll(this.allTableDependent);
+            return intersect;
         }
 
         /**
@@ -410,13 +562,11 @@ public class DatabaseSequenceFilter extends SequenceTableFilter
          * When the result set has at least one element we do have cycles.
          * @throws CyclicTablesDependencyException
          */
-        public void checkCycles() throws CyclicTablesDependencyException 
+        public void checkCycles() throws CyclicTablesDependencyException
         {
             logger.debug("checkCycles() - start");
 
-            // Intersect the "tableDependsOn" and "otherTablesDependOn" to check for cycles
-            Set intersect = new HashSet(this.allTableDependsOn);
-            intersect.retainAll(this.allTableDependent);
+            Set intersect = getCyclicDependencies();
             if(!intersect.isEmpty()){
                 throw new CyclicTablesDependencyException(tableName, intersect);
             }
@@ -428,12 +578,11 @@ public class DatabaseSequenceFilter extends SequenceTableFilter
             sb.append("DependencyInfo[");
             sb.append("table=").append(tableName);
             sb.append(", directDependsOn=").append(directDependsOnTablesSet);
-            sb.append(", directDependent=").append(directDependentTablesSet);
             sb.append(", allDependsOn=").append(allTableDependsOn);
             sb.append(", allDependent=").append(allTableDependent);
             sb.append("]");
             return sb.toString();
         }
-        
+
     }
 }

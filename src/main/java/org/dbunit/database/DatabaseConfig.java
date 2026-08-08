@@ -111,6 +111,15 @@ public class DatabaseConfig
     /** Name of the feature controlling whether all columns are used for sorting when a table has no primary key. */
     public static final String FEATURE_SORT_ALL_COLUMNS_WHEN_NO_PRIMARY_KEY =
             "http://www.dbunit.org/features/sortAllColumnsWhenNoPrimaryKey";
+    /**
+     * Name of the feature controlling whether {@link DatabaseSequenceFilter} skips its
+     * foreign-key dependency cycle check instead of throwing
+     * {@link CyclicTablesDependencyException}. When enabled, tables involved in a cycle are
+     * appended in their original order and the resulting order is not guaranteed to respect
+     * foreign-key dependencies among them.
+     */
+    public static final String FEATURE_SKIP_CYCLE_CHECK =
+            "http://www.dbunit.org/features/skipCycleCheck";
 
     /**
      * A list of all properties as {@link ConfigProperty} objects. 
@@ -135,6 +144,7 @@ public class DatabaseConfig
         new ConfigProperty(FEATURE_ALLOW_EMPTY_FIELDS, Boolean.class, false),
         new ConfigProperty(PROPERTY_ALLOW_VERIFYTABLEDEFINITION_EXPECTEDTABLE_COUNT_MISMATCH, Boolean.class, false),
         new ConfigProperty(FEATURE_SORT_ALL_COLUMNS_WHEN_NO_PRIMARY_KEY, Boolean.class, false),
+        new ConfigProperty(FEATURE_SKIP_CYCLE_CHECK, Boolean.class, false),
     };
 
     /**
@@ -148,7 +158,8 @@ public class DatabaseConfig
         FEATURE_DATATYPE_WARNING,
         FEATURE_SKIP_ORACLE_RECYCLEBIN_TABLES,
         FEATURE_ALLOW_EMPTY_FIELDS,
-        FEATURE_SORT_ALL_COLUMNS_WHEN_NO_PRIMARY_KEY
+        FEATURE_SORT_ALL_COLUMNS_WHEN_NO_PRIMARY_KEY,
+        FEATURE_SKIP_CYCLE_CHECK
     };
     
     private static final DefaultDataTypeFactory DEFAULT_DATA_TYPE_FACTORY =
@@ -180,6 +191,7 @@ public class DatabaseConfig
         setFeature(FEATURE_SKIP_ORACLE_RECYCLEBIN_TABLES, false);
         setFeature(FEATURE_ALLOW_EMPTY_FIELDS, false);
         setFeature(FEATURE_SORT_ALL_COLUMNS_WHEN_NO_PRIMARY_KEY, false);
+        setFeature(FEATURE_SKIP_CYCLE_CHECK, false);
 
         setProperty(PROPERTY_STATEMENT_FACTORY, PREPARED_STATEMENT_FACTORY);
         setProperty(PROPERTY_RESULTSET_TABLE_FACTORY, RESULT_SET_TABLE_FACTORY);

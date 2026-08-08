@@ -75,6 +75,11 @@ _Note:_ this feature was not compatible with the <<escapepattern,escape pattern>
 |http://www.dbunit.org/features/sortAllColumnsWhenNoPrimaryKey
 |false
 |When a table has no primary key, sort its `SELECT` by every non-LOB column instead of leaving row order database-defined (and thus nondeterministic). CLOB/BLOB columns are always excluded from the sort even when this feature is enabled, since some databases (notably Oracle) reject LOB columns in `ORDER BY`.
+
+|anchor:skipcyclecheck[]`FEATURE_SKIP_CYCLE_CHECK`
+|http://www.dbunit.org/features/skipCycleCheck
+|false
+|Let link:filters.html#databasesequencefilter[DatabaseSequenceFilter] skip its foreign-key dependency cycle check instead of throwing `CyclicTablesDependencyException`. Each cycle is instead treated as one unit for ordering purposes: tables outside it are still correctly sorted relative to it, but the relative order of the tables making up the cycle falls back to their original input order — only useful when the cycle is handled another way (e.g. nullable FK columns populated by a later operation, or database-side deferred constraint checking).
 |===
 
 == Properties
