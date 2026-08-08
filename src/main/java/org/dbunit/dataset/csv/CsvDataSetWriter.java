@@ -23,12 +23,13 @@ package org.dbunit.dataset.csv;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.Writer;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -106,26 +107,34 @@ public class CsvDataSetWriter implements IDataSetConsumer {
         provider.produce();
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public void startDataSet() throws DataSetException {
         logger.debug("startDataSet() - start");
 
         try {
         	tableList = new LinkedList();
-            new File(getTheDirectory()).mkdirs();
+            Paths.get(getTheDirectory()).toFile().mkdirs();
         } catch (Exception e) {
             throw new DataSetException("Error while creating the destination directory '" + getTheDirectory() + "'", e);
         }
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public void endDataSet() throws DataSetException {
         logger.debug("endDataSet() - start");
 
     	// write out table ordering file
-    	File orderingFile = new File(getTheDirectory(), CsvDataSet.TABLE_ORDERING_FILE);
-    	
+    	File orderingFile = Paths.get(getTheDirectory(), CsvDataSet.TABLE_ORDERING_FILE).toFile();
+
     	PrintWriter pw = null;
     	try {
-			pw = new PrintWriter(new FileWriter(orderingFile));
+			pw = new PrintWriter(Files.newBufferedWriter(orderingFile.toPath(), StandardCharsets.UTF_8));
 			for (Iterator fileNames = tableList.iterator(); fileNames.hasNext();) {
 				String file = (String) fileNames.next();
 				pw.println(file);
@@ -141,13 +150,17 @@ public class CsvDataSetWriter implements IDataSetConsumer {
     	}
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public void startTable(ITableMetaData metaData) throws DataSetException {
         logger.debug("startTable(metaData={}) - start", metaData);
 
         try {
             _activeMetaData = metaData;
             String tableName = _activeMetaData.getTableName();
-            setWriter(new BufferedWriter(new FileWriter(getTheDirectory() + File.separator + tableName + ".csv")));
+            setWriter(Files.newBufferedWriter(Paths.get(getTheDirectory(), tableName + ".csv"), StandardCharsets.UTF_8));
             writeColumnNames();
             getWriter().write(System.getProperty("line.separator"));
         } catch (IOException e) {

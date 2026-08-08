@@ -22,10 +22,10 @@ package org.dbunit.testutil;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.file.Files;
 
 import org.dbunit.assertion.DefaultFailureHandler;
 import org.dbunit.assertion.JUnitFailureFactory;
@@ -170,7 +170,7 @@ public class FileAsserts
                 new BufferedReader(new InputStreamReader(expected));
 
         BufferedReader actualData = new BufferedReader(
-                new InputStreamReader(new FileInputStream(actual)));
+                new InputStreamReader(Files.newInputStream(actual.toPath())));
         assertEquals(expectedData, actualData);
     }
 
@@ -186,9 +186,9 @@ public class FileAsserts
         ASSERT.assertTrue(actual.canRead());
 
         BufferedReader expectedData = new BufferedReader(
-                new InputStreamReader(new FileInputStream(expected)));
+                new InputStreamReader(Files.newInputStream(expected.toPath())));
         BufferedReader actualData = new BufferedReader(
-                new InputStreamReader(new FileInputStream(actual)));
+                new InputStreamReader(Files.newInputStream(actual.toPath())));
         assertEquals(expectedData, actualData);
     }
 }

@@ -27,13 +27,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 
 import org.dbunit.Assertion;
 import org.dbunit.dataset.AbstractDataSetTest;
@@ -57,7 +56,7 @@ class JsonDataSetTest extends AbstractDataSetTest
     @Override
     protected IDataSet createDataSet() throws Exception
     {
-        try (InputStream in = new FileInputStream(TestUtils.getFile("json/dataSetTest.json")))
+        try (InputStream in = Files.newInputStream(TestUtils.getFile("json/dataSetTest.json").toPath()))
         {
             return new JsonDataSet(in);
         }
@@ -66,8 +65,8 @@ class JsonDataSetTest extends AbstractDataSetTest
     @Override
     protected IDataSet createDuplicateDataSet() throws Exception
     {
-        try (InputStream in =
-                new FileInputStream(TestUtils.getFile("json/jsonDataSetDuplicateTest.json")))
+        try (InputStream in = Files.newInputStream(
+                TestUtils.getFile("json/jsonDataSetDuplicateTest.json").toPath()))
         {
             return new JsonDataSet(in);
         }
@@ -109,16 +108,16 @@ class JsonDataSetTest extends AbstractDataSetTest
     void testWrite_withValidDataSet_writesAndReadsBackEquivalentData() throws Exception
     {
         final IDataSet expectedDataSet = createDataSet();
-        final File tempFile = File.createTempFile("dataSetTest", ".json");
+        final File tempFile = Files.createTempFile("dataSetTest", ".json").toFile();
         try
         {
-            final OutputStream out = new FileOutputStream(tempFile);
+            final OutputStream out = Files.newOutputStream(tempFile.toPath());
             try
             {
                 JsonDataSet.write(expectedDataSet, out);
 
                 final IDataSet actualDataSet;
-                try (InputStream in = new FileInputStream(tempFile))
+                try (InputStream in = Files.newInputStream(tempFile.toPath()))
                 {
                     actualDataSet = new JsonDataSet(in);
                 }

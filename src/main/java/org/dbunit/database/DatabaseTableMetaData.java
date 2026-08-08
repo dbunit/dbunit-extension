@@ -27,7 +27,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 import org.dbunit.dataset.AbstractTableMetaData;
@@ -238,7 +238,7 @@ public class DatabaseTableMetaData extends AbstractTableMetaData
             resultSet.close();
         }
 
-        Collections.sort(list);
+        list.sort(Comparator.naturalOrder());
         String[] keys = new String[list.size()];
         for (int i = 0; i < keys.length; i++)
         {

@@ -3,6 +3,7 @@ package org.dbunit.dataset.excel;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.File;
+import java.nio.file.Paths;
 import java.net.URI;
 import java.net.URL;
 import java.text.DateFormat;
@@ -55,7 +56,7 @@ class XlsTableTimezoneOffsetTest
 
         final URL spreadsheetUrl = getClass().getResource(EXCEL_SPREADSHEET);
         final URI spreadsheetUri = spreadsheetUrl.toURI();
-        final File spreadsheetFile = new File(spreadsheetUri);
+        final File spreadsheetFile = Paths.get(spreadsheetUri).toFile();
         final XlsDataSet xlsDataSet = new XlsDataSet(spreadsheetFile);
 
         table = xlsDataSet.getTable(TABLE_NAME);

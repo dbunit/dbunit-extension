@@ -7,6 +7,7 @@ import static org.mockito.Mockito.when;
 
 import java.io.File;
 import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.sql.Clob;
 import java.sql.SQLException;
 
@@ -52,7 +53,7 @@ class CsvDataSetWriterTest
             throws DataSetException
     {
         final CsvProducer producer = new CsvProducer(source);
-        new File(dest).delete();
+        Paths.get(dest).toFile().delete();
         final CsvDataSetWriter writer = new CsvDataSetWriter(dest);
         producer.setConsumer(writer);
         producer.produce();
@@ -71,8 +72,8 @@ class CsvDataSetWriterTest
         }
         final IDataSet expected = builder.build();
 
-        new File(dest).delete();
-        CsvDataSetWriter.write(expected, new File(dest));
+        Paths.get(dest).toFile().delete();
+        CsvDataSetWriter.write(expected, Paths.get(dest).toFile());
         final IDataSet actual = produceToMemory(dest);
 
         assertThat(actual.getTable("MULTI_ROW").getRowCount())
@@ -96,8 +97,8 @@ class CsvDataSetWriterTest
                 .row(2, unreadableClob)
                 .build();
 
-        new File(dest).mkdirs();
-        final File tableFile = new File(dest, "FLUSH_ON_ERROR.csv");
+        Paths.get(dest).toFile().mkdirs();
+        final File tableFile = Paths.get(dest, "FLUSH_ON_ERROR.csv").toFile();
         tableFile.delete();
 
         final CsvDataSetWriter writer = new CsvDataSetWriter(dest);

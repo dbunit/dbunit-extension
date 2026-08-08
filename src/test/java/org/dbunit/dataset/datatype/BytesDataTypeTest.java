@@ -38,6 +38,7 @@ import java.net.URLConnection;
 import java.net.URLStreamHandler;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -155,7 +156,7 @@ class BytesDataTypeTest extends AbstractDataTypeTest
     @Test
     void testTypeCastFileName_withFilePathValue_returnsFileContentsAsBytes() throws Exception
     {
-        final File file = new File("LICENSE.txt");
+        final File file = Paths.get("LICENSE.txt").toFile();
 
         final Object[] values = {"[file]" + file.toString(), file.toString(),
                 file.getAbsolutePath(), file.toURI().toURL().toString(), file,
@@ -177,7 +178,7 @@ class BytesDataTypeTest extends AbstractDataTypeTest
     @Test
     void testLoadFile_afterLoad_fileIsDeletable() throws Exception
     {
-        final File file = File.createTempFile("BytesDataTypeTest", ".bin");
+        final File file = Files.createTempFile("BytesDataTypeTest", ".bin").toFile();
         file.deleteOnExit();
         Files.write(file.toPath(), new byte[] {1, 2, 3});
 
@@ -270,7 +271,7 @@ class BytesDataTypeTest extends AbstractDataTypeTest
             throws Exception
     {
         final File missingFile =
-                new File("does-not-exist", "dbunit-missing-file.bin");
+                Paths.get("does-not-exist", "dbunit-missing-file.bin").toFile();
         final String value = "[url]" + missingFile.toURI().toURL();
         final BytesDataType dataType = new BytesDataType("BINARY", Types.BINARY);
 
@@ -294,6 +295,31 @@ class BytesDataTypeTest extends AbstractDataTypeTest
         assertThat(actual)
                 .as("The untagged text fallback must encode with UTF-8"
                         + " regardless of the platform default charset.")
+                .isEqualTo(expected);
+    }
+
+    @Test
+    void testTypeCast_untaggedTextWithPathIllegalCharacter_fallsBackToUtf8Bytes()
+            throws Exception
+    {
+        // NUL is illegal in a filesystem path on every OS, so Paths.get()
+        // throws InvalidPathException when BytesDataType tries this value as
+        // a file name; that must not escape typeCast() but instead fall
+        // through to the literal-UTF-8-bytes fallback, same as any other
+        // unusable file name.
+        final String valueWithIllegalPathChar = "not\u0000a-file";
+        final byte[] expected =
+                valueWithIllegalPathChar.getBytes(StandardCharsets.UTF_8);
+        final BytesDataType dataType = new BytesDataType("BINARY", Types.BINARY);
+
+        final Object actual = dataType.typeCast(valueWithIllegalPathChar);
+
+        assertThat(actual)
+                .as("A value that is not valid Base64, not a URL, and not"
+                        + " usable as a file path (because Paths.get()"
+                        + " rejects it) must still fall back to literal"
+                        + " UTF-8 bytes instead of throwing an unchecked"
+                        + " exception.")
                 .isEqualTo(expected);
     }
 
@@ -326,7 +352,7 @@ class BytesDataTypeTest extends AbstractDataTypeTest
     @TurkishDefaultLocale
     void testTypeCast_turkishLocaleFileCommand_recognizedAsFileCommand() throws Exception
     {
-        final File file = File.createTempFile("BytesDataTypeTest", ".bin");
+        final File file = Files.createTempFile("BytesDataTypeTest", ".bin").toFile();
         file.deleteOnExit();
         final byte[] expected =
                 "dbunit turkish locale file command test"

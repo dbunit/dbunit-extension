@@ -23,9 +23,10 @@ package org.dbunit.dataset.csv;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.io.LineNumberReader;
 import java.io.Reader;
 import java.net.URL;
@@ -100,7 +101,8 @@ public class CsvParserImpl implements CsvParser {
     public List parse(File file) throws IOException, CsvParserException {
         logger.debug("parse(file={}) - start", file);
 
-        BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(file)));
+        BufferedReader reader = new BufferedReader(
+                new InputStreamReader(Files.newInputStream(file.toPath()), StandardCharsets.UTF_8));
         try {
             return parse(reader, file.getAbsolutePath().toString());
         }
@@ -112,7 +114,8 @@ public class CsvParserImpl implements CsvParser {
     public List parse(URL url) throws IOException, CsvParserException {
         logger.debug("parse(url={}) - start", url);
 
-        BufferedReader reader = new BufferedReader(new InputStreamReader(url.openStream()));
+        BufferedReader reader = new BufferedReader(
+                new InputStreamReader(url.openStream(), StandardCharsets.UTF_8));
         try {
             return parse(reader, url.toString());
         }

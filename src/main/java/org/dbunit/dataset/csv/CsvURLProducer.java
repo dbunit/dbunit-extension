@@ -92,9 +92,10 @@ public class CsvURLProducer implements IDataSetProducer {
 		_consumer = consumer;
 	}
 
-	/*
-	 * @see IDataSetProducer#produce()
+	/**
+	 * {@inheritDoc}
 	 */
+	@Override
 	public void produce() throws DataSetException {
         logger.debug("produce() - start");
 
@@ -104,7 +105,7 @@ public class CsvURLProducer implements IDataSetProducer {
         	for (Iterator tableIter = tableSpecs.iterator(); tableIter.hasNext();) {
 				String table = (String) tableIter.next();
 	            try {
-	                produceFromURL(new URL(base, table + ".csv"));
+	                produceFromURL(CsvProducer.resolveRelative(base, table + ".csv"));
 	            } catch (CsvParserException e) {
 	                throw new DataSetException("error producing dataset for table '" + table + "'", e);
 	            }

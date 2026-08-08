@@ -22,9 +22,13 @@
 package org.dbunit.testutil;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.Reader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 import org.dbunit.DatabaseEnvironment;
 
@@ -47,7 +51,8 @@ public class TestUtils
 
     public static File getFile(String fileName)
     {
-        return new File(getFileName(fileName));
+        final Path path = Paths.get(getFileName(fileName));
+        return path.toFile();
     }
 
     public static File getFileForDatabaseEnvironment(String originalFileName)
@@ -55,26 +60,28 @@ public class TestUtils
     {
         String profilePath =
                 originalFileName.replace(".", "-" + getProfileName() + ".");
-        File profileFile = new File(profilePath);
+        File profileFile = Paths.get(profilePath).toFile();
         if (profileFile.exists())
         {
             return profileFile;
         } else
         {
-            return new File(originalFileName);
+            final Path path = Paths.get(originalFileName);
+            return path.toFile();
         }
     }
 
-    public static FileReader getFileReader(String fileName)
-            throws FileNotFoundException
+    public static Reader getFileReader(String fileName) throws IOException
     {
-        return new FileReader(getFileName(fileName));
+        final Path path = Paths.get(getFileName(fileName));
+        return Files.newBufferedReader(path, StandardCharsets.UTF_8);
     }
 
-    public static FileInputStream getFileInputStream(String fileName)
-            throws FileNotFoundException
+    public static InputStream getFileInputStream(String fileName)
+            throws IOException
     {
-        return new FileInputStream(getFileName(fileName));
+        final Path path = Paths.get(getFileName(fileName));
+        return Files.newInputStream(path);
     }
 
 }

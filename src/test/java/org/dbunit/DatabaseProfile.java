@@ -110,10 +110,13 @@ public class DatabaseProfile
         }
 
         List<String> stringList = new ArrayList<String>();
-        StringTokenizer tokenizer = new StringTokenizer(property, ",");
-        while (tokenizer.hasMoreTokens())
+        for (final String token : property.split(","))
         {
-            stringList.add(tokenizer.nextToken().trim());
+            final String trimmed = token.trim();
+            if (!trimmed.isEmpty())
+            {
+                stringList.add(trimmed);
+            }
         }
         return stringList.toArray(new String[stringList.size()]);
     }

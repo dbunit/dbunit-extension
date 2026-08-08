@@ -24,6 +24,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 
 import org.dbunit.Assertion;
 import org.dbunit.dataset.DataSetException;
@@ -69,7 +70,7 @@ class CsvDataSetTest
             CsvDataSetWriter.write(expectedDataSet, tempDir);
 
             final File tableOrderingFile =
-                    new File(tempDir, CsvDataSet.TABLE_ORDERING_FILE);
+                    tempDir.toPath().resolve(CsvDataSet.TABLE_ORDERING_FILE).toFile();
             assertThat(tableOrderingFile).exists();
 
             final IDataSet actualDataSet = new CsvDataSet(tempDir);
@@ -106,17 +107,7 @@ class CsvDataSetTest
 
     private File createTmpDir() throws IOException
     {
-        final File tmpFile = File.createTempFile("CsvDataSetTest", "-csv");
-        final String fullPath = tmpFile.getAbsolutePath();
-        tmpFile.delete();
-
-        final File tmpDir = new File(fullPath);
-        if (!tmpDir.mkdir())
-        {
-            throw new IOException("Failed to create tmpDir: " + fullPath);
-        }
-
-        return tmpDir;
+        return Files.createTempDirectory("CsvDataSetTest").toFile();
     }
 
 }
