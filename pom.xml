@@ -436,11 +436,6 @@
       </dependency>
       <dependency>
         <groupId>org.junit.platform</groupId>
-        <artifactId>junit-platform-suite-engine</artifactId>
-        <version>${junitVersion}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.junit.platform</groupId>
         <artifactId>junit-platform-testkit</artifactId>
         <version>${junitVersion}</version>
       </dependency>
@@ -493,10 +488,6 @@
   </dependencyManagement>
 
   <dependencies>
-    <!-- TODO: check which dependencies could mark as optional. For instance, ant is optional because it's only necessary for the dbunit Ant tasks. -->
-
-    <!-- TODO: add exclusion for dependencies that include xerces/xalan -->
-
     <!-- LOGGING -->
     <!-- NOTE: must list slf4j first to override other logger frameworks -->
     <dependency>
@@ -521,10 +512,6 @@
     </dependency>
     <dependency>
       <groupId>org.junit.platform</groupId>
-      <artifactId>junit-platform-suite-engine</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.junit.platform</groupId>
       <artifactId>junit-platform-testkit</artifactId>
       <scope>test</scope>
     </dependency>
@@ -532,8 +519,8 @@
       <groupId>org.assertj</groupId>
       <artifactId>assertj-core</artifactId>
       <scope>test</scope>
-      <optional>true</optional>
     </dependency>
+    <!-- Optional: only needed to use the dbUnit Ant tasks (org.dbunit.ant). -->
     <dependency>
       <groupId>org.apache.ant</groupId>
       <artifactId>ant</artifactId>
@@ -544,6 +531,9 @@
       <artifactId>ant-junitlauncher</artifactId>
       <scope>test</scope>
     </dependency>
+    <!-- Optional: only needed to use XlsDataSet (Excel dataset support); poi-ooxml
+         below adds .xlsx support on top of it. Both pull in a sizable dependency
+         tree that non-Excel consumers should not have to carry. -->
     <dependency>
       <groupId>org.apache.poi</groupId>
       <artifactId>poi</artifactId>
@@ -575,33 +565,49 @@
       <artifactId>mockito-junit-jupiter</artifactId>
       <scope>test</scope>
     </dependency>
+    <!-- Optional: only needed to use JsonDataSet. -->
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-databind</artifactId>
       <optional>true</optional>
     </dependency>
+    <!-- Optional: only needed to use YamlDataSet. -->
     <dependency>
       <groupId>org.yaml</groupId>
       <artifactId>snakeyaml</artifactId>
+      <optional>true</optional>
     </dependency>
 
     <!-- databases -->
-    <!-- compile scope needed for ext package classes -->
+    <!-- test scope: H2 and HSQLDB are dbUnit's own in-memory unit-test databases;
+         no ext.h2/ext.hsqldb class references its driver at compile time. -->
     <dependency>
       <groupId>com.h2database</groupId>
       <artifactId>h2</artifactId>
+      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.hsqldb</groupId>
       <artifactId>hsqldb</artifactId>
+      <scope>test</scope>
     </dependency>
+    <!-- Optional: PostgreSQLOidDataType (ext.postgresql) needs the driver at compile
+         time, but only consumers connecting to PostgreSQL need it at runtime, and
+         they already require the driver themselves to open a connection at all. -->
     <dependency>
       <groupId>org.postgresql</groupId>
       <artifactId>postgresql</artifactId>
+      <scope>provided</scope>
+      <optional>true</optional>
     </dependency>
+    <!-- Optional: the ext.oracle spatial (SDO) and XMLTYPE classes need the driver
+         at compile time, but only consumers connecting to Oracle need it at runtime,
+         and they already require a driver themselves to open a connection at all. -->
     <dependency>
       <groupId>com.oracle.database.jdbc</groupId>
       <artifactId>ojdbc8</artifactId>
+      <scope>provided</scope>
+      <optional>true</optional>
     </dependency>
 
     <!-- code audits -->
