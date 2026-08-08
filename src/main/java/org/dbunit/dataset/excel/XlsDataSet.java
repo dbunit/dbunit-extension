@@ -22,10 +22,10 @@ package org.dbunit.dataset.excel;
 
 import java.io.BufferedInputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.Files;
 
 import org.apache.poi.EncryptedDocumentException;
 import org.apache.poi.ss.usermodel.Workbook;
@@ -71,7 +71,7 @@ public class XlsDataSet extends AbstractDataSet
     {
         _tables = super.createTableNameMap();
 
-        try (InputStream in = new BufferedInputStream(new FileInputStream(file)))
+        try (InputStream in = new BufferedInputStream(Files.newInputStream(file.toPath())))
         {
             Workbook workbook = createWorkbook(in);
             loadSheets(workbook);

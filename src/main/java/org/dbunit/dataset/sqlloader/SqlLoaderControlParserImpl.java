@@ -21,18 +21,18 @@
 package org.dbunit.dataset.sqlloader;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.LineNumberReader;
 import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.text.CharacterIterator;
 import java.text.StringCharacterIterator;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.StringTokenizer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -147,7 +147,7 @@ public class SqlLoaderControlParserImpl implements SqlLoaderControlParser {
      */
     public List parse(URL url) throws IOException, SqlLoaderControlParserException {
         logger.debug("parse(url={}) - start", url);
-        return parse(new File(url.toString()));
+        return parse(Paths.get(url.toString()).toFile());
     }
 
     /**
@@ -166,9 +166,7 @@ public class SqlLoaderControlParserImpl implements SqlLoaderControlParser {
     {
         logger.debug("parse(controlFile={}) - start", controlFile);
 
-        FileInputStream fis = new FileInputStream(controlFile);
-
-        FileChannel fc = fis.getChannel();
+        FileChannel fc = FileChannel.open(controlFile.toPath());
 
         MappedByteBuffer mbf = fc.map(FileChannel.MapMode.READ_ONLY, 0, fc.size());
         byte[] barray = new byte[(int) (fc.size())];
@@ -200,7 +198,7 @@ public class SqlLoaderControlParserImpl implements SqlLoaderControlParser {
             List columnList = parseColumns(lines, rows);
 
             LineNumberReader lineNumberReader =
-                new LineNumberReader(new InputStreamReader(new FileInputStream(dataFile)));
+                new LineNumberReader(new InputStreamReader(Files.newInputStream(dataFile.toPath())));
             try {
                 parseTheData(columnList, lineNumberReader, rows);
             }
@@ -218,8 +216,8 @@ public class SqlLoaderControlParserImpl implements SqlLoaderControlParser {
 
     private File resolveFile(File parentDir, String fileName) {
     	// Initially assume that we have an absolute fileName
-    	File dataFile = new File(fileName);
-    	
+    	File dataFile = Paths.get(fileName).toFile();
+
     	// If fileName was not absolute build it using the given parent
     	if(!dataFile.isAbsolute()) {
     		fileName = fileName.replaceAll("\\\\", "/");
@@ -231,7 +229,7 @@ public class SqlLoaderControlParserImpl implements SqlLoaderControlParser {
     		if(fileName.startsWith(".")){
     			fileName = fileName.substring(1);
     		}
-    		dataFile = new File(parentDir, fileName);
+    		dataFile = parentDir.toPath().resolve(fileName).toFile();
     	}
     	return dataFile;
 	}
@@ -299,12 +297,11 @@ public class SqlLoaderControlParserImpl implements SqlLoaderControlParser {
             columnFragment = columnFragment.replaceAll("\".*?\"", "");
             columnFragment = columnFragment.replaceAll("\n", "");
 
-            StringTokenizer tok = new StringTokenizer(columnFragment, ",");
-
-            while (tok.hasMoreElements()) {
-
-                String col = (String) tok.nextElement();
-                col = parseForRegexp(col, ".*^([a-zA-Z0-9_]*)\\s").trim(); //column is the first part.
+            for (final String rawCol : columnFragment.split(",")) {
+                if (rawCol.isEmpty()) {
+                    continue;
+                }
+                final String col = parseForRegexp(rawCol, ".*^([a-zA-Z0-9_]*)\\s").trim(); //column is the first part.
                 columnList.add(col);
             }
 

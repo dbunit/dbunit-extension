@@ -25,8 +25,9 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.mockito.Mockito.when;
 
 import java.io.File;
-import java.io.FileInputStream;
+import java.io.InputStream;
 import java.lang.reflect.Field;
+import java.nio.file.Files;
 
 import org.dbunit.Assertion;
 import org.dbunit.database.DatabaseConfig;
@@ -58,14 +59,14 @@ class ExportTest
     {
         stubConnection();
 
-        final File dest = new File(tempDir, "csv-out");
+        final File dest = tempDir.toPath().resolve("csv-out").toFile();
         final Export export = new Export();
         export.setFormat("CSV");
         export.setDest(dest);
 
         export.execute(connection);
 
-        assertThat(new File(dest, "TEST_TABLE.csv"))
+        assertThat(dest.toPath().resolve("TEST_TABLE.csv").toFile())
                 .as("CSV export must create a per-table file inside the"
                         + " destination directory even when the format"
                         + " attribute is given in upper case.")
@@ -78,7 +79,7 @@ class ExportTest
     {
         stubConnection();
 
-        final File dest = new File(tempDir, "json-out.json");
+        final File dest = tempDir.toPath().resolve("json-out.json").toFile();
         final Export export = new Export();
         export.setFormat("json");
         export.setDest(dest);
@@ -89,7 +90,7 @@ class ExportTest
                 .as("JSON export must create the destination file.")
                 .exists();
         final IDataSet actualDataSet;
-        try (FileInputStream in = new FileInputStream(dest))
+        try (InputStream in = Files.newInputStream(dest.toPath()))
         {
             actualDataSet = new JsonDataSet(in);
         }
@@ -100,7 +101,7 @@ class ExportTest
     void testExecute_withUnsupportedFormat_throwsWithoutCreatingDestinationFile(
             @TempDir final File tempDir) throws Exception
     {
-        final File dest = new File(tempDir, "unsupported-out");
+        final File dest = tempDir.toPath().resolve("unsupported-out").toFile();
         final Export export = new Export();
         export.setDest(dest);
         setFormatField(export, "bogus");

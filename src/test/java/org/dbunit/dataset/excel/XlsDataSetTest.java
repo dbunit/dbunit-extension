@@ -23,8 +23,6 @@ package org.dbunit.dataset.excel;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
@@ -81,10 +79,10 @@ class XlsDataSetTest extends AbstractDataSetTest
     void testWrite_withValidDataSet_writesAndReadsBackEquivalentData() throws Exception
     {
         final IDataSet expectedDataSet = createDataSet();
-        final File tempFile = File.createTempFile("xlsDataSetTest", ".xls");
+        final File tempFile = Files.createTempFile("xlsDataSetTest", ".xls").toFile();
         try
         {
-            final OutputStream out = new FileOutputStream(tempFile);
+            final OutputStream out = Files.newOutputStream(tempFile.toPath());
 
             // write dataset in temp file
             try
@@ -96,7 +94,7 @@ class XlsDataSetTest extends AbstractDataSetTest
             }
 
             // load new dataset from temp file
-            final InputStream in = new FileInputStream(tempFile);
+            final InputStream in = Files.newInputStream(tempFile.toPath());
             try
             {
                 final IDataSet actualDataSet = new XlsDataSet(in);
@@ -143,7 +141,7 @@ class XlsDataSetTest extends AbstractDataSetTest
         // pass even with the leak still present -- it would not be a meaningful regression guard
         // there.
         final File sourceFile = TestUtils.getFile("xml/dataSetTest.xls");
-        final File tempCopy = File.createTempFile("xlsDataSetTest", ".xls");
+        final File tempCopy = Files.createTempFile("xlsDataSetTest", ".xls").toFile();
         try
         {
             Files.copy(sourceFile.toPath(), tempCopy.toPath(),

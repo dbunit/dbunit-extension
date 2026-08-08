@@ -23,8 +23,9 @@ package org.dbunit.dataset.xml;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.io.FileReader;
 import java.io.Reader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 
 import org.dbunit.dataset.AbstractTableTest;
 import org.dbunit.dataset.Column;
@@ -50,7 +51,7 @@ public class XmlTableTest extends AbstractTableTest
     protected IDataSet createDataSet() throws Exception
     {
         final Reader in =
-                new FileReader(TestUtils.getFile("xml/xmlTableTest.xml"));
+                Files.newBufferedReader(TestUtils.getFile("xml/xmlTableTest.xml").toPath(), StandardCharsets.UTF_8);
         return new XmlDataSet(in);
     }
 

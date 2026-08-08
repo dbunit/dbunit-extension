@@ -27,7 +27,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.StringTokenizer;
+import java.util.regex.Pattern;
 
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.parsers.SAXParser;
@@ -326,10 +326,11 @@ public class FlatDtdProducer implements IDataSetProducer, EntityResolver, DeclHa
                     // Parse the root element model to determine the table sequence.
                     // Support all sequence or choices model but not the mix of both.
                     final String delim = (rootModel.indexOf(",") != -1) ? "," : "|";
-                    final StringTokenizer tokenizer = new StringTokenizer(rootModel, delim);
-                    while (tokenizer.hasMoreTokens()) {
-                        String tableName = tokenizer.nextToken();
-                        tableName = cleanupTableName(tableName);
+                    for (final String rawTableName : rootModel.split(Pattern.quote(delim))) {
+                        if (rawTableName.isEmpty()) {
+                            continue;
+                        }
+                        final String tableName = cleanupTableName(rawTableName);
                         addTable(tableName);
                     }
                 }

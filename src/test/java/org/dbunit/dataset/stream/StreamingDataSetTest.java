@@ -22,7 +22,8 @@ package org.dbunit.dataset.stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.io.FileReader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 
 import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.ForwardOnlyDataSetTest;
@@ -45,7 +46,7 @@ class StreamingDataSetTest extends ForwardOnlyDataSetTest
     protected IDataSet createDataSet() throws Exception
     {
         final IDataSetProducer source = new FlatXmlProducer(new InputSource(
-                new FileReader(FlatXmlDataSetTest.DATASET_FILE)));
+                Files.newBufferedReader(FlatXmlDataSetTest.DATASET_FILE.toPath(), StandardCharsets.UTF_8)));
         return new StreamingDataSet(source);
     }
 

@@ -26,7 +26,10 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -90,7 +93,7 @@ public class CsvProducer implements IDataSetProducer {
     public void produce() throws DataSetException {
         logger.debug("produce() - start");
 
-        File dir = new File(_theDirectory);
+        File dir = Paths.get(_theDirectory).toFile();
 
         if (!dir.isDirectory()) {
             throw new DataSetException("'" + _theDirectory + "' should be a directory");
@@ -102,7 +105,7 @@ public class CsvProducer implements IDataSetProducer {
         	for (Iterator tableIter = tableSpecs.iterator(); tableIter.hasNext();) {
 				String table = (String) tableIter.next();
 	            try {
-	                produceFromFile(new File(dir, table + ".csv"));
+	                produceFromFile(dir.toPath().resolve(table + ".csv").toFile());
 	            } catch (CsvParserException e) {
 	                throw new DataSetException("error producing dataset for table '" + table + "'", e);
 	            } catch (DataSetException e) {
@@ -169,7 +172,7 @@ public class CsvProducer implements IDataSetProducer {
         logger.debug("getTables(base={}, tableList={}) - start", base, tableList);
 
 		List orderedNames = new ArrayList();
-		InputStream tableListStream = new URL(base, tableList).openStream();
+		InputStream tableListStream = resolveRelative(base, tableList).openStream();
 		BufferedReader reader = null;
 		try {
     		reader = new BufferedReader(new InputStreamReader(tableListStream));
@@ -188,6 +191,37 @@ public class CsvProducer implements IDataSetProducer {
 		    }
 		}
 		return orderedNames;
+	}
+
+	/**
+	 * Resolves a relative spec against a base URL without the deprecated
+	 * {@code URL(URL, String)} constructor.
+	 *
+	 * <p>{@link URI#resolve(String)} handles this correctly for a hierarchical
+	 * base (e.g. a plain {@code file:}/{@code http:} URL, whether it names a
+	 * directory or a sibling file), but for an opaque base such as a
+	 * {@code jar:...!/} URL it silently ignores the base and returns the spec
+	 * as-is. For an opaque base, the spec is instead appended directly to the
+	 * scheme-specific part, matching how the {@code jar:} protocol handler
+	 * itself combines a root jar URL with an entry path.
+	 *
+	 * @param base the base URL.
+	 * @param spec the relative spec to resolve against it.
+	 * @return the resolved URL.
+	 * @throws IOException if the base or the resolved URL is malformed.
+	 */
+	static URL resolveRelative(final URL base, final String spec) throws IOException {
+		try {
+			final URI baseUri = base.toURI();
+			final URI resolved = baseUri.isOpaque()
+					? new URI(baseUri.getScheme(),
+							baseUri.getSchemeSpecificPart() + spec,
+							baseUri.getFragment())
+					: baseUri.resolve(spec);
+			return resolved.toURL();
+		} catch (final URISyntaxException e) {
+			throw new IOException(e);
+		}
 	}
 
 }

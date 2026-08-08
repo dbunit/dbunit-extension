@@ -23,8 +23,9 @@ package org.dbunit.operation;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.fail;
 
-import java.io.FileReader;
 import java.io.Reader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 
 import org.dbunit.AbstractDatabaseIT;
 import org.dbunit.Assertion;
@@ -262,8 +263,8 @@ class UpdateOperationIT extends AbstractDatabaseIT
     @Test
     void testExecute_withXmlDataSet_updatesMatchingRow() throws Exception
     {
-        final Reader in = new FileReader(
-                TestUtils.getFile("xml/updateOperationTest.xml"));
+        final Reader in = Files.newBufferedReader(
+                TestUtils.getFile("xml/updateOperationTest.xml").toPath(), StandardCharsets.UTF_8);
         final IDataSet dataSet = new XmlDataSet(in);
 
         testExecute(dataSet);
@@ -273,8 +274,8 @@ class UpdateOperationIT extends AbstractDatabaseIT
     @Test
     void testExecute_withLowerCaseDataSet_updatesMatchingRow() throws Exception
     {
-        final Reader in = new FileReader(
-                TestUtils.getFile("xml/updateOperationTest.xml"));
+        final Reader in = Files.newBufferedReader(
+                TestUtils.getFile("xml/updateOperationTest.xml").toPath(), StandardCharsets.UTF_8);
         final IDataSet dataSet = new XmlDataSet(in);
 
         testExecute(new LowerCaseDataSet(dataSet));
@@ -283,8 +284,8 @@ class UpdateOperationIT extends AbstractDatabaseIT
     @Test
     void testExecute_withForwardOnlyDataSet_updatesMatchingRow() throws Exception
     {
-        final Reader in = new FileReader(
-                TestUtils.getFile("xml/updateOperationTest.xml"));
+        final Reader in = Files.newBufferedReader(
+                TestUtils.getFile("xml/updateOperationTest.xml").toPath(), StandardCharsets.UTF_8);
         final IDataSet dataSet = new XmlDataSet(in);
 
         testExecute(new ForwardOnlyDataSet(dataSet));
@@ -321,8 +322,8 @@ class UpdateOperationIT extends AbstractDatabaseIT
     void testExecute_batchedStatements_allRowsUpdated() throws Exception
     {
         final String tableName = "PK_TABLE";
-        final Reader in =
-                new FileReader(TestUtils.getFile("xml/updateOperationTest.xml"));
+        final Reader in = Files.newBufferedReader(
+                TestUtils.getFile("xml/updateOperationTest.xml").toPath(), StandardCharsets.UTF_8);
         final IDataSet dataSet = new XmlDataSet(in);
 
         _connection.getConfig().setFeature(DatabaseConfig.FEATURE_BATCHED_STATEMENTS, true);

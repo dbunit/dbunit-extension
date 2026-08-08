@@ -29,9 +29,6 @@ import org.dbunit.dataset.datatype.DataType;
 import org.dbunit.dataset.datatype.TypeCastException;
 
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.StringTokenizer;
 
 /**
  * Decorator that adapts a plain {@link IBatchStatement} to the {@link IPreparedBatchStatement}
@@ -57,19 +54,7 @@ public class BatchStatementDecorator implements IPreparedBatchStatement
 
     BatchStatementDecorator(String sql, IBatchStatement statement)
     {
-        List list = new ArrayList();
-        StringTokenizer tokenizer = new StringTokenizer(sql, "?");
-        while (tokenizer.hasMoreTokens())
-        {
-            list.add(tokenizer.nextToken());
-        }
-
-        if (sql.endsWith("?"))
-        {
-            list.add("");
-        }
-
-        _sqlTemplate = (String[])list.toArray(new String[0]);
+        _sqlTemplate = sql.split("\\?", -1);
         _statement = statement;
 
         // reset sql buffer
