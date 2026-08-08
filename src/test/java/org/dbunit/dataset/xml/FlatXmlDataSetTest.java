@@ -26,11 +26,12 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
+import java.io.Reader;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.io.Writer;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 
 import org.dbunit.Assertion;
 import org.dbunit.dataset.AbstractDataSetTest;
@@ -138,10 +139,10 @@ public class FlatXmlDataSetTest extends AbstractDataSetTest
     void testWrite_withValidDataSet_writesAndReadsBackEquivalentData() throws Exception
     {
         final IDataSet expectedDataSet = createDataSet();
-        final File tempFile = File.createTempFile("flatXmlDataSetTest", ".xml");
+        final File tempFile = Files.createTempFile("flatXmlDataSetTest", ".xml").toFile();
         try
         {
-            final Writer out = new FileWriter(tempFile);
+            final Writer out = Files.newBufferedWriter(tempFile.toPath(), StandardCharsets.UTF_8);
 
             // write dataset in temp file
             try
@@ -153,7 +154,7 @@ public class FlatXmlDataSetTest extends AbstractDataSetTest
             }
 
             // load new dataset from temp file
-            final FileReader in = new FileReader(tempFile);
+            final Reader in = Files.newBufferedReader(tempFile.toPath(), StandardCharsets.UTF_8);
             try
             {
                 final IDataSet actualDataSet =

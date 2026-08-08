@@ -23,7 +23,6 @@ package org.dbunit.dataset;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.StringTokenizer;
 
 import org.dbunit.Assertion;
 import org.dbunit.dataset.datatype.DataType;
@@ -187,22 +186,7 @@ public class DataSetUtils
             }
 
             // escaping single quotes
-            final StringBuilder buffer = new StringBuilder(stringValue.length() * 2);
-            StringTokenizer tokenizer = new StringTokenizer(stringValue, "'", true);
-
-            buffer.append("'");
-            while (tokenizer.hasMoreTokens())
-            {
-                String token = tokenizer.nextToken();
-                buffer.append(token);
-                if (token.equals("'"))
-                {
-                    buffer.append("'");
-                }
-            }
-            buffer.append("'");
-            return buffer.toString();
-
+            return "'" + stringValue.replace("'", "''") + "'";
         }
 
         return stringValue;

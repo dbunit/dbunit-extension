@@ -27,8 +27,9 @@ import static org.mockito.Mockito.atMost;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 
-import java.io.FileReader;
 import java.io.Reader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.sql.Connection;
 import java.sql.SQLException;
 
@@ -73,8 +74,8 @@ class TransactionOperationIT extends AbstractDatabaseIT
     void testExecute_withSuccessfulOperation_commitsAndRestoresAutoCommit() throws Exception
     {
         final String tableName = "TEST_TABLE";
-        final Reader in = new FileReader(
-                TestUtils.getFile("xml/transactionOperationTest.xml"));
+        final Reader in = Files.newBufferedReader(
+                TestUtils.getFile("xml/transactionOperationTest.xml").toPath(), StandardCharsets.UTF_8);
         final IDataSet xmlDataSet = new XmlDataSet(in);
         final Connection jdbcConnection = _connection.getConnection();
 
@@ -102,8 +103,8 @@ class TransactionOperationIT extends AbstractDatabaseIT
     void testExecute_withExistingTransaction_throwsExclusiveTransactionException() throws Exception
     {
         final String tableName = "TEST_TABLE";
-        final Reader in = new FileReader(
-                TestUtils.getFile("xml/transactionOperationTest.xml"));
+        final Reader in = Files.newBufferedReader(
+                TestUtils.getFile("xml/transactionOperationTest.xml").toPath(), StandardCharsets.UTF_8);
         final IDataSet xmlDataSet = new XmlDataSet(in);
         final Connection jdbcConnection = _connection.getConnection();
 
@@ -135,8 +136,8 @@ class TransactionOperationIT extends AbstractDatabaseIT
     void testExecute_withFailingOperation_rollsBackAndRestoresAutoCommit() throws Exception
     {
         final String tableName = "TEST_TABLE";
-        final Reader in = new FileReader(
-                TestUtils.getFile("xml/transactionOperationTest.xml"));
+        final Reader in = Files.newBufferedReader(
+                TestUtils.getFile("xml/transactionOperationTest.xml").toPath(), StandardCharsets.UTF_8);
         final IDataSet xmlDataSet = new XmlDataSet(in);
         final Exception[] exceptions = new Exception[] {new SQLException(),
                 new DatabaseUnitException(), new RuntimeException(),};

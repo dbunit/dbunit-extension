@@ -22,9 +22,9 @@
 package org.dbunit.dataset.json;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -86,7 +86,7 @@ public class JsonProducer implements IDataSetProducer
      */
     public JsonProducer(final File file) throws IOException
     {
-        this(new FileInputStream(file), true);
+        this(Files.newInputStream(file.toPath()), true);
     }
 
     /**

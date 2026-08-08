@@ -20,7 +20,8 @@
  */
 package org.dbunit.util;
 
-import java.io.FileInputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -152,7 +153,9 @@ public class Base64
 
         try
         {
-            FileInputStream fis = new FileInputStream("c:\\abcd.txt");
+            // Fully qualified: this class declares its own InputStream below,
+            // which would shadow an import of java.io.InputStream.
+            java.io.InputStream fis = Files.newInputStream(Paths.get("c:\\abcd.txt"));
             InputStream b64is = new InputStream(fis, DECODE);
             int ib = 0;
             while ((ib = b64is.read()) > 0)

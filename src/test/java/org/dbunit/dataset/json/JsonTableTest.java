@@ -23,8 +23,8 @@ package org.dbunit.dataset.json;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.io.FileInputStream;
 import java.io.InputStream;
+import java.nio.file.Files;
 
 import org.dbunit.dataset.AbstractTableTest;
 import org.dbunit.dataset.Column;
@@ -48,9 +48,10 @@ public class JsonTableTest extends AbstractTableTest
 
     protected IDataSet createDataSet() throws Exception
     {
-        final InputStream in =
-                new FileInputStream(TestUtils.getFile("json/jsonTableTest.json"));
-        return new JsonDataSet(in);
+        try (InputStream in = Files.newInputStream(TestUtils.getFile("json/jsonTableTest.json").toPath()))
+        {
+            return new JsonDataSet(in);
+        }
     }
 
     @Override

@@ -23,7 +23,9 @@ package org.dbunit.dataset;
 
 import static org.junit.jupiter.api.Assertions.fail;
 
-import java.io.FileOutputStream;
+import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 
 import org.dbunit.AbstractDatabaseIT;
 import org.dbunit.DdlExecutor;
@@ -107,10 +109,9 @@ class CompositeDataSetIterationIT extends AbstractDatabaseIT
                 new CompositeDataSet(queryDataSet, plainDataSet);
 
         // 4. Write
-        try
+        try (OutputStream out = Files.newOutputStream(Paths.get("target/full.xml")))
         {
-            FlatXmlDataSet.write(compositeDataSet,
-                    new FileOutputStream("target/full.xml"));
+            FlatXmlDataSet.write(compositeDataSet, out);
         }
         catch (final Exception e)
         {

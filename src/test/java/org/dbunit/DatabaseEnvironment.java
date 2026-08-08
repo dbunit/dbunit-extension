@@ -22,9 +22,11 @@
 package org.dbunit;
 
 import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.Reader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.util.Properties;
@@ -184,7 +186,10 @@ public class DatabaseEnvironment
 
         _profile = profile;
         final File file = TestUtils.getFile("xml/dataSetTest.xml");
-        _dataSet = new XmlDataSet(new FileReader(file));
+        try (Reader reader = Files.newBufferedReader(file.toPath(), StandardCharsets.UTF_8))
+        {
+            _dataSet = new XmlDataSet(reader);
+        }
         _databaseTester = new JdbcDatabaseTester(_profile.getDriverClass(),
                 _profile.getConnectionUrl(), _profile.getUser(),
                 _profile.getPassword(), _profile.getSchema());

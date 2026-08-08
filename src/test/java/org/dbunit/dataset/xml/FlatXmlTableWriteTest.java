@@ -22,9 +22,10 @@
 package org.dbunit.dataset.xml;
 
 import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
+import java.io.Reader;
 import java.io.Writer;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 
 import org.dbunit.Assertion;
 import org.dbunit.dataset.CompositeTable;
@@ -46,8 +47,8 @@ class FlatXmlTableWriteTest extends FlatXmlTableTest
     protected IDataSet createDataSet() throws Exception
     {
         final File tempFile =
-                File.createTempFile("flatXmlTableWriteTest", ".xml");
-        final Writer out = new FileWriter(tempFile);
+                Files.createTempFile("flatXmlTableWriteTest", ".xml").toFile();
+        final Writer out = Files.newBufferedWriter(tempFile.toPath(), StandardCharsets.UTF_8);
         try
         {
             // write DefaultTable in temp file
@@ -60,7 +61,7 @@ class FlatXmlTableWriteTest extends FlatXmlTableTest
             }
 
             // load new dataset from temp file
-            final FileReader in = new FileReader(tempFile);
+            final Reader in = Files.newBufferedReader(tempFile.toPath(), StandardCharsets.UTF_8);
             try
             {
                 return new FlatXmlDataSetBuilder().build(in);
@@ -90,8 +91,8 @@ class FlatXmlTableWriteTest extends FlatXmlTableTest
 
         final IDataSet dataSet = new DefaultDataSet(tables);
         final File tempFile =
-                File.createTempFile("flatXmlTableWriteTest", "xml");
-        final Writer out = new FileWriter(tempFile);
+                Files.createTempFile("flatXmlTableWriteTest", ".xml").toFile();
+        final Writer out = Files.newBufferedWriter(tempFile.toPath(), StandardCharsets.UTF_8);
         try
         {
             // write DefaultTable in temp file
@@ -104,7 +105,7 @@ class FlatXmlTableWriteTest extends FlatXmlTableTest
             }
 
             // load new dataset from temp file
-            final FileReader in = new FileReader(tempFile);
+            final Reader in = Files.newBufferedReader(tempFile.toPath(), StandardCharsets.UTF_8);
             try
             {
                 final FlatXmlDataSet xmlDataSet2 =

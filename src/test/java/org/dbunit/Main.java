@@ -21,15 +21,15 @@
 
 package org.dbunit;
 
-import java.io.FileOutputStream;
-import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Reader;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.sql.Connection;
 
 import org.dbunit.database.DatabaseConfig;
@@ -121,10 +121,13 @@ public class Main
         mockProducer.setupTableCount(10);
         final IDataSet dataSet = new StreamingDataSet(mockProducer);
 
-        final OutputStream out = new FileOutputStream("flatXmlWriterTest.xml");
-        final FlatXmlWriter writer = new FlatXmlWriter(
-                new OutputStreamWriter(out, StandardCharsets.UTF_8));
-        writer.write(dataSet);
+        final Path path = Paths.get("flatXmlWriterTest.xml");
+        try (OutputStream out = Files.newOutputStream(path))
+        {
+            final FlatXmlWriter writer = new FlatXmlWriter(
+                    new OutputStreamWriter(out, StandardCharsets.UTF_8));
+            writer.write(dataSet);
+        }
     }
 
     private static void testXmlWriter() throws Exception
@@ -135,10 +138,13 @@ public class Main
         mockProducer.setupTableCount(10);
         final IDataSet dataSet = new StreamingDataSet(mockProducer);
 
-        final OutputStream out = new FileOutputStream("xmlWriterTest.xml");
-        final XmlDataSetWriter writer = new XmlDataSetWriter(
-                new OutputStreamWriter(out, StandardCharsets.UTF_8));
-        writer.write(dataSet);
+        final Path path = Paths.get("xmlWriterTest.xml");
+        try (OutputStream out = Files.newOutputStream(path))
+        {
+            final XmlDataSetWriter writer = new XmlDataSetWriter(
+                    new OutputStreamWriter(out, StandardCharsets.UTF_8));
+            writer.write(dataSet);
+        }
     }
 
     // private static void testWrite() throws Exception
@@ -184,11 +190,12 @@ public class Main
         // new FileOutputStream("test.dtd"));
         //
         //
-        final Writer out = new FileWriter("test.xml");
-        // FlatXmlDataSet.write(connection.createDataSet(), out, "ISO-8859-1");
-        FlatXmlDataSet.write(connection.createDataSet(), out);
-        // out.flush();
-        // out.close();
+        final Path path = Paths.get("test.xml");
+        try (Writer out = Files.newBufferedWriter(path, StandardCharsets.UTF_8))
+        {
+            // FlatXmlDataSet.write(connection.createDataSet(), out, "ISO-8859-1");
+            FlatXmlDataSet.write(connection.createDataSet(), out);
+        }
 
         // ////////////////////////////////
         // Document document = new
@@ -214,12 +221,13 @@ public class Main
 
     private static void writeXls() throws IOException, DataSetException
     {
-        final Reader in =
-                new FileReader("P:/dbunit-cvs/dbunit/src/xml/dataSetTest.xml");
-        final FileOutputStream out =
-                new FileOutputStream("P:/dbunit-cvs/dbunit/dataSetTest.xls");
-        XlsDataSet.write(new XmlDataSet(in), out);
-        out.close();
+        final Path inPath = Paths.get("P:/dbunit-cvs/dbunit/src/xml/dataSetTest.xml");
+        final Path outPath = Paths.get("P:/dbunit-cvs/dbunit/dataSetTest.xls");
+        try (Reader in = Files.newBufferedReader(inPath, StandardCharsets.UTF_8);
+                OutputStream out = Files.newOutputStream(outPath))
+        {
+            XlsDataSet.write(new XmlDataSet(in), out);
+        }
     }
 
     /*

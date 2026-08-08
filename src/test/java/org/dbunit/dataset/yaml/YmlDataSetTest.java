@@ -25,10 +25,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.Files;
 
 import org.dbunit.Assertion;
 import org.dbunit.dataset.AbstractDataSetTest;
@@ -51,15 +50,15 @@ class YmlDataSetTest extends AbstractDataSetTest
     protected IDataSet createDataSet() throws Exception
     {
         final InputStream in =
-                new FileInputStream(TestUtils.getFile("yaml/dataSetTest.yml"));
+                Files.newInputStream(TestUtils.getFile("yaml/dataSetTest.yml").toPath());
         return new YamlDataSet(in);
     }
 
     @Override
     protected IDataSet createDuplicateDataSet() throws Exception
     {
-        final InputStream in = new FileInputStream(
-                TestUtils.getFile("yaml/yamlDataSetDuplicateTest.yml"));
+        final InputStream in = Files.newInputStream(
+                TestUtils.getFile("yaml/yamlDataSetDuplicateTest.yml").toPath());
         return new YamlDataSet(in);
     }
 
@@ -98,10 +97,10 @@ class YmlDataSetTest extends AbstractDataSetTest
     void testWrite_withValidDataSet_writesAndReadsBackEquivalentData() throws Exception
     {
         final IDataSet expectedDataSet = createDataSet();
-        final File tempFile = File.createTempFile("dataSetTest", ".yml");
+        final File tempFile = Files.createTempFile("dataSetTest", ".yml").toFile();
         try
         {
-            final OutputStream out = new FileOutputStream(tempFile);
+            final OutputStream out = Files.newOutputStream(tempFile.toPath());
 
             try
             {
@@ -110,7 +109,7 @@ class YmlDataSetTest extends AbstractDataSetTest
 
                 // load new dataset from temp file
                 final IDataSet actualDataSet =
-                        new YamlDataSet(new FileInputStream(tempFile));
+                        new YamlDataSet(Files.newInputStream(tempFile.toPath()));
 
                 // verify table count
                 assertThat(actualDataSet.getTableNames()).as("table count")

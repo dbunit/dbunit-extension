@@ -27,6 +27,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -37,28 +38,32 @@ class FileHelperTest
     void testCopyFile_withRegularFiles_copiesContent(
             @TempDir final File tempDir) throws IOException
     {
-        final File srcFile = new File(tempDir, "source.txt");
-        Files.write(srcFile.toPath(),
-                "content".getBytes(StandardCharsets.UTF_8));
-        final File destFile = new File(tempDir, "destination.txt");
+        final Path srcPath = tempDir.toPath().resolve("source.txt");
+        final byte[] content = "content".getBytes(StandardCharsets.UTF_8);
+        Files.write(srcPath, content);
+        final File srcFile = srcPath.toFile();
+        final Path destPath = tempDir.toPath().resolve("destination.txt");
+        final File destFile = destPath.toFile();
 
         FileHelper.copyFile(srcFile, destFile);
 
         assertThat(destFile)
                 .as("The destination file should contain the source file's bytes.")
-                .hasBinaryContent("content".getBytes(StandardCharsets.UTF_8));
+                .hasBinaryContent(content);
     }
 
     @Test
     void testCopyFile_destinationUnwritable_sourceNotLocked(
             @TempDir final File tempDir) throws IOException
     {
-        final File srcFile = new File(tempDir, "source.txt");
-        Files.write(srcFile.toPath(),
-                "content".getBytes(StandardCharsets.UTF_8));
+        final Path srcPath = tempDir.toPath().resolve("source.txt");
+        final byte[] content = "content".getBytes(StandardCharsets.UTF_8);
+        Files.write(srcPath, content);
+        final File srcFile = srcPath.toFile();
         // A directory is a portable way to make the destination unopenable
         // for writing.
-        final File destDir = new File(tempDir, "destination-is-a-directory");
+        final Path destDirPath = tempDir.toPath().resolve("destination-is-a-directory");
+        final File destDir = destDirPath.toFile();
         assertThat(destDir.mkdir())
                 .as("Setup: the destination directory must be created.")
                 .isTrue();
