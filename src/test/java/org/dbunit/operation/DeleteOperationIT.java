@@ -24,8 +24,9 @@ package org.dbunit.operation;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import java.io.FileReader;
 import java.io.Reader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 
 import org.dbunit.AbstractDatabaseIT;
 import org.dbunit.database.DatabaseConfig;
@@ -60,8 +61,8 @@ public class DeleteOperationIT extends AbstractDatabaseIT
     @Test
     void testExecute_withXmlDataSet_deletesMatchingRowsByPrimaryKey() throws Exception
     {
-        final Reader in = new FileReader(
-                TestUtils.getFile("xml/deleteOperationTest.xml"));
+        final Reader in = Files.newBufferedReader(
+                TestUtils.getFile("xml/deleteOperationTest.xml").toPath(), StandardCharsets.UTF_8);
         final IDataSet dataSet = new XmlDataSet(in);
 
         testExecute(dataSet);
@@ -71,8 +72,8 @@ public class DeleteOperationIT extends AbstractDatabaseIT
     @Test
     void testExecute_withLowerCaseDataSet_deletesMatchingRows() throws Exception
     {
-        final Reader in = new FileReader(
-                TestUtils.getFile("xml/deleteOperationTest.xml"));
+        final Reader in = Files.newBufferedReader(
+                TestUtils.getFile("xml/deleteOperationTest.xml").toPath(), StandardCharsets.UTF_8);
         final IDataSet dataSet = new XmlDataSet(in);
 
         testExecute(new LowerCaseDataSet(dataSet));
@@ -81,8 +82,8 @@ public class DeleteOperationIT extends AbstractDatabaseIT
     @Test
     void testExecute_withBatchedStatements_deletesMatchingRowsByPrimaryKey() throws Exception
     {
-        final Reader in = new FileReader(
-                TestUtils.getFile("xml/deleteOperationTest.xml"));
+        final Reader in = Files.newBufferedReader(
+                TestUtils.getFile("xml/deleteOperationTest.xml").toPath(), StandardCharsets.UTF_8);
         final IDataSet dataSet = new XmlDataSet(in);
 
         _connection.getConfig()

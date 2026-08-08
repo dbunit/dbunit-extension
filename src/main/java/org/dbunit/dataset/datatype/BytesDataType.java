@@ -23,11 +23,13 @@ package org.dbunit.dataset.datatype;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -117,8 +119,8 @@ public class BytesDataType extends AbstractDataType
     public byte[] loadFile(final String filename) throws IOException
     {
         // Not an URL, try as file name
-        final File file = new File(filename);
-        return toByteArray(new FileInputStream(file), (int) file.length());
+        final File file = Paths.get(filename).toFile();
+        return toByteArray(Files.newInputStream(file.toPath()), (int) file.length());
     }
 
     /**
@@ -131,7 +133,18 @@ public class BytesDataType extends AbstractDataType
     public byte[] loadURL(final String urlAsString) throws IOException
     {
         // Not an URL, try as file name
-        final URL url = new URL(urlAsString);
+        final URL url;
+        try
+        {
+            url = new URI(urlAsString).toURL();
+        }
+        catch (final URISyntaxException | IllegalArgumentException e)
+        {
+            final MalformedURLException wrapped =
+                    new MalformedURLException(e.getMessage());
+            wrapped.initCause(e);
+            throw wrapped;
+        }
         return toByteArray(url.openStream(), 0);
     }
 
@@ -284,7 +297,7 @@ public class BytesDataType extends AbstractDataType
                     {
                         // Not an URL, try as file name
                         return loadFile(stringValue);
-                    } catch (final FileNotFoundException e2)
+                    } catch (final IOException e2)
                     {
                         logger.debug(
                                 "Assuming given string to be Base64 and not a URI or File");
@@ -344,7 +357,7 @@ public class BytesDataType extends AbstractDataType
             try
             {
                 final File file = (File) value;
-                return toByteArray(new FileInputStream(file),
+                return toByteArray(Files.newInputStream(file.toPath()),
                         (int) file.length());
             } catch (final IOException e)
             {

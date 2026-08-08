@@ -23,10 +23,9 @@ package org.dbunit.dataset.excel;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.Files;
 
 import org.dbunit.Assertion;
 import org.dbunit.dataset.CompositeTable;
@@ -48,9 +47,9 @@ public class XlsTableWriteTest extends XlsTableTest
     @Override
     protected IDataSet createDataSet() throws Exception
     {
-        final File tempFile = File.createTempFile("tableWriteTest", ".xls");
+        final File tempFile = Files.createTempFile("tableWriteTest", ".xls").toFile();
         // System.out.println(tempFile.getAbsoluteFile());
-        final OutputStream out = new FileOutputStream(tempFile);
+        final OutputStream out = Files.newOutputStream(tempFile.toPath());
         try
         {
             // write source dataset in temp file
@@ -63,7 +62,7 @@ public class XlsTableWriteTest extends XlsTableTest
             }
 
             // load new dataset from temp file
-            final InputStream in = new FileInputStream(tempFile);
+            final InputStream in = Files.newInputStream(tempFile.toPath());
             try
             {
                 return new XlsDataSet(in);
@@ -99,8 +98,8 @@ public class XlsTableWriteTest extends XlsTableTest
         }
 
         final IDataSet dataSet = new DefaultDataSet(tables);
-        final File tempFile = File.createTempFile("tableWriteTest", ".xls");
-        final OutputStream out = new FileOutputStream(tempFile);
+        final File tempFile = Files.createTempFile("tableWriteTest", ".xls").toFile();
+        final OutputStream out = Files.newOutputStream(tempFile.toPath());
         try
         {
             // write DefaultTable in temp file
@@ -113,7 +112,7 @@ public class XlsTableWriteTest extends XlsTableTest
             }
 
             // load new dataset from temp file
-            final FileInputStream in = new FileInputStream(tempFile);
+            final InputStream in = Files.newInputStream(tempFile.toPath());
             try
             {
                 final XlsDataSet dataSet2 = new XlsDataSet(in);

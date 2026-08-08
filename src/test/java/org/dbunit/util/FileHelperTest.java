@@ -37,10 +37,10 @@ class FileHelperTest
     void testCopyFile_withRegularFiles_copiesContent(
             @TempDir final File tempDir) throws IOException
     {
-        final File srcFile = new File(tempDir, "source.txt");
+        final File srcFile = tempDir.toPath().resolve("source.txt").toFile();
         Files.write(srcFile.toPath(),
                 "content".getBytes(StandardCharsets.UTF_8));
-        final File destFile = new File(tempDir, "destination.txt");
+        final File destFile = tempDir.toPath().resolve("destination.txt").toFile();
 
         FileHelper.copyFile(srcFile, destFile);
 
@@ -53,12 +53,12 @@ class FileHelperTest
     void testCopyFile_destinationUnwritable_sourceNotLocked(
             @TempDir final File tempDir) throws IOException
     {
-        final File srcFile = new File(tempDir, "source.txt");
+        final File srcFile = tempDir.toPath().resolve("source.txt").toFile();
         Files.write(srcFile.toPath(),
                 "content".getBytes(StandardCharsets.UTF_8));
         // A directory is a portable way to make the destination unopenable
         // for writing.
-        final File destDir = new File(tempDir, "destination-is-a-directory");
+        final File destDir = tempDir.toPath().resolve("destination-is-a-directory").toFile();
         assertThat(destDir.mkdir())
                 .as("Setup: the destination directory must be created.")
                 .isTrue();

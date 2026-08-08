@@ -22,9 +22,10 @@
 package org.dbunit.dataset.xml;
 
 import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
+import java.io.Reader;
 import java.io.Writer;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 
 import org.dbunit.Assertion;
 import org.dbunit.dataset.CompositeTable;
@@ -47,8 +48,8 @@ class XmlTableWriteTest extends XmlTableTest
     protected IDataSet createDataSet() throws Exception
     {
         final File tempFile =
-                File.createTempFile("xmlDataSetWriteTest", ".xml");
-        final Writer out = new FileWriter(tempFile);
+                Files.createTempFile("xmlDataSetWriteTest", ".xml").toFile();
+        final Writer out = Files.newBufferedWriter(tempFile.toPath(), StandardCharsets.UTF_8);
         try
         {
             // write DefaultTable in temp file
@@ -61,7 +62,7 @@ class XmlTableWriteTest extends XmlTableTest
             }
 
             // load new dataset from temp file
-            final FileReader in = new FileReader(tempFile);
+            final Reader in = Files.newBufferedReader(tempFile.toPath(), StandardCharsets.UTF_8);
             try
             {
                 return new XmlDataSet(in);
@@ -91,8 +92,8 @@ class XmlTableWriteTest extends XmlTableTest
         }
 
         final IDataSet dataSet = new DefaultDataSet(tables);
-        final File tempFile = File.createTempFile("xmlDataSetWriteTest", "xml");
-        final Writer out = new FileWriter(tempFile);
+        final File tempFile = Files.createTempFile("xmlDataSetWriteTest", "xml").toFile();
+        final Writer out = Files.newBufferedWriter(tempFile.toPath(), StandardCharsets.UTF_8);
         try
         {
             // write DefaultTable in temp file
@@ -105,7 +106,7 @@ class XmlTableWriteTest extends XmlTableTest
             }
 
             // load new dataset from temp file
-            final FileReader in = new FileReader(tempFile);
+            final Reader in = Files.newBufferedReader(tempFile.toPath(), StandardCharsets.UTF_8);
             try
             {
                 final XmlDataSet xmlDataSet2 = new XmlDataSet(in);

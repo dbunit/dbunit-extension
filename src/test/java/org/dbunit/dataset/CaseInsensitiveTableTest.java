@@ -23,8 +23,9 @@ package org.dbunit.dataset;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.io.FileReader;
 import java.io.Reader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 
 import org.dbunit.dataset.xml.XmlDataSet;
 import org.dbunit.dataset.xml.XmlTableTest;
@@ -48,8 +49,8 @@ class CaseInsensitiveTableTest extends XmlTableTest
     @Override
     protected IDataSet createDataSet() throws Exception
     {
-        final Reader in = new FileReader(
-                TestUtils.getFile("xml/caseInsensitiveTableTest.xml"));
+        final Reader in = Files.newBufferedReader(
+                TestUtils.getFile("xml/caseInsensitiveTableTest.xml").toPath(), StandardCharsets.UTF_8);
         return new XmlDataSet(in);
     }
 

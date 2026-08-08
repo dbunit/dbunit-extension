@@ -21,14 +21,14 @@
 
 package org.dbunit;
 
-import java.io.FileOutputStream;
-import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Reader;
 import java.io.Writer;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 
@@ -121,7 +121,7 @@ public class Main
         mockProducer.setupTableCount(10);
         final IDataSet dataSet = new StreamingDataSet(mockProducer);
 
-        final OutputStream out = new FileOutputStream("flatXmlWriterTest.xml");
+        final OutputStream out = Files.newOutputStream(Paths.get("flatXmlWriterTest.xml"));
         final FlatXmlWriter writer = new FlatXmlWriter(
                 new OutputStreamWriter(out, StandardCharsets.UTF_8));
         writer.write(dataSet);
@@ -135,7 +135,7 @@ public class Main
         mockProducer.setupTableCount(10);
         final IDataSet dataSet = new StreamingDataSet(mockProducer);
 
-        final OutputStream out = new FileOutputStream("xmlWriterTest.xml");
+        final OutputStream out = Files.newOutputStream(Paths.get("xmlWriterTest.xml"));
         final XmlDataSetWriter writer = new XmlDataSetWriter(
                 new OutputStreamWriter(out, StandardCharsets.UTF_8));
         writer.write(dataSet);
@@ -184,7 +184,7 @@ public class Main
         // new FileOutputStream("test.dtd"));
         //
         //
-        final Writer out = new FileWriter("test.xml");
+        final Writer out = Files.newBufferedWriter(Paths.get("test.xml"), StandardCharsets.UTF_8);
         // FlatXmlDataSet.write(connection.createDataSet(), out, "ISO-8859-1");
         FlatXmlDataSet.write(connection.createDataSet(), out);
         // out.flush();
@@ -215,9 +215,9 @@ public class Main
     private static void writeXls() throws IOException, DataSetException
     {
         final Reader in =
-                new FileReader("P:/dbunit-cvs/dbunit/src/xml/dataSetTest.xml");
-        final FileOutputStream out =
-                new FileOutputStream("P:/dbunit-cvs/dbunit/dataSetTest.xls");
+                Files.newBufferedReader(Paths.get("P:/dbunit-cvs/dbunit/src/xml/dataSetTest.xml"), StandardCharsets.UTF_8);
+        final OutputStream out =
+                Files.newOutputStream(Paths.get("P:/dbunit-cvs/dbunit/dataSetTest.xls"));
         XlsDataSet.write(new XmlDataSet(in), out);
         out.close();
     }
