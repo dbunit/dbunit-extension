@@ -43,7 +43,7 @@ public class DateTimeOffsetType extends AbstractDataType
     /** JDBC SQL type code for Microsoft SQL Server's DATETIMEOFFSET type. */
     public static final int TYPE = -155;
 
-    /** @see https://docs.microsoft.com/en-us/sql/t-sql/data-types/datetimeoffset-transact-sql?view=sql-server-2017 */
+    /** @see <a href="https://docs.microsoft.com/en-us/sql/t-sql/data-types/datetimeoffset-transact-sql?view=sql-server-2017">datetimeoffset-transact-sql</a> */
     private static final DateTimeFormatter SQL_SERVER_FORMAT =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss[.n] xxx");
 
