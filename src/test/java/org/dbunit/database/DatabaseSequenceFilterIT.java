@@ -34,6 +34,7 @@ import org.dbunit.dataset.FilteredDataSet;
 import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.filter.ITableFilter;
 import org.dbunit.dataset.filter.IncludeTableFilter;
+import org.dbunit.ext.h2.H2Connection;
 import org.dbunit.testutil.TestUtils;
 import org.junit.jupiter.api.Test;
 
@@ -274,8 +275,7 @@ class DatabaseSequenceFilterIT extends AbstractDatabaseIT
         DdlExecutor.executeDdlFile(
                 TestUtils.getFile("sql/h2_multischema_fk_test.sql"),
                 jdbcConnection);
-        final IDatabaseConnection connection =
-                new DatabaseConnection(jdbcConnection);
+        final IDatabaseConnection connection = new H2Connection(jdbcConnection, null);
         connection.getConfig().setProperty(
                 DatabaseConfig.FEATURE_QUALIFIED_TABLE_NAMES, Boolean.TRUE);
 

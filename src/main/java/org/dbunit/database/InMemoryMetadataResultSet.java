@@ -28,6 +28,7 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -45,13 +46,32 @@ import org.dbunit.util.SQLHelper;
  * {@link ResultSet}'s ~150 methods would serve no caller. Any other method throws
  * {@link UnsupportedOperationException}.
  * <p>
- * A single instance answers both {@link ResultSet} calls and, since {@link #getMetaData()}
+ * A single instance answers both {@link ResultSet} calls and, since {@code getMetaData()}
  * returns the proxy itself, the {@link ResultSetMetaData} calls made against its result.
  *
  * @since 3.4.1
  */
 public final class InMemoryMetadataResultSet implements InvocationHandler
 {
+    /**
+     * Tests whether a source result set's current row, as positioned by a preceding
+     * {@link ResultSet#next()}, should be kept.
+     *
+     * @since 3.4.1
+     */
+    @FunctionalInterface
+    public interface RowFilter
+    {
+        /**
+         * Tests the row the given result set is currently positioned on.
+         *
+         * @param resultSet The source result set, positioned on the row to test.
+         * @return {@code true} if the row should be kept.
+         * @throws SQLException if a database access error occurs.
+         */
+        boolean accept(ResultSet resultSet) throws SQLException;
+    }
+
     private final List<Object[]> rows;
     private final int columnCount;
     private final Map<String, Integer> columnIndexByLabel;
@@ -75,6 +95,27 @@ public final class InMemoryMetadataResultSet implements InvocationHandler
      */
     public static ResultSet merge(final List<ResultSet> sources) throws SQLException
     {
+        return copy(sources, null);
+    }
+
+    /**
+     * Copies the rows of the given result set that match the given filter, closing it as it is
+     * consumed, and returns a filtered {@link ResultSet} positioned before the first row.
+     *
+     * @param source The result set to filter.
+     * @param filter The filter a row must match to be kept.
+     * @return The filtered result set.
+     * @throws SQLException if the source result set cannot be read.
+     */
+    public static ResultSet filter(final ResultSet source, final RowFilter filter)
+            throws SQLException
+    {
+        return copy(Collections.singletonList(source), filter);
+    }
+
+    private static ResultSet copy(final List<ResultSet> sources, final RowFilter filter)
+            throws SQLException
+    {
         final List<Object[]> rows = new ArrayList<Object[]>();
         final Map<String, Integer> columnIndexByLabel = new HashMap<String, Integer>();
         int columnCount = 0;
@@ -96,6 +137,10 @@ public final class InMemoryMetadataResultSet implements InvocationHandler
                 }
                 while (source.next())
                 {
+                    if (filter != null && !filter.accept(source))
+                    {
+                        continue;
+                    }
                     final Object[] row = new Object[columnCount];
                     for (int i = 1; i <= columnCount; i++)
                     {
@@ -117,19 +162,41 @@ public final class InMemoryMetadataResultSet implements InvocationHandler
     }
 
     /**
-     * Closes every result set in the given list, null- and already-closed-safe.
+     * Closes every result set in the given list, null- and already-closed-safe. Closing one
+     * result set is attempted even if closing an earlier one in the list failed, so a single
+     * failure does not leak the rest.
      *
      * @param resultSets The result sets to close.
-     * @throws SQLException if closing one of them fails.
+     * @throws SQLException the first failure encountered while closing, if any.
      */
     private static void closeAll(final List<ResultSet> resultSets) throws SQLException
     {
+        SQLException firstFailure = null;
         for (final ResultSet resultSet : resultSets)
         {
-            SQLHelper.close(resultSet);
+            try
+            {
+                SQLHelper.close(resultSet);
+            }
+            catch (final SQLException e)
+            {
+                if (firstFailure == null)
+                {
+                    firstFailure = e;
+                }
+            }
+        }
+        if (firstFailure != null)
+        {
+            throw firstFailure;
         }
     }
 
+    /**
+     * {@inheritDoc}
+     * Answers exactly the methods documented on this class; any other method throws
+     * {@link UnsupportedOperationException}.
+     */
     @Override
     public Object invoke(final Object proxy, final Method method, final Object[] args)
     {
