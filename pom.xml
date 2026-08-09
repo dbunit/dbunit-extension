@@ -65,8 +65,8 @@
     <derbyDriverVersion>10.14.2.0</derbyDriverVersion>
     <h2DriverVersion>2.4.240</h2DriverVersion>
     <hsqldbDriverVersion>2.7.4</hsqldbDriverVersion>
-    <mariadbDriverVersion>3.5.3</mariadbDriverVersion>
-    <mysqlDriverVersion>8.0.31</mysqlDriverVersion>
+    <mariadbDriverVersion>3.5.10</mariadbDriverVersion>
+    <mysqlDriverVersion>8.0.33</mysqlDriverVersion>
     <!-- Oracle JDBC Driver compatible with JDK6, JDK7, and JDK8 -->
     <oracleJ6DriverVersion>11.2.0.4</oracleJ6DriverVersion>
     <!-- Oracle JDBC Driver compatible with JDK8 -->
@@ -76,10 +76,10 @@
     <!-- Oracle JDBC Driver compatible with JDK8, JDK9, and JDK11 -->
     <oracleJ8v19DriverVersion>19.3.0.0</oracleJ8v19DriverVersion>
     <!-- Oracle JDBC Driver compatible with JDK10 and JDK11 -->
-    <oracleJ10v19DriverVersion>19.3.0.0</oracleJ10v19DriverVersion>
-    <oracleXdbVersion>23.26.2.0.0</oracleXdbVersion>
-    <postgresqlDriverVersion>42.7.3</postgresqlDriverVersion>
-    <postgisDriverVersion>2023.1.0</postgisDriverVersion>
+    <oracleJ10v19DriverVersion>19.32.0.0</oracleJ10v19DriverVersion>
+    <oracleXdbVersion>23.26.3.0.0</oracleXdbVersion>
+    <postgresqlDriverVersion>42.7.13</postgresqlDriverVersion>
+    <postgisDriverVersion>2025.1.1</postgisDriverVersion>
     <sqlServer41DriverVersion>7.2.1.jre8</sqlServer41DriverVersion>
 
     <!-- Maven plugin versions -->
