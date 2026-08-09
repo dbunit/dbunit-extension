@@ -46,6 +46,18 @@ plus pre-configured variances (e.g.
 link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparers.html#isActualWithinOneMinuteNewerOfExpectedTimestamp[isActualWithinOneMinuteNewerOfExpectedTimestamp]).
 Start with these as they provide for most comparison needs.
 
+Some implementations are deliberately left off
+link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparers.html[ValueComparers]
+because it eagerly instantiates every instance it declares, and doing so there would force
+an optional dependency onto every user of that class instead of only those who need it;
+construct these directly instead. For example,
+link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/IsActualEqualToExpectedJsonValueComparer.html[IsActualEqualToExpectedJsonValueComparer]
+compares JSON/JSONB column values (e.g. MySQL `JSON`, PostgreSQL `json`/`jsonb`, H2 `JSON`)
+by their parsed document structure instead of raw text - ignoring object member order and
+insignificant whitespace, both of which a database may rewrite when it stores a JSON value -
+and needs the optional `jackson-databind` dependency also used by
+link:/dbunit/apidocs/org/dbunit/dataset/json/JsonDataSet.html[JsonDataSet].
+
 It is easy to add your own implementations of the
 link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html[ValueComparer]
 interface,
