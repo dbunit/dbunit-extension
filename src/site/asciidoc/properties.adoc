@@ -154,9 +154,11 @@ To create your own data type factory, see the generic base implementation at lin
 |Used to configure the handler used to control database metadata related methods. The Object must implement link:apidocs/org/dbunit/database/IMetadataHandler.html[org.dbunit.database.IMetadataHandler].
 |The following RDBMS specific handlers are currently available: +
 link:apidocs/org/dbunit/ext/db2/Db2MetadataHandler.html[org.dbunit.ext.db2.Db2MetadataHandler] +
+link:apidocs/org/dbunit/ext/h2/H2MetadataHandler.html[org.dbunit.ext.h2.H2MetadataHandler] +
 link:apidocs/org/dbunit/ext/mysql/MySqlMetadataHandler.html[org.dbunit.ext.mysql.MySqlMetadataHandler] +
+link:apidocs/org/dbunit/ext/mysql/MultiSchemaMySqlMetadataHandler.html[org.dbunit.ext.mysql.MultiSchemaMySqlMetadataHandler] +
 link:apidocs/org/dbunit/ext/netezza/NetezzaMetadataHandler.html[org.dbunit.ext.netezza.NetezzaMetadataHandler] +
-For all others the default handler should do the job: link:apidocs/org/dbunit/database/DefaultMetadataHandler.html[org.dbunit.database.DefaultMetadataHandler].
+For all others the default handler should do the job: link:apidocs/org/dbunit/database/DefaultMetadataHandler.html[org.dbunit.database.DefaultMetadataHandler]. See link:components/imetadatahandler.html[IMetadataHandler] for the full reference.
 
 |anchor:allowverifytabledefinitionexpectedtablecountmismatch[]http://www.dbunit.org/properties/allowVerifytabledefinitionExpectedtableCountMismatch
 |false

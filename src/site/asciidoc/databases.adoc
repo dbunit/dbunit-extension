@@ -11,7 +11,7 @@ registration mechanism.
 |Database |What's special here
 
 |link:databases/db2.html[DB2] |A metadata handler fixing a catalog/schema column-matching bug.
-|link:databases/h2.html[H2] |`BOOLEAN`/`UUID` type recognition.
+|link:databases/h2.html[H2] |`BOOLEAN`/`UUID` type recognition; a metadata handler excluding H2 2.x's `INFORMATION_SCHEMA` system tables.
 |link:databases/hsqldb.html[HSQLDB] |`BOOLEAN` type recognition.
 |link:databases/mariadb.html[MariaDB] |A factory (extending MySQL's) for `UUID`/`INET4`/`INET6` types.
 |link:databases/mckoi.html[Mckoi] |SQL type name recognition for this niche/legacy database.

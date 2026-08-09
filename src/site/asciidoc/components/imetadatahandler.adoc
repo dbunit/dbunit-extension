@@ -1,0 +1,134 @@
+= IMetadataHandler
+
+[#overview]
+== Overview
+
+link:/dbunit/apidocs/org/dbunit/database/IMetadataHandler.html[IMetadataHandler]
+(`org.dbunit.database`, since 2.4.4) controls how a connection queries
+`java.sql.DatabaseMetaData` for table, column, and primary-key metadata. dbUnit's
+own table-discovery logic (`DatabaseDataSet`) never calls `DatabaseMetaData`
+directly — it always goes through the configured handler, which is what lets a
+handler correct a vendor driver's metadata quirks without touching core code.
+Register one via
+link:../properties.html#metadatahandler[`DatabaseConfig.PROPERTY_METADATA_HANDLER`];
+unset, `DefaultMetadataHandler` applies.
+
+[#methods]
+== Interface Shape
+
+Every method takes the real `DatabaseMetaData` (or a `ResultSet` it already produced)
+plus the schema/table/column dbUnit is searching for, and returns either a `ResultSet`
+to iterate or a `boolean`/`String` answer. Full signatures are in the
+link:/dbunit/apidocs/org/dbunit/database/IMetadataHandler.html[JavaDoc]; grouped by
+purpose:
+
+[cols="1,3", options="header"]
+|===
+|Group |Methods
+
+|Metadata lookups |`getTables()`, `getColumns()`, `getPrimaryKeys()`, `tableExists()` —
+run the actual `DatabaseMetaData` query. This is the seam a handler overrides to change
+*which* rows come back — see `H2MetadataHandler`/`MultiSchemaMySqlMetadataHandler` below.
+|Row interpretation |`getSchema(ResultSet)` extracts the schema name from a
+`getTables()` row — some vendors (MySQL) report it in the catalog column instead.
+|Matching |`matches(...)` (two overloads) compares a `getColumns()` row against a
+searched catalog/schema/table/column. This is the seam a handler overrides to fix
+catalog/schema mismatches — see MySQL's `NoSuchColumnException` fix in
+link:../databases/mysql.html[MySQL]. `matchesColumn(...)` (since 3.2.1) is a value-based
+counterpart so a caller that already extracted and cached a row's values can replay the
+same comparison without re-querying or holding a `ResultSet` open;
+`supportsColumnCache()` opts a handler into that fast path — return `true` only if
+`matchesColumn(...)` fully replicates the handler's `matches(...)` override.
+|===
+
+[#implementations]
+== Built-in Implementations
+
+[cols="1,3", options="header"]
+|===
+|Handler |Use it when
+
+|`DefaultMetadataHandler` |No vendor-specific quirk to correct for — applied
+automatically when `PROPERTY_METADATA_HANDLER` is left unset.
+|link:../databases/db2.html[`Db2MetadataHandler`] |DB2, fixing a catalog/schema
+column-matching bug.
+|link:../databases/mysql.html[`MySqlMetadataHandler`] |MySQL/MariaDB, fixing
+catalog/schema comparison so qualified-table-name lookups don't spuriously miss.
+|link:../databases/mysql.html[`MultiSchemaMySqlMetadataHandler`] |A MySQL connection
+(e.g. as `root`) that must see tables across every catalog it can access, not just its
+current one.
+|link:../databases/netezza.html[`NetezzaMetadataHandler`] |Netezza, which reports schema
+information via the catalog column.
+|link:../databases/h2.html[`H2MetadataHandler`] |H2 2.x, excluding `INFORMATION_SCHEMA`
+from unscoped table listings — see below.
+|===
+
+[#inmemorymetadataresultset]
+== InMemoryMetadataResultSet
+
+A `java.sql.ResultSet` is a forward-only cursor over one query — rows can't be filtered
+out of it, or several combined, after the fact. That's a problem for a handler that
+needs to correct *which* rows come back, not just how they're compared:
+
+* MySQL Connector/J's `nullCatalogMeansCurrent` default treats a `null` catalog as "the
+connection's current catalog only" instead of "every catalog," per the JDBC spec.
+Correcting that means issuing one real `getTables()` call *per* catalog and combining
+the results.
+* H2 2.x's `INFORMATION_SCHEMA` now reports its own internal tables with the same JDBC
+`TABLE_TYPE` as real user tables (see link:../databases/h2.html[H2]). Correcting that
+means running the real `getTables()` call once and dropping the rows that don't belong.
+
+link:/dbunit/apidocs/org/dbunit/database/InMemoryMetadataResultSet.html[InMemoryMetadataResultSet]
+(`org.dbunit.database`, since 3.4.1) is the shared building block behind both: it copies
+the rows a handler wants to keep into memory ahead of time, then hands back a
+`java.lang.reflect.Proxy`-based `ResultSet` that answers just the handful of methods
+dbUnit itself calls against a metadata result — `next()`, `getString(int/String)`,
+`getInt(int/String)`, `getMetaData()`/`getColumnCount()`, `close()` — throwing
+`UnsupportedOperationException` on anything else, deliberately, rather than silently
+returning a wrong answer to a method it was never taught.
+
+[cols="1,3", options="header"]
+|===
+|Factory |Use it to
+
+|`merge(List<ResultSet> sources)` |Concatenate rows from several real result sets into
+one, in order. `MultiSchemaMySqlMetadataHandler` uses this to union one `getTables()`
+call per visible catalog.
+|`filter(ResultSet source, RowFilter filter)` |Copy only the rows of one real result set
+that pass a predicate. `H2MetadataHandler` uses this to drop `INFORMATION_SCHEMA` rows:
++
+[source,java]
+----
+@Override
+public ResultSet getTables(DatabaseMetaData metaData, String schemaName,
+        String[] tableType) throws SQLException
+{
+    ResultSet resultSet = super.getTables(metaData, schemaName, tableType);
+    return InMemoryMetadataResultSet.filter(resultSet,
+            row -> !"INFORMATION_SCHEMA".equalsIgnoreCase(getSchema(row)));
+}
+----
+|===
+
+Both factories close every source result set they read, so a handler using them does not
+need its own `finally`/close handling.
+
+[#custom]
+== Writing a Custom Handler
+
+Reach for a custom `IMetadataHandler` when a vendor's JDBC driver misreports metadata in
+a way that makes real tables/columns invisible or wrongly matched — not for filtering
+*data* you don't want in a dataset (that's link:../filters.html[Filters]) or mapping SQL
+types (that's link:../datatypes.html[Data Types]).
+
+Extend `DefaultMetadataHandler` and override only the method(s) whose default behavior
+is wrong for the driver in question, then register the instance:
+
+[source,java]
+----
+config.setProperty(DatabaseConfig.PROPERTY_METADATA_HANDLER, new MyVendorMetadataHandler());
+----
+
+If the fix needs to change *which rows* a real query returns — dropping some, or
+combining several real queries into one — use `InMemoryMetadataResultSet` as shown
+above rather than hand-rolling a `ResultSet` implementation.

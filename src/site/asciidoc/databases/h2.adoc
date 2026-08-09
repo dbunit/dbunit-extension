@@ -15,12 +15,22 @@ link:../connections.html[Connections & Configuration].
 
 == IMetadataHandler
 
-Not overridden — the default handler applies.
+link:/dbunit/apidocs/org/dbunit/ext/h2/H2MetadataHandler.html[H2MetadataHandler]
+excludes the `INFORMATION_SCHEMA` schema from `getTables()` results. H2 2.x rewrote
+`INFORMATION_SCHEMA` to be SQL-standard-compliant, and most of its internal tables now
+report the same JDBC `TABLE_TYPE` (`BASE TABLE`) as real user tables instead of the
+`SYSTEM TABLE` type H2 1.x used, so dbUnit's default table-type filter
+(link:../properties.html#tabletype[`PROPERTY_TABLE_TYPE`], `{"TABLE"}`) no longer screens
+them out on its own. Without this handler, a connection queried without a fixed single
+schema (an admin user, or link:../properties.html#qualifiedtablenames[qualified table
+names] with no schema configured) gets 15 bogus system tables mixed into its table
+listing. See link:../components/imetadatahandler.html[IMetadataHandler] for how the fix
+works and why it's implemented this way rather than centrally in `DatabaseDataSet`.
 
 == Connection Preconfiguration Class
 
 link:/dbunit/apidocs/org/dbunit/ext/h2/H2Connection.html[H2Connection] wraps
-a JDBC `Connection` and pre-registers `H2DataTypeFactory`:
+a JDBC `Connection` and pre-registers both `H2DataTypeFactory` and `H2MetadataHandler`:
 
 [source,java]
 ----
@@ -33,5 +43,7 @@ None beyond the `BOOLEAN`/`UUID` mapping above.
 
 == Known Quirks
 
-None specific to dbUnit beyond the standard
-link:../faq.html[FAQ] entries.
+Connecting to H2 2.x with a hand-assembled `DatabaseConnection` instead of
+`H2Connection` loses the `INFORMATION_SCHEMA` exclusion above — register
+`H2MetadataHandler` on `PROPERTY_METADATA_HANDLER` explicitly if `H2Connection` isn't an
+option. This is new as of dbUnit's H2 2.x support; H2 1.x never needed it.

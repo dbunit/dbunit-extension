@@ -111,6 +111,7 @@
         <item name="ITable &amp; Table Metadata"      href="/components/itable.html"/>
         <item name="VerifyTableDefinition"            href="/components/verifytabledefinition.html"/>
         <item name="IOperationListener"               href="/components/ioperationlistener.html"/>
+        <item name="IMetadataHandler"                 href="/components/imetadatahandler.html"/>
         <item name="Assertion &amp; DbUnitAssert"      href="/components/assertion.html"/>
       </item>
       <item name="Best Practices"    href="/bestpractices.html"/>
