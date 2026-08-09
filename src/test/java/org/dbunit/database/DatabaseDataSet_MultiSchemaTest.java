@@ -19,6 +19,7 @@ import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.NoSuchTableException;
 import org.dbunit.ext.h2.H2DataTypeFactory;
+import org.dbunit.ext.h2.H2MetadataHandler;
 import org.dbunit.testutil.TestUtils;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
@@ -65,7 +66,7 @@ public class DatabaseDataSet_MultiSchemaTest
     private IDatabaseConnection connectionTest;
 
     private final TestMetadataHandler testMetadataHandler =
-            new TestMetadataHandler();
+            new TestMetadataHandler(new H2MetadataHandler());
 
     @BeforeAll
     public static void setUpClass() throws Exception
@@ -305,9 +306,21 @@ public class DatabaseDataSet_MultiSchemaTest
                 testMetadataHandler);
     }
 
-    private static class TestMetadataHandler extends DefaultMetadataHandler
+    /**
+     * Spies on {@link #getTables} while delegating everything else to a real
+     * {@link IMetadataHandler}, so this test does not need to bind itself to any particular
+     * database vendor's handler class - it wraps whichever one the connection under test is
+     * actually configured with.
+     */
+    private static class TestMetadataHandler implements IMetadataHandler
     {
+        private final IMetadataHandler delegate;
         private final Set<String> schemaSet = new HashSet<>();
+
+        TestMetadataHandler(final IMetadataHandler delegate)
+        {
+            this.delegate = delegate;
+        }
 
         @Override
         public ResultSet getTables(final DatabaseMetaData metaData,
@@ -315,7 +328,67 @@ public class DatabaseDataSet_MultiSchemaTest
                 throws SQLException
         {
             schemaSet.add(schemaName);
-            return super.getTables(metaData, schemaName, tableType);
+            return delegate.getTables(metaData, schemaName, tableType);
+        }
+
+        @Override
+        public ResultSet getColumns(final DatabaseMetaData databaseMetaData,
+                final String schemaName, final String tableName) throws SQLException
+        {
+            return delegate.getColumns(databaseMetaData, schemaName, tableName);
+        }
+
+        @Override
+        public boolean matches(final ResultSet resultSet, final String schema,
+                final String table, final boolean caseSensitive) throws SQLException
+        {
+            return delegate.matches(resultSet, schema, table, caseSensitive);
+        }
+
+        @Override
+        public boolean matches(final ResultSet resultSet, final String catalog,
+                final String schema, final String table, final String column,
+                final boolean caseSensitive) throws SQLException
+        {
+            return delegate.matches(resultSet, catalog, schema, table, column,
+                    caseSensitive);
+        }
+
+        @Override
+        public String getSchema(final ResultSet resultSet) throws SQLException
+        {
+            return delegate.getSchema(resultSet);
+        }
+
+        @Override
+        public boolean tableExists(final DatabaseMetaData databaseMetaData,
+                final String schemaName, final String tableName) throws SQLException
+        {
+            return delegate.tableExists(databaseMetaData, schemaName, tableName);
+        }
+
+        @Override
+        public ResultSet getPrimaryKeys(final DatabaseMetaData databaseMetaData,
+                final String schemaName, final String tableName) throws SQLException
+        {
+            return delegate.getPrimaryKeys(databaseMetaData, schemaName, tableName);
+        }
+
+        @Override
+        public boolean matchesColumn(final String searchCatalog, final String actualCatalog,
+                final String searchSchema, final String actualSchema, final String searchTable,
+                final String actualTable, final String searchColumn, final String actualColumn,
+                final boolean caseSensitive)
+        {
+            return delegate.matchesColumn(searchCatalog, actualCatalog, searchSchema,
+                    actualSchema, searchTable, actualTable, searchColumn, actualColumn,
+                    caseSensitive);
+        }
+
+        @Override
+        public boolean supportsColumnCache()
+        {
+            return delegate.supportsColumnCache();
         }
 
         public int getSchemaCount()

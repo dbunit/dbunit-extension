@@ -38,7 +38,8 @@ import java.sql.Connection;
 public class H2Connection extends DatabaseConnection
 {
     /**
-     * Creates an H2 connection, pre-configuring the H2-specific data type factory.
+     * Creates an H2 connection, pre-configuring the H2-specific data type factory and metadata
+     * handler.
      *
      * @param connection the adapted JDBC connection.
      * @param schema the database schema.
@@ -49,5 +50,7 @@ public class H2Connection extends DatabaseConnection
         super(connection, schema);
         getConfig().setProperty(DatabaseConfig.PROPERTY_DATATYPE_FACTORY,
                 new H2DataTypeFactory());
+        getConfig().setProperty(DatabaseConfig.PROPERTY_METADATA_HANDLER,
+                new H2MetadataHandler());
     }
 }
