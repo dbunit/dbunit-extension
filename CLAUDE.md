@@ -141,7 +141,7 @@ Integration tests use `DatabaseEnvironment` to bootstrap the target database fro
   - Always commit any needed doc updates with their corresponding feature or bug changes.
   - Consequence changes belong in the same commit as the change that caused them. Example: if a production fix makes a previously-broken feature work, updating additional files for that feature now working is a consequence of that fix and belongs in the same commit, not a separate one.
   - When necessary to change a file for a prior commit that is not yet merged to main, target that commit for squashing the change into by using the git "fixup!" feature for its commit - prefix the commit message it is in with "fixup! ".
-  - Create multiple fixup! commits as needed to target the prior specific commits for each file.
+  - Create multiple fixup! commits as needed to target the prior specific commits for each file; when multiple files target the same original commit, can combine them into the same fixup! commit.
   - When renaming files, always use `git mv` instead of `git delete` followed by `git add`.
 
 - Commit Messages:
