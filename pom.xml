@@ -104,7 +104,7 @@
     <jarPluginVersion>3.5.1</jarPluginVersion>
     <javadocPluginVersion>3.12.0</javadocPluginVersion>
     <jxrPluginVersion>3.6.0</jxrPluginVersion>
-    <modernizer-maven-plugin>3.5.0</modernizer-maven-plugin>
+    <modernizerPluginVersion>3.5.0</modernizerPluginVersion>
     <pmdPluginVersion>3.28.0</pmdPluginVersion>
     <poiOoxmlVersion>5.5.1</poiOoxmlVersion>
     <projectInfoReportsPluginVersion>3.9.0</projectInfoReportsPluginVersion>
@@ -894,7 +894,7 @@
         <plugin>
           <groupId>org.gaul</groupId>
           <artifactId>modernizer-maven-plugin</artifactId>
-          <version>${modernizer-maven-plugin}</version>
+          <version>${modernizerPluginVersion}</version>
           <configuration>
             <skip>${modernizerPluginSkip}</skip>
             <javaVersion>${compileSource}</javaVersion>
