@@ -21,6 +21,7 @@ A few — `ITable`, `VerifyTableDefinition`, `IOperationListener`, and
 |anchor:databasedataset[]`DatabaseDataSet` |link:connections.html#databasedataset[Connections & Configuration] — the `IDataSet` adapter over a live database connection.
 |`CachingConnectionProvider` |link:connections.html#cachingconnectionprovider[Connections & Configuration] — caches/reuses one `IDatabaseConnection` across test methods.
 |`DatabaseConfig` |link:properties.html[Properties & Features] — the feature-flag/property configuration object for a connection.
+|`link:components/imetadatahandler.html[IMetadataHandler]`, `InMemoryMetadataResultSet` |*New:* link:components/imetadatahandler.html[IMetadataHandler] — corrects a vendor driver's `DatabaseMetaData` quirks; register via `DatabaseConfig.PROPERTY_METADATA_HANDLER`.
 |===
 
 [#datasets-tables]

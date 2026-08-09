@@ -66,6 +66,49 @@ and end the message with a period
 so it doesn't combine with the subsequent JUnit message,
 e.g. `assertThat(actual.getMessage()).as("Should have null message.").isNull();`.
 
+[#test-doubles]
+== Test Doubles: Composition Over Inheritance
+
+When a test needs to spy on or intercept calls to a real collaborator — most often an
+`link:../components/imetadatahandler.html[IMetadataHandler]`, `IDataTypeFactory`, or
+similar dbUnit extension-point interface — wrap it, don't subclass a concrete
+implementation. A test double that `extends` a specific vendor class (e.g.
+`H2MetadataHandler`) only works while the connection under test uses that one vendor,
+and Java's single inheritance means it cannot also extend a second vendor's class if
+that ever changes. A test double that `implements` the interface and holds a `delegate`
+field, forwarding every method to it except the one or two being spied on, stays correct
+regardless of which concrete implementation the connection under test actually uses:
+
+[source,java]
+----
+private static class TestMetadataHandler implements IMetadataHandler
+{
+    private final IMetadataHandler delegate;
+    private final Set<String> schemaSet = new HashSet<>();
+
+    TestMetadataHandler(final IMetadataHandler delegate)
+    {
+        this.delegate = delegate;
+    }
+
+    @Override
+    public ResultSet getTables(final DatabaseMetaData metaData,
+            final String schemaName, final String[] tableType) throws SQLException
+    {
+        schemaSet.add(schemaName);
+        return delegate.getTables(metaData, schemaName, tableType);
+    }
+
+    // ...every other IMetadataHandler method delegates to `delegate` unchanged.
+}
+----
+
+See `DatabaseDataSet_MultiSchemaTest` for the full example: it wraps whichever
+`IMetadataHandler` the connection under test is actually configured with
+(`H2MetadataHandler`, in that test's case) instead of extending it, so the test stays
+correct even if H2 support's implementation changes, and would work unmodified if the
+test ever moved to a different vendor.
+
 [#fixed-timezone]
 == Fixed Test Timezone
 
