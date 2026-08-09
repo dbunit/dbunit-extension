@@ -15,7 +15,7 @@ Outside of tests, it is also a convenient utility for importing and exporting da
 * *Dataset formats* — link:datasets.html[Flat XML, XML, CSV, JSON, YAML, and Excel], plus building datasets in code or reading them straight from a live query.
 * *Database operations* — `INSERT`, `UPDATE`, `DELETE`, `DELETE_ALL`, `TRUNCATE_TABLE`, `REFRESH` (upsert), and `CLEAN_INSERT` (truncate + insert), composable and transaction-wrappable.
 * *Flexible assertions* — link:datacomparisons.html[`ValueComparer`] implementations go beyond strict equality: tolerance (numeric and timestamp), greater-than/less-than, null checks, string containment, and ignore-millis timestamp comparisons.
-* *Broad database support* — vendor-specific type and metadata handling for 9 databases: DB2, H2, HSQLDB, Mckoi, MSSQL, MySQL, Netezza, Oracle, and PostgreSQL; see link:databases.html[Database-Specific Guides].
+* *Broad database support* — vendor-specific type and metadata handling for 10 databases: DB2, H2, HSQLDB, MariaDB, Mckoi, MSSQL, MySQL, Netezza, Oracle, and PostgreSQL; see link:databases.html[Database-Specific Guides].
 
 == Where to Start
 
@@ -32,7 +32,7 @@ Refer to link:repos.html[Maven Repositories] for obtaining releases and snapshot
 == Help Wanted
 
 While dbUnit is a very mature product (its first commits date back to 2002), it has many needed improvements; not only new features and bug fixes, but documentation, refactoring, and modernization!
-We are a small team working on improvements and issues along the way and need more help.
+We are a small team working on improvements and issues along the way, and need more help.
 
 If you have interest in helping dbUnit,
 please start a discussion
@@ -48,7 +48,7 @@ We will gladly help you as needed with your ideas and contributions and look to 
 
 |TBD
 |Please try the 3.4.1-SNAPSHOT snapshot build and let us know how it works!
-It adds many *documentation updates* with new tutorials and 9 database-specific vendor guides, an opt-in all-column sort for tables *without a primary key*, and `MultiSchemaMySqlMetadataHandler` for multi-schema MySQL connections, plus *multiple bug fixes*.
+It adds `DbUnitExtension` for *native JUnit 5/6 lifecycle management*, a new *JSON dataset format* and JSON `ValueComparer`, *MariaDB and H2 2.x* database support, and an opt-in escape hatch for *circular foreign keys*, plus a ground-up *documentation site overhaul* and numerous other bug fixes.
 See link:https://dbunit.github.io/dbunit-extension/repos.html#snapshots[SNAPSHOTS] for how to use them.
 Refer to the link:changes.html#a3.4.1-SNAPSHOT[changes report],
 the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.4.1%20type%3AFeature[feature list], and
