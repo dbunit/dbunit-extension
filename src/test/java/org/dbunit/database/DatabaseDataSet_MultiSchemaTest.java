@@ -280,6 +280,29 @@ public class DatabaseDataSet_MultiSchemaTest
         assertThat(testMetadataHandler.getSchemaCount()).isEqualTo(1);
     }
 
+    /**
+     * Reproduces issue 656: H2 folds this database's unquoted schema name to upper case
+     * ({@link #SCHEMA_DEFAULT} is already upper case), so a caller whose <i>first</i>
+     * schema-qualified access uses a differently-cased schema (e.g. a mixed-case
+     * {@code FlatXmlDataSet} entry like PostgreSQL's reported {@code core.USER}) must still
+     * find the table instead of only ever finding it once some other, correctly-cased access
+     * has already primed the schema cache.
+     */
+    @Test
+    void testSchemaCaseSensitivity_withMismatchedCaseOnFirstAccess_stillFindsTable()
+            throws Exception
+    {
+        final IDataSet set = makeDataSet(DATABASE, USERNAME_ADMIN,
+                PASSWORD_NONE, SCHEMA_NONE, IS_USING_QUALIFIED_TABLE_NAMES);
+
+        final String lowerCaseTableName =
+                TABLE_FOO_IN_SCHEMA_DEFAULT.toLowerCase(Locale.ENGLISH);
+
+        final ITable table = set.getTable(lowerCaseTableName);
+
+        assertThat(table).isNotNull();
+    }
+
     private IDataSet makeDataSet(final String databaseName,
             final String username, final String password, final String schema,
             final boolean useQualifiedTableNames) throws Exception

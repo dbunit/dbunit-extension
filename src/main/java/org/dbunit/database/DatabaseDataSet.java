@@ -240,6 +240,8 @@ public class DatabaseDataSet extends AbstractDataSet
             Connection jdbcConnection = _connection.getConnection();
             DatabaseMetaData databaseMetaData = jdbcConnection.getMetaData();
 
+            schema = resolveActualSchemaName(databaseMetaData, schema);
+
             if(SQLHelper.isSybaseDb(jdbcConnection.getMetaData()) && !jdbcConnection.getMetaData().getUserName().equals(schema) ){
                 logger.warn("For sybase the schema name should be equal to the user name. " +
                         "Otherwise the DatabaseMetaData#getTables() method might not return any columns. " +
@@ -302,6 +304,54 @@ public class DatabaseDataSet extends AbstractDataSet
         {
             throw new DataSetException(e);
         }
+    }
+
+    /**
+     * Resolves the given schema name to its database-reported casing when this dataset treats
+     * table names case-insensitively. A database that folds unquoted identifiers to a canonical
+     * case at creation time (e.g. PostgreSQL folds them to lower case) still matches a schema
+     * name pattern in {@link DatabaseMetaData#getTables(String, String, String, String[])} case
+     * sensitively, so a differently-cased schema (e.g. a {@code FEATURE_QUALIFIED_TABLE_NAMES}
+     * dataset entry like {@code CORE.MYTABLE} against a live {@code core} schema) would otherwise
+     * find zero tables no matter how table names are compared afterward.
+     * <p>
+     * Returns the given <code>schema</code> unchanged when case sensitivity is active, it is
+     * <code>null</code>, or no case-insensitively matching schema is reported by the database -
+     * in the last case the subsequent {@link IMetadataHandler#getTables} call naturally finds no
+     * tables, preserving prior behavior for a genuinely nonexistent schema.
+     *
+     * @param databaseMetaData the database metadata to search for the actual schema names.
+     * @param schema the requested schema name, potentially cased differently than the database.
+     * @return the database-reported schema name, or the given <code>schema</code> unchanged if
+     * case sensitivity is active or no case-insensitive match is found.
+     * @throws SQLException if a database access error occurs.
+     */
+    private String resolveActualSchemaName(DatabaseMetaData databaseMetaData, String schema)
+    throws SQLException
+    {
+        if (schema == null || isCaseSensitiveTableNames())
+        {
+            return schema;
+        }
+
+        ResultSet resultSet = databaseMetaData.getSchemas();
+        try
+        {
+            while (resultSet.next())
+            {
+                String actualSchema = resultSet.getString("TABLE_SCHEM");
+                if (schema.equalsIgnoreCase(actualSchema))
+                {
+                    return actualSchema;
+                }
+            }
+        }
+        finally
+        {
+            resultSet.close();
+        }
+
+        return schema;
     }
 
   private String getDefaultSchema() {
