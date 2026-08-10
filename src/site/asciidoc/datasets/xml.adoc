@@ -2,12 +2,13 @@
 
 link:/dbunit/apidocs/org/dbunit/dataset/xml/XmlDataSet.html[XmlDataSet]
 reads and writes the original, verbose XML dataset document format. It must
-conform to the following DTD:
+conform to the following
+link:https://github.com/dbunit/dbunit-extension/blob/main/src/main/resources/org/dbunit/dataset/xml/dataset.dtd[DTD]:
 
 [source,xml]
 ----
 <?xml version="1.0" encoding="UTF-8"?>
-<!ELEMENT dataset (table+) | ANY>
+<!ELEMENT dataset (table+)>
 <!ELEMENT table (column*, row*)>
 <!ATTLIST table
     name CDATA #REQUIRED
@@ -16,6 +17,7 @@ conform to the following DTD:
 <!ELEMENT row (value | null | none)*>
 <!ELEMENT value (#PCDATA)>
 <!ELEMENT null EMPTY>
+<!ELEMENT none EMPTY>
 ----
 
 XML dataset document sample:
@@ -50,6 +52,30 @@ XML dataset document sample:
     <table name='EMPTY_TABLE'>
         <column>COLUMN0</column>
         <column>COLUMN1</column>
+    </table>
+</dataset>
+----
+
+DbUnit always validates against its own bundled copy of the DTD, so the
+`SYSTEM` value above is just a placeholder. To have an external tool, such
+as an IDE or `xmllint`, validate a document against the real DTD, reference
+it directly from the GitHub repository instead:
+
+[source,xml]
+----
+<!DOCTYPE dataset SYSTEM "https://raw.githubusercontent.com/dbunit/dbunit-extension/main/src/main/resources/org/dbunit/dataset/xml/dataset.dtd">
+<dataset>
+    <table name="TEST_TABLE">
+        <column>COL0</column>
+        <column>COL1</column>
+        <row>
+            <value>row 0 col 0</value>
+            <null/>
+        </row>
+        <row>
+            <value>row 1 col 0</value>
+            <none/>
+        </row>
     </table>
 </dataset>
 ----
