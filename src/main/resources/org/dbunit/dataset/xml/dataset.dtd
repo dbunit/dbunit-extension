@@ -7,11 +7,13 @@
 <!ATTLIST table  name CDATA  #REQUIRED >
 <!ELEMENT column (#PCDATA)>
 
-<!ELEMENT row (value | null)*>
+<!ELEMENT row (value | null | none)*>
 
 <!ELEMENT value (#PCDATA)>
 
 <!ELEMENT null EMPTY>
+
+<!ELEMENT none EMPTY>
 
 
 

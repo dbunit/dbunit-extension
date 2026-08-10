@@ -27,6 +27,7 @@ import java.io.StringReader;
 
 import org.dbunit.dataset.Column;
 import org.dbunit.dataset.DataSetException;
+import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.datatype.DataType;
 import org.dbunit.dataset.stream.AbstractProducerTest;
 import org.dbunit.dataset.stream.IDataSetProducer;
@@ -193,6 +194,41 @@ public class XmlProducerTest extends AbstractProducerTest
         assertThrows(DataSetException.class, () -> producer.produce(),
                 "Should not be here!");
 
+        consumer.verify();
+    }
+
+    @Test
+    void testProduceNoneValue_withValidatingEnabled_producesNoValueSentinel() throws Exception
+    {
+        final String tableName = "TEST_TABLE";
+        final Column[] expectedColumns = new Column[] {
+                new Column("c1", DataType.UNKNOWN),
+                new Column("c2", DataType.UNKNOWN),};
+        final Object[] expectedValues =
+                new Object[] {"value", ITable.NO_VALUE};
+
+        // Setup consumer
+        final MockDataSetConsumer consumer = new MockDataSetConsumer();
+        consumer.addExpectedStartDataSet();
+        consumer.addExpectedStartTable(tableName, expectedColumns);
+        consumer.addExpectedRow(tableName, expectedValues);
+        consumer.addExpectedEndTable(tableName);
+        consumer.addExpectedEndDataSet();
+
+        // Setup producer
+        final String content = "<?xml version=\"1.0\"?>"
+                + "<!DOCTYPE dataset SYSTEM \"dataset.dtd\" >" + "<dataset>"
+                + "   <table name='TEST_TABLE'>" + "       <column>c1</column>"
+                + "       <column>c2</column>" + "       <row>"
+                + "           <value>value</value>" + "           <none/>"
+                + "       </row>" + "   </table>" + "</dataset>";
+        final InputSource source = new InputSource(new StringReader(content));
+        final XmlProducer producer = new XmlProducer(source);
+        producer.setValidating(true);
+        producer.setConsumer(consumer);
+
+        // Produce and verify consumer
+        producer.produce();
         consumer.verify();
     }
 
