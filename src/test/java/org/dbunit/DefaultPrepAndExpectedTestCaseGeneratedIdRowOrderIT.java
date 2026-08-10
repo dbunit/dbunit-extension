@@ -25,6 +25,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.dbunit.assertion.DbComparisonFailure;
 import org.dbunit.database.IDatabaseConnection;
+import org.dbunit.operation.DatabaseOperation;
 import org.dbunit.util.fileloader.DataFileLoader;
 import org.dbunit.util.fileloader.FlatXmlDataFileLoader;
 import org.junit.jupiter.api.Test;
@@ -161,6 +162,9 @@ class DefaultPrepAndExpectedTestCaseGeneratedIdRowOrderIT
     {
         final DatabaseEnvironment dbEnv = DatabaseEnvironment.getInstance();
         final IDatabaseConnection connection = dbEnv.getConnection();
-        return new DefaultDatabaseTester(connection);
+        final IDatabaseTester databaseTester =
+                new DefaultDatabaseTester(connection);
+        databaseTester.setTearDownOperation(DatabaseOperation.DELETE_ALL);
+        return databaseTester;
     }
 }
