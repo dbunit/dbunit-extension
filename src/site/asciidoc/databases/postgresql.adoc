@@ -9,9 +9,10 @@ equivalent.
 == IDataTypeFactory
 
 link:/dbunit/apidocs/org/dbunit/ext/postgresql/PostgresqlDataTypeFactory.html[PostgresqlDataTypeFactory]
-recognizes `uuid`, `interval`, `inet`, `geometry`, `citext`, `oid`, and
-(via an overridable hook) custom enum types, mapping each to the dedicated
-classes below; everything else delegates to `DefaultDataTypeFactory`.
+recognizes `uuid`, `interval`, `inet`, `geometry`, `citext`, `json`, `jsonb`,
+`oid` when reported as JDBC `BIGINT`, and (via an overridable hook) custom
+enum types, mapping each to the dedicated classes below; everything else
+delegates to `DefaultDataTypeFactory`.
 Register it via `DatabaseConfig.PROPERTY_DATATYPE_FACTORY` — see
 link:../properties.html#typefactory[Properties] and
 link:../connections.html[Connections & Configuration].
@@ -45,6 +46,7 @@ connection.getConfig().setProperty(DatabaseConfig.PROPERTY_DATATYPE_FACTORY,
 |link:/dbunit/apidocs/org/dbunit/ext/postgresql/InetType.html[InetType] |`inet` (IP address/network) values.
 |link:/dbunit/apidocs/org/dbunit/ext/postgresql/UuidType.html[UuidType] |`uuid` values.
 |link:/dbunit/apidocs/org/dbunit/ext/postgresql/GeometryType.html[GeometryType] |`geometry` (PostGIS) values, read/written as their string representation.
+|link:/dbunit/apidocs/org/dbunit/ext/postgresql/JsonType.html[JsonType] |`json` and `jsonb` values, read/written as their raw text representation.
 |===
 
 === GenericEnumType
@@ -69,7 +71,33 @@ See the FAQ for more:
 link:../faq.html#postgresqlEnumTypes[Are Postgresql enum types supported by
 dbunit?]
 
+=== JsonType
+
+link:/dbunit/apidocs/org/dbunit/ext/postgresql/JsonType.html[JsonType]
+adapts between PostgreSQL's native `json`/`jsonb` types and Strings, using
+the same reflection-based `PGobject.setType()` approach as the other types
+above. PostgreSQL has no implicit cast between `json` and `jsonb`, so a
+bound parameter's PGobject type must match its target column exactly;
+`PostgresqlDataTypeFactory` handles this automatically by constructing a
+`JsonType` for the specific sql type name (`json` or `jsonb`) each column
+reports.
+
+This class only shuttles a column's raw text between the driver and the
+dataset; it does not compare JSON values semantically. PostgreSQL
+reformats `jsonb` text on storage (for example, inserting whitespace or
+reordering object keys), so a literal string comparison against an
+expected dataset value can spuriously fail even when the JSON is
+semantically identical. Use
+link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/IsActualEqualToExpectedJsonValueComparer.html[IsActualEqualToExpectedJsonValueComparer]
+(see link:../datacomparisons/valuecomparer.html[Value Comparers]) to compare
+`json`/`jsonb` column values by their parsed document structure instead.
+
 == Known Quirks
 
 Enum type support requires the `isEnumType()` override above — see
 GenericEnumType.
+
+`json`/`jsonb` column comparisons in assertions are literal string
+comparisons unless you use
+link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/IsActualEqualToExpectedJsonValueComparer.html[IsActualEqualToExpectedJsonValueComparer]
+— see JsonType above.

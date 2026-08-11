@@ -97,6 +97,40 @@ class PostgresqlDataTypeFactoryTest
     }
 
     @Test
+    void testCreateJsonType_withJsonTypeName_returnsJsonTypeInstance() throws Exception
+    {
+        final PostgresqlDataTypeFactory instance =
+                new PostgresqlDataTypeFactory();
+
+        final int sqlType = Types.OTHER;
+        final String sqlTypeName = "json";
+
+        final DataType result = instance.createDataType(sqlType, sqlTypeName);
+        assertThat(result).as("createDataType() should return a JsonType for json.")
+                .isInstanceOf(JsonType.class);
+        assertThat(((JsonType) result).getSqlTypeName())
+                .as("The JsonType should keep the json sql type name.")
+                .isEqualTo("json");
+    }
+
+    @Test
+    void testCreateJsonType_withJsonbTypeName_returnsJsonTypeInstance() throws Exception
+    {
+        final PostgresqlDataTypeFactory instance =
+                new PostgresqlDataTypeFactory();
+
+        final int sqlType = Types.OTHER;
+        final String sqlTypeName = "jsonb";
+
+        final DataType result = instance.createDataType(sqlType, sqlTypeName);
+        assertThat(result).as("createDataType() should return a JsonType for jsonb.")
+                .isInstanceOf(JsonType.class);
+        assertThat(((JsonType) result).getSqlTypeName())
+                .as("The JsonType should keep the jsonb sql type name.")
+                .isEqualTo("jsonb");
+    }
+
+    @Test
     void testCreateEnumType_withCustomEnumTypeName_returnsGenericEnumTypeInstance() throws Exception
     {
         final PostgresqlDataTypeFactory instance =

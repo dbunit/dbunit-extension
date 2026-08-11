@@ -98,6 +98,9 @@ public class PostgresqlDataTypeFactory extends DefaultDataTypeFactory
             } else if ("citext".equals(sqlTypeName))
             {
                 return new CitextType();
+            } else if ("json".equals(sqlTypeName) || "jsonb".equals(sqlTypeName))
+            {
+                return new JsonType(sqlTypeName);
             } else
             {
                 // Finally check whether the user defined a custom datatype
