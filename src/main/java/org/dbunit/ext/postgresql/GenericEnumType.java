@@ -75,15 +75,30 @@ public class GenericEnumType extends AbstractDataType {
         return resultSet.getString(column);
     }
 
+    /**
+     * {@inheritDoc} Binds sql {@code NULL} when {@code enumObject} is
+     * {@code null}, instead of dereferencing it while building the
+     * PGobject.
+     */
     public void setSqlValue(Object enumObject, int column,
-                            PreparedStatement statement) throws SQLException, TypeCastException 
+                            PreparedStatement statement) throws SQLException, TypeCastException
     {
+        if (enumObject == null)
+        {
+            statement.setNull(column, Types.OTHER);
+            return;
+        }
+
         statement.setObject(column, getEnum(enumObject, statement.getConnection()));
     }
 
-    public Object typeCast(Object arg0) throws TypeCastException 
+    /**
+     * {@inheritDoc} Returns {@code null} when {@code arg0} is {@code null},
+     * instead of throwing {@link NullPointerException}.
+     */
+    public Object typeCast(Object arg0) throws TypeCastException
     {
-        return arg0.toString();
+        return arg0 == null ? null : arg0.toString();
     }
 
     private Object getEnum(Object value, Connection connection) throws TypeCastException {
