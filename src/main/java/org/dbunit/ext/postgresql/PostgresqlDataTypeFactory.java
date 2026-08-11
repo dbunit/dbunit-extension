@@ -114,6 +114,8 @@ public class PostgresqlDataTypeFactory extends DefaultDataTypeFactory
             }
         } else if (sqlType == Types.BIGINT && "oid".equals(sqlTypeName)) {
             return new PostgreSQLOidDataType();
+        } else if (sqlType == Types.ARRAY) {
+            return new ArrayType(sqlTypeName);
         }
 
         return super.createDataType(sqlType, sqlTypeName);

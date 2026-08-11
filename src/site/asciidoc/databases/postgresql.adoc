@@ -10,9 +10,10 @@ equivalent.
 
 link:/dbunit/apidocs/org/dbunit/ext/postgresql/PostgresqlDataTypeFactory.html[PostgresqlDataTypeFactory]
 recognizes `uuid`, `interval`, `inet`, `geometry`, `citext`, `json`, `jsonb`,
-`oid` when reported as JDBC `BIGINT`, and (via an overridable hook) custom
-enum types, mapping each to the dedicated classes below; everything else
-delegates to `DefaultDataTypeFactory`.
+`oid` when reported as JDBC `BIGINT`, any array column (JDBC `ARRAY`, e.g.
+`integer[]`, `text[]`), and (via an overridable hook) custom enum types,
+mapping each to the dedicated classes below; everything else delegates to
+`DefaultDataTypeFactory`.
 Register it via `DatabaseConfig.PROPERTY_DATATYPE_FACTORY` — see
 link:../properties.html#typefactory[Properties] and
 link:../connections.html[Connections & Configuration].
@@ -47,6 +48,7 @@ connection.getConfig().setProperty(DatabaseConfig.PROPERTY_DATATYPE_FACTORY,
 |link:/dbunit/apidocs/org/dbunit/ext/postgresql/UuidType.html[UuidType] |`uuid` values.
 |link:/dbunit/apidocs/org/dbunit/ext/postgresql/GeometryType.html[GeometryType] |`geometry` (PostGIS) values, read/written as their string representation.
 |link:/dbunit/apidocs/org/dbunit/ext/postgresql/JsonType.html[JsonType] |`json` and `jsonb` values, read/written as their raw text representation.
+|link:/dbunit/apidocs/org/dbunit/ext/postgresql/ArrayType.html[ArrayType] |Array columns (e.g. `integer[]`, `text[]`), read/written as their PostgreSQL literal text representation.
 |===
 
 === GenericEnumType
@@ -92,6 +94,26 @@ link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/IsActualEqualToExpected
 (see link:../datacomparisons/valuecomparer.html[Value Comparers]) to compare
 `json`/`jsonb` column values by their parsed document structure instead.
 
+=== ArrayType
+
+link:/dbunit/apidocs/org/dbunit/ext/postgresql/ArrayType.html[ArrayType]
+adapts between PostgreSQL array columns and their PostgreSQL literal text
+representation, such as `{1,2,3}` or `{"a","b","c"}`. PostgreSQL reports
+every array column's sql type name as its element type's own pg_catalog name
+prefixed with an underscore (for example `_int4` for an `integer[]`
+column); `PostgresqlDataTypeFactory` constructs the matching `ArrayType`
+for each column automatically.
+
+On write, the literal text is split into its top-level elements — honoring
+double-quoted, backslash-escaped elements and the unquoted `NULL` keyword —
+and bound via `Connection.createArrayOf(String, Object[])`, letting
+PostgreSQL itself parse and validate each element against the column's
+actual base type; dbUnit does not typecast elements to their Java
+equivalents itself. Only single-dimension arrays are supported for writing;
+a literal containing a nested array (a multi-dimensional array) is rejected.
+Reading one back for comparison or export works fine either way, since the
+literal text is never parsed on read.
+
 == Known Quirks
 
 Enum type support requires the `isEnumType()` override above — see
@@ -101,3 +123,9 @@ GenericEnumType.
 comparisons unless you use
 link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/IsActualEqualToExpectedJsonValueComparer.html[IsActualEqualToExpectedJsonValueComparer]
 — see JsonType above.
+
+Array column comparisons in assertions are literal string comparisons
+against PostgreSQL's own canonical output format (no extra whitespace,
+elements quoted only where required) — see ArrayType above. Writing a
+multi-dimensional array from a literal string is not supported; reading one
+back for comparison or export works fine.
