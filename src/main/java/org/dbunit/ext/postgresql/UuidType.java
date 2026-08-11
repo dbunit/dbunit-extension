@@ -61,8 +61,18 @@ public class UuidType
         return resultSet.getString(column);
     }
 
+    /**
+     * {@inheritDoc} Binds sql {@code NULL} when {@code uuid} is
+     * {@code null}, instead of dereferencing it while building the
+     * PGobject.
+     */
     public void setSqlValue(Object uuid, int column,
                             PreparedStatement statement) throws SQLException, TypeCastException {
+        if (uuid == null) {
+            statement.setNull(column, Types.OTHER);
+            return;
+        }
+
         statement.setObject(column, getUUID(uuid, statement.getConnection()));
     }
 

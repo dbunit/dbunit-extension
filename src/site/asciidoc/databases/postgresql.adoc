@@ -73,6 +73,9 @@ See the FAQ for more:
 link:../faq.html#postgresqlEnumTypes[Are Postgresql enum types supported by
 dbunit?]
 
+*Caution:* `isEnumType()` is currently unreachable for an ordinary table
+column — see Known Quirks below.
+
 === JsonType
 
 link:/dbunit/apidocs/org/dbunit/ext/postgresql/JsonType.html[JsonType]
@@ -117,7 +120,16 @@ literal text is never parsed on read.
 == Known Quirks
 
 Enum type support requires the `isEnumType()` override above — see
-GenericEnumType.
+GenericEnumType. Currently, that override is never actually consulted for an
+ordinary table column: PostgreSQL's JDBC driver reports a custom enum
+column's JDBC type as `VARCHAR` (not `OTHER`) via
+`DatabaseMetaData.getColumns()`, the metadata source `CLEAN_INSERT` and
+`IDatabaseConnection.createDataSet()` use, so `PostgresqlDataTypeFactory`
+resolves the column as a plain string instead of `GenericEnumType` and an
+insert of a real value fails with a "column is of type ... but expression is
+of type character varying" error — unrelated to and unaffected by null
+handling. Tracked as
+https://github.com/dbunit/dbunit-extension/issues/933[issue #933].
 
 `json`/`jsonb` column comparisons in assertions are literal string
 comparisons unless you use

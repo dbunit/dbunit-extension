@@ -59,13 +59,27 @@ public class InetType
         return resultSet.getString(column);
     }
 
+    /**
+     * {@inheritDoc} Binds sql {@code NULL} when the inet {@code value} is
+     * {@code null}, instead of dereferencing it while building the
+     * PGobject.
+     */
     public void setSqlValue(Object uuid, int column,
                             PreparedStatement statement) throws SQLException, TypeCastException {
+        if (uuid == null) {
+            statement.setNull(column, Types.OTHER);
+            return;
+        }
+
         statement.setObject(column, getInet(uuid, statement.getConnection()));
     }
 
+    /**
+     * {@inheritDoc} Returns {@code null} when {@code arg0} is {@code null},
+     * instead of throwing {@link NullPointerException}.
+     */
     public Object typeCast(Object arg0) throws TypeCastException {
-        return arg0.toString();
+        return arg0 == null ? null : arg0.toString();
     }
 
     private Object getInet(Object value, Connection connection) throws TypeCastException {

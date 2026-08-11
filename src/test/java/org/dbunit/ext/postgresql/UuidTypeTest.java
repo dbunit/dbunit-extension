@@ -21,12 +21,19 @@
 package org.dbunit.ext.postgresql;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.mockito.Mockito.verify;
 
+import java.sql.PreparedStatement;
+import java.sql.Types;
 import java.util.UUID;
 
 import org.dbunit.dataset.datatype.AbstractDataType;
 import org.dbunit.dataset.datatype.TypeCastException;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 /**
  * Unit tests for {@link UuidType}.
@@ -34,8 +41,12 @@ import org.junit.jupiter.api.Test;
  * @author DbUnit.org
  * @since 2.4.5
  */
+@ExtendWith(MockitoExtension.class)
 class UuidTypeTest extends AbstractPostgresqlStringDataTypeTest
 {
+    @Mock
+    private PreparedStatement statement;
+
     @Override
     protected AbstractDataType createType()
     {
@@ -72,5 +83,40 @@ class UuidTypeTest extends AbstractPostgresqlStringDataTypeTest
         assertThat(result)
                 .as("typeCast() should return null when given null.")
                 .isNull();
+    }
+
+    /**
+     * Issue 930: AbstractDataType.compare() calls typeCast() directly, even
+     * when comparing a null value against a non-null one.
+     */
+    @Test
+    void testCompare_withNullAndNonNullValue_doesNotThrow() throws TypeCastException
+    {
+        final UuidType type = new UuidType();
+        final String uuidString = "550e8400-e29b-41d4-a716-446655440000";
+
+        assertThatCode(() -> type.compare(null, uuidString))
+                .as("compare() should not throw NullPointerException when one value is null.")
+                .doesNotThrowAnyException();
+
+        assertThat(type.compare(null, uuidString))
+                .as("compare() should treat null as less than a non-null value.")
+                .isEqualTo(-1);
+    }
+
+    /**
+     * Issue 930: setSqlValue() bypasses typeCast() and dereferences the raw
+     * value directly, so it needs its own null guard.
+     */
+    @Test
+    void testSetSqlValue_withNullValue_doesNotThrowAndSetsSqlNull() throws Exception
+    {
+        final UuidType type = new UuidType();
+
+        assertThatCode(() -> type.setSqlValue(null, 1, statement))
+                .as("setSqlValue() should not throw NullPointerException when value is null.")
+                .doesNotThrowAnyException();
+
+        verify(statement).setNull(1, Types.OTHER);
     }
 }
