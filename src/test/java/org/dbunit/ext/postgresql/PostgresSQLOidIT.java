@@ -102,4 +102,42 @@ class PostgresSQLOidIT
         assertThat("\\[text UTF-8](Anything)".getBytes())
                 .isEqualTo(it.getValue(1, "DATA"));
     }
+
+    /**
+     * Issue 693: a PostgreSQL oid column is a generic object identifier, not necessarily a large
+     * object reference (see https://www.postgresql.org/docs/current/datatype-oid.html), e.g. a
+     * real catalog object's own oid such as a table's oid via <code>'table'::regclass</code>,
+     * the original bug report's own example. Reading such a row must not fail the whole read,
+     * and the connection must remain usable for subsequent rows afterward.
+     */
+    @Test
+    void testOidDataType_withOidNotReferencingALargeObject_readsAsNullInsteadOfFailing()
+            throws Exception
+    {
+        assertThat(_connection).as("didn't get a connection").isNotNull();
+        final DatabaseConfig config = _connection.getConfig();
+        config.setProperty(DatabaseConfig.PROPERTY_DATATYPE_FACTORY,
+                new PostgresqlDataTypeFactory());
+
+        // dbUnit's own write path (setSqlValue()) always creates a genuine large object, so use
+        // raw SQL - two distinct real catalog oids - to put non-large-object values into the
+        // column.
+        try (Statement stat = _connection.getConnection().createStatement())
+        {
+            stat.execute("INSERT INTO " + testTable + "(DATA) VALUES ('pg_class'::regclass::oid)");
+            stat.execute("INSERT INTO " + testTable + "(DATA) VALUES ('pg_proc'::regclass::oid)");
+        }
+
+        final IDataSet ids = _connection.createDataSet();
+        final ITable it = ids.getTable(testTable);
+
+        assertThat(it.getRowCount()).isEqualTo(2);
+        assertThat(it.getValue(0, "DATA"))
+                .as("a non-large-object oid should read as null instead of throwing.")
+                .isNull();
+        assertThat(it.getValue(1, "DATA"))
+                .as("reading a second, distinct non-large-object oid afterward should still "
+                        + "work, proving the connection recovered from the first failed read.")
+                .isNull();
+    }
 }

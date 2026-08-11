@@ -51,6 +51,29 @@ connection.getConfig().setProperty(DatabaseConfig.PROPERTY_DATATYPE_FACTORY,
 |link:/dbunit/apidocs/org/dbunit/ext/postgresql/ArrayType.html[ArrayType] |Array columns (e.g. `integer[]`, `text[]`), read/written as their PostgreSQL literal text representation.
 |===
 
+=== PostgreSQLOidDataType
+
+link:/dbunit/apidocs/org/dbunit/ext/postgresql/PostgreSQLOidDataType.html[PostgreSQLOidDataType]
+reads and writes `oid` columns through the PostgreSQL JDBC driver's
+large-object API (`LargeObjectManager`). Writing always creates a new large
+object and binds its oid; reading opens the large object the column's oid
+refers to and returns its bytes, or `null` when the oid is zero (dbUnit's
+convention for a SQL `NULL` in this column).
+
+A PostgreSQL `oid` column is a generic object identifier, not necessarily a
+large object reference — see the PostgreSQL
+https://www.postgresql.org/docs/current/datatype-oid.html[`oid` type
+documentation]. A column holding some other catalog object's oid (for
+example a table's own oid via `'sometable'::regclass`) now reads as `null`
+instead of failing the whole read: PostgreSQL reports this specific case as
+SQLState `42704` (`undefined_object`), which is distinguished from every
+other failure — a real access/permission error still propagates as an
+exception rather than being swallowed. Opening the large object runs under a
+savepoint, since PostgreSQL aborts the entire enclosing transaction on any
+failed command; rolling back to the savepoint on failure clears the abort
+without discarding any other work already done in that transaction, so the
+connection stays usable for the rest of the read.
+
 === GenericEnumType
 
 link:/dbunit/apidocs/org/dbunit/ext/postgresql/GenericEnumType.html[GenericEnumType]
@@ -141,3 +164,8 @@ against PostgreSQL's own canonical output format (no extra whitespace,
 elements quoted only where required) — see ArrayType above. Writing a
 multi-dimensional array from a literal string is not supported; reading one
 back for comparison or export works fine.
+
+An `oid` column reads as `null` both for a genuine SQL `NULL` and for an oid
+that doesn't reference a large object — see PostgreSQLOidDataType above.
+dbUnit cannot distinguish the two cases from the read value alone, since
+neither has any large-object content to return.
