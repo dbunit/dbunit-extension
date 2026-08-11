@@ -19,5 +19,5 @@ registration mechanism.
 |link:databases/mysql.html[MySQL] |A metadata handler fixing qualified-table-name matching.
 |link:databases/netezza.html[Netezza] |A metadata handler for Netezza's catalog-as-schema behavior.
 |link:databases/oracle.html[Oracle] |Two factory versions, proprietary LOB/XMLType access, and full `SDO_GEOMETRY` spatial object modeling.
-|link:databases/postgresql.html[PostgreSQL] |`uuid`/`interval`/`inet`/`citext`/large-object/enum/PostGIS geometry types.
+|link:databases/postgresql.html[PostgreSQL] |`uuid`/`interval`/`inet`/`citext`/large-object/enum/PostGIS geometry/`json`/`jsonb`/array types.
 |===

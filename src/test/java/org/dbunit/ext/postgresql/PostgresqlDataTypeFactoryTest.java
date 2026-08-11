@@ -182,4 +182,21 @@ class PostgresqlDataTypeFactoryTest
         final DataType result = instance.createDataType(sqlType, sqlTypeName);
         assertThat(result).isInstanceOf(PostgreSQLOidDataType.class);
     }
+
+    @Test
+    void testCreateArrayType_withArraySqlType_returnsArrayTypeInstance() throws Exception
+    {
+        final PostgresqlDataTypeFactory instance =
+                new PostgresqlDataTypeFactory();
+
+        final int sqlType = Types.ARRAY;
+        final String sqlTypeName = "_int4";
+
+        final DataType result = instance.createDataType(sqlType, sqlTypeName);
+        assertThat(result).as("createDataType() should return an ArrayType for an array sql type.")
+                .isInstanceOf(ArrayType.class);
+        assertThat(((ArrayType) result).getSqlTypeName())
+                .as("The ArrayType should keep the reported array sql type name.")
+                .isEqualTo("_int4");
+    }
 }
