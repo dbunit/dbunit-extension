@@ -7,7 +7,7 @@ link:/dbunit/apidocs/org/dbunit/VerifyTableDefinition.html[VerifyTableDefinition
 (`org.dbunit`, since 2.4.8) defines one database table to verify: which columns to
 include or exclude from the comparison, which
 link:../datacomparisons/valuecomparer.html[ValueComparer] (if any) to use per column, and
-(<<sortmode,since 3.4.1>>) whether row sorting for the comparison considers only those
+(<<sortmode,since 3.5.0>>) whether row sorting for the comparison considers only those
 included/excluded columns. It is consumed by
 link:../testcases/PrepAndExpectedTestCase.html[PrepAndExpectedTestCase] — one instance
 per table you want verified after a test runs.
@@ -24,7 +24,7 @@ per table you want verified after a test runs.
 |`columnInclusionFilters` (`getColumnInclusionFilters()`) |Columns to restrict the comparison to; `null` means include all, empty means include none.
 |`defaultValueComparer` (`getDefaultValueComparer()`, since 2.6.0) |The `ValueComparer` used for any column not present in `columnValueComparers`. `null` defaults to equality comparison.
 |`columnValueComparers` (`getColumnValueComparers()`, since 2.6.0) |A `Map<String, ValueComparer>` of per-column comparers, keyed by column name.
-|`sortOnFilteredColumnsOnly` (`isSortOnFilteredColumnsOnly()`/`setSortOnFilteredColumnsOnly()`, since 3.4.1) |Whether comparison sorts both tables by only this table's filtered columns instead of all of the actual table's native columns. Default `false`. See <<sortmode,Sort Mode>> below.
+|`sortOnFilteredColumnsOnly` (`isSortOnFilteredColumnsOnly()`/`setSortOnFilteredColumnsOnly()`, since 3.5.0) |Whether comparison sorts both tables by only this table's filtered columns instead of all of the actual table's native columns. Default `false`. See <<sortmode,Sort Mode>> below.
 |===
 
 [#constructors]
@@ -40,10 +40,10 @@ per table you want verified after a test runs.
 |`VerifyTableDefinition(String table, String[] excludeColumns)` |All columns compared (equality) except the excluded ones — the common case.
 |`VerifyTableDefinition(String table, ValueComparer defaultValueComparer, Map<String, ValueComparer> columnValueComparers)` |All columns compared, no exclusions, but with `ValueComparer`-based comparison instead of plain equality.
 |`VerifyTableDefinition(String table, String[] excludeColumns, ValueComparer defaultValueComparer, Map<String, ValueComparer> columnValueComparers)` |Exclusions plus `ValueComparer`-based comparison.
-|`VerifyTableDefinition(String table, String[] excludeColumns, ValueComparer defaultValueComparer, Map<String, ValueComparer> columnValueComparers, boolean sortOnFilteredColumnsOnly)` |Exclusions plus `ValueComparer`-based comparison, with sort mode control (<<sortmode,since 3.4.1>>) — the common case for opting into `sortOnFilteredColumnsOnly` when include filters aren't also needed.
+|`VerifyTableDefinition(String table, String[] excludeColumns, ValueComparer defaultValueComparer, Map<String, ValueComparer> columnValueComparers, boolean sortOnFilteredColumnsOnly)` |Exclusions plus `ValueComparer`-based comparison, with sort mode control (<<sortmode,since 3.5.0>>) — the common case for opting into `sortOnFilteredColumnsOnly` when include filters aren't also needed.
 |`VerifyTableDefinition(String table, String[] excludeColumns, String[] includeColumns)` |Explicit include *and* exclude column filters, equality comparison.
 |`VerifyTableDefinition(String table, String[] excludeColumns, String[] includeColumns, ValueComparer defaultValueComparer, Map<String, ValueComparer> columnValueComparers)` |Exclude/include filters plus `ValueComparer`-based comparison; sorts by all columns (`sortOnFilteredColumnsOnly` defaults to `false`).
-|`VerifyTableDefinition(String table, String[] excludeColumns, String[] includeColumns, ValueComparer defaultValueComparer, Map<String, ValueComparer> columnValueComparers, boolean sortOnFilteredColumnsOnly)` |The canonical form (<<sortmode,since 3.4.1>>) — every other constructor is a convenience overload of this one, filling unspecified arguments with `null`/`false`.
+|`VerifyTableDefinition(String table, String[] excludeColumns, String[] includeColumns, ValueComparer defaultValueComparer, Map<String, ValueComparer> columnValueComparers, boolean sortOnFilteredColumnsOnly)` |The canonical form (<<sortmode,since 3.5.0>>) — every other constructor is a convenience overload of this one, filling unspecified arguments with `null`/`false`.
 |===
 
 [#verifier]

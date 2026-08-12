@@ -45,7 +45,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
  * Unit tests for {@link ArrayType}.
  *
  * @author Jeff Jensen
- * @since 3.4.1
+ * @since 3.5.0
  */
 @ExtendWith(MockitoExtension.class)
 class ArrayTypeTest

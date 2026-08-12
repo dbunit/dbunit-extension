@@ -65,7 +65,7 @@ import org.slf4j.LoggerFactory;
  * fine either way, since the literal text is never parsed on read.
  *
  * @author Jeff Jensen
- * @since 3.4.1
+ * @since 3.5.0
  */
 public class ArrayType extends AbstractDataType
 {

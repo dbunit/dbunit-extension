@@ -36,7 +36,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  * this comparer directly instead.
  *
  * @author Jeff Jensen
- * @since 3.4.1
+ * @since 3.5.0
  */
 public class IsActualEqualToExpectedJsonValueComparer
         extends ValueComparerTemplateBase

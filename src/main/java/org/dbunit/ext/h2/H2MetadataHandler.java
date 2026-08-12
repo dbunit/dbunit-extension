@@ -40,7 +40,7 @@ import org.dbunit.database.InMemoryMetadataResultSet;
  * the {@code INFORMATION_SCHEMA} schema from {@link #getTables} results to restore the pre-2.x
  * behavior.
  *
- * @since 3.4.1
+ * @since 3.5.0
  */
 public class H2MetadataHandler extends DefaultMetadataHandler
 {

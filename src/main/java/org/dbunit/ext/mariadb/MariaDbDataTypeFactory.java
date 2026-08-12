@@ -44,7 +44,7 @@ import org.dbunit.ext.mysql.MySqlDataTypeFactory;
  * plain {@code LONGTEXT} and needs no special handling here.
  *
  * @author Jeff Jensen
- * @since 3.4.1
+ * @since 3.5.0
  */
 public class MariaDbDataTypeFactory extends MySqlDataTypeFactory
 {

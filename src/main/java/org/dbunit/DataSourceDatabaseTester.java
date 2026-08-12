@@ -108,7 +108,7 @@ public class DataSourceDatabaseTester extends AbstractDatabaseTester
      * @param databaseConfig The property and feature values to apply to every connection this
      *            tester creates - can be <code>null</code>, in which case each connection keeps its
      *            own default {@link DatabaseConfig}.
-     * @since 3.4.1
+     * @since 3.5.0
      */
     public DataSourceDatabaseTester(DataSource dataSource, String schema,
             CachingConnectionProvider connectionProvider, DatabaseConfig databaseConfig)

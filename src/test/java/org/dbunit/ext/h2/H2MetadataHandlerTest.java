@@ -40,7 +40,7 @@ import org.junit.jupiter.api.Test;
  * the {@code INFORMATION_SCHEMA} schema that H2 2.x reports with a JDBC {@code TABLE_TYPE} dbunit's
  * default table-type filter no longer excludes on its own.
  *
- * @since 3.4.1
+ * @since 3.5.0
  */
 class H2MetadataHandlerTest
 {

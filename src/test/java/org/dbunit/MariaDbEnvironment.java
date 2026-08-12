@@ -27,7 +27,7 @@ import org.dbunit.ext.mysql.MySqlMetadataHandler;
 
 /**
  * @author Jeff Jensen (adapted from John Hurst: MySqlEnvironment)
- * @since 3.4.1
+ * @since 3.5.0
  */
 public class MariaDbEnvironment extends DatabaseEnvironment
 {

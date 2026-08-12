@@ -80,7 +80,7 @@ public class VerifyTableDefinition
      * while the expected table usually sorts differently by its data content -
      * misaligning same-data rows and failing the comparison.
      *
-     * @since 3.4.1
+     * @since 3.5.0
      */
     private boolean sortOnFilteredColumnsOnly;
 
@@ -242,7 +242,7 @@ public class VerifyTableDefinition
      *            True to sort the expected and actual tables by only this
      *            table's filtered columns instead of by all of the actual
      *            table's native columns. See {@link #sortOnFilteredColumnsOnly}.
-     * @since 3.4.1
+     * @since 3.5.0
      */
     public VerifyTableDefinition(final String table,
             final String[] excludeColumns,
@@ -282,7 +282,7 @@ public class VerifyTableDefinition
      *            True to sort the expected and actual tables by only this
      *            table's filtered columns instead of by all of the actual
      *            table's native columns. See {@link #sortOnFilteredColumnsOnly}.
-     * @since 3.4.1
+     * @since 3.5.0
      */
     public VerifyTableDefinition(final String table,
             final String[] excludeColumns, final String[] includeColumns,
@@ -419,7 +419,7 @@ public class VerifyTableDefinition
      *
      * @return True if it sorts by only its filtered columns, false if by all
      *         native columns.
-     * @since 3.4.1
+     * @since 3.5.0
      */
     public boolean isSortOnFilteredColumnsOnly()
     {
@@ -435,7 +435,7 @@ public class VerifyTableDefinition
      * @param sortOnFilteredColumnsOnly
      *            True to sort by only its filtered columns, false to sort by
      *            all native columns.
-     * @since 3.4.1
+     * @since 3.5.0
      */
     public void setSortOnFilteredColumnsOnly(
             final boolean sortOnFilteredColumnsOnly)

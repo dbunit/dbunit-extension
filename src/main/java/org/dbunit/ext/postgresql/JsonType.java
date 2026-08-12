@@ -52,7 +52,7 @@ import org.slf4j.LoggerFactory;
  * instead of raw text.
  *
  * @author Jeff Jensen
- * @since 3.4.1
+ * @since 3.5.0
  */
 public class JsonType extends AbstractDataType
 {

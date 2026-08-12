@@ -30,7 +30,7 @@ import org.xml.sax.InputSource;
  * 646).
  *
  * @author Jeff Jensen
- * @since 3.4.1
+ * @since 3.5.0
  */
 @EnabledIfSystemProperty(named = "dbunit.profile", matches = "postgresql")
 class PostgresqlArrayIT

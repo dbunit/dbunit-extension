@@ -62,7 +62,7 @@ import org.slf4j.LoggerFactory;
  * config.setProperty(DatabaseConfig.PROPERTY_METADATA_HANDLER, new MultiSchemaMySqlMetadataHandler());
  * </pre>
  *
- * @since 3.4.1
+ * @since 3.5.0
  */
 public class MultiSchemaMySqlMetadataHandler extends MySqlMetadataHandler
 {

@@ -49,7 +49,7 @@ import org.xml.sax.InputSource;
  * live connection, not just in isolated {@code createDataType()} unit tests.
  *
  * @author Jeff Jensen
- * @since 3.4.1
+ * @since 3.5.0
  */
 @EnabledIfSystemProperty(named = "dbunit.profile", matches = "mariadb")
 class MariaDbDataTypeFactoryIT

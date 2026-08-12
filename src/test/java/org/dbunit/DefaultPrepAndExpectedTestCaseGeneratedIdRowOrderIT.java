@@ -63,7 +63,7 @@ import org.junit.jupiter.api.Test;
  * columns" - this class's fix.
  *
  * @author Jeff Jensen jeffjensen AT users.sourceforge.net
- * @since 3.4.1
+ * @since 3.5.0
  */
 class DefaultPrepAndExpectedTestCaseGeneratedIdRowOrderIT
 {

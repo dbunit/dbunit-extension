@@ -67,7 +67,7 @@ import org.slf4j.LoggerFactory;
  * enclosing class.
  *
  * @author dbunit
- * @since 3.4.1
+ * @since 3.5.0
  */
 public class DbUnitExtension implements BeforeTestExecutionCallback, AfterTestExecutionCallback {
     private static final Logger log = LoggerFactory.getLogger(DbUnitExtension.class);

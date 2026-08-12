@@ -297,7 +297,7 @@ public class DatabaseConfig
      * Copies every known property and feature value from this config into the given target config.
      *
      * @param target The config to receive this config's property and feature values.
-     * @since 3.4.1
+     * @since 3.5.0
      */
     public void copyPropertiesInto(DatabaseConfig target)
     {

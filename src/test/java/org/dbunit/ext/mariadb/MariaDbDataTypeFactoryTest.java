@@ -31,7 +31,7 @@ import org.junit.jupiter.api.Test;
 
 /**
  * @author Jeff Jensen
- * @since 3.4.1
+ * @since 3.5.0
  */
 class MariaDbDataTypeFactoryTest extends MySqlDataTypeFactoryTest
 {

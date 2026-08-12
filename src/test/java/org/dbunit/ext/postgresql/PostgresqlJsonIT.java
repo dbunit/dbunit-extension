@@ -31,7 +31,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  * a real database (issue 574).
  *
  * @author Jeff Jensen
- * @since 3.4.1
+ * @since 3.5.0
  */
 @EnabledIfSystemProperty(named = "dbunit.profile", matches = "postgresql")
 class PostgresqlJsonIT

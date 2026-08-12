@@ -79,7 +79,7 @@ the results.
 means running the real `getTables()` call once and dropping the rows that don't belong.
 
 link:/dbunit/apidocs/org/dbunit/database/InMemoryMetadataResultSet.html[InMemoryMetadataResultSet]
-(`org.dbunit.database`, since 3.4.1) is the shared building block behind both: it copies
+(`org.dbunit.database`, since 3.5.0) is the shared building block behind both: it copies
 the rows a handler wants to keep into memory ahead of time, then hands back a
 `java.lang.reflect.Proxy`-based `ResultSet` that answers just the handful of methods
 dbUnit itself calls against a metadata result — `next()`, `getString(int/String)`,

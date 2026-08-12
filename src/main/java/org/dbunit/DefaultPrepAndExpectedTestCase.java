@@ -147,7 +147,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * test needs to collect every {@link org.dbunit.assertion.Difference}
      * instead.
      *
-     * @since 3.4.1
+     * @since 3.5.0
      */
     private FailureHandler failureHandler;
 
@@ -878,7 +878,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      *            of by all of the actual table's native columns; see
      *            {@link VerifyTableDefinition#isSortOnFilteredColumnsOnly()}.
      * @throws DatabaseUnitException if the tables' row counts, columns, or data do not match.
-     * @since 3.4.1
+     * @since 3.5.0
      */
     protected void verifyData(final ITable expectedTable,
             final ITable actualTable, final String[] excludeColumns,
@@ -1467,7 +1467,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * @see #failureHandler
      *
      * @return The failureHandler.
-     * @since 3.4.1
+     * @since 3.5.0
      */
     public FailureHandler getFailureHandler()
     {
@@ -1481,7 +1481,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      *
      * @param failureHandler
      *            The failureHandler to set.
-     * @since 3.4.1
+     * @since 3.5.0
      */
     public void setFailureHandler(final FailureHandler failureHandler)
     {

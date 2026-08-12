@@ -39,7 +39,7 @@ import org.junit.jupiter.api.Test;
  * closing multiple source result sets - {@code filter()}'s single-source row-selection behavior
  * is already exercised via {@link org.dbunit.ext.h2.H2MetadataHandlerTest}.
  *
- * @since 3.4.1
+ * @since 3.5.0
  */
 class InMemoryMetadataResultSetTest
 {

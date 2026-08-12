@@ -46,7 +46,7 @@ import org.junit.jupiter.api.Test;
  * catalogs), while a caller that already supplies a single schema still gets the plain
  * {@link MySqlMetadataHandler} single-catalog passthrough.
  *
- * @since 3.4.1
+ * @since 3.5.0
  */
 class MultiSchemaMySqlMetadataHandlerTest
 {

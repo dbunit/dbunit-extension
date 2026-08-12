@@ -49,7 +49,7 @@ import org.dbunit.util.SQLHelper;
  * A single instance answers both {@link ResultSet} calls and, since {@code getMetaData()}
  * returns the proxy itself, the {@link ResultSetMetaData} calls made against its result.
  *
- * @since 3.4.1
+ * @since 3.5.0
  */
 public final class InMemoryMetadataResultSet implements InvocationHandler
 {
@@ -57,7 +57,7 @@ public final class InMemoryMetadataResultSet implements InvocationHandler
      * Tests whether a source result set's current row, as positioned by a preceding
      * {@link ResultSet#next()}, should be kept.
      *
-     * @since 3.4.1
+     * @since 3.5.0
      */
     @FunctionalInterface
     public interface RowFilter

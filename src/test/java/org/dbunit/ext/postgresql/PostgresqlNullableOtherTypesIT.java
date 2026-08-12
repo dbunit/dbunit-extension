@@ -36,7 +36,7 @@ import org.xml.sax.InputSource;
  * (issue 933), discovered while writing this test.
  *
  * @author Jeff Jensen
- * @since 3.4.1
+ * @since 3.5.0
  */
 @EnabledIfSystemProperty(named = "dbunit.profile", matches = "postgresql")
 class PostgresqlNullableOtherTypesIT
