@@ -1149,6 +1149,7 @@
           </parameter>
         </configuration>
         <reportSets>
+<!--
           <reportSet>
             <id>3.4.0-to-snapshot</id>
             <reports>
@@ -1170,6 +1171,34 @@
                 <file>
                   <path>${project.build.directory}/${project.artifactId}-${project.version}.${project.packaging}</path>
                 </file>
+              </newVersion>
+            </configuration>
+          </reportSet>
+-->
+          <reportSet>
+            <id>3.4.0-to-3.5.0</id>
+            <reports>
+              <report>cmp-report</report>
+            </reports>
+            <configuration>
+              <parameter>
+                <reportLinkName>3.4.0-to-3.5.0</reportLinkName>
+              </parameter>
+              <oldVersion>
+                <dependency>
+                  <groupId>${project.groupId}</groupId>
+                  <artifactId>${project.artifactId}</artifactId>
+                  <version>3.4.0</version>
+                  <type>jar</type>
+                </dependency>
+              </oldVersion>
+              <newVersion>
+                <dependency>
+                  <groupId>${project.groupId}</groupId>
+                  <artifactId>${project.artifactId}</artifactId>
+                  <version>3.5.0</version>
+                  <type>jar</type>
+                </dependency>
               </newVersion>
             </configuration>
           </reportSet>
