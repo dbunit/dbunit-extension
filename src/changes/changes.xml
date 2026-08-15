@@ -23,6 +23,9 @@
       <action dev="jeffjensen" type="add" issue="939" system="github" due-to="jeffjensen">
           Wire the row count check into DbUnitExtension: beforeTestExecution() captures the baseline before onSetup(), afterTestExecution() verifies it after onTearDown() unless the test method itself threw. Each capture/verify uses its own connection, acquired and closed independently of whatever connection onSetup()/onTearDown() use internally, and tolerates a null IDatabaseTester.getConnection() (e.g. a test double) by simply never activating for it.
       </action>
+      <action dev="jeffjensen" type="add" issue="753" system="github" due-to="jeffjensen">
+          Add JsonDataFileLoader and YamlDataFileLoader to org.dbunit.util.fileloader, filling the gap where the JSON and YAML dataset formats had no matching DataFileLoader; add FileExtensionDataFileLoader, which dispatches to the right loader (flat XML, JSON, YAML, or Excel) by file extension.
+      </action>
     </release>
     <release version="3.5.1" date="Aug 20, 2026" description="A regression fix for FlatXmlProducer incorrectly treating any explicitly-supplied metadata IDataSet as a DTD-style enumeration of the fixture's tables">
       <action dev="jeffjensen" type="fix" issue="951" system="github" due-to="tkrah">
