@@ -113,6 +113,7 @@
         <item name="IOperationListener"               href="/components/ioperationlistener.html"/>
         <item name="IMetadataHandler"                 href="/components/imetadatahandler.html"/>
         <item name="Assertion &amp; DbUnitAssert"      href="/components/assertion.html"/>
+        <item name="RowCountCheck"                    href="/components/rowcountcheck.html"/>
       </item>
       <item name="Best Practices"    href="/bestpractices.html"/>
       <item name="Database Testing Concepts" href="/intro.html"/>

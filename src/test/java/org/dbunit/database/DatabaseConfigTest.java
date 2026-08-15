@@ -23,6 +23,10 @@ package org.dbunit.database;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.util.Properties;
+
+import org.dbunit.database.rowcount.QueryPerTableRowCounter;
+import org.dbunit.database.rowcount.RowCounter;
 import org.dbunit.dataset.datatype.DataType;
 import org.dbunit.dataset.datatype.DataTypeException;
 import org.dbunit.dataset.datatype.IDataTypeFactory;
@@ -186,6 +190,100 @@ class DatabaseConfigTest
                 .as("copyPropertiesInto() must overwrite the target's property even when the "
                         + "source left it at its nullable default.")
                 .isNull();
+    }
+
+    @Test
+    void testGetFeature_rowCountCheckDefault_isFalse() throws Exception
+    {
+        final DatabaseConfig config = new DatabaseConfig();
+
+        assertThat(config.getFeature(DatabaseConfig.FEATURE_ROW_COUNT_CHECK))
+                .as("FEATURE_ROW_COUNT_CHECK must default to false; the check is opt-in.")
+                .isFalse();
+    }
+
+    @Test
+    void testGetProperty_rowCountCheckExcludeTablesDefault_isEmptyArray() throws Exception
+    {
+        final DatabaseConfig config = new DatabaseConfig();
+
+        assertThat(
+                (String[]) config
+                        .getProperty(DatabaseConfig.PROPERTY_ROW_COUNT_CHECK_EXCLUDE_TABLES))
+                                .as("PROPERTY_ROW_COUNT_CHECK_EXCLUDE_TABLES must default to an"
+                                        + " empty pattern list.")
+                                .isEmpty();
+    }
+
+    @Test
+    void testGetProperty_rowCounterDefault_isQueryPerTableRowCounterInstance() throws Exception
+    {
+        final DatabaseConfig config = new DatabaseConfig();
+
+        assertThat(config.getProperty(DatabaseConfig.PROPERTY_ROW_COUNTER))
+                .as("PROPERTY_ROW_COUNTER must default to a QueryPerTableRowCounter, the v1"
+                        + " RowCounter implementation.")
+                .isInstanceOf(QueryPerTableRowCounter.class);
+    }
+
+    @Test
+    void testFindByName_rowCountCheckFeature_returnsBooleanConfigProperty() throws Exception
+    {
+        final DatabaseConfig.ConfigProperty property =
+                DatabaseConfig.findByName(DatabaseConfig.FEATURE_ROW_COUNT_CHECK);
+
+        assertThat(property)
+                .as("FEATURE_ROW_COUNT_CHECK must be registered so its type can be validated,"
+                        + " instead of only logging \"Unknown property\".")
+                .isNotNull();
+        assertThat(property.getPropertyType()).as("The feature is boolean-valued.")
+                .isEqualTo(Boolean.class);
+    }
+
+    @Test
+    void testFindByShortName_rowCountCheckExcludeTables_returnsStringArrayConfigProperty()
+            throws Exception
+    {
+        final DatabaseConfig.ConfigProperty property =
+                DatabaseConfig.findByShortName("rowCountCheckExcludeTables");
+
+        assertThat(property)
+                .as("The short name must resolve to PROPERTY_ROW_COUNT_CHECK_EXCLUDE_TABLES.")
+                .isNotNull();
+        assertThat(property.getPropertyType())
+                .as("The exclude patterns are a String array, matching the shape of"
+                        + " PROPERTY_TABLE_TYPE and the dbunit.rowCountCheckExcludeTables"
+                        + " system property.")
+                .isEqualTo(String[].class);
+    }
+
+    @Test
+    void testFindByName_rowCounter_returnsRowCounterConfigProperty() throws Exception
+    {
+        final DatabaseConfig.ConfigProperty property =
+                DatabaseConfig.findByName(DatabaseConfig.PROPERTY_ROW_COUNTER);
+
+        assertThat(property)
+                .as("PROPERTY_ROW_COUNTER must be registered so its type can be validated.")
+                .isNotNull();
+        assertThat(property.getPropertyType()).as("The property holds a RowCounter instance.")
+                .isEqualTo(RowCounter.class);
+    }
+
+    @Test
+    void testSetPropertiesByString_rowCounterClassName_instantiatesThatCounter() throws Exception
+    {
+        final DatabaseConfig config = new DatabaseConfig();
+        final Properties stringProperties = new Properties();
+        stringProperties.setProperty("rowCounter", QueryPerTableRowCounter.class.getName());
+
+        config.setPropertiesByString(stringProperties);
+
+        assertThat(config.getProperty(DatabaseConfig.PROPERTY_ROW_COUNTER))
+                .as("A class name configured via a String property (e.g. from Ant or Maven)"
+                        + " must be reflectively instantiated, the same as any other"
+                        + " object-valued property.")
+                .isInstanceOf(QueryPerTableRowCounter.class);
     }
 
 }
