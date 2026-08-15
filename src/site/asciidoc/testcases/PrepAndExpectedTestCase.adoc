@@ -86,6 +86,23 @@ link:../operations.html[DatabaseOperation]s (default `CLEAN_INSERT` / `NONE`) ru
 automatically around your test steps — no manual `onSetup()`/`onTearDown()` calls
 needed when using `runTest()`.
 
+== Verifying Your Teardown Table List Is Complete
+
+The teardown operation only cleans the tables named in your prep and expected datasets.
+Two mistakes here are silent at the point they happen and only surface later, in an
+*unrelated* test: forgetting to list a table the code under test writes to (its rows
+survive teardown), and wrongly listing a reference table that should never be cleaned
+(teardown strips rows the DDL seeded).
+
+link:../components/rowcountcheck.html[RowCountCheck] is an opt-in diagnostic for exactly
+this: it compares every table's row count before `preTest()` and after `cleanupData()`,
+failing the test by name when a count moved instead of letting the corruption surface in
+whichever test happens to run next. It is off by default; turn it on with
+`DatabaseConfig.FEATURE_ROW_COUNT_CHECK` (or `-Ddbunit.rowCountCheck=true`) when
+verifying a suite's teardown correctness, and see
+link:../components/rowcountcheck.html[the RowCountCheck page] for what it catches, how
+to exclude legitimately-changing tables, and how to read a failure.
+
 == Usage
 
 === Configure
