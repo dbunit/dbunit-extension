@@ -13,6 +13,11 @@
   </properties>
 
   <body>
+    <release version="3.6.0-SNAPSHOT" date="TBD" description="Row count check detecting test teardown missed or wrongly cleaned tables">
+      <action dev="jeffjensen" type="add" issue="939" system="github" due-to="jeffjensen">
+          Add RowCounter, QueryPerTableRowCounter, RowCountSnapshot, RowCountDifference, RowCountCheckConfiguration, RowCountCheck, RowCountChecker, and UnexpectedRowCountException to org.dbunit.database, plus DatabaseConfig.FEATURE_ROW_COUNT_CHECK, PROPERTY_ROW_COUNT_CHECK_EXCLUDE_TABLES, and PROPERTY_ROW_COUNTER: the core of an opt-in diagnostic that compares every table's row count before and after a test, failing the test when a count moved. Not yet wired into any test lifecycle.
+      </action>
+    </release>
     <release version="3.5.0" date="Aug 11, 2026" description="A documentation site overhaul (new tutorials, 10 database vendor guides, a class-by-class Core Components reference, and a new Developing DbUnit contributor section); several new capabilities including DbUnitExtension for native JUnit 5/6 lifecycle management, a JSON dataset format with a matching JSON ValueComparer, MariaDB and H2 2.x database support, expanded PostgreSQL json/jsonb and array type support, and an opt-in escape hatch for schemas with circular foreign keys; and a broad set of correctness and performance fixes spanning metadata handling, DTD/XML export, PostgreSQL null-safety and large-object handling, and FlatXmlProducer memory use">
       <action dev="jeffjensen" type="add" issue="840" system="github" due-to="jeffjensen">
           Add repo-root README.adoc, rendered natively by GitHub via Asciidoctor, so the repository landing page shows a pitch, build/reproducible-build badges, a pointer to the "dbUnit in 5 Minutes" tutorial, and links to the documentation site, Maven coordinates, GitHub Discussions, and CONTRIBUTING.md instead of nothing.

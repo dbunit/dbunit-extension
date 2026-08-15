@@ -28,6 +28,8 @@ import java.util.Map;
 import java.util.Properties;
 
 import org.dbunit.DatabaseUnitException;
+import org.dbunit.database.rowcount.QueryPerTableRowCounter;
+import org.dbunit.database.rowcount.RowCounter;
 import org.dbunit.database.statement.IStatementFactory;
 import org.dbunit.database.statement.PreparedStatementFactory;
 import org.dbunit.dataset.datatype.DefaultDataTypeFactory;
@@ -89,6 +91,12 @@ public class DatabaseConfig
     /** Name of the property configuring the {@link IColumnFilter} used to determine MS SQL identity columns. */
     public static final String PROPERTY_IDENTITY_COLUMN_FILTER =
             "http://www.dbunit.org/properties/mssql/identityColumnFilter";
+    /** Name of the property configuring the table name patterns excluded from the row count check. */
+    public static final String PROPERTY_ROW_COUNT_CHECK_EXCLUDE_TABLES =
+            "http://www.dbunit.org/properties/rowCountCheckExcludeTables";
+    /** Name of the property configuring the {@link RowCounter} implementation to use. */
+    public static final String PROPERTY_ROW_COUNTER =
+            "http://www.dbunit.org/properties/rowCounter";
 
     /** Name of the feature controlling whether table names are treated as case sensitive. */
     public static final String FEATURE_CASE_SENSITIVE_TABLE_NAMES =
@@ -120,9 +128,15 @@ public class DatabaseConfig
      */
     public static final String FEATURE_SKIP_CYCLE_CHECK =
             "http://www.dbunit.org/features/skipCycleCheck";
+    /**
+     * Name of the feature controlling whether table row counts are compared before and after
+     * each test.
+     */
+    public static final String FEATURE_ROW_COUNT_CHECK =
+            "http://www.dbunit.org/features/rowCountCheck";
 
     /**
-     * A list of all properties as {@link ConfigProperty} objects. 
+     * A list of all properties as {@link ConfigProperty} objects.
      * The objects contain the allowed java type and whether or not a property is nullable.
      */
     public static final ConfigProperty[] ALL_PROPERTIES = new ConfigProperty[] {
@@ -145,6 +159,9 @@ public class DatabaseConfig
         new ConfigProperty(PROPERTY_ALLOW_VERIFYTABLEDEFINITION_EXPECTEDTABLE_COUNT_MISMATCH, Boolean.class, false),
         new ConfigProperty(FEATURE_SORT_ALL_COLUMNS_WHEN_NO_PRIMARY_KEY, Boolean.class, false),
         new ConfigProperty(FEATURE_SKIP_CYCLE_CHECK, Boolean.class, false),
+        new ConfigProperty(PROPERTY_ROW_COUNT_CHECK_EXCLUDE_TABLES, String[].class, false),
+        new ConfigProperty(PROPERTY_ROW_COUNTER, RowCounter.class, false),
+        new ConfigProperty(FEATURE_ROW_COUNT_CHECK, Boolean.class, false),
     };
 
     /**
@@ -159,7 +176,8 @@ public class DatabaseConfig
         FEATURE_SKIP_ORACLE_RECYCLEBIN_TABLES,
         FEATURE_ALLOW_EMPTY_FIELDS,
         FEATURE_SORT_ALL_COLUMNS_WHEN_NO_PRIMARY_KEY,
-        FEATURE_SKIP_CYCLE_CHECK
+        FEATURE_SKIP_CYCLE_CHECK,
+        FEATURE_ROW_COUNT_CHECK
     };
     
     private static final DefaultDataTypeFactory DEFAULT_DATA_TYPE_FACTORY =
@@ -172,6 +190,9 @@ public class DatabaseConfig
     private static final String[] DEFAULT_TABLE_TYPE = {"TABLE"};
     private static final Integer DEFAULT_BATCH_SIZE = 100;
     private static final Integer DEFAULT_FETCH_SIZE = 100;
+    private static final String[] DEFAULT_ROW_COUNT_CHECK_EXCLUDE_TABLES = new String[0];
+    private static final QueryPerTableRowCounter DEFAULT_ROW_COUNTER =
+            new QueryPerTableRowCounter();
 
 
 
@@ -192,6 +213,7 @@ public class DatabaseConfig
         setFeature(FEATURE_ALLOW_EMPTY_FIELDS, false);
         setFeature(FEATURE_SORT_ALL_COLUMNS_WHEN_NO_PRIMARY_KEY, false);
         setFeature(FEATURE_SKIP_CYCLE_CHECK, false);
+        setFeature(FEATURE_ROW_COUNT_CHECK, false);
 
         setProperty(PROPERTY_STATEMENT_FACTORY, PREPARED_STATEMENT_FACTORY);
         setProperty(PROPERTY_RESULTSET_TABLE_FACTORY, RESULT_SET_TABLE_FACTORY);
@@ -204,6 +226,9 @@ public class DatabaseConfig
         setProperty(
                 PROPERTY_ALLOW_VERIFYTABLEDEFINITION_EXPECTEDTABLE_COUNT_MISMATCH,
                 Boolean.FALSE);
+        setProperty(PROPERTY_ROW_COUNT_CHECK_EXCLUDE_TABLES,
+                DEFAULT_ROW_COUNT_CHECK_EXCLUDE_TABLES);
+        setProperty(PROPERTY_ROW_COUNTER, DEFAULT_ROW_COUNTER);
 
         this.configurator = new Configurator(this);
     }

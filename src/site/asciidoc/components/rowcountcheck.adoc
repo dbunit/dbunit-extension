@@ -1,0 +1,209 @@
+= RowCountCheck
+
+[#overview]
+== Overview
+
+link:/dbunit/apidocs/org/dbunit/database/rowcount/RowCountCheck.html[RowCountCheck]
+(`org.dbunit.database.rowcount`, since 3.6.0) is an opt-in diagnostic that compares every table's
+row count before and after a test, and fails the test when a count moved. It catches two
+mistakes that are otherwise silent at the point they happen and only surface later, in an
+unrelated test:
+
+[cols="1,3", options="header"]
+|===
+|Mistake |Consequence
+
+|*Under-listing* — a table the code under test writes to is missing from the
+prep/expected dataset
+|Its rows survive teardown. A *later, unrelated* test fails on the extra data, naming the
+wrong test and starting the debugging in the wrong place.
+
+|*Over-listing* — a reference table is listed that should never be cleaned
+|The teardown operation strips rows the DDL seeded. Every later test that depends on that
+reference data fails in ways that look nothing like the cause.
+|===
+
+Both are the same underlying defect: the database did not return to the state the test
+inherited, and nothing checked that — until now.
+
+[#what-it-detects]
+== What It Detects, and What It Does Not
+
+The check compares `COUNT(*)` per table, captured fresh before the test and compared again
+after teardown. That catches every row added or removed, regardless of *how* — application
+code, triggers, `ON DELETE CASCADE`, stored procedures, or a `DataSource` the test never
+sees. It is immune to the mechanism because it reads the end state, not the statements that
+produced it.
+
+It does *not* catch:
+
+* An `UPDATE` that changes values without changing the row count.
+* An insert-N/delete-N sequence that nets to zero.
+
+Neither leaves extra or missing rows, which is the problem this check solves.
+
+[#enabling]
+== Enabling It
+
+The check is *off by default* and read-only — it never modifies data. Turn it on to verify
+a suite's teardown correctness; leave it off for routine runs, since capturing two snapshots
+per test roughly doubles that test's table-counting cost.
+
+Enable it via the link:../properties.html#rowcountcheck[`FEATURE_ROW_COUNT_CHECK`] feature:
+
+[source,java]
+----
+DatabaseConfig config = connection.getConfig();
+config.setFeature(DatabaseConfig.FEATURE_ROW_COUNT_CHECK, true);
+----
+
+or, without touching code, via a system property — which wins over the feature in *either*
+direction, so it can force-enable in CI or force-disable locally regardless of what the code
+configures:
+
+[source]
+----
+-Ddbunit.rowCountCheck=true
+----
+
+It is wired into both link:../testcases/PrepAndExpectedTestCase.html[PrepAndExpectedTestCase]
+and link:../testcases/DbUnitExtension.html[DbUnitExtension]; enabling the feature (or the
+system property) is everything a test needs to do. Both integration points share the same
+`org.dbunit.database.rowcount.RowCountChecker`, the class that captures a baseline, verifies
+it later, and lets it be discarded when a verify would be noise (e.g. the test's own steps
+already failed) — plumbing a test integration reuses, not something a test author calls
+directly.
+
+[#exclusions]
+== Excluding Tables
+
+Some tables legitimately change and can never be cleaned back to a fixed baseline:
+
+* Append-only audit and log tables that nothing cleans.
+* Sequence-emulation tables (a `NEXT_ID`/`HIBERNATE_SEQUENCES` table) that change on every
+insert by design.
+* Tables owned by a different lifecycle than the test's.
+* A very large, static reference table where `COUNT(*)` itself is what makes the run slow —
+a performance exclusion, not a correctness one.
+
+Configure patterns — supporting the same `*`/`?` wildcards as
+link:../filters.html[`ExcludeTableFilter`] — via
+link:../properties.html#rowcountcheckexcludetables[`PROPERTY_ROW_COUNT_CHECK_EXCLUDE_TABLES`]:
+
+[source,java]
+----
+config.setProperty(DatabaseConfig.PROPERTY_ROW_COUNT_CHECK_EXCLUDE_TABLES,
+        new String[] {"AUDIT_*", "HIBERNATE_SEQUENCES"});
+----
+
+or the matching system property, which *replaces* rather than appends to any configured
+patterns:
+
+[source]
+----
+-Ddbunit.rowCountCheckExcludeTables=AUDIT_*,HIBERNATE_SEQUENCES
+----
+
+[#failure-message]
+== Reading a Failure
+
+[source]
+----
+Row count check failed: 2 tables differ from the pre-test baseline.
+  ACCOUNT_AUDIT  0 -> 3  (+3)  rows left behind; add the table to the expected dataset, or exclude it
+  COUNTRY_CODE  12 -> 0  (-12)  rows removed that should remain; drop the table from the prep/expected dataset, or exclude it
+----
+
+Each line names the table in the exact form `getTableNames()` returned it, so it can be
+pasted straight into a dataset or an exclude list, and the delta's sign tells you which fix
+applies:
+
+* *Positive* — rows were left behind. Add the table to the expected dataset (so teardown
+cleans it) — with `DefaultPrepAndExpectedTestCase`, that also means adding a matching
+`VerifyTableDefinition`, since an expected table with none fails verification on its own
+by default — or exclude it if it legitimately can't be cleaned.
+* *Negative* — rows that should remain were removed. Drop the table from the prep/expected
+dataset (so teardown never touches it), or exclude it.
+
+[#row-counter]
+== Supplying Your Own RowCounter
+
+Counting is the expensive part of the check, so it is the one seam left open:
+link:/dbunit/apidocs/org/dbunit/database/rowcount/RowCounter.html[`RowCounter`], registered like
+every other dbUnit extension point via
+link:../properties.html#rowcounter[`DatabaseConfig.PROPERTY_ROW_COUNTER`]. The shipped
+implementation, `QueryPerTableRowCounter`, issues one `SELECT COUNT(*)` per table.
+
+A `RowCounter` implementation's contract:
+
+* Return an entry for *every* requested table name, keyed exactly as supplied.
+* Return entries for *no other* tables.
+* Counts must be *exact* — a vendor statistics view (e.g. PostgreSQL's
+`pg_stat_user_tables`) lags asynchronously and would produce false failures, however cheap
+it is to query.
+
+Table enumeration and exclusion filtering happen in `RowCountCheck` itself, outside the
+strategy, so an implementation's whole job is counting the list it is handed:
+
+[source,java]
+----
+public interface RowCounter
+{
+    Map<String, Integer> countRows(IDatabaseConnection connection, List<String> tableNames)
+            throws SQLException;
+}
+----
+
+An illustrative sketch, *not* production-ready — batching every table into one query per
+round trip instead of one round trip per table. It embeds table names directly into both a
+`FROM` identifier and a string literal; a real implementation has to correctly quote and
+escape both for every supported vendor before this is safe to use as-is:
+
+[source,java]
+----
+public class UnionAllRowCounter implements RowCounter
+{
+    @Override
+    public Map<String, Integer> countRows(IDatabaseConnection connection,
+            List<String> tableNames) throws SQLException
+    {
+        Map<String, Integer> rowCounts = new LinkedHashMap<>();
+        if (tableNames.isEmpty())
+        {
+            return rowCounts;
+        }
+
+        String sql = tableNames.stream()
+                .map(name -> "SELECT '" + name + "' AS t, COUNT(*) AS c FROM " + name)
+                .collect(Collectors.joining(" UNION ALL "));
+
+        try (Statement statement = connection.getConnection().createStatement();
+                ResultSet resultSet = statement.executeQuery(sql))
+        {
+            while (resultSet.next())
+            {
+                rowCounts.put(resultSet.getString("t"), resultSet.getInt("c"));
+            }
+        }
+        return rowCounts;
+    }
+}
+----
+
+Register it the same way as any other `DatabaseConfig` property:
+
+[source,java]
+----
+config.setProperty(DatabaseConfig.PROPERTY_ROW_COUNTER, new UnionAllRowCounter());
+----
+
+[#caveats]
+== Caveats
+
+* *Sequences and identity columns are not reset.* Deleting leftover rows never resets
+them, so generated IDs still drift across tests even when counts balance.
+* *A row-removing teardown operation is presumed.* With `DatabaseOperation.NONE`, every
+prep row reads as a difference.
+* *Modified rows are invisible* — see <<what-it-detects>>.
+* *Parallel tests against one database break the check*, as they already break
+`DELETE_ALL` teardown. Not specific to this check.

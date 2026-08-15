@@ -46,14 +46,14 @@ We will gladly help you as needed with your ideas and contributions and look to 
 |===
 |Date |News
 
-// |TBD
-// |Please try the 3.6.0-SNAPSHOT snapshot build and let us know how it works!
-// It adds ????
-// See link:https://dbunit.github.io/dbunit-extension/repos.html#snapshots[SNAPSHOTS] for how to use them.
-// Refer to the link:changes.html#a3.6.0-SNAPSHOT[changes report],
-// the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.6.0%20type%3AFeature[feature list], and
-// the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.6.0%20type%3ABug[bug list]
-// for the snapshot contents (and subsequent updates).
+|TBD
+|Please try the 3.6.0-SNAPSHOT snapshot build and let us know how it works!
+It adds an opt-in *row count check* (`RowCountCheck`) that catches tables teardown missed or wrongly cleaned.
+See link:https://dbunit.github.io/dbunit-extension/repos.html#snapshots[SNAPSHOTS] for how to use them.
+Refer to the link:changes.html#a3.6.0-SNAPSHOT[changes report],
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.6.0%20type%3AFeature[feature list], and
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.6.0%20type%3ABug[bug list]
+for the snapshot contents (and subsequent updates).
 
 |2026-08-11
 |Release 3.5.0 available.

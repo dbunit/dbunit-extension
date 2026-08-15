@@ -80,6 +80,11 @@ _Note:_ this feature was not compatible with the <<escapepattern,escape pattern>
 |http://www.dbunit.org/features/skipCycleCheck
 |false
 |Let link:filters.html#databasesequencefilter[DatabaseSequenceFilter] skip its foreign-key dependency cycle check instead of throwing `CyclicTablesDependencyException`. Each cycle is instead treated as one unit for ordering purposes: tables outside it are still correctly sorted relative to it, but the relative order of the tables making up the cycle falls back to their original input order — only useful when the cycle is handled another way (e.g. nullable FK columns populated by a later operation, or database-side deferred constraint checking).
+
+|anchor:rowcountcheck[]`FEATURE_ROW_COUNT_CHECK`
+|http://www.dbunit.org/features/rowCountCheck
+|false
+|Compare every table's row count before and after each test, failing the test when a count moved — see link:components/rowcountcheck.html[RowCountCheck] for what it catches and how to read a failure. Read-only; never modifies data. The `dbunit.rowCountCheck` system property overrides this feature in *either* direction when present (e.g. `-Ddbunit.rowCountCheck=true`), so it can force-enable in CI or force-disable locally regardless of what the code configures.
 |===
 
 == Properties
@@ -164,4 +169,14 @@ For all others the default handler should do the job: link:apidocs/org/dbunit/da
 |false
 |By default, link:apidocs/org/dbunit/DefaultPrepAndExpectedTestCase.html[DefaultPrepAndExpectedTestCase] fails the test when the expected dataset has more tables than the supplied link:apidocs/org/dbunit/VerifyTableDefinition.html[VerifyTableDefinition]s (see link:components/verifytabledefinition.html[VerifyTableDefinition] for the class reference) — a safety net for an expected table that was defined but never wired to a VerifyTableDefinition, which would otherwise be silently skipped during verification. Set this property to true to relax that check and allow the counts to disagree.
 |
+
+|anchor:rowcountcheckexcludetables[]http://www.dbunit.org/properties/rowCountCheckExcludeTables
+|String[]{}
+|Table name patterns (`*`/`?` wildcards supported, same as link:filters.html[ExcludeTableFilter]) excluded from the <<rowcountcheck,row count check>>. See link:components/rowcountcheck.html[RowCountCheck] for worked examples.
+|The `dbunit.rowCountCheckExcludeTables` system property, when present, *replaces* rather than appends to these patterns (e.g. `-Ddbunit.rowCountCheckExcludeTables=AUDIT_*,HIBERNATE_SEQUENCES`, comma-separated, each pattern trimmed).
+
+|anchor:rowcounter[]http://www.dbunit.org/properties/rowCounter
+|org.dbunit.database.rowcount.QueryPerTableRowCounter
+|Used to configure the row-counting strategy the <<rowcountcheck,row count check>> uses. The Object must implement link:apidocs/org/dbunit/database/rowcount/RowCounter.html[org.dbunit.database.rowcount.RowCounter]. See link:components/rowcountcheck.html#row-counter[Supplying Your Own RowCounter] for the contract and a worked implementation.
+|No system property override — swapping the counting implementation is a code-level decision made once for a suite, not something flipped per run.
 |===
