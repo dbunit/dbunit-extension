@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import org.dbunit.assertion.DbComparisonFailure;
 import org.dbunit.database.IDatabaseConnection;
+import org.dbunit.operation.DatabaseOperation;
 import org.dbunit.util.fileloader.DataFileLoader;
 import org.dbunit.util.fileloader.FlatXmlDataFileLoader;
 import org.junit.jupiter.api.BeforeEach;
@@ -117,6 +118,10 @@ class DefaultPrepAndExpectedTestCaseExtIT extends DefaultPrepAndExpectedTestCase
     {
         final DatabaseEnvironment dbEnv = DatabaseEnvironment.getInstance();
         final IDatabaseConnection connection = dbEnv.getConnection();
-        return new DefaultDatabaseTester(connection);
+        final IDatabaseTester databaseTester = new DefaultDatabaseTester(connection);
+        // without this, the prep rows this test inserts are never cleaned up and leak
+        // into whatever test runs next against the same tables
+        databaseTester.setTearDownOperation(DatabaseOperation.DELETE_ALL);
+        return databaseTester;
     }
 }
