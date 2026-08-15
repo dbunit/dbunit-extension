@@ -5,12 +5,18 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.catchThrowable;
 
 import java.sql.Connection;
+import java.util.Collections;
 
 import org.dbunit.assertion.DbComparisonFailure;
 import org.dbunit.assertion.DiffCollectingFailureHandler;
 import org.dbunit.database.DatabaseConfig;
 import org.dbunit.database.IDatabaseConnection;
 import org.dbunit.database.MockDatabaseConnection;
+import org.dbunit.database.rowcount.ClearRowCountCheckSystemProperties;
+import org.dbunit.database.rowcount.RowCountCheck;
+import org.dbunit.database.rowcount.RowCountDifference;
+import org.dbunit.database.rowcount.RowCountSnapshot;
+import org.dbunit.database.rowcount.UnexpectedRowCountException;
 import org.dbunit.database.statement.IBatchStatement;
 import org.dbunit.database.statement.MockBatchStatement;
 import org.dbunit.database.statement.MockStatementFactory;
@@ -32,6 +38,7 @@ import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
+@ClearRowCountCheckSystemProperties
 class DefaultPrepAndExpectedTestCaseTest
 {
     @Mock
@@ -741,6 +748,77 @@ class DefaultPrepAndExpectedTestCaseTest
         // lookup nor its own closeReusableConnection() may close the
         // connection a shared CachingConnectionProvider is still using (#801)
         connection.setExpectedCloseCalls(0);
+        connection.verify();
+    }
+
+    @Test
+    void testCleanupData_checkDisabled_doesNotCaptureABaseline() throws Exception
+    {
+        // MockDatabaseConnection's dataset/getRowCount() are unconfigured here, so a real
+        // capture()/verify() attempt would throw; reaching the end proves the disabled
+        // default RowCountCheck no-opped instead of querying the connection (#939)
+        tc.preTest();
+        tc.cleanupData();
+
+        assertThat(tc.getRowCountCheck())
+                .as("preTest() must still lazily resolve a RowCountCheck even though the"
+                        + " check is disabled, proving the disabled path was actually"
+                        + " exercised rather than skipped outright.")
+                .isNotNull();
+    }
+
+    @Test
+    void testCleanupData_noBaselineCaptured_skipsTheCheck() throws Exception
+    {
+        final RowCountCheck mockRowCountCheck = Mockito.mock(RowCountCheck.class);
+        tc.setRowCountCheck(mockRowCountCheck);
+
+        // cleanupData() called directly, without preTest() first, so no baseline was captured
+        tc.cleanupData();
+
+        Mockito.verify(mockRowCountCheck, Mockito.never())
+                .verify(Mockito.any(), Mockito.any());
+    }
+
+    @Test
+    void testPostTest_testStepsFailed_skipsTheCheck() throws Exception
+    {
+        final RowCountCheck mockRowCountCheck = Mockito.mock(RowCountCheck.class);
+        final RowCountSnapshot baseline =
+                new RowCountSnapshot(Collections.singletonMap("ACCOUNT", 5));
+        Mockito.when(mockRowCountCheck.capture(Mockito.any())).thenReturn(baseline);
+        tc.setRowCountCheck(mockRowCountCheck);
+
+        tc.preTest();
+        tc.postTest(false);
+
+        Mockito.verify(mockRowCountCheck, Mockito.never())
+                .verify(Mockito.any(), Mockito.any());
+    }
+
+    @Test
+    void testCleanupData_rowCountChanged_throwsAndStillClosesTheConnection() throws Exception
+    {
+        final RowCountCheck mockRowCountCheck = Mockito.mock(RowCountCheck.class);
+        final RowCountSnapshot baseline =
+                new RowCountSnapshot(Collections.singletonMap("ACCOUNT_AUDIT", 0));
+        Mockito.when(mockRowCountCheck.capture(Mockito.any())).thenReturn(baseline);
+        final UnexpectedRowCountException failure = new UnexpectedRowCountException(
+                Collections.singletonList(new RowCountDifference("ACCOUNT_AUDIT", 0, 3)));
+        Mockito.doThrow(failure).when(mockRowCountCheck).verify(Mockito.any(), Mockito.any());
+        tc.setRowCountCheck(mockRowCountCheck);
+        tc.preTest();
+
+        assertThat(catchThrowable(() -> tc.cleanupData()))
+                .as("A row count difference detected during cleanup must propagate as-is,"
+                        + " the same as any other cleanupData() failure.")
+                .isSameAs(failure);
+
+        final MockDatabaseConnection connection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        // the existing catch block in cleanupData() must still close the connection even
+        // though the row count check, not the tear down operation, is what failed (#939)
+        connection.setExpectedCloseCalls(1);
         connection.verify();
     }
 
