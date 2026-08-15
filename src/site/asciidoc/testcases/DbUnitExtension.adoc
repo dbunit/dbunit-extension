@@ -57,6 +57,18 @@ NOTE: `@Nested` test classes are not supported — field discovery only walks
 the innermost test instance and its superclasses, not enclosing class
 instances, since a Java nested class does not extend its enclosing class.
 
+== Row Count Check
+
+The same link:../components/rowcountcheck.html[RowCountCheck] diagnostic available to
+link:PrepAndExpectedTestCase.html[PrepAndExpectedTestCase] applies here too: a baseline is
+captured from the resolved `IDatabaseTester`'s connection before `onSetup()` and verified
+after `onTearDown()`, failing the test by name when a table's row count moved. Verification
+is skipped whenever `onTearDown()` itself throws, and also when the test method threw
+before reaching it, since either way the database is left in an unknown state and a count
+difference would only be noise around the real failure. It is off by default; enable it
+with `DatabaseConfig.FEATURE_ROW_COUNT_CHECK` (or `-Ddbunit.rowCountCheck=true`) on the
+connection's config.
+
 == When to Use This Instead of Manual Lifecycle Calls
 
 Reach for `DbUnitExtension` when a `@BeforeEach`/`@AfterEach` pair that only
