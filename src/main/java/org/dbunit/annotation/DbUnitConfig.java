@@ -179,6 +179,15 @@ public @interface DbUnitConfig {
      * signal that a tester's connection is managed elsewhere - so a connection already
      * protected that way needs no explicit {@code false} here.
      *
+     * <p>On the prep/expected path, a freshly constructed {@link #prepAndExpectedTestCase()} -
+     * no {@link DbUnitTestCase} field supplies one already - always receives this value through
+     * its {@code (DataFileLoader, IDatabaseTester, boolean)} constructor, regardless of
+     * implementation. A {@link DbUnitTestCase} field injecting an already-built instance
+     * receives it too, but only when that instance resolves to a
+     * {@link DefaultPrepAndExpectedTestCase} - the only {@link PrepAndExpectedTestCase}
+     * implementation exposing a setter for it; a different injected implementation keeps
+     * whatever value it was itself constructed with.
+     *
      * @return True to close the connection after each test; defaults to true.
      */
     boolean closeConnectionAfterTest() default true;

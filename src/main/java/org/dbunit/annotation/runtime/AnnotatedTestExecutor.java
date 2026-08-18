@@ -22,10 +22,14 @@ package org.dbunit.annotation.runtime;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.sql.SQLException;
 import java.util.Properties;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
+import org.dbunit.AbstractDatabaseTester;
 import org.dbunit.DatabaseUnitException;
+import org.dbunit.DatabaseUnitRuntimeException;
 import org.dbunit.DefaultOperationListener;
 import org.dbunit.DefaultPrepAndExpectedTestCase;
 import org.dbunit.IDatabaseTester;
@@ -37,6 +41,7 @@ import org.dbunit.database.rowcount.RowCountChecker;
 import org.dbunit.dataset.CompositeDataSet;
 import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.IDataSet;
+import org.dbunit.operation.DatabaseOperation;
 import org.dbunit.util.fileloader.DataFileLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,10 +56,32 @@ import org.slf4j.LoggerFactory;
  * {@link PrepAndExpectedTestCase} - field discovery is binding-specific - and hands them here
  * already resolved.
  *
- * <p>The row count check (see {@code org.dbunit.database.rowcount.RowCountCheck}) wraps only
- * the simple path: the prep/expected path already has its own, via
- * {@link DefaultPrepAndExpectedTestCase#preTest()} and {@code cleanupData()} - wrapping it a
- * second time here would just repeat the same table counts.
+ * <p>The row count check (see {@code org.dbunit.database.rowcount.RowCountCheck}) is captured
+ * and verified by this class only for the simple path; the prep/expected path already has its
+ * own, via {@link DefaultPrepAndExpectedTestCase#preTest()} and {@code cleanupData()} -
+ * wrapping it a second time here would just repeat the same table counts. Either way, when
+ * {@code @DbUnitRowCountCheck} is declared, its resolved {@code RowCountCheck} overrides
+ * whichever of the two would otherwise resolve one from the connection's own
+ * {@link DatabaseConfig} - for the prep/expected path via
+ * {@link DefaultPrepAndExpectedTestCase#setRowCountCheckOverride(boolean, String[])}, which
+ * resolves that connection lazily on its own rather than this executor needing one just to
+ * build the override.
+ *
+ * <p>Capturing that baseline needs a connection - to read whether the check is even enabled
+ * before anything else can happen - but resolving one just for that would cost a plain
+ * {@code JdbcDatabaseTester} an extra physical connection every test, on top of whatever
+ * {@code onSetup()} itself opens, even when the check turns out disabled. So
+ * {@link #beforeSimpleTest()} captures the baseline from whichever connection ends up cheapest:
+ * when {@link #canPiggybackRowCountBaseline(DatabaseOperation)} can prove {@code onSetup()} is
+ * about to retrieve one on its own - {@code tester} is an {@link AbstractDatabaseTester} and its
+ * resolved setup operation is not {@link DatabaseOperation#NONE} - capture piggybacks on that
+ * connection via {@link #captureRowCountBaselineOnFirstConnectionRetrieved(IDatabaseConnection)},
+ * so this executor never resolves a connection of its own at all; otherwise - a custom
+ * {@link IDatabaseTester}, a {@link DatabaseOperation#NONE} setup operation, or a connection
+ * already memoized from earlier - {@link #captureRowCountBaseline()} resolves one eagerly, the
+ * same way every version of this class before the optimization always did. Either way a
+ * baseline is always decided - captured, or found disabled - before the test method runs; which
+ * path got there differs only in cost, never in outcome.
  *
  * <p>The connection {@link IDatabaseTester#getConnection()} returns for the row count check and
  * for parameter injection is memoized by {@link #getConnection()} and closed in
@@ -83,7 +110,7 @@ import org.slf4j.LoggerFactory;
  * {@code JdbcDatabaseTester}) still has each of those closed right after its own operation, same
  * as always.
  *
- * @author dbunit
+ * @author Jeff Jensen
  * @since 3.6.0
  */
 public class AnnotatedTestExecutor {
@@ -96,6 +123,7 @@ public class AnnotatedTestExecutor {
     private PrepAndExpectedTestCase prepAndExpectedTestCase;
     private IDatabaseConnection resolvedConnection;
     private boolean connectionResolved;
+    private boolean rowCountBaselineAttempted;
 
     /**
      * Creates an executor for one test.
@@ -180,13 +208,15 @@ public class AnnotatedTestExecutor {
      * Always wraps the tester's operation listener in an {@link ExecutorOperationListener}, so
      * that regardless of whether {@code @DbUnitProperty} is configured, this executor's own
      * memoized connection (see the class Javadoc) is protected from a premature close by the
-     * tester's own setup/teardown machinery.
+     * tester's own setup/teardown machinery, and so the row count check baseline can be
+     * captured from whatever connection {@code onSetup()} retrieves on its own - see
+     * {@link #captureRowCountBaselineOnFirstConnectionRetrieved(IDatabaseConnection)}.
      */
     private void installOperationListener() {
         final IOperationListener delegate = unwrapExistingDelegate();
         tester.setOperationListener(new ExecutorOperationListener(
                 configuration.getDatabaseConfigProperties(), this::peekResolvedConnection,
-                delegate));
+                delegate, this::captureRowCountBaselineOnFirstConnectionRetrieved));
     }
 
     /**
@@ -238,31 +268,104 @@ public class AnnotatedTestExecutor {
         if (configuration.isExpected()) {
             beforeExpectedTest();
         } else {
-            captureRowCountBaseline();
             beforeSimpleTest();
         }
     }
 
     private void beforeSimpleTest() throws Exception {
+        final DatabaseOperation resolvedSetUpOperation;
         if (configuration.getPrepDataFiles().length > 0) {
             tester.setDataSet(
                     loadCombined(configuration.getDataFileLoader(), configuration.getPrepDataFiles()));
-            tester.setSetUpOperation(configuration.getSetUpOperation());
+            resolvedSetUpOperation = configuration.getSetUpOperation();
+            tester.setSetUpOperation(resolvedSetUpOperation);
+        } else if (configuration.isSetupDeclared()) {
+            // no dataset to apply it to, but the operation itself - most usefully NONE -
+            // still applies to whatever dataset the tester already has; see
+            // AnnotatedTestConfiguration#isSetupDeclared().
+            resolvedSetUpOperation = configuration.getSetUpOperation();
+            tester.setSetUpOperation(resolvedSetUpOperation);
+            log.debug("No @DbUnitPrep data files declared; applied @DbUnitSetup's operation"
+                    + " {} without changing the tester's dataset.", resolvedSetUpOperation);
         } else {
+            resolvedSetUpOperation = tester.getSetUpOperation();
             log.debug("No @DbUnitPrep data files declared; leaving the tester's dataset and"
                     + " setup operation untouched.");
         }
+        if (!canPiggybackRowCountBaseline(resolvedSetUpOperation)) {
+            captureRowCountBaseline();
+        }
         tester.onSetup();
+        if (!rowCountBaselineAttempted) {
+            // The predicted piggyback never actually happened - e.g. a tester whose onSetup()
+            // does not end up calling executeOperation() the way AbstractDatabaseTester's does.
+            // Always leave a baseline decided one way or another before the test method runs,
+            // rather than silently skip the check because a prediction about a tester's
+            // internals turned out wrong.
+            captureRowCountBaseline();
+        }
+    }
+
+    /**
+     * Returns whether {@code onSetup()} can be trusted to retrieve a connection and notify
+     * {@link ExecutorOperationListener#connectionRetrieved(IDatabaseConnection)} on its own, so
+     * the row count check baseline can be captured from that connection - see
+     * {@link #captureRowCountBaselineOnFirstConnectionRetrieved(IDatabaseConnection)} - instead
+     * of this executor eagerly resolving a separate one just to find out whether the check is
+     * even enabled, the way {@link #captureRowCountBaseline()} always did before this
+     * optimization existed.
+     *
+     * <p>True only when this is provably safe: {@code tester} is dbUnit's own
+     * {@link AbstractDatabaseTester}, whose {@code executeOperation()} is known - by reading
+     * its source, not by assuming it - to call {@code getConnection()} and notify the listener
+     * whenever the operation is not {@link DatabaseOperation#NONE}; and no connection is
+     * already memoized (e.g. by an earlier {@code @BeforeEach} parameter injection), since
+     * piggybacking on a second, different connection than one already in hand would orphan the
+     * first rather than reuse it. A custom {@link IDatabaseTester} implementation is never
+     * assumed to behave the same way - {@link #captureRowCountBaseline()} runs eagerly for it
+     * instead, exactly as it unconditionally did before this optimization existed - and even
+     * for {@link AbstractDatabaseTester} itself, the after-the-fact check in
+     * {@link #beforeSimpleTest()} catches a wrong prediction rather than trusting this one
+     * blindly.
+     *
+     * @param resolvedSetUpOperation the setup operation {@code onSetup()} is about to run.
+     */
+    private boolean canPiggybackRowCountBaseline(final DatabaseOperation resolvedSetUpOperation) {
+        return !connectionResolved && tester instanceof AbstractDatabaseTester
+                && resolvedSetUpOperation != DatabaseOperation.NONE;
     }
 
     private void beforeExpectedTest() throws Exception {
         if (prepAndExpectedTestCase == null) {
             prepAndExpectedTestCase = newPrepAndExpectedTestCase();
         }
+        applyDataFileLoader();
         applyFailureHandler();
+        applyDatabaseConfigProperties();
+        applyCloseConnectionAfterTest();
+        applySetUpOperation();
+        applyTearDownOperation();
+        applyRowCountCheckOverride();
         prepAndExpectedTestCase.configureTest(configuration.getVerifyTableDefinitions(),
                 configuration.getPrepDataFiles(), configuration.getExpectedDataFiles());
         prepAndExpectedTestCase.preTest();
+    }
+
+    /**
+     * Applies {@code @DbUnitConfig.dataFileLoader()} to {@link #prepAndExpectedTestCase}, so a
+     * {@link org.dbunit.annotation.DbUnitTestCase}-injected instance's own dataset loading
+     * matches the configured value the same way a freshly-constructed instance already
+     * receives it through its constructor - see {@link #newPrepAndExpectedTestCase()}. A no-op
+     * when the test case is not a {@link DefaultPrepAndExpectedTestCase}, since that is the
+     * only implementation exposing a setter for it; re-applying it to a freshly-constructed
+     * instance is harmless, since it is the same value that instance's constructor already
+     * received.
+     */
+    private void applyDataFileLoader() {
+        if (prepAndExpectedTestCase instanceof DefaultPrepAndExpectedTestCase) {
+            ((DefaultPrepAndExpectedTestCase) prepAndExpectedTestCase)
+                    .setDataFileLoader(configuration.getDataFileLoader());
+        }
     }
 
     /**
@@ -277,6 +380,86 @@ public class AnnotatedTestExecutor {
             ((DefaultPrepAndExpectedTestCase) prepAndExpectedTestCase)
                     .setFailureHandler(configuration.getFailureHandler());
         }
+    }
+
+    /**
+     * Applies {@code @DbUnitConfig.closeConnectionAfterTest()} to
+     * {@link #prepAndExpectedTestCase}, so a {@link org.dbunit.annotation.DbUnitTestCase}-injected
+     * instance's own connection-closing behaviour matches the configured value the same way a
+     * freshly-constructed instance already receives it through its constructor - see
+     * {@link #newPrepAndExpectedTestCase()}. A no-op when the test case is not a
+     * {@link DefaultPrepAndExpectedTestCase}, since that is the only implementation exposing a
+     * setter for it; re-applying it to a freshly-constructed instance is harmless, since it is
+     * the same value that instance's constructor already received.
+     */
+    private void applyCloseConnectionAfterTest() {
+        if (prepAndExpectedTestCase instanceof DefaultPrepAndExpectedTestCase) {
+            ((DefaultPrepAndExpectedTestCase) prepAndExpectedTestCase)
+                    .setCloseConnectionAfterTest(configuration.isCloseConnectionAfterTest());
+        }
+    }
+
+    /**
+     * Applies {@code @DbUnitProperty}/{@code propertiesProvider()} values to
+     * {@link #prepAndExpectedTestCase}, when configured. A no-op when none are configured, or
+     * when the test case is not a {@link DefaultPrepAndExpectedTestCase}, since that is the
+     * only implementation exposing a setter for it - the simple path applies the same values
+     * through {@link #installOperationListener()} instead, which this path's
+     * {@code setupData()}/{@code verifyData()}/{@code cleanupData()} never triggers.
+     */
+    private void applyDatabaseConfigProperties() {
+        final Properties properties = configuration.getDatabaseConfigProperties();
+        if (!properties.isEmpty()
+                && prepAndExpectedTestCase instanceof DefaultPrepAndExpectedTestCase) {
+            ((DefaultPrepAndExpectedTestCase) prepAndExpectedTestCase)
+                    .setDatabaseConfigProperties(properties);
+        }
+    }
+
+    /**
+     * Applies {@code @DbUnitSetup}'s operation to {@link #tester}. Unlike
+     * {@link #applyTearDownOperation()}, this is unconditional, not just when
+     * {@code @DbUnitSetup} was declared: {@link AnnotatedTestConfiguration#getSetUpOperation()}
+     * already defaults to {@link org.dbunit.operation.DatabaseOperation#CLEAN_INSERT} - the
+     * same default the simple path applies whenever it has a dataset to set up - and
+     * {@code setupData()} always runs against a real, if possibly empty, prep dataset on this
+     * path, so there is no null-dataset case here to avoid touching.
+     */
+    private void applySetUpOperation() {
+        tester.setSetUpOperation(configuration.getSetUpOperation());
+    }
+
+    /**
+     * Applies {@code @DbUnitTearDown}'s operation to {@link #tester}, when declared.
+     * {@code cleanupData()} reads its teardown operation from the tester lazily, at cleanup
+     * time, so setting it any time before then - here, alongside the rest of the pre-test
+     * configuration - is sufficient. A no-op when not declared, leaving whatever teardown
+     * operation the tester already had (typically
+     * {@link org.dbunit.operation.DatabaseOperation#NONE}) in effect.
+     */
+    private void applyTearDownOperation() {
+        if (configuration.isTearDownDeclared()) {
+            tester.setTearDownOperation(configuration.getTearDownOperation());
+        }
+    }
+
+    /**
+     * Overrides the prep/expected path's own {@code RowCountCheck} resolution with the
+     * enabled flag and excluded table patterns {@code @DbUnitRowCountCheck} declares, when
+     * declared. A no-op when not declared - leaving
+     * {@code DefaultPrepAndExpectedTestCase}'s own connection-{@link DatabaseConfig}-based
+     * resolution in effect - or when the test case is not a
+     * {@link DefaultPrepAndExpectedTestCase}, since that is the only implementation exposing a
+     * setter for it. Needs no connection of this executor's own - see
+     * {@link DefaultPrepAndExpectedTestCase#setRowCountCheckOverride(boolean, String[])}.
+     */
+    private void applyRowCountCheckOverride() {
+        if (!configuration.isRowCountCheckDeclared()
+                || !(prepAndExpectedTestCase instanceof DefaultPrepAndExpectedTestCase)) {
+            return;
+        }
+        ((DefaultPrepAndExpectedTestCase) prepAndExpectedTestCase).setRowCountCheckOverride(
+                configuration.isRowCountCheckEnabled(), configuration.getRowCountCheckExclude());
     }
 
     private PrepAndExpectedTestCase newPrepAndExpectedTestCase() throws Exception {
@@ -385,20 +568,6 @@ public class AnnotatedTestExecutor {
         }
     }
 
-    /**
-     * Applies {@code @DbUnitTearDown}'s operation to {@link #tester}, when declared.
-     * {@code cleanupData()} reads its teardown operation from the tester lazily, at cleanup
-     * time, so setting it any time before then - here, alongside the rest of the pre-test
-     * configuration - is sufficient. A no-op when not declared, leaving whatever teardown
-     * operation the tester already had (typically
-     * {@link org.dbunit.operation.DatabaseOperation#NONE}) in effect.
-     */
-    private void applyTearDownOperation() {
-        if (configuration.isTearDownDeclared()) {
-            tester.setTearDownOperation(configuration.getTearDownOperation());
-        }
-    }
-
     private void afterExpectedTest(final boolean testFailed) throws Exception {
         if (prepAndExpectedTestCase == null) {
             return;
@@ -406,12 +575,65 @@ public class AnnotatedTestExecutor {
         prepAndExpectedTestCase.postTest(!testFailed);
     }
 
+    /**
+     * Eagerly resolves this executor's own connection (see {@link #getConnection()}) and
+     * captures the row count check baseline from it. The fallback used when
+     * {@link #canPiggybackRowCountBaseline(DatabaseOperation)} said no connection is coming
+     * from {@code onSetup()} on its own - a custom {@link IDatabaseTester}, a
+     * {@link DatabaseOperation#NONE} setup operation, or a connection already memoized from
+     * earlier - and the safety net {@link #beforeSimpleTest()} falls back to when a predicted
+     * piggyback did not actually happen.
+     */
     private void captureRowCountBaseline() throws Exception {
-        final IDatabaseConnection connection = getConnection();
+        captureRowCountBaseline(getConnection());
+    }
+
+    /**
+     * Captures the row count check baseline from {@code connection}, marking a baseline as
+     * having been attempted either way - including when {@code connection} is {@code null}
+     * (e.g. a test double) or the check turns out disabled - so
+     * {@link #canPiggybackRowCountBaseline(DatabaseOperation)}'s prediction is never retried
+     * nor second-guessed later in the same test.
+     */
+    private void captureRowCountBaseline(final IDatabaseConnection connection)
+            throws DatabaseUnitException, SQLException {
+        rowCountBaselineAttempted = true;
         if (connection == null) {
             return;
         }
+        if (configuration.isRowCountCheckDeclared()) {
+            rowCountChecker.setEnabledOverride(configuration.isRowCountCheckEnabled(),
+                    configuration.getRowCountCheckExclude());
+        }
         rowCountChecker.capture(connection);
+    }
+
+    /**
+     * Captures the row count check baseline from {@code connection} - the tester's own, just
+     * retrieved by its {@code onSetup()} - the first time this is called for the current test;
+     * a no-op on any later call this same test (e.g. {@code onTearDown()} later notifying this
+     * same listener with a different connection). Memoizes {@code connection} the same way
+     * {@link #getConnection()} would, so every other caller this test (the row count check's
+     * later verify, a parameter injection, the close at the end of the test) reuses this exact
+     * connection instead of the tester resolving yet another one.
+     *
+     * <p>Called only from {@link ExecutorOperationListener#connectionRetrieved(IDatabaseConnection)},
+     * which declares no checked exceptions - so unlike {@link #captureRowCountBaseline()}, a
+     * failure here is wrapped in a {@link DatabaseUnitRuntimeException} instead of a plain
+     * {@code Exception}.
+     */
+    private void captureRowCountBaselineOnFirstConnectionRetrieved(
+            final IDatabaseConnection connection) {
+        if (rowCountBaselineAttempted) {
+            return;
+        }
+        resolvedConnection = connection;
+        connectionResolved = true;
+        try {
+            captureRowCountBaseline(connection);
+        } catch (final DatabaseUnitException | SQLException e) {
+            throw new DatabaseUnitRuntimeException(e);
+        }
     }
 
     private void verifyRowCountUnchanged() throws Exception {
@@ -456,30 +678,37 @@ public class AnnotatedTestExecutor {
 
     /**
      * Applies {@code @DbUnitProperty} values to a connection's {@code DatabaseConfig} on
-     * {@link #connectionRetrieved}, and shields the enclosing {@link AnnotatedTestExecutor}'s
-     * own memoized connection - identified by {@code protectedConnection}, evaluated fresh on
-     * every call since the memoized connection may not be resolved yet when this listener is
-     * installed - from a close notification the tester's own setup/teardown machinery would
-     * otherwise deliver for it; any other connection object still gets that notification
-     * forwarded to {@code delegate} exactly as before, so a tester that hands out a fresh
-     * connection per call is unaffected.
+     * {@link #connectionRetrieved}, offers that same connection to
+     * {@code onFirstConnectionRetrieved} for the row count check baseline capture (a no-op
+     * after the first call - see
+     * {@link AnnotatedTestExecutor#captureRowCountBaselineOnFirstConnectionRetrieved(IDatabaseConnection)}),
+     * and shields the enclosing {@link AnnotatedTestExecutor}'s own memoized connection -
+     * identified by {@code protectedConnection}, evaluated fresh on every call since the
+     * memoized connection may not be resolved yet when this listener is installed - from a
+     * close notification the tester's own setup/teardown machinery would otherwise deliver for
+     * it; any other connection object still gets that notification forwarded to {@code delegate}
+     * exactly as before, so a tester that hands out a fresh connection per call is unaffected.
      */
     private static final class ExecutorOperationListener implements IOperationListener {
         private final Properties properties;
         private final Supplier<IDatabaseConnection> protectedConnection;
         private final IOperationListener delegate;
+        private final Consumer<IDatabaseConnection> onFirstConnectionRetrieved;
 
         private ExecutorOperationListener(final Properties properties,
                 final Supplier<IDatabaseConnection> protectedConnection,
-                final IOperationListener delegate) {
+                final IOperationListener delegate,
+                final Consumer<IDatabaseConnection> onFirstConnectionRetrieved) {
             this.properties = properties;
             this.protectedConnection = protectedConnection;
             this.delegate = delegate;
+            this.onFirstConnectionRetrieved = onFirstConnectionRetrieved;
         }
 
         @Override
         public void connectionRetrieved(final IDatabaseConnection connection) {
             applyProperties(connection, properties);
+            onFirstConnectionRetrieved.accept(connection);
             delegate.connectionRetrieved(connection);
         }
 

@@ -37,6 +37,7 @@ import org.dbunit.PrepAndExpectedTestCase;
 import org.dbunit.annotation.DbUnitConfig;
 import org.dbunit.annotation.DbUnitExpected;
 import org.dbunit.annotation.DbUnitPrep;
+import org.dbunit.annotation.DbUnitRowCountCheck;
 import org.dbunit.annotation.DbUnitSetup;
 import org.dbunit.annotation.DbUnitTearDown;
 import org.dbunit.annotation.DbUnitTestCase;
@@ -140,6 +141,7 @@ import org.slf4j.LoggerFactory;
  * @see DbUnitExpected
  * @see DbUnitTearDown
  * @see DbUnitConfig
+ * @see DbUnitRowCountCheck
  * @see DbUnitTest
  */
 public class DbUnitExtension
@@ -310,8 +312,10 @@ public class DbUnitExtension
         final DbUnitSetup setup = findAnnotation(context, DbUnitSetup.class);
         final DbUnitExpected expected = findAnnotation(context, DbUnitExpected.class);
         final DbUnitTearDown tearDown = findAnnotation(context, DbUnitTearDown.class);
+        final DbUnitRowCountCheck rowCountCheck =
+                findAnnotation(context, DbUnitRowCountCheck.class);
         return AnnotatedTestConfiguration.from(testClass, config, prep, setup, expected,
-                tearDown);
+                tearDown, rowCountCheck);
     }
 
     /**

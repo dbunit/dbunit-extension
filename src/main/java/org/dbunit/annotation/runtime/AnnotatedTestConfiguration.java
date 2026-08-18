@@ -36,6 +36,7 @@ import org.dbunit.annotation.DbUnitConfig;
 import org.dbunit.annotation.DbUnitExpected;
 import org.dbunit.annotation.DbUnitPrep;
 import org.dbunit.annotation.DbUnitProperty;
+import org.dbunit.annotation.DbUnitRowCountCheck;
 import org.dbunit.annotation.DbUnitSetup;
 import org.dbunit.annotation.DbUnitTearDown;
 import org.dbunit.annotation.DbUnitVerifyTable;
@@ -62,12 +63,13 @@ import org.dbunit.util.fileloader.FileExtensionDataFileLoader;
  * annotation instances (method-level, else class-level - a binding's job, since only it knows
  * how to search for them) rather than an {@code ExtensionContext}.
  *
- * @author dbunit
+ * @author Jeff Jensen
  * @since 3.6.0
  */
 public final class AnnotatedTestConfiguration {
     private final DataFileLoader dataFileLoader;
     private final String[] prepDataFiles;
+    private final boolean setupDeclared;
     private final DatabaseOperation setUpOperation;
     private final boolean expected;
     private final String[] expectedDataFiles;
@@ -79,18 +81,25 @@ public final class AnnotatedTestConfiguration {
     private final boolean closeConnectionAfterTest;
     private final Class<? extends DatabaseTesterFactory> databaseTesterFactory;
     private final Class<? extends PrepAndExpectedTestCase> prepAndExpectedTestCaseClass;
+    private final boolean rowCountCheckDeclared;
+    private final boolean rowCountCheckEnabled;
+    private final String[] rowCountCheckExclude;
 
     private AnnotatedTestConfiguration(final DataFileLoader dataFileLoader,
-            final String[] prepDataFiles, final DatabaseOperation setUpOperation,
-            final boolean expected, final String[] expectedDataFiles,
+            final String[] prepDataFiles, final boolean setupDeclared,
+            final DatabaseOperation setUpOperation, final boolean expected,
+            final String[] expectedDataFiles,
             final VerifyTableDefinition[] verifyTableDefinitions,
             final boolean tearDownDeclared, final DatabaseOperation tearDownOperation,
             final Properties databaseConfigProperties, final FailureHandler failureHandler,
             final boolean closeConnectionAfterTest,
             final Class<? extends DatabaseTesterFactory> databaseTesterFactory,
-            final Class<? extends PrepAndExpectedTestCase> prepAndExpectedTestCaseClass) {
+            final Class<? extends PrepAndExpectedTestCase> prepAndExpectedTestCaseClass,
+            final boolean rowCountCheckDeclared, final boolean rowCountCheckEnabled,
+            final String[] rowCountCheckExclude) {
         this.dataFileLoader = dataFileLoader;
         this.prepDataFiles = prepDataFiles;
+        this.setupDeclared = setupDeclared;
         this.setUpOperation = setUpOperation;
         this.expected = expected;
         this.expectedDataFiles = expectedDataFiles;
@@ -102,6 +111,9 @@ public final class AnnotatedTestConfiguration {
         this.closeConnectionAfterTest = closeConnectionAfterTest;
         this.databaseTesterFactory = databaseTesterFactory;
         this.prepAndExpectedTestCaseClass = prepAndExpectedTestCaseClass;
+        this.rowCountCheckDeclared = rowCountCheckDeclared;
+        this.rowCountCheckEnabled = rowCountCheckEnabled;
+        this.rowCountCheckExclude = rowCountCheckExclude;
     }
 
     /**
@@ -113,13 +125,16 @@ public final class AnnotatedTestConfiguration {
      * @param setup the resolved {@code @DbUnitSetup}, or {@code null} if absent.
      * @param expected the resolved {@code @DbUnitExpected}, or {@code null} if absent.
      * @param tearDown the resolved {@code @DbUnitTearDown}, or {@code null} if absent.
+     * @param rowCountCheck the resolved {@code @DbUnitRowCountCheck}, or {@code null} if
+     *            absent.
      * @return The resolved configuration.
      * @throws IllegalStateException if two mutually exclusive attributes are both set, or if
      *             a named provider, catalog, or comparer class cannot be instantiated.
      */
     public static AnnotatedTestConfiguration from(final Class<?> testClass,
             final DbUnitConfig config, final DbUnitPrep prep, final DbUnitSetup setup,
-            final DbUnitExpected expected, final DbUnitTearDown tearDown) {
+            final DbUnitExpected expected, final DbUnitTearDown tearDown,
+            final DbUnitRowCountCheck rowCountCheck) {
         final String dataSetBaseDir = config == null ? "" : config.dataSetBaseDir();
         final DataSetResourcePathResolver pathResolver = new DataSetResourcePathResolver();
 
@@ -131,6 +146,7 @@ public final class AnnotatedTestConfiguration {
         final String[] prepDataFiles = resolvePaths("DbUnitPrep", testClass, dataSetBaseDir,
                 pathResolver, prep == null ? null : prep.value(),
                 prep == null ? DataSetPathsProvider.class : prep.provider());
+        final boolean setupDeclared = setup != null;
         final DatabaseOperation setUpOperation = setup == null ? DatabaseOperation.CLEAN_INSERT
                 : setup.operation().toDatabaseOperation();
         final boolean tearDownDeclared = tearDown != null;
@@ -160,10 +176,17 @@ public final class AnnotatedTestConfiguration {
                 config == null ? DefaultPrepAndExpectedTestCase.class
                         : config.prepAndExpectedTestCase();
 
-        return new AnnotatedTestConfiguration(dataFileLoader, prepDataFiles, setUpOperation,
-                hasExpected, expectedDataFiles, verifyTableDefinitions, tearDownDeclared,
-                tearDownOperation, databaseConfigProperties, failureHandler,
-                closeConnectionAfterTest, databaseTesterFactory, prepAndExpectedTestCaseClass);
+        final boolean rowCountCheckDeclared = rowCountCheck != null;
+        final boolean rowCountCheckEnabled =
+                rowCountCheckDeclared && rowCountCheck.enabled();
+        final String[] rowCountCheckExclude =
+                rowCountCheckDeclared ? rowCountCheck.exclude() : new String[0];
+
+        return new AnnotatedTestConfiguration(dataFileLoader, prepDataFiles, setupDeclared,
+                setUpOperation, hasExpected, expectedDataFiles, verifyTableDefinitions,
+                tearDownDeclared, tearDownOperation, databaseConfigProperties, failureHandler,
+                closeConnectionAfterTest, databaseTesterFactory, prepAndExpectedTestCaseClass,
+                rowCountCheckDeclared, rowCountCheckEnabled, rowCountCheckExclude);
     }
 
     private static String[] resolvePaths(final String annotationName, final Class<?> testClass,
@@ -364,6 +387,23 @@ public final class AnnotatedTestConfiguration {
     }
 
     /**
+     * Returns whether {@code @DbUnitSetup} was declared.
+     *
+     * <p>A binding consults this, alongside {@link #getPrepDataFiles()} being non-empty, to
+     * decide whether to call {@code setSetUpOperation} at all: with neither, the tester's own
+     * pre-configured setup stays untouched (matching pre-annotation behaviour); with
+     * {@code @DbUnitSetup} declared but no {@code @DbUnitPrep}, the operation is still applied
+     * - most usefully {@link org.dbunit.operation.DatabaseOperation#NONE} - to whatever
+     * dataset the tester already has, rather than leaving a tester with no dataset at all to
+     * run its unrelated default operation against.
+     *
+     * @return True when {@code @DbUnitSetup} was declared.
+     */
+    public boolean isSetupDeclared() {
+        return setupDeclared;
+    }
+
+    /**
      * Returns the setup operation.
      *
      * @return The setup operation; {@link DatabaseOperation#CLEAN_INSERT} when no
@@ -474,5 +514,38 @@ public final class AnnotatedTestConfiguration {
      */
     public Class<? extends PrepAndExpectedTestCase> getPrepAndExpectedTestCaseClass() {
         return prepAndExpectedTestCaseClass;
+    }
+
+    /**
+     * Returns whether {@code @DbUnitRowCountCheck} was declared.
+     *
+     * <p>A binding must consult this before overriding a resolved {@code RowCountCheck}, to
+     * leave the row count check's own {@code DatabaseConfig}/system-property-based resolution
+     * untouched when nothing was declared.
+     *
+     * @return True when {@code @DbUnitRowCountCheck} was declared.
+     */
+    public boolean isRowCountCheckDeclared() {
+        return rowCountCheckDeclared;
+    }
+
+    /**
+     * Returns the resolved {@code @DbUnitRowCountCheck.enabled()} value.
+     *
+     * @return True to enable the check; meaningful only when {@link #isRowCountCheckDeclared()}
+     *         is true.
+     */
+    public boolean isRowCountCheckEnabled() {
+        return rowCountCheckEnabled;
+    }
+
+    /**
+     * Returns the resolved {@code @DbUnitRowCountCheck.exclude()} value.
+     *
+     * @return The excluded table name patterns; meaningful only when
+     *         {@link #isRowCountCheckDeclared()} is true.
+     */
+    public String[] getRowCountCheckExclude() {
+        return rowCountCheckExclude.clone();
     }
 }

@@ -78,7 +78,8 @@ is skipped whenever `onTearDown()` itself throws, and also when the test method 
 before reaching it, since either way the database is left in an unknown state and a count
 difference would only be noise around the real failure. It is off by default; enable it
 with `DatabaseConfig.FEATURE_ROW_COUNT_CHECK` (or `-Ddbunit.rowCountCheck=true`) on the
-connection's config.
+connection's config, or per class/method with
+link:annotations.html#rowcountcheck[`@DbUnitRowCountCheck`].
 
 == When to Use This Instead of Manual Lifecycle Calls
 

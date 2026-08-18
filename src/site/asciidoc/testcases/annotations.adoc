@@ -373,7 +373,11 @@ closed after each test; default `true`. Set `false` when the tester shares a
 `CachingConnectionProvider` across test methods. Also left open, regardless of
 this attribute, when the tester's `IOperationListener` is
 `NO_OP_OPERATION_LISTENER` - the established signal that its connection is
-managed elsewhere.
+managed elsewhere. A freshly constructed `prepAndExpectedTestCase` always
+receives it via its constructor, regardless of implementation; a
+`@DbUnitTestCase`-injected instance receives it too, but only when it resolves
+to a `DefaultPrepAndExpectedTestCase` - the only `PrepAndExpectedTestCase`
+implementation exposing a setter for it.
 |===
 
 [#properties]
@@ -419,6 +423,71 @@ directly to the connection it resolves for `configureTest()`/`setupData()`/
 through the tester's `IOperationListener` at all, so the setup/teardown
 operation does not matter, only whether `prepAndExpectedTestCase` resolves to
 a `DefaultPrepAndExpectedTestCase` (see the attribute table above).
+
+[#rowcountcheck]
+== @DbUnitRowCountCheck
+
+`@DbUnitRowCountCheck` turns on the
+link:../components/rowcountcheck.html[row count check] for a class or method: before the
+test it snapshots every table's row count, after teardown it snapshots again, and it fails
+the test by name when any count moved — catching a table the test forgot to list for
+teardown (whose rows survive and break a *later* test) and equally a reference table it
+wrongly listed (whose count went *down*).
+
+[source,java]
+----
+@DbUnitTest
+@DbUnitRowCountCheck
+class AccountRepositoryTest
+{
+    IDatabaseTester databaseTester = new JdbcDatabaseTester(...);
+
+    @Test
+    @DbUnitPrep("accounts-prep.xml")
+    @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+    void testWithdraw_sufficientBalance_decrementsBalance() { ... }
+}
+----
+
+`enabled()` defaults to `true`, so the bare annotation means "on"; it exists for the
+override direction — a class-level check with one method that legitimately leaves rows
+behind (a test asserting that an audit trail *persists*, say) writes
+`@DbUnitRowCountCheck(enabled = false)` on that method rather than losing the check for the
+whole class.
+
+Four sources can speak, highest priority first:
+
+[cols="1,3", options="header"]
+|===
+|Order |Source
+
+|1 |The `-Ddbunit.rowCountCheck` system property, when present — wins outright, in both
+directions, so it can force-enable across a CI run and force-disable locally without
+editing code.
+
+|2 |`@DbUnitRowCountCheck` — method level, else class level.
+
+|3 |`DatabaseConfig.FEATURE_ROW_COUNT_CHECK`.
+
+|4 |Default `false`.
+|===
+
+Three behaviours worth knowing explicitly, because each is a place a reader would otherwise
+guess wrong:
+
+* A method-level `@DbUnitRowCountCheck` overrides a class-level one *wholesale* —
+  `exclude()` included, the same rule as everywhere else in this family. A method that
+  wants one extra exclusion has to repeat the class-level ones; they are not merged.
+* The check compares *row counts*, not row contents — an `UPDATE` that changes a value
+  without changing how many rows are present passes. It catches a leaked or wrongly
+  removed row, not a data mismatch; that is what `@DbUnitExpected` verification is for.
+* On the prep/expected path (`@DbUnitExpected` declared), this annotation only overrides
+  the resolved check when the test case resolves to a `DefaultPrepAndExpectedTestCase` —
+  the only `PrepAndExpectedTestCase` implementation exposing a setter for it; a
+  `@DbUnitTestCase` field injecting a different implementation leaves the override
+  silently unapplied there. On the simple path (no `@DbUnitExpected`), this restriction
+  does not apply — the check runs directly against the connection regardless of test
+  case type.
 
 [#composed]
 == Reusing a Whole Configuration: Composed Annotations
