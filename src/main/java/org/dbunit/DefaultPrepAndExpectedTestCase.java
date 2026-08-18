@@ -26,6 +26,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.stream.Collectors;
@@ -162,6 +163,16 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      */
     private FailureHandler failureHandler;
 
+    /**
+     * DatabaseConfig property name/value pairs applied to the connection shared by
+     * setupData(), verifyData() and cleanupData(), every time {@link #getConnection()}
+     * resolves it - see {@link #setUpDatabaseConfig(DatabaseConfig)}. Null (the default)
+     * applies none.
+     *
+     * @since 3.6.0
+     */
+    private Properties databaseConfigProperties;
+
     final TableFormatter tableFormatter = new TableFormatter();
 
     /** Create new instance. */
@@ -263,6 +274,31 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
                 "expected", isCaseSensitiveTableNames);
 
         this.verifyTableDefs = verifyTableDefinitions;
+    }
+
+    /**
+     * {@inheritDoc} Applies {@link #databaseConfigProperties}, when set - the composition-based
+     * equivalent of overriding this method, for a caller that cannot subclass to do so directly
+     * (e.g. {@code org.dbunit.annotation}'s {@code @DbUnitProperty}).
+     *
+     * @throws IllegalStateException if a property value is invalid for its target
+     *             {@link DatabaseConfig} entry.
+     */
+    @Override
+    protected void setUpDatabaseConfig(final DatabaseConfig config)
+    {
+        if (databaseConfigProperties == null || databaseConfigProperties.isEmpty())
+        {
+            return;
+        }
+        try
+        {
+            config.setPropertiesByString(databaseConfigProperties);
+        } catch (final DatabaseUnitException e)
+        {
+            throw new IllegalStateException("Failed to apply a databaseConfigProperties value.",
+                    e);
+        }
     }
 
     private boolean lookupFeatureValue(final String featureName)
@@ -1576,6 +1612,30 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     public void setRowCountCheck(final RowCountCheck rowCountCheck)
     {
         rowCountChecker.setRowCountCheck(rowCountCheck);
+    }
+
+    /**
+     * Set DatabaseConfig property name/value pairs to apply to the connection shared by
+     * setupData(), verifyData() and cleanupData(), every time {@link #getConnection()}
+     * resolves it.
+     *
+     * @see #databaseConfigProperties
+     *
+     * @param databaseConfigProperties
+     *            The properties to apply; null or empty applies none.
+     * @since 3.6.0
+     */
+    public void setDatabaseConfigProperties(final Properties databaseConfigProperties)
+    {
+        if (databaseConfigProperties == null)
+        {
+            this.databaseConfigProperties = null;
+        } else
+        {
+            final Properties copy = new Properties();
+            copy.putAll(databaseConfigProperties);
+            this.databaseConfigProperties = copy;
+        }
     }
 
     /**

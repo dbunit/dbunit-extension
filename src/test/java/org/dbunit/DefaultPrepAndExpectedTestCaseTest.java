@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.catchThrowable;
 
 import java.sql.Connection;
 import java.util.Collections;
+import java.util.Properties;
 
 import org.dbunit.assertion.DbComparisonFailure;
 import org.dbunit.assertion.DiffCollectingFailureHandler;
@@ -96,6 +97,61 @@ class DefaultPrepAndExpectedTestCaseTest
         // runs (#800, #825)
         connection.setExpectedCloseCalls(0);
         connection.verify();
+    }
+
+    @Test
+    void testConfigureTest_withDatabaseConfigPropertiesSet_appliesThemToTheSharedConnection()
+            throws Exception
+    {
+        final Properties properties = new Properties();
+        properties.setProperty("batchSize", "50");
+        tc.setDatabaseConfigProperties(properties);
+
+        tc.configureTest(new VerifyTableDefinition[] {}, new String[] {}, new String[] {});
+
+        final MockDatabaseConnection connection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        assertThat(connection.getConfig().getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE))
+                .as("setDatabaseConfigProperties() values must reach the connection shared by"
+                        + " setupData()/verifyData()/cleanupData(), the same way overriding"
+                        + " setUpDatabaseConfig() would for a subclass.")
+                .isEqualTo(50);
+    }
+
+    @Test
+    void testSetDatabaseConfigProperties_callerMutatesPropertiesAfterward_doesNotAffectConfiguredValue()
+            throws Exception
+    {
+        final Properties properties = new Properties();
+        properties.setProperty("batchSize", "50");
+        tc.setDatabaseConfigProperties(properties);
+
+        properties.setProperty("batchSize", "999");
+
+        tc.configureTest(new VerifyTableDefinition[] {}, new String[] {}, new String[] {});
+
+        final MockDatabaseConnection connection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        assertThat(connection.getConfig().getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE))
+                .as("setDatabaseConfigProperties() must copy the given Properties so a caller"
+                        + " mutating its own instance afterward cannot silently change what"
+                        + " was already configured.")
+                .isEqualTo(50);
+    }
+
+    @Test
+    void testConfigureTest_withInvalidDatabaseConfigProperty_throwsIllegalStateException()
+    {
+        final Properties properties = new Properties();
+        properties.setProperty("datatypeFactory", "not.a.real.ClassName");
+        tc.setDatabaseConfigProperties(properties);
+
+        final Throwable thrown = catchThrowable(() -> tc.configureTest(
+                new VerifyTableDefinition[] {}, new String[] {}, new String[] {}));
+
+        assertThat(thrown).as("An invalid property name must be reported clearly, not left as"
+                + " a raw DatabaseUnitException surfacing from deep inside connection"
+                + " resolution.").isInstanceOf(IllegalStateException.class);
     }
 
     @Test

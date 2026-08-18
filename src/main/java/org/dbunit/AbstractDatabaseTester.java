@@ -40,9 +40,6 @@ import org.slf4j.LoggerFactory;
  */
 public abstract class AbstractDatabaseTester extends SimpleAssert implements IDatabaseTester
 {
-    /**
-     * Logger for this class
-     */
     private static final Logger logger = LoggerFactory.getLogger(AbstractDatabaseTester.class);
 
     /**
@@ -230,6 +227,17 @@ public abstract class AbstractDatabaseTester extends SimpleAssert implements IDa
     {
         logger.debug("setOperationListener(operationListener={}) - start", operationListener);
         this.operationListener = operationListener;
+    }
+
+    /**
+     * Returns the listener notified of connection-retrieval and setup/tear-down events.
+     *
+     * @return the current {@link IOperationListener}, or {@code null} if none is set.
+     */
+    public IOperationListener getOperationListener()
+    {
+        logger.trace("getOperationListener() - start");
+        return operationListener;
     }
 
     @Override

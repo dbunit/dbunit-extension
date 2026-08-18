@@ -13,7 +13,7 @@
   </properties>
 
   <body>
-    <release version="3.6.0-SNAPSHOT" date="TBD" description="Row count check detecting test teardown missed or wrongly cleaned tables">
+    <release version="3.6.0-SNAPSHOT" date="TBD" description="Row count check detecting test teardown missed or wrongly cleaned tables, and annotation-driven test configuration for JUnit 5/6 (Jupiter) tests">
       <action dev="jeffjensen" type="add" issue="939" system="github" due-to="jeffjensen">
           Add RowCounter, QueryPerTableRowCounter, RowCountSnapshot, RowCountDifference, RowCountCheckConfiguration, RowCountCheck, RowCountChecker, and UnexpectedRowCountException to org.dbunit.database, plus DatabaseConfig.FEATURE_ROW_COUNT_CHECK, PROPERTY_ROW_COUNT_CHECK_EXCLUDE_TABLES, and PROPERTY_ROW_COUNTER: the core of an opt-in diagnostic that compares every table's row count before and after a test, failing the test when a count moved. Not yet wired into any test lifecycle.
       </action>
@@ -25,6 +25,9 @@
       </action>
       <action dev="jeffjensen" type="add" issue="753" system="github" due-to="jeffjensen">
           Add JsonDataFileLoader and YamlDataFileLoader to org.dbunit.util.fileloader, filling the gap where the JSON and YAML dataset formats had no matching DataFileLoader; add FileExtensionDataFileLoader, which dispatches to the right loader (flat XML, JSON, YAML, or Excel) by file extension.
+      </action>
+      <action dev="jeffjensen" type="add" issue="753" system="github" due-to="jeffjensen">
+          Add org.dbunit.annotation, a JUnit-free annotation vocabulary for declarative dbUnit test configuration: @DbUnitPrep/@DbUnitSetup for setup, @DbUnitExpected/@DbUnitVerifyTable/@DbUnitColumnComparer for prep/expected verification, @DbUnitTearDown for cleanup, @DbUnitConfig for loader/tester/properties/catalog wiring, @DbUnitProperty for DatabaseConfig properties, and @DbUnitTester/@DbUnitTestCase field markers. Add org.dbunit.operation.DbUnitOperation, an enum of @DbUnitSetup/@DbUnitTearDown's operation values mirroring DatabaseOperation's constants; and three SPIs for sharing other such values across test classes, each placed in the package of what it supplies rather than under org.dbunit.annotation itself: org.dbunit.util.fileloader.DataSetPathsProvider (dataset paths for @DbUnitPrep/@DbUnitExpected), org.dbunit.database.DatabaseConfigPropertiesProvider (DatabaseConfig properties for @DbUnitConfig), and org.dbunit.VerifyTableDefinitionsProvider (VerifyTableDefinition catalogs for @DbUnitConfig/@DbUnitExpected) - none of the four are themselves annotations, so none live in org.dbunit.annotation. Add org.dbunit.annotation.runtime (AnnotatedTestConfiguration, AnnotatedTestExecutor, DataSetResourcePathResolver, VerifyTableDefinitionCatalog, ReflectiveInstantiation), the machinery that resolves and drives them, and org.dbunit.DatabaseTesterFactory. Not yet wired into any JUnit binding. Also add IDatabaseTester#getOperationListener(), so @DbUnitProperty's listener wiring can wrap whatever IOperationListener the tester already had instead of discarding it. Also add DefaultPrepAndExpectedTestCase#setDatabaseConfigProperties(), so the prep/expected path applies @DbUnitProperty values too - its own configureTest()/setupData()/verifyData()/cleanupData() resolve their connection independently of the tester's IOperationListener, so the simple path's listener-based application never reaches them.
       </action>
     </release>
     <release version="3.5.1" date="Aug 20, 2026" description="A regression fix for FlatXmlProducer incorrectly treating any explicitly-supplied metadata IDataSet as a DTD-style enumeration of the fixture's tables">
