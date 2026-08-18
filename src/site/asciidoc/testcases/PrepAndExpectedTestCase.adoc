@@ -171,6 +171,39 @@ has two ways to setup, execute, and clean up tests:
 
 (see <<Test_Examples,Test Examples>> below)
 
+[#Annotation_Driven_Equivalent]
+== Annotation-Driven Equivalent
+
+On JUnit 5/6 (Jupiter), the `configureTest()`/`preTest()`/`postTest()` block
+above is formulaic enough that
+link:/dbunit/apidocs/org/dbunit/junit/jupiter/DbUnitExtension.html[DbUnitExtension]
+can run it declaratively instead, via `org.dbunit.annotation`:
+
+[source,java]
+----
+@DbUnitTest
+class AccountRepositoryTest
+{
+    IDatabaseTester databaseTester =
+            new JdbcDatabaseTester("org.h2.Driver", "jdbc:h2:mem:example;DB_CLOSE_DELAY=-1");
+
+    @Test
+    @DbUnitPrep("/dbunit/accounts/prep.xml")
+    @DbUnitExpected(value = "/dbunit/accounts/expected.xml", verifyTables = "ACCOUNT")
+    @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+    void testWithdraw_sufficientBalance_decrementsBalance()
+    {
+        // code under test
+    }
+}
+----
+
+This covers the common, fixed-per-method case; see
+link:annotations.html[DbUnit Annotations] for the full reference, and its
+link:annotations.html#applicability[When Not to Use These Annotations]
+section for the `@ParameterizedTest` and non-dbUnit-assertion cases where
+the programmatic API above remains the right tool.
+
 [#Configuration_Example_Using_Spring]
 == Configuration Example Using Spring
 

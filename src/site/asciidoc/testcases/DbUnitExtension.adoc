@@ -9,10 +9,11 @@ link:IDatabaseTester.html[IDatabaseTester] setup/teardown lifecycle
 automatically, so a test class doesn't need its own `@BeforeEach`/`@AfterEach`
 pair calling `onSetup()`/`onTearDown()`.
 
-Register it with `@ExtendWith(DbUnitExtension.class)`. The test class still
-holds its own `IDatabaseTester` field — this is the same composition style as
-link:IDatabaseTester.html[the IDatabaseTester guide], just with the lifecycle
-calls automated instead of written by hand:
+Register it with `@ExtendWith(DbUnitExtension.class)`, or with the shorter
+`@DbUnitTest`. The test class still holds its own `IDatabaseTester` field —
+this is the same composition style as link:IDatabaseTester.html[the
+IDatabaseTester guide], just with the lifecycle calls automated instead of
+written by hand:
 
 [source,java]
 ----
@@ -53,9 +54,19 @@ fields, including inherited ones:
 * Static fields are ignored.
 * Private fields are found; the field's own access modifier doesn't matter.
 
-NOTE: `@Nested` test classes are not supported — field discovery only walks
-the innermost test instance and its superclasses, not enclosing class
-instances, since a Java nested class does not extend its enclosing class.
+Field discovery also walks every enclosing test instance, innermost first,
+so a `@Nested` test class inherits its enclosing class's tester field.
+
+== Annotation-Driven Configuration
+
+Rather than a `@BeforeEach` method, the dataset and operation can be
+declared directly on the class or method with `org.dbunit.annotation` —
+`@DbUnitPrep`, `@DbUnitSetup`, `@DbUnitExpected`, `@DbUnitTearDown`, and
+`@DbUnitConfig`. This also unlocks the
+link:PrepAndExpectedTestCase.html[PrepAndExpectedTestCase] prep/expected
+path declaratively, and a `@DbUnitTester`/`@DbUnitTestCase` field marker in
+place of the plain-field auto-scan described above. See
+link:annotations.html[DbUnit Annotations] for the full reference.
 
 == Row Count Check
 

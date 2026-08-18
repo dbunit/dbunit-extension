@@ -1,0 +1,518 @@
+= DbUnit Annotations
+Jeff Jensen
+
+== Overview
+
+`org.dbunit.annotation` declares the dataset and operation for a test
+directly on the class or method, instead of writing `@BeforeEach`/
+`@AfterEach` calls or driving link:PrepAndExpectedTestCase.html[PrepAndExpectedTestCase]
+by hand. On JUnit 5/6 (Jupiter), add `@DbUnitTest` to opt a class in — it is
+exactly `@ExtendWith(DbUnitExtension.class)`:
+
+[source,java]
+----
+@DbUnitTest
+class AccountRepositoryTest
+{
+    IDatabaseTester databaseTester =
+            new JdbcDatabaseTester("org.h2.Driver", "jdbc:h2:mem:example;DB_CLOSE_DELAY=-1");
+
+    @Test
+    @DbUnitPrep("/dbunit/accounts/prep.xml")
+    @DbUnitExpected(value = "/dbunit/accounts/expected.xml", verifyTables = "ACCOUNT")
+    @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+    void testWithdraw_sufficientBalance_decrementsBalance()
+    {
+        // code under test
+    }
+}
+----
+
+NOTE: These annotations target the *fixed, per-method* case — one test
+method, one known dataset, one known expectation. See
+<<applicability,When Not to Use These Annotations>> below for the cases they
+deliberately do not cover, and what to use instead.
+
+[#twopaths]
+== The Two Paths
+
+Presence of `@DbUnitExpected` decides which path a test runs:
+
+[cols="1,3", options="header"]
+|===
+|Path |Behaviour
+
+|Simple setup/teardown |`@DbUnitPrep`'s dataset (if any) and `@DbUnitSetup`'s
+operation are applied, then `IDatabaseTester.onSetup()` runs before the test
+method and `onTearDown()` after it — the same lifecycle
+link:DbUnitExtension.html[DbUnitExtension] has always run.
+
+|Prep/expected |`@DbUnitExpected` present. `@DbUnitPrep`'s dataset (if any)
+and `@DbUnitSetup`'s operation are applied the same as the simple path, then
+the extension drives a link:PrepAndExpectedTestCase.html[PrepAndExpectedTestCase]:
+`configureTest()`/`preTest()` before the test method,
+`postTest()` after it. Verification is skipped when the test method itself
+already failed, so a verification failure never masks the real cause.
+|===
+
+Both paths run the same tester/test-case resolution below, and both honor
+`@DbUnitConfig`.
+
+[#resolution]
+== Resolving the Tester or Test Case
+
+First match wins:
+
+[cols="1,4", options="header"]
+|===
+|Order |Source
+
+|1 |A field annotated `@DbUnitTestCase`, whose type implements
+`PrepAndExpectedTestCase` — that instance is driven directly; the extension
+constructs nothing. The "the object already exists, inject it" case.
+
+|2 |A field annotated `@DbUnitTester`, whose type implements
+`IDatabaseTester`.
+
+|3 |`@DbUnitConfig(databaseTesterFactory = ...)` — the named
+`DatabaseTesterFactory` is reflectively instantiated and asked to create a
+tester. Needed because `IDatabaseTester` implementations have no uniform
+no-arg constructor (`JdbcDatabaseTester` needs a driver and URL,
+`DataSourceDatabaseTester` a `DataSource`, `JndiDatabaseTester` a lookup
+name).
+
+|4 |The original (3.5.0) field auto-scan: exactly one non-static field
+assignable to `IDatabaseTester`, nearest declaring class wins. Unchanged, so
+every 3.5.0 test keeps working untouched.
+|===
+
+Field discovery walks every test instance in scope, innermost first, so a
+`@Nested` test class inherits its enclosing class's tester field - or
+shadows it outright with a field of its own, the same marker or not, the
+same way a `@Nested` class's own unmarked `IDatabaseTester` field already
+shadows an enclosing one. Ambiguity is only ever rejected with
+`IllegalStateException` *within* one test instance's own class hierarchy:
+two fields with the same marker there, or both a `@DbUnitTester` and a
+`@DbUnitTestCase` field declared on that same instance.
+
+A `@DbUnitTestCase` field resolving tier 1 does not, by itself, remove the
+need for a tester: tiers 2-4 still run afterward unless the injected instance
+is a `DefaultPrepAndExpectedTestCase` already carrying its own (via
+`getDatabaseTester()`), since the extension's own machinery - installing the
+`@DbUnitProperty` listener, and any `IDatabaseTester` parameter injection -
+needs one regardless of test case type. For a `DefaultPrepAndExpectedTestCase`
+with none set yet, the tester found this way is also wired onto it. For any
+other `PrepAndExpectedTestCase` implementation, declare a `@DbUnitTester`
+field (or `databaseTesterFactory`) alongside it even when that implementation
+manages its own connection internally - otherwise resolution fails with "No
+IDatabaseTester field found" for a test case that otherwise needs nothing
+external.
+
+`@DbUnitTester` and `@DbUnitTestCase` both accept a `static` field, the way a
+tester or test case shared across every method in a class is typically
+declared:
+
+[source,java]
+----
+@DbUnitTest
+class AccountRepositoryTest
+{
+    @DbUnitTester
+    static final IDatabaseTester databaseTester =
+            new JdbcDatabaseTester("org.h2.Driver", "jdbc:h2:mem:example;DB_CLOSE_DELAY=-1");
+
+    @Test
+    @DbUnitPrep("/dbunit/accounts/prep.xml")
+    void testFindAll() { ... }
+}
+----
+
+[#prepandsetup]
+== @DbUnitPrep and @DbUnitSetup
+
+Data and operation are deliberately separate annotations rather than one
+fused annotation:
+
+[cols="1,2,2", options="header"]
+|===
+| |Before the test |After the test
+
+|*Data* |`@DbUnitPrep(files)` |`@DbUnitExpected(files, ...)`
+|*Operation* |`@DbUnitSetup(operation)` |`@DbUnitTearDown(operation)`
+|===
+
+The split matters because a method-level annotation overrides a class-level
+one *wholesale* — attributes do not merge. Fused, a class-level operation
+would be silently lost the moment a method declared its own files. Split,
+the two resolve independently:
+
+[source,java]
+----
+@DbUnitTest
+@DbUnitSetup(operation = DbUnitOperation.REFRESH)   // class-wide, set once
+@DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+class AccountRepositoryTest
+{
+    IDatabaseTester databaseTester =
+            new JdbcDatabaseTester("org.h2.Driver", "jdbc:h2:mem:example;DB_CLOSE_DELAY=-1");
+
+    @Test
+    @DbUnitPrep("a.xml")   // still uses REFRESH
+    void testOne() { ... }
+
+    @Test
+    @DbUnitPrep("b.xml")   // still uses REFRESH
+    void testTwo() { ... }
+}
+----
+
+Because the default is already right, the common case is a single
+annotation — `@DbUnitPrep("accounts.xml")` alone means
+`DbUnitOperation.CLEAN_INSERT`. `@DbUnitSetup` with no `@DbUnitPrep` at all
+is valid: no dataset is prepared, but the operation is still set on the
+tester and applies to whatever dataset the tester already holds — most
+usefully `NONE`, to suppress a dataset the tester was already carrying. Both
+apply the same way on either path: `@DbUnitSetup`'s operation runs before
+`preTest()` too when `@DbUnitExpected` is present, not just before
+`onSetup()` on the simple path.
+
+NOTE: On the prep/expected path, the setup operation is always applied, even
+with *neither* `@DbUnitPrep` nor `@DbUnitSetup` declared — it resolves to
+`DbUnitOperation.CLEAN_INSERT` and is set on the tester regardless, since
+`preTest()` always runs against a real, if empty, prep dataset on that path.
+This differs from the simple path, which leaves the tester's setup operation
+completely untouched — preserving a `@BeforeEach` method's own programmatic
+setup — when neither annotation is declared.
+
+`@DbUnitTearDown` is `@DbUnitSetup`'s counterpart, defaulting to
+`DbUnitOperation.NONE`. It has no data annotation of its own: the dataset
+already prepared (prep, or prep plus expected on the other path) is what the
+operation runs against. To tear down an extra table, list it — empty — in
+the prep dataset instead.
+
+[#expected]
+== @DbUnitExpected, @DbUnitVerifyTable, @DbUnitColumnComparer
+
+`@DbUnitExpected` names the expected dataset file(s) and switches the test
+onto the prep/expected path. Valid with no `@DbUnitPrep` at all — the
+database state already present is what gets verified.
+
+Which tables to verify, and with what rules, escalates through four forms
+so the common cases stay short:
+
+[cols="1,3", options="header"]
+|===
+|Written |Meaning
+
+|nothing |Verify every table in the expected dataset, default rules per
+table.
+
+|`verifyTables = {"ACCOUNT", "TXN"}` |Verify exactly these tables, default
+rules — avoids repeating a bare `@DbUnitVerifyTable` per table just to name
+them.
+
+|`verify = @DbUnitVerifyTable(...)` |Full per-table rules: column
+include/exclude, comparers, sort mode.
+
+|`verifyDefinitions = AppVerifyTables.class` |Definitions from a shared
+catalog class, optionally narrowed by `verifyTables` — see
+<<catalog,the catalog section>> below. The one that scales to a whole suite.
+|===
+
+`verify` together with `verifyDefinitions` or `verifyTables` is rejected as
+ambiguous. Use `verifyTables` only to narrow a catalog selected by
+`verifyDefinitions`.
+
+A worked example combining a prep file, an expected file, and per-table
+rules:
+
+[source,java]
+----
+@Test
+@DbUnitPrep("/dbunit/accounts/prep.xml")
+@DbUnitExpected(value = "/dbunit/accounts/expected.xml",
+        verify = @DbUnitVerifyTable(value = "ACCOUNT",
+                exclude = "CREATED_TS",
+                columnComparers = @DbUnitColumnComparer(column = "BALANCE",
+                        comparer = IsActualGreaterThanExpectedValueComparer.class)))
+@DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+void testWithdraw_sufficientBalance_decrementsBalance() { ... }
+----
+
+`@DbUnitColumnComparer.comparer()` and `@DbUnitVerifyTable.defaultComparer()`
+are reflectively instantiated with their no-arg constructor. That reaches
+eleven of the sixteen `ValueComparers` constants — the stateless ones — and
+any custom `ValueComparer`. It does *not* reach the other five, which are
+configured instances built with constructor arguments (for example
+`isActualWithinOneMinuteNewerOfExpectedTimestamp`); naming one of those here
+fails fast with an `IllegalStateException` pointing at
+<<catalog,the catalog>> as the fix, since a configured comparer can only be
+expressed as a `VerifyTableDefinition` constant written in Java.
+
+TIP: `include()` has one quirk worth knowing: `VerifyTableDefinition`
+distinguishes `null` (include every column) from an empty array (include
+*nothing*), but an annotation cannot express `null`. An empty `include()`
+therefore maps to `null` — include all — the only sensible default, since
+"include nothing" is a degenerate setting nobody wants.
+
+[#catalog]
+== The Shared VerifyTableDefinition Catalog
+
+A provider covering the case where every test wants the *same* fixed table
+set is not how real suites actually verify data — they keep one shared
+class holding a `VerifyTableDefinition` constant per table, and each test
+picks a different subset. `verifyDefinitions` names one or more **catalog
+classes**, and `verifyTables` selects from them by table name:
+
+[source,java]
+----
+public class AppVerifyTables
+{
+    public static final VerifyTableDefinition ACCOUNT =
+            new VerifyTableDefinition("ACCOUNT", new String[] {"ID", "CREATED_TS"});
+    public static final VerifyTableDefinition TRANSACTION =
+            new VerifyTableDefinition("TRANSACTION", new String[] {"ID"},
+                    ValueComparers.isActualEqualToExpected,
+                    new ColumnValueComparerMapBuilder()
+                            .add("POSTED_TS", ValueComparers.isActualWithinOneMinuteNewerOfExpectedTimestamp)
+                            .build());
+    public static final VerifyTableDefinition CUSTOMER =
+            new VerifyTableDefinition("CUSTOMER", new String[] {"UPDATED_TS"});
+}
+----
+
+[source,java]
+----
+@DbUnitTest
+@DbUnitConfig(verifyDefinitions = AppVerifyTables.class)
+@DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+class AccountRepositoryTest
+{
+    IDatabaseTester databaseTester =
+            new JdbcDatabaseTester("org.h2.Driver", "jdbc:h2:mem:example;DB_CLOSE_DELAY=-1");
+
+    @Test
+    @DbUnitPrep("accounts-prep.xml")
+    @DbUnitExpected(value = "accounts-expected.xml",
+            verifyTables = {"ACCOUNT", "TRANSACTION"})
+    void testWithdraw_sufficientBalance_decrementsBalance() { }
+
+    @Test
+    @DbUnitPrep("accounts-prep.xml")
+    @DbUnitExpected(value = "customers-expected.xml",
+            verifyTables = {"CUSTOMER"})
+    void testRename_existingCustomer_updatesName() { }
+}
+----
+
+The catalog is a *plain constants class* — no interface, no boilerplate,
+nothing to keep in sync. This is deliberately the same shape
+link:PrepAndExpectedTestCase.html#_common_classes_for_examples[PrepAndExpectedTestCase]
+already teaches with its `TableNames`/`ColumnNames`/`AppValueComparers`/
+`VerifyTableDefinitions` helper classes, so an existing project's constants
+work here unchanged.
+
+`verifyDefinitions` sits on both `@DbUnitConfig` (the class-level default)
+and `@DbUnitExpected` (a per-method override); the two resolve independently,
+the same rule as everywhere else in this family. A catalog class may
+instead implement `VerifyTableDefinitionsProvider` when its definitions must
+be computed rather than declared as constants — one attribute covers both:
+implementing classes are instantiated and asked, plain classes have their
+`public static final VerifyTableDefinition` fields read directly. The same
+table name defined in two catalog classes named together is rejected rather
+than silently resolved by declaration order.
+
+[#config]
+== @DbUnitConfig
+
+Class-level wiring, carried automatically two separate ways: `@Inherited`, so
+a subclass of a project base class gets it too; and, independently, via
+composed-annotation lookup (<<composed>>), so a project's own annotation
+carrying `@DbUnitConfig` as a meta-annotation is found the same as a
+directly-declared one - a different mechanism from `@Inherited`, not a
+consequence of it:
+
+[cols="1,3", options="header"]
+|===
+|Attribute |Purpose
+
+|`dataFileLoader` |The `DataFileLoader` used for every dataset file.
+Defaults to
+link:/dbunit/apidocs/org/dbunit/util/fileloader/FileExtensionDataFileLoader.html[FileExtensionDataFileLoader],
+which dispatches by extension — see link:../datasets/fileloader.html[Data File Loader].
+A `@DbUnitTestCase`-injected instance also receives this value, when it
+resolves to a `DefaultPrepAndExpectedTestCase` — the only
+`PrepAndExpectedTestCase` implementation exposing a setter for it.
+
+|`databaseTesterFactory` |See <<resolution,resolution order>> tier 3.
+
+|`prepAndExpectedTestCase` |The `PrepAndExpectedTestCase` implementation to
+construct for the prep/expected path when no `@DbUnitTestCase` field
+supplies one, via a `(DataFileLoader, IDatabaseTester, boolean)`
+constructor — the same shape `DefaultPrepAndExpectedTestCase` itself has.
+Defaults to `DefaultPrepAndExpectedTestCase`.
+
+|`properties` / `propertiesProvider` |`DatabaseConfig` properties to apply —
+see <<properties>> below. Mutually exclusive. On the prep/expected path, only
+takes effect when `prepAndExpectedTestCase` resolves to a
+`DefaultPrepAndExpectedTestCase` — the only `PrepAndExpectedTestCase`
+implementation exposing a setter for it.
+
+|`verifyDefinitions` |The class-level catalog default — see <<catalog>>.
+
+|`dataSetBaseDir` |A classpath directory prefix — see <<paths>> below.
+
+|`failureHandler` |A `FailureHandler` for verification failures, in place of
+dbUnit's own default. Only takes effect when `prepAndExpectedTestCase`
+resolves to a `DefaultPrepAndExpectedTestCase` — the only
+`PrepAndExpectedTestCase` implementation exposing a setter for it.
+
+|`closeConnectionAfterTest` |Whether the connection this executor resolves -
+for the prep/expected path, the row count check, or parameter injection - is
+closed after each test; default `true`. Set `false` when the tester shares a
+`CachingConnectionProvider` across test methods. Also left open, regardless of
+this attribute, when the tester's `IOperationListener` is
+`NO_OP_OPERATION_LISTENER` - the established signal that its connection is
+managed elsewhere.
+|===
+
+[#properties]
+=== DatabaseConfig Properties
+
+`@DbUnitProperty` entries are collected into a `Properties` instance and
+handed to `DatabaseConfig.setPropertiesByString(Properties)`, which accepts
+both the long `http://www.dbunit.org/...` names and their short forms:
+
+[source,java]
+----
+@DbUnitConfig(properties = {
+        @DbUnitProperty(name = "caseSensitiveTableNames", value = "true"),
+        @DbUnitProperty(name = "batchSize", value = "50")
+})
+----
+
+Named members are used instead of a `String[]` of `"name=value"` pairs so
+each entry is self-documenting, IDE-completable, and cannot be broken by a
+value that itself contains `=` (an escape pattern, for instance). For
+properties shared across several test classes, `propertiesProvider` names a
+`DatabaseConfigPropertiesProvider` implementation instead — reflectively
+instantiated and asked for the `Properties` to apply. Setting both
+`properties` and `propertiesProvider` is rejected.
+
+NOTE: How properties reach the connection differs by path. On the simple
+path, the extension applies `@DbUnitProperty` values to whichever connection
+it ends up using - the tester's own `onSetup()`/`onTearDown()` retrieve
+independently, via the tester's `IOperationListener`, and this executor's
+own memoized connection, applied the moment it resolves one - so in practice
+they reach the connection on every test where `IDatabaseTester#getConnection()`
+returns non-null, regardless of the setup/teardown operations. That memoized
+connection itself is resolved as cheaply as possible: when the tester is a
+real `AbstractDatabaseTester` with a non-`NONE` setup operation, this
+executor never resolves a connection of its own at all - it reuses the one
+`onSetup()` was already about to retrieve, the same connection
+`@DbUnitProperty` reaches either way; only a custom `IDatabaseTester`
+implementation, or a `NONE` setup operation with nothing else to retrieve
+one, makes this executor resolve a connection eagerly by itself. On
+the prep/expected path, `DefaultPrepAndExpectedTestCase` applies them
+directly to the connection it resolves for `configureTest()`/`setupData()`/
+`verifyData()`/`cleanupData()`, unconditionally — that path never goes
+through the tester's `IOperationListener` at all, so the setup/teardown
+operation does not matter, only whether `prepAndExpectedTestCase` resolves to
+a `DefaultPrepAndExpectedTestCase` (see the attribute table above).
+
+[#composed]
+== Reusing a Whole Configuration: Composed Annotations
+
+For configuration shared across many test classes, compose one project
+annotation carrying `@DbUnitTest` alongside `@DbUnitConfig` and the
+lifecycle annotations. This works for free — annotation lookup finds
+composed (meta-)annotations, not just directly-declared ones:
+
+[source,java]
+----
+@Retention(RetentionPolicy.RUNTIME)
+@Target(ElementType.TYPE)
+@Inherited
+@DbUnitTest
+@DbUnitConfig(dataFileLoader = FlatXmlDataFileLoader.class,
+        properties = @DbUnitProperty(name = "caseSensitiveTableNames", value = "true"))
+@DbUnitSetup(operation = DbUnitOperation.REFRESH)
+public @interface AppDatabaseTest {}
+----
+
+Every test class then carries a single `@AppDatabaseTest`.
+
+[#paths]
+== Dataset Path Resolution
+
+Every `@DbUnitPrep`/`@DbUnitExpected` path resolves to an absolute classpath
+resource in this order:
+
+[cols="1,3", options="header"]
+|===
+|Order |Rule
+
+|1 |A path already starting with `/` — used as-is. Always wins, so a shared
+file outside the base directory stays reachable.
+
+|2 |`@DbUnitConfig(dataSetBaseDir = "...")`, when set — prefixed to the
+path.
+
+|3 |Otherwise — resolved relative to the test class's package, matching the
+convention link:PrepAndExpectedTestCase.html[PrepAndExpectedTestCase]
+already teaches.
+|===
+
+`dataSetBaseDir` exists because the dominant real-world idiom is a shared
+directory constant concatenated onto every file name:
+
+[source,java]
+----
+@DbUnitTest
+@DbUnitConfig(dataSetBaseDir = "/dbunit/accounts/")
+class AccountRepositoryTest
+{
+    IDatabaseTester databaseTester =
+            new JdbcDatabaseTester("org.h2.Driver", "jdbc:h2:mem:example;DB_CLOSE_DELAY=-1");
+
+    @Test
+    @DbUnitPrep("accounts-prep.xml")
+    @DbUnitExpected("accounts-expected.xml")
+    @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+    void testWithdraw_sufficientBalance_decrementsBalance() { }
+}
+----
+
+The dataset format is inferred from the file extension by the configured
+`dataFileLoader` — see link:../datasets/fileloader.html[Data File Loader]
+for the extension table and for using a directory-based format (CSV) or
+full (non-flat) XML instead.
+
+[#applicability]
+== When Not to Use These Annotations
+
+We cannot write every dbUnit test with annotations.
+
+Annotation values require compile-time constants — a `static final
+String[]`, `VerifyTableDefinition[]`, or `Properties` cannot be referenced
+directly (JLS 9.7.1). A catalog class (<<catalog>>), a provider class
+(`DataSetPathsProvider`, `DatabaseConfigPropertiesProvider`,
+`VerifyTableDefinitionsProvider`), or a composed annotation (<<composed>>)
+is the way to share such values; each is described above.
+
+The harder limit is structural, not a missing escape hatch: an annotation
+is fixed at compile time on one method, and Java offers no mechanism for
+one to vary per invocation. A `@ParameterizedTest` whose `VerifyTableDefinition[]`/
+prep files/expected files change per `@MethodSource` row — the dominant
+pattern in larger functional test suite scenarios — cannot be expressed with these
+annotations *at all*. The programmatic `runTest()` API on
+link:PrepAndExpectedTestCase.html[PrepAndExpectedTestCase] remains the
+right and fully supported tool for that case, and for suites that layer
+non-dbUnit assertions (exit codes, exception types, notification content)
+around the dbUnit portion of a test.
+
+`@DbUnitTestCase` field injection still helps such suites, even without the
+lifecycle annotations: it makes the harness wiring explicit on the field
+instead of inherited from a superclass, and a shared catalog (<<catalog>>)
+gives the `VerifyTableDefinition` constants a first-class home that
+non-parameterized tests in the same suite can point at by name.

@@ -8,6 +8,11 @@ link:testcases/PrepAndExpectedTestCase.html[PrepAndExpectedTestCase] is a
 turn-key prep/verify test case needing no parent class — dependency-inject it
 or instantiate it directly. Start here for most new tests.
 
+On JUnit 5/6 (Jupiter), link:testcases/annotations.html[DbUnit Annotations]
+covers writing the same fixed, per-method tests declaratively —
+`@DbUnitPrep`, `@DbUnitExpected`, and the rest of `org.dbunit.annotation` —
+instead of driving `PrepAndExpectedTestCase` by hand.
+
 For the full picture — composition (`IDatabaseTester`) vs. inheritance
 (`DBTestCase` and its subclasses), and how to choose between them — see
 link:testcases.html[Test Integration].

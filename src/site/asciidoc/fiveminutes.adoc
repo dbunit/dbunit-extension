@@ -161,6 +161,40 @@ mvn test
 step (the withdrawal), verified the `account` table matches
 `account-expected.xml`, and then cleaned up the table — all in one call.
 
+== The Same Test, Annotation-Driven
+
+Steps 2 and 3 don't change; step 4 shrinks. On JUnit 5/6 (Jupiter),
+`org.dbunit.annotation` can declare the same prep/expected test
+declaratively instead of calling `runTest()`:
+
+[source,java]
+----
+@DbUnitTest
+class AccountWithdrawalTest
+{
+    @DbUnitTester
+    static final IDatabaseTester databaseTester =
+            new JdbcDatabaseTester(DRIVER_CLASS, CONNECTION_URL);
+
+    @Test
+    @DbUnitPrep(ACCOUNT_PREP)
+    @DbUnitExpected(value = ACCOUNT_EXPECTED, verifyTables = "account")
+    void testWithdraw_sufficientBalance_decrementsBalance() throws Exception
+    {
+        try (Connection connection = DriverManager.getConnection(CONNECTION_URL);
+                Statement statement = connection.createStatement())
+        {
+            statement.execute("UPDATE account SET balance = balance - 50 WHERE id = 1");
+        }
+    }
+}
+----
+
+`databaseTester.setTearDownOperation(DELETE_ALL)` from step 4 is gone too —
+declare it with `@DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)`
+if a test needs cleanup beyond the default. See
+link:testcases/annotations.html[DbUnit Annotations] for the full reference.
+
 == Where to Go Next
 
 * link:testcases.html[Test Integration] — the other ways to write dbUnit tests,

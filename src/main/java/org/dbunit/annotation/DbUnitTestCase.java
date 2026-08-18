@@ -38,7 +38,17 @@ import org.dbunit.PrepAndExpectedTestCase;
  * typically declared. Declaring this alongside a {@link DbUnitTester} field, or more than one
  * field with either marker at the same class level, is rejected as ambiguous.
  *
- * @author dbunit
+ * <p>Marking this field does not, by itself, remove the need for a resolvable
+ * {@code IDatabaseTester}: the extension's own machinery (installing the
+ * {@code @DbUnitProperty} listener, and any {@code IDatabaseTester} parameter injection) needs
+ * one regardless of test case type. For a {@code DefaultPrepAndExpectedTestCase} with none set
+ * yet, one is found and wired on automatically. For any other implementation, declare a
+ * {@link DbUnitTester} field (or {@link DbUnitConfig#databaseTesterFactory()}) alongside this
+ * one even when that implementation manages its own connection internally - otherwise
+ * resolution fails with "No IDatabaseTester field found" for a test case that otherwise needs
+ * nothing external.
+ *
+ * @author Jeff Jensen
  * @since 3.6.0
  * @see DbUnitTester
  * @see DbUnitExpected
