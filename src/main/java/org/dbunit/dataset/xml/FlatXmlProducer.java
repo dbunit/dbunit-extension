@@ -333,19 +333,22 @@ public class FlatXmlProducer extends DefaultHandler implements IDataSetProducer,
     }
 
     /**
-     * Notifies the consumer of every table declared in {@link #_metaDataSet} (DTD or
-     * explicit metadata dataset) that never appeared as a row element in the XML body,
-     * as an empty table using that source's column metadata. Without this, a table with
-     * zero rows in a given fixture is silently absent from the produced dataset, which
-     * can make operations like {@code CLEAN_INSERT}/{@code DELETE_ALL} skip it entirely
-     * even though the DTD declares it. No-op when no DTD/metadata dataset is available,
-     * so behavior is unchanged for plain flat XML.
+     * Notifies the consumer of every table declared in a DTD-derived {@link #_metaDataSet}
+     * that never appeared as a row element in the XML body, as an empty table using that
+     * source's column metadata. Without this, a table with zero rows in a given fixture is
+     * silently absent from the produced dataset, which can make operations like
+     * {@code CLEAN_INSERT}/{@code DELETE_ALL} skip it entirely even though the DTD declares
+     * it. No-op when {@link #_metaDataSet} is not a {@link FlatDtdDataSet}, i.e. when there
+     * is plain flat XML or an arbitrary metadata {@link IDataSet} supplied via
+     * {@link FlatXmlDataSetBuilder#setMetaDataSet}: such a dataset is consulted only for
+     * column metadata of tables actually present in the XML body, not as an enumeration of
+     * every table the produced dataset should contain.
      *
      * @throws DataSetException if the consumer cannot be notified.
      */
     private void addMissingDtdTables() throws DataSetException
     {
-        if (_metaDataSet == null)
+        if (!(_metaDataSet instanceof FlatDtdDataSet))
         {
             return;
         }
