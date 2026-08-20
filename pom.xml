@@ -23,7 +23,7 @@
 
   <properties>
     <!-- Maven configuration -->
-    <project.build.outputTimestamp>2026-08-12T02:19:02Z</project.build.outputTimestamp>
+    <project.build.outputTimestamp>2026-08-20T13:48:02Z</project.build.outputTimestamp>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <project.scm.id>github</project.scm.id>
@@ -154,7 +154,7 @@
     <connection>scm:git:https://github.com/dbunit/dbunit-extension.git</connection>
     <developerConnection>scm:git:https://github.com/dbunit/dbunit-extension.git</developerConnection>
     <url>https://github.com/dbunit/dbunit-extension.git</url>
-    <tag>dbunit-3.5.0</tag>
+    <tag>dbunit-3.5.1</tag>
   </scm>
   <issueManagement>
     <system>github</system>
@@ -1175,6 +1175,33 @@
             </configuration>
           </reportSet>
 -->
+          <reportSet>
+            <id>3.5.0-to-3.5.1</id>
+            <reports>
+              <report>cmp-report</report>
+            </reports>
+            <configuration>
+              <parameter>
+                <reportLinkName>3.5.0-to-3.5.1</reportLinkName>
+              </parameter>
+              <oldVersion>
+                <dependency>
+                  <groupId>${project.groupId}</groupId>
+                  <artifactId>${project.artifactId}</artifactId>
+                  <version>3.5.0</version>
+                  <type>jar</type>
+                </dependency>
+              </oldVersion>
+              <newVersion>
+                <dependency>
+                  <groupId>${project.groupId}</groupId>
+                  <artifactId>${project.artifactId}</artifactId>
+                  <version>3.5.1</version>
+                  <type>jar</type>
+                </dependency>
+              </newVersion>
+            </configuration>
+          </reportSet>
           <reportSet>
             <id>3.4.0-to-3.5.0</id>
             <reports>
