@@ -824,6 +824,28 @@ class DefaultPrepAndExpectedTestCaseTest
     }
 
     @Test
+    void testSetRowCountCheckOverride_disabled_winsOverConnectionsOwnEnabledConfig()
+            throws Exception
+    {
+        // MockDatabaseConnection's dataset/getRowCount() are unconfigured here, so a real
+        // capture() attempt would throw; reaching the end proves the override actually
+        // disabled the check rather than the connection's own FEATURE_ROW_COUNT_CHECK - true
+        // here - winning instead.
+        databaseTester.getConnection().getConfig()
+                .setFeature(DatabaseConfig.FEATURE_ROW_COUNT_CHECK, true);
+        tc.setRowCountCheckOverride(false, new String[0]);
+
+        tc.preTest();
+        tc.cleanupData();
+
+        assertThat(tc.getRowCountCheck())
+                .as("preTest() must still lazily resolve a RowCountCheck from the override,"
+                        + " proving the override path was actually exercised rather than"
+                        + " skipped outright.")
+                .isNotNull();
+    }
+
+    @Test
     void testCleanupData_noBaselineCaptured_skipsTheCheck() throws Exception
     {
         final RowCountCheck mockRowCountCheck = Mockito.mock(RowCountCheck.class);

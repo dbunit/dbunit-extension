@@ -1615,6 +1615,24 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     }
 
     /**
+     * Set the enabled flag and excluded table patterns to resolve a RowCountCheck from, instead
+     * of the shared connection's DatabaseConfig - the values an annotation such as
+     * {@code @DbUnitRowCountCheck} declares.
+     *
+     * @see #rowCountChecker
+     *
+     * @param enabled
+     *            Whether the check is enabled.
+     * @param exclude
+     *            The excluded table patterns.
+     * @since 3.6.0
+     */
+    public void setRowCountCheckOverride(final boolean enabled, final String[] exclude)
+    {
+        rowCountChecker.setEnabledOverride(enabled, exclude);
+    }
+
+    /**
      * Set DatabaseConfig property name/value pairs to apply to the connection shared by
      * setupData(), verifyData() and cleanupData(), every time {@link #getConnection()}
      * resolves it.

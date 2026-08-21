@@ -23,13 +23,16 @@ package org.dbunit.database.rowcount;
 import java.sql.SQLException;
 
 import org.dbunit.DatabaseUnitException;
+import org.dbunit.database.DatabaseConfig;
 import org.dbunit.database.IDatabaseConnection;
 
 /**
  * Manages a {@link RowCountCheck} baseline across one caller's test lifecycle: lazily
- * resolves a {@link RowCountCheck} from a connection's
- * {@link org.dbunit.database.DatabaseConfig} on first use (unless one is supplied),
- * captures a baseline, verifies it later, and lets the baseline be discarded when a
+ * resolves a {@link RowCountCheck} on first use - from a connection's
+ * {@link org.dbunit.database.DatabaseConfig} by default, layering an enabled flag and
+ * excluded table patterns onto it instead when {@link #setEnabledOverride(boolean, String[])}
+ * was called, or bypassing resolution entirely when {@link #setRowCountCheck(RowCountCheck)}
+ * was - captures a baseline, verifies it later, and lets the baseline be discarded when a
  * verify would be noise - e.g. the caller's own test steps already failed, so the
  * database is in an unknown state and a count difference is not a finding worth its own
  * report.
@@ -44,6 +47,8 @@ public class RowCountChecker
 {
     private RowCountCheck rowCountCheck;
     private RowCountSnapshot baseline;
+    private Boolean enabledOverride;
+    private String[] excludeOverride;
 
     /**
      * Captures the baseline using the given connection, resolving a {@link RowCountCheck}
@@ -108,10 +113,35 @@ public class RowCountChecker
     {
         if (rowCountCheck == null)
         {
-            rowCountCheck =
-                    new RowCountCheck(new RowCountCheckConfiguration(connection.getConfig()));
+            final DatabaseConfig databaseConfig = enabledOverride == null
+                    ? connection.getConfig()
+                    : overlayEnabledOverride(connection.getConfig());
+            rowCountCheck = new RowCountCheck(new RowCountCheckConfiguration(databaseConfig));
         }
         return rowCountCheck;
+    }
+
+    /**
+     * Builds a {@link DatabaseConfig} carrying {@link #enabledOverride}/{@link #excludeOverride}
+     * instead of {@code real}'s own {@link DatabaseConfig#FEATURE_ROW_COUNT_CHECK}/
+     * {@link DatabaseConfig#PROPERTY_ROW_COUNT_CHECK_EXCLUDE_TABLES}, while still carrying over
+     * {@code real}'s configured {@link RowCounter} - so the override controls only what it
+     * declares, and the resulting {@link RowCountCheckConfiguration} still lets
+     * {@code -Ddbunit.rowCountCheck} win outright, exactly as it would resolving directly from
+     * {@code real}.
+     *
+     * @param real the connection's own DatabaseConfig to carry the RowCounter over from.
+     * @return the overlay DatabaseConfig to resolve a RowCountCheck from.
+     */
+    private DatabaseConfig overlayEnabledOverride(final DatabaseConfig real)
+    {
+        final DatabaseConfig overlay = new DatabaseConfig();
+        overlay.setFeature(DatabaseConfig.FEATURE_ROW_COUNT_CHECK, enabledOverride);
+        overlay.setProperty(DatabaseConfig.PROPERTY_ROW_COUNT_CHECK_EXCLUDE_TABLES,
+                excludeOverride);
+        overlay.setProperty(DatabaseConfig.PROPERTY_ROW_COUNTER,
+                real.getProperty(DatabaseConfig.PROPERTY_ROW_COUNTER));
+        return overlay;
     }
 
     /**
@@ -133,5 +163,22 @@ public class RowCountChecker
     public void setRowCountCheck(final RowCountCheck rowCountCheck)
     {
         this.rowCountCheck = rowCountCheck;
+    }
+
+    /**
+     * Sets the enabled flag and excluded table patterns to resolve a {@link RowCountCheck}
+     * from, instead of a connection's own {@link org.dbunit.database.DatabaseConfig} - the
+     * values an annotation such as {@code @DbUnitRowCountCheck} declares, carried over onto
+     * whatever connection this checker ends up resolving one from, rather than a caller having
+     * to resolve a connection of its own just to read its {@link RowCounter}.
+     *
+     * @param enabled whether the check is enabled.
+     * @param exclude the excluded table patterns.
+     * @since 3.6.0
+     */
+    public void setEnabledOverride(final boolean enabled, final String[] exclude)
+    {
+        this.enabledOverride = enabled;
+        this.excludeOverride = exclude;
     }
 }
