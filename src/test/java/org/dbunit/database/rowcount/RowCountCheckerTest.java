@@ -24,6 +24,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -50,6 +51,109 @@ class RowCountCheckerTest
         assertThat(checker.getRowCountCheck())
                 .as("No RowCountCheck must be resolved before capture()/verify() ever run.")
                 .isNull();
+    }
+
+    @Test
+    void testSetEnabledOverride_beforeCapture_doesNotEagerlyResolveARowCountCheck()
+    {
+        final RowCountChecker checker = new RowCountChecker();
+
+        checker.setEnabledOverride(true, new String[] {"IGNORED_TABLE"});
+
+        assertThat(checker.getRowCountCheck())
+                .as("setEnabledOverride() must only store the override values; resolving a"
+                        + " RowCountCheck from them happens lazily, the same as the plain"
+                        + " default-from-config path.")
+                .isNull();
+    }
+
+    @Test
+    void testCapture_enabledOverrideTrue_enablesCheckRegardlessOfConnectionConfig()
+            throws Exception
+    {
+        final RowCountChecker checker = new RowCountChecker();
+        checker.setEnabledOverride(true, new String[0]);
+        final DatabaseConfig config = new DatabaseConfig();
+        config.setFeature(DatabaseConfig.FEATURE_ROW_COUNT_CHECK, false);
+        final IDatabaseConnection connection = mock(IDatabaseConnection.class);
+        when(connection.getConfig()).thenReturn(config);
+        final IDataSet dataSet = mock(IDataSet.class);
+        when(dataSet.getTableNames()).thenReturn(new String[] {"ACCOUNT"});
+        when(connection.createDataSet()).thenReturn(dataSet);
+        when(connection.getRowCount("ACCOUNT")).thenReturn(5);
+
+        checker.capture(connection);
+
+        assertThat(checker.hasBaseline())
+                .as("setEnabledOverride(true, ...) must enable the check even though the"
+                        + " connection's own FEATURE_ROW_COUNT_CHECK is false.")
+                .isTrue();
+    }
+
+    @Test
+    void testCapture_enabledOverrideFalse_disablesCheckRegardlessOfConnectionConfig()
+            throws Exception
+    {
+        final RowCountChecker checker = new RowCountChecker();
+        checker.setEnabledOverride(false, new String[0]);
+        final DatabaseConfig config = new DatabaseConfig();
+        config.setFeature(DatabaseConfig.FEATURE_ROW_COUNT_CHECK, true);
+        final IDatabaseConnection connection = mock(IDatabaseConnection.class);
+        when(connection.getConfig()).thenReturn(config);
+
+        checker.capture(connection);
+
+        assertThat(checker.hasBaseline())
+                .as("setEnabledOverride(false, ...) must disable the check even though the"
+                        + " connection's own FEATURE_ROW_COUNT_CHECK is true.")
+                .isFalse();
+        verify(connection, never()).createDataSet();
+    }
+
+    @Test
+    void testCapture_enabledOverrideWithExcludePatterns_excludesMatchingTables()
+            throws Exception
+    {
+        final RowCountChecker checker = new RowCountChecker();
+        checker.setEnabledOverride(true, new String[] {"IGNORED_TABLE"});
+        final DatabaseConfig config = new DatabaseConfig();
+        final IDatabaseConnection connection = mock(IDatabaseConnection.class);
+        when(connection.getConfig()).thenReturn(config);
+        final IDataSet dataSet = mock(IDataSet.class);
+        when(dataSet.getTableNames()).thenReturn(new String[] {"ACCOUNT", "IGNORED_TABLE"});
+        when(connection.createDataSet()).thenReturn(dataSet);
+        when(connection.getRowCount("ACCOUNT")).thenReturn(5);
+
+        checker.capture(connection);
+
+        verify(connection).getRowCount("ACCOUNT");
+        verify(connection, never()).getRowCount("IGNORED_TABLE");
+    }
+
+    @Test
+    void testCapture_enabledOverrideSet_carriesOverConnectionsConfiguredRowCounter()
+            throws Exception
+    {
+        final RowCountChecker checker = new RowCountChecker();
+        checker.setEnabledOverride(true, new String[0]);
+        final RowCounter customRowCounter = mock(RowCounter.class);
+        when(customRowCounter.countRows(any(), any())).thenReturn(Collections.emptyMap());
+        final DatabaseConfig config = new DatabaseConfig();
+        config.setProperty(DatabaseConfig.PROPERTY_ROW_COUNTER, customRowCounter);
+        final IDatabaseConnection connection = mock(IDatabaseConnection.class);
+        when(connection.getConfig()).thenReturn(config);
+        final IDataSet dataSet = mock(IDataSet.class);
+        when(dataSet.getTableNames()).thenReturn(new String[] {"ACCOUNT"});
+        when(connection.createDataSet()).thenReturn(dataSet);
+
+        checker.capture(connection);
+
+        verify(customRowCounter).countRows(eq(connection), any());
+        assertThat(checker.hasBaseline())
+                .as("setEnabledOverride() must still carry over the connection's own"
+                        + " PROPERTY_ROW_COUNTER, the same as resolving directly from its"
+                        + " DatabaseConfig would.")
+                .isTrue();
     }
 
     @Test

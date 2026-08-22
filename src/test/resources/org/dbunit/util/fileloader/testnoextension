@@ -1,0 +1,2 @@
+unused: this file's content is never read - FileExtensionDataFileLoader must reject it by
+name before ever parsing it, since it has no extension to dispatch on.
