@@ -51,7 +51,7 @@
     <assertjCoreVersion>3.27.7</assertjCoreVersion>
     <checkstyleVersion>13.9.0</checkstyleVersion>
     <gsbaseVersion>2.0.1</gsbaseVersion>
-    <jacksonDatabindVersion>2.22.1</jacksonDatabindVersion>
+    <jacksonDatabindVersion>2.22.2</jacksonDatabindVersion>
     <jclOverSlf4jVersion>2.0.18</jclOverSlf4jVersion>
     <junitVersion>6.1.3</junitVersion>
     <logbackClassicVersion>1.6.1</logbackClassicVersion>
