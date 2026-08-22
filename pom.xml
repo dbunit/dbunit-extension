@@ -49,7 +49,7 @@
     <antVersion>1.10.17</antVersion>
     <assertj.version>3.25.1</assertj.version>
     <assertjCoreVersion>3.27.7</assertjCoreVersion>
-    <checkstyleVersion>13.9.0</checkstyleVersion>
+    <checkstyleVersion>14.0.0</checkstyleVersion>
     <gsbaseVersion>2.0.1</gsbaseVersion>
     <jacksonDatabindVersion>2.22.1</jacksonDatabindVersion>
     <jclOverSlf4jVersion>2.0.18</jclOverSlf4jVersion>
