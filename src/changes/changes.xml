@@ -65,6 +65,9 @@
       <action dev="andrewhj" type="update" system="github" due-to="andrewhj">
           Add ITable.getValue(int, int) as a default method backed by the existing name-based path, then override it in DefaultTable, ForwardOnlyResultSetTable, ScrollableResultSetTable, SortedTable, and ReplacementTable to resolve the column by index instead of by name. AbstractBatchOperation.execute() now pre-resolves each operation column's index once per table and reads cell values with getValue(row, index), converting per-row column-name HashMap lookups into a one-time-per-column resolution.
       </action>
+      <action dev="andrewhj" type="update" system="github" due-to="andrewhj">
+          Pre-resolve each comparison column's ValueComparer and both tables' column indexes once before DbUnitAssertBase's row loop, then read cell values with the new index-based ITable.getValue(int, int) instead of re-resolving the comparer and column index on every cell.
+      </action>
     </release>
     <release version="3.5.1" date="Aug 20, 2026" description="A regression fix for FlatXmlProducer incorrectly treating any explicitly-supplied metadata IDataSet as a DTD-style enumeration of the fixture's tables">
       <action dev="jeffjensen" type="fix" issue="951" system="github" due-to="tkrah">
