@@ -105,6 +105,7 @@ public class ForwardOnlyResultSetTable extends AbstractResultSetTable
         if(logger.isDebugEnabled())
             logger.debug("getValue(row={}, columnName={}) - start", Integer.toString(row), columnName);
 
+        advanceToRow(row);
         return getValue(row, getColumnIndex(columnName));
     }
 
@@ -114,6 +115,21 @@ public class ForwardOnlyResultSetTable extends AbstractResultSetTable
         if(logger.isDebugEnabled())
             logger.debug("getValue(row={}, columnIndex={}) - start", row, columnIndex);
 
+        advanceToRow(row);
+
+        try
+        {
+            Column column = _metaData.getColumns()[columnIndex];
+            return column.getDataType().getSqlValue(columnIndex + 1, _resultSet);
+        }
+        catch (SQLException e)
+        {
+            throw new DataSetException(e);
+        }
+    }
+
+    private void advanceToRow(int row) throws DataSetException
+    {
         try
         {
             // Move cursor forward up to specified row
@@ -134,9 +150,6 @@ public class ForwardOnlyResultSetTable extends AbstractResultSetTable
                 close();
                 throw new RowOutOfBoundsException(row + " > " + _lastRow);
             }
-
-            Column column = _metaData.getColumns()[columnIndex];
-            return column.getDataType().getSqlValue(columnIndex + 1, _resultSet);
         }
         catch (SQLException e)
         {

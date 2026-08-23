@@ -62,6 +62,9 @@
       <action dev="jeffjensen" type="update" issue="965" system="github" due-to="jeffjensen">
           Warn (once per instance) when DefaultPrepAndExpectedTestCase is handed a connection whose autocommit is off. Its setup and teardown operations (CLEAN_INSERT, DELETE_ALL, ...) do not manage a transaction of their own, and TransactionOperation refuses an already-non-autocommit connection, so on such a connection the prep and teardown writes are never committed: invisible to any other connection, and - with closeConnectionAfterTest false - held as locks on a connection the database's idle-in-transaction timeout may terminate mid-run. The warning names the consequence and the fix (give this class a connection with autocommit enabled); the transaction semantics are unchanged.
       </action>
+      <action dev="andrewhj" type="update" system="github" due-to="andrewhj">
+          Add ITable.getValue(int, int) as a default method backed by the existing name-based path, then override it in DefaultTable, ForwardOnlyResultSetTable, ScrollableResultSetTable, SortedTable, and ReplacementTable to resolve the column by index instead of by name. AbstractBatchOperation.execute() now pre-resolves each operation column's index once per table and reads cell values with getValue(row, index), converting per-row column-name HashMap lookups into a one-time-per-column resolution.
+      </action>
     </release>
     <release version="3.5.1" date="Aug 20, 2026" description="A regression fix for FlatXmlProducer incorrectly treating any explicitly-supplied metadata IDataSet as a DTD-style enumeration of the fixture's tables">
       <action dev="jeffjensen" type="fix" issue="951" system="github" due-to="tkrah">

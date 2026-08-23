@@ -74,7 +74,7 @@ public interface ITable
      * @param columnIndex The zero-based column index.
      * @return The value at the specified row and column.
      * @throws DataSetException if an error occurs.
-     * @since 2.8
+     * @since 3.6.0
      */
     default Object getValue(int row, int columnIndex) throws DataSetException
     {

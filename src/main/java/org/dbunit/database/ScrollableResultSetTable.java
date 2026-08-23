@@ -152,6 +152,7 @@ public class ScrollableResultSetTable extends AbstractResultSetTable
         if(logger.isDebugEnabled())
             logger.debug("getValue(row={}, columnName={}) - start", Integer.toString(row), columnName);
 
+        assertValidRowIndex(row);
         return getValue(row, getColumnIndex(columnName));
     }
 
