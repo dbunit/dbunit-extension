@@ -724,48 +724,6 @@ public class DbUnitAssertBase
         }
     }
 
-    protected void compareData(final ITable expectedTable,
-            final ITable actualTable, final ComparisonColumn[] comparisonCols,
-            final FailureHandler failureHandler,
-            final ValueComparer defaultValueComparer,
-            final Map<String, ValueComparer> columnValueComparers,
-            final int rowNum, final int columnNum) throws DatabaseUnitException
-    {
-        final ComparisonColumn compareColumn = comparisonCols[columnNum];
-
-        final String columnName = compareColumn.getColumnName();
-        final DataType dataType = compareColumn.getDataType();
-
-        final Object expectedValue = expectedTable.getValue(rowNum, columnName);
-        final Object actualValue = actualTable.getValue(rowNum, columnName);
-
-        // Compare the values
-        if (skipCompare(columnName, expectedValue, actualValue))
-        {
-            log.trace(
-                    "skipCompare: ignoring comparison" + " {}={} on column={}",
-                    expectedValue, actualValue, columnName);
-        } else
-        {
-            final ValueComparer valueComparer = determineValueComparer(
-                    columnName, defaultValueComparer, columnValueComparers);
-
-            if (log.isDebugEnabled())
-            {
-                log.debug(
-                        "compareData: comparing actualValue={}"
-                                + " to expectedValue={} with valueComparer={}",
-                        actualValue, expectedValue, valueComparer);
-            }
-            final String failMessage =
-                    valueComparer.compare(expectedTable, actualTable, rowNum,
-                            columnName, dataType, expectedValue, actualValue);
-
-            failIfNecessary(expectedTable, actualTable, failureHandler, rowNum,
-                    columnName, expectedValue, actualValue, failMessage);
-        }
-    }
-
     /**
      * Reports a failure to the given failure handler if the given fail message is not <code>null</code>.
      *
