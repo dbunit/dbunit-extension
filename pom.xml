@@ -57,7 +57,7 @@
     <logbackClassicVersion>1.6.1</logbackClassicVersion>
     <mockitoVersion>5.23.0</mockitoVersion>
     <poiVersion>5.5.1</poiVersion>
-    <spotbugsAnnotationsVersion>4.10.3</spotbugsAnnotationsVersion>
+    <spotbugsAnnotationsVersion>4.10.4</spotbugsAnnotationsVersion>
     <xmlparserv2Version>23.26.3.0.0</xmlparserv2Version>
 
     <!-- Database driver versions -->
