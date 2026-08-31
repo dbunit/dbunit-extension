@@ -20,6 +20,7 @@
  */
 package org.dbunit;
 
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -289,6 +290,20 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * Return the connection shared by lookupFeatureValue(), setupData(),
      * verifyData() and cleanupData() for the current test's lifecycle,
      * acquiring it on first use instead of a fresh connection at each step.
+     * <p>
+     * When {@link #closeConnectionAfterTest} is false this connection is kept
+     * across test methods (see {@link #closeReusableConnection()}), where the
+     * connection pool or the database server can close it between tests - a
+     * pool max-lifetime or reap, a bounced application context, a
+     * {@link org.dbunit.database.CachingConnectionProvider#close()}. A closed
+     * one is discarded here before it is handed back, so the next call
+     * re-acquires from databaseTester - letting a
+     * {@link org.dbunit.database.CachingConnectionProvider} behind it supply a
+     * live replacement - rather than this instance reusing a connection every
+     * later lifecycle step would only fail on. With
+     * {@link #closeConnectionAfterTest} left at its default the connection is
+     * closed and forgotten after each test anyway, so it is not re-checked
+     * here.
      *
      * @return The shared connection.
      * @throws Exception On dbUnit errors.
@@ -296,6 +311,11 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      */
     private IDatabaseConnection getReusableConnection() throws Exception
     {
+        if (connection != null && !closeConnectionAfterTest
+                && isReusableConnectionClosed())
+        {
+            connection = null;
+        }
         if (connection == null)
         {
             connection = getConnection();
@@ -304,12 +324,46 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     }
 
     /**
+     * Returns whether the connection currently cached in {@link #connection} has
+     * been closed - by the connection pool, the database server, or a
+     * {@link org.dbunit.database.CachingConnectionProvider} behind
+     * {@code databaseTester} - since this instance last used it. A connection
+     * that throws while being asked is treated as closed. Uses only the local
+     * {@link Connection#isClosed()} flag, not a round-tripping
+     * {@link Connection#isValid(int)}: cheap, side-effect free, and enough to
+     * catch a connection closed between test methods before the next one's
+     * first statement. A server-side disconnect the driver has not noticed yet
+     * instead surfaces once, when a lifecycle step runs a statement against it;
+     * {@link #closeReusableConnectionSuppressing(Throwable)} then forgets the
+     * connection so the following test re-acquires regardless.
+     *
+     * @return True when the cached connection is known to be closed or unusable.
+     * @since 3.5.2
+     */
+    private boolean isReusableConnectionClosed()
+    {
+        try
+        {
+            final Connection jdbcConnection = connection.getConnection();
+            return jdbcConnection == null || jdbcConnection.isClosed();
+        } catch (final SQLException e)
+        {
+            log.debug("isReusableConnectionClosed: treating the cached connection"
+                    + " as closed after it failed to report its state", e);
+            return true;
+        }
+    }
+
+    /**
      * Release the connection shared by lookupFeatureValue(), setupData(),
      * verifyData() and cleanupData(), if one was acquired: closes it and
      * forgets it when {@link #closeConnectionAfterTest} is true (the
      * default); otherwise leaves it open and keeps the field set, so a later
      * lifecycle step's getReusableConnection() call keeps reusing it rather
-     * than acquiring - and silently orphaning - another one.
+     * than acquiring - and silently orphaning - another one. That later call
+     * still drops the kept connection if it has since died (see
+     * {@link #getReusableConnection()}), so a connection the pool or server
+     * closed between test methods does not linger to fail every following one.
      *
      * @throws SQLException On close errors.
      * @since 3.4.0
@@ -344,6 +398,14 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * {@link Throwable#addSuppressed(Throwable)} rather than letting it
      * replace and hide the primary. Mirrors the exception safety of
      * {@link #runTest} and {@code DatabaseTestCase.tearDown(Throwable)}.
+     * <p>
+     * Only ever called from a lifecycle step that has already failed, so it
+     * also forgets the shared connection even when {@link #closeConnectionAfterTest}
+     * is false and {@link #closeReusableConnection()} therefore left it open: a
+     * step that just threw may have broken it, so the next
+     * {@link #getReusableConnection()} re-acquires rather than reusing it. Any
+     * {@link org.dbunit.database.CachingConnectionProvider} behind
+     * {@code databaseTester} still owns closing it.
      *
      * @param primary
      *            The exception already in flight to attach a close failure
@@ -359,6 +421,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
         {
             primary.addSuppressed(closeFailure);
         }
+        connection = null;
     }
 
     /**

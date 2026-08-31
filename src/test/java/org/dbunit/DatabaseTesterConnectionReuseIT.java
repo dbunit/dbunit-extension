@@ -205,10 +205,98 @@ class DatabaseTesterConnectionReuseIT
         }
     }
 
+    @Test
+    void testDefaultPrepAndExpectedTestCase_reusedAcrossTestMethodsWithCloseDisabled_keepsReusingItsOneOpenConnection()
+            throws Exception
+    {
+        final CachingConnectionProvider provider = new CachingConnectionProvider();
+        final IDatabaseTester tester = newSharedProviderTester(provider);
+        tester.setTearDownOperation(DatabaseOperation.DELETE_ALL);
+        final DefaultPrepAndExpectedTestCase tc = newCloseDisabledTestCase(tester);
+        final List<IDatabaseConnection> connectionsSeen = new ArrayList<>();
+        try
+        {
+            for (int simulatedTestMethod = 0; simulatedTestMethod < 3; simulatedTestMethod++)
+            {
+                runOneSimulatedTestMethod(tc);
+
+                final IDatabaseConnection connection = tester.getConnection();
+                connectionsSeen.add(connection);
+                assertThat(connection.getConnection().isClosed())
+                        .as("closeConnectionAfterTest=false: the connection must still be"
+                                + " open for the next simulated test method to reuse.")
+                        .isFalse();
+            }
+
+            assertThat(new HashSet<>(connectionsSeen))
+                    .as("One DefaultPrepAndExpectedTestCase reused across test methods, backed"
+                            + " by a CachingConnectionProvider, must run every method against"
+                            + " the one cached connection while it stays alive.")
+                    .hasSize(1);
+        } finally
+        {
+            provider.close();
+        }
+    }
+
+    @Test
+    void testDefaultPrepAndExpectedTestCase_reusedWithCloseDisabled_whenItsCachedConnectionDiesBetweenTestMethods_replacesItRatherThanReusingTheDeadOne()
+            throws Exception
+    {
+        final CachingConnectionProvider provider = new CachingConnectionProvider();
+        final IDatabaseTester tester = newSharedProviderTester(provider);
+        tester.setTearDownOperation(DatabaseOperation.DELETE_ALL);
+        final DefaultPrepAndExpectedTestCase tc = newCloseDisabledTestCase(tester);
+        try
+        {
+            // First simulated test method: acquires and pins a connection.
+            runOneSimulatedTestMethod(tc);
+            final IDatabaseConnection firstConnection = tester.getConnection();
+
+            // The connection pool or the database server drops that connection
+            // between test methods - max lifetime, an idle-in-transaction
+            // timeout, a bounced application context, and so on.
+            firstConnection.getConnection().close();
+
+            // Second simulated test method on the SAME instance must notice the
+            // dead connection it pinned and acquire a live replacement, not fail
+            // setupData()'s CLEAN_INSERT - and then cleanupData()'s tear down
+            // operation - on the connection it can no longer use.
+            runOneSimulatedTestMethod(tc);
+
+            final IDatabaseConnection secondConnection = tester.getConnection();
+            assertThat(secondConnection.getConnection().isClosed())
+                    .as("The reused test case must have replaced the connection killed"
+                            + " between test methods, not kept handing back the dead one.")
+                    .isFalse();
+            assertThat(secondConnection)
+                    .as("A fresh connection must have been acquired from the"
+                            + " CachingConnectionProvider once the first one died.")
+                    .isNotSameAs(firstConnection);
+        } finally
+        {
+            provider.close();
+        }
+    }
+
     private DefaultPrepAndExpectedTestCase newTestCase(final IDatabaseTester tester)
     {
         final DataFileLoader dataFileLoader = new FlatXmlDataFileLoader();
         return new DefaultPrepAndExpectedTestCase(dataFileLoader, tester);
+    }
+
+    private DefaultPrepAndExpectedTestCase newCloseDisabledTestCase(final IDatabaseTester tester)
+    {
+        final DefaultPrepAndExpectedTestCase tc = newTestCase(tester);
+        tc.setCloseConnectionAfterTest(false);
+        return tc;
+    }
+
+    private static void runOneSimulatedTestMethod(final DefaultPrepAndExpectedTestCase tc)
+            throws Exception
+    {
+        tc.runTest(new VerifyTableDefinition[] {}, new String[] {}, new String[] {},
+                () -> null);
     }
 
     private IDatabaseTester newSharedProviderTester(final CachingConnectionProvider sharedProvider)
