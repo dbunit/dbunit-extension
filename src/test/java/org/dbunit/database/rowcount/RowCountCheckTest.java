@@ -25,10 +25,12 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import java.sql.Connection;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -216,6 +218,64 @@ class RowCountCheckTest
                 .containsEntry("ACCOUNT", 42);
     }
 
+    @Test
+    void testCapture_connectionAutoCommitOff_rollsBackSoTheReadOnlySnapshotLeavesNoOpenTransaction()
+            throws Exception
+    {
+        final RowCounter rowCounter = mock(RowCounter.class);
+        when(rowCounter.countRows(any(), any())).thenReturn(mapOf("ACCOUNT", 1));
+        final RowCountCheck check = new RowCountCheck(
+                new RowCountCheckConfiguration(enabledDatabaseConfig(rowCounter)));
+        final Connection jdbcConnection = mock(Connection.class);
+        when(jdbcConnection.getAutoCommit()).thenReturn(false);
+        final IDatabaseConnection connection =
+                connectionWithTablesAndJdbcConnection(jdbcConnection, "ACCOUNT");
+
+        check.capture(connection);
+
+        verify(jdbcConnection)
+                .rollback();
+    }
+
+    @Test
+    void testVerify_connectionAutoCommitOff_rollsBackAfterReadingTheCurrentCounts()
+            throws Exception
+    {
+        final RowCounter rowCounter = mock(RowCounter.class);
+        when(rowCounter.countRows(any(), any())).thenReturn(mapOf("ACCOUNT", 1));
+        final RowCountCheck check = new RowCountCheck(
+                new RowCountCheckConfiguration(enabledDatabaseConfig(rowCounter)));
+        final Connection jdbcConnection = mock(Connection.class);
+        when(jdbcConnection.getAutoCommit()).thenReturn(false);
+        final IDatabaseConnection connection =
+                connectionWithTablesAndJdbcConnection(jdbcConnection, "ACCOUNT");
+
+        check.verify(new RowCountSnapshot(mapOf("ACCOUNT", 1)), connection);
+
+        verify(jdbcConnection)
+                .rollback();
+    }
+
+    @Test
+    void testCapture_connectionAutoCommitOn_leavesTransactionControlAlone() throws Exception
+    {
+        final RowCounter rowCounter = mock(RowCounter.class);
+        when(rowCounter.countRows(any(), any())).thenReturn(mapOf("ACCOUNT", 1));
+        final RowCountCheck check = new RowCountCheck(
+                new RowCountCheckConfiguration(enabledDatabaseConfig(rowCounter)));
+        final Connection jdbcConnection = mock(Connection.class);
+        when(jdbcConnection.getAutoCommit()).thenReturn(true);
+        final IDatabaseConnection connection =
+                connectionWithTablesAndJdbcConnection(jdbcConnection, "ACCOUNT");
+
+        check.capture(connection);
+
+        verify(jdbcConnection, never())
+                .rollback();
+        verify(jdbcConnection, never())
+                .commit();
+    }
+
     private static DatabaseConfig enabledDatabaseConfig()
     {
         final DatabaseConfig databaseConfig = new DatabaseConfig();
@@ -237,6 +297,14 @@ class RowCountCheckTest
         when(dataSet.getTableNames()).thenReturn(tableNames);
         final IDatabaseConnection connection = mock(IDatabaseConnection.class);
         when(connection.createDataSet()).thenReturn(dataSet);
+        return connection;
+    }
+
+    private static IDatabaseConnection connectionWithTablesAndJdbcConnection(
+            final Connection jdbcConnection, final String... tableNames) throws Exception
+    {
+        final IDatabaseConnection connection = connectionWithTables(tableNames);
+        when(connection.getConnection()).thenReturn(jdbcConnection);
         return connection;
     }
 

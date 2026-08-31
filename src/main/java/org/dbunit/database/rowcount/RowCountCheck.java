@@ -20,6 +20,7 @@
  */
 package org.dbunit.database.rowcount;
 
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
@@ -28,6 +29,8 @@ import java.util.Map;
 import org.dbunit.DatabaseUnitException;
 import org.dbunit.database.IDatabaseConnection;
 import org.dbunit.dataset.filter.ExcludeTableFilter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Compares a database's table row counts before and after a test, to catch a table the test
@@ -43,6 +46,8 @@ import org.dbunit.dataset.filter.ExcludeTableFilter;
  */
 public class RowCountCheck
 {
+    private final Logger log = LoggerFactory.getLogger(RowCountCheck.class);
+
     private final RowCountCheckConfiguration configuration;
 
     /**
@@ -69,11 +74,7 @@ public class RowCountCheck
     public RowCountSnapshot capture(final IDatabaseConnection connection)
             throws DatabaseUnitException, SQLException
     {
-        if (!configuration.isEnabled())
-        {
-            return null;
-        }
-        return snapshot(connection);
+        return configuration.isEnabled() ? snapshot(connection) : null;
     }
 
     /**
@@ -108,20 +109,60 @@ public class RowCountCheck
     private RowCountSnapshot snapshot(final IDatabaseConnection connection)
             throws DatabaseUnitException, SQLException
     {
-        final String[] allTableNames = connection.createDataSet().getTableNames();
-        final ExcludeTableFilter excludeTableFilter = configuration.getExcludeTableFilter();
-
-        final List<String> tableNames = new ArrayList<>();
-        for (final String tableName : allTableNames)
+        try
         {
-            if (excludeTableFilter.isValidName(tableName))
+            final String[] allTableNames = connection.createDataSet().getTableNames();
+            final ExcludeTableFilter excludeTableFilter = configuration.getExcludeTableFilter();
+
+            final List<String> tableNames = new ArrayList<>();
+            for (final String tableName : allTableNames)
             {
-                tableNames.add(tableName);
+                if (excludeTableFilter.isValidName(tableName))
+                {
+                    tableNames.add(tableName);
+                }
+            }
+
+            final Map<String, Integer> rowCounts =
+                    configuration.getRowCounter().countRows(connection, tableNames);
+            return new RowCountSnapshot(rowCounts);
+        }
+        finally
+        {
+            endReadTransaction(connection);
+        }
+    }
+
+    /**
+     * Ends the transaction the read-only snapshot queries (the {@code SELECT COUNT(*)}s and the
+     * metadata reads behind {@link IDatabaseConnection#createDataSet()}) opened, when the
+     * connection's autocommit is off, so a check that modified nothing does not leave that
+     * connection sitting idle in a transaction - holding locks, and a candidate for the
+     * database's {@code idle_in_transaction_session_timeout}. This matters when the connection
+     * outlives the check: shared through a {@link org.dbunit.database.CachingConnectionProvider}
+     * and not closed after each test.
+     * <p>
+     * A rollback rather than a commit: the snapshot wrote nothing of its own, so there is
+     * nothing to keep, and a rollback cannot disturb work a caller committed before calling in.
+     * A best-effort attempt - a snapshot that already failed, or a connection the database has
+     * dropped, is the caller's to handle.
+     *
+     * @param connection the connection the snapshot queried.
+     */
+    private void endReadTransaction(final IDatabaseConnection connection)
+    {
+        try
+        {
+            final Connection jdbcConnection = connection.getConnection();
+            if (jdbcConnection != null && !jdbcConnection.getAutoCommit())
+            {
+                jdbcConnection.rollback();
             }
         }
-
-        final Map<String, Integer> rowCounts =
-                configuration.getRowCounter().countRows(connection, tableNames);
-        return new RowCountSnapshot(rowCounts);
+        catch (final SQLException e)
+        {
+            log.debug("endReadTransaction: could not roll back the row count snapshot's"
+                    + " read transaction", e);
+        }
     }
 }
