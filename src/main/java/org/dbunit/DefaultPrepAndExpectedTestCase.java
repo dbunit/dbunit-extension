@@ -72,6 +72,16 @@ import org.slf4j.LoggerFactory;
  * reuse; the provider's owner is then responsible for closing it once,
  * itself, when the whole run finishes.
  * <p>
+ * The connection must be in autocommit mode. The setup and teardown
+ * operations run here (CLEAN_INSERT, DELETE_ALL, ...) do not manage a
+ * transaction of their own, and {@link org.dbunit.operation.TransactionOperation}
+ * refuses a connection whose autocommit is already off, so on a
+ * non-autocommit connection the prep and teardown writes are never
+ * committed: invisible to any other connection, and - with
+ * {@link #setCloseConnectionAfterTest(boolean)} false - held as locks on a
+ * connection the database's idle-in-transaction timeout may terminate
+ * mid-run. This class logs a warning when it detects such a connection.
+ * <p>
  * The {@code verifyData()} method hands assertion failures to
  * {@link org.dbunit.assertion.DefaultFailureHandler} by default, which throws
  * on the first mismatch found. Set {@link #setFailureHandler(FailureHandler)}
@@ -125,6 +135,15 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * @since 3.4.0
      */
     private IDatabaseConnection connection;
+
+    /**
+     * Whether the warning about a non-autocommit {@link #connection} has
+     * already been logged, so it is logged at most once per instance rather
+     * than every time the connection is (re)acquired.
+     *
+     * @since 3.5.2
+     */
+    private boolean connectionAutoCommitWarned;
 
     /**
      * isCaseSensitiveTableNames as resolved by configureTest(), cached so
@@ -319,8 +338,47 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
         if (connection == null)
         {
             connection = getConnection();
+            warnIfConnectionAutoCommitDisabled();
         }
         return connection;
+    }
+
+    /**
+     * Logs a warning, at most once per instance, when {@link #connection} is not
+     * in autocommit mode: the setup and teardown operations run here do not
+     * manage a transaction, and {@link org.dbunit.operation.TransactionOperation}
+     * refuses an already-non-autocommit connection, so their writes are never
+     * committed - see the class Javadoc.
+     */
+    private void warnIfConnectionAutoCommitDisabled()
+    {
+        if (connectionAutoCommitWarned)
+        {
+            return;
+        }
+        try
+        {
+            final Connection jdbcConnection = connection.getConnection();
+            if (jdbcConnection == null || jdbcConnection.getAutoCommit())
+            {
+                return;
+            }
+        } catch (final SQLException e)
+        {
+            log.debug("warnIfConnectionAutoCommitDisabled: could not read the"
+                    + " connection's autocommit state", e);
+            return;
+        }
+
+        connectionAutoCommitWarned = true;
+        log.warn("The connection DefaultPrepAndExpectedTestCase is using has autocommit"
+                + " disabled. Its setup/teardown operations (CLEAN_INSERT, DELETE_ALL, ...)"
+                + " do not manage a transaction, and TransactionOperation refuses a"
+                + " non-autocommit connection, so the prep and teardown writes are never"
+                + " committed - invisible to other connections, and (with"
+                + " closeConnectionAfterTest=false) held as locks on a connection the"
+                + " database's idle-in-transaction timeout may terminate mid-run. Give this"
+                + " class a connection with autocommit enabled.");
     }
 
     /**
