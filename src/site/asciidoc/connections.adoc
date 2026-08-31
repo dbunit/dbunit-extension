@@ -87,6 +87,18 @@ re-fetching table metadata, a cached connection's `DatabaseDataSet` does not
 notice schema changes (new/dropped/altered tables) made after it was first
 cached. Do not share a provider across tests that alter DDL mid-run.
 
+*Autocommit.* The connection must be in autocommit mode. dbUnit's setup and
+teardown operations (`CLEAN_INSERT`, `DELETE_ALL`, ...) do not manage a
+transaction of their own, and
+link:apidocs/org/dbunit/operation/TransactionOperation.html[TransactionOperation]
+refuses a connection whose autocommit is already off. On a non-autocommit
+connection the prep and teardown writes are therefore never committed:
+invisible to any other connection, and — when a provider holds the
+connection open across tests — held as locks on a connection the database's
+idle-in-transaction timeout can terminate mid-run.
+link:apidocs/org/dbunit/DefaultPrepAndExpectedTestCase.html[DefaultPrepAndExpectedTestCase]
+logs a warning when it detects one.
+
 See link:testcases/IDatabaseTester.html[the IDatabaseTester guide] for the
 full setup/teardown lifecycle this fits into, and
 link:bestpractices.html[Best Practices] for when connection reuse across test

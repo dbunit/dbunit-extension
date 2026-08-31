@@ -30,6 +30,12 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.slf4j.LoggerFactory;
+
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 
 @ExtendWith(MockitoExtension.class)
 class DefaultPrepAndExpectedTestCaseTest
@@ -47,7 +53,7 @@ class DefaultPrepAndExpectedTestCaseTest
     private DefaultPrepAndExpectedTestCase tc;
 
     @BeforeEach
-    void setUp()
+    void setUp() throws Exception
     {
         // built here, not via field initializers, because @Mock injection
         // (MockitoExtension) runs after field initializers but before
@@ -699,6 +705,81 @@ class DefaultPrepAndExpectedTestCaseTest
     }
 
     @Test
+    void testGetReusableConnection_connectionAutoCommitDisabled_logsExactlyOneWarning()
+            throws Exception
+    {
+        Mockito.when(mockConnection.getAutoCommit()).thenReturn(false);
+
+        final Logger testCaseLogger =
+                (Logger) LoggerFactory.getLogger(DefaultPrepAndExpectedTestCase.class);
+        final ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        testCaseLogger.addAppender(appender);
+        try
+        {
+            tc.configureTest(new VerifyTableDefinition[] {}, new String[] {}, new String[] {});
+            tc.preTest();
+            tc.postTest();
+
+            assertThat(appender.list)
+                    .filteredOn(event -> event.getLevel() == Level.WARN
+                            && event.getFormattedMessage().contains("autocommit disabled"))
+                    .as("A non-autocommit connection must be warned about exactly once for the"
+                            + " whole configureTest/preTest/postTest lifecycle, not once per"
+                            + " getReusableConnection() call.")
+                    .hasSize(1);
+        } finally
+        {
+            testCaseLogger.detachAppender(appender);
+            appender.stop();
+        }
+    }
+
+    @Test
+    void testGetReusableConnection_connectionInAutoCommitMode_logsNoWarning() throws Exception
+    {
+        final Logger testCaseLogger =
+                (Logger) LoggerFactory.getLogger(DefaultPrepAndExpectedTestCase.class);
+        final ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        testCaseLogger.addAppender(appender);
+        try
+        {
+            tc.configureTest(new VerifyTableDefinition[] {}, new String[] {}, new String[] {});
+            tc.preTest();
+            tc.postTest();
+
+            assertThat(appender.list)
+                    .filteredOn(event -> event.getLevel() == Level.WARN
+                            && event.getFormattedMessage().contains("autocommit disabled"))
+                    .as("An autocommit connection is the supported case and must not warn.")
+                    .isEmpty();
+        } finally
+        {
+            testCaseLogger.detachAppender(appender);
+            appender.stop();
+        }
+    }
+
+    @Test
+    void testGetReusableConnection_testDoubleWithNullJdbcConnection_doesNotThrow()
+            throws Exception
+    {
+        final IDatabaseConnection connectionWithNullJdbc =
+                Mockito.mock(IDatabaseConnection.class);
+        Mockito.when(connectionWithNullJdbc.getConfig()).thenReturn(new DatabaseConfig());
+        // getConnection() left unstubbed - a test double returning null
+        final DefaultPrepAndExpectedTestCase tcNullJdbc = new DefaultPrepAndExpectedTestCase(
+                dataFileLoader, new DefaultDatabaseTester(connectionWithNullJdbc));
+
+        assertThatCode(() -> tcNullJdbc.configureTest(new VerifyTableDefinition[] {},
+                new String[] {}, new String[] {}))
+                .as("A test double whose IDatabaseConnection.getConnection() returns null"
+                        + " must not NullPointerException the autocommit / liveness checks.")
+                .doesNotThrowAnyException();
+    }
+
+    @Test
     void testIsCloseConnectionAfterTest_withDefaultConfiguration_returnsTrue()
     {
         assertThat(tc.isCloseConnectionAfterTest())
@@ -816,13 +897,13 @@ class DefaultPrepAndExpectedTestCaseTest
                 .containsExactly(new Column("COL2", DataType.VARCHAR));
     }
 
-    private IDatabaseTester makeDatabaseTester()
+    private IDatabaseTester makeDatabaseTester() throws Exception
     {
         final IDatabaseConnection databaseConnection = makeDatabaseConnection();
         return new DefaultDatabaseTester(databaseConnection);
     }
 
-    protected IDatabaseConnection makeDatabaseConnection()
+    protected IDatabaseConnection makeDatabaseConnection() throws Exception
     {
         final MockStatementFactory mockStatementFactory =
                 new MockStatementFactory();
@@ -833,6 +914,9 @@ class DefaultPrepAndExpectedTestCaseTest
                 new MockDatabaseConnection();
         mockDbConnection.setupConnection(mockConnection);
         mockDbConnection.setupStatementFactory(mockStatementFactory);
+        // the supported case: an autocommit connection. Individual tests
+        // re-stub this to false to exercise the non-autocommit warning.
+        Mockito.lenient().when(mockConnection.getAutoCommit()).thenReturn(true);
 
         final DatabaseConfig config = mockDbConnection.getConfig();
         config.setFeature(DatabaseConfig.FEATURE_CASE_SENSITIVE_TABLE_NAMES,
