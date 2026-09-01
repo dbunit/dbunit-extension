@@ -24,7 +24,10 @@ if you want to convert an existing `DBTestCase` subclass.
 
 On JUnit 5/6 (Jupiter), composition users can also skip writing the
 `@BeforeEach`/`@AfterEach` lifecycle calls entirely — see
-link:testcases/DbUnitExtension.html[DbUnitExtension].
+link:testcases/DbUnitExtension.html[DbUnitExtension] — and can go further
+still, declaring the dataset and operation directly on the class or method
+instead of in a `@BeforeEach` body; see
+link:testcases/annotations.html[DbUnit Annotations].
 
 Whichever style you choose,
 link:testcases/PrepAndExpectedTestCase.html[PrepAndExpectedTestCase] is

@@ -1,7 +1,7 @@
 /*
  *
  * The DbUnit Database Testing Framework
- * Copyright (C)2002-2025, DbUnit.org
+ * Copyright (C)2002-2026, DbUnit.org
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -24,29 +24,50 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 import static org.junit.platform.engine.discovery.DiscoverySelectors.selectClass;
 
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import org.dbunit.IOperationListener;
 import org.dbunit.IDatabaseTester;
+import org.dbunit.IOperationListener;
+import org.dbunit.PrepAndExpectedTestCase;
+import org.dbunit.PrepAndExpectedTestCaseSteps;
+import org.dbunit.VerifyTableDefinition;
+import org.dbunit.annotation.DbUnitConfig;
+import org.dbunit.annotation.DbUnitExpected;
+import org.dbunit.annotation.DbUnitPrep;
+import org.dbunit.annotation.DbUnitSetup;
+import org.dbunit.annotation.DbUnitTestCase;
+import org.dbunit.annotation.DbUnitTester;
 import org.dbunit.database.IDatabaseConnection;
 import org.dbunit.dataset.IDataSet;
 import org.dbunit.operation.DatabaseOperation;
+import org.dbunit.operation.DbUnitOperation;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.platform.engine.TestExecutionResult;
+import org.junit.platform.testkit.engine.EngineExecutionResults;
 import org.junit.platform.testkit.engine.EngineTestKit;
+import org.junit.platform.testkit.engine.Event;
+import org.opentest4j.TestAbortedException;
 
 /**
  * Lifecycle integration tests for {@link DbUnitExtension} that verify execution
  * ordering and teardown behavior under failure using {@link EngineTestKit}.
  */
-class DbUnitExtensionLifecycleTest {
-
+class DbUnitExtensionLifecycleTest
+{
     @Test
-    void testBeforeAndAfterTestExecution_testMethodSucceeds_callbacksRunInOrder() {
+    void testBeforeAndAfterTestExecution_testMethodSucceeds_callbacksRunInOrder()
+    {
         EngineTestKit.engine("junit-jupiter")
                 .selectors(selectClass(LifecycleOrderSample.class))
                 .execute()
@@ -55,7 +76,8 @@ class DbUnitExtensionLifecycleTest {
     }
 
     @Test
-    void testAfterTestExecution_testMethodFails_onTearDownCalled() {
+    void testAfterTestExecution_testMethodFails_onTearDownCalled()
+    {
         FailingTestSample.CALL_LOG.clear();
 
         EngineTestKit.engine("junit-jupiter")
@@ -70,7 +92,8 @@ class DbUnitExtensionLifecycleTest {
     }
 
     @Test
-    void testBeforeTestExecution_onSetupFails_onTearDownCalledAndTestMethodSkipped() {
+    void testBeforeTestExecution_onSetupFails_onTearDownCalledAndTestMethodSkipped()
+    {
         FailingSetupSample.CALL_LOG.clear();
 
         EngineTestKit.engine("junit-jupiter")
@@ -85,31 +108,288 @@ class DbUnitExtensionLifecycleTest {
                 .containsExactly("onTearDown");
     }
 
-    /**
-     * Sample test class with a known-good lifecycle that verifies call ordering.
-     * Assertions inside verify that onSetup runs after @BeforeEach and onTearDown
-     * runs before @AfterEach; a failure here surfaces as a test failure in
-     * the outer EngineTestKit assertion.
-     */
+    @Test
+    void testBeforeAndAfterTestExecution_classicPathTesterWithCustomListener_listenerNeverReplaced()
+    {
+        final CallLoggingTester tester = new CallLoggingTester(new ArrayList<>());
+        final IOperationListener original = IOperationListener.NO_OP_OPERATION_LISTENER;
+        tester.setOperationListener(original);
+        ClassicCustomListenerSample.tester = tester;
+        tester.setOperationListenerCalls = 0;
+
+        EngineTestKit.engine("junit-jupiter")
+                .selectors(selectClass(ClassicCustomListenerSample.class))
+                .execute()
+                .testEvents()
+                .assertStatistics(stats -> stats.started(1).succeeded(1));
+
+        assertThat(tester.setOperationListenerCalls)
+                .as("A bare @ExtendWith(DbUnitExtension.class) test - the 3.5.0 style, opting into"
+                        + " no @DbUnit* annotation or marker field - must not have its tester's"
+                        + " IOperationListener replaced by the extension.")
+                .isZero();
+        assertThat(tester.getOperationListener())
+                .as("The tester's original listener must survive untouched.")
+                .isSameAs(original);
+    }
+
+    @Test
+    void testBeforeTestExecution_nestedTestClass_resolvesTesterFromEnclosingInstance()
+    {
+        EngineTestKit.engine("junit-jupiter")
+                .selectors(selectClass(EnclosingWithNested.NestedSample.class))
+                .execute()
+                .testEvents()
+                .assertStatistics(stats -> stats.started(1).succeeded(1));
+    }
+
+    @Test
+    void testBeforeTestExecution_nestedTestClassMethodUsesEnclosingClassLevelAnnotation_appliesOperation()
+    {
+        EnclosingWithClassLevelSetupAnnotation.databaseTesterInstance =
+                new CallLoggingTester(new ArrayList<>());
+
+        EngineTestKit.engine("junit-jupiter")
+                .selectors(selectClass(
+                        EnclosingWithClassLevelSetupAnnotation.NestedInheritsEnclosingAnnotation.class))
+                .execute()
+                .testEvents()
+                .assertStatistics(stats -> stats.started(1).succeeded(1));
+
+        assertThat(EnclosingWithClassLevelSetupAnnotation.databaseTesterInstance
+                .setUpOperationAtOnSetup)
+                .as("A @DbUnitSetup declared on the enclosing class must be found and applied"
+                        + " for a @Nested inner class's test method - the same enclosing-class"
+                        + " annotation fallback findAnnotation() documents for field discovery -"
+                        + " not silently skipped in favor of dbUnit's own default operation.")
+                .isEqualTo(DatabaseOperation.REFRESH);
+    }
+
+    @Test
+    void testBeforeTestExecution_nestedTestClassOwnDbUnitTesterField_shadowsEnclosingField()
+    {
+        EngineTestKit.engine("junit-jupiter")
+                .selectors(selectClass(EnclosingWithNestedTesterOverride.NestedOverride.class))
+                .execute()
+                .testEvents()
+                .assertStatistics(stats -> stats.started(1).succeeded(1));
+    }
+
+    @Test
+    void testBeforeTestExecution_nestedTestClassOwnDbUnitTestCaseField_notAmbiguousWithEnclosingTesterField()
+    {
+        EngineTestKit.engine("junit-jupiter")
+                .selectors(selectClass(
+                        EnclosingWithDbUnitTesterAndNestedDbUnitTestCase.NestedOverride.class))
+                .execute()
+                .testEvents()
+                .assertStatistics(stats -> stats.started(1).succeeded(1));
+    }
+
+    @Test
+    void testBeforeTestExecution_nestedTestClassOwnDbUnitTesterField_notAmbiguousWithEnclosingTestCaseField()
+    {
+        EngineTestKit.engine("junit-jupiter")
+                .selectors(selectClass(
+                        EnclosingWithDbUnitTestCaseAndNestedDbUnitTester.NestedOverride.class))
+                .execute()
+                .testEvents()
+                .assertStatistics(stats -> stats.started(1).succeeded(1));
+    }
+
+    @Test
+    void testBeforeTestExecution_composedDbUnitTestAnnotation_appliesSetup()
+    {
+        EngineTestKit.engine("junit-jupiter")
+                .selectors(selectClass(ComposedAnnotationSample.class))
+                .execute()
+                .testEvents()
+                .assertStatistics(stats -> stats.started(1).succeeded(1));
+    }
+
+    @Test
+    void testBeforeTestExecution_metaAnnotationCarryingConfigAndPrep_appliesBoth()
+    {
+        EngineTestKit.engine("junit-jupiter")
+                .selectors(selectClass(MetaAnnotationSample.class))
+                .execute()
+                .testEvents()
+                .assertStatistics(stats -> stats.started(1).succeeded(1));
+    }
+
+    @Test
+    void testBeforeTestExecution_methodPrepOverridesComposedClassLevelPrep() throws Exception
+    {
+        final CallLoggingTester tester = new CallLoggingTester(new ArrayList<>());
+        MethodPrepOverridesComposedPrepSample.tester = tester;
+
+        EngineTestKit.engine("junit-jupiter")
+                .selectors(selectClass(MethodPrepOverridesComposedPrepSample.class))
+                .execute()
+                .testEvents()
+                .assertStatistics(stats -> stats.started(1).succeeded(1));
+
+        assertThat(tester.dataSetAtOnSetup.getTableNames())
+                .as("A method-level @DbUnitPrep must override a class-level @DbUnitPrep carried"
+                        + " by a composed annotation, exactly as it overrides a directly-declared"
+                        + " class-level one - here the method's ACCOUNT dataset, not the"
+                        + " composed annotation's TEST_TABLE one.")
+                .containsExactly("ACCOUNT");
+    }
+
+    @Test
+    void testAfterTestExecution_nestedClassExpectedPath_runsVerificationViaEnclosingTestCaseField()
+    {
+        NestedExpectedPathEnclosing.testCase = new RecordingPrepAndExpectedTestCase();
+
+        EngineTestKit.engine("junit-jupiter")
+                .selectors(selectClass(NestedExpectedPathEnclosing.NestedExpectedSample.class))
+                .execute()
+                .testEvents()
+                .assertStatistics(stats -> stats.started(1).succeeded(1));
+
+        assertThat(NestedExpectedPathEnclosing.testCase.postTestCalls)
+                .as("The prep/expected path must run for a @Nested test method whose"
+                        + " @DbUnitExpected is method-level and whose @DbUnitTestCase and tester"
+                        + " fields live on the enclosing test instance.")
+                .containsExactly(true);
+    }
+
+    @Test
+    void testAfterTestExecution_expectedAnnotationAndPassingTest_runsVerification()
+    {
+        ExpectedPathSample.testCase = new RecordingPrepAndExpectedTestCase();
+
+        EngineTestKit.engine("junit-jupiter")
+                .selectors(selectClass(ExpectedPathSample.class))
+                .execute()
+                .testEvents()
+                .assertStatistics(stats -> stats.started(1).succeeded(1));
+
+        assertThat(ExpectedPathSample.testCase.postTestCalls)
+                .as("A passing test must run verification (postTest(true)).")
+                .containsExactly(true);
+    }
+
+    @Test
+    void testBeforeTestExecution_expectedAnnotationAndOverridingTestCase_syncsDatabaseTesterWithResolvedOne()
+    {
+        TesterSyncSample.testCase = new TesterSyncingPrepAndExpectedTestCase();
+        TesterSyncSample.databaseTesterInstance = new CallLoggingTester(new ArrayList<>());
+
+        EngineTestKit.engine("junit-jupiter")
+                .selectors(selectClass(TesterSyncSample.class))
+                .execute()
+                .testEvents()
+                .assertStatistics(stats -> stats.started(1).succeeded(1));
+
+        assertThat(TesterSyncSample.testCase.databaseTester)
+                .as("A @DbUnitTestCase-injected PrepAndExpectedTestCase overriding"
+                        + " getDatabaseTester()/setDatabaseTester() - not just"
+                        + " DefaultPrepAndExpectedTestCase - must be wired to the exact same"
+                        + " IDatabaseTester instance DbUnitExtension resolves for it (here, the"
+                        + " auto-scanned field), not a different one - otherwise"
+                        + " @DbUnitSetup/@DbUnitTearDown operations set on the resolved tester"
+                        + " would silently not reach what this test case actually runs.")
+                .isSameAs(TesterSyncSample.databaseTesterInstance);
+    }
+
+    @Test
+    void testAfterTestExecution_expectedAnnotationAndFailingTest_skipsVerificationAndReportsOriginalFailure()
+    {
+        FailingExpectedPathSample.testCase = new RecordingPrepAndExpectedTestCase();
+
+        EngineTestKit.engine("junit-jupiter")
+                .selectors(selectClass(FailingExpectedPathSample.class))
+                .execute()
+                .testEvents()
+                .assertStatistics(stats -> stats.started(1).failed(1));
+
+        assertThat(FailingExpectedPathSample.testCase.postTestCalls)
+                .as("A failing test must skip verification (postTest(false)).")
+                .containsExactly(false);
+    }
+
+    @Test
+    void testAfterTestExecution_cleanupThrowsAfterTestFailure_attachesCleanupAsSuppressed()
+    {
+        SuppressedCleanupSample.testCase = new RecordingPrepAndExpectedTestCase();
+        SuppressedCleanupSample.testCase.postTestFailure =
+                new RuntimeException("cleanup failure");
+
+        final EngineExecutionResults results = EngineTestKit.engine("junit-jupiter")
+                .selectors(selectClass(SuppressedCleanupSample.class)).execute();
+
+        results.testEvents().assertStatistics(stats -> stats.started(1).failed(1));
+        final Event failedEvent = results.testEvents().failed().stream().findFirst()
+                .orElseThrow(() -> new AssertionError("Expected one failed test event."));
+        final Throwable reported = failedEvent
+                .getRequiredPayload(TestExecutionResult.class)
+                .getThrowable()
+                .orElseThrow(() -> new AssertionError("Expected a reported throwable."));
+        assertThat(reported)
+                .as("The original test failure must still be the reported failure.")
+                .hasMessageContaining("intentional test failure");
+        assertThat(reported.getSuppressed())
+                .as("A cleanup failure after the test already failed must be attached as"
+                        + " suppressed, not replace the original failure.")
+                .anyMatch(t -> "cleanup failure".equals(t.getMessage()));
+    }
+
+    @Test
+    void testAfterTestExecution_cleanupThrowsAfterTestAborted_promotesCleanupFailureOverAbort()
+    {
+        AbortedTestThenCleanupFailsSample.testCase = new RecordingPrepAndExpectedTestCase();
+        AbortedTestThenCleanupFailsSample.testCase.postTestFailure =
+                new RuntimeException("cleanup failure after abort");
+
+        final EngineExecutionResults results = EngineTestKit.engine("junit-jupiter")
+                .selectors(selectClass(AbortedTestThenCleanupFailsSample.class)).execute();
+
+        results.testEvents().assertStatistics(stats -> stats.started(1).aborted(0).failed(1));
+        final Event failedEvent = results.testEvents().failed().stream().findFirst()
+                .orElseThrow(() -> new AssertionError("Expected one failed test event."));
+        final Throwable reported = failedEvent
+                .getRequiredPayload(TestExecutionResult.class)
+                .getThrowable()
+                .orElseThrow(() -> new AssertionError("Expected a reported throwable."));
+        assertThat(reported)
+                .as("A genuine failure from afterTest() must be promoted over a mere test"
+                        + " abort, not swallowed as a suppressed exception on the abort - which"
+                        + " would report the test as ABORTED instead of FAILED, hiding the"
+                        + " regression dbUnit itself caught.")
+                .hasMessageContaining("cleanup failure after abort");
+        assertThat(reported.getSuppressed())
+                .as("The original abort must still be visible, attached as suppressed on the"
+                        + " promoted failure.")
+                .anyMatch(t -> t instanceof TestAbortedException);
+    }
+
+    // ---- sample fixture classes ----
+
     @ExtendWith(DbUnitExtension.class)
-    static class LifecycleOrderSample {
+    static class LifecycleOrderSample
+    {
         private final List<String> callLog = new ArrayList<>();
         IDatabaseTester databaseTester = new CallLoggingTester(callLog);
 
         @BeforeEach
-        void beforeEach() {
+        void beforeEach()
+        {
             callLog.add("beforeEach");
         }
 
         @AfterEach
-        void afterEach() {
+        void afterEach()
+        {
             assertThat(callLog)
                     .as("Execution order must be: beforeEach, onSetup, test, onTearDown.")
                     .containsExactly("beforeEach", "onSetup", "test", "onTearDown");
         }
 
         @Test
-        void testOrderVerification() {
+        void testOrderVerification()
+        {
             assertThat(callLog)
                     .as("onSetup() must run after @BeforeEach and before the test method.")
                     .containsExactly("beforeEach", "onSetup");
@@ -117,108 +397,511 @@ class DbUnitExtensionLifecycleTest {
         }
     }
 
-    /**
-     * Sample test class whose single test intentionally fails, used to verify
-     * that onTearDown is still called when the test method throws.
-     */
     @ExtendWith(DbUnitExtension.class)
-    static class FailingTestSample {
+    static class FailingTestSample
+    {
         static final List<String> CALL_LOG = Collections.synchronizedList(new ArrayList<>());
         IDatabaseTester databaseTester = new CallLoggingTester(CALL_LOG);
 
         @Test
-        void testThatFails() {
+        void testThatFails()
+        {
             CALL_LOG.add("test");
             fail("intentional failure to verify onTearDown still runs");
         }
     }
 
-    /**
-     * Sample test class whose {@link IDatabaseTester} fails during {@code onSetup()}, used to
-     * verify that {@code onTearDown()} still runs and the test method itself never executes.
-     */
     @ExtendWith(DbUnitExtension.class)
-    static class FailingSetupSample {
+    static class FailingSetupSample
+    {
         static final List<String> CALL_LOG = Collections.synchronizedList(new ArrayList<>());
         IDatabaseTester databaseTester = new CallLoggingTester(CALL_LOG, true);
 
         @Test
-        void testThatNeverRuns() {
+        void testThatNeverRuns()
+        {
             CALL_LOG.add("test");
             fail("test method must not run when onSetup() throws");
         }
     }
 
-    private static class CallLoggingTester implements IDatabaseTester {
+    @ExtendWith(DbUnitExtension.class)
+    static class EnclosingWithNested
+    {
+        IDatabaseTester databaseTester = new CallLoggingTester(new ArrayList<>());
+
+        @Nested
+        class NestedSample
+        {
+            @Test
+            void testUsesEnclosingTesterField()
+            {
+                // resolution succeeding without throwing is the assertion
+            }
+        }
+    }
+
+    @ExtendWith(DbUnitExtension.class)
+    static class ClassicCustomListenerSample
+    {
+        static CallLoggingTester tester;
+
+        IDatabaseTester databaseTester = tester;
+
+        @Test
+        void testClassicPathLeavesListenerAlone()
+        {
+            // the assertion is in the outer test method, against tester.setOperationListenerCalls
+        }
+    }
+
+    @ExtendWith(DbUnitExtension.class)
+    @DbUnitSetup(operation = DbUnitOperation.REFRESH)
+    static class EnclosingWithClassLevelSetupAnnotation
+    {
+        static CallLoggingTester databaseTesterInstance;
+
+        IDatabaseTester databaseTester = databaseTesterInstance;
+
+        @Nested
+        class NestedInheritsEnclosingAnnotation
+        {
+            @Test
+            void testNestedMethodAppliesEnclosingClassLevelDbUnitSetup()
+            {
+                // the assertion is in the outer test method, against
+                // databaseTesterInstance.lastSetUpOperation
+            }
+        }
+    }
+
+    @ExtendWith(DbUnitExtension.class)
+    static class EnclosingWithNestedTesterOverride
+    {
+        @DbUnitTester
+        IDatabaseTester outerTester = new CallLoggingTester(new ArrayList<>(), true);
+
+        @Nested
+        class NestedOverride
+        {
+            @DbUnitTester
+            IDatabaseTester innerTester = new CallLoggingTester(new ArrayList<>());
+
+            @Test
+            void testInnerFieldShadowsOuterField()
+            {
+                // the outer tester's onSetup() throws; succeeding proves the inner @DbUnitTester
+                // field - not the outer one - was resolved.
+            }
+        }
+    }
+
+    @ExtendWith(DbUnitExtension.class)
+    static class EnclosingWithDbUnitTesterAndNestedDbUnitTestCase
+    {
+        @DbUnitTester
+        IDatabaseTester outerTester = new CallLoggingTester(new ArrayList<>());
+
+        @Nested
+        class NestedOverride
+        {
+            @DbUnitTestCase
+            PrepAndExpectedTestCase testCase = new RecordingPrepAndExpectedTestCase();
+
+            @Test
+            void testInnerTestCaseFieldIsUsed()
+            {
+                // the enclosing class's @DbUnitTester field and this class's own
+                // @DbUnitTestCase field live on two different instances, so they must not be
+                // rejected as an ambiguous "both declared on one class" conflict.
+            }
+        }
+    }
+
+    @ExtendWith(DbUnitExtension.class)
+    static class EnclosingWithDbUnitTestCaseAndNestedDbUnitTester
+    {
+        @DbUnitTestCase
+        PrepAndExpectedTestCase outerTestCase = new RecordingPrepAndExpectedTestCase();
+
+        @Nested
+        class NestedOverride
+        {
+            @DbUnitTester
+            IDatabaseTester innerTester = new CallLoggingTester(new ArrayList<>());
+
+            @Test
+            void testInnerTesterFieldIsUsed()
+            {
+                // the mirror image: the enclosing class's @DbUnitTestCase field and this
+                // class's own @DbUnitTester field live on two different instances too.
+            }
+        }
+    }
+
+    @DbUnitTest
+    @DbUnitSetup(operation = DbUnitOperation.REFRESH)
+    static class ComposedAnnotationSample
+    {
+        IDatabaseTester databaseTester = new CallLoggingTester(new ArrayList<>());
+
+        @Test
+        void testComposedAnnotationApplies()
+        {
+        }
+    }
+
+    @Target(ElementType.TYPE)
+    @Retention(RetentionPolicy.RUNTIME)
+    @DbUnitTest
+    @DbUnitConfig(dataSetBaseDir = "/org/dbunit/junit/jupiter/")
+    @interface AppDatabaseTest
+    {
+    }
+
+    @AppDatabaseTest
+    static class MetaAnnotationSample
+    {
+        IDatabaseTester databaseTester = new CallLoggingTester(new ArrayList<>());
+
+        @Test
+        @DbUnitPrep("loader-test.xml")
+        void testMetaAnnotationConfigAndPrepBothApply()
+        {
+        }
+    }
+
+    @Target(ElementType.TYPE)
+    @Retention(RetentionPolicy.RUNTIME)
+    @DbUnitTest
+    @DbUnitPrep("loader-test.xml")
+    @interface AppDatabaseTestSeedingTestTable
+    {
+    }
+
+    @AppDatabaseTestSeedingTestTable
+    static class MethodPrepOverridesComposedPrepSample
+    {
+        static CallLoggingTester tester;
+
+        IDatabaseTester databaseTester = tester;
+
+        @Test
+        @DbUnitPrep("expected.xml")
+        void testMethodPrepWins()
+        {
+        }
+    }
+
+    @DbUnitTest
+    static class NestedExpectedPathEnclosing
+    {
+        static RecordingPrepAndExpectedTestCase testCase;
+
+        @DbUnitTestCase
+        PrepAndExpectedTestCase injected = testCase;
+        IDatabaseTester databaseTester = new CallLoggingTester(new ArrayList<>());
+
+        @Nested
+        class NestedExpectedSample
+        {
+            @Test
+            @DbUnitExpected("expected.xml")
+            void testExpectedPathResolvesFromEnclosingInstance()
+            {
+            }
+        }
+    }
+
+    @DbUnitTest
+    static class ExpectedPathSample
+    {
+        static RecordingPrepAndExpectedTestCase testCase;
+
+        @DbUnitTestCase
+        PrepAndExpectedTestCase injected = testCase;
+        IDatabaseTester databaseTester = new CallLoggingTester(new ArrayList<>());
+
+        @Test
+        @DbUnitExpected("expected.xml")
+        void testPassingExpectedPath()
+        {
+        }
+    }
+
+    @DbUnitTest
+    static class TesterSyncSample
+    {
+        static TesterSyncingPrepAndExpectedTestCase testCase;
+        static IDatabaseTester databaseTesterInstance;
+
+        @DbUnitTestCase
+        PrepAndExpectedTestCase injected = testCase;
+        IDatabaseTester databaseTester = databaseTesterInstance;
+
+        @Test
+        @DbUnitExpected("expected.xml")
+        void testExpectedPath()
+        {
+        }
+    }
+
+    @DbUnitTest
+    static class FailingExpectedPathSample
+    {
+        static RecordingPrepAndExpectedTestCase testCase;
+
+        @DbUnitTestCase
+        PrepAndExpectedTestCase injected = testCase;
+        IDatabaseTester databaseTester = new CallLoggingTester(new ArrayList<>());
+
+        @Test
+        @DbUnitExpected("expected.xml")
+        void testFailingExpectedPath()
+        {
+            fail("intentional test failure to verify verification is skipped");
+        }
+    }
+
+    @DbUnitTest
+    static class SuppressedCleanupSample
+    {
+        static RecordingPrepAndExpectedTestCase testCase;
+
+        @DbUnitTestCase
+        PrepAndExpectedTestCase injected = testCase;
+        IDatabaseTester databaseTester = new CallLoggingTester(new ArrayList<>());
+
+        @Test
+        @DbUnitExpected("expected.xml")
+        void testFailsThenCleanupAlsoFails()
+        {
+            fail("intentional test failure");
+        }
+    }
+
+    @DbUnitTest
+    static class AbortedTestThenCleanupFailsSample
+    {
+        static RecordingPrepAndExpectedTestCase testCase;
+
+        @DbUnitTestCase
+        PrepAndExpectedTestCase injected = testCase;
+        IDatabaseTester databaseTester = new CallLoggingTester(new ArrayList<>());
+
+        @Test
+        @DbUnitExpected("expected.xml")
+        void testAbortsThenCleanupFails()
+        {
+            Assumptions.assumeTrue(false, "intentional abort");
+        }
+    }
+
+    private static class CallLoggingTester implements IDatabaseTester
+    {
         private final List<String> callLog;
         private final boolean failOnSetup;
+        DatabaseOperation lastSetUpOperation;
+        IDataSet lastDataSet;
+        // Snapshotted when onSetup() runs, so an assertion still sees what the executor applied
+        // for the test even after it restores the tester's state afterward.
+        DatabaseOperation setUpOperationAtOnSetup;
+        IDataSet dataSetAtOnSetup;
+        IOperationListener operationListener;
+        int setOperationListenerCalls;
 
-        CallLoggingTester(final List<String> callLog) {
+        CallLoggingTester(final List<String> callLog)
+        {
             this(callLog, false);
         }
 
-        CallLoggingTester(final List<String> callLog, final boolean failOnSetup) {
+        CallLoggingTester(final List<String> callLog, final boolean failOnSetup)
+        {
             this.callLog = callLog;
             this.failOnSetup = failOnSetup;
         }
 
         @Override
-        public void onSetup() throws Exception {
-            if (failOnSetup) {
+        public void onSetup() throws Exception
+        {
+            if (failOnSetup)
+            {
                 throw new Exception("intentional setup failure to verify onTearDown still runs");
             }
+            setUpOperationAtOnSetup = lastSetUpOperation;
+            dataSetAtOnSetup = lastDataSet;
             callLog.add("onSetup");
         }
 
         @Override
-        public void onTearDown() throws Exception {
+        public void onTearDown() throws Exception
+        {
             callLog.add("onTearDown");
         }
 
         @Override
-        public IDatabaseConnection getConnection() throws Exception {
+        public IDatabaseConnection getConnection() throws Exception
+        {
             return null;
         }
 
         @Override
-        public IDataSet getDataSet() {
+        public IDataSet getDataSet()
+        {
             return null;
         }
 
         @Override
-        public void setDataSet(final IDataSet dataSet) {
+        public void setDataSet(final IDataSet dataSet)
+        {
+            lastDataSet = dataSet;
         }
 
         @Override
-        public DatabaseOperation getSetUpOperation() {
+        public DatabaseOperation getSetUpOperation()
+        {
             return null;
         }
 
         @Override
-        public DatabaseOperation getTearDownOperation() {
+        public DatabaseOperation getTearDownOperation()
+        {
             return null;
         }
 
         @Override
-        public void setSetUpOperation(final DatabaseOperation setUpOperation) {
+        public void setSetUpOperation(final DatabaseOperation setUpOperation)
+        {
+            lastSetUpOperation = setUpOperation;
         }
 
         @Override
-        public void setTearDownOperation(final DatabaseOperation tearDownOperation) {
+        public void setTearDownOperation(final DatabaseOperation tearDownOperation)
+        {
         }
 
         @Override
-        public void setOperationListener(final IOperationListener operationListener) {
+        public void setOperationListener(final IOperationListener operationListener)
+        {
+            setOperationListenerCalls++;
+            this.operationListener = operationListener;
+        }
+
+        @Override
+        public IOperationListener getOperationListener()
+        {
+            return operationListener;
         }
 
         @Override
         @Deprecated
-        public void closeConnection(final IDatabaseConnection connection) throws Exception {
+        public void closeConnection(final IDatabaseConnection connection) throws Exception
+        {
         }
 
         @Override
         @Deprecated
-        public void setSchema(final String schema) {
+        public void setSchema(final String schema)
+        {
+        }
+    }
+
+    /**
+     * Records {@code postTest(boolean)} calls, optionally throwing from it, to verify
+     * {@link DbUnitExtension}'s verification-skip and suppression behavior without a real
+     * database.
+     */
+    private static class RecordingPrepAndExpectedTestCase implements PrepAndExpectedTestCase
+    {
+        final List<Boolean> postTestCalls = Collections.synchronizedList(new ArrayList<>());
+        RuntimeException postTestFailure;
+
+        @Override
+        public void configureTest(final VerifyTableDefinition[] verifyTableDefinitions,
+                final String[] prepDataFiles, final String[] expectedDataFiles)
+        {
+        }
+
+        @Override
+        public void preTest()
+        {
+        }
+
+        @Override
+        public void preTest(final VerifyTableDefinition[] verifyTables,
+                final String[] prepDataFiles, final String[] expectedDataFiles)
+        {
+        }
+
+        @Override
+        public Object runTest(final VerifyTableDefinition[] verifyTables,
+                final String[] prepDataFiles, final String[] expectedDataFiles,
+                final PrepAndExpectedTestCaseSteps testSteps)
+        {
+            return null;
+        }
+
+        @Override
+        public void postTest()
+        {
+            postTest(true);
+        }
+
+        @Override
+        public void postTest(final boolean verifyData)
+        {
+            postTestCalls.add(verifyData);
+            if (postTestFailure != null)
+            {
+                throw postTestFailure;
+            }
+        }
+
+        @Override
+        public void verifyData()
+        {
+        }
+
+        @Override
+        public void cleanupData()
+        {
+        }
+
+        @Override
+        public IDataSet getPrepDataset()
+        {
+            return null;
+        }
+
+        @Override
+        public IDataSet getExpectedDataset()
+        {
+            return null;
+        }
+    }
+
+    /**
+     * Extends {@link RecordingPrepAndExpectedTestCase} to also override
+     * {@code getDatabaseTester()}/{@code setDatabaseTester()}, recording the tester it is given
+     * - proving {@code DbUnitExtension#resolve} keeps this test case's tester in sync with the
+     * one it resolves, for an implementation overriding those two methods, not just
+     * {@code DefaultPrepAndExpectedTestCase}.
+     */
+    private static class TesterSyncingPrepAndExpectedTestCase
+            extends RecordingPrepAndExpectedTestCase
+    {
+        IDatabaseTester databaseTester;
+
+        @Override
+        public IDatabaseTester getDatabaseTester()
+        {
+            return databaseTester;
+        }
+
+        @Override
+        public void setDatabaseTester(final IDatabaseTester databaseTester)
+        {
+            this.databaseTester = databaseTester;
         }
     }
 }

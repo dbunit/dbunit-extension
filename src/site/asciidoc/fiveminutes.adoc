@@ -161,6 +161,62 @@ mvn test
 step (the withdrawal), verified the `account` table matches
 `account-expected.xml`, and then cleaned up the table — all in one call.
 
+== The Same Test, Annotation-Driven
+
+Steps 2 and 3 don't change; step 4 shrinks. On JUnit 5/6 (Jupiter),
+`org.dbunit.annotation` can declare the same prep/expected test
+declaratively instead of calling `runTest()`. `createSchema()` and the
+`DRIVER_CLASS`/`CONNECTION_URL`/`ACCOUNT_PREP`/`ACCOUNT_EXPECTED` constants
+stay exactly as in step 4 above; the rest of the class is rewritten below to
+use `@DbUnitTest`, `@DbUnitTester`, and the lifecycle annotations in place of
+the manual `PrepAndExpectedTestCase` wiring:
+
+[source,java]
+----
+@DbUnitTest
+class AccountWithdrawalTest
+{
+    // ...DRIVER_CLASS, CONNECTION_URL, ACCOUNT_PREP, ACCOUNT_EXPECTED,
+    // and @BeforeAll createSchema() unchanged from above...
+
+    @DbUnitTester
+    static final IDatabaseTester databaseTester;
+
+    static
+    {
+        try
+        {
+            databaseTester = new JdbcDatabaseTester(DRIVER_CLASS, CONNECTION_URL);
+        }
+        catch (ClassNotFoundException e)
+        {
+            throw new ExceptionInInitializerError(e);
+        }
+    }
+
+    @Test
+    @DbUnitPrep(ACCOUNT_PREP)
+    @DbUnitExpected(value = ACCOUNT_EXPECTED, verifyTables = "account")
+    @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+    void testWithdraw_sufficientBalance_decrementsBalance() throws Exception
+    {
+        try (Connection connection = DriverManager.getConnection(CONNECTION_URL);
+                Statement statement = connection.createStatement())
+        {
+            statement.execute("UPDATE account SET balance = balance - 50 WHERE id = 1");
+        }
+    }
+}
+----
+
+`databaseTester.setTearDownOperation(DELETE_ALL)` from step 4 becomes
+`@DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)` — declared per
+method, or once per class when every method needs the same cleanup. Leaving
+it off entirely means no teardown runs at all (`NONE` is the actual
+default), not some baseline cleanup "for free" — declare it whenever a test
+leaves rows behind. See link:testcases/annotations.html[DbUnit Annotations]
+for the full reference.
+
 == Where to Go Next
 
 * link:testcases.html[Test Integration] — the other ways to write dbUnit tests,

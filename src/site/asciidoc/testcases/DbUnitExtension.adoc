@@ -9,18 +9,24 @@ link:IDatabaseTester.html[IDatabaseTester] setup/teardown lifecycle
 automatically, so a test class doesn't need its own `@BeforeEach`/`@AfterEach`
 pair calling `onSetup()`/`onTearDown()`.
 
-Register it with `@ExtendWith(DbUnitExtension.class)`. The test class still
-holds its own `IDatabaseTester` field — this is the same composition style as
-link:IDatabaseTester.html[the IDatabaseTester guide], just with the lifecycle
-calls automated instead of written by hand:
+Register it with `@ExtendWith(DbUnitExtension.class)`, or with the shorter
+`@DbUnitTest`. The test class still holds its own `IDatabaseTester` field —
+this is the same composition style as link:IDatabaseTester.html[the
+IDatabaseTester guide], just with the lifecycle calls automated instead of
+written by hand:
 
 [source,java]
 ----
 @ExtendWith(DbUnitExtension.class)
 class AccountRepositoryTest
 {
-    IDatabaseTester databaseTester =
-            new JdbcDatabaseTester("org.h2.Driver", "jdbc:h2:mem:example;DB_CLOSE_DELAY=-1");
+    IDatabaseTester databaseTester;
+
+    AccountRepositoryTest() throws ClassNotFoundException
+    {
+        databaseTester =
+                new JdbcDatabaseTester("org.h2.Driver", "jdbc:h2:mem:example;DB_CLOSE_DELAY=-1");
+    }
 
     @BeforeEach
     void loadDataset() throws Exception
@@ -53,9 +59,19 @@ fields, including inherited ones:
 * Static fields are ignored.
 * Private fields are found; the field's own access modifier doesn't matter.
 
-NOTE: `@Nested` test classes are not supported — field discovery only walks
-the innermost test instance and its superclasses, not enclosing class
-instances, since a Java nested class does not extend its enclosing class.
+Field discovery also walks every enclosing test instance, innermost first,
+so a `@Nested` test class inherits its enclosing class's tester field.
+
+== Annotation-Driven Configuration
+
+Rather than a `@BeforeEach` method, the dataset and operation can be
+declared directly on the class or method with `org.dbunit.annotation` —
+`@DbUnitPrep`, `@DbUnitSetup`, `@DbUnitExpected`, `@DbUnitTearDown`, and
+`@DbUnitConfig`. This also unlocks the
+link:PrepAndExpectedTestCase.html[PrepAndExpectedTestCase] prep/expected
+path declaratively, and a `@DbUnitTester`/`@DbUnitTestCase` field marker in
+place of the plain-field auto-scan described above. See
+link:annotations.html[DbUnit Annotations] for the full reference.
 
 == Row Count Check
 
@@ -67,7 +83,78 @@ is skipped whenever `onTearDown()` itself throws, and also when the test method 
 before reaching it, since either way the database is left in an unknown state and a count
 difference would only be noise around the real failure. It is off by default; enable it
 with `DatabaseConfig.FEATURE_ROW_COUNT_CHECK` (or `-Ddbunit.rowCountCheck=true`) on the
-connection's config.
+connection's config, or per class/method with
+link:annotations.html#rowcountcheck[`@DbUnitRowCountCheck`].
+
+== Parameter Injection
+
+`DbUnitExtension` also resolves `IDatabaseTester`, `PrepAndExpectedTestCase`,
+`IDatabaseConnection`, and `Connection` parameters on `@Test` and
+`@BeforeEach` methods, so a test can ask for the tester or its connection
+directly instead of reaching through a field:
+
+[source,java]
+----
+@DbUnitTest
+class AccountRepositoryTest
+{
+    IDatabaseTester databaseTester;
+
+    AccountRepositoryTest() throws ClassNotFoundException
+    {
+        databaseTester =
+                new JdbcDatabaseTester("org.h2.Driver", "jdbc:h2:mem:example;DB_CLOSE_DELAY=-1");
+    }
+
+    @Test
+    void testWithdraw_sufficientBalance_decrementsBalance(final Connection connection)
+            throws Exception
+    {
+        // use connection directly
+    }
+}
+----
+
+Parameter injection is claimed only for a test that opts into
+link:annotations.html[`org.dbunit.annotation`] — one carrying `@DbUnitTest`
+or any `@DbUnit*` annotation on the class or method, or a `@DbUnitTester`/
+`@DbUnitTestCase` field. A bare `@ExtendWith(DbUnitExtension.class)` class
+with only a plain, unannotated `IDatabaseTester` field keeps the
+lifecycle-only behavior it has always had and no parameter is claimed for
+it, so another extension resolving a `Connection` (or any of the other three
+types) on the same test method is not left competing with a claim here.
+Switch such a class to `@DbUnitTest`, or mark its field `@DbUnitTester`, to
+opt its parameters in.
+
+*On an annotation-driven test this extension claims every
+`java.sql.Connection` parameter.* If another extension on the same test also
+resolves `java.sql.Connection` — Spring's `SpringExtension`, Testcontainers,
+a JPA/JDBC harness — JUnit fails the test with "discovered multiple competing
+ParameterResolvers". Set `@DbUnitConfig(injectConnectionParameter = false)`
+to yield the bare `Connection` to that extension; the dbUnit-specific
+`IDatabaseConnection` parameter is still resolved (no other framework claims
+that type), so inject it and call its `getConnection()`.
+
+A `@BeforeEach` parameter resolves before this extension's own setup runs —
+JUnit Jupiter always calls `@BeforeEach` methods first — so it sees the
+tester/connection exactly as they exist before that setup: `@DbUnitPrep`'s
+dataset, if any, is not loaded onto it yet. Ask for the parameter on the
+`@Test` method instead when the test needs the already-prepped state.
+
+Not supported on `@AfterEach`, `@AfterAll`, `@BeforeAll`, or a test class
+constructor — declined outright rather than resolved. By the time
+`@AfterEach` runs, this extension's own `afterTestExecution()` callback has
+already closed (or never resolved) the connection it manages, so resolving
+one there would hand out an already-closed connection, or leak a
+freshly-opened one nothing would ever close. The same timing catches a
+direct `databaseTester.getConnection()` call in an `@AfterEach` body: on a
+fixed-connection tester it returns the connection this extension just
+closed; on a fresh-connection tester (`JdbcDatabaseTester`) it opens one
+nothing will close. Do post-test database work in the `@Test` method itself,
+or in an `@AfterEach` that fully owns its own connection. The injected
+`IDatabaseConnection`/`Connection` is managed for the test's duration and
+closed afterward — by the extension on the setup/teardown path, by the driven
+`PrepAndExpectedTestCase` on the prep/expected path; do not close it yourself.
 
 == When to Use This Instead of Manual Lifecycle Calls
 
