@@ -162,4 +162,92 @@ class RowCountCheckConfigurationTest
                         + " system property override for it.")
                 .isSameAs(customRowCounter);
     }
+
+    @Test
+    void testExcludeTables_configWithNoExcludePatternsValue_resolvesToNoExclusions()
+            throws DataSetException
+    {
+        // a DatabaseConfig that never went through its own default initialization, so
+        // getProperty(PROPERTY_ROW_COUNT_CHECK_EXCLUDE_TABLES) is null rather than String[0]
+        final DatabaseConfig databaseConfig = mock(DatabaseConfig.class);
+
+        final RowCountCheckConfiguration configuration =
+                new RowCountCheckConfiguration(databaseConfig);
+
+        assertThat(configuration.getExcludeTableFilter().isValidName("ANY_TABLE"))
+                .as("A missing exclude-patterns value must resolve to excluding nothing, not"
+                        + " a null array that fails building the ExcludeTableFilter.")
+                .isTrue();
+    }
+
+    @Test
+    void testGetRowCounter_configWithNoRowCounterValue_returnsAQueryPerTableRowCounter()
+    {
+        final DatabaseConfig databaseConfig = mock(DatabaseConfig.class);
+
+        final RowCountCheckConfiguration configuration =
+                new RowCountCheckConfiguration(databaseConfig);
+
+        assertThat(configuration.getRowCounter())
+                .as("A missing PROPERTY_ROW_COUNTER value must fall back to a"
+                        + " QueryPerTableRowCounter, not leave a null counter RowCountCheck"
+                        + " would then NPE on.")
+                .isInstanceOf(QueryPerTableRowCounter.class);
+    }
+
+    @Test
+    void testValueConstructor_noSystemProperty_usesThePassedValues() throws DataSetException
+    {
+        final RowCounter rowCounter = mock(RowCounter.class);
+
+        final RowCountCheckConfiguration configuration = new RowCountCheckConfiguration(true,
+                new String[] {"CONFIGURED_TABLE"}, rowCounter);
+
+        assertThat(configuration.isEnabled())
+                .as("With no system property override, the passed enabled flag must be used.")
+                .isTrue();
+        assertThat(configuration.getExcludeTableFilter().isValidName("CONFIGURED_TABLE"))
+                .as("With no system property override, the passed exclude patterns must be"
+                        + " used.")
+                .isFalse();
+        assertThat(configuration.getRowCounter())
+                .as("The passed RowCounter must be used as-is.").isSameAs(rowCounter);
+    }
+
+    @Test
+    void testValueConstructor_systemPropertiesSet_winOverThePassedValues() throws DataSetException
+    {
+        System.setProperty(RowCountCheckConfiguration.DBUNIT_ROW_COUNT_CHECK, "false");
+        System.setProperty(RowCountCheckConfiguration.DBUNIT_ROW_COUNT_CHECK_EXCLUDE_TABLES,
+                "SYSTEM_PROPERTY_TABLE");
+
+        final RowCountCheckConfiguration configuration = new RowCountCheckConfiguration(true,
+                new String[] {"CONFIGURED_TABLE"}, mock(RowCounter.class));
+
+        assertThat(configuration.isEnabled())
+                .as("The dbunit.rowCountCheck system property must win over the passed enabled"
+                        + " flag, exactly as it wins over a DatabaseConfig feature.")
+                .isFalse();
+        assertThat(configuration.getExcludeTableFilter().isValidName("CONFIGURED_TABLE"))
+                .as("The exclude system property must replace, not append to, the passed"
+                        + " patterns.")
+                .isTrue();
+        assertThat(configuration.getExcludeTableFilter().isValidName("SYSTEM_PROPERTY_TABLE"))
+                .as("The exclude system property's own pattern must be applied.").isFalse();
+    }
+
+    @Test
+    void testValueConstructor_nullExcludeAndNullRowCounter_resolveToNoExclusionsAndDefaultCounter()
+            throws DataSetException
+    {
+        final RowCountCheckConfiguration configuration =
+                new RowCountCheckConfiguration(true, null, null);
+
+        assertThat(configuration.getExcludeTableFilter().isValidName("ANY_TABLE"))
+                .as("A null exclude-patterns array must resolve to excluding nothing.")
+                .isTrue();
+        assertThat(configuration.getRowCounter())
+                .as("A null RowCounter must fall back to a QueryPerTableRowCounter.")
+                .isInstanceOf(QueryPerTableRowCounter.class);
+    }
 }

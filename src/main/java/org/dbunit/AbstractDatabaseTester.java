@@ -188,6 +188,17 @@ public abstract class AbstractDatabaseTester extends SimpleAssert implements IDa
     /**
      * Executes a DatabaseOperation with a IDatabaseConnection supplied by
      * {@link #getConnection()} and the test dataset.
+     *
+     * <p>{@code org.dbunit.annotation.runtime.AnnotatedTestExecutor} depends on this method's
+     * exact behavior when {@code operation != DatabaseOperation.NONE}: it always calls
+     * {@link #getConnection()} and notifies {@code operationListener.connectionRetrieved()}
+     * before running the operation, which lets that executor capture its row count check
+     * baseline from the same connection instead of eagerly resolving a second one of its own
+     * just to find out whether the check is even enabled. A change here that breaks this -
+     * skipping the listener notification, or resolving a connection some other way - only
+     * degrades that optimization back to its always-safe eager fallback (a tested safety net
+     * there catches a wrong prediction), not a correctness break, but is still worth knowing
+     * about before making it.
      */
     private void executeOperation(DatabaseOperation operation, OperationType type) throws Exception
     {
@@ -230,6 +241,18 @@ public abstract class AbstractDatabaseTester extends SimpleAssert implements IDa
     {
         logger.debug("setOperationListener(operationListener={}) - start", operationListener);
         this.operationListener = operationListener;
+    }
+
+    /**
+     * Returns the listener notified of connection-retrieval and setup/tear-down events.
+     *
+     * @return The current {@link IOperationListener}, or {@code null} if none is set.
+     * @since 3.6.0
+     */
+    public IOperationListener getOperationListener()
+    {
+        logger.trace("getOperationListener() - start");
+        return operationListener;
     }
 
     @Override

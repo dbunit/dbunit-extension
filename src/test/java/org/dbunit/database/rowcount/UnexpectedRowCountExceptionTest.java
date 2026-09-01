@@ -75,4 +75,23 @@ class UnexpectedRowCountExceptionTest
                 .as("getDifferences() must return the differences the exception was built from.")
                 .isEqualTo(differences);
     }
+
+    @Test
+    void testGetMessage_withAdditionalAdvice_appendsItAfterThePerTableDetail()
+    {
+        final List<RowCountDifference> differences =
+                Collections.singletonList(new RowCountDifference("ACCOUNT_AUDIT", 0, 3));
+
+        final UnexpectedRowCountException exception = new UnexpectedRowCountException(
+                differences, "Add @DbUnitTearDown(operation = DELETE_ALL).");
+
+        assertThat(exception.getMessage())
+                .as("The standard per-table detail must still be present, with the extra advice"
+                        + " appended after it.")
+                .contains("ACCOUNT_AUDIT").contains("0 -> 3")
+                .contains("Add @DbUnitTearDown(operation = DELETE_ALL).");
+        assertThat(exception.getDifferences())
+                .as("The two-arg constructor must keep getDifferences() working.")
+                .isEqualTo(differences);
+    }
 }

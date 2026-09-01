@@ -55,6 +55,22 @@ public class UnexpectedRowCountException extends DatabaseUnitException
     }
 
     /**
+     * Creates an exception reporting the given differences, with an extra line of
+     * context-specific advice appended after the standard per-table detail - e.g. a binding
+     * naming a configuration change that would resolve the mismatch.
+     *
+     * @param differences The tables whose row counts no longer match the baseline; must not be
+     *            empty.
+     * @param additionalAdvice A caller-specific hint appended to the message.
+     */
+    public UnexpectedRowCountException(final List<RowCountDifference> differences,
+            final String additionalAdvice)
+    {
+        super(buildMessage(differences) + System.lineSeparator() + additionalAdvice);
+        this.differences = Collections.unmodifiableList(new ArrayList<>(differences));
+    }
+
+    /**
      * Returns the tables whose row counts no longer match the baseline.
      *
      * @return The differences, one per affected table.
