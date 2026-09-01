@@ -126,3 +126,8 @@ comparison - regardless of whether that column happens to be generated/identity 
 This page covers the class's shape. For full usage — static shared instances,
 test-specific factory methods, and wiring `ValueComparer`s per table — see
 link:../testcases/PrepAndExpectedTestCase.html[PrepAndExpectedTestCase].
+
+For selecting a shared `VerifyTableDefinition` catalog class by table name
+from an annotation-driven test, see
+link:../testcases/annotations.html#catalog[the catalog section] of DbUnit
+Annotations.
