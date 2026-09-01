@@ -218,4 +218,21 @@ public @interface DbUnitConfig
      * @return True to close the connection after each test; defaults to true.
      */
     boolean closeConnectionAfterTest() default true;
+
+    /**
+     * Whether the JUnit binding resolves a bare {@link java.sql.Connection} parameter on this
+     * test. Default {@code true}.
+     *
+     * <p>Set to {@code false} when another extension on the same test - Spring's
+     * {@code SpringExtension}, Testcontainers, a JPA or JDBC test harness - also resolves
+     * {@code java.sql.Connection}: JUnit Jupiter rejects two {@code ParameterResolver}s
+     * competing for one parameter with "discovered multiple competing ParameterResolvers", and
+     * dbUnit yields the common {@code Connection} type rather than force the other extension
+     * to. The dbUnit-specific {@link org.dbunit.database.IDatabaseConnection} parameter is still
+     * resolved regardless - no other framework claims that type - so inject that and call its
+     * {@code getConnection()} for the JDBC connection.
+     *
+     * @return True to resolve a {@code java.sql.Connection} parameter; defaults to true.
+     */
+    boolean injectConnectionParameter() default true;
 }

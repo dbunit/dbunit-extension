@@ -13,6 +13,7 @@ either by composing an `IDatabaseTester` into your test class (the preferred sty
 or by extending `DBTestCase`.
 
 * Reads and writes multiple link:https://dbunit.github.io/dbunit-extension/datasets.html[dataset formats], built from files, code, or a live query.
+* On JUnit 5/6, link:https://dbunit.github.io/dbunit-extension/testcases/annotations.html[configure a test declaratively with annotations] — `@DbUnitPrep`, `@DbUnitExpected`, `@DbUnitSetup`, `@DbUnitTearDown` — instead of hand-written lifecycle code, including an opt-in `@DbUnitRowCountCheck` that catches a table teardown forgot to clean, or wrongly cleaned.
 * `INSERT`, `UPDATE`, `DELETE`, `REFRESH` (upsert), `CLEAN_INSERT`, and other composable database operations.
 * link:https://dbunit.github.io/dbunit-extension/datacomparisons/valuecomparer.html[ValueComparer] assertions beyond strict equality — tolerance (numeric and timestamp), greater-than/less-than, null checks, string containment, and ignore-millis timestamps.
 * Vendor-specific support for many link:https://dbunit.github.io/dbunit-extension/databases.html[databases].
