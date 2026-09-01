@@ -131,4 +131,22 @@ public interface IDatabaseTester
      * @since 2.4.4
      */
     void setOperationListener(IOperationListener operationListener);
+
+    /**
+     * Returns the listener currently notified of connection-retrieval and setup/tear-down
+     * events, so a caller composing a new listener can wrap it instead of discarding it.
+     *
+     * <p>Default method for binary compatibility with implementations predating this method;
+     * they report no listener rather than failing to compile. Implementations backed by
+     * {@link #setOperationListener(IOperationListener)} should override this to return the
+     * value that method was last called with.
+     *
+     * @return The current {@link IOperationListener}, or {@code null} if
+     *         {@link #setOperationListener(IOperationListener)} has never been called.
+     * @since 3.6.0
+     */
+    default IOperationListener getOperationListener()
+    {
+        return null;
+    }
 }

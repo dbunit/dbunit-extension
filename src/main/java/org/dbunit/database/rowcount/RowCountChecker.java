@@ -23,32 +23,52 @@ package org.dbunit.database.rowcount;
 import java.sql.SQLException;
 
 import org.dbunit.DatabaseUnitException;
+import org.dbunit.database.DatabaseConfig;
 import org.dbunit.database.IDatabaseConnection;
 
 /**
  * Manages a {@link RowCountCheck} baseline across one caller's test lifecycle: lazily
- * resolves a {@link RowCountCheck} from a connection's
- * {@link org.dbunit.database.DatabaseConfig} on first use (unless one is supplied),
- * captures a baseline, verifies it later, and lets the baseline be discarded when a
+ * resolves a {@link RowCountCheck} on first use - from a connection's
+ * {@link org.dbunit.database.DatabaseConfig} by default, layering an enabled flag and
+ * excluded table patterns onto it instead when {@link #setEnabledOverride(boolean, String[])}
+ * was called, or bypassing resolution entirely when {@link #setRowCountCheck(RowCountCheck)}
+ * was - captures a baseline, verifies it later, and lets the baseline be discarded when a
  * verify would be noise - e.g. the caller's own test steps already failed, so the
  * database is in an unknown state and a count difference is not a finding worth its own
  * report.
  * <p>
  * Holds no connection of its own; every method takes the connection to use, leaving
  * acquisition and closing entirely to the caller.
+ * <p>
+ * Safe to reuse across more than one test's lifecycle - e.g. one instance held by a
+ * {@code DefaultPrepAndExpectedTestCase} shared through a {@code @DbUnitTestCase} static
+ * field: each {@link #capture(IDatabaseConnection)} call re-resolves the
+ * {@link RowCountCheck} from the current {@link #setEnabledOverride(boolean, String[])}/
+ * connection-config state rather than reusing whatever an earlier test resolved, unless
+ * {@link #setRowCountCheck(RowCountCheck)} pinned one in place explicitly - that one is
+ * used as-is for every later test too, until changed. A caller sharing one instance across
+ * tests must call {@link #clearEnabledOverride()} for a test that declares no override of
+ * its own, so an earlier test's override does not silently carry over.
  *
- * @author dbunit
+ * @author Jeff Jensen
  * @since 3.6.0
  */
 public class RowCountChecker
 {
     private RowCountCheck rowCountCheck;
+    private boolean rowCountCheckSetExplicitly;
     private RowCountSnapshot baseline;
+    private Boolean enabledOverride;
+    private String[] excludeOverride;
 
     /**
      * Captures the baseline using the given connection, resolving a {@link RowCountCheck}
      * from its {@link org.dbunit.database.DatabaseConfig} first if none has been resolved
-     * or set yet.
+     * or set yet. Unless {@link #setRowCountCheck(RowCountCheck)} pinned one in place
+     * explicitly, any previously resolved {@link RowCountCheck} is discarded first, so this
+     * capture re-resolves from the current {@link #setEnabledOverride(boolean, String[])}/
+     * connection-config state instead of reusing a stale resolution left over from an
+     * earlier test that reused this same instance.
      *
      * @param connection the connection to capture the baseline from.
      * @throws DatabaseUnitException if enumerating or filtering the tables fails.
@@ -57,6 +77,10 @@ public class RowCountChecker
     public void capture(final IDatabaseConnection connection)
             throws DatabaseUnitException, SQLException
     {
+        if (!rowCountCheckSetExplicitly)
+        {
+            rowCountCheck = null;
+        }
         baseline = resolve(connection).capture(connection);
     }
 
@@ -109,9 +133,30 @@ public class RowCountChecker
         if (rowCountCheck == null)
         {
             rowCountCheck =
-                    new RowCountCheck(new RowCountCheckConfiguration(connection.getConfig()));
+                    new RowCountCheck(resolveConfiguration(connection.getConfig()));
         }
         return rowCountCheck;
+    }
+
+    /**
+     * Builds the {@link RowCountCheckConfiguration} to resolve a {@link RowCountCheck} from:
+     * straight from {@code connectionConfig} when no override is set, or from
+     * {@link #enabledOverride}/{@link #excludeOverride} plus {@code connectionConfig}'s own
+     * {@link RowCounter} when one is - so an override controls only the enabled flag and the
+     * exclude patterns it declares, and {@code -Ddbunit.rowCountCheck} still wins outright over
+     * either, exactly as it would resolving directly from {@code connectionConfig}.
+     *
+     * @param connectionConfig The connection's own {@link DatabaseConfig}.
+     * @return The configuration to resolve a {@link RowCountCheck} from.
+     */
+    private RowCountCheckConfiguration resolveConfiguration(final DatabaseConfig connectionConfig)
+    {
+        if (enabledOverride == null)
+        {
+            return new RowCountCheckConfiguration(connectionConfig);
+        }
+        return new RowCountCheckConfiguration(enabledOverride, excludeOverride,
+                (RowCounter) connectionConfig.getProperty(DatabaseConfig.PROPERTY_ROW_COUNTER));
     }
 
     /**
@@ -133,5 +178,42 @@ public class RowCountChecker
     public void setRowCountCheck(final RowCountCheck rowCountCheck)
     {
         this.rowCountCheck = rowCountCheck;
+        this.rowCountCheckSetExplicitly = true;
+    }
+
+    /**
+     * Sets the enabled flag and excluded table patterns to resolve a {@link RowCountCheck}
+     * from, instead of a connection's own {@link org.dbunit.database.DatabaseConfig} - the
+     * values an annotation such as {@code @DbUnitRowCountCheck} declares, carried over onto
+     * whatever connection this checker ends up resolving one from, rather than a caller having
+     * to resolve a connection of its own just to read its {@link RowCounter}.
+     *
+     * @param enabled Whether the check is enabled.
+     * @param exclude The excluded table patterns; {@code null} is treated as empty (excludes
+     *            none).
+     * @since 3.6.0
+     */
+    public void setEnabledOverride(final boolean enabled, final String[] exclude)
+    {
+        this.enabledOverride = enabled;
+        this.excludeOverride = exclude == null ? new String[0] : exclude.clone();
+    }
+
+    /**
+     * Clears the enabled flag and excluded table patterns {@link #setEnabledOverride(boolean, String[])}
+     * set, returning to resolving a {@link RowCountCheck} from a connection's own
+     * {@link org.dbunit.database.DatabaseConfig}.
+     *
+     * <p>A caller sharing one {@link RowCountChecker} instance across several tests - e.g. a
+     * {@code DefaultPrepAndExpectedTestCase} held by a {@code @DbUnitTestCase} static field -
+     * must call this for a test that declares no override of its own, so an earlier test's
+     * override does not silently carry over onto this one.
+     *
+     * @since 3.6.0
+     */
+    public void clearEnabledOverride()
+    {
+        this.enabledOverride = null;
+        this.excludeOverride = null;
     }
 }

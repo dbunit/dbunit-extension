@@ -20,13 +20,12 @@
  */
 package org.dbunit;
 
-import java.sql.Connection;
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.stream.Collectors;
@@ -35,6 +34,9 @@ import org.dbunit.assertion.FailureHandler;
 import org.dbunit.assertion.comparer.value.ValueComparer;
 import org.dbunit.database.DatabaseConfig;
 import org.dbunit.database.IDatabaseConnection;
+import org.dbunit.database.connection.AutoCommitOffWarning;
+import org.dbunit.database.connection.ConnectionOwnership;
+import org.dbunit.database.connection.TestScopedConnection;
 import org.dbunit.database.rowcount.RowCountCheck;
 import org.dbunit.database.rowcount.RowCountChecker;
 import org.dbunit.dataset.Column;
@@ -129,21 +131,38 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
 
     /**
      * Connection shared by setupData()/verifyData()/cleanupData() for one
-     * test's lifecycle instead of each acquiring (and often closing) its own;
-     * acquired lazily on first use, closed once by cleanupData().
+     * test's lifecycle instead of each acquiring (and often closing) its own:
+     * acquired lazily on first use from {@link #getConnection()}, closed once
+     * by cleanupData() unless {@link #closeConnectionAfterTest} is false or
+     * {@link #getOperationListener()} is the no-op listener, and re-acquired if
+     * the pool or server closed it between reused test methods.
      *
-     * @since 3.4.0
+     * @since 3.6.0
      */
-    private IDatabaseConnection connection;
+    private final TestScopedConnection reusableConnectionHolder = newReusableConnectionHolder();
 
     /**
-     * Whether the warning about a non-autocommit {@link #connection} has
-     * already been logged, so it is logged at most once per instance rather
-     * than every time the connection is (re)acquired.
+     * Builds {@link #reusableConnectionHolder}. Its {@link ConnectionOwnership}
+     * reads {@link #closeConnectionAfterTest} and {@link #getOperationListener()}
+     * fresh at release time; its third input - whether the borrowing lifecycle
+     * ran - is always {@code true} here, since this class only ever releases the
+     * connection from its own cleanupData(), which runs only after setupData()
+     * already acquired it. Since 3.6.0 an {@link #getOperationListener()} that is
+     * (or wraps) {@link IOperationListener#NO_OP_OPERATION_LISTENER} keeps
+     * cleanupData() from closing the connection even when
+     * {@link #closeConnectionAfterTest} is true - the established signal that the
+     * connection is owned elsewhere, now honored on this path too and not only
+     * by the annotation runtime.
      *
-     * @since 3.5.2
+     * @return The holder.
      */
-    private boolean connectionAutoCommitWarned;
+    private TestScopedConnection newReusableConnectionHolder()
+    {
+        final ConnectionOwnership ownership = new ConnectionOwnership(
+                () -> closeConnectionAfterTest, this::getOperationListener, () -> true);
+        return new TestScopedConnection(this::getConnection, ownership,
+                new AutoCommitOffWarning());
+    }
 
     /**
      * isCaseSensitiveTableNames as resolved by configureTest(), cached so
@@ -181,6 +200,16 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * @since 3.5.0
      */
     private FailureHandler failureHandler;
+
+    /**
+     * DatabaseConfig property name/value pairs applied to the connection shared by
+     * setupData(), verifyData() and cleanupData(), every time {@link #getConnection()}
+     * resolves it - see {@link #setUpDatabaseConfig(DatabaseConfig)}. Null (the default)
+     * applies none.
+     *
+     * @since 3.6.0
+     */
+    private Properties databaseConfigProperties;
 
     final TableFormatter tableFormatter = new TableFormatter();
 
@@ -285,10 +314,40 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
         this.verifyTableDefs = verifyTableDefinitions;
     }
 
+    /**
+     * {@inheritDoc} Applies {@link #databaseConfigProperties}, when set - the composition-based
+     * equivalent of overriding this method, for a caller that cannot subclass to do so directly
+     * (e.g. {@code org.dbunit.annotation}'s {@code @DbUnitProperty}).
+     *
+     * <p><strong>Note:</strong> a subclass overriding this method must call
+     * {@code super.setUpDatabaseConfig(config)} to keep
+     * {@link #setDatabaseConfigProperties(java.util.Properties)} - and therefore
+     * {@code @DbUnitProperty} on the annotation-driven path - working.
+     *
+     * @throws IllegalStateException If a property value is invalid for its target
+     *             {@link DatabaseConfig} entry.
+     */
+    @Override
+    protected void setUpDatabaseConfig(final DatabaseConfig config)
+    {
+        if (databaseConfigProperties == null || databaseConfigProperties.isEmpty())
+        {
+            return;
+        }
+        try
+        {
+            config.setPropertiesByString(databaseConfigProperties);
+        } catch (final DatabaseUnitException e)
+        {
+            throw new IllegalStateException("Failed to apply a databaseConfigProperties value.",
+                    e);
+        }
+    }
+
     private boolean lookupFeatureValue(final String featureName)
             throws Exception
     {
-        final boolean acquiredConnectionHere = connection == null;
+        final boolean acquiredConnectionHere = reusableConnectionHolder.peekConnection() == null;
         try
         {
             final IDatabaseConnection reusableConnection =
@@ -311,154 +370,54 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * acquiring it on first use instead of a fresh connection at each step.
      * <p>
      * When {@link #closeConnectionAfterTest} is false this connection is kept
-     * across test methods (see {@link #closeReusableConnection()}), where the
-     * connection pool or the database server can close it between tests - a
-     * pool max-lifetime or reap, a bounced application context, a
+     * across test methods, where the connection pool or the database server can
+     * close it between tests - a pool max-lifetime or reap, a bounced
+     * application context, a
      * {@link org.dbunit.database.CachingConnectionProvider#close()}. A closed
-     * one is discarded here before it is handed back, so the next call
-     * re-acquires from databaseTester - letting a
+     * one is discarded before it is handed back, so the next call re-acquires
+     * from databaseTester - letting a
      * {@link org.dbunit.database.CachingConnectionProvider} behind it supply a
      * live replacement - rather than this instance reusing a connection every
-     * later lifecycle step would only fail on. With
-     * {@link #closeConnectionAfterTest} left at its default the connection is
-     * closed and forgotten after each test anyway, so it is not re-checked
-     * here.
+     * later lifecycle step would only fail on.
      *
      * @return The shared connection.
      * @throws Exception On dbUnit errors.
      * @since 3.4.0
      */
-    private IDatabaseConnection getReusableConnection() throws Exception
+    @Override
+    public IDatabaseConnection getReusableConnection() throws Exception
     {
-        if (connection != null && !closeConnectionAfterTest
-                && isReusableConnectionClosed())
-        {
-            connection = null;
-        }
-        if (connection == null)
-        {
-            connection = getConnection();
-            warnIfConnectionAutoCommitDisabled();
-        }
-        return connection;
-    }
-
-    /**
-     * Logs a warning, at most once per instance, when {@link #connection} is not
-     * in autocommit mode: the setup and teardown operations run here do not
-     * manage a transaction, and {@link org.dbunit.operation.TransactionOperation}
-     * refuses an already-non-autocommit connection, so their writes are never
-     * committed - see the class Javadoc.
-     */
-    private void warnIfConnectionAutoCommitDisabled()
-    {
-        if (connectionAutoCommitWarned)
-        {
-            return;
-        }
-        try
-        {
-            final Connection jdbcConnection = connection.getConnection();
-            if (jdbcConnection == null || jdbcConnection.getAutoCommit())
-            {
-                return;
-            }
-        } catch (final SQLException e)
-        {
-            log.debug("warnIfConnectionAutoCommitDisabled: could not read the"
-                    + " connection's autocommit state", e);
-            return;
-        }
-
-        connectionAutoCommitWarned = true;
-        log.warn("The connection DefaultPrepAndExpectedTestCase is using has autocommit"
-                + " disabled. Its setup/teardown operations (CLEAN_INSERT, DELETE_ALL, ...)"
-                + " do not manage a transaction, and TransactionOperation refuses a"
-                + " non-autocommit connection, so the prep and teardown writes are never"
-                + " committed - invisible to other connections, and (with"
-                + " closeConnectionAfterTest=false) held as locks on a connection the"
-                + " database's idle-in-transaction timeout may terminate mid-run. Give this"
-                + " class a connection with autocommit enabled.");
-    }
-
-    /**
-     * Returns whether the connection currently cached in {@link #connection} has
-     * been closed - by the connection pool, the database server, or a
-     * {@link org.dbunit.database.CachingConnectionProvider} behind
-     * {@code databaseTester} - since this instance last used it. A connection
-     * that throws while being asked is treated as closed. Uses only the local
-     * {@link Connection#isClosed()} flag, not a round-tripping
-     * {@link Connection#isValid(int)}: cheap, side-effect free, and enough to
-     * catch a connection closed between test methods before the next one's
-     * first statement. A server-side disconnect the driver has not noticed yet
-     * instead surfaces once, when a lifecycle step runs a statement against it;
-     * {@link #closeReusableConnectionSuppressing(Throwable)} then forgets the
-     * connection so the following test re-acquires regardless.
-     *
-     * @return True when the cached connection is known to be closed or unusable.
-     * @since 3.5.2
-     */
-    private boolean isReusableConnectionClosed()
-    {
-        try
-        {
-            final Connection jdbcConnection = connection.getConnection();
-            return jdbcConnection == null || jdbcConnection.isClosed();
-        } catch (final SQLException e)
-        {
-            log.debug("isReusableConnectionClosed: treating the cached connection"
-                    + " as closed after it failed to report its state", e);
-            return true;
-        }
+        return reusableConnectionHolder.getConnection();
     }
 
     /**
      * Release the connection shared by lookupFeatureValue(), setupData(),
      * verifyData() and cleanupData(), if one was acquired: closes it and
-     * forgets it when {@link #closeConnectionAfterTest} is true (the
-     * default); otherwise leaves it open and keeps the field set, so a later
-     * lifecycle step's getReusableConnection() call keeps reusing it rather
-     * than acquiring - and silently orphaning - another one. That later call
-     * still drops the kept connection if it has since died (see
-     * {@link #getReusableConnection()}), so a connection the pool or server
-     * closed between test methods does not linger to fail every following one.
+     * forgets it when {@link #closeConnectionAfterTest} is true (the default)
+     * and {@link #getOperationListener()} is not the no-op listener; otherwise
+     * leaves it open for its real owner - a
+     * {@link org.dbunit.database.CachingConnectionProvider}, an
+     * externally-supplied fixed connection - and keeps it memoized so a later
+     * lifecycle step reuses it rather than orphaning another. A kept connection
+     * the pool or server has since closed is dropped and re-acquired on the
+     * next {@link #getReusableConnection()}.
      *
-     * @throws SQLException On close errors.
+     * @throws Exception On close errors.
      * @since 3.4.0
      */
-    private void closeReusableConnection() throws SQLException
+    private void closeReusableConnection() throws Exception
     {
-        if (connection == null)
-        {
-            return;
-        }
-
-        if (!closeConnectionAfterTest)
-        {
-            // Keep the field set so this instance's own lifecycle keeps
-            // reusing the same connection even without a
-            // CachingConnectionProvider backing databaseTester.
-            return;
-        }
-
-        try
-        {
-            connection.close();
-        } finally
-        {
-            connection = null;
-        }
+        reusableConnectionHolder.release();
     }
 
     /**
-     * Close the reusable connection, attaching any close failure to the
-     * given primary throwable via
-     * {@link Throwable#addSuppressed(Throwable)} rather than letting it
-     * replace and hide the primary. Mirrors the exception safety of
-     * {@link #runTest} and {@code DatabaseTestCase.tearDown(Throwable)}.
+     * Close the reusable connection, attaching any close failure to the given
+     * primary throwable via {@link Throwable#addSuppressed(Throwable)} rather
+     * than letting it replace and hide the primary. Mirrors the exception
+     * safety of {@link #runTest} and {@code DatabaseTestCase.tearDown(Throwable)}.
      * <p>
-     * Only ever called from a lifecycle step that has already failed, so it
-     * also forgets the shared connection even when {@link #closeConnectionAfterTest}
+     * Only ever called from a lifecycle step that has already failed, so it also
+     * forgets the shared connection even when {@link #closeConnectionAfterTest}
      * is false and {@link #closeReusableConnection()} therefore left it open: a
      * step that just threw may have broken it, so the next
      * {@link #getReusableConnection()} re-acquires rather than reusing it. Any
@@ -472,14 +431,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      */
     private void closeReusableConnectionSuppressing(final Throwable primary)
     {
-        try
-        {
-            closeReusableConnection();
-        } catch (final SQLException closeFailure)
-        {
-            primary.addSuppressed(closeFailure);
-        }
-        connection = null;
+        reusableConnectionHolder.releaseSuppressing(primary);
     }
 
     /**
@@ -507,52 +459,14 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
         reusableTester.setSetUpOperation(getSetUpOperation());
         reusableTester.setTearDownOperation(getTearDownOperation());
         reusableTester.setDataSet(dataSet);
+        // This instance, not the listener, owns the shared connection's lifecycle (see
+        // getReusableConnection()/closeReusableConnection()), so a blanket
+        // ConnectionPreservingOperationListener keeps operationSetUpFinished/
+        // operationTearDownFinished from closing it while still forwarding connectionRetrieved
+        // so a user-defined listener runs its connection-configuration logic.
         reusableTester.setOperationListener(
-                makeConnectionPreservingOperationListener());
+                new ConnectionPreservingOperationListener(getOperationListener()));
         return reusableTester;
-    }
-
-    /**
-     * Make an {@link IOperationListener} that forwards
-     * {@link IOperationListener#connectionRetrieved(IDatabaseConnection)} to
-     * {@link #getOperationListener()} - so a user-defined listener still runs
-     * its connection-configuration logic - but never forwards
-     * operationSetUpFinished/operationTearDownFinished, whose only documented
-     * purpose is closing the connection. This instance, not the listener,
-     * owns the shared connection's lifecycle (see
-     * {@link #getReusableConnection()}/{@link #closeReusableConnection()}),
-     * so those two notifications must stay no-ops here regardless of which
-     * listener is configured.
-     *
-     * @return The listener to use for the reusable-connection tester.
-     * @since 3.4.0
-     */
-    private IOperationListener makeConnectionPreservingOperationListener()
-    {
-        final IOperationListener configuredListener = getOperationListener();
-        return new IOperationListener()
-        {
-            @Override
-            public void connectionRetrieved(
-                    final IDatabaseConnection connection)
-            {
-                configuredListener.connectionRetrieved(connection);
-            }
-
-            @Override
-            public void operationSetUpFinished(
-                    final IDatabaseConnection connection)
-            {
-                // no-op: see makeConnectionPreservingOperationListener()
-            }
-
-            @Override
-            public void operationTearDownFinished(
-                    final IDatabaseConnection connection)
-            {
-                // no-op: see makeConnectionPreservingOperationListener()
-            }
-        };
     }
 
     /**
@@ -577,7 +491,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      */
     private void captureRowCountBaseline() throws Exception
     {
-        final boolean acquiredConnectionHere = connection == null;
+        final boolean acquiredConnectionHere = reusableConnectionHolder.peekConnection() == null;
         try
         {
             rowCountChecker.capture(getReusableConnection());
@@ -1507,6 +1421,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * @param databaseTester
      *            The databaseTester to set.
      */
+    @Override
     public void setDatabaseTester(final IDatabaseTester databaseTester)
     {
         this.databaseTester = databaseTester;
@@ -1539,6 +1454,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      *            True to close it, false to leave it open.
      * @since 3.4.0
      */
+    @Override
     public void setCloseConnectionAfterTest(
             final boolean closeConnectionAfterTest)
     {
@@ -1565,6 +1481,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * @param dataFileLoader
      *            The dataFileLoader to set.
      */
+    @Override
     public void setDataFileLoader(final DataFileLoader dataFileLoader)
     {
         this.dataFileLoader = dataFileLoader;
@@ -1666,6 +1583,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      *            The failureHandler to set.
      * @since 3.5.0
      */
+    @Override
     public void setFailureHandler(final FailureHandler failureHandler)
     {
         this.failureHandler = failureHandler;
@@ -1697,6 +1615,68 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     public void setRowCountCheck(final RowCountCheck rowCountCheck)
     {
         rowCountChecker.setRowCountCheck(rowCountCheck);
+    }
+
+    /**
+     * Set the enabled flag and excluded table patterns to resolve a RowCountCheck from, instead
+     * of the shared connection's DatabaseConfig - the values an annotation such as
+     * {@code @DbUnitRowCountCheck} declares.
+     *
+     * @see #rowCountChecker
+     *
+     * @param enabled
+     *            Whether the check is enabled.
+     * @param exclude
+     *            The excluded table patterns; null is treated as empty (excludes none).
+     * @since 3.6.0
+     */
+    @Override
+    public void setRowCountCheckOverride(final boolean enabled, final String[] exclude)
+    {
+        rowCountChecker.setEnabledOverride(enabled, exclude);
+    }
+
+    /**
+     * Clear a previously set enabled flag and excluded table patterns override, returning to
+     * resolving a RowCountCheck from the shared connection's DatabaseConfig.
+     *
+     * <p>A caller reusing one instance across several tests - e.g. one held by a
+     * {@code @DbUnitTestCase} static field - must call this for a test that declares no
+     * {@code @DbUnitRowCountCheck} of its own, so an earlier test's override does not
+     * silently carry over onto this one.
+     *
+     * @see #rowCountChecker
+     * @since 3.6.0
+     */
+    @Override
+    public void clearRowCountCheckOverride()
+    {
+        rowCountChecker.clearEnabledOverride();
+    }
+
+    /**
+     * Set DatabaseConfig property name/value pairs to apply to the connection shared by
+     * setupData(), verifyData() and cleanupData(), every time {@link #getConnection()}
+     * resolves it.
+     *
+     * @see #databaseConfigProperties
+     *
+     * @param databaseConfigProperties
+     *            The properties to apply; null or empty applies none.
+     * @since 3.6.0
+     */
+    @Override
+    public void setDatabaseConfigProperties(final Properties databaseConfigProperties)
+    {
+        if (databaseConfigProperties == null)
+        {
+            this.databaseConfigProperties = null;
+        } else
+        {
+            final Properties copy = new Properties();
+            copy.putAll(databaseConfigProperties);
+            this.databaseConfigProperties = copy;
+        }
     }
 
     /**
