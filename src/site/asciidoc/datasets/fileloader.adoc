@@ -12,11 +12,51 @@ objects/substrings applied.
 |===
 |Loader |Wraps
 
+|link:/dbunit/apidocs/org/dbunit/util/fileloader/CsvDataFileLoader.html[CsvDataFileLoader] |link:csv.html[CsvDataSet] (via `CsvURLDataSet`)
 |link:/dbunit/apidocs/org/dbunit/util/fileloader/FlatXmlDataFileLoader.html[FlatXmlDataFileLoader] |link:flatxml.html[FlatXmlDataSet]
 |link:/dbunit/apidocs/org/dbunit/util/fileloader/FullXmlDataFileLoader.html[FullXmlDataFileLoader] |link:xml.html[XmlDataSet]
-|link:/dbunit/apidocs/org/dbunit/util/fileloader/CsvDataFileLoader.html[CsvDataFileLoader] |link:csv.html[CsvDataSet] (via `CsvURLDataSet`)
+|link:/dbunit/apidocs/org/dbunit/util/fileloader/JsonDataFileLoader.html[JsonDataFileLoader] |link:json.html[JsonDataSet]
 |link:/dbunit/apidocs/org/dbunit/util/fileloader/XlsDataFileLoader.html[XlsDataFileLoader] |link:excel.html[XlsDataSet]
+|link:/dbunit/apidocs/org/dbunit/util/fileloader/YamlDataFileLoader.html[YamlDataFileLoader] |link:yaml.html[YamlDataSet]
 |===
+
+== Dispatching By File Extension
+
+link:/dbunit/apidocs/org/dbunit/util/fileloader/FileExtensionDataFileLoader.html[FileExtensionDataFileLoader]
+picks the loader to delegate to from the file's extension, so one loader
+instance can load a mix of formats:
+
+[cols="1,2", options="header"]
+|===
+|Extension |Delegate
+
+|`.json` |`JsonDataFileLoader`
+|`.xls`, `.xlsx` |`XlsDataFileLoader`
+|`.xml` |`FlatXmlDataFileLoader`
+|`.yaml`, `.yml` |`YamlDataFileLoader`
+|===
+
+[source,java]
+----
+DataFileLoader loader = new FileExtensionDataFileLoader();
+IDataSet xmlDs = loader.load("/the/package/prepData.xml");
+IDataSet jsonDs = loader.load("/the/package/prepData.json");
+----
+
+The delegate loaders are used only for their format parsing; replacement
+objects and substrings configured on the `FileExtensionDataFileLoader` itself
+are the ones applied, exactly once, regardless of which delegate handled the
+file.
+
+An unsupported extension throws `IllegalArgumentException` naming it. Two
+formats are deliberately not dispatched here:
+
+* *CSV* — dbUnit's CSV format is directory-based (`CsvURLDataSet` expects a
+  directory containing `table-ordering.txt`), so it cannot share this
+  loader's one-file-per-path convention. Use `CsvDataFileLoader` directly,
+  pointed at a directory.
+* *Full (non-flat) XML* — `.xml` maps to flat XML, the overwhelmingly common
+  case. Use `FullXmlDataFileLoader` directly for the full XML format.
 
 Each extends
 link:/dbunit/apidocs/org/dbunit/util/fileloader/AbstractDataFileLoader.html[AbstractDataFileLoader],

@@ -12,7 +12,7 @@ Outside of tests, it is also a convenient utility for importing and exporting da
 
 == What dbUnit Provides
 
-* *Dataset formats* — link:datasets.html[Flat XML, XML, CSV, JSON, YAML, and Excel], plus building datasets in code or reading them straight from a live query.
+* *Dataset formats* — link:datasets.html[Flat XML, XML, CSV, JSON, YAML, and Excel], plus building datasets in code or reading them straight from a live query. Matching link:datasets/fileloader.html[`DataFileLoader`] implementations — including one that dispatches by file extension — load prep/expected fixture files for you.
 * *Database operations* — `INSERT`, `UPDATE`, `DELETE`, `DELETE_ALL`, `TRUNCATE_TABLE`, `REFRESH` (upsert), and `CLEAN_INSERT` (truncate + insert), composable and transaction-wrappable.
 * *Flexible assertions* — link:datacomparisons.html[`ValueComparer`] implementations go beyond strict equality: tolerance (numeric and timestamp), greater-than/less-than, null checks, string containment, and ignore-millis timestamp comparisons.
 * *Broad database support* — vendor-specific type and metadata handling for 10 databases: DB2, H2, HSQLDB, MariaDB, Mckoi, MSSQL, MySQL, Netezza, Oracle, and PostgreSQL; see link:databases.html[Database-Specific Guides].

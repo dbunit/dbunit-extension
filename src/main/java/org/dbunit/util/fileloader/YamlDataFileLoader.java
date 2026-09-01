@@ -1,7 +1,7 @@
 /*
  *
  * The DbUnit Database Testing Framework
- * Copyright (C)2002-2008, DbUnit.org
+ * Copyright (C)2002-2026, DbUnit.org
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -28,23 +28,19 @@ import java.util.Map;
 
 import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.IDataSet;
-import org.dbunit.dataset.excel.XlsDataSet;
+import org.dbunit.dataset.yaml.YamlDataSet;
 
 /**
- * {@link DataFileLoader} that loads Excel dataset files - both the legacy {@code .xls}
- * (BIFF/OLE2) and the newer {@code .xlsx} (OOXML) format, which
- * {@link org.apache.poi.ss.usermodel.WorkbookFactory} auto-detects from the stream.
- * {@link FileExtensionDataFileLoader} dispatches both extensions here.
+ * {@link DataFileLoader} that loads YAML dataset files.
  *
- * @author Jeff Jensen jeffjensen AT users.sourceforge.net
- * @author Last changed by: $Author$
- * @version $Revision$ $Date$
- * @since 2.4.8
- *
+ * @author Jeff Jensen
+ * @since 3.6.0
  */
-public class XlsDataFileLoader extends AbstractDataFileLoader {
+public class YamlDataFileLoader extends AbstractDataFileLoader
+{
     /** Create new instance. */
-    public XlsDataFileLoader() {
+    public YamlDataFileLoader()
+    {
     }
 
     /**
@@ -54,13 +50,14 @@ public class XlsDataFileLoader extends AbstractDataFileLoader {
      *            The replacement objects for use with
      *            {@link org.dbunit.dataset.ReplacementDataSet}.
      */
-    public XlsDataFileLoader(Map ro) {
+    public YamlDataFileLoader(Map ro)
+    {
         super(ro);
     }
 
     /**
      * Create new instance with replacement objects and replacement substrings.
-     * 
+     *
      * @param ro
      *            The replacement objects for use with
      *            {@link org.dbunit.dataset.ReplacementDataSet}.
@@ -68,7 +65,8 @@ public class XlsDataFileLoader extends AbstractDataFileLoader {
      *            The replacement substrings for use with
      *            {@link org.dbunit.dataset.ReplacementDataSet}.
      */
-    public XlsDataFileLoader(Map ro, Map rs) {
+    public YamlDataFileLoader(Map ro, Map rs)
+    {
         super(ro, rs);
     }
 
@@ -76,10 +74,11 @@ public class XlsDataFileLoader extends AbstractDataFileLoader {
      * {@inheritDoc}
      */
     public IDataSet loadDataSet(URL url) throws DataSetException,
-            IOException {
-        InputStream in = url.openStream();
-        IDataSet ds = new XlsDataSet(in);
-
-        return ds;
+            IOException
+    {
+        try (InputStream in = url.openStream())
+        {
+            return new YamlDataSet(in);
+        }
     }
 }
