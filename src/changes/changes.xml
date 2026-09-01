@@ -26,6 +26,9 @@
       <action dev="jeffjensen" type="fix" issue="964" system="github" due-to="jeffjensen">
           Fix the row count check leaving a connection whose autocommit is off sitting in an open transaction: its SELECT COUNT(*) queries and the metadata reads behind IDatabaseConnection.createDataSet() were never committed or rolled back. Harmless when the connection is closed right after, but when it outlives the check - shared through a CachingConnectionProvider with DefaultPrepAndExpectedTestCase.setCloseConnectionAfterTest(false) - it holds ACCESS SHARE locks on every counted table and is a candidate for the database's idle_in_transaction_session_timeout, which terminates it mid-run and fails the next use with an EOFException. RowCountCheck.snapshot() now rolls back its read transaction when the connection's autocommit is off; a no-op when autocommit is on.
       </action>
+      <action dev="jeffjensen" type="add" issue="753" system="github" due-to="jeffjensen">
+          Add JsonDataFileLoader and YamlDataFileLoader to org.dbunit.util.fileloader, filling the gap where the JSON and YAML dataset formats had no matching DataFileLoader; add FileExtensionDataFileLoader, which dispatches to the right loader (flat XML, JSON, YAML, or Excel) by file extension.
+      </action>
     </release>
     <release version="3.5.2" date="TBD" description="DefaultPrepAndExpectedTestCase connection hygiene: replace a connection the pool or database dropped between tests, and warn when handed a non-autocommit connection">
       <action dev="jeffjensen" type="fix" issue="962" system="github" due-to="jeffjensen">
