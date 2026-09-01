@@ -12,17 +12,17 @@ objects/substrings applied.
 |===
 |Loader |Wraps
 
-|link:../apidocs/org/dbunit/util/fileloader/CsvDataFileLoader.html[CsvDataFileLoader] |link:csv.html[CsvDataSet] (via `CsvURLDataSet`)
-|link:../apidocs/org/dbunit/util/fileloader/FlatXmlDataFileLoader.html[FlatXmlDataFileLoader] |link:flatxml.html[FlatXmlDataSet]
-|link:../apidocs/org/dbunit/util/fileloader/FullXmlDataFileLoader.html[FullXmlDataFileLoader] |link:xml.html[XmlDataSet]
-|link:../apidocs/org/dbunit/util/fileloader/JsonDataFileLoader.html[JsonDataFileLoader] |link:json.html[JsonDataSet]
-|link:../apidocs/org/dbunit/util/fileloader/XlsDataFileLoader.html[XlsDataFileLoader] |link:excel.html[XlsDataSet]
-|link:../apidocs/org/dbunit/util/fileloader/YamlDataFileLoader.html[YamlDataFileLoader] |link:yaml.html[YamlDataSet]
+|link:/dbunit/apidocs/org/dbunit/util/fileloader/CsvDataFileLoader.html[CsvDataFileLoader] |link:csv.html[CsvDataSet] (via `CsvURLDataSet`)
+|link:/dbunit/apidocs/org/dbunit/util/fileloader/FlatXmlDataFileLoader.html[FlatXmlDataFileLoader] |link:flatxml.html[FlatXmlDataSet]
+|link:/dbunit/apidocs/org/dbunit/util/fileloader/FullXmlDataFileLoader.html[FullXmlDataFileLoader] |link:xml.html[XmlDataSet]
+|link:/dbunit/apidocs/org/dbunit/util/fileloader/JsonDataFileLoader.html[JsonDataFileLoader] |link:json.html[JsonDataSet]
+|link:/dbunit/apidocs/org/dbunit/util/fileloader/XlsDataFileLoader.html[XlsDataFileLoader] |link:excel.html[XlsDataSet]
+|link:/dbunit/apidocs/org/dbunit/util/fileloader/YamlDataFileLoader.html[YamlDataFileLoader] |link:yaml.html[YamlDataSet]
 |===
 
 == Dispatching By File Extension
 
-link:../apidocs/org/dbunit/util/fileloader/FileExtensionDataFileLoader.html[FileExtensionDataFileLoader]
+link:/dbunit/apidocs/org/dbunit/util/fileloader/FileExtensionDataFileLoader.html[FileExtensionDataFileLoader]
 picks the loader to delegate to from the file's extension, so one loader
 instance can load a mix of formats:
 
