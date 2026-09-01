@@ -36,6 +36,11 @@ import org.dbunit.dataset.filter.ExcludeTableFilter;
  * <p>
  * The {@link RowCounter} has no system property override: swapping the counting implementation
  * is a code-level decision made once for a suite, not something flipped per run.
+ * <p>
+ * {@code RowCountChecker#overlayEnabledOverride(DatabaseConfig)} builds a {@link DatabaseConfig}
+ * carrying exactly the three {@link DatabaseConfig} properties this constructor reads, in place
+ * of a connection's own - nothing enforces the two stay in sync, so a property added here needs
+ * a matching addition there too.
  *
  * @author dbunit
  * @since 3.6.0
@@ -66,13 +71,17 @@ public final class RowCountCheckConfiguration
      * @param databaseConfig the database config to resolve {@link DatabaseConfig#FEATURE_ROW_COUNT_CHECK},
      *            {@link DatabaseConfig#PROPERTY_ROW_COUNT_CHECK_EXCLUDE_TABLES}, and
      *            {@link DatabaseConfig#PROPERTY_ROW_COUNTER} from when no system property
-     *            overrides them.
+     *            overrides them. A missing exclude-patterns value resolves to no exclusions,
+     *            and a missing {@link RowCounter} to a new {@link QueryPerTableRowCounter},
+     *            so a config that has not been through {@link DatabaseConfig}'s own default
+     *            initialization is still tolerated.
      */
     public RowCountCheckConfiguration(final DatabaseConfig databaseConfig)
     {
         enabled = resolveEnabled(databaseConfig);
-        excludeTableFilter = new ExcludeTableFilter(resolveExcludeTablePatterns(databaseConfig));
-        rowCounter = (RowCounter) databaseConfig.getProperty(DatabaseConfig.PROPERTY_ROW_COUNTER);
+        final String[] excludeTablePatterns = resolveExcludeTablePatterns(databaseConfig);
+        excludeTableFilter = new ExcludeTableFilter(excludeTablePatterns);
+        rowCounter = resolveRowCounter(databaseConfig);
     }
 
     private static boolean resolveEnabled(final DatabaseConfig databaseConfig)
@@ -93,8 +102,18 @@ public final class RowCountCheckConfiguration
         {
             return splitAndTrim(systemProperty);
         }
-        return (String[]) databaseConfig
+
+        final String[] configuredPatterns = (String[]) databaseConfig
                 .getProperty(DatabaseConfig.PROPERTY_ROW_COUNT_CHECK_EXCLUDE_TABLES);
+        return configuredPatterns == null ? new String[0] : configuredPatterns;
+    }
+
+    private static RowCounter resolveRowCounter(final DatabaseConfig databaseConfig)
+    {
+        final RowCounter configuredRowCounter = (RowCounter) databaseConfig
+                .getProperty(DatabaseConfig.PROPERTY_ROW_COUNTER);
+        return configuredRowCounter == null ? new QueryPerTableRowCounter()
+                : configuredRowCounter;
     }
 
     private static String[] splitAndTrim(final String commaSeparatedPatterns)

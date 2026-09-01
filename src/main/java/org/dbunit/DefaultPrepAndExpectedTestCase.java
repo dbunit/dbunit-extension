@@ -27,6 +27,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.stream.Collectors;
@@ -182,6 +183,16 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      */
     private FailureHandler failureHandler;
 
+    /**
+     * DatabaseConfig property name/value pairs applied to the connection shared by
+     * setupData(), verifyData() and cleanupData(), every time {@link #getConnection()}
+     * resolves it - see {@link #setUpDatabaseConfig(DatabaseConfig)}. Null (the default)
+     * applies none.
+     *
+     * @since 3.6.0
+     */
+    private Properties databaseConfigProperties;
+
     final TableFormatter tableFormatter = new TableFormatter();
 
     /** Create new instance. */
@@ -285,6 +296,36 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
         this.verifyTableDefs = verifyTableDefinitions;
     }
 
+    /**
+     * {@inheritDoc} Applies {@link #databaseConfigProperties}, when set - the composition-based
+     * equivalent of overriding this method, for a caller that cannot subclass to do so directly
+     * (e.g. {@code org.dbunit.annotation}'s {@code @DbUnitProperty}).
+     *
+     * <p><strong>Note:</strong> a subclass overriding this method must call
+     * {@code super.setUpDatabaseConfig(config)} to keep
+     * {@link #setDatabaseConfigProperties(java.util.Properties)} - and therefore
+     * {@code @DbUnitProperty} on the annotation-driven path - working.
+     *
+     * @throws IllegalStateException If a property value is invalid for its target
+     *             {@link DatabaseConfig} entry.
+     */
+    @Override
+    protected void setUpDatabaseConfig(final DatabaseConfig config)
+    {
+        if (databaseConfigProperties == null || databaseConfigProperties.isEmpty())
+        {
+            return;
+        }
+        try
+        {
+            config.setPropertiesByString(databaseConfigProperties);
+        } catch (final DatabaseUnitException e)
+        {
+            throw new IllegalStateException("Failed to apply a databaseConfigProperties value.",
+                    e);
+        }
+    }
+
     private boolean lookupFeatureValue(final String featureName)
             throws Exception
     {
@@ -328,7 +369,8 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * @throws Exception On dbUnit errors.
      * @since 3.4.0
      */
-    private IDatabaseConnection getReusableConnection() throws Exception
+    @Override
+    public IDatabaseConnection getReusableConnection() throws Exception
     {
         if (connection != null && !closeConnectionAfterTest
                 && isReusableConnectionClosed())
@@ -1507,6 +1549,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * @param databaseTester
      *            The databaseTester to set.
      */
+    @Override
     public void setDatabaseTester(final IDatabaseTester databaseTester)
     {
         this.databaseTester = databaseTester;
@@ -1539,6 +1582,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      *            True to close it, false to leave it open.
      * @since 3.4.0
      */
+    @Override
     public void setCloseConnectionAfterTest(
             final boolean closeConnectionAfterTest)
     {
@@ -1565,6 +1609,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * @param dataFileLoader
      *            The dataFileLoader to set.
      */
+    @Override
     public void setDataFileLoader(final DataFileLoader dataFileLoader)
     {
         this.dataFileLoader = dataFileLoader;
@@ -1666,6 +1711,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      *            The failureHandler to set.
      * @since 3.5.0
      */
+    @Override
     public void setFailureHandler(final FailureHandler failureHandler)
     {
         this.failureHandler = failureHandler;
@@ -1697,6 +1743,68 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     public void setRowCountCheck(final RowCountCheck rowCountCheck)
     {
         rowCountChecker.setRowCountCheck(rowCountCheck);
+    }
+
+    /**
+     * Set the enabled flag and excluded table patterns to resolve a RowCountCheck from, instead
+     * of the shared connection's DatabaseConfig - the values an annotation such as
+     * {@code @DbUnitRowCountCheck} declares.
+     *
+     * @see #rowCountChecker
+     *
+     * @param enabled
+     *            Whether the check is enabled.
+     * @param exclude
+     *            The excluded table patterns; null is treated as empty (excludes none).
+     * @since 3.6.0
+     */
+    @Override
+    public void setRowCountCheckOverride(final boolean enabled, final String[] exclude)
+    {
+        rowCountChecker.setEnabledOverride(enabled, exclude);
+    }
+
+    /**
+     * Clear a previously set enabled flag and excluded table patterns override, returning to
+     * resolving a RowCountCheck from the shared connection's DatabaseConfig.
+     *
+     * <p>A caller reusing one instance across several tests - e.g. one held by a
+     * {@code @DbUnitTestCase} static field - must call this for a test that declares no
+     * {@code @DbUnitRowCountCheck} of its own, so an earlier test's override does not
+     * silently carry over onto this one.
+     *
+     * @see #rowCountChecker
+     * @since 3.6.0
+     */
+    @Override
+    public void clearRowCountCheckOverride()
+    {
+        rowCountChecker.clearEnabledOverride();
+    }
+
+    /**
+     * Set DatabaseConfig property name/value pairs to apply to the connection shared by
+     * setupData(), verifyData() and cleanupData(), every time {@link #getConnection()}
+     * resolves it.
+     *
+     * @see #databaseConfigProperties
+     *
+     * @param databaseConfigProperties
+     *            The properties to apply; null or empty applies none.
+     * @since 3.6.0
+     */
+    @Override
+    public void setDatabaseConfigProperties(final Properties databaseConfigProperties)
+    {
+        if (databaseConfigProperties == null)
+        {
+            this.databaseConfigProperties = null;
+        } else
+        {
+            final Properties copy = new Properties();
+            copy.putAll(databaseConfigProperties);
+            this.databaseConfigProperties = copy;
+        }
     }
 
     /**

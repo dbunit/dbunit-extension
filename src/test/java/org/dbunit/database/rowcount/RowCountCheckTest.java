@@ -24,6 +24,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -31,6 +32,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -235,6 +237,29 @@ class RowCountCheckTest
 
         verify(jdbcConnection)
                 .rollback();
+    }
+
+    @Test
+    void testCapture_theRollbackItselfFails_swallowsItAndStillReturnsTheSnapshot()
+            throws Exception
+    {
+        final RowCounter rowCounter = mock(RowCounter.class);
+        when(rowCounter.countRows(any(), any())).thenReturn(mapOf("ACCOUNT", 1));
+        final RowCountCheck check = new RowCountCheck(
+                new RowCountCheckConfiguration(enabledDatabaseConfig(rowCounter)));
+        final Connection jdbcConnection = mock(Connection.class);
+        when(jdbcConnection.getAutoCommit()).thenReturn(false);
+        doThrow(new SQLException("connection already dropped")).when(jdbcConnection).rollback();
+        final IDatabaseConnection connection =
+                connectionWithTablesAndJdbcConnection(jdbcConnection, "ACCOUNT");
+
+        final RowCountSnapshot snapshot = check.capture(connection);
+
+        assertThat(snapshot.getRowCounts())
+                .as("A rollback that itself fails - e.g. the database already dropped the"
+                        + " connection - must not mask the read-only snapshot that already"
+                        + " completed.")
+                .containsEntry("ACCOUNT", 1);
     }
 
     @Test
