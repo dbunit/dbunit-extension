@@ -1148,21 +1148,20 @@
           </parameter>
         </configuration>
         <reportSets>
-<!--
           <reportSet>
-            <id>3.4.0-to-snapshot</id>
+            <id>3.5.1-to-snapshot</id>
             <reports>
               <report>cmp-report</report>
             </reports>
             <configuration>
               <parameter>
-                <reportLinkName>3.4.0-to-snapshot</reportLinkName>
+                <reportLinkName>3.5.1-to-snapshot</reportLinkName>
               </parameter>
               <oldVersion>
                 <dependency>
                   <groupId>${project.groupId}</groupId>
                   <artifactId>${project.artifactId}</artifactId>
-                  <version>3.4.0</version>
+                  <version>3.5.1</version>
                   <type>jar</type>
                 </dependency>
               </oldVersion>
@@ -1173,7 +1172,6 @@
               </newVersion>
             </configuration>
           </reportSet>
--->
           <reportSet>
             <id>3.5.2-to-3.5.3</id>
             <reports>

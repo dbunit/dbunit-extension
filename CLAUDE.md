@@ -124,7 +124,7 @@ Integration tests use `DatabaseEnvironment` to bootstrap the target database fro
   - Favor immutability.  Try to not need setters.
   - Prefer constructors with arguments over no args constructors and using setters.
   - Prefer constructor injection
-  - Write positive if statements when paired with an else statement.
+  - Use == instead of != in if statements when paired with an else statement.
   - Remove any blank line after opening curly braces.
   - Do not create "utils" or "helper" packages or class names. Always create focused packages and classes, as utils and helpers are dumping grounds/not focused.
   - When making changes, always work on a branch that is not main and if necessary, create and switch to a branch to isolate the work.
@@ -148,13 +148,14 @@ Integration tests use `DatabaseEnvironment` to bootstrap the target database fro
   - Adhere strictly to de facto standard Git commit message formatting.
   - Use Conventional Commits format.
   - **Commit Types:** `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `build:`, `ci:`, `perf:`
-  - **Scopes:** any of the database names, `assertion`, `pom`, `log`, `docker`, `database`, `dataset`, `metadata`, `resultset`, `scripts`, `site`, `statement`, `search`, `util`, `ant`, `operation`
+  - **Scopes:** any of the database names, `annotations`, `assertion`, `pom`, `log`, `docker`, `database`, `dataset`, `junit`, `metadata`, `resultset`, `scripts`, `site`, `statement`, `search`, `util`, `ant`, `operation`
   - Capitalize the first word after the type and scope.
   - You may suggest additional CC commit types and scopes when encountering situations where the changes do not fit into the approved lists above.
   - Reference GitHub issues in the commit footer with `Refs: <issue-number>` (e.g. `Refs: 123`).  Do not use a # before the number.
   - Do not put the issue number in the message topic.
   - Use * for bullets, not -.
-  - In commits, do not refer to files that are not committed.
+  - Do not refer to files that are not committed.
+  - Commit messages must only describe the final code state within that specific commit. Never include references to intermediate fixes, internal feedback loops, or temporary issues introduced and resolved during development (e.g., do not write "fixed typo" or "fixed issue X from review" if the original mistake is not part of the permanent git history).
 
 - Java:
   - Use Eclipse code formatter settings file `java-codestyle-formatter.xml` when modifying or creating files (in dbUnit)
@@ -162,7 +163,7 @@ Integration tests use `DatabaseEnvironment` to bootstrap the target database fro
   - If Lombok is available, use its annotations such as @AllArgsConstructor, @NoArgsConstructor, @Getter, @Setter.
   - If not using @Slf4j, then place the Logger variable first in the class.
   - Write JavaDoc comments on all public classes and methods in src/main.
-  - In JavaDoc, use complete sentences, start with a capital letter and end with a period, for the topic body, parameters, and return.
+  - In JavaDoc, use complete sentences for all descriptions, start with a capital letter and end with a period, for everything - the topic body, parameters, and return, including all annotations such as @param and @throws.
   - Tests:
     - Prefer assertJ.
     - Prefer to add ".as()" with a fail message ending with a period.
@@ -171,6 +172,9 @@ Integration tests use `DatabaseEnvironment` to bootstrap the target database fro
   - When creating a github issue, set the applicable labels, assignee, and issue type, and milestone as best can determine.  ask if needed.
   - Do not create GitHub issues for verification-type tasks, only create them for features, bugs, and file changing actions.
   - In issues, do not refer to files that are not committed.
+  - Do not push commits unless told to.
+  - Do not open pull requests unless told to, as it prematurely uses the very limited code review services; the user knows when it is ready for that.
+  - Wait until the code is pushed before replying to PR feedback.
 
 - dbUnit Organization:
 
