@@ -74,6 +74,11 @@ it later, and lets it be discarded when a verify would be noise (e.g. the test's
 already failed) — plumbing a test integration reuses, not something a test author calls
 directly.
 
+On JUnit 5/6 (Jupiter), `@DbUnitRowCountCheck` turns the check on per class or method instead
+of touching `DatabaseConfig` — see
+link:../testcases/annotations.html#rowcountcheck[the DbUnit Annotations page] for its
+attributes and precedence against the feature and system property described above.
+
 [#exclusions]
 == Excluding Tables
 
@@ -103,6 +108,9 @@ patterns:
 ----
 -Ddbunit.rowCountCheckExcludeTables=AUDIT_*,HIBERNATE_SEQUENCES
 ----
+
+or `@DbUnitRowCountCheck(exclude = {"AUDIT_*", "HIBERNATE_SEQUENCES"})` — see
+link:../testcases/annotations.html#rowcountcheck[DbUnit Annotations].
 
 [#failure-message]
 == Reading a Failure

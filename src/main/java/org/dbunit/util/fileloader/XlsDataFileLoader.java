@@ -31,7 +31,10 @@ import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.excel.XlsDataSet;
 
 /**
- * {@link DataFileLoader} that loads Excel (.xls) dataset files.
+ * {@link DataFileLoader} that loads Excel dataset files - both the legacy {@code .xls}
+ * (BIFF/OLE2) and the newer {@code .xlsx} (OOXML) format, which
+ * {@link org.apache.poi.ss.usermodel.WorkbookFactory} auto-detects from the stream.
+ * {@link FileExtensionDataFileLoader} dispatches both extensions here.
  *
  * @author Jeff Jensen jeffjensen AT users.sourceforge.net
  * @author Last changed by: $Author$

@@ -12,10 +12,11 @@ Outside of tests, it is also a convenient utility for importing and exporting da
 
 == What dbUnit Provides
 
-* *Dataset formats* — link:datasets.html[Flat XML, XML, CSV, JSON, YAML, and Excel], plus building datasets in code or reading them straight from a live query.
+* *Dataset formats* — link:datasets.html[Flat XML, XML, CSV, JSON, YAML, and Excel], plus building datasets in code or reading them straight from a live query. Matching link:datasets/fileloader.html[`DataFileLoader`] implementations — including one that dispatches by file extension — load prep/expected fixture files for you.
 * *Database operations* — `INSERT`, `UPDATE`, `DELETE`, `DELETE_ALL`, `TRUNCATE_TABLE`, `REFRESH` (upsert), and `CLEAN_INSERT` (truncate + insert), composable and transaction-wrappable.
 * *Flexible assertions* — link:datacomparisons.html[`ValueComparer`] implementations go beyond strict equality: tolerance (numeric and timestamp), greater-than/less-than, null checks, string containment, and ignore-millis timestamp comparisons.
 * *Broad database support* — vendor-specific type and metadata handling for 10 databases: DB2, H2, HSQLDB, MariaDB, Mckoi, MSSQL, MySQL, Netezza, Oracle, and PostgreSQL; see link:databases.html[Database-Specific Guides].
+* *Annotation-driven configuration* — on JUnit 5/6 (Jupiter), link:testcases/annotations.html[`org.dbunit.annotation`] declares a test's dataset, operation, and verification directly on the class or method — `@DbUnitPrep`, `@DbUnitExpected`, `@DbUnitSetup`, `@DbUnitTearDown`, `@DbUnitConfig` — instead of hand-written `@BeforeEach`/`@AfterEach` lifecycle code, plus an opt-in `@DbUnitRowCountCheck` for teardown completeness.
 
 == Where to Start
 
@@ -48,7 +49,7 @@ We will gladly help you as needed with your ideas and contributions and look to 
 
 |TBD
 |Please try the 3.6.0-SNAPSHOT snapshot build and let us know how it works!
-It adds an opt-in *row count check* (`RowCountCheck`) that catches tables teardown missed or wrongly cleaned.
+It adds an opt-in *row count check* (`RowCountCheck`) that catches a table teardown forgot to clean, or wrongly cleaned, and *annotation-driven test configuration* for JUnit 5/6 (Jupiter) — link:testcases/annotations.html[`org.dbunit.annotation`] declares a test's dataset, operation, and verification directly on the class or method instead of hand-written lifecycle code, including a `@DbUnitRowCountCheck` annotation front-end for the row count check above and new JSON/YAML `DataFileLoader` implementations.
 See link:https://dbunit.github.io/dbunit-extension/repos.html#snapshots[SNAPSHOTS] for how to use them.
 Refer to the link:changes.html#a3.6.0-SNAPSHOT[changes report],
 the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.6.0%20type%3AFeature[feature list], and

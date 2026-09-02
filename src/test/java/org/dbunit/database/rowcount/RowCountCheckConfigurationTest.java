@@ -162,4 +162,36 @@ class RowCountCheckConfigurationTest
                         + " system property override for it.")
                 .isSameAs(customRowCounter);
     }
+
+    @Test
+    void testExcludeTables_configWithNoExcludePatternsValue_resolvesToNoExclusions()
+            throws DataSetException
+    {
+        // a DatabaseConfig that never went through its own default initialization, so
+        // getProperty(PROPERTY_ROW_COUNT_CHECK_EXCLUDE_TABLES) is null rather than String[0]
+        final DatabaseConfig databaseConfig = mock(DatabaseConfig.class);
+
+        final RowCountCheckConfiguration configuration =
+                new RowCountCheckConfiguration(databaseConfig);
+
+        assertThat(configuration.getExcludeTableFilter().isValidName("ANY_TABLE"))
+                .as("A missing exclude-patterns value must resolve to excluding nothing, not"
+                        + " a null array that fails building the ExcludeTableFilter.")
+                .isTrue();
+    }
+
+    @Test
+    void testGetRowCounter_configWithNoRowCounterValue_returnsAQueryPerTableRowCounter()
+    {
+        final DatabaseConfig databaseConfig = mock(DatabaseConfig.class);
+
+        final RowCountCheckConfiguration configuration =
+                new RowCountCheckConfiguration(databaseConfig);
+
+        assertThat(configuration.getRowCounter())
+                .as("A missing PROPERTY_ROW_COUNTER value must fall back to a"
+                        + " QueryPerTableRowCounter, not leave a null counter RowCountCheck"
+                        + " would then NPE on.")
+                .isInstanceOf(QueryPerTableRowCounter.class);
+    }
 }

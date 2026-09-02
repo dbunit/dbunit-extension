@@ -1,0 +1,6 @@
+{
+  "TEST_TABLE": [
+    {"COL0": "row 0", "COL1": "val 0"},
+    {"COL0": "row 1", "COL1": "val 1"}
+  ]
+}

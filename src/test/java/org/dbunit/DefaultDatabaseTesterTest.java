@@ -120,6 +120,33 @@ class DefaultDatabaseTesterTest
                 .isInstanceOf(NullPointerException.class);
     }
 
+    @Test
+    void testGetOperationListener_noneSet_returnsNull() throws Exception
+    {
+        final DefaultDatabaseTester tester = new DefaultDatabaseTester(newRealConnection());
+
+        assertThat(tester.getOperationListener())
+                .as("getOperationListener() must return null before setOperationListener() is"
+                        + " ever called.")
+                .isNull();
+    }
+
+    @Test
+    void testGetOperationListener_afterSetOperationListener_returnsSameInstance()
+            throws Exception
+    {
+        final DefaultDatabaseTester tester = new DefaultDatabaseTester(newRealConnection());
+        final IOperationListener listener = IOperationListener.NO_OP_OPERATION_LISTENER;
+
+        tester.setOperationListener(listener);
+
+        assertThat(tester.getOperationListener())
+                .as("getOperationListener() must return the exact listener passed to"
+                        + " setOperationListener(), so a caller can wrap it instead of"
+                        + " discarding it.")
+                .isSameAs(listener);
+    }
+
     private IDatabaseConnection newRealConnection() throws Exception
     {
         final IDatabaseConnection connection = InMemoryDatabaseConnection.create();

@@ -101,7 +101,10 @@ whichever test happens to run next. It is off by default; turn it on with
 `DatabaseConfig.FEATURE_ROW_COUNT_CHECK` (or `-Ddbunit.rowCountCheck=true`) when
 verifying a suite's teardown correctness, and see
 link:../components/rowcountcheck.html[the RowCountCheck page] for what it catches, how
-to exclude legitimately-changing tables, and how to read a failure.
+to exclude legitimately-changing tables, and how to read a failure. On a
+`DefaultPrepAndExpectedTestCase` instance, `setRowCountCheckOverride(enabled, exclude)`
+sets both directly instead - see
+<<Configuring_Without_Subclassing,Configuring DatabaseConfig Without Subclassing>> below.
 
 == Usage
 
@@ -171,6 +174,95 @@ has two ways to setup, execute, and clean up tests:
 
 (see <<Test_Examples,Test Examples>> below)
 
+[#Annotation_Driven_Equivalent]
+== Annotation-Driven Equivalent
+
+On JUnit 5/6 (Jupiter), the `configureTest()`/`preTest()`/`postTest()` block
+above is formulaic enough that
+link:/dbunit/apidocs/org/dbunit/junit/jupiter/DbUnitExtension.html[DbUnitExtension]
+can run it declaratively instead, via `org.dbunit.annotation`:
+
+[source,java]
+----
+@DbUnitTest
+class AccountRepositoryTest
+{
+    IDatabaseTester databaseTester;
+
+    AccountRepositoryTest() throws ClassNotFoundException
+    {
+        databaseTester =
+                new JdbcDatabaseTester("org.h2.Driver", "jdbc:h2:mem:example;DB_CLOSE_DELAY=-1");
+    }
+
+    @Test
+    @DbUnitPrep("/dbunit/accounts/prep.xml")
+    @DbUnitExpected(value = "/dbunit/accounts/expected.xml", verifyTables = "ACCOUNT")
+    @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+    void testWithdraw_sufficientBalance_decrementsBalance()
+    {
+        // code under test
+    }
+}
+----
+
+This covers the common, fixed-per-method case; see
+link:annotations.html[DbUnit Annotations] for the full reference, and its
+link:annotations.html#applicability[When Not to Use These Annotations]
+section for the `@ParameterizedTest` and non-dbUnit-assertion cases where
+the programmatic API above remains the right tool.
+
+[#Configuring_Without_Subclassing]
+== Configuring DatabaseConfig Without Subclassing
+
+Some tests need to tune the shared connection's
+link:/dbunit/apidocs/org/dbunit/database/DatabaseConfig.html[DatabaseConfig] - its batch
+size, `IDataTypeFactory`, or the
+link:../components/rowcountcheck.html[RowCountCheck] enabled flag and excluded tables,
+for example. The general-purpose way is extending
+link:/dbunit/apidocs/org/dbunit/DefaultPrepAndExpectedTestCase.html[DefaultPrepAndExpectedTestCase]
+and overriding `setUpDatabaseConfig(DatabaseConfig)`, as shown in
+<<Configuration_Example_Using_Spring,Configuration Example Using Spring>> below - needed
+whenever a value requires constructor arguments or setup beyond a no-arg constructor.
+
+For everything else, two setters configure the same kind of values without a subclass:
+
+`setDatabaseConfigProperties(Properties)`:: Sets one or more `DatabaseConfig` values by
+property name (long or short form) and string value, the same conversion
+`setPropertiesByString()` gives Ant/Maven-driven configuration. This covers `String`,
+`Boolean`, comma-separated `String[]`, and `Integer` properties directly, and any
+object-typed property (`IDataTypeFactory`, `IMetadataHandler`, etc.) whose implementation
+class has a public no-arg constructor, by instantiating it reflectively from the class
+name.
++
+[source,java]
+----
+Properties properties = new Properties();
+properties.setProperty("batchedStatements", "true");
+properties.setProperty("datatypeFactory", "com.example.XxxDataTypeFactory");
+
+PrepAndExpectedTestCase testCase =
+        new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester);
+testCase.setDatabaseConfigProperties(properties);
+----
+
+`setRowCountCheckOverride(boolean, String[])` / `clearRowCountCheckOverride()`:: Enables
+or disables link:../components/rowcountcheck.html[RowCountCheck] and sets its excluded
+table patterns directly, instead of setting
+`FEATURE_ROW_COUNT_CHECK`/`PROPERTY_ROW_COUNT_CHECK_EXCLUDE_TABLES` via
+`setUpDatabaseConfig()`.
++
+[source,java]
+----
+testCase.setRowCountCheckOverride(true, new String[] {"AUDIT_LOG"});
+----
++
+Call `clearRowCountCheckOverride()` to return to resolving the check from the
+connection's own `DatabaseConfig`. This only matters when one instance is reused across
+more than one test (e.g. a JUnit 5/6 `@DbUnitTestCase` static field - see
+<<Annotation_Driven_Equivalent,Annotation-Driven Equivalent>> above) - otherwise an
+earlier test's override would silently carry over onto a later test that declares none.
+
 [#Configuration_Example_Using_Spring]
 == Configuration Example Using Spring
 
@@ -178,6 +270,9 @@ The following configuration shows customizing
 link:/dbunit/apidocs/org/dbunit/database/DatabaseConfig.html[DatabaseConfig] and
 enables dependency injecting the created
 link:/dbunit/apidocs/org/dbunit/PrepAndExpectedTestCase.html[PrepAndExpectedTestCase].
+See <<Configuring_Without_Subclassing,Configuring DatabaseConfig Without Subclassing>>
+above for simpler alternatives to the `setUpDatabaseConfig()` override below, when
+Spring-managed construction and the full subclass aren't otherwise needed.
 
 [source,java]
 ----
