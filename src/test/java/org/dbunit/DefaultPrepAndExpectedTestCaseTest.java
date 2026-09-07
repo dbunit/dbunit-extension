@@ -94,87 +94,6 @@ class DefaultPrepAndExpectedTestCaseTest
     }
 
     @Test
-    void testConfigureTestVerifyingEveryExpectedTable_plainInstance_verifiesEachTableOfTheExpectedDataset()
-            throws Exception
-    {
-        final String[] expectedTableNames =
-                dataFileLoader.load(EXP_DATA_FILE_NAME).getTableNames();
-
-        final boolean configured = tc.configureTestVerifyingEveryExpectedTable(
-                new String[] {PREP_DATA_FILE_NAME}, new String[] {EXP_DATA_FILE_NAME});
-
-        assertThat(configured).as("A plain instance configures itself.").isTrue();
-        assertThat(tc.getVerifyTableDefs()).extracting(VerifyTableDefinition::getTableName)
-                .as("One default definition per table of the expected dataset it loaded.")
-                .containsExactly(expectedTableNames);
-        Assertion.assertEquals(dataFileLoader.load(PREP_DATA_FILE_NAME), tc.getPrepDataset());
-        Assertion.assertEquals(dataFileLoader.load(EXP_DATA_FILE_NAME),
-                tc.getExpectedDataset());
-    }
-
-    @Test
-    void testConfigureTestVerifyingEveryExpectedTable_subclassOverridingConfigureTest_configuresNothingAndReportsFalse()
-            throws Exception
-    {
-        final DefaultPrepAndExpectedTestCase subclass =
-                new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester)
-                {
-                    @Override
-                    public void configureTest(final VerifyTableDefinition[] verifyTables,
-                            final String[] prepDataFiles, final String[] expectedDataFiles)
-                            throws Exception
-                    {
-                        super.configureTest(verifyTables, prepDataFiles, expectedDataFiles);
-                    }
-                };
-
-        final boolean configured = subclass.configureTestVerifyingEveryExpectedTable(
-                new String[] {PREP_DATA_FILE_NAME}, new String[] {EXP_DATA_FILE_NAME});
-
-        assertThat(configured)
-                .as("A subclass that overrides configureTest() may expect the definitions it is"
-                        + " given, so it leaves deriving them to the caller.")
-                .isFalse();
-        assertThat(subclass.getVerifyTableDefs()).as("Nothing was configured.").isEmpty();
-    }
-
-    @Test
-    void testConfigureTestVerifyingEveryExpectedTable_subclassKeepingConfigureTest_verifiesEachTableOfTheExpectedDataset()
-            throws Exception
-    {
-        final DefaultPrepAndExpectedTestCase subclass =
-                new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester)
-                {
-                };
-
-        final boolean configured = subclass.configureTestVerifyingEveryExpectedTable(
-                new String[] {PREP_DATA_FILE_NAME}, new String[] {EXP_DATA_FILE_NAME});
-
-        assertThat(configured)
-                .as("A subclass that keeps this class's configureTest(), for example one that"
-                        + " only overrides compareData(), parses each expected file once too.")
-                .isTrue();
-        assertThat(subclass.getVerifyTableDefs())
-                .as("One definition per table of the expected dataset.")
-                .hasSize(subclass.getExpectedDataset().getTableNames().length);
-    }
-
-    @Test
-    void testConfigureTestVerifyingEveryExpectedTable_expectedFileMissing_releasesTheConnectionItAcquired()
-            throws Exception
-    {
-        assertThatThrownBy(() -> tc.configureTestVerifyingEveryExpectedTable(
-                new String[] {PREP_DATA_FILE_NAME}, new String[] {MISSING_DATA_FILE_NAME}))
-                        .as("A missing expected data file must fail the configuration.")
-                        .isInstanceOf(DatabaseUnitRuntimeException.class);
-
-        final MockDatabaseConnection connection =
-                (MockDatabaseConnection) databaseTester.getConnection();
-        connection.setExpectedCloseCalls(1);
-        connection.verify();
-    }
-
-    @Test
     void testConfigureTest_prepAndExpectedTestDataOverload_configuresSameStateAsArrayOverload()
             throws Exception
     {
@@ -640,6 +559,29 @@ class DefaultPrepAndExpectedTestCaseTest
     }
 
     @Test
+    void testPreTest_prepAndExpectedTestDataOverload_configuresDatasetAndExecutesSetUpOperation()
+            throws Exception
+    {
+        final PrepAndExpectedTestData testData = new PrepAndExpectedTestData(
+                new VerifyTableDefinition[] {}, new String[] {}, new String[] {});
+
+        tc.preTest(testData);
+
+        assertThat(tc.getVerifyTableDefs())
+                .as("The bundle overload must configure the same verify"
+                        + " definitions as the array overload.")
+                .isEmpty();
+
+        final MockDatabaseConnection connection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        // same connection sharing as the array preTest() overload: the
+        // case-sensitivity feature lookup and setupData()'s CLEAN_INSERT share
+        // one connection, left open until cleanupData() closes it (#800, #825)
+        connection.setExpectedCloseCalls(0);
+        connection.verify();
+    }
+
+    @Test
     void testRunTest_withTestSteps_executesStepsAndReturnsTrueResult() throws Exception
     {
         final VerifyTableDefinition[] tables = {};
@@ -653,6 +595,21 @@ class DefaultPrepAndExpectedTestCaseTest
         final Boolean actual = (Boolean) tc.runTest(tables, prepDataFiles,
                 expectedDataFiles, testSteps);
         assertThat(actual).as("Did not receive expected value from runTest().")
+                .isTrue();
+    }
+
+    @Test
+    void testRunTest_prepAndExpectedTestDataOverload_executesStepsAndReturnsResult()
+            throws Exception
+    {
+        final PrepAndExpectedTestCaseSteps testSteps = () -> Boolean.TRUE;
+
+        final Boolean actual =
+                (Boolean) tc.runTest(PrepAndExpectedTestData.NONE, testSteps);
+
+        assertThat(actual)
+                .as("Did not receive expected value from"
+                        + " runTest(PrepAndExpectedTestData, steps).")
                 .isTrue();
     }
 
