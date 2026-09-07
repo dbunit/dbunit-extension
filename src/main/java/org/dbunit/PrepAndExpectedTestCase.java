@@ -55,6 +55,25 @@ public interface PrepAndExpectedTestCase
             throws Exception;
 
     /**
+     * Configure the test from a {@link PrepAndExpectedTestData} bundle instead of
+     * the three separate array arguments. Equivalent to calling
+     * {@link #configureTest(VerifyTableDefinition[], String[], String[])} with
+     * the bundle's three values.
+     *
+     * @param testData
+     *            The verification definitions and prep and expected data files
+     *            for this test.
+     * @throws Exception If the test cannot be configured.
+     * @since 3.6.0
+     */
+    default void configureTest(final PrepAndExpectedTestData testData)
+            throws Exception
+    {
+        configureTest(testData.getVerifyTableDefinitions(),
+                testData.getPrepDataFiles(), testData.getExpectedDataFiles());
+    }
+
+    /**
      * Execute pre-test steps. Call this method before performing the test
      * steps.
      *
@@ -79,6 +98,25 @@ public interface PrepAndExpectedTestCase
             String[] expectedDataFiles) throws Exception;
 
     /**
+     * Convenience method to call configureTest() and preTest(), taking a
+     * {@link PrepAndExpectedTestData} bundle instead of the three separate array
+     * arguments. Equivalent to calling
+     * {@link #preTest(VerifyTableDefinition[], String[], String[])} with the
+     * bundle's three values.
+     *
+     * @param testData
+     *            The verification definitions and prep and expected data files
+     *            for this test.
+     * @throws Exception If the pre-test steps fail.
+     * @since 3.6.0
+     */
+    default void preTest(final PrepAndExpectedTestData testData) throws Exception
+    {
+        preTest(testData.getVerifyTableDefinitions(),
+                testData.getPrepDataFiles(), testData.getExpectedDataFiles());
+    }
+
+    /**
      * Run the DbUnit test.
      *
      * @param verifyTables
@@ -98,6 +136,29 @@ public interface PrepAndExpectedTestCase
     Object runTest(VerifyTableDefinition[] verifyTables, String[] prepDataFiles,
             String[] expectedDataFiles, PrepAndExpectedTestCaseSteps testSteps)
             throws Exception;
+
+    /**
+     * Run the DbUnit test from a {@link PrepAndExpectedTestData} bundle instead
+     * of the three separate array arguments. Equivalent to calling
+     * {@link #runTest(VerifyTableDefinition[], String[], String[], PrepAndExpectedTestCaseSteps)}
+     * with the bundle's three values and the given test steps.
+     *
+     * @param testData
+     *            The verification definitions and prep and expected data files
+     *            for this test.
+     * @param testSteps
+     *            The test steps to run.
+     * @return The user-defined object from running the test steps.
+     * @throws Exception If the test steps fail.
+     * @since 3.6.0
+     */
+    default Object runTest(final PrepAndExpectedTestData testData,
+            final PrepAndExpectedTestCaseSteps testSteps) throws Exception
+    {
+        return runTest(testData.getVerifyTableDefinitions(),
+                testData.getPrepDataFiles(), testData.getExpectedDataFiles(),
+                testSteps);
+    }
 
     /**
      * Execute all post-test steps. Call this method after performing the test

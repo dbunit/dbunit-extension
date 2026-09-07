@@ -90,6 +90,29 @@ class DefaultPrepAndExpectedTestCaseTest
     }
 
     @Test
+    void testConfigureTest_prepAndExpectedTestDataOverload_configuresSameStateAsArrayOverload()
+            throws Exception
+    {
+        final VerifyTableDefinition[] tables = {};
+        final PrepAndExpectedTestData testData = new PrepAndExpectedTestData(
+                tables, new String[] {PREP_DATA_FILE_NAME},
+                new String[] {EXP_DATA_FILE_NAME});
+
+        tc.configureTest(testData);
+
+        assertThat(tc.getVerifyTableDefs())
+                .as("The bundle overload must configure the same verify"
+                        + " definitions as the array overload.")
+                .isEqualTo(tables);
+
+        final IDataSet expPrepDs = dataFileLoader.load(PREP_DATA_FILE_NAME);
+        Assertion.assertEquals(expPrepDs, tc.getPrepDataset());
+
+        final IDataSet expExpDs = dataFileLoader.load(EXP_DATA_FILE_NAME);
+        Assertion.assertEquals(expExpDs, tc.getExpectedDataset());
+    }
+
+    @Test
     void testConfigureTest_calledAlone_leavesConnectionOpen() throws Exception
     {
         tc.configureTest(new VerifyTableDefinition[] {}, new String[] {},
@@ -185,6 +208,29 @@ class DefaultPrepAndExpectedTestCaseTest
     }
 
     @Test
+    void testPreTest_prepAndExpectedTestDataOverload_configuresDatasetAndExecutesSetUpOperation()
+            throws Exception
+    {
+        final PrepAndExpectedTestData testData = new PrepAndExpectedTestData(
+                new VerifyTableDefinition[] {}, new String[] {}, new String[] {});
+
+        tc.preTest(testData);
+
+        assertThat(tc.getVerifyTableDefs())
+                .as("The bundle overload must configure the same verify"
+                        + " definitions as the array overload.")
+                .isEmpty();
+
+        final MockDatabaseConnection connection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        // same connection sharing as the array preTest() overload: the
+        // case-sensitivity feature lookup and setupData()'s CLEAN_INSERT share
+        // one connection, left open until cleanupData() closes it (#800, #825)
+        connection.setExpectedCloseCalls(0);
+        connection.verify();
+    }
+
+    @Test
     void testRunTest_withTestSteps_executesStepsAndReturnsTrueResult() throws Exception
     {
         final VerifyTableDefinition[] tables = {};
@@ -198,6 +244,21 @@ class DefaultPrepAndExpectedTestCaseTest
         final Boolean actual = (Boolean) tc.runTest(tables, prepDataFiles,
                 expectedDataFiles, testSteps);
         assertThat(actual).as("Did not receive expected value from runTest().")
+                .isTrue();
+    }
+
+    @Test
+    void testRunTest_prepAndExpectedTestDataOverload_executesStepsAndReturnsResult()
+            throws Exception
+    {
+        final PrepAndExpectedTestCaseSteps testSteps = () -> Boolean.TRUE;
+
+        final Boolean actual =
+                (Boolean) tc.runTest(PrepAndExpectedTestData.NONE, testSteps);
+
+        assertThat(actual)
+                .as("Did not receive expected value from"
+                        + " runTest(PrepAndExpectedTestData, steps).")
                 .isTrue();
     }
 

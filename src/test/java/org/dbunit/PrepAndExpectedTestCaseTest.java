@@ -148,6 +148,80 @@ class PrepAndExpectedTestCaseTest
                 .doesNotThrowAnyException();
     }
 
+    @Test
+    void testConfigureTest_testDataOverload_forwardsBundleContentsToArrayOverload()
+            throws Exception
+    {
+        final RecordingTestCase testCase = new RecordingTestCase();
+        final VerifyTableDefinition table =
+                new VerifyTableDefinition("ACCOUNT", new String[] {});
+        final PrepAndExpectedTestData testData = new PrepAndExpectedTestData(
+                new VerifyTableDefinition[] {table},
+                new String[] {"/prep/accounts.xml"},
+                new String[] {"/expected/accounts-after.xml"});
+
+        testCase.configureTest(testData);
+
+        assertThat(testCase.verifyTables)
+                .as("configureTest(testData) must forward the bundle's verify"
+                        + " definitions to the array overload.")
+                .containsExactly(table);
+        assertThat(testCase.prepDataFiles)
+                .as("configureTest(testData) must forward the bundle's prep files"
+                        + " to the array overload.")
+                .containsExactly("/prep/accounts.xml");
+        assertThat(testCase.expectedDataFiles)
+                .as("configureTest(testData) must forward the bundle's expected"
+                        + " files to the array overload.")
+                .containsExactly("/expected/accounts-after.xml");
+    }
+
+    @Test
+    void testPreTest_testDataOverload_forwardsBundleContentsToArrayOverload()
+            throws Exception
+    {
+        final RecordingTestCase testCase = new RecordingTestCase();
+        final PrepAndExpectedTestData testData = new PrepAndExpectedTestData(null,
+                new String[] {"/prep/accounts.xml"},
+                new String[] {"/expected/accounts-after.xml"});
+
+        testCase.preTest(testData);
+
+        assertThat(testCase.prepDataFiles)
+                .as("preTest(testData) must forward the bundle's prep files to the"
+                        + " array overload.")
+                .containsExactly("/prep/accounts.xml");
+        assertThat(testCase.expectedDataFiles)
+                .as("preTest(testData) must forward the bundle's expected files to"
+                        + " the array overload.")
+                .containsExactly("/expected/accounts-after.xml");
+    }
+
+    @Test
+    void testRunTest_testDataOverload_forwardsBundleAndStepsAndReturnsArrayOverloadResult()
+            throws Exception
+    {
+        final RecordingTestCase testCase = new RecordingTestCase();
+        final PrepAndExpectedTestCaseSteps steps = () -> null;
+        final PrepAndExpectedTestData testData =
+                PrepAndExpectedTestData.prepOnly("/prep/accounts.xml");
+
+        final Object result = testCase.runTest(testData, steps);
+
+        assertThat(testCase.prepDataFiles)
+                .as("runTest(testData, steps) must forward the bundle's prep files"
+                        + " to the array overload.")
+                .containsExactly("/prep/accounts.xml");
+        assertThat(testCase.ranSteps)
+                .as("runTest(testData, steps) must forward the test steps"
+                        + " unchanged to the array overload.")
+                .isSameAs(steps);
+        assertThat(result)
+                .as("runTest(testData, steps) must return exactly what the array"
+                        + " overload returned.")
+                .isSameAs(testCase.runTestResult);
+    }
+
     /**
      * Implements only {@link PrepAndExpectedTestCase}'s abstract methods, so every default
      * method - the ones under test here - runs the interface's own body untouched.
@@ -209,6 +283,53 @@ class PrepAndExpectedTestCaseTest
         public IDataSet getExpectedDataset()
         {
             return null;
+        }
+    }
+
+    /**
+     * Records the arguments the {@link PrepAndExpectedTestData} default overloads pass on to
+     * their array-based counterparts, so a test can assert the bundle was unpacked and
+     * forwarded correctly.
+     */
+    private static final class RecordingTestCase extends Bare
+    {
+        private final Object runTestResult = new Object();
+
+        private VerifyTableDefinition[] verifyTables;
+        private String[] prepDataFiles;
+        private String[] expectedDataFiles;
+        private PrepAndExpectedTestCaseSteps ranSteps;
+
+        @Override
+        public void configureTest(final VerifyTableDefinition[] verifyTables,
+                final String[] prepDataFiles, final String[] expectedDataFiles)
+        {
+            record(verifyTables, prepDataFiles, expectedDataFiles);
+        }
+
+        @Override
+        public void preTest(final VerifyTableDefinition[] verifyTables,
+                final String[] prepDataFiles, final String[] expectedDataFiles)
+        {
+            record(verifyTables, prepDataFiles, expectedDataFiles);
+        }
+
+        @Override
+        public Object runTest(final VerifyTableDefinition[] verifyTables,
+                final String[] prepDataFiles, final String[] expectedDataFiles,
+                final PrepAndExpectedTestCaseSteps testSteps)
+        {
+            record(verifyTables, prepDataFiles, expectedDataFiles);
+            ranSteps = testSteps;
+            return runTestResult;
+        }
+
+        private void record(final VerifyTableDefinition[] verifyTables,
+                final String[] prepDataFiles, final String[] expectedDataFiles)
+        {
+            this.verifyTables = verifyTables;
+            this.prepDataFiles = prepDataFiles;
+            this.expectedDataFiles = expectedDataFiles;
         }
     }
 }

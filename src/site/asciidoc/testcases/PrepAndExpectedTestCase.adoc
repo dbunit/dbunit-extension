@@ -211,6 +211,99 @@ link:annotations.html[DbUnit Annotations] for the full reference, and its
 link:annotations.html#applicability[When Not to Use These Annotations]
 section for the `@ParameterizedTest` and non-dbUnit-assertion cases where
 the programmatic API above remains the right tool.
+<<Bundling_Test_Data,Bundling Prep, Expected, and Verify Into One Argument>>
+below shows how to keep that API compact in a `@ParameterizedTest`.
+
+[#Bundling_Test_Data]
+== Bundling Prep, Expected, and Verify Into One Argument
+
+`configureTest()`, `preTest()`, and `runTest()` each take the same three
+arguments in the same order — a
+link:/dbunit/apidocs/org/dbunit/VerifyTableDefinition.html[VerifyTableDefinition]
+array, a prep data file `String` array, and an expected data file `String`
+array. The three describe one test scenario and are meaningless apart.
+
+link:/dbunit/apidocs/org/dbunit/PrepAndExpectedTestData.html[PrepAndExpectedTestData]
+bundles them into one immutable value, and each of those three methods has an
+overload accepting it. In a single-scenario test this saves little. In a
+data-driven test it stops the triple from propagating through the
+`@ParameterizedTest` method signature, every row of the `@MethodSource`, and any
+row-factory method written to keep those rows readable.
+
+Two shortcuts cover the common partial cases:
+`PrepAndExpectedTestData.NONE` is a shared constant that verifies nothing and
+loads nothing — replacing a separate empty constant per array type — and
+`PrepAndExpectedTestData.prepOnly(String...)` builds one that loads prep data
+with no verification.
+
+=== Before
+
+[source,java]
+----
+private static final VerifyTableDefinition[] VERIFY_TABLES_SUCCESS =
+        {AppVerifyTables.ACCOUNT, AppVerifyTables.TRANSACTION};
+private static final VerifyTableDefinition[] VERIFY_TABLES_NONE = {};
+private static final String[] PREP_FILES_SUCCESS = {PREP_DIR + "accounts.xml"};
+private static final String[] PREP_FILES_NONE = {};
+private static final String[] EXPECTED_FILES_SUCCESS = {EXPECTED_DIR + "accounts-after.xml"};
+private static final String[] EXPECTED_FILES_NONE = {};
+
+@ParameterizedTest(name = "[{index}] {0}")
+@MethodSource("testData")
+void test(String testName, VerifyTableDefinition[] verifyTables, String[] prepDataFiles,
+        String[] expectedDataFiles, BigDecimal amount, HttpStatus expectedStatus)
+        throws Exception
+{
+    testCase.runTest(verifyTables, prepDataFiles, expectedDataFiles, () -> {
+        restTester.post(WITHDRAW_URL, amount, expectedStatus);
+        return null;
+    });
+}
+
+private static Object[][] testData()
+{
+    return new Object[][] {
+            {"sufficient balance", VERIFY_TABLES_SUCCESS, PREP_FILES_SUCCESS,
+                    EXPECTED_FILES_SUCCESS, AMOUNT_VALID, HttpStatus.OK},
+            {"insufficient balance", VERIFY_TABLES_NONE, PREP_FILES_NONE,
+                    EXPECTED_FILES_NONE, AMOUNT_TOO_LARGE, HttpStatus.BAD_REQUEST},
+    };
+}
+----
+
+=== After
+
+[source,java]
+----
+private static final PrepAndExpectedTestData DATA_SUCCESS = new PrepAndExpectedTestData(
+        new VerifyTableDefinition[] {AppVerifyTables.ACCOUNT, AppVerifyTables.TRANSACTION},
+        new String[] {PREP_DIR + "accounts.xml"},
+        new String[] {EXPECTED_DIR + "accounts-after.xml"});
+
+@ParameterizedTest(name = "[{index}] {0}")
+@MethodSource("testData")
+void test(String testName, PrepAndExpectedTestData testData, BigDecimal amount,
+        HttpStatus expectedStatus) throws Exception
+{
+    testCase.runTest(testData, () -> {
+        restTester.post(WITHDRAW_URL, amount, expectedStatus);
+        return null;
+    });
+}
+
+private static Object[][] testData()
+{
+    return new Object[][] {
+            {"sufficient balance", DATA_SUCCESS, AMOUNT_VALID, HttpStatus.OK},
+            {"insufficient balance", PrepAndExpectedTestData.NONE, AMOUNT_TOO_LARGE,
+                    HttpStatus.BAD_REQUEST},
+    };
+}
+----
+
+Six constants collapse to one, three method parameters to one, and three columns
+per `@MethodSource` row to one. Each scenario's three facts now sit together
+instead of being matched by position across three arrays.
 
 [#Configuring_Without_Subclassing]
 == Configuring DatabaseConfig Without Subclassing

@@ -827,7 +827,10 @@ annotations *at all*. The programmatic `runTest()` API on
 link:PrepAndExpectedTestCase.html[PrepAndExpectedTestCase] remains the
 right and fully supported tool for that case, and for suites that layer
 non-dbUnit assertions (exit codes, exception types, notification content)
-around the dbUnit portion of a test.
+around the dbUnit portion of a test. Its
+link:PrepAndExpectedTestCase.html#Bundling_Test_Data[PrepAndExpectedTestData]
+overloads keep the per-row prep/expected/verify triple to a single
+`@MethodSource` column and a single method parameter.
 
 `@DbUnitTestCase` field injection still helps such suites, even without the
 lifecycle annotations: it makes the harness wiring explicit on the field
