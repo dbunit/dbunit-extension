@@ -72,7 +72,7 @@ import org.dbunit.IOperationListener;
  * @author Jeff Jensen
  * @since 3.6.0
  */
-public final class ConnectionOwnership
+public class ConnectionOwnership
 {
     private final BooleanSupplier closeConnectionAfterTest;
     private final Supplier<IOperationListener> testerListener;

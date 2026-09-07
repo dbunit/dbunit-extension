@@ -46,7 +46,7 @@ import org.slf4j.LoggerFactory;
  * @author Jeff Jensen
  * @since 3.6.0
  */
-public final class AutoCommitOffWarning implements Consumer<IDatabaseConnection>
+public class AutoCommitOffWarning implements Consumer<IDatabaseConnection>
 {
     private final Logger log = LoggerFactory.getLogger(AutoCommitOffWarning.class);
 

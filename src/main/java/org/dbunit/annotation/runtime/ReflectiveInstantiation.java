@@ -36,7 +36,7 @@ import java.lang.reflect.InvocationTargetException;
  * @author Jeff Jensen
  * @since 3.6.0
  */
-public final class ReflectiveInstantiation
+public class ReflectiveInstantiation
 {
     private ReflectiveInstantiation()
     {

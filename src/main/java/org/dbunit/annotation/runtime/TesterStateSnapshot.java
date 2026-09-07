@@ -39,7 +39,7 @@ import org.dbunit.operation.DatabaseOperation;
  * @author Jeff Jensen
  * @since 3.6.0
  */
-public final class TesterStateSnapshot
+public class TesterStateSnapshot
 {
     private final IDataSet dataSet;
     private final DatabaseOperation setUpOperation;

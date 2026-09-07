@@ -47,7 +47,7 @@ import org.dbunit.dataset.filter.ExcludeTableFilter;
  * @author dbunit
  * @since 3.6.0
  */
-public final class RowCountCheckConfiguration
+public class RowCountCheckConfiguration
 {
     /**
      * System property overriding {@link DatabaseConfig#FEATURE_ROW_COUNT_CHECK}, in either

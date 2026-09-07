@@ -54,7 +54,7 @@ import org.dbunit.util.fileloader.FileExtensionDataFileLoader;
  * @author Jeff Jensen
  * @since 3.6.0
  */
-public final class AnnotatedTestConfiguration
+public class AnnotatedTestConfiguration
 {
     private final DataFileLoader dataFileLoader;
     private final String[] prepDataFiles;

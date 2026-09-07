@@ -34,7 +34,7 @@ package org.dbunit.annotation.runtime;
  * @author Jeff Jensen
  * @since 3.6.0
  */
-public final class DefaultMethodOverrideCheck
+public class DefaultMethodOverrideCheck
 {
     private DefaultMethodOverrideCheck()
     {

@@ -37,7 +37,7 @@ import java.util.Set;
  * @author dbunit
  * @since 3.6.0
  */
-public final class RowCountSnapshot
+public class RowCountSnapshot
 {
     private final Map<String, Integer> rowCounts;
 

@@ -29,7 +29,7 @@ import java.util.Objects;
  * @author dbunit
  * @since 3.6.0
  */
-public final class RowCountDifference
+public class RowCountDifference
 {
     private static final String ADVICE_ROWS_LEFT_BEHIND =
             "rows left behind; add the table to the expected dataset, or exclude it";
