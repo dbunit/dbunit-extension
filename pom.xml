@@ -1174,6 +1174,33 @@
             </configuration>
           </reportSet>
           <reportSet>
+            <id>3.5.1-to-3.5.2</id>
+            <reports>
+              <report>cmp-report</report>
+            </reports>
+            <configuration>
+              <parameter>
+                <reportLinkName>3.5.1-to-3.5.2</reportLinkName>
+              </parameter>
+              <oldVersion>
+                <dependency>
+                  <groupId>${project.groupId}</groupId>
+                  <artifactId>${project.artifactId}</artifactId>
+                  <version>3.5.1</version>
+                  <type>jar</type>
+                </dependency>
+              </oldVersion>
+              <newVersion>
+                <dependency>
+                  <groupId>${project.groupId}</groupId>
+                  <artifactId>${project.artifactId}</artifactId>
+                  <version>3.5.2</version>
+                  <type>jar</type>
+                </dependency>
+              </newVersion>
+            </configuration>
+          </reportSet>
+          <reportSet>
             <id>3.5.0-to-3.5.1</id>
             <reports>
               <report>cmp-report</report>
