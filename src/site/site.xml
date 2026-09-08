@@ -34,6 +34,9 @@
       <item name="" href="https://github.com/jvm-repo-rebuild/reproducible-central/blob/master/content/org/dbunit/README.md">
         <image src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/jvm-repo-rebuild/reproducible-central/master/content/org/dbunit/badge.json"/>
       </item>
+      <item name="" href="https://central.sonatype.com/artifact/org.dbunit/dbunit">
+        <image src="https://api.scarf.sh/v2/packages/Dbunit/8fb62e30-d923-4676-bfd0-f57445d56578/downloads-badge" alt="Maven Central download count"/>
+      </item>
     </links>
 
     <breadcrumbs>
