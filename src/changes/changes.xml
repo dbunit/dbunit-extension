@@ -13,7 +13,7 @@
   </properties>
 
   <body>
-    <release version="3.5.2-SNAPSHOT" date="TBD" description="DefaultPrepAndExpectedTestCase connection hygiene: replace a connection the pool or database dropped between tests, and warn when handed a non-autocommit connection">
+    <release version="3.5.2" date="Sep 7, 2026" description="DefaultPrepAndExpectedTestCase connection hygiene: replace a connection the pool or database dropped between tests, and warn when handed a non-autocommit connection">
       <action dev="jeffjensen" type="fix" issue="962" system="github" due-to="jeffjensen">
           Fix DefaultPrepAndExpectedTestCase reusing a closed connection when closeConnectionAfterTest is false and one instance is reused across test methods (a base-class or shared static field paired with a CachingConnectionProvider): getReusableConnection() pinned the first IDatabaseConnection in a field and closeReusableConnection() kept it there without closing, so a connection the pool or database dropped between tests - max-lifetime/reap, a PGConnectionPoolDataSource issuing a fresh handle, a bounced application context, an idle-in-transaction kill - left every following test failing on it, in setupData()'s CLEAN_INSERT and then cleanupData()'s tear down operation, with CachingConnectionProvider's own liveness check never reached to replace it. getReusableConnection() now discards a closed cached connection before returning it, and closeReusableConnectionSuppressing() forgets the connection after any failed lifecycle step, so the next test re-acquires a live one from the tester. Present since 3.4.0, when setCloseConnectionAfterTest() was added.
       </action>
