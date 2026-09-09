@@ -17,6 +17,7 @@ It enables comparisons such as:
 * greater-than
 * less-than
 * contains
+* regular expression match
 * complex multi-column-based
 * dynamically choosing the ValueComparer based on criteria
 
@@ -49,9 +50,9 @@ Start with these as they provide for most comparison needs.
 For a column whose exact content a test does not control but whose format it
 does - a database-generated id, a UUID, a formatted identifier, a timestamp
 rendered into a text column -
-link:../apidocs/org/dbunit/assertion/comparer/value/RegularExpressionValueComparer.html[RegularExpressionValueComparer]
+link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/RegularExpressionValueComparer.html[RegularExpressionValueComparer]
 (also
-link:../apidocs/org/dbunit/assertion/comparer/value/ValueComparers.html#regularExpressionValueComparer[ValueComparers.regularExpressionValueComparer])
+link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparers.html#regularExpressionValueComparer[ValueComparers.regularExpressionValueComparer])
 takes the expected dataset value as a regular expression and passes when it
 matches the actual value in its entirety, the same rule as
 `java.lang.String.matches`. To match only part of the value, wrap the pattern in

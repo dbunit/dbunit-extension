@@ -103,6 +103,42 @@ public class DbUnitValueComparerAssertIT
     }
 
     @Test
+    void testAssertWithValueComparer_regularExpression_passesWhenActualMatchesPattern()
+            throws Exception
+    {
+        final Column[] columns =
+                new Column[]{new Column("ID", DataType.VARCHAR)};
+
+        final DefaultTable expected = new DefaultTable("T", columns);
+        expected.addRow(new Object[]{"[0-9]+"});
+
+        final DefaultTable actual = new DefaultTable("T", columns);
+        actual.addRow(new Object[]{"4071"});
+
+        assertDoesNotThrow(() -> sut.assertWithValueComparer(expected, actual,
+                ValueComparers.regularExpressionValueComparer));
+    }
+
+    @Test
+    void testAssertWithValueComparer_regularExpression_failsWhenActualDoesNotMatchPattern()
+            throws Exception
+    {
+        final Column[] columns =
+                new Column[]{new Column("ID", DataType.VARCHAR)};
+
+        final DefaultTable expected = new DefaultTable("T", columns);
+        expected.addRow(new Object[]{"[0-9]+"});
+
+        final DefaultTable actual = new DefaultTable("T", columns);
+        actual.addRow(new Object[]{"4071-A"});
+
+        assertThatThrownBy(() -> sut.assertWithValueComparer(expected, actual,
+                ValueComparers.regularExpressionValueComparer))
+                        .as("A value not matching the pattern should fail the comparison.")
+                        .isInstanceOf(DbComparisonFailure.class);
+    }
+
+    @Test
     void testAssertWithValueComparer_isActualNull_passesWhenActualIsNull()
             throws Exception
     {
