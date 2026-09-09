@@ -13,7 +13,7 @@
   </properties>
 
   <body>
-    <release version="3.6.0-SNAPSHOT" date="TBD" description="Row count check detecting test teardown missed or wrongly cleaned tables, and annotation-driven test configuration for JUnit 5/6 (Jupiter) tests">
+    <release version="3.6.0-SNAPSHOT" date="TBD" description="Annotation-driven test configuration for JUnit 5/6 (Jupiter) tests, row count check detecting test teardown missed or wrongly cleaned tables, a regular-expression ValueComparer, and a bundled prep/expected/verify test-data value type">
       <action dev="jeffjensen" type="add" issue="939" system="github" due-to="jeffjensen">
           Add an opt-in diagnostic that compares every table's row count before and after a test, failing the test when a count moved - catching a table the test left dirty, or a reference table it wrongly cleaned. Adds the org.dbunit.database.rowcount package (RowCounter, QueryPerTableRowCounter, RowCountSnapshot, RowCountDifference, RowCountCheck, RowCountChecker, RowCountCheckConfiguration, UnexpectedRowCountException) and the DatabaseConfig keys FEATURE_ROW_COUNT_CHECK (off by default), PROPERTY_ROW_COUNT_CHECK_EXCLUDE_TABLES, and PROPERTY_ROW_COUNTER.
       </action>
