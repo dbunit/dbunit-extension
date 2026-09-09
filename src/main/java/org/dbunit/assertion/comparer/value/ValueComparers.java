@@ -149,6 +149,16 @@ public abstract class ValueComparers
             new IsActualContainingExpectedStringValueComparer();
 
     /**
+     * Checks whether the actual value matches, in its entirety, the regular
+     * expression given as the expected value.
+     *
+     * @see RegularExpressionValueComparer
+     * @since 3.6.0
+     */
+    public static final ValueComparer regularExpressionValueComparer =
+            new RegularExpressionValueComparer();
+
+    /**
      * Verifies nothing and never fails.
      *
      * @see NeverFailsValueComparer
