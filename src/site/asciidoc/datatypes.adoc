@@ -11,7 +11,8 @@ see link:properties.html#typefactory[the DataType Factory property] for how
 to override or extend the mapping, and
 link:databases.html[Database-Specific Guides] for vendor-specific types
 (Oracle `SDO_GEOMETRY`, PostgreSQL `citext`/`interval`/`inet`, MSSQL
-`uniqueidentifier`/`datetimeoffset`, and more) not covered here.
+`uniqueidentifier`/`datetimeoffset`, MariaDB `UUID`/`INET4`/`INET6`, and
+more) not covered here.
 
 How a dataset field's text becomes a typed value of one of these types —
 nulls, empty strings, the `[TEXT|BASE64|FILE|URL]` and `[now...]` bracket

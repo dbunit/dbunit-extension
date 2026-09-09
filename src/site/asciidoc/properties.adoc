@@ -115,6 +115,7 @@ For example the escape pattern `"\""` will have the same effect as the escape pa
 link:apidocs/org/dbunit/ext/db2/Db2DataTypeFactory.html[org.dbunit.ext.db2.Db2DataTypeFactory] +
 link:apidocs/org/dbunit/ext/h2/H2DataTypeFactory.html[org.dbunit.ext.h2.H2DataTypeFactory] +
 link:apidocs/org/dbunit/ext/hsqldb/HsqldbDataTypeFactory.html[org.dbunit.ext.hsqldb.HsqldbDataTypeFactory] +
+link:apidocs/org/dbunit/ext/mariadb/MariaDbDataTypeFactory.html[org.dbunit.ext.mariadb.MariaDbDataTypeFactory] +
 link:apidocs/org/dbunit/ext/mckoi/MckoiDataTypeFactory.html[org.dbunit.ext.mckoi.MckoiDataTypeFactory] +
 link:apidocs/org/dbunit/ext/mssql/MsSqlDataTypeFactory.html[org.dbunit.ext.mssql.MsSqlDataTypeFactory] +
 link:apidocs/org/dbunit/ext/mysql/MySqlDataTypeFactory.html[org.dbunit.ext.mysql.MySqlDataTypeFactory] +
@@ -163,6 +164,7 @@ link:apidocs/org/dbunit/ext/h2/H2MetadataHandler.html[org.dbunit.ext.h2.H2Metada
 link:apidocs/org/dbunit/ext/mysql/MySqlMetadataHandler.html[org.dbunit.ext.mysql.MySqlMetadataHandler] +
 link:apidocs/org/dbunit/ext/mysql/MultiSchemaMySqlMetadataHandler.html[org.dbunit.ext.mysql.MultiSchemaMySqlMetadataHandler] +
 link:apidocs/org/dbunit/ext/netezza/NetezzaMetadataHandler.html[org.dbunit.ext.netezza.NetezzaMetadataHandler] +
+MariaDB uses `MySqlMetadataHandler` as well — there it is required rather than optional; see link:databases/mariadb.html[MariaDB]. +
 For all others the default handler should do the job: link:apidocs/org/dbunit/database/DefaultMetadataHandler.html[org.dbunit.database.DefaultMetadataHandler]. See link:components/imetadatahandler.html[IMetadataHandler] for the full reference.
 
 |anchor:allowverifytabledefinitionexpectedtablecountmismatch[]http://www.dbunit.org/properties/allowVerifytabledefinitionExpectedtableCountMismatch
