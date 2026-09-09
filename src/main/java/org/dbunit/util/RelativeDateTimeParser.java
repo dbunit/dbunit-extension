@@ -115,8 +115,8 @@ public class RelativeDateTimeParser
         {
             throw new IllegalArgumentException("'" + input
                     + "' does not match the expected pattern [now{diff}{time}]. "
-                    + "Please see the data types documentation for the details. "
-                    + "http://dbunit.sourceforge.net/datatypes.html#relativedatetime");
+                    + "Please see the dataset values documentation for the details. "
+                    + "https://dbunit.github.io/dbunit-extension/datasets/values.html#datetime");
         }
 
         LocalDateTime datetime = initLocalDateTime(matcher);
