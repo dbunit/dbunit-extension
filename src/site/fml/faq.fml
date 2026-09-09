@@ -67,7 +67,7 @@
         How to learn more about known and fixed issues?
       </question>
       <answer>
-      <p>Look at <a href="changes-report.html">Changes Report</a> and at <a href="issue-tracking.html">Issue Tracking</a>.</p>
+      <p>Look at <a href="changes.html">Changes Report</a> and at <a href="issue-tracking.html">Issue Tracking</a>.</p>
       </answer>
     </faq>
   </part>  
@@ -839,7 +839,7 @@ PostgresqlDataTypeFactory factory = new PostgresqlDataTypeFactory(){
     	Why am I getting the following error: "java.lang.NoClassDefFoundError: org/slf4j/LoggerFactory"
     	</question>
     	<answer>
-    	<p>Since version <a href="changes-report.html#a2.2.1">2.2.1</a>, DbUnit uses SLF4J for logging purposes (See 
+    	<p>Since version <a href="changes.html#a2.2.1">2.2.1</a>, DbUnit uses SLF4J for logging purposes (See 
     	<a href="http://www.dbunit.org/dependencies.html">dependencies</a>).  You must therefore download
     	SLF4J and include slf4j-api-*.jar and the jar corresponding to your favourite logging library
     	in your classpath (<i>e.g.</i> slf4j-log4j12-*.jar for Log4j or slf4j-jcl-*.jar for commons-logging).

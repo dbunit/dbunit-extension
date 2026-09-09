@@ -158,7 +158,7 @@ has two ways to setup, execute, and clean up tests:
 . Encapsulate the test steps in
   link:../apidocs/org/dbunit/PrepAndExpectedTestCaseSteps.html[PrepAndExpectedTestCaseSteps]
   and call the runTest() method.
-  Note, this requires link:/dbunit/changes-report.html#a2.5.2[Release 2.5.2] and newer.
+  Note, this requires link:../changes.html#a2.5.2[Release 2.5.2] and newer.
 
 . Call the configureTest(), preTest(),
   and postTest() methods. Note there is a preTest() convenience method that
@@ -844,7 +844,7 @@ Then, pass the needed ones in the correct data file array
 
 == Java 8+ and Anonymous Interfaces
 
-link:/dbunit/changes-report.html#a2.5.2[Release 2.5.2] introduced interface
+link:../changes.html#a2.5.2[Release 2.5.2] introduced interface
 link:../apidocs/org/dbunit/PrepAndExpectedTestCaseSteps.html[PrepAndExpectedTestCaseSteps]
 and the
 link:../apidocs/org/dbunit/PrepAndExpectedTestCase.html#runTest-org.dbunit.VerifyTableDefinition:A-java.lang.String:A-java.lang.String:A-org.dbunit.PrepAndExpectedTestCaseSteps-[PrepAndExpectedTestCase#runTest(VerifyTableDefinition[], String[], String[], PrepAndExpectedTestCaseSteps)]

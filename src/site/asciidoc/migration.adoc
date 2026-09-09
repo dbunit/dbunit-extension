@@ -2,7 +2,7 @@
 
 To migrate from an older DbUnit release to a newer one you can find some useful information here.
 
-Be sure to review the link:changes-report.html[Changes Report] for more current details.
+Be sure to review the link:changes.html[Changes Report] for more current details.
 
 NOTE: Looking to migrate a test *class* from extending `DBTestCase` to
 `IDatabaseTester` composition, rather than upgrading between dbUnit

@@ -3,7 +3,7 @@ Jeff Jensen
 
 == Overview
 
-Introduced in link:/dbunit/changes-report.html#a2.6.0[Release 2.6.0], the
+Introduced in link:../changes.html#a2.6.0[Release 2.6.0], the
 link:../apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html[ValueComparer]
 is a strategy interface enabling any type of comparison, not only equality.
 
