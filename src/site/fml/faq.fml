@@ -185,9 +185,10 @@ public class DatabaseExportSample
      How to specify NULL values with flat XML dataset?
       </question>
       <answer>
-      <p>See <a href="datasets/flatxml.html">FlatXmlDataSet documentation</a></p>
+      <p>Omit the attribute, or use the <code>[NULL]</code> placeholder with a ReplacementDataSet.
+      See <a href="datasets/values.html#null">Dataset Values: Null</a>.</p>
       </answer>
-    </faq>  
+    </faq>
     
     <faq id="views">
       <question>
@@ -221,32 +222,12 @@ public class DatabaseExportSample
       What are the date formats supported by DbUnit?
       </question>
       <answer>
-     <p>DbUnit use the JDBC escape formats for string representation.
-      <table border="1">
-        <tr> 
-          <th>Type</th>
-          <th>Format</th>
-        </tr>
-        <tr> 
-          <td>DATE</td>
-          <td>yyyy-mm-dd</td>
-        </tr>
-        <tr> 
-          <td>TIME</td>
-          <td>hh:mm:ss</td>
-        </tr>
-        <tr> 
-          <td>TIMESTAMP</td>
-          <td>yyyy-mm-dd hh:mm:ss.fffffffff</td>
-        </tr>
-      </table>
-</p>
-      <p>
-      There also is special syntax to set relative date, time and timestamp.
-      See <a href="datatypes.html#relativedatetime">data types documentation</a>.
-      </p>
+      <p>DbUnit uses the JDBC escape formats (<code>yyyy-mm-dd</code>, <code>hh:mm:ss</code>,
+      <code>yyyy-mm-dd hh:mm:ss.fffffffff</code>), plus a <code>[now...]</code> syntax for
+      relative dates, times, and timestamps.
+      See <a href="datasets/values.html#datetime">Dataset Values: Dates and times</a>.</p>
       </answer>
-    </faq>    
+    </faq>
 
     <faq id="typefactory">
       <question>
@@ -595,33 +576,15 @@ connection.getConfig().setProperty(
     
     <faq id="differentcolumnnumber">
       <question>
-      I'm getting the following message: Extra columns on line x.  Those columns will be ignored.  
+      I'm getting the following message: Extra columns on line x.  Those columns will be ignored.
       Please add the extra columns to line 1, or use a DTD to make sure the value of those columns are populated.
       Why is that?
       </question>
       <answer>
         <p>
-        DbUnit uses the first tag for a table to define the columns to be populated.  If the following records 
-        for this table contain extra columns, these ones will therefore not be populated.  To solve this, either
-        define all the columns of the table in the first row (using NULL values for the empty columns), or use
-        a DTD to define the metadata of the tables you use.
-        </p>
-        <p>
-        Since DBUnit 2.3.0 there is a functionality called "column sensing" which basically reads in the whole XML into
-        a buffer and dynamically adds new columns as they appear. It can be used as demonstrated in the following example:
-          <source>
-//Since release 2.4.7 we use a builder:
-FlatXmlDataSetBuilder builder = new FlatXmlDataSetBuilder();
-builder.setColumnSensing(true);
-IDataSet dataSet = builder.build(new File("src/xml/flatXmlTableTest.xml"));
-          </source>
-          <source>
-              //This is for release &lt; 2.4.7
-              <del>
-boolean enableColumnSensing = true;
-IDataSet dataSet = new FlatXmlDataSet(new File("src/xml/flatXmlTableTest.xml"), false, enableColumnSensing);
-              </del>
-          </source>
+        Flat XML takes each table's columns from its first row, so an attribute that first appears
+        on a later row is dropped. Declare every column on the first row, supply a DTD, or enable
+        column sensing. See <a href="datasets/values.html#columnsensing">Dataset Values: Column sensing</a>.
         </p>
       </answer>
     </faq>
@@ -786,14 +749,9 @@ PostgresqlDataTypeFactory factory = new PostgresqlDataTypeFactory(){
      I am using UUIDs mapped to a binary column in the database, but encoding them in base64 for datasets is a bit awkward. Is there another way to use them in DbUnit datasets while being able to see the UUIDs clearly?
       </question>
       <answer>
-      <p>Use the special UUID syntax (uuid'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx', where all the x's are the hex-encoded string value of your UUID):
-        <source>
-          <![CDATA[
-            <my_table uuid="uuid'029afe42-d8e7-11e2-aca1-50e549c9b654'" another_column="another column value"/>
-          ]]>
-        </source>
-      </p>
-      <p>See <a href="datatypes.html#uuidawarebytes">UuidAwareBytesDataType</a> for details.</p>
+      <p>Yes &#8212; write <code>uuid'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'</code> (the hex UUID) in the
+      field of a BINARY/VARBINARY column. See
+      <a href="datasets/values.html#uuid">Dataset Values: UUIDs in binary columns</a>.</p>
       </answer>
     </faq>
   </part>

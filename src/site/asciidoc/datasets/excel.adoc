@@ -10,6 +10,13 @@ contain the data.
 IDataSet dataSet = new XlsDataSet(new File("dataset.xls"));
 ----
 
+An empty or absent cell is read as a null value. Because every column is
+declared in the header row, a later row with a blank cell keeps the column —
+Excel has no "extra columns" problem. For how a cell value becomes a typed
+column value — binary/BLOB syntax, literal and relative dates, UUID literals,
+and booleans/numbers from strings (in text cells) — see
+link:values.html[Dataset Values].
+
 == Dependency
 
 dbUnit depends on https://poi.apache.org/[Apache POI] to read/write Excel

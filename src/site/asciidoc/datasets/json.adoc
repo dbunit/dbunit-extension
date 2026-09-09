@@ -37,6 +37,10 @@ reading it back produces a table with no columns instead. Formats that
 declare columns independently of row content, such as CSV's per-table header
 row, do not have this limitation.
 
+For what happens to a field value after parsing — empty strings, binary/BLOB
+syntax, literal and relative dates, UUID literals, and booleans/numbers from
+strings — see link:values.html[Dataset Values], which applies to every format.
+
 Table names are always case-sensitive — unlike some other formats, there is no
 case-insensitive table lookup fallback.
 

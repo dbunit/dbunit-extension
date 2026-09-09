@@ -19,17 +19,24 @@ Flat XML dataset document sample:
 </dataset>
 ----
 
-To specify null values, omit corresponding attribute.
-In the above example, missing COL0 and COL2 attributes of TEST_TABLE second row represents null values.
+To specify null values, omit the corresponding attribute.
+In the above example, the missing COL0 and COL2 attributes of TEST_TABLE's second row represent null values.
 
-Table metadata is deduced from the first row of each table by default, whereas it is possible to enable the _column sensing_ feature as described in link:../faq.html#differentcolumnnumber[differentcolumnnumber].
+Table metadata is deduced from the *first* row of each table. On a later row,
+an attribute the first row lacked is ignored — the row is still read, just
+without that column, with an "Extra columns on line x" warning — unless you
+enable _column sensing_ or supply a DTD. See
+link:values.html#columnsensing[Dataset Values: column sensing] for the fix.
 *Beware you may get a NoSuchColumnException if the first row of a table has one or more null values.*
-Because of that, this is highly recommended to use DTD.
-DbUnit will use the columns declared in the DTD as table metadata.
-DbUnit only support external system URI.
-The URI can be absolute or relative.
+Because of that, using a DTD is recommended: DbUnit then takes each table's metadata from the columns declared in the DTD.
+DbUnit supports only an external system URI for the DTD; it can be absolute or relative.
 
-Another way to cope with this problem is to use the link:decorators.html#replacementdataset[ReplacementDataSet].
+link:values.html#null[ReplacementDataSet's `[NULL]` placeholder] is another
+way to cope with a first-row null.
+
+For binary/BLOB data, literal and relative dates, UUID literals, booleans and
+numbers from strings, and empty-string handling, see
+link:values.html[Dataset Values] — those rules are the same for every format.
 
 Build one with link:/dbunit/apidocs/org/dbunit/dataset/xml/FlatXmlDataSetBuilder.html[FlatXmlDataSetBuilder]:
 

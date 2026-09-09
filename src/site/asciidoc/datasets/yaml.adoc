@@ -26,3 +26,7 @@ In the above example, missing COL0 and COL2 keys of TEST_TABLE second row repres
 In contrast to link:flatxml.html[Flat XML], table metadata is deduced from
 the sum of all rows for each table, not just the first — so a column that
 first appears on a later row is still picked up.
+
+For what happens to a field value after parsing — empty strings, binary/BLOB
+syntax, literal and relative dates, UUID literals, and booleans/numbers from
+strings — see link:values.html[Dataset Values], which applies to every format.

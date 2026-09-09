@@ -80,7 +80,8 @@ IDataSet ds = loader.load("/the/package/prepData.xml");
 
 Every loader's constructors accept replacement object and replacement
 substring maps, used the same way as with `ReplacementDataSet` directly (see
-link:decorators.html#replacementdataset[Decorators]):
+link:decorators.html#replacementdataset[Decorators], and
+link:values.html#null[Dataset Values] for the `[NULL]` convention):
 
 [source,java]
 ----
