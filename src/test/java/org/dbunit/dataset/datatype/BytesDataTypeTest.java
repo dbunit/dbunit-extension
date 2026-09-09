@@ -284,6 +284,55 @@ class BytesDataTypeTest extends AbstractDataTypeTest
     }
 
     @Test
+    void testTypeCast_unrecognizedBracketCommand_throwsTypeCastException()
+    {
+        final String value = "[BOGUS]YWJj";
+        final BytesDataType dataType = new BytesDataType("BINARY", Types.BINARY);
+
+        assertThatExceptionOfType(TypeCastException.class)
+                .as("A [command] prefix that is not one of TEXT, BASE64,"
+                        + " FILE, or URL must fail fast instead of silently"
+                        + " dropping the prefix and storing whatever the"
+                        + " remainder decodes to.")
+                .isThrownBy(() -> dataType.typeCast(value))
+                .withMessageContaining(value);
+    }
+
+    @Test
+    void testTypeCast_nullPlaceholderOnBinaryColumn_throwsTypeCastException()
+    {
+        // [NULL] is a ReplacementDataSet convention, not a binary field
+        // command; reaching BytesDataType with it unreplaced is a
+        // configuration error and must not silently become empty bytes.
+        final String value = "[NULL]";
+        final BytesDataType dataType =
+                new BytesDataType("VARBINARY", Types.VARBINARY);
+
+        assertThatExceptionOfType(TypeCastException.class)
+                .isThrownBy(() -> dataType.typeCast(value));
+    }
+
+    @Test
+    void testTypeCast_leadingBracketWithoutClose_isTreatedAsLiteralContent()
+            throws Exception
+    {
+        // A '[' with no closing ']' does not match the command pattern at
+        // all, so it is not command syntax - it stays a raw value and falls
+        // back to its literal UTF-8 bytes, unchanged by the unknown-command
+        // check.
+        final String value = "[not a command";
+        final byte[] expected = value.getBytes(StandardCharsets.UTF_8);
+        final BytesDataType dataType = new BytesDataType("BINARY", Types.BINARY);
+
+        final Object actual = dataType.typeCast(value);
+
+        assertThat(actual)
+                .as("A value starting with '[' but without a closing ']'"
+                        + " must fall back to literal UTF-8 bytes, not throw.")
+                .isEqualTo(expected);
+    }
+
+    @Test
     void testTypeCast_untaggedTextFallback_usesUtf8Bytes() throws Exception
     {
         final String nonAsciiValue = "café!";

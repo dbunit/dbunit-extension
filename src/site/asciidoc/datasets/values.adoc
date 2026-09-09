@@ -49,9 +49,9 @@ is a cross-reference, not a replacement.
 
 === The `[NULL]` placeholder
 
-`[NULL]` is *not* built into the type layer — on a binary column it is
-mangled, on a numeric column it throws, on a string column it is stored
-literally as the five characters `[NULL]`. It only means "null" when a
+`[NULL]` is *not* built into the type layer — on a binary or numeric column it
+is a `TypeCastException`, and on a string column it is stored literally as the
+five characters `[NULL]`. It only means "null" when a
 link:decorators.html#replacementdataset[ReplacementDataSet] is configured to
 replace it:
 
@@ -188,10 +188,12 @@ UTF-8 bytes when the text is not valid Base64. A value that is a well-formed
 URL but cannot be fetched is a `TypeCastException` — it does not fall through
 to the file or Base64 step.
 
-An *unrecognized* command such as `[BOGUS]...` is not one of the four above:
-the bracketed prefix is stripped and the remainder is resolved as if it had no
-prefix at all, so the stored value is silently wrong rather than rejected. Use
-only `TEXT`, `BASE64`, `FILE`, or `URL`.
+A value whose `[...]` prefix is not one of the four commands — `[BOGUS]...`, or
+the `[NULL]` placeholder if it reaches a binary column without a
+link:decorators.html#replacementdataset[ReplacementDataSet] — is a
+`TypeCastException` naming the unrecognized command. A value that starts with
+`[` but has no closing `]` is not command syntax and is resolved as a raw
+value, as above.
 
 CLOB columns are character data and follow the string rules, not this
 section; `[TEXT|BASE64|FILE|URL]` is for binary types.
@@ -322,7 +324,7 @@ columns:
 
 |String / CLOB |Stored verbatim. `[NULL]`, `[foo]`, `[TEXT]x` are all literal text.
 |`DATE` / `TIME` / `TIMESTAMP` |Always parsed as a `[now...]` expression; anything else is a `TypeCastException`. No escape.
-|Binary / BLOB |Always parsed as `[TEXT\|BASE64\|FILE\|URL]`; an unrecognized command is dropped silently (see <<binary-no-prefix,Without the bracket syntax>>). No escape.
+|Binary / BLOB |Always parsed as `[TEXT\|BASE64\|FILE\|URL]`; an unrecognized command is a `TypeCastException` (see <<binary-no-prefix,Without the bracket syntax>>). No escape.
 |===
 
 There is no escape character for a leading `[` on a binary or temporal column.
