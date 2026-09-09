@@ -1,0 +1,362 @@
+= Dataset Values
+
+== Overview
+
+Dataset formats store field values as text — always for
+link:flatxml.html[Flat XML], link:xml.html[XML], link:csv.html[CSV],
+link:json.html[JSON], and link:yaml.html[YAML]; for link:excel.html[Excel],
+except where an `.xls` cell is natively a number, date, or boolean. dbUnit
+turns each value into a typed column value with the column's
+link:../datatypes.html[DataType]: `DataType.typeCast()` parses a string using
+the SQL type dbUnit resolved for the column (from database metadata, a DTD, or
+an explicit column declaration), and passes a value that is already the right
+type straight through. Because the conversion is driven by the column's type
+rather than the file format, the rules on this page apply the same way
+whichever format the value came from.
+
+A handful of those rules are triggered by an *extended syntax*: when a string
+value starts with `[`, the binary and date/time types treat the bracketed
+prefix as an instruction rather than literal content
+(`DataType.isExtendedSyntax()` — value starts with `[`). This is how
+`[TEXT|BASE64|FILE|URL]` loads binary data and how `[now...]` produces a
+relative date. String columns never do this — a leading `[` is stored
+verbatim.
+
+The link:decorators.html#replacementdataset[ReplacementDataSet] decorator is a
+separate mechanism: it swaps placeholder objects and substrings *before*
+`typeCast()` sees them, and is the basis for the widely used `[NULL]`
+convention below.
+
+[#null]
+== Null
+
+Each format has its own way to say "this cell is null":
+
+[cols="1,3", options="header"]
+|===
+|Format |Null representation
+
+|link:flatxml.html[Flat XML] |Omit the attribute. A row that does not mention `COL2` has a null `COL2`.
+|link:xml.html[XML] |An explicit `<null/>` or `<none/>` element in the row.
+|link:csv.html[CSV] |The literal token `null`, unquoted. A quoted `"null"` is the four-character string.
+|link:json.html[JSON] |Omit the key from that row's object. (Writing a dataset omits null-valued keys rather than emitting JSON `null`.)
+|link:yaml.html[YAML] |Omit the key from that row's mapping.
+|link:excel.html[Excel] |An empty or absent cell.
+|===
+
+Each format page states its own convention in its own words; the table above
+is a cross-reference, not a replacement.
+
+=== The `[NULL]` placeholder
+
+`[NULL]` is *not* built into the type layer — on a binary column it is
+mangled, on a numeric column it throws, on a string column it is stored
+literally as the five characters `[NULL]`. It only means "null" when a
+link:decorators.html#replacementdataset[ReplacementDataSet] is configured to
+replace it:
+
+[source,java]
+----
+ReplacementDataSet dataSet = new ReplacementDataSet(new FlatXmlDataSet(...));
+dataSet.addReplacementObject("[NULL]", null);
+----
+
+This is the standard way to express null in Flat XML when the first row of a
+table would otherwise carry a null (which, without a DTD, would drop the
+column from the table's metadata). Add `dataSet.setStrictReplacement(true)` to
+fail fast if a placeholder is left unreplaced instead of passing it through
+silently. See link:decorators.html#replacementdataset[ReplacementDataSet] for
+the full mechanics and link:fileloader.html[Data File Loader] for loaders that
+apply replacements automatically.
+
+[#empty]
+== Empty string vs. missing
+
+A missing value is null (previous section). An explicitly empty string —
+`COL=""` in Flat XML — is different: by default dbUnit rejects it on
+`INSERT`/`UPDATE` rather than treating it as null or as an empty string.
+
+----
+table.column=TEST_TABLE.COL0 value is empty but must contain a value (to disable this feature check, set DatabaseConfig.FEATURE_ALLOW_EMPTY_FIELDS to true)
+----
+
+The check (`AbstractBatchOperation`) fires only for a genuinely empty string
+(`""`), not for null or a missing attribute. Set the
+link:../properties.html#allowemptyfields[`FEATURE_ALLOW_EMPTY_FIELDS`] feature
+to `true` to let empty strings through to the database:
+
+[source,java]
+----
+config.setFeature(DatabaseConfig.FEATURE_ALLOW_EMPTY_FIELDS, true);
+----
+
+[#binary]
+== Binary, BLOB, and CLOB
+
+dbUnit datasets are text, so binary columns (`BINARY`, `VARBINARY`,
+`LONGVARBINARY`, `BLOB`) use an extended syntax to say how the text should
+become bytes:
+
+----
+... COL0="[TEXT|BASE64|FILE|URL <optional argument>] optional text"
+----
+
+The command word is matched case-insensitively. Everything after the closing
+`]` is the payload.
+
+=== TEXT
+
+Stores the text after `]` as bytes. The default encoding is UTF-8; an optional
+second word overrides it.
+
+[source,xml]
+----
+<!DOCTYPE dataset SYSTEM "my-dataset.dtd">
+<dataset>
+    <TABLE_WITHBLOB COL0="[TEXT]This is my text, saved in UTF-8 (default) encoding.  Java: bon café!"
+                    COL1="row 0 col 1"
+                    COL2="row 0 col 2"/>
+</dataset>
+----
+
+[source,xml]
+----
+<!DOCTYPE dataset SYSTEM "my-dataset.dtd">
+<dataset>
+    <TABLE_WITHBLOB COL0="[TEXT ISO-8859-1]This is my text, saved in ISO-8859-1 encoding.  Java: bon café!"
+                    COL1="row 0 col 1"
+                    COL2="row 0 col 2"/>
+</dataset>
+----
+
+An unknown encoding name is a `TypeCastException`.
+
+=== BASE64
+
+Decodes the Base64 text after `]` into bytes.
+
+[source,xml]
+----
+<!DOCTYPE dataset SYSTEM "my-dataset.dtd">
+<dataset>
+    <TABLE_WITHBLOB COL0="[BASE64]VGhpcyBpcyBteSB0ZXh0Lg=="
+                    COL1="row 0 col 1"
+                    COL2="row 0 col 2"/>
+</dataset>
+----
+
+=== FILE
+
+Reads the bytes from a file. The path is the whole string after `]` and may
+contain spaces.
+
+[source,xml]
+----
+<!DOCTYPE dataset SYSTEM "my-dataset.dtd">
+<dataset>
+    <TABLE_WITHBLOB COL0="[FILE]/path/to file to insert contents"
+                    COL1="row 0 col 1"
+                    COL2="row 0 col 2"/>
+</dataset>
+----
+
+=== URL
+
+Reads the bytes from a URL.
+
+[source,xml]
+----
+<!DOCTYPE dataset SYSTEM "my-dataset.dtd">
+<dataset>
+    <TABLE_WITHBLOB COL0="[URL]http://url%20here"
+                    COL1="row 0 col 1"
+                    COL2="row 0 col 2"/>
+</dataset>
+----
+
+A `FILE` or `URL` that cannot be read is a `TypeCastException` naming the
+instruction.
+
+[#binary-no-prefix]
+=== Without the bracket syntax
+
+A binary value with no `[...]` prefix is resolved by guessing. A value of 1 to
+256 characters is tried as a URL and then as a file path. An empty value, a
+value longer than 256 characters, and any short value that is neither a
+readable URL nor an existing file are Base64-decoded, falling back to raw
+UTF-8 bytes when the text is not valid Base64. A value that is a well-formed
+URL but cannot be fetched is a `TypeCastException` — it does not fall through
+to the file or Base64 step.
+
+An *unrecognized* command such as `[BOGUS]...` is not one of the four above:
+the bracketed prefix is stripped and the remainder is resolved as if it had no
+prefix at all, so the stored value is silently wrong rather than rejected. Use
+only `TEXT`, `BASE64`, `FILE`, or `URL`.
+
+CLOB columns are character data and follow the string rules, not this
+section; `[TEXT|BASE64|FILE|URL]` is for binary types.
+
+[#datetime]
+== Dates and times
+
+=== Literal formats
+
+dbUnit uses the JDBC escape formats:
+
+[cols="1,2", options="header"]
+|===
+|Type |Format
+
+|`DATE` |`yyyy-mm-dd`
+|`TIME` |`hh:mm:ss`
+|`TIMESTAMP` |`yyyy-mm-dd hh:mm:ss.fffffffff`
+|===
+
+A `TIMESTAMP` value may carry a numeric timezone offset suffix such as
+`2024-03-01 12:00:00.0 +0100`; see link:../databases/mssql.html[the MSSQL
+guide] for how `TIMESTAMP WITH TIME ZONE` columns are handled.
+
+=== Relative dates — `[now...]`
+
+Since 2.7.0, a `DATE`, `TIME`, or `TIMESTAMP` field can be written relative to
+the current date/time:
+
+----
+... field_name="[now{diff...}{time}]"
+----
+
+Each `diff` is a signed number followed by a unit character; multiple are
+allowed, in any order, with optional whitespace around each. An optional
+trailing time in `HH:MM` or `HH:MM:SS` form replaces the current time of day —
+the syntax allows only digits and `:`, so no fractional seconds and no zone
+offset. Both the offsets and the time are optional.
+
+* `y` : years
+* `M` : months
+* `d` : days
+* `h` : hours
+* `m` : minutes
+* `s` : seconds
+
+Examples:
+
+* `[now]` — current date/time
+* `[now-1d]` — the same time yesterday
+* `[now+1y+1M-2h]` — a year and a month from today, two hours earlier
+* `[now+1d 10:00]` — 10 o'clock tomorrow
+
+An input that starts with `[` but is not a valid `[now...]` expression is a
+`TypeCastException` — there is no way to store a literal leading `[` in a
+date/time column (see <<literal-bracket,Literal leading bracket>>).
+
+[#uuid]
+== UUIDs in binary columns
+
+A `BINARY`/`VARBINARY`/`LONGVARBINARY` column (mapped by
+link:../datatypes.html#uuidawarebytes[`UuidAwareBytesDataType`]) recognizes a
+UUID literal, so UUIDs stored as raw bytes need not be Base64- or hex-encoded
+by hand. Write the field as
+`uuid'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'` (hex, big-endian); it is stored
+as the 16-byte encoding. The literal is matched anywhere in the value, so
+anything around it is discarded — keep the field to just the literal.
+
+[source,xml]
+----
+<company id="uuid'791ae85a-d8d0-11e2-8c43-50e549c9b654'" name="ACME"/>
+----
+
+This applies to `BINARY`-family columns only. A `BLOB` column
+(`BlobDataType`) does not decode the literal — it would store the 42
+characters of `uuid'...'` as text bytes.
+
+[#boolean]
+== Booleans and numbers from strings
+
+*Boolean columns* (`BOOLEAN`, `BIT`): `true` and `false` are recognized
+case-insensitively. Any other value is parsed as an integer, then `0` is
+`false` and any non-zero is `true`. A value that is neither (`yes`, `y`, ...)
+is a `TypeCastException`.
+
+*Integer columns* (`TINYINT`, `SMALLINT`, `INTEGER`): also accept `true` /
+`false` (case-insensitive) as `1` / `0`, otherwise parse the value as a
+number.
+
+*Decimal columns* (`NUMERIC`, `DECIMAL`): a `Boolean` value becomes `1` or
+`0`, but the *strings* `"true"` / `"false"` are not special here — they are a
+`TypeCastException`. Everything else goes through `new BigDecimal(value)`.
+
+In link:csv.html[CSV], a numeric field with a trailing space before the comma
+is read as a string, not a number.
+
+[#tokens]
+== Token and placeholder replacement
+
+dbUnit has no built-in templating in field values beyond what the sections
+above describe. Arbitrary substitution is done by the
+link:decorators.html#replacementdataset[ReplacementDataSet] /
+`ReplacementTable` decorators, which replace whole placeholder objects and
+substrings that you register:
+
+[source,java]
+----
+ReplacementDataSet dataSet = new ReplacementDataSet(new FlatXmlDataSet(...));
+dataSet.addReplacementObject("[NULL]", null);
+dataSet.addReplacementSubstring("$USER", "scott");
+----
+
+link:../faq.html#systemTimeInTest[Injecting the current system time] is a
+worked example — register a `java.util.Date` object under a placeholder and it
+is substituted before comparison or insert. link:fileloader.html[Data File
+Loader] implementations wrap every dataset they load in a `ReplacementDataSet`
+automatically.
+
+[#literal-bracket]
+== Literal leading bracket
+
+A value that starts with `[` is only special for binary and date/time
+columns:
+
+[cols="1,3", options="header"]
+|===
+|Column type |A value starting with `[`
+
+|String / CLOB |Stored verbatim. `[NULL]`, `[foo]`, `[TEXT]x` are all literal text.
+|`DATE` / `TIME` / `TIMESTAMP` |Always parsed as a `[now...]` expression; anything else is a `TypeCastException`. No escape.
+|Binary / BLOB |Always parsed as `[TEXT\|BASE64\|FILE\|URL]`; an unrecognized command is dropped silently (see <<binary-no-prefix,Without the bracket syntax>>). No escape.
+|===
+
+There is no escape character for a leading `[` on a binary or temporal column.
+If a date/time or binary column must hold a value that would collide with the
+extended syntax, substitute it in with a
+link:decorators.html#replacementdataset[ReplacementDataSet] instead of writing
+it in the file.
+
+[#columnsensing]
+== Column sensing (Flat XML)
+
+link:flatxml.html[Flat XML] deduces a table's columns from its *first* row. A
+later row with an attribute the first row lacked produces:
+
+----
+Extra columns on line x. Those columns will be ignored. Please add the extra
+columns to line 1, or use a DTD to make sure the value of those columns are populated.
+----
+
+Three ways to fix it:
+
+* Declare every column on the first row (use `[NULL]` or omit-for-null as
+  needed).
+* Reference a DTD — dbUnit takes the table's columns from it.
+* Enable column sensing, which buffers the whole document and adds columns as
+  they first appear:
+
+[source,java]
+----
+FlatXmlDataSetBuilder builder = new FlatXmlDataSetBuilder();
+builder.setColumnSensing(true);
+IDataSet dataSet = builder.build(new File("dataset.xml"));
+----
+
+link:yaml.html[YAML] and link:json.html[JSON] do not have this problem — they
+take a table's columns from the union of all its rows. link:csv.html[CSV]
+declares columns in a header row, so it is unaffected too.

@@ -14,6 +14,11 @@ one CSV file per table.
   number.
 * Specify null values as `null` without quotes.
 
+link:values.html[Dataset Values] covers the format-independent rules for
+converting a parsed field value to its column type — empty strings, binary/BLOB
+syntax, literal and relative dates, UUID literals, and booleans and numbers
+from strings. How a null is written is format-specific (see the bullet above).
+
 Sample directory layout for two tables, `TEST_TABLE` and `SECOND_TABLE`:
 
 ----

@@ -85,8 +85,9 @@
         <item name="SQL*Loader"         href="/datasets/sqlloader.html"/>
         <item name="Query-Based"        href="/datasets/query.html"/>
         <item name="Streaming Datasets" href="/datasets/streaming.html"/>
-        <item name="Data File Loader"   href="/datasets/fileloader.html"/>
         <item name="Decorators"         href="/datasets/decorators.html"/>
+        <item name="Dataset Values"     href="/datasets/values.html"/>
+        <item name="Data File Loader"   href="/datasets/fileloader.html"/>
       </item>
       <item name="Data Comparisons"  href="/datacomparisons.html">
         <item name="Equality"        href="/datacomparisons/equality.html"/>

@@ -88,6 +88,11 @@ This provides a declarative way to specify null values in flat XML
 datasets. For example, use a placeholder value like `[NULL]` in the
 flat XML dataset and replace it with `null` at runtime.
 
+link:values.html#null[Dataset Values] frames the `[NULL]` convention against
+each format's built-in null representation, and
+link:values.html#tokens[its token-replacement section] covers using this
+decorator for arbitrary substitutions.
+
 [source,xml]
 ----
 <?xml version="1.0"?>
