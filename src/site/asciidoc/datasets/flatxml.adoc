@@ -1,6 +1,6 @@
 = Flat XML
 
-link:/dbunit/apidocs/org/dbunit/dataset/xml/FlatXmlDataSet.html[FlatXmlDataSet]
+link:../apidocs/org/dbunit/dataset/xml/FlatXmlDataSet.html[FlatXmlDataSet]
 reads and writes flat XML dataset documents.
 Each XML element corresponds to a table row.
 Each XML element name corresponds to a table name.
@@ -38,7 +38,7 @@ For binary/BLOB data, literal and relative dates, UUID literals, booleans and
 numbers from strings, and empty-string handling, see
 link:values.html[Dataset Values] — those rules are the same for every format.
 
-Build one with link:/dbunit/apidocs/org/dbunit/dataset/xml/FlatXmlDataSetBuilder.html[FlatXmlDataSetBuilder]:
+Build one with link:../apidocs/org/dbunit/dataset/xml/FlatXmlDataSetBuilder.html[FlatXmlDataSetBuilder]:
 
 [source,java]
 ----

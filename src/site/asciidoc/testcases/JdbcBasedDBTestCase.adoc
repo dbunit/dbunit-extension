@@ -3,10 +3,10 @@ Jeff Jensen
 
 == Overview
 
-link:/dbunit/apidocs/org/dbunit/JdbcBasedDBTestCase.html[JdbcBasedDBTestCase]
-is a link:/dbunit/apidocs/org/dbunit/DBTestCase.html[DBTestCase] subclass
+link:../apidocs/org/dbunit/JdbcBasedDBTestCase.html[JdbcBasedDBTestCase]
+is a link:../apidocs/org/dbunit/DBTestCase.html[DBTestCase] subclass
 preconfigured to use a
-link:/dbunit/apidocs/org/dbunit/JdbcDatabaseTester.html[JdbcDatabaseTester] —
+link:../apidocs/org/dbunit/JdbcDatabaseTester.html[JdbcDatabaseTester] —
 it is `DBTestCase` and `JdbcDatabaseTester` wired together, so you only
 implement `getDriverClass()`, `getConnectionUrl()`, and `getDataSet()`.
 

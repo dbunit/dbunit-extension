@@ -4,7 +4,7 @@ Jeff Jensen
 == Overview
 
 Introduced in link:/dbunit/changes-report.html#a2.6.0[Release 2.6.0], the
-link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html[ValueComparer]
+link:../apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html[ValueComparer]
 is a strategy interface enabling any type of comparison, not only equality.
 
 It enables comparing difficult-to-compare column values such as:
@@ -26,33 +26,33 @@ It enables comparisons such as:
 This flexibility and power has slightly more complex usage than equality comparison.
 
 To use
-link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html[ValueComparer]
+link:../apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html[ValueComparer]
 comparison,
 the dbUnit dataset files do not change.
 Instead, the tests use dbUnit assert methods that work with
-link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html[ValueComparer]s.
+link:../apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html[ValueComparer]s.
 
 === Core ValueComparer Classes
 
 Package
-link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/package-summary.html[org.dbunit.assertion.comparer.value]
+link:../apidocs/org/dbunit/assertion/comparer/value/package-summary.html[org.dbunit.assertion.comparer.value]
 contains the
-link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html[ValueComparer]
+link:../apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html[ValueComparer]
 implementations and related interfaces/classes.
 
 The
-link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparers.html[ValueComparers]
+link:../apidocs/org/dbunit/assertion/comparer/value/ValueComparers.html[ValueComparers]
 class has singleton instances of the ones provided by dbUnit
 plus pre-configured variances (e.g.
-link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparers.html#isActualWithinOneMinuteNewerOfExpectedTimestamp[isActualWithinOneMinuteNewerOfExpectedTimestamp]).
+link:../apidocs/org/dbunit/assertion/comparer/value/ValueComparers.html#isActualWithinOneMinuteNewerOfExpectedTimestamp[isActualWithinOneMinuteNewerOfExpectedTimestamp]).
 Start with these as they provide for most comparison needs.
 
 For a column whose exact content a test does not control but whose format it
 does - a database-generated id, a UUID, a formatted identifier, a timestamp
 rendered into a text column -
-link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/RegularExpressionValueComparer.html[RegularExpressionValueComparer]
+link:../apidocs/org/dbunit/assertion/comparer/value/RegularExpressionValueComparer.html[RegularExpressionValueComparer]
 (also
-link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparers.html#regularExpressionValueComparer[ValueComparers.regularExpressionValueComparer])
+link:../apidocs/org/dbunit/assertion/comparer/value/ValueComparers.html#regularExpressionValueComparer[ValueComparers.regularExpressionValueComparer])
 takes the expected dataset value as a regular expression and passes when it
 matches the actual value in its entirety, the same rule as
 `java.lang.String.matches`. To match only part of the value, wrap the pattern in
@@ -60,56 +60,56 @@ matches the actual value in its entirety, the same rule as
 so prefix the pattern with `(?s)` when the actual value may contain a newline.
 
 Some implementations are deliberately left off
-link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparers.html[ValueComparers]
+link:../apidocs/org/dbunit/assertion/comparer/value/ValueComparers.html[ValueComparers]
 because it eagerly instantiates every instance it declares, and doing so there would force
 an optional dependency onto every user of that class instead of only those who need it;
 construct these directly instead. For example,
-link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/IsActualEqualToExpectedJsonValueComparer.html[IsActualEqualToExpectedJsonValueComparer]
+link:../apidocs/org/dbunit/assertion/comparer/value/IsActualEqualToExpectedJsonValueComparer.html[IsActualEqualToExpectedJsonValueComparer]
 compares JSON/JSONB column values (e.g. MySQL `JSON`, PostgreSQL `json`/`jsonb`, H2 `JSON`)
 by their parsed document structure instead of raw text - ignoring object member order and
 insignificant whitespace, both of which a database may rewrite when it stores a JSON value -
 and needs the optional `jackson-databind` dependency also used by
-link:/dbunit/apidocs/org/dbunit/dataset/json/JsonDataSet.html[JsonDataSet].
+link:../apidocs/org/dbunit/dataset/json/JsonDataSet.html[JsonDataSet].
 
 It is easy to add your own implementations of the
-link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html[ValueComparer]
+link:../apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html[ValueComparer]
 interface,
 either directly or using base classes such as
-link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparerBase.html[ValueComparerBase]
+link:../apidocs/org/dbunit/assertion/comparer/value/ValueComparerBase.html[ValueComparerBase]
 and
-link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparerTemplateBase.html[ValueComparerTemplateBase].
+link:../apidocs/org/dbunit/assertion/comparer/value/ValueComparerTemplateBase.html[ValueComparerTemplateBase].
 
 Please let us know of comparison needs not handled by the
-link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html[ValueComparer]
+link:../apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html[ValueComparer]
 implementations and
-link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparers.html[ValueComparers]
+link:../apidocs/org/dbunit/assertion/comparer/value/ValueComparers.html[ValueComparers]
 instances as maybe we should add it to dbUnit.
 
 === Assert with ValueComparer Classes
 
 The
-link:/dbunit/apidocs/org/dbunit/Assertion.html[Assertion]
+link:../apidocs/org/dbunit/Assertion.html[Assertion]
 and
-link:/dbunit/apidocs/org/dbunit/assertion/DbUnitValueComparerAssert.html[DbUnitValueComparerAssert]
+link:../apidocs/org/dbunit/assertion/DbUnitValueComparerAssert.html[DbUnitValueComparerAssert]
 classes have assertWithValueComparer() methods for the
-link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html[ValueComparer]
+link:../apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html[ValueComparer]
 comparisons.
 See
-link:/dbunit/xref-test/org/dbunit/assertion/DbUnitValueComparerAssertIT.html[DbUnitValueComparerAssertIT]
+link:../xref-test/org/dbunit/assertion/DbUnitValueComparerAssertIT.html[DbUnitValueComparerAssertIT]
 for examples using
-link:/dbunit/apidocs/org/dbunit/assertion/DbUnitValueComparerAssert.html[DbUnitValueComparerAssert].
+link:../apidocs/org/dbunit/assertion/DbUnitValueComparerAssert.html[DbUnitValueComparerAssert].
 
 === TestCase with ValueComparer Classes
 
-link:/dbunit/apidocs/org/dbunit/PrepAndExpectedTestCase.html[PrepAndExpectedTestCase]
+link:../apidocs/org/dbunit/PrepAndExpectedTestCase.html[PrepAndExpectedTestCase]
 directly supports
-link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html[ValueComparer]
+link:../apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html[ValueComparer]
 in addition to equality comparison via
-link:/dbunit/apidocs/org/dbunit/VerifyTableDefinition.html[VerifyTableDefinition]
+link:../apidocs/org/dbunit/VerifyTableDefinition.html[VerifyTableDefinition]
 (see link:../components/verifytabledefinition.html[VerifyTableDefinition] for the
 class reference).
 See
-link:/dbunit/testcases/PrepAndExpectedTestCase.html[PrepAndExpectedTestCase overview]
+link:../testcases/PrepAndExpectedTestCase.html[PrepAndExpectedTestCase overview]
 for examples with it.
 
 == Example
@@ -123,7 +123,7 @@ uses a default value comparer
 and the column value comparers map for comparing specified columns.
 
 It uses the value comparer instances defined on the
-link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparers.html[ValueComparers]
+link:../apidocs/org/dbunit/assertion/comparer/value/ValueComparers.html[ValueComparers]
 class.
 
 [source,java]

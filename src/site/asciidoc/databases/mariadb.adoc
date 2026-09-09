@@ -9,7 +9,7 @@ page is self-contained — no need to read the MySQL page too.
 
 == IDataTypeFactory
 
-link:/dbunit/apidocs/org/dbunit/ext/mariadb/MariaDbDataTypeFactory.html[MariaDbDataTypeFactory]
+link:../apidocs/org/dbunit/ext/mariadb/MariaDbDataTypeFactory.html[MariaDbDataTypeFactory]
 extends `MySqlDataTypeFactory`, so it inherits MySQL's mappings —
 `longtext` as `CLOB`, `bit` as `BOOLEAN`/`TINYINT` depending on context,
 `point` as `BINARY`, and the `UNSIGNED` integer family — and adds
@@ -32,7 +32,7 @@ link:../connections.html[Connections & Configuration].
 == IMetadataHandler
 
 There is no MariaDB-specific `IMetadataHandler` — register MySQL's
-link:/dbunit/apidocs/org/dbunit/ext/mysql/MySqlMetadataHandler.html[MySqlMetadataHandler]
+link:../apidocs/org/dbunit/ext/mysql/MySqlMetadataHandler.html[MySqlMetadataHandler]
 instead, and treat it as a requirement rather than an option: MariaDB
 Connector/J needs it even more than MySQL does. MySQL Connector/J's
 `nullCatalogMeansCurrent` default already restricts an unfiltered

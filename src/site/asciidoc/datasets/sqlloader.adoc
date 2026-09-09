@@ -1,12 +1,12 @@
 = SQL*Loader
 
-link:/dbunit/apidocs/org/dbunit/dataset/sqlloader/SqlLoaderControlDataSet.html[SqlLoaderControlDataSet]
+link:../apidocs/org/dbunit/dataset/sqlloader/SqlLoaderControlDataSet.html[SqlLoaderControlDataSet]
 (`org.dbunit.dataset.sqlloader`) builds a dataset from a directory of
 Oracle SQL*Loader control (`.ctl`) files, importing data already prepared
 for Oracle's SQL*Loader tool without converting it to another dbUnit format
 first. It is a `CachedDataSet` fed by
-link:/dbunit/apidocs/org/dbunit/dataset/sqlloader/SqlLoaderControlProducer.html[SqlLoaderControlProducer]/
-link:/dbunit/apidocs/org/dbunit/dataset/sqlloader/SqlLoaderControlParser.html[SqlLoaderControlParser],
+link:../apidocs/org/dbunit/dataset/sqlloader/SqlLoaderControlProducer.html[SqlLoaderControlProducer]/
+link:../apidocs/org/dbunit/dataset/sqlloader/SqlLoaderControlParser.html[SqlLoaderControlParser],
 and translates the literal string `"null"` in the underlying data files into
 an actual null value.
 

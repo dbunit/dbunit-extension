@@ -1,6 +1,6 @@
 = YAML
 
-link:/dbunit/apidocs/org/dbunit/dataset/yaml/YamlDataSet.html[YamlDataSet]
+link:../apidocs/org/dbunit/dataset/yaml/YamlDataSet.html[YamlDataSet]
 reads and writes YAML dataset documents.
 Each toplevel key corresponds to a table, where the value is a list of rows.
 Each row is a sequence of key:value pairs, where the key corresponds to the table column.

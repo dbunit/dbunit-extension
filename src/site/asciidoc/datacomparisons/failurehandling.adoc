@@ -5,13 +5,13 @@ Jeff Jensen
 
 By default, dbUnit immediately fails when the first data difference is
 found. Since release 2.4 it is possible to register a custom
-link:/dbunit/apidocs/org/dbunit/assertion/FailureHandler.html[FailureHandler]
+link:../apidocs/org/dbunit/assertion/FailureHandler.html[FailureHandler]
 which lets you specify what kind of exception is thrown and how differences
 are handled, instead of the default fail-fast behavior.
 
 `FailureHandler` combines two roles:
 
-* link:/dbunit/apidocs/org/dbunit/assertion/DifferenceListener.html[DifferenceListener]
+* link:../apidocs/org/dbunit/assertion/DifferenceListener.html[DifferenceListener]
   — `handle(Difference diff)` is called for each mismatch found during a
   comparison.
 * `FailureFactory` — builds the exception/error to throw for a given
@@ -19,10 +19,10 @@ are handled, instead of the default fail-fast behavior.
 
 == Collecting All Differences Instead Of Failing Fast
 
-link:/dbunit/apidocs/org/dbunit/assertion/DiffCollectingFailureHandler.html[DiffCollectingFailureHandler]
+link:../apidocs/org/dbunit/assertion/DiffCollectingFailureHandler.html[DiffCollectingFailureHandler]
 is a `FailureHandler` that does not throw on a data mismatch — it collects
 every
-link:/dbunit/apidocs/org/dbunit/assertion/Difference.html[Difference]
+link:../apidocs/org/dbunit/assertion/Difference.html[Difference]
 (each exposing the expected/actual table, row index, column name, and
 expected/actual value) into a list you can evaluate afterwards, so you see
 every mismatch in one run instead of fixing them one assertion failure at a

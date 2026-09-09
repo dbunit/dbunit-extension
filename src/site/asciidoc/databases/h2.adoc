@@ -6,7 +6,7 @@
 
 == IDataTypeFactory
 
-link:/dbunit/apidocs/org/dbunit/ext/h2/H2DataTypeFactory.html[H2DataTypeFactory]
+link:../apidocs/org/dbunit/ext/h2/H2DataTypeFactory.html[H2DataTypeFactory]
 maps H2's `BOOLEAN` to `DataType.BOOLEAN` and `UUID` to `DataType.NVARCHAR`,
 delegating everything else to `DefaultDataTypeFactory`. Register it via
 `DatabaseConfig.PROPERTY_DATATYPE_FACTORY` — see
@@ -15,7 +15,7 @@ link:../connections.html[Connections & Configuration].
 
 == IMetadataHandler
 
-link:/dbunit/apidocs/org/dbunit/ext/h2/H2MetadataHandler.html[H2MetadataHandler]
+link:../apidocs/org/dbunit/ext/h2/H2MetadataHandler.html[H2MetadataHandler]
 excludes the `INFORMATION_SCHEMA` schema from `getTables()` results. H2 2.x rewrote
 `INFORMATION_SCHEMA` to be SQL-standard-compliant, and most of its internal tables now
 report the same JDBC `TABLE_TYPE` (`BASE TABLE`) as real user tables instead of the
@@ -29,7 +29,7 @@ works and why it's implemented this way rather than centrally in `DatabaseDataSe
 
 == Connection Preconfiguration Class
 
-link:/dbunit/apidocs/org/dbunit/ext/h2/H2Connection.html[H2Connection] wraps
+link:../apidocs/org/dbunit/ext/h2/H2Connection.html[H2Connection] wraps
 a JDBC `Connection` and pre-registers both `H2DataTypeFactory` and `H2MetadataHandler`:
 
 [source,java]

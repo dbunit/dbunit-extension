@@ -3,10 +3,10 @@ Jeff Jensen
 
 == Overview
 
-link:/dbunit/apidocs/org/dbunit/JndiBasedDBTestCase.html[JndiBasedDBTestCase]
-is a link:/dbunit/apidocs/org/dbunit/DBTestCase.html[DBTestCase] subclass
+link:../apidocs/org/dbunit/JndiBasedDBTestCase.html[JndiBasedDBTestCase]
+is a link:../apidocs/org/dbunit/DBTestCase.html[DBTestCase] subclass
 preconfigured to use a
-link:/dbunit/apidocs/org/dbunit/JndiDatabaseTester.html[JndiDatabaseTester] —
+link:../apidocs/org/dbunit/JndiDatabaseTester.html[JndiDatabaseTester] —
 it is `DBTestCase` and `JndiDatabaseTester` wired together, so you only
 implement `getLookupName()` and `getDataSet()`.
 

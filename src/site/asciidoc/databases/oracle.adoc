@@ -14,8 +14,8 @@ Oracle has *two* factory versions:
 |===
 |Factory |Use when
 
-|link:/dbunit/apidocs/org/dbunit/ext/oracle/OracleDataTypeFactory.html[OracleDataTypeFactory] |The general-purpose factory. Maps Oracle `DATE` to `TIMESTAMP` (Oracle's `DATE` carries a time component), recognizes `TIMESTAMP*` variants, `XMLTYPE`, `BLOB`/`CLOB`/`NCLOB`, `NVARCHAR2`/`NCHAR*`, `FLOAT`, `LONG RAW`, `BINARY_DOUBLE`/`BINARY_FLOAT`, `ROWID`, and `SDO_GEOMETRY`.
-|link:/dbunit/apidocs/org/dbunit/ext/oracle/Oracle10DataTypeFactory.html[Oracle10DataTypeFactory] |Extends `OracleDataTypeFactory` for Oracle 10g+: handles `CLOB` as a plain string and `BLOB` as a binary stream instead of Oracle's proprietary LOB access classes — the approach Oracle itself recommends for 10g and newer (avoids known proprietary-LOB pitfalls). Prefer this factory unless you specifically need the proprietary LOB classes below.
+|link:../apidocs/org/dbunit/ext/oracle/OracleDataTypeFactory.html[OracleDataTypeFactory] |The general-purpose factory. Maps Oracle `DATE` to `TIMESTAMP` (Oracle's `DATE` carries a time component), recognizes `TIMESTAMP*` variants, `XMLTYPE`, `BLOB`/`CLOB`/`NCLOB`, `NVARCHAR2`/`NCHAR*`, `FLOAT`, `LONG RAW`, `BINARY_DOUBLE`/`BINARY_FLOAT`, `ROWID`, and `SDO_GEOMETRY`.
+|link:../apidocs/org/dbunit/ext/oracle/Oracle10DataTypeFactory.html[Oracle10DataTypeFactory] |Extends `OracleDataTypeFactory` for Oracle 10g+: handles `CLOB` as a plain string and `BLOB` as a binary stream instead of Oracle's proprietary LOB access classes — the approach Oracle itself recommends for 10g and newer (avoids known proprietary-LOB pitfalls). Prefer this factory unless you specifically need the proprietary LOB classes below.
 |===
 
 Register either via `DatabaseConfig.PROPERTY_DATATYPE_FACTORY` — see
@@ -28,7 +28,7 @@ Not overridden — the default handler applies.
 
 == Connection Preconfiguration Class
 
-link:/dbunit/apidocs/org/dbunit/ext/oracle/OracleConnection.html[OracleConnection]
+link:../apidocs/org/dbunit/ext/oracle/OracleConnection.html[OracleConnection]
 wraps a JDBC `Connection` and pre-registers `OracleDataTypeFactory`. It also
 upper-cases the given schema name — Oracle schema names must be matched in
 uppercase (see `AmbiguousTableNameException` in the FAQ):
@@ -43,10 +43,10 @@ IDatabaseConnection connection = new OracleConnection(jdbcConnection, schema);
 === Proprietary BLOB/CLOB/NCLOB Access
 
 `OracleDataTypeFactory` uses
-link:/dbunit/apidocs/org/dbunit/ext/oracle/OracleBlobDataType.html[OracleBlobDataType],
-link:/dbunit/apidocs/org/dbunit/ext/oracle/OracleClobDataType.html[OracleClobDataType],
+link:../apidocs/org/dbunit/ext/oracle/OracleBlobDataType.html[OracleBlobDataType],
+link:../apidocs/org/dbunit/ext/oracle/OracleClobDataType.html[OracleClobDataType],
 and
-link:/dbunit/apidocs/org/dbunit/ext/oracle/OracleNClobDataType.html[OracleNClobDataType]
+link:../apidocs/org/dbunit/ext/oracle/OracleNClobDataType.html[OracleNClobDataType]
 (which extends `OracleClobDataType`) by default, using Oracle's proprietary
 LOB APIs (via `Connection.unwrap()` to reach the vendor-specific statement/
 result set). `Oracle10DataTypeFactory` replaces `BLOB`/`CLOB` handling with
@@ -54,14 +54,14 @@ the plain stream/string approach above — the generally recommended choice.
 
 === XMLType Support
 
-link:/dbunit/apidocs/org/dbunit/ext/oracle/OracleXMLTypeDataType.html[OracleXMLTypeDataType]
+link:../apidocs/org/dbunit/ext/oracle/OracleXMLTypeDataType.html[OracleXMLTypeDataType]
 (extends `BlobDataType`) reads/writes Oracle's `XMLTYPE`/`SYS.XMLTYPE`
 columns, again via `Connection.unwrap()` to reach Oracle's JDBC extensions.
 
 [#sdogeometry]
 === SDO_GEOMETRY Spatial Objects
 
-link:/dbunit/apidocs/org/dbunit/ext/oracle/OracleSdoGeometryDataType.html[OracleSdoGeometryDataType]
+link:../apidocs/org/dbunit/ext/oracle/OracleSdoGeometryDataType.html[OracleSdoGeometryDataType]
 parses and writes Oracle Spatial's `SDO_GEOMETRY` object type directly in
 dataset field values, e.g.:
 
@@ -79,10 +79,10 @@ comparisons):
 |===
 |Class |Corresponds to
 
-|link:/dbunit/apidocs/org/dbunit/ext/oracle/OracleSdoGeometry.html[OracleSdoGeometry] |`MDSYS.SDO_GEOMETRY` — `SDO_GTYPE`, `SDO_SRID`, `SDO_POINT`, `SDO_ELEM_INFO`, `SDO_ORDINATES`.
-|link:/dbunit/apidocs/org/dbunit/ext/oracle/OracleSdoPointType.html[OracleSdoPointType] |`MDSYS.SDO_POINT_TYPE`.
-|link:/dbunit/apidocs/org/dbunit/ext/oracle/OracleSdoElemInfoArray.html[OracleSdoElemInfoArray] |`MDSYS.SDO_ELEM_INFO_ARRAY`.
-|link:/dbunit/apidocs/org/dbunit/ext/oracle/OracleSdoOrdinateArray.html[OracleSdoOrdinateArray] |`MDSYS.SDO_ORDINATE_ARRAY`.
+|link:../apidocs/org/dbunit/ext/oracle/OracleSdoGeometry.html[OracleSdoGeometry] |`MDSYS.SDO_GEOMETRY` — `SDO_GTYPE`, `SDO_SRID`, `SDO_POINT`, `SDO_ELEM_INFO`, `SDO_ORDINATES`.
+|link:../apidocs/org/dbunit/ext/oracle/OracleSdoPointType.html[OracleSdoPointType] |`MDSYS.SDO_POINT_TYPE`.
+|link:../apidocs/org/dbunit/ext/oracle/OracleSdoElemInfoArray.html[OracleSdoElemInfoArray] |`MDSYS.SDO_ELEM_INFO_ARRAY`.
+|link:../apidocs/org/dbunit/ext/oracle/OracleSdoOrdinateArray.html[OracleSdoOrdinateArray] |`MDSYS.SDO_ORDINATE_ARRAY`.
 |===
 
 `OracleSdoHelper` is an internal (package-private) helper shared among these

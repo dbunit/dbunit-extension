@@ -71,9 +71,9 @@ is untouched
 
 == Step 4 — Write the Test
 
-Use link:/dbunit/apidocs/org/dbunit/DefaultPrepAndExpectedTestCase.html[DefaultPrepAndExpectedTestCase]
+Use link:apidocs/org/dbunit/DefaultPrepAndExpectedTestCase.html[DefaultPrepAndExpectedTestCase]
 composed with a
-link:/dbunit/apidocs/org/dbunit/JdbcDatabaseTester.html[JdbcDatabaseTester] —
+link:apidocs/org/dbunit/JdbcDatabaseTester.html[JdbcDatabaseTester] —
 this is the recommended composition-based style (see
 link:testcases/IDatabaseTester.html[the IDatabaseTester guide] for why it's
 preferred over extending `DBTestCase`).

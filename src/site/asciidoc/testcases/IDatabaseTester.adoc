@@ -3,11 +3,11 @@ Jeff Jensen
 
 == Overview
 
-link:/dbunit/apidocs/org/dbunit/IDatabaseTester.html[IDatabaseTester]
+link:../apidocs/org/dbunit/IDatabaseTester.html[IDatabaseTester]
 adds dbUnit's setup/teardown lifecycle to a test class by composition —
 a test class holds an `IDatabaseTester` field (constructed directly or
 dependency-injected) instead of extending
-link:/dbunit/apidocs/org/dbunit/DBTestCase.html[DBTestCase].
+link:../apidocs/org/dbunit/DBTestCase.html[DBTestCase].
 
 This is the *preferred* style. Reach for it over a `DBTestCase` subclass when:
 
@@ -27,8 +27,8 @@ IDatabaseTester] for converting existing `DBTestCase` subclasses.
 
 == Interface Hierarchy
 
-link:/dbunit/apidocs/org/dbunit/IDatabaseTester.html[IDatabaseTester] is the
-interface; link:/dbunit/apidocs/org/dbunit/AbstractDatabaseTester.html[AbstractDatabaseTester]
+link:../apidocs/org/dbunit/IDatabaseTester.html[IDatabaseTester] is the
+interface; link:../apidocs/org/dbunit/AbstractDatabaseTester.html[AbstractDatabaseTester]
 implements its setup/teardown/listener plumbing and leaves only
 `getConnection()` to each concrete subclass:
 
@@ -36,27 +36,27 @@ implements its setup/teardown/listener plumbing and leaves only
 |===
 |Implementation |How it obtains a connection
 
-|link:/dbunit/apidocs/org/dbunit/DefaultDatabaseTester.html[DefaultDatabaseTester]
+|link:../apidocs/org/dbunit/DefaultDatabaseTester.html[DefaultDatabaseTester]
 |Wraps an already-constructed
-link:/dbunit/apidocs/org/dbunit/database/IDatabaseConnection.html[IDatabaseConnection],
+link:../apidocs/org/dbunit/database/IDatabaseConnection.html[IDatabaseConnection],
 or (since 3.4.0) a `Callable<IDatabaseConnection>` factory paired with a
 <<CachingConnectionProvider,`CachingConnectionProvider`>>.
 
-|link:/dbunit/apidocs/org/dbunit/JdbcDatabaseTester.html[JdbcDatabaseTester]
+|link:../apidocs/org/dbunit/JdbcDatabaseTester.html[JdbcDatabaseTester]
 |Opens connections via `DriverManager`, given a driver class name and JDBC URL
 (plus optional username/password/schema).
 
-|link:/dbunit/apidocs/org/dbunit/PropertiesBasedJdbcDatabaseTester.html[PropertiesBasedJdbcDatabaseTester]
+|link:../apidocs/org/dbunit/PropertiesBasedJdbcDatabaseTester.html[PropertiesBasedJdbcDatabaseTester]
 |A `JdbcDatabaseTester` that reads its driver class, URL, username, password,
 and schema from System properties (`dbunit.driverClass`,
 `dbunit.connectionUrl`, `dbunit.username`, `dbunit.password`,
 `dbunit.schema`) instead of constructor arguments.
 
-|link:/dbunit/apidocs/org/dbunit/DataSourceDatabaseTester.html[DataSourceDatabaseTester]
+|link:../apidocs/org/dbunit/DataSourceDatabaseTester.html[DataSourceDatabaseTester]
 |Pulls connections from a `javax.sql.DataSource` — the natural fit when a DI
 container already manages a pooled `DataSource`.
 
-|link:/dbunit/apidocs/org/dbunit/JndiDatabaseTester.html[JndiDatabaseTester]
+|link:../apidocs/org/dbunit/JndiDatabaseTester.html[JndiDatabaseTester]
 |Looks up a `javax.sql.DataSource` from a JNDI context by name, then behaves
 like `DataSourceDatabaseTester`.
 |===
@@ -110,7 +110,7 @@ link:annotations.html[`org.dbunit.annotation`] instead.
 [#IOperationListenerHooks]
 == IOperationListener Hooks
 
-link:/dbunit/apidocs/org/dbunit/IOperationListener.html[IOperationListener]
+link:../apidocs/org/dbunit/IOperationListener.html[IOperationListener]
 (see link:../components/ioperationlistener.html[IOperationListener] for the full class
 reference) observes connection handling around `onSetup()`/`onTearDown()`. Set one with
 `setOperationListener()`:

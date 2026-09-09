@@ -2,7 +2,7 @@
 
 == Overview
 
-link:/dbunit/apidocs/org/dbunit/dataset/ITable.html[ITable] (`org.dbunit.dataset`) is the
+link:../apidocs/org/dbunit/dataset/ITable.html[ITable] (`org.dbunit.dataset`) is the
 atomic unit link:../datasets.html[IDataSet] collects — a dataset is a named group of
 `ITable`s. Its contract is deliberately small:
 
@@ -27,7 +27,7 @@ file, a live database, or code.
 [#itablemetadata]
 == ITableMetaData
 
-link:/dbunit/apidocs/org/dbunit/dataset/ITableMetaData.html[ITableMetaData] describes one
+link:../apidocs/org/dbunit/dataset/ITableMetaData.html[ITableMetaData] describes one
 table's shape, independent of its row data:
 
 * `getTableName()` — the table's name.
@@ -42,7 +42,7 @@ table's shape, independent of its row data:
 [#column]
 == Column
 
-link:/dbunit/apidocs/org/dbunit/dataset/Column.html[Column] describes one column:
+link:../apidocs/org/dbunit/dataset/Column.html[Column] describes one column:
 
 [cols="1,3", options="header"]
 |===
@@ -67,7 +67,7 @@ format's parser.
 [#columns]
 == Columns
 
-link:/dbunit/apidocs/org/dbunit/dataset/Columns.html[Columns] (`org.dbunit.dataset`, since
+link:../apidocs/org/dbunit/dataset/Columns.html[Columns] (`org.dbunit.dataset`, since
 2.3.0) is a `final` class of `static` helper methods for working with `Column[]`
 arrays — not a collection type itself. The commonly-used ones:
 
@@ -83,7 +83,7 @@ arrays — not a collection type itself. The commonly-used ones:
 [#itableiterator]
 == ITableIterator
 
-link:/dbunit/apidocs/org/dbunit/dataset/ITableIterator.html[ITableIterator] is the cursor
+link:../apidocs/org/dbunit/dataset/ITableIterator.html[ITableIterator] is the cursor
 `IDataSet.iterator()`/`reverseIterator()` return: `next()` advances to the next table
 (initially positioned before the first), `getTableMetaData()`/`getTable()` access the
 current one. `link:../operations.html[DatabaseOperation]`s like `INSERT`/`DELETE_ALL`

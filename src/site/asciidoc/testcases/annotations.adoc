@@ -538,7 +538,7 @@ consequence of it:
 
 |`dataFileLoader` |The `DataFileLoader` used for every dataset file.
 Defaults to
-link:/dbunit/apidocs/org/dbunit/util/fileloader/FileExtensionDataFileLoader.html[FileExtensionDataFileLoader],
+link:../apidocs/org/dbunit/util/fileloader/FileExtensionDataFileLoader.html[FileExtensionDataFileLoader],
 which dispatches by extension — see link:../datasets/fileloader.html[Data File Loader].
 
 |`databaseTesterFactory` |See <<resolution,resolution order>> tier 3.

@@ -1,6 +1,6 @@
 = CSV
 
-link:/dbunit/apidocs/org/dbunit/dataset/csv/CsvDataSet.html[CsvDataSet]
+link:../apidocs/org/dbunit/dataset/csv/CsvDataSet.html[CsvDataSet]
 reads and writes CSV dataset documents. Each CSV file represents a table —
 one CSV file per table.
 

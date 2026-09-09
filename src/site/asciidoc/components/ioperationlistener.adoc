@@ -3,7 +3,7 @@
 [#overview]
 == Overview
 
-link:/dbunit/apidocs/org/dbunit/IOperationListener.html[IOperationListener] (`org.dbunit`,
+link:../apidocs/org/dbunit/IOperationListener.html[IOperationListener] (`org.dbunit`,
 since 2.4.4) observes an link:../connections.html[IDatabaseConnection]'s lifecycle
 around an link:../testcases/IDatabaseTester.html[IDatabaseTester]'s `onSetup()`/
 `onTearDown()` calls. Set one with `IDatabaseTester.setOperationListener()`. This page
@@ -29,7 +29,7 @@ be closed at that point — the two built-in implementations below make opposite
 [#defaultoperationlistener]
 == DefaultOperationListener
 
-link:/dbunit/apidocs/org/dbunit/DefaultOperationListener.html[DefaultOperationListener] is the
+link:../apidocs/org/dbunit/DefaultOperationListener.html[DefaultOperationListener] is the
 default implementation used when none is explicitly set. Confirmed directly against its
 source: `connectionRetrieved()` is a no-op; both `operationSetUpFinished()` and
 `operationTearDownFinished()` close the connection. In other words, a fresh connection

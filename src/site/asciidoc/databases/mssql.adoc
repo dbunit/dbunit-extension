@@ -7,7 +7,7 @@ recognition and operations for dbUnit.
 
 == IDataTypeFactory
 
-link:/dbunit/apidocs/org/dbunit/ext/mssql/MsSqlDataTypeFactory.html[MsSqlDataTypeFactory]
+link:../apidocs/org/dbunit/ext/mssql/MsSqlDataTypeFactory.html[MsSqlDataTypeFactory]
 maps SQL Server's `nchar`/`nvarchar`/`ntext` to the matching `CHAR`/
 `VARCHAR`/`LONGVARCHAR`, and its `uniqueidentifier` and `datetimeoffset`
 types to the dedicated classes below. Register it via
@@ -21,7 +21,7 @@ Not overridden — the default handler applies.
 
 == Connection Preconfiguration Class
 
-link:/dbunit/apidocs/org/dbunit/ext/mssql/MsSqlConnection.html[MsSqlConnection]
+link:../apidocs/org/dbunit/ext/mssql/MsSqlConnection.html[MsSqlConnection]
 wraps a JDBC `Connection` and pre-registers `MsSqlDataTypeFactory`:
 
 [source,java]
@@ -33,12 +33,12 @@ IDatabaseConnection connection = new MsSqlConnection(jdbcConnection, schema);
 
 === UniqueIdentifierType
 
-link:/dbunit/apidocs/org/dbunit/ext/mssql/UniqueIdentifierType.html[UniqueIdentifierType]
+link:../apidocs/org/dbunit/ext/mssql/UniqueIdentifierType.html[UniqueIdentifierType]
 maps SQL Server's `uniqueidentifier` column type to `java.util.UUID`.
 
 === DateTimeOffsetType
 
-link:/dbunit/apidocs/org/dbunit/ext/mssql/DateTimeOffsetType.html[DateTimeOffsetType]
+link:../apidocs/org/dbunit/ext/mssql/DateTimeOffsetType.html[DateTimeOffsetType]
 (since 2.7.0) maps `datetimeoffset` to `java.time.OffsetDateTime`, parsing
 SQL Server's `yyyy-MM-dd HH:mm:ss[.n] xxx` wire format.
 

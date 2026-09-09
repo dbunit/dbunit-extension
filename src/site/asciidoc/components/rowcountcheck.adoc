@@ -3,7 +3,7 @@
 [#overview]
 == Overview
 
-link:/dbunit/apidocs/org/dbunit/database/rowcount/RowCountCheck.html[RowCountCheck]
+link:../apidocs/org/dbunit/database/rowcount/RowCountCheck.html[RowCountCheck]
 (`org.dbunit.database.rowcount`, since 3.6.0) is an opt-in diagnostic that compares every table's
 row count before and after a test, and fails the test when a count moved. It catches two
 mistakes that are otherwise silent at the point they happen and only surface later, in an
@@ -137,7 +137,7 @@ dataset (so teardown never touches it), or exclude it.
 == Supplying Your Own RowCounter
 
 Counting is the expensive part of the check, so it is the one seam left open:
-link:/dbunit/apidocs/org/dbunit/database/rowcount/RowCounter.html[`RowCounter`], registered like
+link:../apidocs/org/dbunit/database/rowcount/RowCounter.html[`RowCounter`], registered like
 every other dbUnit extension point via
 link:../properties.html#rowcounter[`DatabaseConfig.PROPERTY_ROW_COUNTER`]. The shipped
 implementation, `QueryPerTableRowCounter`, issues one `SELECT COUNT(*)` per table.

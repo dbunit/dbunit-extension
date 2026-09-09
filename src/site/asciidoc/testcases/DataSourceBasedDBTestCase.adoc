@@ -3,10 +3,10 @@ Jeff Jensen
 
 == Overview
 
-link:/dbunit/apidocs/org/dbunit/DataSourceBasedDBTestCase.html[DataSourceBasedDBTestCase]
-is a link:/dbunit/apidocs/org/dbunit/DBTestCase.html[DBTestCase] subclass
+link:../apidocs/org/dbunit/DataSourceBasedDBTestCase.html[DataSourceBasedDBTestCase]
+is a link:../apidocs/org/dbunit/DBTestCase.html[DBTestCase] subclass
 preconfigured to use a
-link:/dbunit/apidocs/org/dbunit/DataSourceDatabaseTester.html[DataSourceDatabaseTester] —
+link:../apidocs/org/dbunit/DataSourceDatabaseTester.html[DataSourceDatabaseTester] —
 it is `DBTestCase` and `DataSourceDatabaseTester` wired together, so you only
 implement `getDataSource()` and `getDataSet()`.
 

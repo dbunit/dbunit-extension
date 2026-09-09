@@ -1,6 +1,6 @@
 = JSON
 
-link:/dbunit/apidocs/org/dbunit/dataset/json/JsonDataSet.html[JsonDataSet]
+link:../apidocs/org/dbunit/dataset/json/JsonDataSet.html[JsonDataSet]
 reads and writes JSON dataset documents.
 Each top-level key corresponds to a table, where the value is an array of row objects.
 Each row is a JSON object of column:value pairs.

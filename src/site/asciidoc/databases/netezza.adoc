@@ -7,7 +7,7 @@ metadata handling for dbUnit.
 
 == IDataTypeFactory
 
-link:/dbunit/apidocs/org/dbunit/ext/netezza/NetezzaDataTypeFactory.html[NetezzaDataTypeFactory]
+link:../apidocs/org/dbunit/ext/netezza/NetezzaDataTypeFactory.html[NetezzaDataTypeFactory]
 maps Netezza's JDBC type codes (its own constants, since several diverge from
 `java.sql.Types`, e.g. `BOOLEAN`, `INTERVAL`/`TIMETZ` as timestamps,
 `VARFIXEDCHAR`/`NUCL`/`PROT` as char, `INT8` as bigint) onto the matching
@@ -18,7 +18,7 @@ link:../connections.html[Connections & Configuration].
 
 == IMetadataHandler
 
-link:/dbunit/apidocs/org/dbunit/ext/netezza/NetezzaMetadataHandler.html[NetezzaMetadataHandler]
+link:../apidocs/org/dbunit/ext/netezza/NetezzaMetadataHandler.html[NetezzaMetadataHandler]
 accounts for Netezza exposing only a catalog, no schema: it treats the
 catalog as the schema when matching and looking up columns/tables/primary
 keys, so dbUnit's schema-based lookups work against a database that doesn't

@@ -3,7 +3,7 @@
 [#overview]
 == Overview
 
-link:/dbunit/apidocs/org/dbunit/VerifyTableDefinition.html[VerifyTableDefinition]
+link:../apidocs/org/dbunit/VerifyTableDefinition.html[VerifyTableDefinition]
 (`org.dbunit`, since 2.4.8) defines one database table to verify: which columns to
 include or exclude from the comparison, which
 link:../datacomparisons/valuecomparer.html[ValueComparer] (if any) to use per column, and
@@ -51,7 +51,7 @@ per table you want verified after a test runs.
 
 Every constructor's last step is
 `verifyTableDefinitionVerifier.verify(this)`, using a
-link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/verifier/DefaultVerifyTableDefinitionVerifier.html[DefaultVerifyTableDefinitionVerifier]
+link:../apidocs/org/dbunit/assertion/comparer/value/verifier/DefaultVerifyTableDefinitionVerifier.html[DefaultVerifyTableDefinitionVerifier]
 by default. It catches one specific configuration conflict: a column listed in both
 `columnExclusionFilters` and `columnValueComparers` — excluded from comparison, yet also
 given a specific comparer — and throws `IllegalStateException` with a message naming the

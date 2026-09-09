@@ -3,7 +3,7 @@ Jeff Jensen
 
 == Overview
 
-link:/dbunit/apidocs/org/dbunit/junit/jupiter/DbUnitExtension.html[DbUnitExtension]
+link:../apidocs/org/dbunit/junit/jupiter/DbUnitExtension.html[DbUnitExtension]
 is a JUnit 5/6 (Jupiter) extension that drives the
 link:IDatabaseTester.html[IDatabaseTester] setup/teardown lifecycle
 automatically, so a test class doesn't need its own `@BeforeEach`/`@AfterEach`

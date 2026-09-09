@@ -1,6 +1,6 @@
 = XML
 
-link:/dbunit/apidocs/org/dbunit/dataset/xml/XmlDataSet.html[XmlDataSet]
+link:../apidocs/org/dbunit/dataset/xml/XmlDataSet.html[XmlDataSet]
 reads and writes the original, verbose XML dataset document format. It must
 conform to the following
 link:https://github.com/dbunit/dbunit-extension/blob/main/src/main/resources/org/dbunit/dataset/xml/dataset.dtd[DTD]:

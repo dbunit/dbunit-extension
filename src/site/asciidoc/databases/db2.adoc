@@ -7,7 +7,7 @@ handling for dbUnit.
 
 == IDataTypeFactory
 
-link:/dbunit/apidocs/org/dbunit/ext/db2/Db2DataTypeFactory.html[Db2DataTypeFactory]
+link:../apidocs/org/dbunit/ext/db2/Db2DataTypeFactory.html[Db2DataTypeFactory]
 recognizes DB2's `DB2XML.XMLVARCHAR`/`DB2XML.XMLCLOB`/`DB2XML.XMLFILE`
 distinct types (mapped to `StringDataType`), delegating everything else to
 `DefaultDataTypeFactory`. Register it via
@@ -17,7 +17,7 @@ link:../connections.html[Connections & Configuration].
 
 == IMetadataHandler
 
-link:/dbunit/apidocs/org/dbunit/ext/db2/Db2MetadataHandler.html[Db2MetadataHandler]
+link:../apidocs/org/dbunit/ext/db2/Db2MetadataHandler.html[Db2MetadataHandler]
 fixes a column-matching bug in the default handler: with at least the
 db2jcc-9.5 driver, `DatabaseMetaData` doesn't return the same catalog/schema
 values for a table that the columns `ResultSet` does (observed: catalog
@@ -28,7 +28,7 @@ lookups succeed instead of throwing.
 
 == Connection Preconfiguration Class
 
-link:/dbunit/apidocs/org/dbunit/ext/db2/Db2Connection.html[Db2Connection]
+link:../apidocs/org/dbunit/ext/db2/Db2Connection.html[Db2Connection]
 wraps a JDBC `Connection` and pre-registers both `Db2DataTypeFactory` and
 `Db2MetadataHandler`:
 
