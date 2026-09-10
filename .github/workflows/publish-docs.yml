@@ -9,10 +9,11 @@ on:
       - '**/*.adoc'
       - '**/*.md'
   # zizmor: ignore[dangerous-triggers]
-  # workflow_run is safe here: the branches filter only matches runs on main
-  # (a fork PR's build runs under its own branch name), the job checks out the
-  # default branch rather than any attacker-controlled ref, and it consumes no
-  # artifact from the triggering run.
+  # workflow_run is used safely: for that event the build-site job requires a
+  # successful triggering run from this repository (head_repository guard) on
+  # `main` (branches filter) and checks out the default branch — never a
+  # triggering ref, so never fork-controlled code, and it also picks up the
+  # commit the "Record Dependabot update" workflow pushes.
   workflow_run:
     workflows: ["Build any branch with all databases", "Record Dependabot update in changes.xml"]
     types: [completed]
@@ -30,7 +31,10 @@ env:
 
 jobs:
   build-site:
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:

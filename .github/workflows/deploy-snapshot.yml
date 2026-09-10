@@ -2,10 +2,11 @@ name: Deploy Snapshot
 
 on:
   # zizmor: ignore[dangerous-triggers]
-  # workflow_run is safe here: the branches filter only matches runs on main
-  # (a fork PR's build runs under its own branch name), the job checks out the
-  # default branch rather than any attacker-controlled ref, and it consumes no
-  # artifact from the triggering run.
+  # workflow_run is used safely: the job's `if` requires a successful "Build any
+  # branch with all databases" run from this repository (head_repository guard,
+  # so a fork branch named `main` cannot reach it) on `main` (branches filter),
+  # and it checks out exactly that run's commit (head_sha) — never
+  # fork-controlled code.
   workflow_run:
     workflows: ["Build any branch with all databases"]
     types: [completed]
@@ -19,7 +20,9 @@ env:
 
 jobs:
   deploy-snapshot:
-    if: github.event.workflow_run.conclusion == 'success'
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -27,6 +30,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
+          ref: ${{ github.event.workflow_run.head_sha }}
           persist-credentials: false
 
       - uses: actions/setup-java@v6.0.0
