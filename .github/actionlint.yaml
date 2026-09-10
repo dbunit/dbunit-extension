@@ -1,0 +1,9 @@
+# actionlint configuration — see .github/workflows/lint-workflows.yml.
+# https://github.com/rhysd/actionlint/blob/main/docs/config.md
+paths:
+  .github/workflows/release.yml:
+    ignore:
+      # The announcement steps pass `$owner`, `$name`, `$title` inside
+      # single-quoted `gh api graphql` / `jq` programs on purpose — those
+      # tools do the substitution, not the shell. SC2016 is a false positive.
+      - 'shellcheck reported issue in this script: SC2016'

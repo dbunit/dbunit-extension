@@ -1,0 +1,21 @@
+# zizmor configuration — see .github/workflows/lint-workflows.yml.
+# https://docs.zizmor.sh/configuration/
+rules:
+  unpinned-uses:
+    config:
+      # Symbolic (tag) refs are acceptable for actions published by GitHub's
+      # own organizations; anything else must be pinned to a full commit SHA.
+      policies:
+        "actions/*": ref-pin
+        "github/*": ref-pin
+        "dependabot/*": ref-pin
+        "*": hash-pin
+
+  self-repository:
+    ignore:
+      # The `$/...` self-repository syntax is only a few weeks old (GitHub,
+      # Jul 2026). The workspace-relative `./...` form is used deliberately
+      # until that syntax has settled; revisit and switch over later.
+      - build-any-branch-with-all-dbs.yml
+      - publish-docs.yml
+      - release.yml
