@@ -1,10 +1,17 @@
 name: Deploy Snapshot
 
 on:
+  # zizmor: ignore[dangerous-triggers]
+  # workflow_run is safe here: the branches filter only matches runs on main
+  # (a fork PR's build runs under its own branch name), the job checks out the
+  # default branch rather than any attacker-controlled ref, and it consumes no
+  # artifact from the triggering run.
   workflow_run:
     workflows: ["Build any branch with all databases"]
     types: [completed]
     branches: [main]
+
+permissions: {}
 
 env:
   MAVEN_COMMAND: ./mvnw
@@ -15,8 +22,12 @@ jobs:
     if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: read  # actions/checkout
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-java@v6.0.0
         with:
@@ -29,7 +40,7 @@ jobs:
 
       - name: Get project version
         id: ver
-        run: echo "version=$(${{ env.MAVEN_COMMAND }} help:evaluate -Dexpression=project.version -q -DforceStdout)" >> $GITHUB_OUTPUT
+        run: echo "version=$(${{ env.MAVEN_COMMAND }} help:evaluate -Dexpression=project.version -q -DforceStdout)" >> "$GITHUB_OUTPUT"
 
       - name: Deploy snapshot to Maven Central
         if: endsWith(steps.ver.outputs.version, '-SNAPSHOT')
@@ -40,4 +51,6 @@ jobs:
 
       - name: Skip (not a snapshot version)
         if: "!endsWith(steps.ver.outputs.version, '-SNAPSHOT')"
-        run: echo "Version ${{ steps.ver.outputs.version }} is a release version — skipping snapshot deploy"
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: echo "Version ${VERSION} is a release version — skipping snapshot deploy"

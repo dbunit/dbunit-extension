@@ -12,6 +12,8 @@ on:
       - '**/*.adoc'
       - '**/*.md'
 
+permissions: {}
+
 env:
   MAVEN_COMMAND: ./mvnw
   MAVEN_CLI_COMMON: "-e -B"
@@ -24,14 +26,18 @@ jobs:
   compile-and-unit-test:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: write  # advanced-security/maven-dependency-submission-action submits the dependency graph
     steps:
     - uses: actions/checkout@v7
+      with:
+        persist-credentials: false
     - uses: ./.github/actions/jdk-setup
     - name: Compile and run unit tests
       run: ${{ env.MAVEN_COMMAND }} ${{ env.MAVEN_CLI_COMMON }} clean test
     - name: Submit dependencies to GitHub
       if: github.actor != 'dependabot[bot]'
-      uses: advanced-security/maven-dependency-submission-action@v6
+      uses: advanced-security/maven-dependency-submission-action@a64327a7329c9939cf675e458452febe1894a70c # v6.0.1
     - name: Upload target directory for reuse
       uses: actions/upload-artifact@v7
       with:
@@ -43,6 +49,8 @@ jobs:
     needs: [compile-and-unit-test]
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: write  # advanced-security/maven-dependency-submission-action submits the dependency graph
     strategy:
       matrix:
         database: [
@@ -62,6 +70,8 @@ jobs:
       fail-fast: false
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: ./.github/actions/jdk-setup
       - name: Download target directory
         uses: actions/download-artifact@v8
@@ -72,4 +82,4 @@ jobs:
         run: ${{ env.MAVEN_COMMAND }} ${{ env.MAVEN_CLI_COMMON }} -P${{ matrix.database.profile }} verify ${{ matrix.database.url != '' && format('-Ddbunit.profile.url={0}', matrix.database.url) || '' }}
       - name: Submit dependencies to GitHub
         if: github.actor != 'dependabot[bot]'
-        uses: advanced-security/maven-dependency-submission-action@v6
+        uses: advanced-security/maven-dependency-submission-action@a64327a7329c9939cf675e458452febe1894a70c # v6.0.1
