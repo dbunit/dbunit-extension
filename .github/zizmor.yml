@@ -17,5 +17,6 @@ rules:
       # Jul 2026). The workspace-relative `./...` form is used deliberately
       # until that syntax has settled; revisit and switch over later.
       - build-any-branch-with-all-dbs.yml
+      - dependency-submission.yml
       - publish-docs.yml
       - release.yml
