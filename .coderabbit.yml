@@ -62,13 +62,19 @@ reviews:
         summary, not a per-entry concatenation.
     - path: ".github/**"
       instructions: >-
-        actionlint validates the workflows and Ruff the Python scripts under .github/scripts,
-        each of which has its own pytest suite. Flag a script change that arrives without a
-        matching test update.
+        actionlint and zizmor (workflow security) run here as a blocking "Lint workflows" CI
+        job and on a weekly schedule; zizmor's policy lives in .github/zizmor.yml. Ruff lints
+        the Python scripts under .github/scripts, each of which has its own pytest suite. Flag
+        a script change that arrives without a matching test update. The `# zizmor: ignore[...]`
+        suppressions, the tag-pinned first-party `actions/*` refs, and the workspace-relative
+        `./.github/actions/...` action syntax are deliberate policy — do not re-raise them in
+        prose review.
   tools:
     gitleaks:
       enabled: true
     actionlint:
+      enabled: true
+    zizmor:
       enabled: true
 
 knowledge_base:
