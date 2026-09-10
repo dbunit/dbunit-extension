@@ -27,7 +27,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
-      contents: write  # advanced-security/maven-dependency-submission-action submits the dependency graph
+      contents: read
     steps:
     - uses: actions/checkout@v7
       with:
@@ -35,9 +35,6 @@ jobs:
     - uses: ./.github/actions/jdk-setup
     - name: Compile and run unit tests
       run: ${{ env.MAVEN_COMMAND }} ${{ env.MAVEN_CLI_COMMON }} clean test
-    - name: Submit dependencies to GitHub
-      if: github.actor != 'dependabot[bot]'
-      uses: advanced-security/maven-dependency-submission-action@a64327a7329c9939cf675e458452febe1894a70c # v6.0.1
     - name: Upload target directory for reuse
       uses: actions/upload-artifact@v7
       with:
@@ -50,7 +47,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
-      contents: write  # advanced-security/maven-dependency-submission-action submits the dependency graph
+      contents: read
     strategy:
       matrix:
         database: [
@@ -80,6 +77,3 @@ jobs:
           path: target/
       - name: Run ${{ matrix.database.name }} integration tests
         run: ${{ env.MAVEN_COMMAND }} ${{ env.MAVEN_CLI_COMMON }} -P${{ matrix.database.profile }} verify ${{ matrix.database.url != '' && format('-Ddbunit.profile.url={0}', matrix.database.url) || '' }}
-      - name: Submit dependencies to GitHub
-        if: github.actor != 'dependabot[bot]'
-        uses: advanced-security/maven-dependency-submission-action@a64327a7329c9939cf675e458452febe1894a70c # v6.0.1

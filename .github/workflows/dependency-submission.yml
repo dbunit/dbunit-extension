@@ -1,0 +1,38 @@
+name: Submit dependencies
+
+# Runs only on trusted refs -- pushes to the default branch and manual
+# dispatch -- so the write-scoped token needed for the dependency graph
+# snapshot is never exposed to a build of pull-request or fork code.
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'src/site/**'
+      - '**/*.adoc'
+      - '**/*.md'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  MAVEN_COMMAND: ./mvnw
+  MAVEN_CLI_COMMON: "-e -B"
+
+jobs:
+  submit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write  # submit the dependency graph snapshot
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/jdk-setup
+      - name: Submit dependencies to GitHub
+        uses: advanced-security/maven-dependency-submission-action@a64327a7329c9939cf675e458452febe1894a70c # v6.0.1
