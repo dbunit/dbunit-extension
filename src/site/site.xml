@@ -43,39 +43,26 @@
       <item name="Docs Home" href="index.html"/>
     </breadcrumbs>
 
-    <menu name="Quick Links">
-      <item name="Maven 1.x Plugin"  href="http://maven-plugins.sourceforge.net/maven-dbunit-plugin/index.html"/>
-      <item name="Maven 2.x/3.x Plugin" href="../dbunit-maven-plugin/index.html"/>
-      <item name="Changes"           href="/changes.html"/>
-      <item name="FAQ"               href="/faq.html"/>
-      <item name="Wiki"              href="http://dbunit.wikidot.com/"/>
-      <item name="Get support"       href="https://github.com/dbunit/dbunit-extension/discussions"/>
-      <item name="Get source"        href="/scm.html"/>
-      <item name="Browse source"     href="/xref/index.html"/>
-      <item name="JavaDocs"          href="/apidocs/index.html"/>
-      <item name="DBUnit AT Open Hub"   href="https://www.openhub.net/p/dbunit"/>
-    </menu>
-
     <menu name="Obtaining dbUnit">
       <item name="Maven Repositories" href="/repos.html"/>
       <item name="Download"           href="/download.html"/>
     </menu>
 
     <menu name="Using DbUnit">
-      <item name="About DbUnit"      href="/index.html"/>
-      <item name="dbUnit in 5 Minutes" href="/fiveminutes.html"/>
-      <item name="Getting Started"   href="/howto.html"/>
-      <item name="Test Integration"  href="/testcases.html">
-        <item name="IDatabaseTester Guide"      href="/testcases/IDatabaseTester.html"/>
-        <item name="DbUnitExtension"            href="/testcases/DbUnitExtension.html"/>
-        <item name="Annotations"                href="/testcases/annotations.html"/>
-        <item name="PrepAndExpectedTestCase"    href="/testcases/PrepAndExpectedTestCase.html"/>
-        <item name="JdbcBasedDBTestCase"        href="/testcases/JdbcBasedDBTestCase.html"/>
-        <item name="DataSourceBasedDBTestCase"  href="/testcases/DataSourceBasedDBTestCase.html"/>
-        <item name="JndiBasedDBTestCase"        href="/testcases/JndiBasedDBTestCase.html"/>
+      <item name="About DbUnit"         href="/index.html"/>
+      <item name="dbUnit in 5 Minutes"  href="/fiveminutes.html"/>
+      <item name="Getting Started"      href="/howto.html"/>
+      <item name="Test Integration"     href="/testcases.html">
+        <item name="IDatabaseTester Guide"        href="/testcases/IDatabaseTester.html"/>
+        <item name="DbUnitExtension"              href="/testcases/DbUnitExtension.html"/>
+        <item name="Annotations"                  href="/testcases/annotations.html"/>
+        <item name="PrepAndExpectedTestCase"      href="/testcases/PrepAndExpectedTestCase.html"/>
+        <item name="JdbcBasedDBTestCase"          href="/testcases/JdbcBasedDBTestCase.html"/>
+        <item name="DataSourceBasedDBTestCase"    href="/testcases/DataSourceBasedDBTestCase.html"/>
+        <item name="JndiBasedDBTestCase"          href="/testcases/JndiBasedDBTestCase.html"/>
         <item name="Migrating to IDatabaseTester" href="/testcases/MigratingToIDatabaseTester.html"/>
       </item>
-      <item name="Datasets"          href="/datasets.html">
+      <item name="Datasets"             href="/datasets.html">
         <item name="Flat XML"           href="/datasets/flatxml.html"/>
         <item name="XML"                href="/datasets/xml.html"/>
         <item name="CSV"                href="/datasets/csv.html"/>
@@ -89,16 +76,16 @@
         <item name="Dataset Values"     href="/datasets/values.html"/>
         <item name="Data File Loader"   href="/datasets/fileloader.html"/>
       </item>
-      <item name="Data Comparisons"  href="/datacomparisons.html">
-        <item name="Equality"        href="/datacomparisons/equality.html"/>
-        <item name="ValueComparer"   href="/datacomparisons/valuecomparer.html"/>
+      <item name="Data Comparisons"   href="/datacomparisons.html">
+        <item name="Equality"         href="/datacomparisons/equality.html"/>
+        <item name="ValueComparer"    href="/datacomparisons/valuecomparer.html"/>
         <item name="Failure Handling" href="/datacomparisons/failurehandling.html"/>
       </item>
-      <item name="Database Operations" href="/operations.html"/>
-      <item name="Filters"           href="/filters.html"/>
-      <item name="Data types"        href="/datatypes.html"/>
-      <item name="Connections &amp; Configuration" href="/connections.html">
-        <item name="Properties &amp; Features" href="/properties.html"/>
+      <item name="Database Operations"              href="/operations.html"/>
+      <item name="Filters"                          href="/filters.html"/>
+      <item name="Data types"                       href="/datatypes.html"/>
+      <item name="Connections &amp; Configuration"  href="/connections.html">
+        <item name="Properties &amp; Features"  href="/properties.html"/>
       </item>
       <item name="Database-Specific Guides" href="/databases.html">
         <item name="DB2"           href="/databases/db2.html"/>
@@ -120,27 +107,27 @@
         <item name="Assertion &amp; DbUnitAssert"      href="/components/assertion.html"/>
         <item name="RowCountCheck"                    href="/components/rowcountcheck.html"/>
       </item>
-      <item name="Best Practices"    href="/bestpractices.html"/>
-      <item name="Database Testing Concepts" href="/intro.html"/>
-      <item name="Ant Task"          href="/anttask.html">
+      <item name="Best Practices"             href="/bestpractices.html"/>
+      <item name="Database Testing Concepts"  href="/intro.html"/>
+      <item name="Ant Task"                   href="/anttask.html">
         <item name="Canoo WebTest Example" href="/anttask/canoo-webtest-example.html"/>
       </item>
-      <item name="Resources"         href="/resources.html"/>
     </menu>
 
     <menu name="Upgrading DbUnit">
-      <item name="Changes"                  href="/changes.html"/>
-      <item name="3.5.2 to snapshot"        href="/3.5.2-to-snapshot.html"/>
-      <item name="3.5.1 to 3.5.2"           href="/3.5.1-to-3.5.2.html"/>
-      <item name="3.5.0 to 3.5.1"           href="/3.5.0-to-3.5.1.html"/>
-      <item name="3.4.0 to 3.5.0"           href="/3.4.0-to-3.5.0.html"/>
-      <item name="3.3.0 to 3.4.0"           href="/3.3.0-to-3.4.0.html"/>
-      <item name="3.2.0 to 3.3.0"           href="/3.2.0-to-3.3.0.html"/>
-      <item name="3.1.0 to 3.2.0"           href="/3.1.0-to-3.2.0.html"/>
-      <item name="3.0.0 to 3.1.0"           href="/3.0.0-to-3.1.0.html"/>
-      <item name="2.8.0 to 3.0.0"           href="/2.8.0-to-3.0.0.html"/>
-
-      <item name="2.x Upgrades"               href="2.7.3-to-2.8.0.html" collapse="true">
+      <item name="Changes History"          href="/changes.html"/>
+      <item name="3.x Upgrades"             href="/3.5.2-to-snapshot.html" collapse="false">
+        <item name="3.5.2 to snapshot"        href="/3.5.2-to-snapshot.html"/>
+        <item name="3.5.1 to 3.5.2"           href="/3.5.1-to-3.5.2.html"/>
+        <item name="3.5.0 to 3.5.1"           href="/3.5.0-to-3.5.1.html"/>
+        <item name="3.4.0 to 3.5.0"           href="/3.4.0-to-3.5.0.html"/>
+        <item name="3.3.0 to 3.4.0"           href="/3.3.0-to-3.4.0.html"/>
+        <item name="3.2.0 to 3.3.0"           href="/3.2.0-to-3.3.0.html"/>
+        <item name="3.1.0 to 3.2.0"           href="/3.1.0-to-3.2.0.html"/>
+        <item name="3.0.0 to 3.1.0"           href="/3.0.0-to-3.1.0.html"/>
+        <item name="2.8.0 to 3.0.0"           href="/2.8.0-to-3.0.0.html"/>
+      </item>
+      <item name="2.x Upgrades"             href="/2.7.3-to-2.8.0.html" collapse="true">
         <item name="2.7.3 to 2.8.0"           href="/2.7.3-to-2.8.0.html"/>
         <item name="2.7.2 to 2.7.3"           href="/2.7.2-to-2.7.3.html"/>
         <item name="2.7.1 to 2.7.2"           href="/2.7.1-to-2.7.2.html"/>
@@ -157,9 +144,18 @@
       <item name="Older Migration Guide"    href="/migration.html"/>
     </menu>
 
+    <menu name="Getting Help">
+      <item name="FAQ"               href="/faq.html"/>
+      <item name="Wiki"              href="http://dbunit.wikidot.com/"/>
+      <item name="JavaDocs"          href="/apidocs/index.html"/>
+      <item name="Source Xref"       href="/xref/index.html"/>
+      <item name="Discussion Forum"  href="https://github.com/dbunit/dbunit-extension/discussions"/>
+    </menu>
+
     <menu name="Developing DbUnit">
-      <item name="Developers Guide"     href="/devguide.html"/>
-      <item name="Coding Standards"     href="/codingstandards.html">
+      <item name="Get source"                 href="/scm.html"/>
+      <item name="Developers Guide"           href="/devguide.html"/>
+      <item name="Coding Standards"           href="/codingstandards.html">
         <item name="Java Style &amp; Tooling" href="/codingstandards/javastyle.html"/>
         <item name="JavaDoc Conventions"      href="/codingstandards/javadoc.html"/>
         <item name="Test Conventions"         href="/codingstandards/testconventions.html"/>
@@ -167,7 +163,7 @@
       <item name="Commit Requirements"  href="/commits.html"/>
       <item name="Changelog"            href="/changelog.html"/>
       <item name="GitHub Workflow"      href="/github.html">
-        <item name="Issues"                        href="/github/issues.html"/>
+        <item name="Issues"                         href="/github/issues.html"/>
         <item name="Branching &amp; Pull Requests"  href="/github/pullrequests.html"/>
         <item name="Continuous Integration"         href="/github/continuousintegration.html"/>
       </item>
@@ -175,6 +171,14 @@
       <item name="Integration Tests"    href="/integrationtests.html"/>
       <item name="Releasing"            href="/releasing.html"/>
     </menu>
+
+    <menu name="References">
+      <item name="Resources"            href="/resources.html"/>
+      <item name="Maven 1.x Plugin"     href="http://maven-plugins.sourceforge.net/maven-dbunit-plugin/index.html"/>
+      <item name="Maven 2.x/3.x Plugin" href="../dbunit-maven-plugin/index.html"/>
+      <item name="DBUnit AT Open Hub"   href="https://www.openhub.net/p/dbunit"/>
+    </menu>
+
     <menu ref="reports"/>
   </body>
 </site>
