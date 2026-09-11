@@ -2,7 +2,8 @@
 
 image:https://github.com/dbunit/dbunit-extension/actions/workflows/build-any-branch-with-all-dbs.yml/badge.svg?branch=main["Build Status", link="https://github.com/dbunit/dbunit-extension/actions/workflows/build-any-branch-with-all-dbs.yml?query=branch%3Amain"]
 image:https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/jvm-repo-rebuild/reproducible-central/master/content/org/dbunit/badge.json["Reproducible Builds", link="https://github.com/jvm-repo-rebuild/reproducible-central/blob/master/content/org/dbunit/README.md"]
-image:https://api.scarf.sh/v2/packages/Dbunit/8fb62e30-d923-4676-bfd0-f57445d56578/downloads-badge[Maven Central downloads, link="https://central.sonatype.com/artifact/org.dbunit/dbunit"]
+image:https://api.scarf.sh/v2/packages/Dbunit/8fb62e30-d923-4676-bfd0-f57445d56578/downloads-badge["Maven Central downloads", link="https://central.sonatype.com/artifact/org.dbunit/dbunit"]
+image:https://img.shields.io/badge/Dependents-15K-blue?style=flat&logo=github["Dependents", link="https://github.com/dbunit/dbunit-extension/network/dependents"]
 
 DbUnit is a mature, proven JUnit extension, founded in 2002,
 targeted at database-driven projects that, among other things,
