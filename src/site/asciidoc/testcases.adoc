@@ -36,6 +36,12 @@ packages prep/verify/cleanup behind `runTest()`, needs no parent class, and
 works with both styles (it holds an `IDatabaseTester`, so it composes either
 way).
 
+When a single test needs to prep and verify tables across *more than one* database around one run
+of the code under test, wrap multiple `PrepAndExpectedTestCase` delegates — one per data source —
+in
+link:testcases/MultiDataSourcePrepAndExpectedTestCase.html[MultiDataSourcePrepAndExpectedTestCase]
+rather than hand-driving each one separately.
+
 == Inheritance: DBTestCase and Its Subclasses
 
 `DBTestCase` extends the top-level `DatabaseTestCase`. A template method,
