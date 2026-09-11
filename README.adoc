@@ -42,3 +42,7 @@ If you have questions, ideas, or want to get involved, start a discussion at
 https://github.com/dbunit/dbunit-extension/discussions.
 
 We are a small team working on improvements and issues along the way and need more help — we will gladly help you as needed with your ideas and contributions and look to add you as a committer when ready.
+
+== Thank You for Supporting Us
+image:https://img.shields.io/badge/Reviewed_by-Sourcery_AI-A11ED3?style=flat["Reviewed by Sourcery", link="https://sourcery.ai"]
+image:https://img.shields.io/badge/Reviewed_by-CodeRabbit-FF5A00?style=flat["Reviewed by CodeRabbit", link="https://coderabbit.ai"]
