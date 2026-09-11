@@ -54,8 +54,9 @@ link:testcases/annotations.html[*annotation-driven test configuration*] for JUni
 an opt-in link:components/rowcountcheck.html[*row count check*] that catches teardown table cleanup mistakes,
 link:datasets/fileloader.html[*JSON/YAML* data file loader] implementations,
 link:datacomparisons/valuecomparer.html[`RegularExpressionValueComparer`] for *matching a column against a pattern* rather than a literal,
+link:testcases/PrepAndExpectedTestCase.html#Bundling_Test_Data[`PrepAndExpectedTestData`] - an *immutable bundle* of the verify-definition, prep, and expected arrays for data-driven `PrepAndExpectedTestCase` tests,
 and
-link:testcases/PrepAndExpectedTestCase.html#Bundling_Test_Data[`PrepAndExpectedTestData`] - an *immutable bundle* of the verify-definition, prep, and expected arrays for data-driven `PrepAndExpectedTestCase` tests.
+link:testcases/MultiDataSourcePrepAndExpectedTestCase.html[`MultiDataSourcePrepAndExpectedTestCase`] for prepping and verifying *multiple databases* around one test.
 See link:https://dbunit.github.io/dbunit-extension/repos.html#snapshots[SNAPSHOTS] for how to use them.
 Refer to the link:changes.html#a3.6.0-SNAPSHOT[changes report],
 the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.6.0%20type%3AFeature[feature list], and

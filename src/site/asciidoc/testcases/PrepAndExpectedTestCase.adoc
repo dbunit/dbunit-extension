@@ -915,3 +915,10 @@ public void testExample() throws Exception
     }
 }
 ----
+
+== See Also
+
+A test exercising code that spans two or more databases can prep and verify each database around
+one run of the code under test with
+link:MultiDataSourcePrepAndExpectedTestCase.html[MultiDataSourcePrepAndExpectedTestCase], which
+wraps one `PrepAndExpectedTestCase` delegate per data source.

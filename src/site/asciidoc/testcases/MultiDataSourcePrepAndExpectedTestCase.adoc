@@ -1,0 +1,229 @@
+= MultiDataSourcePrepAndExpectedTestCase
+Jeff Jensen
+
+== Overview
+
+A test that exercises code spanning two or more databases - an "orders" database and an
+"inventory" database, say - has no way to prep and verify tables in *each* database around one
+run of the code under test using a single
+link:PrepAndExpectedTestCase.html[PrepAndExpectedTestCase]. Hand-driving a second
+`IDatabaseTester` and reimplementing the setup/verify/cleanup/connection bookkeeping is
+error-prone: on a failed setup, the earlier data source's rollback must call `postTest(false)`,
+not a bare `cleanupData()`, or its own row count check fires against a half-set-up, unknown-state
+database and buries the real cause.
+
+link:../apidocs/org/dbunit/MultiDataSourcePrepAndExpectedTestCase.html[MultiDataSourcePrepAndExpectedTestCase]
+wraps an ordered `{dataSourceName -> PrepAndExpectedTestCase}` map of delegates - normally one
+link:../apidocs/org/dbunit/DefaultPrepAndExpectedTestCase.html[DefaultPrepAndExpectedTestCase] per
+data source - and runs the same prep -> steps -> verify -> cleanup lifecycle, fanning setup and
+teardown out to every delegate through each delegate's own `preTest`/`postTest`, while running the
+test steps *exactly once*. It does not implement `PrepAndExpectedTestCase` itself: that
+interface's singular accessors and lifecycle methods have no honest answer for N data sources. It
+is a peer type with a parallel, map-keyed API, plus a `getTestCase(name)` escape hatch to one
+delegate.
+
+=== Wiring versus data
+
+Two things vary on two different schedules:
+
+Wiring (fixed for the instance's life):: the `{name -> PrepAndExpectedTestCase}` (or
+`{name -> IDatabaseTester}`) map, assembled with the constructors,
+`from(String, PrepAndExpectedTestCase)`, the `forTesters(...)` factories, and `add`/`addAll` -
+each returning the instance so calls chain - then frozen on the first `preTest`/`runTest` call.
+
+Data (varies per test method, per `@ParameterizedTest` row):: the
+`{name -> PrepAndExpectedTestData}` map passed to `preTest(map)`/`runTest(map, steps)`. A wired
+data source can sit a given run out entirely by being absent from this map, or mapped to the exact
+`PrepAndExpectedTestData.NONE` instance - its connection is then never opened.
+
+=== Before - a hand-driven second tester
+
+[source,java]
+----
+private DefaultPrepAndExpectedTestCase orders;
+private DefaultPrepAndExpectedTestCase inventory;
+
+@Test
+void testTransfer_success_movesStockAndRecordsOrder() throws Exception
+{
+    orders.configureTest(ORDERS_VERIFY, ORDERS_PREP, ORDERS_EXPECTED);
+    inventory.configureTest(INV_VERIFY, INV_PREP, INV_EXPECTED);
+    orders.preTest();
+    inventory.preTest();
+    try
+    {
+        service.transfer(orderId);           // writes to both databases
+        orders.verifyData();                 // first mismatch hides the second
+        inventory.verifyData();
+    }
+    finally
+    {
+        // reverse order, both, suppressed exceptions - and postTest(false), not
+        // cleanupData(), on a failed run
+        inventory.cleanupData();
+        orders.cleanupData();
+    }
+}
+----
+
+=== After - the wrapper
+
+[source,java]
+----
+private MultiDataSourcePrepAndExpectedTestCase testCase;
+
+@BeforeEach
+void setUp()
+{
+    final Map<String, IDatabaseTester> testers = new LinkedHashMap<>();
+    testers.put("orders", makeTester(ordersDataSource));
+    testers.put("inventory", makeTester(inventoryDataSource));
+    testCase = MultiDataSourcePrepAndExpectedTestCase.forTesters(loader, testers);
+}
+
+@Test
+void testTransfer_success_movesStockAndRecordsOrder() throws Exception
+{
+    final Map<String, PrepAndExpectedTestData> data = new LinkedHashMap<>();
+    data.put("orders", new PrepAndExpectedTestData(ORDERS_VERIFY, ORDERS_PREP, ORDERS_EXPECTED));
+    data.put("inventory", new PrepAndExpectedTestData(INV_VERIFY, INV_PREP, INV_EXPECTED));
+    testCase.runTest(data, () ->
+    {
+        service.transfer(orderId);
+        return null;
+    });
+}
+----
+
+Setup order, reverse teardown, verify-every-source-then-report, `postTest(false)` (not a bare
+cleanup) on a failed run, and suppressed-exception handling are all the wrapper's job.
+
+=== Orchestration rules
+
+[cols="1,1,3", options="header"]
+|===
+|Phase |Order |Behavior
+
+|`preTest(map)`
+|declared
+|An unknown key, or a key mapped to `null`, throws before any delegate is touched. For each
+ *involved* data source (present in the map and not mapped to `NONE`), in declared order:
+ `delegate.preTest(...)`. If one throws, every involved delegate set up so far - including the one
+ that just failed - is rolled back via `postTest(false)` in reverse - never a bare `cleanupData()`
+ - with each rollback failure attached as suppressed on the original failure, which is then
+ rethrown as-is.
+
+|test steps
+|once
+|Run by `runTest`, or by the caller between `preTest(map)` and `postTest(boolean)`. A delegate's
+ own overridden `runTestSteps()` is not invoked - the steps span every data source, so no single
+ delegate's step wrapper is the right scope.
+
+|`postTest(verify)`
+|reverse
+|`delegate.postTest(verify)` for each involved delegate, in reverse declared order, even after an
+ earlier one in that order fails - so every data source is verified and cleaned up, and every
+ mismatch reported, instead of stopping at the first. Every collected failure is aggregated into
+ one link:../apidocs/org/dbunit/MultiDataSourceAssertionError.html[MultiDataSourceAssertionError].
+|===
+
+`MultiDataSourceAssertionError` extends `AssertionError` (not a checked exception, and not
+`org.opentest4j.MultipleFailuresError`, keeping this core class JUnit-independent): the first
+failure becomes its cause, so a single failing data source still surfaces its real
+link:../apidocs/org/dbunit/assertion/DbComparisonFailure.html[DbComparisonFailure] one
+`Caused by:` hop down, and the rest are attached as suppressed, each labelled with its data source
+name and phase, e.g. `"2 data sources failed in postTest: orders (verifyData), inventory
+(cleanupData)"`.
+
+=== A `@ParameterizedTest` suite
+
+Condensed from PrepAndExpectedTestCase's
+link:PrepAndExpectedTestCase.html#Bundling_Test_Data[Bundling Prep, Expected, and Verify Into One
+Argument] section: one `PrepAndExpectedTestData` per data source per scenario, collected into one
+`Map<String, PrepAndExpectedTestData>` per `@MethodSource` row.
+
+[source,java]
+----
+@ParameterizedTest(name = "[{index}] {0}")
+@MethodSource("testData")
+void test(String testName, Map<String, PrepAndExpectedTestData> rowData, long customerId,
+        String sku, int quantity) throws Exception
+{
+    testCase.runTest(rowData, () -> {
+        orderService.placeOrder(customerId, sku, quantity);
+        return null;
+    });
+}
+
+private static Map<String, PrepAndExpectedTestData> data(PrepAndExpectedTestData catalog,
+        PrepAndExpectedTestData orders, PrepAndExpectedTestData inventory)
+{
+    Map<String, PrepAndExpectedTestData> map = new LinkedHashMap<>();
+    map.put("catalog", catalog);
+    map.put("orders", orders);
+    map.put("inventory", inventory);
+    return map;
+}
+
+private static Object[][] testData()
+{
+    return new Object[][] {
+            {"in stock", data(CATALOG_SOLD, ORDER_INSERTED, STOCK_DRAWN_DOWN), 42L, "WIDGET-1", 3},
+    };
+}
+----
+
+A row may omit a data source, or pass `PrepAndExpectedTestData.NONE` for it, to leave it out of
+that run entirely.
+
+=== Replacing a hand-rolled multi-tester harness
+
+A suite that already hand-rolls this pattern - two or more `@Qualifier`-injected
+`PrepAndExpectedTestCase` delegates wired into a component, a per-scenario record shaped like
+`PrepAndExpectedTestData`, and hand-coded pre/run/post fan-out with its own aggregate exception -
+can delegate the dbUnit fan-out to this wrapper directly:
+
+[source,java]
+----
+public class PrimarySecondaryDbTester
+{
+    private final MultiDataSourcePrepAndExpectedTestCase testCase;
+
+    public PrimarySecondaryDbTester(
+            @Qualifier("primaryTestCase") PrepAndExpectedTestCase primaryTestCase,
+            @Qualifier("secondaryTestCase") PrepAndExpectedTestCase secondaryTestCase)
+    {
+        testCase = MultiDataSourcePrepAndExpectedTestCase
+                .from("primary", primaryTestCase)
+                .add("secondary", secondaryTestCase);
+    }
+
+    public Object runTest(PrepAndExpectedTestData primary, PrepAndExpectedTestData secondary,
+            PrepAndExpectedTestCaseSteps testSteps) throws Exception
+    {
+        final Map<String, PrepAndExpectedTestData> data = new LinkedHashMap<>();
+        data.put("primary", primary);
+        data.put("secondary", secondary);
+        return testCase.runTest(data, testSteps);
+    }
+}
+----
+
+The harness's own case list, per-case fan-out methods, and aggregate exception type are all
+deleted; `MultiDataSourcePrepAndExpectedTestCase` owns that logic now, and the aggregate becomes
+unchecked, so a `throws Throwable` a caller declared for the old checked aggregate keeps compiling
+and can be narrowed as a later cleanup. Two things to check before switching: a scenario that
+intentionally preps/verifies *nothing* for one side but still wants that delegate's connection
+opened must build its own all-empty `PrepAndExpectedTestData` rather than pass `NONE` - the skip
+check is `==` against that exact instance, not content equality; and teardown order flips from
+whatever the harness used to reverse declared order, harmless when, as is typical, the data
+sources are independent.
+
+This wrapper's API is deliberately the *programmatic* equivalent only. A named-tester /
+named-connection annotation model for the `@DbUnitPrep`/`@DbUnitExpected` annotation style
+described in PrepAndExpectedTestCase's
+link:PrepAndExpectedTestCase.html#Annotation_Driven_Equivalent[Annotation-Driven Equivalent]
+section, extended to multiple data sources, is tracked separately as
+https://github.com/dbunit/dbunit-extension/issues/969[issue #969]. Until that lands, a
+`@ParameterizedTest` using the programmatic API above is the way to cover multiple data sources in
+one test.
