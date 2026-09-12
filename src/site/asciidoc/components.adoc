@@ -110,6 +110,7 @@ A few — `ITable`, `VerifyTableDefinition`, `IOperationListener`, and
 |`DBTestCase` and subclasses |link:testcases.html[Test Integration] — the inheritance-based alternative.
 |`PrepAndExpectedTestCase`, `PrepAndExpectedTestCaseSteps` |link:testcases/PrepAndExpectedTestCase.html[PrepAndExpectedTestCase] — turn-key prep/verify/cleanup test case.
 |`DbUnitExtension` |link:testcases/DbUnitExtension.html[DbUnitExtension] — JUnit 5/6 extension driving the `IDatabaseTester` setup/teardown lifecycle automatically, with `org.dbunit.annotation` support.
+|`DbUnitTestExecutionListener` |*New:* link:testcases/DbUnitTestExecutionListener.html[DbUnitTestExecutionListener] — the same `org.dbunit.annotation` support as `DbUnitExtension`, driven by Spring's TestContext Framework instead of JUnit.
 |anchor:annotations[]`link:testcases/annotations.html[org.dbunit.annotation]` (`@DbUnitPrep`, `@DbUnitSetup`, `@DbUnitExpected`, `@DbUnitTearDown`, `@DbUnitConfig`, and related) |*New:* link:testcases/annotations.html[DbUnit Annotations] — declares the dataset, operation, and verification directly on the test class or method.
 |anchor:verifytabledefinition[]`link:components/verifytabledefinition.html[VerifyTableDefinition]` |*New:* link:components/verifytabledefinition.html[VerifyTableDefinition] — defines one table to verify: column filters and `ValueComparer`s.
 |`link:components/ioperationlistener.html[IOperationListener]` |*New:* link:components/ioperationlistener.html[IOperationListener] — hooks into connection setup/teardown lifecycle events.
