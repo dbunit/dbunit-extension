@@ -23,7 +23,10 @@ package org.dbunit.annotation.runtime;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.dbunit.DefaultPrepAndExpectedTestCase;
 import org.dbunit.VerifyTableDefinition;
@@ -187,6 +190,88 @@ class AnnotatedTestConfigurationTest
         assertThat(resolved.getPrepDataFiles())
                 .as("dataSetBaseDir must prefix a relative prep path.")
                 .containsExactly("/dbunit/accounts/prep.xml");
+    }
+
+    // ---- from(Class, AnnotationLookup) ----
+
+    @Test
+    void testFrom_lookupSuppliesAnnotations_buildsConfigurationFromThem() throws Exception
+    {
+        final DbUnitSetup setup = ClassLevelSetup.class.getAnnotation(DbUnitSetup.class);
+        final DbUnitPrep prep = method(ClassLevelSetup.class, "method")
+                .getAnnotation(DbUnitPrep.class);
+        final AnnotationLookup lookup = new AnnotationLookup()
+        {
+            @Override
+            public <A extends Annotation> A find(final Class<A> annotationType)
+            {
+                if (annotationType == DbUnitSetup.class)
+                {
+                    return annotationType.cast(setup);
+                }
+                if (annotationType == DbUnitPrep.class)
+                {
+                    return annotationType.cast(prep);
+                }
+                return null;
+            }
+        };
+
+        final AnnotatedTestConfiguration config =
+                AnnotatedTestConfiguration.from(ClassLevelSetup.class, lookup);
+
+        assertThat(config.getSetUpOperation())
+                .as("The class-level operation the lookup found must be used.")
+                .isEqualTo(DatabaseOperation.REFRESH);
+        assertThat(config.getPrepDataFiles())
+                .as("The method-level prep file the lookup found must be resolved.")
+                .containsExactly("/org/dbunit/annotation/runtime/method.xml");
+    }
+
+    @Test
+    void testFrom_lookup_asksForEachOfTheConfigurationAnnotations()
+    {
+        final List<Class<?>> asked = new ArrayList<>();
+        final AnnotationLookup lookup = new AnnotationLookup()
+        {
+            @Override
+            public <A extends Annotation> A find(final Class<A> annotationType)
+            {
+                asked.add(annotationType);
+                return null;
+            }
+        };
+
+        AnnotatedTestConfiguration.from(SetupOnly.class, lookup);
+
+        assertThat(asked)
+                .as("Every annotation that configures a test must be looked up, so a binding"
+                        + " cannot forget one.")
+                .containsExactlyInAnyOrder(DbUnitConfig.class, DbUnitPrep.class,
+                        DbUnitSetup.class, DbUnitExpected.class, DbUnitTearDown.class,
+                        DbUnitRowCountCheck.class);
+    }
+
+    @Test
+    void testFrom_lookupFindsNothing_buildsDefaultConfiguration()
+    {
+        final AnnotationLookup lookup = new AnnotationLookup()
+        {
+            @Override
+            public <A extends Annotation> A find(final Class<A> annotationType)
+            {
+                return null;
+            }
+        };
+
+        final AnnotatedTestConfiguration config =
+                AnnotatedTestConfiguration.from(SetupOnly.class, lookup);
+
+        assertThat(config.getSetUpOperation())
+                .as("With no annotation found, the setup operation defaults to CLEAN_INSERT.")
+                .isEqualTo(DatabaseOperation.CLEAN_INSERT);
+        assertThat(config.isExpected()).as("With no @DbUnitExpected found, the test is not on"
+                + " the prep/expected path.").isFalse();
     }
 
     // ---- @DbUnitTearDown ----

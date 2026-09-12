@@ -59,6 +59,9 @@
       <!-- dependabot:dep=actions/setup-java:new=6.0.1:pr=984 -->
       <action dev="dependabot" type="update" due-to="Dependabot">Update github_actions dependency actions/setup-java from 6.0.0 to 6.0.1 (#984).</action>
       <action dev="robertonr" type="update" issue="994" system="github" due-to="robertonr">Make loggers static final for performance.</action>
+      <action dev="jeffjensen" type="add" issue="754" system="github" due-to="jeffjensen">
+          Add org.dbunit.spring, a Spring TestContext Framework binding for the org.dbunit.annotation family that org.dbunit.junit.jupiter.DbUnitExtension drives for JUnit 5/6: DbUnitTestExecutionListener, registered with @DbUnitSpringTest, resolves the tester like the JUnit 5 binding plus a last-resort IDatabaseTester bean in the ApplicationContext, and runs its prep before and its verify/teardown after a @Transactional test's transaction. It acts only on tests that carry a @DbUnit* annotation or a @DbUnitTester/@DbUnitTestCase field, supports no parameter injection, and adds spring-test and spring-context as new optional dependencies.
+      </action>
     </release>
     <release version="3.5.2" date="Sep 7, 2026" description="DefaultPrepAndExpectedTestCase connection hygiene: replace a connection the pool or database dropped between tests, and warn when handed a non-autocommit connection">
       <action dev="jeffjensen" type="fix" issue="962" system="github" due-to="jeffjensen">

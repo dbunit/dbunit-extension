@@ -24,7 +24,7 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Executable;
 import java.lang.reflect.Method;
 import java.sql.Connection;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -40,6 +40,9 @@ import org.dbunit.annotation.DbUnitTestCase;
 import org.dbunit.annotation.DbUnitTester;
 import org.dbunit.annotation.runtime.AnnotatedTestConfiguration;
 import org.dbunit.annotation.runtime.AnnotatedTestExecutor;
+import org.dbunit.annotation.runtime.AnnotatedTestOptIn;
+import org.dbunit.annotation.runtime.AnnotationLookup;
+import org.dbunit.annotation.runtime.TestInstanceTesterResolver;
 import org.dbunit.database.IDatabaseConnection;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.AfterTestExecutionCallback;
@@ -318,41 +321,32 @@ public class DbUnitExtension
         return config == null || config.injectConnectionParameter();
     }
 
-    /** The class/method annotations any one of which opts a test into parameter injection. */
-    private static final List<Class<? extends Annotation>> OPT_IN_ANNOTATIONS = Arrays.asList(
-            DbUnitTest.class, DbUnitConfig.class, DbUnitPrep.class, DbUnitSetup.class,
-            DbUnitExpected.class, DbUnitTearDown.class, DbUnitRowCountCheck.class);
-
     /**
      * Returns whether the current test opts into the {@code org.dbunit.annotation} family, and
-     * so into parameter injection: any {@link #OPT_IN_ANNOTATIONS} annotation on the test method
-     * or the class hierarchy (enclosing classes included, for {@code @Nested}), or a
+     * so into parameter injection: {@link DbUnitTest @DbUnitTest}, or whatever
+     * {@link AnnotatedTestOptIn} accepts - any {@code @DbUnit*} configuring annotation on the
+     * test method or the class hierarchy (enclosing classes included, for {@code @Nested}), or a
      * {@link DbUnitTester}/{@link DbUnitTestCase} field anywhere in that same scope. A plain,
      * unannotated {@link IDatabaseTester} field alone is not an opt-in - that is the 3.5.0
      * lifecycle-only style, left exactly as it was.
      */
     private boolean isAnnotationDriven(final ExtensionContext context)
     {
-        for (final Class<? extends Annotation> annotationType : OPT_IN_ANNOTATIONS)
+        final AnnotationLookup lookup = new ContextAnnotationLookup(context);
+        if (lookup.find(DbUnitTest.class) != null)
         {
-            if (findAnnotation(context, annotationType) != null)
-            {
-                return true;
-            }
+            return true;
         }
-        return hasMarkerField(context.getRequiredTestClass())
-                || context.getEnclosingTestClasses().stream().anyMatch(this::hasMarkerField);
+        final List<Class<?>> testClasses = testClassesInScope(context);
+        return AnnotatedTestOptIn.isOptedIn(lookup, testClasses);
     }
 
-    /**
-     * Returns whether {@code testClass} or a superclass declares a {@link DbUnitTester} or
-     * {@link DbUnitTestCase} field.
-     */
-    private boolean hasMarkerField(final Class<?> testClass)
+    private List<Class<?>> testClassesInScope(final ExtensionContext context)
     {
-        return !AnnotationSupport.findAnnotatedFields(testClass, DbUnitTester.class).isEmpty()
-                || !AnnotationSupport.findAnnotatedFields(testClass, DbUnitTestCase.class)
-                        .isEmpty();
+        final List<Class<?>> testClasses = new ArrayList<>();
+        testClasses.add(context.getRequiredTestClass());
+        testClasses.addAll(context.getEnclosingTestClasses());
+        return testClasses;
     }
 
     /**
@@ -442,10 +436,10 @@ public class DbUnitExtension
         if (executor == null)
         {
             final AnnotatedTestConfiguration configuration = resolveConfiguration(context);
-            final TesterResolver.Resolution resolution =
+            final TestInstanceTesterResolver.Resolution resolution =
                     testerResolver.resolve(context, configuration);
-            executor = new AnnotatedTestExecutor(configuration, resolution.tester,
-                    resolution.testCase, isAnnotationDriven(context));
+            executor = new AnnotatedTestExecutor(configuration, resolution.getTester(),
+                    resolution.getTestCase(), isAnnotationDriven(context));
             store.put(EXECUTOR_KEY, executor);
         }
         return executor;
@@ -455,40 +449,49 @@ public class DbUnitExtension
 
     private AnnotatedTestConfiguration resolveConfiguration(final ExtensionContext context)
     {
-        final Class<?> testClass = context.getRequiredTestClass();
-        final DbUnitConfig config = findAnnotation(context, DbUnitConfig.class);
-        final DbUnitPrep prep = findAnnotation(context, DbUnitPrep.class);
-        final DbUnitSetup setup = findAnnotation(context, DbUnitSetup.class);
-        final DbUnitExpected expected = findAnnotation(context, DbUnitExpected.class);
-        final DbUnitTearDown tearDown = findAnnotation(context, DbUnitTearDown.class);
-        final DbUnitRowCountCheck rowCountCheck =
-                findAnnotation(context, DbUnitRowCountCheck.class);
-        return AnnotatedTestConfiguration.from(testClass, config, prep, setup, expected,
-                tearDown, rowCountCheck);
+        return AnnotatedTestConfiguration.from(context.getRequiredTestClass(),
+                new ContextAnnotationLookup(context));
     }
 
-    /**
-     * Finds {@code annotationType}, trying the test method first and the class hierarchy -
-     * including enclosing classes, for {@code @Nested} support - second, so a method-level
-     * annotation continues to win over a class-level one.
-     */
     private <A extends Annotation> A findAnnotation(final ExtensionContext context,
             final Class<A> annotationType)
     {
-        final Optional<Method> method = context.getTestMethod();
-        if (method.isPresent())
+        return new ContextAnnotationLookup(context).find(annotationType);
+    }
+
+    /**
+     * Finds an annotation the JUnit Jupiter way: on the test method first and the class
+     * hierarchy - including enclosing classes, for {@code @Nested} support - second, so a
+     * method-level annotation continues to win over a class-level one. The method is searched
+     * on its own, not through the methods it overrides.
+     */
+    private static final class ContextAnnotationLookup implements AnnotationLookup
+    {
+        private final ExtensionContext context;
+
+        private ContextAnnotationLookup(final ExtensionContext context)
         {
-            final Optional<A> onMethod =
-                    AnnotationSupport.findAnnotation(method.get(), annotationType);
-            if (onMethod.isPresent())
-            {
-                return onMethod.get();
-            }
+            this.context = context;
         }
-        return AnnotationSupport
-                .findAnnotation(context.getRequiredTestClass(), annotationType,
-                        context.getEnclosingTestClasses())
-                .orElse(null);
+
+        @Override
+        public <A extends Annotation> A find(final Class<A> annotationType)
+        {
+            final Optional<Method> method = context.getTestMethod();
+            if (method.isPresent())
+            {
+                final Optional<A> onMethod =
+                        AnnotationSupport.findAnnotation(method.get(), annotationType);
+                if (onMethod.isPresent())
+                {
+                    return onMethod.get();
+                }
+            }
+            return AnnotationSupport
+                    .findAnnotation(context.getRequiredTestClass(), annotationType,
+                            context.getEnclosingTestClasses())
+                    .orElse(null);
+        }
     }
 
     /**

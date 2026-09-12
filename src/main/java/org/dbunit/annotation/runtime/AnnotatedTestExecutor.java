@@ -44,9 +44,10 @@ import org.dbunit.database.connection.TestScopedConnection;
  * {@link ExecutorOperationListener} installed on the tester.
  *
  * <p>Not intended for direct use by test code; this is machinery consumed by a binding such as
- * {@code DbUnitExtension}, which resolves the {@link IDatabaseTester} and any injected
- * {@link PrepAndExpectedTestCase} - field discovery is binding-specific - and hands them here
- * already resolved.
+ * {@code DbUnitExtension} or the Spring {@code DbUnitTestExecutionListener}, which resolves the
+ * {@link IDatabaseTester} and any injected {@link PrepAndExpectedTestCase} - through
+ * {@link TestInstanceTesterResolver}'s shared field rules, from the test instances only the
+ * binding knows how to find - and hands them here already resolved.
  *
  * <p>The binding tells this executor, through the constructor's {@code annotationDriven} flag,
  * whether the test opted into the {@code org.dbunit.annotation} family at all - any
@@ -92,6 +93,8 @@ public class AnnotatedTestExecutor
     private final TestScopedConnection testScopedConnection;
     private final ExpectedLifecycle expectedLifecycle;
     private final SetupTeardownLifecycle setupTeardownLifecycle;
+    private IOperationListener originalOperationListener;
+    private IOperationListener installedOperationListener;
 
     /**
      * Creates an executor for an annotation-driven test - equivalent to
@@ -119,14 +122,16 @@ public class AnnotatedTestExecutor
      * <p>Mutates {@code tester} only when {@code annotationDriven} is true:
      * {@link #installOperationListener()} runs here, replacing {@code tester}'s
      * {@link IOperationListener} with an {@code ExecutorOperationListener} wrapping the previous
-     * one. A binding constructs one executor per test method, so a {@code tester} shared across
-     * methods (e.g. a {@code static @DbUnitTester} field) is re-wrapped each time -
-     * {@link ConnectionPreservingOperationListener#unwrap(IOperationListener)} unwraps the prior
-     * wrapper first, so the layers do not stack - and the last test's wrapper stays installed
-     * on the tester after the class
-     * finishes, holding a reference to that last executor until the tester is itself discarded
-     * or given a new listener. When {@code annotationDriven} is false - the classic path - the
-     * tester's listener is left untouched; see the class Javadoc.
+     * one, and {@link #afterTest(boolean)} puts the previous one back. A binding constructs one
+     * executor per test method, so a {@code tester} shared across methods (e.g. a
+     * {@code static @DbUnitTester} field) is wrapped anew for each - and
+     * {@link ConnectionPreservingOperationListener#unwrap(IOperationListener)} unwraps a wrapper
+     * a failed test left behind first, so the layers do not stack. A {@code tester} shared beyond
+     * one test class - a bean in a cached application context - is therefore left as it was
+     * found, but is still not safe to share between tests running at the same time: each
+     * installs its own wrapper and sets its own dataset and operations on the one tester. When
+     * {@code annotationDriven} is false - the classic path - the tester's listener is left
+     * untouched; see the class Javadoc.
      *
      * @param configuration The resolved configuration to execute.
      * @param tester The tester to drive the setup/teardown path with, or to construct a
@@ -282,11 +287,30 @@ public class AnnotatedTestExecutor
      */
     private void installOperationListener()
     {
+        originalOperationListener = tester.getOperationListener();
         final IOperationListener delegate =
-                ConnectionPreservingOperationListener.unwrap(tester.getOperationListener());
-        tester.setOperationListener(new ExecutorOperationListener(
+                ConnectionPreservingOperationListener.unwrap(originalOperationListener);
+        installedOperationListener = new ExecutorOperationListener(
                 configuration.getDatabaseConfigProperties(), this::peekResolvedConnection,
-                delegate, this::onListenerFirstConnectionRetrieved));
+                delegate, this::onListenerFirstConnectionRetrieved);
+        tester.setOperationListener(installedOperationListener);
+    }
+
+    /**
+     * Puts the tester's own operation listener back once the test is over, unless someone
+     * replaced the installed wrapper in the meantime. A tester shared beyond one test - a
+     * {@code static} field, a bean in a cached application context - is then left as it was
+     * found: it does not keep this executor and everything it references reachable, apply this
+     * test's {@code @DbUnitProperty} values to every connection a later user retrieves, or
+     * carry this test's callbacks into a test running beside it.
+     */
+    private void restoreOperationListener()
+    {
+        if (installedOperationListener != null
+                && tester.getOperationListener() == installedOperationListener)
+        {
+            tester.setOperationListener(originalOperationListener);
+        }
     }
 
     /**
@@ -381,6 +405,17 @@ public class AnnotatedTestExecutor
      * @throws Error If any step fails with an {@code Error}, e.g. a comparison mismatch.
      */
     public void afterTest(final boolean testFailed) throws Exception
+    {
+        try
+        {
+            runAfterSteps(testFailed);
+        } finally
+        {
+            restoreOperationListener();
+        }
+    }
+
+    private void runAfterSteps(final boolean testFailed) throws Exception
     {
         try
         {

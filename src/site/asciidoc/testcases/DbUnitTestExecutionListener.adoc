@@ -1,0 +1,316 @@
+= DbUnitTestExecutionListener
+Jeff Jensen
+
+== Overview
+
+link:../apidocs/org/dbunit/spring/DbUnitTestExecutionListener.html[DbUnitTestExecutionListener]
+is a Spring TestContext Framework `TestExecutionListener` that drives the
+same declarative `org.dbunit.annotation` family —
+`@DbUnitPrep`, `@DbUnitSetup`, `@DbUnitExpected`, `@DbUnitTearDown`, and
+`@DbUnitConfig` — that link:DbUnitExtension.html[DbUnitExtension] drives for
+JUnit 5/6 (Jupiter), but for a test run through Spring's TestContext
+Framework instead: JUnit 5's `SpringExtension`, JUnit 4's
+`SpringJUnit4ClassRunner` (deprecated since Spring 7.0 in favor of
+`SpringExtension`), or Spring's TestNG support. See
+link:annotations.html[DbUnit Annotations] for the annotation vocabulary
+itself, which is identical either way.
+
+Register it with `@DbUnitSpringTest`:
+
+[source,java]
+----
+@ExtendWith(SpringExtension.class)
+@ContextConfiguration(classes = AppTestConfig.class)
+@DbUnitSpringTest
+class AccountRepositoryTest
+{
+    @Autowired
+    @DbUnitTester
+    IDatabaseTester databaseTester;
+
+    @Test
+    @DbUnitPrep("accounts-prep.xml")
+    @DbUnitExpected(value = "accounts-expected.xml", verifyTables = {"ACCOUNT"})
+    void testWithdraw_sufficientBalance_decrementsBalance() { ... }
+}
+----
+
+`AppTestConfig` exposes an `IDatabaseTester` bean; Spring injects it into the
+`@Autowired` field, and `@DbUnitTester` makes the listener drive that instance.
+The field is optional: without it the listener falls back to the bean itself
+(see <<discovery,Field, Bean, or Factory Discovery>>). A `@DbUnitTester` field that
+Spring does not populate — one with neither `@Autowired` nor an initializer —
+stays `null` and fails the test, because a marked field outranks the bean.
+
+`@DbUnitSpringTest` is exactly
+`@TestExecutionListeners(listeners = DbUnitTestExecutionListener.class,
+mergeMode = MergeMode.MERGE_WITH_DEFAULTS)`. That `mergeMode` is not optional
+sugar — Spring's own `@TestExecutionListeners`, used bare, *replaces* the
+default listeners instead of adding to them, silently dropping dependency
+injection (`@Autowired` stops working) and transaction management
+(`@Transactional` stops working) for any test class that reaches for it
+directly instead of `@DbUnitSpringTest`.
+
+Spring honors only one `@TestExecutionListeners` declaration per class. If the
+class declares its own, or carries another annotation composed with one — Spring
+Batch's `@SpringBatchTest`, for example — then `@DbUnitSpringTest` has no
+effect: silently, so every `@DbUnit*` annotation is ignored and the tests run
+with no prep, verification or teardown. Add the listener to that one
+declaration instead, keeping the `mergeMode`:
+
+[source,java]
+----
+@TestExecutionListeners(listeners = {AuditListener.class, DbUnitTestExecutionListener.class},
+        mergeMode = MergeMode.MERGE_WITH_DEFAULTS)
+----
+
+A subclass that declares its own `@TestExecutionListeners` is not affected, since
+its listeners are merged with those it inherits unless `inheritListeners` is
+`false`.
+
+[#discovery]
+== Field, Bean, or Factory Discovery
+
+The listener resolves the `IDatabaseTester` (and, for the prep/expected
+path, the `PrepAndExpectedTestCase`) in this order, first match wins:
+
+. A field annotated `@DbUnitTestCase`, whose type implements
+  `PrepAndExpectedTestCase` — that instance is driven directly.
+. A field annotated `@DbUnitTester`, whose type implements
+  `IDatabaseTester`.
+. `@DbUnitConfig(databaseTesterFactory = ...)`, reflectively instantiated
+  and asked to create a tester.
+. The original (3.5.0) auto-scan: exactly one non-static field assignable to
+  `IDatabaseTester`.
+. *Spring-specific, and last:* the `IDatabaseTester` bean in the test's
+  `ApplicationContext` — the only one, or when there are several the one marked
+  `@Primary` or the only one not marked `@Fallback`. A test class needs no
+  dbUnit-specific field at all when its test configuration already exposes
+  one — for example, a `@TestConfiguration` bean wrapping the application's own
+  `DataSource` the way
+  link:DataSourceBasedDBTestCase.html[a DataSource-based tester] already does:
++
+[source,java]
+----
+@TestConfiguration
+class DbUnitTestConfig
+{
+    @Bean
+    IDatabaseTester databaseTester(final DataSource dataSource)
+    {
+        return new DataSourceDatabaseTester(dataSource);
+    }
+}
+----
++
+No bean, or several that neither `@Primary` nor `@Fallback` tells apart, is not
+an error — an unrelated `IDatabaseTester` bean somewhere in a large context is
+not remarkable, unlike an ambiguous marked field — and resolution fails only
+when no tier found a tester. Because the bean comes last, a tester the test class
+declares itself always outranks it, as under `DbUnitExtension`.
+
+The field rules are `DbUnitExtension`'s, from the same implementation: a
+`@DbUnitTester` or `@DbUnitTestCase` field is found anywhere in the test
+class's hierarchy, and a second one — on the same class, or on a superclass
+and its subclass — is rejected with an `IllegalStateException` instead of one
+silently shadowing the other. See
+link:annotations.html#resolution[Resolving the Tester or Test Case].
+
+The bean should be a singleton. For a prototype-scoped bean, or a
+`FactoryBean` that does not return a singleton, the lookup creates a new
+instance, which is not the one the test's own `@Autowired` field holds: the
+listener would drive a tester that the test body never configured.
+
+The bean tier asks the context Spring has already loaded for the test, which is
+normally the case once `DependencyInjectionTestExecutionListener` has injected
+the test instance. When nothing has loaded it yet, it is loaded for the lookup
+if the test class declares a `@ContextConfiguration` or `@ContextHierarchy`.
+With neither declared and nothing having loaded a context — for instance
+because `@TestExecutionListeners` replaced Spring's default listeners, dropping
+that injecting listener (the `mergeMode = MERGE_WITH_DEFAULTS` is missing) —
+the tier is skipped, and the "No IDatabaseTester field or bean found" error
+says that the `ApplicationContext` was not loaded.
+
+== Nested Test Classes
+
+For a JUnit Jupiter `@Nested` test class run with `SpringExtension`, Spring
+inherits the enclosing class's `@TestExecutionListeners` (its
+`@NestedTestConfiguration` mode defaults to `INHERIT`), so the listener runs
+for nested tests, and — as with `DbUnitExtension` — what the enclosing class
+declares applies to them:
+
+* The enclosing class's class-level `@DbUnit*` annotations apply unless the
+  nested class or its method declares its own.
+* The tester field is looked up in the nested instance first, then outward
+  through the enclosing instances, so a nested class inherits its enclosing
+  class's `@DbUnitTester` field or shadows it with one of its own.
+
+A nested class annotated `@NestedTestConfiguration(OVERRIDE)` inherits
+nothing from its enclosing class. Spring's `TestContext` holds only the
+innermost test instance, so the listener reads each enclosing instance from the
+reference the compiler gives every inner class. Since JDK 18, `javac` omits
+that reference from an inner class that never uses its enclosing instance. The
+enclosing instance is then unreachable, and when the enclosing class declares a
+tester field the listener fails with a message saying so, rather than quietly
+use a different tester such as an `ApplicationContext` bean. Either use the
+enclosing instance in the nested class, declare the tester field in the nested
+class itself, or expose the tester as a bean.
+
+== Annotation-Driven Configuration
+
+The full `org.dbunit.annotation` vocabulary applies unchanged — see
+link:annotations.html[DbUnit Annotations].
+
+The listener acts only on a test that opts into that vocabulary, by the rule
+`DbUnitExtension` applies to decide that a test is annotation-driven:
+
+* any of `@DbUnitConfig`, `@DbUnitPrep`, `@DbUnitSetup`, `@DbUnitExpected`,
+  `@DbUnitTearDown` or `@DbUnitRowCountCheck` on the test method or the test
+  class, directly or through a composed annotation, or
+* a `@DbUnitTester` or `@DbUnitTestCase` field in the test class or a class
+  enclosing it.
+
+For any other test the listener does nothing: no tester is looked for and
+nothing is set up or torn down. That is what lets `@DbUnitSpringTest` sit on a
+shared base class or composed annotation without costing the tests that use no
+DbUnit a tester, and without failing them when none exists, so registering the
+listener is not itself an opt-in (`DbUnitExtension`'s `@DbUnitTest` is). Nor is
+a plain, unmarked `IDatabaseTester` field: there is no separate "classic",
+lifecycle-only style to fall back to, as `DbUnitExtension` has for such a
+field, so mark the field `@DbUnitTester` or add an annotation. A test that opts
+in gets the full annotation-driven treatment, since there is no pre-existing
+Spring integration whose behavior needs preserving.
+
+As under `DbUnitExtension`, an annotation on the test method wins over the same
+annotation on the class. The method is searched on its own, including
+meta-annotations such as a composed annotation of your own, but not the methods
+it overrides: an overriding test method that declares no `@DbUnitExpected` is
+not verified against the one declared on the method it overrides. The class is
+searched the way Spring searches test classes — meta-annotations, superclasses
+and interfaces, and the enclosing classes of a nested class.
+
+== Row Count Check
+
+The same link:../components/rowcountcheck.html[RowCountCheck] diagnostic
+`DbUnitExtension` and link:PrepAndExpectedTestCase.html[PrepAndExpectedTestCase]
+already offer applies here too, configured the same way: off by default,
+enabled via `DatabaseConfig.FEATURE_ROW_COUNT_CHECK`
+(or `-Ddbunit.rowCountCheck=true`), or per class/method with
+link:annotations.html#rowcountcheck[`@DbUnitRowCountCheck`].
+
+== Shared Testers and Parallel Execution
+
+An `IDatabaseTester` bean is a singleton of the `ApplicationContext`, and Spring
+caches a context and shares it among every test class with the same
+configuration, so one tester serves all of them. For each test the listener
+sets the dataset and operations on the tester, and it wraps the tester's
+operation listener while the test runs; afterwards it puts the dataset, the
+operations and the operation listener back as it found them, so a class that
+later uses the bean without the listener sees none of the previous test's
+`@DbUnitProperty` values or callbacks.
+
+None of that is synchronized. A tester shared this way — as a bean in a cached
+context, through a `static` `@DbUnitTester` field, or as an instance field under
+`@TestInstance(Lifecycle.PER_CLASS)` — is not safe for tests that run at the
+same time, for example under `junit.jupiter.execution.parallel.enabled=true`.
+Run such tests sequentially, or give each its own tester.
+
+[#ordering]
+== Listener Ordering and Transactional Tests
+
+`DbUnitTestExecutionListener` hooks Spring's before-test-method and
+after-test-method phases and runs at order `3500`, between
+`DirtiesContextTestExecutionListener` (`3000`) and
+`TransactionalTestExecutionListener` (`4000`), the listener that starts and
+ends a `@Transactional` test's transaction in those same phases. Spring runs
+the before-callbacks in ascending order and the after-callbacks in reverse, so
+around a `@Transactional` test the steps run in this order:
+
+. DbUnit's prep (`@DbUnitPrep`, `@DbUnitSetup`) runs and commits.
+. The test-managed transaction starts; `@BeforeTransaction` methods run.
+. The test method runs.
+. The transaction ends, rolled back by default or committed with `@Commit`;
+  `@AfterTransaction` methods run.
+. DbUnit verifies `@DbUnitExpected` and tears down with `@DbUnitTearDown`.
+. `@DirtiesContext` closes the application context, if the test asks for it.
+
+What follows from that:
+
+* *DbUnit's work is never part of the test-managed transaction.* Prep and
+  teardown commit directly against the database, whatever the transaction
+  does, so they are not rolled back with it: a test relying on `@Transactional`
+  rollback for per-method isolation still needs `@DbUnitTearDown` (for example
+  `DELETE_ALL`) to remove what DbUnit's prep inserted. The tester uses its own
+  connection and no test-managed transaction is active at these steps, so even
+  a tester built on a `TransactionAwareDataSourceProxy` gets an ordinary
+  connection; only a transaction that something else opens around this
+  listener's phases, such as a listener of your own ordered before it, could be
+  joined that way, and then the tester needs the underlying `DataSource`.
+* *`@DbUnitExpected` sees only what the transaction committed.* A test that
+  changes data in a rolled-back transaction is verified against the database
+  as the rollback left it, so such a test fails against an expected dataset
+  holding its changes. Add `@Commit` (or `@Rollback(false)`) to a
+  `@Transactional` test that verifies its own changes, or leave it
+  non-transactional.
+* *The steps wrap JUnit's callbacks as well.* Prep runs before the
+  `@BeforeEach` methods and before `@Sql` scripts with
+  `executionPhase = BEFORE_TEST_METHOD`; verification and teardown run after
+  the `@AfterEach` methods and after `@Sql` scripts with
+  `executionPhase = AFTER_TEST_METHOD`. A `@DbUnitTester` field must already be
+  set when prep starts: initialize it in its declaration or the constructor, or
+  have Spring `@Autowired` it, rather than assigning it in `@BeforeEach`. For
+  the same reason, a `@BeforeEach` method cannot adjust the tester's dataset
+  for the listener's setup; declare the dataset and operations with the
+  annotations instead.
+
+== Tests That Expect an Exception
+
+As under `DbUnitExtension`, a test method that throws is a failed test, and a
+failed test is not verified: the `@DbUnitExpected` verification and the row
+count check are skipped so a difference never masks the real failure, while the
+teardown still runs. A test that is *expected* to throw has not failed, so how
+you declare the expectation decides whether it is verified:
+
+* *JUnit 5, with `SpringExtension`:* assert the exception in the test body with
+  `assertThrows`, so it never leaves the method.
+* *JUnit 4, with `SpringJUnit4ClassRunner`:* `@Test(expected = ...)` works — the
+  runner consumes the expected exception before Spring reports the outcome, so
+  the test is verified. An exception a JUnit 4 rule such as `ExpectedException`
+  accepts is still reported to Spring as a failure, so such a test is not
+  verified; assert the exception in the test body instead.
+* *TestNG:* `@Test(expectedExceptions = ...)` works — the listener recognizes the
+  declaration by the annotation's name, so TestNG need not be a dependency of
+  dbUnit, and verifies the test when it threw one of the declared exception types
+  or a subclass. It reads the declaration on the test method only, not on the
+  class.
+
+== Differences From DbUnitExtension
+
+*No parameter injection.* Spring's `TestExecutionListener` has no equivalent
+of JUnit 5's `ParameterResolver` — Spring tests receive dependencies through
+field/`@Autowired` injection instead, never as test method parameters. Reach
+the tester or connection through a `@DbUnitTester`/`@DbUnitTestCase` field,
+or by autowiring the `IDatabaseTester` bean directly, rather than asking for
+it as a `@Test` method parameter. `@DbUnitConfig(injectConnectionParameter =
+...)` is specific to the JUnit 5 binding and has no effect here — nothing
+competes for a `Connection` parameter in the first place.
+
+*An added resolution tier.* The `ApplicationContext` bean lookup described
+above has no JUnit 5 equivalent, since a plain JUnit 5 test has no bean
+container to ask.
+
+*Different phases.* `DbUnitExtension` sets up immediately before the test
+method, after the `@BeforeEach` methods, and tears down immediately after it.
+This listener sets up before the `@BeforeEach` methods and tears down after the
+`@AfterEach` methods, around a `@Transactional` test's transaction rather than
+inside it; see <<ordering,Listener Ordering and Transactional Tests>>.
+
+== When to Use This
+
+Reach for `DbUnitTestExecutionListener` when tests already run through
+Spring's TestContext Framework — `@ExtendWith(SpringExtension.class)`, Spring's
+TestNG support, or the `SpringJUnit4ClassRunner` that Spring 7.0 deprecated in
+favor of `SpringExtension` — and should get the same declarative
+`org.dbunit.annotation` setup/verify/teardown that `DbUnitExtension` gives a
+plain JUnit 5 test. For a JUnit 5 test with no other Spring involvement at all,
+`DbUnitExtension` remains the simpler choice.

@@ -1469,6 +1469,98 @@ class AnnotatedTestExecutorTest
         verify(connection, never()).close();
     }
 
+    // ---- the tester's own listener is put back once the test is over ----
+
+    @Test
+    void testAfterTest_testerHadItsOwnListener_putsTheTestersListenerBack() throws Exception
+    {
+        final IOperationListener testersOwn = mock(IOperationListener.class);
+        final AbstractDatabaseTester realTester = inMemoryTester();
+        realTester.setOperationListener(testersOwn);
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(plainConfiguration(),
+                realTester, null);
+        assertThat(realTester.getOperationListener())
+                .as("The executor wraps the tester's listener while the test runs.")
+                .isNotSameAs(testersOwn);
+        executor.beforeTest();
+
+        executor.afterTest(false);
+
+        assertThat(realTester.getOperationListener())
+                .as("A tester shared beyond one test must not keep this executor's wrapper, and"
+                        + " everything the wrapper references, installed once the test is over.")
+                .isSameAs(testersOwn);
+    }
+
+    @Test
+    void testAfterTest_testerHadNoListener_leavesTheTesterWithoutOne() throws Exception
+    {
+        final AbstractDatabaseTester realTester = inMemoryTester();
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(plainConfiguration(),
+                realTester, null);
+        executor.beforeTest();
+
+        executor.afterTest(false);
+
+        assertThat(realTester.getOperationListener())
+                .as("A tester that had no listener, and creates its default lazily, must not be"
+                        + " left holding the executor's wrapper.")
+                .isNull();
+    }
+
+    @Test
+    void testAfterTest_afterStepsFail_stillPutsTheTestersListenerBack() throws Exception
+    {
+        final IOperationListener testersOwn = mock(IOperationListener.class);
+        final AbstractDatabaseTester failingTester = new AbstractDatabaseTester()
+        {
+            @Override
+            public IDatabaseConnection getConnection() throws Exception
+            {
+                return InMemoryDatabaseConnection.create();
+            }
+
+            @Override
+            public void onTearDown() throws Exception
+            {
+                throw new IllegalStateException("tear down failed");
+            }
+        };
+        failingTester.setDataSet(new DefaultDataSet());
+        failingTester.setOperationListener(testersOwn);
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(plainConfiguration(),
+                failingTester, null);
+        executor.beforeTest();
+
+        assertThatThrownBy(() -> executor.afterTest(false))
+                .as("A failing teardown must still propagate.")
+                .isInstanceOf(IllegalStateException.class).hasMessage("tear down failed");
+
+        assertThat(failingTester.getOperationListener())
+                .as("The tester's own listener must be put back even when the after-test steps"
+                        + " fail.")
+                .isSameAs(testersOwn);
+    }
+
+    @Test
+    void testAfterTest_listenerReplacedDuringTheTest_leavesTheReplacement() throws Exception
+    {
+        final IOperationListener replacement = mock(IOperationListener.class);
+        final AbstractDatabaseTester realTester = inMemoryTester();
+        realTester.setOperationListener(mock(IOperationListener.class));
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(plainConfiguration(),
+                realTester, null);
+        executor.beforeTest();
+        realTester.setOperationListener(replacement);
+
+        executor.afterTest(false);
+
+        assertThat(realTester.getOperationListener())
+                .as("A listener the test installed itself after the executor wrapped the"
+                        + " tester's must not be overwritten by the restore.")
+                .isSameAs(replacement);
+    }
+
     // ---- classic path (annotationDriven = false): the 3.5.0 lifecycle, preserved ----
 
     @Test
@@ -2612,6 +2704,26 @@ class AnnotatedTestExecutorTest
     }
 
     // ---- helpers ----
+
+    private static AbstractDatabaseTester inMemoryTester()
+    {
+        final AbstractDatabaseTester realTester = new AbstractDatabaseTester()
+        {
+            @Override
+            public IDatabaseConnection getConnection() throws Exception
+            {
+                return InMemoryDatabaseConnection.create();
+            }
+        };
+        realTester.setDataSet(new DefaultDataSet());
+        return realTester;
+    }
+
+    private static AnnotatedTestConfiguration plainConfiguration()
+    {
+        return AnnotatedTestConfiguration.from(AnnotatedTestExecutorTest.class, null, null, null,
+                null, null, null);
+    }
 
     private void stubDisabledConnection() throws Exception
     {
