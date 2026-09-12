@@ -215,3 +215,14 @@ prep row reads as a difference.
 * *Modified rows are invisible* — see <<what-it-detects>>.
 * *Parallel tests against one database break the check*, as they already break
 `DELETE_ALL` teardown. Not specific to this check.
+* *Setting the feature on the wrong connection is silently ignored.* `JdbcDatabaseTester`
+and `DataSourceDatabaseTester` open a new connection - and therefore a fresh, default
+`DatabaseConfig` - on every `getConnection()` call unless given a
+`CachingConnectionProvider`. Calling `connection.getConfig().setFeature(...)` (as in
+<<enabling,Enabling It>>) on a connection fetched some other way than through the test
+case's own lifecycle configures a `DatabaseConfig` instance the check never sees. With
+link:../testcases/PrepAndExpectedTestCase.html[PrepAndExpectedTestCase], set the feature
+in a `setUpDatabaseConfig(DatabaseConfig)` override instead (calling
+`super.setUpDatabaseConfig(config)` too) - that hook runs on the exact connection the
+test case's whole lifecycle reuses, regardless of whether the underlying tester's
+`getConnection()` is idempotent.
