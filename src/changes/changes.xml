@@ -13,7 +13,7 @@
   </properties>
 
   <body>
-    <release version="3.6.0-SNAPSHOT" date="TBD" description="Annotation-driven test configuration for JUnit 5/6 (Jupiter) tests, row count check detecting test teardown missed or wrongly cleaned tables, a regular-expression ValueComparer, a bundled prep/expected/verify test-data value type, and multi-data-source prep/verify support">
+    <release version="3.6.0-SNAPSHOT" date="TBD" description="Annotation-driven test configuration for JUnit 5/6 (Jupiter) and Spring TestContext Framework tests, row count check detecting test teardown missed or wrongly cleaned tables, a regular-expression ValueComparer, a bundled prep/expected/verify test-data value type, and multi-data-source prep/verify support">
       <action dev="jeffjensen" type="add" issue="939" system="github" due-to="jeffjensen">
           Add an opt-in diagnostic that compares every table's row count before and after a test, failing the test when a count moved - catching a table the test left dirty, or a reference table it wrongly cleaned. Adds the org.dbunit.database.rowcount package (RowCounter, QueryPerTableRowCounter, RowCountSnapshot, RowCountDifference, RowCountCheck, RowCountChecker, RowCountCheckConfiguration, UnexpectedRowCountException) and the DatabaseConfig keys FEATURE_ROW_COUNT_CHECK (off by default), PROPERTY_ROW_COUNT_CHECK_EXCLUDE_TABLES, and PROPERTY_ROW_COUNTER.
       </action>
@@ -70,6 +70,9 @@
       </action>
       <action dev="jeffjensen" type="fix" issue="999" system="github" due-to="jeffjensen">
           Fix JsonDataSet, JsonProducer, JsonWriter, IsActualEqualToExpectedJsonValueComparer, YamlDataSet, YamlProducer and YamlWriter failing with a bare NoClassDefFoundError when Jackson or SnakeYAML, both optional dependencies, is not on the classpath. They now check for the library first and throw a DataSetException, or a DatabaseUnitRuntimeException where the signature allows no checked exception, naming the dependency to add.
+      </action>
+      <action dev="jeffjensen" type="add" issue="754" system="github" due-to="jeffjensen">
+          Add org.dbunit.spring, a Spring TestContext Framework binding for the org.dbunit.annotation family that org.dbunit.junit.jupiter.DbUnitExtension drives for JUnit 5/6: DbUnitTestExecutionListener, registered with @DbUnitSpringTest, resolves the tester like the JUnit 5 binding plus a last-resort IDatabaseTester bean in the ApplicationContext, and runs its prep before and its verify/teardown after a @Transactional test's transaction. It acts only on tests that carry a @DbUnit* annotation or a @DbUnitTester/@DbUnitTestCase field, supports no parameter injection, and adds spring-test and spring-context as new optional dependencies. It needs Spring Framework 6.2 or later.
       </action>
     </release>
     <release version="3.5.2" date="Sep 7, 2026" description="DefaultPrepAndExpectedTestCase connection hygiene: replace a connection the pool or database dropped between tests, and warn when handed a non-autocommit connection">

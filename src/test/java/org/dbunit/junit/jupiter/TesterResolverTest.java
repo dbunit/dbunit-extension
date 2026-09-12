@@ -39,8 +39,8 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.TestInstances;
 
 /**
- * Unit tests of what {@link TesterResolver} adds to the field rules it shares with other test
- * bindings - those are covered by {@code TestInstanceTesterResolverTest}: the test instances JUnit
+ * Unit tests of what {@link TesterResolver} adds to the field rules it shares with the Spring
+ * binding - those are covered by {@code TestInstanceTesterResolverTest}: the test instances JUnit
  * hands over, the order of the tiers, and its error message.
  */
 class TesterResolverTest
