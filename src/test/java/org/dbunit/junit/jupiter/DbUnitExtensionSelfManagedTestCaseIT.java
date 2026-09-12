@@ -83,8 +83,8 @@ class DbUnitExtensionSelfManagedTestCaseIT
         deleteAllRowsQuietly(environment);
         SelfManagedSample.testCase = new SelfManagedTestCase(profile);
 
-        final Logger extensionLogger =
-                (Logger) LoggerFactory.getLogger("org.dbunit.junit.jupiter.TesterResolver");
+        final Logger extensionLogger = (Logger) LoggerFactory
+                .getLogger("org.dbunit.annotation.runtime.InjectedTestCaseTesterBinding");
         final Level originalLevel = extensionLogger.getLevel();
         extensionLogger.setLevel(Level.DEBUG);
         final ListAppender<ILoggingEvent> appender = new ListAppender<>();
