@@ -111,4 +111,5 @@ A few — `ITable`, `VerifyTableDefinition`, `IOperationListener`, and
 |`PrepAndExpectedTestCase`, `PrepAndExpectedTestCaseSteps` |link:testcases/PrepAndExpectedTestCase.html[PrepAndExpectedTestCase] — turn-key prep/verify/cleanup test case.
 |anchor:verifytabledefinition[]`link:components/verifytabledefinition.html[VerifyTableDefinition]` |*New:* link:components/verifytabledefinition.html[VerifyTableDefinition] — defines one table to verify: column filters and `ValueComparer`s.
 |`link:components/ioperationlistener.html[IOperationListener]` |*New:* link:components/ioperationlistener.html[IOperationListener] — hooks into connection setup/teardown lifecycle events.
+|`link:components/rowcountcheck.html[RowCountCheck]`, `RowCounter`, `RowCountChecker`, `RowCountSnapshot`, `RowCountDifference` |*New:* link:components/rowcountcheck.html[RowCountCheck] — opt-in diagnostic that fails a test when a table's row count moved between setup and teardown, catching prep/expected datasets that are missing a table or wrongly list one.
 |===

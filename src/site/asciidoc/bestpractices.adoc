@@ -5,6 +5,7 @@
 . <<smalldatasets,Use multiple small datasets>>
 . <<staledata,Perform setup of stale data once for entire test class or test suite>>
 . <<connections,Connection management strategies>>
+. <<rowcountcheck,Periodically run with the row count check enabled>>
 
 [#onedbperdev]
 == Use one database instance per developer
@@ -115,3 +116,18 @@ public class MyJNDIDatabaseTest extends JndiBasedDBTestCase {
 ----
 
 You may also use JndiDatabaseTester if you can't subclass JndiBasedDBTestCase.
+
+[#rowcountcheck]
+== Periodically run with the row count check enabled
+
+link:components/rowcountcheck.html[RowCountCheck] catches a table your teardown forgot
+(its leftover rows corrupt whatever unrelated test runs next) and a reference table your
+teardown wrongly cleaned (every later test depending on it fails in ways that look
+nothing like the cause). It is read-only and opt-in for a reason: capturing two row-count
+snapshots per test roughly doubles that test's table-counting cost, so it is not something
+you want paying for on every routine run.
+
+Instead, run your suite with it enabled periodically — e.g. a scheduled/nightly CI job via
+`-Ddbunit.rowCountCheck=true` — rather than leaving it on permanently. That is enough to
+catch a teardown regression soon after it's introduced, without slowing down the CI feedback
+loop of every pull request.

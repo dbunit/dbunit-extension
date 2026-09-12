@@ -34,6 +34,8 @@ import org.dbunit.assertion.FailureHandler;
 import org.dbunit.assertion.comparer.value.ValueComparer;
 import org.dbunit.database.DatabaseConfig;
 import org.dbunit.database.IDatabaseConnection;
+import org.dbunit.database.rowcount.RowCountCheck;
+import org.dbunit.database.rowcount.RowCountChecker;
 import org.dbunit.dataset.Column;
 import org.dbunit.dataset.ColumnFilterTable;
 import org.dbunit.dataset.CompositeDataSet;
@@ -250,6 +252,15 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * @since 3.4.0
      */
     private Boolean cachedIsCaseSensitiveTableNames;
+
+    /**
+     * Manages the row count check baseline used by preTest() and cleanupData() to detect a
+     * table the test left dirty - either one it should have cleaned up and did not, or a
+     * reference table it wrongly cleaned.
+     *
+     * @since 3.6.0
+     */
+    private final RowCountChecker rowCountChecker = new RowCountChecker();
 
     private ExpectedDataSetAndVerifyTableDefinitionVerifier expectedDataSetAndVerifyTableDefinitionVerifier =
             new DefaultExpectedDataSetAndVerifyTableDefinitionVerifier();
@@ -818,10 +829,14 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
 
     /**
      * {@inheritDoc}
+     * <p>
+     * Captures the row count check baseline, if enabled, before setting up the prep data - see
+     * {@link RowCountCheck#capture(IDatabaseConnection)}.
      */
     @Override
     public void preTest() throws Exception
     {
+        captureRowCountBaseline();
         setupData();
     }
 
@@ -834,7 +849,18 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      */
     private void captureRowCountBaseline() throws Exception
     {
-        releasingIfAcquiredOnFailure(() -> rowCountChecker.capture(getReusableConnection()));
+        final boolean acquiredConnectionHere = connection == null;
+        try
+        {
+            rowCountChecker.capture(getReusableConnection());
+        } catch (final Exception e)
+        {
+            if (acquiredConnectionHere)
+            {
+                closeReusableConnectionSuppressing(e);
+            }
+            throw e;
+        }
     }
 
     /**
@@ -916,6 +942,11 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
 
     /**
      * {@inheritDoc}
+     * <p>
+     * When {@code verifyData} is false - the test steps already failed - discards any
+     * captured row count check baseline, so cleanupData() skips that check too: the database
+     * is in an unknown state, so a count difference would be noise around the real failure,
+     * not a finding worth its own report.
      */
     @Override
     public void postTest(final boolean verifyData) throws Exception
@@ -926,6 +957,9 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
             if (verifyData)
             {
                 verifyData();
+            } else
+            {
+                rowCountChecker.discardBaseline();
             }
         } catch (final Throwable t)
         {
@@ -994,6 +1028,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
                     makeReusableConnectionDatabaseTester(dataset);
             reusableTester.onTearDown();
             log.debug("cleanupData: Clean up done");
+            verifyRowCountUnchanged();
             closeReusableConnection();
         } catch (final Throwable t)
         {
@@ -1016,19 +1051,6 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     private void verifyRowCountUnchanged() throws Exception
     {
         rowCountChecker.verify(getReusableConnection());
-    }
-
-    /**
-     * Legacy JUnit-3-era set-up hook. Not invoked automatically under JUnit 5;
-     * kept for subclasses that drive the lifecycle manually. Runs
-     * {@link #setupData()} on the connection shared with the rest of this
-     * test's lifecycle, leaving the databaseTester's dataset and operation
-     * listener as the caller set them.
-     */
-    @Override
-    protected void setUp() throws Exception
-    {
-        setupData();
     }
 
     /**
@@ -2262,6 +2284,34 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     public void setFailureHandler(final FailureHandler failureHandler)
     {
         this.failureHandler = failureHandler;
+    }
+
+    /**
+     * Get the RowCountCheck in use.
+     *
+     * @see #rowCountChecker
+     *
+     * @return The RowCountCheck, or null if none has been resolved or set yet.
+     * @since 3.6.0
+     */
+    public RowCountCheck getRowCountCheck()
+    {
+        return rowCountChecker.getRowCountCheck();
+    }
+
+    /**
+     * Set the RowCountCheck, overriding the one otherwise lazily built from the shared
+     * connection's DatabaseConfig.
+     *
+     * @see #rowCountChecker
+     *
+     * @param rowCountCheck
+     *            The RowCountCheck to use.
+     * @since 3.6.0
+     */
+    public void setRowCountCheck(final RowCountCheck rowCountCheck)
+    {
+        rowCountChecker.setRowCountCheck(rowCountCheck);
     }
 
     /**

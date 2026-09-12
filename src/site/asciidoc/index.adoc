@@ -52,51 +52,12 @@ We will gladly help you as needed with your ideas and contributions and look to 
 
 |TBD
 |Please try the 3.6.0-SNAPSHOT snapshot build and let us know how it works!
-It adds
-link:testcases/annotations.html[*annotation-driven test configuration*] for JUnit 5/6 (Jupiter),
-link:testcases/DbUnitTestExecutionListener.html[`DbUnitTestExecutionListener`] for running that configuration in *Spring TestContext Framework* tests,
-an opt-in link:components/rowcountcheck.html[*row count check*] that catches teardown table cleanup mistakes,
-link:datasets/fileloader.html[*JSON/YAML* data file loader] implementations,
-link:datacomparisons/valuecomparer.html[`RegularExpressionValueComparer`] for *matching a column against a pattern* rather than a literal,
-link:testcases/PrepAndExpectedTestCase.html#Bundling_Test_Data[`PrepAndExpectedTestData`] - an *immutable bundle* of the verify-definition, prep, and expected arrays for data-driven `PrepAndExpectedTestCase` tests,
-and
-link:testcases/MultiDataSourcePrepAndExpectedTestCase.html[`MultiDataSourcePrepAndExpectedTestCase`] for prepping and verifying *multiple databases* around one test.
+It adds an opt-in *row count check* (`RowCountCheck`) that catches tables teardown missed or wrongly cleaned.
 See link:https://dbunit.github.io/dbunit-extension/repos.html#snapshots[SNAPSHOTS] for how to use them.
 Refer to the link:changes.html#a3.6.0-SNAPSHOT[changes report],
-the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.6.0%20type%3AFeature[feature list],
-the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.6.0%20type%3ABug[bug list], and
-the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.6.0%20type%3ATask[task list]
-
-|2026-11-17
-|Release 3.5.3 available.
-It has DefaultPrepAndExpectedTestCase verification fixes
-and reduces some logger performance problems with having instance loggers in highly-instantiated code.
-Refer to the link:changes.html#a3.5.3[changes report],
-the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.5.3%20type%3AFeature[feature list],
-the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.5.3%20type%3ABug[bug list], and
-the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.5.3%20type%3ATask[task list]
-for the release contents.
-
-|2026-10-06
-|The new link:https://dbunit.github.io/dbunit-eclipse-plugin/[dbUnit Eclipse Plugin] opens dbUnit dataset files as a *spreadsheet-like grid* inside the Eclipse IDE, one sheet per table and warnings for content dbUnit ignores or rejects.  Version 1.0.0 supports flat XML datasets.
-
-|2026-09-07
-|Release 3.5.2 available.
-It fixes `DefaultPrepAndExpectedTestCase` *reusing a closed connection* when one instance is shared across test methods with `closeConnectionAfterTest` disabled — a cached connection the pool or database dropped between tests is now discarded and re-acquired live — and adds a warning when the class is handed a non-autocommit connection, on which its prep and teardown writes would otherwise never be committed.
-Refer to the link:changes.html#a3.5.2[changes report],
-the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.5.2%20type%3AFeature[feature list],
-the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.5.2%20type%3ABug[bug list], and
-the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.5.2%20type%3ATask[task list]
-for the release contents.
-
-|2026-08-20
-|Release 3.5.1 available.
-It fixes a 3.5.0 regression where `FlatXmlDataSetBuilder.setMetaDataSet()` pulled *every table in the supplied metadata source* into the produced dataset, not just the ones in the flat XML body.
-Refer to the link:changes.html#a3.5.1[changes report],
-the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.5.1%20type%3AFeature[feature list],
-the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.5.1%20type%3ABug[bug list], and
-the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.5.1%20type%3ATask[task list]
-for the release contents.
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.6.0%20type%3AFeature[feature list], and
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.6.0%20type%3ABug[bug list]
+for the snapshot contents (and subsequent updates).
 
 |2026-08-11
 |Release 3.5.0 available.

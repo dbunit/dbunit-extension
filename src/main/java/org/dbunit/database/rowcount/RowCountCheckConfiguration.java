@@ -1,0 +1,168 @@
+/*
+ *
+ * The DbUnit Database Testing Framework
+ * Copyright (C)2002-2026, DbUnit.org
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *
+ */
+package org.dbunit.database.rowcount;
+
+import org.dbunit.database.DatabaseConfig;
+import org.dbunit.dataset.filter.ExcludeTableFilter;
+
+/**
+ * Resolves whether the row count check is enabled, its excluded table patterns, and the
+ * {@link RowCounter} to use, from a {@link DatabaseConfig} and the {@code dbunit.*} system
+ * property overrides.
+ * <p>
+ * Precedence, for both the enabled flag and the exclude patterns: the system property, when
+ * present, wins in either direction, so it can force-enable in CI and force-disable locally.
+ * Absent, resolution falls through to the {@link DatabaseConfig} value; absent there too, the
+ * enabled flag defaults to {@code false}. The exclude system property, when present, replaces
+ * rather than appends to the configured patterns.
+ * <p>
+ * The {@link RowCounter} has no system property override: swapping the counting implementation
+ * is a code-level decision made once for a suite, not something flipped per run.
+ * <p>
+ * The {@link #RowCountCheckConfiguration(DatabaseConfig)} constructor is a thin adapter: it
+ * reads the three values a {@link DatabaseConfig} carries and delegates to
+ * {@link #RowCountCheckConfiguration(boolean, String[], RowCounter)}, which owns the
+ * system-property precedence and the defaulting. A caller that already holds the values - an
+ * annotation override, say - passes them to the second constructor directly rather than
+ * staging them through a throwaway {@link DatabaseConfig}.
+ *
+ * @author dbunit
+ * @since 3.6.0
+ */
+public class RowCountCheckConfiguration
+{
+    /**
+     * System property overriding {@link DatabaseConfig#FEATURE_ROW_COUNT_CHECK}, in either
+     * direction, when present.
+     */
+    public static final String DBUNIT_ROW_COUNT_CHECK = "dbunit.rowCountCheck";
+
+    /**
+     * System property overriding {@link DatabaseConfig#PROPERTY_ROW_COUNT_CHECK_EXCLUDE_TABLES}
+     * when present, replacing rather than appending to the configured patterns.
+     */
+    public static final String DBUNIT_ROW_COUNT_CHECK_EXCLUDE_TABLES =
+            "dbunit.rowCountCheckExcludeTables";
+
+    private final boolean enabled;
+    private final ExcludeTableFilter excludeTableFilter;
+    private final RowCounter rowCounter;
+
+    /**
+     * Resolves the configuration from the three values a {@link DatabaseConfig} carries,
+     * delegating to {@link #RowCountCheckConfiguration(boolean, String[], RowCounter)} for the
+     * system-property precedence and the defaulting.
+     *
+     * @param databaseConfig the database config to read {@link DatabaseConfig#FEATURE_ROW_COUNT_CHECK},
+     *            {@link DatabaseConfig#PROPERTY_ROW_COUNT_CHECK_EXCLUDE_TABLES}, and
+     *            {@link DatabaseConfig#PROPERTY_ROW_COUNTER} from.
+     */
+    public RowCountCheckConfiguration(final DatabaseConfig databaseConfig)
+    {
+        this(databaseConfig.getFeature(DatabaseConfig.FEATURE_ROW_COUNT_CHECK),
+                (String[]) databaseConfig
+                        .getProperty(DatabaseConfig.PROPERTY_ROW_COUNT_CHECK_EXCLUDE_TABLES),
+                (RowCounter) databaseConfig.getProperty(DatabaseConfig.PROPERTY_ROW_COUNTER));
+    }
+
+    /**
+     * Resolves the configuration from explicit values and the current system properties. The
+     * {@code dbunit.rowCountCheck} and {@code dbunit.rowCountCheckExcludeTables} system
+     * properties, when present, still win over {@code enabled} and {@code excludeTablePatterns}
+     * respectively, exactly as they win over a {@link DatabaseConfig}'s own values.
+     *
+     * @param enabled whether the check is enabled, absent a system property override.
+     * @param excludeTablePatterns the excluded table patterns, absent a system property
+     *            override; {@code null} resolves to no exclusions.
+     * @param rowCounter the {@link RowCounter} to use; {@code null} resolves to a new
+     *            {@link QueryPerTableRowCounter}, so a value not carried by
+     *            {@link DatabaseConfig}'s own default initialization is still tolerated.
+     */
+    public RowCountCheckConfiguration(final boolean enabled,
+            final String[] excludeTablePatterns, final RowCounter rowCounter)
+    {
+        this.enabled = resolveEnabled(enabled);
+        this.excludeTableFilter =
+                new ExcludeTableFilter(resolveExcludeTablePatterns(excludeTablePatterns));
+        this.rowCounter = rowCounter == null ? new QueryPerTableRowCounter() : rowCounter;
+    }
+
+    private static boolean resolveEnabled(final boolean configuredValue)
+    {
+        final String systemProperty = System.getProperty(DBUNIT_ROW_COUNT_CHECK);
+        if (systemProperty != null)
+        {
+            return Boolean.parseBoolean(systemProperty);
+        }
+        return configuredValue;
+    }
+
+    private static String[] resolveExcludeTablePatterns(final String[] configuredPatterns)
+    {
+        final String systemProperty =
+                System.getProperty(DBUNIT_ROW_COUNT_CHECK_EXCLUDE_TABLES);
+        if (systemProperty != null)
+        {
+            return splitAndTrim(systemProperty);
+        }
+        return configuredPatterns == null ? new String[0] : configuredPatterns;
+    }
+
+    private static String[] splitAndTrim(final String commaSeparatedPatterns)
+    {
+        final String[] patterns = commaSeparatedPatterns.split(",");
+        for (int i = 0; i < patterns.length; i++)
+        {
+            patterns[i] = patterns[i].trim();
+        }
+        return patterns;
+    }
+
+    /**
+     * Returns whether the row count check is enabled.
+     *
+     * @return {@code true} when enabled.
+     */
+    public boolean isEnabled()
+    {
+        return enabled;
+    }
+
+    /**
+     * Returns the filter built from the resolved exclude table patterns.
+     *
+     * @return the exclude table filter.
+     */
+    public ExcludeTableFilter getExcludeTableFilter()
+    {
+        return excludeTableFilter;
+    }
+
+    /**
+     * Returns the {@link RowCounter} to use.
+     *
+     * @return the configured row counter.
+     */
+    public RowCounter getRowCounter()
+    {
+        return rowCounter;
+    }
+}
