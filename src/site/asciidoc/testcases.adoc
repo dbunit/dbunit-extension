@@ -27,7 +27,11 @@ On JUnit 5/6 (Jupiter), composition users can also skip writing the
 link:testcases/DbUnitExtension.html[DbUnitExtension] — and can go further
 still, declaring the dataset and operation directly on the class or method
 instead of in a `@BeforeEach` body; see
-link:testcases/annotations.html[DbUnit Annotations].
+link:testcases/annotations.html[DbUnit Annotations]. Running through Spring's
+TestContext Framework instead — `SpringExtension`, `SpringJUnit4ClassRunner`,
+or Spring's TestNG support —
+link:testcases/DbUnitTestExecutionListener.html[DbUnitTestExecutionListener]
+drives the same annotation family through Spring's own lifecycle.
 
 Whichever style you choose,
 link:testcases/PrepAndExpectedTestCase.html[PrepAndExpectedTestCase] is
