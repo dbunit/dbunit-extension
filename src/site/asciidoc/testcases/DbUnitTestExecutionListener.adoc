@@ -1,0 +1,140 @@
+= DbUnitTestExecutionListener
+Jeff Jensen
+
+== Overview
+
+link:../apidocs/org/dbunit/spring/DbUnitTestExecutionListener.html[DbUnitTestExecutionListener]
+is a Spring TestContext Framework `TestExecutionListener` that drives the
+same declarative `org.dbunit.annotation` family —
+`@DbUnitPrep`, `@DbUnitSetup`, `@DbUnitExpected`, `@DbUnitTearDown`, and
+`@DbUnitConfig` — that link:DbUnitExtension.html[DbUnitExtension] drives for
+JUnit 5/6 (Jupiter), but for a test run through Spring's TestContext
+Framework instead: JUnit 4's `SpringJUnit4ClassRunner`, JUnit 5's
+`SpringExtension`, or Spring's TestNG support. See
+link:annotations.html[DbUnit Annotations] for the annotation vocabulary
+itself, which is identical either way.
+
+Register it with `@DbUnitSpringTest`:
+
+[source,java]
+----
+@ExtendWith(SpringExtension.class)
+@ContextConfiguration(classes = AppTestConfig.class)
+@DbUnitSpringTest
+class AccountRepositoryTest
+{
+    @DbUnitTester
+    IDatabaseTester databaseTester;
+
+    @Test
+    @DbUnitPrep("accounts-prep.xml")
+    @DbUnitExpected(value = "accounts-expected.xml", verifyTables = {"ACCOUNT"})
+    void testWithdraw_sufficientBalance_decrementsBalance() { ... }
+}
+----
+
+`@DbUnitSpringTest` is exactly
+`@TestExecutionListeners(listeners = DbUnitTestExecutionListener.class,
+mergeMode = MergeMode.MERGE_WITH_DEFAULTS)`. That `mergeMode` is not optional
+sugar — Spring's own `@TestExecutionListeners`, used bare, *replaces* the
+default listeners instead of adding to them, silently dropping dependency
+injection (`@Autowired` stops working) and transaction management
+(`@Transactional` stops working) for any test class that reaches for it
+directly instead of `@DbUnitSpringTest`.
+
+== Field, Bean, or Factory Discovery
+
+The listener resolves the `IDatabaseTester` (and, for the prep/expected
+path, the `PrepAndExpectedTestCase`) in this order, first match wins:
+
+. A field annotated `@DbUnitTestCase`, whose type implements
+  `PrepAndExpectedTestCase` — that instance is driven directly.
+. A field annotated `@DbUnitTester`, whose type implements
+  `IDatabaseTester`.
+. `@DbUnitConfig(databaseTesterFactory = ...)`, reflectively instantiated
+  and asked to create a tester.
+. *Spring-specific:* exactly one `IDatabaseTester` bean in the test's
+  `ApplicationContext`. A test class needs no dbUnit-specific field at all
+  when its test configuration already exposes one — for example, a
+  `@TestConfiguration` bean wrapping the application's own `DataSource` the
+  way link:DataSourceBasedDBTestCase.html[a DataSource-based tester] already
+  does:
++
+[source,java]
+----
+@TestConfiguration
+class DbUnitTestConfig
+{
+    @Bean
+    IDatabaseTester databaseTester(final DataSource dataSource)
+    {
+        return new DataSourceDatabaseTester(dataSource);
+    }
+}
+----
++
+Zero, or more than one, matching bean falls through to the next tier rather
+than failing — an unrelated `IDatabaseTester` bean somewhere in a large
+context is not remarkable, unlike an ambiguous marked field.
+. The original (3.5.0) auto-scan: exactly one non-static field assignable to
+  `IDatabaseTester`.
+
+Unlike `DbUnitExtension`, there is exactly one test instance to search —
+Spring's `TestContext` has no `@Nested`-style enclosing-instance chain.
+
+== Annotation-Driven Configuration
+
+The full `org.dbunit.annotation` vocabulary applies unchanged — see
+link:annotations.html[DbUnit Annotations]. Unlike `DbUnitExtension`, there is
+no separate "classic", lifecycle-only style to opt out of: every test this
+listener is registered on gets the full annotation-driven treatment, since
+there is no pre-existing Spring integration whose behavior needs preserving.
+
+== Row Count Check
+
+The same link:../components/rowcountcheck.html[RowCountCheck] diagnostic
+`DbUnitExtension` and link:PrepAndExpectedTestCase.html[PrepAndExpectedTestCase]
+already offer applies here too, configured the same way: off by default,
+enabled via `DatabaseConfig.FEATURE_ROW_COUNT_CHECK`
+(or `-Ddbunit.rowCountCheck=true`), or per class/method with
+link:annotations.html#rowcountcheck[`@DbUnitRowCountCheck`].
+
+== Listener Ordering
+
+`DbUnitTestExecutionListener` runs at order `3000` — after Spring's own
+`DependencyInjectionTestExecutionListener` (`2000`), so an `@Autowired`
+field this listener's own field/bean resolution looks for is already
+populated, and before `TransactionalTestExecutionListener` (`4000`). Spring
+wraps listeners in registration order — an earlier-ordered listener's
+before-callback runs first and its after-callback runs last — so this
+placement makes this listener's own prep commit, through its own
+`IDatabaseTester` connection, *before* a `@Transactional` test's managed
+transaction opens (so that transaction sees the prepared rows), and this
+listener's verify/teardown run only *after* that transaction has committed
+or rolled back (so they see final state), rather than the prep and the test
+method silently running on two different, unsynchronized connections.
+
+== Differences From DbUnitExtension
+
+*No parameter injection.* Spring's `TestExecutionListener` has no equivalent
+of JUnit 5's `ParameterResolver` — Spring tests receive dependencies through
+field/`@Autowired` injection instead, never as test method parameters. Reach
+the tester or connection through a `@DbUnitTester`/`@DbUnitTestCase` field,
+or by autowiring the `IDatabaseTester` bean directly, rather than asking for
+it as a `@Test` method parameter. `@DbUnitConfig(injectConnectionParameter =
+...)` is specific to the JUnit 5 binding and has no effect here — nothing
+competes for a `Connection` parameter in the first place.
+
+*An added resolution tier.* The `ApplicationContext` bean lookup described
+above has no JUnit 5 equivalent, since a plain JUnit 5 test has no bean
+container to ask.
+
+== When to Use This
+
+Reach for `DbUnitTestExecutionListener` when tests already run through
+Spring's TestContext Framework — `@ExtendWith(SpringExtension.class)`,
+`SpringJUnit4ClassRunner`, or Spring's TestNG support — and should get the
+same declarative `org.dbunit.annotation` setup/verify/teardown that
+`DbUnitExtension` gives a plain JUnit 5 test. For a JUnit 5 test with no
+other Spring involvement at all, `DbUnitExtension` remains the simpler
+choice.

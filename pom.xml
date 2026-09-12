@@ -58,6 +58,8 @@
     <mockitoVersion>5.23.0</mockitoVersion>
     <poiVersion>5.5.1</poiVersion>
     <spotbugsAnnotationsVersion>4.10.4</spotbugsAnnotationsVersion>
+    <!-- spring-core/spring-context/spring-test are released in lockstep, one version. -->
+    <springFrameworkVersion>6.2.8</springFrameworkVersion>
     <xmlparserv2Version>23.26.3.0.0</xmlparserv2Version>
 
     <!-- Database driver versions -->
@@ -484,6 +486,16 @@
         <artifactId>snakeyaml</artifactId>
         <version>${snakeyamlVersion}</version>
       </dependency>
+      <dependency>
+        <groupId>org.springframework</groupId>
+        <artifactId>spring-test</artifactId>
+        <version>${springFrameworkVersion}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.springframework</groupId>
+        <artifactId>spring-context</artifactId>
+        <version>${springFrameworkVersion}</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
@@ -519,6 +531,19 @@
       <groupId>org.assertj</groupId>
       <artifactId>assertj-core</artifactId>
       <scope>test</scope>
+    </dependency>
+    <!-- Optional: only needed to use DbUnitTestExecutionListener (org.dbunit.spring, Spring
+         TestContext Framework integration). spring-test does not itself pull in spring-context,
+         so it is listed separately for the ApplicationContext-bean tester lookup. -->
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-test</artifactId>
+      <optional>true</optional>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-context</artifactId>
+      <optional>true</optional>
     </dependency>
     <!-- Optional: only needed to use the dbUnit Ant tasks (org.dbunit.ant). -->
     <dependency>

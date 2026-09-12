@@ -55,6 +55,7 @@
       <item name="Test Integration"     href="/testcases.html">
         <item name="IDatabaseTester Guide"                  href="/testcases/IDatabaseTester.html"/>
         <item name="DbUnitExtension"                        href="/testcases/DbUnitExtension.html"/>
+        <item name="DbUnitTestExecutionListener"            href="/testcases/DbUnitTestExecutionListener.html"/>
         <item name="Annotations"                            href="/testcases/annotations.html"/>
         <item name="PrepAndExpectedTestCase"                href="/testcases/PrepAndExpectedTestCase.html"/>
         <item name="MultiDataSourcePrepAndExpectedTestCase" href="/testcases/MultiDataSourcePrepAndExpectedTestCase.html"/>
