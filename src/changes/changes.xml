@@ -13,7 +13,7 @@
   </properties>
 
   <body>
-    <release version="3.6.0-SNAPSHOT" date="TBD" description="Annotation-driven test configuration for JUnit 5/6 (Jupiter) tests, row count check detecting test teardown missed or wrongly cleaned tables, a regular-expression ValueComparer, a bundled prep/expected/verify test-data value type, and multi-data-source prep/verify support">
+    <release version="3.6.0-SNAPSHOT" date="TBD" description="Annotation-driven test configuration for JUnit 5/6 (Jupiter) tests and now Spring's TestContext Framework too, row count check detecting test teardown missed or wrongly cleaned tables, a regular-expression ValueComparer, a bundled prep/expected/verify test-data value type, and multi-data-source prep/verify support">
       <action dev="jeffjensen" type="add" issue="939" system="github" due-to="jeffjensen">
           Add an opt-in diagnostic that compares every table's row count before and after a test, failing the test when a count moved - catching a table the test left dirty, or a reference table it wrongly cleaned. Adds the org.dbunit.database.rowcount package (RowCounter, QueryPerTableRowCounter, RowCountSnapshot, RowCountDifference, RowCountCheck, RowCountChecker, RowCountCheckConfiguration, UnexpectedRowCountException) and the DatabaseConfig keys FEATURE_ROW_COUNT_CHECK (off by default), PROPERTY_ROW_COUNT_CHECK_EXCLUDE_TABLES, and PROPERTY_ROW_COUNTER.
       </action>
@@ -58,6 +58,9 @@
       <action dev="dependabot" type="update" due-to="Dependabot">Update maven dependency org.apache.maven.wrapper:maven-wrapper from 3.3.2 to 3.3.4 (#942).</action>
       <!-- dependabot:dep=actions/setup-java:new=6.0.1:pr=984 -->
       <action dev="dependabot" type="update" due-to="Dependabot">Update github_actions dependency actions/setup-java from 6.0.0 to 6.0.1 (#984).</action>
+      <action dev="jeffjensen" type="add" issue="754" system="github" due-to="jeffjensen">
+          Add org.dbunit.spring, a Spring TestExecutionListener binding for the same org.dbunit.annotation family (@DbUnitPrep/@DbUnitSetup/@DbUnitExpected/@DbUnitTearDown/@DbUnitConfig) org.dbunit.junit.jupiter.DbUnitExtension already drives for JUnit 5/6: DbUnitTestExecutionListener, registered with the @DbUnitSpringTest one-line opt-in (or @TestExecutionListeners(listeners = DbUnitTestExecutionListener.class, mergeMode = MERGE_WITH_DEFAULTS) directly - the mergeMode matters, since that annotation's own default replaces Spring's default listeners instead of adding to them), and SpringTesterResolver, which resolves the IDatabaseTester/PrepAndExpectedTestCase the same way the JUnit 5 binding does plus one Spring-specific tier: a single IDatabaseTester bean in the test's ApplicationContext, so a test class needs no dbUnit-specific field at all when its test configuration already exposes one. The listener runs at order 3000, between Spring's DependencyInjectionTestExecutionListener (2000) and TransactionalTestExecutionListener (4000), so its own prep commits before a @Transactional test's managed transaction opens and its verify/teardown run only after that transaction ends. Does not support parameter injection - Spring's TestExecutionListener has no equivalent of JUnit 5's ParameterResolver - so a test reaches its tester through a @DbUnitTester/@DbUnitTestCase field or by autowiring the bean instead. Adds spring-test and spring-context as new optional dependencies.
+      </action>
     </release>
     <release version="3.5.2" date="Sep 7, 2026" description="DefaultPrepAndExpectedTestCase connection hygiene: replace a connection the pool or database dropped between tests, and warn when handed a non-autocommit connection">
       <action dev="jeffjensen" type="fix" issue="962" system="github" due-to="jeffjensen">
