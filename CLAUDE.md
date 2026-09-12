@@ -121,7 +121,7 @@ Integration tests use `DatabaseEnvironment` to bootstrap the target database fro
   - Prefer writing clear code and use inline comments sparingly.
   - Prefer single statements over compound statements as nested calls in one line are more confusing and more difficult to read and understand.
   - Prefer separate local variables over compound statements for readability.
-  - Favor immutability.  Try to not need setters.
+  - Favor immutable data - try to not need setters.
   - Prefer constructors with arguments over no args constructors and using setters.
   - Prefer constructor injection
   - Use == instead of != in if statements when paired with an else statement.
