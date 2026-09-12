@@ -47,9 +47,10 @@ import org.dbunit.util.fileloader.FileExtensionDataFileLoader;
  * happened.
  *
  * <p>Not intended for direct use by test code; this is machinery consumed by a binding such as
- * {@code DbUnitExtension}. Building one is JUnit-free: {@link #from} takes the already-resolved
- * annotation instances (method-level, else class-level - a binding's job, since only it knows
- * how to search for them) rather than an {@code ExtensionContext}.
+ * {@code DbUnitExtension}. Building one is framework-free: {@link #from} takes the
+ * already-resolved annotation instances, or an {@link AnnotationLookup} that finds them and the
+ * classes declaring them (method-level, else class-level - a binding's job, since only it knows
+ * how to search for them), rather than a framework's test context.
  *
  * @author Jeff Jensen
  * @since 3.6.0
@@ -212,6 +213,35 @@ public class AnnotatedTestConfiguration
                 tearDownDeclared, tearDownOperation, databaseConfigProperties, failureHandler,
                 closeConnectionAfterTest, databaseTesterFactory, prepAndExpectedTestCaseClass,
                 rowCountCheckDeclared, rowCountCheckEnabled, rowCountCheckExclude);
+    }
+
+    /**
+     * Resolves a configuration from the annotations a binding's {@link AnnotationLookup} finds
+     * for one test - the six {@code org.dbunit.annotation} annotations that configure a test,
+     * method-level before class-level - so a binding supplies only its search strategy. A dataset
+     * path written relative to a package is resolved against the package of the class the lookup
+     * reports as declaring the annotation naming it - see
+     * {@link AnnotationLookup#findDeclaringClass(Class)}.
+     *
+     * @param testClass The test class; used in diagnostics.
+     * @param lookup Finds the annotations that apply to the test, and the classes declaring them.
+     * @return The resolved configuration.
+     * @throws IllegalStateException If two mutually exclusive attributes are both set, or if
+     *             a named provider, catalog, or comparer class cannot be instantiated.
+     */
+    public static AnnotatedTestConfiguration from(final Class<?> testClass,
+            final AnnotationLookup lookup)
+    {
+        final DbUnitConfig config = lookup.find(DbUnitConfig.class);
+        final DbUnitPrep prep = lookup.find(DbUnitPrep.class);
+        final DbUnitSetup setup = lookup.find(DbUnitSetup.class);
+        final DbUnitExpected expected = lookup.find(DbUnitExpected.class);
+        final DbUnitTearDown tearDown = lookup.find(DbUnitTearDown.class);
+        final DbUnitRowCountCheck rowCountCheck = lookup.find(DbUnitRowCountCheck.class);
+        final Class<?> prepDeclaringClass = lookup.findDeclaringClass(DbUnitPrep.class);
+        final Class<?> expectedDeclaringClass = lookup.findDeclaringClass(DbUnitExpected.class);
+        return from(testClass, prepDeclaringClass, expectedDeclaringClass, config, prep, setup,
+                expected, tearDown, rowCountCheck);
     }
 
     private static <T> T instantiate(final Class<? extends T> implementationClass,

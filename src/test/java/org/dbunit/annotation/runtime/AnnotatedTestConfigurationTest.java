@@ -191,6 +191,84 @@ class AnnotatedTestConfigurationTest
                 .containsExactly("/dbunit/accounts/prep.xml");
     }
 
+    // ---- from(Class, AnnotationLookup) ----
+
+    @Test
+    void testFrom_lookupSuppliesAnnotations_buildsConfigurationFromThem() throws Exception
+    {
+        final DbUnitSetup setup = ClassLevelSetup.class.getAnnotation(DbUnitSetup.class);
+        final DbUnitPrep prep = method(ClassLevelSetup.class, "method")
+                .getAnnotation(DbUnitPrep.class);
+        final AnnotationLookup lookup =
+                new FakeAnnotationLookup(ClassLevelSetup.class).finding(setup).finding(prep);
+
+        final AnnotatedTestConfiguration config =
+                AnnotatedTestConfiguration.from(ClassLevelSetup.class, lookup);
+
+        assertThat(config.getSetUpOperation())
+                .as("The class-level operation the lookup found must be used.")
+                .isEqualTo(DatabaseOperation.REFRESH);
+        assertThat(config.getPrepDataFiles())
+                .as("The method-level prep file the lookup found must be resolved.")
+                .containsExactly("/org/dbunit/annotation/runtime/method.xml");
+    }
+
+    @Test
+    void testFrom_lookup_asksForEachOfTheConfigurationAnnotations()
+    {
+        final FakeAnnotationLookup lookup = new FakeAnnotationLookup(SetupOnly.class);
+
+        AnnotatedTestConfiguration.from(SetupOnly.class, lookup);
+
+        assertThat(lookup.getAskedFor())
+                .as("Every annotation that configures a test must be looked up, so a binding"
+                        + " cannot forget one.")
+                .containsExactlyInAnyOrder(DbUnitConfig.class, DbUnitPrep.class,
+                        DbUnitSetup.class, DbUnitExpected.class, DbUnitTearDown.class,
+                        DbUnitRowCountCheck.class);
+    }
+
+    @Test
+    void testFrom_lookupFindsNothing_buildsDefaultConfiguration()
+    {
+        final AnnotationLookup lookup = new FakeAnnotationLookup(SetupOnly.class);
+
+        final AnnotatedTestConfiguration config =
+                AnnotatedTestConfiguration.from(SetupOnly.class, lookup);
+
+        assertThat(config.getSetUpOperation())
+                .as("With no annotation found, the setup operation defaults to CLEAN_INSERT.")
+                .isEqualTo(DatabaseOperation.CLEAN_INSERT);
+        assertThat(config.isExpected()).as("With no @DbUnitExpected found, the test is not on"
+                + " the prep/expected path.").isFalse();
+    }
+
+    @Test
+    void testFrom_lookupReportsDeclaringClasses_resolvesPrepAndExpectedRelativeToEach()
+    {
+        final DbUnitPrep prep = DeclaresPrep.class.getAnnotation(DbUnitPrep.class);
+        final DbUnitExpected expected = DeclaresExpected.class.getAnnotation(DbUnitExpected.class);
+        // Classes of two other packages stand in for the base classes declaring each annotation;
+        // the nested fixtures here share this test's own package, so they could not tell the
+        // declaring classes from the test class.
+        final AnnotationLookup lookup =
+                new FakeAnnotationLookup(AnnotatedTestConfigurationTest.class)
+                        .finding(prep, DefaultDatabaseTester.class)
+                        .finding(expected, DefaultDataSet.class);
+
+        final AnnotatedTestConfiguration config =
+                AnnotatedTestConfiguration.from(AnnotatedTestConfigurationTest.class, lookup);
+
+        assertThat(config.getPrepDataFiles())
+                .as("The prep path is relative to the class the lookup reports as declaring"
+                        + " @DbUnitPrep, not to the test class.")
+                .containsExactly("/org/dbunit/prep.xml");
+        assertThat(config.getExpectedDataFiles())
+                .as("The expected path is relative to the class the lookup reports as declaring"
+                        + " @DbUnitExpected, not to the prep's class or the test class.")
+                .containsExactly("/org/dbunit/dataset/expected.xml");
+    }
+
     // ---- @DbUnitTearDown ----
 
     @Test

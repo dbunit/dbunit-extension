@@ -44,8 +44,9 @@ import org.dbunit.database.connection.TestScopedConnection;
  *
  * <p>Not intended for direct use by test code; this is machinery consumed by a binding such as
  * {@code DbUnitExtension}, which resolves the {@link IDatabaseTester} and any injected
- * {@link PrepAndExpectedTestCase} - field discovery is binding-specific - and hands them here
- * already resolved.
+ * {@link PrepAndExpectedTestCase} - through {@link TestInstanceTesterResolver}'s shared field
+ * rules, from the test instances only the binding knows how to find - and hands them here already
+ * resolved.
  *
  * <p>The binding tells this executor, through the constructor's {@code annotationDriven} flag,
  * whether the test opted into the {@code org.dbunit.annotation} family at all - any
