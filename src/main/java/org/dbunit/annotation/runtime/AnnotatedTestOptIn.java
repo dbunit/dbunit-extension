@@ -47,10 +47,10 @@ import org.dbunit.annotation.DbUnitTester;
  * <p>A binding passes its own {@link AnnotationLookup} and the test classes in scope, and may
  * add opt-ins of its own, such as {@code DbUnitExtension}'s {@code @DbUnitTest}. The binding
  * decides what an opted-out test gets: {@code DbUnitExtension} keeps its 3.5.0 lifecycle for
- * it.
+ * it, while the Spring listener leaves it entirely alone.
  *
  * <p>Public so a binding outside {@code org.dbunit.annotation.runtime} - such as
- * {@code DbUnitExtension}, in {@code org.dbunit.junit.jupiter} - can reach it too.
+ * {@code DbUnitExtension} or a Spring {@code TestExecutionListener} - can reach it too.
  *
  * @author Jeff Jensen
  * @since 3.6.0

@@ -39,8 +39,8 @@ import org.junit.jupiter.api.extension.TestInstances;
  * {@link DbUnitTestCase @DbUnitTestCase} field, a {@link DbUnitTester @DbUnitTester} field,
  * {@link AnnotatedTestConfiguration#getDatabaseTesterFactory()}, or the 3.5.0 unmarked-field
  * auto-scan, first match wins, walking every test instance in scope innermost first for
- * {@code @Nested} support. The rules themselves are {@link TestInstanceTesterResolver}'s, written
- * for any test binding to share; this class only supplies the test instances JUnit knows about.
+ * {@code @Nested} support. The rules themselves are {@link TestInstanceTesterResolver}'s,
+ * shared with the Spring binding; this class only supplies the test instances JUnit knows about.
  * See {@link DbUnitExtension}'s class Javadoc for the user-facing precedence contract.
  *
  * @author Jeff Jensen

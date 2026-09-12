@@ -30,7 +30,7 @@ import java.lang.annotation.Annotation;
  * {@link AnnotatedTestConfiguration#from(Class, AnnotationLookup)}.
  *
  * <p>Public so a binding outside {@code org.dbunit.annotation.runtime} - such as
- * {@code DbUnitExtension}, in {@code org.dbunit.junit.jupiter} - can implement it.
+ * {@code DbUnitExtension} or a Spring {@code TestExecutionListener} - can implement it.
  *
  * @author Jeff Jensen
  * @since 3.6.0

@@ -39,9 +39,10 @@ import org.slf4j.LoggerFactory;
  * The binding-neutral part of resolving, for one test, the {@link IDatabaseTester} and (when
  * present) the {@link PrepAndExpectedTestCase} an {@link AnnotatedTestExecutor} drives: what the
  * test instances' fields and {@link DbUnitConfig#databaseTesterFactory()} say. Written against
- * plain {@code java.lang.reflect}, so each test binding - {@code DbUnitExtension} (JUnit 5/6)
- * among them - shares one set of rules and one set of messages for the same mistakes, whichever
- * test framework or annotation-scanning utility the binding itself uses.
+ * plain {@code java.lang.reflect}, so {@code DbUnitExtension} (JUnit 5/6) and
+ * {@code DbUnitTestExecutionListener} (Spring) share one set of rules and one set of messages
+ * for the same mistakes, whichever test framework or annotation-scanning utility each binding
+ * itself uses.
  *
  * <p>A binding passes the test instances in scope, innermost first - for a {@code @Nested} test
  * class, its own instance, then its enclosing class's instance, and so on outward - and supplies
@@ -64,7 +65,7 @@ import org.slf4j.LoggerFactory;
  * or across a class and its superclass, or when both markers are declared.
  *
  * <p>Public so a binding outside {@code org.dbunit.annotation.runtime} - such as
- * {@code DbUnitExtension}, in {@code org.dbunit.junit.jupiter} - can reach it too.
+ * {@code DbUnitExtension} or a Spring {@code TestExecutionListener} - can reach it too.
  *
  * @author Jeff Jensen
  * @since 3.6.0

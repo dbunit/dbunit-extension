@@ -47,10 +47,11 @@ import org.dbunit.util.fileloader.FileExtensionDataFileLoader;
  * happened.
  *
  * <p>Not intended for direct use by test code; this is machinery consumed by a binding such as
- * {@code DbUnitExtension}. Building one is framework-free: {@link #from} takes the
- * already-resolved annotation instances, or an {@link AnnotationLookup} that finds them and the
- * classes declaring them (method-level, else class-level - a binding's job, since only it knows
- * how to search for them), rather than a framework's test context.
+ * {@code DbUnitExtension} or a Spring {@code TestExecutionListener}. Building one is
+ * framework-free: {@link #from} takes the already-resolved annotation instances, or an
+ * {@link AnnotationLookup} that finds them and the classes declaring them (method-level, else
+ * class-level - a binding's job, since only it knows how to search for them), rather than a
+ * framework's test context.
  *
  * @author Jeff Jensen
  * @since 3.6.0

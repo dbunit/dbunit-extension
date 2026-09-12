@@ -43,10 +43,10 @@ import org.dbunit.database.connection.TestScopedConnection;
  * {@link ExecutorOperationListener} installed on the tester.
  *
  * <p>Not intended for direct use by test code; this is machinery consumed by a binding such as
- * {@code DbUnitExtension}, which resolves the {@link IDatabaseTester} and any injected
- * {@link PrepAndExpectedTestCase} - through {@link TestInstanceTesterResolver}'s shared field
- * rules, from the test instances only the binding knows how to find - and hands them here already
- * resolved.
+ * {@code DbUnitExtension} or the Spring {@code DbUnitTestExecutionListener}, which resolves the
+ * {@link IDatabaseTester} and any injected {@link PrepAndExpectedTestCase} - through
+ * {@link TestInstanceTesterResolver}'s shared field rules, from the test instances only the
+ * binding knows how to find - and hands them here already resolved.
  *
  * <p>The binding tells this executor, through the constructor's {@code annotationDriven} flag,
  * whether the test opted into the {@code org.dbunit.annotation} family at all - any
@@ -130,9 +130,12 @@ public class AnnotatedTestExecutor
      * {@link IOperationListener} with an {@code ExecutorOperationListener} wrapping the previous
      * one, which {@link #afterTest(boolean)} - or {@link #releaseIfAfterTestDidNotRun()} - puts
      * back, so a {@code tester} shared across methods (e.g. a {@code static @DbUnitTester}
-     * field) carries nothing onto the next test or the next user of the tester. When
-     * {@code annotationDriven} is false - the classic path - the tester's listener is left
-     * untouched; see the class Javadoc.
+     * field) carries nothing onto the next test or the next user of the tester. A
+     * {@code tester} shared beyond one test class - a bean in a cached application context - is
+     * left as it was found the same way, but is still not safe to share between tests running at
+     * the same time: each installs its own wrapper and sets its own dataset and operations on
+     * the one tester. When {@code annotationDriven} is false - the classic path - the tester's
+     * listener is left untouched; see the class Javadoc.
      *
      * @param configuration The resolved configuration to execute.
      * @param tester The tester to drive the setup/teardown path with, or to construct a
