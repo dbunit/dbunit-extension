@@ -4,6 +4,7 @@ build-logs
 .settings
 .classpath
 .project
+.metals/
 *.jar
 dbunit.properties
 
@@ -30,3 +31,4 @@ __pycache__
 .aider*
 !.aider.conf.yml
 !.aiderignore
+
