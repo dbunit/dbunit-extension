@@ -91,14 +91,14 @@
     <checkstylePluginVersion>3.6.0</checkstylePluginVersion>
     <cleanPluginVersion>3.5.0</cleanPluginVersion>
     <compilerPluginVersion>3.16.0</compilerPluginVersion>
-    <deployPluginVersion>3.1.4</deployPluginVersion>
+    <deployPluginVersion>3.2.0</deployPluginVersion>
     <dockerMavenPluginVersion>0.49.0</dockerMavenPluginVersion>
     <!-- FIXME maven picking 1.2 specified in parent; fix with parent change -->
     <enforcerPluginVersion>3.6.3</enforcerPluginVersion>
     <failsafePluginVersion>3.6.0</failsafePluginVersion>
     <findbugsSlf4jRulesetVersion>1.5.0</findbugsSlf4jRulesetVersion>
     <gpgPluginVersion>3.2.8</gpgPluginVersion>
-    <installPluginVersion>3.1.4</installPluginVersion>
+    <installPluginVersion>3.2.0</installPluginVersion>
     <jacocoPluginVersion>0.8.15</jacocoPluginVersion>
     <japicmpPluginVersion>0.26.2</japicmpPluginVersion>
     <jarPluginVersion>3.5.1</jarPluginVersion>
@@ -108,7 +108,7 @@
     <pmdPluginVersion>3.28.0</pmdPluginVersion>
     <poiOoxmlVersion>5.5.1</poiOoxmlVersion>
     <projectInfoReportsPluginVersion>3.9.0</projectInfoReportsPluginVersion>
-    <propertiesPluginVersion>1.3.0</propertiesPluginVersion>
+    <propertiesPluginVersion>1.3.1</propertiesPluginVersion>
     <releasePluginVersion>3.3.1</releasePluginVersion>
     <resourcesPluginVersion>3.5.0</resourcesPluginVersion>
     <sitePluginVersion>3.22.0</sitePluginVersion>
@@ -117,7 +117,7 @@
     <sourcePluginVersion>3.4.0</sourcePluginVersion>
     <spotbugsMavenPluginVersion>4.10.4.1</spotbugsMavenPluginVersion>
     <surefirePluginVersion>3.6.0</surefirePluginVersion>
-    <versionsMavenPluginVersion>2.21.0</versionsMavenPluginVersion>
+    <versionsMavenPluginVersion>2.22.0</versionsMavenPluginVersion>
 
     <!-- docker images -->
     <docker.image.name.db2-11>icr.io/db2_community/db2:11.5.9.0</docker.image.name.db2-11>
