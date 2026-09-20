@@ -166,11 +166,11 @@ The valid feature names, their descriptions, and the databases that do not suppo
 
 |`BLOB`
 |Binary Large Object column type; tests inserting and updating BLOB data.
-|DB2, Derby, H2, HSQLDB, MySQL, MSSQL, PostgreSQL
+|DB2, Derby, H2, HSQLDB, MariaDB, MySQL, MSSQL, PostgreSQL
 
 |`CLOB`
 |Character Large Object column type; tests inserting and updating CLOB data.
-|DB2, Derby, H2, HSQLDB, MySQL, MSSQL, PostgreSQL
+|DB2, Derby, H2, HSQLDB, MariaDB, MySQL, MSSQL, PostgreSQL
 
 |`VARBINARY`
 |Variable-length binary column type; tests VARBINARY column presence in table metadata.
@@ -182,11 +182,11 @@ The valid feature names, their descriptions, and the databases that do not suppo
 
 |`SCROLLABLE_RESULTSET`
 |Scrollable result set cursors; tests `ScrollableResultSetTable` using `TYPE_SCROLL_INSENSITIVE` result sets.
-|HSQLDB, MySQL, MSSQL, PostgreSQL
+|HSQLDB, MariaDB, MySQL, MSSQL, PostgreSQL
 
 |`INSERT_IDENTITY`
 |MS SQL Server identity column insert (`SET IDENTITY_INSERT`); tests `InsertIdentityOperation`.
-|DB2, Derby, H2, HSQLDB, MySQL, Oracle, PostgreSQL
+|DB2, Derby, H2, HSQLDB, MariaDB, MySQL, Oracle, PostgreSQL
 
 |`TRUNCATE_TABLE`
 |`TRUNCATE TABLE` statement; tests `TruncateTableOperation`.
@@ -194,15 +194,15 @@ The valid feature names, their descriptions, and the databases that do not suppo
 
 |`SDO_GEOMETRY`
 |Oracle Spatial Data Object geometry type; tests `OracleSdoGeometryDataType`.
-|DB2, Derby, H2, HSQLDB, MySQL, MSSQL, PostgreSQL
+|DB2, Derby, H2, HSQLDB, MariaDB, MySQL, MSSQL, PostgreSQL
 
 |`XML_TYPE`
 |Oracle `XMLTYPE` column type; tests inserting and updating XML_TYPE_TABLE rows.
-|DB2, Derby, H2, HSQLDB, MySQL, MSSQL, PostgreSQL
+|DB2, Derby, H2, HSQLDB, MariaDB, MySQL, MSSQL, PostgreSQL
 
 |`TIMESTAMP_WITH_TIMEZONE`
 |`TIMESTAMP WITH TIME ZONE` column type; tests `TimestampDataType` preserving the dataset's own offset instead of the JVM's default time zone.
-|DB2, Derby, MySQL, MSSQL, Oracle
+|DB2, Derby, MariaDB, MySQL, MSSQL, Oracle
 |===
 
 == Running Integration Tests with IDEs

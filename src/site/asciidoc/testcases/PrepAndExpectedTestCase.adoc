@@ -3,9 +3,9 @@ Jeff Jensen
 
 == Overview
 
-link:/dbunit/apidocs/org/dbunit/PrepAndExpectedTestCase.html[PrepAndExpectedTestCase],
+link:../apidocs/org/dbunit/PrepAndExpectedTestCase.html[PrepAndExpectedTestCase],
 and its default implementation
-link:/dbunit/apidocs/org/dbunit/DefaultPrepAndExpectedTestCase.html[DefaultPrepAndExpectedTestCase],
+link:../apidocs/org/dbunit/DefaultPrepAndExpectedTestCase.html[DefaultPrepAndExpectedTestCase],
 is a test case formally supporting prep data and expected data concepts and
 definitions.
 
@@ -13,7 +13,7 @@ Prep data:: is the setup data needed in the database for the test to run.
 
 Expected data:: is the data to compare with one or more database tables verifying the test ran successfully.
 
-link:/dbunit/apidocs/org/dbunit/PrepAndExpectedTestCase.html[PrepAndExpectedTestCase]
+link:../apidocs/org/dbunit/PrepAndExpectedTestCase.html[PrepAndExpectedTestCase]
 easily allows defining which are the setup datasets (prep) and
 the verify datasets (expected).
 
@@ -22,7 +22,7 @@ It conveniently packages a turn-key test setup and verification process in one:
 . Loads the prep dataset files and inserts their data into the database tables
 . Runs the test steps (if specified as a runTest() PrepAndExpectedTestCaseSteps parameter)
 . Verifies table state matches the expected datasets for the specified
-  link:/dbunit/apidocs/org/dbunit/VerifyTableDefinition.html[VerifyTableDefinition]s
+  link:../apidocs/org/dbunit/VerifyTableDefinition.html[VerifyTableDefinition]s
 . Cleans up the tables listed in the prep and expected datasets
   (per the configured teardown operation)
 
@@ -35,7 +35,7 @@ otherwise need to be written by hand for every test:
 
 Multi-file dataset composition:: Each of the prep and expected data file arrays is
 loaded and merged into a single dataset for you
-(link:/dbunit/apidocs/org/dbunit/dataset/CompositeDataSet.html[CompositeDataSet] under
+(link:../apidocs/org/dbunit/dataset/CompositeDataSet.html[CompositeDataSet] under
 the hood, combining same-named tables found across multiple files) — no manual
 `CompositeDataSet` construction needed just to split prep data across several files by
 table.
@@ -60,17 +60,17 @@ matching), so your expected data file's column name casing doesn't need to exact
 match the database's, and you don't need to hand-declare column types.
 
 Column include/exclude filtering:: A
-link:/dbunit/apidocs/org/dbunit/VerifyTableDefinition.html[VerifyTableDefinition]'s
+link:../apidocs/org/dbunit/VerifyTableDefinition.html[VerifyTableDefinition]'s
 column inclusion/exclusion filters are applied to both the actual and expected tables
 for you via
-link:/dbunit/apidocs/org/dbunit/dataset/filter/DefaultColumnFilter.html[DefaultColumnFilter]
+link:../apidocs/org/dbunit/dataset/filter/DefaultColumnFilter.html[DefaultColumnFilter]
 — see link:../filters.html[Filters] for the underlying mechanism you'd otherwise wire up
 by hand.
 
 ValueComparer dispatch:: A
-link:/dbunit/apidocs/org/dbunit/VerifyTableDefinition.html[VerifyTableDefinition]'s
+link:../apidocs/org/dbunit/VerifyTableDefinition.html[VerifyTableDefinition]'s
 default and per-column
-link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html[ValueComparer]s
+link:../apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html[ValueComparer]s
 are dispatched automatically per column during comparison (see
 link:../datacomparisons/valuecomparer.html[ValueComparer Comparison]) — you configure the
 map once on the `VerifyTableDefinition` instead of calling
@@ -103,20 +103,20 @@ private PrepAndExpectedTestCase testCase;
 +
 Create it by configuring an instance of its interface
 (start with
-link:/dbunit/apidocs/org/dbunit/DefaultPrepAndExpectedTestCase.html[DefaultPrepAndExpectedTestCase]
+link:../apidocs/org/dbunit/DefaultPrepAndExpectedTestCase.html[DefaultPrepAndExpectedTestCase]
 and extend & override if necessary),
 injecting a
-link:/dbunit/apidocs/org/dbunit/IDatabaseTester.html[IDatabaseTester]
+link:../apidocs/org/dbunit/IDatabaseTester.html[IDatabaseTester]
 and a
-link:/dbunit/apidocs/org/dbunit/util/fileloader/DataFileLoader.html[DataFileLoader]
+link:../apidocs/org/dbunit/util/fileloader/DataFileLoader.html[DataFileLoader]
 using the databaseTester and a dataFileLoader properties
 (see <<Configuration_Example_Using_Spring,Configuration Example Using Spring>> below).
 
 . Extend it in a test class.
   Obtain
-  link:/dbunit/apidocs/org/dbunit/IDatabaseTester.html[IDatabaseTester]
+  link:../apidocs/org/dbunit/IDatabaseTester.html[IDatabaseTester]
   and
-  link:/dbunit/apidocs/org/dbunit/util/fileloader/DataFileLoader.html[DataFileLoader]
+  link:../apidocs/org/dbunit/util/fileloader/DataFileLoader.html[DataFileLoader]
   instances (possibly dependency
   injecting them into the test class) and set them accordingly, probably in a
   setup type of method, such as:
@@ -133,13 +133,13 @@ public void setDbunitTestDependencies()
 
 === Run Tests
 
-link:/dbunit/apidocs/org/dbunit/PrepAndExpectedTestCase.html[PrepAndExpectedTestCase]
+link:../apidocs/org/dbunit/PrepAndExpectedTestCase.html[PrepAndExpectedTestCase]
 has two ways to setup, execute, and clean up tests:
 
 . Encapsulate the test steps in
-  link:/dbunit/apidocs/org/dbunit/PrepAndExpectedTestCaseSteps.html[PrepAndExpectedTestCaseSteps]
+  link:../apidocs/org/dbunit/PrepAndExpectedTestCaseSteps.html[PrepAndExpectedTestCaseSteps]
   and call the runTest() method.
-  Note, this requires link:/dbunit/changes-report.html#a2.5.2[Release 2.5.2] and newer.
+  Note, this requires link:../changes.html#a2.5.2[Release 2.5.2] and newer.
 
 . Call the configureTest(), preTest(),
   and postTest() methods. Note there is a preTest() convenience method that
@@ -155,13 +155,198 @@ has two ways to setup, execute, and clean up tests:
 
 (see <<Test_Examples,Test Examples>> below)
 
+[#Annotation_Driven_Equivalent]
+== Annotation-Driven Equivalent
+
+On JUnit 5/6 (Jupiter), the `configureTest()`/`preTest()`/`postTest()` block
+above is formulaic enough that
+link:../apidocs/org/dbunit/junit/jupiter/DbUnitExtension.html[DbUnitExtension]
+can run it declaratively instead, via `org.dbunit.annotation`:
+
+[source,java]
+----
+@DbUnitTest
+class AccountRepositoryTest
+{
+    IDatabaseTester databaseTester;
+
+    AccountRepositoryTest() throws ClassNotFoundException
+    {
+        databaseTester =
+                new JdbcDatabaseTester("org.h2.Driver", "jdbc:h2:mem:example;DB_CLOSE_DELAY=-1");
+    }
+
+    @Test
+    @DbUnitPrep("/dbunit/accounts/prep.xml")
+    @DbUnitExpected(value = "/dbunit/accounts/expected.xml", verifyTables = "ACCOUNT")
+    @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+    void testWithdraw_sufficientBalance_decrementsBalance()
+    {
+        // code under test
+    }
+}
+----
+
+This covers the common, fixed-per-method case; see
+link:annotations.html[DbUnit Annotations] for the full reference, and its
+link:annotations.html#applicability[When Not to Use These Annotations]
+section for the `@ParameterizedTest` and non-dbUnit-assertion cases where
+the programmatic API above remains the right tool.
+<<Bundling_Test_Data,Bundling Prep, Expected, and Verify Into One Argument>>
+below shows how to keep that API compact in a `@ParameterizedTest`.
+
+[#Bundling_Test_Data]
+== Bundling Prep, Expected, and Verify Into One Argument
+
+`configureTest()`, `preTest()`, and `runTest()` each take the same three
+arguments in the same order — a
+link:../apidocs/org/dbunit/VerifyTableDefinition.html[VerifyTableDefinition]
+array, a prep data file `String` array, and an expected data file `String`
+array. The three describe one test scenario and are meaningless apart.
+
+link:../apidocs/org/dbunit/PrepAndExpectedTestData.html[PrepAndExpectedTestData]
+bundles them into one immutable value, and each of those three methods has an
+overload accepting it. In a single-scenario test this saves little. In a
+data-driven test it stops the triple from propagating through the
+`@ParameterizedTest` method signature, every row of the `@MethodSource`, and any
+row-factory method written to keep those rows readable.
+
+Two shortcuts cover the common partial cases:
+`PrepAndExpectedTestData.NONE` is a shared constant that verifies nothing and
+loads nothing — replacing a separate empty constant per array type — and
+`PrepAndExpectedTestData.prepOnly(String...)` builds one that loads prep data
+with no verification.
+
+=== Before
+
+[source,java]
+----
+private static final VerifyTableDefinition[] VERIFY_TABLES_SUCCESS =
+        {AppVerifyTables.ACCOUNT, AppVerifyTables.TRANSACTION};
+private static final VerifyTableDefinition[] VERIFY_TABLES_NONE = {};
+private static final String[] PREP_FILES_SUCCESS = {PREP_DIR + "accounts.xml"};
+private static final String[] PREP_FILES_NONE = {};
+private static final String[] EXPECTED_FILES_SUCCESS = {EXPECTED_DIR + "accounts-after.xml"};
+private static final String[] EXPECTED_FILES_NONE = {};
+
+@ParameterizedTest(name = "[{index}] {0}")
+@MethodSource("testData")
+void test(String testName, VerifyTableDefinition[] verifyTables, String[] prepDataFiles,
+        String[] expectedDataFiles, BigDecimal amount, HttpStatus expectedStatus)
+        throws Exception
+{
+    testCase.runTest(verifyTables, prepDataFiles, expectedDataFiles, () -> {
+        restTester.post(WITHDRAW_URL, amount, expectedStatus);
+        return null;
+    });
+}
+
+private static Object[][] testData()
+{
+    return new Object[][] {
+            {"sufficient balance", VERIFY_TABLES_SUCCESS, PREP_FILES_SUCCESS,
+                    EXPECTED_FILES_SUCCESS, AMOUNT_VALID, HttpStatus.OK},
+            {"insufficient balance", VERIFY_TABLES_NONE, PREP_FILES_NONE,
+                    EXPECTED_FILES_NONE, AMOUNT_TOO_LARGE, HttpStatus.BAD_REQUEST},
+    };
+}
+----
+
+=== After
+
+[source,java]
+----
+private static final PrepAndExpectedTestData DATA_SUCCESS = new PrepAndExpectedTestData(
+        new VerifyTableDefinition[] {AppVerifyTables.ACCOUNT, AppVerifyTables.TRANSACTION},
+        new String[] {PREP_DIR + "accounts.xml"},
+        new String[] {EXPECTED_DIR + "accounts-after.xml"});
+
+@ParameterizedTest(name = "[{index}] {0}")
+@MethodSource("testData")
+void test(String testName, PrepAndExpectedTestData testData, BigDecimal amount,
+        HttpStatus expectedStatus) throws Exception
+{
+    testCase.runTest(testData, () -> {
+        restTester.post(WITHDRAW_URL, amount, expectedStatus);
+        return null;
+    });
+}
+
+private static Object[][] testData()
+{
+    return new Object[][] {
+            {"sufficient balance", DATA_SUCCESS, AMOUNT_VALID, HttpStatus.OK},
+            {"insufficient balance", PrepAndExpectedTestData.NONE, AMOUNT_TOO_LARGE,
+                    HttpStatus.BAD_REQUEST},
+    };
+}
+----
+
+Six constants collapse to one, three method parameters to one, and three columns
+per `@MethodSource` row to one. Each scenario's three facts now sit together
+instead of being matched by position across three arrays.
+
+[#Configuring_Without_Subclassing]
+== Configuring DatabaseConfig Without Subclassing
+
+Some tests need to tune the shared connection's
+link:../apidocs/org/dbunit/database/DatabaseConfig.html[DatabaseConfig] - its batch
+size, `IDataTypeFactory`, or the
+link:../components/rowcountcheck.html[RowCountCheck] enabled flag and excluded tables,
+for example. The general-purpose way is extending
+link:../apidocs/org/dbunit/DefaultPrepAndExpectedTestCase.html[DefaultPrepAndExpectedTestCase]
+and overriding `setUpDatabaseConfig(DatabaseConfig)`, as shown in
+<<Configuration_Example_Using_Spring,Configuration Example Using Spring>> below - needed
+whenever a value requires constructor arguments or setup beyond a no-arg constructor.
+
+For everything else, two setters configure the same kind of values without a subclass:
+
+`setDatabaseConfigProperties(Properties)`:: Sets one or more `DatabaseConfig` values by
+property name (long or short form) and string value, the same conversion
+`setPropertiesByString()` gives Ant/Maven-driven configuration. This covers `String`,
+`Boolean`, comma-separated `String[]`, and `Integer` properties directly, and any
+object-typed property (`IDataTypeFactory`, `IMetadataHandler`, etc.) whose implementation
+class has a public no-arg constructor, by instantiating it reflectively from the class
+name.
++
+[source,java]
+----
+Properties properties = new Properties();
+properties.setProperty("batchedStatements", "true");
+properties.setProperty("datatypeFactory", "com.example.XxxDataTypeFactory");
+
+PrepAndExpectedTestCase testCase =
+        new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester);
+testCase.setDatabaseConfigProperties(properties);
+----
+
+`setRowCountCheckOverride(boolean, String[])` / `clearRowCountCheckOverride()`:: Enables
+or disables link:../components/rowcountcheck.html[RowCountCheck] and sets its excluded
+table patterns directly, instead of setting
+`FEATURE_ROW_COUNT_CHECK`/`PROPERTY_ROW_COUNT_CHECK_EXCLUDE_TABLES` via
+`setUpDatabaseConfig()`.
++
+[source,java]
+----
+testCase.setRowCountCheckOverride(true, new String[] {"AUDIT_LOG"});
+----
++
+Call `clearRowCountCheckOverride()` to return to resolving the check from the
+connection's own `DatabaseConfig`. This only matters when one instance is reused across
+more than one test (e.g. a JUnit 5/6 `@DbUnitTestCase` static field - see
+<<Annotation_Driven_Equivalent,Annotation-Driven Equivalent>> above) - otherwise an
+earlier test's override would silently carry over onto a later test that declares none.
+
 [#Configuration_Example_Using_Spring]
 == Configuration Example Using Spring
 
 The following configuration shows customizing
-link:/dbunit/apidocs/org/dbunit/database/DatabaseConfig.html[DatabaseConfig] and
+link:../apidocs/org/dbunit/database/DatabaseConfig.html[DatabaseConfig] and
 enables dependency injecting the created
-link:/dbunit/apidocs/org/dbunit/PrepAndExpectedTestCase.html[PrepAndExpectedTestCase].
+link:../apidocs/org/dbunit/PrepAndExpectedTestCase.html[PrepAndExpectedTestCase].
+See <<Configuring_Without_Subclassing,Configuring DatabaseConfig Without Subclassing>>
+above for simpler alternatives to the `setUpDatabaseConfig()` override below, when
+Spring-managed construction and the full subclass aren't otherwise needed.
 
 [source,java]
 ----
@@ -445,31 +630,31 @@ public abstract class VerifyTableDefinitions
 ===== Test-Specific VerifyTableDefinitions
 
 The above VerifyTableDefinitions example class used static
-link:/dbunit/apidocs/org/dbunit/VerifyTableDefinition.html[VerifyTableDefinition]
+link:../apidocs/org/dbunit/VerifyTableDefinition.html[VerifyTableDefinition]
 instances.
 Some
-link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html[ValueComparer]s
+link:../apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html[ValueComparer]s
 require test-specific values
 so static instances won't work when reused across tests.
 In these cases, make a parameterized
-link:/dbunit/apidocs/org/dbunit/VerifyTableDefinition.html[VerifyTableDefinition]
+link:../apidocs/org/dbunit/VerifyTableDefinition.html[VerifyTableDefinition]
 factory method to take the needed values.
 
 For example,
 a test may need to specify a different set of "in values"
 than other tests,
 such as with the
-link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/ConditionalSetBiValueComparer.html[ConditionalSetBiValueComparer].
+link:../apidocs/org/dbunit/assertion/comparer/value/ConditionalSetBiValueComparer.html[ConditionalSetBiValueComparer].
 It uses a
-link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueFactory.html[ValueFactory]
+link:../apidocs/org/dbunit/assertion/comparer/value/ValueFactory.html[ValueFactory]
 to determine which of two
-link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html[ValueComparer]s
+link:../apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html[ValueComparer]s
 to use for each table row,
 so make a factory method with the needed values parameters.
 
 The following example's factory method takes a list of IDs (called "in values")
 for a column's values requiring a different
-link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html[ValueComparer]
+link:../apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html[ValueComparer]
 than the rest of the rows (called "not in values").
 Comparing columns happens as configured:
 
@@ -640,10 +825,10 @@ Then, pass the needed ones in the correct data file array
 
 == Java 8+ and Anonymous Interfaces
 
-link:/dbunit/changes-report.html#a2.5.2[Release 2.5.2] introduced interface
-link:/dbunit/apidocs/org/dbunit/PrepAndExpectedTestCaseSteps.html[PrepAndExpectedTestCaseSteps]
+link:../changes.html#a2.5.2[Release 2.5.2] introduced interface
+link:../apidocs/org/dbunit/PrepAndExpectedTestCaseSteps.html[PrepAndExpectedTestCaseSteps]
 and the
-link:/dbunit/apidocs/org/dbunit/PrepAndExpectedTestCase.html#runTest-org.dbunit.VerifyTableDefinition:A-java.lang.String:A-java.lang.String:A-org.dbunit.PrepAndExpectedTestCaseSteps-[PrepAndExpectedTestCase#runTest(VerifyTableDefinition[], String[], String[], PrepAndExpectedTestCaseSteps)]
+link:../apidocs/org/dbunit/PrepAndExpectedTestCase.html#runTest-org.dbunit.VerifyTableDefinition:A-java.lang.String:A-java.lang.String:A-org.dbunit.PrepAndExpectedTestCaseSteps-[PrepAndExpectedTestCase#runTest(VerifyTableDefinition[], String[], String[], PrepAndExpectedTestCaseSteps)]
 method. This allows for encapsulating test steps into an anonymous inner
 class or a Java 8+ lambda.
 

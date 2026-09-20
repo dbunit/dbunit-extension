@@ -7,7 +7,7 @@ dbUnit.
 
 == IDataTypeFactory
 
-link:/dbunit/apidocs/org/dbunit/ext/hsqldb/HsqldbDataTypeFactory.html[HsqldbDataTypeFactory]
+link:../apidocs/org/dbunit/ext/hsqldb/HsqldbDataTypeFactory.html[HsqldbDataTypeFactory]
 maps HSQLDB's `BOOLEAN` to `DataType.BOOLEAN`, delegating everything else to
 `DefaultDataTypeFactory`. Register it via
 `DatabaseConfig.PROPERTY_DATATYPE_FACTORY` — see
@@ -20,7 +20,7 @@ Not overridden — the default handler applies.
 
 == Connection Preconfiguration Class
 
-link:/dbunit/apidocs/org/dbunit/ext/hsqldb/HsqldbConnection.html[HsqldbConnection]
+link:../apidocs/org/dbunit/ext/hsqldb/HsqldbConnection.html[HsqldbConnection]
 wraps a JDBC `Connection` and pre-registers `HsqldbDataTypeFactory`:
 
 [source,java]

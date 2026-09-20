@@ -25,3 +25,8 @@ pom.xml.next
 # Python (.github/scripts/*.py and their pytest suites)
 __pycache__
 .pytest_cache
+
+# AI
+.aider*
+!.aider.conf.yml
+!.aiderignore

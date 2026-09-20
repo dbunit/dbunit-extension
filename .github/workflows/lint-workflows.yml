@@ -1,0 +1,54 @@
+name: Lint workflows
+
+on:
+  pull_request:
+    paths:
+      - '.github/**'
+  push:
+    branches: [main]
+    paths:
+      - '.github/**'
+  schedule:
+    - cron: '0 6 * * 1'  # Mondays 06:00 UTC — surface newly added lint rules and freshly deprecated actions
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  actionlint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Run actionlint
+        uses: raven-actions/actionlint@3d39aea434753780c3b3d4a1a31c854b4dbf49d7 # v2.2.0
+        with:
+          version: 1.7.12  # pin the tool; the action otherwise resolves 'latest' at run time
+
+  zizmor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Run zizmor
+        env:
+          GH_TOKEN: ${{ github.token }}
+        # Pinned tool, run directly (not via zizmor-action) so --strict-collection
+        # can fail the job on a malformed collected file — dependabot.yml, an
+        # action.yml — instead of warning and skipping it. pipx is preinstalled
+        # on ubuntu-latest.
+        run: >-
+          pipx run zizmor==1.30.1 --strict-collection --format github
+          --persona regular --collect all -- .github/

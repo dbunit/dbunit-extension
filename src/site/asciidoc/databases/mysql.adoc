@@ -8,7 +8,7 @@ which has its own dedicated factory and reuses MySQL's metadata handling.
 
 == IDataTypeFactory
 
-link:/dbunit/apidocs/org/dbunit/ext/mysql/MySqlDataTypeFactory.html[MySqlDataTypeFactory]
+link:../apidocs/org/dbunit/ext/mysql/MySqlDataTypeFactory.html[MySqlDataTypeFactory]
 handles several MySQL-specific mappings: `longtext` as `CLOB`, `bit` as
 `BOOLEAN` (MySQL 5.0+) or `TINYINT` depending on context, `point` as
 `BINARY`, and the `UNSIGNED` integer family (e.g. an unsigned `INTEGER`
@@ -22,7 +22,7 @@ link:../connections.html[Connections & Configuration].
 
 == IMetadataHandler
 
-link:/dbunit/apidocs/org/dbunit/ext/mysql/MySqlMetadataHandler.html[MySqlMetadataHandler]
+link:../apidocs/org/dbunit/ext/mysql/MySqlMetadataHandler.html[MySqlMetadataHandler]
 fixes qualified-table-name matching (link:../properties.html#qualifiedtablenames[the
 qualified table names feature]) for MySQL, where the default handler's
 catalog/schema comparison doesn't line up with how MySQL reports them.
@@ -31,7 +31,7 @@ exists.
 
 For a connection not restricted to a single schema — e.g. connecting as
 `root` specifically to work across several schemas at once — use
-link:/dbunit/apidocs/org/dbunit/ext/mysql/MultiSchemaMySqlMetadataHandler.html[MultiSchemaMySqlMetadataHandler]
+link:../apidocs/org/dbunit/ext/mysql/MultiSchemaMySqlMetadataHandler.html[MultiSchemaMySqlMetadataHandler]
 instead. MySQL Connector/J's `nullCatalogMeansCurrent` default treats a
 `null` catalog as "the connection's current catalog only" rather than "every
 catalog", so `MySqlMetadataHandler` alone can silently hide tables in every
@@ -43,7 +43,7 @@ feature] so same-named tables in different schemas stay distinguishable.
 
 == Connection Preconfiguration Class
 
-link:/dbunit/apidocs/org/dbunit/ext/mysql/MySqlConnection.html[MySqlConnection]
+link:../apidocs/org/dbunit/ext/mysql/MySqlConnection.html[MySqlConnection]
 wraps a JDBC `Connection` and pre-registers both `MySqlDataTypeFactory` and
 `MySqlMetadataHandler`:
 

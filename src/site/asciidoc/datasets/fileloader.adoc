@@ -12,16 +12,56 @@ objects/substrings applied.
 |===
 |Loader |Wraps
 
-|link:/dbunit/apidocs/org/dbunit/util/fileloader/FlatXmlDataFileLoader.html[FlatXmlDataFileLoader] |link:flatxml.html[FlatXmlDataSet]
-|link:/dbunit/apidocs/org/dbunit/util/fileloader/FullXmlDataFileLoader.html[FullXmlDataFileLoader] |link:xml.html[XmlDataSet]
-|link:/dbunit/apidocs/org/dbunit/util/fileloader/CsvDataFileLoader.html[CsvDataFileLoader] |link:csv.html[CsvDataSet] (via `CsvURLDataSet`)
-|link:/dbunit/apidocs/org/dbunit/util/fileloader/XlsDataFileLoader.html[XlsDataFileLoader] |link:excel.html[XlsDataSet]
+|link:../apidocs/org/dbunit/util/fileloader/CsvDataFileLoader.html[CsvDataFileLoader] |link:csv.html[CsvDataSet] (via `CsvURLDataSet`)
+|link:../apidocs/org/dbunit/util/fileloader/FlatXmlDataFileLoader.html[FlatXmlDataFileLoader] |link:flatxml.html[FlatXmlDataSet]
+|link:../apidocs/org/dbunit/util/fileloader/FullXmlDataFileLoader.html[FullXmlDataFileLoader] |link:xml.html[XmlDataSet]
+|link:../apidocs/org/dbunit/util/fileloader/JsonDataFileLoader.html[JsonDataFileLoader] |link:json.html[JsonDataSet]
+|link:../apidocs/org/dbunit/util/fileloader/XlsDataFileLoader.html[XlsDataFileLoader] |link:excel.html[XlsDataSet]
+|link:../apidocs/org/dbunit/util/fileloader/YamlDataFileLoader.html[YamlDataFileLoader] |link:yaml.html[YamlDataSet]
 |===
 
+== Dispatching By File Extension
+
+link:../apidocs/org/dbunit/util/fileloader/FileExtensionDataFileLoader.html[FileExtensionDataFileLoader]
+picks the loader to delegate to from the file's extension, so one loader
+instance can load a mix of formats:
+
+[cols="1,2", options="header"]
+|===
+|Extension |Delegate
+
+|`.json` |`JsonDataFileLoader`
+|`.xls`, `.xlsx` |`XlsDataFileLoader`
+|`.xml` |`FlatXmlDataFileLoader`
+|`.yaml`, `.yml` |`YamlDataFileLoader`
+|===
+
+[source,java]
+----
+DataFileLoader loader = new FileExtensionDataFileLoader();
+IDataSet xmlDs = loader.load("/the/package/prepData.xml");
+IDataSet jsonDs = loader.load("/the/package/prepData.json");
+----
+
+The delegate loaders are used only for their format parsing; replacement
+objects and substrings configured on the `FileExtensionDataFileLoader` itself
+are the ones applied, exactly once, regardless of which delegate handled the
+file.
+
+An unsupported extension throws `IllegalArgumentException` naming it. Two
+formats are deliberately not dispatched here:
+
+* *CSV* — dbUnit's CSV format is directory-based (`CsvURLDataSet` expects a
+  directory containing `table-ordering.txt`), so it cannot share this
+  loader's one-file-per-path convention. Use `CsvDataFileLoader` directly,
+  pointed at a directory.
+* *Full (non-flat) XML* — `.xml` maps to flat XML, the overwhelmingly common
+  case. Use `FullXmlDataFileLoader` directly for the full XML format.
+
 Each extends
-link:/dbunit/apidocs/org/dbunit/util/fileloader/AbstractDataFileLoader.html[AbstractDataFileLoader],
+link:../apidocs/org/dbunit/util/fileloader/AbstractDataFileLoader.html[AbstractDataFileLoader],
 which implements the shared
-link:/dbunit/apidocs/org/dbunit/util/fileloader/DataFileLoader.html[DataFileLoader]
+link:../apidocs/org/dbunit/util/fileloader/DataFileLoader.html[DataFileLoader]
 contract: `load(String filename)` resolves `filename` as a classpath
 resource (via `Class.getResource()`), delegates the actual parsing to the
 wrapped format, then wraps the result in a `ReplacementDataSet`. A
@@ -40,7 +80,8 @@ IDataSet ds = loader.load("/the/package/prepData.xml");
 
 Every loader's constructors accept replacement object and replacement
 substring maps, used the same way as with `ReplacementDataSet` directly (see
-link:decorators.html#replacementdataset[Decorators]):
+link:decorators.html#replacementdataset[Decorators], and
+link:values.html#null[Dataset Values] for the `[NULL]` convention):
 
 [source,java]
 ----

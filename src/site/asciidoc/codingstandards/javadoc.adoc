@@ -4,7 +4,7 @@
 == Overview
 
 Every public class and method gets JavaDoc. It is the primary reference most consumers
-read (the generated link:/dbunit/apidocs/index.html[JavaDoc site]), and it is what
+read (the generated link:../apidocs/index.html[JavaDoc site]), and it is what
 Checkstyle's `JavadocType`/`JavadocStyle` checks look for on public scope — see
 link:javastyle.html[Java Style & Tooling] for what is (and is not) automatically checked.
 

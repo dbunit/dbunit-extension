@@ -5,18 +5,18 @@
 
 Three classes make up dbUnit's assertion entry point:
 
-link:/dbunit/apidocs/org/dbunit/Assertion.html[Assertion] (`org.dbunit`, since 1.3):: A
+link:../apidocs/org/dbunit/Assertion.html[Assertion] (`org.dbunit`, since 1.3):: A
 `static`-method facade with a `private` constructor — it cannot be instantiated. Every
 method is a one-line delegation to one of two singleton instances it holds internally.
 This is the legacy API, kept for backward compatibility and as the quick/common path.
 
-link:/dbunit/apidocs/org/dbunit/assertion/DbUnitAssert.html[DbUnitAssert] (`org.dbunit.assertion`,
+link:../apidocs/org/dbunit/assertion/DbUnitAssert.html[DbUnitAssert] (`org.dbunit.assertion`,
 since 2.4.0):: The instance-based, equality-comparison engine `Assertion` delegates its
 equality methods to. This is the modern entry point: construct (or subclass) one
 directly when you want to customize assertion behavior, per its own JavaDoc — `Assertion`
 itself cannot be customized, since it's a facade of static methods.
 
-link:/dbunit/apidocs/org/dbunit/assertion/DbUnitValueComparerAssert.html[DbUnitValueComparerAssert]
+link:../apidocs/org/dbunit/assertion/DbUnitValueComparerAssert.html[DbUnitValueComparerAssert]
 (`org.dbunit.assertion`, since 2.6.0):: The `ValueComparer`-based sibling of
 `DbUnitAssert` — `Assertion`'s `assertWithValueComparer` overloads delegate here instead.
 See link:../datacomparisons/valuecomparer.html[ValueComparer Comparison] for the

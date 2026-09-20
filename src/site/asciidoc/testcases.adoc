@@ -10,7 +10,7 @@ class:
   link:testcases/IDatabaseTester.html[IDatabaseTester] field, constructed
   directly or dependency-injected.
 * *Inheritance* — a test class extends
-  link:/dbunit/apidocs/org/dbunit/DBTestCase.html[DBTestCase] (or one of its
+  link:apidocs/org/dbunit/DBTestCase.html[DBTestCase] (or one of its
   three subclasses below), which owns an `IDatabaseTester` internally.
 
 *Composition is the preferred style* — it doesn't compete for your test

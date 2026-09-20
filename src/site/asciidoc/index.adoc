@@ -7,7 +7,7 @@ This is an excellent way to avoid the myriad of problems that can occur when one
 
 dbUnit hooks into JUnit 5/6 (Jupiter) — JUnit 4 support was dropped in 3.0.0
 — either by composing an link:testcases/IDatabaseTester.html[`IDatabaseTester`] into your test class (the preferred style)
-or by extending link:/dbunit/apidocs/org/dbunit/DBTestCase.html[`DBTestCase`].
+or by extending link:apidocs/org/dbunit/DBTestCase.html[`DBTestCase`].
 Outside of tests, it is also a convenient utility for importing and exporting data — from code, via link:anttask.html[Ant Integration], or through the companion dbunit-maven-plugin.
 
 == What dbUnit Provides

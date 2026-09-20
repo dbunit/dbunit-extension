@@ -1,6 +1,6 @@
 = XML
 
-link:/dbunit/apidocs/org/dbunit/dataset/xml/XmlDataSet.html[XmlDataSet]
+link:../apidocs/org/dbunit/dataset/xml/XmlDataSet.html[XmlDataSet]
 reads and writes the original, verbose XML dataset document format. It must
 conform to the following
 link:https://github.com/dbunit/dbunit-extension/blob/main/src/main/resources/org/dbunit/dataset/xml/dataset.dtd[DTD]:
@@ -83,3 +83,8 @@ it directly from the GitHub repository instead:
 Compared to link:flatxml.html[Flat XML], this format is self-describing (the
 columns are explicit per table, rather than deduced from attributes) at the
 cost of considerably more verbose files.
+
+A null value is written as an explicit `<null/>` or `<none/>` element in the
+row. For how field text becomes a typed value once parsed — empty strings,
+binary/BLOB syntax, literal and relative dates, UUID literals, and
+booleans/numbers from strings — see link:values.html[Dataset Values].

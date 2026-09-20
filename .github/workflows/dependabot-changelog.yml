@@ -78,6 +78,7 @@ jobs:
         with:
           ref: ${{ github.event.repository.default_branch }}
           token: ${{ secrets.GITHUB_TOKEN }}
+          persist-credentials: true  # the "Commit and push" step below pushes with this credential
 
       # ---------------------------------------------------------------
       # 2. Fetch Dependabot metadata (skipped for manual dispatch).
@@ -128,14 +129,21 @@ jobs:
       # ---------------------------------------------------------------
       - name: Update changes.xml (manual dispatch)
         if: github.event_name == 'workflow_dispatch'
+        env:
+          PR_NUMBER: ${{ inputs.pr-number }}
+          DEPENDENCY_NAME: ${{ inputs.dependency-name }}
+          PREVIOUS_VERSION: ${{ inputs.previous-version }}
+          NEW_VERSION: ${{ inputs.new-version }}
+          UPDATE_TYPE: ${{ inputs.update-type }}
+          ECOSYSTEM: ${{ inputs.ecosystem }}
         run: |
           python3 .github/scripts/append-changes-entry.py \
-            --pr-number     "${{ inputs.pr-number }}" \
-            --dependency-name "${{ inputs.dependency-name }}" \
-            --previous-version "${{ inputs.previous-version }}" \
-            --new-version   "${{ inputs.new-version }}" \
-            --update-type   "${{ inputs.update-type }}" \
-            --ecosystem     "${{ inputs.ecosystem }}"
+            --pr-number       "${PR_NUMBER}" \
+            --dependency-name  "${DEPENDENCY_NAME}" \
+            --previous-version "${PREVIOUS_VERSION}" \
+            --new-version      "${NEW_VERSION}" \
+            --update-type      "${UPDATE_TYPE}" \
+            --ecosystem        "${ECOSYSTEM}"
 
       # ---------------------------------------------------------------
       # 4. Commit the updated changes.xml.

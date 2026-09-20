@@ -8,15 +8,18 @@ on:
       - 'src/site/**'
       - '**/*.adoc'
       - '**/*.md'
+  # zizmor: ignore[dangerous-triggers]
+  # workflow_run is used safely: for that event the build-site job requires a
+  # successful triggering run from this repository (head_repository guard) on
+  # `main` (branches filter) and checks out the default branch — never a
+  # triggering ref, so never fork-controlled code, and it also picks up the
+  # commit the "Record Dependabot update" workflow pushes.
   workflow_run:
     workflows: ["Build any branch with all databases", "Record Dependabot update in changes.xml"]
     types: [completed]
     branches: [ main ]
 
-permissions:
-  contents: read
-  pages: write
-  id-token: write
+permissions: {}
 
 concurrency:
   group: pages
@@ -28,16 +31,23 @@ env:
 
 jobs:
   build-site:
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: read
     steps:
     - uses: actions/checkout@v7
+      with:
+        persist-credentials: false
     - uses: ./.github/actions/jdk-setup
     - name: Build project
       run: ${{ env.MAVEN_COMMAND }} ${{ env.MAVEN_CLI_COMMON }} clean install -DskipTests
     - name: Generate Maven site
-      run: ${{ env.MAVEN_COMMAND }} ${{ env.MAVEN_CLI_COMMON }} site -Dproject.build.outputTimestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+      run: ${{ env.MAVEN_COMMAND }} ${{ env.MAVEN_CLI_COMMON }} site -Dproject.build.outputTimestamp="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
     - name: Upload Pages artifact
       if: >-
         github.event_name == 'workflow_dispatch' ||
@@ -55,6 +65,9 @@ jobs:
       github.event_name == 'workflow_run'
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

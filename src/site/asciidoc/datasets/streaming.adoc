@@ -1,6 +1,6 @@
 = Streaming Datasets
 
-link:/dbunit/apidocs/org/dbunit/dataset/stream/StreamingDataSet.html[StreamingDataSet]
+link:../apidocs/org/dbunit/dataset/stream/StreamingDataSet.html[StreamingDataSet]
 consumes a producer and exposes its content as a dataset.
 Provides cursor like forward only access to it and only keeps the active row in memory.
 Can be used with FlatXmlProducer and XmlProvider.
@@ -19,11 +19,11 @@ IDataSet dataSet = new StreamingDataSet(producer);
 
 `org.dbunit.dataset.stream` also has the plumbing behind producer/consumer
 based access:
-link:/dbunit/apidocs/org/dbunit/dataset/stream/DataSetProducerAdapter.html[DataSetProducerAdapter]
+link:../apidocs/org/dbunit/dataset/stream/DataSetProducerAdapter.html[DataSetProducerAdapter]
 adapts an existing `IDataSet`/`ITableIterator` into an `IDataSetProducer`
 (the opposite direction — useful when exporting/writing rather than
 reading), and
-link:/dbunit/apidocs/org/dbunit/dataset/stream/BufferedConsumer.html[BufferedConsumer]
+link:../apidocs/org/dbunit/dataset/stream/BufferedConsumer.html[BufferedConsumer]
 is an `IDataSetConsumer` that buffers all data until the dataset ends,
 enabling columns discovered partway through (column sensing, see
 link:flatxml.html[Flat XML]) to be appended after rows using them were

@@ -1,6 +1,6 @@
 = JSON
 
-link:/dbunit/apidocs/org/dbunit/dataset/json/JsonDataSet.html[JsonDataSet]
+link:../apidocs/org/dbunit/dataset/json/JsonDataSet.html[JsonDataSet]
 reads and writes JSON dataset documents.
 Each top-level key corresponds to a table, where the value is an array of row objects.
 Each row is a JSON object of column:value pairs.
@@ -36,6 +36,10 @@ empty array has no rows to infer columns from, so writing such a table and
 reading it back produces a table with no columns instead. Formats that
 declare columns independently of row content, such as CSV's per-table header
 row, do not have this limitation.
+
+For what happens to a field value after parsing — empty strings, binary/BLOB
+syntax, literal and relative dates, UUID literals, and booleans/numbers from
+strings — see link:values.html[Dataset Values], which applies to every format.
 
 Table names are always case-sensitive — unlike some other formats, there is no
 case-insensitive table lookup fallback.

@@ -8,7 +8,7 @@ equivalent.
 
 == IDataTypeFactory
 
-link:/dbunit/apidocs/org/dbunit/ext/postgresql/PostgresqlDataTypeFactory.html[PostgresqlDataTypeFactory]
+link:../apidocs/org/dbunit/ext/postgresql/PostgresqlDataTypeFactory.html[PostgresqlDataTypeFactory]
 recognizes `uuid`, `interval`, `inet`, `geometry`, `citext`, `json`, `jsonb`,
 `oid` when reported as JDBC `BIGINT`, any array column (JDBC `ARRAY`, e.g.
 `integer[]`, `text[]`), and (via an overridable hook) custom enum types,
@@ -41,19 +41,19 @@ connection.getConfig().setProperty(DatabaseConfig.PROPERTY_DATATYPE_FACTORY,
 |===
 |Type |Covers
 
-|link:/dbunit/apidocs/org/dbunit/ext/postgresql/PostgreSQLOidDataType.html[PostgreSQLOidDataType] |Large objects (`oid`), read/written via the driver's large-object API.
-|link:/dbunit/apidocs/org/dbunit/ext/postgresql/CitextType.html[CitextType] |Case-insensitive text (`citext`).
-|link:/dbunit/apidocs/org/dbunit/ext/postgresql/IntervalType.html[IntervalType] |`interval` values.
-|link:/dbunit/apidocs/org/dbunit/ext/postgresql/InetType.html[InetType] |`inet` (IP address/network) values.
-|link:/dbunit/apidocs/org/dbunit/ext/postgresql/UuidType.html[UuidType] |`uuid` values.
-|link:/dbunit/apidocs/org/dbunit/ext/postgresql/GeometryType.html[GeometryType] |`geometry` (PostGIS) values, read/written as their string representation.
-|link:/dbunit/apidocs/org/dbunit/ext/postgresql/JsonType.html[JsonType] |`json` and `jsonb` values, read/written as their raw text representation.
-|link:/dbunit/apidocs/org/dbunit/ext/postgresql/ArrayType.html[ArrayType] |Array columns (e.g. `integer[]`, `text[]`), read/written as their PostgreSQL literal text representation.
+|link:../apidocs/org/dbunit/ext/postgresql/PostgreSQLOidDataType.html[PostgreSQLOidDataType] |Large objects (`oid`), read/written via the driver's large-object API.
+|link:../apidocs/org/dbunit/ext/postgresql/CitextType.html[CitextType] |Case-insensitive text (`citext`).
+|link:../apidocs/org/dbunit/ext/postgresql/IntervalType.html[IntervalType] |`interval` values.
+|link:../apidocs/org/dbunit/ext/postgresql/InetType.html[InetType] |`inet` (IP address/network) values.
+|link:../apidocs/org/dbunit/ext/postgresql/UuidType.html[UuidType] |`uuid` values.
+|link:../apidocs/org/dbunit/ext/postgresql/GeometryType.html[GeometryType] |`geometry` (PostGIS) values, read/written as their string representation.
+|link:../apidocs/org/dbunit/ext/postgresql/JsonType.html[JsonType] |`json` and `jsonb` values, read/written as their raw text representation.
+|link:../apidocs/org/dbunit/ext/postgresql/ArrayType.html[ArrayType] |Array columns (e.g. `integer[]`, `text[]`), read/written as their PostgreSQL literal text representation.
 |===
 
 === PostgreSQLOidDataType
 
-link:/dbunit/apidocs/org/dbunit/ext/postgresql/PostgreSQLOidDataType.html[PostgreSQLOidDataType]
+link:../apidocs/org/dbunit/ext/postgresql/PostgreSQLOidDataType.html[PostgreSQLOidDataType]
 reads and writes `oid` columns through the PostgreSQL JDBC driver's
 large-object API (`LargeObjectManager`). Writing always creates a new large
 object and binds its oid; reading opens the large object the column's oid
@@ -76,7 +76,7 @@ connection stays usable for the rest of the read.
 
 === GenericEnumType
 
-link:/dbunit/apidocs/org/dbunit/ext/postgresql/GenericEnumType.html[GenericEnumType]
+link:../apidocs/org/dbunit/ext/postgresql/GenericEnumType.html[GenericEnumType]
 adapts between PostgreSQL's native enum types and Strings, using reflection
 (`PGobject.setType()`) so dbUnit doesn't need a compile-time dependency on
 the PostgreSQL driver's internal types. PostgreSQL reports a custom enum
@@ -101,7 +101,7 @@ column — see Known Quirks below.
 
 === JsonType
 
-link:/dbunit/apidocs/org/dbunit/ext/postgresql/JsonType.html[JsonType]
+link:../apidocs/org/dbunit/ext/postgresql/JsonType.html[JsonType]
 adapts between PostgreSQL's native `json`/`jsonb` types and Strings, using
 the same reflection-based `PGobject.setType()` approach as the other types
 above. PostgreSQL has no implicit cast between `json` and `jsonb`, so a
@@ -116,13 +116,13 @@ reformats `jsonb` text on storage (for example, inserting whitespace or
 reordering object keys), so a literal string comparison against an
 expected dataset value can spuriously fail even when the JSON is
 semantically identical. Use
-link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/IsActualEqualToExpectedJsonValueComparer.html[IsActualEqualToExpectedJsonValueComparer]
+link:../apidocs/org/dbunit/assertion/comparer/value/IsActualEqualToExpectedJsonValueComparer.html[IsActualEqualToExpectedJsonValueComparer]
 (see link:../datacomparisons/valuecomparer.html[Value Comparers]) to compare
 `json`/`jsonb` column values by their parsed document structure instead.
 
 === ArrayType
 
-link:/dbunit/apidocs/org/dbunit/ext/postgresql/ArrayType.html[ArrayType]
+link:../apidocs/org/dbunit/ext/postgresql/ArrayType.html[ArrayType]
 adapts between PostgreSQL array columns and their PostgreSQL literal text
 representation, such as `{1,2,3}` or `{"a","b","c"}`. PostgreSQL reports
 every array column's sql type name as its element type's own pg_catalog name
@@ -156,7 +156,7 @@ https://github.com/dbunit/dbunit-extension/issues/933[issue #933].
 
 `json`/`jsonb` column comparisons in assertions are literal string
 comparisons unless you use
-link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/IsActualEqualToExpectedJsonValueComparer.html[IsActualEqualToExpectedJsonValueComparer]
+link:../apidocs/org/dbunit/assertion/comparer/value/IsActualEqualToExpectedJsonValueComparer.html[IsActualEqualToExpectedJsonValueComparer]
 — see JsonType above.
 
 Array column comparisons in assertions are literal string comparisons
