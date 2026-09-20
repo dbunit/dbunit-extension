@@ -56,6 +56,8 @@
       </action>
       <!-- dependabot:dep=org.apache.maven.wrapper:maven-wrapper:new=3.3.4:pr=942 -->
       <action dev="dependabot" type="update" due-to="Dependabot">Update maven dependency org.apache.maven.wrapper:maven-wrapper from 3.3.2 to 3.3.4 (#942).</action>
+      <!-- dependabot:dep=actions/setup-java:new=6.0.1:pr=984 -->
+      <action dev="dependabot" type="update" due-to="Dependabot">Update github_actions dependency actions/setup-java from 6.0.0 to 6.0.1 (#984).</action>
     </release>
     <release version="3.5.2" date="Sep 7, 2026" description="DefaultPrepAndExpectedTestCase connection hygiene: replace a connection the pool or database dropped between tests, and warn when handed a non-autocommit connection">
       <action dev="jeffjensen" type="fix" issue="962" system="github" due-to="jeffjensen">
