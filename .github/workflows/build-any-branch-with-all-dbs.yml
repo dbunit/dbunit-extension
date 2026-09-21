@@ -1,6 +1,8 @@
 name: Build any branch with all databases
 
 on:
+  # Adds the manual "Run workflow" button
+  workflow_dispatch:
   push:
     paths-ignore:
       - 'src/site/**'
