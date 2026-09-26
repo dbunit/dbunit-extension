@@ -9,6 +9,7 @@ dbUnit hooks into JUnit 5/6 (Jupiter) — JUnit 4 support was dropped in 3.0.0
 — either by composing an link:testcases/IDatabaseTester.html[`IDatabaseTester`] into your test class (the preferred style)
 or by extending link:apidocs/org/dbunit/DBTestCase.html[`DBTestCase`].
 Outside of tests, it is also a convenient utility for importing and exporting data — from code, via link:anttask.html[Ant Integration], or through the companion dbunit-maven-plugin.
+Flat XML dataset files can also be edited by hand, spreadsheet-style, with the companion link:https://dbunit.github.io/dbunit-eclipse-plugin/[dbUnit Eclipse Plugin].
 
 == What dbUnit Provides
 
@@ -61,6 +62,10 @@ See link:https://dbunit.github.io/dbunit-extension/repos.html#snapshots[SNAPSHOT
 Refer to the link:changes.html#a3.6.0-SNAPSHOT[changes report],
 the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.6.0%20type%3AFeature[feature list], and
 the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.6.0%20type%3ABug[bug list]
+
+|2026-09-26
+|The new link:https://dbunit.github.io/dbunit-eclipse-plugin/[dbUnit Eclipse Plugin] opens flat XML dataset files as a *spreadsheet-like grid* inside the Eclipse IDE: one sheet per table, edits written back into the XML with *minimal changes* so diffs stay small, and warnings for content dbUnit ignores or rejects.
+Please try it from the update site `https://dbunit.github.io/dbunit-eclipse-plugin/updates/`; see the link:https://dbunit.github.io/dbunit-eclipse-plugin/usage.html[User Guide] for details.
 
 |2026-09-07
 |Release 3.5.2 available.
