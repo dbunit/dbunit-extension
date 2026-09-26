@@ -177,6 +177,7 @@
       <item name="Resources"            href="/resources.html"/>
       <item name="Maven 1.x Plugin"     href="http://maven-plugins.sourceforge.net/maven-dbunit-plugin/index.html"/>
       <item name="Maven 2.x/3.x Plugin" href="../dbunit-maven-plugin/index.html"/>
+      <item name="Eclipse Plugin"       href="../dbunit-eclipse-plugin/index.html"/>
       <item name="DBUnit AT Open Hub"   href="https://www.openhub.net/p/dbunit"/>
     </menu>
 
