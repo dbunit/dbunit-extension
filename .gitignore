@@ -14,6 +14,9 @@ dbunit.properties
 *.iws
 
 # AI related dirs
+.aider*
+!.aider.conf.yml
+!.aiderignore
 .jackknife
 
 # maven-release-plugin working files (see src/site/asciidoc/releasing.adoc)
@@ -25,8 +28,3 @@ pom.xml.next
 # Python (.github/scripts/*.py and their pytest suites)
 __pycache__
 .pytest_cache
-
-# AI
-.aider*
-!.aider.conf.yml
-!.aiderignore
