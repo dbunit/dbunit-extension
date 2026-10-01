@@ -85,8 +85,8 @@ The workflow:
 * Calls `.github/scripts/append-changes-entry.py` once per updated dependency to append
   one `<action>` entry.
 * Commits with `[skip ci]` and pushes to `main`. If branch protection requires a PR, the
-  workflow opens a `chore/changelog-pr-NNN` branch, creates a draft PR, and enables
-  auto-merge.
+  workflow opens a `docs/changelog-pr-NNN` branch, creates a PR labeled `dependencies`
+  and `skip-changelog`, and enables squash auto-merge.
 
 === Disabling for a Specific PR
 

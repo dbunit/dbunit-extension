@@ -43,7 +43,10 @@ updates:
   # -----------------------------------------------------------------------
   # zizmor: ignore[dependabot-cooldown]  # 3 days is a deliberate tradeoff for actions
   - package-ecosystem: "github-actions"
-    directory: "/"
+    # "/" covers only .github/workflows; the local composite action is listed separately.
+    directories:
+      - "/"
+      - "/.github/actions/jdk-setup"
     schedule:
       interval: "daily"
     cooldown:
