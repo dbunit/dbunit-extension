@@ -112,7 +112,7 @@
     <releasePluginVersion>3.3.1</releasePluginVersion>
     <resourcesPluginVersion>3.5.0</resourcesPluginVersion>
     <sitePluginVersion>3.22.0</sitePluginVersion>
-    <slf4jApiVersion>2.0.19</slf4jApiVersion>
+    <slf4jApiVersion>2.0.20</slf4jApiVersion>
     <snakeyamlVersion>2.7</snakeyamlVersion>
     <sourcePluginVersion>3.4.0</sourcePluginVersion>
     <spotbugsMavenPluginVersion>4.10.4.1</spotbugsMavenPluginVersion>
