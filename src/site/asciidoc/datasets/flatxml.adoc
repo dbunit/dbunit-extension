@@ -22,6 +22,10 @@ Flat XML dataset document sample:
 To specify null values, omit the corresponding attribute.
 In the above example, the missing COL0 and COL2 attributes of TEST_TABLE's second row represent null values.
 
+DbUnit matches an attribute to a column without regard to letter case (since 2.7.0, issue 673),
+so a row can write `col1` for the column that the first row wrote as `COL1`.
+Before 2.7.0, DbUnit read only an attribute spelled exactly like its column, so such a row loaded null for that column.
+
 Table metadata is deduced from the *first* row of each table. On a later row,
 an attribute the first row lacked is ignored — the row is still read, just
 without that column, with an "Extra columns on line x" warning — unless you
@@ -30,6 +34,8 @@ link:values.html#columnsensing[Dataset Values: column sensing] for the fix.
 *Beware you may get a NoSuchColumnException if the first row of a table has one or more null values.*
 Because of that, using a DTD is recommended: DbUnit then takes each table's metadata from the columns declared in the DTD.
 DbUnit supports only an external system URI for the DTD; it can be absolute or relative.
+A table that the DTD declares but the file has no element for becomes an empty table of the dataset (since 3.5.0, issue 496),
+so `DELETE_ALL` and `CLEAN_INSERT` clear it; earlier versions leave such a table out of the dataset.
 
 link:values.html#null[ReplacementDataSet's `[NULL]` placeholder] is another
 way to cope with a first-row null.
