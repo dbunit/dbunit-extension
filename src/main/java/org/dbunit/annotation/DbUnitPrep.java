@@ -46,8 +46,9 @@ import org.dbunit.util.fileloader.DataSetPathsProvider;
  * Declare {@link DbUnitSetup} with that operation to keep it.
  *
  * <p>Each path is resolved to an absolute classpath resource: a path already starting with
- * {@code /} is used as-is; otherwise it is resolved relative to the test class's package, or
- * to {@code DbUnitConfig#dataSetBaseDir()} when that is set. The file format is inferred from
+ * {@code /} is used as-is; otherwise it is resolved relative to the package of the class
+ * declaring this annotation - the base class, for an inherited one - or to
+ * {@code DbUnitConfig#dataSetBaseDir()} when that is set. The file format is inferred from
  * the extension by the configured {@code DataFileLoader} - see {@link DbUnitConfig#dataFileLoader()}.
  *
  * <p>Example:

@@ -170,7 +170,7 @@ public @interface DbUnitConfig
     /**
      * A classpath directory prefix applied to every {@link DbUnitPrep} and
      * {@link DbUnitExpected} path that neither starts with {@code /} nor is otherwise
-     * absolute, ahead of the test-class-package default.
+     * absolute, ahead of the default of the package of the class declaring the annotation.
      *
      * @return The base directory; empty (the default) means "not set".
      */

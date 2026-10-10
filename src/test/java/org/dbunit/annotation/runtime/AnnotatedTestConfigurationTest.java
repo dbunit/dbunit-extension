@@ -25,6 +25,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.lang.reflect.Method;
 
+import org.dbunit.DefaultDatabaseTester;
 import org.dbunit.DefaultPrepAndExpectedTestCase;
 import org.dbunit.VerifyTableDefinition;
 import org.dbunit.annotation.DbUnitColumnComparer;
@@ -41,6 +42,7 @@ import org.dbunit.assertion.comparer.value.IsActualGreaterThanExpectedValueCompa
 import org.dbunit.assertion.comparer.value.IsActualWithinToleranceOfExpectedTimestampValueComparer;
 import org.dbunit.assertion.comparer.value.ValueComparer;
 import org.dbunit.database.DatabaseConfigPropertiesProvider;
+import org.dbunit.dataset.DefaultDataSet;
 import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.datatype.DataType;
 import org.dbunit.operation.DatabaseOperation;
@@ -752,6 +754,38 @@ class AnnotatedTestConfigurationTest
     private static Method method(final Class<?> testClass, final String name) throws Exception
     {
         return testClass.getDeclaredMethod(name);
+    }
+
+    @Test
+    void testFrom_prepAndExpectedDeclaredInDifferentClasses_resolveEachRelativeToItsOwnDeclaringClass()
+    {
+        final DbUnitPrep prep = DeclaresPrep.class.getAnnotation(DbUnitPrep.class);
+        final DbUnitExpected expected = DeclaresExpected.class.getAnnotation(DbUnitExpected.class);
+
+        // Classes of three different packages stand in for a base class declaring each
+        // annotation; the nested fixtures here share this test's own package, so they could not
+        // tell the three apart.
+        final AnnotatedTestConfiguration config = AnnotatedTestConfiguration.from(
+                AnnotatedTestConfigurationTest.class, DefaultDatabaseTester.class,
+                DefaultDataSet.class, null, prep, null, expected, null, null);
+
+        assertThat(config.getPrepDataFiles())
+                .as("The prep path is relative to the class declaring @DbUnitPrep.")
+                .containsExactly("/org/dbunit/prep.xml");
+        assertThat(config.getExpectedDataFiles())
+                .as("The expected path is relative to the class declaring @DbUnitExpected, not"
+                        + " to the prep's class or the test class.")
+                .containsExactly("/org/dbunit/dataset/expected.xml");
+    }
+
+    @DbUnitPrep("prep.xml")
+    static class DeclaresPrep
+    {
+    }
+
+    @DbUnitExpected("expected.xml")
+    static class DeclaresExpected
+    {
     }
 
     @DbUnitSetup(operation = DbUnitOperation.REFRESH)

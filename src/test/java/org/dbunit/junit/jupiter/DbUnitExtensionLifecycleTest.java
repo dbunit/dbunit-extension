@@ -45,6 +45,10 @@ import org.dbunit.annotation.DbUnitTestCase;
 import org.dbunit.annotation.DbUnitTester;
 import org.dbunit.database.IDatabaseConnection;
 import org.dbunit.dataset.IDataSet;
+import org.dbunit.junit.jupiter.inheritance.ClassLevelExpectedBase;
+import org.dbunit.junit.jupiter.inheritance.ClassLevelPrepBase;
+import org.dbunit.junit.jupiter.inheritance.MethodLevelExpectedBase;
+import org.dbunit.junit.jupiter.inheritance.MethodLevelPrepBase;
 import org.dbunit.operation.DatabaseOperation;
 import org.dbunit.operation.DbUnitOperation;
 import org.junit.jupiter.api.AfterEach;
@@ -253,6 +257,79 @@ class DbUnitExtensionLifecycleTest
                         + " @DbUnitExpected is method-level and whose @DbUnitTestCase and tester"
                         + " fields live on the enclosing test instance.")
                 .containsExactly(true);
+    }
+
+    @Test
+    void testBeforeTestExecution_classLevelPrepInheritedFromAnotherPackage_resolvesRelativeToTheDeclaringClass()
+            throws Exception
+    {
+        final CallLoggingTester tester = new CallLoggingTester(new ArrayList<>());
+        InheritedClassLevelPrepSample.tester = tester;
+
+        EngineTestKit.engine("junit-jupiter")
+                .selectors(selectClass(InheritedClassLevelPrepSample.class))
+                .execute()
+                .testEvents()
+                .assertStatistics(stats -> stats.started(1).succeeded(1));
+
+        assertThat(tester.dataSetAtOnSetup.getTableNames())
+                .as("A relative @DbUnitPrep path inherited from a base class in another package"
+                        + " names a file next to that base class, not next to the subclass.")
+                .containsExactly("BASE_CLASS_TABLE");
+    }
+
+    @Test
+    void testBeforeTestExecution_methodLevelPrepInheritedFromAnotherPackage_resolvesRelativeToTheDeclaringClass()
+            throws Exception
+    {
+        final CallLoggingTester tester = new CallLoggingTester(new ArrayList<>());
+        InheritedMethodLevelPrepSample.tester = tester;
+
+        EngineTestKit.engine("junit-jupiter")
+                .selectors(selectClass(InheritedMethodLevelPrepSample.class))
+                .execute()
+                .testEvents()
+                .assertStatistics(stats -> stats.started(1).succeeded(1));
+
+        assertThat(tester.dataSetAtOnSetup.getTableNames())
+                .as("A relative @DbUnitPrep path on an inherited test method names a file next"
+                        + " to the class that declares the method.")
+                .containsExactly("BASE_METHOD_TABLE");
+    }
+
+    @Test
+    void testBeforeTestExecution_classLevelExpectedInheritedFromAnotherPackage_resolvesRelativeToTheDeclaringClass()
+    {
+        InheritedClassLevelExpectedSample.testCase = new RecordingPrepAndExpectedTestCase();
+
+        EngineTestKit.engine("junit-jupiter")
+                .selectors(selectClass(InheritedClassLevelExpectedSample.class))
+                .execute()
+                .testEvents()
+                .assertStatistics(stats -> stats.started(1).succeeded(1));
+
+        assertThat(InheritedClassLevelExpectedSample.testCase.configuredExpectedDataFiles)
+                .as("A relative @DbUnitExpected path inherited from a base class in another"
+                        + " package names a file next to that base class.")
+                .containsExactly("/org/dbunit/junit/jupiter/inheritance/class-level-expected.xml");
+    }
+
+    @Test
+    void testBeforeTestExecution_methodLevelExpectedInheritedFromAnotherPackage_resolvesRelativeToTheDeclaringClass()
+    {
+        InheritedMethodLevelExpectedSample.testCase = new RecordingPrepAndExpectedTestCase();
+
+        EngineTestKit.engine("junit-jupiter")
+                .selectors(selectClass(InheritedMethodLevelExpectedSample.class))
+                .execute()
+                .testEvents()
+                .assertStatistics(stats -> stats.started(1).succeeded(1));
+
+        assertThat(InheritedMethodLevelExpectedSample.testCase.configuredExpectedDataFiles)
+                .as("A relative @DbUnitExpected path on an inherited test method names a file"
+                        + " next to the class that declares the method.")
+                .containsExactly(
+                        "/org/dbunit/junit/jupiter/inheritance/method-level-expected.xml");
     }
 
     @Test
@@ -593,6 +670,50 @@ class DbUnitExtensionLifecycleTest
         }
     }
 
+    static class InheritedClassLevelPrepSample extends ClassLevelPrepBase
+    {
+        static CallLoggingTester tester;
+
+        IDatabaseTester databaseTester = tester;
+
+        @Test
+        void testInheritedClassLevelPrep()
+        {
+        }
+    }
+
+    @DbUnitTest
+    static class InheritedMethodLevelPrepSample extends MethodLevelPrepBase
+    {
+        static CallLoggingTester tester;
+
+        IDatabaseTester databaseTester = tester;
+    }
+
+    static class InheritedClassLevelExpectedSample extends ClassLevelExpectedBase
+    {
+        static RecordingPrepAndExpectedTestCase testCase;
+
+        @DbUnitTestCase
+        PrepAndExpectedTestCase injected = testCase;
+        IDatabaseTester databaseTester = new CallLoggingTester(new ArrayList<>());
+
+        @Test
+        void testInheritedClassLevelExpected()
+        {
+        }
+    }
+
+    @DbUnitTest
+    static class InheritedMethodLevelExpectedSample extends MethodLevelExpectedBase
+    {
+        static RecordingPrepAndExpectedTestCase testCase;
+
+        @DbUnitTestCase
+        PrepAndExpectedTestCase injected = testCase;
+        IDatabaseTester databaseTester = new CallLoggingTester(new ArrayList<>());
+    }
+
     @DbUnitTest
     static class NestedExpectedPathEnclosing
     {
@@ -815,11 +936,13 @@ class DbUnitExtensionLifecycleTest
     {
         final List<Boolean> postTestCalls = Collections.synchronizedList(new ArrayList<>());
         RuntimeException postTestFailure;
+        String[] configuredExpectedDataFiles;
 
         @Override
         public void configureTest(final VerifyTableDefinition[] verifyTableDefinitions,
                 final String[] prepDataFiles, final String[] expectedDataFiles)
         {
+            configuredExpectedDataFiles = expectedDataFiles;
         }
 
         @Override
