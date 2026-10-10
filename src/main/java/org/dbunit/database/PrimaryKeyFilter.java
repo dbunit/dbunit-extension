@@ -470,8 +470,8 @@ public class PrimaryKeyFilter extends AbstractTableFilter {
      */
     public static class PkTableMap
     {
+        private static final Logger logger = LoggerFactory.getLogger(PkTableMap.class);
         private final LinkedHashMap pksPerTable;
-        private final Logger logger = LoggerFactory.getLogger(PkTableMap.class);
 
         /**
          * Default constructor.

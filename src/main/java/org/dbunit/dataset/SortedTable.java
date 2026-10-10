@@ -397,7 +397,7 @@ public class SortedTable extends AbstractTable
         /**
          * Logger for this class
          */
-        private final Logger logger =
+        private static final Logger logger =
                 LoggerFactory.getLogger(AbstractRowComparator.class);
         private final ITable _table;
         private final Column[] _sortColumns;
@@ -494,7 +494,7 @@ public class SortedTable extends AbstractTable
         /**
          * Logger for this class
          */
-        private final Logger logger =
+        private static final Logger logger =
                 LoggerFactory.getLogger(RowComparator.class);
 
         /**
@@ -535,7 +535,7 @@ public class SortedTable extends AbstractTable
         /**
          * Logger for this class
          */
-        private final Logger logger =
+        private static final Logger logger =
                 LoggerFactory.getLogger(RowComparatorByString.class);
 
         /**

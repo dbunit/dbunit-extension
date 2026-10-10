@@ -37,7 +37,7 @@ public class ColumnFilterTable implements ITable
     /** 
      * logger 
      */
-    private final Logger logger = LoggerFactory.getLogger(ColumnFilterTable.class);
+    private static final Logger logger = LoggerFactory.getLogger(ColumnFilterTable.class);
 
     /** 
      * reference to the original table being wrapped 

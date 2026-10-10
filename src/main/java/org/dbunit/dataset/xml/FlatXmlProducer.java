@@ -706,7 +706,7 @@ public class FlatXmlProducer extends DefaultHandler implements IDataSetProducer,
         /**
          * Logger for this class
          */
-        private final Logger logger = LoggerFactory.getLogger(FlatDtdHandler.class);
+        private static final Logger logger = LoggerFactory.getLogger(FlatDtdHandler.class);
 
         private boolean _dtdPresent = false;
         private FlatXmlProducer xmlProducer;

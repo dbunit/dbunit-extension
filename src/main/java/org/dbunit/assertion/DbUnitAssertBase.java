@@ -27,7 +27,7 @@ import org.slf4j.LoggerFactory;
  */
 public class DbUnitAssertBase
 {
-    private final Logger log = LoggerFactory.getLogger(DbUnitAssertBase.class);
+    private static final Logger log = LoggerFactory.getLogger(DbUnitAssertBase.class);
 
     private FailureFactory junitFailureFactory = getJUnitFailureFactory();
 
