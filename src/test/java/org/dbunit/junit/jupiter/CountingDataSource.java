@@ -71,6 +71,11 @@ final class CountingDataSource implements DataSource
         return peak.get();
     }
 
+    int opened()
+    {
+        return opened.get();
+    }
+
     int leaked()
     {
         return opened.get() - closed.get();

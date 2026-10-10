@@ -93,6 +93,8 @@ public class AnnotatedTestExecutor
     private final ExpectedLifecycle expectedLifecycle;
     private final SetupTeardownLifecycle setupTeardownLifecycle;
 
+    private boolean afterTestRan;
+
     /**
      * Creates an executor for an annotation-driven test - equivalent to
      * {@link #AnnotatedTestExecutor(AnnotatedTestConfiguration, IDatabaseTester, PrepAndExpectedTestCase, boolean)}
@@ -382,6 +384,7 @@ public class AnnotatedTestExecutor
      */
     public void afterTest(final boolean testFailed) throws Exception
     {
+        afterTestRan = true;
         try
         {
             if (configuration.isExpected())
@@ -401,6 +404,28 @@ public class AnnotatedTestExecutor
                 primaryFailure.addSuppressed(closeFailure);
             }
             throw primaryFailure;
+        }
+        testScopedConnection.release();
+    }
+
+    /**
+     * Closes the connection {@link #testScopedConnection} memoized, when {@link #afterTest(boolean)}
+     * never ran. A binding calls this once the test method's whole lifecycle is over, to cover
+     * the one path {@link #afterTest(boolean)} cannot: a {@code @BeforeEach} method that fails
+     * after a {@code Connection}/{@code IDatabaseConnection} parameter already resolved this
+     * executor's connection, so the test method - and with it the binding's after-test callback -
+     * never runs. A no-op when {@link #afterTest(boolean)} already ran, which released the
+     * connection itself, and when no connection was ever resolved, which it never acquires.
+     * Closes under the same {@link ConnectionOwnership#mayClose()} rules as
+     * {@link #afterTest(boolean)}.
+     *
+     * @throws Exception If closing the connection fails.
+     */
+    public void releaseIfAfterTestDidNotRun() throws Exception
+    {
+        if (afterTestRan)
+        {
+            return;
         }
         testScopedConnection.release();
     }

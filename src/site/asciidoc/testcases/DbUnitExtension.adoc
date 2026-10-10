@@ -155,6 +155,9 @@ or in an `@AfterEach` that fully owns its own connection. The injected
 `IDatabaseConnection`/`Connection` is managed for the test's duration and
 closed afterward — by the extension on the setup/teardown path, by the driven
 `PrepAndExpectedTestCase` on the prep/expected path; do not close it yourself.
+That includes a `@BeforeEach` method that fails after receiving it: the test
+method and the extension's after-test callback never run then, so the extension
+closes the connection in its `afterEach` callback instead.
 
 == When to Use This Instead of Manual Lifecycle Calls
 
