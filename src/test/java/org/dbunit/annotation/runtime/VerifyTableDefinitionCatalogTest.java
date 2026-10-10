@@ -23,6 +23,7 @@ package org.dbunit.annotation.runtime;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.lang.ref.WeakReference;
 import java.util.Collections;
 
 import org.dbunit.VerifyTableDefinition;
@@ -273,6 +274,50 @@ class VerifyTableDefinitionCatalogTest
                 .hasMessageContaining(ConstantsOnlyCatalog.class.getName())
                 .hasMessageContaining("ACCOUNT")
                 .hasMessageContaining("CUSTOMER");
+    }
+
+    @Test
+    void testForClasses_catalogClassFromAnotherClassLoader_doesNotKeepThatLoaderAlive()
+            throws Exception
+    {
+        IsolatedClassLoader loader = new IsolatedClassLoader(IsolatedConstantsCatalog.class);
+        final WeakReference<ClassLoader> loaderRef = new WeakReference<>(loader);
+        Class<?> isolated = loader.loadClass(IsolatedConstantsCatalog.class.getName());
+
+        VerifyTableDefinitionCatalog.forClasses(isolated);
+        loader = null;
+        isolated = null;
+
+        assertThat(CollectionProbe.isCollected(loaderRef))
+                .as("Caching a catalog must not pin the class loader that defined its class, as"
+                        + " a JVM-lifetime cache keyed by the class would.")
+                .isTrue();
+    }
+
+    @Test
+    void testForClasses_sameCombinationAskedForFromAnotherThread_returnsTheSameCatalog()
+            throws Exception
+    {
+        final VerifyTableDefinitionCatalog[] seen = new VerifyTableDefinitionCatalog[2];
+        final Thread other = new Thread(() ->
+        {
+            seen[1] = VerifyTableDefinitionCatalog.forClasses(ConstantsOnlyCatalog.class);
+        });
+
+        seen[0] = VerifyTableDefinitionCatalog.forClasses(ConstantsOnlyCatalog.class);
+        other.start();
+        other.join();
+
+        assertThat(seen[1])
+                .as("A combination already read is reused by every thread, as before.")
+                .isSameAs(seen[0]);
+    }
+
+    /** Public, so a class loader other than the test's can read its constants. */
+    public static class IsolatedConstantsCatalog
+    {
+        public static final VerifyTableDefinition ACCOUNT =
+                new VerifyTableDefinition("ACCOUNT", (String[]) null);
     }
 
     static class ConstantsOnlyCatalog
