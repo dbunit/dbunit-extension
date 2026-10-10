@@ -37,7 +37,9 @@ import org.dbunit.util.fileloader.DataFileLoader;
  *   <li>A path already starting with {@code /} - an absolute classpath path, used as-is.
  *   Always wins, so a shared file outside the base directory stays reachable.</li>
  *   <li>{@link DbUnitConfig#dataSetBaseDir()}, when set - prefixed to the path.</li>
- *   <li>Otherwise - resolved relative to the test class's package.</li>
+ *   <li>Otherwise - resolved relative to the package of the class that declares the
+ *   annotation naming the path: the test class itself, unless the annotation is inherited from a
+ *   base class, or sits on an inherited test method, in another package.</li>
  * </ol>
  *
  * @author Jeff Jensen
@@ -50,7 +52,8 @@ public class DataSetResourcePathResolver
      *
      * @param path The path to resolve, as written on {@code @DbUnitPrep} or
      *            {@code @DbUnitExpected}.
-     * @param testClass The test class; used to resolve a path relative to its package.
+     * @param testClass The class declaring the annotation the path is written on; used to
+     *            resolve a path relative to its package.
      * @param dataSetBaseDir The configured base directory, or {@code null}/empty when not
      *            set.
      * @return The absolute classpath resource path.

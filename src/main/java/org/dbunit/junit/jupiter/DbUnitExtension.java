@@ -495,7 +495,11 @@ public class DbUnitExtension implements BeforeTestExecutionCallback,
         final DbUnitTearDown tearDown = findAnnotation(context, DbUnitTearDown.class);
         final DbUnitRowCountCheck rowCountCheck =
                 findAnnotation(context, DbUnitRowCountCheck.class);
-        return AnnotatedTestConfiguration.from(testClass, config, prep, setup, expected,
+        final DeclaringClassFinder declaringClassFinder = new DeclaringClassFinder(
+                context.getTestMethod(), testClass, context.getEnclosingTestClasses());
+        return AnnotatedTestConfiguration.from(testClass,
+                declaringClassFinder.find(DbUnitPrep.class),
+                declaringClassFinder.find(DbUnitExpected.class), config, prep, setup, expected,
                 tearDown, rowCountCheck);
     }
 
