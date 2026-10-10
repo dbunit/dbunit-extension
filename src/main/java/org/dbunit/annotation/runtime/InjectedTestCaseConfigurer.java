@@ -185,6 +185,15 @@ final class InjectedTestCaseConfigurer
                         + " test.");
         if (!declared)
         {
+            // Setting the instance's own properties again is what puts back, on a connection it
+            // kept, the DatabaseConfig values it applied from them, when its lifecycle is
+            // abandoned before cleanupData() runs. An instance that cannot report them has no
+            // own properties to set, and setting null would wipe the ones it was built with.
+            if (reportsItsDatabaseConfigProperties())
+            {
+                final Properties ownProperties = testCase.getDatabaseConfigProperties();
+                undoSteps.add(() -> testCase.setDatabaseConfigProperties(ownProperties));
+            }
             return;
         }
 
@@ -343,6 +352,23 @@ final class InjectedTestCaseConfigurer
                 + " properties()/propertiesProvider() and configure the DatabaseConfig"
                 + " entirely in the override.", properties.size(),
                 testCase.getClass().getName());
+    }
+
+    /**
+     * Returns whether {@link #testCase} reports its own database configuration properties,
+     * that is, overrides both the properties getter and the properties setter, so they can be
+     * set again to put back what they applied.
+     *
+     * @return True when both the getter and the setter are overridden.
+     */
+    private boolean reportsItsDatabaseConfigProperties()
+    {
+        final Class<?> type = testCase.getClass();
+        return DefaultMethodOverrideCheck.overridesDefaultMethod(type,
+                PrepAndExpectedTestCase.class, "getDatabaseConfigProperties")
+                && DefaultMethodOverrideCheck.overridesDefaultMethod(type,
+                        PrepAndExpectedTestCase.class, "setDatabaseConfigProperties",
+                        Properties.class);
     }
 
     /**

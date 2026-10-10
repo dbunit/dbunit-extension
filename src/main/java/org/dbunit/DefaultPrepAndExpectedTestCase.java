@@ -33,6 +33,7 @@ import java.util.stream.Collectors;
 import org.dbunit.assertion.FailureHandler;
 import org.dbunit.assertion.comparer.value.ValueComparer;
 import org.dbunit.database.DatabaseConfig;
+import org.dbunit.database.DatabaseConfigOverrides;
 import org.dbunit.database.IDatabaseConnection;
 import org.dbunit.database.connection.AutoCommitOffWarning;
 import org.dbunit.database.connection.ConnectionOwnership;
@@ -238,6 +239,17 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      */
     private Properties databaseConfigProperties;
 
+    /**
+     * Applies {@link #databaseConfigProperties} to a connection's {@link DatabaseConfig} and
+     * puts back what they replaced when this test's lifecycle ends, so a connection kept past
+     * the test - {@link #closeConnectionAfterTest} false, or the no-op listener - carries none
+     * of this test's values into whatever uses it next.
+     *
+     * @since 3.6.0
+     */
+    private DatabaseConfigOverrides databaseConfigOverrides =
+            new DatabaseConfigOverrides(new Properties());
+
     final TableFormatter tableFormatter = new TableFormatter();
 
     /** Create new instance. */
@@ -344,7 +356,8 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     /**
      * {@inheritDoc} Applies {@link #databaseConfigProperties}, when set - the composition-based
      * equivalent of overriding this method, for a caller that cannot subclass to do so directly
-     * (e.g. {@code org.dbunit.annotation}'s {@code @DbUnitProperty}).
+     * (e.g. {@code org.dbunit.annotation}'s {@code @DbUnitProperty}). The values replaced are
+     * put back when this test's lifecycle ends - see {@link #cleanupData()}.
      *
      * <p><strong>Note:</strong> a subclass overriding this method must call
      * {@code super.setUpDatabaseConfig(config)} to keep
@@ -357,13 +370,9 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     @Override
     protected void setUpDatabaseConfig(final DatabaseConfig config)
     {
-        if (databaseConfigProperties == null || databaseConfigProperties.isEmpty())
-        {
-            return;
-        }
         try
         {
-            config.setPropertiesByString(databaseConfigProperties);
+            databaseConfigOverrides.applyTo(config);
         } catch (final DatabaseUnitException e)
         {
             throw new IllegalStateException("Failed to apply a databaseConfigProperties value.",
@@ -414,7 +423,44 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     @Override
     public IDatabaseConnection getReusableConnection() throws Exception
     {
-        return reusableConnectionHolder.getConnection();
+        final IDatabaseConnection connection = reusableConnectionHolder.getConnection();
+        applyDatabaseConfigPropertiesToKeptConnection(connection);
+        return connection;
+    }
+
+    /**
+     * Applies {@link #databaseConfigProperties} to a connection kept from an earlier test, whose
+     * values {@link #restoreDatabaseConfig()} put back at the end of it. A newly acquired
+     * connection already has them, from {@link #setUpDatabaseConfig(DatabaseConfig)}; a kept one
+     * is handed back without that running again, and the first reads of its
+     * {@link DatabaseConfig} - the case sensitivity {@link #configureTest} resolves, the row
+     * count check baseline - come before {@link #setupData()} retrieves it through the listener.
+     *
+     * @param connection The connection about to be handed out; may be null.
+     */
+    private void applyDatabaseConfigPropertiesToKeptConnection(
+            final IDatabaseConnection connection)
+    {
+        if (connection == null || databaseConfigOverrides.isEmpty())
+        {
+            return;
+        }
+
+        final DatabaseConfig config = connection.getConfig();
+        if (databaseConfigOverrides.hasAppliedTo(config))
+        {
+            return;
+        }
+        setUpDatabaseConfig(config);
+    }
+
+    /**
+     * Puts back the {@link DatabaseConfig} values {@link #databaseConfigProperties} replaced, at
+     * the end of this test's lifecycle or when the properties change.
+     */
+    private void restoreDatabaseConfig()
+    {
+        databaseConfigOverrides.restore();
     }
 
     /**
@@ -435,7 +481,13 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      */
     private void closeReusableConnection() throws Exception
     {
-        reusableConnectionHolder.release();
+        try
+        {
+            reusableConnectionHolder.release();
+        } finally
+        {
+            restoreDatabaseConfig();
+        }
     }
 
     /**
@@ -460,6 +512,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     private void closeReusableConnectionSuppressing(final Throwable primary)
     {
         reusableConnectionHolder.releaseSuppressing(primary);
+        restoreDatabaseConfig();
     }
 
     /**
@@ -1715,6 +1768,11 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * setupData(), verifyData() and cleanupData(), every time {@link #getConnection()}
      * resolves it.
      *
+     * <p>
+     * Puts back, first, whatever the previous properties replaced, so that changing them - as
+     * the annotation runtime does to restore an injected instance's own properties after a
+     * test - leaves nothing of the old values on a connection kept open.
+     *
      * @see #databaseConfigProperties
      *
      * @param databaseConfigProperties
@@ -1724,14 +1782,17 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     @Override
     public void setDatabaseConfigProperties(final Properties databaseConfigProperties)
     {
+        restoreDatabaseConfig();
         if (databaseConfigProperties == null)
         {
             this.databaseConfigProperties = null;
+            this.databaseConfigOverrides = new DatabaseConfigOverrides(new Properties());
         } else
         {
             final Properties copy = new Properties();
             copy.putAll(databaseConfigProperties);
             this.databaseConfigProperties = copy;
+            this.databaseConfigOverrides = new DatabaseConfigOverrides(copy);
         }
     }
 
