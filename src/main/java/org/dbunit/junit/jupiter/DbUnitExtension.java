@@ -616,9 +616,10 @@ public class DbUnitExtension implements BeforeTestExecutionCallback,
         }
 
         /**
-         * Returns the entry whose type {@code parameterType} is assignable to, or {@code null}
-         * when none matches. The first match wins, so an entry earlier in declaration order
-         * shadows a later one for a type assignable to both.
+         * Returns the entry whose type is exactly {@code parameterType}, or {@code null} when
+         * none is. A subtype is not matched: the value injected is whatever the tester or test
+         * case happens to be, not necessarily an instance of the subtype, and a vendor subtype
+         * of {@link Connection} belongs to whichever resolver knows how to produce it.
          *
          * @param parameterType The declared parameter type.
          * @return The matching entry, or {@code null}.
@@ -627,7 +628,7 @@ public class DbUnitExtension implements BeforeTestExecutionCallback,
         {
             for (final InjectableParameter candidate : values())
             {
-                if (candidate.parameterType.isAssignableFrom(parameterType))
+                if (candidate.parameterType == parameterType)
                 {
                     return candidate;
                 }

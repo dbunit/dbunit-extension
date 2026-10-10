@@ -32,6 +32,7 @@ import org.dbunit.DatabaseTesterFactory;
 import org.dbunit.DefaultPrepAndExpectedTestCase;
 import org.dbunit.IDatabaseTester;
 import org.dbunit.IOperationListener;
+import org.dbunit.JdbcDatabaseTester;
 import org.dbunit.PrepAndExpectedTestCase;
 import org.dbunit.annotation.DbUnitConfig;
 import org.dbunit.annotation.DbUnitTestCase;
@@ -251,6 +252,47 @@ class DbUnitExtensionParameterResolverTest
                 .isSameAs(ForeignConnectionResolver.CONNECTION);
     }
 
+    @Test
+    void testSupportsParameter_vendorConnectionSubtype_leavesItToAnotherResolver()
+    {
+        VendorConnectionSample.injected = null;
+
+        EngineTestKit.engine("junit-jupiter")
+                .selectors(selectClass(VendorConnectionSample.class))
+                .execute()
+                .testEvents()
+                .assertStatistics(stats -> stats.started(1).succeeded(1));
+
+        assertThat(VendorConnectionSample.injected)
+                .as("A parameter of a java.sql.Connection subtype, such as a vendor connection"
+                        + " interface, is not a java.sql.Connection parameter: the extension"
+                        + " must not claim it, or it competes with the resolver that does.")
+                .isSameAs(VendorConnectionResolver.CONNECTION);
+    }
+
+    @Test
+    void testSupportsParameter_testerImplementationSubtype_isNotClaimed()
+    {
+        final Event failedEvent = EngineTestKit.engine("junit-jupiter")
+                .selectors(selectClass(TesterSubtypeParameterSample.class))
+                .execute()
+                .testEvents()
+                .failed()
+                .stream()
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("Expected one failed test event."));
+
+        final Throwable reported = failedEvent.getRequiredPayload(TestExecutionResult.class)
+                .getThrowable()
+                .orElseThrow(() -> new AssertionError("Expected a reported throwable."));
+        assertThat(reported)
+                .as("The extension injects the resolved IDatabaseTester, which is not"
+                        + " necessarily a JdbcDatabaseTester, so a JdbcDatabaseTester parameter"
+                        + " must be left unclaimed and reported as having no resolver.")
+                .isInstanceOf(ParameterResolutionException.class)
+                .hasMessageContaining("No ParameterResolver registered");
+    }
+
     @ExtendWith(DbUnitExtension.class)
     static class InjectionSample
     {
@@ -443,6 +485,58 @@ class DbUnitExtensionParameterResolverTest
         void testForeignResolverWins(final Connection connection)
         {
             injected = connection;
+        }
+    }
+
+    /** A vendor-specific connection interface, standing in for a driver's own type. */
+    interface VendorConnection extends Connection
+    {
+    }
+
+    @ExtendWith(DbUnitExtension.class)
+    @ExtendWith(VendorConnectionResolver.class)
+    static class VendorConnectionSample
+    {
+        static VendorConnection injected;
+
+        @DbUnitTester
+        IDatabaseTester databaseTester = new NoOpTester();
+
+        @Test
+        void testVendorResolverWins(final VendorConnection connection)
+        {
+            injected = connection;
+        }
+    }
+
+    static class VendorConnectionResolver implements ParameterResolver
+    {
+        static final VendorConnection CONNECTION = mock(VendorConnection.class);
+
+        @Override
+        public boolean supportsParameter(final ParameterContext parameterContext,
+                final ExtensionContext extensionContext)
+        {
+            return parameterContext.getParameter().getType() == VendorConnection.class;
+        }
+
+        @Override
+        public Object resolveParameter(final ParameterContext parameterContext,
+                final ExtensionContext extensionContext)
+        {
+            return CONNECTION;
+        }
+    }
+
+    @ExtendWith(DbUnitExtension.class)
+    static class TesterSubtypeParameterSample
+    {
+        @DbUnitTester
+        IDatabaseTester databaseTester = new NoOpTester();
+
+        @Test
+        void testNothingResolvesIt(final JdbcDatabaseTester tester)
+        {
         }
     }
 
