@@ -78,7 +78,8 @@ public @interface DbUnitConfig
      * <p>On the prep/expected path ({@link DbUnitExpected} declared), a freshly-constructed
      * {@link #prepAndExpectedTestCase()} always receives this value through its constructor,
      * regardless of implementation. A {@link DbUnitTestCase} field injecting an already-built
-     * instance also receives it, but only when its type overrides
+     * instance also receives it, when this names a non-default loader or the instance has none
+     * of its own, and only when its type overrides
      * {@link PrepAndExpectedTestCase#setDataFileLoader(DataFileLoader)} -
      * {@link DefaultPrepAndExpectedTestCase} does; naming a non-default loader here for a
      * different injected implementation fails fast with {@link IllegalStateException} instead
@@ -110,7 +111,11 @@ public @interface DbUnitConfig
      * {@code @DbUnitConfig}-driven setters ({@code setDataFileLoader}, {@code setFailureHandler},
      * {@code setDatabaseConfigProperties}, {@code setCloseConnectionAfterTest},
      * {@code setRowCountCheckOverride}, {@code clearRowCountCheckOverride}) - one that does not
-     * fails fast at test time, naming the missing setter.
+     * fails fast at test time, naming the missing setter. Overriding the matching getters
+     * ({@code getDataFileLoader}, {@code getFailureHandler}, {@code getDatabaseConfigProperties},
+     * {@code isCloseConnectionAfterTest}) as well lets the extension put the instance's own
+     * values back after each test; without a getter, a declared value stays on the instance
+     * and the extension does not fill in a loader it cannot tell is missing.
      *
      * @return The test case class; defaults to {@link DefaultPrepAndExpectedTestCase}.
      */
@@ -207,13 +212,17 @@ public @interface DbUnitConfig
      * no {@link DbUnitTestCase} field supplies one already - always receives this value through
      * its {@code (DataFileLoader, IDatabaseTester, boolean)} constructor, regardless of
      * implementation. A {@link DbUnitTestCase} field injecting an already-built instance
-     * receives it too, but only when its type overrides
+     * receives it too when this is {@code false} - the default {@code true} leaves a value the
+     * instance was built with alone - but only when its type overrides
      * {@link PrepAndExpectedTestCase#setCloseConnectionAfterTest(boolean)} -
      * {@link DefaultPrepAndExpectedTestCase} does; setting this to {@code false} for a
      * different injected implementation logs a warning rather than failing fast, since -
      * unlike the other {@code @DbUnitTestCase}-injected setters here - this executor's own
      * connection (for the row count check or parameter injection) still honors the value
-     * regardless; only that test case's own connection handling might not.
+     * regardless; only that test case's own connection handling might not. That connection is
+     * also left open when the injected instance itself reports
+     * {@link PrepAndExpectedTestCase#isCloseConnectionAfterTest()} as {@code false}, even when
+     * this attribute is left at its default.
      *
      * @return True to close the connection after each test; defaults to true.
      */

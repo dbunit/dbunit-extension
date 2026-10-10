@@ -25,6 +25,7 @@ import java.lang.reflect.InvocationTargetException;
 
 import org.dbunit.IDatabaseTester;
 import org.dbunit.PrepAndExpectedTestCase;
+import org.dbunit.VerifyTableDefinition;
 import org.dbunit.util.fileloader.DataFileLoader;
 
 /**
@@ -58,6 +59,7 @@ final class ExpectedLifecycle
     private PrepAndExpectedTestCase testCase;
     private boolean configured;
     private TesterStateSnapshot incomingState;
+    private InjectedTestCaseRestoration testCaseRestoration;
 
     /**
      * Creates the prep/expected lifecycle for one test.
@@ -147,11 +149,13 @@ final class ExpectedLifecycle
     {
         ensureTestCase();
         incomingState = TesterStateSnapshot.capture(tester);
-        new InjectedTestCaseConfigurer(configuration, testCase).applyAll();
+        testCaseRestoration = new InjectedTestCaseConfigurer(configuration, testCase).applyAll();
         applySetUpOperation();
         applyTearDownOperation();
-        testCase.configureTest(configuration.getVerifyTableDefinitions(),
-                configuration.getPrepDataFiles(), configuration.getExpectedDataFiles());
+        final VerifyTableDefinition[] verifyTableDefinitions =
+                configuration.getVerifyTableDefinitions(effectiveDataFileLoader());
+        testCase.configureTest(verifyTableDefinitions, configuration.getPrepDataFiles(),
+                configuration.getExpectedDataFiles());
         configured = true;
         testCase.preTest();
     }
@@ -179,9 +183,11 @@ final class ExpectedLifecycle
         } catch (final Throwable primaryFailure)
         {
             TesterStateSnapshot.restoreSuppressing(tester, incomingState, primaryFailure);
+            InjectedTestCaseRestoration.undoSuppressing(testCaseRestoration, primaryFailure);
             throw primaryFailure;
         }
         TesterStateSnapshot.restore(tester, incomingState);
+        InjectedTestCaseRestoration.undoIfPresent(testCaseRestoration);
     }
 
     /**
@@ -209,6 +215,21 @@ final class ExpectedLifecycle
     private void applyTearDownOperation()
     {
         tester.setTearDownOperation(configuration.getTearDownOperation());
+    }
+
+    /**
+     * Returns the loader {@link #testCase} will load the expected datasets with: its own, which
+     * for an injected instance is the one it was built with unless {@code @DbUnitConfig} named
+     * another, or {@code @DbUnitConfig}'s when the test case does not report one.
+     */
+    private DataFileLoader effectiveDataFileLoader()
+    {
+        final DataFileLoader testCaseLoader = testCase.getDataFileLoader();
+        if (testCaseLoader == null)
+        {
+            return configuration.getDataFileLoader();
+        }
+        return testCaseLoader;
     }
 
     private PrepAndExpectedTestCase newTestCase() throws Exception

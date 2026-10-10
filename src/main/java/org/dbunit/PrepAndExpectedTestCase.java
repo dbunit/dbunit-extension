@@ -292,7 +292,10 @@ public interface PrepAndExpectedTestCase
      * {@code @DbUnitTestCase}-injected instance whenever {@code @DbUnitConfig.dataFileLoader()}
      * names a non-default loader, and throws {@code IllegalStateException} if this method is
      * not overridden - a silent no-op there would otherwise leave the instance loading with
-     * whatever loader it was already constructed with.
+     * whatever loader it was already constructed with. It also calls it, with the configured
+     * default loader, on an instance whose {@link #getDataFileLoader()} reports none, since that
+     * instance cannot load datasets without one. Either way the instance's own loader is put
+     * back with this method once the test is over.
      *
      * @param dataFileLoader The dataFileLoader to use.
      * @since 3.6.0
@@ -312,7 +315,9 @@ public interface PrepAndExpectedTestCase
      * {@code org.dbunit.annotation}'s {@code AnnotatedTestExecutor} calls this on a
      * {@code @DbUnitTestCase}-injected instance whenever {@code @DbUnitConfig.failureHandler()}
      * is set, and throws {@code IllegalStateException} if this method is not overridden - a
-     * silent no-op there would otherwise leave the configured handler applied nowhere.
+     * silent no-op there would otherwise leave the configured handler applied nowhere. When
+     * {@code @DbUnitConfig.failureHandler()} is not set the instance's own handler is left
+     * alone, and after a test that set one the instance's own is put back with this method.
      *
      * @param failureHandler The failureHandler to use.
      * @since 3.6.0
@@ -335,7 +340,9 @@ public interface PrepAndExpectedTestCase
      * this method is not overridden - unlike the other {@code @DbUnitConfig}-driven setters
      * this is not a complete no-op even then, since that executor's own connection (for the
      * row count check or parameter injection) still honors the value regardless; only this
-     * test case's own connection handling might not.
+     * test case's own connection handling might not. Only {@code false} is applied: the default
+     * {@code true} is not a request to change a value the instance was built with. After a test
+     * that applied {@code false} the instance's own value is put back with this method.
      *
      * @param closeConnectionAfterTest True to close the connection after each test, false to
      *            leave it open.
@@ -358,7 +365,9 @@ public interface PrepAndExpectedTestCase
      * {@code @DbUnitConfig.properties()}/{@code propertiesProvider()} is non-empty, and throws
      * {@code IllegalStateException} if this method is not overridden - on the prep/expected
      * path this is the only route to the connection at all, so a silent no-op here would
-     * otherwise apply the configured properties nowhere.
+     * otherwise apply the configured properties nowhere. The configured properties are added to
+     * the instance's own {@link #getDatabaseConfigProperties()}, not substituted for them, and
+     * after the test the instance's own are put back with this method.
      *
      * @param databaseConfigProperties The properties to apply; null or empty applies none.
      * @since 3.6.0
@@ -399,16 +408,90 @@ public interface PrepAndExpectedTestCase
      * {@link #setRowCountCheckOverride(boolean, String[])}, the way
      * {@link DefaultPrepAndExpectedTestCase} does.
      * <p>
-     * Unlike {@link #setRowCountCheckOverride(boolean, String[])}, {@code AnnotatedTestExecutor}
-     * calls this unconditionally whenever {@code @DbUnitRowCountCheck} is absent, regardless of
-     * whether this method is overridden - nothing was explicitly requested in that case, so
-     * there is nothing to fail loud about; it is purely defensive, resetting a test case reused
-     * across several tests (e.g. a {@code @DbUnitTestCase} static field) so an earlier test's
-     * override does not silently carry over.
+     * {@code AnnotatedTestExecutor} calls this once a test that set an override with
+     * {@link #setRowCountCheckOverride(boolean, String[])} is over, so a test case reused across
+     * several tests (e.g. a {@code @DbUnitTestCase} static field) does not carry one test's
+     * override onto the next. It never calls it for a test that declared no
+     * {@code @DbUnitRowCountCheck}, so an override its owner set directly stands.
      *
      * @since 3.6.0
      */
     default void clearRowCountCheckOverride()
     {
+    }
+
+    /**
+     * Get the {@link DataFileLoader} this test case uses to load prepDataFiles/expectedDataFiles,
+     * so a caller about to replace it with {@link #setDataFileLoader(DataFileLoader)} can put it
+     * back afterward.
+     * <p>
+     * Default method for binary compatibility with implementations predating this method; it
+     * reports no loader for one that does not expose it. Override it, alongside
+     * {@link #setDataFileLoader(DataFileLoader)}, the way {@link DefaultPrepAndExpectedTestCase}
+     * does.
+     *
+     * @return The loader in use, or {@code null} if none is set or this test case does not
+     *         expose it.
+     * @since 3.6.0
+     */
+    default DataFileLoader getDataFileLoader()
+    {
+        return null;
+    }
+
+    /**
+     * Get the {@link FailureHandler} this test case hands verifyData()'s assertion failures to,
+     * so a caller about to replace it with {@link #setFailureHandler(FailureHandler)} can put it
+     * back afterward.
+     * <p>
+     * Default method for binary compatibility with implementations predating this method; it
+     * reports no handler for one that does not expose it. Override it, alongside
+     * {@link #setFailureHandler(FailureHandler)}, the way {@link DefaultPrepAndExpectedTestCase}
+     * does.
+     *
+     * @return The handler in use, or {@code null} if none is set or this test case does not
+     *         expose it.
+     * @since 3.6.0
+     */
+    default FailureHandler getFailureHandler()
+    {
+        return null;
+    }
+
+    /**
+     * Get whether this test case closes the connection it shares across its lifecycle after each
+     * test, so a caller about to change it with {@link #setCloseConnectionAfterTest(boolean)} can
+     * put it back afterward.
+     * <p>
+     * Default method for binary compatibility with implementations predating this method; it
+     * reports the usual default of closing for one that does not expose it. Override it,
+     * alongside {@link #setCloseConnectionAfterTest(boolean)}, the way
+     * {@link DefaultPrepAndExpectedTestCase} does.
+     *
+     * @return {@code true} if the connection is closed after each test.
+     * @since 3.6.0
+     */
+    default boolean isCloseConnectionAfterTest()
+    {
+        return true;
+    }
+
+    /**
+     * Get the DatabaseConfig property name/value pairs this test case applies to its connection,
+     * so a caller about to change them with {@link #setDatabaseConfigProperties(Properties)} can
+     * put them back afterward.
+     * <p>
+     * Default method for binary compatibility with implementations predating this method; it
+     * reports none for one that does not expose them. Override it, alongside
+     * {@link #setDatabaseConfigProperties(Properties)}, the way
+     * {@link DefaultPrepAndExpectedTestCase} does.
+     *
+     * @return A copy of the properties applied, or {@code null} if none are set or this test case
+     *         does not expose them.
+     * @since 3.6.0
+     */
+    default Properties getDatabaseConfigProperties()
+    {
+        return null;
     }
 }
