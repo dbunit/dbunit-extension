@@ -46,7 +46,7 @@ public class ToleratedDeltaMap
     /**
      * The logger
      */
-    private Logger logger = LoggerFactory.getLogger(ToleratedDeltaMap.class);
+    private static final Logger logger = LoggerFactory.getLogger(ToleratedDeltaMap.class);
 
     /**
      * Lookup a tolerated delta object by tableName and ColumnName.

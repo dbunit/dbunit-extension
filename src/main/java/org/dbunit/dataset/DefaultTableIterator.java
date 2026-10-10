@@ -32,7 +32,7 @@ import org.slf4j.LoggerFactory;
  */
 public class DefaultTableIterator implements ITableIterator
 {
-	private Logger logger = LoggerFactory.getLogger(DefaultTableIterator.class);
+	private static final Logger logger = LoggerFactory.getLogger(DefaultTableIterator.class);
 	
     private final ITable[] _tables;
     private int _index = -1;

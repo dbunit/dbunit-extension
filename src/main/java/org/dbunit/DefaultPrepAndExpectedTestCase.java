@@ -102,8 +102,7 @@ import org.slf4j.LoggerFactory;
 public class DefaultPrepAndExpectedTestCase extends DBTestCase
         implements PrepAndExpectedTestCase
 {
-    private final Logger log =
-            LoggerFactory.getLogger(DefaultPrepAndExpectedTestCase.class);
+    private static final Logger log = LoggerFactory.getLogger(DefaultPrepAndExpectedTestCase.class);
 
     private static final String DATABASE_TESTER_IS_NULL_MSG =
             "databaseTester is null; must configure or set it first";
