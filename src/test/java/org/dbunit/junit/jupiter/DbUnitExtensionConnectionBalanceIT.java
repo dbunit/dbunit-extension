@@ -39,6 +39,7 @@ import org.dbunit.annotation.DbUnitVerifyTable;
 import org.dbunit.database.IDatabaseConnection;
 import org.dbunit.database.rowcount.ClearRowCountCheckSystemProperties;
 import org.dbunit.operation.DbUnitOperation;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.platform.testkit.engine.EngineTestKit;
@@ -92,6 +93,35 @@ class DbUnitExtensionConnectionBalanceIT
             throws Exception
     {
         runBalanced(InjectedConnectionSample.class, 2);
+    }
+
+    @Test
+    void testAfterEach_beforeEachFailsAfterConnectionInjected_closesEveryConnectionOpened()
+            throws Exception
+    {
+        final DatabaseEnvironment environment = DatabaseEnvironment.getInstance();
+        final CountingDataSource dataSource = new CountingDataSource(environment.getProfile());
+        BalanceSample.databaseTester = new DataSourceDatabaseTester(dataSource,
+                environment.getProfile().getSchema());
+        try
+        {
+            EngineTestKit.engine("junit-jupiter")
+                    .selectors(selectClass(FailingBeforeEachSample.class)).execute().testEvents()
+                    .assertStatistics(stats -> stats.started(1).failed(1));
+
+            assertThat(dataSource.opened())
+                    .as("The failing @BeforeEach must have been handed a connection, or this"
+                            + " test proves nothing.")
+                    .isPositive();
+            assertThat(dataSource.leaked())
+                    .as("A connection injected into a @BeforeEach that then fails must still be"
+                            + " closed, because no after-test callback runs once @BeforeEach"
+                            + " fails.")
+                    .isZero();
+        } finally
+        {
+            environment.closeConnection();
+        }
     }
 
     private void runBalanced(final Class<?> sampleClass, final int expectedPeak) throws Exception
@@ -204,6 +234,23 @@ class DbUnitExtensionConnectionBalanceIT
                         .as("The injected connection must see @DbUnitPrep's seeded row.")
                         .isEqualTo(1);
             }
+        }
+    }
+
+    @ExtendWith(DbUnitExtension.class)
+    @ClearRowCountCheckSystemProperties
+    static class FailingBeforeEachSample extends BalanceSample
+    {
+        @BeforeEach
+        void failAfterTheConnectionIsInjected(final Connection connection)
+        {
+            throw new IllegalStateException("intentional @BeforeEach failure");
+        }
+
+        @Test
+        @DbUnitPrep("annotation-it-prep.xml")
+        void neverRuns()
+        {
         }
     }
 }

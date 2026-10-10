@@ -442,6 +442,34 @@ class DbUnitExtensionTest
                 .isSameAs(afterTestFailure);
     }
 
+    // ---- afterEach: release when afterTestExecution never ran ----
+
+    @Test
+    void testAfterEach_noStoredExecutor_doesNothing()
+    {
+        final ExtensionContext.Store store = mock(ExtensionContext.Store.class);
+        when(context.getStore(any(ExtensionContext.Namespace.class))).thenReturn(store);
+
+        assertThatCode(() -> extension.afterEach(context))
+                .as("No stored executor must not throw.")
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void testAfterEach_storedExecutor_releasesItsConnectionIfAfterTestDidNotRun()
+            throws Exception
+    {
+        final AnnotatedTestExecutor executor = mock(AnnotatedTestExecutor.class);
+        final ExtensionContext.Store store = mock(ExtensionContext.Store.class);
+        when(store.get(DbUnitExtension.EXECUTOR_KEY, AnnotatedTestExecutor.class))
+                .thenReturn(executor);
+        when(context.getStore(any(ExtensionContext.Namespace.class))).thenReturn(store);
+
+        extension.afterEach(context);
+
+        verify(executor).releaseIfAfterTestDidNotRun();
+    }
+
     // ---- ParameterResolver ----
 
     @Test

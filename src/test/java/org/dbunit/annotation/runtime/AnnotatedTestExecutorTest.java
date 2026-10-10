@@ -858,6 +858,59 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
+    void testReleaseIfAfterTestDidNotRun_connectionResolvedButAfterTestNeverRan_closesIt()
+            throws Exception
+    {
+        when(tester.getConnection()).thenReturn(connection);
+        stubOpenJdbcConnection();
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, tester, null);
+        // Resolved the way a @BeforeEach parameter resolves it, before beforeTest() would run.
+        executor.getConnection();
+
+        executor.releaseIfAfterTestDidNotRun();
+
+        verify(connection).close();
+    }
+
+    @Test
+    void testReleaseIfAfterTestDidNotRun_afterTestAlreadyRan_doesNotCloseAgain()
+            throws Exception
+    {
+        stubEnabledConnection("ACCOUNT");
+        when(connection.getRowCount("ACCOUNT")).thenReturn(5);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, tester, null);
+        executor.beforeTest();
+        executor.afterTest(false);
+        // A connection resolved after afterTest(), as a binding's late parameter resolution
+        // could, leaves something for a second release to close, so only the guard stops it.
+        executor.getConnection();
+
+        executor.releaseIfAfterTestDidNotRun();
+
+        verify(connection, times(1)).close();
+    }
+
+    @Test
+    void testReleaseIfAfterTestDidNotRun_noConnectionEverResolved_doesNotAcquireOne()
+            throws Exception
+    {
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, tester, null);
+
+        executor.releaseIfAfterTestDidNotRun();
+
+        verify(tester, never()).getConnection();
+    }
+
+    @Test
     void testAfterTest_listenerIsNoOp_leavesConnectionOpenEvenByDefault() throws Exception
     {
         when(tester.getOperationListener())

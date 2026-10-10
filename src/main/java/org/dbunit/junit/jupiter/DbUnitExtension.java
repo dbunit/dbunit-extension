@@ -42,6 +42,7 @@ import org.dbunit.annotation.runtime.AnnotatedTestConfiguration;
 import org.dbunit.annotation.runtime.AnnotatedTestExecutor;
 import org.dbunit.database.IDatabaseConnection;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.AfterTestExecutionCallback;
 import org.junit.jupiter.api.extension.BeforeTestExecutionCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -173,8 +174,11 @@ import org.slf4j.LoggerFactory;
  * <p>The injected {@link IDatabaseConnection}/{@link Connection} is managed for the test's
  * duration and closed afterward - by this extension on the setup/teardown path, by the
  * driven {@link PrepAndExpectedTestCase} on the prep/expected path; do not close it
- * yourself. A {@code @BeforeEach} parameter resolves
- * before {@link #beforeTestExecution(ExtensionContext)} runs - JUnit Jupiter always calls
+ * yourself. That includes a {@code @BeforeEach} method that fails after receiving it: the
+ * extension then closes it in {@link #afterEach(ExtensionContext)}, since the test method and
+ * its {@link #afterTestExecution(ExtensionContext)} never run. A {@code @BeforeEach}
+ * parameter resolves before {@link #beforeTestExecution(ExtensionContext)} runs - JUnit Jupiter
+ * always calls
  * {@code @BeforeEach} methods first - so it sees the tester/connection exactly as they exist
  * before this extension's own setup: {@link DbUnitPrep}'s dataset, if any, is not loaded onto
  * it yet.
@@ -198,8 +202,8 @@ import org.slf4j.LoggerFactory;
  * @see DbUnitRowCountCheck
  * @see DbUnitTest
  */
-public class DbUnitExtension
-        implements BeforeTestExecutionCallback, AfterTestExecutionCallback, ParameterResolver
+public class DbUnitExtension implements BeforeTestExecutionCallback,
+        AfterTestExecutionCallback, AfterEachCallback, ParameterResolver
 {
     private static final Logger log = LoggerFactory.getLogger(DbUnitExtension.class);
 
@@ -260,6 +264,31 @@ public class DbUnitExtension
 
         final boolean testFailed = context.getExecutionException().isPresent();
         executor.afterTest(testFailed);
+    }
+
+    /**
+     * Closes the connection a {@code @BeforeEach} parameter resolved when the test method never
+     * ran. JUnit Jupiter skips {@link #afterTestExecution(ExtensionContext)} once a
+     * {@code @BeforeEach} method fails, yet an {@code IDatabaseConnection}/{@code Connection}
+     * parameter on that very method may already have opened a connection for the stored
+     * {@link AnnotatedTestExecutor}; nothing else would ever close it. This callback always runs
+     * for a test the extension was registered on, and does nothing when
+     * {@link #afterTestExecution(ExtensionContext)} already released the connection.
+     *
+     * @param context The extension context for the test method.
+     * @throws Exception If closing the connection fails.
+     */
+    @Override
+    public void afterEach(final ExtensionContext context) throws Exception
+    {
+        final AnnotatedTestExecutor executor =
+                context.getStore(NAMESPACE).get(EXECUTOR_KEY, AnnotatedTestExecutor.class);
+        if (executor == null)
+        {
+            return;
+        }
+
+        executor.releaseIfAfterTestDidNotRun();
     }
 
     /**
