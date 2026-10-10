@@ -791,9 +791,12 @@ file outside the base directory stays reachable.
 |2 |`@DbUnitConfig(dataSetBaseDir = "...")`, when set — prefixed to the
 path.
 
-|3 |Otherwise — resolved relative to the test class's package, matching the
-convention link:PrepAndExpectedTestCase.html[PrepAndExpectedTestCase]
-already teaches.
+|3 |Otherwise — resolved relative to the package of the class that declares the
+annotation, matching the convention
+link:PrepAndExpectedTestCase.html[PrepAndExpectedTestCase] already teaches. That is the
+test class itself, unless the annotation is inherited from a base class, or sits on an
+inherited test method, in another package: the path then names a file next to that base
+class.
 |===
 
 `dataSetBaseDir` exists because the dominant real-world idiom is a shared

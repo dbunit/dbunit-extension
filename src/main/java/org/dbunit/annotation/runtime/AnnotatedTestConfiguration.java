@@ -127,6 +127,38 @@ public class AnnotatedTestConfiguration
             final DbUnitExpected expected, final DbUnitTearDown tearDown,
             final DbUnitRowCountCheck rowCountCheck)
     {
+        return from(testClass, testClass, testClass, config, prep, setup, expected, tearDown,
+                rowCountCheck);
+    }
+
+    /**
+     * Resolves a configuration from one test element's annotation instances, resolving a
+     * dataset path written relative to a package against the package of the class that
+     * declares the annotation naming it. That is the test class itself unless the annotation is
+     * inherited from a base class, or sits on an inherited test method, in another package.
+     *
+     * @param testClass The test class; used in diagnostics.
+     * @param prepDeclaringClass The class declaring {@code prep}; used to resolve its
+     *            package-relative paths.
+     * @param expectedDeclaringClass The class declaring {@code expected}; used to resolve its
+     *            package-relative paths.
+     * @param config The resolved {@code @DbUnitConfig}, or {@code null} if absent.
+     * @param prep The resolved {@code @DbUnitPrep}, or {@code null} if absent.
+     * @param setup The resolved {@code @DbUnitSetup}, or {@code null} if absent.
+     * @param expected The resolved {@code @DbUnitExpected}, or {@code null} if absent.
+     * @param tearDown The resolved {@code @DbUnitTearDown}, or {@code null} if absent.
+     * @param rowCountCheck The resolved {@code @DbUnitRowCountCheck}, or {@code null} if
+     *            absent.
+     * @return The resolved configuration.
+     * @throws IllegalStateException If two mutually exclusive attributes are both set, or if
+     *             a named provider, catalog, or comparer class cannot be instantiated.
+     */
+    public static AnnotatedTestConfiguration from(final Class<?> testClass,
+            final Class<?> prepDeclaringClass, final Class<?> expectedDeclaringClass,
+            final DbUnitConfig config, final DbUnitPrep prep, final DbUnitSetup setup,
+            final DbUnitExpected expected, final DbUnitTearDown tearDown,
+            final DbUnitRowCountCheck rowCountCheck)
+    {
         final String dataSetBaseDir = config == null ? "" : config.dataSetBaseDir();
         final DataSetPathsResolver pathsResolver = new DataSetPathsResolver();
 
@@ -135,7 +167,7 @@ public class AnnotatedTestConfiguration
         final DataFileLoader dataFileLoader =
                 instantiate(dataFileLoaderClass, "DbUnitConfig.dataFileLoader");
 
-        final String[] prepDataFiles = pathsResolver.resolve("DbUnitPrep", testClass,
+        final String[] prepDataFiles = pathsResolver.resolve("DbUnitPrep", prepDeclaringClass,
                 dataSetBaseDir, prep == null ? null : prep.value(),
                 prep == null ? DataSetPathsProvider.class : prep.provider());
         final boolean setupDeclared = setup != null;
@@ -148,7 +180,7 @@ public class AnnotatedTestConfiguration
 
         final boolean hasExpected = expected != null;
         final String[] expectedDataFiles = !hasExpected ? new String[0]
-                : pathsResolver.resolve("DbUnitExpected", testClass, dataSetBaseDir,
+                : pathsResolver.resolve("DbUnitExpected", expectedDeclaringClass, dataSetBaseDir,
                         expected.value(), expected.provider());
         final VerifyTableDefinition[] verifyTableDefinitions = !hasExpected
                 ? new VerifyTableDefinition[0]
