@@ -338,6 +338,13 @@ PrepAndExpectedTestCase testCase =
         new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester);
 testCase.setDatabaseConfigProperties(properties);
 ----
++
+The values last for the test: `cleanupData()` puts each one back to what it replaced, so a
+connection kept open afterward (`closeConnectionAfterTest` false, or the tester's
+no-op listener) carries none of them into whatever uses it next. Calling
+`setDatabaseConfigProperties()` again puts back the previous values first. A
+`setUpDatabaseConfig()` override, by contrast, changes the `DatabaseConfig` for good, as it
+always has.
 
 `setRowCountCheckOverride(boolean, String[])` / `clearRowCountCheckOverride()`:: Enables
 or disables link:../components/rowcountcheck.html[RowCountCheck] and sets its excluded

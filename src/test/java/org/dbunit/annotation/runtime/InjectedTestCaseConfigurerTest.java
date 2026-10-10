@@ -28,6 +28,7 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import java.util.Properties;
@@ -50,6 +51,7 @@ import org.dbunit.util.fileloader.FlatXmlDataFileLoader;
 import org.dbunit.util.fileloader.FullXmlDataFileLoader;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.slf4j.LoggerFactory;
 
@@ -91,6 +93,29 @@ class InjectedTestCaseConfigurerTest
         verify(testCase, never()).setCloseConnectionAfterTest(anyBoolean());
         verify(testCase, never()).setRowCountCheckOverride(anyBoolean(), any(String[].class));
         verify(testCase, never()).clearRowCountCheckOverride();
+    }
+
+    @Test
+    void testUndo_nothingDeclaredOnInstanceWithItsOwnProperties_setsItsPropertiesAgainToPutBackWhatItApplied()
+    {
+        final DefaultPrepAndExpectedTestCase testCase =
+                spy(new DefaultPrepAndExpectedTestCase(new FullXmlDataFileLoader(), null, false));
+        final Properties ownProperties = new Properties();
+        ownProperties.setProperty("batchSize", "7");
+        testCase.setDatabaseConfigProperties(ownProperties);
+        final InjectedTestCaseRestoration restoration =
+                new InjectedTestCaseConfigurer(configFrom(Nothing.class), testCase).applyAll();
+        verify(testCase, times(1)).setDatabaseConfigProperties(any());
+
+        restoration.undo();
+
+        final ArgumentCaptor<Properties> captor = ArgumentCaptor.forClass(Properties.class);
+        verify(testCase, times(2)).setDatabaseConfigProperties(captor.capture());
+        assertThat(captor.getValue())
+                .as("Setting the instance's own properties again is what makes it put back the"
+                        + " DatabaseConfig values they applied to a connection it kept, which a"
+                        + " lifecycle abandoned before cleanupData() would otherwise leave.")
+                .isEqualTo(ownProperties);
     }
 
     @Test

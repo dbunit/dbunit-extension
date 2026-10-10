@@ -20,7 +20,6 @@
  */
 package org.dbunit.annotation.runtime;
 
-import java.util.Properties;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -49,14 +48,16 @@ import org.dbunit.database.IDatabaseConnection;
  */
 final class ExecutorOperationListener extends ConnectionPreservingOperationListener
 {
-    private final Properties properties;
+    private final Consumer<IDatabaseConnection> applyProperties;
     private final Consumer<IDatabaseConnection> onFirstConnectionRetrieved;
+
+    private boolean active = true;
 
     /**
      * Creates the listener.
      *
-     * @param properties The {@code @DbUnitProperty} values to apply to each retrieved
-     *            connection's {@code DatabaseConfig}.
+     * @param applyProperties Applies the {@code @DbUnitProperty} values to a retrieved
+     *            connection's {@code DatabaseConfig}, and is responsible for putting them back.
      * @param protectedConnection Supplies the one connection the executor holds past
      *            {@code onSetup()} and must not have closed by the delegate; re-read on each
      *            callback, may return {@code null} until it is resolved.
@@ -64,21 +65,37 @@ final class ExecutorOperationListener extends ConnectionPreservingOperationListe
      * @param onFirstConnectionRetrieved Offered each retrieved connection, after the delegate
      *            and property application have run; a no-op after the first call.
      */
-    ExecutorOperationListener(final Properties properties,
+    ExecutorOperationListener(final Consumer<IDatabaseConnection> applyProperties,
             final Supplier<IDatabaseConnection> protectedConnection,
             final IOperationListener delegate,
             final Consumer<IDatabaseConnection> onFirstConnectionRetrieved)
     {
         super(delegate, protectedConnection);
-        this.properties = properties;
+        this.applyProperties = applyProperties;
         this.onFirstConnectionRetrieved = onFirstConnectionRetrieved;
+    }
+
+    /**
+     * Makes this listener only forward {@code connectionRetrieved} to its delegate from now on,
+     * as the executor that installed it is finished. A test can wrap the tester's listener
+     * mid-test, so this one stays in the chain after the executor puts back what it can; left
+     * active it would apply the finished test's values to the next test's connection, and
+     * offer that connection to a baseline capture nobody will verify.
+     */
+    void deactivate()
+    {
+        active = false;
     }
 
     @Override
     public void connectionRetrieved(final IDatabaseConnection connection)
     {
         super.connectionRetrieved(connection);
-        AnnotatedTestExecutor.applyProperties(connection, properties);
+        if (!active)
+        {
+            return;
+        }
+        applyProperties.accept(connection);
         onFirstConnectionRetrieved.accept(connection);
     }
 }

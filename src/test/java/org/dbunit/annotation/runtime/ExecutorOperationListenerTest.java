@@ -21,19 +21,14 @@
 package org.dbunit.annotation.runtime;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Properties;
 
 import org.dbunit.IOperationListener;
-import org.dbunit.database.DatabaseConfig;
 import org.dbunit.database.IDatabaseConnection;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -46,19 +41,12 @@ class ExecutorOperationListenerTest
     private final IDatabaseConnection connection = mock(IDatabaseConnection.class);
 
     @Test
-    void testConnectionRetrieved_runsDelegateThenPropertiesThenHook() throws Exception
+    void testConnectionRetrieved_runsDelegateThenPropertiesThenHook()
     {
-        final DatabaseConfig config = mock(DatabaseConfig.class);
-        when(connection.getConfig()).thenReturn(config);
         final List<String> order = new ArrayList<>();
-        doAnswer(invocation ->
-        {
-            order.add("properties");
-            return null;
-        }).when(config).setPropertiesByString(any());
         final IOperationListener recordingDelegate = new RecordingConnectionRetrieved(order);
         final ExecutorOperationListener listener = new ExecutorOperationListener(
-                propertiesWith("batchSize", "50"), () -> null, recordingDelegate,
+                c -> order.add("properties"), () -> null, recordingDelegate,
                 c -> order.add("hook"));
 
         listener.connectionRetrieved(connection);
@@ -71,27 +59,43 @@ class ExecutorOperationListenerTest
     }
 
     @Test
-    void testConnectionRetrieved_noProperties_stillForwardsToDelegateAndCallsHook()
+    void testConnectionRetrieved_nothingToApply_stillForwardsToDelegateAndCallsHook()
     {
         final boolean[] hookCalled = {false};
-        final ExecutorOperationListener listener = new ExecutorOperationListener(new Properties(),
-                () -> null, delegate, c -> hookCalled[0] = true);
+        final ExecutorOperationListener listener = new ExecutorOperationListener(c ->
+        {
+        }, () -> null, delegate, c -> hookCalled[0] = true);
 
         listener.connectionRetrieved(connection);
 
         verify(delegate).connectionRetrieved(connection);
-        verify(connection, never()).getConfig();
         assertThat(hookCalled[0]).as("The hook runs even with no @DbUnitProperty values.")
                 .isTrue();
     }
 
     @Test
+    void testConnectionRetrieved_deactivated_onlyForwardsToDelegate()
+    {
+        final List<String> order = new ArrayList<>();
+        final ExecutorOperationListener listener = new ExecutorOperationListener(
+                c -> order.add("properties"), () -> null, delegate, c -> order.add("hook"));
+        listener.deactivate();
+
+        listener.connectionRetrieved(connection);
+
+        verify(delegate).connectionRetrieved(connection);
+        assertThat(order).as("A finished executor's listener must apply nothing and capture"
+                + " nothing, though it can stay in the tester's chain.").isEmpty();
+    }
+
+    @Test
     void testOperationSetUpFinished_protectedConnection_notForwardedSoDelegateCannotCloseIt()
     {
-        final ExecutorOperationListener listener = new ExecutorOperationListener(new Properties(),
-                () -> connection, delegate, c ->
-                {
-                });
+        final ExecutorOperationListener listener = new ExecutorOperationListener(c ->
+        {
+        }, () -> connection, delegate, c ->
+        {
+        });
 
         listener.operationSetUpFinished(connection);
 
@@ -102,21 +106,15 @@ class ExecutorOperationListenerTest
     void testOperationSetUpFinished_otherConnection_forwardedAsBefore()
     {
         final IDatabaseConnection other = mock(IDatabaseConnection.class);
-        final ExecutorOperationListener listener = new ExecutorOperationListener(new Properties(),
-                () -> connection, delegate, c ->
-                {
-                });
+        final ExecutorOperationListener listener = new ExecutorOperationListener(c ->
+        {
+        }, () -> connection, delegate, c ->
+        {
+        });
 
         listener.operationSetUpFinished(other);
 
         verify(delegate).operationSetUpFinished(other);
-    }
-
-    private static Properties propertiesWith(final String name, final String value)
-    {
-        final Properties properties = new Properties();
-        properties.setProperty(name, value);
-        return properties;
     }
 
     private static final class RecordingConnectionRetrieved implements IOperationListener

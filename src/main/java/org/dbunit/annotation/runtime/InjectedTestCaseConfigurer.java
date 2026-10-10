@@ -171,6 +171,11 @@ final class InjectedTestCaseConfigurer
                         + " test.");
         if (!declared)
         {
+            // Setting the instance's own properties again is what puts back, on a connection it
+            // kept, the DatabaseConfig values it applied from them, when its lifecycle is
+            // abandoned before cleanupData() runs.
+            final Properties ownProperties = testCase.getDatabaseConfigProperties();
+            undoSteps.add(() -> testCase.setDatabaseConfigProperties(ownProperties));
             return;
         }
 

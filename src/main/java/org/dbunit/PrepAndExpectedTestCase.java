@@ -367,7 +367,10 @@ public interface PrepAndExpectedTestCase
      * path this is the only route to the connection at all, so a silent no-op here would
      * otherwise apply the configured properties nowhere. The configured properties are added to
      * the instance's own {@link #getDatabaseConfigProperties()}, not substituted for them, and
-     * after the test the instance's own are put back with this method.
+     * after the test the instance's own are put back with this method. An implementation
+     * keeping its connection past the test should put back, at the end of the test and when
+     * this method changes the properties, the {@code DatabaseConfig} values the previous
+     * properties replaced, as {@link DefaultPrepAndExpectedTestCase} does.
      *
      * @param databaseConfigProperties The properties to apply; null or empty applies none.
      * @since 3.6.0

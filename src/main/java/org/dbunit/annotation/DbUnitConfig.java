@@ -139,6 +139,11 @@ public @interface DbUnitConfig
      * such an override together with {@code properties()}/{@code propertiesProvider()}, since
      * it cannot tell from reflection alone whether the {@code super} call is present.
      *
+     * <p>The values last for the test: when it ends, each is put back to the value it replaced,
+     * so a connection that outlives the test - a fixed connection, one cached by a
+     * {@code CachingConnectionProvider}, or one kept with {@link #closeConnectionAfterTest()}
+     * false - carries none of them into whatever uses it next.
+     *
      * @return The properties; empty (the default) applies none.
      */
     DbUnitProperty[] properties() default {};

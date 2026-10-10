@@ -115,6 +115,42 @@ final class ExpectedLifecycle
     }
 
     /**
+     * Returns {@link #testCase} after pushing the {@code @DbUnitConfig} values onto it, once -
+     * see {@link InjectedTestCaseConfigurer} - so a connection it hands out already carries them.
+     * {@link #before()} calls this, and so does a binding resolving an early {@code @BeforeEach}
+     * {@code Connection} parameter through {@link PrepAndExpectedTestCase#getReusableConnection()}
+     * before {@code before()} runs: the connection is acquired with the test case's properties
+     * in force at that moment. Whatever this applies is undone by {@link #after(boolean)}, or by
+     * {@link #undoConfiguration()} when {@code after()} never runs.
+     *
+     * @return The configured test case this lifecycle drives.
+     * @throws Exception If constructing or configuring it fails.
+     */
+    PrepAndExpectedTestCase ensureConfiguredTestCase() throws Exception
+    {
+        ensureTestCase();
+        if (testCaseRestoration == null)
+        {
+            testCaseRestoration =
+                    new InjectedTestCaseConfigurer(configuration, testCase).applyAll();
+        }
+        return testCase;
+    }
+
+    /**
+     * Puts back what {@link #ensureConfiguredTestCase()} applied to the test case, including the
+     * {@code DatabaseConfig} values on a connection it kept. A no-op when nothing was applied or
+     * it was already undone. Called by {@link #after(boolean)}, and by the executor when the
+     * after-test callback never runs, for example a {@code @BeforeEach} that fails.
+     */
+    void undoConfiguration()
+    {
+        final InjectedTestCaseRestoration restoration = testCaseRestoration;
+        testCaseRestoration = null;
+        InjectedTestCaseRestoration.undoIfPresent(restoration);
+    }
+
+    /**
      * Returns whether the connection came from an injected {@code @DbUnitTestCase} instance's
      * {@link PrepAndExpectedTestCase#getReusableConnection()} for a {@code @BeforeEach}
      * parameter, and {@link #before()} then failed before {@code configureTest()} - so
@@ -149,7 +185,7 @@ final class ExpectedLifecycle
     {
         ensureTestCase();
         incomingState = TesterStateSnapshot.capture(tester);
-        testCaseRestoration = new InjectedTestCaseConfigurer(configuration, testCase).applyAll();
+        ensureConfiguredTestCase();
         applySetUpOperation();
         applyTearDownOperation();
         final VerifyTableDefinition[] verifyTableDefinitions =
@@ -183,11 +219,13 @@ final class ExpectedLifecycle
         } catch (final Throwable primaryFailure)
         {
             TesterStateSnapshot.restoreSuppressing(tester, incomingState, primaryFailure);
-            InjectedTestCaseRestoration.undoSuppressing(testCaseRestoration, primaryFailure);
+            final InjectedTestCaseRestoration restoration = testCaseRestoration;
+            testCaseRestoration = null;
+            InjectedTestCaseRestoration.undoSuppressing(restoration, primaryFailure);
             throw primaryFailure;
         }
         TesterStateSnapshot.restore(tester, incomingState);
-        InjectedTestCaseRestoration.undoIfPresent(testCaseRestoration);
+        undoConfiguration();
     }
 
     /**

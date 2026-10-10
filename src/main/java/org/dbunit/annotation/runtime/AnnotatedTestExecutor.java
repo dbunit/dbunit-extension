@@ -20,8 +20,6 @@
  */
 package org.dbunit.annotation.runtime;
 
-import java.util.Properties;
-
 import org.dbunit.DatabaseUnitException;
 import org.dbunit.DefaultOperationListener;
 import org.dbunit.DefaultPrepAndExpectedTestCase;
@@ -29,6 +27,7 @@ import org.dbunit.IDatabaseTester;
 import org.dbunit.IOperationListener;
 import org.dbunit.PrepAndExpectedTestCase;
 import org.dbunit.database.DatabaseConfig;
+import org.dbunit.database.DatabaseConfigOverrides;
 import org.dbunit.database.IDatabaseConnection;
 import org.dbunit.database.connection.AutoCommitOffWarning;
 import org.dbunit.database.connection.ConnectionOwnership;
@@ -96,6 +95,7 @@ public class AnnotatedTestExecutor
     private final TestScopedConnection testScopedConnection;
     private final ExpectedLifecycle expectedLifecycle;
     private final SetupTeardownLifecycle setupTeardownLifecycle;
+    private final DatabaseConfigOverrides databaseConfigOverrides;
 
     private boolean afterTestRan;
     private ExecutorOperationListener installedListener;
@@ -157,6 +157,8 @@ public class AnnotatedTestExecutor
         this.configuration = configuration;
         this.tester = tester;
         this.annotationDriven = annotationDriven;
+        this.databaseConfigOverrides =
+                new DatabaseConfigOverrides(configuration.getDatabaseConfigProperties());
         this.expectedLifecycle =
                 new ExpectedLifecycle(configuration, tester, prepAndExpectedTestCase);
         final ConnectionOwnership ownership = new ConnectionOwnership(
@@ -204,7 +206,7 @@ public class AnnotatedTestExecutor
     private IDatabaseConnection acquireConnection() throws Exception
     {
         return configuration.isExpected()
-                ? expectedLifecycle.ensureTestCase().getReusableConnection()
+                ? expectedLifecycle.ensureConfiguredTestCase().getReusableConnection()
                 : tester.getConnection();
     }
 
@@ -228,7 +230,7 @@ public class AnnotatedTestExecutor
         {
             notifyTesterListenerOfRetrieval(connection);
         }
-        applyProperties(connection, configuration.getDatabaseConfigProperties());
+        applyDatabaseConfigProperties(connection);
         if (annotationDriven && !configuration.isExpected())
         {
             autoCommitOffWarning.accept(connection);
@@ -338,9 +340,8 @@ public class AnnotatedTestExecutor
         final IOperationListener delegate = listenerToRestore == null
                 ? new DefaultOperationListener()
                 : listenerToRestore;
-        installedListener = new ExecutorOperationListener(
-                configuration.getDatabaseConfigProperties(), this::peekResolvedConnection,
-                delegate, this::onListenerFirstConnectionRetrieved);
+        installedListener = new ExecutorOperationListener(this::applyDatabaseConfigProperties,
+                this::peekResolvedConnection, delegate, this::onListenerFirstConnectionRetrieved);
         tester.setOperationListener(installedListener);
     }
 
@@ -363,8 +364,8 @@ public class AnnotatedTestExecutor
     /**
      * Puts back the listener the tester carried before {@link #installOperationListener()},
      * unless something else has replaced the executor's since - a test that installs a listener
-     * of its own mid-test owns it. A no-op when nothing was installed, or it was already put
-     * back.
+     * of its own mid-test owns it, and the executor's listener, left in its chain, is
+     * deactivated. A no-op when nothing was installed, or it was already put back.
      */
     private void restoreOperationListener()
     {
@@ -372,6 +373,7 @@ public class AnnotatedTestExecutor
         {
             return;
         }
+        installedListener.deactivate();
         if (tester.getOperationListener() == installedListener)
         {
             tester.setOperationListener(listenerToRestore);
@@ -404,28 +406,49 @@ public class AnnotatedTestExecutor
 
     /**
      * Applies {@code @DbUnitProperty} values to {@code connection}'s {@link DatabaseConfig}; a
-     * no-op when {@code properties} is empty. Called from both {@link #getConnection()}, so the
-     * row count check's baseline/verify/override calls always see property state already
-     * applied before they read it, and from {@link ExecutorOperationListener}, since a tester's
+     * no-op when there are none. Called from both {@link #getConnection()}, so the row count
+     * check's baseline/verify/override calls always see property state already applied before
+     * they read it, and from {@link ExecutorOperationListener}, since a tester's
      * {@code onSetup()}/{@code onTearDown()} may resolve their own connection independently of
-     * {@link #getConnection()}'s memoized one.
+     * {@link #getConnection()}'s memoized one. {@link #restoreWhatThisExecutorChanged()} puts
+     * back what this replaced, so a connection kept past the test carries none of the values
+     * forward.
+     *
+     * <p>A no-op on the prep/expected path, where the {@link PrepAndExpectedTestCase} applies the
+     * values to the connection it owns and puts them back itself: this executor applying them as
+     * well, after it, would take the test case's values for the ones to restore.
      *
      * @param connection The connection whose {@link DatabaseConfig} to apply the values to.
-     * @param properties The {@code @DbUnitProperty} values; empty applies none.
      */
-    static void applyProperties(final IDatabaseConnection connection,
-            final Properties properties)
+    private void applyDatabaseConfigProperties(final IDatabaseConnection connection)
     {
-        if (properties.isEmpty())
+        if (configuration.isExpected())
         {
             return;
         }
+
         try
         {
-            connection.getConfig().setPropertiesByString(properties);
+            databaseConfigOverrides.applyTo(connection.getConfig());
         } catch (final DatabaseUnitException e)
         {
             throw new IllegalStateException("Failed to apply @DbUnitProperty values.", e);
+        }
+    }
+
+    /**
+     * Puts back what {@link #applyDatabaseConfigProperties(IDatabaseConnection)} replaced, then
+     * the tester's own listener - see {@link #restoreOperationListener()} - so the one failing
+     * cannot leave the other undone.
+     */
+    private void restoreWhatThisExecutorChanged()
+    {
+        try
+        {
+            databaseConfigOverrides.restore();
+        } finally
+        {
+            restoreOperationListener();
         }
     }
 
@@ -478,7 +501,7 @@ public class AnnotatedTestExecutor
             runAfterStepThenRelease(testFailed);
         } finally
         {
-            restoreOperationListener();
+            restoreWhatThisExecutorChanged();
         }
     }
 
@@ -531,7 +554,13 @@ public class AnnotatedTestExecutor
             testScopedConnection.release();
         } finally
         {
-            restoreOperationListener();
+            try
+            {
+                expectedLifecycle.undoConfiguration();
+            } finally
+            {
+                restoreWhatThisExecutorChanged();
+            }
         }
     }
 }

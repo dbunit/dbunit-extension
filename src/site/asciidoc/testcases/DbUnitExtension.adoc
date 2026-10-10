@@ -150,7 +150,8 @@ that type), so inject it and call its `getConnection()`.
 A `@BeforeEach` parameter resolves before this extension's own setup runs —
 JUnit Jupiter always calls `@BeforeEach` methods first — so it sees the
 tester/connection exactly as they exist before that setup: `@DbUnitPrep`'s
-dataset, if any, is not loaded onto it yet. Ask for the parameter on the
+dataset, if any, is not loaded onto it yet, though `@DbUnitProperty` values and the
+other `@DbUnitConfig` settings are already in force on it. Ask for the parameter on the
 `@Test` method instead when the test needs the already-prepped state.
 
 Not supported on `@AfterEach`, `@AfterAll`, `@BeforeAll`, or a test class

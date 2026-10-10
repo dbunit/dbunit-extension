@@ -1350,13 +1350,11 @@ class AnnotatedTestExecutorTest
         // a @BeforeEach parameter resolved it, postTest()/cleanupData() never runs to close it
         // the instance's own way, and closing it here would strand the instance holding a
         // closed connection for the next test method.
-        final DbUnitConfig config =
-                WithPropertiesAndExpected.class.getAnnotation(DbUnitConfig.class);
-        final DbUnitExpected expected =
-                WithPropertiesAndExpected.class.getAnnotation(DbUnitExpected.class);
-        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration.from(
-                WithPropertiesAndExpected.class, config, null, null, expected, null, null);
-        when(connection.getConfig()).thenReturn(new DatabaseConfig());
+        final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(WithExpected.class, null, null, null, expected, null, null);
+        doThrow(new IllegalStateException("Set up failed on purpose.")).doNothing().when(tester)
+                .setSetUpOperation(any());
         final CachingConnectionPrepAndExpectedTestCase injected =
                 new CachingConnectionPrepAndExpectedTestCase(connection);
         final AnnotatedTestExecutor executor =
@@ -1364,8 +1362,7 @@ class AnnotatedTestExecutorTest
         executor.getConnection();
 
         assertThatThrownBy(executor::beforeTest)
-                .as("@DbUnitProperty on a test case not overriding setDatabaseConfigProperties()"
-                        + " must fail fast before configureTest().")
+                .as("A failure before configureTest() must surface.")
                 .isInstanceOf(IllegalStateException.class);
         executor.afterTest(true);
 
@@ -1384,7 +1381,6 @@ class AnnotatedTestExecutorTest
         // discarded after this test, so its connection is still closed on an early failure
         // rather than leaked.
         when(tester.getConnection()).thenReturn(connection);
-        when(connection.getConfig()).thenReturn(new DatabaseConfig());
         stubOpenJdbcConnection();
         final DbUnitConfig config = WithConstructedCachingTestCase.class
                 .getAnnotation(DbUnitConfig.class);
@@ -1392,6 +1388,8 @@ class AnnotatedTestExecutorTest
                 .getAnnotation(DbUnitExpected.class);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration.from(
                 WithConstructedCachingTestCase.class, config, null, null, expected, null, null);
+        doThrow(new IllegalStateException("Set up failed on purpose.")).doNothing().when(tester)
+                .setSetUpOperation(any());
         final AnnotatedTestExecutor executor =
                 new AnnotatedTestExecutor(configuration, tester, null);
         executor.getConnection();
@@ -2089,6 +2087,215 @@ class AnnotatedTestExecutorTest
                         + " surfacing from deep inside DatabaseConfig.")
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("@DbUnitProperty");
+    }
+
+    @Test
+    void testAfterTest_keptConnectionWithProperties_putsReplacedValuesBack() throws Exception
+    {
+        final DbUnitConfig config =
+                WithPropertiesOnKeptConnection.class.getAnnotation(DbUnitConfig.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(WithPropertiesOnKeptConnection.class, config, null, null, null, null, null);
+        final DatabaseConfig realConfig = new DatabaseConfig();
+        when(tester.getConnection()).thenReturn(connection);
+        when(connection.getConfig()).thenReturn(realConfig);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, tester, null);
+        executor.beforeTest();
+        assertThat(realConfig.getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE))
+                .as("The property must be in force while the test runs.").isEqualTo(50);
+
+        executor.afterTest(false);
+
+        assertThat(realConfig.getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE))
+                .as("A connection kept open past the test must not carry the test's"
+                        + " @DbUnitProperty values into whatever uses it next.")
+                .isEqualTo(new DatabaseConfig().getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE));
+    }
+
+    @Test
+    void testAfterTest_testersListenerSetTheSamePropertyFirst_putsBackTheListenersValue()
+            throws Exception
+    {
+        final DbUnitConfig config =
+                WithPropertiesOnKeptConnection.class.getAnnotation(DbUnitConfig.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(WithPropertiesOnKeptConnection.class, config, null, null, null, null, null);
+        final DatabaseConfig realConfig = new DatabaseConfig();
+        when(tester.getConnection()).thenReturn(connection);
+        when(connection.getConfig()).thenReturn(realConfig);
+        final IOperationListener testersListener = new IOperationListener()
+        {
+            @Override
+            public void connectionRetrieved(final IDatabaseConnection retrieved)
+            {
+                retrieved.getConfig().setProperty(DatabaseConfig.PROPERTY_BATCH_SIZE, 10);
+            }
+
+            @Override
+            public void operationSetUpFinished(final IDatabaseConnection retrieved)
+            {
+            }
+
+            @Override
+            public void operationTearDownFinished(final IDatabaseConnection retrieved)
+            {
+            }
+        };
+        when(tester.getOperationListener()).thenReturn(testersListener);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, tester, null);
+        executor.beforeTest();
+
+        executor.afterTest(false);
+
+        assertThat(realConfig.getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE))
+                .as("The tester's own listener is the documented place to configure a"
+                        + " connection, so what it set - not dbUnit's default - is what the"
+                        + " @DbUnitProperty value replaced and what must be put back.")
+                .isEqualTo(10);
+    }
+
+    @Test
+    void testReleaseIfAfterTestDidNotRun_keptConnectionWithPropertiesResolved_putsReplacedValuesBack()
+            throws Exception
+    {
+        final DbUnitConfig config =
+                WithPropertiesOnKeptConnection.class.getAnnotation(DbUnitConfig.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(WithPropertiesOnKeptConnection.class, config, null, null, null, null, null);
+        final DatabaseConfig realConfig = new DatabaseConfig();
+        when(tester.getConnection()).thenReturn(connection);
+        when(connection.getConfig()).thenReturn(realConfig);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, tester, null);
+        executor.getConnection();
+
+        executor.releaseIfAfterTestDidNotRun();
+
+        assertThat(realConfig.getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE))
+                .as("A @BeforeEach that fails after a connection parameter resolved the"
+                        + " connection must not leave the @DbUnitProperty values on a connection"
+                        + " kept open past the test.")
+                .isEqualTo(new DatabaseConfig().getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE));
+    }
+
+    @Test
+    void testGetConnection_expectedPathWithProperties_leavesApplyingAndRestoringToTheTestCase()
+            throws Exception
+    {
+        final DbUnitConfig config =
+                WithPropertiesAndExpected.class.getAnnotation(DbUnitConfig.class);
+        final DbUnitExpected expected =
+                WithPropertiesAndExpected.class.getAnnotation(DbUnitExpected.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(WithPropertiesAndExpected.class, config, null, null, expected, null, null);
+        final DatabaseConfig realConfig = new DatabaseConfig();
+        lenient().when(connection.getConfig()).thenReturn(realConfig);
+        final DefaultPrepAndExpectedTestCase mockTestCase =
+                mock(DefaultPrepAndExpectedTestCase.class);
+        when(mockTestCase.getReusableConnection()).thenReturn(connection);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, tester, mockTestCase);
+
+        executor.getConnection();
+
+        assertThat(realConfig.getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE))
+                .as("On the prep/expected path the test case applies the values to the"
+                        + " connection it owns and puts them back when it finishes; the executor"
+                        + " applying them as well would record the test case's values as the"
+                        + " ones to restore and leave them on the connection.")
+                .isEqualTo(new DatabaseConfig().getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE));
+    }
+
+    @Test
+    void testAfterTest_testersListenerWrappedMidTest_finishedExecutorsListenerAppliesNothingLater()
+            throws Exception
+    {
+        final DbUnitConfig config =
+                WithPropertiesOnKeptConnection.class.getAnnotation(DbUnitConfig.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(WithPropertiesOnKeptConnection.class, config, null, null, null, null, null);
+        final DatabaseConfig realConfig = new DatabaseConfig();
+        when(tester.getConnection()).thenReturn(connection);
+        when(connection.getConfig()).thenReturn(realConfig);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, tester, null);
+        final ArgumentCaptor<IOperationListener> installed =
+                ArgumentCaptor.forClass(IOperationListener.class);
+        verify(tester).setOperationListener(installed.capture());
+        final IOperationListener wrapper =
+                new ConnectionPreservingOperationListener(installed.getValue());
+        when(tester.getOperationListener()).thenReturn(wrapper);
+        executor.beforeTest();
+        executor.afterTest(false);
+
+        wrapper.connectionRetrieved(connection);
+
+        assertThat(realConfig.getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE))
+                .as("A test that wrapped the tester's listener keeps the finished executor's"
+                        + " listener in the chain; it must not apply that test's values to the"
+                        + " next test's connection, where nothing would put them back.")
+                .isEqualTo(new DatabaseConfig().getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE));
+    }
+
+    @Test
+    void testGetConnection_expectedPathBeforeBeforeTest_connectionAlreadyHasTheAnnotationProperties()
+            throws Exception
+    {
+        final DbUnitConfig config =
+                WithPropertiesAndExpected.class.getAnnotation(DbUnitConfig.class);
+        final DbUnitExpected expected =
+                WithPropertiesAndExpected.class.getAnnotation(DbUnitExpected.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(WithPropertiesAndExpected.class, config, null, null, expected, null, null);
+        final DatabaseConfig realConfig = new DatabaseConfig();
+        when(tester.getConnection()).thenReturn(connection);
+        when(connection.getConfig()).thenReturn(realConfig);
+        stubOpenJdbcConnection();
+        final DefaultPrepAndExpectedTestCase testCase =
+                new DefaultPrepAndExpectedTestCase(new FlatXmlDataFileLoader(), tester);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, tester, testCase);
+
+        executor.getConnection();
+
+        assertThat(realConfig.getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE))
+                .as("A @BeforeEach parameter resolves the connection before beforeTest() runs,"
+                        + " and must already see the @DbUnitProperty values the test declares.")
+                .isEqualTo(50);
+    }
+
+    @Test
+    void testReleaseIfAfterTestDidNotRun_expectedPathTestCaseWithOwnPropertiesAndEarlyConnection_putsReplacedValuesBack()
+            throws Exception
+    {
+        final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(WithExpected.class, null, null, null, expected, null, null);
+        final DatabaseConfig realConfig = new DatabaseConfig();
+        when(tester.getConnection()).thenReturn(connection);
+        when(connection.getConfig()).thenReturn(realConfig);
+        stubOpenJdbcConnection();
+        final DefaultPrepAndExpectedTestCase testCase =
+                new DefaultPrepAndExpectedTestCase(new FlatXmlDataFileLoader(), tester, false);
+        final Properties ownProperties = new Properties();
+        ownProperties.setProperty("batchSize", "50");
+        testCase.setDatabaseConfigProperties(ownProperties);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, tester, testCase);
+        executor.getConnection();
+        assertThat(realConfig.getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE))
+                .as("The test case's own property must be in force on the early connection.")
+                .isEqualTo(50);
+
+        executor.releaseIfAfterTestDidNotRun();
+
+        assertThat(realConfig.getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE))
+                .as("A @BeforeEach that fails after resolving the connection never reaches"
+                        + " cleanupData(), so the test case's values must be put back here, not"
+                        + " left on a connection kept past the test.")
+                .isEqualTo(new DatabaseConfig().getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE));
     }
 
     @Test
@@ -3172,6 +3379,12 @@ class AnnotatedTestExecutorTest
     {
     }
 
+    @DbUnitConfig(closeConnectionAfterTest = false,
+            properties = @DbUnitProperty(name = "batchSize", value = "50"))
+    static class WithPropertiesOnKeptConnection
+    {
+    }
+
     @DbUnitConfig(
             properties = @DbUnitProperty(name = "datatypeFactory", value = "not.a.real.ClassName"))
     static class WithInvalidProperty
@@ -3190,8 +3403,7 @@ class AnnotatedTestExecutorTest
     {
     }
 
-    @DbUnitConfig(prepAndExpectedTestCase = CachingConnectionPrepAndExpectedTestCase.class,
-            properties = @DbUnitProperty(name = "batchSize", value = "50"))
+    @DbUnitConfig(prepAndExpectedTestCase = CachingConnectionPrepAndExpectedTestCase.class)
     @DbUnitExpected("expected.xml")
     static class WithConstructedCachingTestCase
     {

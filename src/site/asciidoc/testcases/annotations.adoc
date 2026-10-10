@@ -309,7 +309,11 @@ and after it they are restored, so a `static` `@DbUnitTester` field (or any
 tester under `@TestInstance(PER_CLASS)`) never carries one method's
 `@DbUnitPrep`/`@DbUnitSetup`/`@DbUnitTearDown` — or the operations the
 prep/expected path applies unconditionally — onto the next. A `@BeforeEach`
-value, being re-set every method, survives.
+value, being re-set every method, survives. The same holds for `@DbUnitProperty`
+values on a connection that outlives the test, such as a fixed connection handed
+to the tester, one a `CachingConnectionProvider` caches, or one kept with
+`closeConnectionAfterTest = false`: they are put back when the test ends — see
+<<properties>>.
 
 `@DbUnitTearDown` is `@DbUnitSetup`'s counterpart, defaulting to
 `DbUnitOperation.NONE`. It has no data annotation of its own: the dataset
@@ -683,6 +687,18 @@ warning when it detects such an override alongside `properties`/`propertiesProvi
 since it cannot tell from reflection whether the `super` call is there. Either
 add the `super` call, or drop `@DbUnitProperty` and configure the
 `DatabaseConfig` entirely in the override.
+
+*The values last for the test.* A `DatabaseConfig` belongs to its connection, so
+a connection that outlives the test — a fixed connection handed to the tester,
+one a `CachingConnectionProvider` caches, or one kept with
+`closeConnectionAfterTest = false` — would otherwise carry one test's
+`@DbUnitProperty` values into whichever test uses it next. When the test ends,
+each value is put back to what it replaced: the default, or what the tester's own
+`IOperationListener#connectionRetrieved()` or a `@BeforeEach` set before the
+values were applied. Values set on the `DatabaseConfig` by other means during the
+test, including a different value for the same property, are overwritten by that
+put-back. A connection the test closes after it needs none of this; the put-back
+on it is harmless.
 
 [#rowcountcheck]
 == @DbUnitRowCountCheck
