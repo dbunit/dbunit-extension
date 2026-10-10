@@ -612,7 +612,10 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * When {@code verifyData} is false - the test steps already failed - discards any
      * captured row count check baseline, so cleanupData() skips that check too: the database
      * is in an unknown state, so a count difference would be noise around the real failure,
-     * not a finding worth its own report.
+     * not a finding worth its own report. A verification failure discards it the same way,
+     * so cleanupData() does not throw a row count difference in its place: the comparison
+     * failure names what differs and is the one to fix first, while a cleanup failure still
+     * shadows it as before.
      */
     @Override
     public void postTest(final boolean verifyData) throws Exception
@@ -630,6 +633,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
         } catch (final Throwable t)
         {
             verifyFailure = t;
+            rowCountChecker.discardBaseline();
             throw t;
         } finally
         {

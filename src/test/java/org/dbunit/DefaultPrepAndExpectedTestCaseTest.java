@@ -1086,6 +1086,37 @@ class DefaultPrepAndExpectedTestCaseTest
     }
 
     @Test
+    void testPostTest_verifyDataFailed_skipsTheRowCountCheckSoTheVerifyFailureIsThrown()
+            throws Exception
+    {
+        final RowCountCheck mockRowCountCheck = Mockito.mock(RowCountCheck.class);
+        final RowCountSnapshot baseline =
+                new RowCountSnapshot(Collections.singletonMap("ACCOUNT", 5));
+        Mockito.when(mockRowCountCheck.capture(Mockito.any())).thenReturn(baseline);
+        final AssertionError verifyFailure = new AssertionError("verify boom");
+        final DefaultPrepAndExpectedTestCase failingVerifyTc =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester)
+                {
+                    @Override
+                    public void verifyData() throws Exception
+                    {
+                        throw verifyFailure;
+                    }
+                };
+        failingVerifyTc.setRowCountCheck(mockRowCountCheck);
+        failingVerifyTc.preTest();
+
+        final Throwable thrown = catchThrowable(() -> failingVerifyTc.postTest());
+
+        assertThat(thrown)
+                .as("The comparison failure names what differs and is the finding to fix first, so"
+                        + " a row count difference must not replace it.")
+                .isSameAs(verifyFailure);
+        Mockito.verify(mockRowCountCheck, Mockito.never())
+                .verify(Mockito.any(), Mockito.any());
+    }
+
+    @Test
     void testCleanupData_rowCountChanged_throwsAndStillClosesTheConnection() throws Exception
     {
         final RowCountCheck mockRowCountCheck = Mockito.mock(RowCountCheck.class);
