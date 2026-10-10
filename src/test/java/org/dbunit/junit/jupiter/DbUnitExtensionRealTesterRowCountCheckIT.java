@@ -99,6 +99,28 @@ class DbUnitExtensionRealTesterRowCountCheckIT
     }
 
     @Test
+    void testAfterTestExecution_testTableLeftDirtyByAnEarlierTest_stillStartsFromEmptyTables()
+            throws Exception
+    {
+        final DatabaseEnvironment environment = DatabaseEnvironment.getInstance();
+        try (Statement statement =
+                environment.getConnection().getConnection().createStatement())
+        {
+            // What another IT class running first can leave behind: the row count check
+            // correctly reports a table whose count the lifecycle moves from the stray rows to
+            // zero, so this IT must not rely on any earlier class having cleaned up.
+            statement.execute("INSERT INTO " + TEST_TABLE + " (COLUMN0) VALUES ('stray0')");
+            statement.execute("INSERT INTO " + TEST_TABLE + " (COLUMN0) VALUES ('stray1')");
+        }
+
+        runSampleExpectingSuccess(environment, PrepExpectedPathSample.class);
+
+        assertThat(rowCount(environment.getConnection(), TEST_TABLE))
+                .as("The lifecycle's teardown must leave TEST_TABLE empty, stray rows included.")
+                .isZero();
+    }
+
+    @Test
     void testAfterTestExecution_rowLeakedThroughARealTester_failsProvingTheCheckActuallyRan()
             throws Exception
     {
@@ -134,6 +156,7 @@ class DbUnitExtensionRealTesterRowCountCheckIT
     {
         try
         {
+            environment.deleteAllRows(TEST_TABLE);
             setSampleTester(sampleClass, newJdbcDatabaseTester(environment));
 
             EngineTestKit.engine("junit-jupiter").selectors(selectClass(sampleClass)).execute()

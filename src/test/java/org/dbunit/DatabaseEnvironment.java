@@ -29,6 +29,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.Statement;
 import java.util.Properties;
 import java.util.concurrent.Callable;
 
@@ -235,6 +236,26 @@ public class DatabaseEnvironment
     public IDatabaseTester getDatabaseTester()
     {
         return _databaseTester;
+    }
+
+    /**
+     * Deletes every row of each given table, so a test whose assertions depend on the table
+     * starting empty does not rely on whichever test class ran before it having cleaned up.
+     * Unlike a best-effort cleanup, a failure here propagates: a test that could not establish
+     * its starting state must not run on an unknown one.
+     *
+     * @param tableNames The names of the tables to empty.
+     * @throws Exception If emptying any of the tables fails.
+     */
+    public void deleteAllRows(final String... tableNames) throws Exception
+    {
+        try (Statement statement = getConnection().getConnection().createStatement())
+        {
+            for (final String tableName : tableNames)
+            {
+                statement.execute("DELETE FROM " + tableName);
+            }
+        }
     }
 
     public void closeConnection() throws Exception
