@@ -89,28 +89,6 @@ class ConnectionPreservingOperationListenerTest
     }
 
     @Test
-    void testUnwrap_existingWrapper_returnsItsDelegateSoLayersDoNotStack()
-    {
-        final ConnectionPreservingOperationListener wrapper =
-                new ConnectionPreservingOperationListener(delegate);
-
-        assertThat(ConnectionPreservingOperationListener.unwrap(wrapper)).isSameAs(delegate);
-    }
-
-    @Test
-    void testUnwrap_plainListener_returnsItUnchanged()
-    {
-        assertThat(ConnectionPreservingOperationListener.unwrap(delegate)).isSameAs(delegate);
-    }
-
-    @Test
-    void testUnwrap_null_returnsAFreshDefaultOperationListener()
-    {
-        assertThat(ConnectionPreservingOperationListener.unwrap(null))
-                .isInstanceOf(DefaultOperationListener.class);
-    }
-
-    @Test
     void testUnwrapsToNoOp_noOpDirectly_returnsTrue()
     {
         assertThat(ConnectionPreservingOperationListener

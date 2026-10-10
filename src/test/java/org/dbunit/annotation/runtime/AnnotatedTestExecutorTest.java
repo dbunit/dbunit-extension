@@ -45,6 +45,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.dbunit.AbstractDatabaseTester;
 import org.dbunit.DatabaseUnitRuntimeException;
+import org.dbunit.ConnectionPreservingOperationListener;
 import org.dbunit.DefaultDatabaseTester;
 import org.dbunit.DefaultPrepAndExpectedTestCase;
 import org.dbunit.IDatabaseTester;
@@ -1757,6 +1758,25 @@ class AnnotatedTestExecutorTest
                 .as("A leaked row must still fail a classic-path test whose connection config"
                         + " enables the row count check.")
                 .isInstanceOf(UnexpectedRowCountException.class);
+    }
+
+    @Test
+    void testConstructor_testerCarriesAUserBlanketShield_keepsItUnderTheExecutorsListener()
+    {
+        // A caller who wraps a listener in a blanket ConnectionPreservingOperationListener owns
+        // every connection the tester hands out; the executor adding its own scoped shield on
+        // top must not discard that blanket and let the wrapped listener close the others.
+        final IOperationListener userListener = mock(IOperationListener.class);
+        final IDatabaseTester realTester = new DefaultDatabaseTester(connection);
+        realTester.setOperationListener(new ConnectionPreservingOperationListener(userListener));
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
+        new AnnotatedTestExecutor(configuration, realTester, null);
+        final IDatabaseConnection otherConnection = mock(IDatabaseConnection.class);
+
+        realTester.getOperationListener().operationSetUpFinished(otherConnection);
+
+        verify(userListener, never()).operationSetUpFinished(otherConnection);
     }
 
     // ---- ExecutorOperationListener: delegate ordering ----
