@@ -2,6 +2,7 @@ package org.dbunit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.catchThrowable;
 
 import java.sql.Connection;
@@ -145,6 +146,87 @@ class DefaultPrepAndExpectedTestCaseTest
                         + " setupData()/verifyData()/cleanupData(), the same way overriding"
                         + " setUpDatabaseConfig() would for a subclass.")
                 .isEqualTo(50);
+    }
+
+    @Test
+    void testCleanupData_connectionKeptAndPropertiesSet_putsReplacedValuesBack() throws Exception
+    {
+        final DefaultPrepAndExpectedTestCase keepingTestCase =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester, false);
+        keepingTestCase.setDatabaseConfigProperties(batchSizeProperties("50"));
+        keepingTestCase.configureTest(new VerifyTableDefinition[] {}, new String[] {},
+                new String[] {});
+        final DatabaseConfig config = databaseTester.getConnection().getConfig();
+        assertThat(config.getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE))
+                .as("The property must be in force while the test runs.").isEqualTo(50);
+
+        keepingTestCase.cleanupData();
+
+        assertThat(config.getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE))
+                .as("A connection kept open past the test must not carry the test's property"
+                        + " values into whatever uses it next.")
+                .isEqualTo(new DatabaseConfig().getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE));
+    }
+
+    @Test
+    void testCleanupData_tearDownFailsAndConnectionKept_stillPutsReplacedValuesBack()
+            throws Exception
+    {
+        final DefaultPrepAndExpectedTestCase keepingTestCase =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester, false);
+        keepingTestCase.setDatabaseConfigProperties(batchSizeProperties("50"));
+        keepingTestCase.configureTest(new VerifyTableDefinition[] {}, new String[] {},
+                new String[] {});
+        databaseTester.setTearDownOperation(new FailingDatabaseOperation());
+        final DatabaseConfig config = databaseTester.getConnection().getConfig();
+
+        assertThatThrownBy(keepingTestCase::cleanupData)
+                .as("The tear down failure must still surface.")
+                .isInstanceOf(DatabaseUnitException.class);
+
+        assertThat(config.getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE))
+                .as("A failed cleanup must not leave the test's property values on a connection"
+                        + " kept open past the test.")
+                .isEqualTo(new DatabaseConfig().getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE));
+    }
+
+    @Test
+    void testConfigureTest_connectionKeptFromAnEarlierTestWhosePropertiesWereRestored_appliesThemAgain()
+            throws Exception
+    {
+        final DefaultPrepAndExpectedTestCase keepingTestCase =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester, false);
+        keepingTestCase.setDatabaseConfigProperties(batchSizeProperties("50"));
+        keepingTestCase.configureTest(new VerifyTableDefinition[] {}, new String[] {},
+                new String[] {});
+        keepingTestCase.cleanupData();
+
+        keepingTestCase.configureTest(new VerifyTableDefinition[] {}, new String[] {},
+                new String[] {});
+
+        final DatabaseConfig config = databaseTester.getConnection().getConfig();
+        assertThat(config.getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE))
+                .as("configureTest() and the row count baseline read the connection's"
+                        + " DatabaseConfig before setupData() retrieves it again, so the next"
+                        + " test's properties must already be in force on the kept connection.")
+                .isEqualTo(50);
+    }
+
+    @Test
+    void testSetDatabaseConfigProperties_valuesAlreadyApplied_putsReplacedValuesBack()
+            throws Exception
+    {
+        tc.setDatabaseConfigProperties(batchSizeProperties("50"));
+        tc.configureTest(new VerifyTableDefinition[] {}, new String[] {}, new String[] {});
+        final DatabaseConfig config = databaseTester.getConnection().getConfig();
+
+        tc.setDatabaseConfigProperties(null);
+
+        assertThat(config.getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE))
+                .as("Replacing the properties must put back what the old ones had changed, so"
+                        + " restoring an injected instance's own properties after a test also"
+                        + " clears the old values off its connection.")
+                .isEqualTo(new DatabaseConfig().getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE));
     }
 
     @Test
@@ -1212,6 +1294,23 @@ class DefaultPrepAndExpectedTestCaseTest
         assertThat(filtered.getTableMetaData().getColumns())
                 .as("Include is applied before exclude, so only the included COL2 should remain.")
                 .containsExactly(new Column("COL2", DataType.VARCHAR));
+    }
+
+    private static Properties batchSizeProperties(final String batchSize)
+    {
+        final Properties properties = new Properties();
+        properties.setProperty("batchSize", batchSize);
+        return properties;
+    }
+
+    private static final class FailingDatabaseOperation extends DatabaseOperation
+    {
+        @Override
+        public void execute(final IDatabaseConnection connection, final IDataSet dataSet)
+                throws DatabaseUnitException
+        {
+            throw new DatabaseUnitException("Tear down failed on purpose.");
+        }
     }
 
     private IDatabaseTester makeDatabaseTester() throws Exception
