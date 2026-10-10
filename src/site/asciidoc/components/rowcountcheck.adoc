@@ -133,6 +133,12 @@ by default — or exclude it if it legitimately can't be cleaned.
 * *Negative* — rows that should remain were removed. Drop the table from the prep/expected
 dataset (so teardown never touches it), or exclude it.
 
+The check reports only a test that is otherwise passing. When the test's own steps already
+failed, or `DefaultPrepAndExpectedTestCase` found the actual data differing from the expected
+data, a row count difference would be noise around that failure, so the check is skipped and
+the failure you see is the original one. Fix it first; a leaked or wrongly cleaned table then
+shows up on the next run.
+
 [#row-counter]
 == Supplying Your Own RowCounter
 
