@@ -62,6 +62,7 @@ public class AnnotatedTestConfiguration
     private final DatabaseOperation setUpOperation;
     private final boolean expected;
     private final String[] expectedDataFiles;
+    // null when the annotations declare none, to be derived from the expected datasets later.
     private final VerifyTableDefinition[] verifyTableDefinitions;
     private final boolean tearDownDeclared;
     private final DatabaseOperation tearDownOperation;
@@ -151,8 +152,8 @@ public class AnnotatedTestConfiguration
                         expected.value(), expected.provider());
         final VerifyTableDefinition[] verifyTableDefinitions = !hasExpected
                 ? new VerifyTableDefinition[0]
-                : new VerifyTableDefinitionResolver().resolve(config, expected, dataFileLoader,
-                        expectedDataFiles);
+                : new VerifyTableDefinitionResolver()
+                        .resolveDeclared(config, expected, expectedDataFiles).orElse(null);
 
         final Properties databaseConfigProperties =
                 new DatabaseConfigPropertiesResolver().resolve(config);
@@ -260,12 +261,36 @@ public class AnnotatedTestConfiguration
     }
 
     /**
-     * Returns the resolved table definitions to verify.
+     * Returns the resolved table definitions to verify, reading the expected datasets with
+     * {@link #getDataFileLoader()} when the annotations declare none - see
+     * {@link #getVerifyTableDefinitions(DataFileLoader)}.
      *
      * @return The table definitions; empty when {@link #isExpected()} is false.
      */
     public VerifyTableDefinition[] getVerifyTableDefinitions()
     {
+        return getVerifyTableDefinitions(dataFileLoader);
+    }
+
+    /**
+     * Returns the resolved table definitions to verify. When the annotations declare none, the
+     * default is one definition per table in the expected datasets, read here with
+     * {@code expectedDataLoader} rather than at resolution time: the loader that matters is the
+     * one the {@code PrepAndExpectedTestCase} will compare those datasets with, which for an
+     * injected instance keeping a loader of its own is not {@link #getDataFileLoader()}.
+     *
+     * @param expectedDataLoader The loader to read the expected datasets with when the
+     *            definitions must be derived from them.
+     * @return The table definitions; empty when {@link #isExpected()} is false.
+     */
+    public VerifyTableDefinition[] getVerifyTableDefinitions(
+            final DataFileLoader expectedDataLoader)
+    {
+        if (verifyTableDefinitions == null)
+        {
+            return new VerifyTableDefinitionResolver().deriveFromExpectedDatasets(
+                    expectedDataLoader, expectedDataFiles);
+        }
         return verifyTableDefinitions.clone();
     }
 

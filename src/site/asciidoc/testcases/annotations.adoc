@@ -332,7 +332,9 @@ so the common cases stay short:
 |Written |Meaning
 
 |nothing |Verify every table in the expected dataset, default rules per
-table.
+table. The tables are read with the same data file loader that later compares
+the dataset: an injected `@DbUnitTestCase` instance's own loader when it keeps
+one.
 
 |`verifyTables = {"ACCOUNT", "TXN"}` |Verify exactly these tables. Narrows a
 class- or method-level `verifyDefinitions` catalog to just these tables when
@@ -573,7 +575,9 @@ closed after each test; default `true`. Set `false` when the tester shares a
 `CachingConnectionProvider` across test methods. Also left open, regardless of
 this attribute, when the tester's `IOperationListener` is
 `NO_OP_OPERATION_LISTENER` - the established signal that its connection is
-managed elsewhere.
+managed elsewhere, or, on the prep/expected path, when the injected
+`@DbUnitTestCase` instance itself reports `isCloseConnectionAfterTest()` as
+`false`.
 
 |`injectConnectionParameter` |Whether the extension resolves a bare
 `java.sql.Connection` test-method parameter; default `true`. Set `false` when
@@ -590,6 +594,22 @@ link:DbUnitExtension.html#_parameter_injection[DbUnitExtension].
 so a shared instance built without them still runs with the configured values.
 This targets `DefaultPrepAndExpectedTestCase` and its subclasses, which
 override every setter involved.
+
+Only what a test declares is pushed. An instance built with its own loader, failure
+handler, properties or `closeConnectionAfterTest = false` keeps them when `@DbUnitConfig`
+says nothing about them, and a declared `properties` value is added to the instance's own
+rather than replacing them. Two details follow from `@DbUnitConfig`'s defaults: an instance
+with no data file loader at all is given the configured one, since it cannot load datasets
+without it; and `closeConnectionAfterTest` is declared only by setting it to `false`, because
+the default `true` cannot be told apart from leaving it out, so an instance built with `false`
+keeps it even when `@DbUnitConfig(closeConnectionAfterTest = true)` is written out.
+
+What a test pushes lasts for that test only. When it ends, the instance's own values are put
+back - a `@DbUnitRowCountCheck` override, which the instance cannot report, is cleared
+instead - so a `static` `@DbUnitTestCase` field never carries one method's configuration onto
+the next. That relies on the instance reporting its current values through the matching getters
+(`getDataFileLoader()`, `getFailureHandler()`, `isCloseConnectionAfterTest()`,
+`getDatabaseConfigProperties()`); `DefaultPrepAndExpectedTestCase` does.
 
 Any other `PrepAndExpectedTestCase` implementation is best-effort: each
 configured attribute whose setter the instance's type does not override

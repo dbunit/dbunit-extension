@@ -47,8 +47,8 @@ import org.dbunit.database.IDatabaseConnection;
  * connection-config state rather than reusing whatever an earlier test resolved, unless
  * {@link #setRowCountCheck(RowCountCheck)} pinned one in place explicitly - that one is
  * used as-is for every later test too, until changed. A caller sharing one instance across
- * tests must call {@link #clearEnabledOverride()} for a test that declares no override of
- * its own, so an earlier test's override does not silently carry over.
+ * tests must call {@link #clearEnabledOverride()} once a test that set an override is over,
+ * so that override does not silently carry over onto the next test.
  *
  * @author Jeff Jensen
  * @since 3.6.0
@@ -206,8 +206,8 @@ public class RowCountChecker
      *
      * <p>A caller sharing one {@link RowCountChecker} instance across several tests - e.g. a
      * {@code DefaultPrepAndExpectedTestCase} held by a {@code @DbUnitTestCase} static field -
-     * must call this for a test that declares no override of its own, so an earlier test's
-     * override does not silently carry over onto this one.
+     * must call this once a test that set an override is over, so that override does not
+     * silently carry over onto the next test.
      *
      * @since 3.6.0
      */

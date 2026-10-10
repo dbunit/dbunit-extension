@@ -37,57 +37,68 @@ class VerifyTableDefinitionResolverTest
     private final VerifyTableDefinitionResolver resolver = new VerifyTableDefinitionResolver();
 
     @Test
-    void testResolve_verifyTablesNamesOnly_buildsOneDefaultDefinitionPerName()
+    void testResolveDeclared_verifyTablesNamesOnly_buildsOneDefaultDefinitionPerName()
     {
         final DbUnitExpected expected =
                 WithVerifyTables.class.getAnnotation(DbUnitExpected.class);
 
         final VerifyTableDefinition[] definitions =
-                resolver.resolve(null, expected, mock(DataFileLoader.class), new String[0]);
+                resolver.resolveDeclared(null, expected, new String[0]).get();
 
         assertThat(definitions).extracting(VerifyTableDefinition::getTableName)
                 .containsExactly("ACCOUNT", "LEDGER");
     }
 
     @Test
-    void testResolve_duplicateVerifyTablesName_throws()
+    void testResolveDeclared_duplicateVerifyTablesName_throws()
     {
         final DbUnitExpected expected =
                 WithDuplicateVerifyTables.class.getAnnotation(DbUnitExpected.class);
 
-        assertThatThrownBy(() -> resolver.resolve(null, expected, mock(DataFileLoader.class),
-                new String[0]))
+        assertThatThrownBy(() -> resolver.resolveDeclared(null, expected, new String[0]))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("more than one")
                 .hasMessageContaining("ACCOUNT");
     }
 
     @Test
-    void testResolve_noVerifySpec_derivesOneDefinitionPerExpectedDatasetTable() throws Exception
+    void testResolveDeclared_noVerifySpecWithExpectedDataset_declaresNothingSoTablesAreDerivedLater()
     {
         final DbUnitExpected expected = Bare.class.getAnnotation(DbUnitExpected.class);
+
+        assertThat(resolver.resolveDeclared(null, expected, new String[] {"expected.xml"}))
+                .as("With no verify spec, nothing is declared and no loader is touched yet:"
+                        + " the tables are derived later, with the loader that will compare"
+                        + " them.")
+                .isEmpty();
+    }
+
+    @Test
+    void testDeriveFromExpectedDatasets_datasetWithTables_buildsOneDefinitionPerTable()
+            throws Exception
+    {
         final DataFileLoader loader = mock(DataFileLoader.class);
         final IDataSet dataSet = mock(IDataSet.class);
         when(dataSet.getTableNames()).thenReturn(new String[] {"ACCOUNT", "LEDGER"});
         when(loader.load("expected.xml")).thenReturn(dataSet);
 
         final VerifyTableDefinition[] definitions =
-                resolver.resolve(null, expected, loader, new String[] {"expected.xml"});
+                resolver.deriveFromExpectedDatasets(loader, new String[] {"expected.xml"});
 
         assertThat(definitions).extracting(VerifyTableDefinition::getTableName)
                 .containsExactly("ACCOUNT", "LEDGER");
     }
 
     @Test
-    void testResolve_expectedDatasetTableEnumerationFails_throwsNamingThePath() throws Exception
+    void testDeriveFromExpectedDatasets_tableEnumerationFails_throwsNamingThePath()
+            throws Exception
     {
-        final DbUnitExpected expected = Bare.class.getAnnotation(DbUnitExpected.class);
         final DataFileLoader loader = mock(DataFileLoader.class);
         final IDataSet dataSet = mock(IDataSet.class);
         when(dataSet.getTableNames()).thenThrow(new DataSetException("corrupt"));
         when(loader.load("expected.xml")).thenReturn(dataSet);
 
-        assertThatThrownBy(() -> resolver.resolve(null, expected, loader,
+        assertThatThrownBy(() -> resolver.deriveFromExpectedDatasets(loader,
                 new String[] {"expected.xml"}))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("expected.xml")

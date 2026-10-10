@@ -26,7 +26,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
@@ -58,6 +58,7 @@ import org.dbunit.annotation.DbUnitProperty;
 import org.dbunit.annotation.DbUnitRowCountCheck;
 import org.dbunit.annotation.DbUnitSetup;
 import org.dbunit.annotation.DbUnitTearDown;
+import org.dbunit.assertion.DefaultFailureHandler;
 import org.dbunit.assertion.DiffCollectingFailureHandler;
 import org.dbunit.assertion.FailureHandler;
 import org.dbunit.database.DatabaseConfig;
@@ -592,6 +593,7 @@ class AnnotatedTestExecutorTest
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(WithExpected.class, null, null, null, expected, null, null);
         final PrepAndExpectedTestCase mockTestCase = mock(PrepAndExpectedTestCase.class);
+        when(mockTestCase.isCloseConnectionAfterTest()).thenReturn(true);
         when(mockTestCase.getReusableConnection()).thenReturn(connection);
         final AssertionError verificationFailure = new AssertionError("expected mismatch");
         doThrow(verificationFailure).when(mockTestCase).postTest(true);
@@ -856,6 +858,7 @@ class AnnotatedTestExecutorTest
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(WithExpected.class, null, null, null, expected, null, null);
         final DefaultPrepAndExpectedTestCase injected = mock(DefaultPrepAndExpectedTestCase.class);
+        when(injected.isCloseConnectionAfterTest()).thenReturn(true);
         when(injected.getReusableConnection()).thenReturn(connection);
         final AnnotatedTestExecutor executor =
                 new AnnotatedTestExecutor(configuration, tester, injected);
@@ -1200,8 +1203,18 @@ class AnnotatedTestExecutorTest
 
         executor.beforeTest();
 
-        verify(injected).configureTest(configuration.getVerifyTableDefinitions(),
-                configuration.getPrepDataFiles(), configuration.getExpectedDataFiles());
+        final ArgumentCaptor<VerifyTableDefinition[]> definitions =
+                ArgumentCaptor.forClass(VerifyTableDefinition[].class);
+        final ArgumentCaptor<String[]> prepFiles = ArgumentCaptor.forClass(String[].class);
+        final ArgumentCaptor<String[]> expectedFiles = ArgumentCaptor.forClass(String[].class);
+        verify(injected).configureTest(definitions.capture(), prepFiles.capture(),
+                expectedFiles.capture());
+        assertThat(definitions.getValue()).extracting(VerifyTableDefinition::getTableName)
+                .as("The tables derived from the expected dataset must be handed to the"
+                        + " injected instance.")
+                .containsExactly("ACCOUNT", "CUSTOMER");
+        assertThat(prepFiles.getValue()).isEqualTo(configuration.getPrepDataFiles());
+        assertThat(expectedFiles.getValue()).isEqualTo(configuration.getExpectedDataFiles());
         verify(injected).preTest();
     }
 
@@ -1444,6 +1457,79 @@ class AnnotatedTestExecutorTest
                         + " connection the test case's own prep/verify/cleanup steps use.")
                 .isSameAs(testCaseConnection);
         verify(tester, never()).getConnection();
+    }
+
+    @Test
+    void testBeforeTest_expectedPathNoVerifySpecAndInjectedTestCaseWithItsOwnLoader_derivesTablesThroughThatLoader()
+            throws Exception
+    {
+        final DbUnitExpected expected =
+                WithOnlyTheInjectedLoaderReadableExpected.class.getAnnotation(DbUnitExpected.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration.from(
+                WithOnlyTheInjectedLoaderReadableExpected.class, null, null, null, expected, null,
+                null);
+        final IDataSet dataSet = mock(IDataSet.class);
+        when(dataSet.getTableNames()).thenReturn(new String[] {"ACCOUNT"});
+        final DataFileLoader ownLoader = mock(DataFileLoader.class);
+        when(ownLoader.load("/org/dbunit/annotation/runtime/only-the-injected-loader-reads.custom"))
+                .thenReturn(dataSet);
+        final DefaultPrepAndExpectedTestCase injected = mock(DefaultPrepAndExpectedTestCase.class);
+        when(injected.getDataFileLoader()).thenReturn(ownLoader);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, tester, injected);
+
+        executor.beforeTest();
+
+        final ArgumentCaptor<VerifyTableDefinition[]> definitions =
+                ArgumentCaptor.forClass(VerifyTableDefinition[].class);
+        verify(injected).configureTest(definitions.capture(), any(String[].class),
+                any(String[].class));
+        assertThat(definitions.getValue()).extracting(VerifyTableDefinition::getTableName)
+                .as("With no verify spec, the tables to verify come from the expected dataset"
+                        + " as the injected test case's own loader reads it, the same loader"
+                        + " that will later load it for the comparison.")
+                .containsExactly("ACCOUNT");
+    }
+
+    @Test
+    void testAfterTest_expectedPathInjectedTestCaseKeepsItsConnectionOpen_leavesTheResolvedConnectionOpen()
+            throws Exception
+    {
+        final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(WithExpected.class, null, null, null, expected, null, null);
+        final PrepAndExpectedTestCase injected = mock(PrepAndExpectedTestCase.class);
+        when(injected.isCloseConnectionAfterTest()).thenReturn(false);
+        when(injected.getReusableConnection()).thenReturn(connection);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, tester, injected);
+        executor.getConnection();
+        executor.beforeTest();
+
+        executor.afterTest(false);
+
+        verify(connection, never()).close();
+    }
+
+    @Test
+    void testAfterTest_expectedPathInjectedTestCaseClosesItsConnection_closesTheResolvedConnection()
+            throws Exception
+    {
+        final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(WithExpected.class, null, null, null, expected, null, null);
+        final PrepAndExpectedTestCase injected = mock(PrepAndExpectedTestCase.class);
+        when(injected.isCloseConnectionAfterTest()).thenReturn(true);
+        when(injected.getReusableConnection()).thenReturn(connection);
+        when(connection.getConnection()).thenReturn(jdbcConnection);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, tester, injected);
+        executor.getConnection();
+        executor.beforeTest();
+
+        executor.afterTest(false);
+
+        verify(connection).close();
     }
 
     @Test
@@ -2032,7 +2118,7 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
-    void testBeforeTest_expectedPathNoFailureHandler_appliesNullToResetAnyStaleHandler()
+    void testBeforeTest_expectedPathNoFailureHandler_leavesTheInstancesOwnHandlerAlone()
             throws Exception
     {
         final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
@@ -2045,10 +2131,10 @@ class AnnotatedTestExecutorTest
 
         executor.beforeTest();
 
-        // Must still call setFailureHandler(null), not skip it, so a testCase reused across
-        // several tests (e.g. a @DbUnitTestCase static field) resets to dbUnit's own default
-        // handler instead of silently keeping an earlier test's @DbUnitConfig.failureHandler().
-        verify(mockTestCase).setFailureHandler(isNull());
+        // Nothing configured is not a request to change the handler an injected instance was
+        // built with; a reused instance is protected from an earlier test's handler by
+        // restoring it afterward, not by overwriting it here.
+        verify(mockTestCase, never()).setFailureHandler(any());
     }
 
     @Test
@@ -2173,7 +2259,7 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
-    void testBeforeTest_expectedPathNoRowCountCheck_clearsAnyStaleOverride()
+    void testBeforeTest_expectedPathNoRowCountCheck_neverTouchesTheOverride()
             throws Exception
     {
         final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
@@ -2186,15 +2272,12 @@ class AnnotatedTestExecutorTest
 
         executor.beforeTest();
 
-        // Must clear, not skip, so a testCase reused across several tests (e.g. a
-        // @DbUnitTestCase static field) resets to the connection's own DatabaseConfig instead
-        // of silently keeping an earlier test's @DbUnitRowCountCheck override.
         verify(mockTestCase, never()).setRowCountCheckOverride(anyBoolean(), any());
-        verify(mockTestCase).clearRowCountCheckOverride();
+        verify(mockTestCase, never()).clearRowCountCheckOverride();
     }
 
     @Test
-    void testBeforeTest_expectedPathNoProperties_appliesEmptyPropertiesToResetAnyStaleValue()
+    void testBeforeTest_expectedPathNoProperties_leavesTheInstancesOwnPropertiesAlone()
             throws Exception
     {
         final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
@@ -2207,14 +2290,71 @@ class AnnotatedTestExecutorTest
 
         executor.beforeTest();
 
-        // Must still call setDatabaseConfigProperties(empty), not skip it, so a testCase
-        // reused across several tests (e.g. a @DbUnitTestCase static field) resets to no
-        // properties instead of silently keeping an earlier test's @DbUnitConfig.properties().
-        final ArgumentCaptor<Properties> captor = ArgumentCaptor.forClass(Properties.class);
-        verify(mockTestCase).setDatabaseConfigProperties(captor.capture());
-        assertThat(captor.getValue())
-                .as("No @DbUnitConfig.properties() must reset to empty properties.")
-                .isEmpty();
+        verify(mockTestCase, never()).setDatabaseConfigProperties(any());
+    }
+
+    @Test
+    void testAfterTest_expectedPathDeclaredFailureHandlerOnSharedInstance_restoresTheInstancesOwn()
+            throws Exception
+    {
+        final DbUnitConfig config =
+                WithFailureHandlerAndExpected.class.getAnnotation(DbUnitConfig.class);
+        final DbUnitExpected expected =
+                WithFailureHandlerAndExpected.class.getAnnotation(DbUnitExpected.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(WithFailureHandlerAndExpected.class, config, null, null, expected, null,
+                        null);
+        final DefaultPrepAndExpectedTestCase shared = spy(
+                new DefaultPrepAndExpectedTestCase(new FlatXmlDataFileLoader(), tester, true));
+        final FailureHandler ownHandler = new DefaultFailureHandler();
+        shared.setFailureHandler(ownHandler);
+        doNothing().when(shared).configureTest(any(), any(), any());
+        doNothing().when(shared).preTest();
+        doNothing().when(shared).postTest(anyBoolean());
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, tester, shared);
+
+        executor.beforeTest();
+
+        assertThat(shared.getFailureHandler())
+                .as("The declared handler is in effect for the test.")
+                .isInstanceOf(DiffCollectingFailureHandler.class);
+
+        executor.afterTest(false);
+
+        assertThat(shared.getFailureHandler())
+                .as("A shared instance gets its own handler back, so the next method does not"
+                        + " inherit this method's.")
+                .isSameAs(ownHandler);
+    }
+
+    @Test
+    void testAfterTest_expectedPathPostTestFailsOnSharedInstance_stillRestoresTheInstancesOwn()
+            throws Exception
+    {
+        final DbUnitConfig config =
+                WithFailureHandlerAndExpected.class.getAnnotation(DbUnitConfig.class);
+        final DbUnitExpected expected =
+                WithFailureHandlerAndExpected.class.getAnnotation(DbUnitExpected.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(WithFailureHandlerAndExpected.class, config, null, null, expected, null,
+                        null);
+        final DefaultPrepAndExpectedTestCase shared = spy(
+                new DefaultPrepAndExpectedTestCase(new FlatXmlDataFileLoader(), tester, true));
+        final FailureHandler ownHandler = new DefaultFailureHandler();
+        shared.setFailureHandler(ownHandler);
+        doNothing().when(shared).configureTest(any(), any(), any());
+        doNothing().when(shared).preTest();
+        doThrow(new AssertionError("verify boom")).when(shared).postTest(anyBoolean());
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, tester, shared);
+        executor.beforeTest();
+
+        assertThatThrownBy(() -> executor.afterTest(false)).isInstanceOf(AssertionError.class);
+
+        assertThat(shared.getFailureHandler())
+                .as("The instance's own handler is restored even when postTest() failed.")
+                .isSameAs(ownHandler);
     }
 
     @Test
@@ -2808,6 +2948,11 @@ class AnnotatedTestExecutorTest
 
     @DbUnitExpected("expected.xml")
     static class WithExpected
+    {
+    }
+
+    @DbUnitExpected("only-the-injected-loader-reads.custom")
+    static class WithOnlyTheInjectedLoaderReadableExpected
     {
     }
 
