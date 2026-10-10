@@ -77,8 +77,8 @@ link:annotations.html[DbUnit Annotations] for the full reference.
 
 The same link:../components/rowcountcheck.html[RowCountCheck] diagnostic available to
 link:PrepAndExpectedTestCase.html[PrepAndExpectedTestCase] applies here too: a baseline is
-captured from the resolved `IDatabaseTester`'s connection before `onSetup()` and verified
-after `onTearDown()`, failing the test by name when a table's row count moved. Verification
+captured from the resolved `IDatabaseTester`'s connection before the setup operation
+changes any data, and verified after `onTearDown()`, failing the test by name when a table's row count moved. Verification
 is skipped whenever `onTearDown()` itself throws, and also when the test method threw
 before reaching it, since either way the database is left in an unknown state and a count
 difference would only be noise around the real failure. It is off by default; enable it
@@ -122,7 +122,14 @@ or any `@DbUnit*` annotation on the class or method, or a `@DbUnitTester`/
 with only a plain, unannotated `IDatabaseTester` field keeps the
 lifecycle-only behavior it has always had and no parameter is claimed for
 it, so another extension resolving a `Connection` (or any of the other three
-types) on the same test method is not left competing with a claim here.
+types) on the same test method is not left competing with a claim here. That
+class resolves one connection from its tester before `onSetup()` to capture the
+link:../components/rowcountcheck.html[row count check] baseline, whether or not
+the check is enabled, because the setting lives on a connection's
+`DatabaseConfig`; the same test opted in with `@DbUnitTest` reuses the
+connection `onSetup()` retrieves instead. That connection is first offered to the
+tester's `IOperationListener#connectionRetrieved()`, so enabling the check there works,
+and the listener sees one more retrieval than in 3.5.0.
 Switch such a class to `@DbUnitTest`, or mark its field `@DbUnitTester`, to
 opt its parameters in.
 

@@ -1761,6 +1761,38 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
+    void testAfterTest_classicPathListenerEnablesTheCheckInConnectionRetrieved_stillDetectsALeak()
+            throws Exception
+    {
+        // The documented place to configure a connection's DatabaseConfig - and so to enable the
+        // row count check - is the tester's IOperationListener.connectionRetrieved(). The
+        // connection the executor resolves for the baseline is a connection retrieved from the
+        // tester like any other, so that listener must run for it before its config is read.
+        when(connection.getConfig()).thenReturn(new DatabaseConfig());
+        stubOpenJdbcConnection();
+        final IDataSet dataSet = mock(IDataSet.class);
+        when(dataSet.getTableNames()).thenReturn(new String[] {"ACCOUNT"});
+        when(connection.createDataSet()).thenReturn(dataSet);
+        when(connection.getRowCount("ACCOUNT")).thenReturn(5);
+        final IDatabaseTester realTester = new DefaultDatabaseTester(connection);
+        realTester.setSetUpOperation(DatabaseOperation.NONE);
+        realTester.setOperationListener(new RowCountCheckEnablingListener());
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, realTester, null, false);
+        executor.beforeTest();
+        when(connection.getRowCount("ACCOUNT")).thenReturn(6);
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown)
+                .as("A leaked row must fail a classic-path test whose listener enables the row"
+                        + " count check on the connection it is handed.")
+                .isInstanceOf(UnexpectedRowCountException.class);
+    }
+
+    @Test
     void testAfterTest_testerSharedAcrossMethods_putsTheTestersOwnListenerBack() throws Exception
     {
         // A tester shared across methods (a static @DbUnitTester field) must not keep the last
@@ -1846,6 +1878,72 @@ class AnnotatedTestExecutorTest
         realTester.getOperationListener().operationSetUpFinished(otherConnection);
 
         verify(userListener, never()).operationSetUpFinished(otherConnection);
+    }
+
+    /** Enables the row count check on every connection it is handed, as a user listener may. */
+    private static final class RowCountCheckEnablingListener implements IOperationListener
+    {
+        @Override
+        public void connectionRetrieved(final IDatabaseConnection connection)
+        {
+            connection.getConfig().setFeature(DatabaseConfig.FEATURE_ROW_COUNT_CHECK, true);
+        }
+
+        @Override
+        public void operationSetUpFinished(final IDatabaseConnection connection)
+        {
+        }
+
+        @Override
+        public void operationTearDownFinished(final IDatabaseConnection connection)
+        {
+        }
+    }
+
+    @Test
+    void testGetConnection_expectedPath_doesNotOfferTheConnectionToTheTestersListener()
+            throws Exception
+    {
+        // The prep/expected path's connection is the test case's own and never goes through the
+        // tester's listener, so the tester's listener is not told about it.
+        final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(WithExpected.class, null, null, null, expected, null, null);
+        final IOperationListener testersListener = mock(IOperationListener.class);
+        final IDatabaseTester realTester = new DefaultDatabaseTester(connection);
+        realTester.setOperationListener(testersListener);
+        final PrepAndExpectedTestCase injected = mock(PrepAndExpectedTestCase.class);
+        when(injected.getReusableConnection()).thenReturn(connection);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, realTester, injected);
+
+        executor.getConnection();
+
+        verify(testersListener, never()).connectionRetrieved(any());
+    }
+
+    @Test
+    void testGetConnection_setupTeardownPathAnnotationDriven_offersTheConnectionOnceToTheTestersOwnListener()
+            throws Exception
+    {
+        // The tester's own listener, not the executor's wrapper of it: the wrapper would also
+        // offer the connection to the row count baseline capture, which waits for beforeTest().
+        final DatabaseConfig enabled = new DatabaseConfig();
+        enabled.setFeature(DatabaseConfig.FEATURE_ROW_COUNT_CHECK, true);
+        lenient().when(connection.getConfig()).thenReturn(enabled);
+        stubOpenJdbcConnection();
+        final IOperationListener testersListener = mock(IOperationListener.class);
+        final IDatabaseTester realTester = new DefaultDatabaseTester(connection);
+        realTester.setOperationListener(testersListener);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, realTester, null);
+
+        executor.getConnection();
+
+        verify(testersListener, times(1)).connectionRetrieved(connection);
+        verify(connection, never()).createDataSet();
     }
 
     // ---- ExecutorOperationListener: delegate ordering ----

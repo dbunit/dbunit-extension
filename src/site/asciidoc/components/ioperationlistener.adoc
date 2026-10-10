@@ -95,3 +95,14 @@ put back and the extension's wrapper stays installed.
 * A listener wrapped in a `ConnectionPreservingOperationListener` keeps that wrapper in
 force: the extension adds its own protection for the one connection it holds on top of it,
 and does not replace it.
+* A connection the extension resolves itself, rather than through the tester's
+`onSetup()` or `onTearDown()`, is first offered to your listener's
+`connectionRetrieved()`, so a `DatabaseConfig` customization made there, such as
+enabling the link:rowcountcheck.html[row count check], applies to it too. That includes
+the connection a plain `@ExtendWith(DbUnitExtension.class)` test resolves for the row
+count baseline and, on the setup/teardown path, a `Connection` or `IDatabaseConnection`
+test method parameter. The prep/expected path never goes through the tester's listener.
+The same connection can be offered more than once, by the extension and again when
+`onSetup()` retrieves it, and your listener sees one more retrieval than the 3.5.0
+lifecycle gave it, so keep `connectionRetrieved()` idempotent, as configuring a
+`DatabaseConfig` is.
