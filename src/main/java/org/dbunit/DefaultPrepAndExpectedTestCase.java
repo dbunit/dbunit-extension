@@ -1468,6 +1468,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * @return True if it is closed, false if not.
      * @since 3.4.0
      */
+    @Override
     public boolean isCloseConnectionAfterTest()
     {
         return closeConnectionAfterTest;
@@ -1500,6 +1501,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      *
      * @return The dataFileLoader.
      */
+    @Override
     public DataFileLoader getDataFileLoader()
     {
         return dataFileLoader;
@@ -1601,6 +1603,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * @return The failureHandler.
      * @since 3.5.0
      */
+    @Override
     public FailureHandler getFailureHandler()
     {
         return failureHandler;
@@ -1673,9 +1676,8 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * resolving a RowCountCheck from the shared connection's DatabaseConfig.
      *
      * <p>A caller reusing one instance across several tests - e.g. one held by a
-     * {@code @DbUnitTestCase} static field - must call this for a test that declares no
-     * {@code @DbUnitRowCountCheck} of its own, so an earlier test's override does not
-     * silently carry over onto this one.
+     * {@code @DbUnitTestCase} static field - must call this once a test that set an override is
+     * over, so that test's override does not silently carry over onto the next one.
      *
      * @see #rowCountChecker
      * @since 3.6.0
@@ -1684,6 +1686,28 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     public void clearRowCountCheckOverride()
     {
         rowCountChecker.clearEnabledOverride();
+    }
+
+    /**
+     * Get the DatabaseConfig property name/value pairs applied to the connection shared by
+     * setupData(), verifyData() and cleanupData().
+     *
+     * @see #setDatabaseConfigProperties(Properties)
+     *
+     * @return A copy of the properties, or null if none are set.
+     * @since 3.6.0
+     */
+    @Override
+    public Properties getDatabaseConfigProperties()
+    {
+        if (databaseConfigProperties == null)
+        {
+            return null;
+        }
+
+        final Properties copy = new Properties();
+        copy.putAll(databaseConfigProperties);
+        return copy;
     }
 
     /**

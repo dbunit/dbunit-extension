@@ -45,6 +45,11 @@ import org.dbunit.PrepAndExpectedTestCase;
  * rather than the extension closing a connection the next method would reuse. A single-use
  * instance the extension constructs itself still has its connection closed on such a failure.
  *
+ * <p>The instance keeps the settings it was built with. {@link DbUnitConfig} pushes onto it only
+ * what a test declares, for that test only, and puts the instance's own values back afterward;
+ * see {@link DbUnitConfig#dataFileLoader()} and {@link DbUnitConfig#closeConnectionAfterTest()}
+ * for the two defaults that behave slightly differently.
+ *
  * <p>Marking this field does not, by itself, remove the need for a resolvable
  * {@code IDatabaseTester}: the extension's own machinery (installing the
  * {@code @DbUnitProperty} listener, and any {@code IDatabaseTester} parameter injection) needs

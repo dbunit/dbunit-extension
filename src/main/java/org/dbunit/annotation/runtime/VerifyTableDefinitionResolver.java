@@ -24,6 +24,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -58,18 +59,21 @@ final class VerifyTableDefinitionResolver
             new ConcurrentHashMap<>();
 
     /**
-     * Resolves the verification spec.
+     * Resolves the verification spec the annotations spell out, leaving the one form that needs
+     * a data file loader - the default of one definition per table in the expected datasets -
+     * to {@link #deriveFromExpectedDatasets(DataFileLoader, String[])}, so the loader can be the
+     * one the test case that will compare those datasets actually uses.
      *
      * @param config The resolved {@code @DbUnitConfig}, or {@code null} if absent.
      * @param expected The resolved {@code @DbUnitExpected} (never {@code null} - this runs only
      *            when it is present).
-     * @param dataFileLoader The loader used to enumerate expected-dataset table names for the
-     *            default case.
      * @param expectedDataFiles The resolved expected dataset paths.
-     * @return The table definitions to verify.
+     * @return The table definitions to verify, or empty when the annotations declare none and
+     *         they are to be derived from the expected datasets.
+     * @throws IllegalStateException If the spec is contradictory.
      */
-    VerifyTableDefinition[] resolve(final DbUnitConfig config, final DbUnitExpected expected,
-            final DataFileLoader dataFileLoader, final String[] expectedDataFiles)
+    Optional<VerifyTableDefinition[]> resolveDeclared(final DbUnitConfig config,
+            final DbUnitExpected expected, final String[] expectedDataFiles)
     {
         final Class<?>[] classLevelCatalogs =
                 config == null ? new Class<?>[0] : config.verifyDefinitions();
@@ -96,7 +100,8 @@ final class VerifyTableDefinitionResolver
         }
         if (catalogClasses.length > 0)
         {
-            return VerifyTableDefinitionCatalog.forClasses(catalogClasses).select(verifyTables);
+            return Optional.of(
+                    VerifyTableDefinitionCatalog.forClasses(catalogClasses).select(verifyTables));
         }
         if (verify.length > 0)
         {
@@ -113,7 +118,7 @@ final class VerifyTableDefinitionResolver
                 }
                 definitions[i] = toVerifyTableDefinition(verify[i]);
             }
-            return definitions;
+            return Optional.of(definitions);
         }
         if (verifyTables.length > 0)
         {
@@ -123,9 +128,9 @@ final class VerifyTableDefinitionResolver
             {
                 definitions[i] = new VerifyTableDefinition(verifyTables[i], (String[]) null);
             }
-            return definitions;
+            return Optional.of(definitions);
         }
-        return defaultPerExpectedTable(dataFileLoader, expectedDataFiles);
+        return Optional.empty();
     }
 
     private void requireNoDuplicateTableNames(final String[] verifyTables)
@@ -164,14 +169,23 @@ final class VerifyTableDefinitionResolver
     }
 
     /**
-     * Parses {@code expectedDataFiles} a second time here, just to enumerate table names -
-     * {@code DefaultPrepAndExpectedTestCase#configureTest()} parses the same files again later
-     * for the real verification. Left as-is: resolving a configuration is JUnit-free and runs
-     * before any {@code PrepAndExpectedTestCase} exists to hand a parsed result to (or receive
-     * one from), so avoiding the second parse needs a real change to that boundary, not a small
-     * tweak - not worth it for what is normally a small test fixture file.
+     * Derives one default definition per table found in {@code expectedDataFiles}, read with
+     * {@code dataFileLoader}. Parses the files a second time here, just to enumerate table
+     * names - {@code DefaultPrepAndExpectedTestCase#configureTest()} parses the same files
+     * again later for the real verification. Left as-is: avoiding the second parse needs a real
+     * change to the boundary between resolving a configuration and the
+     * {@code PrepAndExpectedTestCase} that consumes it, not a small tweak - not worth it for
+     * what is normally a small test fixture file.
+     *
+     * <p>Takes the loader as an argument because it must be the one that test case compares the
+     * files with, which can differ from the {@code @DbUnitConfig} one when the test case is
+     * injected with a loader of its own.
+     *
+     * @param dataFileLoader The loader to read the expected datasets with.
+     * @param expectedDataFiles The resolved expected dataset paths.
+     * @return One default definition per table, in first-seen order.
      */
-    private VerifyTableDefinition[] defaultPerExpectedTable(final DataFileLoader dataFileLoader,
+    VerifyTableDefinition[] deriveFromExpectedDatasets(final DataFileLoader dataFileLoader,
             final String[] expectedDataFiles)
     {
         final Set<String> tableNames = new LinkedHashSet<>();

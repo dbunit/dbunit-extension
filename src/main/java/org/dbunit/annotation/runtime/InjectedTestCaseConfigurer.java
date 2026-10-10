@@ -20,6 +20,8 @@
  */
 package org.dbunit.annotation.runtime;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
 import java.util.function.Supplier;
 
@@ -38,16 +40,23 @@ import org.slf4j.LoggerFactory;
  * {@code @DbUnitProperty} values, {@code closeConnectionAfterTest}, and the
  * {@code @DbUnitRowCountCheck} override - onto that instance, in a fixed order.
  *
+ * <p>Only a value the test actually declares is pushed: an instance built with its own loader,
+ * failure handler, properties or {@code closeConnectionAfterTest=false} keeps them when
+ * {@code @DbUnitConfig} says nothing about them. The one exception is a missing data file
+ * loader, which an instance cannot load datasets without, so it is given the configured one.
+ * Declared properties are added to the instance's own rather than replacing them.
+ * {@code closeConnectionAfterTest} is declared only by setting it to {@code false}, since the
+ * default {@code true} is indistinguishable from not writing it. Each value pushed is recorded
+ * as an undo step, returned as an {@link InjectedTestCaseRestoration}, so a shared instance
+ * carries nothing from one method to the next.
+ *
  * <p>Each setter first checks - via
  * {@link DefaultMethodOverrideCheck#overridesDefaultMethod} - that the instance actually
  * overrides it, since a non-overriding instance inherits {@link PrepAndExpectedTestCase}'s
  * no-op default body and the configured value would otherwise silently never take effect. When
- * a non-default value cannot land that way, most setters fail fast;
+ * a declared value cannot land that way, most setters fail fast;
  * {@code setCloseConnectionAfterTest} only warns, because {@link AnnotatedTestExecutor} still
- * honors that flag for its own connection regardless. Re-applying a value to a
- * freshly-constructed instance is harmless - its constructor already received the same one -
- * so every setter also runs on a non-configured test, to reset a value an earlier test left on
- * a reused instance.
+ * honors that flag for its own connection regardless.
  *
  * <p>Not intended for direct use by test code; machinery consumed by {@link ExpectedLifecycle}.
  *
@@ -76,51 +85,82 @@ final class InjectedTestCaseConfigurer
     }
 
     /**
-     * Applies every {@code @DbUnitConfig}-driven setter to {@link #testCase}, in a fixed order:
-     * data file loader, failure handler, {@code DatabaseConfig} properties, close-connection
-     * flag, then row count check override.
+     * Applies every declared {@code @DbUnitConfig}-driven value to {@link #testCase}, in a fixed
+     * order: data file loader, failure handler, {@code DatabaseConfig} properties,
+     * close-connection flag, then row count check override.
+     *
+     * <p>If applying one value fails, the ones already applied are undone before the failure is
+     * thrown, so a failed attempt leaves the instance as it was found.
+     *
+     * @return The restoration that puts back what this applied; undoing it is a no-op when
+     *         nothing was applied.
      */
-    void applyAll()
+    InjectedTestCaseRestoration applyAll()
     {
-        applyDataFileLoader();
-        applyFailureHandler();
-        applyDatabaseConfigProperties();
-        applyCloseConnectionAfterTest();
-        applyRowCountCheckOverride();
+        final List<Runnable> undoSteps = new ArrayList<>();
+        try
+        {
+            applyDataFileLoader(undoSteps);
+            applyFailureHandler(undoSteps);
+            applyDatabaseConfigProperties(undoSteps);
+            applyCloseConnectionAfterTest(undoSteps);
+            applyRowCountCheckOverride(undoSteps);
+        } catch (final RuntimeException failure)
+        {
+            InjectedTestCaseRestoration.undoSuppressing(
+                    new InjectedTestCaseRestoration(undoSteps), failure);
+            throw failure;
+        }
+        return new InjectedTestCaseRestoration(undoSteps);
     }
 
-    private void applyDataFileLoader()
+    private void applyDataFileLoader(final List<Runnable> undoSteps)
     {
         final DataFileLoader dataFileLoader = configuration.getDataFileLoader();
-        final boolean configured =
-                dataFileLoader.getClass() != FileExtensionDataFileLoader.class;
-        requireApplicable(configured, false, "setDataFileLoader",
+        final boolean declared = dataFileLoader.getClass() != FileExtensionDataFileLoader.class;
+        requireApplicable(declared, false, "setDataFileLoader",
                 new Class<?>[] {DataFileLoader.class},
                 () -> "DbUnitConfig.dataFileLoader() names "
                         + dataFileLoader.getClass().getName(),
                 "it would silently keep loading with whatever loader it was already constructed"
                         + " with. Override setDataFileLoader(), or drop dataFileLoader() from"
                         + " @DbUnitConfig for this test.");
+        final DataFileLoader incoming = testCase.getDataFileLoader();
+        if (!declared && incoming != null)
+        {
+            return;
+        }
+
         testCase.setDataFileLoader(dataFileLoader);
+        undoSteps.add(() -> testCase.setDataFileLoader(incoming));
     }
 
-    private void applyFailureHandler()
+    private void applyFailureHandler(final List<Runnable> undoSteps)
     {
         final FailureHandler failureHandler = configuration.getFailureHandler();
-        requireApplicable(failureHandler != null, false, "setFailureHandler",
+        final boolean declared = failureHandler != null;
+        requireApplicable(declared, false, "setFailureHandler",
                 new Class<?>[] {FailureHandler.class},
                 () -> "DbUnitConfig.failureHandler() names "
                         + failureHandler.getClass().getName(),
                 "it would silently keep dbUnit's own default handler instead. Override"
                         + " setFailureHandler(), or drop failureHandler() from @DbUnitConfig for"
                         + " this test.");
+        if (!declared)
+        {
+            return;
+        }
+
+        final FailureHandler incoming = testCase.getFailureHandler();
         testCase.setFailureHandler(failureHandler);
+        undoSteps.add(() -> testCase.setFailureHandler(incoming));
     }
 
-    private void applyDatabaseConfigProperties()
+    private void applyDatabaseConfigProperties(final List<Runnable> undoSteps)
     {
         final Properties properties = configuration.getDatabaseConfigProperties();
-        requireApplicable(!properties.isEmpty(), false, "setDatabaseConfigProperties",
+        final boolean declared = !properties.isEmpty();
+        requireApplicable(declared, false, "setDatabaseConfigProperties",
                 new Class<?>[] {Properties.class},
                 () -> "DbUnitConfig declares " + properties.size()
                         + " @DbUnitProperty value(s)",
@@ -129,37 +169,59 @@ final class InjectedTestCaseConfigurer
                         + " Override setDatabaseConfigProperties(), or drop"
                         + " properties()/propertiesProvider() from @DbUnitConfig for this"
                         + " test.");
+        if (!declared)
+        {
+            return;
+        }
+
         warnIfOverridesSetUpDatabaseConfig(properties);
-        testCase.setDatabaseConfigProperties(properties);
+        final Properties incoming = testCase.getDatabaseConfigProperties();
+        final Properties merged = new Properties();
+        if (incoming != null)
+        {
+            merged.putAll(incoming);
+        }
+        merged.putAll(properties);
+        testCase.setDatabaseConfigProperties(merged);
+        undoSteps.add(() -> testCase.setDatabaseConfigProperties(incoming));
     }
 
-    private void applyCloseConnectionAfterTest()
+    private void applyCloseConnectionAfterTest(final List<Runnable> undoSteps)
     {
-        requireApplicable(!configuration.isCloseConnectionAfterTest(), true,
+        final boolean declared = !configuration.isCloseConnectionAfterTest();
+        requireApplicable(declared, true,
                 "setCloseConnectionAfterTest", new Class<?>[] {boolean.class},
                 () -> "DbUnitConfig.closeConnectionAfterTest() is false",
                 "it may still close a connection this test's tester shares with other tests."
                         + " This executor's own connection - for the row count check or"
                         + " parameter injection - still honors the false value regardless.");
-        testCase.setCloseConnectionAfterTest(configuration.isCloseConnectionAfterTest());
+        if (!declared)
+        {
+            return;
+        }
+
+        final boolean incoming = testCase.isCloseConnectionAfterTest();
+        testCase.setCloseConnectionAfterTest(false);
+        undoSteps.add(() -> testCase.setCloseConnectionAfterTest(incoming));
     }
 
-    private void applyRowCountCheckOverride()
+    private void applyRowCountCheckOverride(final List<Runnable> undoSteps)
     {
-        requireApplicable(configuration.isRowCountCheckDeclared(), false,
+        final boolean declared = configuration.isRowCountCheckDeclared();
+        requireApplicable(declared, false,
                 "setRowCountCheckOverride", new Class<?>[] {boolean.class, String[].class},
                 () -> "@DbUnitRowCountCheck is declared",
                 "the check would silently never run for this test. Override"
                         + " setRowCountCheckOverride()/clearRowCountCheckOverride(), or drop"
                         + " @DbUnitRowCountCheck for this test.");
-        if (configuration.isRowCountCheckDeclared())
+        if (!declared)
         {
-            testCase.setRowCountCheckOverride(configuration.isRowCountCheckEnabled(),
-                    configuration.getRowCountCheckExclude());
-        } else
-        {
-            testCase.clearRowCountCheckOverride();
+            return;
         }
+
+        testCase.setRowCountCheckOverride(configuration.isRowCountCheckEnabled(),
+                configuration.getRowCountCheckExclude());
+        undoSteps.add(testCase::clearRowCountCheckOverride);
     }
 
     /**

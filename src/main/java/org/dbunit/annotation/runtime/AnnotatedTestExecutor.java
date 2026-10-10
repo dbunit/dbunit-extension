@@ -156,7 +156,7 @@ public class AnnotatedTestExecutor
         this.expectedLifecycle =
                 new ExpectedLifecycle(configuration, tester, prepAndExpectedTestCase);
         final ConnectionOwnership ownership = new ConnectionOwnership(
-                configuration::isCloseConnectionAfterTest, tester::getOperationListener,
+                this::mayCloseConnectionAfterTest, tester::getOperationListener,
                 this::borrowingLifecycleRan);
         this.testScopedConnection = new TestScopedConnection(this::acquireConnection, ownership,
                 this::onConnectionAcquired);
@@ -166,6 +166,23 @@ public class AnnotatedTestExecutor
         {
             installOperationListener();
         }
+    }
+
+    /**
+     * The {@code closeConnectionAfterTest} input to this executor's {@link ConnectionOwnership}:
+     * the {@code @DbUnitConfig} flag, and on the prep/expected path also the test case's own
+     * {@link PrepAndExpectedTestCase#isCloseConnectionAfterTest()}. The connection a binding
+     * injects there is the test case's {@link PrepAndExpectedTestCase#getReusableConnection()},
+     * so an injected instance built to keep its connection open for its real owner must not
+     * have it closed here just because {@code @DbUnitConfig} says nothing about it.
+     */
+    private boolean mayCloseConnectionAfterTest()
+    {
+        final boolean configuredToClose = configuration.isCloseConnectionAfterTest();
+        final PrepAndExpectedTestCase testCase = expectedLifecycle.getPrepAndExpectedTestCase();
+        final boolean testCaseCloses = !configuration.isExpected() || testCase == null
+                || testCase.isCloseConnectionAfterTest();
+        return configuredToClose && testCaseCloses;
     }
 
     /**
