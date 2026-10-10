@@ -594,6 +594,71 @@ class MultiDataSourcePrepAndExpectedTestCaseTest
     }
 
     @Test
+    void testPostTest_calledAgainAfterACompletedRun_doesNotTearDownThatRunAgain() throws Exception
+    {
+        final List<String> callLog = new ArrayList<>();
+        final RecordingTestCase catalog = new RecordingTestCase("catalog", callLog);
+        final MultiDataSourcePrepAndExpectedTestCase testCase =
+                MultiDataSourcePrepAndExpectedTestCase.from("catalog", catalog);
+        testCase.preTest(map("catalog", someData()));
+        testCase.postTest(true);
+        callLog.clear();
+
+        testCase.postTest(true);
+
+        assertThat(callLog)
+                .as("A second postTest() with no preTest() in between must not tear down the"
+                        + " completed run's delegates again.")
+                .isEmpty();
+    }
+
+    @Test
+    void testPostTest_aDelegateFailedTheRun_doesNotTearDownThatRunAgain() throws Exception
+    {
+        final List<String> callLog = new ArrayList<>();
+        final RecordingTestCase catalog = new RecordingTestCase("catalog", callLog);
+        catalog.failOnPostTest(new AssertionError("catalog mismatch"));
+        final MultiDataSourcePrepAndExpectedTestCase testCase =
+                MultiDataSourcePrepAndExpectedTestCase.from("catalog", catalog);
+        testCase.preTest(map("catalog", someData()));
+        assertThatThrownBy(() -> testCase.postTest(true))
+                .as("The delegate's failure must be reported.")
+                .isInstanceOf(MultiDataSourceAssertionError.class);
+        callLog.clear();
+
+        testCase.postTest(false);
+
+        assertThat(callLog)
+                .as("A run whose teardown failed is still over, so a later postTest() in the"
+                        + " caller's finally block must not tear its delegates down again.")
+                .isEmpty();
+    }
+
+    @Test
+    void testPostTest_secondPreTestRejectedAfterACompletedRun_doesNotTearDownTheFirstRunsDelegates()
+            throws Exception
+    {
+        final List<String> callLog = new ArrayList<>();
+        final RecordingTestCase catalog = new RecordingTestCase("catalog", callLog);
+        final MultiDataSourcePrepAndExpectedTestCase testCase =
+                MultiDataSourcePrepAndExpectedTestCase.from("catalog", catalog);
+        testCase.preTest(map("catalog", someData()));
+        testCase.postTest(true);
+        callLog.clear();
+        assertThatThrownBy(() -> testCase.preTest(map("bogus", someData())))
+                .as("The second run's unknown data source name must be rejected.")
+                .isInstanceOf(IllegalArgumentException.class);
+
+        testCase.postTest(false);
+
+        assertThat(callLog)
+                .as("When the second run's preTest() is rejected, the caller's finally-block"
+                        + " postTest() must have nothing to tear down, not the first run's"
+                        + " delegates.")
+                .isEmpty();
+    }
+
+    @Test
     void testPostTest_verifyFalse_discardsRowCountBaselineOnEachInvolvedDelegate()
             throws Exception
     {

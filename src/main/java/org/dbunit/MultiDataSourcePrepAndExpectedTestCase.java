@@ -403,6 +403,7 @@ public class MultiDataSourcePrepAndExpectedTestCase
     public void preTest(final Map<String, PrepAndExpectedTestData> dataByDataSourceName)
             throws Exception
     {
+        involvedDataSourceNames = Collections.emptySet();
         if (testCasesByDataSourceName.isEmpty())
         {
             throw new IllegalStateException(
@@ -498,6 +499,10 @@ public class MultiDataSourcePrepAndExpectedTestCase
      * cleanup - even if an earlier one in this reverse order failed; every collected failure is
      * then aggregated into one {@link MultiDataSourceAssertionError} rather than the first one
      * stopping the rest from being torn down.
+     * <p>
+     * The run is over once this is called, whether it returns or throws: a further call without
+     * a new {@code preTest} in between, such as one in a caller's {@code finally} block after a
+     * rejected {@code preTest}, has nothing to tear down.
      *
      * @param verifyData
      *            True to verify each involved delegate's data before cleaning it up; false to
@@ -507,8 +512,10 @@ public class MultiDataSourcePrepAndExpectedTestCase
      */
     public void postTest(final boolean verifyData) throws Exception
     {
+        final List<String> teardownOrder = reverseInvolvedOrder();
+        involvedDataSourceNames = Collections.emptySet();
         final Map<String, Throwable> failuresByDataSourceName = new LinkedHashMap<>();
-        for (final String dataSourceName : reverseInvolvedOrder())
+        for (final String dataSourceName : teardownOrder)
         {
             try
             {
