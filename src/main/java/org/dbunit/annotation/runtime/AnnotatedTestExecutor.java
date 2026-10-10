@@ -56,8 +56,12 @@ import org.dbunit.database.connection.TestScopedConnection;
  * <em>classic path</em>: {@link #installOperationListener()} does not run, so the tester's
  * {@link IOperationListener} is left untouched, and {@link AnnotatedRowCountCheck} never
  * piggybacks (it captures its baseline eagerly and {@link SetupTeardownLifecycle} lets
- * {@code onSetup()}/{@code onTearDown()} manage their own connections) - exactly as
- * {@code DbUnitExtension} did before this class existed. The prep/expected path is always
+ * {@code onSetup()}/{@code onTearDown()} manage their own connections) - as
+ * {@code DbUnitExtension} did before this class existed, with one addition: the connection
+ * captured eagerly is first offered to the tester's own listener's
+ * {@link IOperationListener#connectionRetrieved(IDatabaseConnection)}, as every connection
+ * retrieved from the tester is, so a {@code DatabaseConfig} customization made there - such as
+ * enabling the row count check - applies to it. The prep/expected path is always
  * annotation-driven (it needs {@code @DbUnitExpected}).
  *
  * <p>The connection {@link #getConnection()} memoizes - the tester's own on the setup/teardown
@@ -141,8 +145,9 @@ public class AnnotatedTestExecutor
      *            {@code @DbUnitTester}/{@code @DbUnitTestCase} field. False for a bare
      *            {@code @ExtendWith(DbUnitExtension.class)} class with one plain, unannotated
      *            {@link IDatabaseTester} field, whose tester listener and connection lifecycle
-     *            are then left exactly as the 3.5.0 lifecycle. Always true for the prep/expected
-     *            path, which needs {@code @DbUnitExpected}.
+     *            are then left as in the 3.5.0 lifecycle, apart from the tester's listener being
+     *            offered the connection this executor resolves itself. Always true for the
+     *            prep/expected path, which needs {@code @DbUnitExpected}.
      */
     public AnnotatedTestExecutor(final AnnotatedTestConfiguration configuration,
             final IDatabaseTester tester,
@@ -213,14 +218,44 @@ public class AnnotatedTestExecutor
      * read-only row count check baseline, so an autocommit-off connection there is not a
      * problem and is not warned about; the prep/expected path warns via
      * {@link DefaultPrepAndExpectedTestCase}'s own acquisition of the same connection.
+     *
+     * <p>On the setup/teardown path it first tells the tester's own listener about the
+     * connection - see {@link #notifyTesterListenerOfRetrieval}.
      */
     private void onConnectionAcquired(final IDatabaseConnection connection)
     {
+        if (!configuration.isExpected())
+        {
+            notifyTesterListenerOfRetrieval(connection);
+        }
         applyProperties(connection, configuration.getDatabaseConfigProperties());
         if (annotationDriven && !configuration.isExpected())
         {
             autoCommitOffWarning.accept(connection);
         }
+    }
+
+    /**
+     * Calls {@link IOperationListener#connectionRetrieved(IDatabaseConnection)} on the tester's
+     * own listener for a connection this executor resolved itself rather than through the
+     * tester's {@code onSetup()}/{@code onTearDown()}, which would have notified it. That
+     * callback is the documented place to configure a connection's {@code DatabaseConfig}, for
+     * example to enable the row count check, so skipping it here would leave a check enabled
+     * that way running on one route and silently off on another. The executor's own listener
+     * is bypassed: it would offer the connection to the baseline capture again, and
+     * {@link #onConnectionAcquired} applies the {@code @DbUnitProperty} values itself, after
+     * the tester's listener, as the executor's listener does. Not used on the prep/expected
+     * path, whose connection never goes through the tester's listener.
+     */
+    private void notifyTesterListenerOfRetrieval(final IDatabaseConnection connection)
+    {
+        final IOperationListener testersOwnListener =
+                withoutExecutorListener(tester.getOperationListener());
+        if (testersOwnListener == null)
+        {
+            return;
+        }
+        testersOwnListener.connectionRetrieved(connection);
     }
 
     /**
