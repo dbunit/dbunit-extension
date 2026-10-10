@@ -65,6 +65,9 @@
       <action dev="jeffjensen" type="fix" issue="950" system="github" due-to="jeffjensen">
           Fix AbstractDatabaseTester not telling the IOperationListener when connectionRetrieved() throws: operationSetUpFinished() or operationTearDownFinished() was skipped, so a listener that owns closing the connection never got to, leaving the connection the tester had just retrieved unclosed. The notification now always follows a retrieval and the listener's own failure still propagates.
       </action>
+      <action dev="jeffjensen" type="fix" issue="998" system="github" due-to="jeffjensen">
+          Fix XlsDataFileLoader leaving the file's stream open when the workbook cannot be read: Apache POI closes the stream only once it has built the workbook, so content it rejects leaked a file handle per failed load. The stream is now closed on every path.
+      </action>
     </release>
     <release version="3.5.2" date="Sep 7, 2026" description="DefaultPrepAndExpectedTestCase connection hygiene: replace a connection the pool or database dropped between tests, and warn when handed a non-autocommit connection">
       <action dev="jeffjensen" type="fix" issue="962" system="github" due-to="jeffjensen">
