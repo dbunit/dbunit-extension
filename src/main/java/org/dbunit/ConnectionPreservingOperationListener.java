@@ -131,32 +131,6 @@ public class ConnectionPreservingOperationListener implements IOperationListener
     }
 
     /**
-     * Returns the listener a newly-installed wrapper should delegate to, so re-wrapping a
-     * tester shared across tests does not nest one wrapper layer per test: an existing
-     * {@link ConnectionPreservingOperationListener}'s own delegate, the tester's existing
-     * listener as-is, or a fresh {@link DefaultOperationListener} when it had none.
-     *
-     * <p>"Had none" is read from a {@code null} {@link IDatabaseTester#getOperationListener()},
-     * the interface default. {@link AbstractDatabaseTester} lazily creates a
-     * {@link DefaultOperationListener} on first use, so a {@code null} there genuinely means
-     * "none yet" and the fresh one substituted here matches. A custom {@link IDatabaseTester}
-     * that manages an {@link IOperationListener} internally without exposing it through
-     * {@code getOperationListener()} will have that internal listener bypassed - such a tester
-     * must override {@code getOperationListener()} for it to be preserved.
-     *
-     * @param existingListener The tester's current listener, possibly {@code null}.
-     * @return The listener a new wrapper should delegate to.
-     */
-    public static IOperationListener unwrap(final IOperationListener existingListener)
-    {
-        if (existingListener instanceof ConnectionPreservingOperationListener)
-        {
-            return ((ConnectionPreservingOperationListener) existingListener).delegate;
-        }
-        return existingListener != null ? existingListener : new DefaultOperationListener();
-    }
-
-    /**
      * Returns whether {@code listener}, after unwrapping any
      * {@link ConnectionPreservingOperationListener} layers, is
      * {@link IOperationListener#NO_OP_OPERATION_LISTENER} - the established, pre-existing signal
