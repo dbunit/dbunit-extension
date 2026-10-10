@@ -62,6 +62,9 @@
       <action dev="jeffjensen" type="fix" issue="986" system="github" due-to="jeffjensen">
           Fix DefaultPrepAndExpectedTestCase closing the connection it shares across setupData(), verifyData() and cleanupData() after every test even when the tester's operation listener is IOperationListener.NO_OP_OPERATION_LISTENER, the established signal that the connection is managed elsewhere. Since 3.4.0 only closeConnectionAfterTest was consulted, so a tester over a caching connection provider or a fixed connection had its connection closed after each test. Either the tester's or the test case's own listener being, or wrapping, the no-op listener now leaves the connection open, so a caller pairing a fresh-connection tester with the no-op listener owns closing each connection.
       </action>
+      <action dev="jeffjensen" type="fix" issue="950" system="github" due-to="jeffjensen">
+          Fix AbstractDatabaseTester not telling the IOperationListener when connectionRetrieved() throws: operationSetUpFinished() or operationTearDownFinished() was skipped, so a listener that owns closing the connection never got to, leaving the connection the tester had just retrieved unclosed. The notification now always follows a retrieval and the listener's own failure still propagates.
+      </action>
     </release>
     <release version="3.5.2" date="Sep 7, 2026" description="DefaultPrepAndExpectedTestCase connection hygiene: replace a connection the pool or database dropped between tests, and warn when handed a non-autocommit connection">
       <action dev="jeffjensen" type="fix" issue="962" system="github" due-to="jeffjensen">
