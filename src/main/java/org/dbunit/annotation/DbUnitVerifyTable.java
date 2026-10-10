@@ -77,9 +77,9 @@ public @interface DbUnitVerifyTable
 
     /**
      * The {@link ValueComparer} to use for columns not named in {@link #columnComparers()},
-     * instantiated with its no-arg constructor and cached for the JVM's entire lifetime, keyed
-     * by class - see {@link DbUnitColumnComparer} for the resulting purity requirement on a
-     * custom {@link ValueComparer}.
+     * instantiated with its no-arg constructor and cached for as long as its class stays
+     * loaded, keyed by class - see {@link DbUnitColumnComparer} for the resulting purity
+     * requirement on a custom {@link ValueComparer}.
      *
      * @return The default comparer class; the interface itself (the default) means "not set",
      *         leaving dbUnit's own default comparer in effect.
