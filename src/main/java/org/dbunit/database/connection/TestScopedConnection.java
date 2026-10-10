@@ -49,6 +49,7 @@ public final class TestScopedConnection
     private final Consumer<IDatabaseConnection> onAcquired;
 
     private IDatabaseConnection connection;
+    private Connection jdbcConnection;
     private boolean resolved;
 
     /**
@@ -77,22 +78,26 @@ public final class TestScopedConnection
      * returning the same one thereafter. A memoized connection that has since been closed - by
      * a pool max-lifetime, a server reap, a
      * {@link org.dbunit.database.CachingConnectionProvider#close()} between reused test methods
-     * - is dropped and re-acquired rather than handed back dead.
+     * - is dropped and re-acquired rather than handed back dead. Whether it is closed is read
+     * from the JDBC connection captured when it was acquired, never by asking the
+     * {@link IDatabaseConnection} for its JDBC connection again: a
+     * {@link org.dbunit.database.DatabaseDataSourceConnection} that was closed answers that
+     * question by checking out a new one.
      *
      * @return The connection, or {@code null} when the supplier has none to offer.
      * @throws Exception If the supplier fails.
      */
     public IDatabaseConnection getConnection() throws Exception
     {
-        if (resolved && connection != null && isClosedOrUnreadable(connection))
+        if (resolved && connection != null && isClosedOrUnreadable())
         {
-            connection = null;
-            resolved = false;
+            discardOnFailure();
         }
         if (!resolved)
         {
             connection = source.call();
             resolved = true;
+            jdbcConnection = captureJdbcConnection(connection);
             if (connection != null && onAcquired != null)
             {
                 onAcquired.accept(connection);
@@ -135,6 +140,7 @@ public final class TestScopedConnection
     public void adopt(final IDatabaseConnection connection)
     {
         this.connection = connection;
+        this.jdbcConnection = captureJdbcConnection(connection);
         this.resolved = true;
     }
 
@@ -152,11 +158,14 @@ public final class TestScopedConnection
      * <p>The already-closed guard matters when this holder's connection is the same object
      * another owner also closes - the {@code @DbUnitExpected} path, where the executor's
      * borrowed connection and {@link org.dbunit.DefaultPrepAndExpectedTestCase}'s are one and
-     * the same. A {@code null} underlying JDBC connection is treated as nothing to close, the
-     * same way {@link #getConnection()}'s liveness check does; a {@link SQLException} from the
-     * check is left to propagate rather than swallowed: a connection whose {@code isClosed()}
-     * throws has failed in a way worth surfacing (as a suppressed exception, via
-     * {@link #releaseSuppressing(Throwable)}).
+     * the same. That is read from the JDBC connection captured at acquisition, so it never
+     * costs a {@link org.dbunit.database.DatabaseDataSourceConnection} a new checkout just to
+     * learn there is nothing left to close. A connection that has no JDBC connection to inspect
+     * is still closed, as the 3.5.x extension closed every connection it resolved: closing it
+     * is the connection's own business. A
+     * {@link SQLException} from the check is left to propagate rather than swallowed: a
+     * connection whose {@code isClosed()} throws has failed in a way worth surfacing (as a
+     * suppressed exception, via {@link #releaseSuppressing(Throwable)}).
      *
      * <p>An uncommitted transaction is rolled back first when the connection's autocommit is
      * off - see {@link #rollBackOpenTransaction(Connection)}.
@@ -172,16 +181,17 @@ public final class TestScopedConnection
         }
         try
         {
-            final Connection jdbcConnection = connection.getConnection();
-            if (jdbcConnection != null && !jdbcConnection.isClosed())
+            if (jdbcConnection == null)
+            {
+                connection.close();
+            } else if (!jdbcConnection.isClosed())
             {
                 rollBackOpenTransaction(jdbcConnection);
                 connection.close();
             }
         } finally
         {
-            connection = null;
-            resolved = false;
+            discardOnFailure();
         }
     }
 
@@ -243,24 +253,50 @@ public final class TestScopedConnection
     public void discardOnFailure()
     {
         connection = null;
+        jdbcConnection = null;
         resolved = false;
     }
 
     /**
-     * Returns whether {@code connection} is closed or can no longer report its state - the
-     * cheap, side-effect-free check for a memoized connection a pool or server may have closed
-     * between reused test methods. A {@link SQLException} while asking is treated as "unusable",
-     * so a re-acquire follows.
+     * Returns whether the memoized connection is closed or can no longer report its state - the
+     * cheap, side-effect-free check for a connection a pool or server may have closed between
+     * reused test methods. Reads the JDBC connection captured at acquisition; a connection that
+     * had none, or whose state cannot be read, is treated as unusable, so a re-acquire follows.
      */
-    private static boolean isClosedOrUnreadable(final IDatabaseConnection connection)
+    private boolean isClosedOrUnreadable()
     {
+        if (jdbcConnection == null)
+        {
+            return true;
+        }
         try
         {
-            final Connection jdbcConnection = connection.getConnection();
-            return jdbcConnection == null || jdbcConnection.isClosed();
+            return jdbcConnection.isClosed();
         } catch (final SQLException e)
         {
             return true;
+        }
+    }
+
+    /**
+     * Returns {@code acquired}'s JDBC connection, or {@code null} when it has none or cannot
+     * report it. Read once, here, because for a lazily reopening connection such as
+     * {@link org.dbunit.database.DatabaseDataSourceConnection} reading it again later would
+     * check a new one out after that connection was closed.
+     */
+    private static Connection captureJdbcConnection(final IDatabaseConnection acquired)
+    {
+        if (acquired == null)
+        {
+            return null;
+        }
+        try
+        {
+            return acquired.getConnection();
+        } catch (final SQLException e)
+        {
+            log.debug("captureJdbcConnection: could not read the JDBC connection", e);
+            return null;
         }
     }
 }
