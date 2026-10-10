@@ -30,8 +30,10 @@ import java.sql.Statement;
 import org.dbunit.DataSourceDatabaseTester;
 import org.dbunit.DatabaseEnvironment;
 import org.dbunit.IDatabaseTester;
+import org.dbunit.annotation.DbUnitConfig;
 import org.dbunit.annotation.DbUnitExpected;
 import org.dbunit.annotation.DbUnitPrep;
+import org.dbunit.annotation.DbUnitProperty;
 import org.dbunit.annotation.DbUnitRowCountCheck;
 import org.dbunit.annotation.DbUnitTearDown;
 import org.dbunit.annotation.DbUnitTester;
@@ -117,6 +119,33 @@ class DbUnitExtensionConnectionBalanceIT
                     .as("A connection injected into a @BeforeEach that then fails must still be"
                             + " closed, because no after-test callback runs once @BeforeEach"
                             + " fails.")
+                    .isZero();
+        } finally
+        {
+            environment.closeConnection();
+        }
+    }
+
+    @Test
+    void testBeforeTestExecution_invalidPropertyValueThrowsInTheListener_closesTheTestersConnection()
+            throws Exception
+    {
+        final DatabaseEnvironment environment = DatabaseEnvironment.getInstance();
+        final CountingDataSource dataSource = new CountingDataSource(environment.getProfile());
+        BalanceSample.databaseTester = new DataSourceDatabaseTester(dataSource,
+                environment.getProfile().getSchema());
+        try
+        {
+            EngineTestKit.engine("junit-jupiter")
+                    .selectors(selectClass(InvalidPropertyValueSample.class)).execute()
+                    .testEvents().assertStatistics(stats -> stats.started(1).failed(1));
+
+            assertThat(dataSource.opened())
+                    .as("onSetup() must have opened a connection, or this test proves nothing.")
+                    .isPositive();
+            assertThat(dataSource.leaked())
+                    .as("A connection the tester opened must be closed even when the executor's"
+                            + " listener throws while applying a @DbUnitProperty value to it.")
                     .isZero();
         } finally
         {
@@ -247,6 +276,18 @@ class DbUnitExtensionConnectionBalanceIT
             throw new IllegalStateException("intentional @BeforeEach failure");
         }
 
+        @Test
+        @DbUnitPrep("annotation-it-prep.xml")
+        void neverRuns()
+        {
+        }
+    }
+
+    @ExtendWith(DbUnitExtension.class)
+    @ClearRowCountCheckSystemProperties
+    @DbUnitConfig(properties = @DbUnitProperty(name = "batchSize", value = "notANumber"))
+    static class InvalidPropertyValueSample extends BalanceSample
+    {
         @Test
         @DbUnitPrep("annotation-it-prep.xml")
         void neverRuns()

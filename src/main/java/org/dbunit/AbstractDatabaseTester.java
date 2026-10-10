@@ -214,15 +214,17 @@ public abstract class AbstractDatabaseTester extends SimpleAssert implements IDa
             }
 
             IDatabaseConnection connection = getConnection();
-            operationListener.connectionRetrieved(connection);
 
             try
             {
+                operationListener.connectionRetrieved(connection);
                 operation.execute(connection, getDataSet());
             } finally
             {
                 // Since 2.4.4 the OperationListener is responsible for closing
-                // the connection at the right time
+                // the connection at the right time, including when its own
+                // connectionRetrieved() failed (since 3.6.0), which a listener
+                // that configures or inspects the connection there can do
                 if (type == OperationType.SET_UP)
                 {
                     operationListener.operationSetUpFinished(connection);
