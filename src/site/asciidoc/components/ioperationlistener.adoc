@@ -85,7 +85,12 @@ databaseTester.setOperationListener(listener);
 == Under the JUnit Jupiter Extension
 
 link:../testcases/DbUnitExtension.html[`DbUnitExtension`] on an annotation-driven test
-wraps the tester's listener while a test runs.
+wraps the tester's listener for the duration of one test, then puts the tester's own
+listener back, so a tester shared across test methods carries nothing from one test to
+the next. Putting it back relies on the tester reporting its listener through
+`getOperationListener()`, as `AbstractDatabaseTester` and the testers built on it do. A
+custom `IDatabaseTester` that does not override it reports none, so there is nothing to
+put back and the extension's wrapper stays installed.
 
 * A listener wrapped in a `ConnectionPreservingOperationListener` keeps that wrapper in
 force: the extension adds its own protection for the one connection it holds on top of it,
