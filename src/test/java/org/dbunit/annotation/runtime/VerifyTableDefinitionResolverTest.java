@@ -25,8 +25,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.lang.ref.WeakReference;
+
 import org.dbunit.VerifyTableDefinition;
 import org.dbunit.annotation.DbUnitExpected;
+import org.dbunit.annotation.DbUnitVerifyTable;
+import org.dbunit.assertion.comparer.value.NeverFailsValueComparer;
 import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.IDataSet;
 import org.dbunit.util.fileloader.DataFileLoader;

@@ -42,8 +42,8 @@ import org.dbunit.assertion.comparer.value.ValueComparer;
  * configured comparer can only be expressed as a {@code VerifyTableDefinition}
  * constant written in Java.
  *
- * <p>The instantiated comparer is cached for the JVM's entire lifetime, keyed by class, and
- * reused by every later {@code @DbUnitColumnComparer}/{@link DbUnitVerifyTable#defaultComparer()}
+ * <p>The instantiated comparer is cached for as long as its class stays loaded, keyed by
+ * class, and reused by every later {@code @DbUnitColumnComparer}/{@link DbUnitVerifyTable#defaultComparer()}
  * naming the same class, rather than reflectively constructed anew for every test method - the
  * same once-and-reused-forever caching a {@link org.dbunit.VerifyTableDefinitionsProvider}
  * catalog gets. A custom {@link ValueComparer} named here must therefore be a pure function

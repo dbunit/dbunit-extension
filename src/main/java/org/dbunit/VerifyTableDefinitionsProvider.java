@@ -42,8 +42,8 @@ import org.dbunit.annotation.DbUnitExpected;
  * interface is the escape hatch for a catalog whose definitions cannot be plain constants.
  *
  * <p>The catalog machinery reflectively instantiating this interface caches an
- * implementation's {@link #getVerifyTableDefinitions()} result for the JVM's entire lifetime,
- * keyed by the exact combination of catalog classes named together - see
+ * implementation's {@link #getVerifyTableDefinitions()} result for as long as the first of
+ * the classes stays loaded, keyed by the exact combination of catalog classes named together - see
  * {@code org.dbunit.annotation.runtime.VerifyTableDefinitionCatalog#forClasses}. An
  * implementation is therefore resolved once and reused by every later test naming the same
  * combination, never called again; it must be a pure function of the catalog class itself,

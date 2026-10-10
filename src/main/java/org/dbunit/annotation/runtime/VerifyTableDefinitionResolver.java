@@ -26,7 +26,6 @@ import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 
 import org.dbunit.VerifyTableDefinition;
 import org.dbunit.annotation.DbUnitColumnComparer;
@@ -57,8 +56,15 @@ import org.dbunit.util.fileloader.DataFileLoader;
  */
 final class VerifyTableDefinitionResolver
 {
-    private static final Map<Class<? extends ValueComparer>, ValueComparer> COMPARER_CACHE =
-            new ConcurrentHashMap<>();
+    private static final ClassValue<ValueComparer> COMPARERS = new ClassValue<ValueComparer>()
+    {
+        @Override
+        @SuppressWarnings("unchecked")
+        protected ValueComparer computeValue(final Class<?> comparerClass)
+        {
+            return newComparerInstance((Class<? extends ValueComparer>) comparerClass);
+        }
+    };
 
     /**
      * Resolves the verification spec the annotations spell out, leaving the one form that needs
@@ -226,18 +232,19 @@ final class VerifyTableDefinitionResolver
     }
 
     /**
-     * Caches a comparer instance, for the JVM's entire lifetime, keyed by class - the same
-     * once-and-reused-forever caching {@link VerifyTableDefinitionCatalog#forClasses} already
-     * applies to a catalog combination, for the same reason: this resolves fresh on every test
-     * method, and a suite naming the same comparer class from many methods would otherwise
-     * reflectively construct a new, functionally-identical instance every time. See
-     * {@link DbUnitColumnComparer#comparer()} for the resulting purity requirement.
+     * Caches a comparer instance for as long as its class lives - the same once-and-reused
+     * caching {@link VerifyTableDefinitionCatalog#forClasses} already applies to a catalog
+     * combination, for the same reason: this resolves fresh on every test method, and a suite
+     * naming the same comparer class from many methods would otherwise reflectively construct a
+     * new, functionally-identical instance every time. The instance is held by the class
+     * itself, through a {@link ClassValue}, so it goes away with the class and its class loader
+     * rather than keeping them alive. See {@link DbUnitColumnComparer#comparer()} for the
+     * resulting purity requirement.
      */
     private static ValueComparer instantiateComparer(
             final Class<? extends ValueComparer> comparerClass)
     {
-        return COMPARER_CACHE.computeIfAbsent(comparerClass,
-                VerifyTableDefinitionResolver::newComparerInstance);
+        return COMPARERS.get(comparerClass);
     }
 
     private static ValueComparer newComparerInstance(

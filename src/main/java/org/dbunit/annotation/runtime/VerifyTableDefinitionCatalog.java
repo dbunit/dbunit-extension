@@ -54,8 +54,16 @@ import org.dbunit.annotation.DbUnitExpected;
  */
 public class VerifyTableDefinitionCatalog
 {
-    private static final Map<List<Class<?>>, VerifyTableDefinitionCatalog> CACHE =
-            new ConcurrentHashMap<>();
+    private static final ClassValue<Map<List<Class<?>>, VerifyTableDefinitionCatalog>> CACHE =
+            new ClassValue<Map<List<Class<?>>, VerifyTableDefinitionCatalog>>()
+            {
+                @Override
+                protected Map<List<Class<?>>, VerifyTableDefinitionCatalog> computeValue(
+                        final Class<?> firstCatalogClass)
+                {
+                    return new ConcurrentHashMap<>();
+                }
+            };
 
     private final Map<String, VerifyTableDefinition> definitionsByTableName =
             new LinkedHashMap<>();
@@ -66,7 +74,11 @@ public class VerifyTableDefinitionCatalog
      * Returns the catalog for the given classes, reading and merging them only the first time
      * this exact combination is asked for - resolution runs once per test method, and a suite
      * naming the same catalog class(es) from many test methods would otherwise re-reflect them
-     * every time, for a result that can never change within one JVM run.
+     * every time, for a result that can never change while the classes are loaded.
+     *
+     * <p>The cache is held by the combination's first class, through a {@link ClassValue}, so
+     * it goes away with that class and its class loader instead of keeping them alive for the
+     * rest of the JVM run. A catalog is read-only once built, so every thread shares it.
      *
      * <p>The cache key is order-sensitive: {@code forClasses(A, B)} and {@code forClasses(B, A)}
      * are different combinations, each cached (and merged) separately, even though the same
@@ -81,9 +93,15 @@ public class VerifyTableDefinitionCatalog
      */
     static VerifyTableDefinitionCatalog forClasses(final Class<?>... catalogClasses)
     {
-        return CACHE.computeIfAbsent(Arrays.asList(catalogClasses),
-                classes -> new VerifyTableDefinitionCatalog(
-                        classes.toArray(new Class<?>[0])));
+        if (catalogClasses.length == 0)
+        {
+            return new VerifyTableDefinitionCatalog();
+        }
+        final Map<List<Class<?>>, VerifyTableDefinitionCatalog> cacheForFirstClass =
+                CACHE.get(catalogClasses[0]);
+        final List<Class<?>> combination = Arrays.asList(catalogClasses.clone());
+        return cacheForFirstClass.computeIfAbsent(combination,
+                classes -> new VerifyTableDefinitionCatalog(classes.toArray(new Class<?>[0])));
     }
 
     /**
