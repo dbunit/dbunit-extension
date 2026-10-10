@@ -42,7 +42,7 @@ import org.slf4j.LoggerFactory;
  * @since 2.4.8
  */
 public abstract class AbstractDataFileLoader implements DataFileLoader {
-    private final Logger LOG =
+    private static final Logger LOG =
             LoggerFactory.getLogger(AbstractDataFileLoader.class);
 
     private Map replacementObjects;

@@ -46,7 +46,7 @@ import org.slf4j.LoggerFactory;
  */
 public class RowCountCheck
 {
-    private final Logger log = LoggerFactory.getLogger(RowCountCheck.class);
+    private static final Logger log = LoggerFactory.getLogger(RowCountCheck.class);
 
     private final RowCountCheckConfiguration configuration;
 
