@@ -48,7 +48,9 @@ import org.dbunit.util.fileloader.DataFileLoader;
  * {@code verify()}, then {@code @DbUnitConfig.verifyDefinitions()}, then bare
  * {@code verifyTables()}, then one definition per table found in the expected datasets.
  * {@code verifyTables()} narrows a catalog rather than conflicting with it; declaring both
- * {@code verify()} and either catalog form, or the same table twice, is rejected.
+ * {@code verify()} and either catalog form, or the same table twice, is rejected. So is a
+ * {@code @DbUnitExpected} that names no expected dataset, whatever else it declares, since the
+ * tables it verifies are compared to that dataset.
  *
  * @author Jeff Jensen
  * @since 3.6.0
@@ -70,11 +72,20 @@ final class VerifyTableDefinitionResolver
      * @param expectedDataFiles The resolved expected dataset paths.
      * @return The table definitions to verify, or empty when the annotations declare none and
      *         they are to be derived from the expected datasets.
-     * @throws IllegalStateException If the spec is contradictory.
+     * @throws IllegalStateException If no expected dataset is named, or the spec is
+     *             contradictory.
      */
     Optional<VerifyTableDefinition[]> resolveDeclared(final DbUnitConfig config,
             final DbUnitExpected expected, final String[] expectedDataFiles)
     {
+        if (expectedDataFiles.length == 0)
+        {
+            throw new IllegalStateException("@DbUnitExpected names no expected dataset, so"
+                    + " there is nothing to verify the database against: verify(),"
+                    + " verifyTables() and verifyDefinitions() only choose which tables of that"
+                    + " dataset are compared. Name the dataset with value() or provider(), or"
+                    + " drop @DbUnitExpected for a test that verifies nothing.");
+        }
         final Class<?>[] classLevelCatalogs =
                 config == null ? new Class<?>[0] : config.verifyDefinitions();
         final DbUnitVerifyTable[] verify = expected.verify();

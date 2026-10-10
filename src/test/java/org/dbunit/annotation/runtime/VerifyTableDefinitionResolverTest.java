@@ -43,7 +43,7 @@ class VerifyTableDefinitionResolverTest
                 WithVerifyTables.class.getAnnotation(DbUnitExpected.class);
 
         final VerifyTableDefinition[] definitions =
-                resolver.resolveDeclared(null, expected, new String[0]).get();
+                resolver.resolveDeclared(null, expected, new String[] {"expected.xml"}).get();
 
         assertThat(definitions).extracting(VerifyTableDefinition::getTableName)
                 .containsExactly("ACCOUNT", "LEDGER");
@@ -55,7 +55,8 @@ class VerifyTableDefinitionResolverTest
         final DbUnitExpected expected =
                 WithDuplicateVerifyTables.class.getAnnotation(DbUnitExpected.class);
 
-        assertThatThrownBy(() -> resolver.resolveDeclared(null, expected, new String[0]))
+        assertThatThrownBy(() -> resolver.resolveDeclared(null, expected,
+                new String[] {"expected.xml"}))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("more than one")
                 .hasMessageContaining("ACCOUNT");
@@ -103,6 +104,90 @@ class VerifyTableDefinitionResolverTest
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("expected.xml")
                 .hasCauseInstanceOf(DataSetException.class);
+    }
+
+    @Test
+    void testResolveDeclared_noExpectedDatasetAndNoVerifySpec_throwsBecauseNothingWouldBeVerified()
+    {
+        final DbUnitExpected expected = NoDatasetNoSpec.class.getAnnotation(DbUnitExpected.class);
+
+        assertThatThrownBy(() -> resolver.resolveDeclared(null, expected, new String[0]))
+                .as("A @DbUnitExpected naming no dataset and no tables has nothing to verify"
+                        + " against, which must be rejected rather than silently pass.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("names no expected dataset");
+    }
+
+    @Test
+    void testResolveDeclared_noExpectedDatasetButVerifyTablesNamed_throwsBecauseTheTablesHaveNothingToBeComparedTo()
+    {
+        final DbUnitExpected expected =
+                VerifyTablesWithoutDataset.class.getAnnotation(DbUnitExpected.class);
+
+        assertThatThrownBy(() -> resolver.resolveDeclared(null, expected, new String[0]))
+                .as("Naming tables to verify does not make a missing expected dataset valid:"
+                        + " the tables are compared to that dataset, and verifying one that is"
+                        + " not in it always fails afterward with an obscure error.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("names no expected dataset");
+    }
+
+    @Test
+    void testResolveDeclared_noExpectedDatasetButInlineVerify_throwsBecauseTheTablesHaveNothingToBeComparedTo()
+    {
+        final DbUnitExpected expected =
+                InlineVerifyWithoutDataset.class.getAnnotation(DbUnitExpected.class);
+
+        assertThatThrownBy(() -> resolver.resolveDeclared(null, expected, new String[0]))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("names no expected dataset");
+    }
+
+    @Test
+    void testResolveDeclared_comparerClassFromAnotherClassLoader_doesNotKeepThatLoaderAlive()
+            throws Exception
+    {
+        IsolatedClassLoader loader = new IsolatedClassLoader(DeclaresIsolatedComparer.class,
+                IsolatedComparer.class);
+        final WeakReference<ClassLoader> loaderRef = new WeakReference<>(loader);
+        Class<?> declaring = loader.loadClass(DeclaresIsolatedComparer.class.getName());
+        DbUnitExpected expected = declaring.getAnnotation(DbUnitExpected.class);
+
+        resolver.resolveDeclared(null, expected, new String[] {"expected.xml"});
+        loader = null;
+        declaring = null;
+        expected = null;
+
+        assertThat(CollectionProbe.isCollected(loaderRef))
+                .as("Resolving a comparer class must not pin the class loader that defined it,"
+                        + " as a JVM-lifetime cache keyed by the class would.")
+                .isTrue();
+    }
+
+    @DbUnitExpected(verify = @DbUnitVerifyTable(value = "ACCOUNT",
+            defaultComparer = IsolatedComparer.class))
+    static class DeclaresIsolatedComparer
+    {
+    }
+
+    /** Public, with a no-arg constructor, so the resolver can instantiate it reflectively. */
+    public static class IsolatedComparer extends NeverFailsValueComparer
+    {
+    }
+
+    @DbUnitExpected
+    private static class NoDatasetNoSpec
+    {
+    }
+
+    @DbUnitExpected(verifyTables = {"ACCOUNT", "LEDGER"})
+    private static class VerifyTablesWithoutDataset
+    {
+    }
+
+    @DbUnitExpected(verify = @DbUnitVerifyTable("ACCOUNT"))
+    private static class InlineVerifyWithoutDataset
+    {
     }
 
     @DbUnitExpected(value = "expected.xml", verifyTables = {"ACCOUNT", "LEDGER"})

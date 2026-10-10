@@ -42,6 +42,10 @@ import org.dbunit.util.fileloader.DataSetPathsProvider;
  * class annotation is inherited by subclasses. Valid with no {@link DbUnitPrep} at all - the
  * database state already present is what gets verified.
  *
+ * <p>An expected dataset must always be named, with {@link #value()} or {@link #provider()}:
+ * the tables verified are compared to it, so the forms below only choose which of its tables
+ * are compared. An annotation naming none is rejected, whatever else it declares.
+ *
  * <p>Which tables to verify, and with what rules, resolves through the following forms so the
  * common cases stay short - highest-priority form first:
  * <ol>

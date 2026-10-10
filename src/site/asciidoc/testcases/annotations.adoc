@@ -322,7 +322,11 @@ the prep dataset instead.
 
 `@DbUnitExpected` names the expected dataset file(s) and switches the test
 onto the prep/expected path. Valid with no `@DbUnitPrep` at all — the
-database state already present is what gets verified.
+database state already present is what gets verified. The expected dataset
+must always be named, with `value` or `provider`: the tables verified are
+compared to it, so the forms below only choose which of its tables are
+compared, and an annotation naming no dataset fails fast, whatever else it
+declares, instead of failing at the end of the test with an obscure error.
 
 Which tables to verify, and with what rules, escalates through four forms
 so the common cases stay short:
