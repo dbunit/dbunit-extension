@@ -4,6 +4,7 @@ import java.io.IOException;
 
 import org.dbunit.DatabaseUnitException;
 import org.dbunit.dataset.ITable;
+import org.dbunit.dataset.RequiredLibrary;
 import org.dbunit.dataset.datatype.DataType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,7 +44,29 @@ public class IsActualEqualToExpectedJsonValueComparer
 {
     private final Logger log = LoggerFactory.getLogger(getClass());
 
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    /**
+     * Creates the comparer.
+     *
+     * @throws org.dbunit.DatabaseUnitRuntimeException If Jackson is not on the classpath.
+     */
+    public IsActualEqualToExpectedJsonValueComparer()
+    {
+        RequiredLibrary.JACKSON.requireUnchecked(
+                IsActualEqualToExpectedJsonValueComparer.class);
+    }
+
+    /**
+     * Holds the shared mapper apart from the comparer, so that loading and initializing the
+     * comparer does not itself need Jackson and its constructor can say what is missing.
+     */
+    private static final class SharedMapper
+    {
+        private static final ObjectMapper INSTANCE = new ObjectMapper();
+
+        private SharedMapper()
+        {
+        }
+    }
 
     @Override
     protected boolean isExpected(final ITable expectedTable,
@@ -105,7 +128,7 @@ public class IsActualEqualToExpectedJsonValueComparer
         final JsonNode node;
         try
         {
-            node = OBJECT_MAPPER.readTree(json);
+            node = SharedMapper.INSTANCE.readTree(json);
         } catch (final IOException e)
         {
             throw new DatabaseUnitException(

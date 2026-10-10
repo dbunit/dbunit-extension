@@ -68,6 +68,9 @@
       <action dev="jeffjensen" type="fix" issue="998" system="github" due-to="jeffjensen">
           Fix XlsDataFileLoader leaving the file's stream open when the workbook cannot be read: Apache POI closes the stream only once it has built the workbook, so content it rejects leaked a file handle per failed load. The stream is now closed on every path.
       </action>
+      <action dev="jeffjensen" type="fix" issue="999" system="github" due-to="jeffjensen">
+          Fix JsonDataSet, JsonProducer, JsonWriter, IsActualEqualToExpectedJsonValueComparer, YamlDataSet, YamlProducer and YamlWriter failing with a bare NoClassDefFoundError when Jackson or SnakeYAML, both optional dependencies, is not on the classpath. They now check for the library first and throw a DataSetException, or a DatabaseUnitRuntimeException where the signature allows no checked exception, naming the dependency to add.
+      </action>
     </release>
     <release version="3.5.2" date="Sep 7, 2026" description="DefaultPrepAndExpectedTestCase connection hygiene: replace a connection the pool or database dropped between tests, and warn when handed a non-autocommit connection">
       <action dev="jeffjensen" type="fix" issue="962" system="github" due-to="jeffjensen">
