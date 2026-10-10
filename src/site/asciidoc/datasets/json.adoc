@@ -75,3 +75,8 @@ it in. Add it yourself to use this format:
   <version>VERSION</version>
 </dependency>
 ----
+
+Without it on the classpath, reading or writing a JSON dataset fails with a
+`DataSetException` that names the dependency to add; using `JsonProducer` directly, as
+the Ant `<operation format="json">` step does, fails the same way with a
+`DatabaseUnitRuntimeException`. Datasets in other formats are unaffected.

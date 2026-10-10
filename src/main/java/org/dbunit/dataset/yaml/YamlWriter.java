@@ -24,6 +24,7 @@ package org.dbunit.dataset.yaml;
 import org.dbunit.dataset.Column;
 import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.IDataSet;
+import org.dbunit.dataset.RequiredLibrary;
 import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.ITableIterator;
 import org.dbunit.dataset.ITableMetaData;
@@ -53,6 +54,7 @@ class YamlWriter
 
     public YamlWriter(Writer out, boolean useFlowStyle)
     {
+        RequiredLibrary.SNAKEYAML.requireUnchecked(YamlWriter.class);
         this._out = out;
         this._useFlowStyle = useFlowStyle;
     }

@@ -69,7 +69,9 @@ compares JSON/JSONB column values (e.g. MySQL `JSON`, PostgreSQL `json`/`jsonb`,
 by their parsed document structure instead of raw text - ignoring object member order and
 insignificant whitespace, both of which a database may rewrite when it stores a JSON value -
 and needs the optional `jackson-databind` dependency also used by
-link:../apidocs/org/dbunit/dataset/json/JsonDataSet.html[JsonDataSet].
+link:../apidocs/org/dbunit/dataset/json/JsonDataSet.html[JsonDataSet]. Without it on the
+classpath, creating the comparer fails with a `DatabaseUnitRuntimeException` that names the
+dependency to add.
 
 It is easy to add your own implementations of the
 link:../apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html[ValueComparer]

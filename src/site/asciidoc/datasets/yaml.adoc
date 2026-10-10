@@ -30,3 +30,23 @@ first appears on a later row is still picked up.
 For what happens to a field value after parsing — empty strings, binary/BLOB
 syntax, literal and relative dates, UUID literals, and booleans/numbers from
 strings — see link:values.html[Dataset Values], which applies to every format.
+
+== Dependency
+
+dbUnit depends on https://bitbucket.org/snakeyaml/snakeyaml[SnakeYAML] to read/write YAML
+files, but marks it `optional` so projects that don't use `YamlDataSet` don't pull
+it in. Add it yourself to use this format:
+
+[source,xml]
+----
+<dependency>
+  <groupId>org.yaml</groupId>
+  <artifactId>snakeyaml</artifactId>
+  <version>VERSION</version>
+</dependency>
+----
+
+Without it on the classpath, reading or writing a YAML dataset fails with a
+`DataSetException` that names the dependency to add; using `YamlProducer` directly, as
+the Ant `<operation format="yml">` step does, fails the same way with a
+`DatabaseUnitRuntimeException`. Datasets in other formats are unaffected.
