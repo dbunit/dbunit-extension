@@ -23,10 +23,12 @@ package org.dbunit.database.connection;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -36,8 +38,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.Callable;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import javax.sql.DataSource;
+
+import org.dbunit.database.DatabaseDataSourceConnection;
 import org.dbunit.database.IDatabaseConnection;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
@@ -154,6 +160,79 @@ class TestScopedConnectionTest
         holder.release();
 
         verify(connection, never()).close();
+    }
+
+    @Test
+    void testRelease_connectionAlreadyClosedByAnotherOwner_doesNotCheckOutAnotherPooledConnection()
+            throws Exception
+    {
+        // DatabaseDataSourceConnection.close() forgets its JDBC connection and getConnection()
+        // quietly checks a new one out, so asking it whether it is closed - to find out there is
+        // nothing left to close - would itself cost a checkout.
+        final DataSource dataSource = mock(DataSource.class);
+        final AtomicBoolean closed = new AtomicBoolean();
+        final Connection pooled = mock(Connection.class);
+        doAnswer(invocation ->
+        {
+            closed.set(true);
+            return null;
+        }).when(pooled).close();
+        when(pooled.isClosed()).thenAnswer(invocation -> closed.get());
+        when(dataSource.getConnection()).thenReturn(pooled, mock(Connection.class));
+        final DatabaseDataSourceConnection connection = new DatabaseDataSourceConnection(dataSource);
+        final TestScopedConnection holder =
+                new TestScopedConnection(() -> connection, alwaysMayClose, null);
+        holder.getConnection();
+        connection.getConnection();
+        connection.close();
+
+        holder.release();
+
+        verify(dataSource, times(1)).getConnection();
+    }
+
+    @Test
+    void testGetConnection_memoizedConnectionClosedByAnotherOwner_dropsItAndReacquires()
+            throws Exception
+    {
+        // The same lazily reopening connection: reading its JDBC connection again to see
+        // whether it is closed would reopen it and report it alive.
+        final DataSource dataSource = mock(DataSource.class);
+        final AtomicBoolean closed = new AtomicBoolean();
+        final Connection pooled = mock(Connection.class);
+        doAnswer(invocation ->
+        {
+            closed.set(true);
+            return null;
+        }).when(pooled).close();
+        when(pooled.isClosed()).thenAnswer(invocation -> closed.get());
+        when(dataSource.getConnection()).thenReturn(pooled, mock(Connection.class));
+        final DatabaseDataSourceConnection first = new DatabaseDataSourceConnection(dataSource);
+        final IDatabaseConnection second = openConnection();
+        final List<IDatabaseConnection> toReturn = new ArrayList<>(Arrays.asList(first, second));
+        final TestScopedConnection holder =
+                new TestScopedConnection(() -> toReturn.remove(0), alwaysMayClose, null);
+        holder.getConnection();
+        first.close();
+
+        assertThat(holder.getConnection())
+                .as("A memoized connection closed by another owner must be replaced by a newly"
+                        + " acquired one, not quietly reopened.")
+                .isSameAs(second);
+    }
+
+    @Test
+    void testRelease_connectionHasNoJdbcConnectionToInspect_stillClosesIt() throws Exception
+    {
+        final IDatabaseConnection connection = mock(IDatabaseConnection.class);
+        when(connection.getConnection()).thenReturn(null);
+        final TestScopedConnection holder =
+                new TestScopedConnection(() -> connection, alwaysMayClose, null);
+        holder.getConnection();
+
+        holder.release();
+
+        verify(connection).close();
     }
 
     @Test
