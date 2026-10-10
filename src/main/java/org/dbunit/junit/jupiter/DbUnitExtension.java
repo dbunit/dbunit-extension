@@ -137,7 +137,10 @@ import org.slf4j.LoggerFactory;
  * <p>This zero-annotation style is the 3.5.0 lifecycle: the extension calls only
  * {@code onSetup()}/{@code onTearDown()} on the tester and runs the row count check around
  * them, without replacing the tester's {@link org.dbunit.IOperationListener}. The connection it
- * resolves for the row count baseline is never closed before {@code onSetup()} - a tester that
+ * resolves for the row count baseline is first offered to that listener's
+ * {@code connectionRetrieved()}, so a {@code DatabaseConfig} customization made there, such as
+ * enabling the check, applies to it; the listener sees one more retrieval than the 3.5.0
+ * lifecycle gave it. That connection is never closed before {@code onSetup()} - a tester that
  * returns one fixed connection from every call (e.g. a {@code DefaultDatabaseTester} built from
  * a fixed connection) would otherwise run {@code onSetup()} against a closed one - and is
  * closed after the test when {@code closeConnectionAfterTest} allows and the tester's listener
@@ -155,7 +158,7 @@ import org.slf4j.LoggerFactory;
  * {@link DbUnitExpected}, {@link DbUnitTearDown}, {@link DbUnitRowCountCheck}) on the class or
  * method, or a {@link DbUnitTester @DbUnitTester}/{@link DbUnitTestCase @DbUnitTestCase} field.
  * A bare {@code @ExtendWith(DbUnitExtension.class)} class with only a plain, unannotated
- * {@link IDatabaseTester} field keeps the 3.5.0 lifecycle behaviour untouched and has no
+ * {@link IDatabaseTester} field keeps the 3.5.0 lifecycle and has no
  * parameter claimed here, so another extension resolving a {@link Connection} (or any of the
  * other three types) on the same test stays unambiguous. Switch such a class to
  * {@link DbUnitTest @DbUnitTest}, or mark its field {@link DbUnitTester @DbUnitTester}, to opt
