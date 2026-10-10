@@ -35,7 +35,8 @@ import org.slf4j.LoggerFactory;
 /**
  * Compares a database's table row counts before and after a test, to catch a table the test
  * left dirty - either one it should have cleaned up and did not, or a reference table it wrongly
- * cleaned. Read-only: never modifies data.
+ * cleaned. Writes no data of its own, but on an autocommit-off connection it ends its read
+ * transaction with a rollback, which discards uncommitted work.
  * <p>
  * Every method is a no-op, and never queries the connection, when
  * {@link RowCountCheckConfiguration#isEnabled()} is {@code false} - the check costs nothing
@@ -144,7 +145,9 @@ public class RowCountCheck
      * <p>
      * A rollback rather than a commit: the snapshot wrote nothing of its own, so there is
      * nothing to keep, and a rollback cannot disturb work a caller committed before calling in.
-     * A best-effort attempt - a snapshot that already failed, or a connection the database has
+     * It does discard work the caller left uncommitted on the connection, which is why the
+     * check is not meant for a connection carrying a pending transaction of its own. A
+     * best-effort attempt - a snapshot that already failed, or a connection the database has
      * dropped, is the caller's to handle.
      *
      * @param connection the connection the snapshot queried.

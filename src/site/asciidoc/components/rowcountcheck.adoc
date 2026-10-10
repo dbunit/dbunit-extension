@@ -45,7 +45,9 @@ Neither leaves extra or missing rows, which is the problem this check solves.
 [#enabling]
 == Enabling It
 
-The check is *off by default* and read-only — it never modifies data. Turn it on to verify
+The check is *off by default* and writes no data of its own — though on an autocommit-off
+connection it ends its read transaction with a rollback, which discards uncommitted work (see
+<<caveats>>). Turn it on to verify
 a suite's teardown correctness; leave it off for routine runs, since capturing two snapshots
 per test roughly doubles that test's table-counting cost.
 
@@ -223,6 +225,14 @@ prep row reads as a difference.
 * *Modified rows are invisible* — see <<what-it-detects>>.
 * *Parallel tests against one database break the check*, as they already break
 `DELETE_ALL` teardown. Not specific to this check.
+* *On a connection with autocommit off, the check ends its own read transaction with a
+rollback* — after capturing the baseline and again after verifying — so a connection kept
+across tests is not left idle in a transaction, holding locks and exposed to the database's
+idle-in-transaction timeout. A rollback also discards anything uncommitted on that connection,
+so do not enable the check on a connection that carries your own pending transaction, such as
+one enlisted in a Spring-managed test transaction; prep and teardown writes on an
+autocommit-off connection are never committed regardless (see
+link:../connections.html[Connections]).
 * *Setting the feature on the wrong connection is silently ignored.* `JdbcDatabaseTester`
 and `DataSourceDatabaseTester` open a new connection - and therefore a fresh, default
 `DatabaseConfig` - on every `getConnection()` call unless given a

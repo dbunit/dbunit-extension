@@ -84,7 +84,7 @@ _Note:_ this feature was not compatible with the <<escapepattern,escape pattern>
 |anchor:rowcountcheck[]`FEATURE_ROW_COUNT_CHECK`
 |http://www.dbunit.org/features/rowCountCheck
 |false
-|Compare every table's row count before and after each test, failing the test when a count moved — see link:components/rowcountcheck.html[RowCountCheck] for what it catches and how to read a failure. Read-only; never modifies data. The `dbunit.rowCountCheck` system property overrides this feature in *either* direction when present (e.g. `-Ddbunit.rowCountCheck=true`; a bare `-Ddbunit.rowCountCheck` also enables it), so it can force-enable in CI or force-disable locally regardless of what the code configures.
+|Compare every table's row count before and after each test, failing the test when a count moved — see link:components/rowcountcheck.html[RowCountCheck] for what it catches and how to read a failure. Writes no data of its own, but on an autocommit-off connection it ends its read transaction with a rollback, which discards uncommitted work - see the link:components/rowcountcheck.html#caveats[caveats]. The `dbunit.rowCountCheck` system property overrides this feature in *either* direction when present (e.g. `-Ddbunit.rowCountCheck=true`; a bare `-Ddbunit.rowCountCheck` also enables it), so it can force-enable in CI or force-disable locally regardless of what the code configures.
 |===
 
 == Properties
