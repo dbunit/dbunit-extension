@@ -201,6 +201,35 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
+    void testBeforeTest_prepDeclaredWithoutSetupAndTesterPresetToRefresh_appliesCleanInsertThenRestoresIt()
+            throws Exception
+    {
+        // @DbUnitPrep alone means CLEAN_INSERT, so it replaces a different operation the tester
+        // already carried, for the duration of the test only. A caller who wants to keep that
+        // operation declares @DbUnitSetup alongside it.
+        final RecordingAbstractDatabaseTester presetTester = new RecordingAbstractDatabaseTester();
+        presetTester.setSetUpOperation(DatabaseOperation.REFRESH);
+        final DbUnitPrep prep = WithPrep.class.getAnnotation(DbUnitPrep.class);
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                AnnotatedTestConfiguration.from(WithPrep.class, null, prep, null, null, null,
+                        null),
+                presetTester, null);
+
+        executor.beforeTest();
+
+        assertThat(presetTester.setUpOperationsRun)
+                .as("@DbUnitPrep without @DbUnitSetup runs the default CLEAN_INSERT, not the"
+                        + " operation the tester was preset to.")
+                .containsExactly(DatabaseOperation.CLEAN_INSERT);
+
+        executor.afterTest(false);
+
+        assertThat(presetTester.getSetUpOperation())
+                .as("The tester's own operation is restored once the test is over.")
+                .isEqualTo(DatabaseOperation.REFRESH);
+    }
+
+    @Test
     void testBeforeTest_setupTeardownPathNoPrepFiles_onlyCallsOnSetup() throws Exception
     {
         stubDisabledConnection();
@@ -3083,6 +3112,7 @@ class AnnotatedTestExecutorTest
      */
     static class RecordingAbstractDatabaseTester extends AbstractDatabaseTester
     {
+        final List<DatabaseOperation> setUpOperationsRun = new ArrayList<>();
         final List<DatabaseOperation> tearDownOperationsRun = new ArrayList<>();
 
         @Override
@@ -3094,6 +3124,7 @@ class AnnotatedTestExecutorTest
         @Override
         public void onSetup()
         {
+            setUpOperationsRun.add(getSetUpOperation());
         }
 
         @Override

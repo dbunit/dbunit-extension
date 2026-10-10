@@ -292,10 +292,14 @@ always set on the tester, even with *none* of `@DbUnitPrep`, `@DbUnitSetup`,
 or `@DbUnitTearDown` declared — setup resolves to
 `DbUnitOperation.CLEAN_INSERT`, teardown to `DbUnitOperation.NONE`, and both
 are applied regardless, since `preTest()` and `cleanupData()` always run on
-that path. On the setup/teardown path, when `@DbUnitPrep`, `@DbUnitSetup`, or
-`@DbUnitTearDown` is not declared, the test runs with the tester's own
-dataset / setup operation / teardown operation — preserving a `@BeforeEach`
-method's own `setDataSet()`/`setSetUpOperation()`/`setTearDownOperation()`.
+that path. On the setup/teardown path, the tester's own dataset, setup operation and
+teardown operation are kept — preserving a `@BeforeEach` method's own
+`setDataSet()`/`setSetUpOperation()`/`setTearDownOperation()` — except where an annotation
+replaces them: `@DbUnitPrep` replaces the dataset, `@DbUnitTearDown` the teardown operation,
+and either `@DbUnitPrep` or `@DbUnitSetup` the setup operation. So `@DbUnitPrep("a.xml")`
+alone runs `CLEAN_INSERT` even on a tester already set to `REFRESH`, which would have kept the
+rows already there; declare `@DbUnitSetup(operation = DbUnitOperation.REFRESH)` alongside it
+to keep that operation. Each replacement lasts for that test only.
 
 *Nothing bleeds between test methods.* Each method's resolved annotations —
 its own, plus any inherited from its class or a parent class — fully
