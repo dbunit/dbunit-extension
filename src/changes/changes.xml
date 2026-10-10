@@ -59,6 +59,9 @@
       <!-- dependabot:dep=actions/setup-java:new=6.0.1:pr=984 -->
       <action dev="dependabot" type="update" due-to="Dependabot">Update github_actions dependency actions/setup-java from 6.0.0 to 6.0.1 (#984).</action>
       <action dev="robertonr" type="update" issue="994" system="github" due-to="robertonr">Make loggers static final for performance.</action>
+      <action dev="jeffjensen" type="fix" issue="986" system="github" due-to="jeffjensen">
+          Fix DefaultPrepAndExpectedTestCase closing the connection it shares across setupData(), verifyData() and cleanupData() after every test even when the tester's operation listener is IOperationListener.NO_OP_OPERATION_LISTENER, the established signal that the connection is managed elsewhere. Since 3.4.0 only closeConnectionAfterTest was consulted, so a tester over a caching connection provider or a fixed connection had its connection closed after each test. Either the tester's or the test case's own listener being, or wrapping, the no-op listener now leaves the connection open, so a caller pairing a fresh-connection tester with the no-op listener owns closing each connection.
+      </action>
     </release>
     <release version="3.5.2" date="Sep 7, 2026" description="DefaultPrepAndExpectedTestCase connection hygiene: replace a connection the pool or database dropped between tests, and warn when handed a non-autocommit connection">
       <action dev="jeffjensen" type="fix" issue="962" system="github" due-to="jeffjensen">
