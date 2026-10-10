@@ -1761,6 +1761,75 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
+    void testAfterTest_testerSharedAcrossMethods_putsTheTestersOwnListenerBack() throws Exception
+    {
+        // A tester shared across methods (a static @DbUnitTester field) must not keep the last
+        // test's executor-installed wrapper - which holds that executor and applies its
+        // @DbUnitProperty values - for whoever uses the tester next.
+        when(connection.getConfig()).thenReturn(new DatabaseConfig());
+        stubOpenJdbcConnection();
+        final IOperationListener custom = mock(IOperationListener.class);
+        final IDatabaseTester realTester = new DefaultDatabaseTester(connection);
+        realTester.setSetUpOperation(DatabaseOperation.NONE);
+        realTester.setOperationListener(custom);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, realTester, null);
+        executor.beforeTest();
+
+        executor.afterTest(false);
+
+        assertThat(realTester.getOperationListener())
+                .as("The listener the tester carried into the test must be put back.")
+                .isSameAs(custom);
+    }
+
+    @Test
+    void testReleaseIfAfterTestDidNotRun_testerSharedAcrossMethods_putsTheTestersOwnListenerBack()
+            throws Exception
+    {
+        final IOperationListener custom = mock(IOperationListener.class);
+        final IDatabaseTester realTester = new DefaultDatabaseTester(connection);
+        realTester.setOperationListener(custom);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, realTester, null);
+
+        executor.releaseIfAfterTestDidNotRun();
+
+        assertThat(realTester.getOperationListener())
+                .as("A test whose afterTest() never ran must still leave the listener the"
+                        + " tester carried into it.")
+                .isSameAs(custom);
+    }
+
+    @Test
+    void testAfterTest_testMethodInstalledItsOwnListener_leavesThatListenerInPlace()
+            throws Exception
+    {
+        when(connection.getConfig()).thenReturn(new DatabaseConfig());
+        stubOpenJdbcConnection();
+        final IDatabaseTester realTester = new DefaultDatabaseTester(connection);
+        realTester.setSetUpOperation(DatabaseOperation.NONE);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, realTester, null);
+        executor.beforeTest();
+        final IOperationListener installedByTheTest = mock(IOperationListener.class);
+        realTester.setOperationListener(installedByTheTest);
+
+        executor.afterTest(false);
+
+        assertThat(realTester.getOperationListener())
+                .as("A listener the test itself installed after the executor did is the test's"
+                        + " to keep, not the executor's to overwrite.")
+                .isSameAs(installedByTheTest);
+    }
+
+    @Test
     void testConstructor_testerCarriesAUserBlanketShield_keepsItUnderTheExecutorsListener()
     {
         // A caller who wraps a listener in a blanket ConnectionPreservingOperationListener owns
