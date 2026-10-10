@@ -22,8 +22,8 @@ package org.dbunit.annotation.runtime;
 
 import java.util.Properties;
 
-import org.dbunit.ConnectionPreservingOperationListener;
 import org.dbunit.DatabaseUnitException;
+import org.dbunit.DefaultOperationListener;
 import org.dbunit.DefaultPrepAndExpectedTestCase;
 import org.dbunit.IDatabaseTester;
 import org.dbunit.IOperationListener;
@@ -122,13 +122,12 @@ public class AnnotatedTestExecutor
      * {@link #installOperationListener()} runs here, replacing {@code tester}'s
      * {@link IOperationListener} with an {@code ExecutorOperationListener} wrapping the previous
      * one. A binding constructs one executor per test method, so a {@code tester} shared across
-     * methods (e.g. a {@code static @DbUnitTester} field) is re-wrapped each time -
-     * {@link ConnectionPreservingOperationListener#unwrap(IOperationListener)} unwraps the prior
-     * wrapper first, so the layers do not stack - and the last test's wrapper stays installed
-     * on the tester after the class
-     * finishes, holding a reference to that last executor until the tester is itself discarded
-     * or given a new listener. When {@code annotationDriven} is false - the classic path - the
-     * tester's listener is left untouched; see the class Javadoc.
+     * methods (e.g. a {@code static @DbUnitTester} field) is re-wrapped each time - an
+     * executor's wrapper from an earlier test is peeled off first, so the layers do not stack -
+     * and the last test's wrapper stays installed on the tester after the class finishes,
+     * holding a reference to that last executor until the tester is itself discarded or given a
+     * new listener. When {@code annotationDriven} is false - the classic path - the tester's
+     * listener is left untouched; see the class Javadoc.
      *
      * @param configuration The resolved configuration to execute.
      * @param tester The tester to drive the setup/teardown path with, or to construct a
@@ -296,16 +295,31 @@ public class AnnotatedTestExecutor
      * {@link #onListenerFirstConnectionRetrieved(IDatabaseConnection)}. Called from the
      * constructor only for an {@code annotationDriven} test; the classic path leaves the
      * tester's listener untouched (see the class Javadoc).
-     * {@link ConnectionPreservingOperationListener#unwrap(IOperationListener)} un-nests a prior
-     * wrapper so re-wrapping a tester shared across tests does not stack layers.
      */
     private void installOperationListener()
     {
+        final IOperationListener existing = withoutExecutorListener(tester.getOperationListener());
         final IOperationListener delegate =
-                ConnectionPreservingOperationListener.unwrap(tester.getOperationListener());
+                existing == null ? new DefaultOperationListener() : existing;
         tester.setOperationListener(new ExecutorOperationListener(
                 configuration.getDatabaseConfigProperties(), this::peekResolvedConnection,
                 delegate, this::onListenerFirstConnectionRetrieved));
+    }
+
+    /**
+     * Returns {@code listener} with a wrapper an executor installed on an earlier test peeled
+     * off, so re-wrapping a tester shared across tests does not nest one layer per test.
+     * Anything else is returned as it is - including a caller's own
+     * {@link org.dbunit.ConnectionPreservingOperationListener}, which expresses who owns the
+     * connections and must stay in force beneath this executor's wrapper.
+     */
+    private static IOperationListener withoutExecutorListener(final IOperationListener listener)
+    {
+        if (listener instanceof ExecutorOperationListener)
+        {
+            return ((ExecutorOperationListener) listener).getDelegate();
+        }
+        return listener;
     }
 
     /**

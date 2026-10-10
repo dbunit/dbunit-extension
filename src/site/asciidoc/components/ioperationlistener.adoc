@@ -80,3 +80,13 @@ IOperationListener listener = new IOperationListener()
 };
 databaseTester.setOperationListener(listener);
 ----
+
+[#extension]
+== Under the JUnit Jupiter Extension
+
+link:../testcases/DbUnitExtension.html[`DbUnitExtension`] on an annotation-driven test
+wraps the tester's listener while a test runs.
+
+* A listener wrapped in a `ConnectionPreservingOperationListener` keeps that wrapper in
+force: the extension adds its own protection for the one connection it holds on top of it,
+and does not replace it.
