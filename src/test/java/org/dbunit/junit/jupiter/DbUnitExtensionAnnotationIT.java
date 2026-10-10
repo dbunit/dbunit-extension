@@ -48,7 +48,10 @@ import org.dbunit.annotation.DbUnitTester;
 import org.dbunit.annotation.DbUnitVerifyTable;
 import org.dbunit.database.CachingConnectionProvider;
 import org.dbunit.database.IDatabaseConnection;
+import org.dbunit.dataset.IDataSet;
+import org.dbunit.operation.DatabaseOperation;
 import org.dbunit.operation.DbUnitOperation;
+import org.dbunit.util.fileloader.FlatXmlDataFileLoader;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.platform.testkit.engine.EngineTestKit;
@@ -171,11 +174,12 @@ class DbUnitExtensionAnnotationIT
                     new DefaultDatabaseTester(connection);
             ExpectedPathClassLevelOperationSample.databaseTester
                     .setOperationListener(IOperationListener.NO_OP_OPERATION_LISTENER);
-            try (Statement statement = connection.getConnection().createStatement())
-            {
-                statement.execute("INSERT INTO " + PK_TABLE
-                        + " (PK0, PK1, PK2, NORMAL0) VALUES (895, 895, 895, 'preexisting')");
-            }
+            // CLEAN_INSERT empties PK_TABLE first, so rows other integration tests left behind
+            // cannot reach the whole-table comparison the sample ends with, while the sample's
+            // REFRESH still has a row of its own to preserve.
+            final IDataSet preexisting = new FlatXmlDataFileLoader()
+                    .load("/org/dbunit/junit/jupiter/annotation-it-pk-preexisting.xml");
+            DatabaseOperation.CLEAN_INSERT.execute(connection, preexisting);
 
             EngineTestKit.engine("junit-jupiter")
                     .selectors(selectClass(ExpectedPathClassLevelOperationSample.class)).execute()
@@ -533,13 +537,14 @@ class DbUnitExtensionAnnotationIT
         @DbUnitTester
         static IDatabaseTester databaseTester;
 
-        // No verifyTables/verify/verifyDefinitions: @DbUnitExpected here only needs to switch
-        // the test onto the prep/expected path, not compare any table - the row counts the
-        // calling test reads afterward are what prove the class-level @DbUnitSetup operation
-        // was applied there too, not just on the setup/teardown path.
+        // The expected dataset holds the REFRESH result - the pre-existing row plus the prep
+        // row - so the verification itself proves the class-level @DbUnitSetup operation was
+        // applied on the prep/expected path too, not just on the setup/teardown path.
         @Test
         @DbUnitPrep("annotation-it-pk-prep.xml")
-        @DbUnitExpected
+        @DbUnitExpected(value = "annotation-it-pk-refreshed-expected.xml",
+                verify = @DbUnitVerifyTable(value = PK_TABLE,
+                        include = {"PK0", "PK1", "PK2", "NORMAL0"}))
         void testPrepDeclaredOnMethod_expectedPathWithClassLevelSetupOperation_bothApply()
         {
         }
