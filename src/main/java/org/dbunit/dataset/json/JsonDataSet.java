@@ -32,6 +32,7 @@ import java.nio.charset.StandardCharsets;
 import org.dbunit.dataset.CachedDataSet;
 import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.IDataSet;
+import org.dbunit.dataset.RequiredLibrary;
 
 /**
  * Reads and writes flat JSON-based dataset documents.
@@ -61,11 +62,12 @@ public class JsonDataSet extends CachedDataSet
      *
      * @param file The JSON file to read.
      * @throws IOException If the file cannot be opened.
-     * @throws DataSetException If the JSON content cannot be parsed as a dataset.
+     * @throws DataSetException If the JSON content cannot be parsed as a dataset, or Jackson is
+     *             not on the classpath.
      */
     public JsonDataSet(final File file) throws IOException, DataSetException
     {
-        super(new JsonProducer(file), true);
+        super(newProducer(file), true);
     }
 
     /**
@@ -73,11 +75,12 @@ public class JsonDataSet extends CachedDataSet
      * completes; the caller remains responsible for closing it.
      *
      * @param inputStream The stream containing JSON dataset data.
-     * @throws DataSetException If the JSON content cannot be parsed as a dataset.
+     * @throws DataSetException If the JSON content cannot be parsed as a dataset, or Jackson is
+     *             not on the classpath.
      */
     public JsonDataSet(final InputStream inputStream) throws DataSetException
     {
-        super(new JsonProducer(inputStream), true);
+        super(newProducer(inputStream), true);
     }
 
     /**
@@ -98,10 +101,29 @@ public class JsonDataSet extends CachedDataSet
      *
      * @param dataSet The dataset to write.
      * @param out The writer to write to.
-     * @throws DataSetException If the dataset cannot be serialized.
+     * @throws DataSetException If the dataset cannot be serialized, or Jackson is not on the
+     *             classpath.
      */
     public static void write(final IDataSet dataSet, final Writer out) throws DataSetException
     {
+        requireJackson();
         new JsonWriter(out).write(dataSet);
+    }
+
+    private static JsonProducer newProducer(final File file) throws IOException, DataSetException
+    {
+        requireJackson();
+        return new JsonProducer(file);
+    }
+
+    private static JsonProducer newProducer(final InputStream inputStream) throws DataSetException
+    {
+        requireJackson();
+        return new JsonProducer(inputStream);
+    }
+
+    private static void requireJackson() throws DataSetException
+    {
+        RequiredLibrary.JACKSON.require(JsonDataSet.class);
     }
 }

@@ -31,6 +31,7 @@ import java.util.Map;
 import org.dbunit.dataset.Column;
 import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.IDataSet;
+import org.dbunit.dataset.RequiredLibrary;
 import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.ITableIterator;
 import org.dbunit.dataset.ITableMetaData;
@@ -57,6 +58,7 @@ class JsonWriter
      */
     JsonWriter(final Writer out)
     {
+        RequiredLibrary.JACKSON.requireUnchecked(JsonWriter.class);
         this._out = out;
     }
 

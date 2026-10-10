@@ -24,6 +24,7 @@ package org.dbunit.dataset.yaml;
 import org.dbunit.dataset.CachedDataSet;
 import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.IDataSet;
+import org.dbunit.dataset.RequiredLibrary;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -77,22 +78,24 @@ public class YamlDataSet extends CachedDataSet
      *
      * @param file the YAML file to load.
      * @throws IOException if the file cannot be read.
-     * @throws DataSetException if the document cannot be parsed.
+     * @throws DataSetException if the document cannot be parsed, or SnakeYAML is not on the
+     *             classpath.
      */
     public YamlDataSet(File file) throws IOException, DataSetException
     {
-        super(new YamlProducer(file), true);
+        super(newProducer(file), true);
     }
 
     /**
      * Creates a YAML dataset based on an inputstream
      *
      * @param inputStream An inputstream pointing to a YAML dataset
-     * @throws DataSetException if the document cannot be parsed.
+     * @throws DataSetException if the document cannot be parsed, or SnakeYAML is not on the
+     *             classpath.
      */
     public YamlDataSet(InputStream inputStream) throws DataSetException
     {
-        super(new YamlProducer(inputStream), true);
+        super(newProducer(inputStream), true);
     }
 
     /**
@@ -115,13 +118,32 @@ public class YamlDataSet extends CachedDataSet
      *
      * @param dataSet the dataset to write.
      * @param out the writer to write the YAML document to.
-     * @throws DataSetException if the dataset cannot be read.
+     * @throws DataSetException if the dataset cannot be read, or SnakeYAML is not on the
+     *             classpath.
      */
     public static void write(IDataSet dataSet, Writer out)
     throws DataSetException
     {
+        requireSnakeYaml();
         YamlWriter yamlWriter = new YamlWriter(out);
         yamlWriter.write(dataSet);
+    }
+
+    private static YamlProducer newProducer(File file) throws IOException, DataSetException
+    {
+        requireSnakeYaml();
+        return new YamlProducer(file);
+    }
+
+    private static YamlProducer newProducer(InputStream inputStream) throws DataSetException
+    {
+        requireSnakeYaml();
+        return new YamlProducer(inputStream);
+    }
+
+    private static void requireSnakeYaml() throws DataSetException
+    {
+        RequiredLibrary.SNAKEYAML.require(YamlDataSet.class);
     }
 
 }
