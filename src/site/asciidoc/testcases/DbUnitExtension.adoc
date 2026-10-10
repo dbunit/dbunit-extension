@@ -115,6 +115,11 @@ class AccountRepositoryTest
 }
 ----
 
+A parameter is matched by its declared type exactly: a parameter declared as a
+subtype, such as a `JdbcDatabaseTester` or a driver's own `Connection`
+interface, is left to whichever other resolver supplies it, since the value
+injected here is not necessarily an instance of that subtype.
+
 Parameter injection is claimed only for a test that opts into
 link:annotations.html[`org.dbunit.annotation`] — one carrying `@DbUnitTest`
 or any `@DbUnit*` annotation on the class or method, or a `@DbUnitTester`/
