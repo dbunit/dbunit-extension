@@ -4,7 +4,7 @@
 
   <groupId>org.dbunit</groupId>
   <artifactId>dbunit</artifactId>
-  <version>3.5.2</version>
+  <version>3.5.3-SNAPSHOT</version>
   <packaging>jar</packaging>
   <name>dbUnit Extension</name>
   <url>https://github.com/dbunit/dbunit-extension</url>
@@ -154,7 +154,6 @@
     <connection>scm:git:https://github.com/dbunit/dbunit-extension.git</connection>
     <developerConnection>scm:git:https://github.com/dbunit/dbunit-extension.git</developerConnection>
     <url>https://github.com/dbunit/dbunit-extension.git</url>
-    <tag>dbunit-3.5.1</tag>
   </scm>
   <issueManagement>
     <system>github</system>
@@ -1175,6 +1174,33 @@
             </configuration>
           </reportSet>
 -->
+          <reportSet>
+            <id>3.5.2-to-3.5.3</id>
+            <reports>
+              <report>cmp-report</report>
+            </reports>
+            <configuration>
+              <parameter>
+                <reportLinkName>3.5.2-to-3.5.3</reportLinkName>
+              </parameter>
+              <oldVersion>
+                <dependency>
+                  <groupId>${project.groupId}</groupId>
+                  <artifactId>${project.artifactId}</artifactId>
+                  <version>3.5.3</version>
+                  <type>jar</type>
+                </dependency>
+              </oldVersion>
+              <newVersion>
+                <dependency>
+                  <groupId>${project.groupId}</groupId>
+                  <artifactId>${project.artifactId}</artifactId>
+                  <version>3.5.3</version>
+                  <type>jar</type>
+                </dependency>
+              </newVersion>
+            </configuration>
+          </reportSet>
           <reportSet>
             <id>3.5.1-to-3.5.2</id>
             <reports>
