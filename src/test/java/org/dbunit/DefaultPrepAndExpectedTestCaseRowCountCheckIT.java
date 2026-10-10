@@ -137,6 +137,22 @@ class DefaultPrepAndExpectedTestCaseRowCountCheckIT
     }
 
     @Test
+    void testPostTest_tableWithPreexistingRowsTheTestNeverTouches_doesNotThrow()
+            throws Exception
+    {
+        // the baseline is what the table held before the test, not zero: rows another test
+        // class left behind are not this test's to report
+        insertRow(SECOND_TABLE);
+
+        tc.preTest();
+
+        assertThatCode(() -> tc.postTest())
+                .as("A table whose row count is the same before and after the test must not be"
+                        + " reported, whatever it held to begin with.")
+                .doesNotThrowAnyException();
+    }
+
+    @Test
     void testPostTest_leakedRowInExcludedTable_doesNotThrow() throws Exception
     {
         connection.getConfig().setProperty(
