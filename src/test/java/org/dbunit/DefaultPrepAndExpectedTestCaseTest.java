@@ -757,6 +757,51 @@ class DefaultPrepAndExpectedTestCaseTest
     }
 
     @Test
+    void testCleanupData_databaseTesterListenerIsNoOp_leavesTheSharedConnectionOpen()
+            throws Exception
+    {
+        // The tester, not the test case, is what a caller configures with the NO_OP listener to
+        // say its connection is managed elsewhere; the test case must honor that signal too.
+        databaseTester.setOperationListener(IOperationListener.NO_OP_OPERATION_LISTENER);
+
+        tc.cleanupData();
+
+        final MockDatabaseConnection connection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        connection.setExpectedCloseCalls(0);
+        connection.verify();
+    }
+
+    @Test
+    void testCleanupData_databaseTesterListenerWrapsNoOp_leavesTheSharedConnectionOpen()
+            throws Exception
+    {
+        databaseTester.setOperationListener(new ConnectionPreservingOperationListener(
+                IOperationListener.NO_OP_OPERATION_LISTENER));
+
+        tc.cleanupData();
+
+        final MockDatabaseConnection connection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        connection.setExpectedCloseCalls(0);
+        connection.verify();
+    }
+
+    @Test
+    void testCleanupData_databaseTesterListenerIsDefault_closesTheSharedConnection()
+            throws Exception
+    {
+        databaseTester.setOperationListener(new DefaultOperationListener());
+
+        tc.cleanupData();
+
+        final MockDatabaseConnection connection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        connection.setExpectedCloseCalls(1);
+        connection.verify();
+    }
+
+    @Test
     void testCleanupData_withUserDefinedOperationListener_invokesConnectionRetrievedButNotTearDownFinished()
             throws Exception
     {
