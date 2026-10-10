@@ -39,14 +39,16 @@ import org.slf4j.LoggerFactory;
  */
 public class ToleratedDeltaMap
 {
+
+    /**
+     * The logger
+     */
+
+    private static final Logger logger = LoggerFactory.getLogger(ToleratedDeltaMap.class);
     /**
      * List of {@link ToleratedDelta} objects
      */
     private Map _toleratedDeltas;
-    /**
-     * The logger
-     */
-    private Logger logger = LoggerFactory.getLogger(ToleratedDeltaMap.class);
 
     /**
      * Lookup a tolerated delta object by tableName and ColumnName.
