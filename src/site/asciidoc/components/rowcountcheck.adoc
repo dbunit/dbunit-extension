@@ -66,6 +66,8 @@ configures:
 -Ddbunit.rowCountCheck=true
 ----
 
+A bare `-Ddbunit.rowCountCheck` with no value enables it too; use `=false` to force it off.
+
 It is wired into both link:../testcases/PrepAndExpectedTestCase.html[PrepAndExpectedTestCase]
 and link:../testcases/DbUnitExtension.html[DbUnitExtension]; enabling the feature (or the
 system property) is everything a test needs to do. Both integration points share the same
