@@ -94,6 +94,8 @@ public class AnnotatedTestExecutor
     private final SetupTeardownLifecycle setupTeardownLifecycle;
 
     private boolean afterTestRan;
+    private ExecutorOperationListener installedListener;
+    private IOperationListener listenerToRestore;
 
     /**
      * Creates an executor for an annotation-driven test - equivalent to
@@ -121,13 +123,11 @@ public class AnnotatedTestExecutor
      * <p>Mutates {@code tester} only when {@code annotationDriven} is true:
      * {@link #installOperationListener()} runs here, replacing {@code tester}'s
      * {@link IOperationListener} with an {@code ExecutorOperationListener} wrapping the previous
-     * one. A binding constructs one executor per test method, so a {@code tester} shared across
-     * methods (e.g. a {@code static @DbUnitTester} field) is re-wrapped each time - an
-     * executor's wrapper from an earlier test is peeled off first, so the layers do not stack -
-     * and the last test's wrapper stays installed on the tester after the class finishes,
-     * holding a reference to that last executor until the tester is itself discarded or given a
-     * new listener. When {@code annotationDriven} is false - the classic path - the tester's
-     * listener is left untouched; see the class Javadoc.
+     * one, which {@link #afterTest(boolean)} - or {@link #releaseIfAfterTestDidNotRun()} - puts
+     * back, so a {@code tester} shared across methods (e.g. a {@code static @DbUnitTester}
+     * field) carries nothing onto the next test or the next user of the tester. When
+     * {@code annotationDriven} is false - the classic path - the tester's listener is left
+     * untouched; see the class Javadoc.
      *
      * @param configuration The resolved configuration to execute.
      * @param tester The tester to drive the setup/teardown path with, or to construct a
@@ -294,16 +294,19 @@ public class AnnotatedTestExecutor
      * whatever connection {@code onSetup()} retrieves on its own - see
      * {@link #onListenerFirstConnectionRetrieved(IDatabaseConnection)}. Called from the
      * constructor only for an {@code annotationDriven} test; the classic path leaves the
-     * tester's listener untouched (see the class Javadoc).
+     * tester's listener untouched (see the class Javadoc). {@link #restoreOperationListener()}
+     * puts the tester's own listener back once the test is over.
      */
     private void installOperationListener()
     {
-        final IOperationListener existing = withoutExecutorListener(tester.getOperationListener());
-        final IOperationListener delegate =
-                existing == null ? new DefaultOperationListener() : existing;
-        tester.setOperationListener(new ExecutorOperationListener(
+        listenerToRestore = withoutExecutorListener(tester.getOperationListener());
+        final IOperationListener delegate = listenerToRestore == null
+                ? new DefaultOperationListener()
+                : listenerToRestore;
+        installedListener = new ExecutorOperationListener(
                 configuration.getDatabaseConfigProperties(), this::peekResolvedConnection,
-                delegate, this::onListenerFirstConnectionRetrieved));
+                delegate, this::onListenerFirstConnectionRetrieved);
+        tester.setOperationListener(installedListener);
     }
 
     /**
@@ -320,6 +323,25 @@ public class AnnotatedTestExecutor
             return ((ExecutorOperationListener) listener).getDelegate();
         }
         return listener;
+    }
+
+    /**
+     * Puts back the listener the tester carried before {@link #installOperationListener()},
+     * unless something else has replaced the executor's since - a test that installs a listener
+     * of its own mid-test owns it. A no-op when nothing was installed, or it was already put
+     * back.
+     */
+    private void restoreOperationListener()
+    {
+        if (installedListener == null)
+        {
+            return;
+        }
+        if (tester.getOperationListener() == installedListener)
+        {
+            tester.setOperationListener(listenerToRestore);
+        }
+        installedListener = null;
     }
 
     /**
@@ -418,6 +440,17 @@ public class AnnotatedTestExecutor
         afterTestRan = true;
         try
         {
+            runAfterStepThenRelease(testFailed);
+        } finally
+        {
+            restoreOperationListener();
+        }
+    }
+
+    private void runAfterStepThenRelease(final boolean testFailed) throws Exception
+    {
+        try
+        {
             if (configuration.isExpected())
             {
                 expectedLifecycle.after(testFailed);
@@ -458,6 +491,12 @@ public class AnnotatedTestExecutor
         {
             return;
         }
-        testScopedConnection.release();
+        try
+        {
+            testScopedConnection.release();
+        } finally
+        {
+            restoreOperationListener();
+        }
     }
 }
