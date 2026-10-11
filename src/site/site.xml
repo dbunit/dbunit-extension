@@ -6,7 +6,7 @@
     <image src="/images/dbunit-logo.jpg"/>
   </bannerLeft>
 
-  <bannerRight name="" href="https://github.com/dbunit">
+  <bannerRight name="" href="https://github.com/dbunit/dbunit-extension">
     <image src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png" width="48px" height="48px"/>
   </bannerRight>
 
