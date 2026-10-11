@@ -9,39 +9,10 @@ image:https://img.shields.io/badge/License-LGPL%20v2.1-blue.svg["License: LGPL v
 image:https://img.shields.io/badge/Java-8%2B-orange["Java 8+"]
 image:https://img.shields.io/github/issues/dbunit/dbunit-extension["Open Issues", link="https://github.com/dbunit/dbunit-extension/issues"]
 
-DbUnit is a mature, proven JUnit extension, founded in 2002,
-targeted at database-driven projects that, among other things,
-puts the database into a known state between test runs.
-This is an excellent way to avoid the myriad of problems that can occur when one test case corrupts the data and causes subsequent tests to fail or exacerbate the damage.
-
-dbUnit hooks into JUnit 5/6 (Jupiter; JUnit 4 support was dropped in 3.0.0)
-either by composing an `IDatabaseTester` into your test class (the preferred style)
-or by extending `DBTestCase`.
-
-* Reads and writes multiple link:https://dbunit.github.io/dbunit-extension/datasets.html[dataset formats], built from files, code, or a live query.
-* On JUnit 5/6, link:https://dbunit.github.io/dbunit-extension/testcases/annotations.html[configure a test declaratively with annotations] — `@DbUnitPrep`, `@DbUnitExpected`, `@DbUnitSetup`, `@DbUnitTearDown` — instead of hand-written lifecycle code, including an opt-in `@DbUnitRowCountCheck` that catches a table teardown forgot to clean, or wrongly cleaned.
-* `INSERT`, `UPDATE`, `DELETE`, `REFRESH` (upsert), `CLEAN_INSERT`, and other composable database operations.
-* link:https://dbunit.github.io/dbunit-extension/datacomparisons/valuecomparer.html[ValueComparer] assertions beyond strict equality — tolerance (numeric and timestamp), greater-than/less-than, null checks, string containment, and ignore-millis timestamps.
-* Vendor-specific support for many link:https://dbunit.github.io/dbunit-extension/databases.html[databases].
-* Usable outside of tests too, via its https://dbunit.github.io/dbunit-extension/anttask.html[Ant Integration] task or the companion dbunit-maven-plugin, for data import/export.
-
-New here? The fastest way to get started is the
-https://dbunit.github.io/dbunit-extension/fiveminutes.html[dbUnit in 5 Minutes] tutorial.
-
 == Documentation
 
 The full documentation site, including guides, reference pages, and the FAQ, is at
 https://dbunit.github.io/dbunit-extension/.
-
-== Getting Help
-
-Report bugs and request enhancements at
-https://github.com/dbunit/dbunit-extension/issues.
-
-For questions, ideas, or want to get involved, start a discussion at
-https://github.com/dbunit/dbunit-extension/discussions.
-
-We are a small team working on improvements and issues along the way and need more help — we will gladly help you as needed with your ideas and contributions and look to add you as a committer when ready.
 
 == Thank You for Supporting Us
 image:https://img.shields.io/badge/Reviewed_by-Sourcery_AI-A11ED3?style=flat["Reviewed by Sourcery", link="https://sourcery.ai"]
