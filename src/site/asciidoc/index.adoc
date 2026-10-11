@@ -11,7 +11,7 @@ or by extending link:apidocs/org/dbunit/DBTestCase.html[`DBTestCase`].
 Outside of tests, it is also a convenient utility for importing and exporting data — from code, via link:anttask.html[Ant Integration], or through the companion dbunit-maven-plugin.
 Flat XML dataset files can also be edited by hand, spreadsheet-style, with the companion link:https://dbunit.github.io/dbunit-eclipse-plugin/[dbUnit Eclipse Plugin].
 
-== What dbUnit Provides
+== Features
 
 * *Dataset formats* — link:datasets.html[Flat XML, XML, CSV, JSON, YAML, and Excel], plus building datasets in code or reading them straight from a live query. Matching link:datasets/fileloader.html[`DataFileLoader`] implementations — including one that dispatches by file extension — load prep/expected fixture files for you.
 * *Database operations* — `INSERT`, `UPDATE`, `DELETE`, `DELETE_ALL`, `TRUNCATE_TABLE`, `REFRESH` (upsert), and `CLEAN_INSERT` (truncate + insert), composable and transaction-wrappable.
