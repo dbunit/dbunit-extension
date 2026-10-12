@@ -55,6 +55,7 @@ We will gladly help you as needed with your ideas and contributions and look to 
 |Please try the 3.6.0-SNAPSHOT snapshot build and let us know how it works!
 It adds
 link:testcases/annotations.html[*annotation-driven test configuration*] for JUnit 5/6 (Jupiter),
+link:testcases/DbUnitTestExecutionListener.html[`DbUnitTestExecutionListener`] for running that configuration in *Spring TestContext Framework* tests,
 an opt-in link:components/rowcountcheck.html[*row count check*] that catches teardown table cleanup mistakes,
 link:datasets/fileloader.html[*JSON/YAML* data file loader] implementations,
 link:datacomparisons/valuecomparer.html[`RegularExpressionValueComparer`] for *matching a column against a pattern* rather than a literal,
