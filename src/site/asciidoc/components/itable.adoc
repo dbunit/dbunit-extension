@@ -4,7 +4,7 @@
 
 link:../apidocs/org/dbunit/dataset/ITable.html[ITable] (`org.dbunit.dataset`) is the
 atomic unit link:../datasets.html[IDataSet] collects — a dataset is a named group of
-`ITable`s. Its contract is deliberately small:
+`ITable` instances. Its contract is deliberately small:
 
 [source,java]
 ----
@@ -21,8 +21,8 @@ The sentinel constant `ITable.NO_VALUE` is a marker object some `ITable` impleme
 return in place of `null` — check identity (`==`) against it rather than assuming a
 `null` return always means "no value."
 
-See link:../datasets.html[Datasets] for how `IDataSet` assembles many `ITable`s from a
-file, a live database, or code.
+See link:../datasets.html[Datasets] for how `IDataSet` assembles many `ITable`
+instances from a file, a live database, or code.
 
 [#itablemetadata]
 == ITableMetaData
@@ -50,7 +50,7 @@ link:../apidocs/org/dbunit/dataset/Column.html[Column] describes one column:
 
 |`columnName` |The column's name (`getColumnName()`).
 |`dataType` |The dbUnit link:../datatypes.html[DataType] (`getDataType()`) — see Data Types for the full type catalog rather than repeating it here.
-|`sqlTypeName` |The JDBC driver's SQL type name (`getSqlTypeName()`), from `DatabaseMetaData.getColumns()`'s `TYPE_NAME` column.
+|`sqlTypeName` |The JDBC driver's SQL type name (`getSqlTypeName()`), from the `TYPE_NAME` column of `DatabaseMetaData.getColumns()`.
 |`nullable` |One of `Column.NO_NULLS`, `Column.NULLABLE`, or `Column.NULLABLE_UNKNOWN` (`getNullable()`); `isNotNullable()` is a convenience check against `NO_NULLS`.
 |`defaultValue` |The database's default value for the column, or `null` (`hasDefaultValue()`/`getDefaultValue()`).
 |`remarks` |Free-text remarks from the database metadata, or `null`.
@@ -86,8 +86,8 @@ arrays — not a collection type itself. The commonly-used ones:
 link:../apidocs/org/dbunit/dataset/ITableIterator.html[ITableIterator] is the cursor
 `IDataSet.iterator()`/`reverseIterator()` return: `next()` advances to the next table
 (initially positioned before the first), `getTableMetaData()`/`getTable()` access the
-current one. `link:../operations.html[DatabaseOperation]`s like `INSERT`/`DELETE_ALL`
-walk a dataset with these iterators, which is why table order inside an `IDataSet`
+current one. A `link:../operations.html[DatabaseOperation]` like `INSERT`/`DELETE_ALL`
+walks a dataset with these iterators, which is why table order inside an `IDataSet`
 matters for foreign-key-respecting operations.
 
 [#itable-exceptions]
@@ -116,7 +116,7 @@ decorator (below):
 
 |`AbstractTable` |Base class most implementations extend; supplies row/column index validation helpers (`assertValidRowIndex()`, `assertValidColumn()`) so concrete subclasses only need to implement the 3-method `ITable` contract itself.
 |`DefaultTable` |The basic in-memory, `java.util.List`-backed implementation — what `DataSetBuilder` (see link:../datasets.html[Datasets]) builds under the hood.
-|`CachedTable` |Eagerly copies another `ITable`'s rows into memory (extends `DefaultTable`) — a detached snapshot, useful when the source table's underlying data may change or become unavailable (e.g. a closed `ResultSet`-backed table) after this snapshot is taken.
+|`CachedTable` |Eagerly copies the rows of another `ITable` into memory (extends `DefaultTable`) — a detached snapshot, useful when the source table's underlying data may change or become unavailable (e.g. a closed `ResultSet`-backed table) after this snapshot is taken.
 |===
 
 This page intentionally does not re-describe the decorator implementations that wrap an

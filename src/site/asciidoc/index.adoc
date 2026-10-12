@@ -214,7 +214,7 @@ Here a detailed link:changes.html#a2.4.5[changes] report.
 
 |2009-02-24
 |We are proud to announce the 2.4.4 release has been cut.
-It adds `DatabaseConnection` methods for working with `PreparedStatement`s, and fixes overridden `setUpDatabaseConfig()` not being called and *a DB2 regression* from 2.4.0.
+It adds `DatabaseConnection` methods for working with `PreparedStatement` objects, and fixes overridden `setUpDatabaseConfig()` not being called and *a DB2 regression* from 2.4.0.
 Here a detailed link:changes.html#a2.4.4[changes] report.
 
 |2009-01-20

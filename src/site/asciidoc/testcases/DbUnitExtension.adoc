@@ -77,7 +77,7 @@ link:annotations.html[DbUnit Annotations] for the full reference.
 
 The same link:../components/rowcountcheck.html[RowCountCheck] diagnostic available to
 link:PrepAndExpectedTestCase.html[PrepAndExpectedTestCase] applies here too: a baseline is
-captured from the resolved `IDatabaseTester`'s connection before the setup operation
+captured from the connection of the resolved `IDatabaseTester` before the setup operation
 changes any data, and verified after `onTearDown()`, failing the test by name when a table's row count moved. Verification
 is skipped whenever `onTearDown()` itself throws, and also when the test method threw
 before reaching it, since either way the database is left in an unknown state and a count
@@ -149,7 +149,7 @@ that type), so inject it and call its `getConnection()`.
 
 A `@BeforeEach` parameter resolves before this extension's own setup runs —
 JUnit Jupiter always calls `@BeforeEach` methods first — so it sees the
-tester/connection exactly as they exist before that setup: `@DbUnitPrep`'s
+tester/connection exactly as they exist before that setup: the `@DbUnitPrep`
 dataset, if any, is not loaded onto it yet, though `@DbUnitProperty` values and the
 other `@DbUnitConfig` settings are already in force on it. Ask for the parameter on the
 `@Test` method instead when the test needs the already-prepped state.

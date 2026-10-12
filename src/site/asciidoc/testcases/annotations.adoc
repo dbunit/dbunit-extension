@@ -70,14 +70,14 @@ Presence of `@DbUnitExpected` decides which path a test runs:
 |===
 |Path |Behaviour
 
-|Setup/teardown |`@DbUnitPrep`'s dataset (if any) and `@DbUnitSetup`'s
+|Setup/teardown |The `@DbUnitPrep` dataset (if any) and the `@DbUnitSetup`
 operation are applied, then `IDatabaseTester.onSetup()` runs before the test
 method and `onTearDown()` after it — the same lifecycle
 link:DbUnitExtension.html[DbUnitExtension] has always run. The test method
 asserts results however it likes.
 
-|Prep/expected |`@DbUnitExpected` present. `@DbUnitPrep`'s dataset (if any)
-and `@DbUnitSetup`'s operation are applied the same as the setup/teardown
+|Prep/expected |`@DbUnitExpected` present. The `@DbUnitPrep` dataset (if any)
+and the `@DbUnitSetup` operation are applied the same as the setup/teardown
 path, then the extension drives a
 link:PrepAndExpectedTestCase.html[PrepAndExpectedTestCase]:
 `configureTest()`/`preTest()` before the test method,
@@ -283,7 +283,7 @@ in a `@BeforeEach`); a bare `@DbUnitSetup` resolves to `CLEAN_INSERT`, not
 `NONE`, so `@DbUnitSetup` with no `@DbUnitPrep` and no `@BeforeEach` dataset
 logs a `WARN` (a built-in tester then fails inside `onSetup()`; a custom one
 may source its dataset elsewhere). Both annotations otherwise apply the same
-way on either path: `@DbUnitSetup`'s operation runs before `preTest()` too
+way on either path: the `@DbUnitSetup` operation runs before `preTest()` too
 when `@DbUnitExpected` is present, not just before `onSetup()` on the
 setup/teardown path.
 
@@ -315,7 +315,7 @@ to the tester, one a `CachingConnectionProvider` caches, or one kept with
 `closeConnectionAfterTest = false`: they are put back when the test ends — see
 <<properties>>.
 
-`@DbUnitTearDown` is `@DbUnitSetup`'s counterpart, defaulting to
+`@DbUnitTearDown` is the counterpart of `@DbUnitSetup`, defaulting to
 `DbUnitOperation.NONE`. It has no data annotation of its own: the dataset
 already prepared (prep, or prep plus expected on the other path) is what the
 operation runs against. To tear down an extra table, list it — empty — in
@@ -606,7 +606,7 @@ override every setter involved.
 Only what a test declares is pushed. An instance built with its own loader, failure
 handler, properties or `closeConnectionAfterTest = false` keeps them when `@DbUnitConfig`
 says nothing about them, and a declared `properties` value is added to the instance's own
-rather than replacing them. Two details follow from `@DbUnitConfig`'s defaults: an instance
+rather than replacing them. Two details follow from the `@DbUnitConfig` defaults: an instance
 with no data file loader at all is given the configured one, since it cannot load datasets
 without it; and `closeConnectionAfterTest` is declared only by setting it to `false`, because
 the default `true` cannot be told apart from leaving it out, so an instance built with `false`
@@ -863,7 +863,7 @@ a gap — it is the <<twopaths,setup/teardown path>>. Use `@DbUnitPrep`/
 test method with whatever tooling you already have. `@DbUnitExpected` exists
 only for the case where you want dbUnit's expected-dataset comparison to do
 the verifying; there is no annotation to substitute a different verifier for
-it, because that comparison is `PrepAndExpectedTestCase`'s whole job.
+it, because that comparison is the whole job of `PrepAndExpectedTestCase`.
 
 Annotation values require compile-time constants — a `static final
 String[]`, `VerifyTableDefinition[]`, or `Properties` cannot be referenced
