@@ -484,7 +484,7 @@ default with no `verifyTables` to narrow it - every definition in
 
 The catalog is a *plain constants class* — no interface, no boilerplate,
 nothing to keep in sync. This is deliberately the same shape
-link:PrepAndExpectedTestCase.html#_common_classes_for_examples[PrepAndExpectedTestCase]
+link:PrepAndExpectedTestCase.html#common_classes_for_examples[PrepAndExpectedTestCase]
 already teaches with its `TableNames`/`ColumnNames`/`AppValueComparers`/
 `VerifyTableDefinitions` helper classes, so an existing project's constants
 work here unchanged.
@@ -590,7 +590,7 @@ managed elsewhere, or, on the prep/expected path, when the injected
 |`injectConnectionParameter` |Whether the extension resolves a bare
 `java.sql.Connection` test-method parameter; default `true`. Set `false` when
 a co-registered resolver (Spring, Testcontainers) needs it — see
-link:DbUnitExtension.html#_parameter_injection[DbUnitExtension].
+link:DbUnitExtension.html#parameter_injection[DbUnitExtension].
 |===
 
 [#injected-testcase-config]
