@@ -43,6 +43,10 @@ profiles set internally).
 |Enforcer |`validate` phase (the `enforce` goal's default binding — the execution in
 `pom.xml` doesn't override it) |*Yes* — checks the Maven and Java versions in use,
 required plugin versions, and that referenced profile IDs actually exist.
+|Surefire (`SiteAsciiDocTest`) |`test` phase |*Yes* — fails when a page of `README.adoc` or
+`src/site/asciidoc` puts an apostrophe or a letter directly after inline code (a possessive or
+plural of a class name) or leaves a backtick without its partner, since Asciidoctor then shows a
+stray backtick. The failure names the file and line and says how to reword the sentence.
 |Checkstyle |`site` (reporting only) |*No.* The ruleset in `checkstyle.xml` is wired only
 under the `reporting` section — no execution binds a `check` goal to any lifecycle
 phase, so a violation shows up in the generated report (`./mvnw site`) but does not fail
