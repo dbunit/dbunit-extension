@@ -854,7 +854,7 @@ Then, pass the needed ones in the correct data file array
 link:../changes.html#a2.5.2[Release 2.5.2] introduced interface
 link:../apidocs/org/dbunit/PrepAndExpectedTestCaseSteps.html[PrepAndExpectedTestCaseSteps]
 and the
-link:../apidocs/org/dbunit/PrepAndExpectedTestCase.html#runTest-org.dbunit.VerifyTableDefinition:A-java.lang.String:A-java.lang.String:A-org.dbunit.PrepAndExpectedTestCaseSteps-[PrepAndExpectedTestCase#runTest(VerifyTableDefinition[], String[], String[], PrepAndExpectedTestCaseSteps)]
+link:../apidocs/org/dbunit/PrepAndExpectedTestCase.html#runTest(org.dbunit.VerifyTableDefinition%5B%5D,java.lang.String%5B%5D,java.lang.String%5B%5D,org.dbunit.PrepAndExpectedTestCaseSteps)[PrepAndExpectedTestCase#runTest(VerifyTableDefinition[\], String[\], String[\], PrepAndExpectedTestCaseSteps)]
 method. This allows for encapsulating test steps into an anonymous inner
 class or a Java 8+ lambda.
 
