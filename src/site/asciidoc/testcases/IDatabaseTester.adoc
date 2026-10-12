@@ -119,10 +119,10 @@ reference) observes connection handling around `onSetup()`/`onTearDown()`. Set o
   connection is created or retrieved, before the operation runs. Apply
   per-connection `DatabaseConfig` customizations here (data type factory,
   feature flags, etc.).
-* `operationSetUpFinished(IDatabaseConnection)` — called after `onSetup()`'s
-  operation completes.
+* `operationSetUpFinished(IDatabaseConnection)` — called after the operation of
+  `onSetup()` completes.
 * `operationTearDownFinished(IDatabaseConnection)` — called after
-  `onTearDown()`'s operation completes.
+  the operation of `onTearDown()` completes.
 
 The default listener (`DefaultOperationListener`) closes the connection in
 both `*Finished` callbacks — a fresh connection every `onSetup()`/

@@ -52,7 +52,7 @@ link:commits.html[Commit Requirements].
 The `<release>` element's own `description` attribute is a short 1-2 sentence summary
 of that release's *overall themes* — not a concatenation of every entry. Update it only
 when a new theme is introduced, by extending the existing text; full detail belongs in
-each `<action>`'s own body, not here.
+the body of each `<action>`, not here.
 
 [#new-development-cycle]
 == Starting a New Development Cycle

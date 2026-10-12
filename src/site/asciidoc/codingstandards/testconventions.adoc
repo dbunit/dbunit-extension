@@ -113,7 +113,7 @@ test ever moved to a different vendor.
 == Fixed Test Timezone
 
 Surefire and Failsafe both force `-Duser.timezone=Europe/Berlin` on every test run
-(confirmed in `pom.xml`'s plugin configuration) — so timestamp/timezone-sensitive
+(confirmed in the plugin configuration of `pom.xml`) — so timestamp/timezone-sensitive
 behavior is exercised consistently in CI regardless of the runner's own locale. A test
 launched directly from an IDE skips this unless you configure the run configuration to
 match. See link:../building.html[Building]'s Quality Gates section for the mechanics.

@@ -140,7 +140,7 @@ interface hierarchy and lifecycle.
 
 Before JUnit 5 (dbUnit releases prior to 3.0.0, which supported JUnit 4),
 projects not extending `DBTestCase` at all drove an `IDatabaseTester`
-manually from a plain `TestCase`'s `setUp()`/`tearDown()`:
+manually from the `setUp()`/`tearDown()` of a plain `TestCase`:
 
 [source,java]
 ----
