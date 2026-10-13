@@ -587,7 +587,13 @@ this attribute, when the tester's `IOperationListener` is
 `NO_OP_OPERATION_LISTENER` - the established signal that its connection is
 managed elsewhere, or, on the prep/expected path, when the injected
 `@DbUnitTestCase` instance itself reports `isCloseConnectionAfterTest()` as
-`false`.
+`false`. Leaving the connection open requires a tester that hands out the same
+connection on repeated calls, as one over a `CachingConnectionProvider` or over one fixed
+connection does. With a tester that hands out a new one each time, such as a `JdbcDatabaseTester`
+without a `CachingConnectionProvider` or a `DataSourceDatabaseTester` over a connection pool,
+nothing closes the connection left open, so every test leaves one open. On the prep/expected
+path, a step that fails also makes the test case forget its connection so that the next step
+acquires another, and the forgotten one stays open with nothing referencing it.
 
 |`injectConnectionParameter` |Whether the extension resolves a bare
 `java.sql.Connection` test-method parameter; default `true`. Set `false` when

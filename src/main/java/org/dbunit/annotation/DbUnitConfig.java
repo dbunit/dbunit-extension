@@ -234,6 +234,16 @@ public @interface DbUnitConfig
      * {@link PrepAndExpectedTestCase#isCloseConnectionAfterTest()} as {@code false}, even when
      * this attribute is left at its default.
      *
+     * <p>Leaving the connection open, by this attribute or the no-op listener, requires a tester
+     * that hands out the same connection on repeated calls, as one over a
+     * {@code CachingConnectionProvider} or over one fixed connection does. With a tester that
+     * hands out a new connection each time, such as a {@code JdbcDatabaseTester} without a
+     * {@code CachingConnectionProvider} or a {@code DataSourceDatabaseTester} over a connection
+     * pool, nothing closes the connection left open, so every test leaves one open. On the
+     * prep/expected path, a step that fails also makes the test case forget its connection so
+     * that the next step acquires another, and the forgotten one stays open with nothing
+     * referencing it.
+     *
      * @return True to close the connection after each test; defaults to true.
      */
     boolean closeConnectionAfterTest() default true;
