@@ -1802,6 +1802,23 @@ class DefaultPrepAndExpectedTestCaseTest
     }
 
     @Test
+    void testCleanupData_calledTwiceWithNoBaseline_acquiresOnlyOneConnection() throws Exception
+    {
+        final IDatabaseTester countingTester = Mockito.spy(databaseTester);
+        final DefaultPrepAndExpectedTestCase countingTestCase =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, countingTester);
+        countingTestCase.configureTest(new VerifyTableDefinition[] {}, new String[] {},
+                new String[] {});
+
+        countingTestCase.cleanupData();
+        countingTestCase.cleanupData();
+
+        // The first cleanupData() closes the connection configureTest() acquired. The second has
+        // no baseline to verify and the tear down operation is NONE, so it needs none of its own.
+        Mockito.verify(countingTester, Mockito.times(1)).getConnection();
+    }
+
+    @Test
     void testCleanupData_noBaselineCaptured_skipsTheCheck() throws Exception
     {
         final RowCountCheck mockRowCountCheck = Mockito.mock(RowCountCheck.class);
