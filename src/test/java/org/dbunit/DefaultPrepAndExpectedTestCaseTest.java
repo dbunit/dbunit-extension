@@ -5,6 +5,13 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.catchThrowable;
 
 import java.sql.Connection;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Properties;
+import java.util.concurrent.Callable;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.dbunit.assertion.DbComparisonFailure;
 import org.dbunit.assertion.DiffCollectingFailureHandler;
@@ -50,6 +57,8 @@ class DefaultPrepAndExpectedTestCaseTest
             "/xml/flatXmlDataSetTest.xml";
     private static final String EXP_DATA_FILE_NAME =
             "/xml/flatXmlDataSetTest.xml";
+    private static final String MISSING_DATA_FILE_NAME =
+            "/xml/noSuchDataSetFile.xml";
 
     private final DataFileLoader dataFileLoader = new FlatXmlDataFileLoader();
     private IDatabaseTester databaseTester;
@@ -98,6 +107,408 @@ class DefaultPrepAndExpectedTestCaseTest
         // runs (#800, #825)
         connection.setExpectedCloseCalls(0);
         connection.verify();
+    }
+
+    @Test
+    void testConfigureTest_expectedFileMissing_releasesTheConnectionItAcquired() throws Exception
+    {
+        final VerifyTableDefinition[] tables = {};
+        final String[] prepDataFiles = {PREP_DATA_FILE_NAME};
+        final String[] missingExpectedDataFiles = {MISSING_DATA_FILE_NAME};
+
+        assertThatThrownBy(
+                () -> tc.configureTest(tables, prepDataFiles, missingExpectedDataFiles))
+                        .as("A missing expected data file must fail configureTest().")
+                        .isInstanceOf(DatabaseUnitRuntimeException.class);
+
+        final MockDatabaseConnection connection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        // the case sensitivity lookup acquired the shared connection, and no cleanupData() follows
+        // a failed configureTest() on the annotation path, so nothing else would release it
+        connection.setExpectedCloseCalls(1);
+        connection.verify();
+    }
+
+    @Test
+    void testConfigureTest_expectedFileMissingAfterEarlierSuccess_clearsPerTestState()
+            throws Exception
+    {
+        final VerifyTableDefinition[] firstTestTables =
+                {new VerifyTableDefinition("TEST_TABLE", new String[] {})};
+        tc.configureTest(firstTestTables, new String[] {PREP_DATA_FILE_NAME},
+                new String[] {EXP_DATA_FILE_NAME});
+
+        assertThatThrownBy(() -> tc.configureTest(new VerifyTableDefinition[] {},
+                new String[] {PREP_DATA_FILE_NAME}, new String[] {MISSING_DATA_FILE_NAME}))
+                        .as("A missing expected data file must fail configureTest().")
+                        .isInstanceOf(DatabaseUnitRuntimeException.class);
+
+        Assertion.assertEquals(new DefaultDataSet(), tc.getPrepDataset());
+        Assertion.assertEquals(new DefaultDataSet(), tc.getExpectedDataset());
+        assertThat(tc.getVerifyTableDefs())
+                .as("A failed configureTest() must not leave the new prep data paired with the"
+                        + " previous test's expected data and verify definitions, because a"
+                        + " cleanupData() that follows would clean the wrong tables.")
+                .isEmpty();
+    }
+
+    @Test
+    void testConfigureTest_connectionAlreadyResolvedAndExpectedFileMissing_leavesItOpen()
+            throws Exception
+    {
+        tc.getReusableConnection();
+
+        assertThatThrownBy(() -> tc.configureTest(new VerifyTableDefinition[] {},
+                new String[] {PREP_DATA_FILE_NAME}, new String[] {MISSING_DATA_FILE_NAME}))
+                        .as("A missing expected data file must fail configureTest().")
+                        .isInstanceOf(DatabaseUnitRuntimeException.class);
+
+        final MockDatabaseConnection connection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        // the caller resolved the connection before configureTest() ran, for example by injecting
+        // it into a @BeforeEach parameter, so this call did not acquire it and must not close it
+        connection.setExpectedCloseCalls(0);
+        connection.verify();
+    }
+
+    @Test
+    void testConfigureTest_nullArguments_configuresEmptyState() throws Exception
+    {
+        tc.configureTest(null, null, null);
+
+        Assertion.assertEquals(new DefaultDataSet(), tc.getPrepDataset());
+        Assertion.assertEquals(new DefaultDataSet(), tc.getExpectedDataset());
+        assertThat(tc.getVerifyTableDefs())
+                .as("Null verify table definitions mean none to verify, not a null that fails"
+                        + " later with a NullPointerException.")
+                .isEmpty();
+    }
+
+    @Test
+    void testConfigureTest_nullDatabaseTester_throwsIllegalStateException()
+    {
+        final DefaultPrepAndExpectedTestCase noTesterTestCase =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, null);
+
+        assertThatThrownBy(() -> noTesterTestCase.configureTest(new VerifyTableDefinition[] {},
+                new String[] {}, new String[] {}))
+                        .as("A missing database tester must be reported with an"
+                                + " IllegalStateException, not a JUnit assertion error thrown"
+                                + " from main code.")
+                        .isInstanceOf(IllegalStateException.class)
+                        .hasMessageContaining("databaseTester is null");
+    }
+
+    @Test
+    void testCleanupData_nullDatabaseTester_throwsIllegalStateException()
+    {
+        final DefaultPrepAndExpectedTestCase noTesterTestCase =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, null);
+
+        assertThatThrownBy(noTesterTestCase::cleanupData)
+                .as("A missing database tester must be reported with an IllegalStateException"
+                        + " before any other step fails differently.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("databaseTester is null");
+    }
+
+    @Test
+    void testSetupData_nullDatabaseTester_throwsIllegalStateException()
+    {
+        final DefaultPrepAndExpectedTestCase noTesterTestCase =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, null);
+
+        assertThatThrownBy(noTesterTestCase::setupData)
+                .as("A missing database tester must be reported with an IllegalStateException.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("databaseTester is null");
+    }
+
+    @Test
+    void testVerifyData_nullDatabaseTester_throwsIllegalStateException()
+    {
+        final DefaultPrepAndExpectedTestCase noTesterTestCase =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, null);
+
+        assertThatThrownBy(noTesterTestCase::verifyData)
+                .as("A missing database tester must be reported with an IllegalStateException.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("databaseTester is null");
+    }
+
+    @Test
+    void testConfigureTest_withDatabaseConfigPropertiesSet_appliesThemToTheSharedConnection()
+            throws Exception
+    {
+        final Properties properties = new Properties();
+        properties.setProperty("batchSize", "50");
+        tc.setDatabaseConfigProperties(properties);
+
+        tc.configureTest(new VerifyTableDefinition[] {}, new String[] {}, new String[] {});
+
+        final MockDatabaseConnection connection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        assertThat(connection.getConfig().getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE))
+                .as("setDatabaseConfigProperties() values must reach the connection shared by"
+                        + " setupData()/verifyData()/cleanupData(), the same way overriding"
+                        + " setUpDatabaseConfig() would for a subclass.")
+                .isEqualTo(50);
+    }
+
+    @Test
+    void testCleanupData_connectionKeptAndPropertiesSet_putsReplacedValuesBack() throws Exception
+    {
+        final DefaultPrepAndExpectedTestCase keepingTestCase =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester, false);
+        keepingTestCase.setDatabaseConfigProperties(batchSizeProperties("50"));
+        keepingTestCase.configureTest(new VerifyTableDefinition[] {}, new String[] {},
+                new String[] {});
+        final DatabaseConfig config = databaseTester.getConnection().getConfig();
+        assertThat(config.getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE))
+                .as("The property must be in force while the test runs.").isEqualTo(50);
+
+        keepingTestCase.cleanupData();
+
+        assertThat(config.getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE))
+                .as("A connection kept open past the test must not carry the test's property"
+                        + " values into whatever uses it next.")
+                .isEqualTo(new DatabaseConfig().getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE));
+    }
+
+    @Test
+    void testCleanupData_tearDownFailsAndConnectionKept_stillPutsReplacedValuesBack()
+            throws Exception
+    {
+        final DefaultPrepAndExpectedTestCase keepingTestCase =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester, false);
+        keepingTestCase.setDatabaseConfigProperties(batchSizeProperties("50"));
+        keepingTestCase.configureTest(new VerifyTableDefinition[] {}, new String[] {},
+                new String[] {});
+        databaseTester.setTearDownOperation(new FailingDatabaseOperation());
+        final DatabaseConfig config = databaseTester.getConnection().getConfig();
+
+        assertThatThrownBy(keepingTestCase::cleanupData)
+                .as("The tear down failure must still surface.")
+                .isInstanceOf(DatabaseUnitException.class);
+
+        assertThat(config.getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE))
+                .as("A failed cleanup must not leave the test's property values on a connection"
+                        + " kept open past the test.")
+                .isEqualTo(new DatabaseConfig().getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE));
+    }
+
+    @Test
+    void testConfigureTest_connectionKeptFromAnEarlierTestWhosePropertiesWereRestored_appliesThemAgain()
+            throws Exception
+    {
+        final DefaultPrepAndExpectedTestCase keepingTestCase =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester, false);
+        keepingTestCase.setDatabaseConfigProperties(batchSizeProperties("50"));
+        keepingTestCase.configureTest(new VerifyTableDefinition[] {}, new String[] {},
+                new String[] {});
+        keepingTestCase.cleanupData();
+
+        keepingTestCase.configureTest(new VerifyTableDefinition[] {}, new String[] {},
+                new String[] {});
+
+        final DatabaseConfig config = databaseTester.getConnection().getConfig();
+        assertThat(config.getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE))
+                .as("configureTest() and the row count baseline read the connection's"
+                        + " DatabaseConfig before setupData() retrieves it again, so the next"
+                        + " test's properties must already be in force on the kept connection.")
+                .isEqualTo(50);
+    }
+
+    @Test
+    void testSetDatabaseConfigProperties_valuesAlreadyApplied_putsReplacedValuesBack()
+            throws Exception
+    {
+        tc.setDatabaseConfigProperties(batchSizeProperties("50"));
+        tc.configureTest(new VerifyTableDefinition[] {}, new String[] {}, new String[] {});
+        final DatabaseConfig config = databaseTester.getConnection().getConfig();
+
+        tc.setDatabaseConfigProperties(null);
+
+        assertThat(config.getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE))
+                .as("Replacing the properties must put back what the old ones had changed, so"
+                        + " restoring an injected instance's own properties after a test also"
+                        + " clears the old values off its connection.")
+                .isEqualTo(new DatabaseConfig().getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE));
+    }
+
+    @Test
+    void testSetDatabaseConfigProperties_callerMutatesPropertiesAfterward_doesNotAffectConfiguredValue()
+            throws Exception
+    {
+        final Properties properties = new Properties();
+        properties.setProperty("batchSize", "50");
+        tc.setDatabaseConfigProperties(properties);
+
+        properties.setProperty("batchSize", "999");
+
+        tc.configureTest(new VerifyTableDefinition[] {}, new String[] {}, new String[] {});
+
+        final MockDatabaseConnection connection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        assertThat(connection.getConfig().getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE))
+                .as("setDatabaseConfigProperties() must copy the given Properties so a caller"
+                        + " mutating its own instance afterward cannot silently change what"
+                        + " was already configured.")
+                .isEqualTo(50);
+    }
+
+    @Test
+    void testConfigureTest_withInvalidDatabaseConfigProperty_throwsIllegalStateException()
+    {
+        final Properties properties = new Properties();
+        properties.setProperty("datatypeFactory", "not.a.real.ClassName");
+        tc.setDatabaseConfigProperties(properties);
+
+        final Throwable thrown = catchThrowable(() -> tc.configureTest(
+                new VerifyTableDefinition[] {}, new String[] {}, new String[] {}));
+
+        assertThat(thrown).as("An invalid property name must be reported clearly, not left as"
+                + " a raw DatabaseUnitException surfacing from deep inside connection"
+                + " resolution.").isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void testSetDatabaseTester_afterConfigureTestWithDifferentTester_runsOnTheNewTestersConnection()
+            throws Exception
+    {
+        tc.configureTest(new VerifyTableDefinition[] {}, new String[] {}, new String[] {});
+        final MockDatabaseConnection firstConnection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        final MockDatabaseConnection secondConnection =
+                (MockDatabaseConnection) makeDatabaseConnection();
+
+        tc.setDatabaseTester(new DefaultDatabaseTester(secondConnection));
+
+        // configureTest() acquired the first connection for this instance, so replacing its
+        // tester releases it
+        firstConnection.setExpectedCloseCalls(1);
+        firstConnection.verify();
+        assertThat(tc.getReusableConnection())
+                .as("After the tester is replaced, the shared connection must come from the new"
+                        + " tester, not stay the one acquired from the old tester.")
+                .isSameAs(secondConnection);
+
+        tc.cleanupData();
+
+        secondConnection.setExpectedCloseCalls(1);
+        secondConnection.verify();
+        firstConnection.setExpectedCloseCalls(1);
+        firstConnection.verify();
+    }
+
+    @Test
+    void testSetDatabaseTester_sameTesterInstance_keepsTheSharedConnection() throws Exception
+    {
+        tc.configureTest(new VerifyTableDefinition[] {}, new String[] {}, new String[] {});
+
+        tc.setDatabaseTester(databaseTester);
+
+        final MockDatabaseConnection connection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        connection.setExpectedCloseCalls(0);
+        connection.verify();
+        assertThat(tc.getReusableConnection())
+                .as("Setting the tester it already has must not discard the shared connection.")
+                .isSameAs(connection);
+    }
+
+    @Test
+    void testSetDatabaseTester_closeConnectionAfterTestFalse_forgetsButDoesNotCloseTheOldConnection()
+            throws Exception
+    {
+        final DefaultPrepAndExpectedTestCase keepingTestCase =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester, false);
+        keepingTestCase.configureTest(new VerifyTableDefinition[] {}, new String[] {},
+                new String[] {});
+        final MockDatabaseConnection firstConnection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        final MockDatabaseConnection secondConnection =
+                (MockDatabaseConnection) makeDatabaseConnection();
+
+        keepingTestCase.setDatabaseTester(new DefaultDatabaseTester(secondConnection));
+
+        // closeConnectionAfterTest=false says the first connection belongs to its real owner
+        firstConnection.setExpectedCloseCalls(0);
+        firstConnection.verify();
+        assertThat(keepingTestCase.getReusableConnection())
+                .as("The replaced tester's connection must be forgotten even when it is left"
+                        + " open for its owner.")
+                .isSameAs(secondConnection);
+    }
+
+    @Test
+    void testSetDatabaseTester_replacedTesterListenerIsNoOp_doesNotCloseTheOldConnection()
+            throws Exception
+    {
+        databaseTester.setOperationListener(IOperationListener.NO_OP_OPERATION_LISTENER);
+        tc.configureTest(new VerifyTableDefinition[] {}, new String[] {}, new String[] {});
+        final MockDatabaseConnection firstConnection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        final MockDatabaseConnection secondConnection =
+                (MockDatabaseConnection) makeDatabaseConnection();
+
+        tc.setDatabaseTester(new DefaultDatabaseTester(secondConnection));
+
+        // the replaced tester said its connection is managed elsewhere, and the decision must
+        // read that tester's listener rather than the new tester's
+        firstConnection.setExpectedCloseCalls(0);
+        firstConnection.verify();
+        assertThat(tc.getReusableConnection())
+                .as("The replaced tester's connection must be forgotten even when its no-op"
+                        + " listener leaves it open.")
+                .isSameAs(secondConnection);
+    }
+
+    @Test
+    void testConfigureTest_withInvalidDatabaseConfigProperty_releasesTheConnectionTheTesterHandedOut()
+            throws Exception
+    {
+        final FreshConnectionDatabaseTester freshTester =
+                new FreshConnectionDatabaseTester(this::makeDatabaseConnection);
+        final DefaultPrepAndExpectedTestCase freshTestCase =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, freshTester);
+        freshTestCase.setDatabaseConfigProperties(invalidDataTypeFactoryProperties());
+
+        assertThatThrownBy(() -> freshTestCase.configureTest(new VerifyTableDefinition[] {},
+                new String[] {}, new String[] {}))
+                        .as("An invalid property value must fail configureTest().")
+                        .isInstanceOf(IllegalStateException.class);
+
+        assertThat(freshTester.getHandedOut())
+                .as("configureTest() must have acquired exactly one connection.").hasSize(1);
+        final MockDatabaseConnection handedOut =
+                (MockDatabaseConnection) freshTester.getHandedOut().get(0);
+        // the tester hands out a new connection on every call, so one that never reaches the
+        // shared connection holder is referenced by nothing and can only leak
+        handedOut.setExpectedCloseCalls(1);
+        handedOut.verify();
+    }
+
+    @Test
+    void testConfigureTest_withInvalidDatabaseConfigPropertyAndCloseConnectionAfterTestFalse_leavesTheConnectionOpen()
+            throws Exception
+    {
+        final FreshConnectionDatabaseTester freshTester =
+                new FreshConnectionDatabaseTester(this::makeDatabaseConnection);
+        final DefaultPrepAndExpectedTestCase keepingTestCase =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, freshTester, false);
+        keepingTestCase.setDatabaseConfigProperties(invalidDataTypeFactoryProperties());
+
+        assertThatThrownBy(() -> keepingTestCase.configureTest(new VerifyTableDefinition[] {},
+                new String[] {}, new String[] {}))
+                        .as("An invalid property value must fail configureTest().")
+                        .isInstanceOf(IllegalStateException.class);
+
+        final MockDatabaseConnection handedOut =
+                (MockDatabaseConnection) freshTester.getHandedOut().get(0);
+        // closeConnectionAfterTest=false says the connection belongs to its real owner
+        handedOut.setExpectedCloseCalls(0);
+        handedOut.verify();
     }
 
     @Test
@@ -801,6 +1212,75 @@ class DefaultPrepAndExpectedTestCaseTest
     }
 
     @Test
+    void testCleanupData_testCaseListenerIsNoOp_leavesTheSharedConnectionOpen() throws Exception
+    {
+        // A NO_OP operation listener is the established signal that the connection is managed
+        // elsewhere and must not be closed - honored now on this path too, not only by the
+        // annotation runtime.
+        final DefaultPrepAndExpectedTestCase noOpListenerTc =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester)
+                {
+                    @Override
+                    protected IOperationListener getOperationListener()
+                    {
+                        return IOperationListener.NO_OP_OPERATION_LISTENER;
+                    }
+                };
+
+        noOpListenerTc.cleanupData();
+
+        final MockDatabaseConnection connection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        connection.setExpectedCloseCalls(0);
+        connection.verify();
+    }
+
+    @Test
+    void testCleanupData_databaseTesterListenerIsNoOp_leavesTheSharedConnectionOpen()
+            throws Exception
+    {
+        // The tester, not the test case, is what a caller configures with the NO_OP listener to
+        // say its connection is managed elsewhere; the test case must honor that signal too.
+        databaseTester.setOperationListener(IOperationListener.NO_OP_OPERATION_LISTENER);
+
+        tc.cleanupData();
+
+        final MockDatabaseConnection connection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        connection.setExpectedCloseCalls(0);
+        connection.verify();
+    }
+
+    @Test
+    void testCleanupData_databaseTesterListenerWrapsNoOp_leavesTheSharedConnectionOpen()
+            throws Exception
+    {
+        databaseTester.setOperationListener(new ConnectionPreservingOperationListener(
+                IOperationListener.NO_OP_OPERATION_LISTENER));
+
+        tc.cleanupData();
+
+        final MockDatabaseConnection connection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        connection.setExpectedCloseCalls(0);
+        connection.verify();
+    }
+
+    @Test
+    void testCleanupData_databaseTesterListenerIsDefault_closesTheSharedConnection()
+            throws Exception
+    {
+        databaseTester.setOperationListener(new DefaultOperationListener());
+
+        tc.cleanupData();
+
+        final MockDatabaseConnection connection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        connection.setExpectedCloseCalls(1);
+        connection.verify();
+    }
+
+    @Test
     void testCleanupData_withUserDefinedOperationListener_invokesConnectionRetrievedButNotTearDownFinished()
             throws Exception
     {
@@ -834,6 +1314,145 @@ class DefaultPrepAndExpectedTestCaseTest
         // (closeReusableConnection()); operationTearDownFinished() must stay
         // suppressed so a configured listener cannot also close it (#801)
         connection.setExpectedCloseCalls(1);
+        connection.verify();
+    }
+
+    @Test
+    void testTearDown_withRecordingTearDownOperation_runsTearDownOperationOnce() throws Exception
+    {
+        final RecordingDatabaseOperation tearDownOperation = new RecordingDatabaseOperation();
+        databaseTester.setTearDownOperation(tearDownOperation);
+        tc.setPrepDs(new DefaultDataSet(new DefaultTable("PREP_ONLY_TABLE")));
+        tc.setExpectedDs(new DefaultDataSet(new DefaultTable("EXPECTED_ONLY_TABLE")));
+
+        tc.tearDown();
+
+        assertThat(tearDownOperation.getExecutedTableNames())
+                .as("The legacy tearDown() must clean up the prep and expected tables once,"
+                        + " through cleanupData(), not again through the inherited"
+                        + " DatabaseTestCase.tearDown().")
+                .containsExactly(Arrays.asList("PREP_ONLY_TABLE", "EXPECTED_ONLY_TABLE"));
+    }
+
+    @Test
+    void testTearDown_databaseTesterListenerIsNoOpAndDataSetSet_leavesBothUnchanged()
+            throws Exception
+    {
+        final IDataSet testersDataSet = new DefaultDataSet();
+        databaseTester.setDataSet(testersDataSet);
+        databaseTester.setOperationListener(IOperationListener.NO_OP_OPERATION_LISTENER);
+        tc.configureTest(new VerifyTableDefinition[] {}, new String[] {}, new String[] {});
+
+        tc.tearDown();
+
+        assertThat(databaseTester.getOperationListener())
+                .as("The caller's no-op listener says the connection is managed elsewhere, so"
+                        + " tearDown() must not replace it with the default closing listener.")
+                .isSameAs(IOperationListener.NO_OP_OPERATION_LISTENER);
+        assertThat(((AbstractDatabaseTester) databaseTester).getDataSet())
+                .as("tearDown() must not overwrite the dataset of the tester the caller handed in.")
+                .isSameAs(testersDataSet);
+        final MockDatabaseConnection connection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        connection.setExpectedCloseCalls(0);
+        connection.verify();
+    }
+
+    @Test
+    void testTearDownWithThrowable_testFailureInFlight_cleansPrepAndExpectedTablesOnce()
+            throws Exception
+    {
+        final RecordingDatabaseOperation tearDownOperation = new RecordingDatabaseOperation();
+        databaseTester.setTearDownOperation(tearDownOperation);
+        tc.setPrepDs(new DefaultDataSet(new DefaultTable("PREP_ONLY_TABLE")));
+        tc.setExpectedDs(new DefaultDataSet(new DefaultTable("EXPECTED_ONLY_TABLE")));
+        final AssertionError testFailure = new AssertionError("The test failed.");
+
+        final Throwable thrown = catchThrowable(() -> tc.tearDown(testFailure));
+
+        assertThat(thrown).as("The test failure in flight must be the one thrown.")
+                .isSameAs(testFailure);
+        assertThat(tearDownOperation.getExecutedTableNames())
+                .as("tearDown(Throwable) must clean the prep and expected tables once, through"
+                        + " cleanupData(), not only the prep tables through the inherited"
+                        + " DatabaseTestCase.tearDown(Throwable).")
+                .containsExactly(Arrays.asList("PREP_ONLY_TABLE", "EXPECTED_ONLY_TABLE"));
+    }
+
+    @Test
+    void testTearDownWithThrowable_cleanupFails_throwsTestFailureWithCleanupSuppressed()
+            throws Exception
+    {
+        databaseTester.setTearDownOperation(new FailingDatabaseOperation());
+        final AssertionError testFailure = new AssertionError("The test failed.");
+
+        final Throwable thrown = catchThrowable(() -> tc.tearDown(testFailure));
+
+        assertThat(thrown).as("A clean up failure must not replace the test failure in flight.")
+                .isSameAs(testFailure);
+        assertThat(thrown.getSuppressed())
+                .as("The clean up failure must ride along as suppressed.")
+                .singleElement().isInstanceOf(DatabaseUnitException.class);
+    }
+
+    @Test
+    void testTearDownWithThrowable_cleanupFailsWithTheTestFailureItself_throwsItUnchanged()
+            throws Exception
+    {
+        final DatabaseUnitException failure =
+                new DatabaseUnitException("The test and its clean up failed the same way.");
+        databaseTester.setTearDownOperation(new FailingDatabaseOperation(failure));
+
+        final Throwable thrown = catchThrowable(() -> tc.tearDown(failure));
+
+        assertThat(thrown)
+                .as("A throwable cannot suppress itself, so it must be thrown unchanged rather"
+                        + " than as the IllegalArgumentException that attempt raises.")
+                .isSameAs(failure);
+        assertThat(thrown.getSuppressed()).as("Nothing may be attached to itself.").isEmpty();
+    }
+
+    @Test
+    void testSetUp_withPrepDataSet_runsSetUpOperationOnTheSharedConnection() throws Exception
+    {
+        final RecordingDatabaseOperation setUpOperation = new RecordingDatabaseOperation();
+        databaseTester.setSetUpOperation(setUpOperation);
+        tc.setPrepDs(new DefaultDataSet(new DefaultTable("PREP_ONLY_TABLE")));
+
+        tc.setUp();
+        tc.cleanupData();
+
+        assertThat(setUpOperation.getExecutedTableNames())
+                .as("setUp() must run the set up operation once over the prep tables.")
+                .containsExactly(Arrays.asList("PREP_ONLY_TABLE"));
+        final MockDatabaseConnection connection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        // setUp() leaves the shared connection open for the rest of the lifecycle, so the one
+        // close in the whole sequence is cleanupData()'s
+        connection.setExpectedCloseCalls(1);
+        connection.verify();
+    }
+
+    @Test
+    void testSetUp_databaseTesterListenerIsNoOpAndDataSetSet_leavesBothUnchanged()
+            throws Exception
+    {
+        final IDataSet testersDataSet = new DefaultDataSet();
+        databaseTester.setDataSet(testersDataSet);
+        databaseTester.setOperationListener(IOperationListener.NO_OP_OPERATION_LISTENER);
+
+        tc.setUp();
+
+        assertThat(databaseTester.getOperationListener())
+                .as("setUp() must not replace the caller's no-op listener with the default"
+                        + " closing listener.")
+                .isSameAs(IOperationListener.NO_OP_OPERATION_LISTENER);
+        assertThat(((AbstractDatabaseTester) databaseTester).getDataSet())
+                .as("setUp() must not overwrite the dataset of the tester the caller handed in.")
+                .isSameAs(testersDataSet);
+        final MockDatabaseConnection connection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        connection.setExpectedCloseCalls(0);
         connection.verify();
     }
 
@@ -1098,6 +1717,105 @@ class DefaultPrepAndExpectedTestCaseTest
         final DefaultTable table = new DefaultTable("TEST_TABLE", columns);
         table.addRow(new Object[] {"1", name, createdAt, "c"});
         return table;
+    }
+
+    private static Properties invalidDataTypeFactoryProperties()
+    {
+        final Properties properties = new Properties();
+        properties.setProperty("datatypeFactory", "not.a.real.ClassName");
+        return properties;
+    }
+
+    private static Properties batchSizeProperties(final String batchSize)
+    {
+        final Properties properties = new Properties();
+        properties.setProperty("batchSize", batchSize);
+        return properties;
+    }
+
+    /** Data type factory that counts how often a property value instantiates it. */
+    public static class CountingDataTypeFactory extends DefaultDataTypeFactory
+    {
+        private static final AtomicInteger INSTANCE_COUNT = new AtomicInteger();
+
+        public CountingDataTypeFactory()
+        {
+            INSTANCE_COUNT.incrementAndGet();
+        }
+
+        static void resetInstanceCount()
+        {
+            INSTANCE_COUNT.set(0);
+        }
+
+        static int getInstanceCount()
+        {
+            return INSTANCE_COUNT.get();
+        }
+    }
+
+    /** Tester that hands out a new connection on every call, as a pool or a JDBC URL does. */
+    private static final class FreshConnectionDatabaseTester extends AbstractDatabaseTester
+    {
+        private final Callable<IDatabaseConnection> connectionFactory;
+        private final List<IDatabaseConnection> handedOut = new ArrayList<>();
+
+        private FreshConnectionDatabaseTester(final Callable<IDatabaseConnection> connectionFactory)
+        {
+            this.connectionFactory = connectionFactory;
+        }
+
+        @Override
+        public IDatabaseConnection getConnection() throws Exception
+        {
+            final IDatabaseConnection connection = connectionFactory.call();
+            handedOut.add(connection);
+            return connection;
+        }
+
+        private List<IDatabaseConnection> getHandedOut()
+        {
+            return handedOut;
+        }
+    }
+
+    private static final class FailingDatabaseOperation extends DatabaseOperation
+    {
+        private final DatabaseUnitException failure;
+
+        private FailingDatabaseOperation()
+        {
+            this(new DatabaseUnitException("Tear down failed on purpose."));
+        }
+
+        private FailingDatabaseOperation(final DatabaseUnitException failure)
+        {
+            this.failure = failure;
+        }
+
+        @Override
+        public void execute(final IDatabaseConnection connection, final IDataSet dataSet)
+                throws DatabaseUnitException
+        {
+            throw failure;
+        }
+    }
+
+    private static final class RecordingDatabaseOperation extends DatabaseOperation
+    {
+        private final List<List<String>> executedTableNames = new ArrayList<>();
+
+        @Override
+        public void execute(final IDatabaseConnection connection, final IDataSet dataSet)
+                throws DatabaseUnitException
+        {
+            executedTableNames.add(Arrays.asList(dataSet.getTableNames()));
+        }
+
+        private List<List<String>> getExecutedTableNames()
+        {
+            return executedTableNames;
+        }
     }
 
     private IDatabaseTester makeDatabaseTester() throws Exception

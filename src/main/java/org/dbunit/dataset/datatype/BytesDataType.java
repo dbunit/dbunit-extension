@@ -268,6 +268,13 @@ public class BytesDataType extends AbstractDataType
                             logger.error(errMsg);
                             throw new TypeCastException(errMsg, e);
                         }
+                    } else
+                    {
+                        logger.error(
+                                "Unrecognized command <{}> in binary extended-syntax value"
+                                        + " <{}> - expected [TEXT], [BASE64], [FILE] or [URL]",
+                                command, value);
+                        throw new TypeCastException(value, this);
                     }
                 }
             }

@@ -19,8 +19,8 @@ guide] for how the 3 hooks fit into the setup/teardown lifecycle in practice.
 |Method |Called
 
 |`connectionRetrieved(IDatabaseConnection connection)` |Immediately after a connection is newly created or an existing one is retrieved, before the operation runs. Apply `DatabaseConfig` customizations here.
-|`operationSetUpFinished(IDatabaseConnection connection)` |After `IDatabaseTester.onSetup()`'s operation completes.
-|`operationTearDownFinished(IDatabaseConnection connection)` |After `IDatabaseTester.onTearDown()`'s operation completes.
+|`operationSetUpFinished(IDatabaseConnection connection)` |After `IDatabaseTester.onSetup()`'s operation completes, or fails - including when `connectionRetrieved()` itself threw.
+|`operationTearDownFinished(IDatabaseConnection connection)` |After `IDatabaseTester.onTearDown()`'s operation completes, or fails - including when `connectionRetrieved()` itself threw.
 |===
 
 Both `*Finished` methods exist so a listener can decide whether the connection should

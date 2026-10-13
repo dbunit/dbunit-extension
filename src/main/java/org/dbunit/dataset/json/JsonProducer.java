@@ -37,6 +37,7 @@ import org.dbunit.dataset.Column;
 import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.DefaultTableMetaData;
 import org.dbunit.dataset.ITableMetaData;
+import org.dbunit.dataset.RequiredLibrary;
 import org.dbunit.dataset.datatype.DataType;
 import org.dbunit.dataset.stream.DefaultConsumer;
 import org.dbunit.dataset.stream.IDataSetConsumer;
@@ -69,10 +70,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 public class JsonProducer implements IDataSetProducer
 {
     private static final IDataSetConsumer EMPTY_CONSUMER = new DefaultConsumer();
-    private static final TypeReference<LinkedHashMap<String, Object>> ROW_TYPE =
-            new TypeReference<LinkedHashMap<String, Object>>()
-            {
-            };
 
     private IDataSetConsumer _consumer = EMPTY_CONSUMER;
     private final InputStream _inputStream;
@@ -86,7 +83,7 @@ public class JsonProducer implements IDataSetProducer
      */
     public JsonProducer(final File file) throws IOException
     {
-        this(Files.newInputStream(file.toPath()), true);
+        this(openAfterCheckingForJackson(file), true);
     }
 
     /**
@@ -100,8 +97,36 @@ public class JsonProducer implements IDataSetProducer
         this(inputStream, false);
     }
 
+    /**
+     * Opens {@code file} only once Jackson is known to be present, so a missing library is
+     * reported without leaving a file open.
+     */
+    private static InputStream openAfterCheckingForJackson(final File file) throws IOException
+    {
+        RequiredLibrary.JACKSON.requireUnchecked(JsonProducer.class);
+        return Files.newInputStream(file.toPath());
+    }
+
+    /**
+     * Holds the Jackson type token apart from {@link JsonProducer}, so that loading and
+     * initializing the producer does not itself need Jackson and its constructor can say what
+     * is missing.
+     */
+    private static final class RowType
+    {
+        private static final TypeReference<LinkedHashMap<String, Object>> INSTANCE =
+                new TypeReference<LinkedHashMap<String, Object>>()
+                {
+                };
+
+        private RowType()
+        {
+        }
+    }
+
     private JsonProducer(final InputStream inputStream, final boolean autoCloseInputStream)
     {
+        RequiredLibrary.JACKSON.requireUnchecked(JsonProducer.class);
         this._inputStream = inputStream;
         this._autoCloseInputStream = autoCloseInputStream;
     }
@@ -187,7 +212,7 @@ public class JsonProducer implements IDataSetProducer
             }
             else if (rowToken == JsonToken.START_OBJECT)
             {
-                rows.add(mapper.readValue(parser, ROW_TYPE));
+                rows.add(mapper.readValue(parser, RowType.INSTANCE));
             }
             else
             {

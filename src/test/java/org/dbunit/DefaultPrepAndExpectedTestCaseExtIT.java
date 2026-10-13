@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import org.dbunit.assertion.DbComparisonFailure;
 import org.dbunit.database.IDatabaseConnection;
+import org.dbunit.operation.DatabaseOperation;
 import org.dbunit.util.fileloader.DataFileLoader;
 import org.dbunit.util.fileloader.FlatXmlDataFileLoader;
 import org.junit.jupiter.api.BeforeEach;
@@ -70,12 +71,6 @@ class DefaultPrepAndExpectedTestCaseExtIT extends DefaultPrepAndExpectedTestCase
 
         configureTest(tables, prepDataFiles, expectedDataFiles);
 
-        // reopen connection as configureTest() closes its own after
-        // obtaining the case-sensitivity feature setting; preTest() and
-        // postTest() then share and close this one connection themselves
-        // instead of each needing a fresh one (#800)
-        final IDatabaseTester databaseTesterNew1 = makeDatabaseTester();
-        setDatabaseTester(databaseTesterNew1);
         assertDoesNotThrow(() -> preTest(),
                 "Did not expect tc.postTest() to throw, but it did!");
 
@@ -97,13 +92,6 @@ class DefaultPrepAndExpectedTestCaseExtIT extends DefaultPrepAndExpectedTestCase
 
         configureTest(tables, prepDataFiles, expectedDataFiles);
 
-        // reopen connection as configureTest() closes its own after
-        // obtaining the case-sensitivity feature setting; preTest() and
-        // postTest() then share and close this one connection themselves
-        // instead of each needing a fresh one (#800)
-        final IDatabaseTester databaseTesterNew1 = makeDatabaseTester();
-        setDatabaseTester(databaseTesterNew1);
-
         preTest();
 
         // skip modifying data and just verify the insert
@@ -117,6 +105,10 @@ class DefaultPrepAndExpectedTestCaseExtIT extends DefaultPrepAndExpectedTestCase
     {
         final DatabaseEnvironment dbEnv = DatabaseEnvironment.getInstance();
         final IDatabaseConnection connection = dbEnv.getConnection();
-        return new DefaultDatabaseTester(connection);
+        final IDatabaseTester databaseTester = new DefaultDatabaseTester(connection);
+        // without this, the prep rows this test inserts are never cleaned up and leak
+        // into whatever test runs next against the same tables
+        databaseTester.setTearDownOperation(DatabaseOperation.DELETE_ALL);
+        return databaseTester;
     }
 }

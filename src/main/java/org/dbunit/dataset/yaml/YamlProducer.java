@@ -26,6 +26,7 @@ import org.dbunit.dataset.Column;
 import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.DefaultTableMetaData;
 import org.dbunit.dataset.ITableMetaData;
+import org.dbunit.dataset.RequiredLibrary;
 import org.dbunit.dataset.datatype.DataType;
 import org.dbunit.dataset.stream.DefaultConsumer;
 import org.dbunit.dataset.stream.IDataSetConsumer;
@@ -65,7 +66,7 @@ public class YamlProducer implements IDataSetProducer
 
     private InputStream _inputStream;
 
-    private Yaml _yaml;
+    private SnakeYamlDocument _document;
 
     /**
      * Creates a producer reading YAML from the given file.
@@ -75,7 +76,7 @@ public class YamlProducer implements IDataSetProducer
      */
     public YamlProducer(File file) throws IOException
     {
-        this(Files.newInputStream(file.toPath()));
+        this(openAfterCheckingForSnakeYaml(file));
     }
 
     /**
@@ -85,10 +86,52 @@ public class YamlProducer implements IDataSetProducer
      */
     public YamlProducer(InputStream inputStream)
     {
+        RequiredLibrary.SNAKEYAML.requireUnchecked(YamlProducer.class);
         this._inputStream = inputStream;
-        LoaderOptions options = new LoaderOptions();
-        options.setAllowDuplicateKeys(false);
-        _yaml = new Yaml(options);
+        _document = new SnakeYamlDocument();
+    }
+
+    /**
+     * Opens {@code file} only once SnakeYAML is known to be present, so a missing library is
+     * reported without leaving a file open.
+     */
+    private static InputStream openAfterCheckingForSnakeYaml(File file) throws IOException
+    {
+        RequiredLibrary.SNAKEYAML.requireUnchecked(YamlProducer.class);
+        return Files.newInputStream(file.toPath());
+    }
+
+    /**
+     * The only code in this producer that uses SnakeYAML directly, kept in a class of its own
+     * so that loading {@link YamlProducer} does not itself need SnakeYAML and its constructor
+     * can say what is missing.
+     */
+    private static final class SnakeYamlDocument
+    {
+        private final Yaml _yaml;
+
+        SnakeYamlDocument()
+        {
+            LoaderOptions options = new LoaderOptions();
+            options.setAllowDuplicateKeys(false);
+            _yaml = new Yaml(options);
+        }
+
+        @SuppressWarnings("unchecked")
+        LinkedHashMap<String, Object> load(InputStream inputStream)
+                throws AmbiguousTableNameException
+        {
+            try
+            {
+                return (LinkedHashMap<String, Object>) _yaml.load(inputStream);
+            }
+            catch (DuplicateKeyException e)
+            {
+                String problem = e.getProblem();
+                String duplicateTable = problem.replace("found duplicate key ", "");
+                throw new AmbiguousTableNameException(duplicateTable, e);
+            }
+        }
     }
 
     ////////////////////////////////////////////////////////////////////////////
@@ -102,18 +145,8 @@ public class YamlProducer implements IDataSetProducer
     public void produce() throws DataSetException
     {
         _consumer.startDataSet();
-        LinkedHashMap<String, Object> dataset;
         // get the base object tree from the stream
-        try
-        {
-            dataset = (LinkedHashMap<String, Object>) _yaml.load(_inputStream);
-        }
-        catch (DuplicateKeyException e)
-        {
-            String problem = e.getProblem();
-            String duplicateTable = problem.replace("found duplicate key ", "");
-            throw new AmbiguousTableNameException(duplicateTable, e);
-        }
+        LinkedHashMap<String, Object> dataset = _document.load(_inputStream);
         // iterate over the tables in the object tree
         for (String tableName : dataset.keySet())
         {
