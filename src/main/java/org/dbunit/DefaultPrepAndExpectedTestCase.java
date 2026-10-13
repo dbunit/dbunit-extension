@@ -21,7 +21,6 @@
 package org.dbunit;
 
 import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
@@ -1771,15 +1770,13 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
                     dataFilesName);
         }
 
-        final List<IDataSet> list = new ArrayList<>();
+        final IDataSet[] dataSets = new IDataSet[count];
         for (int i = 0; i < count; i++)
         {
-            final IDataSet ds = dataFileLoader.load(files[i]);
-            list.add(ds);
+            dataSets[i] = dataFileLoader.load(files[i]);
         }
 
-        final IDataSet[] dataSet = list.toArray(new IDataSet[0]);
-        return new CompositeDataSet(dataSet, true, isCaseSensitiveTableNames);
+        return new CompositeDataSet(dataSets, true, isCaseSensitiveTableNames);
     }
 
     /**
