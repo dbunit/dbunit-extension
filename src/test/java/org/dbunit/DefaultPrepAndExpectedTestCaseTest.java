@@ -11,6 +11,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.dbunit.assertion.DbComparisonFailure;
@@ -540,6 +541,53 @@ class DefaultPrepAndExpectedTestCaseTest
                 .as("The replaced tester's connection must be forgotten even when its no-op"
                         + " listener leaves it open.")
                 .isSameAs(secondConnection);
+    }
+
+    @Test
+    void testConfigureTest_withInvalidDatabaseConfigProperty_releasesTheConnectionTheTesterHandedOut()
+            throws Exception
+    {
+        final FreshConnectionDatabaseTester freshTester =
+                new FreshConnectionDatabaseTester(this::makeDatabaseConnection);
+        final DefaultPrepAndExpectedTestCase freshTestCase =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, freshTester);
+        freshTestCase.setDatabaseConfigProperties(invalidDataTypeFactoryProperties());
+
+        assertThatThrownBy(() -> freshTestCase.configureTest(new VerifyTableDefinition[] {},
+                new String[] {}, new String[] {}))
+                        .as("An invalid property value must fail configureTest().")
+                        .isInstanceOf(IllegalStateException.class);
+
+        assertThat(freshTester.getHandedOut())
+                .as("configureTest() must have acquired exactly one connection.").hasSize(1);
+        final MockDatabaseConnection handedOut =
+                (MockDatabaseConnection) freshTester.getHandedOut().get(0);
+        // the tester hands out a new connection on every call, so one that never reaches the
+        // shared connection holder is referenced by nothing and can only leak
+        handedOut.setExpectedCloseCalls(1);
+        handedOut.verify();
+    }
+
+    @Test
+    void testConfigureTest_withInvalidDatabaseConfigPropertyAndCloseConnectionAfterTestFalse_leavesTheConnectionOpen()
+            throws Exception
+    {
+        final FreshConnectionDatabaseTester freshTester =
+                new FreshConnectionDatabaseTester(this::makeDatabaseConnection);
+        final DefaultPrepAndExpectedTestCase keepingTestCase =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, freshTester, false);
+        keepingTestCase.setDatabaseConfigProperties(invalidDataTypeFactoryProperties());
+
+        assertThatThrownBy(() -> keepingTestCase.configureTest(new VerifyTableDefinition[] {},
+                new String[] {}, new String[] {}))
+                        .as("An invalid property value must fail configureTest().")
+                        .isInstanceOf(IllegalStateException.class);
+
+        final MockDatabaseConnection handedOut =
+                (MockDatabaseConnection) freshTester.getHandedOut().get(0);
+        // closeConnectionAfterTest=false says the connection belongs to its real owner
+        handedOut.setExpectedCloseCalls(0);
+        handedOut.verify();
     }
 
     @Test
@@ -2039,6 +2087,13 @@ class DefaultPrepAndExpectedTestCaseTest
         return table;
     }
 
+    private static Properties invalidDataTypeFactoryProperties()
+    {
+        final Properties properties = new Properties();
+        properties.setProperty("datatypeFactory", "not.a.real.ClassName");
+        return properties;
+    }
+
     private static Properties batchSizeProperties(final String batchSize)
     {
         final Properties properties = new Properties();
@@ -2064,6 +2119,31 @@ class DefaultPrepAndExpectedTestCaseTest
         static int getInstanceCount()
         {
             return INSTANCE_COUNT.get();
+        }
+    }
+
+    /** Tester that hands out a new connection on every call, as a pool or a JDBC URL does. */
+    private static final class FreshConnectionDatabaseTester extends AbstractDatabaseTester
+    {
+        private final Callable<IDatabaseConnection> connectionFactory;
+        private final List<IDatabaseConnection> handedOut = new ArrayList<>();
+
+        private FreshConnectionDatabaseTester(final Callable<IDatabaseConnection> connectionFactory)
+        {
+            this.connectionFactory = connectionFactory;
+        }
+
+        @Override
+        public IDatabaseConnection getConnection() throws Exception
+        {
+            final IDatabaseConnection connection = connectionFactory.call();
+            handedOut.add(connection);
+            return connection;
+        }
+
+        private List<IDatabaseConnection> getHandedOut()
+        {
+            return handedOut;
         }
     }
 

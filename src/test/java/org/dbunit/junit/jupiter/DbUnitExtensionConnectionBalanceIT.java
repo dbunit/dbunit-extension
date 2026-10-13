@@ -154,6 +154,35 @@ class DbUnitExtensionConnectionBalanceIT
     }
 
     @Test
+    void testBeforeTestExecution_invalidPropertyValueOnTheExpectedPath_closesTheTestersConnection()
+            throws Exception
+    {
+        final DatabaseEnvironment environment = DatabaseEnvironment.getInstance();
+        final CountingDataSource dataSource = new CountingDataSource(environment.getProfile());
+        BalanceSample.databaseTester = new DataSourceDatabaseTester(dataSource,
+                environment.getProfile().getSchema());
+        try
+        {
+            EngineTestKit.engine("junit-jupiter")
+                    .selectors(selectClass(InvalidPropertyValueOnExpectedPathSample.class))
+                    .execute().testEvents()
+                    .assertStatistics(stats -> stats.started(1).failed(1));
+
+            assertThat(dataSource.opened())
+                    .as("configureTest() must have opened a connection, or this test proves"
+                            + " nothing.")
+                    .isPositive();
+            assertThat(dataSource.leaked())
+                    .as("A connection the tester opened must be closed even when applying a"
+                            + " @DbUnitProperty value to it fails on the prep/expected path.")
+                    .isZero();
+        } finally
+        {
+            environment.closeConnection();
+        }
+    }
+
+    @Test
     void testBeforeTestExecution_expectedFileMissing_closesTheConnectionConfigureTestAcquired()
             throws Exception
     {
@@ -319,6 +348,21 @@ class DbUnitExtensionConnectionBalanceIT
     {
         @Test
         @DbUnitPrep("annotation-it-prep.xml")
+        void neverRuns()
+        {
+        }
+    }
+
+    @ExtendWith(DbUnitExtension.class)
+    @ClearRowCountCheckSystemProperties
+    @DbUnitConfig(properties = @DbUnitProperty(name = "batchSize", value = "notANumber"))
+    static class InvalidPropertyValueOnExpectedPathSample extends BalanceSample
+    {
+        @Test
+        @DbUnitPrep("annotation-it-prep.xml")
+        @DbUnitExpected(value = "annotation-it-expected.xml",
+                verify = @DbUnitVerifyTable(value = TEST_TABLE,
+                        include = {"COLUMN0", "COLUMN1"}))
         void neverRuns()
         {
         }

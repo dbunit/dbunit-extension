@@ -172,8 +172,37 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     {
         final ConnectionOwnership ownership = new ConnectionOwnership(
                 () -> closeConnectionAfterTest, this::getOwnershipListener, () -> true);
-        return new TestScopedConnection(this::getConnection, ownership,
+        return new TestScopedConnection(this::acquireSharedConnection, ownership,
                 new AutoCommitOffWarning());
+    }
+
+    /**
+     * Acquires the connection {@link #reusableConnectionHolder} shares: the databaseTester's
+     * connection with {@link #setUpDatabaseConfig(DatabaseConfig)} applied to it, as
+     * {@link #getConnection()} does. That method cannot release a connection whose configuration
+     * fails to apply, for example because a {@code databaseConfigProperties} value is invalid, so
+     * one the databaseTester hands out afresh on each call would be referenced by nothing and
+     * leak. This releases it, honoring who owns it, before the failure propagates.
+     *
+     * @return The connection, configured.
+     * @throws Exception If the databaseTester cannot supply a connection, or applying the
+     *             configuration fails.
+     */
+    private IDatabaseConnection acquireSharedConnection() throws Exception
+    {
+        requireDatabaseTester();
+
+        final IDatabaseConnection connection = databaseTester.getConnection();
+        try
+        {
+            setUpDatabaseConfig(connection.getConfig());
+        } catch (final Throwable t)
+        {
+            reusableConnectionHolder.adopt(connection);
+            closeReusableConnectionSuppressing(t);
+            throw t;
+        }
+        return connection;
     }
 
     /**
