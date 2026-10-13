@@ -101,6 +101,9 @@
       <action dev="jeffjensen" type="fix" issue="1010" system="github" due-to="jeffjensen">
           Fix DefaultPrepAndExpectedTestCase leaking the connection its tester handed out when applying a databaseConfigProperties value, such as an invalid @DbUnitProperty, to it failed. Nothing referenced that connection afterward, so a tester that hands out a new one on each call, such as over a JDBC URL or a DataSource, leaked one per failing test. The connection is now released, unless closeConnectionAfterTest is false or the tester's listener is the no-op listener, before the failure propagates.
       </action>
+      <action dev="jeffjensen" type="update" issue="1011" system="github" due-to="jeffjensen">
+          Update DefaultPrepAndExpectedTestCase to attach a suppressed exception to the failure, and log a warning, when a table's comparison fails while the actual table was sorted by all of its columns and the expected table by only the columns it declares, and the comparison passes when both tables are sorted by only the compared columns, which means that equal rows were compared against different counterparts, for example when the expected table omits a generated ID. It names setSortOnFilteredColumnsOnly(true) on the table's VerifyTableDefinition as the remedy. Nothing is added when the comparison passes, when it also fails sorted that way, as for a different row count or column set or a genuine difference in the data, or when both sides already sort by the compared columns only, and the default sort is unchanged.
+      </action>
     </release>
     <release version="3.5.2" date="Sep 7, 2026" description="DefaultPrepAndExpectedTestCase connection hygiene: replace a connection the pool or database dropped between tests, and warn when handed a non-autocommit connection">
       <action dev="jeffjensen" type="fix" issue="962" system="github" due-to="jeffjensen">

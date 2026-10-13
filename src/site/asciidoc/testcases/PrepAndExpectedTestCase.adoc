@@ -49,7 +49,10 @@ expected table by only the columns its file declares; for a table whose
 generated/identity column is excluded from comparison and whose insertion order isn't
 guaranteed (e.g. Hibernate batch inserts), set
 link:../components/verifytabledefinition.html#sortmode[VerifyTableDefinition.sortOnFilteredColumnsOnly]
-to `true` so both tables sort by only their filtered columns instead.
+to `true` so both tables sort by only their filtered columns instead. When a comparison
+fails while the two sides sort by different columns, but passes when both sort by only
+their filtered columns, a suppressed exception on the failure, and a logged warning, name
+that setting.
 
 Column type/case reconciliation:: The expected table sorts by the actual database
 table's column definitions, in the database's column order and with its data types,

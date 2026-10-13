@@ -31,6 +31,7 @@ import java.util.concurrent.Callable;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
+import org.dbunit.assertion.DefaultFailureHandler;
 import org.dbunit.assertion.FailureHandler;
 import org.dbunit.assertion.comparer.value.ValueComparer;
 import org.dbunit.database.DatabaseConfig;
@@ -44,6 +45,7 @@ import org.dbunit.database.rowcount.RowCountCheck;
 import org.dbunit.database.rowcount.RowCountChecker;
 import org.dbunit.dataset.Column;
 import org.dbunit.dataset.ColumnFilterTable;
+import org.dbunit.dataset.Columns;
 import org.dbunit.dataset.CompositeDataSet;
 import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.DefaultDataSet;
@@ -1414,6 +1416,11 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      *            columns that survive excludeColumns/includeColumns, instead
      *            of by all of the actual table's native columns; see
      *            {@link VerifyTableDefinition#isSortOnFilteredColumnsOnly()}.
+     *            When false and the expected table omits columns of the actual
+     *            table, so the two sort by different columns, a failed
+     *            comparison that passes when sorted by only the filtered
+     *            columns carries a suppressed exception naming this as the
+     *            remedy.
      * @throws DatabaseUnitException if the tables' row counts, columns, or data do not match.
      * @since 3.5.0
      */
@@ -1436,6 +1443,8 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
         final Column[] expectedTableColumns = makeExpectedTableColumns(
                 actualTableColumns, expectedTableMetaData);
         final String tableName = actualTableMetaData.getTableName();
+        final boolean sortKeysDiffer = !sortOnFilteredColumnsOnly
+                && expectedTableColumns.length < actualTableColumns.length;
 
         final Column[] actualSortColumns;
         final Column[] expectedSortColumns;
@@ -1454,14 +1463,12 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
         }
 
         final SortedTable expectedSortedTable =
-                new SortedTable(expectedTable, expectedSortColumns, true);
-        expectedSortedTable.setUseComparable(true);
+                sortByColumns(expectedTable, expectedSortColumns, true);
         log.trace("{}: Sorted expected table={}", methodName,
                 expectedSortedTable);
 
         final SortedTable actualSortedTable =
-                new SortedTable(actualTable, actualSortColumns);
-        actualSortedTable.setUseComparable(true);
+                sortByColumns(actualTable, actualSortColumns, false);
         log.trace("{}: Sorted actual table={}", methodName, actualSortedTable);
 
         // Filter out the columns from the expected and actual results
@@ -1488,9 +1495,197 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
         logSortedTables(expectedSortedTable, actualSortedTable);
 
         log.debug("{}: Comparing expected table to actual table", methodName);
-        compareData(expectedFilteredTable, actualFilteredTable,
-                additionalColumnInfo, defaultValueComparer,
-                columnValueComparers);
+        try
+        {
+            compareData(expectedFilteredTable, actualFilteredTable,
+                    additionalColumnInfo, defaultValueComparer,
+                    columnValueComparers);
+        } catch (final AssertionError e)
+        {
+            if (sortKeysDiffer)
+            {
+                final boolean passesWhenSortedOnFilteredColumnsOnly =
+                        passesWhenSortedOnFilteredColumnsOnly(expectedTable,
+                                actualTable, excludeColumns, includeColumns,
+                                defaultValueComparer, columnValueComparers);
+                if (passesWhenSortedOnFilteredColumnsOnly)
+                {
+                    final DatabaseUnitRuntimeException hint = makeSortHint(
+                            tableName, actualTableColumns.length,
+                            expectedTableColumns.length);
+                    e.addSuppressed(hint);
+                    // also logged: a build that trims stack traces, for
+                    // example Surefire with trimStackTrace, drops suppressed
+                    log.warn(hint.getMessage());
+                }
+            }
+            throw e;
+        }
+    }
+
+    /**
+     * Sorts the table by the given columns, comparing the values as the
+     * columns' data types do instead of as text.
+     *
+     * @param table
+     *            The table to sort.
+     * @param sortColumns
+     *            The columns to sort by.
+     * @param useSpecifiedColumns
+     *            True to use the column definitions of sortColumns in the
+     *            sorted table, as the expected table does to follow the actual
+     *            table's; false to use the table's own.
+     * @return The sorted view of the table.
+     * @throws DataSetException
+     *             If a sort column does not exist in the table.
+     */
+    private SortedTable sortByColumns(final ITable table,
+            final Column[] sortColumns, final boolean useSpecifiedColumns)
+            throws DataSetException
+    {
+        final SortedTable sortedTable =
+                new SortedTable(table, sortColumns, useSpecifiedColumns);
+        sortedTable.setUseComparable(true);
+        return sortedTable;
+    }
+
+    /**
+     * Returns whether comparing the tables passes when both are sorted by only
+     * the columns that survive the exclude and include column filters, as
+     * {@code sortOnFilteredColumnsOnly} sorts them. It compares with a fresh
+     * {@link DefaultFailureHandler} and no additional column info, instead of
+     * through {@link #compareData} and the {@link #failureHandler}, so that it
+     * neither runs a subclass's comparison nor records differences in a
+     * handler that collects them. It does not compare tables of different
+     * columns or row counts, which cannot pass. Whatever it throws means that
+     * it does not pass: this check explains a failure and must never replace
+     * it.
+     *
+     * @param expectedTable
+     *            The expected table.
+     * @param actualTable
+     *            The actual table.
+     * @param excludeColumns
+     *            The column names to exclude from comparison.
+     * @param includeColumns
+     *            The column names to only include in comparison.
+     * @param defaultValueComparer
+     *            The value comparer for columns without one in
+     *            columnValueComparers; can be null.
+     * @param columnValueComparers
+     *            The value comparers for specific columns; can be null.
+     * @return True if the comparison passes with that sort.
+     */
+    private boolean passesWhenSortedOnFilteredColumnsOnly(
+            final ITable expectedTable, final ITable actualTable,
+            final String[] excludeColumns, final String[] includeColumns,
+            final ValueComparer defaultValueComparer,
+            final Map<String, ValueComparer> columnValueComparers)
+    {
+        final String methodName = "passesWhenSortedOnFilteredColumnsOnly";
+        try
+        {
+            final ITableMetaData actualTableMetaData =
+                    actualTable.getTableMetaData();
+            final ITableMetaData expectedTableMetaData =
+                    expectedTable.getTableMetaData();
+            final Column[] actualTableColumns =
+                    actualTableMetaData.getColumns();
+            final Column[] expectedTableColumns = makeExpectedTableColumns(
+                    actualTableColumns, expectedTableMetaData);
+            final String tableName = actualTableMetaData.getTableName();
+
+            final Column[] actualSortColumns = filterColumns(
+                    actualTableColumns, excludeColumns, includeColumns,
+                    tableName);
+            final Column[] expectedSortColumns = filterColumns(
+                    expectedTableColumns, excludeColumns, includeColumns,
+                    tableName);
+            final SortedTable expectedSortedTable =
+                    sortByColumns(expectedTable, expectedSortColumns, true);
+            final SortedTable actualSortedTable =
+                    sortByColumns(actualTable, actualSortColumns, false);
+            final ITable expectedFilteredTable = applyColumnFilters(
+                    expectedSortedTable, excludeColumns, includeColumns);
+            final ITable actualFilteredTable = applyColumnFilters(
+                    actualSortedTable, excludeColumns, includeColumns);
+
+            if (!haveSameColumnsAndRowCount(expectedFilteredTable,
+                    actualFilteredTable))
+            {
+                return false;
+            }
+
+            Assertion.assertWithValueComparer(expectedFilteredTable,
+                    actualFilteredTable, new DefaultFailureHandler(),
+                    defaultValueComparer, columnValueComparers);
+            return true;
+        } catch (final AssertionError | Exception e)
+        {
+            log.debug("{}: The comparison does not pass sorted by only the"
+                    + " filtered columns", methodName, e);
+            return false;
+        }
+    }
+
+    /**
+     * Returns whether the tables have the same columns, without regard to case,
+     * and the same number of rows. Comparing tables that differ in either fails
+     * before any value is compared, and logs an error.
+     *
+     * @param expectedTable
+     *            The expected table.
+     * @param actualTable
+     *            The actual table.
+     * @return True if both have the same columns and row count.
+     * @throws DataSetException
+     *             If the columns cannot be retrieved.
+     */
+    private boolean haveSameColumnsAndRowCount(final ITable expectedTable,
+            final ITable actualTable) throws DataSetException
+    {
+        final ITableMetaData expectedMetaData =
+                expectedTable.getTableMetaData();
+        final ITableMetaData actualMetaData = actualTable.getTableMetaData();
+        final Columns.ColumnDiff columnDiff =
+                Columns.getColumnDiff(expectedMetaData, actualMetaData);
+        final boolean sameColumns = !columnDiff.hasDifference();
+        final int expectedRowCount = expectedTable.getRowCount();
+        final int actualRowCount = actualTable.getRowCount();
+        final boolean sameRowCount = expectedRowCount == actualRowCount;
+        return sameColumns && sameRowCount;
+    }
+
+    /**
+     * Makes the hint for a failed comparison that passes when sorted by only
+     * the filtered columns: the actual table was sorted by all of its columns
+     * and the expected table by only the columns it declares, which can compare
+     * rows that are equal against different counterparts.
+     *
+     * @param tableName
+     *            The name of the table that failed the comparison.
+     * @param actualColumnCount
+     *            The number of columns the actual table was sorted by.
+     * @param expectedColumnCount
+     *            The number of columns the expected table was sorted by.
+     * @return The hint, to attach to the failure as suppressed.
+     */
+    private DatabaseUnitRuntimeException makeSortHint(final String tableName,
+            final int actualColumnCount, final int expectedColumnCount)
+    {
+        final String message = "verifyData: The comparison of table '"
+                + tableName + "' failed, but it passes when both tables are"
+                + " sorted by only the compared columns. The actual table was"
+                + " sorted by all " + actualColumnCount
+                + " of its columns and the expected table by only the "
+                + expectedColumnCount + " it declares, so rows that are equal"
+                + " on the compared columns can be matched against different"
+                + " counterparts, for example when the columns the expected"
+                + " table omits are generated. Sort by only the compared"
+                + " columns with setSortOnFilteredColumnsOnly(true) on the"
+                + " table's VerifyTableDefinition, or sortOnFilteredColumnsOnly"
+                + " = true on its @DbUnitVerifyTable.";
+        return new DatabaseUnitRuntimeException(message);
     }
 
     /**

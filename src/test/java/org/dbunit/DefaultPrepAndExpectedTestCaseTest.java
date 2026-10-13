@@ -10,12 +10,15 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.dbunit.assertion.DbComparisonFailure;
+import org.dbunit.assertion.DbUnitAssertBase;
 import org.dbunit.assertion.DiffCollectingFailureHandler;
+import org.dbunit.assertion.comparer.value.ValueComparer;
 import org.dbunit.database.DatabaseConfig;
 import org.dbunit.database.IDatabaseConnection;
 import org.dbunit.database.MockDatabaseConnection;
@@ -1082,6 +1085,240 @@ class DefaultPrepAndExpectedTestCaseTest
     }
 
     @Test
+    void testVerifyData_defaultSortExpectedOmitsAColumnAndFilteredSortPasses_failureCarriesTheRemedyAsSuppressed()
+            throws Exception
+    {
+        final ITable actualTable = makeIdAndCol1Table(2, "Apple", 1, "Banana");
+        final ITable expectedTable = makeCol1Table("Apple", "Banana");
+
+        final ListAppender<ILoggingEvent> appender =
+                startCapturingLogOf(DefaultPrepAndExpectedTestCase.class);
+        try
+        {
+            final Throwable thrown = catchThrowable(() -> tc.verifyData(expectedTable,
+                    actualTable, new String[] {"ID"}, null, null, null, false));
+
+            assertThat(thrown).as("The misaligned rows must fail the comparison.")
+                    .isInstanceOf(DbComparisonFailure.class);
+            assertThat(thrown.getSuppressed())
+                    .as("A failure that passes when sorted by only the compared columns must carry"
+                            + " the remedy, once.")
+                    .hasSize(1);
+            assertThat(thrown.getSuppressed()[0])
+                    .as("The remedy must name the table and the setting that fixes it.")
+                    .isInstanceOf(DatabaseUnitRuntimeException.class)
+                    .hasMessageContaining("TEST_TABLE")
+                    .hasMessageContaining("setSortOnFilteredColumnsOnly(true)");
+            assertThat(appender.list).filteredOn(event -> event.getLevel() == Level.WARN)
+                    .extracting(ILoggingEvent::getFormattedMessage)
+                    .as("The remedy is also logged, once, for a build that trims the suppressed"
+                            + " exception from the failure.")
+                    .containsExactly(thrown.getSuppressed()[0].getMessage());
+        } finally
+        {
+            stopCapturingLogOf(DefaultPrepAndExpectedTestCase.class, appender);
+        }
+    }
+
+    @Test
+    void testVerifyData_defaultSortExpectedOmitsAColumnAndComparisonPasses_throwsNothing()
+            throws Exception
+    {
+        final ITable actualTable = makeIdAndCol1Table(1, "Apple", 2, "Banana");
+        final ITable expectedTable = makeCol1Table("Apple", "Banana");
+
+        assertThatCode(() -> tc.verifyData(expectedTable, actualTable, new String[] {"ID"}, null,
+                null, null, false))
+                        .as("A comparison that passes has nothing to hint at, even when the two"
+                                + " sides sort by different columns.")
+                        .doesNotThrowAnyException();
+    }
+
+    @Test
+    void testVerifyData_sortOnFilteredColumnsOnlyAndComparisonFails_failureCarriesNoHint()
+            throws Exception
+    {
+        final ITable actualTable = makeIdAndCol1Table(1, "Apple", 2, "Banana");
+        final ITable expectedTable = makeCol1Table("Apple", "Cherry");
+
+        final Throwable thrown = catchThrowable(() -> tc.verifyData(expectedTable, actualTable,
+                new String[] {"ID"}, null, null, null, true));
+
+        assertThat(thrown).as("The genuine mismatch must fail the comparison.")
+                .isInstanceOf(DbComparisonFailure.class);
+        assertThat(thrown.getSuppressed())
+                .as("Both sides already sort by the compared columns only, so the remedy is"
+                        + " already in use.")
+                .isEmpty();
+    }
+
+    @Test
+    void testVerifyData_defaultSortExpectedHasEveryColumnAndComparisonFails_failureCarriesNoHint()
+            throws Exception
+    {
+        final ITable actualTable = makeIdAndCol1Table(1, "Apple", 2, "Banana");
+        final ITable expectedTable = makeIdAndCol1Table(1, "Apple", 2, "Cherry");
+
+        final Throwable thrown = catchThrowable(() -> tc.verifyData(expectedTable, actualTable,
+                null, null, null, null, false));
+
+        assertThat(thrown).as("The genuine mismatch must fail the comparison.")
+                .isInstanceOf(DbComparisonFailure.class);
+        assertThat(thrown.getSuppressed())
+                .as("Both sides sort by the same columns, so row order is not the suspect.")
+                .isEmpty();
+    }
+
+    @Test
+    void testVerifyData_defaultSortAndTheOmittedColumnIsNotExcluded_columnCountFailureCarriesNoHint()
+            throws Exception
+    {
+        final ITable actualTable = makeIdAndCol1Table(2, "Apple", 1, "Banana");
+        final ITable expectedTable = makeCol1Table("Apple", "Banana");
+
+        final ListAppender<ILoggingEvent> appender = startCapturingLogOf(DbUnitAssertBase.class);
+        try
+        {
+            final Throwable thrown = catchThrowable(() -> tc.verifyData(expectedTable,
+                    actualTable, null, null, null, null, false));
+
+            assertThat(thrown).as("The omitted column that is not excluded must fail.")
+                    .isInstanceOf(DbComparisonFailure.class).hasMessageContaining("column count");
+            assertThat(thrown.getSuppressed())
+                    .as("Sorting by the compared columns cannot make different columns match.")
+                    .isEmpty();
+            assertThat(appender.list).filteredOn(event -> event.getLevel() == Level.ERROR)
+                    .as("Only the comparison itself logs the column mismatch, not a second"
+                            + " comparison that tries the remedy.")
+                    .hasSize(1);
+        } finally
+        {
+            stopCapturingLogOf(DbUnitAssertBase.class, appender);
+        }
+    }
+
+    @Test
+    void testVerifyData_defaultSortAndTheRowCountsDiffer_rowCountFailureCarriesNoHint()
+            throws Exception
+    {
+        final DefaultTable actualTable = makeIdAndCol1Table(1, "Apple", 2, "Banana");
+        actualTable.addRow(new Object[] {3, "Cherry"});
+        final ITable expectedTable = makeCol1Table("Apple", "Banana");
+
+        final ListAppender<ILoggingEvent> appender = startCapturingLogOf(DbUnitAssertBase.class);
+        try
+        {
+            final Throwable thrown = catchThrowable(() -> tc.verifyData(expectedTable,
+                    actualTable, new String[] {"ID"}, null, null, null, false));
+
+            assertThat(thrown).as("The extra actual row must fail the comparison.")
+                    .isInstanceOf(DbComparisonFailure.class).hasMessageContaining("row count");
+            assertThat(thrown.getSuppressed())
+                    .as("Sorting by the compared columns cannot make different row counts match.")
+                    .isEmpty();
+            assertThat(appender.list).filteredOn(event -> event.getLevel() == Level.ERROR)
+                    .as("Only the comparison itself logs the row count mismatch, not a second"
+                            + " comparison that tries the remedy.")
+                    .hasSize(1);
+        } finally
+        {
+            stopCapturingLogOf(DbUnitAssertBase.class, appender);
+        }
+    }
+
+    @Test
+    void testVerifyData_defaultSortExpectedOmitsAColumnAndTheDataDiffers_failureCarriesNoHint()
+            throws Exception
+    {
+        final ITable actualTable = makeIdAndCol1Table(1, "Apple", 2, "Banana");
+        final ITable expectedTable = makeCol1Table("Apple", "Cherry");
+
+        final ListAppender<ILoggingEvent> appender =
+                startCapturingLogOf(DefaultPrepAndExpectedTestCase.class);
+        try
+        {
+            final Throwable thrown = catchThrowable(() -> tc.verifyData(expectedTable,
+                    actualTable, new String[] {"ID"}, null, null, null, false));
+
+            assertThat(thrown).as("The genuine mismatch must fail the comparison.")
+                    .isInstanceOf(DbComparisonFailure.class);
+            assertThat(thrown.getSuppressed())
+                    .as("The comparison still fails when sorted by only the compared columns, so"
+                            + " the remedy would not help.")
+                    .isEmpty();
+            assertThat(appender.list).filteredOn(event -> event.getLevel() == Level.WARN)
+                    .as("The remedy would not help, so it is not logged either.").isEmpty();
+        } finally
+        {
+            stopCapturingLogOf(DefaultPrepAndExpectedTestCase.class, appender);
+        }
+    }
+
+    @Test
+    void testVerifyData_defaultValueComparerMakesTheFilteredSortPass_failureCarriesTheHint()
+            throws Exception
+    {
+        final ITable actualTable = makeIdAndCol1Table(2, "APPLE", 1, "BANANA");
+        final ITable expectedTable = makeCol1Table("apple", "banana");
+
+        final Throwable thrown = catchThrowable(() -> tc.verifyData(expectedTable, actualTable,
+                new String[] {"ID"}, null, IGNORING_CASE, null, false));
+
+        assertThat(thrown).as("The misaligned rows must fail the comparison.")
+                .isInstanceOf(DbComparisonFailure.class);
+        assertThat(thrown.getSuppressed())
+                .as("The values differ in case, so the sorted-by-compared-columns check passes"
+                        + " only when it uses the same default value comparer.")
+                .hasSize(1);
+    }
+
+    @Test
+    void testVerifyData_columnValueComparerMakesTheFilteredSortPass_failureCarriesTheHint()
+            throws Exception
+    {
+        final ITable actualTable = makeIdAndCol1Table(2, "APPLE", 1, "BANANA");
+        final ITable expectedTable = makeCol1Table("apple", "banana");
+        final Map<String, ValueComparer> columnValueComparers =
+                Collections.singletonMap("COL1", IGNORING_CASE);
+
+        final Throwable thrown = catchThrowable(() -> tc.verifyData(expectedTable, actualTable,
+                new String[] {"ID"}, null, null, columnValueComparers, false));
+
+        assertThat(thrown).as("The misaligned rows must fail the comparison.")
+                .isInstanceOf(DbComparisonFailure.class);
+        assertThat(thrown.getSuppressed())
+                .as("The values differ in case, so the sorted-by-compared-columns check passes"
+                        + " only when it uses the same column value comparers.")
+                .hasSize(1);
+    }
+
+    @Test
+    void testVerifyData_theCheckOfTheFilteredSortThrows_theOriginalFailureIsThrownWithoutHint()
+            throws Exception
+    {
+        final ITable actualTable = makeIdAndCol1Table(2, "Apple", 1, "Banana");
+        final ITable expectedTable = makeCol1Table("Apple", "Banana");
+        final AtomicInteger comparisons = new AtomicInteger();
+        final ValueComparer failsOnceThenThrows = (expected, actual, rowNum, columnName, dataType,
+                expectedValue, actualValue) -> {
+            if (comparisons.incrementAndGet() == 1)
+            {
+                return "differs";
+            }
+            throw new IllegalStateException("The check of the remedy fails.");
+        };
+
+        final Throwable thrown = catchThrowable(() -> tc.verifyData(expectedTable, actualTable,
+                new String[] {"ID"}, null, failsOnceThenThrows, null, false));
+
+        assertThat(thrown)
+                .as("The check of the remedy must never replace the failure it explains.")
+                .isInstanceOf(DbComparisonFailure.class);
+        assertThat(thrown.getSuppressed()).as("A check that failed has no remedy to hint at.")
+                .isEmpty();
+    }
+
+    @Test
     void testVerifyData_withSortOnFilteredColumnsOnlyTrue_generatedIdOutOfDataOrder_passesWhenEqual()
             throws Exception
     {
@@ -2104,6 +2341,48 @@ class DefaultPrepAndExpectedTestCaseTest
         assertThat(filtered.getTableMetaData().getColumns())
                 .as("Include is applied before exclude, so only the included COL2 should remain.")
                 .containsExactly(new Column("COL2", DataType.VARCHAR));
+    }
+
+    private static final ValueComparer IGNORING_CASE = (expectedTable, actualTable, rowNum,
+            columnName, dataType, expectedValue, actualValue) -> String.valueOf(expectedValue)
+                    .equalsIgnoreCase(String.valueOf(actualValue)) ? null : "differs";
+
+    private static DefaultTable makeIdAndCol1Table(final int firstId, final String firstCol1,
+            final int secondId, final String secondCol1) throws DataSetException
+    {
+        final Column[] columns = {new Column("ID", DataType.INTEGER),
+                new Column("COL1", DataType.VARCHAR)};
+        final DefaultTable table = new DefaultTable("TEST_TABLE", columns);
+        table.addRow(new Object[] {firstId, firstCol1});
+        table.addRow(new Object[] {secondId, secondCol1});
+        return table;
+    }
+
+    private static DefaultTable makeCol1Table(final String firstCol1, final String secondCol1)
+            throws DataSetException
+    {
+        final Column[] columns = {new Column("COL1", DataType.VARCHAR)};
+        final DefaultTable table = new DefaultTable("TEST_TABLE", columns);
+        table.addRow(new Object[] {firstCol1});
+        table.addRow(new Object[] {secondCol1});
+        return table;
+    }
+
+    private static ListAppender<ILoggingEvent> startCapturingLogOf(final Class<?> loggedClass)
+    {
+        final Logger logger = (Logger) LoggerFactory.getLogger(loggedClass);
+        final ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+        return appender;
+    }
+
+    private static void stopCapturingLogOf(final Class<?> loggedClass,
+            final ListAppender<ILoggingEvent> appender)
+    {
+        final Logger logger = (Logger) LoggerFactory.getLogger(loggedClass);
+        logger.detachAppender(appender);
+        appender.stop();
     }
 
     private static DefaultTable makeAdditionalInfoTable(final String name, final String createdAt)

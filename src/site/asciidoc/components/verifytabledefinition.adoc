@@ -120,6 +120,16 @@ both the actual and expected tables. Opt in per table whenever such a distinguis
 column is absent from the expected table - typically because it is excluded from
 comparison - regardless of whether that column happens to be generated/identity or not.
 
+When a comparison fails in that situation - the default mode, and an expected table that
+omits a column of the actual one, so the two sort by different columns - the verification
+compares again with both tables sorted by only the compared columns. If that passes, the
+failure carries (since 3.6.0) a suppressed exception that says so and names
+`setSortOnFilteredColumnsOnly(true)` as the remedy, and the same text is logged as a warning,
+for a build that trims stack traces, such as Surefire with `trimStackTrace` set to `true`.
+Nothing is added when the comparison passes, which it can when the omitted columns sort the
+same way, or when it also fails sorted that way, as it does for a different row count, a
+different set of columns or a genuine difference in the data.
+
 Since 3.6.0, `sortOnFilteredColumnsOnly` set to `true` also narrows what is read from the
 database: the actual table is loaded selecting only the columns that survive the filters, so
 an excluded column, often a large one such as a BLOB or CLOB, is not fetched. A column that
