@@ -814,18 +814,66 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     }
 
     /**
+     * Legacy JUnit-3-era set-up hook. Not invoked automatically under JUnit 5;
+     * kept for subclasses that drive the lifecycle manually. Runs
+     * {@link #setupData()} on the connection shared with the rest of this
+     * test's lifecycle, leaving the databaseTester's dataset and operation
+     * listener as the caller set them.
+     */
+    @Override
+    protected void setUp() throws Exception
+    {
+        setupData();
+    }
+
+    /**
      * Legacy JUnit-3-era tear-down hook. Not invoked automatically under JUnit 5;
-     * kept for subclasses that drive the lifecycle manually. Calling it after a
-     * full {@link #runTest} or {@link #postTest} cycle cleans up a second time
-     * (parent tearDown() re-runs the tear down operation on the prep dataset with
-     * a fresh connection).
+     * kept for subclasses that drive the lifecycle manually. Runs
+     * {@link #cleanupData()}, which tears down the prep and expected tables once
+     * and releases the shared connection. Calling it after a full
+     * {@link #runTest} or {@link #postTest} cycle cleans up a second time, as
+     * both already ran cleanupData().
      */
     @Override
     protected void tearDown() throws Exception
     {
-        // parent tearDown() only cleans up prep data
         cleanupData();
-        super.tearDown();
+    }
+
+    /**
+     * Legacy JUnit-3-era tear-down hook for a test whose failure is already in
+     * flight. Runs {@link #cleanupData()} the same way as {@link #tearDown()},
+     * and throws {@code testFailure} afterward, with any clean up failure
+     * attached to it as suppressed rather than replacing it.
+     *
+     * @param testFailure
+     *            The throwable already in flight from the test body, or
+     *            <code>null</code> if there is none, in which case this
+     *            behaves the same as {@link #tearDown()}.
+     * @throws Throwable
+     *             The testFailure, if not <code>null</code>; otherwise a clean up
+     *             failure, if one occurred.
+     */
+    @Override
+    protected void tearDown(final Throwable testFailure) throws Throwable
+    {
+        if (testFailure == null)
+        {
+            cleanupData();
+            return;
+        }
+
+        try
+        {
+            cleanupData();
+        } catch (final Throwable cleanupFailure)
+        {
+            if (cleanupFailure != testFailure)
+            {
+                testFailure.addSuppressed(cleanupFailure);
+            }
+        }
+        throw testFailure;
     }
 
     /**

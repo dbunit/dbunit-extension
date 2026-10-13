@@ -6,7 +6,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.catchThrowable;
 
 import java.sql.Connection;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.Properties;
 
 import org.dbunit.assertion.DbComparisonFailure;
@@ -1090,6 +1093,145 @@ class DefaultPrepAndExpectedTestCaseTest
     }
 
     @Test
+    void testTearDown_withRecordingTearDownOperation_runsTearDownOperationOnce() throws Exception
+    {
+        final RecordingDatabaseOperation tearDownOperation = new RecordingDatabaseOperation();
+        databaseTester.setTearDownOperation(tearDownOperation);
+        tc.setPrepDs(new DefaultDataSet(new DefaultTable("PREP_ONLY_TABLE")));
+        tc.setExpectedDs(new DefaultDataSet(new DefaultTable("EXPECTED_ONLY_TABLE")));
+
+        tc.tearDown();
+
+        assertThat(tearDownOperation.getExecutedTableNames())
+                .as("The legacy tearDown() must clean up the prep and expected tables once,"
+                        + " through cleanupData(), not again through the inherited"
+                        + " DatabaseTestCase.tearDown().")
+                .containsExactly(Arrays.asList("PREP_ONLY_TABLE", "EXPECTED_ONLY_TABLE"));
+    }
+
+    @Test
+    void testTearDown_databaseTesterListenerIsNoOpAndDataSetSet_leavesBothUnchanged()
+            throws Exception
+    {
+        final IDataSet testersDataSet = new DefaultDataSet();
+        databaseTester.setDataSet(testersDataSet);
+        databaseTester.setOperationListener(IOperationListener.NO_OP_OPERATION_LISTENER);
+        tc.configureTest(new VerifyTableDefinition[] {}, new String[] {}, new String[] {});
+
+        tc.tearDown();
+
+        assertThat(databaseTester.getOperationListener())
+                .as("The caller's no-op listener says the connection is managed elsewhere, so"
+                        + " tearDown() must not replace it with the default closing listener.")
+                .isSameAs(IOperationListener.NO_OP_OPERATION_LISTENER);
+        assertThat(((AbstractDatabaseTester) databaseTester).getDataSet())
+                .as("tearDown() must not overwrite the dataset of the tester the caller handed in.")
+                .isSameAs(testersDataSet);
+        final MockDatabaseConnection connection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        connection.setExpectedCloseCalls(0);
+        connection.verify();
+    }
+
+    @Test
+    void testTearDownWithThrowable_testFailureInFlight_cleansPrepAndExpectedTablesOnce()
+            throws Exception
+    {
+        final RecordingDatabaseOperation tearDownOperation = new RecordingDatabaseOperation();
+        databaseTester.setTearDownOperation(tearDownOperation);
+        tc.setPrepDs(new DefaultDataSet(new DefaultTable("PREP_ONLY_TABLE")));
+        tc.setExpectedDs(new DefaultDataSet(new DefaultTable("EXPECTED_ONLY_TABLE")));
+        final AssertionError testFailure = new AssertionError("The test failed.");
+
+        final Throwable thrown = catchThrowable(() -> tc.tearDown(testFailure));
+
+        assertThat(thrown).as("The test failure in flight must be the one thrown.")
+                .isSameAs(testFailure);
+        assertThat(tearDownOperation.getExecutedTableNames())
+                .as("tearDown(Throwable) must clean the prep and expected tables once, through"
+                        + " cleanupData(), not only the prep tables through the inherited"
+                        + " DatabaseTestCase.tearDown(Throwable).")
+                .containsExactly(Arrays.asList("PREP_ONLY_TABLE", "EXPECTED_ONLY_TABLE"));
+    }
+
+    @Test
+    void testTearDownWithThrowable_cleanupFails_throwsTestFailureWithCleanupSuppressed()
+            throws Exception
+    {
+        databaseTester.setTearDownOperation(new FailingDatabaseOperation());
+        final AssertionError testFailure = new AssertionError("The test failed.");
+
+        final Throwable thrown = catchThrowable(() -> tc.tearDown(testFailure));
+
+        assertThat(thrown).as("A clean up failure must not replace the test failure in flight.")
+                .isSameAs(testFailure);
+        assertThat(thrown.getSuppressed())
+                .as("The clean up failure must ride along as suppressed.")
+                .singleElement().isInstanceOf(DatabaseUnitException.class);
+    }
+
+    @Test
+    void testTearDownWithThrowable_cleanupFailsWithTheTestFailureItself_throwsItUnchanged()
+            throws Exception
+    {
+        final DatabaseUnitException failure =
+                new DatabaseUnitException("The test and its clean up failed the same way.");
+        databaseTester.setTearDownOperation(new FailingDatabaseOperation(failure));
+
+        final Throwable thrown = catchThrowable(() -> tc.tearDown(failure));
+
+        assertThat(thrown)
+                .as("A throwable cannot suppress itself, so it must be thrown unchanged rather"
+                        + " than as the IllegalArgumentException that attempt raises.")
+                .isSameAs(failure);
+        assertThat(thrown.getSuppressed()).as("Nothing may be attached to itself.").isEmpty();
+    }
+
+    @Test
+    void testSetUp_withPrepDataSet_runsSetUpOperationOnTheSharedConnection() throws Exception
+    {
+        final RecordingDatabaseOperation setUpOperation = new RecordingDatabaseOperation();
+        databaseTester.setSetUpOperation(setUpOperation);
+        tc.setPrepDs(new DefaultDataSet(new DefaultTable("PREP_ONLY_TABLE")));
+
+        tc.setUp();
+        tc.cleanupData();
+
+        assertThat(setUpOperation.getExecutedTableNames())
+                .as("setUp() must run the set up operation once over the prep tables.")
+                .containsExactly(Arrays.asList("PREP_ONLY_TABLE"));
+        final MockDatabaseConnection connection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        // setUp() leaves the shared connection open for the rest of the lifecycle, so the one
+        // close in the whole sequence is cleanupData()'s
+        connection.setExpectedCloseCalls(1);
+        connection.verify();
+    }
+
+    @Test
+    void testSetUp_databaseTesterListenerIsNoOpAndDataSetSet_leavesBothUnchanged()
+            throws Exception
+    {
+        final IDataSet testersDataSet = new DefaultDataSet();
+        databaseTester.setDataSet(testersDataSet);
+        databaseTester.setOperationListener(IOperationListener.NO_OP_OPERATION_LISTENER);
+
+        tc.setUp();
+
+        assertThat(databaseTester.getOperationListener())
+                .as("setUp() must not replace the caller's no-op listener with the default"
+                        + " closing listener.")
+                .isSameAs(IOperationListener.NO_OP_OPERATION_LISTENER);
+        assertThat(((AbstractDatabaseTester) databaseTester).getDataSet())
+                .as("setUp() must not overwrite the dataset of the tester the caller handed in.")
+                .isSameAs(testersDataSet);
+        final MockDatabaseConnection connection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        connection.setExpectedCloseCalls(0);
+        connection.verify();
+    }
+
+    @Test
     void testVerifyData_withVerifyTableDefinitions_verifiesActualTableFromConnection()
             throws Exception
     {
@@ -1474,11 +1616,40 @@ class DefaultPrepAndExpectedTestCaseTest
 
     private static final class FailingDatabaseOperation extends DatabaseOperation
     {
+        private final DatabaseUnitException failure;
+
+        private FailingDatabaseOperation()
+        {
+            this(new DatabaseUnitException("Tear down failed on purpose."));
+        }
+
+        private FailingDatabaseOperation(final DatabaseUnitException failure)
+        {
+            this.failure = failure;
+        }
+
         @Override
         public void execute(final IDatabaseConnection connection, final IDataSet dataSet)
                 throws DatabaseUnitException
         {
-            throw new DatabaseUnitException("Tear down failed on purpose.");
+            throw failure;
+        }
+    }
+
+    private static final class RecordingDatabaseOperation extends DatabaseOperation
+    {
+        private final List<List<String>> executedTableNames = new ArrayList<>();
+
+        @Override
+        public void execute(final IDatabaseConnection connection, final IDataSet dataSet)
+                throws DatabaseUnitException
+        {
+            executedTableNames.add(Arrays.asList(dataSet.getTableNames()));
+        }
+
+        private List<List<String>> getExecutedTableNames()
+        {
+            return executedTableNames;
         }
     }
 
