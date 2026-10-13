@@ -79,6 +79,17 @@ public class VerifyTableDefinition
      * columns then sorts the actual table primarily by that unpredictable value
      * while the expected table usually sorts differently by its data content -
      * misaligning same-data rows and failing the comparison.
+     * <p>
+     * Since 3.6.0, <code>true</code> also makes
+     * {@link DefaultPrepAndExpectedTestCase} select only the filtered columns
+     * from the database instead of every column, so an excluded column, often
+     * a large BLOB or CLOB, is not fetched. It still selects every column when
+     * the columns cannot be determined, when all of them are filtered out, and
+     * when a subclass overrides <code>loadTableDataFromDatabase()</code>.
+     * Where it selects only the filtered columns, a column that only the
+     * include filter drops is not read either, so the additional row info of a
+     * failure message, which lists such a column in the default sort to help
+     * identify the mismatching row, lists only the compared columns.
      *
      * @since 3.5.0
      */
