@@ -85,6 +85,11 @@ public @interface DbUnitConfig
      * different injected implementation fails fast with {@link IllegalStateException} instead
      * of silently loading with whatever loader that instance was already constructed with.
      *
+     * <p>A new loader is constructed for each test, so
+     * {@link org.dbunit.util.fileloader.CachingFileExtensionDataFileLoader}, which shares what
+     * it parsed among all instances of its class, parses each file once per run instead of once
+     * per test.
+     *
      * @return The loader class; defaults to {@link FileExtensionDataFileLoader}.
      */
     Class<? extends DataFileLoader> dataFileLoader() default FileExtensionDataFileLoader.class;

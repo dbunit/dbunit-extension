@@ -76,6 +76,35 @@ DataFileLoader loader = new FlatXmlDataFileLoader();
 IDataSet ds = loader.load("/the/package/prepData.xml");
 ----
 
+[#caching]
+== Caching Parsed Datasets
+
+Every `load()` parses its file again, so a suite whose tests share the same prep and
+expected files parses each of them once per test: a SAX parse and the building of the tables
+for flat XML, and much more for Excel files.
+link:../apidocs/org/dbunit/util/fileloader/CachingFileExtensionDataFileLoader.html[CachingFileExtensionDataFileLoader]
+(since 3.6.0) dispatches by extension like `FileExtensionDataFileLoader`, and parses each
+file once per run, handing every later `load()` of that file the parsed dataset:
+
+[source,java]
+----
+@DbUnitConfig(dataFileLoader = CachingFileExtensionDataFileLoader.class)
+----
+
+The annotation runtime builds a new loader for each test, so the parsed datasets are held
+per loader class, not per instance: every instance of the class reuses what the others
+parsed, and a subclass keeps its own. Replacement objects and substrings still apply per
+instance, because only the parsed dataset is shared and each `load()` wraps it in its own
+`ReplacementDataSet`.
+
+Use it for immutable classpath fixtures:
+
+* A resource that changes while the JVM keeps running, as in a test daemon or an IDE runner,
+  is not read again until `clearCache()` drops the loader class's datasets.
+* The shared datasets must be treated as read-only, as every test sees the same ones.
+* The datasets stay in memory for the rest of the run, so mind the number of distinct large
+  files, such as Excel workbooks.
+
 == Replacement Objects and Substrings
 
 Every loader's constructors accept replacement object and replacement
