@@ -889,7 +889,8 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * Verify the row count check baseline, if one was captured, using the connection shared
      * with the rest of this test's lifecycle. A no-op when no baseline was captured - the
      * check is disabled, capture never ran, or {@link #postTest(boolean)} discarded it
-     * because the test steps already failed.
+     * because the test steps already failed - which does not acquire a connection just to
+     * find that out.
      *
      * @throws Exception On dbUnit errors, including {@link org.dbunit.database.rowcount.UnexpectedRowCountException}
      *             when a table's row count no longer matches the baseline.
@@ -897,7 +898,10 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      */
     private void verifyRowCountUnchanged() throws Exception
     {
-        rowCountChecker.verify(getReusableConnection());
+        if (rowCountChecker.hasBaseline())
+        {
+            rowCountChecker.verify(getReusableConnection());
+        }
     }
 
     /**
