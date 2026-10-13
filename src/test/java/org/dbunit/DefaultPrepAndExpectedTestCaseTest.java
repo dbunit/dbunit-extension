@@ -343,6 +343,98 @@ class DefaultPrepAndExpectedTestCaseTest
     }
 
     @Test
+    void testSetDatabaseTester_afterConfigureTestWithDifferentTester_runsOnTheNewTestersConnection()
+            throws Exception
+    {
+        tc.configureTest(new VerifyTableDefinition[] {}, new String[] {}, new String[] {});
+        final MockDatabaseConnection firstConnection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        final MockDatabaseConnection secondConnection =
+                (MockDatabaseConnection) makeDatabaseConnection();
+
+        tc.setDatabaseTester(new DefaultDatabaseTester(secondConnection));
+
+        // configureTest() acquired the first connection for this instance, so replacing its
+        // tester releases it
+        firstConnection.setExpectedCloseCalls(1);
+        firstConnection.verify();
+        assertThat(tc.getReusableConnection())
+                .as("After the tester is replaced, the shared connection must come from the new"
+                        + " tester, not stay the one acquired from the old tester.")
+                .isSameAs(secondConnection);
+
+        tc.cleanupData();
+
+        secondConnection.setExpectedCloseCalls(1);
+        secondConnection.verify();
+        firstConnection.setExpectedCloseCalls(1);
+        firstConnection.verify();
+    }
+
+    @Test
+    void testSetDatabaseTester_sameTesterInstance_keepsTheSharedConnection() throws Exception
+    {
+        tc.configureTest(new VerifyTableDefinition[] {}, new String[] {}, new String[] {});
+
+        tc.setDatabaseTester(databaseTester);
+
+        final MockDatabaseConnection connection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        connection.setExpectedCloseCalls(0);
+        connection.verify();
+        assertThat(tc.getReusableConnection())
+                .as("Setting the tester it already has must not discard the shared connection.")
+                .isSameAs(connection);
+    }
+
+    @Test
+    void testSetDatabaseTester_closeConnectionAfterTestFalse_forgetsButDoesNotCloseTheOldConnection()
+            throws Exception
+    {
+        final DefaultPrepAndExpectedTestCase keepingTestCase =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester, false);
+        keepingTestCase.configureTest(new VerifyTableDefinition[] {}, new String[] {},
+                new String[] {});
+        final MockDatabaseConnection firstConnection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        final MockDatabaseConnection secondConnection =
+                (MockDatabaseConnection) makeDatabaseConnection();
+
+        keepingTestCase.setDatabaseTester(new DefaultDatabaseTester(secondConnection));
+
+        // closeConnectionAfterTest=false says the first connection belongs to its real owner
+        firstConnection.setExpectedCloseCalls(0);
+        firstConnection.verify();
+        assertThat(keepingTestCase.getReusableConnection())
+                .as("The replaced tester's connection must be forgotten even when it is left"
+                        + " open for its owner.")
+                .isSameAs(secondConnection);
+    }
+
+    @Test
+    void testSetDatabaseTester_replacedTesterListenerIsNoOp_doesNotCloseTheOldConnection()
+            throws Exception
+    {
+        databaseTester.setOperationListener(IOperationListener.NO_OP_OPERATION_LISTENER);
+        tc.configureTest(new VerifyTableDefinition[] {}, new String[] {}, new String[] {});
+        final MockDatabaseConnection firstConnection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        final MockDatabaseConnection secondConnection =
+                (MockDatabaseConnection) makeDatabaseConnection();
+
+        tc.setDatabaseTester(new DefaultDatabaseTester(secondConnection));
+
+        // the replaced tester said its connection is managed elsewhere, and the decision must
+        // read that tester's listener rather than the new tester's
+        firstConnection.setExpectedCloseCalls(0);
+        firstConnection.verify();
+        assertThat(tc.getReusableConnection())
+                .as("The replaced tester's connection must be forgotten even when its no-op"
+                        + " listener leaves it open.")
+                .isSameAs(secondConnection);
+    }
+
+    @Test
     void testPreTest_withTablesAndDataFiles_configuresDatasetAndExecutesSetUpOperation()
             throws Exception
     {

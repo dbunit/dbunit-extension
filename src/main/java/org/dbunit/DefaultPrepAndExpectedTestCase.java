@@ -1548,7 +1548,11 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     }
 
     /**
-     * Set the databaseTester.
+     * Set the databaseTester. Replacing a different one first releases the
+     * shared connection acquired from it, closing it only when
+     * {@link #cleanupData()} would, and forgets what was resolved from it, so
+     * the next step acquires its connection and case sensitivity setting from
+     * the new one.
      *
      * @see #databaseTester
      *
@@ -1558,7 +1562,41 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     @Override
     public void setDatabaseTester(final IDatabaseTester databaseTester)
     {
+        if (databaseTester == this.databaseTester)
+        {
+            return;
+        }
+
+        releaseReplacedTestersConnection();
         this.databaseTester = databaseTester;
+        this.cachedIsCaseSensitiveTableNames = null;
+    }
+
+    /**
+     * Release the shared connection acquired from the databaseTester about to
+     * be replaced, closing it only when this instance owns it, and forget it
+     * so the next step acquires one from the new databaseTester. Called before
+     * the field is reassigned because {@link ConnectionOwnership} reads the
+     * outgoing databaseTester's listener to decide whether to close. A close
+     * failure is logged, not thrown, as the connection is being discarded
+     * either way.
+     */
+    private void releaseReplacedTestersConnection()
+    {
+        if (!reusableConnectionHolder.isResolved())
+        {
+            return;
+        }
+
+        try
+        {
+            closeReusableConnection();
+        } catch (final Exception e)
+        {
+            log.warn("setDatabaseTester: releasing the replaced tester's"
+                    + " connection failed", e);
+        }
+        reusableConnectionHolder.discardOnFailure();
     }
 
     /**
