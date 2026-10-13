@@ -815,7 +815,7 @@ class DefaultPrepAndExpectedTestCaseTest
     }
 
     @Test
-    void testCleanupData_testersListenerIsNoOp_leavesTheSharedConnectionOpen() throws Exception
+    void testCleanupData_testCaseListenerIsNoOp_leavesTheSharedConnectionOpen() throws Exception
     {
         // A NO_OP operation listener is the established signal that the connection is managed
         // elsewhere and must not be closed - honored now on this path too, not only by the
