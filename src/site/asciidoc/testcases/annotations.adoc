@@ -411,11 +411,8 @@ fails fast with an `IllegalStateException` pointing at
 <<catalog,the catalog>> as the fix, since a configured comparer can only be
 expressed as a `VerifyTableDefinition` constant written in Java.
 
-`include()` has one quirk worth knowing: `VerifyTableDefinition`
-distinguishes `null` (include every column) from an empty array (include
-*nothing*), but an annotation cannot express `null`. An empty `include()`
-therefore maps to `null` — include all — the only sensible default, since
-"include nothing" is a degenerate setting nobody wants.
+An empty `include()` (the default) includes every column, as a `null` or empty include
+array does for a `VerifyTableDefinition`; an annotation cannot express `null`.
 
 [#catalog]
 == The Shared VerifyTableDefinition Catalog

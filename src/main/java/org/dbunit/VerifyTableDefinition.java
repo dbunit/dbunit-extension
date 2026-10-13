@@ -180,8 +180,7 @@ public class VerifyTableDefinition
      *            actual comparisons; null or empty array to exclude no columns.
      * @param includeColumns
      *            The columns in the table to include in expected vs actual
-     *            comparisons; null to include all columns, empty array to
-     *            include no columns.
+     *            comparisons; null or empty array to include all columns.
      */
     public VerifyTableDefinition(final String table,
             final String[] excludeColumns, final String[] includeColumns)
@@ -201,8 +200,7 @@ public class VerifyTableDefinition
      *            actual comparisons; null or empty array to exclude no columns.
      * @param includeColumns
      *            The columns in the table to include in expected vs actual
-     *            comparisons; null to include all columns, empty array to
-     *            include no columns.
+     *            comparisons; null or empty array to include all columns.
      * @param defaultValueComparer
      *            {@link ValueComparer} to use with column value comparisons
      *            when the column name for the table is not in the
@@ -276,8 +274,7 @@ public class VerifyTableDefinition
      *            actual comparisons; null or empty array to exclude no columns.
      * @param includeColumns
      *            The columns in the table to include in expected vs actual
-     *            comparisons; null to include all columns, empty array to
-     *            include no columns.
+     *            comparisons; null or empty array to include all columns.
      * @param defaultValueComparer
      *            {@link ValueComparer} to use with column value comparisons
      *            when the column name for the table is not in the
