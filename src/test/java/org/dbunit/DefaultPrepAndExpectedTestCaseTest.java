@@ -26,6 +26,7 @@ import org.dbunit.database.statement.IBatchStatement;
 import org.dbunit.database.statement.MockBatchStatement;
 import org.dbunit.database.statement.MockStatementFactory;
 import org.dbunit.dataset.Column;
+import org.dbunit.dataset.ColumnFilterTable;
 import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.DefaultDataSet;
 import org.dbunit.dataset.DefaultTable;
@@ -1030,6 +1031,125 @@ class DefaultPrepAndExpectedTestCaseTest
     }
 
     @Test
+    void testVerifyData_mismatchWithWildcardExclude_failureMessageOmitsTheExcludedColumn()
+            throws Exception
+    {
+        final ITable expectedTable = makeAdditionalInfoTable("expectedName", "expectedCreated");
+        final ITable actualTable = makeAdditionalInfoTable("actualName", "actualCreated");
+
+        final Throwable thrown = catchThrowable(() -> tc.verifyData(expectedTable, actualTable,
+                new String[] {"CREATED_*"}, null, null, null, false));
+
+        assertThat(thrown).as("The NAME mismatch must fail the verification.")
+                .isInstanceOf(DbComparisonFailure.class);
+        assertThat(thrown.getMessage())
+                .as("A column the exclude pattern matches is not compared, so its values must not"
+                        + " be listed as additional row info.")
+                .doesNotContain("CREATED_AT");
+    }
+
+    @Test
+    void testVerifyData_mismatchWithIncludeAndExcludeColumns_failureMessageListsTheOtherColumnsWithoutNoise()
+            throws Exception
+    {
+        final ITable expectedTable = makeAdditionalInfoTable("expectedName", "expectedCreated");
+        final ITable actualTable = makeAdditionalInfoTable("actualName", "actualCreated");
+
+        final Throwable thrown = catchThrowable(() -> tc.verifyData(expectedTable, actualTable,
+                new String[] {"CODE"}, new String[] {"ID", "NAME", "CODE"}, null, null, false));
+
+        assertThat(thrown).as("The NAME mismatch must fail the verification.")
+                .isInstanceOf(DbComparisonFailure.class);
+        assertThat(thrown.getMessage())
+                .as("CREATED_AT, which only the include filter drops, must be found and listed with"
+                        + " its values even though an exclude filter is also set, and the excluded"
+                        + " CODE must not be listed.")
+                .contains("('CREATED_AT': expected=<expectedCreated>, actual=<actualCreated>)")
+                .doesNotContain("'CODE'").doesNotContain("!!!!!");
+    }
+
+    @Test
+    void testVerifyData_mismatchWithIncludeColumns_failureMessageAlsoListsTheNotIncludedColumns()
+            throws Exception
+    {
+        final ITable expectedTable = makeAdditionalInfoTable("expectedName", "expectedCreated");
+        final ITable actualTable = makeAdditionalInfoTable("actualName", "actualCreated");
+
+        final Throwable thrown = catchThrowable(() -> tc.verifyData(expectedTable, actualTable,
+                null, new String[] {"ID", "NAME"}, null, null, false));
+
+        assertThat(thrown).as("The NAME mismatch must fail the verification.")
+                .isInstanceOf(DbComparisonFailure.class);
+        assertThat(thrown.getMessage())
+                .as("A column the include filter drops is not compared, but its values still help"
+                        + " to identify the mismatching row, so they are listed as additional row"
+                        + " info.")
+                .contains("('CREATED_AT': expected=<expectedCreated>, actual=<actualCreated>)")
+                .contains("('CODE': expected=<c>, actual=<c>)").doesNotContain("!!!!!");
+    }
+
+    @Test
+    void testVerifyData_actualTableHasOnlyTheComparedColumns_failureMessageListsOnlyColumnsBothTablesHave()
+            throws Exception
+    {
+        final ITable expectedTable = makeAdditionalInfoTable("expectedName", "expectedCreated");
+        final Column[] comparedColumns = {new Column("ID", DataType.VARCHAR),
+                new Column("NAME", DataType.VARCHAR)};
+        final DefaultTable actualTable = new DefaultTable("TEST_TABLE", comparedColumns);
+        actualTable.addRow(new Object[] {"1", "actualName"});
+
+        final Throwable thrown = catchThrowable(() -> tc.verifyData(expectedTable, actualTable,
+                null, new String[] {"ID", "NAME"}, null, null, true));
+
+        assertThat(thrown).as("The NAME mismatch must fail the verification.")
+                .isInstanceOf(DbComparisonFailure.class);
+        assertThat(thrown.getMessage())
+                .as("The actual table was loaded without the columns the include filter drops, so"
+                        + " they cannot be listed, and trying to would add a not found message.")
+                .contains("('ID': expected=<1>, actual=<1>)")
+                .contains("('NAME': expected=<expectedName>, actual=<actualName>)")
+                .doesNotContain("CREATED_AT").doesNotContain("'CODE'").doesNotContain("!!!!!");
+    }
+
+    @Test
+    void testMakeAdditionalColumnInfo_lowerCaseExclude_removesUpperCaseColumn() throws Exception
+    {
+        final Column createdAt = new Column("CREATED_AT", DataType.VARCHAR);
+        final Column name = new Column("NAME", DataType.VARCHAR);
+
+        final Column[] additionalColumnInfo =
+                tc.makeAdditionalColumnInfo(new String[] {"created_at"},
+                        new Column[] {name, createdAt});
+
+        assertThat(additionalColumnInfo)
+                .as("An exclude pattern matches without regard to case, as the column filters"
+                        + " do.")
+                .containsExactly(name);
+    }
+
+    @Test
+    void testApplyColumnFilters_withExcludeAndInclude_filtersWithOneWrapperOverTheUnfilteredTable()
+            throws DataSetException
+    {
+        final Column[] columns = {new Column("COL1", DataType.VARCHAR),
+                new Column("COL2", DataType.VARCHAR), new Column("COL3", DataType.VARCHAR)};
+        final ITable table = new DefaultTable("test_table", columns);
+
+        final ITable filtered = tc.applyColumnFilters(table, new String[] {"COL1"},
+                new String[] {"COL1", "COL2"});
+
+        assertThat(filtered).as("Filtering must wrap the table.")
+                .isInstanceOf(ColumnFilterTable.class);
+        assertThat(((ColumnFilterTable) filtered).getOriginalMetaData().getColumns())
+                .as("The wrapper must sit directly on the unfiltered table, as a failure message"
+                        + " finds a column a wrapper drops only one wrapper deep.")
+                .isEqualTo(columns);
+        assertThat(filtered.getTableMetaData().getColumns())
+                .as("Both filters must apply: COL1 is excluded and COL3 is not included.")
+                .containsExactly(new Column("COL2", DataType.VARCHAR));
+    }
+
+    @Test
     void testVerifyData_withSortOnFilteredColumnsOnlyTrueAndAllColumnsExcluded_doesNotThrow()
             throws Exception
     {
@@ -1788,6 +1908,17 @@ class DefaultPrepAndExpectedTestCaseTest
         assertThat(filtered.getTableMetaData().getColumns())
                 .as("Include is applied before exclude, so only the included COL2 should remain.")
                 .containsExactly(new Column("COL2", DataType.VARCHAR));
+    }
+
+    private static DefaultTable makeAdditionalInfoTable(final String name, final String createdAt)
+            throws DataSetException
+    {
+        final Column[] columns = {new Column("ID", DataType.VARCHAR),
+                new Column("NAME", DataType.VARCHAR), new Column("CREATED_AT", DataType.VARCHAR),
+                new Column("CODE", DataType.VARCHAR)};
+        final DefaultTable table = new DefaultTable("TEST_TABLE", columns);
+        table.addRow(new Object[] {"1", name, createdAt, "c"});
+        return table;
     }
 
     private static Properties batchSizeProperties(final String batchSize)
