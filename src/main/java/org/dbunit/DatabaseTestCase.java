@@ -262,6 +262,15 @@ public abstract class DatabaseTestCase implements InvocationInterceptor {
      * Returns the operation listener used by the database tester, creating a default one on
      * first access.
      *
+     * <p>{@link #setUp()}, {@link #tearDown()} and {@link #tearDown(Throwable)} install the
+     * returned listener on whatever {@link #getDatabaseTester()} returns, replacing the listener
+     * that tester already has. A subclass that returns a database tester it does not own, such
+     * as one shared with other tests, therefore overrides this method to return the listener
+     * that tester should keep. The default listener also calls
+     * {@link #setUpDatabaseConfig(DatabaseConfig)} whenever the tester retrieves a connection,
+     * so a replacement that does not, such as {@link IOperationListener#NO_OP_OPERATION_LISTENER},
+     * skips that configuration too.
+     *
      * @return The {@link IOperationListener} to be used by the {@link IDatabaseTester}.
      * @since 2.4.4
      */
