@@ -80,6 +80,9 @@
       <action dev="jeffjensen" type="fix" issue="1003" system="github" due-to="jeffjensen">
           Fix DefaultPrepAndExpectedTestCase.setDatabaseTester() leaving the replaced tester's shared connection and case sensitivity setting in use, so a later setupData(), verifyData() and cleanupData() kept running on the old tester's connection, possibly a different database or schema. Replacing the tester now releases the connection acquired from the old one, closing it only when cleanupData() would, and acquires the connection and case sensitivity setting from the new tester.
       </action>
+      <action dev="jeffjensen" type="fix" issue="1004" system="github" due-to="jeffjensen">
+          Fix the DefaultPrepAndExpectedTestCase setUp(), tearDown() and tearDown(Throwable) hooks inherited from DatabaseTestCase running outside the shared connection's lifecycle. tearDown() cleaned up twice, once through cleanupData() and again over the prep dataset on a fresh connection, and tearDown(Throwable) skipped cleanupData() altogether. All three also overwrote the dataset and replaced the operation listener, including IOperationListener.NO_OP_OPERATION_LISTENER, of the tester the caller handed in, so a connection the caller said is managed elsewhere was closed. They now run setupData() and cleanupData() once on the shared connection and leave the tester untouched, and tearDown(Throwable) throws the test failure in flight with any clean up failure attached as suppressed.
+      </action>
     </release>
     <release version="3.5.2" date="Sep 7, 2026" description="DefaultPrepAndExpectedTestCase connection hygiene: replace a connection the pool or database dropped between tests, and warn when handed a non-autocommit connection">
       <action dev="jeffjensen" type="fix" issue="962" system="github" due-to="jeffjensen">
