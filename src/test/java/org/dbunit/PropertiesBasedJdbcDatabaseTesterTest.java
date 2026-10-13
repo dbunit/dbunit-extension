@@ -121,4 +121,25 @@ class PropertiesBasedJdbcDatabaseTesterTest
                 .as("With a CachingConnectionProvider, calls must reuse the cached connection.")
                 .isSameAs(first);
     }
+
+    @Test
+    void testIsReusingConnection_withoutProvider_returnsFalse() throws Exception
+    {
+        final PropertiesBasedJdbcDatabaseTester tester = new PropertiesBasedJdbcDatabaseTester();
+
+        assertThat(tester.isReusingConnection())
+                .as("Without a CachingConnectionProvider every call creates a new connection.")
+                .isFalse();
+    }
+
+    @Test
+    void testIsReusingConnection_withProvider_returnsTrue() throws Exception
+    {
+        final PropertiesBasedJdbcDatabaseTester tester =
+                new PropertiesBasedJdbcDatabaseTester(new CachingConnectionProvider());
+
+        assertThat(tester.isReusingConnection())
+                .as("With a CachingConnectionProvider calls reuse the cached connection.")
+                .isTrue();
+    }
 }

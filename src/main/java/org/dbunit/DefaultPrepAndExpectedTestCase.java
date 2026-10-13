@@ -40,6 +40,7 @@ import org.dbunit.database.IDatabaseConnection;
 import org.dbunit.database.IResultSetTableFactory;
 import org.dbunit.database.connection.AutoCommitOffWarning;
 import org.dbunit.database.connection.ConnectionOwnership;
+import org.dbunit.database.connection.LeftOpenConnectionWarning;
 import org.dbunit.database.connection.TestScopedConnection;
 import org.dbunit.database.rowcount.RowCountCheck;
 import org.dbunit.database.rowcount.RowCountChecker;
@@ -89,6 +90,8 @@ import org.slf4j.LoggerFactory;
  * it. An instance reused across tests keeps one for its next test and leaves
  * another open each time a step fails, because a failing step makes this
  * class forget the connection so that the next step acquires another.
+ * This class logs a warning when it detects a {@link JdbcDatabaseTester}
+ * without a CachingConnectionProvider in that situation.
  * <p>
  * The databaseTester's own {@link IOperationListener} is told about the
  * connection each of setupData()'s and cleanupData()'s operations retrieves,
@@ -183,7 +186,9 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * cleanupData() from closing the connection even when
      * {@link #closeConnectionAfterTest} is true - the established signal that the
      * connection is owned elsewhere, now honored on this path too and not only
-     * by the annotation runtime.
+     * by the annotation runtime. On each connection it acquires, it logs the warnings of
+     * {@link AutoCommitOffWarning} and {@link LeftOpenConnectionWarning}, the latter reading the
+     * databaseTester when it runs, as the databaseTester can change between tests.
      *
      * @return The holder.
      */
@@ -191,8 +196,10 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     {
         final ConnectionOwnership ownership = new ConnectionOwnership(
                 () -> closeConnectionAfterTest, this::getOwnershipListener, () -> true);
+        final LeftOpenConnectionWarning leftOpenConnectionWarning =
+                new LeftOpenConnectionWarning(ownership, () -> databaseTester);
         return new TestScopedConnection(this::acquireSharedConnection, ownership,
-                new AutoCommitOffWarning());
+                new AutoCommitOffWarning().andThen(leftOpenConnectionWarning));
     }
 
     /**
@@ -2148,7 +2155,8 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * the same connection on repeated calls: with one that hands out a new
      * connection each time, nothing closes the connection left open after a
      * test, and a step that fails leaves open the connection this instance
-     * forgets.
+     * forgets. A warning is logged when databaseTester is a
+     * {@link JdbcDatabaseTester} without a CachingConnectionProvider.
      *
      * @see #closeConnectionAfterTest
      *

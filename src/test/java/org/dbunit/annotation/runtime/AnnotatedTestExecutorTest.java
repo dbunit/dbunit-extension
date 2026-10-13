@@ -27,6 +27,7 @@ import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
@@ -50,6 +51,7 @@ import org.dbunit.DefaultDatabaseTester;
 import org.dbunit.DefaultPrepAndExpectedTestCase;
 import org.dbunit.IDatabaseTester;
 import org.dbunit.IOperationListener;
+import org.dbunit.JdbcDatabaseTester;
 import org.dbunit.PrepAndExpectedTestCase;
 import org.dbunit.VerifyTableDefinition;
 import org.dbunit.annotation.DbUnitConfig;
@@ -62,9 +64,11 @@ import org.dbunit.annotation.DbUnitTearDown;
 import org.dbunit.assertion.DefaultFailureHandler;
 import org.dbunit.assertion.DiffCollectingFailureHandler;
 import org.dbunit.assertion.FailureHandler;
+import org.dbunit.database.CachingConnectionProvider;
 import org.dbunit.database.DatabaseConfig;
 import org.dbunit.database.IDatabaseConnection;
 import org.dbunit.database.InMemoryDatabaseConnection;
+import org.dbunit.database.connection.LeftOpenConnectionWarning;
 import org.dbunit.database.rowcount.ClearRowCountCheckSystemProperties;
 import org.dbunit.database.rowcount.RowCountCheck;
 import org.dbunit.database.rowcount.RowCountCheckConfiguration;
@@ -1051,6 +1055,135 @@ class AnnotatedTestExecutorTest
         {
             warningLogger.detachAppender(appender);
             appender.stop();
+        }
+    }
+
+    @Test
+    void testBeforeTest_setupTeardownPathCloseAfterTestFalseAndTesterOpensNewConnectionOnEachCall_warnsOnce()
+            throws Exception
+    {
+        // The connection is left open for a real owner, but a tester that opens a new
+        // connection on every call has none, so every test would leave one open.
+        final JdbcDatabaseTester jdbcTester = jdbcTesterReturningTheConnection(null);
+        final DbUnitConfig config = WithCloseConnectionAfterTestFalseAndSetupNoPrep.class
+                .getAnnotation(DbUnitConfig.class);
+        final DbUnitSetup setup = WithCloseConnectionAfterTestFalseAndSetupNoPrep.class
+                .getAnnotation(DbUnitSetup.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration.from(
+                WithCloseConnectionAfterTestFalseAndSetupNoPrep.class, config, null, setup, null,
+                null, null);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, jdbcTester, null);
+        final ListAppender<ILoggingEvent> appender =
+                startCapturingLogOf(LeftOpenConnectionWarning.class);
+        try
+        {
+            executor.beforeTest();
+            executor.afterTest(false);
+
+            assertThat(appender.list).filteredOn(event -> event.getLevel() == Level.WARN)
+                    .as("A setup/teardown-path test that leaves its connection open with a"
+                            + " tester that opens a new one on every call must be warned"
+                            + " exactly once.")
+                    .hasSize(1);
+        } finally
+        {
+            stopCapturingLogOf(LeftOpenConnectionWarning.class, appender);
+        }
+    }
+
+    @Test
+    void testBeforeTest_setupTeardownPathCloseAfterTestDefaultAndTesterOpensNewConnectionOnEachCall_doesNotWarn()
+            throws Exception
+    {
+        final JdbcDatabaseTester jdbcTester = jdbcTesterReturningTheConnection(null);
+        final DbUnitSetup setup = WithSetupNoPrep.class.getAnnotation(DbUnitSetup.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(WithSetupNoPrep.class, null, null, setup, null, null, null);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, jdbcTester, null);
+        final ListAppender<ILoggingEvent> appender =
+                startCapturingLogOf(LeftOpenConnectionWarning.class);
+        try
+        {
+            executor.beforeTest();
+            executor.afterTest(false);
+
+            assertThat(appender.list)
+                    .as("With the default closeConnectionAfterTest the executor closes the"
+                            + " connection, so nothing is left open to warn about.")
+                    .isEmpty();
+        } finally
+        {
+            stopCapturingLogOf(LeftOpenConnectionWarning.class, appender);
+        }
+    }
+
+    @Test
+    void testBeforeTest_setupTeardownPathCloseAfterTestFalseAndTesterReusesItsConnection_doesNotWarn()
+            throws Exception
+    {
+        final JdbcDatabaseTester jdbcTester =
+                jdbcTesterReturningTheConnection(new CachingConnectionProvider());
+        final DbUnitConfig config = WithCloseConnectionAfterTestFalseAndSetupNoPrep.class
+                .getAnnotation(DbUnitConfig.class);
+        final DbUnitSetup setup = WithCloseConnectionAfterTestFalseAndSetupNoPrep.class
+                .getAnnotation(DbUnitSetup.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration.from(
+                WithCloseConnectionAfterTestFalseAndSetupNoPrep.class, config, null, setup, null,
+                null, null);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, jdbcTester, null);
+        final ListAppender<ILoggingEvent> appender =
+                startCapturingLogOf(LeftOpenConnectionWarning.class);
+        try
+        {
+            executor.beforeTest();
+            executor.afterTest(false);
+
+            assertThat(appender.list)
+                    .as("A tester over a CachingConnectionProvider is the supported way to leave"
+                            + " the connection open, so it must not warn.")
+                    .isEmpty();
+        } finally
+        {
+            stopCapturingLogOf(LeftOpenConnectionWarning.class, appender);
+        }
+    }
+
+    @Test
+    void testConnectionRetrieved_setupTeardownPathTesterRetrievesConnectionAndCloseAfterTestFalse_warnsOnce()
+            throws Exception
+    {
+        // On this path the tester's own onSetup() usually retrieves the connection, and the
+        // listener this executor installs is how it learns of it: the executor adopts that
+        // connection rather than acquiring one, so this is the other place the warning is made.
+        final JdbcDatabaseTester jdbcTester = jdbcTesterReturningTheConnection(null);
+        final DbUnitConfig config = WithCloseConnectionAfterTestFalseAndSetupNoPrep.class
+                .getAnnotation(DbUnitConfig.class);
+        final DbUnitSetup setup = WithCloseConnectionAfterTestFalseAndSetupNoPrep.class
+                .getAnnotation(DbUnitSetup.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration.from(
+                WithCloseConnectionAfterTestFalseAndSetupNoPrep.class, config, null, setup, null,
+                null, null);
+        new AnnotatedTestExecutor(configuration, jdbcTester, null);
+        final ArgumentCaptor<IOperationListener> installedListener =
+                ArgumentCaptor.forClass(IOperationListener.class);
+        verify(jdbcTester).setOperationListener(installedListener.capture());
+        final ListAppender<ILoggingEvent> appender =
+                startCapturingLogOf(LeftOpenConnectionWarning.class);
+        try
+        {
+            installedListener.getValue().connectionRetrieved(connection);
+            installedListener.getValue().connectionRetrieved(connection);
+
+            assertThat(appender.list).filteredOn(event -> event.getLevel() == Level.WARN)
+                    .as("A connection the tester retrieves on its own and the listener hands to"
+                            + " this executor must be warned about too, exactly once.")
+                    .hasSize(1);
+        } finally
+        {
+            stopCapturingLogOf(LeftOpenConnectionWarning.class, appender);
         }
     }
 
@@ -3278,6 +3411,39 @@ class AnnotatedTestExecutorTest
 
     // ---- helpers ----
 
+    /**
+     * A real {@link JdbcDatabaseTester}, so the code under test sees the real class and its
+     * real answer to isReusingConnection(), whose getConnection() hands out the mocked
+     * {@link #connection} instead of opening a database connection.
+     */
+    private JdbcDatabaseTester jdbcTesterReturningTheConnection(
+            final CachingConnectionProvider provider) throws Exception
+    {
+        final JdbcDatabaseTester jdbcTester = spy(new JdbcDatabaseTester("org.h2.Driver",
+                "jdbc:h2:mem:left_open_connection_executor", null, null, null, provider));
+        lenient().doReturn(connection).when(jdbcTester).getConnection();
+        when(connection.getConfig()).thenReturn(new DatabaseConfig());
+        stubOpenJdbcConnection();
+        return jdbcTester;
+    }
+
+    private static ListAppender<ILoggingEvent> startCapturingLogOf(final Class<?> loggedClass)
+    {
+        final Logger logger = (Logger) LoggerFactory.getLogger(loggedClass);
+        final ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+        return appender;
+    }
+
+    private static void stopCapturingLogOf(final Class<?> loggedClass,
+            final ListAppender<ILoggingEvent> appender)
+    {
+        final Logger logger = (Logger) LoggerFactory.getLogger(loggedClass);
+        logger.detachAppender(appender);
+        appender.stop();
+    }
+
     private void stubDisabledConnection() throws Exception
     {
         when(tester.getConnection()).thenReturn(connection);
@@ -3344,6 +3510,12 @@ class AnnotatedTestExecutorTest
     @DbUnitConfig(closeConnectionAfterTest = false)
     @DbUnitExpected("expected.xml")
     static class WithCloseConnectionAfterTestFalseAndExpected
+    {
+    }
+
+    @DbUnitConfig(closeConnectionAfterTest = false)
+    @DbUnitSetup(operation = DbUnitOperation.NONE)
+    static class WithCloseConnectionAfterTestFalseAndSetupNoPrep
     {
     }
 

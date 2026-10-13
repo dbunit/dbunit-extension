@@ -31,6 +31,7 @@ import org.dbunit.database.DatabaseConfigOverrides;
 import org.dbunit.database.IDatabaseConnection;
 import org.dbunit.database.connection.AutoCommitOffWarning;
 import org.dbunit.database.connection.ConnectionOwnership;
+import org.dbunit.database.connection.LeftOpenConnectionWarning;
 import org.dbunit.database.connection.TestScopedConnection;
 
 /**
@@ -93,6 +94,7 @@ public class AnnotatedTestExecutor
     private final IDatabaseTester tester;
     private final boolean annotationDriven;
     private final AutoCommitOffWarning autoCommitOffWarning = new AutoCommitOffWarning();
+    private final LeftOpenConnectionWarning leftOpenConnectionWarning;
     private final TestScopedConnection testScopedConnection;
     private final ExpectedLifecycle expectedLifecycle;
     private final SetupTeardownLifecycle setupTeardownLifecycle;
@@ -168,6 +170,7 @@ public class AnnotatedTestExecutor
         final ConnectionOwnership ownership = new ConnectionOwnership(
                 this::mayCloseConnectionAfterTest, tester::getOperationListener,
                 this::borrowingLifecycleRan);
+        this.leftOpenConnectionWarning = new LeftOpenConnectionWarning(ownership, () -> tester);
         this.testScopedConnection = new TestScopedConnection(this::acquireConnection, ownership,
                 this::onConnectionAcquired);
         this.setupTeardownLifecycle = new SetupTeardownLifecycle(configuration, tester,
@@ -219,11 +222,13 @@ public class AnnotatedTestExecutor
      * {@code @DbUnitProperty} values, and - on the annotation-driven setup/teardown path, where
      * this executor's prep and teardown operations run through the tester rather than a
      * transaction-managed {@link org.dbunit.operation.TransactionOperation} - warns once if
-     * that connection has autocommit off, the same check {@link DefaultPrepAndExpectedTestCase}
-     * makes for the prep/expected path. The classic path resolves this connection only for the
-     * read-only row count check baseline, so an autocommit-off connection there is not a
-     * problem and is not warned about; the prep/expected path warns via
-     * {@link DefaultPrepAndExpectedTestCase}'s own acquisition of the same connection.
+     * that connection has autocommit off, and once if it is going to be left open with a tester
+     * that opens a new connection on every call (see {@link LeftOpenConnectionWarning}), the
+     * same checks {@link DefaultPrepAndExpectedTestCase} makes for the prep/expected path. The
+     * classic path resolves this connection only for the read-only row count check baseline,
+     * so an autocommit-off connection there is not a problem and neither warning is made; the
+     * prep/expected path warns via {@link DefaultPrepAndExpectedTestCase}'s own acquisition of
+     * the same connection.
      *
      * <p>On the setup/teardown path it first tells the tester's own listener about the
      * connection - see {@link #notifyTesterListenerOfRetrieval}.
@@ -238,6 +243,7 @@ public class AnnotatedTestExecutor
         if (annotationDriven && !configuration.isExpected())
         {
             autoCommitOffWarning.accept(connection);
+            leftOpenConnectionWarning.accept(connection);
         }
     }
 
@@ -390,11 +396,13 @@ public class AnnotatedTestExecutor
      * Runs when the tester's own {@code onSetup()}/{@code onTearDown()} retrieves a connection
      * and notifies the installed {@link ExecutorOperationListener}: on the setup/teardown path,
      * warns once on an autocommit-off connection (the single point every connection a prep or
-     * teardown operation runs on passes through - see {@link AutoCommitOffWarning}), then offers
-     * it to {@link AnnotatedRowCountCheck} for the piggybacked baseline capture. A no-op on the
-     * prep/expected path: the row count check there is the {@link PrepAndExpectedTestCase}'s own,
-     * and the connection identity is {@link PrepAndExpectedTestCase#getReusableConnection()}'s -
-     * adopting a directly-retrieved one here would reintroduce, for a
+     * teardown operation runs on passes through - see {@link AutoCommitOffWarning}) and once on
+     * one that is going to be left open with nothing to close it (see
+     * {@link LeftOpenConnectionWarning}), then offers it to {@link AnnotatedRowCountCheck} for
+     * the piggybacked baseline capture. A no-op on the prep/expected path: the row count check
+     * there is the {@link PrepAndExpectedTestCase}'s own, and the connection identity is
+     * {@link PrepAndExpectedTestCase#getReusableConnection()}'s - adopting a
+     * directly-retrieved one here would reintroduce, for a
      * {@link PrepAndExpectedTestCase} implementation that drives {@code tester.onSetup()}
      * itself, the connection-identity split {@link #getConnection()}'s path split exists to
      * prevent.
@@ -406,6 +414,7 @@ public class AnnotatedTestExecutor
             return;
         }
         autoCommitOffWarning.accept(connection);
+        leftOpenConnectionWarning.accept(connection);
         setupTeardownLifecycle.adoptAndCaptureBaselineOnFirstConnection(connection);
     }
 

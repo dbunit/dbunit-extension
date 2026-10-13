@@ -239,10 +239,12 @@ public @interface DbUnitConfig
      * {@code CachingConnectionProvider} or over one fixed connection does. With a tester that
      * hands out a new connection each time, such as a {@code JdbcDatabaseTester} without a
      * {@code CachingConnectionProvider} or a {@code DataSourceDatabaseTester} over a connection
-     * pool, nothing closes the connection left open, so every test leaves one open. On the
-     * prep/expected path, a step that fails also makes the test case forget its connection so
-     * that the next step acquires another, and the forgotten one stays open with nothing
-     * referencing it.
+     * pool, nothing closes the connection left open, so each test leaves one open, except that
+     * an injected test case reused across tests keeps one. On the prep/expected path, a step
+     * that fails also makes the test case forget its connection so that the next step acquires
+     * another, and the forgotten one stays open with nothing referencing it. A warning is
+     * logged when the tester is a {@code JdbcDatabaseTester} without a
+     * {@code CachingConnectionProvider}.
      *
      * @return True to close the connection after each test; defaults to true.
      */

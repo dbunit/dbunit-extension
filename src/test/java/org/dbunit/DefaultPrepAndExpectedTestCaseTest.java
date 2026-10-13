@@ -19,9 +19,11 @@ import org.dbunit.assertion.DbComparisonFailure;
 import org.dbunit.assertion.DbUnitAssertBase;
 import org.dbunit.assertion.DiffCollectingFailureHandler;
 import org.dbunit.assertion.comparer.value.ValueComparer;
+import org.dbunit.database.CachingConnectionProvider;
 import org.dbunit.database.DatabaseConfig;
 import org.dbunit.database.IDatabaseConnection;
 import org.dbunit.database.MockDatabaseConnection;
+import org.dbunit.database.connection.LeftOpenConnectionWarning;
 import org.dbunit.database.rowcount.ClearRowCountCheckSystemProperties;
 import org.dbunit.database.rowcount.RowCountCheck;
 import org.dbunit.database.rowcount.RowCountDifference;
@@ -2037,6 +2039,106 @@ class DefaultPrepAndExpectedTestCaseTest
     }
 
     @Test
+    void testGetReusableConnection_closeAfterTestFalseAndTesterOpensNewConnectionOnEachCall_logsExactlyOneWarning()
+            throws Exception
+    {
+        tc.setDatabaseTester(makeJdbcDatabaseTesterReturning(databaseTester.getConnection(), null));
+        tc.setCloseConnectionAfterTest(false);
+        final ListAppender<ILoggingEvent> appender =
+                startCapturingLogOf(LeftOpenConnectionWarning.class);
+        try
+        {
+            tc.configureTest(new VerifyTableDefinition[] {}, new String[] {}, new String[] {});
+            tc.preTest();
+            tc.postTest();
+
+            assertThat(appender.list).filteredOn(event -> event.getLevel() == Level.WARN)
+                    .as("A connection left open with nothing to close it must be warned about"
+                            + " exactly once for the whole configureTest/preTest/postTest"
+                            + " lifecycle, not once per getReusableConnection() call.")
+                    .hasSize(1);
+        } finally
+        {
+            stopCapturingLogOf(LeftOpenConnectionWarning.class, appender);
+        }
+    }
+
+    @Test
+    void testGetReusableConnection_noOpListenerOnTesterThatOpensNewConnectionOnEachCall_logsWarning()
+            throws Exception
+    {
+        final JdbcDatabaseTester jdbcTester =
+                makeJdbcDatabaseTesterReturning(databaseTester.getConnection(), null);
+        jdbcTester.setOperationListener(IOperationListener.NO_OP_OPERATION_LISTENER);
+        tc.setDatabaseTester(jdbcTester);
+        final ListAppender<ILoggingEvent> appender =
+                startCapturingLogOf(LeftOpenConnectionWarning.class);
+        try
+        {
+            tc.configureTest(new VerifyTableDefinition[] {}, new String[] {}, new String[] {});
+            tc.preTest();
+            tc.postTest();
+
+            assertThat(appender.list).filteredOn(event -> event.getLevel() == Level.WARN)
+                    .as("The no-op listener leaves the connection open even with"
+                            + " closeConnectionAfterTest at its default, so it must be warned"
+                            + " about too.")
+                    .hasSize(1);
+        } finally
+        {
+            stopCapturingLogOf(LeftOpenConnectionWarning.class, appender);
+        }
+    }
+
+    @Test
+    void testGetReusableConnection_closeAfterTestFalseAndTesterReusesItsConnection_logsNoWarning()
+            throws Exception
+    {
+        tc.setDatabaseTester(makeJdbcDatabaseTesterReturning(databaseTester.getConnection(),
+                new CachingConnectionProvider()));
+        tc.setCloseConnectionAfterTest(false);
+        final ListAppender<ILoggingEvent> appender =
+                startCapturingLogOf(LeftOpenConnectionWarning.class);
+        try
+        {
+            tc.configureTest(new VerifyTableDefinition[] {}, new String[] {}, new String[] {});
+            tc.preTest();
+            tc.postTest();
+
+            assertThat(appender.list)
+                    .as("A tester over a CachingConnectionProvider is the supported way to leave"
+                            + " the connection open, so it must not warn.")
+                    .isEmpty();
+        } finally
+        {
+            stopCapturingLogOf(LeftOpenConnectionWarning.class, appender);
+        }
+    }
+
+    @Test
+    void testGetReusableConnection_connectionClosedAfterTestAndTesterOpensNewConnectionOnEachCall_logsNoWarning()
+            throws Exception
+    {
+        tc.setDatabaseTester(makeJdbcDatabaseTesterReturning(databaseTester.getConnection(), null));
+        final ListAppender<ILoggingEvent> appender =
+                startCapturingLogOf(LeftOpenConnectionWarning.class);
+        try
+        {
+            tc.configureTest(new VerifyTableDefinition[] {}, new String[] {}, new String[] {});
+            tc.preTest();
+            tc.postTest();
+
+            assertThat(appender.list)
+                    .as("With the default closeConnectionAfterTest the connection is closed by"
+                            + " cleanupData(), so nothing is left open to warn about.")
+                    .isEmpty();
+        } finally
+        {
+            stopCapturingLogOf(LeftOpenConnectionWarning.class, appender);
+        }
+    }
+
+    @Test
     void testGetReusableConnection_testDoubleWithNullJdbcConnection_doesNotThrow()
             throws Exception
     {
@@ -2538,6 +2640,21 @@ class DefaultPrepAndExpectedTestCaseTest
         {
             return executedTableNames;
         }
+    }
+
+    /**
+     * A real {@link JdbcDatabaseTester}, so the code under test sees the real class and its
+     * real answer to isReusingConnection(), whose getConnection() hands out {@code returned}
+     * instead of opening a database connection.
+     */
+    private static JdbcDatabaseTester makeJdbcDatabaseTesterReturning(
+            final IDatabaseConnection returned, final CachingConnectionProvider provider)
+            throws Exception
+    {
+        final JdbcDatabaseTester jdbcTester = Mockito.spy(new JdbcDatabaseTester("org.h2.Driver",
+                "jdbc:h2:mem:left_open_connection_wiring", null, null, null, provider));
+        Mockito.doReturn(returned).when(jdbcTester).getConnection();
+        return jdbcTester;
     }
 
     private IDatabaseTester makeDatabaseTester() throws Exception
