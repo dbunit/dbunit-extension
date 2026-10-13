@@ -33,10 +33,9 @@ import org.dbunit.assertion.comparer.value.ValueComparer;
  * {@link DbUnitExpected#verify()}: column include/exclude filters, value comparers, and sort
  * mode. Maps directly onto a {@link VerifyTableDefinition}.
  *
- * <p>An empty {@link #include()} (the default) means include every column, since an
- * annotation cannot express {@code null} and {@code VerifyTableDefinition} distinguishes
- * {@code null} (include all) from an empty array (include nothing) - the latter being a
- * degenerate setting nobody wants, so it is not expressible here.
+ * <p>An empty {@link #include()} (the default) means include every column, as a
+ * {@code null} or empty include array does for a {@code VerifyTableDefinition}; an
+ * annotation cannot express {@code null}.
  *
  * <p>For a shared, reusable table definition - especially one needing a configured
  * {@link ValueComparer} instance that has no no-arg constructor - prefer a

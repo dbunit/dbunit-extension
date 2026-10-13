@@ -1789,7 +1789,8 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      *            The exclude filters; use null or empty array to mean exclude
      *            none.
      * @param includeColumns
-     *            The include filters; use null to mean include all.
+     *            The include filters; use null or empty array to mean include
+     *            all.
      * @return The filtered table.
      * @throws DataSetException if applying the filters fails.
      */
@@ -1804,8 +1805,8 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
 
         ITable filteredTable = table;
 
-        // note: dbunit interprets an empty inclusion filter array as one
-        // not wanting to compare anything!
+        // note: a filter with no include patterns accepts every column, so an
+        // empty inclusion array includes all, the same as null
         if (includeColumns == null)
         {
             log.debug("applyColumnFilters: including columns=(all)");

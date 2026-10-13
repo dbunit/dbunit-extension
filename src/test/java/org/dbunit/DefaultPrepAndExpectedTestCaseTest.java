@@ -2058,6 +2058,36 @@ class DefaultPrepAndExpectedTestCaseTest
     }
 
     @Test
+    void testApplyColumnFilters_withEmptyIncludeColumns_keepsEveryColumn() throws DataSetException
+    {
+        final Column[] columns = {new Column("COL1", DataType.VARCHAR),
+                new Column("COL2", DataType.VARCHAR)};
+        final ITable table = new DefaultTable("test_table", columns);
+
+        final ITable filtered = tc.applyColumnFilters(table, null, new String[] {});
+
+        assertThat(filtered.getTableMetaData().getColumns())
+                .as("An include filter with no patterns accepts every column, the same as null,"
+                        + " so an empty array does not mean to compare nothing.")
+                .isEqualTo(columns);
+    }
+
+    @Test
+    void testVerifyData_withEmptyIncludeColumnsAndMismatch_comparesEveryColumn() throws Exception
+    {
+        final ITable expectedTable = makeAdditionalInfoTable("expectedName", "created");
+        final ITable actualTable = makeAdditionalInfoTable("actualName", "created");
+
+        final Throwable thrown = catchThrowable(() -> tc.verifyData(expectedTable, actualTable,
+                null, new String[] {}, null, null, false));
+
+        assertThat(thrown)
+                .as("An empty include array includes every column, so the NAME mismatch must be"
+                        + " found rather than nothing being compared.")
+                .isInstanceOf(DbComparisonFailure.class);
+    }
+
+    @Test
     void testApplyColumnFiltersBothNotNull_withExcludeAndInclude_includeAppliesBeforeExclude()
             throws DataSetException
     {

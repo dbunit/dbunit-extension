@@ -21,7 +21,7 @@ per table you want verified after a test runs.
 
 |`tableName` (`getTableName()`) |The table's name — the only required piece of state; every constructor rejects a `null` table with `IllegalArgumentException`.
 |`columnExclusionFilters` (`getColumnExclusionFilters()`) |Columns to leave out of the comparison; `null`/empty means exclude none.
-|`columnInclusionFilters` (`getColumnInclusionFilters()`) |Columns to restrict the comparison to; `null` means include all, empty means include none.
+|`columnInclusionFilters` (`getColumnInclusionFilters()`) |Columns to restrict the comparison to; `null` or empty means include all.
 |`defaultValueComparer` (`getDefaultValueComparer()`, since 2.6.0) |The `ValueComparer` used for any column not present in `columnValueComparers`. `null` defaults to equality comparison.
 |`columnValueComparers` (`getColumnValueComparers()`, since 2.6.0) |A `Map<String, ValueComparer>` of per-column comparers, keyed by column name.
 |`sortOnFilteredColumnsOnly` (`isSortOnFilteredColumnsOnly()`/`setSortOnFilteredColumnsOnly()`, since 3.5.0) |Whether comparison sorts both tables by only this table's filtered columns instead of all of the actual table's native columns, and, since 3.6.0, also selects only those columns from the database. Default `false`. See <<sortmode,Sort Mode>> below.
