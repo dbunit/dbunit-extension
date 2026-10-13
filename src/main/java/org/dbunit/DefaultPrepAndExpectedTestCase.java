@@ -77,7 +77,17 @@ import org.slf4j.LoggerFactory;
  * methods, set {@link #setCloseConnectionAfterTest(boolean)} to false so
  * cleanupData() does not close a connection other tests still expect to
  * reuse; the provider's owner is then responsible for closing it once,
- * itself, when the whole run finishes.
+ * itself, when the whole run finishes. Leaving the connection open, which a
+ * no-op listener on the databaseTester does too, requires a databaseTester
+ * that hands out the same connection on repeated calls, as one over a
+ * CachingConnectionProvider or over one fixed connection does. With one that
+ * hands out a new connection each time, such as a
+ * {@link JdbcDatabaseTester} without a CachingConnectionProvider or a
+ * {@link DataSourceDatabaseTester} over a connection pool, nothing closes the
+ * connection left open. An instance used for one test leaves one open after
+ * it. An instance reused across tests keeps one for its next test and leaves
+ * another open each time a step fails, because a failing step makes this
+ * class forget the connection so that the next step acquires another.
  * <p>
  * The databaseTester's own {@link IOperationListener} is told about the
  * connection each of setupData()'s and cleanupData()'s operations retrieves,
@@ -1933,7 +1943,11 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * done with is closed. Default is true. Set to false when databaseTester
      * shares a {@link org.dbunit.database.CachingConnectionProvider} across
      * test methods, so this instance does not close a connection other tests
-     * still expect to reuse.
+     * still expect to reuse. False requires a databaseTester that hands out
+     * the same connection on repeated calls: with one that hands out a new
+     * connection each time, nothing closes the connection left open after a
+     * test, and a step that fails leaves open the connection this instance
+     * forgets.
      *
      * @see #closeConnectionAfterTest
      *
