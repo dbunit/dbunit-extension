@@ -153,6 +153,35 @@ class DbUnitExtensionConnectionBalanceIT
         }
     }
 
+    @Test
+    void testBeforeTestExecution_expectedFileMissing_closesTheConnectionConfigureTestAcquired()
+            throws Exception
+    {
+        final DatabaseEnvironment environment = DatabaseEnvironment.getInstance();
+        final CountingDataSource dataSource = new CountingDataSource(environment.getProfile());
+        BalanceSample.databaseTester = new DataSourceDatabaseTester(dataSource,
+                environment.getProfile().getSchema());
+        try
+        {
+            EngineTestKit.engine("junit-jupiter")
+                    .selectors(selectClass(MissingExpectedFileSample.class)).execute()
+                    .testEvents().assertStatistics(stats -> stats.started(1).failed(1));
+
+            assertThat(dataSource.opened())
+                    .as("configureTest() must have opened a connection, or this test proves"
+                            + " nothing.")
+                    .isPositive();
+            assertThat(dataSource.leaked())
+                    .as("A connection configureTest() acquired must be closed when it then fails"
+                            + " to load the expected data file, because the runtime skips"
+                            + " postTest() for a test that never finished configuring.")
+                    .isZero();
+        } finally
+        {
+            environment.closeConnection();
+        }
+    }
+
     private void runBalanced(final Class<?> sampleClass, final int expectedPeak) throws Exception
     {
         final DatabaseEnvironment environment = DatabaseEnvironment.getInstance();
@@ -290,6 +319,20 @@ class DbUnitExtensionConnectionBalanceIT
     {
         @Test
         @DbUnitPrep("annotation-it-prep.xml")
+        void neverRuns()
+        {
+        }
+    }
+
+    @ExtendWith(DbUnitExtension.class)
+    @ClearRowCountCheckSystemProperties
+    static class MissingExpectedFileSample extends BalanceSample
+    {
+        @Test
+        @DbUnitPrep("annotation-it-prep.xml")
+        @DbUnitExpected(value = "no-such-expected-file.xml",
+                verify = @DbUnitVerifyTable(value = TEST_TABLE,
+                        include = {"COLUMN0", "COLUMN1"}))
         void neverRuns()
         {
         }

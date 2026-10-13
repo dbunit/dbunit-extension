@@ -56,6 +56,8 @@ class DefaultPrepAndExpectedTestCaseTest
             "/xml/flatXmlDataSetTest.xml";
     private static final String EXP_DATA_FILE_NAME =
             "/xml/flatXmlDataSetTest.xml";
+    private static final String MISSING_DATA_FILE_NAME =
+            "/xml/noSuchDataSetFile.xml";
 
     private final DataFileLoader dataFileLoader = new FlatXmlDataFileLoader();
     private IDatabaseTester databaseTester;
@@ -127,6 +129,81 @@ class DefaultPrepAndExpectedTestCaseTest
         // runs (#800, #825)
         connection.setExpectedCloseCalls(0);
         connection.verify();
+    }
+
+    @Test
+    void testConfigureTest_expectedFileMissing_releasesTheConnectionItAcquired() throws Exception
+    {
+        final VerifyTableDefinition[] tables = {};
+        final String[] prepDataFiles = {PREP_DATA_FILE_NAME};
+        final String[] missingExpectedDataFiles = {MISSING_DATA_FILE_NAME};
+
+        assertThatThrownBy(
+                () -> tc.configureTest(tables, prepDataFiles, missingExpectedDataFiles))
+                        .as("A missing expected data file must fail configureTest().")
+                        .isInstanceOf(DatabaseUnitRuntimeException.class);
+
+        final MockDatabaseConnection connection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        // the case sensitivity lookup acquired the shared connection, and no cleanupData() follows
+        // a failed configureTest() on the annotation path, so nothing else would release it
+        connection.setExpectedCloseCalls(1);
+        connection.verify();
+    }
+
+    @Test
+    void testConfigureTest_expectedFileMissingAfterEarlierSuccess_clearsPerTestState()
+            throws Exception
+    {
+        final VerifyTableDefinition[] firstTestTables =
+                {new VerifyTableDefinition("TEST_TABLE", new String[] {})};
+        tc.configureTest(firstTestTables, new String[] {PREP_DATA_FILE_NAME},
+                new String[] {EXP_DATA_FILE_NAME});
+
+        assertThatThrownBy(() -> tc.configureTest(new VerifyTableDefinition[] {},
+                new String[] {PREP_DATA_FILE_NAME}, new String[] {MISSING_DATA_FILE_NAME}))
+                        .as("A missing expected data file must fail configureTest().")
+                        .isInstanceOf(DatabaseUnitRuntimeException.class);
+
+        Assertion.assertEquals(new DefaultDataSet(), tc.getPrepDataset());
+        Assertion.assertEquals(new DefaultDataSet(), tc.getExpectedDataset());
+        assertThat(tc.getVerifyTableDefs())
+                .as("A failed configureTest() must not leave the new prep data paired with the"
+                        + " previous test's expected data and verify definitions, because a"
+                        + " cleanupData() that follows would clean the wrong tables.")
+                .isEmpty();
+    }
+
+    @Test
+    void testConfigureTest_connectionAlreadyResolvedAndExpectedFileMissing_leavesItOpen()
+            throws Exception
+    {
+        tc.getReusableConnection();
+
+        assertThatThrownBy(() -> tc.configureTest(new VerifyTableDefinition[] {},
+                new String[] {PREP_DATA_FILE_NAME}, new String[] {MISSING_DATA_FILE_NAME}))
+                        .as("A missing expected data file must fail configureTest().")
+                        .isInstanceOf(DatabaseUnitRuntimeException.class);
+
+        final MockDatabaseConnection connection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        // the caller resolved the connection before configureTest() ran, for example by injecting
+        // it into a @BeforeEach parameter, so this call did not acquire it and must not close it
+        connection.setExpectedCloseCalls(0);
+        connection.verify();
+    }
+
+    @Test
+    void testConfigureTest_nullArguments_configuresEmptyState() throws Exception
+    {
+        tc.configureTest(null, null, null);
+
+        Assertion.assertEquals(new DefaultDataSet(), tc.getPrepDataset());
+        Assertion.assertEquals(new DefaultDataSet(), tc.getExpectedDataset());
+        assertThat(tc.getVerifyTableDefs())
+                .as("Null verify table definitions mean none to verify, not a null that fails"
+                        + " later with a NullPointerException.")
+                .isEmpty();
     }
 
     @Test

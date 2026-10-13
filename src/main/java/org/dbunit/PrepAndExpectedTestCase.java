@@ -41,13 +41,16 @@ public interface PrepAndExpectedTestCase
      * Configure the test. Call this method before performing the test steps.
      *
      * @param verifyTableDefinitions
-     *            Table definitions to verify after test execution.
+     *            Table definitions to verify after test execution; null means
+     *            none.
      * @param prepDataFiles
      *            The prep data files (as classpath resources) to load and
-     *            insert contents into the database as seed data.
+     *            insert contents into the database as seed data; null means
+     *            none.
      * @param expectedDataFiles
      *            The expected data files (as classpath resources) to load as
-     *            expected data and verify actual data matches at test end.
+     *            expected data and verify actual data matches at test end; null
+     *            means none.
      * @throws Exception if the test cannot be configured.
      */
     void configureTest(VerifyTableDefinition[] verifyTableDefinitions,
