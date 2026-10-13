@@ -77,6 +77,9 @@
       <action dev="jeffjensen" type="fix" issue="1002" system="github" due-to="jeffjensen">
           Fix DefaultPrepAndExpectedTestCase.configureTest() leaking the shared connection it acquired, and leaving the new prep data paired with the previous test's expected data and verify definitions, when a prep or expected data file fails to load. A failed configureTest() now releases the connection it acquired, leaving open one the caller had already resolved, and clears the per-test data so a following cleanupData() cleans nothing left over. A null data file array or null verify table definitions now means none, instead of a NullPointerException now or later in verifyData().
       </action>
+      <action dev="jeffjensen" type="fix" issue="1003" system="github" due-to="jeffjensen">
+          Fix DefaultPrepAndExpectedTestCase.setDatabaseTester() leaving the replaced tester's shared connection and case sensitivity setting in use, so a later setupData(), verifyData() and cleanupData() kept running on the old tester's connection, possibly a different database or schema. Replacing the tester now releases the connection acquired from the old one, closing it only when cleanupData() would, and acquires the connection and case sensitivity setting from the new tester.
+      </action>
     </release>
     <release version="3.5.2" date="Sep 7, 2026" description="DefaultPrepAndExpectedTestCase connection hygiene: replace a connection the pool or database dropped between tests, and warn when handed a non-autocommit connection">
       <action dev="jeffjensen" type="fix" issue="962" system="github" due-to="jeffjensen">

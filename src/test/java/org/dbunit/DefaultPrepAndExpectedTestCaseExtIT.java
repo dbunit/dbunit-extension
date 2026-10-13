@@ -71,12 +71,6 @@ class DefaultPrepAndExpectedTestCaseExtIT extends DefaultPrepAndExpectedTestCase
 
         configureTest(tables, prepDataFiles, expectedDataFiles);
 
-        // reopen connection as configureTest() closes its own after
-        // obtaining the case-sensitivity feature setting; preTest() and
-        // postTest() then share and close this one connection themselves
-        // instead of each needing a fresh one (#800)
-        final IDatabaseTester databaseTesterNew1 = makeDatabaseTester();
-        setDatabaseTester(databaseTesterNew1);
         assertDoesNotThrow(() -> preTest(),
                 "Did not expect tc.postTest() to throw, but it did!");
 
@@ -97,13 +91,6 @@ class DefaultPrepAndExpectedTestCaseExtIT extends DefaultPrepAndExpectedTestCase
         setDatabaseTester(databaseTester);
 
         configureTest(tables, prepDataFiles, expectedDataFiles);
-
-        // reopen connection as configureTest() closes its own after
-        // obtaining the case-sensitivity feature setting; preTest() and
-        // postTest() then share and close this one connection themselves
-        // instead of each needing a fresh one (#800)
-        final IDatabaseTester databaseTesterNew1 = makeDatabaseTester();
-        setDatabaseTester(databaseTesterNew1);
 
         preTest();
 
