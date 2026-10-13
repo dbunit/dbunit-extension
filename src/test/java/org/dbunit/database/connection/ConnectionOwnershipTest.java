@@ -107,4 +107,83 @@ class ConnectionOwnershipTest
         closeFlag[0] = true;
         assertThat(ownership.mayClose()).as("The flag is re-read, not cached.").isTrue();
     }
+
+    @Test
+    void testIsLeftOpenByConfiguration_closeConnectionAfterTestFalse_returnsTrue()
+    {
+        assertThat(ownership(false, new DefaultOperationListener(), true)
+                .isLeftOpenByConfiguration())
+                        .as("closeConnectionAfterTest=false leaves the connection to a real"
+                                + " owner.")
+                        .isTrue();
+    }
+
+    @Test
+    void testIsLeftOpenByConfiguration_listenerUnwrapsToNoOp_returnsTrue()
+    {
+        assertThat(ownership(true, IOperationListener.NO_OP_OPERATION_LISTENER, true)
+                .isLeftOpenByConfiguration())
+                        .as("A NO_OP listener is the signal the connection is managed"
+                                + " elsewhere.")
+                        .isTrue();
+    }
+
+    @Test
+    void testIsLeftOpenByConfiguration_noOpListenerBehindAWrapper_returnsTrue()
+    {
+        final IOperationListener wrapped = new ConnectionPreservingOperationListener(
+                IOperationListener.NO_OP_OPERATION_LISTENER);
+
+        assertThat(ownership(true, wrapped, true).isLeftOpenByConfiguration())
+                .as("A NO_OP listener still counts when wrapped by a"
+                        + " ConnectionPreservingOperationListener.")
+                .isTrue();
+    }
+
+    @Test
+    void testIsLeftOpenByConfiguration_flagSetAndPlainListener_returnsFalse()
+    {
+        assertThat(ownership(true, new DefaultOperationListener(), true)
+                .isLeftOpenByConfiguration())
+                        .as("Nothing in the configuration claims the connection.")
+                        .isFalse();
+    }
+
+    @Test
+    void testIsLeftOpenByConfiguration_borrowingLifecycleDidNotRun_doesNotCount()
+    {
+        final ConnectionOwnership ownership =
+                ownership(true, new DefaultOperationListener(), false);
+
+        assertThat(ownership.isLeftOpenByConfiguration())
+                .as("A lifecycle that never ran is not the configuration leaving the connection"
+                        + " open: the instance holding it closes it its own way.")
+                .isFalse();
+        assertThat(ownership.mayClose())
+                .as("mayClose() still refuses, as that is its own, wider question.").isFalse();
+    }
+
+    @Test
+    void testIsLeftOpenByConfiguration_nullListener_treatedAsNotNoOp()
+    {
+        final ConnectionOwnership ownership =
+                new ConnectionOwnership(() -> true, () -> null, () -> true);
+
+        assertThat(ownership.isLeftOpenByConfiguration())
+                .as("A null listener is not the NO_OP listener.").isFalse();
+    }
+
+    @Test
+    void testIsLeftOpenByConfiguration_flagChangesBetweenCalls_answersFromTheCurrentFlag()
+    {
+        final boolean[] closeFlag = {true};
+        final ConnectionOwnership ownership = new ConnectionOwnership(() -> closeFlag[0],
+                () -> new DefaultOperationListener(), () -> true);
+
+        assertThat(ownership.isLeftOpenByConfiguration()).as("Initially the flag is set.")
+                .isFalse();
+        closeFlag[0] = false;
+        assertThat(ownership.isLeftOpenByConfiguration())
+                .as("The flag is re-read, not cached.").isTrue();
+    }
 }

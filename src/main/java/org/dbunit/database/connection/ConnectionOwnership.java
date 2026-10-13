@@ -64,6 +64,10 @@ import org.dbunit.IOperationListener;
  *          true             |          false           |          true           |    CLOSE
  * </pre>
  *
+ * <p>{@link #isLeftOpenByConfiguration()} answers the narrower question of the first two
+ * rows, for a caller that needs to know the configuration leaves the connection to another
+ * owner whatever the borrowing lifecycle did.
+ *
  * <p>{@link TestScopedConnection#release()} additionally skips a connection that is already
  * closed - an idempotency guard, not part of this decision: on the {@code @DbUnitExpected}
  * path the executor's borrowed connection and {@link org.dbunit.DefaultPrepAndExpectedTestCase}'s
@@ -80,7 +84,7 @@ public class ConnectionOwnership
 
     /**
      * Creates an ownership decision from its three inputs, each a supplier read fresh every
-     * time {@link #mayClose()} is called.
+     * time {@link #mayClose()} or {@link #isLeftOpenByConfiguration()} is called.
      *
      * @param closeConnectionAfterTest Supplies the {@code @DbUnitConfig} flag.
      * @param testerListener Supplies the tester's current {@link IOperationListener}; may
@@ -108,5 +112,22 @@ public class ConnectionOwnership
     {
         return closeConnectionAfterTest.getAsBoolean() && borrowingLifecycleRan.getAsBoolean()
                 && !ConnectionPreservingOperationListener.unwrapsToNoOp(testerListener.get());
+    }
+
+    /**
+     * Returns whether the configuration leaves the connection open for another owner to
+     * close: the {@code closeConnectionAfterTest} flag is {@code false}, or the tester's
+     * listener is (or wraps) {@link IOperationListener#NO_OP_OPERATION_LISTENER}. That is the
+     * first two rows of the truth table. {@link #mayClose()} also refuses when the borrowing
+     * lifecycle did not run, which is not the configuration's doing, so that input does not
+     * count here.
+     *
+     * @return {@code true} when the flag is not set or the tester's listener is the no-op
+     *         listener.
+     */
+    public boolean isLeftOpenByConfiguration()
+    {
+        return !closeConnectionAfterTest.getAsBoolean()
+                || ConnectionPreservingOperationListener.unwrapsToNoOp(testerListener.get());
     }
 }
