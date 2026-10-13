@@ -38,6 +38,8 @@ import org.dbunit.util.fileloader.FlatXmlDataFileLoader;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.Mockito;
@@ -954,6 +956,51 @@ class DefaultPrepAndExpectedTestCaseTest
                                 + " tables by only COL1, ignoring the excluded"
                                 + " ID column, so same-data rows line up"
                                 + " regardless of ID order.")
+                        .doesNotThrowAnyException();
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void testVerifyData_typedExpectedColumnsInDifferentOrder_passesWhenEqual(
+            final boolean sortOnFilteredColumnsOnly) throws Exception
+    {
+        final Column[] actualColumns = {new Column("ID", DataType.INTEGER),
+                new Column("NAME", DataType.VARCHAR)};
+        final DefaultTable actualTable = new DefaultTable("TEST_TABLE", actualColumns);
+        actualTable.addRow(new Object[] {1, "b"});
+        actualTable.addRow(new Object[] {2, "a"});
+
+        final Column[] expectedColumns = {new Column("NAME", DataType.VARCHAR),
+                new Column("ID", DataType.INTEGER)};
+        final DefaultTable expectedTable = new DefaultTable("TEST_TABLE", expectedColumns);
+        expectedTable.addRow(new Object[] {"b", 1});
+        expectedTable.addRow(new Object[] {"a", 2});
+
+        assertThatCode(() -> tc.verifyData(expectedTable, actualTable, null, null, null, null,
+                sortOnFilteredColumnsOnly))
+                        .as("Typed expected columns declared in another order than the database's"
+                                + " must sort in the database's order, the same as the actual"
+                                + " table, so the same rows line up.")
+                        .doesNotThrowAnyException();
+    }
+
+    @Test
+    void testVerifyData_typedIntegerColumnWithTwoAndTen_sortsNumericallyOnBothSides()
+            throws Exception
+    {
+        final Column[] columns = {new Column("ID", DataType.INTEGER)};
+        final DefaultTable actualTable = new DefaultTable("TEST_TABLE", columns);
+        actualTable.addRow(new Object[] {10});
+        actualTable.addRow(new Object[] {2});
+
+        final DefaultTable expectedTable = new DefaultTable("TEST_TABLE", columns);
+        expectedTable.addRow(new Object[] {2});
+        expectedTable.addRow(new Object[] {10});
+
+        assertThatCode(() -> tc.verifyData(expectedTable, actualTable, null, null, null, null,
+                false))
+                        .as("Integer values must sort numerically, so 2 sorts before 10 on both"
+                                + " sides, not as text.")
                         .doesNotThrowAnyException();
     }
 

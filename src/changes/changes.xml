@@ -86,6 +86,9 @@
       <action dev="jeffjensen" type="update" issue="1005" system="github" due-to="jeffjensen">
           Update DefaultPrepAndExpectedTestCase to tell the tester's own IOperationListener about the connection each of its set up and tear down operations retrieves, so a listener that configures every connection, for example to set a data type factory or enable the row count check, now runs on the prep/expected path as it already did on the setup/teardown path. It is told before the test case applies its databaseConfigProperties, so the @DbUnitProperty values still win, and never hears operationSetUpFinished() or operationTearDownFinished(), as the test case decides when its shared connection closes.
       </action>
+      <action dev="jeffjensen" type="fix" issue="1006" system="github" due-to="jeffjensen">
+          Fix DefaultPrepAndExpectedTestCase sorting an expected table whose columns have data types of their own, such as a DefaultTable or a custom DataFileLoader's, in the expected table's column order while the actual table sorts in the database's, so rows that were equal on both sides failed the comparison, even with sortOnFilteredColumnsOnly. The expected table now always sorts by the database's column definitions, in the database's column order.
+      </action>
     </release>
     <release version="3.5.2" date="Sep 7, 2026" description="DefaultPrepAndExpectedTestCase connection hygiene: replace a connection the pool or database dropped between tests, and warn when handed a non-autocommit connection">
       <action dev="jeffjensen" type="fix" issue="962" system="github" due-to="jeffjensen">

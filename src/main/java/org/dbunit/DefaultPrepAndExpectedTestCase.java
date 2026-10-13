@@ -48,7 +48,6 @@ import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.ITableMetaData;
 import org.dbunit.dataset.SortedTable;
-import org.dbunit.dataset.datatype.DataType;
 import org.dbunit.dataset.filter.DefaultColumnFilter;
 import org.dbunit.operation.DatabaseOperation;
 import org.dbunit.util.TableFormatter;
@@ -1326,37 +1325,18 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     }
 
     /**
-     * If expected column definitions exist and are {@link DataType.UNKNOWN},
-     * make them from actual table column definitions.
+     * Make the expected table's columns from the actual table's column
+     * definitions, so the expected data is sorted and compared the same way as
+     * the actual data whichever types and column order its source declared.
+     * With no expected columns, none are made.
      *
-     * @throws DataSetException if the actual table's columns cannot be retrieved.
+     * @throws DataSetException If the expected table's columns cannot be retrieved.
      */
     private Column[] makeExpectedTableColumns(final Column[] actualColumns,
             final ITableMetaData expectedTableMetaData) throws DataSetException
     {
-        final Column[] expectedTableColumns;
-
         final Column[] expectedColumns = expectedTableMetaData.getColumns();
-        if (expectedColumns.length > 0)
-        {
-            final DataType dataType = expectedColumns[0].getDataType();
-            if (DataType.UNKNOWN.equals(dataType))
-            {
-                // all column definitions probably unknown, use actual's
-                expectedTableColumns = makeExpectedTableColumns(actualColumns,
-                        expectedColumns);
-            } else
-            {
-                // all expected column definitions probably known, use them
-                expectedTableColumns = expectedColumns;
-            }
-        } else
-        {
-            // no column definitions exist, so don't falsely add any
-            expectedTableColumns = expectedColumns;
-        }
-
-        return expectedTableColumns;
+        return makeExpectedTableColumns(actualColumns, expectedColumns);
     }
 
     /**
