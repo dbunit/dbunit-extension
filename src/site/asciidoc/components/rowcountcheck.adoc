@@ -45,7 +45,9 @@ Neither leaves extra or missing rows, which is the problem this check solves.
 [#enabling]
 == Enabling It
 
-The check is *off by default* and read-only — it never modifies data. Turn it on to verify
+The check is *off by default* and writes no data of its own — though on an autocommit-off
+connection it ends its read transaction with a rollback, which discards uncommitted work (see
+<<caveats>>). Turn it on to verify
 a suite's teardown correctness; leave it off for routine runs, since capturing two snapshots
 per test roughly doubles that test's table-counting cost.
 
@@ -65,6 +67,8 @@ configures:
 ----
 -Ddbunit.rowCountCheck=true
 ----
+
+A bare `-Ddbunit.rowCountCheck` with no value enables it too; use `=false` to force it off.
 
 It is wired into both link:../testcases/PrepAndExpectedTestCase.html[PrepAndExpectedTestCase]
 and link:../testcases/DbUnitExtension.html[DbUnitExtension]; enabling the feature (or the
@@ -132,6 +136,12 @@ cleans it) — with `DefaultPrepAndExpectedTestCase`, that also means adding a m
 by default — or exclude it if it legitimately can't be cleaned.
 * *Negative* — rows that should remain were removed. Drop the table from the prep/expected
 dataset (so teardown never touches it), or exclude it.
+
+The check reports only a test that is otherwise passing. When the test's own steps already
+failed, or `DefaultPrepAndExpectedTestCase` found the actual data differing from the expected
+data, a row count difference would be noise around that failure, so the check is skipped and
+the failure you see is the original one. Fix it first; a leaked or wrongly cleaned table then
+shows up on the next run.
 
 [#row-counter]
 == Supplying Your Own RowCounter
@@ -215,6 +225,14 @@ prep row reads as a difference.
 * *Modified rows are invisible* — see <<what-it-detects>>.
 * *Parallel tests against one database break the check*, as they already break
 `DELETE_ALL` teardown. Not specific to this check.
+* *On a connection with autocommit off, the check ends its own read transaction with a
+rollback* — after capturing the baseline and again after verifying — so a connection kept
+across tests is not left idle in a transaction, holding locks and exposed to the database's
+idle-in-transaction timeout. A rollback also discards anything uncommitted on that connection,
+so do not enable the check on a connection that carries your own pending transaction, such as
+one enlisted in a Spring-managed test transaction; prep and teardown writes on an
+autocommit-off connection are never committed regardless (see
+link:../connections.html[Connections]).
 * *Setting the feature on the wrong connection is silently ignored.* `JdbcDatabaseTester`
 and `DataSourceDatabaseTester` open a new connection - and therefore a fresh, default
 `DatabaseConfig` - on every `getConnection()` call unless given a

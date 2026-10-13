@@ -94,6 +94,51 @@ class RowCountCheckConfigurationTest
     }
 
     @Test
+    void testIsEnabled_systemPropertyPresentWithNoValueAndFeatureFalse_returnsTrue()
+    {
+        final DatabaseConfig databaseConfig = new DatabaseConfig();
+        System.setProperty(RowCountCheckConfiguration.DBUNIT_ROW_COUNT_CHECK, "");
+
+        final RowCountCheckConfiguration configuration =
+                new RowCountCheckConfiguration(databaseConfig);
+
+        assertThat(configuration.isEnabled())
+                .as("A bare -Ddbunit.rowCountCheck, which Java reads as the empty string, is the"
+                        + " conventional way to turn a flag on, so it must enable the check"
+                        + " rather than parse as false.")
+                .isTrue();
+    }
+
+    @Test
+    void testIsEnabled_systemPropertyWithWhitespaceOnlyValue_returnsTrue()
+    {
+        System.setProperty(RowCountCheckConfiguration.DBUNIT_ROW_COUNT_CHECK, "  ");
+
+        final RowCountCheckConfiguration configuration =
+                new RowCountCheckConfiguration(new DatabaseConfig());
+
+        assertThat(configuration.isEnabled())
+                .as("A whitespace-only value carries no choice, so it is treated like a bare flag.")
+                .isTrue();
+    }
+
+    @Test
+    void testIsEnabled_systemPropertyWithUnrecognizedValue_returnsFalse()
+    {
+        final DatabaseConfig databaseConfig = new DatabaseConfig();
+        databaseConfig.setFeature(DatabaseConfig.FEATURE_ROW_COUNT_CHECK, true);
+        System.setProperty(RowCountCheckConfiguration.DBUNIT_ROW_COUNT_CHECK, "nope");
+
+        final RowCountCheckConfiguration configuration =
+                new RowCountCheckConfiguration(databaseConfig);
+
+        assertThat(configuration.isEnabled())
+                .as("A value that is not true still follows Boolean.parseBoolean(), so a typo"
+                        + " cannot turn the check on.")
+                .isFalse();
+    }
+
+    @Test
     void testExcludeTables_systemPropertyAndConfiguredPatterns_replacesConfiguredPatterns()
             throws DataSetException
     {

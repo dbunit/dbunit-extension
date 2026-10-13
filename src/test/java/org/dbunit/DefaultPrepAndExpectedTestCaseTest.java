@@ -2158,6 +2158,45 @@ class DefaultPrepAndExpectedTestCaseTest
     }
 
     @Test
+    void testSetRowCountCheckOverride_disabled_winsOverConnectionsOwnEnabledConfig()
+            throws Exception
+    {
+        // MockDatabaseConnection's dataset/getRowCount() are unconfigured here, so a real
+        // capture() attempt would throw; reaching the end proves the override actually
+        // disabled the check rather than the connection's own FEATURE_ROW_COUNT_CHECK - true
+        // here - winning instead.
+        databaseTester.getConnection().getConfig()
+                .setFeature(DatabaseConfig.FEATURE_ROW_COUNT_CHECK, true);
+        tc.setRowCountCheckOverride(false, new String[0]);
+
+        tc.preTest();
+        tc.cleanupData();
+
+        assertThat(tc.getRowCountCheck())
+                .as("preTest() must still lazily resolve a RowCountCheck from the override,"
+                        + " proving the override path was actually exercised rather than"
+                        + " skipped outright.")
+                .isNotNull();
+    }
+
+    @Test
+    void testCleanupData_calledTwiceWithNoBaseline_acquiresOnlyOneConnection() throws Exception
+    {
+        final IDatabaseTester countingTester = Mockito.spy(databaseTester);
+        final DefaultPrepAndExpectedTestCase countingTestCase =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, countingTester);
+        countingTestCase.configureTest(new VerifyTableDefinition[] {}, new String[] {},
+                new String[] {});
+
+        countingTestCase.cleanupData();
+        countingTestCase.cleanupData();
+
+        // The first cleanupData() closes the connection configureTest() acquired. The second has
+        // no baseline to verify and the tear down operation is NONE, so it needs none of its own.
+        Mockito.verify(countingTester, Mockito.times(1)).getConnection();
+    }
+
+    @Test
     void testCleanupData_noBaselineCaptured_skipsTheCheck() throws Exception
     {
         final RowCountCheck mockRowCountCheck = Mockito.mock(RowCountCheck.class);
@@ -2182,6 +2221,37 @@ class DefaultPrepAndExpectedTestCaseTest
         tc.preTest();
         tc.postTest(false);
 
+        Mockito.verify(mockRowCountCheck, Mockito.never())
+                .verify(Mockito.any(), Mockito.any());
+    }
+
+    @Test
+    void testPostTest_verifyDataFailed_skipsTheRowCountCheckSoTheVerifyFailureIsThrown()
+            throws Exception
+    {
+        final RowCountCheck mockRowCountCheck = Mockito.mock(RowCountCheck.class);
+        final RowCountSnapshot baseline =
+                new RowCountSnapshot(Collections.singletonMap("ACCOUNT", 5));
+        Mockito.when(mockRowCountCheck.capture(Mockito.any())).thenReturn(baseline);
+        final AssertionError verifyFailure = new AssertionError("verify boom");
+        final DefaultPrepAndExpectedTestCase failingVerifyTc =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester)
+                {
+                    @Override
+                    public void verifyData() throws Exception
+                    {
+                        throw verifyFailure;
+                    }
+                };
+        failingVerifyTc.setRowCountCheck(mockRowCountCheck);
+        failingVerifyTc.preTest();
+
+        final Throwable thrown = catchThrowable(() -> failingVerifyTc.postTest());
+
+        assertThat(thrown)
+                .as("The comparison failure names what differs and is the finding to fix first, so"
+                        + " a row count difference must not replace it.")
+                .isSameAs(verifyFailure);
         Mockito.verify(mockRowCountCheck, Mockito.never())
                 .verify(Mockito.any(), Mockito.any());
     }

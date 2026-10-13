@@ -51,7 +51,9 @@ public class RowCountCheckConfiguration
 {
     /**
      * System property overriding {@link DatabaseConfig#FEATURE_ROW_COUNT_CHECK}, in either
-     * direction, when present.
+     * direction, when present. A bare {@code -Ddbunit.rowCountCheck}, which Java reads as an
+     * empty value, enables the check like {@code -Ddbunit.rowCountCheck=true}; any other value
+     * follows {@link Boolean#parseBoolean(String)}.
      */
     public static final String DBUNIT_ROW_COUNT_CHECK = "dbunit.rowCountCheck";
 
@@ -108,11 +110,15 @@ public class RowCountCheckConfiguration
     private static boolean resolveEnabled(final boolean configuredValue)
     {
         final String systemProperty = System.getProperty(DBUNIT_ROW_COUNT_CHECK);
-        if (systemProperty != null)
+        if (systemProperty == null)
         {
-            return Boolean.parseBoolean(systemProperty);
+            return configuredValue;
         }
-        return configuredValue;
+        if (systemProperty.trim().isEmpty())
+        {
+            return true;
+        }
+        return Boolean.parseBoolean(systemProperty);
     }
 
     private static String[] resolveExcludeTablePatterns(final String[] configuredPatterns)
