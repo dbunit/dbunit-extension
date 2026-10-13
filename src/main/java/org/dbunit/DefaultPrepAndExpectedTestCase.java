@@ -111,6 +111,14 @@ import org.slf4j.LoggerFactory;
  * to, for example, a {@link org.dbunit.assertion.DiffCollectingFailureHandler}
  * to collect every {@link org.dbunit.assertion.Difference} instead; that is
  * not the default since most tests want to keep failing fast.
+ * <p>
+ * Not thread-safe. An instance holds the state of one test at a time: its
+ * datasets, verify table definitions, shared connection and row count
+ * baseline. Use one instance per concurrently running test, for example a
+ * Spring prototype bean, or turn off parallel execution for tests that share
+ * an instance, such as one in a static {@code @DbUnitTestCase} field.
+ * Otherwise concurrent tests overwrite each other's datasets and close each
+ * other's connection.
  *
  * @see "org.dbunit.DefaultPrepAndExpectedTestCaseDiIT, a composition-based (DI) usage example in the test sources"
  * @see "org.dbunit.DefaultPrepAndExpectedTestCaseExtIT, an inheritance-based usage example in the test sources"
