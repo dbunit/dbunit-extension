@@ -75,6 +75,13 @@ import org.slf4j.LoggerFactory;
  * reuse; the provider's owner is then responsible for closing it once,
  * itself, when the whole run finishes.
  * <p>
+ * The databaseTester's own {@link IOperationListener} is told about the
+ * connection each of setupData()'s and cleanupData()'s operations retrieves,
+ * through {@link IOperationListener#connectionRetrieved}, so a listener that
+ * configures every connection runs here as it does when the tester drives
+ * onSetup() and onTearDown() itself. It is never told the operations finished,
+ * as this class decides when the shared connection closes.
+ * <p>
  * The connection must be in autocommit mode. The setup and teardown
  * operations run here (CLEAN_INSERT, DELETE_ALL, ...) do not manage a
  * transaction of their own, and {@link org.dbunit.operation.TransactionOperation}
@@ -582,9 +589,56 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
         // ConnectionPreservingOperationListener keeps operationSetUpFinished/
         // operationTearDownFinished from closing it while still forwarding connectionRetrieved
         // so a user-defined listener runs its connection-configuration logic.
-        reusableTester.setOperationListener(
-                new ConnectionPreservingOperationListener(getOperationListener()));
+        reusableTester.setOperationListener(newConnectionRetrievedListener());
         return reusableTester;
+    }
+
+    /**
+     * Makes the listener for {@link #makeReusableConnectionDatabaseTester(IDataSet)}: a blanket
+     * {@link ConnectionPreservingOperationListener} over this instance's own listener, so only
+     * connectionRetrieved() gets through and nothing is closed behind this instance's back.
+     * When the databaseTester has a listener of its own, a caller's way to configure every
+     * connection, it is told about the connection first, as it is when the tester drives
+     * onSetup()/onTearDown() itself, and this instance's own listener, which applies
+     * {@link #setUpDatabaseConfig(DatabaseConfig)}, second, so the values this instance applies
+     * win. A databaseTester listener that is this instance's own, or the no-op listener, is
+     * not told again.
+     *
+     * @return The listener for the shared connection's tester.
+     */
+    private IOperationListener newConnectionRetrievedListener()
+    {
+        final IOperationListener ownListener = getOperationListener();
+        final IOperationListener testersListener = getTestersOwnListener();
+        if (testersListener == null || testersListener == ownListener
+                || testersListener == IOperationListener.NO_OP_OPERATION_LISTENER)
+        {
+            return new ConnectionPreservingOperationListener(ownListener);
+        }
+        return new TestersListenerFirstOperationListener(testersListener, ownListener);
+    }
+
+    /**
+     * Returns the databaseTester's listener beneath any layers of
+     * {@link ConnectionPreservingOperationListener}, including the one the annotation runtime
+     * installs, which applies the annotation values and captures the row count baseline, both
+     * of which this instance does itself.
+     *
+     * @return The databaseTester's own listener, or null if it has none.
+     */
+    private IOperationListener getTestersOwnListener()
+    {
+        if (databaseTester == null)
+        {
+            return null;
+        }
+
+        IOperationListener listener = databaseTester.getOperationListener();
+        while (listener instanceof ConnectionPreservingOperationListener)
+        {
+            listener = ((ConnectionPreservingOperationListener) listener).getDelegate();
+        }
+        return listener;
     }
 
     /**
@@ -1928,6 +1982,33 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
             copy.putAll(databaseConfigProperties);
             this.databaseConfigProperties = copy;
             this.databaseConfigOverrides = new DatabaseConfigOverrides(copy);
+        }
+    }
+
+    /**
+     * A blanket {@link ConnectionPreservingOperationListener} over this instance's own listener
+     * that tells the databaseTester's listener about each connection retrieved before its
+     * delegate, the instance's own listener, hears of it.
+     *
+     * @since 3.6.0
+     */
+    private static final class TestersListenerFirstOperationListener
+            extends ConnectionPreservingOperationListener
+    {
+        private final IOperationListener testersListener;
+
+        private TestersListenerFirstOperationListener(final IOperationListener testersListener,
+                final IOperationListener ownListener)
+        {
+            super(ownListener);
+            this.testersListener = testersListener;
+        }
+
+        @Override
+        public void connectionRetrieved(final IDatabaseConnection connection)
+        {
+            testersListener.connectionRetrieved(connection);
+            super.connectionRetrieved(connection);
         }
     }
 

@@ -101,8 +101,10 @@ and does not replace it.
 enabling the link:rowcountcheck.html[row count check], applies to it too. That includes
 the connection a plain `@ExtendWith(DbUnitExtension.class)` test resolves for the row
 count baseline and, on the setup/teardown path, a `Connection` or `IDatabaseConnection`
-test method parameter. The prep/expected path never goes through the tester's listener.
-The same connection can be offered more than once, by the extension and again when
-`onSetup()` retrieves it, and your listener sees one more retrieval than the 3.5.0
-lifecycle gave it, so keep `connectionRetrieved()` idempotent, as configuring a
+test method parameter. The prep/expected path offers it to your listener's
+`connectionRetrieved()` too, each time `DefaultPrepAndExpectedTestCase` runs a set up or
+tear down operation, but never to the `*Finished` callbacks: that class decides when its
+shared connection closes. The same connection can be offered more than once, by the extension
+and again when `onSetup()` retrieves it, and your listener sees one more retrieval than the
+3.5.0 lifecycle gave it, so keep `connectionRetrieved()` idempotent, as configuring a
 `DatabaseConfig` is.

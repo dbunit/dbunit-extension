@@ -83,6 +83,9 @@
       <action dev="jeffjensen" type="fix" issue="1004" system="github" due-to="jeffjensen">
           Fix the DefaultPrepAndExpectedTestCase setUp(), tearDown() and tearDown(Throwable) hooks inherited from DatabaseTestCase running outside the shared connection's lifecycle. tearDown() cleaned up twice, once through cleanupData() and again over the prep dataset on a fresh connection, and tearDown(Throwable) skipped cleanupData() altogether. All three also overwrote the dataset and replaced the operation listener, including IOperationListener.NO_OP_OPERATION_LISTENER, of the tester the caller handed in, so a connection the caller said is managed elsewhere was closed. They now run setupData() and cleanupData() once on the shared connection and leave the tester untouched, and tearDown(Throwable) throws the test failure in flight with any clean up failure attached as suppressed.
       </action>
+      <action dev="jeffjensen" type="update" issue="1005" system="github" due-to="jeffjensen">
+          Update DefaultPrepAndExpectedTestCase to tell the tester's own IOperationListener about the connection each of its set up and tear down operations retrieves, so a listener that configures every connection, for example to set a data type factory or enable the row count check, now runs on the prep/expected path as it already did on the setup/teardown path. It is told before the test case applies its databaseConfigProperties, so the @DbUnitProperty values still win, and never hears operationSetUpFinished() or operationTearDownFinished(), as the test case decides when its shared connection closes.
+      </action>
     </release>
     <release version="3.5.2" date="Sep 7, 2026" description="DefaultPrepAndExpectedTestCase connection hygiene: replace a connection the pool or database dropped between tests, and warn when handed a non-autocommit connection">
       <action dev="jeffjensen" type="fix" issue="962" system="github" due-to="jeffjensen">

@@ -681,9 +681,12 @@ implementation, or a `NONE` setup operation with nothing else to retrieve
 one, makes this executor resolve a connection eagerly by itself. On
 the prep/expected path, the test case applies them directly to the connection
 it resolves for `configureTest()`/`setupData()`/`verifyData()`/`cleanupData()`
-— that path never goes through the tester's `IOperationListener` at all, so
-the setup/teardown operation does not matter (see <<injected-testcase-config>>
-for what an injected non-`DefaultPrepAndExpectedTestCase` instance needs).
+— that path never goes through the tester's `IOperationListener` to do so, so
+the setup/teardown operation does not matter. It does tell the tester's own listener's
+`connectionRetrieved()` about the connection each set up and tear down operation
+retrieves, before applying these values, so they win over what that listener sets (see
+<<injected-testcase-config>> for what an injected non-`DefaultPrepAndExpectedTestCase`
+instance needs).
 
 On the prep/expected path, `DefaultPrepAndExpectedTestCase` applies
 `@DbUnitProperty` values through its `setUpDatabaseConfig(DatabaseConfig)`

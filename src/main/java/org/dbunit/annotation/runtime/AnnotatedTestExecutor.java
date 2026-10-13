@@ -251,7 +251,8 @@ public class AnnotatedTestExecutor
      * is bypassed: it would offer the connection to the baseline capture again, and
      * {@link #onConnectionAcquired} applies the {@code @DbUnitProperty} values itself, after
      * the tester's listener, as the executor's listener does. Not used on the prep/expected
-     * path, whose connection never goes through the tester's listener.
+     * path, where {@link org.dbunit.DefaultPrepAndExpectedTestCase} tells the tester's own
+     * listener about the connection each of its set up and tear down operations retrieves.
      */
     private void notifyTesterListenerOfRetrieval(final IDatabaseConnection connection)
     {

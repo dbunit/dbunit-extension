@@ -38,6 +38,7 @@ import org.dbunit.util.fileloader.FlatXmlDataFileLoader;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -748,6 +749,116 @@ class DefaultPrepAndExpectedTestCaseTest
         // this instance owns the shared connection's lifecycle (#801)
         connection.setExpectedCloseCalls(0);
         connection.verify();
+    }
+
+    @Test
+    void testSetupData_databaseTesterHasItsOwnListener_tellsItAboutTheConnectionButNeverFinishes()
+            throws Exception
+    {
+        final IOperationListener testersListener = Mockito.mock(IOperationListener.class);
+        databaseTester.setOperationListener(testersListener);
+
+        tc.setupData();
+
+        final MockDatabaseConnection connection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        Mockito.verify(testersListener).connectionRetrieved(connection);
+        Mockito.verify(testersListener, Mockito.never())
+                .operationSetUpFinished(Mockito.any(IDatabaseConnection.class));
+        // the listener may configure the connection, but this instance owns closing it
+        connection.setExpectedCloseCalls(0);
+        connection.verify();
+    }
+
+    @Test
+    void testCleanupData_databaseTesterHasItsOwnListener_tellsItAboutTheConnectionButNeverFinishes()
+            throws Exception
+    {
+        final IOperationListener testersListener = Mockito.mock(IOperationListener.class);
+        databaseTester.setOperationListener(testersListener);
+        // executeOperation() only calls the listener when the tear down operation is not NONE
+        databaseTester.setTearDownOperation(DatabaseOperation.DELETE_ALL);
+
+        tc.cleanupData();
+
+        final MockDatabaseConnection connection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        Mockito.verify(testersListener).connectionRetrieved(connection);
+        Mockito.verify(testersListener, Mockito.never())
+                .operationTearDownFinished(Mockito.any(IDatabaseConnection.class));
+    }
+
+    @Test
+    void testSetupData_databaseTesterListenerIsWrappedByASubclassOfConnectionPreserving_tellsOnlyTheWrappedListener()
+            throws Exception
+    {
+        // the annotation runtime installs a ConnectionPreservingOperationListener subclass on the
+        // tester, which would apply the @DbUnitProperty values and capture the row count baseline
+        // again if it were told about the connection; only the caller's listener beneath it is
+        final IOperationListener callersListener = Mockito.mock(IOperationListener.class);
+        final IOperationListener wrapperListener = Mockito.mock(IOperationListener.class);
+        databaseTester.setOperationListener(
+                new ConnectionPreservingOperationListener(callersListener)
+                {
+                    @Override
+                    public void connectionRetrieved(final IDatabaseConnection connection)
+                    {
+                        wrapperListener.connectionRetrieved(connection);
+                        super.connectionRetrieved(connection);
+                    }
+                });
+
+        tc.setupData();
+
+        Mockito.verify(callersListener).connectionRetrieved(Mockito.any(IDatabaseConnection.class));
+        Mockito.verifyNoInteractions(wrapperListener);
+    }
+
+    @Test
+    void testSetupData_databaseTesterListenerIsTheTestCasesOwnListener_tellsItOnce()
+            throws Exception
+    {
+        final IOperationListener sharedListener = Mockito.mock(IOperationListener.class);
+        databaseTester.setOperationListener(sharedListener);
+        final DefaultPrepAndExpectedTestCase sharingTestCase =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester)
+                {
+                    @Override
+                    protected IOperationListener getOperationListener()
+                    {
+                        return sharedListener;
+                    }
+                };
+
+        sharingTestCase.setupData();
+
+        Mockito.verify(sharedListener, Mockito.times(1))
+                .connectionRetrieved(Mockito.any(IDatabaseConnection.class));
+    }
+
+    @Test
+    void testSetupData_bothListenersSet_tellsTheTestersBeforeTheTestCasesOwn() throws Exception
+    {
+        // the values this instance applies, such as databaseConfigProperties, must win over
+        // those the caller's listener sets, so its own listener runs second
+        final IOperationListener testersListener = Mockito.mock(IOperationListener.class);
+        final IOperationListener ownListener = Mockito.mock(IOperationListener.class);
+        databaseTester.setOperationListener(testersListener);
+        final DefaultPrepAndExpectedTestCase ownListenerTestCase =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester)
+                {
+                    @Override
+                    protected IOperationListener getOperationListener()
+                    {
+                        return ownListener;
+                    }
+                };
+
+        ownListenerTestCase.setupData();
+
+        final InOrder inOrder = Mockito.inOrder(testersListener, ownListener);
+        inOrder.verify(testersListener).connectionRetrieved(Mockito.any(IDatabaseConnection.class));
+        inOrder.verify(ownListener).connectionRetrieved(Mockito.any(IDatabaseConnection.class));
     }
 
     @Test
