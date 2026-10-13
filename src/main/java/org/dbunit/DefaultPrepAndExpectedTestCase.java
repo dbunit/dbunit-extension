@@ -44,6 +44,7 @@ import org.dbunit.dataset.Column;
 import org.dbunit.dataset.CompositeDataSet;
 import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.DefaultDataSet;
+import org.dbunit.dataset.FilteredTableMetaData;
 import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.ITableMetaData;
@@ -1225,9 +1226,9 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
         {
             log.debug("{}: Sorting using only filtered columns", methodName);
             final String tableName = actualTableMetaData.getTableName();
-            actualSortColumns = makeSortColumns(actualTableColumns,
+            actualSortColumns = filterColumns(actualTableColumns,
                     excludeColumns, includeColumns, tableName);
-            expectedSortColumns = makeSortColumns(expectedTableColumns,
+            expectedSortColumns = filterColumns(expectedTableColumns,
                     excludeColumns, includeColumns, tableName);
         } else
         {
@@ -1293,9 +1294,31 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      *            debug logging.
      * @return The filtered columns, in columns' original order.
      */
-    private Column[] makeSortColumns(final Column[] columns,
+    private Column[] filterColumns(final Column[] columns,
             final String[] excludeColumns, final String[] includeColumns,
             final String tableName)
+    {
+        final DefaultColumnFilter columnFilter =
+                makeColumnFilter(excludeColumns, includeColumns);
+        return FilteredTableMetaData.getFilteredColumns(tableName, columns,
+                columnFilter);
+    }
+
+    /**
+     * Makes the column filter for the given exclude and include column
+     * patterns, which {@link DefaultColumnFilter} matches without regard to
+     * case and with its wildcard support.
+     *
+     * @param excludeColumns
+     *            The column names to exclude; null or empty to exclude none.
+     * @param includeColumns
+     *            The column names to only include; null or empty to include
+     *            all.
+     * @return The filter accepting the columns that are included and not
+     *         excluded.
+     */
+    private DefaultColumnFilter makeColumnFilter(final String[] excludeColumns,
+            final String[] includeColumns)
     {
         final DefaultColumnFilter columnFilter = new DefaultColumnFilter();
         if (includeColumns != null)
@@ -1312,16 +1335,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
                 columnFilter.excludeColumn(excludeColumn);
             }
         }
-
-        final List<Column> sortColumns = new ArrayList<>();
-        for (final Column column : columns)
-        {
-            if (columnFilter.accept(tableName, column))
-            {
-                sortColumns.add(column);
-            }
-        }
-        return sortColumns.toArray(new Column[sortColumns.size()]);
+        return columnFilter;
     }
 
     /**
