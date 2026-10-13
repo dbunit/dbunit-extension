@@ -41,6 +41,7 @@ import org.dbunit.database.connection.TestScopedConnection;
 import org.dbunit.database.rowcount.RowCountCheck;
 import org.dbunit.database.rowcount.RowCountChecker;
 import org.dbunit.dataset.Column;
+import org.dbunit.dataset.ColumnFilterTable;
 import org.dbunit.dataset.CompositeDataSet;
 import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.DefaultDataSet;
@@ -1219,13 +1220,13 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
         final Column[] actualTableColumns = actualTableMetaData.getColumns();
         final Column[] expectedTableColumns = makeExpectedTableColumns(
                 actualTableColumns, expectedTableMetaData);
+        final String tableName = actualTableMetaData.getTableName();
 
         final Column[] actualSortColumns;
         final Column[] expectedSortColumns;
         if (sortOnFilteredColumnsOnly)
         {
             log.debug("{}: Sorting using only filtered columns", methodName);
-            final String tableName = actualTableMetaData.getTableName();
             actualSortColumns = filterColumns(actualTableColumns,
                     excludeColumns, includeColumns, tableName);
             expectedSortColumns = filterColumns(expectedTableColumns,
@@ -1262,8 +1263,10 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
 
         log.debug("{}: Creating additionalColumnInfo for expected table",
                 methodName);
-        final Column[] additionalColumnInfo =
+        final Column[] allAdditionalColumnInfo =
                 makeAdditionalColumnInfo(expectedTable, excludeColumns);
+        final Column[] additionalColumnInfo =
+                columnsNamedIn(allAdditionalColumnInfo, actualTableColumns);
         log.trace("{}: additionalColumnInfo={}", methodName,
                 additionalColumnInfo);
 
@@ -1289,7 +1292,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * @param includeColumns
      *            The column names to only include; null to include all.
      * @param tableName
-     *            The table name; passed only to
+     *            The table name, which may be null; passed only to
      *            {@link DefaultColumnFilter#accept(String, Column)} for its
      *            debug logging.
      * @return The filtered columns, in columns' original order.
@@ -1362,17 +1365,32 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     private Column[] makeExpectedTableColumns(final Column[] actualColumns,
             final Column[] expectedColumns)
     {
-        final Set<String> expectedColumnNames =
-                Arrays.stream(expectedColumns).map(Column::getColumnName)
+        return columnsNamedIn(actualColumns, expectedColumns);
+    }
+
+    /**
+     * Keeps the columns whose name, without regard to case, is also the name of
+     * one of the given other columns.
+     *
+     * @param columns
+     *            The columns to keep from.
+     * @param namedColumns
+     *            The columns whose names decide which of columns to keep.
+     * @return The kept columns, in columns' original order.
+     */
+    private Column[] columnsNamedIn(final Column[] columns,
+            final Column[] namedColumns)
+    {
+        final Set<String> names =
+                Arrays.stream(namedColumns).map(Column::getColumnName)
                         .map(name -> name.toLowerCase(Locale.ENGLISH))
                         .collect(Collectors.toSet());
 
-        final List<Column> expectedColumnsList = Arrays.stream(actualColumns)
-                .filter(col -> expectedColumnNames.contains(
+        final List<Column> keptColumns = Arrays.stream(columns)
+                .filter(col -> names.contains(
                         col.getColumnName().toLowerCase(Locale.ENGLISH)))
                 .collect(Collectors.toList());
-        return expectedColumnsList
-                .toArray(new Column[expectedColumnsList.size()]);
+        return keptColumns.toArray(new Column[keptColumns.size()]);
     }
 
     private void logSortedTables(final SortedTable expectedSortedTable,
@@ -1439,8 +1457,11 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     }
 
     /**
-     * Don't add excluded columns to additionalColumnInfo as they are not found
-     * and generate a not found message in the fail message.
+     * Don't add excluded columns to additionalColumnInfo as they are not
+     * compared. The verification then drops, from what this returns, the
+     * columns the actual table does not have, for example one that was not
+     * loaded from the database, as the fail message would show a not found
+     * message for them.
      *
      * @param expectedTable
      *            Not null.
@@ -1460,8 +1481,13 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     }
 
     /**
-     * Don't add excluded columns to additionalColumnInfo as they are not found
-     * and generate a not found message in the fail message.
+     * Don't add excluded columns to additionalColumnInfo as they are not
+     * compared. The exclude patterns match the way the column filters applied
+     * to the compared tables do: without regard to case, and with
+     * {@link DefaultColumnFilter}'s wildcard support. The verification then
+     * drops, from what this returns, the columns the actual table does not
+     * have, for example one that was not loaded from the database, as the fail
+     * message would show a not found message for them.
      *
      * @param excludeColumns
      *            Not null.
@@ -1472,19 +1498,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     protected Column[] makeAdditionalColumnInfo(final String[] excludeColumns,
             final Column[] allColumns)
     {
-        final List<Column> keepColumnsList = new ArrayList<>();
-        final List<String> excludeColumnsList = Arrays.asList(excludeColumns);
-
-        for (final Column column : allColumns)
-        {
-            final String columnName = column.getColumnName();
-            if (!excludeColumnsList.contains(columnName))
-            {
-                keepColumnsList.add(column);
-            }
-        }
-
-        return keepColumnsList.toArray(new Column[keepColumnsList.size()]);
+        return filterColumns(allColumns, excludeColumns, null, null);
     }
 
     /**
@@ -1594,8 +1608,6 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
         {
             log.debug("applyColumnFilters: including columns='{}'",
                     Arrays.toString(includeColumns));
-            filteredTable = DefaultColumnFilter
-                    .includedColumnsTable(filteredTable, includeColumns);
         }
 
         if (excludeColumns == null || excludeColumns.length == 0)
@@ -1605,8 +1617,16 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
         {
             log.debug("applyColumnFilters: excluding columns='{}'",
                     Arrays.toString(excludeColumns));
-            filteredTable = DefaultColumnFilter
-                    .excludedColumnsTable(filteredTable, excludeColumns);
+        }
+
+        // one filter over the unfiltered table, not one wrapper per filter: a
+        // failure message looks a dropped column up only one wrapper deep
+        if (includeColumns != null
+                || (excludeColumns != null && excludeColumns.length > 0))
+        {
+            final DefaultColumnFilter columnFilter =
+                    makeColumnFilter(excludeColumns, includeColumns);
+            filteredTable = new ColumnFilterTable(table, columnFilter);
         }
 
         return filteredTable;
