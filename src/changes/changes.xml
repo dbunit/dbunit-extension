@@ -95,6 +95,9 @@
       <action dev="jeffjensen" type="update" issue="1008" system="github" due-to="jeffjensen">
           Update DefaultPrepAndExpectedTestCase to select only the compared columns when a VerifyTableDefinition sets sortOnFilteredColumnsOnly, instead of select *, so a column the verification excludes, often a large BLOB or CLOB, is no longer fetched. The columns come from the connection's DatabaseDataSet; every column is still selected when they cannot be determined or all are filtered out, when sortOnFilteredColumnsOnly is false, and when a subclass overrides loadTableDataFromDatabase(). A column that only the include filter drops is not read either, so the additional row info of a failure message then lists only the compared columns, not that column as the default sort does.
       </action>
+      <action dev="jeffjensen" type="add" issue="1009" system="github" due-to="jeffjensen">
+          Add CachingFileExtensionDataFileLoader, an opt-in FileExtensionDataFileLoader that parses each data file once and hands the parsed dataset to every later load of the same resource, instead of parsing it again for each test, for example with @DbUnitConfig(dataFileLoader = CachingFileExtensionDataFileLoader.class). The parsed datasets are held per loader class, since the annotation runtime builds a new loader for each test, and replacement objects and substrings still apply per instance. It suits immutable classpath fixtures: a resource that changes while the JVM keeps running is not read again until clearCache().
+      </action>
     </release>
     <release version="3.5.2" date="Sep 7, 2026" description="DefaultPrepAndExpectedTestCase connection hygiene: replace a connection the pool or database dropped between tests, and warn when handed a non-autocommit connection">
       <action dev="jeffjensen" type="fix" issue="962" system="github" due-to="jeffjensen">

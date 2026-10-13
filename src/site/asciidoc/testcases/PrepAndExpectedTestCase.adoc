@@ -150,6 +150,11 @@ public void setDbunitTestDependencies()
     setDataFileLoader(dataFileLoader);
 }
 ----
++
+Each `configureTest()` loads and parses the prep and expected files again. When a suite
+shares the same classpath files, set a `CachingFileExtensionDataFileLoader` as the data
+file loader to parse each file once per run instead — see
+link:../datasets/fileloader.html#caching[Caching Parsed Datasets].
 
 === Run Tests
 

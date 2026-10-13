@@ -553,7 +553,9 @@ consequence of it:
 |`dataFileLoader` |The `DataFileLoader` used for every dataset file.
 Defaults to
 link:../apidocs/org/dbunit/util/fileloader/FileExtensionDataFileLoader.html[FileExtensionDataFileLoader],
-which dispatches by extension — see link:../datasets/fileloader.html[Data File Loader].
+which dispatches by extension — see link:../datasets/fileloader.html[Data File Loader]. Use
+`CachingFileExtensionDataFileLoader` to parse each file once per run instead of once per
+test — see link:../datasets/fileloader.html#caching[Caching Parsed Datasets].
 
 |`databaseTesterFactory` |See <<resolution,resolution order>> tier 3.
 
