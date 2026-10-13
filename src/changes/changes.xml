@@ -98,6 +98,9 @@
       <action dev="jeffjensen" type="add" issue="1009" system="github" due-to="jeffjensen">
           Add CachingFileExtensionDataFileLoader, an opt-in FileExtensionDataFileLoader that parses each data file once and hands the parsed dataset to every later load of the same resource, instead of parsing it again for each test, for example with @DbUnitConfig(dataFileLoader = CachingFileExtensionDataFileLoader.class). The parsed datasets are held per loader class, since the annotation runtime builds a new loader for each test, and replacement objects and substrings still apply per instance. It suits immutable classpath fixtures: a resource that changes while the JVM keeps running is not read again until clearCache().
       </action>
+      <action dev="jeffjensen" type="fix" issue="1010" system="github" due-to="jeffjensen">
+          Fix DefaultPrepAndExpectedTestCase leaking the connection its tester handed out when applying a databaseConfigProperties value, such as an invalid @DbUnitProperty, to it failed. Nothing referenced that connection afterward, so a tester that hands out a new one on each call, such as over a JDBC URL or a DataSource, leaked one per failing test. The connection is now released, unless closeConnectionAfterTest is false or the tester's listener is the no-op listener, before the failure propagates.
+      </action>
     </release>
     <release version="3.5.2" date="Sep 7, 2026" description="DefaultPrepAndExpectedTestCase connection hygiene: replace a connection the pool or database dropped between tests, and warn when handed a non-autocommit connection">
       <action dev="jeffjensen" type="fix" issue="962" system="github" due-to="jeffjensen">
