@@ -959,6 +959,31 @@ class DefaultPrepAndExpectedTestCaseTest
                         .doesNotThrowAnyException();
     }
 
+    @Test
+    void testVerifyData_withSortOnFilteredColumnsOnlyTrueAndWildcardExclude_sortsWithoutTheMatchedColumn()
+            throws Exception
+    {
+        final Column[] actualColumns = {new Column("GEN_ID", DataType.INTEGER),
+                new Column("COL1", DataType.VARCHAR)};
+        final DefaultTable actualTable = new DefaultTable("TEST_TABLE", actualColumns);
+        actualTable.addRow(new Object[] {2, "Apple"});
+        actualTable.addRow(new Object[] {1, "Banana"});
+
+        final Column[] expectedColumns = {new Column("COL1", DataType.VARCHAR)};
+        final DefaultTable expectedTable = new DefaultTable("TEST_TABLE", expectedColumns);
+        expectedTable.addRow(new Object[] {"Apple"});
+        expectedTable.addRow(new Object[] {"Banana"});
+
+        final String[] excludeColumns = {"gen_*"};
+
+        assertThatCode(() -> tc.verifyData(expectedTable, actualTable, excludeColumns, null, null,
+                null, true))
+                        .as("The sort key must drop a column the exclude pattern matches, with"
+                                + " the same wildcard and case-insensitive matching as the"
+                                + " comparison, so same-data rows line up.")
+                        .doesNotThrowAnyException();
+    }
+
     @ParameterizedTest
     @ValueSource(booleans = {false, true})
     void testVerifyData_typedExpectedColumnsInDifferentOrder_passesWhenEqual(
