@@ -111,6 +111,11 @@ sets both directly instead - see
 
 === Configure
 
+An instance holds the state of one test at a time, so it is not thread-safe: use one
+instance per concurrently running test, for example a Spring prototype bean, or turn off
+parallel execution for tests that share an instance. Otherwise concurrent tests overwrite
+each other's datasets and close each other's connection.
+
 Configure this class in one of two ways:
 
 . Dependency inject it as its interface into a test class.
