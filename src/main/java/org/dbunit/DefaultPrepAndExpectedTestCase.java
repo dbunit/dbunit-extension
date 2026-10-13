@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import org.dbunit.assertion.FailureHandler;
@@ -406,6 +407,13 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * (e.g. {@code org.dbunit.annotation}'s {@code @DbUnitProperty}). The values replaced are
      * put back when this test's lifecycle ends - see {@link #cleanupData()}.
      *
+     * <p>The lifecycle retrieves its connection several times, and each retrieval calls this
+     * method. The values are applied once per {@link DatabaseConfig} until they are put back, and
+     * a later call does nothing, so a property set on the {@link DatabaseConfig} directly in
+     * between is not overwritten. The exception is a database tester with an operation listener
+     * of its own, which may change any of the values at each set up and tear down operation: the
+     * values are applied again directly after it, so they still win.
+     *
      * <p><strong>Note:</strong> a subclass overriding this method must call
      * {@code super.setUpDatabaseConfig(config)} to keep
      * {@link #setDatabaseConfigProperties(java.util.Properties)} - and therefore
@@ -416,6 +424,24 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      */
     @Override
     protected void setUpDatabaseConfig(final DatabaseConfig config)
+    {
+        if (databaseConfigOverrides.hasAppliedTo(config))
+        {
+            return;
+        }
+
+        applyDatabaseConfigProperties(config);
+    }
+
+    /**
+     * Applies {@link #databaseConfigProperties} to a connection's {@link DatabaseConfig},
+     * whether or not they are already in force, remembering what they replace.
+     *
+     * @param config The configuration to apply them to.
+     * @throws IllegalStateException If a property value is invalid for its target
+     *             {@link DatabaseConfig} entry.
+     */
+    private void applyDatabaseConfigProperties(final DatabaseConfig config)
     {
         try
         {
@@ -604,8 +630,10 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * connection, it is told about the connection first, as it is when the tester drives
      * onSetup()/onTearDown() itself, and this instance's own listener, which applies
      * {@link #setUpDatabaseConfig(DatabaseConfig)}, second, so the values this instance applies
-     * win. A databaseTester listener that is this instance's own, or the no-op listener, is
-     * not told again.
+     * win. As that call does nothing for a connection the values are already applied to, they are
+     * applied again directly after the databaseTester's listener, which may have changed any of
+     * them. A databaseTester listener that is this instance's own, or the no-op listener, is not
+     * told again.
      *
      * @return The listener for the shared connection's tester.
      */
@@ -618,7 +646,9 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
         {
             return new ConnectionPreservingOperationListener(ownListener);
         }
-        return new TestersListenerFirstOperationListener(testersListener, ownListener);
+        return new TestersListenerFirstOperationListener(testersListener,
+                connection -> applyDatabaseConfigProperties(connection.getConfig()),
+                ownListener);
     }
 
     /**
@@ -2139,7 +2169,8 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     /**
      * A blanket {@link ConnectionPreservingOperationListener} over this instance's own listener
      * that tells the databaseTester's listener about each connection retrieved before its
-     * delegate, the instance's own listener, hears of it.
+     * delegate, the instance's own listener, hears of it, and puts this instance's
+     * values back on the connection in between.
      *
      * @since 3.6.0
      */
@@ -2147,18 +2178,22 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
             extends ConnectionPreservingOperationListener
     {
         private final IOperationListener testersListener;
+        private final Consumer<IDatabaseConnection> afterTestersListener;
 
         private TestersListenerFirstOperationListener(final IOperationListener testersListener,
+                final Consumer<IDatabaseConnection> afterTestersListener,
                 final IOperationListener ownListener)
         {
             super(ownListener);
             this.testersListener = testersListener;
+            this.afterTestersListener = afterTestersListener;
         }
 
         @Override
         public void connectionRetrieved(final IDatabaseConnection connection)
         {
             testersListener.connectionRetrieved(connection);
+            afterTestersListener.accept(connection);
             super.connectionRetrieved(connection);
         }
     }

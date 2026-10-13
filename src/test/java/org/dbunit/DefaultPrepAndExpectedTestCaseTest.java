@@ -11,6 +11,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.dbunit.assertion.DbComparisonFailure;
 import org.dbunit.assertion.DiffCollectingFailureHandler;
@@ -33,6 +34,7 @@ import org.dbunit.dataset.DefaultTable;
 import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.datatype.DataType;
+import org.dbunit.dataset.datatype.DefaultDataTypeFactory;
 import org.dbunit.operation.DatabaseOperation;
 import org.dbunit.util.fileloader.DataFileLoader;
 import org.dbunit.util.fileloader.FlatXmlDataFileLoader;
@@ -294,6 +296,53 @@ class DefaultPrepAndExpectedTestCaseTest
                         + " DatabaseConfig before setupData() retrieves it again, so the next"
                         + " test's properties must already be in force on the kept connection.")
                 .isEqualTo(50);
+    }
+
+    @Test
+    void testSetupDataThenCleanupData_withDatabaseConfigProperties_appliesThemOncePerConnection()
+            throws Exception
+    {
+        CountingDataTypeFactory.resetInstanceCount();
+        // executeOperation() only retrieves the connection through the listener when the
+        // operation is not NONE
+        databaseTester.setTearDownOperation(DatabaseOperation.DELETE_ALL);
+        final Properties properties = new Properties();
+        properties.setProperty("datatypeFactory", CountingDataTypeFactory.class.getName());
+        tc.setDatabaseConfigProperties(properties);
+
+        tc.configureTest(new VerifyTableDefinition[] {}, new String[] {}, new String[] {});
+        tc.setupData();
+        tc.cleanupData();
+
+        assertThat(CountingDataTypeFactory.getInstanceCount())
+                .as("The properties must not be applied again, instantiating every class-valued"
+                        + " property again, each time the lifecycle retrieves the connection it"
+                        + " already applied them to.")
+                .isEqualTo(1);
+    }
+
+    @Test
+    void testSetupDataThenCleanupData_testersListenerSetsTheSamePropertyEachTime_propertiesWinBothTimes()
+            throws Exception
+    {
+        final RecordingBatchSizeOperation setUpOperation = new RecordingBatchSizeOperation();
+        final RecordingBatchSizeOperation tearDownOperation = new RecordingBatchSizeOperation();
+        databaseTester.setSetUpOperation(setUpOperation);
+        databaseTester.setTearDownOperation(tearDownOperation);
+        databaseTester.setOperationListener(new BatchSizeSettingListener(99));
+        tc.setDatabaseConfigProperties(batchSizeProperties("7"));
+
+        tc.configureTest(new VerifyTableDefinition[] {}, new String[] {}, new String[] {});
+        tc.setupData();
+        tc.cleanupData();
+
+        assertThat(setUpOperation.getBatchSize())
+                .as("The values this instance applies win over the tester's listener when set up.")
+                .isEqualTo(7);
+        assertThat(tearDownOperation.getBatchSize())
+                .as("They must win again when tearing down, as the tester's listener sets its own"
+                        + " value on every connection it is told about.")
+                .isEqualTo(7);
     }
 
     @Test
@@ -1928,6 +1977,27 @@ class DefaultPrepAndExpectedTestCaseTest
         return properties;
     }
 
+    /** Data type factory that counts how often a property value instantiates it. */
+    public static class CountingDataTypeFactory extends DefaultDataTypeFactory
+    {
+        private static final AtomicInteger INSTANCE_COUNT = new AtomicInteger();
+
+        public CountingDataTypeFactory()
+        {
+            INSTANCE_COUNT.incrementAndGet();
+        }
+
+        static void resetInstanceCount()
+        {
+            INSTANCE_COUNT.set(0);
+        }
+
+        static int getInstanceCount()
+        {
+            return INSTANCE_COUNT.get();
+        }
+    }
+
     private static final class FailingDatabaseOperation extends DatabaseOperation
     {
         private final DatabaseUnitException failure;
@@ -1947,6 +2017,51 @@ class DefaultPrepAndExpectedTestCaseTest
                 throws DatabaseUnitException
         {
             throw failure;
+        }
+    }
+
+    private static final class RecordingBatchSizeOperation extends DatabaseOperation
+    {
+        private Object batchSize;
+
+        @Override
+        public void execute(final IDatabaseConnection connection, final IDataSet dataSet)
+                throws DatabaseUnitException
+        {
+            batchSize = connection.getConfig().getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE);
+        }
+
+        private Object getBatchSize()
+        {
+            return batchSize;
+        }
+    }
+
+    private static final class BatchSizeSettingListener implements IOperationListener
+    {
+        private final int batchSize;
+
+        private BatchSizeSettingListener(final int batchSize)
+        {
+            this.batchSize = batchSize;
+        }
+
+        @Override
+        public void connectionRetrieved(final IDatabaseConnection connection)
+        {
+            connection.getConfig().setProperty(DatabaseConfig.PROPERTY_BATCH_SIZE, batchSize);
+        }
+
+        @Override
+        public void operationSetUpFinished(final IDatabaseConnection connection)
+        {
+            // nothing to do
+        }
+
+        @Override
+        public void operationTearDownFinished(final IDatabaseConnection connection)
+        {
+            // nothing to do
         }
     }
 
