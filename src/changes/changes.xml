@@ -92,6 +92,9 @@
       <action dev="jeffjensen" type="fix" issue="1007" system="github" due-to="jeffjensen">
           Fix DefaultPrepAndExpectedTestCase listing columns that the exclude filters drop as additional row info in a failure message, and adding a not found message and a logged warning to it for a column that only the include filter drops when an exclude filter is also set. Exclude patterns matched by exact, case-sensitive name only, so a wildcard or differently cased pattern removed nothing. The additional row info now leaves out the columns the exclude patterns match, matched the way the column filters match them, and lists every other column that both tables have.
       </action>
+      <action dev="jeffjensen" type="update" issue="1008" system="github" due-to="jeffjensen">
+          Update DefaultPrepAndExpectedTestCase to select only the compared columns when a VerifyTableDefinition sets sortOnFilteredColumnsOnly, instead of select *, so a column the verification excludes, often a large BLOB or CLOB, is no longer fetched. The columns come from the connection's DatabaseDataSet; every column is still selected when they cannot be determined or all are filtered out, when sortOnFilteredColumnsOnly is false, and when a subclass overrides loadTableDataFromDatabase(). A column that only the include filter drops is not read either, so the additional row info of a failure message then lists only the compared columns, not that column as the default sort does.
+      </action>
     </release>
     <release version="3.5.2" date="Sep 7, 2026" description="DefaultPrepAndExpectedTestCase connection hygiene: replace a connection the pool or database dropped between tests, and warn when handed a non-autocommit connection">
       <action dev="jeffjensen" type="fix" issue="962" system="github" due-to="jeffjensen">

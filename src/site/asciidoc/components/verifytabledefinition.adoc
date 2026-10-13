@@ -24,7 +24,7 @@ per table you want verified after a test runs.
 |`columnInclusionFilters` (`getColumnInclusionFilters()`) |Columns to restrict the comparison to; `null` means include all, empty means include none.
 |`defaultValueComparer` (`getDefaultValueComparer()`, since 2.6.0) |The `ValueComparer` used for any column not present in `columnValueComparers`. `null` defaults to equality comparison.
 |`columnValueComparers` (`getColumnValueComparers()`, since 2.6.0) |A `Map<String, ValueComparer>` of per-column comparers, keyed by column name.
-|`sortOnFilteredColumnsOnly` (`isSortOnFilteredColumnsOnly()`/`setSortOnFilteredColumnsOnly()`, since 3.5.0) |Whether comparison sorts both tables by only this table's filtered columns instead of all of the actual table's native columns. Default `false`. See <<sortmode,Sort Mode>> below.
+|`sortOnFilteredColumnsOnly` (`isSortOnFilteredColumnsOnly()`/`setSortOnFilteredColumnsOnly()`, since 3.5.0) |Whether comparison sorts both tables by only this table's filtered columns instead of all of the actual table's native columns, and, since 3.6.0, also selects only those columns from the database. Default `false`. See <<sortmode,Sort Mode>> below.
 |===
 
 [#constructors]
@@ -119,6 +119,20 @@ safe whenever every column needed to tell otherwise-identical rows apart is pres
 both the actual and expected tables. Opt in per table whenever such a distinguishing
 column is absent from the expected table - typically because it is excluded from
 comparison - regardless of whether that column happens to be generated/identity or not.
+
+Since 3.6.0, `sortOnFilteredColumnsOnly` set to `true` also narrows what is read from the
+database: the actual table is loaded selecting only the columns that survive the filters, so
+an excluded column, often a large one such as a BLOB or CLOB, is not fetched. A column that
+only the include filter drops is not fetched either, so the additional row info of a failure
+message, which in the default mode lists such a column to help identify the mismatching row,
+then lists only the compared columns. The columns come
+from the connection's database metadata, the way a
+link:../apidocs/org/dbunit/database/DatabaseDataSet.html[DatabaseDataSet] gets them. When they cannot be determined,
+or every column is filtered out, every column is selected as before. A subclass of
+`DefaultPrepAndExpectedTestCase` that overrides
+`loadTableDataFromDatabase(String, IDatabaseConnection)`, for example to add a `WHERE` clause,
+keeps deciding what is loaded. The default `false` still selects every column, because each
+one is a sort key there.
 
 [#usage]
 == Usage Examples

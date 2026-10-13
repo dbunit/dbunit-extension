@@ -20,6 +20,7 @@
  */
 package org.dbunit;
 
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -35,6 +36,7 @@ import org.dbunit.assertion.comparer.value.ValueComparer;
 import org.dbunit.database.DatabaseConfig;
 import org.dbunit.database.DatabaseConfigOverrides;
 import org.dbunit.database.IDatabaseConnection;
+import org.dbunit.database.IResultSetTableFactory;
 import org.dbunit.database.connection.AutoCommitOffWarning;
 import org.dbunit.database.connection.ConnectionOwnership;
 import org.dbunit.database.connection.TestScopedConnection;
@@ -1052,8 +1054,16 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
                 verifyTableDefinition.isSortOnFilteredColumnsOnly();
 
         final ITable expectedTable = loadTableDataFromDataSet(tableName);
-        final ITable actualTable =
-                loadTableDataFromDatabase(tableName, connection);
+        final ITable actualTable;
+        if (sortOnFilteredColumnsOnly
+                && !isLoadTableDataFromDatabaseOverridden())
+        {
+            actualTable = loadComparedColumnsFromDatabase(tableName,
+                    connection, excludeColumns, includeColumns);
+        } else
+        {
+            actualTable = loadTableDataFromDatabase(tableName, connection);
+        }
 
         if (sortOnFilteredColumnsOnly)
         {
@@ -1124,6 +1134,133 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
             throw new DataSetException(msg, e);
         }
         return table;
+    }
+
+    /**
+     * Loads the given table's actual data from the database selecting only
+     * the columns that survive the exclude and include column filters, which
+     * are the only ones that play a part when sorting only on the filtered
+     * columns and comparing. An excluded column, often a large one such as a
+     * BLOB or CLOB, is not fetched. The columns come from the connection's
+     * cached {@link org.dbunit.database.DatabaseDataSet}, which the set up
+     * operation has already initialized, and the table is made by the
+     * connection's configured
+     * {@link DatabaseConfig#PROPERTY_RESULTSET_TABLE_FACTORY}. When the
+     * table's columns cannot be determined that way, or all of them are
+     * filtered out, which would leave nothing to select, it loads every column
+     * as {@link #loadTableDataFromDatabase(String, IDatabaseConnection)} does.
+     *
+     * @param tableName
+     *            The name of the table to load.
+     * @param connection
+     *            The database connection to load the data from.
+     * @param excludeColumns
+     *            The column names to exclude; null or empty to exclude none.
+     * @param includeColumns
+     *            The column names to only include; null or empty to include
+     *            all.
+     * @return The table's actual data for the compared columns.
+     * @throws Exception
+     *             If loading the table fails.
+     */
+    private ITable loadComparedColumnsFromDatabase(final String tableName,
+            final IDatabaseConnection connection, final String[] excludeColumns,
+            final String[] includeColumns) throws Exception
+    {
+        final String methodName = "loadComparedColumnsFromDatabase";
+
+        final ITableMetaData comparedMetaData = findComparedColumns(tableName,
+                connection, excludeColumns, includeColumns);
+        if (comparedMetaData == null)
+        {
+            return loadTableDataFromDatabase(tableName, connection);
+        }
+
+        log.debug("{}: Loading table {} from database, selecting only the"
+                + " compared columns", methodName, tableName);
+        try
+        {
+            final IResultSetTableFactory tableFactory =
+                    (IResultSetTableFactory) connection.getConfig().getProperty(
+                            DatabaseConfig.PROPERTY_RESULTSET_TABLE_FACTORY);
+            return tableFactory.createTable(comparedMetaData, connection);
+        } catch (final Exception e)
+        {
+            final String msg = methodName + ": Problem obtaining table '"
+                    + tableName + "' from database";
+            log.error(msg, e);
+            throw new DataSetException(msg, e);
+        }
+    }
+
+    /**
+     * Finds the given table's columns that survive the exclude and include
+     * column filters.
+     *
+     * @param tableName
+     *            The name of the table.
+     * @param connection
+     *            The database connection whose dataset describes the table.
+     * @param excludeColumns
+     *            The column names to exclude; null or empty to exclude none.
+     * @param includeColumns
+     *            The column names to only include; null or empty to include
+     *            all.
+     * @return The metadata of just those columns, or null when it cannot be
+     *         determined from the connection's dataset or no column is left.
+     */
+    private ITableMetaData findComparedColumns(final String tableName,
+            final IDatabaseConnection connection, final String[] excludeColumns,
+            final String[] includeColumns)
+    {
+        try
+        {
+            final IDataSet databaseDataSet = connection.createDataSet();
+            if (databaseDataSet == null)
+            {
+                return null;
+            }
+
+            final ITableMetaData databaseMetaData =
+                    databaseDataSet.getTableMetaData(tableName);
+            final ITableMetaData comparedMetaData = new FilteredTableMetaData(
+                    databaseMetaData,
+                    makeColumnFilter(excludeColumns, includeColumns));
+            if (comparedMetaData.getColumns().length == 0)
+            {
+                log.debug("findComparedColumns: No column of table {} is"
+                        + " compared, selecting every column", tableName);
+                return null;
+            }
+            return comparedMetaData;
+        } catch (final SQLException | DataSetException e)
+        {
+            log.debug("findComparedColumns: Cannot determine the columns of"
+                    + " table {}, selecting every column", tableName, e);
+            return null;
+        }
+    }
+
+    /**
+     * Returns whether a subclass overrides
+     * {@link #loadTableDataFromDatabase(String, IDatabaseConnection)}, for
+     * example to add a where clause, in which case it, not this class,
+     * decides what is loaded.
+     *
+     * @return True if a subclass overrides it.
+     */
+    private boolean isLoadTableDataFromDatabaseOverridden()
+    {
+        try
+        {
+            final Class<?> declaringClass = getClass().getMethod(
+                    "loadTableDataFromDatabase", String.class,
+                    IDatabaseConnection.class).getDeclaringClass();
+            return declaringClass != DefaultPrepAndExpectedTestCase.class;
+        } catch (final NoSuchMethodException e)
+        {
+            return true;
+        }
     }
 
     /**
