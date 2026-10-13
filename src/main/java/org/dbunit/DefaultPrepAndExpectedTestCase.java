@@ -356,6 +356,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
             final String[] prepDataFiles, final String[] expectedDataFiles)
             throws Exception
     {
+        requireDatabaseTester();
         log.debug("configureTest: saving instance variables");
 
         final boolean acquiredConnectionHere =
@@ -844,6 +845,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     @Override
     public void cleanupData() throws Exception
     {
+        requireDatabaseTester();
         try
         {
             final boolean isCaseSensitiveTableNames;
@@ -865,11 +867,6 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
             final int count = tableNames.length;
             log.info("cleanupData: about to clean up {} tables={}", count,
                     tableNames);
-
-            if (databaseTester == null)
-            {
-                throw new IllegalStateException(DATABASE_TESTER_IS_NULL_MSG);
-            }
 
             final IDatabaseTester reusableTester =
                     makeReusableConnectionDatabaseTester(dataset);
@@ -979,11 +976,8 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      */
     public void setupData() throws Exception
     {
+        requireDatabaseTester();
         log.info("setupData: setting prep dataset and inserting rows");
-        if (databaseTester == null)
-        {
-            throw new IllegalStateException(DATABASE_TESTER_IS_NULL_MSG);
-        }
 
         try
         {
@@ -997,23 +991,30 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
         }
     }
 
-    @Override
-    protected DatabaseOperation getSetUpOperation() throws Exception
+    /**
+     * Fails fast, the same way for every lifecycle step, when no databaseTester was set.
+     *
+     * @throws IllegalStateException If databaseTester is null.
+     */
+    private void requireDatabaseTester()
     {
         if (databaseTester == null)
         {
             throw new IllegalStateException(DATABASE_TESTER_IS_NULL_MSG);
         }
+    }
+
+    @Override
+    protected DatabaseOperation getSetUpOperation() throws Exception
+    {
+        requireDatabaseTester();
         return databaseTester.getSetUpOperation();
     }
 
     @Override
     protected DatabaseOperation getTearDownOperation() throws Exception
     {
-        if (databaseTester == null)
-        {
-            throw new IllegalStateException(DATABASE_TESTER_IS_NULL_MSG);
-        }
+        requireDatabaseTester();
         return databaseTester.getTearDownOperation();
     }
 
@@ -1025,10 +1026,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     @Override
     public void verifyData() throws Exception
     {
-        if (databaseTester == null)
-        {
-            throw new IllegalStateException(DATABASE_TESTER_IS_NULL_MSG);
-        }
+        requireDatabaseTester();
 
         final IDatabaseConnection reusableConnection = getReusableConnection();
 

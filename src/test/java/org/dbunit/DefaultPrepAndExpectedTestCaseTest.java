@@ -216,6 +216,58 @@ class DefaultPrepAndExpectedTestCaseTest
     }
 
     @Test
+    void testConfigureTest_nullDatabaseTester_throwsIllegalStateException()
+    {
+        final DefaultPrepAndExpectedTestCase noTesterTestCase =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, null);
+
+        assertThatThrownBy(() -> noTesterTestCase.configureTest(new VerifyTableDefinition[] {},
+                new String[] {}, new String[] {}))
+                        .as("A missing database tester must be reported with an"
+                                + " IllegalStateException, not a JUnit assertion error thrown"
+                                + " from main code.")
+                        .isInstanceOf(IllegalStateException.class)
+                        .hasMessageContaining("databaseTester is null");
+    }
+
+    @Test
+    void testCleanupData_nullDatabaseTester_throwsIllegalStateException()
+    {
+        final DefaultPrepAndExpectedTestCase noTesterTestCase =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, null);
+
+        assertThatThrownBy(noTesterTestCase::cleanupData)
+                .as("A missing database tester must be reported with an IllegalStateException"
+                        + " before any other step fails differently.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("databaseTester is null");
+    }
+
+    @Test
+    void testSetupData_nullDatabaseTester_throwsIllegalStateException()
+    {
+        final DefaultPrepAndExpectedTestCase noTesterTestCase =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, null);
+
+        assertThatThrownBy(noTesterTestCase::setupData)
+                .as("A missing database tester must be reported with an IllegalStateException.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("databaseTester is null");
+    }
+
+    @Test
+    void testVerifyData_nullDatabaseTester_throwsIllegalStateException()
+    {
+        final DefaultPrepAndExpectedTestCase noTesterTestCase =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, null);
+
+        assertThatThrownBy(noTesterTestCase::verifyData)
+                .as("A missing database tester must be reported with an IllegalStateException.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("databaseTester is null");
+    }
+
+    @Test
     void testConfigureTest_withDatabaseConfigPropertiesSet_appliesThemToTheSharedConnection()
             throws Exception
     {
