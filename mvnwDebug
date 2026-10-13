@@ -18,7 +18,7 @@
 # under the License.
 
 # -----------------------------------------------------------------------------
-# Apache Maven Wrapper debug script, version 3.3.2
+# Apache Maven Wrapper debug script, version 3.3.4
 # -----------------------------------------------------------------------------
 
-. "${0%/*}"/mvnw
+. "$(dirname "$0")"/mvnw
