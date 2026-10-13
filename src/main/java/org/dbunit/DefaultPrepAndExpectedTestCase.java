@@ -330,6 +330,14 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * Executes against the connection shared with setupData(), verifyData()
      * and cleanupData() for this test's lifecycle rather than a fresh one,
      * and leaves it open; cleanupData() closes it. See #800.
+     * <p>
+     * A null argument means none. When this fails, for example because a data
+     * file is missing or invalid, this instance is left with no prep data,
+     * expected data or verify table definitions, so a cleanupData() that
+     * follows cleans nothing left over from an earlier test. The shared
+     * connection it acquired is released too; one the caller had already
+     * resolved, for example by injecting it into a test method parameter, is
+     * left open for the caller.
      */
     @Override
     public void configureTest(
@@ -339,18 +347,47 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     {
         log.debug("configureTest: saving instance variables");
 
-        final boolean isCaseSensitiveTableNames = lookupFeatureValue(
-                DatabaseConfig.FEATURE_CASE_SENSITIVE_TABLE_NAMES);
-        log.debug("configureTest: using case sensitive table names={}",
-                isCaseSensitiveTableNames);
-        this.cachedIsCaseSensitiveTableNames = isCaseSensitiveTableNames;
+        final boolean acquiredConnectionHere =
+                reusableConnectionHolder.peekConnection() == null;
+        try
+        {
+            final boolean isCaseSensitiveTableNames = lookupFeatureValue(
+                    DatabaseConfig.FEATURE_CASE_SENSITIVE_TABLE_NAMES);
+            log.debug("configureTest: using case sensitive table names={}",
+                    isCaseSensitiveTableNames);
 
-        this.prepDataSet = makeCompositeDataSet(prepDataFiles, "prep",
-                isCaseSensitiveTableNames);
-        this.expectedDataSet = makeCompositeDataSet(expectedDataFiles,
-                "expected", isCaseSensitiveTableNames);
+            final IDataSet newPrepDataSet = makeCompositeDataSet(prepDataFiles,
+                    "prep", isCaseSensitiveTableNames);
+            final IDataSet newExpectedDataSet = makeCompositeDataSet(
+                    expectedDataFiles, "expected", isCaseSensitiveTableNames);
 
-        this.verifyTableDefs = verifyTableDefinitions;
+            this.cachedIsCaseSensitiveTableNames = isCaseSensitiveTableNames;
+            this.prepDataSet = newPrepDataSet;
+            this.expectedDataSet = newExpectedDataSet;
+            this.verifyTableDefs = verifyTableDefinitions == null
+                    ? new VerifyTableDefinition[0]
+                    : verifyTableDefinitions;
+        } catch (final Throwable t)
+        {
+            clearPerTestData();
+            if (acquiredConnectionHere)
+            {
+                closeReusableConnectionSuppressing(t);
+            }
+            throw t;
+        }
+    }
+
+    /**
+     * Empties the per-test data, so that a cleanupData() following a failed
+     * configureTest() runs against nothing rather than against a mix of the
+     * new prep data and the previous test's expected data.
+     */
+    private void clearPerTestData()
+    {
+        this.prepDataSet = new DefaultDataSet();
+        this.expectedDataSet = new DefaultDataSet();
+        this.verifyTableDefs = new VerifyTableDefinition[0];
     }
 
     /**
@@ -1376,7 +1413,8 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * Make a <code>IDataSet</code> from the specified files.
      *
      * @param dataFiles
-     *            Represents the array of dbUnit data files.
+     *            Represents the array of dbUnit data files; null is treated as
+     *            none.
      * @param dataFilesName
      *            Concept name of the data files, e.g. prep, expected.
      * @param isCaseSensitiveTableNames
@@ -1395,7 +1433,18 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
                     "dataFileLoader is null; must configure or set it first");
         }
 
-        final int count = dataFiles.length;
+        final String[] files;
+        if (dataFiles == null)
+        {
+            log.debug("makeCompositeDataSet: {} dataFiles is null, using none",
+                    dataFilesName);
+            files = new String[0];
+        } else
+        {
+            files = dataFiles;
+        }
+
+        final int count = files.length;
         log.debug("makeCompositeDataSet: {} dataFiles count={}", dataFilesName,
                 count);
         if (count == 0)
@@ -1407,7 +1456,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
         final List<IDataSet> list = new ArrayList<>();
         for (int i = 0; i < count; i++)
         {
-            final IDataSet ds = dataFileLoader.load(dataFiles[i]);
+            final IDataSet ds = dataFileLoader.load(files[i]);
             list.add(ds);
         }
 
