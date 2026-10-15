@@ -76,7 +76,8 @@ system property) is everything a test needs to do. Both integration points share
 `org.dbunit.database.rowcount.RowCountChecker`, the class that captures a baseline, verifies
 it later, and lets it be discarded when a verify would be noise (e.g. the test's own steps
 already failed) — plumbing a test integration reuses, not something a test author calls
-directly.
+directly. A baseline is good for one verify, whether it passes or fails, so a later test on
+the same instance never compares against the counts of the test before it.
 
 On JUnit 5/6 (Jupiter), `@DbUnitRowCountCheck` turns the check on per class or method instead
 of touching `DatabaseConfig` — see
