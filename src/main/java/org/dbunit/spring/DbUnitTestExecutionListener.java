@@ -22,8 +22,6 @@ package org.dbunit.spring;
 
 import java.util.List;
 
-import org.dbunit.IDatabaseTester;
-import org.dbunit.PrepAndExpectedTestCase;
 import org.dbunit.annotation.runtime.AnnotatedTestConfiguration;
 import org.dbunit.annotation.runtime.AnnotatedTestExecutor;
 import org.dbunit.annotation.runtime.AnnotatedTestOptIn;
@@ -188,10 +186,8 @@ public class DbUnitTestExecutionListener extends AbstractTestExecutionListener
                 AnnotatedTestConfiguration.from(testClass, lookup);
         final TestInstanceTesterResolver.Resolution resolution =
                 testerResolver.resolve(testContext, configuration);
-        final IDatabaseTester tester = resolution.getTester();
-        final PrepAndExpectedTestCase testCase = resolution.getTestCase();
         final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, testCase);
+                new AnnotatedTestExecutor(configuration, resolution, true);
         testContext.setAttribute(EXECUTOR_ATTRIBUTE, executor);
         executor.beforeTest();
     }
@@ -202,7 +198,8 @@ public class DbUnitTestExecutionListener extends AbstractTestExecutionListener
      * {@code @DbUnitExpected} and the teardown operation. Does nothing when
      * {@link #beforeTestMethod(TestContext)} never ran for this method, so it never tears down
      * what another method set up. The executor is removed before its after-test steps run, so it
-     * is gone even when they fail.
+     * is gone even when they fail. Once they have run, or failed, a tester the test's injected
+     * {@code @DbUnitTestCase} instance was only given for this test is taken off it again.
      *
      * <p>Runs in Spring's after-test-method phase, so after JUnit's {@code @AfterEach} methods
      * and after a {@code @Transactional} test's transaction has rolled back or committed: a
@@ -226,7 +223,13 @@ public class DbUnitTestExecutionListener extends AbstractTestExecutionListener
         }
         final Throwable testException = testContext.getTestException();
         final boolean testFailed = testException != null;
-        executor.afterTest(testFailed);
+        try
+        {
+            executor.afterTest(testFailed);
+        } finally
+        {
+            executor.unbindTesterFromInjectedTestCase();
+        }
     }
 
     /**

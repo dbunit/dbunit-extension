@@ -25,6 +25,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.List;
 import java.util.concurrent.Callable;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.dbunit.DatabaseTesterFactory;
 import org.dbunit.IDatabaseTester;
@@ -102,10 +103,10 @@ public class TestInstanceTesterResolver
         if (marked.testerField != null)
         {
             final IDatabaseTester markedTester = readTesterField(marked.testerField);
-            return new Resolution(markedTester, null);
+            return new Resolution(markedTester, null, false);
         }
         final IDatabaseTester tester = unmarkedTester.call();
-        return new Resolution(tester, null);
+        return new Resolution(tester, null, false);
     }
 
     /**
@@ -189,9 +190,17 @@ public class TestInstanceTesterResolver
         // simply built without a tester yet (e.g. the no-arg-tester constructor form) - the
         // fallback resolves the same tester a bare @DbUnitTestCase-less test would use, rather
         // than leaving the resolution's tester null.
+        final AtomicBoolean fallbackUsed = new AtomicBoolean();
+        final Callable<IDatabaseTester> recordingFallback = () ->
+        {
+            fallbackUsed.set(true);
+            return unmarkedTester.call();
+        };
         final IDatabaseTester tester = InjectedTestCaseTesterBinding.resolveTester(testCase,
-                fieldDescription, unmarkedTester);
-        return new Resolution(tester, testCase);
+                fieldDescription, recordingFallback);
+        final boolean boundToTestCase =
+                fallbackUsed.get() && testCase.getDatabaseTester() == tester;
+        return new Resolution(tester, testCase, boundToTestCase);
     }
 
     private static IDatabaseTester readTesterField(final FieldMatch testerField)
@@ -316,17 +325,21 @@ public class TestInstanceTesterResolver
     }
 
     /**
-     * The resolved tester, and the test case when a {@code @DbUnitTestCase} field supplied one.
+     * The resolved tester, and the test case when a {@code @DbUnitTestCase} field supplied one -
+     * with whether the tester was given to that test case because it carried none.
      */
     public static class Resolution
     {
         private final IDatabaseTester tester;
         private final PrepAndExpectedTestCase testCase;
+        private final boolean testerBoundToTestCase;
 
-        private Resolution(final IDatabaseTester tester, final PrepAndExpectedTestCase testCase)
+        private Resolution(final IDatabaseTester tester, final PrepAndExpectedTestCase testCase,
+                final boolean testerBoundToTestCase)
         {
             this.tester = tester;
             this.testCase = testCase;
+            this.testerBoundToTestCase = testerBoundToTestCase;
         }
 
         /**
@@ -347,6 +360,20 @@ public class TestInstanceTesterResolver
         public PrepAndExpectedTestCase getTestCase()
         {
             return testCase;
+        }
+
+        /**
+         * Returns whether the resolution gave the test case its tester, because the test case
+         * carried none and handed the one back after being given it. Such a tester was chosen for
+         * this test alone, so the test case is to be given none again once the test is over:
+         * a test case shared across tests then asks for a tester on each of them, instead of
+         * keeping the first one.
+         *
+         * @return {@code true} when the tester was given to the test case by this resolution.
+         */
+        public boolean isTesterBoundToTestCase()
+        {
+            return testerBoundToTestCase;
         }
     }
 
