@@ -127,7 +127,7 @@ final class VerifyTableDefinitionResolver
             final Set<String> tableNames = new LinkedHashSet<>(verify.length);
             for (int i = 0; i < verify.length; i++)
             {
-                if (!tableNames.add(verify[i].value()))
+                if (!tableNames.add(TableNameKey.of(verify[i].value())))
                 {
                     throw new IllegalStateException("@DbUnitExpected declares more than one"
                             + " @DbUnitVerifyTable entry for table '" + verify[i].value()
@@ -155,7 +155,7 @@ final class VerifyTableDefinitionResolver
         final Set<String> tableNames = new LinkedHashSet<>(verifyTables.length);
         for (final String tableName : verifyTables)
         {
-            if (!tableNames.add(tableName))
+            if (!tableNames.add(TableNameKey.of(tableName)))
             {
                 throw new IllegalStateException("@DbUnitExpected declares more than one"
                         + " verifyTables() entry for table '" + tableName

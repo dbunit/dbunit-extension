@@ -502,7 +502,13 @@ be computed rather than declared as constants — one attribute covers both:
 implementing classes are instantiated and asked, plain classes have their
 `public static final VerifyTableDefinition` fields read directly. The same
 table name defined in two catalog classes named together is rejected rather
-than silently resolved by declaration order.
+than silently resolved by declaration order. Table names are compared ignoring
+case, as dbUnit finds a table in a dataset: `verifyTables = "account"` selects
+a catalog's `ACCOUNT` definition, and `ACCOUNT` in one catalog class and
+`account` in another are the same table. The same goes for `verifyTables` and
+`verify` entries naming one table twice. A schema that holds tables whose names
+differ only in case, with `FEATURE_CASE_SENSITIVE_TABLE_NAMES` on, cannot name
+more than one of them in a single verification spec.
 
 [#providers]
 == Provider and Factory Classes

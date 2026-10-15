@@ -67,6 +67,51 @@ class VerifyTableDefinitionResolverTest
     }
 
     @Test
+    void testResolveDeclared_verifyTablesDifferingOnlyInCase_throws()
+    {
+        final DbUnitExpected expected =
+                WithDifferentCaseDuplicateVerifyTables.class.getAnnotation(DbUnitExpected.class);
+
+        assertThatThrownBy(() -> resolver.resolveDeclared(null, expected,
+                new String[] {"expected.xml"}))
+                        .as("'ACCOUNT' and 'account' name the same table, as dbUnit compares"
+                                + " table names ignoring case unless told otherwise.")
+                        .isInstanceOf(IllegalStateException.class)
+                        .hasMessageContaining("more than one")
+                        .hasMessageContaining("account");
+    }
+
+    @Test
+    void testResolveDeclared_inlineVerifyEntriesDifferingOnlyInCase_throws()
+    {
+        final DbUnitExpected expected =
+                WithDifferentCaseInlineVerify.class.getAnnotation(DbUnitExpected.class);
+
+        assertThatThrownBy(() -> resolver.resolveDeclared(null, expected,
+                new String[] {"expected.xml"}))
+                        .as("Two @DbUnitVerifyTable entries naming one table in different case"
+                                + " verify it twice.")
+                        .isInstanceOf(IllegalStateException.class)
+                        .hasMessageContaining("more than one")
+                        .hasMessageContaining("account");
+    }
+
+    @Test
+    void testResolveDeclared_verifyTablesNamedInDifferentCaseThanTheCatalog_selectsTheCatalogsDefinition()
+    {
+        final DbUnitExpected expected =
+                WithLowerCaseTableAndCatalog.class.getAnnotation(DbUnitExpected.class);
+
+        final VerifyTableDefinition[] definitions =
+                resolver.resolveDeclared(null, expected, new String[] {"expected.xml"}).get();
+
+        assertThat(definitions)
+                .as("verifyTables selects from the catalog ignoring case, the way dbUnit finds a"
+                        + " table in a dataset.")
+                .containsExactly(UpperCaseAccountCatalog.ACCOUNT);
+    }
+
+    @Test
     void testResolveDeclared_noVerifySpecWithExpectedDataset_declaresNothingSoTablesAreDerivedLater()
     {
         final DbUnitExpected expected = Bare.class.getAnnotation(DbUnitExpected.class);
@@ -202,6 +247,30 @@ class VerifyTableDefinitionResolverTest
     @DbUnitExpected(value = "expected.xml", verifyTables = {"ACCOUNT", "ACCOUNT"})
     private static class WithDuplicateVerifyTables
     {
+    }
+
+    @DbUnitExpected(value = "expected.xml", verifyTables = {"ACCOUNT", "account"})
+    private static class WithDifferentCaseDuplicateVerifyTables
+    {
+    }
+
+    @DbUnitExpected(value = "expected.xml",
+            verify = {@DbUnitVerifyTable("ACCOUNT"), @DbUnitVerifyTable("account")})
+    private static class WithDifferentCaseInlineVerify
+    {
+    }
+
+    @DbUnitExpected(value = "expected.xml", verifyTables = "account",
+            verifyDefinitions = UpperCaseAccountCatalog.class)
+    private static class WithLowerCaseTableAndCatalog
+    {
+    }
+
+    /** Public, so the resolver can read its constants whatever package the test runs in. */
+    public static class UpperCaseAccountCatalog
+    {
+        public static final VerifyTableDefinition ACCOUNT =
+                new VerifyTableDefinition("ACCOUNT", (String[]) null);
     }
 
     @DbUnitExpected("expected.xml")

@@ -239,6 +239,57 @@ class VerifyTableDefinitionCatalogTest
     }
 
     @Test
+    void testRead_sameTableNameInDifferentCaseInTwoCatalogs_throwsNamingBothCatalogs()
+    {
+        assertThatThrownBy(() -> new VerifyTableDefinitionCatalog(CatalogA.class,
+                CatalogLowerCaseAccount.class))
+                        .as("dbUnit compares table names ignoring case unless told otherwise, so"
+                                + " 'ACCOUNT' and 'account' are the same table, which must be"
+                                + " rejected rather than resolved by declaration order.")
+                        .isInstanceOf(IllegalStateException.class)
+                        .hasMessageContaining(CatalogA.class.getName())
+                        .hasMessageContaining(CatalogLowerCaseAccount.class.getName())
+                        .hasMessageContaining("account");
+    }
+
+    @Test
+    void testRead_sameTableNameInDifferentCaseTwiceInOneCatalog_throwsMessageNamingThatCatalogOnce()
+    {
+        assertThatThrownBy(
+                () -> new VerifyTableDefinitionCatalog(DifferentCaseDuplicateCatalog.class))
+                        .as("Two fields naming the same table in different case within one"
+                                + " catalog class must be rejected.")
+                        .isInstanceOf(IllegalStateException.class)
+                        .hasMessageContaining("defined more than once in")
+                        .hasMessageContaining(DifferentCaseDuplicateCatalog.class.getName());
+    }
+
+    @Test
+    void testSelect_nameInDifferentCaseThanTheDefinition_returnsTheDefinition()
+    {
+        final VerifyTableDefinitionCatalog catalog =
+                new VerifyTableDefinitionCatalog(CatalogA.class, CatalogB.class);
+
+        assertThat(catalog.select("account", "Customer"))
+                .as("A table is selected by its name ignoring case, as dbUnit finds a table in a"
+                        + " dataset, and the catalog's own definition is returned.")
+                .containsExactly(CatalogA.ACCOUNT, CatalogB.CUSTOMER);
+    }
+
+    @Test
+    void testSelect_nameAbsentFromCatalog_listsTheTablesWithTheirOwnSpelling()
+    {
+        final VerifyTableDefinitionCatalog catalog =
+                new VerifyTableDefinitionCatalog(CatalogLowerCaseAccount.class);
+
+        assertThatThrownBy(() -> catalog.select("NOT_IN_CATALOG"))
+                .as("The available table names are listed as the catalog spells them, not in"
+                        + " the form it compares them by.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("[account]");
+    }
+
+    @Test
     void testSelect_namedTablesPresentInCatalog_returnsThoseDefinitions()
     {
         final VerifyTableDefinitionCatalog catalog =
@@ -406,6 +457,20 @@ class VerifyTableDefinitionCatalogTest
     {
         public static final VerifyTableDefinition CUSTOMER =
                 new VerifyTableDefinition("CUSTOMER", (String[]) null);
+    }
+
+    static class CatalogLowerCaseAccount
+    {
+        public static final VerifyTableDefinition ACCOUNT =
+                new VerifyTableDefinition("account", (String[]) null);
+    }
+
+    static class DifferentCaseDuplicateCatalog
+    {
+        public static final VerifyTableDefinition ACCOUNT_1 =
+                new VerifyTableDefinition("ACCOUNT", (String[]) null);
+        public static final VerifyTableDefinition ACCOUNT_2 =
+                new VerifyTableDefinition("account", (String[]) null);
     }
 
     static class SameClassDuplicateCatalog
