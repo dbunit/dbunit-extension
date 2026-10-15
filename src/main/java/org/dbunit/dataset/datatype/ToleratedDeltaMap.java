@@ -39,12 +39,11 @@ import org.slf4j.LoggerFactory;
  */
 public class ToleratedDeltaMap
 {
-
     /**
-     * The logger
+     * The logger.
      */
-
     private static final Logger logger = LoggerFactory.getLogger(ToleratedDeltaMap.class);
+
     /**
      * List of {@link ToleratedDelta} objects
      */
