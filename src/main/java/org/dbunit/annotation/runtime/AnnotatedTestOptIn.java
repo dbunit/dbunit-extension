@@ -21,7 +21,6 @@
 package org.dbunit.annotation.runtime;
 
 import java.lang.annotation.Annotation;
-import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
@@ -87,32 +86,10 @@ public class AnnotatedTestOptIn
         }
         for (final Class<?> testClass : testClasses)
         {
-            if (declaresMarkerField(testClass))
+            if (TesterFields.declaresMarkedField(testClass))
             {
                 return true;
             }
-        }
-        return false;
-    }
-
-    /**
-     * Returns whether {@code testClass} or a superclass declares a {@link DbUnitTester} or
-     * {@link DbUnitTestCase} field.
-     */
-    private static boolean declaresMarkerField(final Class<?> testClass)
-    {
-        Class<?> current = testClass;
-        while (current != null && current != Object.class)
-        {
-            for (final Field field : current.getDeclaredFields())
-            {
-                if (field.isAnnotationPresent(DbUnitTester.class)
-                        || field.isAnnotationPresent(DbUnitTestCase.class))
-                {
-                    return true;
-                }
-            }
-            current = current.getSuperclass();
         }
         return false;
     }

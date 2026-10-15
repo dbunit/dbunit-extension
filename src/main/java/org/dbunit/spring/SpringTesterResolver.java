@@ -21,7 +21,6 @@
 package org.dbunit.spring;
 
 import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
 import java.util.List;
 import java.util.function.Predicate;
 
@@ -29,6 +28,7 @@ import org.dbunit.IDatabaseTester;
 import org.dbunit.annotation.DbUnitTestCase;
 import org.dbunit.annotation.DbUnitTester;
 import org.dbunit.annotation.runtime.AnnotatedTestConfiguration;
+import org.dbunit.annotation.runtime.TesterFields;
 import org.dbunit.annotation.runtime.TestInstanceTesterResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -84,7 +84,7 @@ class SpringTesterResolver
         final List<Object> instances = chain.getInnermostFirst();
         if (!anyDeclaresMarkedField(instances))
         {
-            rejectUnreachableFields(chain, testClass, this::isMarked);
+            rejectUnreachableFields(chain, testClass, TesterFields::isMarked);
         }
         return TestInstanceTesterResolver.resolve(instances,
                 () -> findTester(instances, chain, testContext, configuration));
@@ -108,7 +108,7 @@ class SpringTesterResolver
         }
 
         final Class<?> testClass = testContext.getTestClass();
-        rejectUnreachableFields(chain, testClass, this::isUnmarkedTester);
+        rejectUnreachableFields(chain, testClass, TesterFields::isUnmarkedTester);
 
         final ApplicationContext applicationContext = findApplicationContext(testContext);
         if (applicationContext != null)
@@ -186,7 +186,8 @@ class SpringTesterResolver
     {
         for (final Object instance : instances)
         {
-            final Field field = findField(instance.getClass(), this::isMarked);
+            final Field field =
+                    TesterFields.findFirst(instance.getClass(), TesterFields::isMarked);
             if (field != null)
             {
                 return true;
@@ -205,7 +206,7 @@ class SpringTesterResolver
     {
         for (final Class<?> enclosingClass : chain.getUnreachableEnclosingClasses())
         {
-            final Field field = findField(enclosingClass, matches);
+            final Field field = TesterFields.findFirst(enclosingClass, matches);
             if (field != null)
             {
                 throw new IllegalStateException("The enclosing class " + enclosingClass.getName()
@@ -221,38 +222,4 @@ class SpringTesterResolver
         }
     }
 
-    /**
-     * Finds the first field anywhere in {@code clazz}'s hierarchy that {@code matches} accepts,
-     * most-derived class first.
-     */
-    private Field findField(final Class<?> clazz, final Predicate<Field> matches)
-    {
-        Class<?> current = clazz;
-        while (current != null && current != Object.class)
-        {
-            for (final Field field : current.getDeclaredFields())
-            {
-                if (matches.test(field))
-                {
-                    return field;
-                }
-            }
-            current = current.getSuperclass();
-        }
-        return null;
-    }
-
-    /** Whether the field is marked {@link DbUnitTester} or {@link DbUnitTestCase}. */
-    private boolean isMarked(final Field field)
-    {
-        return field.isAnnotationPresent(DbUnitTester.class)
-                || field.isAnnotationPresent(DbUnitTestCase.class);
-    }
-
-    /** Whether the field is one the 3.5.0 auto-scan uses: non-static and an IDatabaseTester. */
-    private boolean isUnmarkedTester(final Field field)
-    {
-        return !Modifier.isStatic(field.getModifiers())
-                && IDatabaseTester.class.isAssignableFrom(field.getType());
-    }
 }
