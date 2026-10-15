@@ -142,14 +142,23 @@ public class ConnectionPreservingOperationListener implements IOperationListener
      */
     public static boolean unwrapsToNoOp(final IOperationListener listener)
     {
-        if (listener == IOperationListener.NO_OP_OPERATION_LISTENER)
+        return unwrap(listener) == IOperationListener.NO_OP_OPERATION_LISTENER;
+    }
+
+    /**
+     * Returns the listener beneath any {@link ConnectionPreservingOperationListener} layers -
+     * the innermost delegate - or {@code listener} itself when it is not one.
+     *
+     * @param listener The listener to unwrap, possibly a wrapper or {@code null}.
+     * @return The innermost delegate, {@code listener} when it wraps nothing, or {@code null}.
+     */
+    public static IOperationListener unwrap(final IOperationListener listener)
+    {
+        IOperationListener innermost = listener;
+        while (innermost instanceof ConnectionPreservingOperationListener)
         {
-            return true;
+            innermost = ((ConnectionPreservingOperationListener) innermost).delegate;
         }
-        if (listener instanceof ConnectionPreservingOperationListener)
-        {
-            return unwrapsToNoOp(((ConnectionPreservingOperationListener) listener).delegate);
-        }
-        return false;
+        return innermost;
     }
 }
