@@ -339,7 +339,9 @@ public class MultiDataSourcePrepAndExpectedTestCase
      * postTest(false)} in reverse declared order, each teardown failure attached to the step
      * throwable via {@link Throwable#addSuppressed(Throwable)} - except a teardown failure that
      * is the exact same instance as the step throwable itself, which is dropped rather than
-     * attempting the self-suppression {@link Throwable#addSuppressed(Throwable)} forbids.
+     * attempting the self-suppression {@link Throwable#addSuppressed(Throwable)} forbids. The run
+     * is over then, as after {@link #postTest(boolean)}, so a further {@code postTest} call, such
+     * as one in a caller's {@code finally} block, has nothing to tear down.
      *
      * @param dataByDataSourceName
      *            The prep/expected/verify data for this run, keyed by data source name; a wired
@@ -363,7 +365,9 @@ public class MultiDataSourcePrepAndExpectedTestCase
             result = testSteps.run();
         } catch (final Throwable stepFailure)
         {
-            tearDownSuppressing(reverseInvolvedOrder(), stepFailure);
+            final List<String> teardownOrder = reverseInvolvedOrder();
+            involvedDataSourceNames = Collections.emptySet();
+            tearDownSuppressing(teardownOrder, stepFailure);
             throw stepFailure;
         }
 
