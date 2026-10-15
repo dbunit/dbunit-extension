@@ -82,14 +82,18 @@ public final class TestScopedConnection
      * from the JDBC connection captured when it was acquired, never by asking the
      * {@link IDatabaseConnection} for its JDBC connection again: a
      * {@link org.dbunit.database.DatabaseDataSourceConnection} that was closed answers that
-     * question by checking out a new one.
+     * question by checking out a new one. A connection that has no JDBC connection to capture
+     * when it is acquired - it threw, as a {@link org.dbunit.database.DatabaseDataSourceConnection}
+     * does when its pool times out, or returned {@code null} - cannot be asked whether it is
+     * closed, so it is kept for the rest of the test rather than replaced on every call, which
+     * would leave each connection before it unclosed; {@link #release()} closes it.
      *
      * @return The connection, or {@code null} when the supplier has none to offer.
      * @throws Exception If the supplier fails.
      */
     public IDatabaseConnection getConnection() throws Exception
     {
-        if (resolved && connection != null && isClosedOrUnreadable())
+        if (resolved && connection != null && isClosedOrBroken())
         {
             discardOnFailure();
         }
@@ -260,14 +264,16 @@ public final class TestScopedConnection
     /**
      * Returns whether the memoized connection is closed or can no longer report its state - the
      * cheap, side-effect-free check for a connection a pool or server may have closed between
-     * reused test methods. Reads the JDBC connection captured at acquisition; a connection that
-     * had none, or whose state cannot be read, is treated as unusable, so a re-acquire follows.
+     * reused test methods. Reads the JDBC connection captured at acquisition; one whose state
+     * cannot be read is treated as unusable, so a re-acquire follows. A connection that had no
+     * JDBC connection to capture was never able to report its state, so it is not treated as
+     * closed: replacing it would leave it unclosed.
      */
-    private boolean isClosedOrUnreadable()
+    private boolean isClosedOrBroken()
     {
         if (jdbcConnection == null)
         {
-            return true;
+            return false;
         }
         try
         {
