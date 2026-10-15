@@ -22,6 +22,7 @@ package org.dbunit.database.rowcount;
 
 import org.dbunit.database.DatabaseConfig;
 import org.dbunit.dataset.filter.ExcludeTableFilter;
+import org.dbunit.util.CommaSeparatedValues;
 
 /**
  * Resolves whether the row count check is enabled, its excluded table patterns, and the
@@ -127,19 +128,9 @@ public class RowCountCheckConfiguration
                 System.getProperty(DBUNIT_ROW_COUNT_CHECK_EXCLUDE_TABLES);
         if (systemProperty != null)
         {
-            return splitAndTrim(systemProperty);
+            return CommaSeparatedValues.split(systemProperty);
         }
         return configuredPatterns == null ? new String[0] : configuredPatterns;
-    }
-
-    private static String[] splitAndTrim(final String commaSeparatedPatterns)
-    {
-        final String[] patterns = commaSeparatedPatterns.split(",");
-        for (int i = 0; i < patterns.length; i++)
-        {
-            patterns[i] = patterns[i].trim();
-        }
-        return patterns;
     }
 
     /**
