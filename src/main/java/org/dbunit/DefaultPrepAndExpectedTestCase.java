@@ -975,7 +975,8 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * {@link #cleanupData()}, which tears down the prep and expected tables once
      * and releases the shared connection. Calling it after a full
      * {@link #runTest} or {@link #postTest} cycle cleans up a second time, as
-     * both already ran cleanupData().
+     * both already ran cleanupData(), without verifying the row count check
+     * baseline again, which that cleanupData() already used.
      */
     @Override
     protected void tearDown() throws Exception
@@ -2107,7 +2108,9 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     /**
      * Release the shared connection acquired from the databaseTester about to
      * be replaced, closing it only when this instance owns it, and forget it
-     * so the next step acquires one from the new databaseTester. Called before
+     * so the next step acquires one from the new databaseTester. Also discards
+     * the row count check baseline captured from that connection, which says
+     * nothing about the new databaseTester's database. Called before
      * the field is reassigned because {@link ConnectionOwnership} reads the
      * outgoing databaseTester's listener to decide whether to close. A close
      * failure is logged, not thrown, as the connection is being discarded
@@ -2115,6 +2118,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      */
     private void releaseReplacedTestersConnection()
     {
+        rowCountChecker.discardBaseline();
         if (!reusableConnectionHolder.isResolved())
         {
             return;
