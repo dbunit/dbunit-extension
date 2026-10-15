@@ -108,6 +108,87 @@ class DefaultPrepAndExpectedTestCaseTest
     }
 
     @Test
+    void testConfigureTestVerifyingEveryExpectedTable_plainInstance_verifiesEachTableOfTheExpectedDataset()
+            throws Exception
+    {
+        final String[] expectedTableNames =
+                dataFileLoader.load(EXP_DATA_FILE_NAME).getTableNames();
+
+        final boolean configured = tc.configureTestVerifyingEveryExpectedTable(
+                new String[] {PREP_DATA_FILE_NAME}, new String[] {EXP_DATA_FILE_NAME});
+
+        assertThat(configured).as("A plain instance configures itself.").isTrue();
+        assertThat(tc.getVerifyTableDefs()).extracting(VerifyTableDefinition::getTableName)
+                .as("One default definition per table of the expected dataset it loaded.")
+                .containsExactly(expectedTableNames);
+        Assertion.assertEquals(dataFileLoader.load(PREP_DATA_FILE_NAME), tc.getPrepDataset());
+        Assertion.assertEquals(dataFileLoader.load(EXP_DATA_FILE_NAME),
+                tc.getExpectedDataset());
+    }
+
+    @Test
+    void testConfigureTestVerifyingEveryExpectedTable_subclassOverridingConfigureTest_configuresNothingAndReportsFalse()
+            throws Exception
+    {
+        final DefaultPrepAndExpectedTestCase subclass =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester)
+                {
+                    @Override
+                    public void configureTest(final VerifyTableDefinition[] verifyTables,
+                            final String[] prepDataFiles, final String[] expectedDataFiles)
+                            throws Exception
+                    {
+                        super.configureTest(verifyTables, prepDataFiles, expectedDataFiles);
+                    }
+                };
+
+        final boolean configured = subclass.configureTestVerifyingEveryExpectedTable(
+                new String[] {PREP_DATA_FILE_NAME}, new String[] {EXP_DATA_FILE_NAME});
+
+        assertThat(configured)
+                .as("A subclass that overrides configureTest() may expect the definitions it is"
+                        + " given, so it leaves deriving them to the caller.")
+                .isFalse();
+        assertThat(subclass.getVerifyTableDefs()).as("Nothing was configured.").isEmpty();
+    }
+
+    @Test
+    void testConfigureTestVerifyingEveryExpectedTable_subclassKeepingConfigureTest_verifiesEachTableOfTheExpectedDataset()
+            throws Exception
+    {
+        final DefaultPrepAndExpectedTestCase subclass =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester)
+                {
+                };
+
+        final boolean configured = subclass.configureTestVerifyingEveryExpectedTable(
+                new String[] {PREP_DATA_FILE_NAME}, new String[] {EXP_DATA_FILE_NAME});
+
+        assertThat(configured)
+                .as("A subclass that keeps this class's configureTest(), for example one that"
+                        + " only overrides compareData(), parses each expected file once too.")
+                .isTrue();
+        assertThat(subclass.getVerifyTableDefs())
+                .as("One definition per table of the expected dataset.")
+                .hasSize(subclass.getExpectedDataset().getTableNames().length);
+    }
+
+    @Test
+    void testConfigureTestVerifyingEveryExpectedTable_expectedFileMissing_releasesTheConnectionItAcquired()
+            throws Exception
+    {
+        assertThatThrownBy(() -> tc.configureTestVerifyingEveryExpectedTable(
+                new String[] {PREP_DATA_FILE_NAME}, new String[] {MISSING_DATA_FILE_NAME}))
+                        .as("A missing expected data file must fail the configuration.")
+                        .isInstanceOf(DatabaseUnitRuntimeException.class);
+
+        final MockDatabaseConnection connection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        connection.setExpectedCloseCalls(1);
+        connection.verify();
+    }
+
+    @Test
     void testConfigureTest_prepAndExpectedTestDataOverload_configuresSameStateAsArrayOverload()
             throws Exception
     {

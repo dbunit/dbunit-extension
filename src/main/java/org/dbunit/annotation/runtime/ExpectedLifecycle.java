@@ -188,12 +188,35 @@ final class ExpectedLifecycle
         ensureConfiguredTestCase();
         applySetUpOperation();
         applyTearDownOperation();
-        final VerifyTableDefinition[] verifyTableDefinitions =
-                configuration.getVerifyTableDefinitions(effectiveDataFileLoader());
-        testCase.configureTest(verifyTableDefinitions, configuration.getPrepDataFiles(),
-                configuration.getExpectedDataFiles());
+        if (!configureVerifyingEveryExpectedTable())
+        {
+            final VerifyTableDefinition[] verifyTableDefinitions =
+                    configuration.getVerifyTableDefinitions(effectiveDataFileLoader());
+            testCase.configureTest(verifyTableDefinitions, configuration.getPrepDataFiles(),
+                    configuration.getExpectedDataFiles());
+        }
         configured = true;
         testCase.preTest();
+    }
+
+    /**
+     * Lets {@link #testCase} configure itself to verify every table of the expected datasets,
+     * when the annotations declare no tables to verify: it takes the tables from the expected
+     * dataset it loads anyway, instead of this class parsing the expected files a first time
+     * just to list their tables. See
+     * {@link PrepAndExpectedTestCase#configureTestVerifyingEveryExpectedTable(String[], String[])}.
+     *
+     * @return Whether the test case configured itself; false when the annotations declare the
+     *         tables, or the test case cannot derive them, and the caller configures it.
+     */
+    private boolean configureVerifyingEveryExpectedTable() throws Exception
+    {
+        if (!configuration.derivesVerifyTableDefinitions())
+        {
+            return false;
+        }
+        return testCase.configureTestVerifyingEveryExpectedTable(
+                configuration.getPrepDataFiles(), configuration.getExpectedDataFiles());
     }
 
     /**

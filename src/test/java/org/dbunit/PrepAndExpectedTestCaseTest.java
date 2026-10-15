@@ -53,6 +53,18 @@ class PrepAndExpectedTestCaseTest
     }
 
     @Test
+    void testConfigureTestVerifyingEveryExpectedTable_notOverridden_configuresNothingAndReportsFalse()
+            throws Exception
+    {
+        assertThat(new Bare().configureTestVerifyingEveryExpectedTable(new String[0],
+                new String[] {"expected.xml"}))
+                        .as("An implementation predating the method cannot take the tables from"
+                                + " the dataset it loads, so it reports that it configured"
+                                + " nothing and the caller derives the definitions itself.")
+                        .isFalse();
+    }
+
+    @Test
     void testSetDatabaseTester_notOverridden_isNoOp()
     {
         assertThatCode(() -> new Bare().setDatabaseTester(new DefaultDatabaseTester(

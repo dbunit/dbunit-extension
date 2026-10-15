@@ -336,6 +336,21 @@ public class AnnotatedTestConfiguration
     }
 
     /**
+     * Returns whether the annotations declare no table definitions to verify, so that the
+     * default of one per table in the expected datasets applies: either derived by reading the
+     * expected datasets - see {@link #getVerifyTableDefinitions(DataFileLoader)} - or, by a
+     * binding whose {@code PrepAndExpectedTestCase} loads those datasets itself, from the
+     * dataset it has loaded, so the files are not parsed twice.
+     *
+     * @return True when the table definitions are to be derived from the expected datasets;
+     *         false when the annotations declare them, or {@link #isExpected()} is false.
+     */
+    public boolean derivesVerifyTableDefinitions()
+    {
+        return expected && verifyTableDefinitions == null;
+    }
+
+    /**
      * Returns the resolved table definitions to verify. When the annotations declare none, the
      * default is one definition per table in the expected datasets, read here with
      * {@code expectedDataLoader} rather than at resolution time: the loader that matters is the

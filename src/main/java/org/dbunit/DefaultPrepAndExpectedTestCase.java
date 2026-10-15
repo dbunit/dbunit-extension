@@ -446,6 +446,61 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     }
 
     /**
+     * {@inheritDoc}
+     * <p>
+     * Calls {@link #configureTest(VerifyTableDefinition[], String[], String[])}, then sets one
+     * default definition per table of the expected dataset it loaded, so each expected data
+     * file is parsed once. A subclass that overrides that {@code configureTest} may expect the
+     * definitions it is given, so it reports {@code false}, and the caller derives the
+     * definitions itself as for any other implementation. Fails and cleans up as
+     * {@code configureTest} does.
+     */
+    @Override
+    public boolean configureTestVerifyingEveryExpectedTable(final String[] prepDataFiles,
+            final String[] expectedDataFiles) throws Exception
+    {
+        if (isOverriddenBySubclass("configureTest", VerifyTableDefinition[].class,
+                String[].class, String[].class))
+        {
+            return false;
+        }
+
+        final boolean acquiredConnectionHere =
+                reusableConnectionHolder.peekConnection() == null;
+        configureTest(new VerifyTableDefinition[0], prepDataFiles, expectedDataFiles);
+        try
+        {
+            this.verifyTableDefs = makeDefaultVerifyTableDefinitions(expectedDataSet);
+        } catch (final Throwable t)
+        {
+            clearPerTestData();
+            if (acquiredConnectionHere)
+            {
+                closeReusableConnectionSuppressing(t);
+            }
+            throw t;
+        }
+        return true;
+    }
+
+    /**
+     * Makes one default {@link VerifyTableDefinition} per table of the dataset, for
+     * {@link #configureTestVerifyingEveryExpectedTable(String[], String[])}.
+     */
+    private VerifyTableDefinition[] makeDefaultVerifyTableDefinitions(
+            final IDataSet dataSet) throws DataSetException
+    {
+        final String[] tableNames = dataSet.getTableNames();
+        final VerifyTableDefinition[] definitions =
+                new VerifyTableDefinition[tableNames.length];
+        for (int i = 0; i < tableNames.length; i++)
+        {
+            definitions[i] = new VerifyTableDefinition(tableNames[i], (String[]) null);
+        }
+        return definitions;
+    }
+
+    /**
      * Empties the per-test data, so that a cleanupData() following a failed
      * configureTest() runs against nothing rather than against a mix of the
      * new prep data and the previous test's expected data.
@@ -1339,11 +1394,27 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      */
     private boolean isLoadTableDataFromDatabaseOverridden()
     {
+        return isOverriddenBySubclass("loadTableDataFromDatabase", String.class,
+                IDatabaseConnection.class);
+    }
+
+    /**
+     * Returns whether a subclass overrides the public method of this class with the given name
+     * and parameter types, in which case it, not this class, decides what that method does.
+     *
+     * @param methodName
+     *            The name of the method.
+     * @param parameterTypes
+     *            The parameter types of the method.
+     * @return True if a subclass overrides it.
+     */
+    private boolean isOverriddenBySubclass(final String methodName,
+            final Class<?>... parameterTypes)
+    {
         try
         {
-            final Class<?> declaringClass = getClass().getMethod(
-                    "loadTableDataFromDatabase", String.class,
-                    IDatabaseConnection.class).getDeclaringClass();
+            final Class<?> declaringClass =
+                    getClass().getMethod(methodName, parameterTypes).getDeclaringClass();
             return declaringClass != DefaultPrepAndExpectedTestCase.class;
         } catch (final NoSuchMethodException e)
         {
