@@ -44,7 +44,9 @@ import org.dbunit.annotation.DbUnitExpected;
  * {@link VerifyTableDefinitionsProvider}, it is reflectively instantiated with its no-arg
  * constructor and asked for its definitions; otherwise its {@code public static final
  * VerifyTableDefinition} fields are read directly. The same table name appearing in two
- * catalog classes is rejected rather than silently resolved by declaration order.
+ * catalog classes is rejected rather than silently resolved by declaration order. Table names
+ * are compared ignoring case - see {@link TableNameKey} - both to reject a duplicate and to
+ * select a definition, which is returned as the catalog spells its name.
  *
  * <p>Not intended for direct use by test code; this is machinery consumed by
  * {@link AnnotatedTestConfiguration}.
@@ -65,9 +67,9 @@ public class VerifyTableDefinitionCatalog
                 }
             };
 
-    private final Map<String, VerifyTableDefinition> definitionsByTableName =
+    private final Map<String, VerifyTableDefinition> definitionsByTableNameKey =
             new LinkedHashMap<>();
-    private final Map<String, Class<?>> catalogClassByTableName = new LinkedHashMap<>();
+    private final Map<String, Class<?>> catalogClassByTableNameKey = new LinkedHashMap<>();
     private final List<String> catalogClassNames = new ArrayList<>();
 
     /**
@@ -132,7 +134,8 @@ public class VerifyTableDefinitionCatalog
                     + " supplied a null VerifyTableDefinition.");
         }
         final String tableName = definition.getTableName();
-        final Class<?> existingCatalogClass = catalogClassByTableName.get(tableName);
+        final String tableNameKey = TableNameKey.of(tableName);
+        final Class<?> existingCatalogClass = catalogClassByTableNameKey.get(tableNameKey);
         if (existingCatalogClass != null)
         {
             final String message = existingCatalogClass == catalogClass
@@ -144,8 +147,8 @@ public class VerifyTableDefinitionCatalog
                             + ". Each table name must be defined in exactly one catalog class.";
             throw new IllegalStateException(message);
         }
-        definitionsByTableName.put(tableName, definition);
-        catalogClassByTableName.put(tableName, catalogClass);
+        definitionsByTableNameKey.put(tableNameKey, definition);
+        catalogClassByTableNameKey.put(tableNameKey, catalogClass);
     }
 
     private VerifyTableDefinition[] readDefinitions(final Class<?> catalogClass)
@@ -219,8 +222,8 @@ public class VerifyTableDefinitionCatalog
      * Selects the named tables' definitions, or every definition in the catalog when no names
      * are given.
      *
-     * @param tableNames The table names to select; empty selects every definition in the
-     *            catalog.
+     * @param tableNames The table names to select, compared ignoring case; empty selects every
+     *            definition in the catalog.
      * @return The selected definitions, in the order named (or catalog order, when every
      *         definition is selected).
      * @throws IllegalStateException When a named table is not present in the catalog.
@@ -229,7 +232,7 @@ public class VerifyTableDefinitionCatalog
     {
         if (tableNames.length == 0)
         {
-            return definitionsByTableName.values()
+            return definitionsByTableNameKey.values()
                     .toArray(new VerifyTableDefinition[0]);
         }
         final VerifyTableDefinition[] selected =
@@ -243,13 +246,24 @@ public class VerifyTableDefinitionCatalog
 
     private VerifyTableDefinition select(final String tableName)
     {
-        final VerifyTableDefinition definition = definitionsByTableName.get(tableName);
+        final VerifyTableDefinition definition =
+                definitionsByTableNameKey.get(TableNameKey.of(tableName));
         if (definition == null)
         {
             throw new IllegalStateException("Table '" + tableName
                     + "' not found in catalog class(es) " + catalogClassNames
-                    + ". Available table names: " + definitionsByTableName.keySet() + ".");
+                    + ". Available table names: " + availableTableNames() + ".");
         }
         return definition;
+    }
+
+    private List<String> availableTableNames()
+    {
+        final List<String> tableNames = new ArrayList<>(definitionsByTableNameKey.size());
+        for (final VerifyTableDefinition definition : definitionsByTableNameKey.values())
+        {
+            tableNames.add(definition.getTableName());
+        }
+        return tableNames;
     }
 }
