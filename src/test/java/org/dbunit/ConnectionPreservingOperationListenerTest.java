@@ -111,4 +111,55 @@ class ConnectionPreservingOperationListenerTest
         assertThat(ConnectionPreservingOperationListener
                 .unwrapsToNoOp(new DefaultOperationListener())).isFalse();
     }
+
+    @Test
+    void testUnwrapsToNoOp_noOpBehindSeveralWrappers_returnsTrue()
+    {
+        final ConnectionPreservingOperationListener wrapped =
+                new ConnectionPreservingOperationListener(
+                        new ConnectionPreservingOperationListener(
+                                IOperationListener.NO_OP_OPERATION_LISTENER),
+                        () -> protectedConnection);
+
+        assertThat(ConnectionPreservingOperationListener.unwrapsToNoOp(wrapped))
+                .as("Every layer of wrapper is looked through, not only the outermost.")
+                .isTrue();
+    }
+
+    @Test
+    void testUnwrapsToNoOp_null_returnsFalse()
+    {
+        assertThat(ConnectionPreservingOperationListener.unwrapsToNoOp(null))
+                .as("A tester with no listener at all is not marked as managed elsewhere.")
+                .isFalse();
+    }
+
+    @Test
+    void testUnwrap_severalWrappers_returnsTheInnermostDelegate()
+    {
+        final ConnectionPreservingOperationListener wrapped =
+                new ConnectionPreservingOperationListener(
+                        new ConnectionPreservingOperationListener(delegate),
+                        () -> protectedConnection);
+
+        assertThat(ConnectionPreservingOperationListener.unwrap(wrapped))
+                .as("Every layer of wrapper is peeled off, down to the listener that does the"
+                        + " work.")
+                .isSameAs(delegate);
+    }
+
+    @Test
+    void testUnwrap_notAWrapper_returnsItUnchanged()
+    {
+        assertThat(ConnectionPreservingOperationListener.unwrap(delegate))
+                .as("A listener that wraps nothing is its own innermost delegate.")
+                .isSameAs(delegate);
+    }
+
+    @Test
+    void testUnwrap_null_returnsNull()
+    {
+        assertThat(ConnectionPreservingOperationListener.unwrap(null))
+                .as("A missing listener stays missing.").isNull();
+    }
 }

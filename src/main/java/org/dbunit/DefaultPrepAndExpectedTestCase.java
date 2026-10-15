@@ -777,12 +777,8 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
             return null;
         }
 
-        IOperationListener listener = databaseTester.getOperationListener();
-        while (listener instanceof ConnectionPreservingOperationListener)
-        {
-            listener = ((ConnectionPreservingOperationListener) listener).getDelegate();
-        }
-        return listener;
+        return ConnectionPreservingOperationListener
+                .unwrap(databaseTester.getOperationListener());
     }
 
     /**
