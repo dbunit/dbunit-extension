@@ -280,6 +280,10 @@ public class DbUnitExtension implements BeforeTestExecutionCallback,
      * for a test the extension was registered on, and does nothing when
      * {@link #afterTestExecution(ExtensionContext)} already released the connection.
      *
+     * <p>It also runs after the test's {@code @AfterEach} methods, which may still use the
+     * tester of the {@link DbUnitTestCase @DbUnitTestCase} instance they inject, so it is where
+     * a tester this extension gave that instance for the test is taken off it again.
+     *
      * @param context The extension context for the test method.
      * @throws Exception If closing the connection fails.
      */
@@ -293,7 +297,13 @@ public class DbUnitExtension implements BeforeTestExecutionCallback,
             return;
         }
 
-        executor.releaseIfAfterTestDidNotRun();
+        try
+        {
+            executor.releaseIfAfterTestDidNotRun();
+        } finally
+        {
+            executor.unbindTesterFromInjectedTestCase();
+        }
     }
 
     /**
@@ -469,8 +479,8 @@ public class DbUnitExtension implements BeforeTestExecutionCallback,
             final AnnotatedTestConfiguration configuration = resolveConfiguration(context);
             final TestInstanceTesterResolver.Resolution resolution =
                     testerResolver.resolve(context, configuration);
-            executor = new AnnotatedTestExecutor(configuration, resolution.getTester(),
-                    resolution.getTestCase(), isAnnotationDriven(context));
+            executor = new AnnotatedTestExecutor(configuration, resolution,
+                    isAnnotationDriven(context));
             store.put(EXECUTOR_KEY, executor);
         }
         return executor;
