@@ -150,10 +150,7 @@ public final class TestScopedConnection
 
     /**
      * Closes the connection when {@link ConnectionOwnership#mayClose()} allows it and it is not
-     * already closed; a no-op when no connection was ever acquired. Leaves the memo in place -
-     * a single-use holder is discarded with its owner, and a reused one relies on
-     * {@code revalidateOnReacquire} to drop the now-closed connection on the next
-     * {@link #getConnection()}.
+     * already closed; a no-op when no connection was ever acquired.
      *
      * <p>When it does close, it forgets the connection too, so the next {@link #getConnection()}
      * on a reused holder acquires a fresh one. When ownership says leave it - {@code
