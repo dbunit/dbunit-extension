@@ -22,7 +22,6 @@ package org.dbunit.annotation.runtime;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -261,52 +260,38 @@ public class TestInstanceTesterResolver
     private static FieldMatch findMarkedField(final Object instance,
             final Class<? extends Annotation> marker)
     {
-        Field match = null;
-        Class<?> clazz = instance.getClass();
-        while (clazz != null && clazz != Object.class)
+        final List<Field> matches = TesterFields.findAll(instance.getClass(),
+                field -> field.isAnnotationPresent(marker));
+        if (matches.size() > 1)
         {
-            for (final Field field : clazz.getDeclaredFields())
-            {
-                if (field.isAnnotationPresent(marker))
-                {
-                    if (match != null)
-                    {
-                        throw new IllegalStateException("Multiple @" + marker.getSimpleName()
-                                + " fields found in " + instance.getClass().getName() + ".");
-                    }
-                    match = field;
-                }
-            }
-            clazz = clazz.getSuperclass();
+            throw new IllegalStateException("Multiple @" + marker.getSimpleName()
+                    + " fields found in " + instance.getClass().getName() + ".");
         }
-        if (match == null)
+        if (matches.isEmpty())
         {
             return null;
         }
+        final Field match = matches.get(0);
         match.setAccessible(true);
         return new FieldMatch(match, instance);
     }
 
     private static Field findUnmarkedTesterField(final Class<?> clazz, final Object instance)
     {
-        Field match = null;
-        for (final Field field : clazz.getDeclaredFields())
+        final List<Field> matches = TesterFields.declaredBy(clazz, TesterFields::isUnmarkedTester);
+        if (matches.size() > 1)
         {
-            if (!Modifier.isStatic(field.getModifiers())
-                    && IDatabaseTester.class.isAssignableFrom(field.getType()))
-            {
-                if (match != null)
-                {
-                    throw new IllegalStateException("Multiple IDatabaseTester fields found in "
-                            + clazz.getName() + ": '" + match.getName() + "' and '"
-                            + field.getName() + "'. Declare exactly one non-static field whose"
-                            + " type implements IDatabaseTester in "
-                            + instance.getClass().getName() + ".");
-                }
-                match = field;
-            }
+            throw new IllegalStateException("Multiple IDatabaseTester fields found in "
+                    + clazz.getName() + ": '" + matches.get(0).getName() + "' and '"
+                    + matches.get(1).getName() + "'. Declare exactly one non-static field whose"
+                    + " type implements IDatabaseTester in " + instance.getClass().getName()
+                    + ".");
         }
-        return match;
+        if (matches.isEmpty())
+        {
+            return null;
+        }
+        return matches.get(0);
     }
 
     private static IDatabaseTester readUnmarkedTesterField(final Field field,
