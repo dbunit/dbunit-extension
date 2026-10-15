@@ -35,6 +35,7 @@ import org.dbunit.database.statement.PreparedStatementFactory;
 import org.dbunit.dataset.datatype.DefaultDataTypeFactory;
 import org.dbunit.dataset.datatype.IDataTypeFactory;
 import org.dbunit.dataset.filter.IColumnFilter;
+import org.dbunit.util.CommaSeparatedValues;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -455,11 +456,7 @@ public class DatabaseConfig
         }
         else if(targetClass == String[].class)
         {
-            String[] result = propValue.split(",");
-            for (int i = 0; i < result.length; i++) {
-                result[i] = result[i].trim();
-            }
-            return result;
+            return CommaSeparatedValues.split(propValue);
         }
         else if(targetClass == Integer.class)
         {
