@@ -97,7 +97,7 @@ class ConnectionOwnershipTest
     }
 
     @Test
-    void testMayClose_readsEveryInputFreshEachCall()
+    void testMayClose_inputsChangeBetweenCalls_readsEveryInputFreshEachCall()
     {
         final boolean[] closeFlag = {false};
         final ConnectionOwnership ownership = new ConnectionOwnership(() -> closeFlag[0],

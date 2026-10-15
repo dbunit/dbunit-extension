@@ -416,7 +416,7 @@ class TestScopedConnectionTest
     }
 
     @Test
-    void testAdopt_takesOverAConnectionWithoutRunningOnAcquired()
+    void testAdopt_connectionAcquiredElsewhere_takesItOverWithoutRunningOnAcquired()
     {
         final List<IDatabaseConnection> seen = new ArrayList<>();
         final IDatabaseConnection connection = mock(IDatabaseConnection.class);
