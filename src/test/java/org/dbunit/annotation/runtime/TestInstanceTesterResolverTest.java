@@ -281,7 +281,10 @@ class TestInstanceTesterResolverTest
                                 + " whichever reflection happens to return first.")
                         .isInstanceOf(IllegalStateException.class)
                         .hasMessageContaining("Multiple @DbUnitTester fields found in")
-                        .hasMessageContaining(HasTwoMarkedTesterFields.class.getName());
+                        .hasMessageContaining(HasTwoMarkedTesterFields.class.getName())
+                        .hasMessageContaining("'HasTwoMarkedTesterFields.tester' and"
+                                + " 'HasTwoMarkedTesterFields.anotherTester'")
+                        .hasMessageEndingWith("Mark only one field @DbUnitTester.");
     }
 
     @Test
@@ -298,7 +301,9 @@ class TestInstanceTesterResolverTest
                                 + " to the subclass's.")
                         .isInstanceOf(IllegalStateException.class)
                         .hasMessageContaining("Multiple @DbUnitTester fields found in")
-                        .hasMessageContaining(SubclassWithOwnMarkedTesterField.class.getName());
+                        .hasMessageContaining(SubclassWithOwnMarkedTesterField.class.getName())
+                        .hasMessageContaining("'SubclassWithOwnMarkedTesterField.subclassTester'")
+                        .hasMessageContaining("'MarkedTesterFieldSuperclass.tester'");
     }
 
     @Test
