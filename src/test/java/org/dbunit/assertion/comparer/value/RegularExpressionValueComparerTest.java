@@ -2,6 +2,9 @@ package org.dbunit.assertion.comparer.value;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 import java.util.regex.PatternSyntaxException;
 
@@ -335,6 +338,32 @@ class RegularExpressionValueComparerTest
         assertThat(actual).as(
                 "A numeric actual value converted to a string should not match a letters-only pattern.")
                 .isFalse();
+    }
+
+    @Test
+    void testIsExpected_SameRegexForTwoRows_BothMatch() throws DatabaseUnitException
+    {
+        final boolean firstRow = isExpected("[0-9]{4}", "2026");
+        final boolean secondRow = isExpected("[0-9]{4}", "1999");
+
+        assertThat(firstRow && secondRow)
+                .as("The expression a column holds in every row must match in each of them.")
+                .isTrue();
+    }
+
+    @Test
+    void testIsExpected_SameRegexForTwoRows_AsksTheCacheForItEachTime()
+            throws DatabaseUnitException
+    {
+        final CompiledPatternCache cache = spy(new CompiledPatternCache(4));
+        final RegularExpressionValueComparer withCache = new RegularExpressionValueComparer(cache);
+
+        withCache.isExpected(expectedTable, actualTable, rowNum, columnName, dataType, "[0-9]+",
+                "12");
+        withCache.isExpected(expectedTable, actualTable, rowNum + 1, columnName, dataType,
+                "[0-9]+", "34");
+
+        verify(cache, times(2)).get("[0-9]+");
     }
 
     @Test
