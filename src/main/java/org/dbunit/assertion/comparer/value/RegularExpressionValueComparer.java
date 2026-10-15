@@ -41,6 +41,11 @@ import org.slf4j.LoggerFactory;
  * they do not.
  *
  * <p>
+ * Each regular expression is compiled once and reused for every cell that holds
+ * it, so a column holding the same expression in every row does not compile it
+ * for each row. An instance is safe to share between threads.
+ *
+ * <p>
  * This comparer adds no dependency beyond {@code java.util.regex}, so it is also
  * available as {@link ValueComparers#regularExpressionValueComparer}.
  *
@@ -50,6 +55,28 @@ import org.slf4j.LoggerFactory;
 public class RegularExpressionValueComparer extends ValueComparerTemplateBase
 {
     private final Logger log = LoggerFactory.getLogger(getClass());
+
+    /**
+     * The most expressions held compiled at once: a comparison normally has one per column
+     * it compares this way.
+     */
+    private static final int MAX_CACHED_PATTERNS = 64;
+
+    private final CompiledPatternCache patterns;
+
+    /**
+     * Creates a comparer that compiles each regular expression it is given once, not for
+     * every cell compared.
+     */
+    public RegularExpressionValueComparer()
+    {
+        this(new CompiledPatternCache(MAX_CACHED_PATTERNS));
+    }
+
+    RegularExpressionValueComparer(final CompiledPatternCache patterns)
+    {
+        this.patterns = patterns;
+    }
 
     @Override
     protected boolean isExpected(final ITable expectedTable,
@@ -114,18 +141,18 @@ public class RegularExpressionValueComparer extends ValueComparerTemplateBase
     }
 
     /**
-     * Compiles the expected value into a {@link Pattern}, turning an invalid
-     * expression into a {@link DatabaseUnitException} identifying the row and
-     * column, consistent with how
-     * {@link IsActualEqualToExpectedJsonValueComparer} reports an unparseable
-     * expected value.
+     * Compiles the expected value into a {@link Pattern}, reusing the one already
+     * compiled for the same expression, and turning an invalid expression into a
+     * {@link DatabaseUnitException} identifying the row and column, consistent
+     * with how {@link IsActualEqualToExpectedJsonValueComparer} reports an
+     * unparseable expected value.
      */
     private Pattern compilePattern(final int rowNum, final String columnName,
             final String regex) throws DatabaseUnitException
     {
         try
         {
-            return Pattern.compile(regex);
+            return patterns.get(regex);
         } catch (final PatternSyntaxException e)
         {
             final String message = String.format(
