@@ -1515,8 +1515,8 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
                 expectedTable.getTableMetaData();
 
         final Column[] actualTableColumns = actualTableMetaData.getColumns();
-        final Column[] expectedTableColumns = makeExpectedTableColumns(
-                actualTableColumns, expectedTableMetaData);
+        final Column[] expectedTableColumns = columnsNamedIn(actualTableColumns,
+                expectedTableMetaData.getColumns());
         final String tableName = actualTableMetaData.getTableName();
         final boolean sortKeysDiffer = !sortOnFilteredColumnsOnly
                 && expectedTableColumns.length < actualTableColumns.length;
@@ -1666,8 +1666,8 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
                     expectedTable.getTableMetaData();
             final Column[] actualTableColumns =
                     actualTableMetaData.getColumns();
-            final Column[] expectedTableColumns = makeExpectedTableColumns(
-                    actualTableColumns, expectedTableMetaData);
+            final Column[] expectedTableColumns = columnsNamedIn(actualTableColumns,
+                    expectedTableMetaData.getColumns());
             final String tableName = actualTableMetaData.getTableName();
 
             final Column[] actualSortColumns = filterColumns(
@@ -1827,35 +1827,16 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     }
 
     /**
-     * Make the expected table's columns from the actual table's column
-     * definitions, so the expected data is sorted and compared the same way as
-     * the actual data whichever types and column order its source declared.
-     * With no expected columns, none are made.
-     *
-     * @throws DataSetException If the expected table's columns cannot be retrieved.
-     */
-    private Column[] makeExpectedTableColumns(final Column[] actualColumns,
-            final ITableMetaData expectedTableMetaData) throws DataSetException
-    {
-        final Column[] expectedColumns = expectedTableMetaData.getColumns();
-        return makeExpectedTableColumns(actualColumns, expectedColumns);
-    }
-
-    /**
-     * Make expected Column[] from actual table column definitions so expected
-     * data comparisons use data types from database (and expected data columns
-     * handled same as actual data in comparisons). Don't include columns from
-     * actual that are not in expected.
-     */
-    private Column[] makeExpectedTableColumns(final Column[] actualColumns,
-            final Column[] expectedColumns)
-    {
-        return columnsNamedIn(actualColumns, expectedColumns);
-    }
-
-    /**
      * Keeps the columns whose name, without regard to case, is also the name of
      * one of the given other columns.
+     *
+     * <p>
+     * Used to make the expected table's columns from the actual table's column
+     * definitions, so the expected data is sorted and compared the same way as
+     * the actual data - with the data types and column order of the database -
+     * whichever types and order its source declared. Columns of the actual table
+     * that the expected table does not have are left out, and with no expected
+     * columns none are kept.
      *
      * @param columns
      *            The columns to keep from.
