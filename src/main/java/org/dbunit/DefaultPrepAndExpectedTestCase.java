@@ -689,13 +689,8 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
                 // no-op: see makeConnectionPreservingOperationListener()
             }
 
-            @Override
-            public void operationTearDownFinished(
-                    final IDatabaseConnection connection)
-            {
-                // no-op: see makeConnectionPreservingOperationListener()
-            }
-        };
+        return ConnectionPreservingOperationListener
+                .unwrap(databaseTester.getOperationListener());
     }
 
     /**
