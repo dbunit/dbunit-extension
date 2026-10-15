@@ -420,7 +420,7 @@ class RegularExpressionValueComparerTest
     }
 
     @Test
-    void testGetFailPhrase_ReturnsNonNullPhrase()
+    void testGetFailPhrase_NoArguments_ReturnsNonNullPhrase()
     {
         final String actual = sut.getFailPhrase();
 
