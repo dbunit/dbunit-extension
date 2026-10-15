@@ -429,6 +429,54 @@ class RowCountCheckerTest
     }
 
     @Test
+    void testVerify_baselineCapturedAndVerifyPasses_discardsTheSpentBaseline() throws Exception
+    {
+        final RowCountChecker checker = new RowCountChecker();
+        final RowCountCheck mockRowCountCheck = mock(RowCountCheck.class);
+        checker.setRowCountCheck(mockRowCountCheck);
+        final IDatabaseConnection connection = mock(IDatabaseConnection.class);
+        final RowCountSnapshot snapshot =
+                new RowCountSnapshot(Collections.singletonMap("ACCOUNT", 5));
+        when(mockRowCountCheck.capture(connection)).thenReturn(snapshot);
+        checker.capture(connection);
+
+        checker.verify(connection);
+        checker.verify(connection);
+
+        assertThat(checker.hasBaseline())
+                .as("A verified baseline is spent: a later lifecycle that never captures one of"
+                        + " its own must not verify against it.")
+                .isFalse();
+        verify(mockRowCountCheck, times(1)).verify(snapshot, connection);
+    }
+
+    @Test
+    void testVerify_baselineCapturedAndRowCountCheckThrows_discardsTheSpentBaseline()
+            throws Exception
+    {
+        final RowCountChecker checker = new RowCountChecker();
+        final RowCountCheck mockRowCountCheck = mock(RowCountCheck.class);
+        checker.setRowCountCheck(mockRowCountCheck);
+        final IDatabaseConnection connection = mock(IDatabaseConnection.class);
+        final RowCountSnapshot snapshot =
+                new RowCountSnapshot(Collections.singletonMap("ACCOUNT", 5));
+        when(mockRowCountCheck.capture(connection)).thenReturn(snapshot);
+        checker.capture(connection);
+        final UnexpectedRowCountException failure = new UnexpectedRowCountException(
+                Collections.singletonList(new RowCountDifference("ACCOUNT", 5, 8)));
+        doThrow(failure).when(mockRowCountCheck).verify(snapshot, connection);
+
+        assertThatThrownBy(() -> checker.verify(connection))
+                .as("The difference verify() found is still reported.")
+                .isSameAs(failure);
+
+        assertThat(checker.hasBaseline())
+                .as("A baseline that failed its verify is spent too: reporting the difference"
+                        + " once is enough, and a later lifecycle must not report it again.")
+                .isFalse();
+    }
+
+    @Test
     void testDiscardBaseline_afterCapture_verifyBecomesNoOp() throws Exception
     {
         final RowCountChecker checker = new RowCountChecker();

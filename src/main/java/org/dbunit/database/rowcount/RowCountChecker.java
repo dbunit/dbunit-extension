@@ -85,10 +85,13 @@ public class RowCountChecker
     }
 
     /**
-     * Verifies the captured baseline against the given connection's current row counts.
-     * A no-op that never queries the connection when no baseline was captured - the check
-     * is disabled, {@link #capture(IDatabaseConnection)} was never called, or
-     * {@link #discardBaseline()} was.
+     * Verifies the captured baseline against the given connection's current row counts, then
+     * discards it, whether the verification passed or failed: a baseline is good for one
+     * verification, so a later lifecycle on this instance that never captures one of its own is
+     * not compared against the counts of the test before it. A no-op that never queries the
+     * connection when no baseline was captured - the check is disabled,
+     * {@link #capture(IDatabaseConnection)} was never called, or {@link #discardBaseline()}
+     * was, or an earlier {@code verify} already used it.
      *
      * @param connection the connection to read the current row counts from.
      * @throws DatabaseUnitException if enumerating or filtering the tables fails, or if any
@@ -103,7 +106,13 @@ public class RowCountChecker
         {
             return;
         }
-        resolve(connection).verify(baseline, connection);
+        try
+        {
+            resolve(connection).verify(baseline, connection);
+        } finally
+        {
+            baseline = null;
+        }
     }
 
     /**
@@ -121,7 +130,8 @@ public class RowCountChecker
      * entirely - without needing one just to ask.
      *
      * @return {@code true} when a baseline was captured and neither consumed by
-     *         {@link #discardBaseline()} nor left uncaptured because the check was disabled.
+     *         {@link #verify(IDatabaseConnection)} or {@link #discardBaseline()} nor left
+     *         uncaptured because the check was disabled.
      */
     public boolean hasBaseline()
     {
