@@ -41,7 +41,7 @@ class ExecutorOperationListenerTest
     private final IDatabaseConnection connection = mock(IDatabaseConnection.class);
 
     @Test
-    void testConnectionRetrieved_runsDelegateThenPropertiesThenHook()
+    void testConnectionRetrieved_activeListener_runsDelegateThenPropertiesThenHook()
     {
         final List<String> order = new ArrayList<>();
         final IOperationListener recordingDelegate = new RecordingConnectionRetrieved(order);
