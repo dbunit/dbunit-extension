@@ -3582,6 +3582,44 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
+    void testBeforeTest_expectedPathWithoutVerifySpec_parsesEachExpectedFileOnceAndVerifiesItsTables()
+            throws Exception
+    {
+        CountingFlatXmlDataFileLoader.loadedPaths.clear();
+        final AbstractDatabaseTester realTester = new AbstractDatabaseTester()
+        {
+            @Override
+            public IDatabaseConnection getConnection() throws Exception
+            {
+                return InMemoryDatabaseConnection.create("PUBLIC");
+            }
+        };
+        final DbUnitConfig config =
+                WithCountingLoaderAndExpected.class.getAnnotation(DbUnitConfig.class);
+        final DbUnitExpected expected =
+                WithCountingLoaderAndExpected.class.getAnnotation(DbUnitExpected.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration.from(
+                WithCountingLoaderAndExpected.class, config, null, null, expected, null, null);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, realTester, null);
+
+        executor.beforeTest();
+
+        assertThat(CountingFlatXmlDataFileLoader.loadedPaths)
+                .as("With no verify spec declared, the tables to verify come from the expected"
+                        + " dataset the test case loads anyway, so a file is parsed once per"
+                        + " test, not once to list its tables and again to compare.")
+                .hasSize(1);
+        final DefaultPrepAndExpectedTestCase testCase =
+                (DefaultPrepAndExpectedTestCase) executor.getPrepAndExpectedTestCase();
+        assertThat(testCase.getVerifyTableDefs())
+                .as("One default definition is still derived per table of the expected dataset.")
+                .extracting(VerifyTableDefinition::getTableName)
+                .containsExactly("ACCOUNT", "CUSTOMER");
+        executor.afterTest(true);
+    }
+
+    @Test
     void testBeforeAndAfterTest_realDefaultPrepAndExpectedTestCaseWithRowCountCheck_resolvesExactlyOneConnection()
             throws Exception
     {
@@ -3845,6 +3883,25 @@ class AnnotatedTestExecutorTest
     @DbUnitRowCountCheck
     static class WithEmptyExpectedAndRowCountCheck
     {
+    }
+
+    @DbUnitConfig(dataFileLoader = CountingFlatXmlDataFileLoader.class)
+    @DbUnitExpected("expected.xml")
+    static class WithCountingLoaderAndExpected
+    {
+    }
+
+    /** Records every path it is asked to load, to prove how often a file is parsed. */
+    public static class CountingFlatXmlDataFileLoader extends FlatXmlDataFileLoader
+    {
+        static final List<String> loadedPaths = new ArrayList<>();
+
+        @Override
+        public IDataSet load(final String filename)
+        {
+            loadedPaths.add(filename);
+            return super.load(filename);
+        }
     }
 
     @DbUnitConfig(prepAndExpectedTestCase = RecordingPrepAndExpectedTestCase.class)

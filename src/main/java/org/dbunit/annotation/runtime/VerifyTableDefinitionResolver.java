@@ -187,12 +187,11 @@ final class VerifyTableDefinitionResolver
 
     /**
      * Derives one default definition per table found in {@code expectedDataFiles}, read with
-     * {@code dataFileLoader}. Parses the files a second time here, just to enumerate table
-     * names - {@code DefaultPrepAndExpectedTestCase#configureTest()} parses the same files
-     * again later for the real verification. Left as-is: avoiding the second parse needs a real
-     * change to the boundary between resolving a configuration and the
-     * {@code PrepAndExpectedTestCase} that consumes it, not a small tweak - not worth it for
-     * what is normally a small test fixture file.
+     * {@code dataFileLoader}. Parses the files here, just to enumerate table names, for a
+     * {@code PrepAndExpectedTestCase} that cannot derive them from the expected dataset it
+     * loads itself - see
+     * {@code PrepAndExpectedTestCase#configureTestVerifyingEveryExpectedTable(String[], String[])};
+     * its {@code configureTest()} parses the same files again for the real verification.
      *
      * <p>Takes the loader as an argument because it must be the one that test case compares the
      * files with, which can differ from the {@code @DbUnitConfig} one when the test case is
