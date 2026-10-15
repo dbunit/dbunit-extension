@@ -32,6 +32,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import org.dbunit.DatabaseTesterFactory;
 import org.dbunit.IDatabaseTester;
 import org.dbunit.IOperationListener;
 import org.dbunit.PrepAndExpectedTestCase;
@@ -360,7 +361,7 @@ class DbUnitExtensionLifecycleTest
                 .testEvents()
                 .assertStatistics(stats -> stats.started(1).succeeded(1));
 
-        assertThat(TesterSyncSample.testCase.databaseTester)
+        assertThat(TesterSyncSample.testCase.databaseTesterAtPreTest)
                 .as("A @DbUnitTestCase-injected PrepAndExpectedTestCase overriding"
                         + " getDatabaseTester()/setDatabaseTester() - not just"
                         + " DefaultPrepAndExpectedTestCase - must be wired to the exact same"
@@ -369,6 +370,34 @@ class DbUnitExtensionLifecycleTest
                         + " @DbUnitSetup/@DbUnitTearDown operations set on the resolved tester"
                         + " would silently not reach what this test case actually runs.")
                 .isSameAs(TesterSyncSample.databaseTesterInstance);
+    }
+
+    @Test
+    void testBeforeTestExecution_sharedTestCaseWithoutTesterAndDifferentFactories_eachTestRunsOnItsOwnFactorysTester()
+    {
+        SharedTestCaseState.testCase = new TesterSyncingPrepAndExpectedTestCase();
+        SharedTestCaseState.testerSeenByFirst = null;
+        SharedTestCaseState.testerSeenBySecond = null;
+
+        EngineTestKit.engine("junit-jupiter")
+                .selectors(selectClass(FirstFactorySample.class),
+                        selectClass(SecondFactorySample.class))
+                .execute()
+                .testEvents()
+                .assertStatistics(stats -> stats.started(2).succeeded(2));
+
+        assertThat(SharedTestCaseState.testerSeenByFirst)
+                .as("The first test class's factory supplies the tester its test case runs on.")
+                .isSameAs(FirstTesterFactory.tester);
+        assertThat(SharedTestCaseState.testerSeenBySecond)
+                .as("A test case shared with an earlier test class, built without a tester, is"
+                        + " given the tester of this test class's own factory, not left holding"
+                        + " the earlier one's.")
+                .isSameAs(SecondTesterFactory.tester);
+        assertThat(SharedTestCaseState.testCase.databaseTester)
+                .as("The tester a test case was only given for one test is taken off it again"
+                        + " when the test ends.")
+                .isNull();
     }
 
     @Test
@@ -767,6 +796,66 @@ class DbUnitExtensionLifecycleTest
         }
     }
 
+    /** The test case two sample classes share, as a {@code static @DbUnitTestCase} field would. */
+    static class SharedTestCaseState
+    {
+        static TesterSyncingPrepAndExpectedTestCase testCase;
+        static IDatabaseTester testerSeenByFirst;
+        static IDatabaseTester testerSeenBySecond;
+    }
+
+    public static class FirstTesterFactory implements DatabaseTesterFactory
+    {
+        static final IDatabaseTester tester = new CallLoggingTester(new ArrayList<>());
+
+        @Override
+        public IDatabaseTester getDatabaseTester()
+        {
+            return tester;
+        }
+    }
+
+    public static class SecondTesterFactory implements DatabaseTesterFactory
+    {
+        static final IDatabaseTester tester = new CallLoggingTester(new ArrayList<>());
+
+        @Override
+        public IDatabaseTester getDatabaseTester()
+        {
+            return tester;
+        }
+    }
+
+    @DbUnitTest
+    @DbUnitConfig(databaseTesterFactory = FirstTesterFactory.class)
+    static class FirstFactorySample
+    {
+        @DbUnitTestCase
+        PrepAndExpectedTestCase injected = SharedTestCaseState.testCase;
+
+        @Test
+        void testRecordsTheTesterTheSharedTestCaseHolds()
+        {
+            SharedTestCaseState.testerSeenByFirst =
+                    SharedTestCaseState.testCase.getDatabaseTester();
+        }
+    }
+
+    @DbUnitTest
+    @DbUnitConfig(databaseTesterFactory = SecondTesterFactory.class)
+    static class SecondFactorySample
+    {
+        @DbUnitTestCase
+        PrepAndExpectedTestCase injected = SharedTestCaseState.testCase;
+
+        @Test
+        void testRecordsTheTesterTheSharedTestCaseHolds()
+        {
+            SharedTestCaseState.testerSeenBySecond =
+                    SharedTestCaseState.testCase.getDatabaseTester();
+        }
+    }
+
     @DbUnitTest
     static class FailingExpectedPathSample
     {
@@ -1014,6 +1103,16 @@ class DbUnitExtensionLifecycleTest
             extends RecordingPrepAndExpectedTestCase
     {
         IDatabaseTester databaseTester;
+        // The tester it held when preTest() ran: the extension takes a tester it only gave the
+        // test case for the test off it again afterward.
+        IDatabaseTester databaseTesterAtPreTest;
+
+        @Override
+        public void preTest()
+        {
+            databaseTesterAtPreTest = databaseTester;
+            super.preTest();
+        }
 
         @Override
         public IDatabaseTester getDatabaseTester()

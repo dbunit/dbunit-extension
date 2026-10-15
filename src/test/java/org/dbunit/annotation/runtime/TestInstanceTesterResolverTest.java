@@ -188,6 +188,67 @@ class TestInstanceTesterResolverTest
     }
 
     @Test
+    void testResolve_dbUnitTestCaseFieldWithoutTester_reportsTheTesterAsBoundToTheTestCase()
+            throws Exception
+    {
+        final IDatabaseTester fallback = mock(IDatabaseTester.class);
+        final DefaultPrepAndExpectedTestCase testCase = mock(DefaultPrepAndExpectedTestCase.class);
+        when(testCase.getDatabaseTester()).thenReturn(null, fallback);
+
+        final TestInstanceTesterResolver.Resolution resolution = TestInstanceTesterResolver
+                .resolve(instances(new HasTestCaseField(testCase)), () -> fallback);
+
+        assertThat(resolution.isTesterBoundToTestCase())
+                .as("A tester given to a test case that carried none is reported as bound to it,"
+                        + " so the executor can take it off again when the test ends.")
+                .isTrue();
+    }
+
+    @Test
+    void testResolve_dbUnitTestCaseFieldAlreadyCarryingATester_reportsNothingBound()
+            throws Exception
+    {
+        final IDatabaseTester own = mock(IDatabaseTester.class);
+        final PrepAndExpectedTestCase testCase = mock(PrepAndExpectedTestCase.class);
+        when(testCase.getDatabaseTester()).thenReturn(own);
+
+        final TestInstanceTesterResolver.Resolution resolution = TestInstanceTesterResolver
+                .resolve(instances(new HasTestCaseField(testCase)), NO_UNMARKED_TESTER);
+
+        assertThat(resolution.isTesterBoundToTestCase())
+                .as("A test case's own tester is its owner's to keep, not bound by the"
+                        + " resolution.")
+                .isFalse();
+    }
+
+    @Test
+    void testResolve_dbUnitTestCaseFieldThatNeverReportsATester_reportsNothingBound()
+            throws Exception
+    {
+        final IDatabaseTester fallback = mock(IDatabaseTester.class);
+        final PrepAndExpectedTestCase selfManaged = mock(PrepAndExpectedTestCase.class);
+
+        final TestInstanceTesterResolver.Resolution resolution = TestInstanceTesterResolver
+                .resolve(instances(new HasTestCaseField(selfManaged)), () -> fallback);
+
+        assertThat(resolution.isTesterBoundToTestCase())
+                .as("A test case that does not hand a tester back manages its own, and so has"
+                        + " nothing bound to take off again.")
+                .isFalse();
+    }
+
+    @Test
+    void testResolve_dbUnitTesterField_reportsNothingBound() throws Exception
+    {
+        final TestInstanceTesterResolver.Resolution resolution = TestInstanceTesterResolver
+                .resolve(instances(new HasTesterField(mock(IDatabaseTester.class))),
+                        NO_UNMARKED_TESTER);
+
+        assertThat(resolution.isTesterBoundToTestCase())
+                .as("There is no test case for a tester to be bound to.").isFalse();
+    }
+
+    @Test
     void testResolve_dbUnitTestCaseFieldWhoseTesterDoesNotRoundTrip_throwsIllegalStateException()
     {
         final DefaultPrepAndExpectedTestCase testCase = mock(DefaultPrepAndExpectedTestCase.class);

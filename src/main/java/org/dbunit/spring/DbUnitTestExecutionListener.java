@@ -22,8 +22,6 @@ package org.dbunit.spring;
 
 import java.util.List;
 
-import org.dbunit.IDatabaseTester;
-import org.dbunit.PrepAndExpectedTestCase;
 import org.dbunit.annotation.runtime.AnnotatedTestConfiguration;
 import org.dbunit.annotation.runtime.AnnotatedTestExecutor;
 import org.dbunit.annotation.runtime.AnnotatedTestOptIn;
@@ -188,10 +186,8 @@ public class DbUnitTestExecutionListener extends AbstractTestExecutionListener
                 AnnotatedTestConfiguration.from(testClass, lookup);
         final TestInstanceTesterResolver.Resolution resolution =
                 testerResolver.resolve(testContext, configuration);
-        final IDatabaseTester tester = resolution.getTester();
-        final PrepAndExpectedTestCase testCase = resolution.getTestCase();
         final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, testCase);
+                new AnnotatedTestExecutor(configuration, resolution, true);
         testContext.setAttribute(EXECUTOR_ATTRIBUTE, executor);
         executor.beforeTest();
     }

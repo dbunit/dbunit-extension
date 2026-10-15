@@ -469,8 +469,8 @@ public class DbUnitExtension implements BeforeTestExecutionCallback,
             final AnnotatedTestConfiguration configuration = resolveConfiguration(context);
             final TestInstanceTesterResolver.Resolution resolution =
                     testerResolver.resolve(context, configuration);
-            executor = new AnnotatedTestExecutor(configuration, resolution.getTester(),
-                    resolution.getTestCase(), isAnnotationDriven(context));
+            executor = new AnnotatedTestExecutor(configuration, resolution,
+                    isAnnotationDriven(context));
             store.put(EXECUTOR_KEY, executor);
         }
         return executor;

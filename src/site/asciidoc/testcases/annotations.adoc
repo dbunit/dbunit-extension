@@ -161,7 +161,11 @@ own - `DefaultPrepAndExpectedTestCase` does - since the extension's own
 machinery - installing the `@DbUnitProperty` listener, and any
 `IDatabaseTester` parameter injection - needs one regardless of test case
 type. For such an implementation with none set yet, the tester found this way
-is also wired onto it. Any other `PrepAndExpectedTestCase` implementation may
+is also wired onto it for that test, and taken off it again when the test's
+dbUnit lifecycle ends (under `DbUnitExtension`, before any `@AfterEach` method
+runs), so an instance shared across tests, such as a `static` field, is given
+each test's own tester rather than keeping the first. Any other
+`PrepAndExpectedTestCase` implementation may
 override those same two methods to get the same automatic wiring; one that
 does not needs `databaseTesterFactory` configured even when it manages its
 own connection internally - otherwise resolution fails with "No
