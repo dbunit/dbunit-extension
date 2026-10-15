@@ -125,6 +125,8 @@ cleanup) on a failed run, and suppressed-exception handling are all the wrapper'
  earlier one in that order fails - so every data source is verified and cleaned up, and every
  mismatch reported, instead of stopping at the first. Every collected failure is aggregated into
  one link:../apidocs/org/dbunit/MultiDataSourceAssertionError.html[MultiDataSourceAssertionError].
+ The run is over once this is called, and once `runTest` has torn it down after failing test
+ steps, so a further call, such as one in a caller's `finally` block, tears nothing down again.
 |===
 
 `MultiDataSourceAssertionError` extends `AssertionError` (not a checked exception, and not
