@@ -2724,7 +2724,7 @@ class AnnotatedTestExecutorTest
 
         final ArgumentCaptor<Properties> captor = ArgumentCaptor.forClass(Properties.class);
         verify(mockTestCase).setDatabaseConfigProperties(captor.capture());
-        assertThat(captor.getValue().getProperty("batchSize"))
+        assertThat(captor.getValue().getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE))
                 .as("@DbUnitProperty values must reach the prep/expected path's injected"
                         + " PrepAndExpectedTestCase - the setup/teardown path's"
                         + " installOperationListener() is never triggered by"
