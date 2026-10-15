@@ -657,6 +657,30 @@ class MultiDataSourcePrepAndExpectedTestCaseTest
     }
 
     @Test
+    void testPostTest_calledAfterRunTestStepsThrew_doesNotTearDownThatRunAgain() throws Exception
+    {
+        final List<String> callLog = new ArrayList<>();
+        final RecordingTestCase catalog = new RecordingTestCase("catalog", callLog);
+        final RecordingTestCase orders = new RecordingTestCase("orders", callLog);
+        final MultiDataSourcePrepAndExpectedTestCase testCase = MultiDataSourcePrepAndExpectedTestCase
+                .from("catalog", catalog).add("orders", orders);
+        final RuntimeException stepFailure = new RuntimeException("step failed");
+        assertThatThrownBy(
+                () -> testCase.runTest(map("catalog", someData(), "orders", someData()), () -> {
+                    throw stepFailure;
+                })).as("The step failure must be rethrown.").isSameAs(stepFailure);
+        callLog.clear();
+
+        testCase.postTest(false);
+
+        assertThat(callLog)
+                .as("A run whose steps threw is over once runTest(...) has torn it down, so a"
+                        + " postTest(false) in the caller's finally block must not tear its"
+                        + " delegates down a second time.")
+                .isEmpty();
+    }
+
+    @Test
     void testPostTest_secondPreTestRejectedAfterACompletedRun_doesNotTearDownTheFirstRunsDelegates()
             throws Exception
     {
