@@ -212,10 +212,30 @@ class InjectedTestCaseConfigurerTest
                 .isFalse();
         final Properties expected = new Properties();
         expected.setProperty("fetchSize", "9");
-        expected.setProperty("batchSize", "50");
+        expected.setProperty(DatabaseConfig.PROPERTY_BATCH_SIZE, "50");
         assertThat(testCase.getDatabaseConfigProperties())
                 .as("Declared properties are added to the instance's own, not substituted for"
                         + " them.")
+                .isEqualTo(expected);
+    }
+
+    @Test
+    void testApplyAll_instanceOwnsTheDeclaredPropertyUnderItsShortName_declaredValueReplacesIt()
+    {
+        final DefaultPrepAndExpectedTestCase testCase = newInstanceWithOwnSettings();
+        final Properties ownProperties = testCase.getDatabaseConfigProperties();
+        ownProperties.setProperty("batchSize", "7");
+        testCase.setDatabaseConfigProperties(ownProperties);
+
+        new InjectedTestCaseConfigurer(configFrom(OnlyProperties.class), testCase).applyAll();
+
+        final Properties expected = new Properties();
+        expected.setProperty("fetchSize", "9");
+        expected.setProperty(DatabaseConfig.PROPERTY_BATCH_SIZE, "50");
+        assertThat(testCase.getDatabaseConfigProperties())
+                .as("The declared batch size replaces the instance's own, whichever form of the"
+                        + " name each is spelled in; both left in, which one wins would depend on"
+                        + " the order a Properties happens to be iterated in.")
                 .isEqualTo(expected);
     }
 

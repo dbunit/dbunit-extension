@@ -418,13 +418,7 @@ public class DatabaseConfig
             String propKey = (String)entry.getKey();
             String propValue = (String)entry.getValue();
 
-            ConfigProperty dbunitProp = DatabaseConfig.findByName(propKey);
-            if(dbunitProp == null)
-            {
-                logger.debug("Did not find long name property {} - trying short name...", entry);
-                dbunitProp = DatabaseConfig.findByShortName(propKey);
-            }
-
+            ConfigProperty dbunitProp = DatabaseConfig.findByNameOrShortName(propKey);
             if(dbunitProp == null)
             {
                 logger.info("Could not set property '{}' - not found in the list of known properties.", entry);
@@ -540,6 +534,27 @@ public class DatabaseConfig
         logger.info("The property ending with '" + propShortName + "' was not found. " +
                 "Please notify a dbunit developer to add the property to the " + DatabaseConfig.class);
         return null;
+    }
+
+    /**
+     * Searches the {@link ConfigProperty} object for the property with the given name, in its
+     * long form or a short form - see {@link #findByName(String)} and
+     * {@link #findByShortName(String)} - the way {@link #setPropertiesByString(Properties)}
+     * resolves each name it is given.
+     *
+     * @param name The long or short name of the property.
+     * @return The property object, or {@code null} if no property has that name.
+     * @since 3.6.0
+     */
+    public static ConfigProperty findByNameOrShortName(final String name)
+    {
+        final ConfigProperty byName = findByName(name);
+        if (byName != null)
+        {
+            return byName;
+        }
+        logger.debug("Did not find long name property {} - trying short name...", name);
+        return findByShortName(name);
     }
 
     public String toString()

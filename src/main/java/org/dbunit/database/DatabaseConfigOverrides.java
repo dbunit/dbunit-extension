@@ -116,11 +116,7 @@ public class DatabaseConfigOverrides
     private void rememberReplacedValue(final DatabaseConfig config, final String name,
             final Map<String, Object> replacedByName)
     {
-        ConfigProperty known = DatabaseConfig.findByName(name);
-        if (known == null)
-        {
-            known = DatabaseConfig.findByShortName(name);
-        }
+        final ConfigProperty known = DatabaseConfig.findByNameOrShortName(name);
         if (known == null)
         {
             return;

@@ -22,6 +22,7 @@ package org.dbunit.annotation.runtime;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.function.Supplier;
 
@@ -29,6 +30,7 @@ import org.dbunit.DefaultPrepAndExpectedTestCase;
 import org.dbunit.PrepAndExpectedTestCase;
 import org.dbunit.assertion.FailureHandler;
 import org.dbunit.database.DatabaseConfig;
+import org.dbunit.database.DatabaseConfig.ConfigProperty;
 import org.dbunit.util.fileloader.DataFileLoader;
 import org.dbunit.util.fileloader.FileExtensionDataFileLoader;
 import org.slf4j.Logger;
@@ -202,11 +204,33 @@ final class InjectedTestCaseConfigurer
         final Properties merged = new Properties();
         if (incoming != null)
         {
-            merged.putAll(incoming);
+            for (final Map.Entry<Object, Object> own : incoming.entrySet())
+            {
+                if (!isReplacedByDeclared(own.getKey(), properties))
+                {
+                    merged.put(own.getKey(), own.getValue());
+                }
+            }
         }
         merged.putAll(properties);
         testCase.setDatabaseConfigProperties(merged);
         undoSteps.add(() -> testCase.setDatabaseConfigProperties(incoming));
+    }
+
+    /**
+     * Returns whether {@code ownName}, a property name of the instance's own, names a property
+     * {@code declared} also holds. The declared names are the long ones, and the instance's own
+     * may be spelled in the short form, so leaving both in would have which value wins depend
+     * on the order a {@link Properties} happens to be iterated in.
+     */
+    private static boolean isReplacedByDeclared(final Object ownName, final Properties declared)
+    {
+        if (!(ownName instanceof String))
+        {
+            return false;
+        }
+        final ConfigProperty known = DatabaseConfig.findByNameOrShortName((String) ownName);
+        return known != null && declared.containsKey(known.getProperty());
     }
 
     private void applyCloseConnectionAfterTest(final List<Runnable> undoSteps)
