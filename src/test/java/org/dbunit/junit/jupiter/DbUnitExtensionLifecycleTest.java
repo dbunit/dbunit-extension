@@ -223,7 +223,7 @@ class DbUnitExtensionLifecycleTest
     }
 
     @Test
-    void testBeforeTestExecution_methodPrepOverridesComposedClassLevelPrep() throws Exception
+    void testBeforeTestExecution_methodPrepOnComposedClassLevelPrep_methodPrepOverridesIt() throws Exception
     {
         final CallLoggingTester tester = new CallLoggingTester(new ArrayList<>());
         MethodPrepOverridesComposedPrepSample.tester = tester;
