@@ -495,7 +495,7 @@ class RowCountCheckerTest
     }
 
     @Test
-    void testCaptureThenVerify_bothReuseTheSameResolvedRowCountCheck() throws Exception
+    void testCaptureThenVerify_enabledConfigOnConnection_bothReuseTheSameResolvedRowCountCheck() throws Exception
     {
         final RowCountChecker checker = new RowCountChecker();
         final DatabaseConfig config = new DatabaseConfig();
