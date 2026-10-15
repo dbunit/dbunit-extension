@@ -97,10 +97,12 @@ The setup/teardown path's reach is deliberately wide: `@DbUnitPrep`/
 `IDatabaseTester` implementation - built-in or a project's own. A project's
 own implementation should override `getOperationListener()` (returning the
 value `setOperationListener()` was last given, the way `AbstractDatabaseTester`
-does) so the extension wraps that listener rather than replacing it with a
-fresh closing one - relevant when the tester relies on a non-closing listener
-to protect a shared connection. The prep/expected path is narrower, but by
-necessity rather than omission:
+does) so the extension can wrap that listener for the test and put it back
+afterward. One that does not has its listener left exactly as configured - a
+non-closing listener protecting a shared connection stays in force - but the
+`@DbUnitProperty` values then reach only the connection the extension resolves
+itself, not one the tester's own `onSetup()` retrieves. The prep/expected path
+is narrower, but by necessity rather than omission:
 expected-data verification is the entire reason `@DbUnitExpected` exists, and
 it is a capability `IDatabaseTester` does not have at all -
 `PrepAndExpectedTestCase` is the only dbUnit interface that defines it, so it

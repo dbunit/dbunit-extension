@@ -70,7 +70,7 @@ final class AnnotatedRowCountCheck
     private final AnnotatedTestConfiguration configuration;
     private final IDatabaseTester tester;
     private final TestScopedConnection connection;
-    private final boolean annotationDriven;
+    private final boolean operationListenerInstalled;
     private final RowCountChecker checker = new RowCountChecker();
 
     private boolean baselineAttempted;
@@ -81,17 +81,18 @@ final class AnnotatedRowCountCheck
      * @param configuration The resolved configuration.
      * @param tester The tester being driven.
      * @param connection The shared per-test connection holder.
-     * @param annotationDriven Whether the test opted into the {@code org.dbunit.annotation}
-     *            family - false on the classic path, which never piggybacks.
+     * @param operationListenerInstalled Whether an {@link ExecutorOperationListener} is installed
+     *            on the tester for this test - false on the classic path, and for a tester that
+     *            cannot report its listener, where there is nothing to piggyback on.
      */
     AnnotatedRowCountCheck(final AnnotatedTestConfiguration configuration,
             final IDatabaseTester tester, final TestScopedConnection connection,
-            final boolean annotationDriven)
+            final boolean operationListenerInstalled)
     {
         this.configuration = configuration;
         this.tester = tester;
         this.connection = connection;
-        this.annotationDriven = annotationDriven;
+        this.operationListenerInstalled = operationListenerInstalled;
     }
 
     /**
@@ -102,9 +103,10 @@ final class AnnotatedRowCountCheck
      * {@link #captureBaselineEagerly()} resolving a separate one just to find out whether the
      * check is even enabled.
      *
-     * <p>True only when this is provably safe: the test is {@code annotationDriven}, so an
-     * {@link ExecutorOperationListener} is actually installed to piggyback on; {@code tester} is
-     * dbUnit's own {@link AbstractDatabaseTester} <em>and does not override {@code onSetup()}</em>,
+     * <p>True only when this is provably safe: an {@link ExecutorOperationListener} is actually
+     * installed on the tester to piggyback on (an annotation-driven test, whose tester reports
+     * its listener); {@code tester} is dbUnit's own {@link AbstractDatabaseTester}
+     * <em>and does not override {@code onSetup()}</em>,
      * so {@code executeOperation()} - known by reading its source, not by assuming it - runs and
      * calls {@code getConnection()} and notifies the listener <em>before</em> the operation
      * touches any data, whenever the operation is not {@link DatabaseOperation#NONE}; and no
@@ -125,7 +127,7 @@ final class AnnotatedRowCountCheck
      */
     boolean canPiggybackBaselineOn(final DatabaseOperation resolvedSetUpOperation)
     {
-        return annotationDriven && !connection.isResolved()
+        return operationListenerInstalled && !connection.isResolved()
                 && tester instanceof AbstractDatabaseTester && !testerOverridesOnSetup()
                 && resolvedSetUpOperation != DatabaseOperation.NONE;
     }
