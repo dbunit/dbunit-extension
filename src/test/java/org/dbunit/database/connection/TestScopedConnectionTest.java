@@ -102,6 +102,74 @@ class TestScopedConnectionTest
     }
 
     @Test
+    void testGetConnection_jdbcConnectionUnreadableAtAcquisition_keepsReturningTheSameConnection()
+            throws Exception
+    {
+        // A DatabaseDataSourceConnection whose pool timed out when asked for its JDBC connection:
+        // the wrapper itself is fine and checks one out again when it is next used.
+        final List<IDatabaseConnection> acquired = new ArrayList<>();
+        final TestScopedConnection holder = new TestScopedConnection(() ->
+        {
+            final IDatabaseConnection connection = mock(IDatabaseConnection.class);
+            when(connection.getConnection()).thenThrow(new SQLException("pool timeout"));
+            acquired.add(connection);
+            return connection;
+        }, alwaysMayClose, null);
+
+        final IDatabaseConnection first = holder.getConnection();
+        final IDatabaseConnection second = holder.getConnection();
+        holder.release();
+
+        assertThat(second)
+                .as("A connection whose state cannot be checked is kept for the whole test, not"
+                        + " replaced on every call, which would leave each one before it"
+                        + " unclosed.")
+                .isSameAs(first);
+        assertThat(acquired).as("The source is asked once.").hasSize(1);
+        verify(first).close();
+    }
+
+    @Test
+    void testGetConnection_connectionHasNoJdbcConnection_keepsReturningTheSameConnection()
+            throws Exception
+    {
+        final List<IDatabaseConnection> acquired = new ArrayList<>();
+        final TestScopedConnection holder = new TestScopedConnection(() ->
+        {
+            final IDatabaseConnection connection = mock(IDatabaseConnection.class);
+            when(connection.getConnection()).thenReturn(null);
+            acquired.add(connection);
+            return connection;
+        }, alwaysMayClose, null);
+
+        final IDatabaseConnection first = holder.getConnection();
+        final IDatabaseConnection second = holder.getConnection();
+
+        assertThat(second)
+                .as("A connection with no JDBC connection to check is kept for the whole test.")
+                .isSameAs(first);
+        assertThat(acquired).as("The source is asked once.").hasSize(1);
+    }
+
+    @Test
+    void testGetConnection_isClosedCheckThrows_dropsItAndReacquires() throws Exception
+    {
+        final IDatabaseConnection broken = mock(IDatabaseConnection.class);
+        final Connection brokenJdbc = mock(Connection.class);
+        when(broken.getConnection()).thenReturn(brokenJdbc);
+        when(brokenJdbc.isClosed()).thenThrow(new SQLException("connection lost"));
+        final IDatabaseConnection fresh = openConnection();
+        final List<IDatabaseConnection> toReturn = new ArrayList<>(Arrays.asList(broken, fresh));
+        final TestScopedConnection holder =
+                new TestScopedConnection(() -> toReturn.remove(0), alwaysMayClose, null);
+
+        assertThat(holder.getConnection()).as("First acquisition.").isSameAs(broken);
+        assertThat(holder.getConnection())
+                .as("A connection that can no longer report whether it is closed is replaced.")
+                .isSameAs(fresh);
+    }
+
+    @Test
     void testGetConnection_onAcquiredHook_runsOncePerAcquiredConnectionNotForNull()
             throws Exception
     {
