@@ -68,19 +68,20 @@ final class SetupTeardownLifecycle
      * @param configuration The resolved configuration.
      * @param tester The tester to drive.
      * @param connection The shared per-test connection holder.
-     * @param annotationDriven Whether the test opted into the {@code org.dbunit.annotation}
-     *            family - false on the classic path, which never piggybacks the row count
-     *            check baseline.
+     * @param operationListenerInstalled Whether an {@link ExecutorOperationListener} is installed
+     *            on the tester for this test - false on the classic path, and for a tester that
+     *            cannot report its listener, where there is nothing to piggyback the row count
+     *            check baseline on.
      */
     SetupTeardownLifecycle(final AnnotatedTestConfiguration configuration,
             final IDatabaseTester tester, final TestScopedConnection connection,
-            final boolean annotationDriven)
+            final boolean operationListenerInstalled)
     {
         this.configuration = configuration;
         this.tester = tester;
         this.connection = connection;
         this.rowCountCheck = new AnnotatedRowCountCheck(configuration, tester, connection,
-                annotationDriven);
+                operationListenerInstalled);
     }
 
     /**

@@ -33,6 +33,8 @@ import org.dbunit.database.connection.AutoCommitOffWarning;
 import org.dbunit.database.connection.ConnectionOwnership;
 import org.dbunit.database.connection.LeftOpenConnectionWarning;
 import org.dbunit.database.connection.TestScopedConnection;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Drives one test's dbUnit lifecycle from a resolved {@link AnnotatedTestConfiguration},
@@ -65,6 +67,17 @@ import org.dbunit.database.connection.TestScopedConnection;
  * enabling the row count check - applies to it. The prep/expected path is always
  * annotation-driven (it needs {@code @DbUnitExpected}).
  *
+ * <p>An annotation-driven test also leaves the tester's {@link IOperationListener} untouched
+ * when its tester does not report the listener it carries - an {@link IDatabaseTester} that
+ * does not override {@link IDatabaseTester#getOperationListener()}, as
+ * {@link org.dbunit.AbstractDatabaseTester} does. Wrapping a listener takes reading it, and
+ * putting it back takes comparing it, so replacing one that cannot be read would discard it for
+ * good - for example the no-op listener that says the tester's connections are managed
+ * elsewhere. Such a test takes the classic path's listener handling: the
+ * {@code @DbUnitProperty} values reach only the connection this executor resolves itself, not
+ * one the tester's own {@code onSetup()}/{@code onTearDown()} retrieves, and the connection
+ * this executor holds is not shielded from a close by the tester's own listener.
+ *
  * <p>The connection {@link #getConnection()} memoizes - the tester's own on the setup/teardown
  * path, {@link PrepAndExpectedTestCase#getReusableConnection()}'s on the prep/expected path so a
  * {@code Connection}/{@code IDatabaseConnection} parameter shares the test case's own - is used
@@ -90,6 +103,8 @@ import org.dbunit.database.connection.TestScopedConnection;
  */
 public class AnnotatedTestExecutor
 {
+    private static final Logger log = LoggerFactory.getLogger(AnnotatedTestExecutor.class);
+
     private final AnnotatedTestConfiguration configuration;
     private final IDatabaseTester tester;
     private final boolean annotationDriven;
@@ -127,7 +142,9 @@ public class AnnotatedTestExecutor
     /**
      * Creates an executor for one test.
      *
-     * <p>Mutates {@code tester} only when {@code annotationDriven} is true:
+     * <p>Mutates {@code tester}'s listener only when {@code annotationDriven} is true and
+     * {@code tester} reports the listener it carries (it overrides
+     * {@link IDatabaseTester#getOperationListener()}):
      * {@link #installOperationListener()} runs here, replacing {@code tester}'s
      * {@link IOperationListener} with an {@code ExecutorOperationListener} wrapping the previous
      * one, which {@link #afterTest(boolean)} - or {@link #releaseIfAfterTestDidNotRun()} - puts
@@ -136,8 +153,9 @@ public class AnnotatedTestExecutor
      * {@code tester} shared beyond one test class - a bean in a cached application context - is
      * left as it was found the same way, but is still not safe to share between tests running at
      * the same time: each installs its own wrapper and sets its own dataset and operations on
-     * the one tester. When {@code annotationDriven} is false - the classic path - the tester's
-     * listener is left untouched; see the class Javadoc.
+     * the one tester. When {@code annotationDriven} is false - the classic path - or
+     * {@code tester} cannot report its listener, the tester's listener is left untouched; see
+     * the class Javadoc.
      *
      * @param configuration The resolved configuration to execute.
      * @param tester The tester to drive the setup/teardown path with, or to construct a
@@ -173,12 +191,32 @@ public class AnnotatedTestExecutor
         this.leftOpenConnectionWarning = new LeftOpenConnectionWarning(ownership, () -> tester);
         this.testScopedConnection = new TestScopedConnection(this::acquireConnection, ownership,
                 this::onConnectionAcquired);
+        final boolean installsOperationListener =
+                annotationDriven && exposesOperationListener(tester);
         this.setupTeardownLifecycle = new SetupTeardownLifecycle(configuration, tester,
-                testScopedConnection, annotationDriven);
-        if (annotationDriven)
+                testScopedConnection, installsOperationListener);
+        if (installsOperationListener)
         {
             installOperationListener();
+        } else if (annotationDriven)
+        {
+            log.debug("{} does not override IDatabaseTester.getOperationListener(), so its"
+                    + " operation listener cannot be read to wrap and put back; leaving it as it"
+                    + " is.", tester.getClass().getName());
         }
+    }
+
+    /**
+     * Returns whether {@code tester} reports the listener it carries, which
+     * {@link #installOperationListener()} needs to wrap it and {@link #restoreOperationListener()}
+     * to put it back: its type overrides {@link IDatabaseTester#getOperationListener()}, whose
+     * default reports none. Replacing the listener of a tester that does not would discard the
+     * one it has, and leave the replacement on it for good.
+     */
+    private static boolean exposesOperationListener(final IDatabaseTester tester)
+    {
+        return DefaultMethodOverrideCheck.overridesDefaultMethod(tester.getClass(),
+                IDatabaseTester.class, "getOperationListener");
     }
 
     /**
@@ -341,9 +379,10 @@ public class AnnotatedTestExecutor
      * setup/teardown machinery, and so the row count check baseline can be captured from
      * whatever connection {@code onSetup()} retrieves on its own - see
      * {@link #onListenerFirstConnectionRetrieved(IDatabaseConnection)}. Called from the
-     * constructor only for an {@code annotationDriven} test; the classic path leaves the
-     * tester's listener untouched (see the class Javadoc). {@link #restoreOperationListener()}
-     * puts the tester's own listener back once the test is over.
+     * constructor only for an {@code annotationDriven} test whose tester reports its listener;
+     * the classic path, and a tester that cannot report its listener, leave it untouched (see
+     * the class Javadoc). {@link #restoreOperationListener()} puts the tester's own listener
+     * back once the test is over.
      */
     private void installOperationListener()
     {

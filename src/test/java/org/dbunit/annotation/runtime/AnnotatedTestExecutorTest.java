@@ -39,15 +39,20 @@ import static org.mockito.Mockito.when;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Deque;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 
 import org.dbunit.AbstractDatabaseTester;
 import org.dbunit.DatabaseUnitRuntimeException;
 import org.dbunit.ConnectionPreservingOperationListener;
 import org.dbunit.DefaultDatabaseTester;
+import org.dbunit.DefaultOperationListener;
 import org.dbunit.DefaultPrepAndExpectedTestCase;
 import org.dbunit.IDatabaseTester;
 import org.dbunit.IOperationListener;
@@ -97,7 +102,7 @@ import ch.qos.logback.core.read.ListAppender;
 class AnnotatedTestExecutorTest
 {
     @Mock
-    IDatabaseTester tester;
+    ListenerReportingTester tester;
 
     @Mock
     IDatabaseConnection connection;
@@ -1767,6 +1772,89 @@ class AnnotatedTestExecutorTest
         verify(tester).setOperationListener(installedListener.capture());
         installedListener.getValue().operationSetUpFinished(connection);
         verify(connection, never()).close();
+    }
+
+    // ---- a tester that cannot report its listener ----
+
+    @Test
+    void testConstructor_testerDoesNotOverrideGetOperationListener_neverReplacesItsListener()
+    {
+        final TesterNotReportingItsListener legacyTester =
+                new TesterNotReportingItsListener(() -> connection);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
+
+        new AnnotatedTestExecutor(configuration, legacyTester, null);
+
+        assertThat(legacyTester.listenersSet)
+                .as("A tester that does not override IDatabaseTester.getOperationListener()"
+                        + " cannot report the listener it carries, so the executor can neither"
+                        + " wrap it nor put it back, and must not replace it.")
+                .isEmpty();
+    }
+
+    @Test
+    void testBeforeTest_testerDoesNotOverrideGetOperationListenerAndCarriesNoOpListener_neverClosesWhatOnSetupRetrieves()
+            throws Exception
+    {
+        // A tester that hands out a connection per call and carries the no-op listener, the
+        // signal that its connections are managed elsewhere. Had the executor replaced that
+        // listener with a closing one, the connection onSetup() retrieves - a different one than
+        // the executor resolved for itself, so not shielded by identity - would be closed.
+        when(connection.getConfig()).thenReturn(new DatabaseConfig());
+        stubOpenJdbcConnection();
+        final IDatabaseConnection retrievedByOnSetup = mock(IDatabaseConnection.class);
+        final Deque<IDatabaseConnection> handedOut =
+                new ArrayDeque<>(Arrays.asList(connection, retrievedByOnSetup));
+        final TesterNotReportingItsListener legacyTester =
+                new TesterNotReportingItsListener(handedOut::remove);
+        legacyTester.setOperationListener(IOperationListener.NO_OP_OPERATION_LISTENER);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, legacyTester, null);
+
+        executor.beforeTest();
+
+        assertThat(legacyTester.onSetupCalls)
+                .as("onSetup() still runs on a tester that cannot report its listener.")
+                .isEqualTo(1);
+        verify(retrievedByOnSetup, never()).close();
+    }
+
+    @Test
+    void testBeforeAndAfterTest_testerDoesNotOverrideGetOperationListenerAndOnSetupAddsARow_capturesBaselineBeforeOnSetupAndDetectsTheLeak()
+            throws Exception
+    {
+        final DatabaseConfig enabled = new DatabaseConfig();
+        enabled.setFeature(DatabaseConfig.FEATURE_ROW_COUNT_CHECK, true);
+        when(connection.getConfig()).thenReturn(enabled);
+        final IDataSet dataSet = mock(IDataSet.class);
+        when(dataSet.getTableNames()).thenReturn(new String[] {"ACCOUNT"});
+        when(connection.createDataSet()).thenReturn(dataSet);
+        stubOpenJdbcConnection();
+        final AtomicInteger accountRows = new AtomicInteger(5);
+        when(connection.getRowCount("ACCOUNT")).thenAnswer(invocation -> accountRows.get());
+        final TesterNotReportingItsListener legacyTester =
+                new TesterNotReportingItsListener(() -> connection);
+        legacyTester.onSetupAction = () -> accountRows.set(6);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, legacyTester, null);
+
+        executor.beforeTest();
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown)
+                .as("With no listener to piggyback on, the baseline is captured eagerly before"
+                        + " onSetup() (ACCOUNT = 5), so the row onSetup() left behind"
+                        + " (ACCOUNT = 6) is caught as a leak rather than folded into the"
+                        + " baseline.")
+                .isInstanceOf(UnexpectedRowCountException.class);
+        assertThat(legacyTester.onTearDownCalls)
+                .as("onTearDown() still runs on a tester that cannot report its listener.")
+                .isEqualTo(1);
     }
 
     // ---- classic path (annotationDriven = false): the 3.5.0 lifecycle, preserved ----
@@ -3898,6 +3986,148 @@ class AnnotatedTestExecutorTest
                 final String[] prepDataFiles, final String[] expectedDataFiles)
         {
             configureTestCalled = true;
+        }
+    }
+
+    /**
+     * An {@link IDatabaseTester} type that overrides {@code getOperationListener()}, as
+     * {@link AbstractDatabaseTester} does, so a mock of it stands in for a tester that reports
+     * the listener it carries. A mock of {@link IDatabaseTester} itself does not: Mockito leaves
+     * the interface's default method where it is, so the mock's type does not override it.
+     */
+    abstract static class ListenerReportingTester implements IDatabaseTester
+    {
+        @Override
+        public abstract IOperationListener getOperationListener();
+    }
+
+    /**
+     * An {@link IDatabaseTester} written before {@code getOperationListener()} existed: it
+     * stores the listener it is given and notifies it the way
+     * {@link AbstractDatabaseTester#onSetup()} and {@code onTearDown()} do for an operation that
+     * is not {@code NONE}, but, not overriding {@code getOperationListener()}, reports none.
+     * Records every listener it is given, and runs no database operation.
+     */
+    static class TesterNotReportingItsListener implements IDatabaseTester
+    {
+        final List<IOperationListener> listenersSet = new ArrayList<>();
+        Runnable onSetupAction = () ->
+        {
+        };
+        int onSetupCalls;
+        int onTearDownCalls;
+
+        private final Supplier<IDatabaseConnection> connections;
+        private IOperationListener listener;
+        private IDataSet dataSet;
+        private DatabaseOperation setUpOperation = DatabaseOperation.CLEAN_INSERT;
+        private DatabaseOperation tearDownOperation = DatabaseOperation.NONE;
+
+        TesterNotReportingItsListener(final Supplier<IDatabaseConnection> connections)
+        {
+            this.connections = connections;
+        }
+
+        @Override
+        public void closeConnection(final IDatabaseConnection connection) throws Exception
+        {
+            connection.close();
+        }
+
+        @Override
+        public IDatabaseConnection getConnection()
+        {
+            return connections.get();
+        }
+
+        @Override
+        public IDataSet getDataSet()
+        {
+            return dataSet;
+        }
+
+        @Override
+        public DatabaseOperation getSetUpOperation()
+        {
+            return setUpOperation;
+        }
+
+        @Override
+        public DatabaseOperation getTearDownOperation()
+        {
+            return tearDownOperation;
+        }
+
+        @Override
+        public void setDataSet(final IDataSet dataSet)
+        {
+            this.dataSet = dataSet;
+        }
+
+        @Override
+        public void setSchema(final String schema)
+        {
+        }
+
+        @Override
+        public void setSetUpOperation(final DatabaseOperation setUpOperation)
+        {
+            this.setUpOperation = setUpOperation;
+        }
+
+        @Override
+        public void setTearDownOperation(final DatabaseOperation tearDownOperation)
+        {
+            this.tearDownOperation = tearDownOperation;
+        }
+
+        @Override
+        public void onSetup() throws Exception
+        {
+            onSetupCalls++;
+            onSetupAction.run();
+            runOperationNotifications(setUpOperation, true);
+        }
+
+        @Override
+        public void onTearDown() throws Exception
+        {
+            onTearDownCalls++;
+            runOperationNotifications(tearDownOperation, false);
+        }
+
+        @Override
+        public void setOperationListener(final IOperationListener operationListener)
+        {
+            listenersSet.add(operationListener);
+            listener = operationListener;
+        }
+
+        private void runOperationNotifications(final DatabaseOperation operation,
+                final boolean setUp) throws Exception
+        {
+            if (operation == DatabaseOperation.NONE)
+            {
+                return;
+            }
+            if (listener == null)
+            {
+                listener = new DefaultOperationListener();
+            }
+            final IDatabaseConnection retrieved = getConnection();
+            try
+            {
+                listener.connectionRetrieved(retrieved);
+            } finally
+            {
+                if (setUp)
+                {
+                    listener.operationSetUpFinished(retrieved);
+                } else
+                {
+                    listener.operationTearDownFinished(retrieved);
+                }
+            }
         }
     }
 

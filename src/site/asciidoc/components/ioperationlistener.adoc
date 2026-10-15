@@ -87,10 +87,13 @@ databaseTester.setOperationListener(listener);
 link:../testcases/DbUnitExtension.html[`DbUnitExtension`] on an annotation-driven test
 wraps the tester's listener for the duration of one test, then puts the tester's own
 listener back, so a tester shared across test methods carries nothing from one test to
-the next. Putting it back relies on the tester reporting its listener through
+the next. Wrapping the listener and putting it back rely on the tester reporting it through
 `getOperationListener()`, as `AbstractDatabaseTester` and the testers built on it do. A
-custom `IDatabaseTester` that does not override it reports none, so there is nothing to
-put back and the extension's wrapper stays installed.
+custom `IDatabaseTester` that does not override it reports none, so the extension leaves
+its listener exactly as configured rather than replace it with one it could not put back.
+For such a tester the `@DbUnitProperty` values reach only the connection the extension
+resolves itself, not one the tester's own `onSetup()` or `onTearDown()` retrieves, and the
+row count check baseline is captured from a connection of its own before `onSetup()`.
 
 * A listener wrapped in a `ConnectionPreservingOperationListener` keeps that wrapper in
 force: the extension adds its own protection for the one connection it holds on top of it,
