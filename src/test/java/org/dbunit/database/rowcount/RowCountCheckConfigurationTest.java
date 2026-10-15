@@ -23,6 +23,8 @@ package org.dbunit.database.rowcount;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
+import java.util.Properties;
+
 import org.dbunit.database.DatabaseConfig;
 import org.dbunit.dataset.DataSetException;
 import org.junit.jupiter.api.Test;
@@ -178,6 +180,33 @@ class RowCountCheckConfigurationTest
                 .isFalse();
         assertThat(configuration.getExcludeTableFilter().isValidName("ACCOUNT"))
                 .as("A table matching no configured pattern must not be excluded.").isTrue();
+    }
+
+    @Test
+    void testExcludeTables_sameListAsSystemPropertyAndAsStringConfiguredDatabaseConfig_excludeTheSameTables()
+            throws Exception
+    {
+        final String list = " AUDIT_* ,HIBERNATE_SEQUENCES,  TEMP_? ,";
+        final DatabaseConfig stringConfigured = new DatabaseConfig();
+        final Properties properties = new Properties();
+        properties.setProperty(DatabaseConfig.PROPERTY_ROW_COUNT_CHECK_EXCLUDE_TABLES, list);
+        stringConfigured.setPropertiesByString(properties);
+        final RowCountCheckConfiguration fromDatabaseConfig =
+                new RowCountCheckConfiguration(stringConfigured);
+        System.setProperty(RowCountCheckConfiguration.DBUNIT_ROW_COUNT_CHECK_EXCLUDE_TABLES,
+                list);
+        final RowCountCheckConfiguration fromSystemProperty =
+                new RowCountCheckConfiguration(new DatabaseConfig());
+
+        for (final String tableName : new String[] {"AUDIT_LOG", "HIBERNATE_SEQUENCES",
+                "TEMP_1", "ACCOUNT", " AUDIT_LOG"})
+        {
+            assertThat(fromSystemProperty.getExcludeTableFilter().isValidName(tableName))
+                    .as("The same list given as the system property and as a string value of"
+                            + " the DatabaseConfig property excludes the same tables: '%s'.",
+                            tableName)
+                    .isEqualTo(fromDatabaseConfig.getExcludeTableFilter().isValidName(tableName));
+        }
     }
 
     @Test
