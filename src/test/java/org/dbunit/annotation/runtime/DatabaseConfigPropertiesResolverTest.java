@@ -27,6 +27,7 @@ import java.util.Properties;
 
 import org.dbunit.annotation.DbUnitConfig;
 import org.dbunit.annotation.DbUnitProperty;
+import org.dbunit.database.DatabaseConfig;
 import org.dbunit.database.DatabaseConfigPropertiesProvider;
 import org.junit.jupiter.api.Test;
 
@@ -47,8 +48,12 @@ class DatabaseConfigPropertiesResolverTest
     {
         final Properties properties = resolver.resolve(config(WithProperties.class));
 
-        assertThat(properties).containsEntry("batchSize", "50")
-                .containsEntry("caseSensitiveTableNames", "true");
+        assertThat(properties)
+                .as("Every name is stored in the long form DatabaseConfig names the property by,"
+                        + " whichever form the annotation spelled it in.")
+                .containsEntry(DatabaseConfig.PROPERTY_BATCH_SIZE, "50")
+                .containsEntry(DatabaseConfig.FEATURE_CASE_SENSITIVE_TABLE_NAMES, "true")
+                .hasSize(2);
     }
 
     @Test
@@ -58,6 +63,28 @@ class DatabaseConfigPropertiesResolverTest
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("more than one")
                 .hasMessageContaining("batchSize");
+    }
+
+    @Test
+    void testResolve_longAndShortFormOfOnePropertyDeclared_throwsNamingIt()
+    {
+        assertThatThrownBy(() -> resolver.resolve(config(WithLongAndShortFormOfOneName.class)))
+                .as("'batchSize' and its long form name one property, so which value wins would"
+                        + " depend on the order a Properties happens to be iterated in.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("more than one")
+                .hasMessageContaining("batchSize");
+    }
+
+    @Test
+    void testResolve_providerSuppliesLongAndShortFormOfOneProperty_throwsNamingTheProvider()
+    {
+        assertThatThrownBy(() -> resolver.resolve(config(WithLongAndShortFormProvider.class)))
+                .as("A provider is held to the same rule as the inline entries.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("more than one")
+                .hasMessageContaining("batchSize")
+                .hasMessageContaining(LongAndShortFormProvider.class.getName());
     }
 
     @Test
@@ -74,7 +101,9 @@ class DatabaseConfigPropertiesResolverTest
     {
         final Properties properties = resolver.resolve(config(WithPropertiesProvider.class));
 
-        assertThat(properties).containsEntry("fetchSize", "25");
+        assertThat(properties)
+                .as("A provider's names are stored in the long form too.")
+                .containsEntry(DatabaseConfig.PROPERTY_FETCH_SIZE, "25").hasSize(1);
     }
 
     @Test
@@ -119,6 +148,29 @@ class DatabaseConfigPropertiesResolverTest
             @DbUnitProperty(name = "batchSize", value = "100")})
     private static class WithDuplicatePropertyName
     {
+    }
+
+    @DbUnitConfig(properties = {@DbUnitProperty(name = "batchSize", value = "10"),
+            @DbUnitProperty(name = "http://www.dbunit.org/properties/batchSize", value = "50")})
+    private static class WithLongAndShortFormOfOneName
+    {
+    }
+
+    @DbUnitConfig(propertiesProvider = LongAndShortFormProvider.class)
+    private static class WithLongAndShortFormProvider
+    {
+    }
+
+    static class LongAndShortFormProvider implements DatabaseConfigPropertiesProvider
+    {
+        @Override
+        public Properties getDatabaseConfigProperties()
+        {
+            final Properties properties = new Properties();
+            properties.setProperty("batchSize", "10");
+            properties.setProperty(DatabaseConfig.PROPERTY_BATCH_SIZE, "50");
+            return properties;
+        }
     }
 
     @DbUnitConfig(properties = @DbUnitProperty(name = "notAProperty", value = "x"))

@@ -286,4 +286,26 @@ class DatabaseConfigTest
                 .isInstanceOf(QueryPerTableRowCounter.class);
     }
 
+    @Test
+    void testFindByNameOrShortName_longAndShortName_resolveToTheSameProperty()
+    {
+        final DatabaseConfig.ConfigProperty byLongName =
+                DatabaseConfig.findByNameOrShortName(DatabaseConfig.PROPERTY_BATCH_SIZE);
+        final DatabaseConfig.ConfigProperty byShortName =
+                DatabaseConfig.findByNameOrShortName("batchSize");
+
+        assertThat(byShortName)
+                .as("The long name and the short name resolve to the same property.")
+                .isSameAs(byLongName);
+        assertThat(byLongName.getProperty()).isEqualTo(DatabaseConfig.PROPERTY_BATCH_SIZE);
+    }
+
+    @Test
+    void testFindByNameOrShortName_unknownName_returnsNull()
+    {
+        assertThat(DatabaseConfig.findByNameOrShortName("notAProperty"))
+                .as("A name that is neither a long nor a short name resolves to nothing.")
+                .isNull();
+    }
+
 }

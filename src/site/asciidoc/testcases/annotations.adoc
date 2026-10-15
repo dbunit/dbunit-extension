@@ -677,6 +677,12 @@ both the long `http://www.dbunit.org/...` names and their short forms:
 })
 ----
 
+A property may be given once, in either form: `batchSize` and
+`http://www.dbunit.org/properties/batchSize` name the same property, so
+declaring both - or a provider supplying both - is rejected, since which value
+won would depend on the order a `Properties` happens to be iterated in. Every
+name is passed on in its long form.
+
 Named members are used instead of a `String[]` of `"name=value"` pairs so
 each entry is self-documenting, IDE-completable, and cannot be broken by a
 value that itself contains `=` (an escape pattern, for instance). For

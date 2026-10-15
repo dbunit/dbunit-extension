@@ -41,6 +41,7 @@ import org.dbunit.assertion.DiffCollectingFailureHandler;
 import org.dbunit.assertion.comparer.value.IsActualGreaterThanExpectedValueComparer;
 import org.dbunit.assertion.comparer.value.IsActualWithinToleranceOfExpectedTimestampValueComparer;
 import org.dbunit.assertion.comparer.value.ValueComparer;
+import org.dbunit.database.DatabaseConfig;
 import org.dbunit.database.DatabaseConfigPropertiesProvider;
 import org.dbunit.dataset.DefaultDataSet;
 import org.dbunit.dataset.ITable;
@@ -679,9 +680,10 @@ class AnnotatedTestConfigurationTest
 
         final Properties properties = resolved.getDatabaseConfigProperties();
         assertThat(properties)
-                .as("Every @DbUnitProperty entry must be collected.")
-                .containsEntry("caseSensitiveTableNames", "true")
-                .containsEntry("batchSize", "50");
+                .as("Every @DbUnitProperty entry must be collected, under the long name"
+                        + " DatabaseConfig knows the property by.")
+                .containsEntry(DatabaseConfig.FEATURE_CASE_SENSITIVE_TABLE_NAMES, "true")
+                .containsEntry(DatabaseConfig.PROPERTY_BATCH_SIZE, "50");
     }
 
     @Test
@@ -727,7 +729,7 @@ class AnnotatedTestConfigurationTest
 
         assertThat(resolved.getDatabaseConfigProperties())
                 .as("A properties provider must supply the DatabaseConfig properties.")
-                .containsEntry("fetchSize", "25");
+                .containsEntry(DatabaseConfig.PROPERTY_FETCH_SIZE, "25");
     }
 
     @Test
