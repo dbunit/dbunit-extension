@@ -9,6 +9,9 @@ link:IDatabaseTester.html[IDatabaseTester] setup/teardown lifecycle
 automatically, so a test class doesn't need its own `@BeforeEach`/`@AfterEach`
 pair calling `onSetup()`/`onTearDown()`.
 
+NOTE: The extension needs JUnit Jupiter 5.7 or later, the release that added the
+newest Jupiter API it calls. dbUnit itself is built and tested against JUnit 6.
+
 Register it with `@ExtendWith(DbUnitExtension.class)`, or with the shorter
 `@DbUnitTest`. The test class still holds its own `IDatabaseTester` field —
 this is the same composition style as link:IDatabaseTester.html[the

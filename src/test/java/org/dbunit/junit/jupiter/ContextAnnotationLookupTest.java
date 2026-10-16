@@ -21,14 +21,9 @@
 package org.dbunit.junit.jupiter;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.lang.reflect.Method;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
 import java.util.Optional;
 
 import org.dbunit.annotation.DbUnitExpected;
@@ -41,6 +36,10 @@ import org.junit.jupiter.api.extension.ExtensionContext;
  * Unit tests of {@link ContextAnnotationLookup}. How the declaring class is found is
  * {@code DeclaringClassFinderTest}'s; these tests cover that the lookup hands the finder the
  * context's method, test class and enclosing classes, and the search order of {@code find}.
+ *
+ * <p>The contexts are {@link NestedContextChain} stubs, so the enclosing classes come only from
+ * the parent contexts: {@link ExtensionContext#getEnclosingTestClasses()} is not available before
+ * JUnit Jupiter 5.13.3 and fails here as it would on an older runtime.
  */
 class ContextAnnotationLookupTest
 {
@@ -89,6 +88,19 @@ class ContextAnnotationLookupTest
         assertThat(lookup.find(DbUnitTearDown.class).operation())
                 .as("A @Nested class must find its enclosing class's annotations.")
                 .isEqualTo(DbUnitOperation.DELETE_ALL);
+    }
+
+    @Test
+    void testFind_nestedTwiceWithBothEnclosingClassesAnnotated_returnsTheClosestOnesAnnotation()
+            throws Exception
+    {
+        final ContextAnnotationLookup lookup = lookupFor(Outermost.Middle.Innermost.class,
+                "aTestMethod", Outermost.class, Outermost.Middle.class);
+
+        assertThat(lookup.find(DbUnitTearDown.class).operation())
+                .as("The annotation of the enclosing class closest to the test class must win"
+                        + " over that of a farther one.")
+                .isEqualTo(DbUnitOperation.TRUNCATE_TABLE);
     }
 
     @Test
@@ -151,6 +163,19 @@ class ContextAnnotationLookupTest
     }
 
     @Test
+    void testFindDeclaringClass_nestedTwiceWithBothEnclosingClassesAnnotated_returnsTheClosestOne()
+            throws Exception
+    {
+        final ContextAnnotationLookup lookup = lookupFor(Outermost.Middle.Innermost.class,
+                "aTestMethod", Outermost.class, Outermost.Middle.class);
+
+        assertThat(lookup.findDeclaringClass(DbUnitTearDown.class))
+                .as("The declaring class must be the closest enclosing class declaring it, the"
+                        + " one whose annotation find() returns.")
+                .isEqualTo(Outermost.Middle.class);
+    }
+
+    @Test
     void testFindDeclaringClass_nothingDeclared_returnsTheTestClass() throws Exception
     {
         final ContextAnnotationLookup lookup = lookupFor(NothingDeclared.class, "aTestMethod");
@@ -161,22 +186,19 @@ class ContextAnnotationLookupTest
     }
 
     private static ContextAnnotationLookup lookupFor(final Class<?> testClass,
-            final String testMethodName, final Class<?>... enclosingClasses) throws Exception
+            final String testMethodName, final Class<?>... enclosingClassesOutermostFirst)
+            throws Exception
     {
         final Method testMethod = testClass.getDeclaredMethod(testMethodName);
-        return lookupFor(testClass, testMethod, enclosingClasses);
+        return lookupFor(testClass, testMethod, enclosingClassesOutermostFirst);
     }
 
     private static ContextAnnotationLookup lookupFor(final Class<?> testClass,
-            final Method testMethod, final Class<?>... enclosingClasses)
+            final Method testMethod, final Class<?>... enclosingClassesOutermostFirst)
     {
-        final ExtensionContext context = mock(ExtensionContext.class);
+        final ExtensionContext context =
+                NestedContextChain.methodContextOf(testClass, enclosingClassesOutermostFirst);
         when(context.getTestMethod()).thenReturn(Optional.of(testMethod));
-        doReturn(testClass).when(context).getRequiredTestClass();
-        final List<Class<?>> enclosing = enclosingClasses.length == 0
-                ? Collections.emptyList()
-                : Arrays.asList(enclosingClasses);
-        when(context.getEnclosingTestClasses()).thenReturn(enclosing);
         return new ContextAnnotationLookup(context);
     }
 
@@ -240,6 +262,21 @@ class ContextAnnotationLookupTest
         {
             void aTestMethod()
             {
+            }
+        }
+    }
+
+    @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+    static class Outermost
+    {
+        @DbUnitTearDown(operation = DbUnitOperation.TRUNCATE_TABLE)
+        class Middle
+        {
+            class Innermost
+            {
+                void aTestMethod()
+                {
+                }
             }
         }
     }
