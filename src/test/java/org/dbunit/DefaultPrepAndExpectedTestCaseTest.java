@@ -2425,6 +2425,30 @@ class DefaultPrepAndExpectedTestCaseTest
     }
 
     @Test
+    void testCleanupData_testersListenerThrowsAnErrorOnConnectionRetrieved_propagatesItAndClosesTheConnection()
+            throws Exception
+    {
+        // an Error, as opposed to an Exception, such as the AssertionError a listener asserting
+        // on the connection it is handed throws
+        final AssertionError listenerFailure = new AssertionError("listener assertion");
+        final IOperationListener failingListener = Mockito.mock(IOperationListener.class);
+        Mockito.doThrow(listenerFailure).when(failingListener)
+                .connectionRetrieved(Mockito.any(IDatabaseConnection.class));
+        databaseTester.setTearDownOperation(DatabaseOperation.DELETE_ALL);
+        databaseTester.setOperationListener(failingListener);
+
+        assertThat(catchThrowable(() -> tc.cleanupData()))
+                .as("An Error thrown while tearing down must propagate unchanged.")
+                .isSameAs(listenerFailure);
+
+        final MockDatabaseConnection connection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        // the shared connection must be released for an Error as it is for an Exception
+        connection.setExpectedCloseCalls(1);
+        connection.verify();
+    }
+
+    @Test
     void testCleanupData_afterPostTestAlreadyVerifiedTheBaseline_doesNotVerifyTheSpentBaselineAgain()
             throws Exception
     {
