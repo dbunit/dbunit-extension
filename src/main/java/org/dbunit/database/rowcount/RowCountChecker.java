@@ -153,8 +153,10 @@ public class RowCountChecker
      * straight from {@code connectionConfig} when no override is set, or from
      * {@link #enabledOverride}/{@link #excludeOverride} plus {@code connectionConfig}'s own
      * {@link RowCounter} when one is - so an override controls only the enabled flag and the
-     * exclude patterns it declares, and {@code -Ddbunit.rowCountCheck} still wins outright over
-     * either, exactly as it would resolving directly from {@code connectionConfig}.
+     * exclude patterns it declares. The system properties apply as
+     * {@link RowCountCheckConfiguration} documents: {@code -Ddbunit.rowCountCheck=false} still
+     * disables the check, a declared {@code false} stays disabled when the property
+     * force-enables it, and the exclude property adds to the declared patterns.
      *
      * @param connectionConfig The connection's own {@link DatabaseConfig}.
      * @return The configuration to resolve a {@link RowCountCheck} from.
