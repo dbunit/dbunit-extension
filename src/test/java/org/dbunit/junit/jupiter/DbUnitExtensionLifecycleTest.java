@@ -115,7 +115,7 @@ class DbUnitExtensionLifecycleTest
     }
 
     @Test
-    void testBeforeAndAfterTestExecution_classicPathTesterWithCustomListener_listenerNeverReplaced()
+    void testBeforeAndAfterTestExecution_classicPathTesterWithCustomListener_listenerWrappedForTheTestAndPutBack()
     {
         final CallLoggingTester tester = new CallLoggingTester(new ArrayList<>());
         final IOperationListener original = IOperationListener.NO_OP_OPERATION_LISTENER;
@@ -131,11 +131,11 @@ class DbUnitExtensionLifecycleTest
 
         assertThat(tester.setOperationListenerCalls)
                 .as("A bare @ExtendWith(DbUnitExtension.class) test - the 3.5.0 style, opting into"
-                        + " no @DbUnit* annotation or marker field - must not have its tester's"
-                        + " IOperationListener replaced by the extension.")
-                .isZero();
+                        + " no @DbUnit* annotation or marker field - has its tester's"
+                        + " IOperationListener wrapped for the test, and put back, nothing more.")
+                .isEqualTo(2);
         assertThat(tester.getOperationListener())
-                .as("The tester's original listener must survive untouched.")
+                .as("The tester's original listener must be the one it carries after the test.")
                 .isSameAs(original);
     }
 
@@ -605,7 +605,7 @@ class DbUnitExtensionLifecycleTest
         IDatabaseTester databaseTester = tester;
 
         @Test
-        void testClassicPathLeavesListenerAlone()
+        void testClassicPathPutsTheListenerBack()
         {
             // the assertion is in the outer test method, against tester.setOperationListenerCalls
         }

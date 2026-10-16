@@ -2197,35 +2197,64 @@ class AnnotatedTestExecutorTest
     // ---- classic path (annotationDriven = false): the 3.5.0 lifecycle, preserved ----
 
     @Test
-    void testConstructor_classicPath_doesNotInstallOperationListener()
+    void testConstructor_classicPathTesterReportsItsListener_wrapsItForTheTest()
     {
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
 
         new AnnotatedTestExecutor(configuration, tester, null, false);
 
-        verify(tester, never()).setOperationListener(any());
+        verify(tester).setOperationListener(any(ExecutorOperationListener.class));
     }
 
     @Test
-    void testConstructor_classicPathTesterCarriesCustomListener_leavesItInPlace()
+    void testConstructor_classicPathTesterCannotReportItsListener_leavesItInPlace()
     {
-        // The zero-annotation @ExtendWith(DbUnitExtension.class) style must not replace a custom
-        // IOperationListener the test author configured on the tester - a from-scratch
-        // IDatabaseTester predating IDatabaseTester#getOperationListener() would otherwise have
-        // its real listener silently swapped for a fresh DefaultOperationListener the executor
-        // cannot even see to wrap.
+        // A from-scratch IDatabaseTester predating IDatabaseTester#getOperationListener() has a
+        // listener this executor cannot read, so wrapping it would discard it for good.
+        final TesterNotReportingItsListener legacyTester =
+                new TesterNotReportingItsListener(() -> connection);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
+
+        new AnnotatedTestExecutor(configuration, legacyTester, null, false);
+
+        assertThat(legacyTester.listenersSet)
+                .as("The classic path must not replace a listener it cannot read and put back.")
+                .isEmpty();
+    }
+
+    @Test
+    void testAfterTest_classicPathTesterCarriesCustomListener_forwardedEverythingAndPutBack()
+            throws Exception
+    {
+        // The zero-annotation @ExtendWith(DbUnitExtension.class) style must keep a custom
+        // IOperationListener the test author configured on the tester. It is wrapped for the
+        // test only to take the row count baseline from the connection onSetup() retrieves, so
+        // every callback still reaches it, closing included - none of the connections it
+        // handles is shielded, as in the 3.5.0 lifecycle - and it is put back afterward.
+        when(connection.getConfig()).thenReturn(new DatabaseConfig());
+        stubOpenJdbcConnection();
         final IOperationListener custom = mock(IOperationListener.class);
         final IDatabaseTester realTester = new DefaultDatabaseTester(connection);
         realTester.setOperationListener(custom);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, realTester, null, false);
+        final IOperationListener duringTest = realTester.getOperationListener();
 
-        new AnnotatedTestExecutor(configuration, realTester, null, false);
+        duringTest.connectionRetrieved(connection);
+        duringTest.operationSetUpFinished(connection);
+        duringTest.operationTearDownFinished(connection);
+        executor.afterTest(false);
 
+        verify(custom).connectionRetrieved(connection);
+        verify(custom).operationSetUpFinished(connection);
+        verify(custom).operationTearDownFinished(connection);
         assertThat(realTester.getOperationListener())
-                .as("The classic path must leave the tester's own IOperationListener exactly as"
-                        + " configured, neither wrapping nor replacing it.")
+                .as("The classic path must put the tester's own IOperationListener back once the"
+                        + " test is over.")
                 .isSameAs(custom);
     }
 
@@ -2254,14 +2283,14 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
-    void testBeforeTest_classicPathRealAbstractDatabaseTester_capturesBaselineEagerlyNotViaPiggyback()
+    void testBeforeAndAfterTest_classicPathRealAbstractDatabaseTester_opensOnlyTheConnectionsTheTesterOpens()
             throws Exception
     {
-        // canPiggybackRowCountBaseline() is gated on annotationDriven: with no listener
-        // installed there is nothing to piggyback on, so the classic path always resolves its
-        // own connection for the baseline and lets onSetup() resolve its own - the same
-        // two-connection shape DbUnitExtension had before this executor existed, not the
-        // annotation paths' piggybacked one.
+        // With the row count check off, as it is by default, the baseline has nothing to count,
+        // so the classic path takes it from the connection onSetup() retrieves instead of
+        // resolving one of its own: a plain JdbcDatabaseTester then opens the two connections
+        // the 3.5.0 lifecycle did, one for onSetup() and one for onTearDown(), and never one
+        // more, which a bounded pool sized for that lifecycle needs.
         final AtomicInteger getConnectionCalls = new AtomicInteger();
         final AbstractDatabaseTester realTester = new AbstractDatabaseTester()
         {
@@ -2273,22 +2302,22 @@ class AnnotatedTestExecutorTest
             }
         };
         realTester.setDataSet(new DefaultDataSet());
+        realTester.setTearDownOperation(DatabaseOperation.DELETE_ALL);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
         final AnnotatedTestExecutor executor =
                 new AnnotatedTestExecutor(configuration, realTester, null, false);
-        assertThat(realTester.getOperationListener())
-                .as("The classic path must not install an operation listener at construction.")
-                .isNull();
 
         executor.beforeTest();
         executor.afterTest(false);
 
         assertThat(getConnectionCalls.get())
-                .as("The classic path resolves its own connection for the baseline and lets"
-                        + " onSetup() resolve its own - two, matching the 3.5.0 lifecycle, not"
-                        + " the annotation paths' single piggybacked one.")
+                .as("The classic path must open only the connections onSetup() and onTearDown()"
+                        + " retrieve, as the 3.5.0 lifecycle did.")
                 .isEqualTo(2);
+        assertThat(realTester.getOperationListener())
+                .as("The listener the tester carried, none here, must be put back after the test.")
+                .isNull();
     }
 
     @Test

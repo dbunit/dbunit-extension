@@ -131,13 +131,16 @@ with only a plain, unannotated `IDatabaseTester` field keeps the
 lifecycle-only behavior it has always had and no parameter is claimed for
 it, so another extension resolving a `Connection` (or any of the other three
 types) on the same test method is not left competing with a claim here. That
-class resolves one connection from its tester before `onSetup()` to capture the
-link:../components/rowcountcheck.html[row count check] baseline, whether or not
-the check is enabled, because the setting lives on a connection's
-`DatabaseConfig`; the same test opted in with `@DbUnitTest` reuses the
-connection `onSetup()` retrieves instead. That connection is first offered to the
-tester's `IOperationListener#connectionRetrieved()`, so enabling the check there works,
-and the listener sees one more retrieval than in 3.5.0.
+class takes the link:../components/rowcountcheck.html[row count check] baseline,
+whether or not the check is enabled, because the setting lives on a connection's
+`DatabaseConfig`, from the connection `onSetup()` retrieves, after the tester's
+`IOperationListener#connectionRetrieved()` has run, so enabling the check there works
+and the tester opens only the connections it did in 3.5.0. For that it wraps the
+tester's listener for the test, forwarding every callback to it unchanged, and puts
+it back afterward. When `onSetup()` cannot be relied on to retrieve a connection - a
+`NONE` setup operation, say - it resolves one from the tester before `onSetup()`
+instead and offers it to `connectionRetrieved()` first, so the listener sees one more
+retrieval than in 3.5.0.
 Switch such a class to `@DbUnitTest`, or mark its field `@DbUnitTester`, to
 opt its parameters in.
 

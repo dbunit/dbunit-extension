@@ -49,9 +49,9 @@ import org.dbunit.operation.DatabaseOperation;
  * piggybacks on that connection - via the {@link ExecutorOperationListener} - so no connection
  * is resolved here at all;</li>
  * <li>otherwise - a custom {@link IDatabaseTester}, a {@link DatabaseOperation#NONE} setup
- * operation, a connection already memoized from a {@code @BeforeEach} parameter, or the classic
- * path where there is no listener to piggyback on - {@link #captureBaselineEagerly()} resolves
- * one eagerly, <em>before</em> {@code onSetup()}.</li>
+ * operation, a connection already memoized from a {@code @BeforeEach} parameter, or a tester
+ * that cannot report its listener, leaving none to piggyback on - {@link #captureBaselineEagerly()}
+ * resolves one eagerly, <em>before</em> {@code onSetup()}.</li>
  * </ul>
  *
  * <p>Either way a baseline is always decided - captured, or found disabled - before the test
@@ -82,8 +82,8 @@ final class AnnotatedRowCountCheck
      * @param tester The tester being driven.
      * @param connection The shared per-test connection holder.
      * @param operationListenerInstalled Whether an {@link ExecutorOperationListener} is installed
-     *            on the tester for this test - false on the classic path, and for a tester that
-     *            cannot report its listener, where there is nothing to piggyback on.
+     *            on the tester for this test - false for a tester that cannot report its
+     *            listener, where there is nothing to piggyback on.
      */
     AnnotatedRowCountCheck(final AnnotatedTestConfiguration configuration,
             final IDatabaseTester tester, final TestScopedConnection connection,

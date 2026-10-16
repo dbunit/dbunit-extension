@@ -58,27 +58,27 @@ class AnnotatedRowCountCheckTest
     // ---- canPiggybackBaselineOn(): the decision matrix ----
 
     @Test
-    void testCanPiggybackBaselineOn_annotationDrivenRealTesterNonNoneOpNothingResolved_true()
+    void testCanPiggybackBaselineOn_listenerInstalledRealTesterNonNoneOpNothingResolved_true()
     {
         final AnnotatedRowCountCheck check = new AnnotatedRowCountCheck(noAnnotationsConfig(),
                 new InheritingTester(), holderThatMustNotAcquire(), true);
 
         assertThat(check.canPiggybackBaselineOn(DatabaseOperation.CLEAN_INSERT))
-                .as("A piggyback is safe: annotation-driven, an AbstractDatabaseTester that"
-                        + " does not override onSetup(), a non-NONE operation, and no connection"
-                        + " resolved yet.")
+                .as("A piggyback is safe: a listener is installed, an AbstractDatabaseTester"
+                        + " that does not override onSetup(), a non-NONE operation, and no"
+                        + " connection resolved yet.")
                 .isTrue();
     }
 
     @Test
-    void testCanPiggybackBaselineOn_classicPath_false()
+    void testCanPiggybackBaselineOn_noListenerInstalled_false()
     {
         final AnnotatedRowCountCheck check = new AnnotatedRowCountCheck(noAnnotationsConfig(),
                 new InheritingTester(), holderThatMustNotAcquire(), false);
 
         assertThat(check.canPiggybackBaselineOn(DatabaseOperation.CLEAN_INSERT))
-                .as("The classic path installs no listener, so there is nothing to piggyback"
-                        + " on.")
+                .as("A tester that cannot report its listener gets none installed, so there is"
+                        + " nothing to piggyback on.")
                 .isFalse();
     }
 

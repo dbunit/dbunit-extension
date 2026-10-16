@@ -70,9 +70,8 @@ final class SetupTeardownLifecycle
      * @param tester The tester to drive.
      * @param connection The shared per-test connection holder.
      * @param operationListenerInstalled Whether an {@link ExecutorOperationListener} is installed
-     *            on the tester for this test - false on the classic path, and for a tester that
-     *            cannot report its listener, where there is nothing to piggyback the row count
-     *            check baseline on.
+     *            on the tester for this test - false for a tester that cannot report its
+     *            listener, where there is nothing to piggyback the row count check baseline on.
      */
     SetupTeardownLifecycle(final AnnotatedTestConfiguration configuration,
             final IDatabaseTester tester, final TestScopedConnection connection,
