@@ -47,6 +47,7 @@ import java.util.Deque;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 import org.dbunit.AbstractDatabaseTester;
@@ -3661,10 +3662,10 @@ class AnnotatedTestExecutorTest
         // onSetup() retrieves a connection the row count baseline can piggyback on, resolving
         // one here just for that feature would rule the piggyback out and cost a fresh-connection
         // tester (a plain JdbcDatabaseTester) a second physical connection every test. So the
-        // multi-file combine yields to the piggyback: it combines case-insensitively - here
-        // merging prep.xml's ACCOUNT and prep-lowercase.xml's account into one table, so
-        // CLEAN_INSERT against the single pre-created ACCOUNT table succeeds - and exactly one
-        // connection is resolved.
+        // multi-file combine yields to the piggyback and is finished with the case sensitivity of
+        // the connection onSetup() retrieves - off here, so it merges prep.xml's ACCOUNT and
+        // prep-lowercase.xml's account into one table and CLEAN_INSERT against the single
+        // pre-created ACCOUNT table succeeds - and exactly one connection is resolved.
         final IDatabaseConnection sharedConnection = InMemoryDatabaseConnection.create("PUBLIC");
         try
         {
@@ -3695,6 +3696,72 @@ class AnnotatedTestExecutorTest
                     .as("A multi-file @DbUnitPrep combine must not resolve a second connection"
                             + " just to read FEATURE_CASE_SENSITIVE_TABLE_NAMES when onSetup() is"
                             + " about to retrieve one the row count baseline can piggyback on.")
+                    .isEqualTo(1);
+        } finally
+        {
+            sharedConnection.close();
+        }
+    }
+
+    @Test
+    void testBeforeAndAfterTest_multiplePrepFilesCaseSensitiveOnPiggybackEligibleTester_doesNotMergeDifferentlyCasedTables()
+            throws Exception
+    {
+        // The route the row count baseline takes must not change how @DbUnitPrep files merge:
+        // a tester whose onSetup() retrieves the connection on its own has none resolved when
+        // the datasets are combined, so the combine is finished once onSetup() reports the
+        // connection, with the case sensitivity that connection has - here on, which keeps
+        // prep.xml's ACCOUNT and prep-lowercase.xml's account as two tables - and still with
+        // exactly one connection.
+        final IDatabaseConnection sharedConnection = InMemoryDatabaseConnection.create("PUBLIC");
+        try
+        {
+            sharedConnection.getConfig()
+                    .setFeature(DatabaseConfig.FEATURE_CASE_SENSITIVE_TABLE_NAMES, true);
+            final AtomicReference<IDataSet> datasetOperatedOn = new AtomicReference<>();
+            final DatabaseOperation recordingOperation = new DatabaseOperation()
+            {
+                @Override
+                public void execute(final IDatabaseConnection connection, final IDataSet dataSet)
+                {
+                    datasetOperatedOn.set(dataSet);
+                }
+            };
+            final AtomicInteger getConnectionCalls = new AtomicInteger();
+            final AbstractDatabaseTester realTester = new AbstractDatabaseTester()
+            {
+                @Override
+                public IDatabaseConnection getConnection()
+                {
+                    getConnectionCalls.incrementAndGet();
+                    return sharedConnection;
+                }
+
+                @Override
+                public DatabaseOperation getSetUpOperation()
+                {
+                    return recordingOperation;
+                }
+            };
+            final DbUnitPrep prep =
+                    WithTwoDifferentlyCasedPrepFiles.class.getAnnotation(DbUnitPrep.class);
+            final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration.from(
+                    WithTwoDifferentlyCasedPrepFiles.class, null, prep, null, null, null, null);
+            final AnnotatedTestExecutor executor =
+                    new AnnotatedTestExecutor(configuration, realTester, null);
+
+            executor.beforeTest();
+            executor.afterTest(false);
+
+            assertThat(datasetOperatedOn.get().getTableNames())
+                    .as("With case sensitive table names on, the setup operation must run on a"
+                            + " dataset that keeps the two differently cased tables apart, as"
+                            + " it does when a connection was resolved before the files were"
+                            + " combined.")
+                    .containsExactlyInAnyOrder("ACCOUNT", "account");
+            assertThat(getConnectionCalls.get())
+                    .as("Finishing the combine with the connection onSetup() retrieves must not"
+                            + " resolve another one.")
                     .isEqualTo(1);
         } finally
         {
