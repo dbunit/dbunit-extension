@@ -779,29 +779,35 @@ behind (a test asserting that an audit trail *persists*, say) writes
 `@DbUnitRowCountCheck(enabled = false)` on that method rather than losing the check for the
 whole class.
 
-Four sources can speak, highest priority first:
+Five sources can speak, highest priority first:
 
 [cols="1,3", options="header"]
 |===
 |Order |Source
 
-|1 |The `-Ddbunit.rowCountCheck` system property, when present — wins outright, in both
-directions, so it can force-enable across a CI run and force-disable locally without
-editing code.
+|1 |The `-Ddbunit.rowCountCheck=false` system property — force-disables the check locally
+without editing code.
 
-|2 |`@DbUnitRowCountCheck` — method level, else class level.
+|2 |`@DbUnitRowCountCheck` — method level, else class level. An `enabled = false` stays an
+opt-out when a CI run force-enables the check.
 
-|3 |`DatabaseConfig.FEATURE_ROW_COUNT_CHECK`.
+|3 |The `-Ddbunit.rowCountCheck` system property set to `true`, or present with no value —
+force-enables the check across a CI run for every test that declares nothing.
 
-|4 |Default `false`.
+|4 |`DatabaseConfig.FEATURE_ROW_COUNT_CHECK`.
+
+|5 |Default `false`.
 |===
 
-Three behaviours worth knowing explicitly, because each is a place a reader would otherwise
+Four behaviours worth knowing explicitly, because each is a place a reader would otherwise
 guess wrong:
 
 * A method-level `@DbUnitRowCountCheck` overrides a class-level one *wholesale* —
   `exclude()` included, the same rule as everywhere else in this family. A method that
   wants one extra exclusion has to repeat the class-level ones; they are not merged.
+* The `-Ddbunit.rowCountCheckExcludeTables` system property *adds* its patterns to `exclude()`
+  and never replaces them, so a suite-wide list does not re-enable the check for the tables a
+  test excluded.
 * The check compares *row counts*, not row contents — an `UPDATE` that changes a value
   without changing how many rows are present passes. It catches a leaked or wrongly
   removed row, not a data mismatch; that is what `@DbUnitExpected` verification is for.

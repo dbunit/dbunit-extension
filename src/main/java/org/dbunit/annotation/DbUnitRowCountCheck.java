@@ -46,13 +46,18 @@ import org.dbunit.database.DatabaseConfig;
  *
  * <p>Precedence, highest first:
  * <ol>
- *   <li>The {@code -Ddbunit.rowCountCheck} system property, when present - wins outright, in
- *   both directions, so it can force-enable across a CI run and force-disable locally without
- *   editing code.</li>
- *   <li>This annotation - method level, else class level.</li>
+ *   <li>The {@code -Ddbunit.rowCountCheck=false} system property - force-disables the check
+ *   locally without editing code.</li>
+ *   <li>This annotation - method level, else class level. An {@code enabled = false} stays an
+ *   opt-out when a CI run force-enables the check.</li>
+ *   <li>The {@code -Ddbunit.rowCountCheck} system property, set to {@code true} or present with
+ *   no value - force-enables the check across a CI run for every test that declares nothing.</li>
  *   <li>{@link DatabaseConfig#FEATURE_ROW_COUNT_CHECK}.</li>
  *   <li>Default {@code false}.</li>
  * </ol>
+ *
+ * <p>The {@code -Ddbunit.rowCountCheckExcludeTables} system property adds its patterns to
+ * {@link #exclude()}; it never replaces them.
  *
  * <p>A method-level annotation overrides a class-level one <em>wholesale</em>, {@link #exclude()}
  * included - the same rule as every other annotation in this family. A method that wants one
