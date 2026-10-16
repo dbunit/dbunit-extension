@@ -29,6 +29,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -258,6 +259,33 @@ class DbUnitExtensionLifecycleTest
                         + " @DbUnitExpected is method-level and whose @DbUnitTestCase and tester"
                         + " fields live on the enclosing test instance.")
                 .containsExactly(true);
+    }
+
+    @Test
+    void testBeforeTestExecution_expectedPathWithOperationsSetInBeforeEach_keepsThoseOperations()
+    {
+        final OperationHoldingTester tester = new OperationHoldingTester();
+        final OperationReadingPrepAndExpectedTestCase testCase =
+                new OperationReadingPrepAndExpectedTestCase();
+        BeforeEachOperationsExpectedPathSample.tester = tester;
+        BeforeEachOperationsExpectedPathSample.testCase = testCase;
+
+        EngineTestKit.engine("junit-jupiter")
+                .selectors(selectClass(BeforeEachOperationsExpectedPathSample.class))
+                .execute()
+                .testEvents()
+                .assertStatistics(stats -> stats.started(1).succeeded(1));
+
+        final List<DatabaseOperation> setUpThenTearDown =
+                Arrays.asList(DatabaseOperation.REFRESH, DatabaseOperation.DELETE_ALL);
+        assertThat(testCase.operationsAtPreTest)
+                .as("The setup and teardown operations a @BeforeEach method set must still be"
+                        + " the tester's when preTest() runs, as no annotation declares them.")
+                .isEqualTo(setUpThenTearDown);
+        assertThat(testCase.operationsAtPostTest)
+                .as("They must still be the tester's when postTest() cleans up, so the"
+                        + " teardown operation the test asked for is the one that runs.")
+                .isEqualTo(setUpThenTearDown);
     }
 
     @Test
@@ -802,6 +830,30 @@ class DbUnitExtensionLifecycleTest
     }
 
     @DbUnitTest
+    static class BeforeEachOperationsExpectedPathSample
+    {
+        static OperationHoldingTester tester;
+        static OperationReadingPrepAndExpectedTestCase testCase;
+
+        @DbUnitTestCase
+        PrepAndExpectedTestCase injected = testCase;
+        IDatabaseTester databaseTester = tester;
+
+        @BeforeEach
+        void configureOperations()
+        {
+            databaseTester.setSetUpOperation(DatabaseOperation.REFRESH);
+            databaseTester.setTearDownOperation(DatabaseOperation.DELETE_ALL);
+        }
+
+        @Test
+        @DbUnitExpected("expected.xml")
+        void testExpectedPath()
+        {
+        }
+    }
+
+    @DbUnitTest
     static class TesterSyncSample
     {
         static TesterSyncingPrepAndExpectedTestCase testCase;
@@ -1056,6 +1108,77 @@ class DbUnitExtensionLifecycleTest
         @Deprecated
         public void setSchema(final String schema)
         {
+        }
+    }
+
+    /**
+     * A {@link CallLoggingTester} that keeps the setup and teardown operations it is given, as a
+     * real tester does, so a test can see which ones are in force.
+     */
+    private static class OperationHoldingTester extends CallLoggingTester
+    {
+        private DatabaseOperation setUpOperation = DatabaseOperation.CLEAN_INSERT;
+        private DatabaseOperation tearDownOperation = DatabaseOperation.NONE;
+
+        OperationHoldingTester()
+        {
+            super(new ArrayList<>());
+        }
+
+        @Override
+        public DatabaseOperation getSetUpOperation()
+        {
+            return setUpOperation;
+        }
+
+        @Override
+        public DatabaseOperation getTearDownOperation()
+        {
+            return tearDownOperation;
+        }
+
+        @Override
+        public void setSetUpOperation(final DatabaseOperation setUpOperation)
+        {
+            this.setUpOperation = setUpOperation;
+        }
+
+        @Override
+        public void setTearDownOperation(final DatabaseOperation tearDownOperation)
+        {
+            this.tearDownOperation = tearDownOperation;
+        }
+    }
+
+    /**
+     * Records the setup and teardown operations of the tester it was given, as they are when
+     * {@code preTest()} and {@code postTest(boolean)} run: setup first, then teardown.
+     */
+    private static class OperationReadingPrepAndExpectedTestCase
+            extends TesterSyncingPrepAndExpectedTestCase
+    {
+        final List<DatabaseOperation> operationsAtPreTest = new ArrayList<>();
+        final List<DatabaseOperation> operationsAtPostTest = new ArrayList<>();
+
+        @Override
+        public void preTest()
+        {
+            record(operationsAtPreTest);
+            super.preTest();
+        }
+
+        @Override
+        public void postTest(final boolean verifyData)
+        {
+            record(operationsAtPostTest);
+            super.postTest(verifyData);
+        }
+
+        private void record(final List<DatabaseOperation> operations)
+        {
+            final IDatabaseTester tester = getDatabaseTester();
+            operations.add(tester.getSetUpOperation());
+            operations.add(tester.getTearDownOperation());
         }
     }
 
