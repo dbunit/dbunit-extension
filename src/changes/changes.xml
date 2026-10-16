@@ -110,6 +110,9 @@
       <action dev="jeffjensen" type="fix" issue="1015" system="github" due-to="jeffjensen">
           Fix DefaultPrepAndExpectedTestCase.cleanupData() leaving the shared connection open and the databaseConfigProperties values in place when the tear down operation or the row count check throws an Error, such as an AssertionError from the tester's listener, instead of an Exception.
       </action>
+      <action dev="jeffjensen" type="fix" issue="1016" system="github" due-to="jeffjensen">
+          Fix YamlProducer throwing a NullPointerException for an empty or comment-only document, which now produces an empty dataset, and a ClassCastException or NullPointerException for a root that is not a mapping, a table that is not a list of rows, a row that is not a mapping or has no value, and a table or column name YAML reads as a number or a boolean, which now throw a DataSetException naming the table and row, except that a row with no value is now a row of nulls, as in JsonProducer; it now calls endDataSet() on its consumer, as JsonProducer does, so a YAML dataset converted through a consumer that writes in endDataSet() is no longer truncated, and closes the stream it opens for a File, which was left open.
+      </action>
     </release>
     <release version="3.5.2" date="Sep 7, 2026" description="DefaultPrepAndExpectedTestCase connection hygiene: replace a connection the pool or database dropped between tests, and warn when handed a non-autocommit connection">
       <action dev="jeffjensen" type="fix" issue="962" system="github" due-to="jeffjensen">

@@ -4,6 +4,11 @@ link:../apidocs/org/dbunit/dataset/yaml/YamlDataSet.html[YamlDataSet]
 reads and writes YAML dataset documents.
 Each toplevel key corresponds to a table, where the value is a list of rows.
 Each row is a sequence of key:value pairs, where the key corresponds to the table column.
+An empty document, or one with only comments, is an empty dataset; a document whose root is
+not a mapping of table names to rows is rejected with a `DataSetException`, as is a table that
+is not a list of rows, a row that is not a mapping of column names to values, and a table or
+column name YAML reads as a number or a boolean, such as `123` or `on`: quote such a name. A
+list entry with no value is a row of nulls.
 
 YAML dataset document sample:
 
