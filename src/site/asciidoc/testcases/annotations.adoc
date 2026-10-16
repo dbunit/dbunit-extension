@@ -696,7 +696,11 @@ whichever connection it ends up using - the tester's own `onSetup()`/
 independently, via the tester's `IOperationListener`, and this executor's
 own memoized connection, applied the moment it resolves one - so in practice
 they reach the connection on every test where `IDatabaseTester#getConnection()`
-returns non-null, regardless of the setup/teardown operations. That memoized
+returns non-null, regardless of the setup/teardown operations. The exception is
+a custom `IDatabaseTester` that does not override `getOperationListener()`: the
+extension leaves its listener as it is, so the values reach only the connection
+the extension resolves itself, not one the tester's own `onSetup()` retrieves.
+That memoized
 connection itself is resolved as cheaply as possible: when the tester is a
 real `AbstractDatabaseTester` with a non-`NONE` setup operation, this
 executor never resolves a connection of its own at all - it reuses the one
