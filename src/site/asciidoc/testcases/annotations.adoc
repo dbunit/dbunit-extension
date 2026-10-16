@@ -295,19 +295,17 @@ way on either path: the `@DbUnitSetup` operation runs before `preTest()` too
 when `@DbUnitExpected` is present, not just before `onSetup()` on the
 setup/teardown path.
 
-On the prep/expected path, both the setup and teardown operations are
-always set on the tester, even with *none* of `@DbUnitPrep`, `@DbUnitSetup`,
-or `@DbUnitTearDown` declared — setup resolves to
-`DbUnitOperation.CLEAN_INSERT`, teardown to `DbUnitOperation.NONE`, and both
-are applied regardless, since `preTest()` and `cleanupData()` always run on
-that path. On the setup/teardown path, the tester's own dataset, setup operation and
-teardown operation are kept — preserving a `@BeforeEach` method's own
-`setDataSet()`/`setSetUpOperation()`/`setTearDownOperation()` — except where an annotation
-replaces them: `@DbUnitPrep` replaces the dataset, `@DbUnitTearDown` the teardown operation,
-and either `@DbUnitPrep` or `@DbUnitSetup` the setup operation. So `@DbUnitPrep("a.xml")`
-alone runs `CLEAN_INSERT` even on a tester already set to `REFRESH`, which would have kept the
-rows already there; declare `@DbUnitSetup(operation = DbUnitOperation.REFRESH)` alongside it
-to keep that operation. Each replacement lasts for that test only.
+On either path, the tester's own setup operation and teardown operation are kept —
+preserving a `@BeforeEach` method's own `setSetUpOperation()`/`setTearDownOperation()`,
+including an operation `DbUnitOperation` cannot express — except where an annotation
+replaces them: `@DbUnitTearDown` replaces the teardown operation, and either `@DbUnitPrep` or
+`@DbUnitSetup` the setup operation. On the setup/teardown path the tester's own dataset is kept
+too, preserving a `@BeforeEach` method's own `setDataSet()`, unless `@DbUnitPrep` replaces it; on
+the prep/expected path the test case prepares and cleans up with the `@DbUnitPrep` and
+`@DbUnitExpected` datasets, not with one set on the tester. So `@DbUnitPrep("a.xml")` alone runs
+`CLEAN_INSERT` even on a tester already set to `REFRESH`, which would have kept the rows already
+there; declare `@DbUnitSetup(operation = DbUnitOperation.REFRESH)` alongside it to keep that
+operation. Each replacement lasts for that test only.
 
 *Nothing bleeds between test methods.* Each method's resolved annotations —
 its own, plus any inherited from its class or a parent class — fully
@@ -315,8 +313,7 @@ determine what gets applied for that method, on either path. Before the
 method the tester's dataset and setup/teardown operations are snapshotted,
 and after it they are restored, so a `static` `@DbUnitTester` field (or any
 tester under `@TestInstance(PER_CLASS)`) never carries one method's
-`@DbUnitPrep`/`@DbUnitSetup`/`@DbUnitTearDown` — or the operations the
-prep/expected path applies unconditionally — onto the next. A `@BeforeEach`
+`@DbUnitPrep`/`@DbUnitSetup`/`@DbUnitTearDown` onto the next. A `@BeforeEach`
 value, being re-set every method, survives. The same holds for `@DbUnitProperty`
 values on a connection that outlives the test, such as a fixed connection handed
 to the tester, one a `CachingConnectionProvider` caches, or one kept with
@@ -930,4 +927,5 @@ non-parameterized tests in the same suite can point at by name.
 operations only, with no declarative way to compose them (`CompositeOperation`) or wrap one
 in a transaction (`TransactionOperation`). A test needing either drops to the programmatic
 path the same way — configure the tester's setup/teardown operation directly in a
-`@BeforeEach` method, or override it on an injected `PrepAndExpectedTestCase`.
+`@BeforeEach` method, on either path as long as no annotation declares that operation, or
+override it on an injected `PrepAndExpectedTestCase`.
