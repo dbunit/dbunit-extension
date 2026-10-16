@@ -22,7 +22,9 @@
 package org.dbunit.util.fileloader;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import org.dbunit.DatabaseUnitRuntimeException;
 import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.IDataSet;
 import org.junit.jupiter.api.BeforeEach;
@@ -55,5 +57,17 @@ class YamlDataFileLoaderTest
                         "EMPTY_MULTITYPE_TABLE");
         assertThat(ds.getTable("TEST_TABLE").getRowCount())
                 .as("TEST_TABLE must have 6 rows.").isEqualTo(6);
+    }
+
+    @Test
+    void testLoad_withMalformedYamlFile_failsNamingTheFile()
+    {
+        final String filename = "/yaml/yamlDataSetSyntaxErrorTest.yml";
+
+        assertThatThrownBy(() -> loader.load(filename))
+                .as("A malformed YAML file must fail naming the file, as a malformed JSON file"
+                        + " does, so the test report says which file to fix.")
+                .isInstanceOf(DatabaseUnitRuntimeException.class)
+                .hasMessageContaining(filename);
     }
 }
