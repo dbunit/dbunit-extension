@@ -295,6 +295,11 @@ way on either path: the `@DbUnitSetup` operation runs before `preTest()` too
 when `@DbUnitExpected` is present, not just before `onSetup()` on the
 setup/teardown path.
 
+`@DbUnitPrep` takes several files, which are combined into one dataset; tables of the same
+name merge into one. Names are matched ignoring case unless the test's connection has
+`FEATURE_CASE_SENSITIVE_TABLE_NAMES` on, set for example with a `@DbUnitProperty`, as
+`DefaultPrepAndExpectedTestCase` does for its own prep files.
+
 On either path, the tester's own setup operation and teardown operation are kept —
 preserving a `@BeforeEach` method's own `setSetUpOperation()`/`setTearDownOperation()`,
 including an operation `DbUnitOperation` cannot express — except where an annotation
