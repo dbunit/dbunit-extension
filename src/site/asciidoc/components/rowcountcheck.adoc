@@ -232,8 +232,9 @@ across tests is not left idle in a transaction, holding locks and exposed to the
 idle-in-transaction timeout. A rollback also discards anything uncommitted on that connection,
 so do not enable the check on a connection that carries your own pending transaction, such as
 one enlisted in a Spring-managed test transaction; prep and teardown writes on an
-autocommit-off connection are never committed regardless (see
-link:../connections.html[Connections]).
+autocommit-off connection are never committed regardless, and the annotation-driven lifecycle
+rolls them back before it closes the connection, which on Oracle replaces the commit its driver
+performs on close (see link:../connections.html[Connections]).
 * *Setting the feature on the wrong connection is silently ignored.* `JdbcDatabaseTester`
 and `DataSourceDatabaseTester` open a new connection - and therefore a fresh, default
 `DatabaseConfig` - on every `getConnection()` call unless given a
