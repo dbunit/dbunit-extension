@@ -1410,6 +1410,48 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
+    void testBeforeTest_systemPropertyTrueAndAnnotationDisabled_leavesCheckDisabled()
+            throws Exception
+    {
+        // A CI run forces the check on; a method that legitimately leaves rows behind opts out
+        // with @DbUnitRowCountCheck(enabled = false), which must stay an opt-out there.
+        System.setProperty(RowCountCheckConfiguration.DBUNIT_ROW_COUNT_CHECK, "true");
+        stubDisabledConnection();
+        final DbUnitRowCountCheck rowCountCheck =
+                WithDisabledRowCountCheck.class.getAnnotation(DbUnitRowCountCheck.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration.from(
+                AnnotatedTestExecutorTest.class, null, null, null, null, null, rowCountCheck);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, tester, null);
+
+        executor.beforeTest();
+
+        verify(connection, never()).createDataSet();
+    }
+
+    @Test
+    void testBeforeTest_excludeSystemPropertyAndAnnotationExclude_excludesBothTables()
+            throws Exception
+    {
+        System.setProperty(RowCountCheckConfiguration.DBUNIT_ROW_COUNT_CHECK_EXCLUDE_TABLES,
+                "SYSTEM_PROPERTY_TABLE");
+        stubConnection(false, "ACCOUNT", "IGNORED_TABLE", "SYSTEM_PROPERTY_TABLE");
+        when(connection.getRowCount("ACCOUNT")).thenReturn(5);
+        final DbUnitRowCountCheck rowCountCheck =
+                WithExcludedTable.class.getAnnotation(DbUnitRowCountCheck.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration.from(
+                AnnotatedTestExecutorTest.class, null, null, null, null, null, rowCountCheck);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, tester, null);
+
+        executor.beforeTest();
+
+        verify(connection, never()).getRowCount("IGNORED_TABLE");
+        verify(connection, never()).getRowCount("SYSTEM_PROPERTY_TABLE");
+        verify(connection).getRowCount("ACCOUNT");
+    }
+
+    @Test
     void testBeforeTest_annotationPresentAndFeatureFalse_enablesCheck() throws Exception
     {
         stubConnection(false, "ACCOUNT");
@@ -3979,6 +4021,11 @@ class AnnotatedTestExecutorTest
 
     @DbUnitRowCountCheck(exclude = "IGNORED_TABLE")
     static class WithExcludedTable
+    {
+    }
+
+    @DbUnitRowCountCheck(enabled = false)
+    static class WithDisabledRowCountCheck
     {
     }
 

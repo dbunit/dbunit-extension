@@ -69,6 +69,8 @@ configures:
 ----
 
 A bare `-Ddbunit.rowCountCheck` with no value enables it too; use `=false` to force it off.
+A test that declares `@DbUnitRowCountCheck(enabled = false)` stays exempt when the property
+force-enables the check, while `=false` disables the check for every test.
 
 It is wired into both link:../testcases/PrepAndExpectedTestCase.html[PrepAndExpectedTestCase]
 and link:../testcases/DbUnitExtension.html[DbUnitExtension]; enabling the feature (or the
@@ -106,8 +108,8 @@ config.setProperty(DatabaseConfig.PROPERTY_ROW_COUNT_CHECK_EXCLUDE_TABLES,
         new String[] {"AUDIT_*", "HIBERNATE_SEQUENCES"});
 ----
 
-or the matching system property, which *replaces* rather than appends to any configured
-patterns:
+or the matching system property, which *adds* its patterns to any configured or declared ones
+and never replaces them:
 
 [source]
 ----
