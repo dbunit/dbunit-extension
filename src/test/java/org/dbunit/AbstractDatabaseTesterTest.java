@@ -20,14 +20,20 @@
  */
 package org.dbunit;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
 import org.dbunit.database.IDatabaseConnection;
 import org.dbunit.database.InMemoryDatabaseConnection;
 import org.dbunit.dataset.DefaultDataSet;
+import org.dbunit.dataset.IDataSet;
 import org.dbunit.operation.DatabaseOperation;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -88,5 +94,117 @@ class AbstractDatabaseTesterTest
                 .isSameAs(failure);
 
         verify(listener).operationTearDownFinished(connection);
+    }
+
+    // The order below is relied on by org.dbunit.annotation.runtime.AnnotatedTestExecutor: it
+    // takes the row count check baseline from the connection the listener is told about, before
+    // the operation changes any data, and finishes combining several @DbUnitPrep files, setting
+    // the tester's dataset, once the listener has told it that connection's case sensitivity.
+
+    @Test
+    void testOnSetup_operationIsNotNone_notifiesTheListenerBeforeReadingTheDataSetAndRunningTheOperation()
+            throws Exception
+    {
+        final List<String> events = new ArrayList<>();
+        final DefaultDatabaseTester recordingTester = recordingTester(events);
+        recordingTester.setSetUpOperation(recordingOperation(events));
+
+        recordingTester.onSetup();
+
+        assertThat(events)
+                .as("The listener must be told about the retrieved connection before the tester"
+                        + " reads its dataset and before the operation runs, and told when the"
+                        + " operation is finished last.")
+                .isEqualTo(Arrays.asList("getConnection", "connectionRetrieved", "getDataSet",
+                        "execute", "operationSetUpFinished"));
+    }
+
+    @Test
+    void testOnTearDown_operationIsNotNone_notifiesTheListenerBeforeReadingTheDataSetAndRunningTheOperation()
+            throws Exception
+    {
+        final List<String> events = new ArrayList<>();
+        final DefaultDatabaseTester recordingTester = recordingTester(events);
+        recordingTester.setTearDownOperation(recordingOperation(events));
+
+        recordingTester.onTearDown();
+
+        assertThat(events)
+                .as("The listener must be told about the retrieved connection before the tester"
+                        + " reads its dataset and before the operation runs, and told when the"
+                        + " operation is finished last.")
+                .isEqualTo(Arrays.asList("getConnection", "connectionRetrieved", "getDataSet",
+                        "execute", "operationTearDownFinished"));
+    }
+
+    @Test
+    void testOnSetup_operationIsNone_retrievesNoConnectionAndNotifiesNoListener()
+            throws Exception
+    {
+        final List<String> events = new ArrayList<>();
+        final DefaultDatabaseTester recordingTester = recordingTester(events);
+        recordingTester.setSetUpOperation(DatabaseOperation.NONE);
+
+        recordingTester.onSetup();
+
+        assertThat(events)
+                .as("A NONE operation needs no connection, so it must neither be retrieved nor"
+                        + " reported to the listener, which the annotation runtime resolves a"
+                        + " connection for itself in that case.")
+                .isEmpty();
+    }
+
+    private DefaultDatabaseTester recordingTester(final List<String> events)
+    {
+        final DefaultDatabaseTester recordingTester = new DefaultDatabaseTester(connection)
+        {
+            @Override
+            public IDatabaseConnection getConnection() throws Exception
+            {
+                events.add("getConnection");
+                return super.getConnection();
+            }
+
+            @Override
+            public IDataSet getDataSet()
+            {
+                events.add("getDataSet");
+                return super.getDataSet();
+            }
+        };
+        recordingTester.setDataSet(new DefaultDataSet());
+        recordingTester.setOperationListener(new IOperationListener()
+        {
+            @Override
+            public void connectionRetrieved(final IDatabaseConnection retrieved)
+            {
+                events.add("connectionRetrieved");
+            }
+
+            @Override
+            public void operationSetUpFinished(final IDatabaseConnection finished)
+            {
+                events.add("operationSetUpFinished");
+            }
+
+            @Override
+            public void operationTearDownFinished(final IDatabaseConnection finished)
+            {
+                events.add("operationTearDownFinished");
+            }
+        });
+        return recordingTester;
+    }
+
+    private static DatabaseOperation recordingOperation(final List<String> events)
+    {
+        return new DatabaseOperation()
+        {
+            @Override
+            public void execute(final IDatabaseConnection operatedOn, final IDataSet dataSet)
+            {
+                events.add("execute");
+            }
+        };
     }
 }
