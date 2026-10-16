@@ -386,7 +386,7 @@ public class DbUnitExtension implements BeforeTestExecutionCallback,
     {
         final List<Class<?>> testClasses = new ArrayList<>();
         testClasses.add(context.getRequiredTestClass());
-        testClasses.addAll(context.getEnclosingTestClasses());
+        testClasses.addAll(EnclosingTestClasses.of(context));
         return testClasses;
     }
 
