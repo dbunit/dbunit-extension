@@ -22,6 +22,7 @@ package org.dbunit.junit.jupiter;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
+import java.util.List;
 import java.util.Optional;
 
 import org.dbunit.annotation.runtime.AnnotationLookup;
@@ -34,6 +35,13 @@ import org.junit.platform.commons.support.AnnotationSupport;
  * the class hierarchy - including enclosing classes, for {@code @Nested} support - second, so a
  * method-level annotation continues to win over a class-level one. The method is searched on its
  * own, not through the methods it overrides.
+ *
+ * <p>The enclosing classes come from {@link EnclosingTestClasses}, and each class is searched on
+ * its own, the closest enclosing class first, rather than through the {@link AnnotationSupport}
+ * overload that takes the enclosing classes: that overload and
+ * {@code ExtensionContext.getEnclosingTestClasses()} are newer than JUnit Jupiter 5.7, the
+ * oldest release the extension supports, and JUnit marks both maintained API since its 5.13.3
+ * release.
  *
  * <p>The declaring class comes from {@link DeclaringClassFinder}, which looks where
  * {@link AnnotationSupport} does, in the same order, so it names the declaration
@@ -70,15 +78,35 @@ class ContextAnnotationLookup implements AnnotationLookup
                 return onMethod.get();
             }
         }
-        return AnnotationSupport.findAnnotation(context.getRequiredTestClass(), annotationType,
-                context.getEnclosingTestClasses()).orElse(null);
+        final Optional<A> onTestClass =
+                AnnotationSupport.findAnnotation(context.getRequiredTestClass(), annotationType);
+        if (onTestClass.isPresent())
+        {
+            return onTestClass.get();
+        }
+        return findOnEnclosingClasses(annotationType);
     }
 
     @Override
     public Class<?> findDeclaringClass(final Class<? extends Annotation> annotationType)
     {
         final DeclaringClassFinder finder = new DeclaringClassFinder(context.getTestMethod(),
-                context.getRequiredTestClass(), context.getEnclosingTestClasses());
+                context.getRequiredTestClass(), EnclosingTestClasses.of(context));
         return finder.find(annotationType);
+    }
+
+    private <A extends Annotation> A findOnEnclosingClasses(final Class<A> annotationType)
+    {
+        final List<Class<?>> enclosingClasses = EnclosingTestClasses.of(context);
+        for (int i = enclosingClasses.size() - 1; i >= 0; i--)
+        {
+            final Optional<A> onEnclosingClass =
+                    AnnotationSupport.findAnnotation(enclosingClasses.get(i), annotationType);
+            if (onEnclosingClass.isPresent())
+            {
+                return onEnclosingClass.get();
+            }
+        }
+        return null;
     }
 }
