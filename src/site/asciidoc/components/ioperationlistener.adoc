@@ -84,11 +84,19 @@ databaseTester.setOperationListener(listener);
 [#extension]
 == Under the JUnit Jupiter Extension
 
-link:../testcases/DbUnitExtension.html[`DbUnitExtension`] on an annotation-driven test
-wraps the tester's listener for the duration of one test, then puts the tester's own
-listener back, so a tester shared across test methods carries nothing from one test to
-the next. Wrapping the listener and putting it back rely on the tester reporting it through
-`getOperationListener()`, as `AbstractDatabaseTester` and the testers built on it do. A
+link:../testcases/DbUnitExtension.html[`DbUnitExtension`] wraps the tester's listener for
+the duration of one test, then puts the tester's own listener back, so a tester shared
+across test methods carries nothing from one test to the next. On a plain
+`@ExtendWith(DbUnitExtension.class)` test, the 3.5.0 style, the wrapper only forwards every
+callback to your listener, closes included, and takes the row count baseline from the
+connection `onSetup()` retrieves, so the tester opens only the connections it did in 3.5.0.
+That connection stays your listener's to close or to keep open, so a non-closing listener
+still keeps a fixed connection alive for the next test; the extension closes only a
+connection it resolves itself.
+On an annotation-driven test it also applies the `@DbUnitProperty` values and protects the
+one connection the extension holds. Wrapping the listener and putting it back rely on the
+tester reporting it through `getOperationListener()`, as `AbstractDatabaseTester` and the
+testers built on it do. A
 custom `IDatabaseTester` that does not override it reports none, so the extension leaves
 its listener exactly as configured rather than replace it with one it could not put back.
 For such a tester the `@DbUnitProperty` values reach only the connection the extension
@@ -103,7 +111,8 @@ and does not replace it.
 `connectionRetrieved()`, so a `DatabaseConfig` customization made there, such as
 enabling the link:rowcountcheck.html[row count check], applies to it too. That includes
 the connection a plain `@ExtendWith(DbUnitExtension.class)` test resolves for the row
-count baseline and, on the setup/teardown path, a `Connection` or `IDatabaseConnection`
+count baseline when `onSetup()` cannot be relied on to retrieve one, a `NONE` setup
+operation, say, and, on the setup/teardown path, a `Connection` or `IDatabaseConnection`
 test method parameter. The prep/expected path offers it to your listener's
 `connectionRetrieved()` too, each time `DefaultPrepAndExpectedTestCase` runs a set up or
 tear down operation, but never to the `*Finished` callbacks: that class decides when its

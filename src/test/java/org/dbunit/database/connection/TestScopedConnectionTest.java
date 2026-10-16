@@ -436,6 +436,54 @@ class TestScopedConnectionTest
     }
 
     @Test
+    void testReleaseUnlessAdopted_connectionAdopted_forgetsItWithoutClosingIt() throws Exception
+    {
+        final IDatabaseConnection connection = openConnection();
+        final TestScopedConnection holder =
+                new TestScopedConnection(() -> connection, alwaysMayClose, null);
+        holder.adopt(connection);
+
+        holder.releaseUnlessAdopted();
+
+        verify(connection, never()).close();
+        assertThat(holder.isResolved())
+                .as("An adopted connection is forgotten, left to whoever acquired it.")
+                .isFalse();
+    }
+
+    @Test
+    void testReleaseUnlessAdopted_connectionAcquiredFromTheSource_closesIt() throws Exception
+    {
+        final IDatabaseConnection connection = openConnection();
+        final TestScopedConnection holder =
+                new TestScopedConnection(() -> connection, alwaysMayClose, null);
+        holder.getConnection();
+
+        holder.releaseUnlessAdopted();
+
+        verify(connection).close();
+    }
+
+    @Test
+    void testReleaseUnlessAdopted_adoptedConnectionClosedThenReacquired_closesTheReacquiredOne()
+            throws Exception
+    {
+        final IDatabaseConnection adopted = mock(IDatabaseConnection.class);
+        final Connection adoptedJdbc = mock(Connection.class);
+        when(adopted.getConnection()).thenReturn(adoptedJdbc);
+        when(adoptedJdbc.isClosed()).thenReturn(true);
+        final IDatabaseConnection reacquired = openConnection();
+        final TestScopedConnection holder =
+                new TestScopedConnection(() -> reacquired, alwaysMayClose, null);
+        holder.adopt(adopted);
+        holder.getConnection();
+
+        holder.releaseUnlessAdopted();
+
+        verify(reacquired).close();
+    }
+
+    @Test
     void testPeekConnection_beforeGetConnection_returnsNullWithoutAcquiring()
     {
         final TestScopedConnection holder = new TestScopedConnection(() ->

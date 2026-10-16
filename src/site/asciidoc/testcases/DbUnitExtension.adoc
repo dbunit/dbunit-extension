@@ -89,6 +89,14 @@ with `DatabaseConfig.FEATURE_ROW_COUNT_CHECK` (or `-Ddbunit.rowCountCheck=true`)
 connection's config, or per class/method with
 link:annotations.html#rowcountcheck[`@DbUnitRowCountCheck`].
 
+On a bare `@ExtendWith(DbUnitExtension.class)` class, a `DefaultDatabaseTester` built for each
+test cannot be verified with its default listener: the listener closes the tester's only
+connection after `onSetup()`, the extension asks the tester for a connection to verify after
+`onTearDown()`, and the tester hands out the closed one, so the test fails on it, after a
+warning that names the no-op listener. Switch such a class to `@DbUnitTest`, whose test case
+shares one connection for the whole test and closes it at the end, or give the tester
+`NO_OP_OPERATION_LISTENER` and close its connection in the test yourself.
+
 == Parameter Injection
 
 `DbUnitExtension` also resolves `IDatabaseTester`, `PrepAndExpectedTestCase`,
@@ -131,13 +139,25 @@ with only a plain, unannotated `IDatabaseTester` field keeps the
 lifecycle-only behavior it has always had and no parameter is claimed for
 it, so another extension resolving a `Connection` (or any of the other three
 types) on the same test method is not left competing with a claim here. That
-class resolves one connection from its tester before `onSetup()` to capture the
-link:../components/rowcountcheck.html[row count check] baseline, whether or not
-the check is enabled, because the setting lives on a connection's
-`DatabaseConfig`; the same test opted in with `@DbUnitTest` reuses the
-connection `onSetup()` retrieves instead. That connection is first offered to the
-tester's `IOperationListener#connectionRetrieved()`, so enabling the check there works,
-and the listener sees one more retrieval than in 3.5.0.
+class takes the link:../components/rowcountcheck.html[row count check] baseline,
+whether or not the check is enabled, because the setting lives on a connection's
+`DatabaseConfig`, from the connection `onSetup()` retrieves, after the tester's
+`IOperationListener#connectionRetrieved()` has run, so enabling the check there works
+and capturing the baseline opens no connection of its own. For that it wraps the
+tester's listener for the test, forwarding every callback to it unchanged, and puts
+it back afterward. The wrapper sits on the tester object, so tests that run at the same
+time cannot share a tester on this path, as they do with a `PER_CLASS` test instance or a
+shared object assigned to each instance's field: each would see the others' wrapper and
+connections. Put such a tester on the annotation-driven path with `@DbUnitTest`, which
+installs nothing on it.
+The connection `onSetup()` retrieves stays the listener's to close
+or to keep open, as in 3.5.0. When `onSetup()` cannot be relied on to retrieve a
+connection - a `NONE` setup operation, say - the extension resolves one from the tester
+before `onSetup()` instead. With the check enabled it also resolves one to verify after
+`onTearDown()` when the listener already closed the one `onSetup()` retrieved, as the
+default listener does. It offers either connection to `connectionRetrieved()` first, so
+the listener sees one more retrieval than in 3.5.0, and closes it after the test unless
+the tester's listener is `NO_OP_OPERATION_LISTENER`.
 Switch such a class to `@DbUnitTest`, or mark its field `@DbUnitTester`, to
 opt its parameters in.
 

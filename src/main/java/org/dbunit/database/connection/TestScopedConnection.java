@@ -51,6 +51,7 @@ public final class TestScopedConnection
     private IDatabaseConnection connection;
     private Connection jdbcConnection;
     private boolean resolved;
+    private boolean adopted;
 
     /**
      * Creates a test-scoped connection.
@@ -101,6 +102,7 @@ public final class TestScopedConnection
         {
             connection = source.call();
             resolved = true;
+            adopted = false;
             jdbcConnection = captureJdbcConnection(connection);
             if (connection != null && onAcquired != null)
             {
@@ -146,6 +148,7 @@ public final class TestScopedConnection
         this.connection = connection;
         this.jdbcConnection = captureJdbcConnection(connection);
         this.resolved = true;
+        this.adopted = true;
     }
 
     /**
@@ -194,6 +197,24 @@ public final class TestScopedConnection
         {
             discardOnFailure();
         }
+    }
+
+    /**
+     * Releases the connection as {@link #release()} does when this holder acquired it, and only
+     * forgets one it {@linkplain #adopt(IDatabaseConnection) adopted}: that connection belongs
+     * to whoever acquired it, which closes it or keeps it open for another owner.
+     *
+     * @throws Exception If closing a connection this holder acquired, or checking whether it is
+     *             already closed, fails.
+     */
+    public void releaseUnlessAdopted() throws Exception
+    {
+        if (adopted)
+        {
+            discardOnFailure();
+            return;
+        }
+        release();
     }
 
     /**
@@ -257,6 +278,7 @@ public final class TestScopedConnection
         connection = null;
         jdbcConnection = null;
         resolved = false;
+        adopted = false;
     }
 
     /**
