@@ -138,15 +138,21 @@ import org.slf4j.LoggerFactory;
  *
  * <p>This zero-annotation style is the 3.5.0 lifecycle: the extension calls only
  * {@code onSetup()}/{@code onTearDown()} on the tester and runs the row count check around
- * them, without replacing the tester's {@link org.dbunit.IOperationListener}. The connection it
- * resolves for the row count baseline is first offered to that listener's
- * {@code connectionRetrieved()}, so a {@code DatabaseConfig} customization made there, such as
- * enabling the check, applies to it; the listener sees one more retrieval than the 3.5.0
- * lifecycle gave it. That connection is never closed before {@code onSetup()} - a tester that
- * returns one fixed connection from every call (e.g. a {@code DefaultDatabaseTester} built from
- * a fixed connection) would otherwise run {@code onSetup()} against a closed one - and is
- * closed after the test when {@code closeConnectionAfterTest} allows and the tester's listener
- * is not {@code NO_OP}. Adding any {@code @DbUnit*} annotation or a
+ * them. The row count baseline comes from the connection {@code onSetup()} retrieves, so the
+ * tester opens only the connections it did in 3.5.0: the extension wraps the tester's
+ * {@link org.dbunit.IOperationListener} for the test, forwards every callback to it unchanged,
+ * and puts it back afterward. A {@code DatabaseConfig} customization made in the listener's
+ * {@code connectionRetrieved()}, such as enabling the check, applies to the baseline. When
+ * {@code onSetup()} cannot be trusted to retrieve a connection - a {@code NONE} setup
+ * operation, or a tester that overrides {@code onSetup()} or cannot report its listener - the
+ * extension resolves one from the tester before {@code onSetup()} for the baseline instead and
+ * offers it to that listener's {@code connectionRetrieved()} first, so the listener sees one
+ * more retrieval than the 3.5.0 lifecycle gave it. That connection is never closed before
+ * {@code onSetup()} - a tester that returns one fixed connection from every call (e.g. a
+ * {@code DefaultDatabaseTester} built from a fixed connection) would otherwise run
+ * {@code onSetup()} against a closed one - and is closed after the test when
+ * {@code closeConnectionAfterTest} allows and the tester's listener is not {@code NO_OP}.
+ * Adding any {@code @DbUnit*} annotation or a
  * {@link DbUnitTester @DbUnitTester}/{@link DbUnitTestCase @DbUnitTestCase} field opts the test
  * into the fuller annotation-driven lifecycle described above.
  *

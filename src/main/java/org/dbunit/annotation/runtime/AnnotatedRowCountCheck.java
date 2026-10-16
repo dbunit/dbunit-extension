@@ -21,6 +21,7 @@
 package org.dbunit.annotation.runtime;
 
 import java.sql.SQLException;
+import java.util.function.BooleanSupplier;
 
 import org.dbunit.AbstractDatabaseTester;
 import org.dbunit.DatabaseUnitException;
@@ -49,9 +50,9 @@ import org.dbunit.operation.DatabaseOperation;
  * piggybacks on that connection - via the {@link ExecutorOperationListener} - so no connection
  * is resolved here at all;</li>
  * <li>otherwise - a custom {@link IDatabaseTester}, a {@link DatabaseOperation#NONE} setup
- * operation, a connection already memoized from a {@code @BeforeEach} parameter, or the classic
- * path where there is no listener to piggyback on - {@link #captureBaselineEagerly()} resolves
- * one eagerly, <em>before</em> {@code onSetup()}.</li>
+ * operation, a connection already memoized from a {@code @BeforeEach} parameter, or a tester
+ * that cannot report its listener, leaving none to piggyback on - {@link #captureBaselineEagerly()}
+ * resolves one eagerly, <em>before</em> {@code onSetup()}.</li>
  * </ul>
  *
  * <p>Either way a baseline is always decided - captured, or found disabled - before the test
@@ -70,7 +71,7 @@ final class AnnotatedRowCountCheck
     private final AnnotatedTestConfiguration configuration;
     private final IDatabaseTester tester;
     private final TestScopedConnection connection;
-    private final boolean operationListenerInstalled;
+    private final BooleanSupplier operationListenerInPlace;
     private final RowCountChecker checker = new RowCountChecker();
 
     private boolean baselineAttempted;
@@ -81,18 +82,20 @@ final class AnnotatedRowCountCheck
      * @param configuration The resolved configuration.
      * @param tester The tester being driven.
      * @param connection The shared per-test connection holder.
-     * @param operationListenerInstalled Whether an {@link ExecutorOperationListener} is installed
-     *            on the tester for this test - false on the classic path, and for a tester that
-     *            cannot report its listener, where there is nothing to piggyback on.
+     * @param operationListenerInPlace Supplies whether the {@link ExecutorOperationListener}
+     *            installed for this test still hears the tester's callbacks, read when the
+     *            setup is about to run - false for a tester that cannot report its listener,
+     *            where none was installed, and once something has replaced it, such as a
+     *            {@code @BeforeEach} method given the tester as a parameter.
      */
     AnnotatedRowCountCheck(final AnnotatedTestConfiguration configuration,
             final IDatabaseTester tester, final TestScopedConnection connection,
-            final boolean operationListenerInstalled)
+            final BooleanSupplier operationListenerInPlace)
     {
         this.configuration = configuration;
         this.tester = tester;
         this.connection = connection;
-        this.operationListenerInstalled = operationListenerInstalled;
+        this.operationListenerInPlace = operationListenerInPlace;
     }
 
     /**
@@ -103,9 +106,10 @@ final class AnnotatedRowCountCheck
      * {@link #captureBaselineEagerly()} resolving a separate one just to find out whether the
      * check is even enabled.
      *
-     * <p>True only when this is provably safe: an {@link ExecutorOperationListener} is actually
-     * installed on the tester to piggyback on (an annotation-driven test, whose tester reports
-     * its listener); {@code tester} is dbUnit's own {@link AbstractDatabaseTester}
+     * <p>True only when this is provably safe: the {@link ExecutorOperationListener} installed on
+     * the tester is still there to piggyback on, not replaced since by one that would never
+     * pass the connection on, which would leave only a capture after {@code onSetup()} had
+     * already inserted the prep rows; {@code tester} is dbUnit's own {@link AbstractDatabaseTester}
      * <em>and does not override {@code onSetup()}</em>,
      * so {@code executeOperation()} - known by reading its source, not by assuming it - runs and
      * calls {@code getConnection()} and notifies the listener <em>before</em> the operation
@@ -128,7 +132,7 @@ final class AnnotatedRowCountCheck
      */
     boolean canPiggybackBaselineOn(final DatabaseOperation resolvedSetUpOperation)
     {
-        return operationListenerInstalled && !connection.isResolved()
+        return operationListenerInPlace.getAsBoolean() && !connection.isResolved()
                 && tester instanceof AbstractDatabaseTester && !testerOverridesOnSetup()
                 && resolvedSetUpOperation != DatabaseOperation.NONE;
     }
