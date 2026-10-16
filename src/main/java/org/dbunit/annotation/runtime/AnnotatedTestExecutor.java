@@ -676,16 +676,35 @@ public class AnnotatedTestExecutor
      * still use the tester through the test case.
      * {@link PrepAndExpectedTestCase#setDatabaseTester(IDatabaseTester)} with {@code null}
      * releases the connection it holds, as {@code DefaultPrepAndExpectedTestCase} does, closing
-     * it only if it would have closed it after the test. A no-op when nothing was bound, or it
-     * was already taken off.
+     * it only if its {@code closeConnectionAfterTest} says to. That is the instance's own value
+     * by now: a {@code false} the test declared was put back when the test's configuration was
+     * undone. So when the test declared {@code false}, the connection belongs to its real owner,
+     * and the instance is held to that while the tester comes off. A no-op when nothing was
+     * bound, or it was already taken off.
      */
     public void unbindTesterFromInjectedTestCase()
     {
         final PrepAndExpectedTestCase testCase = testCaseToUnbindTesterFrom;
         testCaseToUnbindTesterFrom = null;
-        if (testCase != null)
+        if (testCase == null)
+        {
+            return;
+        }
+
+        if (configuration.isCloseConnectionAfterTest())
         {
             testCase.setDatabaseTester(null);
+            return;
+        }
+
+        final boolean ownCloseConnectionAfterTest = testCase.isCloseConnectionAfterTest();
+        testCase.setCloseConnectionAfterTest(false);
+        try
+        {
+            testCase.setDatabaseTester(null);
+        } finally
+        {
+            testCase.setCloseConnectionAfterTest(ownCloseConnectionAfterTest);
         }
     }
 

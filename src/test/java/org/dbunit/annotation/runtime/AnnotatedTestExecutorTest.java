@@ -1878,6 +1878,51 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
+    void testUnbindTesterFromInjectedTestCase_closeConnectionAfterTestDeclaredFalse_doesNotLetTheTestCaseCloseItsConnection()
+            throws Exception
+    {
+        // The test case closes the connection it holds when its tester is taken off, as its own
+        // closeConnectionAfterTest says. The flag a test declares false is put back to the
+        // instance's own once the test's configuration is undone, so the executor holds the
+        // line for the declared value: that connection belongs to its real owner.
+        final DbUnitConfig config =
+                WithCloseConnectionAfterTestFalse.class.getAnnotation(DbUnitConfig.class);
+        final TesterHoldingTestCase testCase = new TesterHoldingTestCase();
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                AnnotatedTestConfiguration.from(WithCloseConnectionAfterTestFalse.class, config,
+                        null, null, null, null, null),
+                resolveBoundTo(testCase), true);
+
+        executor.unbindTesterFromInjectedTestCase();
+
+        assertThat(testCase.closeConnectionAfterTestWhenTesterTakenOff)
+                .as("The test declared closeConnectionAfterTest false, so the test case must not"
+                        + " close the connection it holds when the tester is taken off.")
+                .isFalse();
+        assertThat(testCase.isCloseConnectionAfterTest())
+                .as("The instance's own setting is back once the tester is off.").isTrue();
+        assertThat(testCase.getDatabaseTester()).as("The tester is off.").isNull();
+    }
+
+    @Test
+    void testUnbindTesterFromInjectedTestCase_closeConnectionAfterTestNotDeclared_leavesTheDecisionToTheTestCase()
+            throws Exception
+    {
+        final TesterHoldingTestCase testCase = new TesterHoldingTestCase();
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                AnnotatedTestConfiguration.from(AnnotatedTestExecutorTest.class, null, null, null,
+                        null, null, null),
+                resolveBoundTo(testCase), true);
+
+        executor.unbindTesterFromInjectedTestCase();
+
+        assertThat(testCase.closeConnectionAfterTestWhenTesterTakenOff)
+                .as("With nothing declared, the test case's own setting decides, as it does after"
+                        + " any test.")
+                .isTrue();
+    }
+
+    @Test
     void testUnbindTesterFromInjectedTestCase_calledTwice_takesOffOnlyWhatItGave() throws Exception
     {
         final TesterHoldingTestCase testCase = new TesterHoldingTestCase();
@@ -4195,7 +4240,12 @@ class AnnotatedTestExecutorTest
      */
     public static class TesterHoldingTestCase extends RecordingPrepAndExpectedTestCase
     {
+        // What the connection is closed by when the tester is taken off: its own flag, as
+        // DefaultPrepAndExpectedTestCase reads it then.
+        Boolean closeConnectionAfterTestWhenTesterTakenOff;
+
         private IDatabaseTester databaseTester;
+        private boolean closeConnectionAfterTest = true;
 
         TesterHoldingTestCase()
         {
@@ -4211,7 +4261,23 @@ class AnnotatedTestExecutorTest
         @Override
         public void setDatabaseTester(final IDatabaseTester databaseTester)
         {
+            if (databaseTester == null)
+            {
+                closeConnectionAfterTestWhenTesterTakenOff = closeConnectionAfterTest;
+            }
             this.databaseTester = databaseTester;
+        }
+
+        @Override
+        public boolean isCloseConnectionAfterTest()
+        {
+            return closeConnectionAfterTest;
+        }
+
+        @Override
+        public void setCloseConnectionAfterTest(final boolean closeConnectionAfterTest)
+        {
+            this.closeConnectionAfterTest = closeConnectionAfterTest;
         }
     }
 
