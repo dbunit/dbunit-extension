@@ -603,7 +603,11 @@ nothing closes the connection left open, so each test leaves one open, except th
 test case reused across tests keeps one. On the prep/expected path, a step that fails also makes
 the test case forget its connection so that the next step acquires another, and the forgotten
 one stays open with nothing referencing it. dbUnit logs a warning when it sees a connection
-left open with a `JdbcDatabaseTester` that has no `CachingConnectionProvider`.
+left open with a `JdbcDatabaseTester` that has no `CachingConnectionProvider`. A connection
+this executor closes while its autocommit is off has its open transaction rolled back first:
+Derby and DB2 refuse to close one, and Oracle's driver commits it on close, as the 3.5.x
+extension's close did, so on Oracle the prep and teardown writes of such a connection are now
+discarded, not committed - see link:../connections.html[Connections].
 
 |`injectConnectionParameter` |Whether the extension resolves a bare
 `java.sql.Connection` test-method parameter; default `true`. Set `false` when
