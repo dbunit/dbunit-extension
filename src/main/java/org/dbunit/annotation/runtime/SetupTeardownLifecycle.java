@@ -61,6 +61,7 @@ final class SetupTeardownLifecycle
 
     private boolean reachedOnSetup;
     private TesterStateSnapshot incomingState;
+    private IDataSet[] prepDataSetsToCombineOnConnection;
 
     /**
      * Creates the setup/teardown lifecycle for one test.
@@ -85,15 +86,18 @@ final class SetupTeardownLifecycle
     }
 
     /**
-     * Offers {@code retrieved} - a connection the tester's own {@code onSetup()}/
-     * {@code onTearDown()} just retrieved - to {@link AnnotatedRowCountCheck} for the
-     * piggybacked baseline capture. Called by {@link AnnotatedTestExecutor} from the installed
-     * {@link ExecutorOperationListener}.
+     * Finishes combining a multi-file {@code @DbUnitPrep} dataset with the case sensitivity of
+     * {@code retrieved} - a connection the tester's own {@code onSetup()}/{@code onTearDown()}
+     * just retrieved - when {@link #before()} had none to read it from, then offers it to
+     * {@link AnnotatedRowCountCheck} for the piggybacked baseline capture. Called by
+     * {@link AnnotatedTestExecutor} from the installed {@link ExecutorOperationListener}, which
+     * the tester notifies before its operation reads the dataset.
      *
      * @param retrieved The connection the tester just retrieved.
      */
     void adoptAndCaptureBaselineOnFirstConnection(final IDatabaseConnection retrieved)
     {
+        combinePrepDataSetsFor(retrieved);
         rowCountCheck.adoptAndCaptureBaselineOnFirstConnection(retrieved);
     }
 
@@ -107,11 +111,13 @@ final class SetupTeardownLifecycle
     {
         incomingState = TesterStateSnapshot.capture(tester);
         final DatabaseOperation resolvedSetUpOperation = applySetUpOperation();
-        if (!rowCountCheck.canPiggybackBaselineOn(resolvedSetUpOperation))
+        final boolean connectionComesFromOnSetup =
+                rowCountCheck.canPiggybackBaselineOn(resolvedSetUpOperation);
+        if (!connectionComesFromOnSetup)
         {
             rowCountCheck.captureBaselineEagerly();
         }
-        applyPrepDataset();
+        applyPrepDataset(connectionComesFromOnSetup);
         reachedOnSetup = true;
         tester.onSetup();
         if (!rowCountCheck.isBaselineAttempted())
@@ -133,9 +139,10 @@ final class SetupTeardownLifecycle
      * Reads only the configuration and the tester's own current operation, never a connection,
      * so {@link #before()} can settle the row count check baseline route - see
      * {@link AnnotatedRowCountCheck#canPiggybackBaselineOn(DatabaseOperation)} - <em>before</em>
-     * {@link #applyPrepDataset()} runs: combining a multi-file {@code @DbUnitPrep} dataset
-     * resolves the shared connection to read its case-sensitivity feature, which would rule the
-     * piggyback out (and cost a fresh-connection tester an extra connection) if it ran first.
+     * {@link #applyPrepDataset(boolean)} runs: combining a multi-file {@code @DbUnitPrep}
+     * dataset resolves the shared connection to read its case-sensitivity feature, which would
+     * rule the piggyback out (and cost a fresh-connection tester an extra connection) if it ran
+     * first.
      *
      * @return The setup operation {@code onSetup()} will run.
      */
@@ -157,19 +164,31 @@ final class SetupTeardownLifecycle
 
     /**
      * Applies the {@code @DbUnitPrep} dataset to the tester: a single file loaded directly, or
-     * multiple files combined (see {@link #loadCombined}). With no {@code @DbUnitPrep} data
-     * files this only warns, when {@code @DbUnitSetup} declares a non-NONE operation with no
-     * dataset for it to act on - {@link #applySetUpOperation()} has already applied the
-     * operation itself.
+     * multiple files combined (see {@link #combine}). With no {@code @DbUnitPrep} data files this
+     * only warns, when {@code @DbUnitSetup} declares a non-NONE operation with no dataset for it
+     * to act on - {@link #applySetUpOperation()} has already applied the operation itself.
      *
+     * <p>When the connection comes from {@code onSetup()} itself, none is resolved yet to read
+     * the case sensitivity the combine needs, so the files are combined case-insensitively for
+     * now and kept for {@link #combinePrepDataSetsFor(IDatabaseConnection)} to combine again
+     * once the tester reports the connection it retrieved. That is a dataset in place already
+     * even for a tester that never reports it.
+     *
+     * @param connectionComesFromOnSetup Whether no connection is resolved yet because
+     *            {@code onSetup()} is about to retrieve and report the one it uses.
      * @throws Exception If loading or combining a prep dataset fails.
      */
-    private void applyPrepDataset() throws Exception
+    private void applyPrepDataset(final boolean connectionComesFromOnSetup) throws Exception
     {
-        if (configuration.getPrepDataFiles().length > 0)
+        final String[] paths = configuration.getPrepDataFiles();
+        if (paths.length > 0)
         {
-            tester.setDataSet(loadCombined(configuration.getDataFileLoader(),
-                    configuration.getPrepDataFiles()));
+            final IDataSet[] dataSets = load(configuration.getDataFileLoader(), paths);
+            tester.setDataSet(combine(dataSets, isCaseSensitiveTableNames()));
+            if (dataSets.length > 1 && connectionComesFromOnSetup)
+            {
+                prepDataSetsToCombineOnConnection = dataSets;
+            }
             return;
         }
         if (configuration.isSetupDeclared())
@@ -262,24 +281,51 @@ final class SetupTeardownLifecycle
         }
     }
 
-    private IDataSet loadCombined(final DataFileLoader dataFileLoader, final String[] paths)
+    private IDataSet[] load(final DataFileLoader dataFileLoader, final String[] paths)
             throws Exception
     {
-        if (paths.length == 1)
-        {
-            return dataFileLoader.load(paths[0]);
-        }
         final IDataSet[] dataSets = new IDataSet[paths.length];
         for (int i = 0; i < paths.length; i++)
         {
             dataSets[i] = dataFileLoader.load(paths[i]);
         }
+        return dataSets;
+    }
+
+    private IDataSet combine(final IDataSet[] dataSets, final boolean caseSensitiveTableNames)
+    {
+        if (dataSets.length == 1)
+        {
+            return dataSets[0];
+        }
         try
         {
-            return new CompositeDataSet(dataSets, true, isCaseSensitiveTableNames());
+            return new CompositeDataSet(dataSets, true, caseSensitiveTableNames);
         } catch (final DataSetException e)
         {
             throw new IllegalStateException("Failed to combine prep datasets.", e);
+        }
+    }
+
+    /**
+     * Combines the multi-file {@code @DbUnitPrep} datasets {@link #applyPrepDataset(boolean)}
+     * kept again, with the case sensitivity {@code retrieved} reports, and gives the result to
+     * the tester when that differs from the case-insensitive one it already holds. A no-op unless
+     * datasets were kept, and after the first call. The tester notifies its listener, which calls
+     * this, before it reads its dataset, so the operation runs on the dataset combined the same
+     * way as when a connection was resolved first.
+     */
+    private void combinePrepDataSetsFor(final IDatabaseConnection retrieved)
+    {
+        final IDataSet[] dataSets = prepDataSetsToCombineOnConnection;
+        if (dataSets == null)
+        {
+            return;
+        }
+        prepDataSetsToCombineOnConnection = null;
+        if (isCaseSensitiveTableNames(retrieved))
+        {
+            tester.setDataSet(combine(dataSets, true));
         }
     }
 
@@ -294,21 +340,25 @@ final class SetupTeardownLifecycle
      * ({@link TestScopedConnection#peekConnection()}); it never resolves one itself. On the row
      * count check's piggyback route - see
      * {@link AnnotatedRowCountCheck#canPiggybackBaselineOn(DatabaseOperation)} - no connection
-     * is resolved until {@code onSetup()} retrieves it, so this returns false and a multi-file
-     * prep dataset combines case-insensitively: the pre-annotation default, and identical to a
-     * case-sensitive combine unless two prep files hold tables whose names differ only in case.
-     * Resolving one here purely to read this feature would rule that route out and cost a
-     * fresh-connection tester (a plain {@code JdbcDatabaseTester}) a second physical connection
-     * every test. Every other route - a custom tester, a {@link DatabaseOperation#NONE} setup
-     * operation, a connection already in hand from {@code @BeforeEach} parameter injection -
-     * has resolved a connection before this runs, so the feature is honored.
+     * is resolved until {@code onSetup()} retrieves it, so this returns false and the files
+     * combine case-insensitively for now, the pre-annotation default; see
+     * {@link #combinePrepDataSetsFor(IDatabaseConnection)} for how that is corrected. Resolving
+     * one here purely to read this feature would rule that route out and cost a fresh-connection
+     * tester (a plain {@code JdbcDatabaseTester}) a second physical connection every test. Every
+     * other route - a custom tester, a {@link DatabaseOperation#NONE} setup operation, a
+     * connection already in hand from {@code @BeforeEach} parameter injection - has resolved a
+     * connection before this runs, so the feature is honored.
      *
      * @return True when an already-resolved connection reports case-sensitive table names.
      */
     private boolean isCaseSensitiveTableNames()
     {
-        final IDatabaseConnection resolved = connection.peekConnection();
-        return resolved != null && resolved.getConfig()
+        return isCaseSensitiveTableNames(connection.peekConnection());
+    }
+
+    private static boolean isCaseSensitiveTableNames(final IDatabaseConnection candidate)
+    {
+        return candidate != null && candidate.getConfig()
                 .getFeature(DatabaseConfig.FEATURE_CASE_SENSITIVE_TABLE_NAMES);
     }
 }

@@ -115,7 +115,8 @@ final class AnnotatedRowCountCheck
      * would orphan the first rather than reuse it. {@link SetupTeardownLifecycle} consults this
      * before it combines a multi-file {@code @DbUnitPrep} dataset, precisely so that combine's
      * case-sensitivity read does not resolve a connection first and rule the piggyback out
-     * here; on this route the combine falls back to combining case-insensitively. A custom
+     * here; on this route it combines again, with the case sensitivity of the connection
+     * {@code onSetup()} retrieves, once the listener is notified of it. A custom
      * {@link IDatabaseTester}, or an
      * {@link AbstractDatabaseTester} subclass that overrides {@code onSetup()} and might apply
      * the setup operation some other way, is never assumed to behave the same way -
