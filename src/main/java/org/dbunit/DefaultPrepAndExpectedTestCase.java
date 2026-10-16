@@ -946,7 +946,10 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * <p>
      * Runs the tear down operation against the connection shared with
      * setupData() and verifyData() for this test's lifecycle, then closes it.
-     * See #800.
+     * See #800. A failure of the tear down operation or of the row count
+     * check, an {@link Error} such as an {@link AssertionError} from the
+     * tester's listener included, releases the connection the same way and
+     * propagates unchanged.
      */
     @Override
     public void cleanupData() throws Exception
@@ -980,11 +983,11 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
             log.debug("cleanupData: Clean up done");
             verifyRowCountUnchanged();
             closeReusableConnection();
-        } catch (final Exception e)
+        } catch (final Throwable t)
         {
-            log.error("cleanupData: Exception:", e);
-            closeReusableConnectionSuppressing(e);
-            throw e;
+            log.error("cleanupData: Exception:", t);
+            closeReusableConnectionSuppressing(t);
+            throw t;
         }
     }
 
