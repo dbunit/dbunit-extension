@@ -39,15 +39,10 @@ import org.junit.platform.testkit.engine.EngineTestKit;
 
 /**
  * Real-database integration test that the annotation runtime never holds more database
- * connections at once than it needs: the executor's own memoized connection (for the row count
- * check, or - on the classic path - the eagerly-resolved baseline probe) plus at most one the
- * tester opens for an operation. A pool of two always suffices; the executor never reaches for a
- * third.
- *
- * <p>The classic path holds its baseline connection until {@code afterTest()} the same way the
- * annotation paths do - it must not close a connection a fixed-connection tester would hand
- * straight to {@code onSetup()} - so a bounded pool needs capacity for two even with the row
- * count check disabled.
+ * connections at once than the 3.5.0 lifecycle did on the classic path: the row count check
+ * baseline is taken from the connection {@code onSetup()} opens, which the tester's own listener
+ * closes as it always has, so no connection is open while another is, with the row count check
+ * enabled or not. A bounded pool sized for the 3.5.0 lifecycle, one connection, suffices.
  *
  * <p>Uses {@link CountingDataSource} with a hard cap so a runtime that tries to hold too many
  * fails fast rather than deadlocking. Matrix rows 1 & 2 under pool pressure (G-c3).
@@ -58,11 +53,11 @@ class DbUnitExtensionBoundedPoolIT
     private static final String TEST_TABLE = "TEST_TABLE";
 
     @Test
-    void testAfterTestExecution_classicPathRowCountCheckOnPoolOfTwo_succeedsHoldingAtMostTwo()
+    void testAfterTestExecution_classicPathRowCountCheckOnPoolOfOne_succeedsHoldingAtMostOne()
             throws Exception
     {
         final DatabaseEnvironment environment = DatabaseEnvironment.getInstance();
-        final CountingDataSource pool = new CountingDataSource(environment.getProfile(), 2);
+        final CountingDataSource pool = new CountingDataSource(environment.getProfile(), 1);
         deleteAllRowsQuietly(environment);
         try
         {
@@ -74,11 +69,12 @@ class DbUnitExtensionBoundedPoolIT
                     .testEvents().assertStatistics(stats -> stats.started(1).succeeded(1));
 
             assertThat(pool.peakConcurrent())
-                    .as("The classic path with the row count check enabled holds its baseline"
-                            + " connection through onSetup() (which opens a second) and the"
-                            + " later verify - a pool of two must be enough, and must actually"
-                            + " be used.")
-                    .isEqualTo(2);
+                    .as("The classic path with the row count check enabled takes its baseline"
+                            + " from the connection onSetup() opens, which the tester's listener"
+                            + " closes, and verifies on a connection opened after onTearDown()'s"
+                            + " closed - a pool of one must be enough, and must actually be"
+                            + " used.")
+                    .isEqualTo(1);
         } finally
         {
             deleteAllRowsQuietly(environment);
@@ -89,11 +85,11 @@ class DbUnitExtensionBoundedPoolIT
     }
 
     @Test
-    void testAfterTestExecution_classicPathRowCountCheckOffPoolOfTwo_succeedsHoldingAtMostTwo()
+    void testAfterTestExecution_classicPathRowCountCheckOffPoolOfOne_succeedsHoldingAtMostOne()
             throws Exception
     {
         final DatabaseEnvironment environment = DatabaseEnvironment.getInstance();
-        final CountingDataSource pool = new CountingDataSource(environment.getProfile(), 2);
+        final CountingDataSource pool = new CountingDataSource(environment.getProfile(), 1);
         deleteAllRowsQuietly(environment);
         try
         {
@@ -105,12 +101,11 @@ class DbUnitExtensionBoundedPoolIT
                     .testEvents().assertStatistics(stats -> stats.started(1).succeeded(1));
 
             assertThat(pool.peakConcurrent())
-                    .as("Even with the row count check disabled, the classic path holds its"
-                            + " eagerly-resolved baseline connection through onSetup() (which"
-                            + " opens a second) rather than closing a connection a"
-                            + " fixed-connection tester would hand straight to onSetup() - a pool"
-                            + " of two must be enough, and is actually used.")
-                    .isEqualTo(2);
+                    .as("With the row count check disabled, the classic path opens no connection"
+                            + " of its own: only onSetup()'s and onTearDown()'s, one after the"
+                            + " other, as in the 3.5.0 lifecycle - a pool of one must be enough,"
+                            + " and is actually used.")
+                    .isEqualTo(1);
         } finally
         {
             deleteAllRowsQuietly(environment);
