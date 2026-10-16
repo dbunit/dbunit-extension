@@ -80,7 +80,10 @@ public class VerifyTableDefinitionCatalog
      *
      * <p>The cache is held by the combination's first class, through a {@link ClassValue}, so
      * it goes away with that class and its class loader instead of keeping them alive for the
-     * rest of the JVM run. A catalog is read-only once built, so every thread shares it.
+     * rest of the JVM run. A catalog is read-only once built, so every thread shares it, and so
+     * does every test: its {@link VerifyTableDefinition}s are not copied, so a test that changed
+     * one would change it for all the tests after it - see
+     * {@link VerifyTableDefinitionsProvider}.
      *
      * <p>The cache key is order-sensitive: {@code forClasses(A, B)} and {@code forClasses(B, A)}
      * are different combinations, each cached (and merged) separately, even though the same

@@ -421,6 +421,10 @@ fails fast with an `IllegalStateException` pointing at
 <<catalog,the catalog>> as the fix, since a configured comparer can only be
 expressed as a `VerifyTableDefinition` constant written in Java.
 
+Each comparer class is instantiated once for the whole run and shared by every test that names
+it, in whatever order the tests run, so a custom comparer must be stateless: it keeps nothing
+between calls and depends on no mutable external state.
+
 An empty `include()` (the default) includes every column, as a `null` or empty include
 array does for a `VerifyTableDefinition`; an annotation cannot express `null`.
 
@@ -495,6 +499,12 @@ link:PrepAndExpectedTestCase.html#common_classes_for_examples[PrepAndExpectedTes
 already teaches with its `TableNames`/`ColumnNames`/`AppValueComparers`/
 `VerifyTableDefinitions` helper classes, so an existing project's constants
 work here unchanged.
+
+The definitions are shared, too: every test naming the same catalog classes gets the same
+`VerifyTableDefinition` objects for the whole run, and a `VerifyTableDefinitionsProvider` is
+asked only once. A test must never change them - their setters, such as
+`setSortOnFilteredColumnsOnly()`, included - and a comparer or verifier inside one must be
+stateless, or a later test's result depends on the order the tests ran in.
 
 `verifyDefinitions` sits on both `@DbUnitConfig` (the class-level default)
 and `@DbUnitExpected` (a per-method override); the two resolve independently,
