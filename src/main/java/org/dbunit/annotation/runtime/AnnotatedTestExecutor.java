@@ -20,6 +20,9 @@
  */
 package org.dbunit.annotation.runtime;
 
+import java.util.function.Supplier;
+
+import org.dbunit.ConnectionPreservingOperationListener;
 import org.dbunit.DatabaseUnitException;
 import org.dbunit.DefaultOperationListener;
 import org.dbunit.DefaultPrepAndExpectedTestCase;
@@ -56,33 +59,40 @@ import org.slf4j.LoggerFactory;
  * {@code @DbUnit*} annotation, or a {@code @DbUnitTester}/{@code @DbUnitTestCase} field. When it
  * did not - a bare {@code @ExtendWith(DbUnitExtension.class)} class with one plain, unannotated
  * {@link IDatabaseTester} field, the 3.5.0 lifecycle-only style - this executor takes the
- * <em>classic path</em>: {@link #installOperationListener()} does not run, so the tester's
- * {@link IOperationListener} is left untouched, and {@link AnnotatedRowCountCheck} never
- * piggybacks (it captures its baseline eagerly and {@link SetupTeardownLifecycle} lets
- * {@code onSetup()}/{@code onTearDown()} manage their own connections) - as
- * {@code DbUnitExtension} did before this class existed, with one addition: the connection
- * captured eagerly is first offered to the tester's own listener's
+ * <em>classic path</em>: {@link SetupTeardownLifecycle} lets {@code onSetup()}/
+ * {@code onTearDown()} manage their own connections, as {@code DbUnitExtension} did before this
+ * class existed, and the tester's {@link IOperationListener} is wrapped for the test by an
+ * {@link ExecutorOperationListener} that forwards every callback to it, shields no connection
+ * from the closes it makes, and only takes the row count check baseline from the connection
+ * {@code onSetup()} retrieves, so the test opens no connection the 3.5.0 lifecycle did not. The
+ * listener is put back when the test is over. The connection {@code onSetup()} retrieved stays
+ * the tester's listener's to close or to keep open, as in the 3.5.0 lifecycle: that listener was
+ * told the operation finished on it, and one that left it open keeps it for another owner, such
+ * as the fixed connection of a {@link org.dbunit.DefaultDatabaseTester} that later tests reuse.
+ * A connection this executor has to resolve itself, because {@code onSetup()} cannot be trusted
+ * to retrieve one, is first offered to the tester's own listener's
  * {@link IOperationListener#connectionRetrieved(IDatabaseConnection)}, as every connection
  * retrieved from the tester is, so a {@code DatabaseConfig} customization made there - such as
- * enabling the row count check - applies to it. The prep/expected path is always
- * annotation-driven (it needs {@code @DbUnitExpected}).
+ * enabling the row count check - applies to it, and is the only one this executor closes. The
+ * prep/expected path is always annotation-driven (it needs {@code @DbUnitExpected}).
  *
- * <p>An annotation-driven test also leaves the tester's {@link IOperationListener} untouched
- * when its tester does not report the listener it carries - an {@link IDatabaseTester} that
- * does not override {@link IDatabaseTester#getOperationListener()}, as
- * {@link org.dbunit.AbstractDatabaseTester} does. Wrapping a listener takes reading it, and
- * putting it back takes comparing it, so replacing one that cannot be read would discard it for
- * good - for example the no-op listener that says the tester's connections are managed
- * elsewhere. Such a test takes the classic path's listener handling: the
- * {@code @DbUnitProperty} values reach only the connection this executor resolves itself, not
- * one the tester's own {@code onSetup()}/{@code onTearDown()} retrieves, and the connection
- * this executor holds is not shielded from a close by the tester's own listener.
+ * <p>Any test leaves the tester's {@link IOperationListener} untouched when its tester does not
+ * report the listener it carries - an {@link IDatabaseTester} that does not override
+ * {@link IDatabaseTester#getOperationListener()}, as {@link org.dbunit.AbstractDatabaseTester}
+ * does. Wrapping a listener takes reading it, and putting it back takes comparing it, so
+ * replacing one that cannot be read would discard it for good - for example the no-op listener
+ * that says the tester's connections are managed elsewhere. For such a test the row count check
+ * baseline is always captured from a connection this executor resolves itself, and an
+ * annotation-driven one has its {@code @DbUnitProperty} values reach only that connection, not
+ * one the tester's own {@code onSetup()}/{@code onTearDown()} retrieves, and the connection this
+ * executor holds is not shielded from a close by the tester's own listener.
  *
  * <p>The connection {@link #getConnection()} memoizes - the tester's own on the setup/teardown
  * path, {@link PrepAndExpectedTestCase#getReusableConnection()}'s on the prep/expected path so a
  * {@code Connection}/{@code IDatabaseConnection} parameter shares the test case's own - is used
  * by the row count check and by a binding's parameter injection, and closed in
- * {@link #afterTest(boolean)} when {@link ConnectionOwnership#mayClose()} allows it. On an
+ * {@link #afterTest(boolean)} when {@link ConnectionOwnership#mayClose()} allows it, unless the
+ * classic path took it over from {@code onSetup()}. On an
  * annotation-driven test the {@link ExecutorOperationListener} additionally shields that one
  * connection, by identity, from a premature close by the tester's own {@code onSetup()}/
  * {@code onTearDown()} machinery while still forwarding a close for any other connection the
@@ -143,9 +153,8 @@ public class AnnotatedTestExecutor
     /**
      * Creates an executor for one test.
      *
-     * <p>Mutates {@code tester}'s listener only when {@code annotationDriven} is true and
-     * {@code tester} reports the listener it carries (it overrides
-     * {@link IDatabaseTester#getOperationListener()}):
+     * <p>Mutates {@code tester}'s listener only when {@code tester} reports the listener it
+     * carries (it overrides {@link IDatabaseTester#getOperationListener()}):
      * {@link #installOperationListener()} runs here, replacing {@code tester}'s
      * {@link IOperationListener} with an {@code ExecutorOperationListener} wrapping the previous
      * one, which {@link #afterTest(boolean)} - or {@link #releaseIfAfterTestDidNotRun()} - puts
@@ -154,9 +163,10 @@ public class AnnotatedTestExecutor
      * {@code tester} shared beyond one test class - a bean in a cached application context - is
      * left as it was found the same way, but is still not safe to share between tests running at
      * the same time: each installs its own wrapper and sets its own dataset and operations on
-     * the one tester. When {@code annotationDriven} is false - the classic path - or
-     * {@code tester} cannot report its listener, the tester's listener is left untouched; see
-     * the class Javadoc.
+     * the one tester. When {@code annotationDriven} is false - the classic path - the wrapper
+     * shields no connection from a close by the tester's own listener. When {@code tester}
+     * cannot report its listener, the tester's listener is left untouched; see the class
+     * Javadoc.
      *
      * @param configuration The resolved configuration to execute.
      * @param tester The tester to drive the setup/teardown path with, or to construct a
@@ -171,8 +181,9 @@ public class AnnotatedTestExecutor
      *            {@code @ExtendWith(DbUnitExtension.class)} class with one plain, unannotated
      *            {@link IDatabaseTester} field, whose tester listener and connection lifecycle
      *            are then left as in the 3.5.0 lifecycle, apart from the tester's listener being
-     *            offered the connection this executor resolves itself. Always true for the
-     *            prep/expected path, which needs {@code @DbUnitExpected}.
+     *            wrapped for the test to take the row count check baseline from the connection
+     *            {@code onSetup()} retrieves. Always true for the prep/expected path, which
+     *            needs {@code @DbUnitExpected}.
      */
     public AnnotatedTestExecutor(final AnnotatedTestConfiguration configuration,
             final IDatabaseTester tester,
@@ -225,14 +236,13 @@ public class AnnotatedTestExecutor
         this.leftOpenConnectionWarning = new LeftOpenConnectionWarning(ownership, () -> tester);
         this.testScopedConnection = new TestScopedConnection(this::acquireConnection, ownership,
                 this::onConnectionAcquired);
-        final boolean installsOperationListener =
-                annotationDriven && exposesOperationListener(tester);
+        final boolean installsOperationListener = exposesOperationListener(tester);
         this.setupTeardownLifecycle = new SetupTeardownLifecycle(configuration, tester,
-                testScopedConnection, installsOperationListener);
+                testScopedConnection, this::isInstalledListenerInPlace);
         if (installsOperationListener)
         {
             installOperationListener();
-        } else if (annotationDriven)
+        } else
         {
             log.debug("{} does not override IDatabaseTester.getOperationListener(), so its"
                     + " operation listener cannot be read to wrap and put back; leaving it as it"
@@ -251,6 +261,34 @@ public class AnnotatedTestExecutor
     {
         return DefaultMethodOverrideCheck.overridesDefaultMethod(tester.getClass(),
                 IDatabaseTester.class, "getOperationListener");
+    }
+
+    /**
+     * Returns whether the {@link ExecutorOperationListener} {@link #installOperationListener()}
+     * put on the tester still hears its callbacks: the tester carries it, directly or beneath
+     * {@link ConnectionPreservingOperationListener} layers, which forward every
+     * {@code connectionRetrieved()}. False when none was installed, and when something has
+     * replaced it since - a {@code @BeforeEach} method given the tester as a parameter runs
+     * after this executor was built and may set a listener of its own - as the tester's
+     * {@code onSetup()} would then never pass its connection on for the row count check
+     * baseline.
+     */
+    private boolean isInstalledListenerInPlace()
+    {
+        IOperationListener layer = tester.getOperationListener();
+        while (layer != null)
+        {
+            if (layer == installedListener)
+            {
+                return true;
+            }
+            if (!(layer instanceof ConnectionPreservingOperationListener))
+            {
+                return false;
+            }
+            layer = ((ConnectionPreservingOperationListener) layer).getDelegate();
+        }
+        return false;
     }
 
     /**
@@ -297,10 +335,10 @@ public class AnnotatedTestExecutor
      * that connection has autocommit off, and once if it is going to be left open with a tester
      * that opens a new connection on every call (see {@link LeftOpenConnectionWarning}), the
      * same checks {@link DefaultPrepAndExpectedTestCase} makes for the prep/expected path. The
-     * classic path resolves this connection only for the read-only row count check baseline,
-     * so an autocommit-off connection there is not a problem and neither warning is made; the
-     * prep/expected path warns via {@link DefaultPrepAndExpectedTestCase}'s own acquisition of
-     * the same connection.
+     * classic path resolves a connection here only for the read-only row count check baseline,
+     * when {@code onSetup()} cannot be trusted to retrieve one, so an autocommit-off connection
+     * there is not a problem and neither warning is made; the prep/expected path warns via
+     * {@link DefaultPrepAndExpectedTestCase}'s own acquisition of the same connection.
      *
      * <p>On the setup/teardown path it first tells the tester's own listener about the
      * connection - see {@link #notifyTesterListenerOfRetrieval}.
@@ -407,16 +445,17 @@ public class AnnotatedTestExecutor
     }
 
     /**
-     * Wraps the tester's operation listener in an {@link ExecutorOperationListener}, so that
-     * regardless of whether {@code @DbUnitProperty} is configured, this executor's own memoized
+     * Wraps the tester's operation listener in an {@link ExecutorOperationListener}, so that the
+     * row count check baseline can be captured from whatever connection {@code onSetup()}
+     * retrieves on its own - see {@link #onListenerFirstConnectionRetrieved(IDatabaseConnection)}
+     * - and, for an {@code annotationDriven} test, so that this executor's own memoized
      * connection (see the class Javadoc) is protected from a premature close by the tester's own
-     * setup/teardown machinery, and so the row count check baseline can be captured from
-     * whatever connection {@code onSetup()} retrieves on its own - see
-     * {@link #onListenerFirstConnectionRetrieved(IDatabaseConnection)}. Called from the
-     * constructor only for an {@code annotationDriven} test whose tester reports its listener;
-     * the classic path, and a tester that cannot report its listener, leave it untouched (see
-     * the class Javadoc). {@link #restoreOperationListener()} puts the tester's own listener
-     * back once the test is over.
+     * setup/teardown machinery, whether or not {@code @DbUnitProperty} is configured. The
+     * classic path protects no connection: the tester's own listener keeps every callback, and
+     * so every close, it had in the 3.5.0 lifecycle. Called from the constructor for a tester
+     * that reports its listener; one that cannot is left untouched (see the class Javadoc).
+     * {@link #restoreOperationListener()} puts the tester's own listener back once the test is
+     * over.
      */
     private void installOperationListener()
     {
@@ -424,8 +463,10 @@ public class AnnotatedTestExecutor
         final IOperationListener delegate = listenerToRestore == null
                 ? new DefaultOperationListener()
                 : listenerToRestore;
+        final Supplier<IDatabaseConnection> protectedConnection =
+                annotationDriven ? this::peekResolvedConnection : () -> null;
         installedListener = new ExecutorOperationListener(this::applyDatabaseConfigProperties,
-                this::peekResolvedConnection, delegate, this::onListenerFirstConnectionRetrieved);
+                protectedConnection, delegate, this::onListenerFirstConnectionRetrieved);
         tester.setOperationListener(installedListener);
     }
 
@@ -467,12 +508,13 @@ public class AnnotatedTestExecutor
 
     /**
      * Runs when the tester's own {@code onSetup()}/{@code onTearDown()} retrieves a connection
-     * and notifies the installed {@link ExecutorOperationListener}: on the setup/teardown path,
-     * warns once on an autocommit-off connection (the single point every connection a prep or
-     * teardown operation runs on passes through - see {@link AutoCommitOffWarning}) and once on
-     * one that is going to be left open with nothing to close it (see
-     * {@link LeftOpenConnectionWarning}), then offers it to {@link AnnotatedRowCountCheck} for
-     * the piggybacked baseline capture. A no-op on the prep/expected path: the row count check
+     * and notifies the installed {@link ExecutorOperationListener}: on the annotation-driven
+     * setup/teardown path, warns once on an autocommit-off connection (the single point every
+     * connection a prep or teardown operation runs on passes through - see
+     * {@link AutoCommitOffWarning}) and once on one that is going to be left open with nothing
+     * to close it (see {@link LeftOpenConnectionWarning}), then offers it to
+     * {@link AnnotatedRowCountCheck} for the piggybacked baseline capture. The classic path
+     * makes no warning, as it never did. A no-op on the prep/expected path: the row count check
      * there is the {@link PrepAndExpectedTestCase}'s own, and the connection identity is
      * {@link PrepAndExpectedTestCase#getReusableConnection()}'s - adopting a
      * directly-retrieved one here would reintroduce, for a
@@ -486,8 +528,11 @@ public class AnnotatedTestExecutor
         {
             return;
         }
-        autoCommitOffWarning.accept(connection);
-        leftOpenConnectionWarning.accept(connection);
+        if (annotationDriven)
+        {
+            autoCommitOffWarning.accept(connection);
+            leftOpenConnectionWarning.accept(connection);
+        }
         setupTeardownLifecycle.adoptAndCaptureBaselineOnFirstConnection(connection);
     }
 
@@ -607,14 +652,32 @@ public class AnnotatedTestExecutor
         {
             try
             {
-                testScopedConnection.release();
+                releaseConnection();
             } catch (final Exception closeFailure)
             {
                 primaryFailure.addSuppressed(closeFailure);
             }
             throw primaryFailure;
         }
-        testScopedConnection.release();
+        releaseConnection();
+    }
+
+    /**
+     * Releases the connection {@link #testScopedConnection} memoized. On the classic path one
+     * it took over from the tester's own {@code onSetup()} is only forgotten, as the tester's
+     * listener already decided whether to close it; see the class Javadoc.
+     *
+     * @throws Exception If closing the connection fails.
+     */
+    private void releaseConnection() throws Exception
+    {
+        if (annotationDriven)
+        {
+            testScopedConnection.release();
+        } else
+        {
+            testScopedConnection.releaseUnlessAdopted();
+        }
     }
 
     /**
@@ -639,7 +702,7 @@ public class AnnotatedTestExecutor
         Exception failure = null;
         try
         {
-            testScopedConnection.release();
+            releaseConnection();
         } catch (final Exception releaseFailure)
         {
             failure = releaseFailure;
