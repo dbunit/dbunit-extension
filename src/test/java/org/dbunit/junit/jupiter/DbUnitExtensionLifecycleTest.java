@@ -401,6 +401,28 @@ class DbUnitExtensionLifecycleTest
     }
 
     @Test
+    void testAfterEach_sharedTestCaseGivenATesterForTheTest_stillHoldsItInAnAfterEachMethod()
+    {
+        SharedTestCaseState.testCase = new TesterSyncingPrepAndExpectedTestCase();
+        SharedTestCaseState.testerSeenByAfterEach = null;
+
+        EngineTestKit.engine("junit-jupiter")
+                .selectors(selectClass(AfterEachReadsTheTestCasesTesterSample.class))
+                .execute()
+                .testEvents()
+                .assertStatistics(stats -> stats.started(1).succeeded(1));
+
+        assertThat(SharedTestCaseState.testerSeenByAfterEach)
+                .as("A test may use the tester of the test case it injected in an @AfterEach"
+                        + " method, so the tester stays on the test case until the whole test"
+                        + " is over.")
+                .isSameAs(FirstTesterFactory.tester);
+        assertThat(SharedTestCaseState.testCase.databaseTester)
+                .as("Once the whole test is over the tester is taken off the test case.")
+                .isNull();
+    }
+
+    @Test
     void testAfterTestExecution_expectedAnnotationAndFailingTest_skipsVerificationAndReportsOriginalFailure()
     {
         FailingExpectedPathSample.testCase = new RecordingPrepAndExpectedTestCase();
@@ -802,6 +824,7 @@ class DbUnitExtensionLifecycleTest
         static TesterSyncingPrepAndExpectedTestCase testCase;
         static IDatabaseTester testerSeenByFirst;
         static IDatabaseTester testerSeenBySecond;
+        static IDatabaseTester testerSeenByAfterEach;
     }
 
     public static class FirstTesterFactory implements DatabaseTesterFactory
@@ -837,6 +860,26 @@ class DbUnitExtensionLifecycleTest
         void testRecordsTheTesterTheSharedTestCaseHolds()
         {
             SharedTestCaseState.testerSeenByFirst =
+                    SharedTestCaseState.testCase.getDatabaseTester();
+        }
+    }
+
+    @DbUnitTest
+    @DbUnitConfig(databaseTesterFactory = FirstTesterFactory.class)
+    static class AfterEachReadsTheTestCasesTesterSample
+    {
+        @DbUnitTestCase
+        PrepAndExpectedTestCase injected = SharedTestCaseState.testCase;
+
+        @Test
+        void testDoesNothing()
+        {
+        }
+
+        @AfterEach
+        void readTheTesterTheSharedTestCaseHolds()
+        {
+            SharedTestCaseState.testerSeenByAfterEach =
                     SharedTestCaseState.testCase.getDatabaseTester();
         }
     }

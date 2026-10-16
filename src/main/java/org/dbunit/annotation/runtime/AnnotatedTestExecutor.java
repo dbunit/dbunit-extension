@@ -185,11 +185,10 @@ public class AnnotatedTestExecutor
     /**
      * Creates an executor for one test from what a binding resolved, taking the tester, the
      * injected {@link PrepAndExpectedTestCase} if any, and whether the resolution gave that test
-     * case its tester. When it did, {@link #afterTest(boolean)} - or
-     * {@link #releaseIfAfterTestDidNotRun()} - gives the test case no tester again once the test
-     * is over, so an injected test case shared across tests, such as a {@code static}
-     * {@code @DbUnitTestCase} field, does not keep the first test's tester for all the others.
-     * Otherwise the same as
+     * case its tester. When it did, {@link #unbindTesterFromInjectedTestCase()} gives the test
+     * case no tester again once the whole test is over, so an injected test case shared across
+     * tests, such as a {@code static} {@code @DbUnitTestCase} field, does not keep the first
+     * test's tester for all the others. Otherwise the same as
      * {@link #AnnotatedTestExecutor(AnnotatedTestConfiguration, IDatabaseTester, PrepAndExpectedTestCase, boolean)}.
      *
      * @param configuration The resolved configuration to execute.
@@ -526,10 +525,8 @@ public class AnnotatedTestExecutor
 
     /**
      * Puts back what {@link #applyDatabaseConfigProperties(IDatabaseConnection)} replaced, then
-     * the tester's own listener - see {@link #restoreOperationListener()} - then takes the tester
-     * off an injected test case it was given for this test - see
-     * {@link #unbindTesterFromInjectedTestCase()} - so any one failing cannot leave the others
-     * undone.
+     * the tester's own listener - see {@link #restoreOperationListener()} - so the one failing
+     * cannot leave the other undone.
      */
     private void restoreWhatThisExecutorChanged()
     {
@@ -538,33 +535,7 @@ public class AnnotatedTestExecutor
             databaseConfigOverrides.restore();
         } finally
         {
-            try
-            {
-                restoreOperationListener();
-            } finally
-            {
-                unbindTesterFromInjectedTestCase();
-            }
-        }
-    }
-
-    /**
-     * Gives the injected test case no tester again, when the resolution gave it this one because
-     * it carried none: the tester was chosen for this test, by a {@code databaseTesterFactory}, an
-     * unmarked field or a Spring bean, and the test case, shared across tests as a
-     * {@code static @DbUnitTestCase} field is, would otherwise keep it - never asking for the next
-     * test's own. {@link PrepAndExpectedTestCase#setDatabaseTester(IDatabaseTester)} with
-     * {@code null} releases the connection it holds, as {@code DefaultPrepAndExpectedTestCase}
-     * does, closing it only if it would have closed it after the test. A no-op when nothing was
-     * bound, or it was already taken off.
-     */
-    private void unbindTesterFromInjectedTestCase()
-    {
-        final PrepAndExpectedTestCase testCase = testCaseToUnbindTesterFrom;
-        testCaseToUnbindTesterFrom = null;
-        if (testCase != null)
-        {
-            testCase.setDatabaseTester(null);
+            restoreOperationListener();
         }
     }
 
@@ -690,6 +661,31 @@ public class AnnotatedTestExecutor
         if (failure != null)
         {
             throw failure;
+        }
+    }
+
+    /**
+     * Gives the injected test case no tester again, when the resolution gave it this one because
+     * it carried none: the tester was chosen for this test, by a {@code databaseTesterFactory}, an
+     * unmarked field or a Spring bean, and the test case, shared across tests as a
+     * {@code static @DbUnitTestCase} field is, would otherwise keep it - never asking for the
+     * next test's own.
+     *
+     * <p>A binding calls this once the whole test is over, after {@link #afterTest(boolean)} or
+     * {@link #releaseIfAfterTestDidNotRun()} and after any {@code @AfterEach} method, which may
+     * still use the tester through the test case.
+     * {@link PrepAndExpectedTestCase#setDatabaseTester(IDatabaseTester)} with {@code null}
+     * releases the connection it holds, as {@code DefaultPrepAndExpectedTestCase} does, closing
+     * it only if it would have closed it after the test. A no-op when nothing was bound, or it
+     * was already taken off.
+     */
+    public void unbindTesterFromInjectedTestCase()
+    {
+        final PrepAndExpectedTestCase testCase = testCaseToUnbindTesterFrom;
+        testCaseToUnbindTesterFrom = null;
+        if (testCase != null)
+        {
+            testCase.setDatabaseTester(null);
         }
     }
 
