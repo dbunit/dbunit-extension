@@ -238,6 +238,34 @@ public final class TestScopedConnection
     }
 
     /**
+     * Rolls back an uncommitted transaction on {@code jdbcConnection}, best-effort, before
+     * {@link #release()} closes it, when its autocommit is off. The dbUnit setup/teardown
+     * operations that run on a borrowed connection manage no transaction of their own, so on an
+     * autocommit-off connection their writes sit here uncommitted - already warned about (see
+     * {@link AutoCommitOffWarning}) and not meant to persist. JDBC leaves the outcome of closing
+     * a connection with a transaction still open to the driver: Derby and DB2 refuse to close it
+     * - Derby raises SQLState 25001 - turning an ordinary end-of-test close into a failure, and
+     * Oracle commits it on close, which is what the 3.5.x extension's close did there. Doing it
+     * explicitly makes the close portable and the discard of those never-committed writes
+     * intentional on every database, so on Oracle they are now discarded where 3.5.x committed
+     * them. A rollback, not a commit: this lifecycle's operations were never meant to persist
+     * here, and a rollback cannot disturb work a caller committed before handing the connection
+     * over. A connection with autocommit on has no transaction to end and is left untouched.
+     *
+     * @throws Exception If closing a connection this holder acquired, or checking whether it is
+     *             already closed, fails.
+     */
+    public void releaseUnlessAdopted() throws Exception
+    {
+        if (adopted)
+        {
+            discardOnFailure();
+            return;
+        }
+        release();
+    }
+
+    /**
      * Closes the connection. A driver that refuses to close a connection with an open transaction
      * raises an exception of SQLState class 25, "invalid transaction state", as Derby does with
      * 25001, or, for DB2, one with error code -4471 and no SQLState. That exception is rethrown

@@ -248,3 +248,12 @@ in a `setUpDatabaseConfig(DatabaseConfig)` override instead (calling
 `super.setUpDatabaseConfig(config)` too) - that hook runs on the exact connection the
 test case's whole lifecycle reuses, regardless of whether the underlying tester's
 `getConnection()` is idempotent.
+* *A tester built for each test cannot be verified with its default listener on a plain
+extension class.* A bare `@ExtendWith(DbUnitExtension.class)` class verifies on the connection
+`onSetup()` retrieved or, when the tester's listener closed that one, on one the extension asks
+the tester for after `onTearDown()`. A `DefaultDatabaseTester` built for each test hands out the
+connection its default listener closed, so the test fails on it, after a warning that names the
+no-op listener. Use `@DbUnitTest`, whose test case shares one connection for the whole test and
+closes it at the end, or give the tester `NO_OP_OPERATION_LISTENER` and close its connection in
+the test yourself, as that listener leaves the connection open with nothing else to close it.
+See link:../testcases/DbUnitExtension.html[DbUnitExtension].
