@@ -1741,6 +1741,218 @@ class DefaultPrepAndExpectedTestCaseTest
     }
 
     @Test
+    void testCleanupData_checkDisabled_doesNotCaptureABaseline() throws Exception
+    {
+        // MockDatabaseConnection's dataset/getRowCount() are unconfigured here, so a real
+        // capture()/verify() attempt would throw; reaching the end proves the disabled
+        // default RowCountCheck no-opped instead of querying the connection (#939)
+        tc.preTest();
+        tc.cleanupData();
+
+        assertThat(tc.getRowCountCheck())
+                .as("preTest() must still lazily resolve a RowCountCheck even though the"
+                        + " check is disabled, proving the disabled path was actually"
+                        + " exercised rather than skipped outright.")
+                .isNotNull();
+    }
+
+    @Test
+    void testSetRowCountCheckOverride_disabled_winsOverConnectionsOwnEnabledConfig()
+            throws Exception
+    {
+        // MockDatabaseConnection's dataset/getRowCount() are unconfigured here, so a real
+        // capture() attempt would throw; reaching the end proves the override actually
+        // disabled the check rather than the connection's own FEATURE_ROW_COUNT_CHECK - true
+        // here - winning instead.
+        databaseTester.getConnection().getConfig()
+                .setFeature(DatabaseConfig.FEATURE_ROW_COUNT_CHECK, true);
+        tc.setRowCountCheckOverride(false, new String[0]);
+
+        tc.preTest();
+        tc.cleanupData();
+
+        assertThat(tc.getRowCountCheck())
+                .as("preTest() must still lazily resolve a RowCountCheck from the override,"
+                        + " proving the override path was actually exercised rather than"
+                        + " skipped outright.")
+                .isNotNull();
+    }
+
+    @Test
+    void testCleanupData_calledTwiceWithNoBaseline_acquiresOnlyOneConnection() throws Exception
+    {
+        final IDatabaseTester countingTester = Mockito.spy(databaseTester);
+        final DefaultPrepAndExpectedTestCase countingTestCase =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, countingTester);
+        countingTestCase.configureTest(new VerifyTableDefinition[] {}, new String[] {},
+                new String[] {});
+
+        countingTestCase.cleanupData();
+        countingTestCase.cleanupData();
+
+        // The first cleanupData() closes the connection configureTest() acquired. The second has
+        // no baseline to verify and the tear down operation is NONE, so it needs none of its own.
+        Mockito.verify(countingTester, Mockito.times(1)).getConnection();
+    }
+
+    @Test
+    void testCleanupData_noBaselineCaptured_skipsTheCheck() throws Exception
+    {
+        final RowCountCheck mockRowCountCheck = Mockito.mock(RowCountCheck.class);
+        tc.setRowCountCheck(mockRowCountCheck);
+
+        // cleanupData() called directly, without preTest() first, so no baseline was captured
+        tc.cleanupData();
+
+        Mockito.verify(mockRowCountCheck, Mockito.never())
+                .verify(Mockito.any(), Mockito.any());
+    }
+
+    @Test
+    void testPostTest_testStepsFailed_skipsTheCheck() throws Exception
+    {
+        final RowCountCheck mockRowCountCheck = Mockito.mock(RowCountCheck.class);
+        final RowCountSnapshot baseline =
+                new RowCountSnapshot(Collections.singletonMap("ACCOUNT", 5));
+        Mockito.when(mockRowCountCheck.capture(Mockito.any())).thenReturn(baseline);
+        tc.setRowCountCheck(mockRowCountCheck);
+
+        tc.preTest();
+        tc.postTest(false);
+
+        Mockito.verify(mockRowCountCheck, Mockito.never())
+                .verify(Mockito.any(), Mockito.any());
+    }
+
+    @Test
+    void testPostTest_verifyDataFailed_skipsTheRowCountCheckSoTheVerifyFailureIsThrown()
+            throws Exception
+    {
+        final RowCountCheck mockRowCountCheck = Mockito.mock(RowCountCheck.class);
+        final RowCountSnapshot baseline =
+                new RowCountSnapshot(Collections.singletonMap("ACCOUNT", 5));
+        Mockito.when(mockRowCountCheck.capture(Mockito.any())).thenReturn(baseline);
+        final AssertionError verifyFailure = new AssertionError("verify boom");
+        final DefaultPrepAndExpectedTestCase failingVerifyTc =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester)
+                {
+                    @Override
+                    public void verifyData() throws Exception
+                    {
+                        throw verifyFailure;
+                    }
+                };
+        failingVerifyTc.setRowCountCheck(mockRowCountCheck);
+        failingVerifyTc.preTest();
+
+        final Throwable thrown = catchThrowable(() -> failingVerifyTc.postTest());
+
+        assertThat(thrown)
+                .as("The comparison failure names what differs and is the finding to fix first, so"
+                        + " a row count difference must not replace it.")
+                .isSameAs(verifyFailure);
+        Mockito.verify(mockRowCountCheck, Mockito.never())
+                .verify(Mockito.any(), Mockito.any());
+    }
+
+    @Test
+    void testCleanupData_rowCountChanged_throwsAndStillClosesTheConnection() throws Exception
+    {
+        final RowCountCheck mockRowCountCheck = Mockito.mock(RowCountCheck.class);
+        final RowCountSnapshot baseline =
+                new RowCountSnapshot(Collections.singletonMap("ACCOUNT_AUDIT", 0));
+        Mockito.when(mockRowCountCheck.capture(Mockito.any())).thenReturn(baseline);
+        final UnexpectedRowCountException failure = new UnexpectedRowCountException(
+                Collections.singletonList(new RowCountDifference("ACCOUNT_AUDIT", 0, 3)));
+        Mockito.doThrow(failure).when(mockRowCountCheck).verify(Mockito.any(), Mockito.any());
+        tc.setRowCountCheck(mockRowCountCheck);
+        tc.preTest();
+
+        assertThat(catchThrowable(() -> tc.cleanupData()))
+                .as("A row count difference detected during cleanup must propagate as-is,"
+                        + " the same as any other cleanupData() failure.")
+                .isSameAs(failure);
+
+        final MockDatabaseConnection connection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        // the existing catch block in cleanupData() must still close the connection even
+        // though the row count check, not the tear down operation, is what failed (#939)
+        connection.setExpectedCloseCalls(1);
+        connection.verify();
+    }
+
+    @Test
+    void testCleanupData_testersListenerThrowsAnErrorOnConnectionRetrieved_propagatesItAndClosesTheConnection()
+            throws Exception
+    {
+        // an Error, as opposed to an Exception, such as the AssertionError a listener asserting
+        // on the connection it is handed throws
+        final AssertionError listenerFailure = new AssertionError("listener assertion");
+        final IOperationListener failingListener = Mockito.mock(IOperationListener.class);
+        Mockito.doThrow(listenerFailure).when(failingListener)
+                .connectionRetrieved(Mockito.any(IDatabaseConnection.class));
+        databaseTester.setTearDownOperation(DatabaseOperation.DELETE_ALL);
+        databaseTester.setOperationListener(failingListener);
+
+        assertThat(catchThrowable(() -> tc.cleanupData()))
+                .as("An Error thrown while tearing down must propagate unchanged.")
+                .isSameAs(listenerFailure);
+
+        final MockDatabaseConnection connection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        // the shared connection must be released for an Error as it is for an Exception
+        connection.setExpectedCloseCalls(1);
+        connection.verify();
+    }
+
+    @Test
+    void testCleanupData_afterPostTestAlreadyVerifiedTheBaseline_doesNotVerifyTheSpentBaselineAgain()
+            throws Exception
+    {
+        final RowCountCheck mockRowCountCheck = Mockito.mock(RowCountCheck.class);
+        final RowCountSnapshot baseline =
+                new RowCountSnapshot(Collections.singletonMap("ACCOUNT", 5));
+        Mockito.when(mockRowCountCheck.capture(Mockito.any())).thenReturn(baseline);
+        final UnexpectedRowCountException staleBaselineFailure = new UnexpectedRowCountException(
+                Collections.singletonList(new RowCountDifference("ACCOUNT", 5, 8)));
+        Mockito.doNothing().doThrow(staleBaselineFailure).when(mockRowCountCheck)
+                .verify(Mockito.any(), Mockito.any());
+        tc.setRowCountCheck(mockRowCountCheck);
+        tc.preTest();
+        tc.postTest();
+        tc.setupData();
+
+        assertThatCode(() -> tc.cleanupData())
+                .as("A lifecycle that never captured a baseline of its own - the legacy setUp()"
+                        + " and tearDown() hooks, or setupData() and cleanupData() called by"
+                        + " hand - must not verify the previous test's spent baseline against"
+                        + " its own row counts.")
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void testCleanupData_testerReplacedAfterTheBaselineWasCaptured_doesNotVerifyTheOldTestersBaseline()
+            throws Exception
+    {
+        final RowCountCheck mockRowCountCheck = Mockito.mock(RowCountCheck.class);
+        final RowCountSnapshot baseline =
+                new RowCountSnapshot(Collections.singletonMap("ACCOUNT", 5));
+        Mockito.when(mockRowCountCheck.capture(Mockito.any())).thenReturn(baseline);
+        final UnexpectedRowCountException otherDatabaseFailure = new UnexpectedRowCountException(
+                Collections.singletonList(new RowCountDifference("ACCOUNT", 5, 8)));
+        Mockito.lenient().doThrow(otherDatabaseFailure).when(mockRowCountCheck)
+                .verify(Mockito.any(), Mockito.any());
+        tc.setRowCountCheck(mockRowCountCheck);
+        tc.preTest();
+        tc.setDatabaseTester(new DefaultDatabaseTester(makeDatabaseConnection()));
+
+        assertThatCode(() -> tc.cleanupData())
+                .as("A baseline captured from the replaced tester's database says nothing about"
+                        + " the new tester's, so cleanupData() must not verify it there.")
+                .doesNotThrowAnyException();
+    }
+
+    @Test
     void testConfigureTestThenSetupData_withCloseDisabledNoProvider_doesNotReacquireConnection()
             throws Exception
     {
