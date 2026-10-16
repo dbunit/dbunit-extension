@@ -49,6 +49,14 @@ import org.dbunit.annotation.DbUnitExpected;
  * combination, never called again; it must be a pure function of the catalog class itself,
  * with no dependency on mutable external state that could legitimately differ between calls.
  *
+ * <p>The {@link VerifyTableDefinition} objects of a catalog - the ones an implementation returns
+ * and the constants of a plain constants class alike - are shared the same way, by every test
+ * naming the catalog for the whole run. A test must therefore never change them, through their
+ * setters such as {@code setSortOnFilteredColumnsOnly()} or
+ * {@code setVerifyTableDefinitionVerifier()} included, and a
+ * {@link org.dbunit.assertion.comparer.value.ValueComparer} or verifier inside one must be
+ * stateless; otherwise the result of a later test depends on the order the tests ran in.
+ *
  * @author Jeff Jensen
  * @since 3.6.0
  * @see DbUnitConfig
