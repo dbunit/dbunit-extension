@@ -141,7 +141,7 @@ class RowCountCheckConfigurationTest
     }
 
     @Test
-    void testExcludeTables_systemPropertyAndConfiguredPatterns_replacesConfiguredPatterns()
+    void testExcludeTables_systemPropertyAndConfiguredPatterns_excludesBoth()
             throws DataSetException
     {
         final DatabaseConfig databaseConfig = new DatabaseConfig();
@@ -154,9 +154,9 @@ class RowCountCheckConfigurationTest
                 new RowCountCheckConfiguration(databaseConfig);
 
         assertThat(configuration.getExcludeTableFilter().isValidName("CONFIGURED_TABLE"))
-                .as("The system property must replace, not append to, the configured patterns,"
-                        + " so a pattern configured only on DatabaseConfig no longer excludes.")
-                .isTrue();
+                .as("The system property must add to, not replace, the configured patterns, so"
+                        + " a pattern configured on DatabaseConfig still excludes.")
+                .isFalse();
         assertThat(configuration.getExcludeTableFilter().isValidName("SYSTEM_PROPERTY_TABLE"))
                 .as("The system property's own pattern must be applied.").isFalse();
     }
@@ -289,23 +289,77 @@ class RowCountCheckConfigurationTest
     }
 
     @Test
-    void testValueConstructor_systemPropertiesSet_winOverThePassedValues() throws DataSetException
+    void testValueConstructor_systemPropertyFalseAndPassedTrue_returnsFalse()
     {
         System.setProperty(RowCountCheckConfiguration.DBUNIT_ROW_COUNT_CHECK, "false");
+
+        final RowCountCheckConfiguration configuration =
+                new RowCountCheckConfiguration(true, null, null);
+
+        assertThat(configuration.isEnabled())
+                .as("The dbunit.rowCountCheck system property set to false must still"
+                        + " force-disable the check for a test that declared it enabled, so it"
+                        + " can be turned off locally without editing code.")
+                .isFalse();
+    }
+
+    @Test
+    void testValueConstructor_systemPropertyTrueAndPassedFalse_returnsFalse()
+    {
+        System.setProperty(RowCountCheckConfiguration.DBUNIT_ROW_COUNT_CHECK, "true");
+
+        final RowCountCheckConfiguration configuration =
+                new RowCountCheckConfiguration(false, null, null);
+
+        assertThat(configuration.isEnabled())
+                .as("A test that declared the check disabled, such as one that legitimately"
+                        + " leaves rows behind, must stay disabled when the system property"
+                        + " force-enables the check across a CI run.")
+                .isFalse();
+    }
+
+    @Test
+    void testValueConstructor_systemPropertyPresentWithNoValueAndPassedFalse_returnsFalse()
+    {
+        System.setProperty(RowCountCheckConfiguration.DBUNIT_ROW_COUNT_CHECK, "");
+
+        final RowCountCheckConfiguration configuration =
+                new RowCountCheckConfiguration(false, null, null);
+
+        assertThat(configuration.isEnabled())
+                .as("A bare -Ddbunit.rowCountCheck enables the check like true, so it must not"
+                        + " enable it for a test that declared it disabled either.")
+                .isFalse();
+    }
+
+    @Test
+    void testValueConstructor_systemPropertyTrueAndPassedTrue_returnsTrue()
+    {
+        System.setProperty(RowCountCheckConfiguration.DBUNIT_ROW_COUNT_CHECK, "true");
+
+        final RowCountCheckConfiguration configuration =
+                new RowCountCheckConfiguration(true, null, null);
+
+        assertThat(configuration.isEnabled())
+                .as("Forcing the check on must leave a test that declared it enabled enabled.")
+                .isTrue();
+    }
+
+    @Test
+    void testValueConstructor_excludeSystemPropertySet_addsToThePassedPatterns()
+            throws DataSetException
+    {
         System.setProperty(RowCountCheckConfiguration.DBUNIT_ROW_COUNT_CHECK_EXCLUDE_TABLES,
                 "SYSTEM_PROPERTY_TABLE");
 
         final RowCountCheckConfiguration configuration = new RowCountCheckConfiguration(true,
                 new String[] {"CONFIGURED_TABLE"}, mock(RowCounter.class));
 
-        assertThat(configuration.isEnabled())
-                .as("The dbunit.rowCountCheck system property must win over the passed enabled"
-                        + " flag, exactly as it wins over a DatabaseConfig feature.")
-                .isFalse();
         assertThat(configuration.getExcludeTableFilter().isValidName("CONFIGURED_TABLE"))
-                .as("The exclude system property must replace, not append to, the passed"
-                        + " patterns.")
-                .isTrue();
+                .as("The exclude system property must add to, not replace, the patterns a test"
+                        + " declared, so a CI-wide list does not silently re-enable the check"
+                        + " for the tables the test excluded.")
+                .isFalse();
         assertThat(configuration.getExcludeTableFilter().isValidName("SYSTEM_PROPERTY_TABLE"))
                 .as("The exclude system property's own pattern must be applied.").isFalse();
     }
