@@ -306,6 +306,9 @@ class TestScopedConnectionTest
     @Test
     void testRelease_connectionAutoCommitOff_rollsBackBeforeClosing() throws Exception
     {
+        // Oracle's driver commits an open transaction on close and Derby and DB2 refuse to
+        // close one, so the order is deliberate: the lifecycle's own writes are discarded, never
+        // persisted by the close.
         final IDatabaseConnection connection = mock(IDatabaseConnection.class);
         final Connection jdbc = mock(Connection.class);
         when(connection.getConnection()).thenReturn(jdbc);
