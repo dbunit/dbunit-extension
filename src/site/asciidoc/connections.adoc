@@ -97,7 +97,10 @@ invisible to any other connection, and — when a provider holds the
 connection open across tests — held as locks on a connection the database's
 idle-in-transaction timeout can terminate mid-run.
 link:apidocs/org/dbunit/DefaultPrepAndExpectedTestCase.html[DefaultPrepAndExpectedTestCase]
-logs a warning when it detects one.
+logs a warning when it detects one. When the annotation-driven lifecycle closes such a
+connection after the test, it rolls back what is still uncommitted first. Derby and DB2 refuse to
+close a connection with an open transaction, and Oracle commits it on close, as the 3.5.x
+extension's close did there; on Oracle, those writes are now discarded instead.
 
 See link:testcases/IDatabaseTester.html[the IDatabaseTester guide] for the
 full setup/teardown lifecycle this fits into, and
