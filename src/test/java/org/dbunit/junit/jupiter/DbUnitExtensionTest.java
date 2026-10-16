@@ -175,7 +175,6 @@ class DbUnitExtensionTest
     void testSupportsParameter_supportedTypes_returnsTrue() throws Exception
     {
         doReturn(AnnotationDrivenHost.class).when(context).getRequiredTestClass();
-        when(context.getEnclosingTestClasses()).thenReturn(Collections.emptyList());
         for (final Class<?> methodParam : new Class<?>[] {IDatabaseTester.class,
                 PrepAndExpectedTestCase.class, IDatabaseConnection.class, Connection.class})
         {
@@ -201,7 +200,6 @@ class DbUnitExtensionTest
         // co-registered resolver (Spring, Testcontainers, ...) so JUnit does not fail with
         // "discovered multiple competing ParameterResolvers".
         doReturn(NoConnectionInjectionHost.class).when(context).getRequiredTestClass();
-        when(context.getEnclosingTestClasses()).thenReturn(Collections.emptyList());
         final Method method = ParameterHost.class
                 .getDeclaredMethod("withConnection", Connection.class);
         final ParameterContext parameterContext = mock(ParameterContext.class);
@@ -219,7 +217,6 @@ class DbUnitExtensionTest
             throws Exception
     {
         doReturn(NoConnectionInjectionHost.class).when(context).getRequiredTestClass();
-        when(context.getEnclosingTestClasses()).thenReturn(Collections.emptyList());
         final Method method = ParameterHost.class
                 .getDeclaredMethod("withIDatabaseConnection", IDatabaseConnection.class);
         final ParameterContext parameterContext = mock(ParameterContext.class);
@@ -242,7 +239,6 @@ class DbUnitExtensionTest
         // claimed, so another extension resolving a Connection on the same test stays
         // unambiguous.
         doReturn(HasTwoUnmarkedTesterFields.class).when(context).getRequiredTestClass();
-        when(context.getEnclosingTestClasses()).thenReturn(Collections.emptyList());
         final Method method = ParameterHost.class
                 .getDeclaredMethod("withConnection", Connection.class);
         final ParameterContext parameterContext = mock(ParameterContext.class);
@@ -261,7 +257,6 @@ class DbUnitExtensionTest
     void testSupportsParameter_markerFieldButNoAnnotation_returnsTrue() throws Exception
     {
         doReturn(HasTester.class).when(context).getRequiredTestClass();
-        when(context.getEnclosingTestClasses()).thenReturn(Collections.emptyList());
         final Method method = ParameterHost.class
                 .getDeclaredMethod("withIDatabaseTester", IDatabaseTester.class);
         final ParameterContext parameterContext = mock(ParameterContext.class);
