@@ -363,28 +363,40 @@ class AnnotatedTestExecutorTest
             throws Exception
     {
         // A prep/expected method and a bare setup/teardown method share one tester. The
-        // prep/expected path always applies both operations; without restoring them, the bare
-        // method that follows would inherit the prep/expected method's CLEAN_INSERT / NONE
-        // instead of the tester's own baseline. E5 makes the prep/expected path restore too.
+        // prep/expected method declares both operations; without restoring them, the bare
+        // method that follows would inherit the prep/expected method's NONE / NONE instead of
+        // the tester's own baseline. E5 makes the prep/expected path restore too.
         final RecordingAbstractDatabaseTester sharedTester = new RecordingAbstractDatabaseTester();
         sharedTester.setSetUpOperation(DatabaseOperation.REFRESH);
         sharedTester.setTearDownOperation(DatabaseOperation.DELETE_ALL);
+        final DbUnitSetup setup = WithSetupNoPrep.class.getAnnotation(DbUnitSetup.class);
         final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
+        final DbUnitTearDown tearDown = WithBareTearDown.class.getAnnotation(DbUnitTearDown.class);
         final DefaultPrepAndExpectedTestCase injectedTestCase =
                 mock(DefaultPrepAndExpectedTestCase.class);
 
         final AnnotatedTestExecutor prepExpectedMethod = new AnnotatedTestExecutor(
-                AnnotatedTestConfiguration.from(WithExpected.class, null, null, null, expected,
-                        null, null),
+                AnnotatedTestConfiguration.from(WithExpected.class, null, null, setup, expected,
+                        tearDown, null),
                 sharedTester, injectedTestCase);
         prepExpectedMethod.beforeTest();
+
+        assertThat(sharedTester.getSetUpOperation())
+                .as("The prep/expected method's declared NONE is the setup operation while it"
+                        + " runs.")
+                .isEqualTo(DatabaseOperation.NONE);
+        assertThat(sharedTester.getTearDownOperation())
+                .as("The prep/expected method's declared NONE is the teardown operation while it"
+                        + " runs.")
+                .isEqualTo(DatabaseOperation.NONE);
+
         prepExpectedMethod.afterTest(false);
 
         assertThat(sharedTester.getSetUpOperation())
-                .as("The prep/expected method's applied CLEAN_INSERT is undone after it.")
+                .as("The prep/expected method's declared setup operation is undone after it.")
                 .isEqualTo(DatabaseOperation.REFRESH);
         assertThat(sharedTester.getTearDownOperation())
-                .as("The prep/expected method's applied NONE is undone after it.")
+                .as("The prep/expected method's declared teardown operation is undone after it.")
                 .isEqualTo(DatabaseOperation.DELETE_ALL);
 
         final AnnotatedTestExecutor bareMethod = new AnnotatedTestExecutor(
@@ -398,6 +410,110 @@ class AnnotatedTestExecutorTest
                 .as("The bare method ran the tester's own DELETE_ALL baseline, not the"
                         + " prep/expected method's leftover NONE.")
                 .containsExactly(DatabaseOperation.DELETE_ALL);
+    }
+
+    // ---- prep/expected path: operations are applied only when declared ----
+
+    @Test
+    void testBeforeTest_expectedPathNothingDeclared_keepsTheTestersOwnOperations()
+            throws Exception
+    {
+        // A @BeforeEach method may set operations DbUnitOperation cannot express, such as a
+        // CompositeOperation or a TransactionOperation; with no annotation declaring one,
+        // the prep/expected path must run the tester with them.
+        final RecordingAbstractDatabaseTester ownTester = new RecordingAbstractDatabaseTester();
+        ownTester.setSetUpOperation(DatabaseOperation.REFRESH);
+        ownTester.setTearDownOperation(DatabaseOperation.DELETE_ALL);
+        final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                AnnotatedTestConfiguration.from(WithExpected.class, null, null, null, expected,
+                        null, null),
+                ownTester, mock(DefaultPrepAndExpectedTestCase.class));
+
+        executor.beforeTest();
+
+        assertThat(ownTester.getSetUpOperation())
+                .as("With no @DbUnitPrep and no @DbUnitSetup, the setup operation the tester"
+                        + " already has must stay.")
+                .isEqualTo(DatabaseOperation.REFRESH);
+        assertThat(ownTester.getTearDownOperation())
+                .as("With no @DbUnitTearDown, the teardown operation the tester already has,"
+                        + " such as one a @BeforeEach method set, must stay.")
+                .isEqualTo(DatabaseOperation.DELETE_ALL);
+    }
+
+    @Test
+    void testBeforeTest_expectedPathSetupDeclared_replacesOnlyTheSetupOperation()
+            throws Exception
+    {
+        final RecordingAbstractDatabaseTester ownTester = new RecordingAbstractDatabaseTester();
+        ownTester.setSetUpOperation(DatabaseOperation.REFRESH);
+        ownTester.setTearDownOperation(DatabaseOperation.DELETE_ALL);
+        final DbUnitSetup setup = WithSetupNoPrep.class.getAnnotation(DbUnitSetup.class);
+        final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                AnnotatedTestConfiguration.from(WithExpected.class, null, null, setup, expected,
+                        null, null),
+                ownTester, mock(DefaultPrepAndExpectedTestCase.class));
+
+        executor.beforeTest();
+
+        assertThat(ownTester.getSetUpOperation())
+                .as("A declared @DbUnitSetup operation must replace the tester's own.")
+                .isEqualTo(DatabaseOperation.NONE);
+        assertThat(ownTester.getTearDownOperation())
+                .as("The teardown operation, which no @DbUnitTearDown declared, must stay.")
+                .isEqualTo(DatabaseOperation.DELETE_ALL);
+    }
+
+    @Test
+    void testBeforeTest_expectedPathPrepFilesWithoutSetup_replacesTheSetupOperationWithCleanInsert()
+            throws Exception
+    {
+        final RecordingAbstractDatabaseTester ownTester = new RecordingAbstractDatabaseTester();
+        ownTester.setSetUpOperation(DatabaseOperation.REFRESH);
+        ownTester.setTearDownOperation(DatabaseOperation.DELETE_ALL);
+        final DbUnitPrep prep = WithPrep.class.getAnnotation(DbUnitPrep.class);
+        final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                AnnotatedTestConfiguration.from(WithExpected.class, null, prep, null, expected,
+                        null, null),
+                ownTester, mock(DefaultPrepAndExpectedTestCase.class));
+
+        executor.beforeTest();
+
+        assertThat(ownTester.getSetUpOperation())
+                .as("@DbUnitPrep without @DbUnitSetup means CLEAN_INSERT on this path too, so"
+                        + " it replaces the operation the tester already has.")
+                .isEqualTo(DatabaseOperation.CLEAN_INSERT);
+        assertThat(ownTester.getTearDownOperation())
+                .as("The teardown operation, which no @DbUnitTearDown declared, must stay.")
+                .isEqualTo(DatabaseOperation.DELETE_ALL);
+    }
+
+    @Test
+    void testBeforeTest_expectedPathTearDownDeclared_replacesOnlyTheTearDownOperation()
+            throws Exception
+    {
+        final RecordingAbstractDatabaseTester ownTester = new RecordingAbstractDatabaseTester();
+        ownTester.setSetUpOperation(DatabaseOperation.REFRESH);
+        ownTester.setTearDownOperation(DatabaseOperation.TRUNCATE_TABLE);
+        final DbUnitTearDown tearDown = WithTearDown.class.getAnnotation(DbUnitTearDown.class);
+        final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                AnnotatedTestConfiguration.from(WithExpected.class, null, null, null, expected,
+                        tearDown, null),
+                ownTester, mock(DefaultPrepAndExpectedTestCase.class));
+
+        executor.beforeTest();
+
+        assertThat(ownTester.getTearDownOperation())
+                .as("A declared @DbUnitTearDown operation must replace the tester's own.")
+                .isEqualTo(DatabaseOperation.DELETE_ALL);
+        assertThat(ownTester.getSetUpOperation())
+                .as("The setup operation, which neither @DbUnitPrep nor @DbUnitSetup declared,"
+                        + " must stay.")
+                .isEqualTo(DatabaseOperation.REFRESH);
     }
 
     @Test
@@ -1490,9 +1606,10 @@ class AnnotatedTestExecutorTest
         // a @BeforeEach parameter resolved it, postTest()/cleanupData() never runs to close it
         // the instance's own way, and closing it here would strand the instance holding a
         // closed connection for the next test method.
+        final DbUnitSetup setup = WithSetupNoPrep.class.getAnnotation(DbUnitSetup.class);
         final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
-                .from(WithExpected.class, null, null, null, expected, null, null);
+                .from(WithExpected.class, null, null, setup, expected, null, null);
         doThrow(new IllegalStateException("Set up failed on purpose.")).doNothing().when(tester)
                 .setSetUpOperation(any());
         final CachingConnectionPrepAndExpectedTestCase injected =
@@ -1524,10 +1641,11 @@ class AnnotatedTestExecutorTest
         stubOpenJdbcConnection();
         final DbUnitConfig config = WithConstructedCachingTestCase.class
                 .getAnnotation(DbUnitConfig.class);
+        final DbUnitSetup setup = WithSetupNoPrep.class.getAnnotation(DbUnitSetup.class);
         final DbUnitExpected expected = WithConstructedCachingTestCase.class
                 .getAnnotation(DbUnitExpected.class);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration.from(
-                WithConstructedCachingTestCase.class, config, null, null, expected, null, null);
+                WithConstructedCachingTestCase.class, config, null, setup, expected, null, null);
         doThrow(new IllegalStateException("Set up failed on purpose.")).doNothing().when(tester)
                 .setSetUpOperation(any());
         final AnnotatedTestExecutor executor =
@@ -2726,9 +2844,10 @@ class AnnotatedTestExecutorTest
     void testAfterTest_restoringTesterStateFails_stillUndoesTheTestCaseConfiguration()
             throws Exception
     {
+        final DbUnitSetup setup = WithSetupNoPrep.class.getAnnotation(DbUnitSetup.class);
         final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
-                .from(WithExpected.class, null, null, null, expected, null, null);
+                .from(WithExpected.class, null, null, setup, expected, null, null);
         // A DefaultPrepAndExpectedTestCase mock, so the properties accessors count as overridden.
         final DefaultPrepAndExpectedTestCase injected = mock(DefaultPrepAndExpectedTestCase.class);
         doNothing().doThrow(new IllegalStateException("Restore failed on purpose.")).when(tester)

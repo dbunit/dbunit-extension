@@ -274,21 +274,36 @@ public class AnnotatedTestConfiguration
     /**
      * Returns whether {@code @DbUnitSetup} was declared.
      *
-     * <p>A binding consults this, alongside {@link #getPrepDataFiles()} being non-empty, to
-     * decide whether to call {@code setSetUpOperation} at all: with neither, the test runs with
-     * the tester's own pre-configured setup (matching pre-annotation behaviour); with
-     * {@code @DbUnitSetup} declared but no {@code @DbUnitPrep}, the operation is still applied
-     * - most usefully {@link org.dbunit.operation.DatabaseOperation#NONE} - to whatever
+     * <p>With {@code @DbUnitSetup} declared but no {@code @DbUnitPrep}, the operation is still
+     * applied - most usefully {@link org.dbunit.operation.DatabaseOperation#NONE} - to whatever
      * dataset the tester already has, rather than leaving a tester with no dataset at all to
-     * run its unrelated default operation against. Either way a binding driving a tester shared
-     * across methods should restore the tester's dataset and operations afterward, so a
-     * per-method {@code @DbUnitSetup}/{@code @DbUnitPrep} does not carry onto a later method.
+     * run its unrelated default operation against. See {@link #replacesSetUpOperation()} for
+     * when a binding applies the operation at all.
      *
      * @return True when {@code @DbUnitSetup} was declared.
      */
     public boolean isSetupDeclared()
     {
         return setupDeclared;
+    }
+
+    /**
+     * Returns whether the annotations replace the tester's own setup operation with
+     * {@link #getSetUpOperation()}: {@code @DbUnitPrep} files were declared, or
+     * {@code @DbUnitSetup} was.
+     *
+     * <p>A binding consults this to decide whether to call {@code setSetUpOperation} at all, on
+     * either path. With neither annotation the test runs with the tester's own pre-configured
+     * setup operation, such as one a {@code @BeforeEach} method set, which can be one
+     * {@code DbUnitOperation} cannot express. A binding driving a tester shared across methods
+     * should restore the tester's dataset and operations afterward, so a per-method
+     * {@code @DbUnitSetup}/{@code @DbUnitPrep} does not carry onto a later method.
+     *
+     * @return True when the annotations declare the setup operation to run.
+     */
+    public boolean replacesSetUpOperation()
+    {
+        return prepDataFiles.length > 0 || setupDeclared;
     }
 
     /**
@@ -375,15 +390,13 @@ public class AnnotatedTestConfiguration
     /**
      * Returns whether {@code @DbUnitTearDown} was declared.
      *
-     * <p>On the setup/teardown path a binding consults this to decide whether to call
-     * {@code setTearDownOperation} at all: with no {@code @DbUnitTearDown}, {@code onTearDown()}
-     * runs with the tester's own pre-configured teardown operation - e.g. one set in a
-     * {@code @BeforeEach} method - rather than a forced {@link DatabaseOperation#NONE},
-     * mirroring how an undeclared setup operation is handled (see {@link #isSetupDeclared()}).
-     * A binding driving a tester shared across methods should restore the operation afterward
-     * so a per-method {@code @DbUnitTearDown} does not carry onto a later method. On the
-     * prep/expected path the operation is applied regardless, since {@code cleanupData()}
-     * always runs there and reads it from the tester lazily.
+     * <p>A binding consults this to decide whether to call {@code setTearDownOperation} at all,
+     * on either path: with no {@code @DbUnitTearDown}, the teardown runs with the tester's own
+     * pre-configured teardown operation - e.g. one set in a {@code @BeforeEach} method - rather
+     * than a forced {@link DatabaseOperation#NONE}, mirroring how an undeclared setup operation
+     * is handled (see {@link #replacesSetUpOperation()}). A binding driving a tester shared
+     * across methods should restore the operation afterward so a per-method
+     * {@code @DbUnitTearDown} does not carry onto a later method.
      *
      * @return True when {@code @DbUnitTearDown} was declared.
      */

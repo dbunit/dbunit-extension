@@ -141,7 +141,7 @@ final class SetupTeardownLifecycle
      */
     private DatabaseOperation applySetUpOperation()
     {
-        if (configuration.getPrepDataFiles().length > 0 || configuration.isSetupDeclared())
+        if (configuration.replacesSetUpOperation())
         {
             // With @DbUnitSetup but no @DbUnitPrep, there is no dataset to apply the operation
             // to, but the operation itself - most usefully NONE - still applies to whatever

@@ -33,8 +33,8 @@ import org.dbunit.util.fileloader.DataFileLoader;
  * {@link AnnotatedTestExecutor} when {@link AnnotatedTestConfiguration#isExpected()} is true:
  * resolve or construct the {@link PrepAndExpectedTestCase}, push the {@code @DbUnitConfig}
  * values it can only receive through its own API onto it (via {@link InjectedTestCaseConfigurer}),
- * set the setup/teardown operations, then run its {@code configureTest()}/{@code preTest()}
- * before the test and {@code postTest()} after.
+ * set the setup/teardown operations the annotations declare, then run its
+ * {@code configureTest()}/{@code preTest()} before the test and {@code postTest()} after.
  *
  * <p>The row count check on this path is the {@link PrepAndExpectedTestCase}'s own -
  * {@code DefaultPrepAndExpectedTestCase} captures and verifies it around its own steps - so
@@ -257,30 +257,36 @@ final class ExpectedLifecycle
     }
 
     /**
-     * Applies {@code @DbUnitSetup}'s operation to {@link #tester}, unconditionally:
-     * {@link AnnotatedTestConfiguration#getSetUpOperation()} already defaults to
-     * {@link org.dbunit.operation.DatabaseOperation#CLEAN_INSERT} - the same default the
-     * setup/teardown path applies whenever it has a dataset to set up - and {@code setupData()}
-     * always runs against a real, if possibly empty, prep dataset on this path, so there is no
-     * null-dataset case to avoid touching.
-     */
-    private void applySetUpOperation()
-    {
-        tester.setSetUpOperation(configuration.getSetUpOperation());
-    }
-
-    /**
-     * Applies {@code @DbUnitTearDown}'s operation to {@link #tester}, unconditionally:
-     * {@code cleanupData()} always runs on this path and reads its teardown operation from the
-     * tester lazily, so the default of {@link org.dbunit.operation.DatabaseOperation#NONE}
-     * still has to be set explicitly to override whatever a reused test case's tester already
-     * carries. Whatever this applies is undone by {@link #after(boolean)} restoring
+     * Applies {@code @DbUnitSetup}'s operation to {@link #tester} when the annotations declare
+     * one - see {@link AnnotatedTestConfiguration#replacesSetUpOperation()} - which is
+     * {@link org.dbunit.operation.DatabaseOperation#CLEAN_INSERT} for {@code @DbUnitPrep} files
+     * alone, as on the setup/teardown path. Otherwise the tester's own operation stays, such as
+     * one a {@code @BeforeEach} method set, which can be one {@code DbUnitOperation} cannot
+     * express. Whatever this applies is undone by {@link #after(boolean)} restoring
      * {@link #incomingState} once the test finishes, so a shared tester carries no per-method
      * operation forward.
      */
+    private void applySetUpOperation()
+    {
+        if (configuration.replacesSetUpOperation())
+        {
+            tester.setSetUpOperation(configuration.getSetUpOperation());
+        }
+    }
+
+    /**
+     * Applies {@code @DbUnitTearDown}'s operation to {@link #tester} when the annotations
+     * declare one, as the setup/teardown path does. Otherwise the tester's own operation stays,
+     * which {@code cleanupData()} reads from the tester lazily. Whatever this applies is undone
+     * by {@link #after(boolean)} restoring {@link #incomingState} once the test finishes, so a
+     * shared tester carries no per-method operation forward.
+     */
     private void applyTearDownOperation()
     {
-        tester.setTearDownOperation(configuration.getTearDownOperation());
+        if (configuration.isTearDownDeclared())
+        {
+            tester.setTearDownOperation(configuration.getTearDownOperation());
+        }
     }
 
     /**
