@@ -146,6 +146,34 @@ public class ConnectionPreservingOperationListener implements IOperationListener
     }
 
     /**
+     * Returns whether {@code listener} leaves every connection its tester hands out open for
+     * another owner: it is, or wraps, {@link IOperationListener#NO_OP_OPERATION_LISTENER}, or one
+     * of its {@link ConnectionPreservingOperationListener} layers is a
+     * {@linkplain #ConnectionPreservingOperationListener(IOperationListener) blanket} one, which
+     * protects every connection from a close. Either says the tester's connections are managed
+     * elsewhere, so whatever drives the tester's lifecycle must not close them either.
+     *
+     * @param listener The listener to inspect, possibly a wrapper or {@code null}.
+     * @return {@code true} when it unwraps to the no-op listener or has a blanket layer.
+     * @since 3.6.0
+     */
+    public static boolean leavesEveryConnectionOpen(final IOperationListener listener)
+    {
+        IOperationListener layer = listener;
+        while (layer instanceof ConnectionPreservingOperationListener)
+        {
+            final ConnectionPreservingOperationListener preserving =
+                    (ConnectionPreservingOperationListener) layer;
+            if (preserving.protectEveryConnection)
+            {
+                return true;
+            }
+            layer = preserving.delegate;
+        }
+        return layer == IOperationListener.NO_OP_OPERATION_LISTENER;
+    }
+
+    /**
      * Returns the listener beneath any {@link ConnectionPreservingOperationListener} layers -
      * the innermost delegate - or {@code listener} itself when it is not one.
      *

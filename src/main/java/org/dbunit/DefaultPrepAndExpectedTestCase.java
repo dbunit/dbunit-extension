@@ -80,7 +80,8 @@ import org.slf4j.LoggerFactory;
  * cleanupData() does not close a connection other tests still expect to
  * reuse; the provider's owner is then responsible for closing it once,
  * itself, when the whole run finishes. Leaving the connection open, which a
- * no-op listener on the databaseTester does too, requires a databaseTester
+ * no-op listener or a blanket {@link ConnectionPreservingOperationListener} on
+ * the databaseTester does too, requires a databaseTester
  * that hands out the same connection on repeated calls, as one over a
  * CachingConnectionProvider or over one fixed connection does. With one that
  * hands out a new connection each time, such as a
@@ -167,8 +168,10 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * test's lifecycle instead of each acquiring (and often closing) its own:
      * acquired lazily on first use from {@link #getConnection()}, closed once
      * by cleanupData() unless {@link #closeConnectionAfterTest} is false or
-     * the tester's or this instance's operation listener is the no-op listener,
-     * and re-acquired if the pool or server closed it between reused test
+     * the tester's or this instance's operation listener leaves every
+     * connection open, as the no-op listener and a blanket
+     * {@link ConnectionPreservingOperationListener} do, and re-acquired if the
+     * pool or server closed it between reused test
      * methods.
      *
      * @since 3.6.0
@@ -182,7 +185,8 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * ran - is always {@code true} here, since this class only ever releases the
      * connection from its own cleanupData(), which runs only after setupData()
      * already acquired it. Since 3.6.0 a listener that is
-     * (or wraps) {@link IOperationListener#NO_OP_OPERATION_LISTENER} keeps
+     * (or wraps) {@link IOperationListener#NO_OP_OPERATION_LISTENER}, or has a
+     * blanket {@link ConnectionPreservingOperationListener} layer, keeps
      * cleanupData() from closing the connection even when
      * {@link #closeConnectionAfterTest} is true - the established signal that the
      * connection is owned elsewhere, now honored on this path too and not only
@@ -233,11 +237,12 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
 
     /**
      * Returns the listener {@link ConnectionOwnership} consults to decide whether this
-     * instance may close the shared connection. The no-op listener is the signal that a
-     * connection is managed elsewhere, and a caller sets it on whichever it controls: the
-     * tester it hands this instance, or - for a subclass - this instance's own
-     * {@link #getOperationListener()}. Either one being (or wrapping) the no-op listener
-     * therefore wins; otherwise this instance's own listener is returned.
+     * instance may close the shared connection. A listener that leaves every connection open -
+     * the no-op listener, or a blanket {@link ConnectionPreservingOperationListener} - is the
+     * signal that a connection is managed elsewhere, and a caller sets it on whichever it
+     * controls: the tester it hands this instance, or - for a subclass - this instance's own
+     * {@link #getOperationListener()}. Either one being such a listener therefore wins;
+     * otherwise this instance's own listener is returned.
      *
      * @return The listener that signals the connection is managed elsewhere, if either does;
      *         otherwise this instance's own listener.
@@ -251,7 +256,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
         }
 
         final IOperationListener testerListener = databaseTester.getOperationListener();
-        if (ConnectionPreservingOperationListener.unwrapsToNoOp(testerListener))
+        if (ConnectionPreservingOperationListener.leavesEveryConnectionOpen(testerListener))
         {
             return testerListener;
         }
@@ -651,8 +656,8 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * Release the connection shared by lookupFeatureValue(), setupData(),
      * verifyData() and cleanupData(), if one was acquired: closes it and
      * forgets it when {@link #closeConnectionAfterTest} is true (the default)
-     * and neither the tester's nor this instance's operation listener is the
-     * no-op listener; otherwise
+     * and neither the tester's nor this instance's operation listener leaves
+     * every connection open, as the no-op listener does; otherwise
      * leaves it open for its real owner - a
      * {@link org.dbunit.database.CachingConnectionProvider}, an
      * externally-supplied fixed connection - and keeps it memoized so a later
