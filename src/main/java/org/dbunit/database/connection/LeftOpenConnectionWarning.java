@@ -34,8 +34,8 @@ import org.slf4j.LoggerFactory;
  * the {@link JdbcDatabaseTester} that supplied it creates a new connection on every call. A
  * connection is left open for its real owner to close, as
  * {@link ConnectionOwnership#isLeftOpenByConfiguration()} decides: the
- * {@code closeConnectionAfterTest} flag is {@code false}, or an operation listener is the
- * no-op one. A {@link JdbcDatabaseTester} built without a
+ * {@code closeConnectionAfterTest} flag is {@code false}, or an operation listener leaves every
+ * connection open, as the no-op one does. A {@link JdbcDatabaseTester} built without a
  * {@link org.dbunit.database.CachingConnectionProvider} has no such owner: nothing else holds
  * the connection it just created, and the next call creates another. A test case used for one
  * test leaves one open after it, and one reused across tests keeps one and leaves another each
@@ -112,15 +112,17 @@ public class LeftOpenConnectionWarning implements Consumer<IDatabaseConnection>
 
         isAlreadyWarned = true;
         log.warn("The connection this test's dbUnit steps share is left open after the test,"
-                + " because closeConnectionAfterTest is false or an operation listener is the"
-                + " no-op listener. The database tester, {}, was built without a"
+                + " because closeConnectionAfterTest is false or an operation listener leaves"
+                + " every connection open, as the no-op listener does. The database tester, {},"
+                + " was built without a"
                 + " CachingConnectionProvider, so it creates a new connection on every call and"
                 + " nothing closes the one left open: a test case used for one test leaves a"
                 + " connection open after it, and one reused across tests keeps one and leaves"
                 + " another open each time a step fails, so a long run can exhaust the"
                 + " database's connections. Build the tester with a CachingConnectionProvider,"
                 + " so it hands out one connection that its owner closes when the run ends, or"
-                + " let dbUnit close the connection: leave closeConnectionAfterTest true and do"
-                + " not use the no-op listener.", jdbcTester.getClass().getName());
+                + " let dbUnit close the connection: leave closeConnectionAfterTest true and use"
+                + " an operation listener that closes connections.",
+                jdbcTester.getClass().getName());
     }
 }
