@@ -2259,6 +2259,31 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
+    void testAfterTest_classicPathListenerKeepsOnSetupConnectionOpen_leavesItOpen()
+            throws Exception
+    {
+        // A fixed-connection tester whose listener keeps the connection open for later tests:
+        // the connection onSetup() retrieved is the listener's to close, as in the 3.5.0
+        // lifecycle, so the executor that took it over for the row count baseline must not.
+        when(connection.getConfig()).thenReturn(new DatabaseConfig());
+        stubOpenJdbcConnection();
+        final IOperationListener keepsConnectionsOpen = mock(IOperationListener.class);
+        final IDatabaseTester realTester = new DefaultDatabaseTester(connection);
+        realTester.setOperationListener(keepsConnectionsOpen);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, realTester, null, false);
+        final IOperationListener duringTest = realTester.getOperationListener();
+        duringTest.connectionRetrieved(connection);
+        duringTest.operationSetUpFinished(connection);
+
+        executor.afterTest(false);
+
+        verify(connection, never()).close();
+    }
+
+    @Test
     void testBeforeTest_classicPathRowCountDisabled_doesNotCloseTheTesterConnectionBeforeOnSetup()
             throws Exception
     {

@@ -90,6 +90,9 @@ across test methods carries nothing from one test to the next. On a plain
 `@ExtendWith(DbUnitExtension.class)` test, the 3.5.0 style, the wrapper only forwards every
 callback to your listener, closes included, and takes the row count baseline from the
 connection `onSetup()` retrieves, so the tester opens only the connections it did in 3.5.0.
+That connection stays your listener's to close or to keep open, so a non-closing listener
+still keeps a fixed connection alive for the next test; the extension closes only a
+connection it resolves itself.
 On an annotation-driven test it also applies the `@DbUnitProperty` values and protects the
 one connection the extension holds. Wrapping the listener and putting it back rely on the
 tester reporting it through `getOperationListener()`, as `AbstractDatabaseTester` and the

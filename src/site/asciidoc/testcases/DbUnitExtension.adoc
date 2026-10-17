@@ -137,10 +137,12 @@ whether or not the check is enabled, because the setting lives on a connection's
 `IOperationListener#connectionRetrieved()` has run, so enabling the check there works
 and the tester opens only the connections it did in 3.5.0. For that it wraps the
 tester's listener for the test, forwarding every callback to it unchanged, and puts
-it back afterward. When `onSetup()` cannot be relied on to retrieve a connection - a
-`NONE` setup operation, say - it resolves one from the tester before `onSetup()`
-instead and offers it to `connectionRetrieved()` first, so the listener sees one more
-retrieval than in 3.5.0.
+it back afterward. The connection `onSetup()` retrieves stays the listener's to close
+or to keep open, as in 3.5.0. When `onSetup()` cannot be relied on to retrieve a
+connection - a `NONE` setup operation, say - it resolves one from the tester before
+`onSetup()` instead and offers it to `connectionRetrieved()` first, so the listener
+sees one more retrieval than in 3.5.0, and closes that one after the test unless the
+tester's listener is `NO_OP_OPERATION_LISTENER`.
 Switch such a class to `@DbUnitTest`, or mark its field `@DbUnitTester`, to
 opt its parameters in.
 
