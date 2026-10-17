@@ -31,6 +31,8 @@ import org.dbunit.dataset.datatype.DataType;
 import org.dbunit.dataset.datatype.DataTypeException;
 import org.dbunit.dataset.datatype.IDataTypeFactory;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * @author gommma (gommma AT users.sourceforge.net)
@@ -255,6 +257,44 @@ class DatabaseConfigTest
                         + " PROPERTY_TABLE_TYPE and the dbunit.rowCountCheckExcludeTables"
                         + " system property.")
                 .isEqualTo(String[].class);
+    }
+
+    @Test
+    void testFindByShortName_severalWholeLastParts_returnsTheProperty()
+    {
+        final DatabaseConfig.ConfigProperty property =
+                DatabaseConfig.findByShortName("mssql/identityColumnFilter");
+
+        assertThat(property.getProperty())
+                .as("Several whole last parts of a property's name match it.")
+                .isEqualTo(DatabaseConfig.PROPERTY_IDENTITY_COLUMN_FILTER);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"Size", "Names", "TableNames", "e"})
+    void testFindByShortName_onlyTheEndOfAPart_returnsNull(final String partialName)
+    {
+        assertThat(DatabaseConfig.findByShortName(partialName))
+                .as("The end of a part of a property's name, such as 'Size' of 'batchSize', is"
+                        + " not a short name, and must not resolve to the first property that"
+                        + " happens to end with it.")
+                .isNull();
+    }
+
+    @Test
+    void testSetPropertiesByString_onlyTheEndOfAShortName_leavesThatPropertyUnchanged()
+            throws Exception
+    {
+        final DatabaseConfig config = new DatabaseConfig();
+        final Object batchSizeBefore = config.getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE);
+        final Properties stringProperties = new Properties();
+        stringProperties.setProperty("Size", "7");
+
+        config.setPropertiesByString(stringProperties);
+
+        assertThat(config.getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE))
+                .as("'Size' is not the short name batchSize, so it must not set batchSize.")
+                .isEqualTo(batchSizeBefore);
     }
 
     @Test

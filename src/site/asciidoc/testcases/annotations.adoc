@@ -684,7 +684,10 @@ implementation.
 
 `@DbUnitProperty` entries are collected into a `Properties` instance and
 handed to `DatabaseConfig.setPropertiesByString(Properties)`, which accepts
-both the long `http://www.dbunit.org/...` names and their short forms:
+both the long `http://www.dbunit.org/...` names and their short forms, the last
+part of a long name, such as `batchSize`, or several whole last parts, such as
+`mssql/identityColumnFilter`. Only the end of a part, such as `Size`, is no
+property name and is rejected:
 
 [source,java]
 ----

@@ -97,6 +97,17 @@ class DatabaseConfigPropertiesResolverTest
     }
 
     @Test
+    void testResolve_inlineNameIsOnlyTheEndOfAShortName_throwsNamingIt()
+    {
+        assertThatThrownBy(() -> resolver.resolve(config(WithPartialPropertyName.class)))
+                .as("'Size' is only the end of the short name batchSize, so it must be"
+                        + " rejected as unknown rather than applied to batchSize.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("'Size'")
+                .hasMessageContaining("is not a known dbUnit DatabaseConfig property name");
+    }
+
+    @Test
     void testResolve_propertiesProvider_usesTheValuesItSupplies()
     {
         final Properties properties = resolver.resolve(config(WithPropertiesProvider.class));
@@ -171,6 +182,11 @@ class DatabaseConfigPropertiesResolverTest
             properties.setProperty(DatabaseConfig.PROPERTY_BATCH_SIZE, "50");
             return properties;
         }
+    }
+
+    @DbUnitConfig(properties = @DbUnitProperty(name = "Size", value = "10"))
+    private static class WithPartialPropertyName
+    {
     }
 
     @DbUnitConfig(properties = @DbUnitProperty(name = "notAProperty", value = "x"))
