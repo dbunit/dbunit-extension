@@ -515,14 +515,17 @@ public class DatabaseConfig
      * Searches the {@link ConfigProperty} object for the property with the given name
      * @param propShortName The property short name for which the enumerated object should be resolved.
      * Example: the short name of {@value #PROPERTY_FETCH_SIZE} is <code>fetchSize</code> which is the
-     * last part of the fully qualified URL.
+     * last part of the fully qualified URL. Several whole last parts, such as
+     * <code>mssql/identityColumnFilter</code>, also match, but the end of a part alone, such as
+     * <code>Size</code>, matches no property.
      * @return The property object or <code>null</code> if it was not found.
      */
-    public static final ConfigProperty findByShortName(String propShortName) 
+    public static final ConfigProperty findByShortName(String propShortName)
     {
+        final String lastParts = "/" + propShortName;
         for (int i = 0; i < DatabaseConfig.ALL_PROPERTIES.length; i++) {
             String fullProperty = DatabaseConfig.ALL_PROPERTIES[i].getProperty();
-            if(fullProperty.endsWith(propShortName))
+            if(fullProperty.endsWith(lastParts))
             {
                 return DatabaseConfig.ALL_PROPERTIES[i];
             }
