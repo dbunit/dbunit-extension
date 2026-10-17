@@ -43,7 +43,10 @@ import org.dbunit.IOperationListener;
  * <li><b>{@code testerListener}</b> - the tester's {@link IOperationListener}. When it is
  * (directly, or wrapped by a {@link ConnectionPreservingOperationListener})
  * {@link IOperationListener#NO_OP_OPERATION_LISTENER}, that is the established, pre-existing
- * signal that the connection is managed elsewhere and must not be closed.</li>
+ * signal that the connection is managed elsewhere and must not be closed. A blanket
+ * {@link ConnectionPreservingOperationListener} layer, which keeps every connection from a
+ * close, says the same - see
+ * {@link ConnectionPreservingOperationListener#leavesEveryConnectionOpen(IOperationListener)}.</li>
  * <li><b>{@code borrowingLifecycleRan}</b> - whether the borrowing lifecycle actually reached
  * the point of owning the connection. On the setup/teardown path a connection was actually
  * acquired; on the prep/expected path with an injected {@code @DbUnitTestCase}, its
@@ -56,7 +59,7 @@ import org.dbunit.IOperationListener;
  * <p>Truth table - "close" only when every input allows it:
  *
  * <pre>
- * closeConnectionAfterTest | listener unwraps to NO_OP | borrowing lifecycle ran | -&gt; decision
+ * closeConnectionAfterTest | listener leaves all open  | borrowing lifecycle ran | -&gt; decision
  * ------------------------- | ------------------------ | ----------------------- | -----------
  *          false            |            -             |            -            |    SKIP
  *          true             |           true           |            -            |    SKIP
@@ -88,7 +91,8 @@ public class ConnectionOwnership
      *
      * @param closeConnectionAfterTest Supplies the {@code @DbUnitConfig} flag.
      * @param testerListener Supplies the tester's current {@link IOperationListener}; may
-     *            supply {@code null}, treated as "not the no-op listener".
+     *            supply {@code null}, treated as a listener that does not leave every connection
+     *            open.
      * @param borrowingLifecycleRan Supplies whether the borrowing lifecycle reached the point
      *            of owning the connection.
      */
@@ -105,29 +109,32 @@ public class ConnectionOwnership
      * Returns whether the borrowing lifecycle may close the connection it borrowed.
      *
      * @return {@code true} only when the {@code closeConnectionAfterTest} flag is set, the
-     *         lifecycle actually ran, and the tester's listener does not unwrap to the no-op
-     *         listener.
+     *         lifecycle actually ran, and the tester's listener does not leave every connection
+     *         open.
      */
     public boolean mayClose()
     {
         return closeConnectionAfterTest.getAsBoolean() && borrowingLifecycleRan.getAsBoolean()
-                && !ConnectionPreservingOperationListener.unwrapsToNoOp(testerListener.get());
+                && !ConnectionPreservingOperationListener
+                        .leavesEveryConnectionOpen(testerListener.get());
     }
 
     /**
      * Returns whether the configuration leaves the connection open for another owner to
      * close: the {@code closeConnectionAfterTest} flag is {@code false}, or the tester's
-     * listener is (or wraps) {@link IOperationListener#NO_OP_OPERATION_LISTENER}. That is the
-     * first two rows of the truth table. {@link #mayClose()} also refuses when the borrowing
-     * lifecycle did not run, which is not the configuration's doing, so that input does not
-     * count here.
+     * listener leaves every connection open - it is (or wraps)
+     * {@link IOperationListener#NO_OP_OPERATION_LISTENER}, or has a blanket
+     * {@link ConnectionPreservingOperationListener} layer. That is the first two rows of the
+     * truth table. {@link #mayClose()} also refuses when the borrowing lifecycle did not run,
+     * which is not the configuration's doing, so that input does not count here.
      *
-     * @return {@code true} when the flag is not set or the tester's listener is the no-op
-     *         listener.
+     * @return {@code true} when the flag is not set or the tester's listener leaves every
+     *         connection open.
      */
     public boolean isLeftOpenByConfiguration()
     {
         return !closeConnectionAfterTest.getAsBoolean()
-                || ConnectionPreservingOperationListener.unwrapsToNoOp(testerListener.get());
+                || ConnectionPreservingOperationListener
+                        .leavesEveryConnectionOpen(testerListener.get());
     }
 }
