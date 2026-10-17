@@ -135,6 +135,67 @@ class ConnectionPreservingOperationListenerTest
     }
 
     @Test
+    void testLeavesEveryConnectionOpen_noOpBehindAScopedWrapper_returnsTrue()
+    {
+        final ConnectionPreservingOperationListener wrapped =
+                new ConnectionPreservingOperationListener(
+                        IOperationListener.NO_OP_OPERATION_LISTENER, () -> protectedConnection);
+
+        assertThat(ConnectionPreservingOperationListener.leavesEveryConnectionOpen(wrapped))
+                .as("The no-op listener leaves every connection open, wrapped or not.")
+                .isTrue();
+    }
+
+    @Test
+    void testLeavesEveryConnectionOpen_blanketWrapperOverClosingListener_returnsTrue()
+    {
+        final ConnectionPreservingOperationListener blanket =
+                new ConnectionPreservingOperationListener(new DefaultOperationListener());
+
+        assertThat(ConnectionPreservingOperationListener.leavesEveryConnectionOpen(blanket))
+                .as("A blanket wrapper keeps every connection from its delegate's close, so the"
+                        + " tester's connections are managed elsewhere.")
+                .isTrue();
+    }
+
+    @Test
+    void testLeavesEveryConnectionOpen_blanketWrapperBeneathAScopedOne_returnsTrue()
+    {
+        final ConnectionPreservingOperationListener wrapped =
+                new ConnectionPreservingOperationListener(
+                        new ConnectionPreservingOperationListener(new DefaultOperationListener()),
+                        () -> protectedConnection);
+
+        assertThat(ConnectionPreservingOperationListener.leavesEveryConnectionOpen(wrapped))
+                .as("A blanket layer counts beneath a scoped one, such as the one the"
+                        + " annotation runtime adds.")
+                .isTrue();
+    }
+
+    @Test
+    void testLeavesEveryConnectionOpen_scopedWrapperOverClosingListener_returnsFalse()
+    {
+        final ConnectionPreservingOperationListener scoped =
+                new ConnectionPreservingOperationListener(new DefaultOperationListener(),
+                        () -> protectedConnection);
+
+        assertThat(ConnectionPreservingOperationListener.leavesEveryConnectionOpen(scoped))
+                .as("A scoped wrapper keeps only one connection open; the others still close.")
+                .isFalse();
+    }
+
+    @Test
+    void testLeavesEveryConnectionOpen_plainClosingListenerOrNull_returnsFalse()
+    {
+        assertThat(ConnectionPreservingOperationListener
+                .leavesEveryConnectionOpen(new DefaultOperationListener()))
+                        .as("The default listener closes every connection.").isFalse();
+        assertThat(ConnectionPreservingOperationListener.leavesEveryConnectionOpen(null))
+                .as("A tester with no listener at all is not marked as managed elsewhere.")
+                .isFalse();
+    }
+
+    @Test
     void testUnwrap_severalWrappers_returnsTheInnermostDelegate()
     {
         final ConnectionPreservingOperationListener wrapped =

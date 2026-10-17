@@ -141,6 +141,30 @@ class ConnectionOwnershipTest
     }
 
     @Test
+    void testMayClose_blanketPreservingListener_returnsFalse()
+    {
+        final IOperationListener blanket =
+                new ConnectionPreservingOperationListener(new DefaultOperationListener());
+
+        assertThat(ownership(true, blanket, true).mayClose())
+                .as("A blanket ConnectionPreservingOperationListener says the caller owns every"
+                        + " connection, so the lifecycle must not close the one it borrowed.")
+                .isFalse();
+    }
+
+    @Test
+    void testIsLeftOpenByConfiguration_blanketPreservingListener_returnsTrue()
+    {
+        final IOperationListener blanket =
+                new ConnectionPreservingOperationListener(new DefaultOperationListener());
+
+        assertThat(ownership(true, blanket, true).isLeftOpenByConfiguration())
+                .as("A blanket ConnectionPreservingOperationListener leaves the connection to"
+                        + " its real owner, as the NO_OP listener does.")
+                .isTrue();
+    }
+
+    @Test
     void testIsLeftOpenByConfiguration_flagSetAndPlainListener_returnsFalse()
     {
         assertThat(ownership(true, new DefaultOperationListener(), true)
