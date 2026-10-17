@@ -30,6 +30,7 @@ import static org.mockito.Mockito.when;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.dbunit.AbstractDatabaseTester;
 import org.dbunit.DatabaseUnitRuntimeException;
@@ -61,7 +62,7 @@ class AnnotatedRowCountCheckTest
     void testCanPiggybackBaselineOn_listenerInstalledRealTesterNonNoneOpNothingResolved_true()
     {
         final AnnotatedRowCountCheck check = new AnnotatedRowCountCheck(noAnnotationsConfig(),
-                new InheritingTester(), holderThatMustNotAcquire(), true);
+                new InheritingTester(), holderThatMustNotAcquire(), () -> true);
 
         assertThat(check.canPiggybackBaselineOn(DatabaseOperation.CLEAN_INSERT))
                 .as("A piggyback is safe: a listener is installed, an AbstractDatabaseTester"
@@ -71,10 +72,25 @@ class AnnotatedRowCountCheckTest
     }
 
     @Test
+    void testCanPiggybackBaselineOn_listenerReplacedAfterConstruction_false()
+    {
+        final AtomicBoolean listenerInPlace = new AtomicBoolean(true);
+        final AnnotatedRowCountCheck check = new AnnotatedRowCountCheck(noAnnotationsConfig(),
+                new InheritingTester(), holderThatMustNotAcquire(), listenerInPlace::get);
+        listenerInPlace.set(false);
+
+        assertThat(check.canPiggybackBaselineOn(DatabaseOperation.CLEAN_INSERT))
+                .as("Whether the installed listener is still there is read when the setup is"
+                        + " about to run: one replaced since, as a @BeforeEach method can, would"
+                        + " never pass onSetup()'s connection on.")
+                .isFalse();
+    }
+
+    @Test
     void testCanPiggybackBaselineOn_noListenerInstalled_false()
     {
         final AnnotatedRowCountCheck check = new AnnotatedRowCountCheck(noAnnotationsConfig(),
-                new InheritingTester(), holderThatMustNotAcquire(), false);
+                new InheritingTester(), holderThatMustNotAcquire(), () -> false);
 
         assertThat(check.canPiggybackBaselineOn(DatabaseOperation.CLEAN_INSERT))
                 .as("A tester that cannot report its listener gets none installed, so there is"
@@ -89,7 +105,7 @@ class AnnotatedRowCountCheckTest
                 () -> mock(IDatabaseConnection.class), alwaysMayClose, null);
         holder.getConnection();
         final AnnotatedRowCountCheck check = new AnnotatedRowCountCheck(noAnnotationsConfig(),
-                new InheritingTester(), holder, true);
+                new InheritingTester(), holder, () -> true);
 
         assertThat(check.canPiggybackBaselineOn(DatabaseOperation.CLEAN_INSERT))
                 .as("A connection is already memoized (e.g. from a @BeforeEach parameter);"
@@ -101,7 +117,7 @@ class AnnotatedRowCountCheckTest
     void testCanPiggybackBaselineOn_customTester_false()
     {
         final AnnotatedRowCountCheck check = new AnnotatedRowCountCheck(noAnnotationsConfig(),
-                mock(IDatabaseTester.class), holderThatMustNotAcquire(), true);
+                mock(IDatabaseTester.class), holderThatMustNotAcquire(), () -> true);
 
         assertThat(check.canPiggybackBaselineOn(DatabaseOperation.CLEAN_INSERT))
                 .as("A custom IDatabaseTester is not assumed to route through executeOperation()"
@@ -113,7 +129,7 @@ class AnnotatedRowCountCheckTest
     void testCanPiggybackBaselineOn_testerOverridesOnSetup_false()
     {
         final AnnotatedRowCountCheck check = new AnnotatedRowCountCheck(noAnnotationsConfig(),
-                new OverridingOnSetupTester(), holderThatMustNotAcquire(), true);
+                new OverridingOnSetupTester(), holderThatMustNotAcquire(), () -> true);
 
         assertThat(check.canPiggybackBaselineOn(DatabaseOperation.CLEAN_INSERT))
                 .as("A tester that overrides onSetup() might apply the operation some other"
@@ -125,7 +141,7 @@ class AnnotatedRowCountCheckTest
     void testCanPiggybackBaselineOn_noneOperation_false()
     {
         final AnnotatedRowCountCheck check = new AnnotatedRowCountCheck(noAnnotationsConfig(),
-                new InheritingTester(), holderThatMustNotAcquire(), true);
+                new InheritingTester(), holderThatMustNotAcquire(), () -> true);
 
         assertThat(check.canPiggybackBaselineOn(DatabaseOperation.NONE))
                 .as("A NONE operation makes executeOperation() retrieve no connection.")
@@ -141,7 +157,7 @@ class AnnotatedRowCountCheckTest
         final TestScopedConnection holder =
                 new TestScopedConnection(() -> null, alwaysMayClose, null);
         final AnnotatedRowCountCheck check = new AnnotatedRowCountCheck(noAnnotationsConfig(),
-                mock(IDatabaseTester.class), holder, true);
+                mock(IDatabaseTester.class), holder, () -> true);
 
         check.captureBaselineEagerly();
 
@@ -158,7 +174,7 @@ class AnnotatedRowCountCheckTest
         final TestScopedConnection holder =
                 new TestScopedConnection(() -> connection, alwaysMayClose, null);
         final AnnotatedRowCountCheck check = new AnnotatedRowCountCheck(noAnnotationsConfig(),
-                mock(IDatabaseTester.class), holder, true);
+                mock(IDatabaseTester.class), holder, () -> true);
 
         check.verify();
 
@@ -178,7 +194,7 @@ class AnnotatedRowCountCheckTest
         final TestScopedConnection holder =
                 new TestScopedConnection(() -> connection, alwaysMayClose, null);
         final AnnotatedRowCountCheck check = new AnnotatedRowCountCheck(
-                prepAndRowCountCheckConfig(), tester, holder, true);
+                prepAndRowCountCheckConfig(), tester, holder, () -> true);
 
         check.captureBaselineEagerly();
         when(connection.getRowCount("ACCOUNT")).thenReturn(5);
@@ -206,7 +222,7 @@ class AnnotatedRowCountCheckTest
         final TestScopedConnection holder =
                 new TestScopedConnection(() -> connection, alwaysMayClose, null);
         final AnnotatedRowCountCheck check = new AnnotatedRowCountCheck(
-                prepAndRowCountCheckConfig(), tester, holder, true);
+                prepAndRowCountCheckConfig(), tester, holder, () -> true);
 
         check.captureBaselineEagerly();
         when(connection.getRowCount("ACCOUNT")).thenReturn(5);
@@ -231,7 +247,7 @@ class AnnotatedRowCountCheckTest
         final TestScopedConnection holder =
                 new TestScopedConnection(() -> null, alwaysMayClose, null);
         final AnnotatedRowCountCheck check = new AnnotatedRowCountCheck(noAnnotationsConfig(),
-                mock(IDatabaseTester.class), holder, true);
+                mock(IDatabaseTester.class), holder, () -> true);
         check.adoptAndCaptureBaselineOnFirstConnection(captured);
 
         assertThatCode(check::verify)
@@ -251,7 +267,7 @@ class AnnotatedRowCountCheckTest
         final TestScopedConnection holder = new TestScopedConnection(
                 () -> mock(IDatabaseConnection.class), alwaysMayClose, null);
         final AnnotatedRowCountCheck check = new AnnotatedRowCountCheck(noAnnotationsConfig(),
-                mock(IDatabaseTester.class), holder, true);
+                mock(IDatabaseTester.class), holder, () -> true);
 
         check.adoptAndCaptureBaselineOnFirstConnection(first);
         check.adoptAndCaptureBaselineOnFirstConnection(second);
@@ -274,7 +290,7 @@ class AnnotatedRowCountCheckTest
         final TestScopedConnection holder = new TestScopedConnection(
                 () -> mock(IDatabaseConnection.class), alwaysMayClose, null);
         final AnnotatedRowCountCheck check = new AnnotatedRowCountCheck(noAnnotationsConfig(),
-                mock(IDatabaseTester.class), holder, true);
+                mock(IDatabaseTester.class), holder, () -> true);
 
         assertThatThrownBy(() -> check.adoptAndCaptureBaselineOnFirstConnection(connection))
                 .as("This route is reached from a listener callback that declares no checked"

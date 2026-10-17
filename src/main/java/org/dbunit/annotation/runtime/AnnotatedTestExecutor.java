@@ -22,6 +22,7 @@ package org.dbunit.annotation.runtime;
 
 import java.util.function.Supplier;
 
+import org.dbunit.ConnectionPreservingOperationListener;
 import org.dbunit.DatabaseUnitException;
 import org.dbunit.DefaultOperationListener;
 import org.dbunit.DefaultPrepAndExpectedTestCase;
@@ -237,7 +238,7 @@ public class AnnotatedTestExecutor
                 this::onConnectionAcquired);
         final boolean installsOperationListener = exposesOperationListener(tester);
         this.setupTeardownLifecycle = new SetupTeardownLifecycle(configuration, tester,
-                testScopedConnection, installsOperationListener);
+                testScopedConnection, this::isInstalledListenerInPlace);
         if (installsOperationListener)
         {
             installOperationListener();
@@ -260,6 +261,34 @@ public class AnnotatedTestExecutor
     {
         return DefaultMethodOverrideCheck.overridesDefaultMethod(tester.getClass(),
                 IDatabaseTester.class, "getOperationListener");
+    }
+
+    /**
+     * Returns whether the {@link ExecutorOperationListener} {@link #installOperationListener()}
+     * put on the tester still hears its callbacks: the tester carries it, directly or beneath
+     * {@link ConnectionPreservingOperationListener} layers, which forward every
+     * {@code connectionRetrieved()}. False when none was installed, and when something has
+     * replaced it since - a {@code @BeforeEach} method given the tester as a parameter runs
+     * after this executor was built and may set a listener of its own - as the tester's
+     * {@code onSetup()} would then never pass its connection on for the row count check
+     * baseline.
+     */
+    private boolean isInstalledListenerInPlace()
+    {
+        IOperationListener layer = tester.getOperationListener();
+        while (layer != null)
+        {
+            if (layer == installedListener)
+            {
+                return true;
+            }
+            if (!(layer instanceof ConnectionPreservingOperationListener))
+            {
+                return false;
+            }
+            layer = ((ConnectionPreservingOperationListener) layer).getDelegate();
+        }
+        return false;
     }
 
     /**

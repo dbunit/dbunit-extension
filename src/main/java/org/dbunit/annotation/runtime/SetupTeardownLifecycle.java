@@ -20,6 +20,8 @@
  */
 package org.dbunit.annotation.runtime;
 
+import java.util.function.BooleanSupplier;
+
 import org.dbunit.IDatabaseTester;
 import org.dbunit.database.DatabaseConfig;
 import org.dbunit.database.IDatabaseConnection;
@@ -69,19 +71,20 @@ final class SetupTeardownLifecycle
      * @param configuration The resolved configuration.
      * @param tester The tester to drive.
      * @param connection The shared per-test connection holder.
-     * @param operationListenerInstalled Whether an {@link ExecutorOperationListener} is installed
-     *            on the tester for this test - false for a tester that cannot report its
-     *            listener, where there is nothing to piggyback the row count check baseline on.
+     * @param operationListenerInPlace Supplies whether the {@link ExecutorOperationListener}
+     *            installed for this test still hears the tester's callbacks - false for a tester
+     *            that cannot report its listener, where there is nothing to piggyback the row
+     *            count check baseline on, and once something has replaced it.
      */
     SetupTeardownLifecycle(final AnnotatedTestConfiguration configuration,
             final IDatabaseTester tester, final TestScopedConnection connection,
-            final boolean operationListenerInstalled)
+            final BooleanSupplier operationListenerInPlace)
     {
         this.configuration = configuration;
         this.tester = tester;
         this.connection = connection;
         this.rowCountCheck = new AnnotatedRowCountCheck(configuration, tester, connection,
-                operationListenerInstalled);
+                operationListenerInPlace);
     }
 
     /**

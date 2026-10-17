@@ -39,6 +39,7 @@ import static org.mockito.Mockito.when;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -81,8 +82,11 @@ import org.dbunit.database.rowcount.ClearRowCountCheckSystemProperties;
 import org.dbunit.database.rowcount.RowCountCheck;
 import org.dbunit.database.rowcount.RowCountCheckConfiguration;
 import org.dbunit.database.rowcount.UnexpectedRowCountException;
+import org.dbunit.dataset.Column;
 import org.dbunit.dataset.DefaultDataSet;
+import org.dbunit.dataset.DefaultTable;
 import org.dbunit.dataset.IDataSet;
+import org.dbunit.dataset.datatype.DataType;
 import org.dbunit.operation.DatabaseOperation;
 import org.dbunit.operation.DbUnitOperation;
 import org.dbunit.util.fileloader.DataFileLoader;
@@ -2256,6 +2260,49 @@ class AnnotatedTestExecutorTest
                 .as("The classic path must put the tester's own IOperationListener back once the"
                         + " test is over.")
                 .isSameAs(custom);
+    }
+
+    @Test
+    void testAfterTest_listenerReplacedAfterTheExecutorWasBuilt_takesTheBaselineBeforeOnSetup()
+            throws Exception
+    {
+        // A @BeforeEach method given the tester as a parameter runs after the executor
+        // installed its listener, and may replace it - here with the no-op listener the
+        // CachingConnectionProvider pairing uses. onSetup() then never hands the executor its
+        // connection, so the baseline must be taken before onSetup() inserts the prep row, or
+        // the teardown that deletes it reads as a row count difference.
+        final IDatabaseConnection database = InMemoryDatabaseConnection.create("PUBLIC");
+        try
+        {
+            try (Statement statement = database.getConnection().createStatement())
+            {
+                statement.execute("CREATE TABLE ACCOUNT (ID INT PRIMARY KEY)");
+            }
+            final DefaultTable account = new DefaultTable("ACCOUNT",
+                    new Column[] {new Column("ID", DataType.INTEGER)});
+            account.addRow(new Object[] {1});
+            final IDatabaseTester realTester = new DefaultDatabaseTester(database);
+            realTester.setDataSet(new DefaultDataSet(account));
+            realTester.setTearDownOperation(DatabaseOperation.DELETE_ALL);
+            final DbUnitRowCountCheck rowCountCheck =
+                    WithBareRowCountCheck.class.getAnnotation(DbUnitRowCountCheck.class);
+            final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration.from(
+                    AnnotatedTestExecutorTest.class, null, null, null, null, null, rowCountCheck);
+            final AnnotatedTestExecutor executor =
+                    new AnnotatedTestExecutor(configuration, realTester, null);
+            realTester.setOperationListener(IOperationListener.NO_OP_OPERATION_LISTENER);
+
+            executor.beforeTest();
+            final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+            assertThat(thrown)
+                    .as("A test that deletes the row its prep inserted leaves every count as it"
+                            + " found it, so the row count check must pass.")
+                    .isNull();
+        } finally
+        {
+            database.close();
+        }
     }
 
     @Test
