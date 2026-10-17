@@ -608,7 +608,8 @@ closed after each test; default `true`. Set `false` when the tester shares a
 `CachingConnectionProvider` across test methods. Also left open, regardless of
 this attribute, when the tester's `IOperationListener` is
 `NO_OP_OPERATION_LISTENER` - the established signal that its connection is
-managed elsewhere, or, on the prep/expected path, when the injected
+managed elsewhere - or a blanket `ConnectionPreservingOperationListener`, which
+says the same, or, on the prep/expected path, when the injected
 `@DbUnitTestCase` instance itself reports `isCloseConnectionAfterTest()` as
 `false`. Leaving the connection open requires a tester that hands out the same
 connection on repeated calls, as one over a `CachingConnectionProvider` or over one fixed

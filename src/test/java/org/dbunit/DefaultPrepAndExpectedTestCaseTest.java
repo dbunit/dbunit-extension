@@ -1814,6 +1814,21 @@ class DefaultPrepAndExpectedTestCaseTest
     }
 
     @Test
+    void testCleanupData_databaseTesterListenerIsBlanketPreserving_leavesTheSharedConnectionOpen()
+            throws Exception
+    {
+        databaseTester.setOperationListener(
+                new ConnectionPreservingOperationListener(new DefaultOperationListener()));
+
+        tc.cleanupData();
+
+        final MockDatabaseConnection connection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        connection.setExpectedCloseCalls(0);
+        connection.verify();
+    }
+
+    @Test
     void testCleanupData_databaseTesterListenerIsDefault_closesTheSharedConnection()
             throws Exception
     {
