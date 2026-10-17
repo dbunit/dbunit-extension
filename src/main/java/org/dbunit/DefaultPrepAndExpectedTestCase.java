@@ -368,35 +368,8 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
         requireDatabaseTester();
         log.debug("configureTest: saving instance variables");
 
-        final boolean acquiredConnectionHere =
-                reusableConnectionHolder.peekConnection() == null;
-        try
-        {
-            final boolean isCaseSensitiveTableNames = lookupFeatureValue(
-                    DatabaseConfig.FEATURE_CASE_SENSITIVE_TABLE_NAMES);
-            log.debug("configureTest: using case sensitive table names={}",
-                    isCaseSensitiveTableNames);
-
-            final IDataSet newPrepDataSet = makeCompositeDataSet(prepDataFiles,
-                    "prep", isCaseSensitiveTableNames);
-            final IDataSet newExpectedDataSet = makeCompositeDataSet(
-                    expectedDataFiles, "expected", isCaseSensitiveTableNames);
-
-            this.cachedIsCaseSensitiveTableNames = isCaseSensitiveTableNames;
-            this.prepDataSet = newPrepDataSet;
-            this.expectedDataSet = newExpectedDataSet;
-            this.verifyTableDefs = verifyTableDefinitions == null
-                    ? new VerifyTableDefinition[0]
-                    : verifyTableDefinitions;
-        } catch (final Throwable t)
-        {
-            clearPerTestData();
-            if (acquiredConnectionHere)
-            {
-                closeReusableConnectionSuppressing(t);
-            }
-            throw t;
-        }
+        configuringTest(() -> configure(verifyTableDefinitions, prepDataFiles,
+                expectedDataFiles));
     }
 
     /**
@@ -419,22 +392,87 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
             return false;
         }
 
-        final boolean acquiredConnectionHere =
-                reusableConnectionHolder.peekConnection() == null;
-        configureTest(new VerifyTableDefinition[0], prepDataFiles, expectedDataFiles);
+        configuringTest(() ->
+        {
+            configureTest(new VerifyTableDefinition[0], prepDataFiles, expectedDataFiles);
+            this.verifyTableDefs = makeDefaultVerifyTableDefinitions(expectedDataSet);
+        });
+        return true;
+    }
+
+    /**
+     * Loads the prep and expected datasets, combined by the shared connection's case
+     * sensitivity, and keeps them with the verify table definitions for this test.
+     */
+    private void configure(final VerifyTableDefinition[] verifyTableDefinitions,
+            final String[] prepDataFiles, final String[] expectedDataFiles) throws Exception
+    {
+        final boolean isCaseSensitiveTableNames = lookupFeatureValue(
+                DatabaseConfig.FEATURE_CASE_SENSITIVE_TABLE_NAMES);
+        log.debug("configureTest: using case sensitive table names={}",
+                isCaseSensitiveTableNames);
+
+        final IDataSet newPrepDataSet = makeCompositeDataSet(prepDataFiles,
+                "prep", isCaseSensitiveTableNames);
+        final IDataSet newExpectedDataSet = makeCompositeDataSet(
+                expectedDataFiles, "expected", isCaseSensitiveTableNames);
+
+        this.cachedIsCaseSensitiveTableNames = isCaseSensitiveTableNames;
+        this.prepDataSet = newPrepDataSet;
+        this.expectedDataSet = newExpectedDataSet;
+        this.verifyTableDefs = verifyTableDefinitions == null
+                ? new VerifyTableDefinition[0]
+                : verifyTableDefinitions;
+    }
+
+    /**
+     * Runs a step that configures the test, emptying the per-test data when it fails - see
+     * {@link #clearPerTestData()} - and releasing the shared connection as
+     * {@link #releasingIfAcquiredOnFailure(LifecycleStep)} does. Both are idempotent, so a step
+     * that calls configureTest(), which runs through here too, cleans up the same way.
+     */
+    private void configuringTest(final LifecycleStep step) throws Exception
+    {
         try
         {
-            this.verifyTableDefs = makeDefaultVerifyTableDefinitions(expectedDataSet);
+            releasingIfAcquiredOnFailure(step);
         } catch (final Throwable t)
         {
             clearPerTestData();
+            throw t;
+        }
+    }
+
+    /**
+     * Runs a lifecycle step, and when it fails, an {@link Error} included, releases the shared
+     * connection if the step is what acquired it, attaching a close failure to the step's
+     * failure: no cleanupData() follows a step that failed before setupData(), so nothing else
+     * would release it. A connection already acquired before the step, for example by injecting
+     * it into a test method parameter, is left open for the caller.
+     */
+    private void releasingIfAcquiredOnFailure(final LifecycleStep step) throws Exception
+    {
+        final boolean acquiredConnectionHere = reusableConnectionHolder.peekConnection() == null;
+        try
+        {
+            step.run();
+        } catch (final Throwable t)
+        {
             if (acquiredConnectionHere)
             {
                 closeReusableConnectionSuppressing(t);
             }
             throw t;
         }
-        return true;
+    }
+
+    /**
+     * One step of this test's lifecycle that may acquire the shared connection.
+     */
+    @FunctionalInterface
+    private interface LifecycleStep
+    {
+        void run() throws Exception;
     }
 
     /**
@@ -466,24 +504,69 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
         this.verifyTableDefs = new VerifyTableDefinition[0];
     }
 
+    /**
+     * {@inheritDoc} Applies {@link #databaseConfigProperties}, when set - the composition-based
+     * equivalent of overriding this method, for a caller that cannot subclass to do so directly
+     * (e.g. {@code org.dbunit.annotation}'s {@code @DbUnitProperty}). The values replaced are
+     * put back when this test's lifecycle ends - see {@link #cleanupData()}.
+     *
+     * <p>The lifecycle retrieves its connection several times, and each retrieval calls this
+     * method. The values are applied once per {@link DatabaseConfig} until they are put back, and
+     * a later call does nothing, so a property set on the {@link DatabaseConfig} directly in
+     * between is not overwritten. The exception is a database tester with an operation listener
+     * of its own, which may change any of the values at each set up and tear down operation: the
+     * values are applied again directly after it, so they still win.
+     *
+     * <p><strong>Note:</strong> a subclass overriding this method must call
+     * {@code super.setUpDatabaseConfig(config)} to keep
+     * {@link #setDatabaseConfigProperties(java.util.Properties)} - and therefore
+     * {@code @DbUnitProperty} on the annotation-driven path - working.
+     *
+     * @throws IllegalStateException If a property value is invalid for its target
+     *             {@link DatabaseConfig} entry.
+     */
+    @Override
+    protected void setUpDatabaseConfig(final DatabaseConfig config)
+    {
+        if (databaseConfigOverrides.hasAppliedTo(config))
+        {
+            return;
+        }
+
+        applyDatabaseConfigProperties(config);
+    }
+
+    /**
+     * Applies {@link #databaseConfigProperties} to a connection's {@link DatabaseConfig},
+     * whether or not they are already in force, remembering what they replace.
+     *
+     * @param config The configuration to apply them to.
+     * @throws IllegalStateException If a property value is invalid for its target
+     *             {@link DatabaseConfig} entry.
+     */
+    private void applyDatabaseConfigProperties(final DatabaseConfig config)
+    {
+        try
+        {
+            databaseConfigOverrides.applyTo(config);
+        } catch (final DatabaseUnitException e)
+        {
+            throw new IllegalStateException("Failed to apply a databaseConfigProperties value.",
+                    e);
+        }
+    }
+
+    /**
+     * Reads a feature of the shared connection's {@link DatabaseConfig}, acquiring the
+     * connection on first use. Its callers, configureTest() and cleanupData(), release that
+     * connection when they fail.
+     */
     private boolean lookupFeatureValue(final String featureName)
             throws Exception
     {
-        final boolean acquiredConnectionHere = connection == null;
-        try
-        {
-            final IDatabaseConnection reusableConnection =
-                    getReusableConnection();
-            final DatabaseConfig config = reusableConnection.getConfig();
-            return config.getFeature(featureName);
-        } catch (final Exception e)
-        {
-            if (acquiredConnectionHere)
-            {
-                closeReusableConnectionSuppressing(e);
-            }
-            throw e;
-        }
+        final IDatabaseConnection reusableConnection = getReusableConnection();
+        final DatabaseConfig config = reusableConnection.getConfig();
+        return config.getFeature(featureName);
     }
 
     /**
@@ -740,6 +823,18 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     public void preTest() throws Exception
     {
         setupData();
+    }
+
+    /**
+     * Capture the row count check baseline, using the connection shared with the rest of this
+     * test's lifecycle. A no-op that leaves no baseline captured when the check is disabled.
+     *
+     * @throws Exception On dbUnit errors.
+     * @since 3.6.0
+     */
+    private void captureRowCountBaseline() throws Exception
+    {
+        releasingIfAcquiredOnFailure(() -> rowCountChecker.capture(getReusableConnection()));
     }
 
     /**
