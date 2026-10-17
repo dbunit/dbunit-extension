@@ -2367,6 +2367,27 @@ class DefaultPrepAndExpectedTestCaseTest
     }
 
     @Test
+    void testPreTest_baselineCaptureFailsWithAnError_releasesTheConnectionItAcquired()
+            throws Exception
+    {
+        final RowCountCheck mockRowCountCheck = Mockito.mock(RowCountCheck.class);
+        Mockito.when(mockRowCountCheck.capture(Mockito.any()))
+                .thenThrow(new AssertionError("capture boom"));
+        tc.setRowCountCheck(mockRowCountCheck);
+
+        assertThatThrownBy(tc::preTest)
+                .as("The capture failure propagates unchanged.")
+                .isInstanceOf(AssertionError.class).hasMessage("capture boom");
+
+        final MockDatabaseConnection connection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        // the baseline capture acquired the shared connection, and preTest() failed before
+        // setupData(), so no cleanupData() follows to release it
+        connection.setExpectedCloseCalls(1);
+        connection.verify();
+    }
+
+    @Test
     void testPostTest_testStepsFailed_skipsTheCheck() throws Exception
     {
         final RowCountCheck mockRowCountCheck = Mockito.mock(RowCountCheck.class);
