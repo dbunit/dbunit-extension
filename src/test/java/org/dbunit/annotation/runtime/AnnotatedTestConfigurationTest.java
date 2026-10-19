@@ -503,12 +503,31 @@ class AnnotatedTestConfigurationTest
         assertThatThrownBy(() -> AnnotatedTestConfiguration
                 .from(WithBadComparer.class, null, null, null, expected, null, null))
                         .as("A ValueComparer with no accessible no-arg constructor must be"
-                                + " rejected, pointing at a catalog as the fix.")
+                                + " rejected, naming both ways out: a catalog class, and a"
+                                + " subclass with a no-arg constructor.")
                         .isInstanceOf(IllegalStateException.class)
                         .hasMessageContaining(
                                 IsActualWithinToleranceOfExpectedTimestampValueComparer.class
                                         .getName())
-                        .hasMessageContaining("catalog");
+                        .hasMessageContaining("catalog class")
+                        .hasMessageContaining("subclass with a public no-arg constructor");
+    }
+
+    @Test
+    void testFrom_toleranceComparerSubclassWithNoArgConstructor_usesItAsTheColumnComparer()
+    {
+        final DbUnitExpected expected =
+                WithToleranceComparerSubclass.class.getAnnotation(DbUnitExpected.class);
+
+        final AnnotatedTestConfiguration config = AnnotatedTestConfiguration.from(
+                WithToleranceComparerSubclass.class, null, null, null, expected, null, null);
+
+        assertThat(config.getVerifyTableDefinitions()[0].getColumnValueComparers())
+                .as("A subclass of a configured comparer that fixes its constructor arguments"
+                        + " must be usable inline, without a catalog class.")
+                .hasSize(1)
+                .hasEntrySatisfying("POSTED_TS", comparer -> assertThat(comparer)
+                        .isInstanceOf(WithinOneMinuteNewer.class));
     }
 
     @Test
@@ -1026,6 +1045,23 @@ class AnnotatedTestConfigurationTest
             verify = @DbUnitVerifyTable(value = "ACCOUNT", sortOnFilteredColumnsOnly = true))
     static class WithSortOnFilteredColumnsOnly
     {
+    }
+
+    @DbUnitExpected(value = "expected.xml",
+            verify = @DbUnitVerifyTable(value = "ACCOUNT",
+                    columnComparers = @DbUnitColumnComparer(column = "POSTED_TS",
+                            comparer = WithinOneMinuteNewer.class)))
+    static class WithToleranceComparerSubclass
+    {
+    }
+
+    public static class WithinOneMinuteNewer
+            extends IsActualWithinToleranceOfExpectedTimestampValueComparer
+    {
+        public WithinOneMinuteNewer()
+        {
+            super(0, 60_000);
+        }
     }
 
     @DbUnitExpected(value = "expected.xml",

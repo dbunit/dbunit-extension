@@ -261,8 +261,9 @@ final class VerifyTableDefinitionResolver
             throw new IllegalStateException("ValueComparer " + comparerClass.getName()
                     + " has no accessible no-arg constructor - it is likely a configured"
                     + " instance built with constructor arguments, which an annotation cannot"
-                    + " express. Declare it as a VerifyTableDefinition constant in a catalog"
-                    + " class instead; see VerifyTableDefinitionsProvider.", e);
+                    + " express. Either declare it as a VerifyTableDefinition constant in a"
+                    + " catalog class, or name a subclass with a public no-arg constructor that"
+                    + " passes the arguments to super(...).", e);
         }
     }
 }
