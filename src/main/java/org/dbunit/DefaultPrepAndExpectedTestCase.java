@@ -802,7 +802,9 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * Returns the databaseTester's listener beneath any layers of
      * {@link ConnectionPreservingOperationListener}, including the one the annotation runtime
      * installs, which applies the annotation values and captures the row count baseline, both
-     * of which this instance does itself.
+     * of which this instance does itself. The plain {@link DefaultOperationListener} every
+     * {@link AbstractDatabaseTester} starts with counts as none, as it does nothing when a
+     * connection is retrieved; a subclass of it does not.
      *
      * @return The databaseTester's own listener, or null if it has none.
      */
@@ -813,8 +815,13 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
             return null;
         }
 
-        return ConnectionPreservingOperationListener
+        final IOperationListener testersListener = ConnectionPreservingOperationListener
                 .unwrap(databaseTester.getOperationListener());
+        if (testersListener != null && testersListener.getClass() == DefaultOperationListener.class)
+        {
+            return null;
+        }
+        return testersListener;
     }
 
     /**

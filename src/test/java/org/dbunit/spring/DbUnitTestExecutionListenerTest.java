@@ -415,9 +415,10 @@ class DbUnitTestExecutionListenerTest
     }
 
     @Test
-    void testBeforeAndAfterTestMethod_testerHadNoListener_leavesTesterWithoutOne() throws Exception
+    void testBeforeAndAfterTestMethod_testerHadItsDefaultListener_leavesItBack() throws Exception
     {
         final InMemoryTester tester = InMemoryTester.working();
+        final IOperationListener testersDefault = tester.getOperationListener();
         final FakeTestContext context = new FakeTestContext(HasTesterField.class)
                 .beginMethod(new HasTesterField(tester), "aTestMethod");
 
@@ -425,8 +426,9 @@ class DbUnitTestExecutionListenerTest
         listener.afterTestMethod(context);
 
         assertThat(tester.getOperationListener())
-                .as("A tester that had no listener must not be left holding the executor's.")
-                .isNull();
+                .as("A tester that kept its default listener must not be left holding the"
+                        + " executor's.")
+                .isSameAs(testersDefault);
     }
 
     @Test
