@@ -34,6 +34,7 @@ import java.util.Collections;
 import java.util.List;
 
 import org.dbunit.DatabaseTesterFactory;
+import org.dbunit.DefaultPrepAndExpectedTestCase;
 import org.dbunit.IDatabaseTester;
 import org.dbunit.IOperationListener;
 import org.dbunit.PrepAndExpectedTestCase;
@@ -424,7 +425,7 @@ class DbUnitExtensionLifecycleTest
                         + " given the tester of this test class's own factory, not left holding"
                         + " the earlier one's.")
                 .isSameAs(SecondTesterFactory.tester);
-        assertThat(SharedTestCaseState.testCase.databaseTester)
+        assertThat(SharedTestCaseState.testCase.getDatabaseTester())
                 .as("The tester a test case was only given for one test is taken off it again"
                         + " when the test ends.")
                 .isNull();
@@ -447,7 +448,7 @@ class DbUnitExtensionLifecycleTest
                         + " method, so the tester stays on the test case until the whole test"
                         + " is over.")
                 .isSameAs(FirstTesterFactory.tester);
-        assertThat(SharedTestCaseState.testCase.databaseTester)
+        assertThat(SharedTestCaseState.testCase.getDatabaseTester())
                 .as("Once the whole test is over the tester is taken off the test case.")
                 .isNull();
     }
@@ -1189,7 +1190,7 @@ class DbUnitExtensionLifecycleTest
      * {@link DbUnitExtension}'s verification-skip and suppression behavior without a real
      * database.
      */
-    private static class RecordingPrepAndExpectedTestCase implements PrepAndExpectedTestCase
+    private static class RecordingPrepAndExpectedTestCase extends DefaultPrepAndExpectedTestCase
     {
         final List<Boolean> postTestCalls = Collections.synchronizedList(new ArrayList<>());
         RuntimeException postTestFailure;
@@ -1208,20 +1209,6 @@ class DbUnitExtensionLifecycleTest
         }
 
         @Override
-        public void preTest(final VerifyTableDefinition[] verifyTables,
-                final String[] prepDataFiles, final String[] expectedDataFiles)
-        {
-        }
-
-        @Override
-        public Object runTest(final VerifyTableDefinition[] verifyTables,
-                final String[] prepDataFiles, final String[] expectedDataFiles,
-                final PrepAndExpectedTestCaseSteps testSteps)
-        {
-            return null;
-        }
-
-        @Override
         public void postTest()
         {
             postTest(true);
@@ -1236,41 +1223,16 @@ class DbUnitExtensionLifecycleTest
                 throw postTestFailure;
             }
         }
-
-        @Override
-        public void verifyData()
-        {
-        }
-
-        @Override
-        public void cleanupData()
-        {
-        }
-
-        @Override
-        public IDataSet getPrepDataset()
-        {
-            return null;
-        }
-
-        @Override
-        public IDataSet getExpectedDataset()
-        {
-            return null;
-        }
     }
 
     /**
-     * Extends {@link RecordingPrepAndExpectedTestCase} to also override
-     * {@code getDatabaseTester()}/{@code setDatabaseTester()}, recording the tester it is given
-     * - proving {@code DbUnitExtension#resolve} keeps this test case's tester in sync with the
-     * one it resolves, for an implementation overriding those two methods, not just
-     * {@code DefaultPrepAndExpectedTestCase}.
+     * Extends {@link RecordingPrepAndExpectedTestCase} to also record the tester it holds when
+     * {@code preTest()} runs - proving {@code DbUnitExtension#resolve} keeps this test case's
+     * tester in sync with the one it resolves.
      */
     private static class TesterSyncingPrepAndExpectedTestCase
             extends RecordingPrepAndExpectedTestCase
     {
-        IDatabaseTester databaseTester;
         // The tester it held when preTest() ran: the extension takes a tester it only gave the
         // test case for the test off it again afterward.
         IDatabaseTester databaseTesterAtPreTest;
@@ -1278,20 +1240,8 @@ class DbUnitExtensionLifecycleTest
         @Override
         public void preTest()
         {
-            databaseTesterAtPreTest = databaseTester;
+            databaseTesterAtPreTest = getDatabaseTester();
             super.preTest();
-        }
-
-        @Override
-        public IDatabaseTester getDatabaseTester()
-        {
-            return databaseTester;
-        }
-
-        @Override
-        public void setDatabaseTester(final IDatabaseTester databaseTester)
-        {
-            this.databaseTester = databaseTester;
         }
     }
 }
