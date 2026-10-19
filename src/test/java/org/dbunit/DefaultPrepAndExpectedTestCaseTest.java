@@ -108,16 +108,15 @@ class DefaultPrepAndExpectedTestCaseTest
     }
 
     @Test
-    void testConfigureTestVerifyingEveryExpectedTable_plainInstance_verifiesEachTableOfTheExpectedDataset()
+    void testConfigureTest_everyExpectedTableBundle_verifiesEachTableOfTheExpectedDataset()
             throws Exception
     {
         final String[] expectedTableNames =
                 dataFileLoader.load(EXP_DATA_FILE_NAME).getTableNames();
 
-        final boolean configured = tc.configureTestVerifyingEveryExpectedTable(
-                new String[] {PREP_DATA_FILE_NAME}, new String[] {EXP_DATA_FILE_NAME});
+        tc.configureTest(PrepAndExpectedTestData.verifyingExpectedTables(
+                new String[] {PREP_DATA_FILE_NAME}, new String[] {EXP_DATA_FILE_NAME}));
 
-        assertThat(configured).as("A plain instance configures itself.").isTrue();
         assertThat(tc.getVerifyTableDefs()).extracting(VerifyTableDefinition::getTableName)
                 .as("One default definition per table of the expected dataset it loaded.")
                 .containsExactly(expectedTableNames);
@@ -127,7 +126,70 @@ class DefaultPrepAndExpectedTestCaseTest
     }
 
     @Test
-    void testConfigureTestVerifyingEveryExpectedTable_subclassOverridingConfigureTest_configuresNothingAndReportsFalse()
+    void testConfigureTest_everyExpectedTableBundleAndSubclassOverridingConfigureTest_passesTheDerivedDefinitionsToIt()
+            throws Exception
+    {
+        final List<VerifyTableDefinition[]> given = new ArrayList<>();
+        final DefaultPrepAndExpectedTestCase subclass =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester)
+                {
+                    @Override
+                    public void configureTest(final VerifyTableDefinition[] verifyTables,
+                            final String[] prepDataFiles, final String[] expectedDataFiles)
+                            throws Exception
+                    {
+                        given.add(verifyTables);
+                        super.configureTest(verifyTables, prepDataFiles, expectedDataFiles);
+                    }
+                };
+
+        subclass.configureTest(PrepAndExpectedTestData.verifyingExpectedTables(
+                new String[] {PREP_DATA_FILE_NAME}, new String[] {EXP_DATA_FILE_NAME}));
+
+        assertThat(given).as("The override is called once.").hasSize(1);
+        assertThat(given.get(0)).extracting(VerifyTableDefinition::getTableName)
+                .as("A subclass that overrides configureTest() may expect the definitions it is"
+                        + " given, so it gets one per table of the expected dataset.")
+                .containsExactly(dataFileLoader.load(EXP_DATA_FILE_NAME).getTableNames());
+        assertThat(subclass.getVerifyTableDefs()).as("They are the ones configured.")
+                .containsExactly(given.get(0));
+    }
+
+    @Test
+    void testConfigureTest_everyExpectedTableBundleAndSubclassKeepingConfigureTest_verifiesEachTableOfTheExpectedDataset()
+            throws Exception
+    {
+        final DefaultPrepAndExpectedTestCase subclass =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester)
+                {
+                };
+
+        subclass.configureTest(PrepAndExpectedTestData.verifyingExpectedTables(
+                new String[] {PREP_DATA_FILE_NAME}, new String[] {EXP_DATA_FILE_NAME}));
+
+        assertThat(subclass.getVerifyTableDefs())
+                .as("A subclass that keeps this class's configureTest(), for example one that"
+                        + " only overrides compareData(), verifies each table too.")
+                .hasSize(subclass.getExpectedDataset().getTableNames().length);
+    }
+
+    @Test
+    void testConfigureTest_everyExpectedTableBundleAndExpectedFileMissing_releasesTheConnectionItAcquired()
+            throws Exception
+    {
+        assertThatThrownBy(() -> tc.configureTest(PrepAndExpectedTestData.verifyingExpectedTables(
+                new String[] {PREP_DATA_FILE_NAME}, new String[] {MISSING_DATA_FILE_NAME})))
+                        .as("A missing expected data file must fail the configuration.")
+                        .isInstanceOf(DatabaseUnitRuntimeException.class);
+
+        final MockDatabaseConnection connection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        connection.setExpectedCloseCalls(1);
+        connection.verify();
+    }
+
+    @Test
+    void testConfigureTest_subclassOverridingConfigureTestAndExpectedFileMissing_failsWithoutAcquiringAConnection()
             throws Exception
     {
         final DefaultPrepAndExpectedTestCase subclass =
@@ -142,50 +204,63 @@ class DefaultPrepAndExpectedTestCaseTest
                     }
                 };
 
-        final boolean configured = subclass.configureTestVerifyingEveryExpectedTable(
-                new String[] {PREP_DATA_FILE_NAME}, new String[] {EXP_DATA_FILE_NAME});
-
-        assertThat(configured)
-                .as("A subclass that overrides configureTest() may expect the definitions it is"
-                        + " given, so it leaves deriving them to the caller.")
-                .isFalse();
-        assertThat(subclass.getVerifyTableDefs()).as("Nothing was configured.").isEmpty();
-    }
-
-    @Test
-    void testConfigureTestVerifyingEveryExpectedTable_subclassKeepingConfigureTest_verifiesEachTableOfTheExpectedDataset()
-            throws Exception
-    {
-        final DefaultPrepAndExpectedTestCase subclass =
-                new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester)
-                {
-                };
-
-        final boolean configured = subclass.configureTestVerifyingEveryExpectedTable(
-                new String[] {PREP_DATA_FILE_NAME}, new String[] {EXP_DATA_FILE_NAME});
-
-        assertThat(configured)
-                .as("A subclass that keeps this class's configureTest(), for example one that"
-                        + " only overrides compareData(), parses each expected file once too.")
-                .isTrue();
-        assertThat(subclass.getVerifyTableDefs())
-                .as("One definition per table of the expected dataset.")
-                .hasSize(subclass.getExpectedDataset().getTableNames().length);
-    }
-
-    @Test
-    void testConfigureTestVerifyingEveryExpectedTable_expectedFileMissing_releasesTheConnectionItAcquired()
-            throws Exception
-    {
-        assertThatThrownBy(() -> tc.configureTestVerifyingEveryExpectedTable(
-                new String[] {PREP_DATA_FILE_NAME}, new String[] {MISSING_DATA_FILE_NAME}))
-                        .as("A missing expected data file must fail the configuration.")
-                        .isInstanceOf(DatabaseUnitRuntimeException.class);
+        assertThatThrownBy(() -> subclass.configureTest(
+                PrepAndExpectedTestData.verifyingExpectedTables(
+                        new String[] {PREP_DATA_FILE_NAME},
+                        new String[] {MISSING_DATA_FILE_NAME})))
+                                .as("Deriving the definitions for the override must fail on a"
+                                        + " missing expected data file too.")
+                                .isInstanceOf(DatabaseUnitRuntimeException.class);
 
         final MockDatabaseConnection connection =
                 (MockDatabaseConnection) databaseTester.getConnection();
-        connection.setExpectedCloseCalls(1);
+        connection.setExpectedCloseCalls(0);
         connection.verify();
+    }
+
+    @Test
+    void testPreTest_everyExpectedTableBundle_configuresEveryTableThenSetsUpTheDatabase()
+            throws Exception
+    {
+        final RecordingDatabaseOperation setUpOperation = new RecordingDatabaseOperation();
+        databaseTester.setSetUpOperation(setUpOperation);
+
+        tc.preTest(PrepAndExpectedTestData.verifyingExpectedTables(
+                new String[] {PREP_DATA_FILE_NAME}, new String[] {EXP_DATA_FILE_NAME}));
+
+        assertThat(tc.getVerifyTableDefs()).extracting(VerifyTableDefinition::getTableName)
+                .as("preTest() with the bundle must configure every expected table.")
+                .containsExactly(dataFileLoader.load(EXP_DATA_FILE_NAME).getTableNames());
+        assertThat(setUpOperation.getExecutedTableNames())
+                .as("preTest() with the bundle must set up the prep data.")
+                .containsExactly(
+                        Arrays.asList(dataFileLoader.load(PREP_DATA_FILE_NAME).getTableNames()));
+    }
+
+    @Test
+    void testRunTest_everyExpectedTableBundle_configuresEveryTableBeforeTheTestSteps()
+            throws Exception
+    {
+        final List<Integer> verifiedTableCounts = new ArrayList<>();
+        databaseTester.setSetUpOperation(new RecordingDatabaseOperation());
+        final DefaultPrepAndExpectedTestCase recording =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester)
+                {
+                    @Override
+                    public void verifyData() throws Exception
+                    {
+                        verifiedTableCounts.add(getVerifyTableDefs().length);
+                    }
+                };
+
+        final Object result = recording.runTest(PrepAndExpectedTestData.verifyingExpectedTables(
+                new String[] {PREP_DATA_FILE_NAME}, new String[] {EXP_DATA_FILE_NAME}),
+                () -> "steps ran");
+
+        assertThat(result).as("The steps' result is returned.").isEqualTo("steps ran");
+        assertThat(verifiedTableCounts)
+                .as("verifyData() runs once, after every expected table was configured.")
+                .containsExactly(dataFileLoader.load(EXP_DATA_FILE_NAME).getTableNames().length);
     }
 
     @Test

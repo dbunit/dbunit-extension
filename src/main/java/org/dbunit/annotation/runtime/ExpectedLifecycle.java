@@ -23,9 +23,10 @@ package org.dbunit.annotation.runtime;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 
+import org.dbunit.DefaultPrepAndExpectedTestCase;
 import org.dbunit.IDatabaseTester;
 import org.dbunit.PrepAndExpectedTestCase;
-import org.dbunit.VerifyTableDefinition;
+import org.dbunit.PrepAndExpectedTestData;
 import org.dbunit.util.fileloader.DataFileLoader;
 
 /**
@@ -188,35 +189,33 @@ final class ExpectedLifecycle
         ensureConfiguredTestCase();
         applySetUpOperation();
         applyTearDownOperation();
-        if (!configureVerifyingEveryExpectedTable())
-        {
-            final VerifyTableDefinition[] verifyTableDefinitions =
-                    configuration.getVerifyTableDefinitions(effectiveDataFileLoader());
-            testCase.configureTest(verifyTableDefinitions, configuration.getPrepDataFiles(),
-                    configuration.getExpectedDataFiles());
-        }
+        configureTestCase();
         configured = true;
         testCase.preTest();
     }
 
     /**
-     * Lets {@link #testCase} configure itself to verify every table of the expected datasets,
-     * when the annotations declare no tables to verify: it takes the tables from the expected
-     * dataset it loads anyway, instead of this class parsing the expected files a first time
-     * just to list their tables. See
-     * {@link PrepAndExpectedTestCase#configureTestVerifyingEveryExpectedTable(String[], String[])}.
-     *
-     * @return Whether the test case configured itself; false when the annotations declare the
-     *         tables, or the test case cannot derive them, and the caller configures it.
+     * Configures {@link #testCase} with the files and the tables to verify the annotations
+     * declare. When they declare no tables, a {@link DefaultPrepAndExpectedTestCase} takes them
+     * from the expected datasets it loads anyway, with
+     * {@link PrepAndExpectedTestData#verifyingExpectedTables(String[], String[])}, instead of
+     * this class parsing the expected files a first time just to list their tables; any other
+     * test case is given the tables derived here.
      */
-    private boolean configureVerifyingEveryExpectedTable() throws Exception
+    private void configureTestCase() throws Exception
     {
-        if (!configuration.derivesVerifyTableDefinitions())
+        final String[] prepDataFiles = configuration.getPrepDataFiles();
+        final String[] expectedDataFiles = configuration.getExpectedDataFiles();
+        if (configuration.derivesVerifyTableDefinitions()
+                && testCase instanceof DefaultPrepAndExpectedTestCase)
         {
-            return false;
+            testCase.configureTest(
+                    PrepAndExpectedTestData.verifyingExpectedTables(prepDataFiles,
+                            expectedDataFiles));
+            return;
         }
-        return testCase.configureTestVerifyingEveryExpectedTable(
-                configuration.getPrepDataFiles(), configuration.getExpectedDataFiles());
+        testCase.configureTest(configuration.getVerifyTableDefinitions(effectiveDataFileLoader()),
+                prepDataFiles, expectedDataFiles);
     }
 
     /**

@@ -61,6 +61,7 @@ import org.dbunit.IDatabaseTester;
 import org.dbunit.IOperationListener;
 import org.dbunit.JdbcDatabaseTester;
 import org.dbunit.PrepAndExpectedTestCase;
+import org.dbunit.PrepAndExpectedTestData;
 import org.dbunit.VerifyTableDefinition;
 import org.dbunit.annotation.DbUnitConfig;
 import org.dbunit.annotation.DbUnitExpected;
@@ -1785,21 +1786,37 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
-    void testBeforeTest_expectedPathNoVerifySpecAndInjectedTestCaseWithItsOwnLoader_derivesTablesThroughThatLoader()
+    void testBeforeTest_expectedPathNoVerifySpecAndInjectedDefaultTestCase_asksItToVerifyEveryExpectedTable()
             throws Exception
     {
-        final DbUnitExpected expected =
-                WithOnlyTheInjectedLoaderReadableExpected.class.getAnnotation(DbUnitExpected.class);
-        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration.from(
-                WithOnlyTheInjectedLoaderReadableExpected.class, null, null, null, expected, null,
-                null);
-        final IDataSet dataSet = mock(IDataSet.class);
-        when(dataSet.getTableNames()).thenReturn(new String[] {"ACCOUNT"});
-        final DataFileLoader ownLoader = mock(DataFileLoader.class);
-        when(ownLoader.load("/org/dbunit/annotation/runtime/only-the-injected-loader-reads.custom"))
-                .thenReturn(dataSet);
+        final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(WithExpected.class, null, null, null, expected, null, null);
         final DefaultPrepAndExpectedTestCase injected = mock(DefaultPrepAndExpectedTestCase.class);
-        when(injected.getDataFileLoader()).thenReturn(ownLoader);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, tester, injected);
+
+        executor.beforeTest();
+
+        final ArgumentCaptor<PrepAndExpectedTestData> testData =
+                ArgumentCaptor.forClass(PrepAndExpectedTestData.class);
+        verify(injected).configureTest(testData.capture());
+        assertThat(testData.getValue())
+                .as("With no verify spec, the Default test case takes the tables to verify from"
+                        + " the expected dataset it loads itself, with its own loader, which is"
+                        + " also the one that later loads it for the comparison.")
+                .isEqualTo(PrepAndExpectedTestData.verifyingExpectedTables(new String[0],
+                        configuration.getExpectedDataFiles()));
+    }
+
+    @Test
+    void testBeforeTest_expectedPathNoVerifySpecAndInjectedOtherTestCase_derivesTablesThroughTheConfiguredLoader()
+            throws Exception
+    {
+        final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(WithExpected.class, null, null, null, expected, null, null);
+        final PrepAndExpectedTestCase injected = mock(PrepAndExpectedTestCase.class);
         final AnnotatedTestExecutor executor =
                 new AnnotatedTestExecutor(configuration, tester, injected);
 
@@ -1810,10 +1827,10 @@ class AnnotatedTestExecutorTest
         verify(injected).configureTest(definitions.capture(), any(String[].class),
                 any(String[].class));
         assertThat(definitions.getValue()).extracting(VerifyTableDefinition::getTableName)
-                .as("With no verify spec, the tables to verify come from the expected dataset"
-                        + " as the injected test case's own loader reads it, the same loader"
-                        + " that will later load it for the comparison.")
-                .containsExactly("ACCOUNT");
+                .as("A test case that cannot take the tables from the dataset it loads is given"
+                        + " the tables of the expected dataset as the configured loader reads"
+                        + " it.")
+                .containsExactly("ACCOUNT", "CUSTOMER");
     }
 
     @Test
@@ -3434,7 +3451,7 @@ class AnnotatedTestExecutorTest
                 new DefaultPrepAndExpectedTestCase(new FlatXmlDataFileLoader(), tester, true));
         final FailureHandler ownHandler = new DefaultFailureHandler();
         shared.setFailureHandler(ownHandler);
-        doNothing().when(shared).configureTest(any(), any(), any());
+        doNothing().when(shared).configureTest(any(PrepAndExpectedTestData.class));
         doNothing().when(shared).preTest();
         doNothing().when(shared).postTest(anyBoolean());
         final AnnotatedTestExecutor executor =
@@ -3469,7 +3486,7 @@ class AnnotatedTestExecutorTest
                 new DefaultPrepAndExpectedTestCase(new FlatXmlDataFileLoader(), tester, true));
         final FailureHandler ownHandler = new DefaultFailureHandler();
         shared.setFailureHandler(ownHandler);
-        doNothing().when(shared).configureTest(any(), any(), any());
+        doNothing().when(shared).configureTest(any(PrepAndExpectedTestData.class));
         doNothing().when(shared).preTest();
         doThrow(new AssertionError("verify boom")).when(shared).postTest(anyBoolean());
         final AnnotatedTestExecutor executor =

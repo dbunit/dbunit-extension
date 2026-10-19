@@ -249,6 +249,12 @@ Two shortcuts cover the common partial cases:
 loads nothing — replacing a separate empty constant per array type — and
 `PrepAndExpectedTestData.prepOnly(String...)` builds one that loads prep data
 with no verification.
+`PrepAndExpectedTestData.verifyingExpectedTables(String[], String[])` builds one that
+verifies every table of its expected data files, each with a default
+`VerifyTableDefinition`, as a bare `@DbUnitExpected` does, so the tables need
+not be listed. `DefaultPrepAndExpectedTestCase` honors it, parsing each expected
+file once; any other implementation of `PrepAndExpectedTestCase` rejects it with an
+`UnsupportedOperationException`, as it would otherwise verify nothing.
 
 === Before
 
