@@ -151,8 +151,8 @@ import org.slf4j.LoggerFactory;
  * more retrieval than the 3.5.0 lifecycle gave it. That connection is never closed before
  * {@code onSetup()} - a tester that returns one fixed connection from every call (e.g. a
  * {@code DefaultDatabaseTester} built from a fixed connection) would otherwise run
- * {@code onSetup()} against a closed one - and is closed after the test when
- * {@code closeConnectionAfterTest} allows and the tester's listener is not {@code NO_OP}.
+ * {@code onSetup()} against a closed one - and is closed after the test unless the tester's
+ * listener is {@code NO_OP}.
  * Adding any {@code @DbUnit*} annotation or a
  * {@link DbUnitTester @DbUnitTester}/{@link DbUnitTestCase @DbUnitTestCase} field opts the test
  * into the fuller annotation-driven lifecycle described above.

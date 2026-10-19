@@ -90,10 +90,9 @@ class DbUnitConfigPropertiesIT
     }
 
     @ExtendWith(DbUnitExtension.class)
-    // closeConnectionAfterTest = false: databaseTester wraps the environment's shared
-    // connection (see the finally block above), not one owned by this one test.
-    @DbUnitConfig(closeConnectionAfterTest = false,
-            properties = @DbUnitProperty(name = "batchedStatements", value = "true"))
+    // databaseTester wraps the environment's shared connection (see the finally block above),
+    // not one owned by this one test, so its listener is the no-op one.
+    @DbUnitConfig(properties = @DbUnitProperty(name = "batchedStatements", value = "true"))
     @DbUnitPrep("empty.xml")
     static class PropertySample
     {
@@ -148,10 +147,9 @@ class DbUnitConfigPropertiesIT
     }
 
     @ExtendWith(DbUnitExtension.class)
-    // closeConnectionAfterTest = false: databaseTester wraps the environment's shared
-    // connection (see the finally block above), not one owned by this one test.
-    @DbUnitConfig(closeConnectionAfterTest = false,
-            properties = @DbUnitProperty(name = "batchedStatements", value = "true"))
+    // databaseTester wraps the environment's shared connection (see the finally block above),
+    // not one owned by this one test, so its listener is the no-op one.
+    @DbUnitConfig(properties = @DbUnitProperty(name = "batchedStatements", value = "true"))
     @DbUnitExpected("empty.xml")
     static class ExpectedPathPropertySample
     {

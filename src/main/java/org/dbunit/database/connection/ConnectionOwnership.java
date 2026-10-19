@@ -33,10 +33,11 @@ import org.dbunit.IOperationListener;
  * {@link TestScopedConnection#release()}.
  *
  * <p>Two inputs, each read fresh at release time since the tester's listener and the
- * configured flag can both still change after this is constructed:
+ * test case's flag can both still change after this is constructed:
  *
  * <ol>
- * <li><b>{@code closeConnectionAfterTest}</b> - the {@code @DbUnitConfig} flag, {@code true} by
+ * <li><b>{@code closeConnectionAfterTest}</b> - the flag of the test case that holds the
+ * connection, such as {@link org.dbunit.DefaultPrepAndExpectedTestCase}'s, {@code true} by
  * default. {@code false} means a real owner exists elsewhere - a
  * {@link org.dbunit.database.CachingConnectionProvider}, an externally-supplied fixed
  * connection - and it, not this lifecycle, closes the connection.</li>
@@ -79,7 +80,8 @@ public class ConnectionOwnership
      * Creates an ownership decision from its two inputs, each a supplier read fresh every
      * time {@link #mayClose()} or {@link #isLeftOpenByConfiguration()} is called.
      *
-     * @param closeConnectionAfterTest Supplies the {@code @DbUnitConfig} flag.
+     * @param closeConnectionAfterTest Supplies the test case's flag; {@code true} where the
+     *            lifecycle has no test case flag to ask.
      * @param testerListener Supplies the tester's current {@link IOperationListener}; may
      *            supply {@code null}, treated as a listener that does not leave every connection
      *            open.

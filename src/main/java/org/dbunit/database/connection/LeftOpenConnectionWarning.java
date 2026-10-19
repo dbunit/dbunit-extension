@@ -33,7 +33,7 @@ import org.slf4j.LoggerFactory;
  * Logs one warning, the first time it sees a connection that is going to be left open while
  * the {@link JdbcDatabaseTester} that supplied it creates a new connection on every call. A
  * connection is left open for its real owner to close, as
- * {@link ConnectionOwnership#isLeftOpenByConfiguration()} decides: the
+ * {@link ConnectionOwnership#isLeftOpenByConfiguration()} decides: the test case's
  * {@code closeConnectionAfterTest} flag is {@code false}, or an operation listener leaves every
  * connection open, as the no-op one does. A {@link JdbcDatabaseTester} built without a
  * {@link org.dbunit.database.CachingConnectionProvider} has no such owner: nothing else holds
@@ -121,8 +121,9 @@ public class LeftOpenConnectionWarning implements Consumer<IDatabaseConnection>
                 + " another open each time a step fails, so a long run can exhaust the"
                 + " database's connections. Build the tester with a CachingConnectionProvider,"
                 + " so it hands out one connection that its owner closes when the run ends, or"
-                + " let dbUnit close the connection: leave closeConnectionAfterTest true and use"
-                + " an operation listener that closes connections.",
+                + " let dbUnit close the connection: use an operation listener that closes"
+                + " connections, and leave closeConnectionAfterTest true on a test case that has"
+                + " the setting.",
                 jdbcTester.getClass().getName());
     }
 }
