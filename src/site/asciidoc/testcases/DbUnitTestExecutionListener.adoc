@@ -312,15 +312,11 @@ is verified like any other passing test.
 == Differences From DbUnitExtension
 
 *No parameter injection.* Spring's `TestExecutionListener` has no equivalent
-of JUnit 5's `ParameterResolver`, so this listener never supplies the tester,
-the test case, or a connection as a test method parameter the way
-`DbUnitExtension` does. Reach the tester or connection through a
+of JUnit 5's `ParameterResolver`, so this listener never supplies the tester
+or a connection as a test method parameter the way `DbUnitExtension` does. Reach the tester or connection through a
 `@DbUnitTester`/`@DbUnitTestCase` field, or by autowiring the `IDatabaseTester`
 bean, as a field or as a parameter: `SpringExtension` itself resolves
 `@Autowired` test method parameters.
-`@DbUnitConfig(injectConnectionParameter = ...)` is specific to the JUnit 5
-binding and has no effect here — nothing competes for a `Connection` parameter
-in the first place.
 
 *An added resolution tier.* The `ApplicationContext` bean lookup described
 above has no JUnit 5 equivalent, since a plain JUnit 5 test has no bean
