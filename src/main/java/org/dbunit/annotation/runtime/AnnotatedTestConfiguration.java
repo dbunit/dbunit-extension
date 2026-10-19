@@ -35,16 +35,14 @@ import org.dbunit.annotation.DbUnitTearDownOperation;
 import org.dbunit.assertion.FailureHandler;
 import org.dbunit.operation.DatabaseOperation;
 import org.dbunit.util.fileloader.DataFileLoader;
-import org.dbunit.util.fileloader.DataSetPathsProvider;
 import org.dbunit.util.fileloader.FileExtensionDataFileLoader;
 
 /**
  * Immutable configuration resolved from one test element's {@code org.dbunit.annotation}
  * instances, ready for {@link AnnotatedTestExecutor} to drive - no dataset has been applied to
- * a database yet, but every dataset path is normalized, every provider and catalog has been
- * consulted, and every reflective instantiation that can fail (a provider or comparer with no
- * accessible no-arg constructor, conflicting inline-value-and-provider attributes) has already
- * happened.
+ * a database yet, but every dataset path is normalized, every catalog has been read, and every
+ * reflective instantiation that can fail (a comparer or factory with no accessible no-arg
+ * constructor, conflicting attributes) has already happened.
  *
  * <p>Not intended for direct use by test code; this is machinery consumed by a binding such as
  * {@code DbUnitExtension} or a Spring {@code TestExecutionListener}. Building one is
@@ -166,9 +164,8 @@ public class AnnotatedTestConfiguration
         final DataFileLoader dataFileLoader =
                 instantiate(dataFileLoaderClass, "DbUnitConfig.dataFileLoader");
 
-        final String[] prepDataFiles = pathsResolver.resolve("DbUnitPrep", prepDeclaringClass,
-                dataSetBaseDir, prep == null ? null : prep.value(),
-                prep == null ? DataSetPathsProvider.class : prep.provider());
+        final String[] prepDataFiles = pathsResolver.resolve(prepDeclaringClass, dataSetBaseDir,
+                prep == null ? null : prep.value());
         final boolean setupDeclared = setup != null;
         final DatabaseOperation setUpOperation = setup == null ? DatabaseOperation.CLEAN_INSERT
                 : setup.value().toDatabaseOperation();
@@ -179,8 +176,8 @@ public class AnnotatedTestConfiguration
 
         final boolean hasExpected = expected != null;
         final String[] expectedDataFiles = !hasExpected ? new String[0]
-                : pathsResolver.resolve("DbUnitExpected", expectedDeclaringClass, dataSetBaseDir,
-                        expected.value(), expected.provider());
+                : pathsResolver.resolve(expectedDeclaringClass, dataSetBaseDir,
+                        expected.value());
         final VerifyTableDefinition[] verifyTableDefinitions = !hasExpected
                 ? new VerifyTableDefinition[0]
                 : new VerifyTableDefinitionResolver()

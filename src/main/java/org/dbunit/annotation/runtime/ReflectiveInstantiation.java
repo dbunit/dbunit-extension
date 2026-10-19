@@ -27,8 +27,8 @@ import java.lang.reflect.InvocationTargetException;
  * Reflectively instantiates, via its no-arg constructor, a class an {@code org.dbunit.annotation}
  * attribute names by {@link Class} - shared by every such attribute
  * ({@code DbUnitConfig.dataFileLoader()}, {@code failureHandler()}, a
- * {@code VerifyTableDefinitionsProvider} catalog class, a {@code DatabaseTesterFactory}, and so
- * on) so a missing or throwing constructor is reported consistently everywhere.
+ * {@code DatabaseTesterFactory}, and so on) so a missing or throwing constructor is reported
+ * consistently everywhere.
  *
  * <p>Public so a binding outside {@code org.dbunit.annotation.runtime} - such as
  * {@code DbUnitExtension} - can reach it too.

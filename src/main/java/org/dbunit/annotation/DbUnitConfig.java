@@ -32,7 +32,6 @@ import org.dbunit.DefaultPrepAndExpectedTestCase;
 import org.dbunit.VerifyTableDefinition;
 import org.dbunit.assertion.FailureHandler;
 import org.dbunit.database.DatabaseConfig;
-import org.dbunit.database.DatabaseConfigPropertiesProvider;
 import org.dbunit.util.fileloader.DataFileLoader;
 import org.dbunit.util.fileloader.FileExtensionDataFileLoader;
 
@@ -59,8 +58,6 @@ import org.dbunit.util.fileloader.FileExtensionDataFileLoader;
  * @author Jeff Jensen
  * @since 3.6.0
  * @see DbUnitProperty
- * @see DatabaseConfigPropertiesProvider
- * @see org.dbunit.VerifyTableDefinitionsProvider
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
@@ -115,8 +112,6 @@ public @interface DbUnitConfig
     /**
      * Inline {@link DatabaseConfig} property name/value pairs to apply.
      *
-     * <p>Mutually exclusive with {@link #propertiesProvider()}; setting both is rejected.
-     *
      * <p>On the prep/expected path ({@link DbUnitExpected} declared), applied by the
      * {@link DefaultPrepAndExpectedTestCase} to its connection. A {@link DbUnitTestCase} field
      * injecting an already-built test case is used as it was built, so declaring these next to
@@ -130,8 +125,8 @@ public @interface DbUnitConfig
      * {@code super.setUpDatabaseConfig(config)}</strong> - the pre-3.6.0 way to configure a
      * {@link DatabaseConfig} - or these values are silently dropped: they are applied through
      * that same {@code setUpDatabaseConfig()} hook. The extension logs a warning when it sees
-     * such an override together with {@code properties()}/{@code propertiesProvider()}, since
-     * it cannot tell from reflection alone whether the {@code super} call is present.
+     * such an override together with {@code properties()}, since it cannot tell from
+     * reflection alone whether the {@code super} call is present.
      *
      * <p>The values last for the test: when it ends, each is put back to the value it replaced,
      * so a connection that outlives the test - a fixed connection, one cached by a
@@ -141,20 +136,6 @@ public @interface DbUnitConfig
      * @return The properties; empty (the default) applies none.
      */
     DbUnitProperty[] properties() default {};
-
-    /**
-     * A {@link DatabaseConfigPropertiesProvider} implementation to reflectively instantiate
-     * (with its no-arg constructor) and ask for the {@link DatabaseConfig} properties to
-     * apply, for properties shared across several test classes.
-     *
-     * <p>Mutually exclusive with {@link #properties()}; setting both is rejected.
-     *
-     * <p>Subject to the same rule on the prep/expected path that {@link #properties()}
-     * documents.
-     *
-     * @return The provider class; the interface itself (the default) means "not set".
-     */
-    Class<? extends DatabaseConfigPropertiesProvider> propertiesProvider() default DatabaseConfigPropertiesProvider.class;
 
     /**
      * One or more catalog classes to read shared {@link VerifyTableDefinition} constants from,
