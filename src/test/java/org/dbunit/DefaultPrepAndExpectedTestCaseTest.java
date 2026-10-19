@@ -1027,6 +1027,188 @@ class DefaultPrepAndExpectedTestCaseTest
     }
 
     @Test
+    void testSetupData_setUpOperationIsNone_tellsNeitherListenerAboutAConnection()
+            throws Exception
+    {
+        final IOperationListener testersListener = Mockito.mock(IOperationListener.class);
+        final IOperationListener ownListener = Mockito.mock(IOperationListener.class);
+        databaseTester.setOperationListener(testersListener);
+        databaseTester.setSetUpOperation(DatabaseOperation.NONE);
+        final DefaultPrepAndExpectedTestCase noneTestCase = makeTestCaseWithListener(ownListener);
+
+        noneTestCase.setupData();
+
+        Mockito.verifyNoInteractions(testersListener, ownListener);
+    }
+
+    @Test
+    void testCleanupData_tearDownOperationIsNone_tellsNeitherListenerAboutAConnection()
+            throws Exception
+    {
+        final IOperationListener testersListener = Mockito.mock(IOperationListener.class);
+        final IOperationListener ownListener = Mockito.mock(IOperationListener.class);
+        databaseTester.setOperationListener(testersListener);
+        databaseTester.setTearDownOperation(DatabaseOperation.NONE);
+        final DefaultPrepAndExpectedTestCase noneTestCase = makeTestCaseWithListener(ownListener);
+
+        noneTestCase.cleanupData();
+
+        Mockito.verifyNoInteractions(testersListener, ownListener);
+    }
+
+    @Test
+    void testSetupData_subclassOverridesGetDataSet_runsTheOperationOnThatDataSet()
+            throws Exception
+    {
+        final ConnectionRecordingOperation setUpOperation = new ConnectionRecordingOperation();
+        databaseTester.setSetUpOperation(setUpOperation);
+        final DefaultPrepAndExpectedTestCase overriding =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester)
+                {
+                    @Override
+                    public IDataSet getDataSet() throws Exception
+                    {
+                        return new DefaultDataSet(new DefaultTable("OVERRIDDEN_TABLE"));
+                    }
+                };
+
+        overriding.setupData();
+
+        assertThat(setUpOperation.getTableNames())
+                .as("setupData() has always run the set up operation on getDataSet(), which a"
+                        + " subclass may override.")
+                .containsExactly(Arrays.asList("OVERRIDDEN_TABLE"));
+    }
+
+    @Test
+    void testSetupData_subclassOverridesGetSetUpOperation_runsThatOperationNotTheTesters()
+            throws Exception
+    {
+        final RecordingDatabaseOperation testersOperation = new RecordingDatabaseOperation();
+        final RecordingDatabaseOperation overridingOperation = new RecordingDatabaseOperation();
+        databaseTester.setSetUpOperation(testersOperation);
+        final DefaultPrepAndExpectedTestCase overriding =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester)
+                {
+                    @Override
+                    protected DatabaseOperation getSetUpOperation() throws Exception
+                    {
+                        return overridingOperation;
+                    }
+                };
+        overriding.setPrepDs(new DefaultDataSet(new DefaultTable("PREP_ONLY_TABLE")));
+
+        overriding.setupData();
+
+        assertThat(overridingOperation.getExecutedTableNames())
+                .as("The protected getSetUpOperation() has always been the subclass's way to"
+                        + " choose the operation.")
+                .containsExactly(Arrays.asList("PREP_ONLY_TABLE"));
+        assertThat(testersOperation.getExecutedTableNames())
+                .as("The tester's own operation must not run beside the overriding one.")
+                .isEmpty();
+    }
+
+    @Test
+    void testCleanupData_subclassOverridesGetTearDownOperation_runsThatOperationNotTheTesters()
+            throws Exception
+    {
+        final RecordingDatabaseOperation testersOperation = new RecordingDatabaseOperation();
+        final RecordingDatabaseOperation overridingOperation = new RecordingDatabaseOperation();
+        databaseTester.setTearDownOperation(testersOperation);
+        final DefaultPrepAndExpectedTestCase overriding =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester)
+                {
+                    @Override
+                    protected DatabaseOperation getTearDownOperation() throws Exception
+                    {
+                        return overridingOperation;
+                    }
+                };
+        overriding.setPrepDs(new DefaultDataSet(new DefaultTable("PREP_ONLY_TABLE")));
+        overriding.setExpectedDs(new DefaultDataSet(new DefaultTable("EXPECTED_ONLY_TABLE")));
+
+        overriding.cleanupData();
+
+        assertThat(overridingOperation.getExecutedTableNames())
+                .as("The protected getTearDownOperation() has always been the subclass's way to"
+                        + " choose the operation, and it runs over the prep and expected tables.")
+                .containsExactly(Arrays.asList("PREP_ONLY_TABLE", "EXPECTED_ONLY_TABLE"));
+        assertThat(testersOperation.getExecutedTableNames())
+                .as("The tester's own operation must not run beside the overriding one.")
+                .isEmpty();
+    }
+
+    @Test
+    void testSetupData_operationRuns_receivesTheSharedConnectionTheTestersListenerWasTold()
+            throws Exception
+    {
+        final ConnectionRecordingOperation setUpOperation = new ConnectionRecordingOperation();
+        final IOperationListener testersListener = Mockito.mock(IOperationListener.class);
+        databaseTester.setOperationListener(testersListener);
+        databaseTester.setSetUpOperation(setUpOperation);
+
+        tc.setupData();
+
+        final IDatabaseConnection shared = tc.getReusableConnection();
+        assertThat(setUpOperation.getConnections())
+                .as("The set up operation must run on the connection shared with the rest of"
+                        + " the test's lifecycle, not on one of its own.")
+                .containsExactly(shared);
+        Mockito.verify(testersListener).connectionRetrieved(shared);
+    }
+
+    @Test
+    void testSetupData_testersListenerThrowsOnConnectionRetrieved_propagatesItAndRunsNoOperation()
+            throws Exception
+    {
+        final IllegalStateException listenerFailure = new IllegalStateException("listener failed");
+        final IOperationListener failingListener = Mockito.mock(IOperationListener.class);
+        Mockito.doThrow(listenerFailure).when(failingListener)
+                .connectionRetrieved(Mockito.any(IDatabaseConnection.class));
+        final ConnectionRecordingOperation setUpOperation = new ConnectionRecordingOperation();
+        databaseTester.setOperationListener(failingListener);
+        databaseTester.setSetUpOperation(setUpOperation);
+
+        assertThat(catchThrowable(() -> tc.setupData()))
+                .as("A failure of the listener the caller's tester carries must propagate"
+                        + " unchanged.")
+                .isSameAs(listenerFailure);
+
+        assertThat(setUpOperation.getTableNames())
+                .as("The operation must not run on a connection the listener failed on.")
+                .isEmpty();
+        Mockito.verify(failingListener, Mockito.never())
+                .operationSetUpFinished(Mockito.any(IDatabaseConnection.class));
+    }
+
+    @Test
+    void testSetupData_operationThrows_propagatesItAndNeverFinishesTheOperation()
+            throws Exception
+    {
+        final DatabaseUnitException operationFailure =
+                new DatabaseUnitException("operation failed");
+        final IOperationListener testersListener = Mockito.mock(IOperationListener.class);
+        databaseTester.setOperationListener(testersListener);
+        databaseTester.setSetUpOperation(new DatabaseOperation()
+        {
+            @Override
+            public void execute(final IDatabaseConnection connection, final IDataSet dataSet)
+                    throws DatabaseUnitException
+            {
+                throw operationFailure;
+            }
+        });
+
+        assertThat(catchThrowable(() -> tc.setupData()))
+                .as("A failure of the operation must propagate unchanged.")
+                .isSameAs(operationFailure);
+
+        Mockito.verify(testersListener, Mockito.never())
+                .operationSetUpFinished(Mockito.any(IDatabaseConnection.class));
+    }
+
+    @Test
     void testSetupData_databaseTesterListenerIsWrappedByASubclassOfConnectionPreserving_tellsOnlyTheWrappedListener()
             throws Exception
     {
@@ -2810,6 +2992,53 @@ class DefaultPrepAndExpectedTestCaseTest
         public void operationTearDownFinished(final IDatabaseConnection connection)
         {
             // nothing to do
+        }
+    }
+
+    private static DefaultPrepAndExpectedTestCase makeTestCaseWithListener(
+            final IOperationListener ownListener, final DataFileLoader loader,
+            final IDatabaseTester tester)
+    {
+        return new DefaultPrepAndExpectedTestCase(loader, tester)
+        {
+            @Override
+            protected IOperationListener getOperationListener()
+            {
+                return ownListener;
+            }
+        };
+    }
+
+    private DefaultPrepAndExpectedTestCase makeTestCaseWithListener(
+            final IOperationListener ownListener)
+    {
+        return makeTestCaseWithListener(ownListener, dataFileLoader, databaseTester);
+    }
+
+    /**
+     * Records the connections and the tables of the datasets an operation runs on.
+     */
+    private static final class ConnectionRecordingOperation extends DatabaseOperation
+    {
+        private final List<IDatabaseConnection> connections = new ArrayList<>();
+        private final List<List<String>> tableNames = new ArrayList<>();
+
+        @Override
+        public void execute(final IDatabaseConnection connection, final IDataSet dataSet)
+                throws DatabaseUnitException
+        {
+            connections.add(connection);
+            tableNames.add(Arrays.asList(dataSet.getTableNames()));
+        }
+
+        private List<IDatabaseConnection> getConnections()
+        {
+            return connections;
+        }
+
+        private List<List<String>> getTableNames()
+        {
+            return tableNames;
         }
     }
 
