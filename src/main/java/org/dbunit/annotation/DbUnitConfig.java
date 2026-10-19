@@ -42,7 +42,7 @@ import org.dbunit.util.fileloader.FileExtensionDataFileLoader;
  * Class-level wiring for annotation-driven dbUnit test configuration: which
  * {@link DataFileLoader} loads dataset files, how to obtain a tester via
  * {@link DatabaseTesterFactory} when no field supplies one, which
- * {@link PrepAndExpectedTestCase} implementation drives the prep/expected path,
+ * {@link DefaultPrepAndExpectedTestCase} subclass drives the prep/expected path,
  * {@link DatabaseConfig} properties, and the shared table-definition catalog.
  *
  * <p>For configuration shared across many test classes, compose one custom annotation
@@ -76,14 +76,12 @@ public @interface DbUnitConfig
      * constructor.
      *
      * <p>On the prep/expected path ({@link DbUnitExpected} declared), a freshly-constructed
-     * {@link #prepAndExpectedTestCase()} always receives this value through its constructor,
-     * regardless of implementation. A {@link DbUnitTestCase} field injecting an already-built
-     * instance also receives it, when this names a non-default loader or the instance has none
-     * of its own, and only when its type overrides
-     * {@link PrepAndExpectedTestCase#setDataFileLoader(DataFileLoader)} -
-     * {@link DefaultPrepAndExpectedTestCase} does; naming a non-default loader here for a
-     * different injected implementation fails fast with {@link IllegalStateException} instead
-     * of silently loading with whatever loader that instance was already constructed with.
+     * {@link #prepAndExpectedTestCase()} always receives this value through its constructor.
+     * A {@link DbUnitTestCase} field injecting an already-built
+     * {@link DefaultPrepAndExpectedTestCase} also receives it, when this names a non-default
+     * loader or the instance has none of its own. Naming a non-default loader here next to any
+     * other injected {@link PrepAndExpectedTestCase} fails fast with
+     * {@link IllegalStateException}, since that test case loads with its own.
      *
      * <p>A new loader is constructed for each test, so
      * {@link org.dbunit.util.fileloader.CachingFileExtensionDataFileLoader}, which shares what
@@ -105,40 +103,27 @@ public @interface DbUnitConfig
     Class<? extends DatabaseTesterFactory> databaseTesterFactory() default DatabaseTesterFactory.class;
 
     /**
-     * The {@link PrepAndExpectedTestCase} implementation to reflectively instantiate for the
+     * The {@link DefaultPrepAndExpectedTestCase} subclass to reflectively instantiate for the
      * prep/expected path when no {@link DbUnitTestCase} field supplies one already, via a
      * constructor accepting {@code (DataFileLoader, IDatabaseTester, boolean)} - the same
-     * shape {@link DefaultPrepAndExpectedTestCase} itself has.
-     *
-     * <p>In practice a {@link DefaultPrepAndExpectedTestCase} subclass, overriding a hook such
-     * as {@code setUpDatabaseConfig()}. A from-scratch {@link PrepAndExpectedTestCase} would
-     * have to reimplement dataset loading, comparison, and cleanup, and override the six
-     * {@code @DbUnitConfig}-driven setters ({@code setDataFileLoader}, {@code setFailureHandler},
-     * {@code setDatabaseConfigProperties}, {@code setCloseConnectionAfterTest},
-     * {@code setRowCountCheckOverride}, {@code clearRowCountCheckOverride}) - one that does not
-     * fails fast at test time, naming the missing setter. Overriding the matching getters
-     * ({@code getDataFileLoader}, {@code getFailureHandler}, {@code getDatabaseConfigProperties},
-     * {@code isCloseConnectionAfterTest}) as well lets the extension put the instance's own
-     * values back after each test; without a getter, a declared value stays on the instance
-     * and the extension does not fill in a loader it cannot tell is missing.
+     * shape {@link DefaultPrepAndExpectedTestCase} itself has - for example one overriding a
+     * hook such as {@code setUpDatabaseConfig()}.
      *
      * @return The test case class; defaults to {@link DefaultPrepAndExpectedTestCase}.
      */
-    Class<? extends PrepAndExpectedTestCase> prepAndExpectedTestCase() default DefaultPrepAndExpectedTestCase.class;
+    Class<? extends DefaultPrepAndExpectedTestCase> prepAndExpectedTestCase() default DefaultPrepAndExpectedTestCase.class;
 
     /**
      * Inline {@link DatabaseConfig} property name/value pairs to apply.
      *
      * <p>Mutually exclusive with {@link #propertiesProvider()}; setting both is rejected.
      *
-     * <p>On the prep/expected path ({@link DbUnitExpected} declared), only takes effect on a
-     * {@link #prepAndExpectedTestCase()} whose type overrides
-     * {@link PrepAndExpectedTestCase#setDatabaseConfigProperties(java.util.Properties)} -
-     * {@link DefaultPrepAndExpectedTestCase} does. A {@link DbUnitTestCase} field injecting a
-     * different implementation fails fast with {@link IllegalStateException} instead, since
-     * that path has no other route to the connection at all. On the setup/teardown path (no
-     * {@link DbUnitExpected}), this restriction does not apply - every value always reaches
-     * the tester's connection.
+     * <p>On the prep/expected path ({@link DbUnitExpected} declared), applied by the
+     * {@link DefaultPrepAndExpectedTestCase} to its connection. A {@link DbUnitTestCase} field
+     * injecting any other {@link PrepAndExpectedTestCase} fails fast with
+     * {@link IllegalStateException} instead, since that path has no other route to the
+     * connection at all. On the setup/teardown path (no {@link DbUnitExpected}), every value
+     * reaches the tester's connection.
      *
      * <p><strong>On the prep/expected path, a {@link DefaultPrepAndExpectedTestCase} subclass
      * that overrides {@code setUpDatabaseConfig(DatabaseConfig)} must call
@@ -164,7 +149,7 @@ public @interface DbUnitConfig
      *
      * <p>Mutually exclusive with {@link #properties()}; setting both is rejected.
      *
-     * <p>Subject to the same restriction on the prep/expected path that {@link #properties()}
+     * <p>Subject to the same rule on the prep/expected path that {@link #properties()}
      * documents.
      *
      * @return The provider class; the interface itself (the default) means "not set".
@@ -194,12 +179,10 @@ public @interface DbUnitConfig
      * The {@link FailureHandler} to hand verification failures to, in place of dbUnit's own
      * default.
      *
-     * <p>Only takes effect on a {@link #prepAndExpectedTestCase()} whose type overrides
-     * {@link PrepAndExpectedTestCase#setFailureHandler(FailureHandler)} -
-     * {@link DefaultPrepAndExpectedTestCase} does. A {@link DbUnitTestCase} field injecting a
-     * different implementation fails fast with {@link IllegalStateException} instead, naming
-     * the implementation and this attribute, since a silent no-op here would otherwise leave
-     * the configured handler applied nowhere.
+     * <p>Applied by the {@link DefaultPrepAndExpectedTestCase}. A {@link DbUnitTestCase} field
+     * injecting any other {@link PrepAndExpectedTestCase} fails fast with
+     * {@link IllegalStateException} instead, naming the implementation and this attribute,
+     * since a silent no-op here would otherwise leave the configured handler applied nowhere.
      *
      * @return The failure handler class, reflectively instantiated with its no-arg
      *         constructor; the interface itself (the default) means "not set".
@@ -220,19 +203,14 @@ public @interface DbUnitConfig
      *
      * <p>On the prep/expected path, a freshly constructed {@link #prepAndExpectedTestCase()} -
      * no {@link DbUnitTestCase} field supplies one already - always receives this value through
-     * its {@code (DataFileLoader, IDatabaseTester, boolean)} constructor, regardless of
-     * implementation. A {@link DbUnitTestCase} field injecting an already-built instance
-     * receives it too when this is {@code false} - the default {@code true} leaves a value the
-     * instance was built with alone - but only when its type overrides
-     * {@link PrepAndExpectedTestCase#setCloseConnectionAfterTest(boolean)} -
-     * {@link DefaultPrepAndExpectedTestCase} does; setting this to {@code false} for a
-     * different injected implementation logs a warning rather than failing fast, since -
-     * unlike the other {@code @DbUnitTestCase}-injected setters here - this executor's own
-     * connection (for the row count check or parameter injection) still honors the value
-     * regardless; only that test case's own connection handling might not. That connection is
-     * also left open when the injected instance itself reports
-     * {@link PrepAndExpectedTestCase#isCloseConnectionAfterTest()} as {@code false}, even when
-     * this attribute is left at its default.
+     * its {@code (DataFileLoader, IDatabaseTester, boolean)} constructor. A
+     * {@link DbUnitTestCase} field injecting an already-built
+     * {@link DefaultPrepAndExpectedTestCase} receives it too when this is {@code false} - the
+     * default {@code true} leaves a value the instance was built with alone. Setting this to
+     * {@code false} next to any other injected {@link PrepAndExpectedTestCase} fails fast with
+     * {@link IllegalStateException}. That connection is also left open when the injected
+     * instance itself reports {@link DefaultPrepAndExpectedTestCase#isCloseConnectionAfterTest()}
+     * as {@code false}, even when this attribute is left at its default.
      *
      * <p>Leaving the connection open, by this attribute or the no-op listener, requires a tester
      * that hands out the same connection on repeated calls, as one over a

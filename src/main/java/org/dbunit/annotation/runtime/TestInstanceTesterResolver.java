@@ -27,6 +27,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.dbunit.DatabaseTesterFactory;
+import org.dbunit.DefaultPrepAndExpectedTestCase;
 import org.dbunit.IDatabaseTester;
 import org.dbunit.PrepAndExpectedTestCase;
 import org.dbunit.annotation.DbUnitConfig;
@@ -185,8 +186,14 @@ public class TestInstanceTesterResolver
                     + value.getClass().getName() + ") does not implement PrepAndExpectedTestCase.");
         }
         final PrepAndExpectedTestCase testCase = (PrepAndExpectedTestCase) value;
-        // testCase does not override getDatabaseTester()/setDatabaseTester(), or does and was
-        // simply built without a tester yet (e.g. the no-arg-tester constructor form) - the
+        if (!(testCase instanceof DefaultPrepAndExpectedTestCase))
+        {
+            // driven as it is: it tells dbUnit of no tester
+            return new Resolution(null, testCase, false);
+        }
+        final DefaultPrepAndExpectedTestCase defaultTestCase =
+                (DefaultPrepAndExpectedTestCase) testCase;
+        // testCase was built without a tester yet (e.g. the no-arg constructor form) - the
         // fallback resolves the same tester a bare @DbUnitTestCase-less test would use, rather
         // than leaving the resolution's tester null.
         final AtomicBoolean fallbackUsed = new AtomicBoolean();
@@ -195,10 +202,10 @@ public class TestInstanceTesterResolver
             fallbackUsed.set(true);
             return unmarkedTester.call();
         };
-        final IDatabaseTester tester = InjectedTestCaseTesterBinding.resolveTester(testCase,
-                fieldDescription, recordingFallback);
+        final IDatabaseTester tester = InjectedTestCaseTesterBinding.resolveTester(
+                defaultTestCase, fieldDescription, recordingFallback);
         final boolean boundToTestCase =
-                fallbackUsed.get() && testCase.getDatabaseTester() == tester;
+                fallbackUsed.get() && defaultTestCase.getDatabaseTester() == tester;
         return new Resolution(tester, testCase, boundToTestCase);
     }
 
@@ -330,7 +337,8 @@ public class TestInstanceTesterResolver
         /**
          * Returns the tester to drive.
          *
-         * @return The resolved tester.
+         * @return The resolved tester; {@code null} for a {@code @DbUnitTestCase} that is not a
+         *         {@link DefaultPrepAndExpectedTestCase}, which tells dbUnit of none.
          */
         public IDatabaseTester getTester()
         {

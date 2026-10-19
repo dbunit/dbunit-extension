@@ -28,10 +28,6 @@ import java.util.concurrent.Callable;
 
 import org.dbunit.DefaultPrepAndExpectedTestCase;
 import org.dbunit.IDatabaseTester;
-import org.dbunit.PrepAndExpectedTestCase;
-import org.dbunit.PrepAndExpectedTestCaseSteps;
-import org.dbunit.VerifyTableDefinition;
-import org.dbunit.dataset.IDataSet;
 import org.junit.jupiter.api.Test;
 
 class InjectedTestCaseTesterBindingTest
@@ -73,7 +69,7 @@ class InjectedTestCaseTesterBindingTest
     }
 
     @Test
-    void testResolveTester_overridesSetDatabaseTesterButDoesNotRoundTrip_throwsIllegalStateException()
+    void testResolveTester_setDatabaseTesterDoesNotRoundTrip_throwsIllegalStateException()
     {
         final IDatabaseTester fallbackTester = mock(IDatabaseTester.class);
         final BrokenRoundTripTestCase testCase = new BrokenRoundTripTestCase();
@@ -87,98 +83,15 @@ class InjectedTestCaseTesterBindingTest
                 .hasMessageContaining("does not return the same instance");
     }
 
-    @Test
-    void testResolveTester_doesNotOverrideSetDatabaseTester_logsAndReturnsFallbackTester()
-            throws Exception
-    {
-        final IDatabaseTester fallbackTester = mock(IDatabaseTester.class);
-        final NonOverridingTestCase testCase = new NonOverridingTestCase();
-
-        final IDatabaseTester resolved = InjectedTestCaseTesterBinding.resolveTester(testCase,
-                "field 'x'", () -> fallbackTester);
-
-        assertThat(resolved)
-                .as("A test case that never overrides setDatabaseTester() is the documented"
-                        + " self-managed-connection pattern, not a bug - the fallback tester"
-                        + " must still be returned rather than failing.")
-                .isSameAs(fallbackTester);
-    }
-
     /**
-     * Overrides {@code setDatabaseTester()} - so {@link DefaultMethodOverrideCheck} sees a real
-     * override - but deliberately does not delegate to {@code super}, so the inherited
-     * {@code getDatabaseTester()} never reflects it.
+     * Overrides {@code setDatabaseTester()} but deliberately does not delegate to {@code super},
+     * so the inherited {@code getDatabaseTester()} never reflects it.
      */
     private static class BrokenRoundTripTestCase extends DefaultPrepAndExpectedTestCase
     {
         @Override
         public void setDatabaseTester(final IDatabaseTester databaseTester)
         {
-        }
-    }
-
-    /**
-     * Implements the interface directly, overriding neither {@code getDatabaseTester()} nor
-     * {@code setDatabaseTester()} - the documented self-managed-connection pattern. Every other
-     * method is an unused stub: {@link InjectedTestCaseTesterBinding} never calls them.
-     */
-    private static class NonOverridingTestCase implements PrepAndExpectedTestCase
-    {
-        @Override
-        public void configureTest(final VerifyTableDefinition[] verifyTableDefinitions,
-                final String[] prepDataFiles, final String[] expectedDataFiles)
-        {
-        }
-
-        @Override
-        public void preTest()
-        {
-        }
-
-        @Override
-        public void preTest(final VerifyTableDefinition[] verifyTables,
-                final String[] prepDataFiles, final String[] expectedDataFiles)
-        {
-        }
-
-        @Override
-        public Object runTest(final VerifyTableDefinition[] verifyTables,
-                final String[] prepDataFiles, final String[] expectedDataFiles,
-                final PrepAndExpectedTestCaseSteps testSteps)
-        {
-            return null;
-        }
-
-        @Override
-        public void postTest()
-        {
-        }
-
-        @Override
-        public void postTest(final boolean verifyData)
-        {
-        }
-
-        @Override
-        public void verifyData()
-        {
-        }
-
-        @Override
-        public void cleanupData()
-        {
-        }
-
-        @Override
-        public IDataSet getPrepDataset()
-        {
-            return null;
-        }
-
-        @Override
-        public IDataSet getExpectedDataset()
-        {
-            return null;
         }
     }
 }

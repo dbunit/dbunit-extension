@@ -65,8 +65,8 @@ class TestInstanceTesterResolverTest
     void testResolve_dbUnitTestCaseField_usesInjectedTestCase() throws Exception
     {
         final IDatabaseTester tester = mock(IDatabaseTester.class);
-        final PrepAndExpectedTestCase testCase = mock(PrepAndExpectedTestCase.class);
-        when(testCase.getDatabaseTester()).thenReturn(tester);
+        final PrepAndExpectedTestCase testCase = mock(DefaultPrepAndExpectedTestCase.class);
+        when(((DefaultPrepAndExpectedTestCase) testCase).getDatabaseTester()).thenReturn(tester);
         final HasTestCaseField instance = new HasTestCaseField(testCase);
 
         final TestInstanceTesterResolver.Resolution resolution =
@@ -209,7 +209,7 @@ class TestInstanceTesterResolverTest
             throws Exception
     {
         final IDatabaseTester own = mock(IDatabaseTester.class);
-        final PrepAndExpectedTestCase testCase = mock(PrepAndExpectedTestCase.class);
+        final DefaultPrepAndExpectedTestCase testCase = mock(DefaultPrepAndExpectedTestCase.class);
         when(testCase.getDatabaseTester()).thenReturn(own);
 
         final TestInstanceTesterResolver.Resolution resolution = TestInstanceTesterResolver
@@ -222,7 +222,7 @@ class TestInstanceTesterResolverTest
     }
 
     @Test
-    void testResolve_dbUnitTestCaseFieldThatNeverReportsATester_reportsNothingBound()
+    void testResolve_dbUnitTestCaseFieldThatIsNotADefaultTestCase_reportsNoTesterAndNothingBound()
             throws Exception
     {
         final IDatabaseTester fallback = mock(IDatabaseTester.class);
@@ -231,9 +231,13 @@ class TestInstanceTesterResolverTest
         final TestInstanceTesterResolver.Resolution resolution = TestInstanceTesterResolver
                 .resolve(instances(new HasTestCaseField(selfManaged)), () -> fallback);
 
+        assertThat(resolution.getTester())
+                .as("A test case that is not a DefaultPrepAndExpectedTestCase tells dbUnit of no"
+                        + " tester, and is not given the fallback one.")
+                .isNull();
+        assertThat(resolution.getTestCase()).isSameAs(selfManaged);
         assertThat(resolution.isTesterBoundToTestCase())
-                .as("A test case that does not hand a tester back manages its own, and so has"
-                        + " nothing bound to take off again.")
+                .as("Nothing was given to it, so nothing is bound to take off again.")
                 .isFalse();
     }
 
