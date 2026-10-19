@@ -32,6 +32,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import javax.sql.DataSource;
 
@@ -53,6 +54,7 @@ import org.junit.platform.engine.TestExecutionResult;
 import org.junit.platform.testkit.engine.EngineTestKit;
 import org.junit.platform.testkit.engine.Event;
 import org.junit.platform.testkit.engine.Events;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -66,6 +68,11 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 
 /**
  * Real-database integration test of {@link DbUnitTestExecutionListener} around Spring's
@@ -125,6 +132,7 @@ class DbUnitTestExecutionListenerTransactionalIT
             throws Exception
     {
         final DatabaseEnvironment environment = DatabaseEnvironment.getInstance();
+        final ListAppender<ILoggingEvent> listenerLog = captureListenerLog();
         try
         {
             EngineTestKit.engine("junit-jupiter").selectors(selectClass(CommitSample.class))
@@ -135,8 +143,12 @@ class DbUnitTestExecutionListenerTransactionalIT
                     .as("@DbUnitTearDown(DELETE_ALL) must have cleaned up after the"
                             + " verification.")
                     .isZero();
+            assertThat(warningsOf(listenerLog))
+                    .as("A test that commits its transaction has nothing to be warned about.")
+                    .isEmpty();
         } finally
         {
+            releaseListenerLog(listenerLog);
             TestTableRows.deleteAllQuietly(environment, TEST_TABLE);
             environment.closeConnection();
         }
@@ -147,6 +159,7 @@ class DbUnitTestExecutionListenerTransactionalIT
             throws Exception
     {
         final DatabaseEnvironment environment = DatabaseEnvironment.getInstance();
+        final ListAppender<ILoggingEvent> listenerLog = captureListenerLog();
         try
         {
             final Events testEvents = EngineTestKit.engine("junit-jupiter")
@@ -162,6 +175,18 @@ class DbUnitTestExecutionListenerTransactionalIT
                     .as("The failure must be the @DbUnitExpected comparison finding the"
                             + " rolled-back value, not a failure of the test body itself.")
                     .isInstanceOf(DbComparisonFailure.class);
+            assertThat(reported.getSuppressed())
+                    .as("The failure must say the transaction rolled back and how to keep its"
+                            + " changes.")
+                    .anySatisfy(hint -> assertThat(hint.getMessage()).contains("rolled back")
+                            .contains("@Commit").contains("@Rollback(false)"));
+            assertThat(warningsOf(listenerLog))
+                    .as("The listener must warn once, before the test runs, that the"
+                            + " verification will not see the test's changes.")
+                    .singleElement()
+                    .satisfies(warning -> assertThat(warning.getFormattedMessage())
+                            .contains("RollbackSample.")
+                            .contains("@Commit"));
 
             assertThat(TestTableRows.count(environment.getConnection(), TEST_TABLE))
                     .as("@DbUnitTearDown(DELETE_ALL) must still have cleaned up after the"
@@ -169,9 +194,31 @@ class DbUnitTestExecutionListenerTransactionalIT
                     .isZero();
         } finally
         {
+            releaseListenerLog(listenerLog);
             TestTableRows.deleteAllQuietly(environment, TEST_TABLE);
             environment.closeConnection();
         }
+    }
+
+    private static ListAppender<ILoggingEvent> captureListenerLog()
+    {
+        final ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        ((Logger) LoggerFactory.getLogger(DbUnitTestExecutionListener.class))
+                .addAppender(appender);
+        return appender;
+    }
+
+    private static void releaseListenerLog(final ListAppender<ILoggingEvent> appender)
+    {
+        ((Logger) LoggerFactory.getLogger(DbUnitTestExecutionListener.class))
+                .detachAppender(appender);
+    }
+
+    private static List<ILoggingEvent> warningsOf(final ListAppender<ILoggingEvent> appender)
+    {
+        return appender.list.stream().filter(event -> event.getLevel() == Level.WARN)
+                .collect(Collectors.toList());
     }
 
     @Configuration
