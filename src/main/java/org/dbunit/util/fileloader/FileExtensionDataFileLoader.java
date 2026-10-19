@@ -70,7 +70,7 @@ public class FileExtensionDataFileLoader extends AbstractDataFileLoader
      *            The replacement objects for use with
      *            {@link org.dbunit.dataset.ReplacementDataSet}.
      */
-    public FileExtensionDataFileLoader(Map ro)
+    public FileExtensionDataFileLoader(Map<?, ?> ro)
     {
         super(ro);
     }
@@ -85,7 +85,7 @@ public class FileExtensionDataFileLoader extends AbstractDataFileLoader
      *            The replacement substrings for use with
      *            {@link org.dbunit.dataset.ReplacementDataSet}.
      */
-    public FileExtensionDataFileLoader(Map ro, Map rs)
+    public FileExtensionDataFileLoader(Map<?, ?> ro, Map<?, ?> rs)
     {
         super(ro, rs);
     }
