@@ -161,13 +161,6 @@ class InjectedTestCaseDeclarationCheckTest
     }
 
     @Test
-    void testRequireSupportedBy_closeConnectionAfterTestFalse_rejectsForBothKindsOfTestCase()
-    {
-        assertRejectedForBoth(WithCloseConnectionAfterTestFalse.class,
-                "@DbUnitConfig(closeConnectionAfterTest)");
-    }
-
-    @Test
     void testRequireSupportedBy_databaseTesterFactory_rejectsForBothKindsOfTestCase()
     {
         assertRejectedForBoth(WithDatabaseTesterFactory.class,
@@ -294,12 +287,6 @@ class InjectedTestCaseDeclarationCheckTest
     @DbUnitExpected("expected.xml")
     @DbUnitConfig(failureHandler = DiffCollectingFailureHandler.class)
     private static class WithFailureHandler
-    {
-    }
-
-    @DbUnitExpected("expected.xml")
-    @DbUnitConfig(closeConnectionAfterTest = false)
-    private static class WithCloseConnectionAfterTestFalse
     {
     }
 

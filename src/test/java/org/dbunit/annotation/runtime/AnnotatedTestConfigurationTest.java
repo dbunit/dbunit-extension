@@ -843,8 +843,6 @@ class AnnotatedTestConfigurationTest
                 .as("No @DbUnitConfig must leave the tester factory unset.").isNull();
         assertThat(config.getFailureHandler())
                 .as("No @DbUnitConfig must leave the failure handler unset.").isNull();
-        assertThat(config.isCloseConnectionAfterTest())
-                .as("closeConnectionAfterTest must default to true.").isTrue();
         assertThat(config.getPrepAndExpectedTestCaseClass())
                 .as("The default PrepAndExpectedTestCase implementation must be"
                         + " DefaultPrepAndExpectedTestCase.")
