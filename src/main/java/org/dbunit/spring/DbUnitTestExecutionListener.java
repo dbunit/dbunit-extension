@@ -276,8 +276,7 @@ public class DbUnitTestExecutionListener extends AbstractTestExecutionListener
      * {@code @DbUnitExpected} and the teardown operation. Does nothing when
      * {@link #beforeTestMethod(TestContext)} never ran for this method, so it never tears down
      * what another method set up. The executor is removed before its after-test steps run, so it
-     * is gone even when they fail. Once they have run, or failed, a tester the test's injected
-     * {@code @DbUnitTestCase} instance was only given for this test is taken off it again.
+     * is gone even when they fail.
      *
      * <p>Runs in Spring's after-test-method phase, so after JUnit's {@code @AfterEach} methods
      * and after a {@code @Transactional} test's transaction has rolled back or committed: a
@@ -306,17 +305,29 @@ public class DbUnitTestExecutionListener extends AbstractTestExecutionListener
         try
         {
             executor.afterTest(testFailed);
-        } catch (final Throwable verificationFailure)
+        } catch (final Throwable afterTestFailure)
         {
-            if (rolledBack != null)
+            final boolean rolledBackBeforeVerification = rolledBack != null;
+            final boolean failedVerification = isFailedVerification(afterTestFailure, testFailed);
+            if (rolledBackBeforeVerification && failedVerification)
             {
-                verificationFailure.addSuppressed(new DatabaseUnitRuntimeException(ROLLBACK_HINT));
+                afterTestFailure.addSuppressed(new DatabaseUnitRuntimeException(ROLLBACK_HINT));
             }
-            throw verificationFailure;
-        } finally
-        {
-            executor.unbindTesterFromInjectedTestCase();
+            throw afterTestFailure;
         }
+    }
+
+    /**
+     * Returns whether a failure of the after-test steps is the failure of the
+     * {@code @DbUnitExpected} comparison, the only one a rolled-back transaction explains: an
+     * {@link AssertionError} of a test that did not fail itself, since verification is skipped
+     * for one that did. A failure of the teardown operation, of a connection or of the row count
+     * check is none, and neither is any failure of the after-test steps of a failed test.
+     */
+    private static boolean isFailedVerification(final Throwable afterTestFailure,
+            final boolean testFailed)
+    {
+        return !testFailed && afterTestFailure instanceof AssertionError;
     }
 
     /**

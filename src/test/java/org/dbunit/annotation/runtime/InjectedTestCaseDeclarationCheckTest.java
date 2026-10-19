@@ -23,6 +23,7 @@ package org.dbunit.annotation.runtime;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import org.dbunit.DatabaseTesterFactory;
 import org.dbunit.DefaultPrepAndExpectedTestCase;
@@ -37,104 +38,153 @@ import org.dbunit.annotation.DbUnitTearDownOperation;
 import org.dbunit.assertion.DiffCollectingFailureHandler;
 import org.dbunit.database.rowcount.ClearRowCountCheckSystemProperties;
 import org.dbunit.operation.DbUnitOperation;
+import org.dbunit.util.fileloader.DataFileLoader;
 import org.dbunit.util.fileloader.FlatXmlDataFileLoader;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tests {@link InjectedTestCaseDeclarationCheck}: one test per declaration a test case that is not
- * a {@link DefaultPrepAndExpectedTestCase} cannot be given.
+ * Tests {@link InjectedTestCaseDeclarationCheck}: one test per declaration an injected test case
+ * cannot be given, for a {@link DefaultPrepAndExpectedTestCase} and for any other
+ * {@link PrepAndExpectedTestCase}.
  */
 @ClearRowCountCheckSystemProperties
 class InjectedTestCaseDeclarationCheckTest
 {
     private final PrepAndExpectedTestCase otherTestCase = mock(PrepAndExpectedTestCase.class);
+    private final DefaultPrepAndExpectedTestCase defaultTestCase =
+            mock(DefaultPrepAndExpectedTestCase.class);
 
     @Test
     void testRequireSupportedBy_otherTestCaseAndOnlyFilesAndCatalogDeclared_accepts()
     {
-        assertThatCode(() -> requireSupportedByOther(FilesAndCatalog.class))
+        assertThatCode(() -> check(FilesAndCatalog.class, otherTestCase))
                 .as("Files, a catalog and a base directory need nothing but the lifecycle calls.")
                 .doesNotThrowAnyException();
     }
 
     @Test
-    void testRequireSupportedBy_defaultTestCaseAndEverythingDeclared_accepts()
+    void testRequireSupportedBy_defaultTestCaseAndOnlyFilesAndCatalogDeclared_accepts()
     {
-        final DefaultPrepAndExpectedTestCase defaultTestCase =
-                mock(DefaultPrepAndExpectedTestCase.class);
-
-        assertThatCode(() -> new InjectedTestCaseDeclarationCheck(configFrom(Everything.class))
-                .requireSupportedBy(defaultTestCase))
-                .as("A DefaultPrepAndExpectedTestCase is never rejected by this check.")
+        assertThatCode(() -> check(FilesAndCatalog.class, defaultTestCase))
+                .as("The test's files and catalog are what an injected test case is given.")
                 .doesNotThrowAnyException();
     }
 
     @Test
-    void testRequireSupportedBy_otherTestCaseAndSetUpOperation_rejects()
+    void testRequireSupportedBy_defaultTestCaseAndRowCountCheck_accepts()
     {
-        assertRejected(WithSetUpOperation.class, "@DbUnitSetUpOperation");
-    }
-
-    @Test
-    void testRequireSupportedBy_otherTestCaseAndTearDownOperation_rejects()
-    {
-        assertRejected(WithTearDownOperation.class, "@DbUnitTearDownOperation");
+        assertThatCode(() -> check(WithRowCountCheck.class, defaultTestCase))
+                .as("A DefaultPrepAndExpectedTestCase takes the row count check through its"
+                        + " override methods.")
+                .doesNotThrowAnyException();
     }
 
     @Test
     void testRequireSupportedBy_otherTestCaseAndRowCountCheck_rejects()
     {
-        assertRejected(WithRowCountCheck.class, "@DbUnitRowCountCheck");
-    }
-
-    @Test
-    void testRequireSupportedBy_otherTestCaseAndProperties_rejects()
-    {
-        assertRejected(WithProperties.class, "@DbUnitConfig(properties");
-    }
-
-    @Test
-    void testRequireSupportedBy_otherTestCaseAndDataFileLoader_rejects()
-    {
-        assertRejected(WithDataFileLoader.class, "@DbUnitConfig(dataFileLoader)");
-    }
-
-    @Test
-    void testRequireSupportedBy_otherTestCaseAndFailureHandler_rejects()
-    {
-        assertRejected(WithFailureHandler.class, "@DbUnitConfig(failureHandler)");
-    }
-
-    @Test
-    void testRequireSupportedBy_otherTestCaseAndCloseConnectionAfterTestFalse_rejects()
-    {
-        assertRejected(WithCloseConnectionAfterTestFalse.class,
-                "@DbUnitConfig(closeConnectionAfterTest)");
-    }
-
-    @Test
-    void testRequireSupportedBy_otherTestCaseAndDatabaseTesterFactory_rejects()
-    {
-        assertRejected(WithDatabaseTesterFactory.class, "@DbUnitConfig(databaseTesterFactory)");
-    }
-
-    @Test
-    void testRequireSupportedBy_otherTestCaseAndPrepAndExpectedTestCaseClass_rejects()
-    {
-        assertRejected(WithPrepAndExpectedTestCaseClass.class,
-                "@DbUnitConfig(prepAndExpectedTestCase)");
+        assertRejected(WithRowCountCheck.class, otherTestCase, "@DbUnitRowCountCheck");
     }
 
     @Test
     void testRequireSupportedBy_otherTestCaseAndNoExpected_rejects()
     {
-        assertRejected(WithPrepOnly.class, "a test without @DbUnitExpected");
+        assertRejected(WithPrepOnly.class, otherTestCase, "a test without @DbUnitExpected");
     }
 
     @Test
-    void testRequireSupportedBy_otherTestCaseAndSeveralDeclarations_rejectsOnceNamingThemAll()
+    void testRequireDataFileLoaderForTheFiles_defaultTestCaseWithLoader_accepts()
     {
-        assertThatThrownBy(() -> requireSupportedByOther(Everything.class))
+        when(defaultTestCase.getDataFileLoader()).thenReturn(mock(DataFileLoader.class));
+
+        assertThatCode(() -> checkLoader(FilesAndCatalog.class, defaultTestCase))
+                .as("A test case built with a loader can read the files the test names.")
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void testRequireDataFileLoaderForTheFiles_defaultTestCaseWithoutLoaderAndFilesDeclared_rejects()
+    {
+        assertThatThrownBy(() -> checkLoader(FilesAndCatalog.class, defaultTestCase))
+                .as("dbUnit does not give an injected test case a loader, so one with none cannot"
+                        + " read the files the test names.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining(defaultTestCase.getClass().getName())
+                .hasMessageContaining("has no DataFileLoader to read the test's dataset files")
+                .hasMessageContaining("where it is built, or in a @BeforeEach method");
+    }
+
+    @Test
+    void testRequireDataFileLoaderForTheFiles_defaultTestCaseWithoutLoaderAndNoFilesDeclared_accepts()
+    {
+        assertThatCode(() -> checkLoader(NoFiles.class, defaultTestCase))
+                .as("A loader is needed only to read files, and the test names none.")
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void testRequireDataFileLoaderForTheFiles_otherTestCase_acceptsAsItTellsDbUnitOfNoLoader()
+    {
+        assertThatCode(() -> checkLoader(FilesAndCatalog.class, otherTestCase))
+                .as("Only a DefaultPrepAndExpectedTestCase tells dbUnit of its loader, so there is"
+                        + " nothing to check of any other.")
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void testRequireSupportedBy_setUpOperation_rejectsForBothKindsOfTestCase()
+    {
+        assertRejectedForBoth(WithSetUpOperation.class, "@DbUnitSetUpOperation");
+    }
+
+    @Test
+    void testRequireSupportedBy_tearDownOperation_rejectsForBothKindsOfTestCase()
+    {
+        assertRejectedForBoth(WithTearDownOperation.class, "@DbUnitTearDownOperation");
+    }
+
+    @Test
+    void testRequireSupportedBy_properties_rejectsForBothKindsOfTestCase()
+    {
+        assertRejectedForBoth(WithProperties.class, "@DbUnitConfig(properties");
+    }
+
+    @Test
+    void testRequireSupportedBy_dataFileLoader_rejectsForBothKindsOfTestCase()
+    {
+        assertRejectedForBoth(WithDataFileLoader.class, "@DbUnitConfig(dataFileLoader)");
+    }
+
+    @Test
+    void testRequireSupportedBy_failureHandler_rejectsForBothKindsOfTestCase()
+    {
+        assertRejectedForBoth(WithFailureHandler.class, "@DbUnitConfig(failureHandler)");
+    }
+
+    @Test
+    void testRequireSupportedBy_closeConnectionAfterTestFalse_rejectsForBothKindsOfTestCase()
+    {
+        assertRejectedForBoth(WithCloseConnectionAfterTestFalse.class,
+                "@DbUnitConfig(closeConnectionAfterTest)");
+    }
+
+    @Test
+    void testRequireSupportedBy_databaseTesterFactory_rejectsForBothKindsOfTestCase()
+    {
+        assertRejectedForBoth(WithDatabaseTesterFactory.class,
+                "@DbUnitConfig(databaseTesterFactory)");
+    }
+
+    @Test
+    void testRequireSupportedBy_prepAndExpectedTestCaseClass_rejectsForBothKindsOfTestCase()
+    {
+        assertRejectedForBoth(WithPrepAndExpectedTestCaseClass.class,
+                "@DbUnitConfig(prepAndExpectedTestCase)");
+    }
+
+    @Test
+    void testRequireSupportedBy_severalDeclarations_rejectsOnceNamingThemAll()
+    {
+        assertThatThrownBy(() -> check(Everything.class, otherTestCase))
                 .as("One exception names every declaration the test case cannot be given, and"
                         + " the test case itself.")
                 .isInstanceOf(IllegalStateException.class)
@@ -147,18 +197,42 @@ class InjectedTestCaseDeclarationCheckTest
                 .hasMessageContaining("Configure the test case where it is built");
     }
 
-    private void assertRejected(final Class<?> fixture, final String declaration)
+    @Test
+    void testRequireSupportedBy_defaultTestCaseAndSeveralDeclarations_namesThemAllButTheRowCountCheck()
     {
-        assertThatThrownBy(() -> requireSupportedByOther(fixture))
-                .as("A test case that is not a DefaultPrepAndExpectedTestCase cannot be given "
-                        + declaration + ".")
+        assertThatThrownBy(() -> check(Everything.class, defaultTestCase))
+                .as("The row count check is the one declaration a DefaultPrepAndExpectedTestCase"
+                        + " can be given, so it is not named.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("@DbUnitSetUpOperation")
+                .hasMessageContaining("@DbUnitConfig(failureHandler)")
+                .hasMessageNotContaining("@DbUnitRowCountCheck(");
+    }
+
+    private void assertRejectedForBoth(final Class<?> fixture, final String declaration)
+    {
+        assertRejected(fixture, otherTestCase, declaration);
+        assertRejected(fixture, defaultTestCase, declaration);
+    }
+
+    private void assertRejected(final Class<?> fixture, final PrepAndExpectedTestCase testCase,
+            final String declaration)
+    {
+        assertThatThrownBy(() -> check(fixture, testCase))
+                .as(testCase.getClass().getSimpleName() + " cannot be given " + declaration + ".")
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining(declaration);
     }
 
-    private void requireSupportedByOther(final Class<?> fixture)
+    private static void check(final Class<?> fixture, final PrepAndExpectedTestCase testCase)
     {
-        new InjectedTestCaseDeclarationCheck(configFrom(fixture)).requireSupportedBy(otherTestCase);
+        new InjectedTestCaseDeclarationCheck(configFrom(fixture)).requireSupportedBy(testCase);
+    }
+
+    private static void checkLoader(final Class<?> fixture, final PrepAndExpectedTestCase testCase)
+    {
+        new InjectedTestCaseDeclarationCheck(configFrom(fixture))
+                .requireDataFileLoaderForTheFiles(testCase);
     }
 
     private static AnnotatedTestConfiguration configFrom(final Class<?> fixture)
@@ -175,6 +249,10 @@ class InjectedTestCaseDeclarationCheckTest
     @DbUnitExpected(value = "expected.xml", verifyTables = "ACCOUNT")
     @DbUnitConfig(dataSetBaseDir = "/some/dir")
     private static class FilesAndCatalog
+    {
+    }
+
+    private static class NoFiles
     {
     }
 

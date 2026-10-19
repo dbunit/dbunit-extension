@@ -25,6 +25,7 @@ import static org.junit.platform.engine.discovery.DiscoverySelectors.selectClass
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Properties;
 
 import org.dbunit.DatabaseEnvironment;
 import org.dbunit.DefaultDatabaseTester;
@@ -175,19 +176,19 @@ class DbUnitConfigPropertiesIT
         try
         {
             final IDatabaseConnection connection = environment.getConnection();
-            KeptConnectionBase.observedBatchSizes.clear();
-            KeptConnectionBase.testCase = new DefaultPrepAndExpectedTestCase(
-                    new FlatXmlDataFileLoader(), new DefaultDatabaseTester(connection), false);
+            KeptConnectionSample.observedBatchSizes.clear();
+            final Properties batchSize = new Properties();
+            batchSize.setProperty(DatabaseConfig.PROPERTY_BATCH_SIZE, "50");
 
-            runOnTheKeptConnection(DeclaresNothingFirst.class);
-            runOnTheKeptConnection(DeclaresBatchSize.class);
-            runOnTheKeptConnection(DeclaresNothingLast.class);
+            runOnTheKeptConnection(connection, new Properties());
+            runOnTheKeptConnection(connection, batchSize);
+            runOnTheKeptConnection(connection, new Properties());
 
             final Object defaultBatchSize =
                     new DatabaseConfig().getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE);
-            assertThat(KeptConnectionBase.observedBatchSizes)
-                    .as("A test declaring nothing, then one declaring batchSize=50, then one"
-                            + " declaring nothing again, on one connection kept across them:"
+            assertThat(KeptConnectionSample.observedBatchSizes)
+                    .as("A test case built with no properties, then one built with batchSize=50,"
+                            + " then one with none again, on one connection kept across them:"
                             + " the middle value must not bleed into the last test.")
                     .containsExactly(defaultBatchSize, 50, defaultBatchSize);
             assertThat(connection.getConfig().getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE))
@@ -199,13 +200,21 @@ class DbUnitConfigPropertiesIT
         }
     }
 
-    private static void runOnTheKeptConnection(final Class<?> sampleClass)
+    private static void runOnTheKeptConnection(final IDatabaseConnection connection,
+            final Properties properties)
     {
-        EngineTestKit.engine("junit-jupiter").selectors(selectClass(sampleClass)).execute()
-                .testEvents().assertStatistics(stats -> stats.started(1).succeeded(1));
+        final DefaultPrepAndExpectedTestCase testCase = new DefaultPrepAndExpectedTestCase(
+                new FlatXmlDataFileLoader(), new DefaultDatabaseTester(connection), false);
+        testCase.setDatabaseConfigProperties(properties);
+        KeptConnectionSample.testCase = testCase;
+
+        EngineTestKit.engine("junit-jupiter").selectors(selectClass(KeptConnectionSample.class))
+                .execute().testEvents()
+                .assertStatistics(stats -> stats.started(1).succeeded(1));
     }
 
-    static class KeptConnectionBase
+    @ExtendWith(DbUnitExtension.class)
+    static class KeptConnectionSample
     {
         @DbUnitTestCase
         static PrepAndExpectedTestCase testCase;
@@ -219,21 +228,5 @@ class DbUnitConfigPropertiesIT
             observedBatchSizes
                     .add(connection.getConfig().getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE));
         }
-    }
-
-    @ExtendWith(DbUnitExtension.class)
-    static class DeclaresNothingFirst extends KeptConnectionBase
-    {
-    }
-
-    @ExtendWith(DbUnitExtension.class)
-    @DbUnitConfig(properties = @DbUnitProperty(name = "batchSize", value = "50"))
-    static class DeclaresBatchSize extends KeptConnectionBase
-    {
-    }
-
-    @ExtendWith(DbUnitExtension.class)
-    static class DeclaresNothingLast extends KeptConnectionBase
-    {
     }
 }

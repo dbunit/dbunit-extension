@@ -29,11 +29,14 @@ import org.dbunit.util.fileloader.FileExtensionDataFileLoader;
 
 /**
  * Rejects the declarations that ask more of an injected {@code @DbUnitTestCase} than it gives.
- * A test case that is not a {@link DefaultPrepAndExpectedTestCase} is driven as it is: dbUnit
- * gives it the test's files and calls {@code configureTest()}, {@code preTest()} and
- * {@code postTest()}, and nothing else. Without a tester or a connection it can tell dbUnit
- * about, everything that needs one cannot be applied, and is rejected with one message when
- * declared instead of silently never taking effect.
+ * An injected test case is used as its owner built it: dbUnit gives it the test's files and
+ * calls {@code configureTest()}, {@code preTest()} and {@code postTest()}, and for a
+ * {@link DefaultPrepAndExpectedTestCase} applies {@code @DbUnitRowCountCheck} through its
+ * override methods, and nothing else. Everything that would configure it, or needs a tester or a
+ * connection of it that a test case which is not a {@link DefaultPrepAndExpectedTestCase} cannot
+ * tell dbUnit about, is rejected with one message when declared instead of silently never
+ * taking effect. The loader the test's files need is checked separately, just before the test
+ * case is used, see {@link #requireDataFileLoaderForTheFiles(PrepAndExpectedTestCase)}.
  *
  * <p>Not intended for direct use by test code; machinery consumed by {@link ExpectedLifecycle}.
  *
@@ -58,40 +61,78 @@ class InjectedTestCaseDeclarationCheck
      * Fails when the test declares something that {@code testCase} cannot be given.
      *
      * @param testCase The injected {@code @DbUnitTestCase} instance.
-     * @throws IllegalStateException If {@code testCase} is not a
-     *             {@link DefaultPrepAndExpectedTestCase} and the test declares anything that
-     *             needs more than its files and its lifecycle calls, naming all of it.
+     * @throws IllegalStateException If the test declares anything that needs more than
+     *             {@code testCase} gives, naming all of it.
      */
     void requireSupportedBy(final PrepAndExpectedTestCase testCase)
     {
-        if (testCase instanceof DefaultPrepAndExpectedTestCase)
+        final boolean defaultTestCase = testCase instanceof DefaultPrepAndExpectedTestCase;
+        final List<String> unsupported = declarationsThatConfigureTheTestCase();
+        if (!defaultTestCase)
         {
-            return;
-        }
-
-        final List<String> unsupported = declarationsNeedingMoreThanItsLifecycle();
-        if (!configuration.isExpected())
-        {
-            unsupported.add("a test without @DbUnitExpected, which would have no tester to"
-                    + " set up");
+            addIf(configuration.isRowCountCheckDeclared(), unsupported, "@DbUnitRowCountCheck");
+            addIf(!configuration.isExpected(), unsupported,
+                    "a test without @DbUnitExpected, which would have no tester to set up");
         }
         if (unsupported.isEmpty())
         {
             return;
         }
+        final String gives;
+        if (defaultTestCase)
+        {
+            gives = "uses it as it was built: dbUnit gives it the test's files, applies"
+                    + " @DbUnitRowCountCheck, and calls configureTest(), preTest() and"
+                    + " postTest()";
+        } else
+        {
+            gives = "is not a DefaultPrepAndExpectedTestCase, so dbUnit only gives it the"
+                    + " test's files and calls configureTest(), preTest() and postTest()";
+        }
         throw new IllegalStateException("The @DbUnitTestCase field's test case "
-                + testCase.getClass().getName() + " is not a DefaultPrepAndExpectedTestCase, so"
-                + " dbUnit only gives it the test's files and calls configureTest(), preTest()"
-                + " and postTest(): it cannot apply " + String.join(", ", unsupported)
+                + testCase.getClass().getName() + " " + gives + ": it cannot apply "
+                + String.join(", ", unsupported)
                 + ". Configure the test case where it is built, or drop what the test declares.");
     }
 
-    private List<String> declarationsNeedingMoreThanItsLifecycle()
+    /**
+     * Fails when the test names dataset files and an injected
+     * {@link DefaultPrepAndExpectedTestCase} has no loader to read them with: dbUnit gives it
+     * none, as it uses the instance as it was built. Run just before the test case is used
+     * rather than when the executor is created, as a {@code @BeforeEach} method of the test
+     * class may still be setting the loader. Any other {@link PrepAndExpectedTestCase} tells
+     * dbUnit of no loader, so nothing is checked for it. The tester is not checked here: the
+     * {@link TestInstanceTesterResolver} requires one of the instance when it resolves it.
+     *
+     * @param testCase The injected {@code @DbUnitTestCase} instance.
+     * @throws IllegalStateException If the test names dataset files and {@code testCase} has no
+     *             loader.
+     */
+    void requireDataFileLoaderForTheFiles(final PrepAndExpectedTestCase testCase)
+    {
+        if (!(testCase instanceof DefaultPrepAndExpectedTestCase))
+        {
+            return;
+        }
+
+        final boolean namesFiles = configuration.getPrepDataFiles().length > 0
+                || configuration.getExpectedDataFiles().length > 0;
+        final DefaultPrepAndExpectedTestCase defaultTestCase =
+                (DefaultPrepAndExpectedTestCase) testCase;
+        if (namesFiles && defaultTestCase.getDataFileLoader() == null)
+        {
+            throw new IllegalStateException("The @DbUnitTestCase field's test case "
+                    + testCase.getClass().getName() + " has no DataFileLoader to read the test's"
+                    + " dataset files with. dbUnit uses it as it was built: give it one where it"
+                    + " is built, or in a @BeforeEach method.");
+        }
+    }
+
+    private List<String> declarationsThatConfigureTheTestCase()
     {
         final List<String> declared = new ArrayList<>();
         addIf(configuration.isSetupDeclared(), declared, "@DbUnitSetUpOperation");
         addIf(configuration.isTearDownDeclared(), declared, "@DbUnitTearDownOperation");
-        addIf(configuration.isRowCountCheckDeclared(), declared, "@DbUnitRowCountCheck");
         addIf(configuration.getDataFileLoader().getClass() != FileExtensionDataFileLoader.class,
                 declared, "@DbUnitConfig(dataFileLoader)");
         addIf(configuration.getFailureHandler() != null, declared, "@DbUnitConfig(failureHandler)");

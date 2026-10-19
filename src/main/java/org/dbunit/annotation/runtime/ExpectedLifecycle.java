@@ -33,15 +33,17 @@ import org.dbunit.util.fileloader.DataFileLoader;
 /**
  * The prep/expected path of one test's dbUnit lifecycle, driven by
  * {@link AnnotatedTestExecutor} when {@link AnnotatedTestConfiguration#isExpected()} is true:
- * resolve or construct the {@link PrepAndExpectedTestCase}, push the {@code @DbUnitConfig}
- * values it can only receive through its own API onto it (via {@link InjectedTestCaseConfigurer}),
- * set the setup/teardown operations the annotations declare, then run its
- * {@code configureTest()}/{@code preTest()} before the test and {@code postTest()} after.
+ * resolve or construct the {@link PrepAndExpectedTestCase}, apply the values the test declares
+ * that a {@link DefaultPrepAndExpectedTestCase} can only receive through its own API (via
+ * {@link TestCaseConfigurer}), set the setup/teardown operations the annotations declare, then
+ * run its {@code configureTest()}/{@code preTest()} before the test and {@code postTest()}
+ * after. An injected test case is used as its owner built it, with its tester and so its
+ * operations as they are: see {@link InjectedTestCaseDeclarationCheck}.
  *
  * <p>The row count check on this path is the {@link PrepAndExpectedTestCase}'s own -
  * {@code DefaultPrepAndExpectedTestCase} captures and verifies it around its own steps - so
  * this class never touches it; {@code @DbUnitRowCountCheck} reaches it as an override through
- * {@link InjectedTestCaseConfigurer}.
+ * {@link TestCaseConfigurer}.
  *
  * <p>The dataset and setup/teardown operations {@link #tester} carries coming into the test are
  * snapshotted at the start and restored at the end (see {@link TesterStateSnapshot}), so a
@@ -56,12 +58,13 @@ final class ExpectedLifecycle
 {
     private final AnnotatedTestConfiguration configuration;
     private final IDatabaseTester tester;
-    private final boolean testCaseInjected;
+
+    private final boolean injected;
 
     private PrepAndExpectedTestCase testCase;
     private boolean configured;
     private TesterStateSnapshot incomingState;
-    private InjectedTestCaseRestoration testCaseRestoration;
+    private TestCaseRestoration testCaseRestoration;
 
     /**
      * Creates the prep/expected lifecycle for one test.
@@ -86,8 +89,8 @@ final class ExpectedLifecycle
         }
         this.configuration = configuration;
         this.tester = tester;
+        this.injected = injectedTestCase != null;
         this.testCase = injectedTestCase;
-        this.testCaseInjected = injectedTestCase != null;
     }
 
     /**
@@ -125,15 +128,19 @@ final class ExpectedLifecycle
     }
 
     /**
-     * Returns {@link #testCase} after pushing the {@code @DbUnitConfig} values onto it, once -
-     * see {@link InjectedTestCaseConfigurer} - so a connection it hands out already carries them.
+     * Returns {@link #testCase} after applying the declared values to it, once - see
+     * {@link TestCaseConfigurer} - so a connection it hands out already carries them.
      * {@link #before()} calls this, and so does a binding resolving an early {@code @BeforeEach}
      * {@code Connection} parameter through {@link DefaultPrepAndExpectedTestCase#getReusableConnection()}
      * before {@code before()} runs: the connection is acquired with the test case's properties
      * in force at that moment. Whatever this applies is undone by {@link #after(boolean)}, or by
-     * {@link #undoConfiguration()} when {@code after()} never runs.
+     * {@link #undoConfiguration()} when {@code after()} never runs. An injected test case is
+     * first checked for the loader the test's files need, see
+     * {@link InjectedTestCaseDeclarationCheck#requireDataFileLoaderForTheFiles(PrepAndExpectedTestCase)}.
      *
      * @return The configured test case this lifecycle drives.
+     * @throws IllegalStateException If an injected test case lacks the loader the test's files
+     *             need.
      * @throws Exception If constructing or configuring it fails.
      */
     PrepAndExpectedTestCase ensureConfiguredTestCase() throws Exception
@@ -141,7 +148,12 @@ final class ExpectedLifecycle
         ensureTestCase();
         if (testCaseRestoration == null && testCase instanceof DefaultPrepAndExpectedTestCase)
         {
-            testCaseRestoration = new InjectedTestCaseConfigurer(configuration,
+            if (injected)
+            {
+                new InjectedTestCaseDeclarationCheck(configuration)
+                        .requireDataFileLoaderForTheFiles(testCase);
+            }
+            testCaseRestoration = new TestCaseConfigurer(configuration,
                     (DefaultPrepAndExpectedTestCase) testCase).applyAll();
         }
         return testCase;
@@ -177,39 +189,16 @@ final class ExpectedLifecycle
      */
     void undoConfiguration()
     {
-        final InjectedTestCaseRestoration restoration = testCaseRestoration;
+        final TestCaseRestoration restoration = testCaseRestoration;
         testCaseRestoration = null;
-        InjectedTestCaseRestoration.undoIfPresent(restoration);
-    }
-
-    /**
-     * Returns whether the connection came from an injected {@code @DbUnitTestCase} instance's
-     * {@link DefaultPrepAndExpectedTestCase#getReusableConnection()} for a {@code @BeforeEach}
-     * parameter, and {@link #before()} then failed before {@code configureTest()} - so
-     * {@code postTest()}/{@code cleanupData()} never ran to close that connection the test
-     * case's own way. It is the {@code borrowingLifecycleRan} input to
-     * {@link AnnotatedTestExecutor}'s {@link org.dbunit.database.connection.ConnectionOwnership}:
-     * {@code false} here means the executor's
-     * {@link org.dbunit.database.connection.TestScopedConnection#release()} leaves the
-     * connection alone, so a reused instance (e.g. a {@code static @DbUnitTestCase} field, or
-     * any instance field under {@code @TestInstance(PER_CLASS)}) is not stranded holding a
-     * closed connection for the next test method. The instance keeps ownership; its own next
-     * lifecycle run, or the caller discarding it, releases the connection.
-     *
-     * <p>Only for an <em>injected</em> instance: a test case constructed here is single-use
-     * and discarded after this test, so the executor still closes its connection rather than
-     * leak it.
-     *
-     * @return True when a reused injected instance still owns the connection.
-     */
-    boolean isConnectionOwnedByUnconfiguredInjectedTestCase()
-    {
-        return testCaseInjected && !configured;
+        TestCaseRestoration.undoIfPresent(restoration);
     }
 
     /**
      * Resolves or constructs the {@link PrepAndExpectedTestCase}, configures it, and runs its
-     * {@code configureTest()} then {@code preTest()}.
+     * {@code configureTest()} then {@code preTest()}. The setup and teardown operations the
+     * annotations declare are set on the tester of a test case this class constructed only: an
+     * injected test case runs with its tester as its owner configured it.
      *
      * @throws Exception If any step fails.
      */
@@ -221,8 +210,11 @@ final class ExpectedLifecycle
             incomingState = TesterStateSnapshot.capture(tester);
         }
         ensureConfiguredTestCase();
-        applySetUpOperation();
-        applyTearDownOperation();
+        if (!injected)
+        {
+            applySetUpOperation();
+            applyTearDownOperation();
+        }
         configureTestCase();
         configured = true;
         testCase.preTest();
@@ -275,9 +267,9 @@ final class ExpectedLifecycle
         } catch (final Throwable primaryFailure)
         {
             TesterStateSnapshot.restoreSuppressing(tester, incomingState, primaryFailure);
-            final InjectedTestCaseRestoration restoration = testCaseRestoration;
+            final TestCaseRestoration restoration = testCaseRestoration;
             testCaseRestoration = null;
-            InjectedTestCaseRestoration.undoSuppressing(restoration, primaryFailure);
+            TestCaseRestoration.undoSuppressing(restoration, primaryFailure);
             throw primaryFailure;
         }
         try
@@ -323,9 +315,8 @@ final class ExpectedLifecycle
     }
 
     /**
-     * Returns the loader {@link #testCase} will load the expected datasets with: its own, which
-     * for an injected instance is the one it was built with unless {@code @DbUnitConfig} named
-     * another, or {@code @DbUnitConfig}'s when the test case does not report one.
+     * Returns the loader {@link #testCase} will load the expected datasets with: its own, or
+     * {@code @DbUnitConfig}'s when the test case does not report one.
      */
     private DataFileLoader effectiveDataFileLoader()
     {
