@@ -340,23 +340,22 @@ final class ExpectedLifecycle
         try
         {
             constructor = testCaseClass.getDeclaredConstructor(DataFileLoader.class,
-                    IDatabaseTester.class, boolean.class);
+                    IDatabaseTester.class);
         } catch (final NoSuchMethodException e)
         {
             throw new IllegalStateException("DbUnitConfig.prepAndExpectedTestCase class "
-                    + testCaseClass.getName() + " has no (DataFileLoader, IDatabaseTester,"
-                    + " boolean) constructor.", e);
+                    + testCaseClass.getName() + " has no (DataFileLoader, IDatabaseTester)"
+                    + " constructor.", e);
         }
         constructor.setAccessible(true);
         try
         {
-            return constructor.newInstance(configuration.getDataFileLoader(), tester,
-                    configuration.isCloseConnectionAfterTest());
+            return constructor.newInstance(configuration.getDataFileLoader(), tester);
         } catch (final InvocationTargetException e)
         {
             throw new IllegalStateException("DbUnitConfig.prepAndExpectedTestCase class "
                     + testCaseClass.getName() + " threw from its (DataFileLoader,"
-                    + " IDatabaseTester, boolean) constructor.", e.getCause());
+                    + " IDatabaseTester) constructor.", e.getCause());
         }
     }
 }

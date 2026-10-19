@@ -26,6 +26,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
@@ -125,7 +126,6 @@ class AnnotatedTestExecutorTest
         lenient().when(tester.getOperationListener()).thenReturn(new DefaultOperationListener());
         RecordingPrepAndExpectedTestCase.instance = null;
         RecordingPrepAndExpectedTestCase.lastTester = null;
-        RecordingPrepAndExpectedTestCase.lastCloseConnectionAfterTest = false;
         RecordingPrepAndExpectedTestCase.throwFromConstructor = false;
     }
 
@@ -1055,25 +1055,6 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
-    void testAfterTest_closeConnectionAfterTestFalse_leavesConnectionOpen() throws Exception
-    {
-        stubEnabledConnection("ACCOUNT");
-        when(connection.getRowCount("ACCOUNT")).thenReturn(5);
-        final DbUnitConfig config =
-                WithCloseConnectionAfterTestFalse.class.getAnnotation(DbUnitConfig.class);
-        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
-                .from(WithCloseConnectionAfterTestFalse.class, config, null, null, null, null,
-                        null);
-        final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, null);
-        executor.beforeTest();
-
-        executor.afterTest(false);
-
-        verify(connection, never()).close();
-    }
-
-    @Test
     void testReleaseIfAfterTestDidNotRun_connectionResolvedButAfterTestNeverRan_closesIt()
             throws Exception
     {
@@ -1127,7 +1108,7 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
-    void testAfterTest_listenerIsNoOp_leavesConnectionOpenEvenByDefault() throws Exception
+    void testAfterTest_listenerIsNoOp_leavesConnectionOpen() throws Exception
     {
         when(tester.getOperationListener())
                 .thenReturn(IOperationListener.NO_OP_OPERATION_LISTENER);
@@ -1239,19 +1220,16 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
-    void testBeforeTest_setupTeardownPathCloseAfterTestFalseAndTesterOpensNewConnectionOnEachCall_warnsOnce()
+    void testBeforeTest_setupTeardownPathNoOpListenerAndTesterOpensNewConnectionOnEachCall_warnsOnce()
             throws Exception
     {
-        // The connection is left open for a real owner, but a tester that opens a new
-        // connection on every call has none, so every test would leave one open.
-        final JdbcDatabaseTester jdbcTester = jdbcTesterReturningTheConnection(null);
-        final DbUnitConfig config = WithCloseConnectionAfterTestFalseAndSetupNoPrep.class
-                .getAnnotation(DbUnitConfig.class);
-        final DbUnitSetUpOperation setup = WithCloseConnectionAfterTestFalseAndSetupNoPrep.class
-                .getAnnotation(DbUnitSetUpOperation.class);
-        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration.from(
-                WithCloseConnectionAfterTestFalseAndSetupNoPrep.class, config, null, setup, null,
-                null, null);
+        // The no-op listener leaves the connection open for a real owner, but a tester that
+        // opens a new connection on every call has none, so every test would leave one open.
+        final JdbcDatabaseTester jdbcTester = jdbcTesterLeavingItsConnectionOpen(null);
+        final DbUnitSetUpOperation setup =
+                WithSetupNoPrep.class.getAnnotation(DbUnitSetUpOperation.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(WithSetupNoPrep.class, null, null, setup, null, null, null);
         final AnnotatedTestExecutor executor =
                 new AnnotatedTestExecutor(configuration, jdbcTester, null);
         final ListAppender<ILoggingEvent> appender =
@@ -1301,18 +1279,15 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
-    void testBeforeTest_setupTeardownPathCloseAfterTestFalseAndTesterReusesItsConnection_doesNotWarn()
+    void testBeforeTest_setupTeardownPathNoOpListenerAndTesterReusesItsConnection_doesNotWarn()
             throws Exception
     {
         final JdbcDatabaseTester jdbcTester =
-                jdbcTesterReturningTheConnection(new CachingConnectionProvider());
-        final DbUnitConfig config = WithCloseConnectionAfterTestFalseAndSetupNoPrep.class
-                .getAnnotation(DbUnitConfig.class);
-        final DbUnitSetUpOperation setup = WithCloseConnectionAfterTestFalseAndSetupNoPrep.class
-                .getAnnotation(DbUnitSetUpOperation.class);
-        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration.from(
-                WithCloseConnectionAfterTestFalseAndSetupNoPrep.class, config, null, setup, null,
-                null, null);
+                jdbcTesterLeavingItsConnectionOpen(new CachingConnectionProvider());
+        final DbUnitSetUpOperation setup =
+                WithSetupNoPrep.class.getAnnotation(DbUnitSetUpOperation.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(WithSetupNoPrep.class, null, null, setup, null, null, null);
         final AnnotatedTestExecutor executor =
                 new AnnotatedTestExecutor(configuration, jdbcTester, null);
         final ListAppender<ILoggingEvent> appender =
@@ -1333,20 +1308,17 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
-    void testConnectionRetrieved_setupTeardownPathTesterRetrievesConnectionAndCloseAfterTestFalse_warnsOnce()
+    void testConnectionRetrieved_setupTeardownPathTesterRetrievesConnectionAndNoOpListener_warnsOnce()
             throws Exception
     {
         // On this path the tester's own onSetup() usually retrieves the connection, and the
         // listener this executor installs is how it learns of it: the executor adopts that
         // connection rather than acquiring one, so this is the other place the warning is made.
-        final JdbcDatabaseTester jdbcTester = jdbcTesterReturningTheConnection(null);
-        final DbUnitConfig config = WithCloseConnectionAfterTestFalseAndSetupNoPrep.class
-                .getAnnotation(DbUnitConfig.class);
-        final DbUnitSetUpOperation setup = WithCloseConnectionAfterTestFalseAndSetupNoPrep.class
-                .getAnnotation(DbUnitSetUpOperation.class);
-        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration.from(
-                WithCloseConnectionAfterTestFalseAndSetupNoPrep.class, config, null, setup, null,
-                null, null);
+        final JdbcDatabaseTester jdbcTester = jdbcTesterLeavingItsConnectionOpen(null);
+        final DbUnitSetUpOperation setup =
+                WithSetupNoPrep.class.getAnnotation(DbUnitSetUpOperation.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(WithSetupNoPrep.class, null, null, setup, null, null, null);
         new AnnotatedTestExecutor(configuration, jdbcTester, null);
         final ArgumentCaptor<IOperationListener> installedListener =
                 ArgumentCaptor.forClass(IOperationListener.class);
@@ -1592,8 +1564,9 @@ class AnnotatedTestExecutorTest
         assertThat(RecordingPrepAndExpectedTestCase.lastTester)
                 .as("The configured class must be constructed with this executor's tester.")
                 .isSameAs(tester);
-        assertThat(RecordingPrepAndExpectedTestCase.lastCloseConnectionAfterTest)
-                .as("closeConnectionAfterTest must be forwarded from the configuration.")
+        assertThat(RecordingPrepAndExpectedTestCase.instance.isCloseConnectionAfterTest())
+                .as("A test case the runtime builds closes its connection after the test; the"
+                        + " tester's listener is where that is changed.")
                 .isTrue();
         assertThat(RecordingPrepAndExpectedTestCase.instance.preTestCalled)
                 .as("beforeTest() must invoke preTest() on the constructed test case.")
@@ -1642,13 +1615,12 @@ class AnnotatedTestExecutorTest
 
         assertThatThrownBy(executor::beforeTest)
                 .as("DbUnitConfig.prepAndExpectedTestCase naming a class with no"
-                        + " (DataFileLoader, IDatabaseTester, boolean) constructor must be"
+                        + " (DataFileLoader, IDatabaseTester) constructor must be"
                         + " rejected with a clear message naming the class, not a raw"
                         + " NoSuchMethodException.")
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining(NoMatchingConstructorTestCase.class.getName())
-                .hasMessageContaining("no (DataFileLoader, IDatabaseTester, boolean)"
-                        + " constructor");
+                .hasMessageContaining("no (DataFileLoader, IDatabaseTester) constructor");
     }
 
     @Test
@@ -1680,7 +1652,7 @@ class AnnotatedTestExecutorTest
                 WithExpectedAndRowCountCheck.class, null, null, null, expected, null,
                 rowCountCheck);
         final RecordingPrepAndExpectedTestCase reusedTestCase =
-                new RecordingPrepAndExpectedTestCase(mock(DataFileLoader.class), tester, true)
+                new RecordingPrepAndExpectedTestCase(mock(DataFileLoader.class), tester)
                 {
                     @Override
                     public void setRowCountCheckOverride(final boolean enabled,
@@ -2752,12 +2724,14 @@ class AnnotatedTestExecutorTest
     void testAfterTest_keptConnectionWithProperties_putsReplacedValuesBack() throws Exception
     {
         final DbUnitConfig config =
-                WithPropertiesOnKeptConnection.class.getAnnotation(DbUnitConfig.class);
+                WithProperties.class.getAnnotation(DbUnitConfig.class);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
-                .from(WithPropertiesOnKeptConnection.class, config, null, null, null, null, null);
+                .from(WithProperties.class, config, null, null, null, null, null);
         final DatabaseConfig realConfig = new DatabaseConfig();
         when(tester.getConnection()).thenReturn(connection);
         when(connection.getConfig()).thenReturn(realConfig);
+        when(tester.getOperationListener())
+                .thenReturn(IOperationListener.NO_OP_OPERATION_LISTENER);
         final AnnotatedTestExecutor executor =
                 new AnnotatedTestExecutor(configuration, tester, null);
         executor.beforeTest();
@@ -2777,9 +2751,9 @@ class AnnotatedTestExecutorTest
             throws Exception
     {
         final DbUnitConfig config =
-                WithPropertiesOnKeptConnection.class.getAnnotation(DbUnitConfig.class);
+                WithProperties.class.getAnnotation(DbUnitConfig.class);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
-                .from(WithPropertiesOnKeptConnection.class, config, null, null, null, null, null);
+                .from(WithProperties.class, config, null, null, null, null, null);
         final DatabaseConfig realConfig = new DatabaseConfig();
         when(tester.getConnection()).thenReturn(connection);
         when(connection.getConfig()).thenReturn(realConfig);
@@ -2820,12 +2794,14 @@ class AnnotatedTestExecutorTest
             throws Exception
     {
         final DbUnitConfig config =
-                WithPropertiesOnKeptConnection.class.getAnnotation(DbUnitConfig.class);
+                WithProperties.class.getAnnotation(DbUnitConfig.class);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
-                .from(WithPropertiesOnKeptConnection.class, config, null, null, null, null, null);
+                .from(WithProperties.class, config, null, null, null, null, null);
         final DatabaseConfig realConfig = new DatabaseConfig();
         when(tester.getConnection()).thenReturn(connection);
         when(connection.getConfig()).thenReturn(realConfig);
+        when(tester.getOperationListener())
+                .thenReturn(IOperationListener.NO_OP_OPERATION_LISTENER);
         final AnnotatedTestExecutor executor =
                 new AnnotatedTestExecutor(configuration, tester, null);
         executor.getConnection();
@@ -2870,9 +2846,9 @@ class AnnotatedTestExecutorTest
             throws Exception
     {
         final DbUnitConfig config =
-                WithPropertiesOnKeptConnection.class.getAnnotation(DbUnitConfig.class);
+                WithProperties.class.getAnnotation(DbUnitConfig.class);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
-                .from(WithPropertiesOnKeptConnection.class, config, null, null, null, null, null);
+                .from(WithProperties.class, config, null, null, null, null, null);
         final DatabaseConfig realConfig = new DatabaseConfig();
         when(tester.getConnection()).thenReturn(connection);
         when(connection.getConfig()).thenReturn(realConfig);
@@ -3741,6 +3717,20 @@ class AnnotatedTestExecutorTest
         return jdbcTester;
     }
 
+    /**
+     * A {@link #jdbcTesterReturningTheConnection(CachingConnectionProvider)} whose listener is
+     * the no-op one, the signal that its connections are managed elsewhere, as it is before the
+     * executor under test wraps it.
+     */
+    private JdbcDatabaseTester jdbcTesterLeavingItsConnectionOpen(
+            final CachingConnectionProvider provider) throws Exception
+    {
+        final JdbcDatabaseTester jdbcTester = jdbcTesterReturningTheConnection(provider);
+        jdbcTester.setOperationListener(IOperationListener.NO_OP_OPERATION_LISTENER);
+        clearInvocations(jdbcTester);
+        return jdbcTester;
+    }
+
     private static ListAppender<ILoggingEvent> startCapturingLogOf(final Class<?> loggedClass)
     {
         final Logger logger = (Logger) LoggerFactory.getLogger(loggedClass);
@@ -3825,23 +3815,6 @@ class AnnotatedTestExecutorTest
 
     @DbUnitPrep({"prep.xml", "prep-lowercase.xml"})
     static class WithTwoDifferentlyCasedPrepFiles
-    {
-    }
-
-    @DbUnitConfig(closeConnectionAfterTest = false)
-    static class WithCloseConnectionAfterTestFalse
-    {
-    }
-
-    @DbUnitConfig(closeConnectionAfterTest = false)
-    @DbUnitExpected("expected.xml")
-    static class WithCloseConnectionAfterTestFalseAndExpected
-    {
-    }
-
-    @DbUnitConfig(closeConnectionAfterTest = false)
-    @DbUnitSetUpOperation(DbUnitOperation.NONE)
-    static class WithCloseConnectionAfterTestFalseAndSetupNoPrep
     {
     }
 
@@ -3950,12 +3923,6 @@ class AnnotatedTestExecutorTest
     {
     }
 
-    @DbUnitConfig(closeConnectionAfterTest = false,
-            properties = @DbUnitProperty(name = "batchSize", value = "50"))
-    static class WithPropertiesOnKeptConnection
-    {
-    }
-
     @DbUnitConfig(
             properties = @DbUnitProperty(name = "datatypeFactory", value = "not.a.real.ClassName"))
     static class WithInvalidProperty
@@ -3987,10 +3954,9 @@ class AnnotatedTestExecutorTest
     public static class ThrowingUndoTestCase extends CachingConnectionPrepAndExpectedTestCase
     {
         public ThrowingUndoTestCase(final DataFileLoader dataFileLoader,
-                final IDatabaseTester tester, final boolean closeConnectionAfterTest)
-                throws Exception
+                final IDatabaseTester tester) throws Exception
         {
-            super(dataFileLoader, tester, closeConnectionAfterTest);
+            super(dataFileLoader, tester);
         }
 
         @Override
@@ -4049,9 +4015,9 @@ class AnnotatedTestExecutorTest
     public static class OverridesSetUpDatabaseConfigTestCase extends DefaultPrepAndExpectedTestCase
     {
         public OverridesSetUpDatabaseConfigTestCase(final DataFileLoader dataFileLoader,
-                final IDatabaseTester tester, final boolean closeConnectionAfterTest)
+                final IDatabaseTester tester)
         {
-            super(dataFileLoader, tester, closeConnectionAfterTest);
+            super(dataFileLoader, tester);
         }
 
         @Override
@@ -4086,23 +4052,21 @@ class AnnotatedTestExecutorTest
     {
         static RecordingPrepAndExpectedTestCase instance;
         static IDatabaseTester lastTester;
-        static boolean lastCloseConnectionAfterTest;
         static boolean throwFromConstructor;
 
         boolean preTestCalled;
         boolean postTestCalled;
 
         public RecordingPrepAndExpectedTestCase(final DataFileLoader dataFileLoader,
-                final IDatabaseTester tester, final boolean closeConnectionAfterTest)
+                final IDatabaseTester tester)
         {
-            super(dataFileLoader, tester, closeConnectionAfterTest);
+            super(dataFileLoader, tester);
             if (throwFromConstructor)
             {
                 throw new RuntimeException("simulated constructor failure");
             }
             instance = this;
             lastTester = tester;
-            lastCloseConnectionAfterTest = closeConnectionAfterTest;
         }
 
         @Override
@@ -4126,7 +4090,7 @@ class AnnotatedTestExecutorTest
 
     /**
      * A {@link DefaultPrepAndExpectedTestCase} with only a no-arg constructor, lacking the
-     * {@code (DataFileLoader, IDatabaseTester, boolean)} constructor shape that
+     * {@code (DataFileLoader, IDatabaseTester)} constructor shape that
      * {@link AnnotatedTestExecutor} requires when it constructs the configured class.
      */
     public static class NoMatchingConstructorTestCase extends DefaultPrepAndExpectedTestCase
@@ -4136,7 +4100,7 @@ class AnnotatedTestExecutorTest
     /**
      * A {@link DefaultPrepAndExpectedTestCase} that caches its {@code getReusableConnection()}
      * result the way a real one reused across test methods would. Two constructors: one for
-     * direct injection in a test, one {@code (DataFileLoader, IDatabaseTester, boolean)} so
+     * direct injection in a test, one {@code (DataFileLoader, IDatabaseTester)} so
      * {@code AnnotatedTestExecutor} can construct it from
      * {@code @DbUnitConfig.prepAndExpectedTestCase}.
      */
@@ -4149,15 +4113,14 @@ class AnnotatedTestExecutorTest
         CachingConnectionPrepAndExpectedTestCase(final IDatabaseConnection cached,
                 final IDatabaseTester tester)
         {
-            super(new FlatXmlDataFileLoader(), tester, true);
+            super(new FlatXmlDataFileLoader(), tester);
             this.cached = cached;
         }
 
         CachingConnectionPrepAndExpectedTestCase(final DataFileLoader dataFileLoader,
-                final IDatabaseTester tester, final boolean closeConnectionAfterTest)
-                throws Exception
+                final IDatabaseTester tester) throws Exception
         {
-            super(dataFileLoader, tester, closeConnectionAfterTest);
+            super(dataFileLoader, tester);
             this.cached = tester.getConnection();
         }
 

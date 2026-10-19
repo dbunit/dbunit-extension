@@ -286,7 +286,7 @@ class DbUnitExtensionAnnotationIT
     }
 
     @Test
-    void testAfterTestExecution_cachingProviderAndCloseConnectionAfterTestFalse_reusesConnectionAcrossMethods()
+    void testAfterTestExecution_cachingProviderAndNoOpListener_reusesConnectionAcrossMethods()
             throws Exception
     {
         final DatabaseEnvironment environment = DatabaseEnvironment.getInstance();
@@ -298,16 +298,17 @@ class DbUnitExtensionAnnotationIT
             CachingProviderSample.databaseTester = new JdbcDatabaseTester(
                     profile.getDriverClass(), profile.getConnectionUrl(), profile.getUser(),
                     profile.getPassword(), profile.getSchema(), provider);
+            CachingProviderSample.databaseTester
+                    .setOperationListener(IOperationListener.NO_OP_OPERATION_LISTENER);
 
             EngineTestKit.engine("junit-jupiter")
                     .selectors(selectClass(CachingProviderSample.class)).execute().testEvents()
                     .assertStatistics(stats -> stats.started(2).succeeded(2));
 
             assertThat(CachingProviderSample.connectionsSeen)
-                    .as("@DbUnitConfig(closeConnectionAfterTest = false) with a"
-                            + " CachingConnectionProvider must hand both test methods the same"
-                            + " physical Connection - the extension must not close the cached"
-                            + " connection after the first test.")
+                    .as("The no-op listener with a CachingConnectionProvider must hand both"
+                            + " test methods the same physical Connection - the extension must"
+                            + " not close the cached connection after the first test.")
                     .hasSize(2)
                     .satisfies(seen -> assertThat(seen.get(0)).isSameAs(seen.get(1)));
         } finally
@@ -488,7 +489,6 @@ class DbUnitExtensionAnnotationIT
     }
 
     @ExtendWith(DbUnitExtension.class)
-    @DbUnitConfig(closeConnectionAfterTest = false)
     static class CachingProviderSample
     {
         static final List<Connection> connectionsSeen = new ArrayList<>();
@@ -514,9 +514,8 @@ class DbUnitExtensionAnnotationIT
     }
 
     @ExtendWith(DbUnitExtension.class)
-    // closeConnectionAfterTest = false: databaseTester wraps the outer test's own connection,
-    // reused below (rowCountForPks) after this sample class finishes running.
-    @DbUnitConfig(closeConnectionAfterTest = false)
+    // databaseTester wraps the outer test's own connection, reused below (rowCountForPks) after
+    // this sample class finishes running, so its listener is the no-op one.
     @DbUnitSetUpOperation(DbUnitOperation.REFRESH)
     static class ClassLevelOperationSample
     {
@@ -531,9 +530,8 @@ class DbUnitExtensionAnnotationIT
     }
 
     @ExtendWith(DbUnitExtension.class)
-    // closeConnectionAfterTest = false: databaseTester wraps the outer test's own connection,
-    // reused below (rowCountForPks) after this sample class finishes running.
-    @DbUnitConfig(closeConnectionAfterTest = false)
+    // databaseTester wraps the outer test's own connection, reused below (rowCountForPks) after
+    // this sample class finishes running, so its listener is the no-op one.
     @DbUnitSetUpOperation(DbUnitOperation.REFRESH)
     static class ExpectedPathClassLevelOperationSample
     {
