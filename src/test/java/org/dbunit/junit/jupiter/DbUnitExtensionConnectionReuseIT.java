@@ -40,7 +40,7 @@ import org.dbunit.annotation.DbUnitConfig;
 import org.dbunit.annotation.DbUnitExpected;
 import org.dbunit.annotation.DbUnitPrep;
 import org.dbunit.annotation.DbUnitRowCountCheck;
-import org.dbunit.annotation.DbUnitTearDown;
+import org.dbunit.annotation.DbUnitTearDownOperation;
 import org.dbunit.annotation.DbUnitTestCase;
 import org.dbunit.annotation.DbUnitVerifyTable;
 import org.dbunit.database.CachingConnectionProvider;
@@ -67,7 +67,7 @@ import org.junit.platform.testkit.engine.EngineTestKit;
  * {@code DatabaseTesterConnectionReuseIT} (which never goes through {@link DbUnitExtension}) cannot
  * prove the annotation layer stacked on top of that machinery also recovers. This does:
  * every repetition after the kill must re-acquire a live connection rather than fail on the dead
- * one, and every repetition's {@code @DbUnitTearDown} must have actually committed.
+ * one, and every repetition's {@code @DbUnitTearDownOperation} must have actually committed.
  *
  * <p>Matrix rows 8 + G-c5 (see {@code plan-docs/annotation-branch-connection-matrix.adoc}).
  */
@@ -115,7 +115,8 @@ class DbUnitExtensionConnectionReuseIT
 
             final IDatabaseConnection verifyConnection = environment.getConnection();
             assertThat(rowCount(verifyConnection, TEST_TABLE))
-                    .as("Each repetition's @DbUnitTearDown(DELETE_ALL) must have committed:"
+                    .as("Each repetition's @DbUnitTearDownOperation(DELETE_ALL) must have"
+                            + " committed:"
                             + " a separate connection must see TEST_TABLE empty after the run,"
                             + " not the rows a never-committed teardown would leave behind"
                             + " (#965).")
@@ -182,7 +183,7 @@ class DbUnitExtensionConnectionReuseIT
         @DbUnitExpected(value = "annotation-it-expected.xml",
                 verify = @DbUnitVerifyTable(value = TEST_TABLE,
                         include = {"COLUMN0", "COLUMN1"}))
-        @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+        @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
         void mutateTheSeededRow() throws Exception
         {
             final IDatabaseConnection connection = reusableConnection();
@@ -201,9 +202,9 @@ class DbUnitExtensionConnectionReuseIT
             if (repetitionsCompleted == 2)
             {
                 // The 2nd repetition has fully finished - its @DbUnitExpected verify,
-                // @DbUnitTearDown(DELETE_ALL) and @DbUnitRowCountCheck all ran. Now the pool or
-                // the server drops the idle connection, exactly as an Agroal max-lifetime reap
-                // or a PostgreSQL idle_in_transaction_session_timeout would.
+                // @DbUnitTearDownOperation(DELETE_ALL) and @DbUnitRowCountCheck all ran. Now the
+                // pool or the server drops the idle connection, exactly as an Agroal max-lifetime
+                // reap or a PostgreSQL idle_in_transaction_session_timeout would.
                 reusableConnection().getConnection().close();
             }
         }

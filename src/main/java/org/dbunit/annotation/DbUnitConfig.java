@@ -54,7 +54,7 @@ import org.dbunit.util.fileloader.FileExtensionDataFileLoader;
  * @Inherited
  * @DbUnitTest
  * @DbUnitConfig(dataFileLoader = FlatXmlDataFileLoader.class)
- * @DbUnitSetup(operation = DbUnitOperation.REFRESH)
+ * @DbUnitSetUpOperation(DbUnitOperation.REFRESH)
  * public @interface AppDatabaseTest {}
  * }</pre>
  *

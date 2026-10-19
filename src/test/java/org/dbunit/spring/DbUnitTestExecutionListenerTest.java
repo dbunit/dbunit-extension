@@ -41,7 +41,7 @@ import org.dbunit.AbstractDatabaseTester;
 import org.dbunit.IDatabaseTester;
 import org.dbunit.IOperationListener;
 import org.dbunit.annotation.DbUnitExpected;
-import org.dbunit.annotation.DbUnitTearDown;
+import org.dbunit.annotation.DbUnitTearDownOperation;
 import org.dbunit.annotation.DbUnitTester;
 import org.dbunit.annotation.runtime.AnnotatedTestExecutor;
 import org.dbunit.database.IDatabaseConnection;
@@ -808,7 +808,7 @@ class DbUnitTestExecutionListenerTest
         }
     }
 
-    @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+    @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
     static class HasClassAndMethodLevelTearDown
     {
         @DbUnitTester
@@ -819,7 +819,7 @@ class DbUnitTestExecutionListenerTest
             this.databaseTester = databaseTester;
         }
 
-        @DbUnitTearDown(operation = DbUnitOperation.TRUNCATE_TABLE)
+        @DbUnitTearDownOperation(DbUnitOperation.TRUNCATE_TABLE)
         void aTestMethod()
         {
         }
@@ -829,7 +829,7 @@ class DbUnitTestExecutionListenerTest
      * Each inner class uses its enclosing instance, so {@code javac} keeps the reference to it
      * whatever the compiler target.
      */
-    @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+    @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
     static class EnclosingWithTearDown
     {
         @DbUnitTester
@@ -852,7 +852,7 @@ class DbUnitTestExecutionListenerTest
             }
         }
 
-        @DbUnitTearDown(operation = DbUnitOperation.TRUNCATE_TABLE)
+        @DbUnitTearDownOperation(DbUnitOperation.TRUNCATE_TABLE)
         class NestedWithTearDown
         {
             Object enclosing()
@@ -888,7 +888,7 @@ class DbUnitTestExecutionListenerTest
         }
     }
 
-    @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+    @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
     static class ClassLevelTearDownOnly
     {
         IDatabaseTester databaseTester;
@@ -905,7 +905,7 @@ class DbUnitTestExecutionListenerTest
 
     @Retention(RetentionPolicy.RUNTIME)
     @Target(ElementType.TYPE)
-    @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+    @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
     @interface DeletesAllRows
     {
     }
@@ -962,12 +962,12 @@ class DbUnitTestExecutionListenerTest
             this.databaseTester = databaseTester;
         }
 
-        @DbUnitTearDown(operation = DbUnitOperation.TRUNCATE_TABLE)
+        @DbUnitTearDownOperation(DbUnitOperation.TRUNCATE_TABLE)
         void firstTestMethod()
         {
         }
 
-        @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+        @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
         void secondTestMethod()
         {
         }

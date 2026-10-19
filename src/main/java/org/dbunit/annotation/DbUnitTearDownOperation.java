@@ -33,8 +33,8 @@ import org.dbunit.operation.DbUnitOperation;
  * Specifies the database operation to apply after each test method.
  *
  * <p>A method-level annotation overrides a class-level annotation; the class annotation is
- * inherited by subclasses. Unlike {@link DbUnitSetup}, teardown has no dataset counterpart:
- * the dataset already prepared - the union of the prep and expected data, when
+ * inherited by subclasses. Unlike {@link DbUnitSetUpOperation}, teardown has no dataset
+ * counterpart: the dataset already prepared - the union of the prep and expected data, when
  * {@link DbUnitExpected} is present - is what the operation runs against. Declaring an extra
  * table to tear down is done by listing it, empty, in the prep dataset instead.
  *
@@ -49,7 +49,7 @@ import org.dbunit.operation.DbUnitOperation;
  * <pre>{@code
  * @DbUnitTest
  * @DbUnitPrep("/datasets/orders.json")
- * @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+ * @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
  * class OrderRepositoryTest {
  *     IDatabaseTester databaseTester;
  *
@@ -64,19 +64,19 @@ import org.dbunit.operation.DbUnitOperation;
  *
  * @author Jeff Jensen
  * @since 3.6.0
- * @see DbUnitSetup
+ * @see DbUnitSetUpOperation
  * @see DbUnitOperation
  */
 @Target({ElementType.TYPE, ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
 @Inherited
-public @interface DbUnitTearDown
+public @interface DbUnitTearDownOperation
 {
     /**
      * The database operation to apply during teardown.
      *
      * @return The teardown operation; defaults to {@link DbUnitOperation#NONE}.
      */
-    DbUnitOperation operation() default DbUnitOperation.NONE;
+    DbUnitOperation value() default DbUnitOperation.NONE;
 }

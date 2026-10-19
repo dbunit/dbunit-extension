@@ -42,7 +42,7 @@ import org.dbunit.VerifyTableDefinition;
 import org.dbunit.annotation.DbUnitConfig;
 import org.dbunit.annotation.DbUnitExpected;
 import org.dbunit.annotation.DbUnitPrep;
-import org.dbunit.annotation.DbUnitSetup;
+import org.dbunit.annotation.DbUnitSetUpOperation;
 import org.dbunit.annotation.DbUnitTestCase;
 import org.dbunit.annotation.DbUnitTester;
 import org.dbunit.database.IDatabaseConnection;
@@ -164,7 +164,8 @@ class DbUnitExtensionLifecycleTest
 
         assertThat(EnclosingWithClassLevelSetupAnnotation.databaseTesterInstance
                 .setUpOperationAtOnSetup)
-                .as("A @DbUnitSetup declared on the enclosing class must be found and applied"
+                .as("A @DbUnitSetUpOperation declared on the enclosing class must be found and"
+                        + " applied"
                         + " for a @Nested inner class's test method - the same enclosing-class"
                         + " annotation fallback findAnnotation() documents for field discovery -"
                         + " not silently skipped in favor of dbUnit's own default operation.")
@@ -395,7 +396,8 @@ class DbUnitExtensionLifecycleTest
                         + " DefaultPrepAndExpectedTestCase - must be wired to the exact same"
                         + " IDatabaseTester instance DbUnitExtension resolves for it (here, the"
                         + " auto-scanned field), not a different one - otherwise"
-                        + " @DbUnitSetup/@DbUnitTearDown operations set on the resolved tester"
+                        + " @DbUnitSetUpOperation/@DbUnitTearDownOperation operations set on the"
+                        + " resolved tester"
                         + " would silently not reach what this test case actually runs.")
                 .isSameAs(TesterSyncSample.databaseTesterInstance);
     }
@@ -612,7 +614,7 @@ class DbUnitExtensionLifecycleTest
     }
 
     @ExtendWith(DbUnitExtension.class)
-    @DbUnitSetup(operation = DbUnitOperation.REFRESH)
+    @DbUnitSetUpOperation(DbUnitOperation.REFRESH)
     static class EnclosingWithClassLevelSetupAnnotation
     {
         static CallLoggingTester databaseTesterInstance;
@@ -623,7 +625,7 @@ class DbUnitExtensionLifecycleTest
         class NestedInheritsEnclosingAnnotation
         {
             @Test
-            void testNestedMethodAppliesEnclosingClassLevelDbUnitSetup()
+            void testBeforeTestExecution_nestedMethodInheritsEnclosingClassSetUpOperation_appliesIt()
             {
                 // the assertion is in the outer test method, against
                 // databaseTesterInstance.lastSetUpOperation
@@ -696,7 +698,7 @@ class DbUnitExtensionLifecycleTest
     }
 
     @DbUnitTest
-    @DbUnitSetup(operation = DbUnitOperation.REFRESH)
+    @DbUnitSetUpOperation(DbUnitOperation.REFRESH)
     static class ComposedAnnotationSample
     {
         IDatabaseTester databaseTester = new CallLoggingTester(new ArrayList<>());
