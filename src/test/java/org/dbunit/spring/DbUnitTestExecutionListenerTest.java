@@ -34,10 +34,13 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import java.util.List;
+import java.util.function.BooleanSupplier;
 
 import org.dbunit.AbstractDatabaseTester;
 import org.dbunit.IDatabaseTester;
 import org.dbunit.IOperationListener;
+import org.dbunit.annotation.DbUnitExpected;
 import org.dbunit.annotation.DbUnitTearDown;
 import org.dbunit.annotation.DbUnitTester;
 import org.dbunit.annotation.runtime.AnnotatedTestExecutor;
@@ -48,8 +51,14 @@ import org.dbunit.operation.DatabaseOperation;
 import org.dbunit.operation.DbUnitOperation;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
+import org.slf4j.LoggerFactory;
 import org.springframework.test.context.support.DirtiesContextTestExecutionListener;
 import org.springframework.test.context.transaction.TransactionalTestExecutionListener;
+
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 
 class DbUnitTestExecutionListenerTest
 {
@@ -478,6 +487,237 @@ class DbUnitTestExecutionListenerTest
                 .isSameAs(testersOwn);
     }
 
+    @Test
+    void testBeforeTestExecution_expectedDeclaredAndTestTransactionRollsBack_warnsOnceNamingTheRemedy()
+            throws Exception
+    {
+        final DbUnitTestExecutionListener rollingBack =
+                new DbUnitTestExecutionListener(() -> true);
+        final FakeTestContext context = new FakeTestContext(HasExpectedDeclared.class)
+                .beginMethod(new HasExpectedDeclared(mock(IDatabaseTester.class)),
+                        "aTestMethod");
+        context.setAttribute(EXECUTOR_ATTRIBUTE, mock(AnnotatedTestExecutor.class));
+
+        final List<ILoggingEvent> warnings = warningsLoggedBy(() ->
+        {
+            rollingBack.beforeTestExecution(context);
+        });
+
+        assertThat(warnings)
+                .as("A test verified after its own transaction rolled back must be warned about"
+                        + " once, naming how to keep its changes.")
+                .singleElement()
+                .satisfies(warning -> assertThat(warning.getFormattedMessage())
+                        .contains("HasExpectedDeclared.aTestMethod()")
+                        .contains("@Commit")
+                        .contains("@Rollback(false)"));
+    }
+
+    @Test
+    void testBeforeTestExecution_testTransactionDoesNotRollBack_warnsNothing() throws Exception
+    {
+        final DbUnitTestExecutionListener committing =
+                new DbUnitTestExecutionListener(() -> false);
+        final FakeTestContext context = new FakeTestContext(HasExpectedDeclared.class)
+                .beginMethod(new HasExpectedDeclared(mock(IDatabaseTester.class)),
+                        "aTestMethod");
+        context.setAttribute(EXECUTOR_ATTRIBUTE, mock(AnnotatedTestExecutor.class));
+
+        final List<ILoggingEvent> warnings = warningsLoggedBy(() ->
+        {
+            committing.beforeTestExecution(context);
+        });
+
+        assertThat(warnings)
+                .as("A test that commits, or has no test transaction, has nothing to warn about.")
+                .isEmpty();
+    }
+
+    @Test
+    void testBeforeTestExecution_noExpectedDeclared_warnsNothing() throws Exception
+    {
+        final DbUnitTestExecutionListener rollingBack =
+                new DbUnitTestExecutionListener(() -> true);
+        final FakeTestContext context = new FakeTestContext(HasTesterField.class)
+                .beginMethod(new HasTesterField(mock(IDatabaseTester.class)), "aTestMethod");
+        context.setAttribute(EXECUTOR_ATTRIBUTE, mock(AnnotatedTestExecutor.class));
+
+        final List<ILoggingEvent> warnings = warningsLoggedBy(() ->
+        {
+            rollingBack.beforeTestExecution(context);
+        });
+
+        assertThat(warnings)
+                .as("Without @DbUnitExpected nothing is verified after the rollback, so a"
+                        + " rolled-back transaction costs the test nothing.")
+                .isEmpty();
+    }
+
+    @Test
+    void testBeforeTestExecution_listenerNotActingOnTheTest_warnsNothing() throws Exception
+    {
+        final DbUnitTestExecutionListener rollingBack =
+                new DbUnitTestExecutionListener(() -> true);
+        final FakeTestContext context = new FakeTestContext(HasExpectedDeclared.class)
+                .beginMethod(new HasExpectedDeclared(mock(IDatabaseTester.class)),
+                        "aTestMethod");
+
+        final List<ILoggingEvent> warnings = warningsLoggedBy(() ->
+        {
+            rollingBack.beforeTestExecution(context);
+        });
+
+        assertThat(warnings)
+                .as("A test this listener did not prepare, with no executor on its context,"
+                        + " is none of its business.")
+                .isEmpty();
+    }
+
+    @Test
+    void testAfterTestMethod_verificationFailsAfterTheTransactionRolledBack_attachesTheHintAsSuppressed()
+            throws Exception
+    {
+        final DbUnitTestExecutionListener rollingBack =
+                new DbUnitTestExecutionListener(() -> true);
+        final AnnotatedTestExecutor executor = mock(AnnotatedTestExecutor.class);
+        final AssertionError verificationFailure = new AssertionError("tables differ");
+        doThrow(verificationFailure).when(executor).afterTest(false);
+        final FakeTestContext context = new FakeTestContext(HasExpectedDeclared.class)
+                .beginMethod(new HasExpectedDeclared(mock(IDatabaseTester.class)),
+                        "aTestMethod");
+        context.setAttribute(EXECUTOR_ATTRIBUTE, executor);
+        rollingBack.afterTestExecution(context);
+
+        final Throwable thrown = catchThrowable(() -> rollingBack.afterTestMethod(context));
+
+        assertThat(thrown)
+                .as("The verification failure itself must be the one reported.")
+                .isSameAs(verificationFailure);
+        assertThat(thrown.getSuppressed())
+                .as("The failure must explain that the test's transaction rolled back.")
+                .singleElement()
+                .satisfies(hint -> assertThat(hint.getMessage())
+                        .contains("rolled back")
+                        .contains("@Commit")
+                        .contains("@Rollback(false)"));
+    }
+
+    @Test
+    void testAfterTestMethod_verificationFailsAndTheTransactionDidNotRollBack_attachesNoHint()
+            throws Exception
+    {
+        final DbUnitTestExecutionListener committing =
+                new DbUnitTestExecutionListener(() -> false);
+        final AnnotatedTestExecutor executor = mock(AnnotatedTestExecutor.class);
+        final AssertionError verificationFailure = new AssertionError("tables differ");
+        doThrow(verificationFailure).when(executor).afterTest(false);
+        final FakeTestContext context = new FakeTestContext(HasExpectedDeclared.class)
+                .beginMethod(new HasExpectedDeclared(mock(IDatabaseTester.class)),
+                        "aTestMethod");
+        context.setAttribute(EXECUTOR_ATTRIBUTE, executor);
+        committing.afterTestExecution(context);
+
+        final Throwable thrown = catchThrowable(() -> committing.afterTestMethod(context));
+
+        assertThat(thrown.getSuppressed())
+                .as("A verification failure not caused by a rollback needs no rollback hint.")
+                .isEmpty();
+    }
+
+    @Test
+    void testAfterTestMethod_theRollbackHintOfOneTest_doesNotReachTheNextTest() throws Exception
+    {
+        final DbUnitTestExecutionListener rollingBack =
+                new DbUnitTestExecutionListener(() -> true);
+        final AnnotatedTestExecutor executor = mock(AnnotatedTestExecutor.class);
+        final FakeTestContext context = new FakeTestContext(HasExpectedDeclared.class)
+                .beginMethod(new HasExpectedDeclared(mock(IDatabaseTester.class)),
+                        "aTestMethod");
+        context.setAttribute(EXECUTOR_ATTRIBUTE, executor);
+        rollingBack.afterTestExecution(context);
+        rollingBack.afterTestMethod(context);
+
+        final AnnotatedTestExecutor nextExecutor = mock(AnnotatedTestExecutor.class);
+        final AssertionError nextFailure = new AssertionError("tables differ");
+        doThrow(nextFailure).when(nextExecutor).afterTest(false);
+        context.setAttribute(EXECUTOR_ATTRIBUTE, nextExecutor);
+        final Throwable thrown = catchThrowable(() -> rollingBack.afterTestMethod(context));
+
+        assertThat(thrown.getSuppressed())
+                .as("The test context serves every method of a class, so what one method"
+                        + " learned about its transaction must not outlive it.")
+                .isEmpty();
+    }
+
+    @Test
+    void testNewTestTransactionRollbackCheck_springTxVisible_returnsTheCheckOfSpringsTestTransaction()
+    {
+        final BooleanSupplier check = DbUnitTestExecutionListener
+                .newTestTransactionRollbackCheck(getClass().getClassLoader());
+
+        assertThat(check)
+                .as("With spring-tx present, the check must ask Spring's TestTransaction.")
+                .isInstanceOf(DbUnitTestExecutionListener.TestTransactionRollbackCheck.class);
+        assertThat(check.getAsBoolean())
+                .as("Outside a test-managed transaction nothing rolls back.")
+                .isFalse();
+    }
+
+    @Test
+    void testNewTestTransactionRollbackCheck_springTxHidden_returnsACheckThatNeverAsksSpring()
+    {
+        final ClassLoader hidingSpringTx = new ClassLoader(getClass().getClassLoader())
+        {
+            @Override
+            protected Class<?> loadClass(final String name, final boolean resolve)
+                    throws ClassNotFoundException
+            {
+                if (name.startsWith("org.springframework.transaction."))
+                {
+                    throw new ClassNotFoundException(name);
+                }
+                return super.loadClass(name, resolve);
+            }
+        };
+
+        final BooleanSupplier check =
+                DbUnitTestExecutionListener.newTestTransactionRollbackCheck(hidingSpringTx);
+
+        assertThat(check)
+                .as("Without spring-tx, which Spring's TestTransaction needs, the check must not"
+                        + " touch it.")
+                .isNotInstanceOf(DbUnitTestExecutionListener.TestTransactionRollbackCheck.class);
+        assertThat(check.getAsBoolean()).isFalse();
+    }
+
+    /**
+     * Returns the warnings the listener logs while {@code action} runs.
+     */
+    private static List<ILoggingEvent> warningsLoggedBy(final ThrowingAction action)
+            throws Exception
+    {
+        final Logger listenerLogger =
+                (Logger) LoggerFactory.getLogger(DbUnitTestExecutionListener.class);
+        final ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        listenerLogger.addAppender(appender);
+        try
+        {
+            action.run();
+        } finally
+        {
+            listenerLogger.detachAppender(appender);
+        }
+        return appender.list.stream().filter(event -> event.getLevel() == Level.WARN)
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    @FunctionalInterface
+    private interface ThrowingAction
+    {
+        void run() throws Exception;
+    }
+
     /**
      * A real tester over a fresh in-memory database, so its own {@link IOperationListener}
      * behaves as it does for a user, unlike a mock's. It can be made to fail its set up or its
@@ -547,6 +787,22 @@ class DbUnitTestExecutionListenerTest
             this.databaseTester = databaseTester;
         }
 
+        void aTestMethod()
+        {
+        }
+    }
+
+    static class HasExpectedDeclared
+    {
+        @DbUnitTester
+        IDatabaseTester databaseTester;
+
+        HasExpectedDeclared(final IDatabaseTester databaseTester)
+        {
+            this.databaseTester = databaseTester;
+        }
+
+        @DbUnitExpected("expected.xml")
         void aTestMethod()
         {
         }
