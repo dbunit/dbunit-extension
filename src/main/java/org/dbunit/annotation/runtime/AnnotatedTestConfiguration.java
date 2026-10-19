@@ -70,7 +70,6 @@ public class AnnotatedTestConfiguration
     private final DatabaseOperation tearDownOperation;
     private final Properties databaseConfigProperties;
     private final FailureHandler failureHandler;
-    private final boolean closeConnectionAfterTest;
     private final Class<? extends DatabaseTesterFactory> databaseTesterFactory;
     private final Class<? extends DefaultPrepAndExpectedTestCase> prepAndExpectedTestCaseClass;
     private final boolean rowCountCheckDeclared;
@@ -84,7 +83,6 @@ public class AnnotatedTestConfiguration
             final VerifyTableDefinition[] verifyTableDefinitions,
             final boolean tearDownDeclared, final DatabaseOperation tearDownOperation,
             final Properties databaseConfigProperties, final FailureHandler failureHandler,
-            final boolean closeConnectionAfterTest,
             final Class<? extends DatabaseTesterFactory> databaseTesterFactory,
             final Class<? extends DefaultPrepAndExpectedTestCase> prepAndExpectedTestCaseClass,
             final boolean rowCountCheckDeclared, final boolean rowCountCheckEnabled,
@@ -101,7 +99,6 @@ public class AnnotatedTestConfiguration
         this.tearDownOperation = tearDownOperation;
         this.databaseConfigProperties = databaseConfigProperties;
         this.failureHandler = failureHandler;
-        this.closeConnectionAfterTest = closeConnectionAfterTest;
         this.databaseTesterFactory = databaseTesterFactory;
         this.prepAndExpectedTestCaseClass = prepAndExpectedTestCaseClass;
         this.rowCountCheckDeclared = rowCountCheckDeclared;
@@ -194,8 +191,6 @@ public class AnnotatedTestConfiguration
         final FailureHandler failureHandler = config == null
                 || config.failureHandler() == FailureHandler.class ? null
                         : instantiate(config.failureHandler(), "DbUnitConfig.failureHandler");
-        final boolean closeConnectionAfterTest =
-                config == null || config.closeConnectionAfterTest();
         final Class<? extends DatabaseTesterFactory> databaseTesterFactory = config == null
                 || config.databaseTesterFactory() == DatabaseTesterFactory.class ? null
                         : config.databaseTesterFactory();
@@ -212,8 +207,8 @@ public class AnnotatedTestConfiguration
         return new AnnotatedTestConfiguration(dataFileLoader, prepDataFiles, setupDeclared,
                 setUpOperation, hasExpected, expectedDataFiles, verifyTableDefinitions,
                 tearDownDeclared, tearDownOperation, databaseConfigProperties, failureHandler,
-                closeConnectionAfterTest, databaseTesterFactory, prepAndExpectedTestCaseClass,
-                rowCountCheckDeclared, rowCountCheckEnabled, rowCountCheckExclude);
+                databaseTesterFactory, prepAndExpectedTestCaseClass, rowCountCheckDeclared,
+                rowCountCheckEnabled, rowCountCheckExclude);
     }
 
     /**
@@ -437,17 +432,6 @@ public class AnnotatedTestConfiguration
     public FailureHandler getFailureHandler()
     {
         return failureHandler;
-    }
-
-    /**
-     * Returns whether the connection this executor resolves - for the prep/expected path, the
-     * row count check, or parameter injection - is closed after each test.
-     *
-     * @return True to close the connection after each test.
-     */
-    public boolean isCloseConnectionAfterTest()
-    {
-        return closeConnectionAfterTest;
     }
 
     /**

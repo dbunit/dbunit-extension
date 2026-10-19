@@ -138,8 +138,6 @@ class InjectedTestCaseDeclarationCheck
         addIf(configuration.getFailureHandler() != null, declared, "@DbUnitConfig(failureHandler)");
         addIf(!configuration.getDatabaseConfigProperties().isEmpty(), declared,
                 "@DbUnitConfig(properties or propertiesProvider)");
-        addIf(!configuration.isCloseConnectionAfterTest(), declared,
-                "@DbUnitConfig(closeConnectionAfterTest)");
         addIf(configuration.getDatabaseTesterFactory() != null, declared,
                 "@DbUnitConfig(databaseTesterFactory)");
         addIf(configuration.getPrepAndExpectedTestCaseClass() != DefaultPrepAndExpectedTestCase.class,

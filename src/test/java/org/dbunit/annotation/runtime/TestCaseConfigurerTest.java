@@ -135,8 +135,8 @@ class TestCaseConfigurerTest
                 .as("A failure handler set on the instance stands when none is configured.")
                 .isSameAs(ownHandler);
         assertThat(testCase.isCloseConnectionAfterTest())
-                .as("closeConnectionAfterTest=false built into the instance stands, because the"
-                        + " default true is not a request to change it.")
+                .as("closeConnectionAfterTest=false built into the instance stands; no"
+                        + " annotation sets it.")
                 .isFalse();
         assertThat(testCase.getDatabaseConfigProperties())
                 .as("Properties set on the instance stand when none are configured.")

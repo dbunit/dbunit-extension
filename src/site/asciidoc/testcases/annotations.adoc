@@ -174,8 +174,7 @@ when the test declares it:
 
 * `@DbUnitSetUpOperation`, `@DbUnitTearDownOperation` and `@DbUnitRowCountCheck`;
 * the `@DbUnitConfig` attributes `dataFileLoader`, `failureHandler`,
-  `properties`/`propertiesProvider`, `closeConnectionAfterTest`, `databaseTesterFactory`
-  and `prepAndExpectedTestCase`;
+  `properties`/`propertiesProvider`, `databaseTesterFactory` and `prepAndExpectedTestCase`;
 * a test without `@DbUnitExpected`, which would have no tester to set up; and
 * an `IDatabaseTester`, `IDatabaseConnection` or `Connection` test method parameter.
 
@@ -327,9 +326,8 @@ tester under `@TestInstance(PER_CLASS)`) never carries one method's
 `@DbUnitPrep`/`@DbUnitSetUpOperation`/`@DbUnitTearDownOperation` onto the next. A `@BeforeEach`
 value, being re-set every method, survives. The same holds for `@DbUnitProperty`
 values on a connection that outlives the test, such as a fixed connection handed
-to the tester, one a `CachingConnectionProvider` caches, or one kept with
-`closeConnectionAfterTest = false`: they are put back when the test ends — see
-<<properties>>.
+to the tester, one a `CachingConnectionProvider` caches, or one its tester's listener leaves
+open: they are put back when the test ends — see <<properties>>.
 
 `@DbUnitTearDownOperation` is the counterpart of `@DbUnitSetUpOperation`, defaulting to
 `DbUnitOperation.NONE`. It has no data annotation of its own: the dataset
@@ -605,7 +603,7 @@ test — see link:../datasets/fileloader.html#caching[Caching Parsed Datasets].
 
 |`prepAndExpectedTestCase` |The `PrepAndExpectedTestCase` implementation to
 construct for the prep/expected path when no `@DbUnitTestCase` field
-supplies one, via a `(DataFileLoader, IDatabaseTester, boolean)`
+supplies one, via a `(DataFileLoader, IDatabaseTester)`
 constructor — the same shape `DefaultPrepAndExpectedTestCase` itself has.
 Defaults to `DefaultPrepAndExpectedTestCase`. In practice this means a
 `DefaultPrepAndExpectedTestCase` *subclass* (to override a hook such as
@@ -623,34 +621,39 @@ see <<properties>> below. Mutually exclusive.
 |`failureHandler` |A `FailureHandler` for verification failures, in place of
 dbUnit's own default.
 
-|`closeConnectionAfterTest` |Whether the connection this executor resolves -
-for the prep/expected path, the row count check, or parameter injection - is
-closed after each test; default `true`. Set `false` when the tester shares a
-`CachingConnectionProvider` across test methods. Also left open, regardless of
-this attribute, when the tester's `IOperationListener` is
-`NO_OP_OPERATION_LISTENER` - the established signal that its connection is
-managed elsewhere - or a blanket `ConnectionPreservingOperationListener`, which
-says the same, or, on the prep/expected path, when the injected
-`@DbUnitTestCase` instance itself reports `isCloseConnectionAfterTest()` as
-`false`, which is where to set it for an injected instance. Leaving the connection open requires a tester that hands out the same
-connection on repeated calls, as one over a `CachingConnectionProvider` or over one fixed
-connection does. With a tester that hands out a new one each time, such as a `JdbcDatabaseTester`
-without a `CachingConnectionProvider` or a `DataSourceDatabaseTester` over a connection pool,
-nothing closes the connection left open, so each test leaves one open, except that an injected
-test case reused across tests keeps one. On the prep/expected path, a step that fails also makes
-the test case forget its connection so that the next step acquires another, and the forgotten
-one stays open with nothing referencing it. dbUnit logs a warning when it sees a connection
-left open with a `JdbcDatabaseTester` that has no `CachingConnectionProvider`. A connection
-this executor closes while its autocommit is off has its open transaction rolled back first:
-Derby and DB2 refuse to close one, and Oracle's driver commits it on close, as the 3.5.x
-extension's close did, so on Oracle the prep and teardown writes of such a connection are now
-discarded, not committed - see link:../connections.html[Connections].
-
 |`injectConnectionParameter` |Whether the extension resolves a bare
 `java.sql.Connection` test-method parameter; default `true`. Set `false` when
 a co-registered resolver (Spring, Testcontainers) needs it — see
 link:DbUnitExtension.html#parameter_injection[DbUnitExtension].
 |===
+
+[#connection-ownership]
+=== Who Closes the Connection
+
+dbUnit closes the connection it resolves for a test — for the prep/expected path, the row count
+check or a `Connection` parameter — when the test is over, unless it belongs to someone else.
+The one signal for that is set on the tester, once, where it is built, so every test that uses
+the tester gets it right: an `IOperationListener` that is, or wraps,
+`NO_OP_OPERATION_LISTENER` says its connections are managed elsewhere, as it did in the 3.5.0
+lifecycle, and so does a blanket `ConnectionPreservingOperationListener`. On the prep/expected
+path an injected `@DbUnitTestCase` instance built with `setCloseConnectionAfterTest(false)`
+keeps its connection open too. A tester that is not given the no-op listener only costs a new
+connection per test when it shares a `CachingConnectionProvider`, which replaces a closed
+connection.
+
+Leaving the connection open requires a tester that hands out the same connection on repeated
+calls, as one over a `CachingConnectionProvider` or over one fixed connection does. With a
+tester that hands out a new one each time, such as a `JdbcDatabaseTester` without a
+`CachingConnectionProvider` or a `DataSourceDatabaseTester` over a connection pool, nothing
+closes the connection left open, so each test leaves one open, except that an injected test
+case reused across tests keeps one. On the prep/expected path, a step that fails also makes the
+test case forget its connection so that the next step acquires another, and the forgotten one
+stays open with nothing referencing it. dbUnit logs a warning when it sees a connection left
+open with a `JdbcDatabaseTester` that has no `CachingConnectionProvider`. A connection dbUnit
+closes while its autocommit is off has its open transaction rolled back first: Derby and DB2
+refuse to close one, and Oracle commits it on close, as the 3.5.x extension's close did,
+so on Oracle the prep and teardown writes of such a connection are now discarded, not
+committed - see link:../connections.html[Connections].
 
 [#injected-testcase-config]
 === @DbUnitConfig and an injected @DbUnitTestCase
@@ -668,7 +671,7 @@ A test that declares anything that would configure the instance is therefore rej
 any database work, with one `IllegalStateException` that names it and says to configure the
 instance where it is built: `@DbUnitSetUpOperation`, `@DbUnitTearDownOperation`, and the
 `@DbUnitConfig` attributes `dataFileLoader`, `failureHandler`, `properties`/`propertiesProvider`,
-`closeConnectionAfterTest`, `databaseTesterFactory` and `prepAndExpectedTestCase`. An instance
+`databaseTesterFactory` and `prepAndExpectedTestCase`. An instance
 without a tester is rejected too, when it is resolved, and so is one without a data file
 loader when the test names dataset files, which a `@BeforeEach` method may still give it. Any other
 `PrepAndExpectedTestCase` implementation is rejected for more - see <<othertestcase>>.
@@ -770,8 +773,8 @@ add the `super` call, or drop `@DbUnitProperty` and configure the
 
 *The values last for the test.* A `DatabaseConfig` belongs to its connection, so
 a connection that outlives the test — a fixed connection handed to the tester,
-one a `CachingConnectionProvider` caches, or one kept with
-`closeConnectionAfterTest = false` — would otherwise carry one test's
+one a `CachingConnectionProvider` caches, or one its tester's listener leaves open
+(<<connection-ownership>>) — would otherwise carry one test's
 `@DbUnitProperty` values into whichever test uses it next. When the test ends,
 each value is put back to what it replaced: the default, or what the tester's own
 `IOperationListener#connectionRetrieved()` or a `@BeforeEach` set before the
