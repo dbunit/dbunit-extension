@@ -26,19 +26,15 @@ import org.dbunit.annotation.DbUnitConfig;
 import org.dbunit.annotation.DbUnitProperty;
 import org.dbunit.database.DatabaseConfig;
 import org.dbunit.database.DatabaseConfig.ConfigProperty;
-import org.dbunit.database.DatabaseConfigPropertiesProvider;
 
 /**
- * Resolves {@code @DbUnitConfig}'s {@link DatabaseConfig} properties - its inline
- * {@code properties()} {@link DbUnitProperty} entries, or the
- * {@link DatabaseConfigPropertiesProvider} its {@code propertiesProvider()} names - into the
- * {@link Properties} {@link AnnotatedTestConfiguration} carries.
+ * Resolves {@code @DbUnitConfig}'s {@link DatabaseConfig} properties - its
+ * {@code properties()} {@link DbUnitProperty} entries - into the {@link Properties}
+ * {@link AnnotatedTestConfiguration} carries.
  *
- * <p>Rejects setting both {@code properties()} and {@code propertiesProvider()} (through
- * {@link ProvidedAttribute}, like every other "inline value or provider class" attribute), a
- * property declared more than once - under one name or under its long and its short form,
- * which name one property - and any name {@link DatabaseConfig} does not recognize - which
- * {@link DatabaseConfig#setPropertiesByString(Properties)} would otherwise drop silently,
+ * <p>Rejects a property declared more than once - under one name or under its long and its
+ * short form, which name one property - and any name {@link DatabaseConfig} does not recognize -
+ * which {@link DatabaseConfig#setPropertiesByString(Properties)} would otherwise drop silently,
  * leaving the test running with the misspelled property never applied. Every name is resolved
  * to the long one {@link DatabaseConfig} knows the property by, which is the form the
  * {@link Properties} returned carries.
@@ -53,10 +49,8 @@ final class DatabaseConfigPropertiesResolver
      *
      * @param config The resolved {@code @DbUnitConfig}, or {@code null} when absent.
      * @return The resolved properties, by long name; empty when none were declared.
-     * @throws IllegalStateException If both {@code properties()} and {@code propertiesProvider()}
-     *             are set, a property is declared twice, a named provider cannot be instantiated
-     *             or returns {@code null}, or a name is not a known {@link DatabaseConfig}
-     *             property.
+     * @throws IllegalStateException If a property is declared twice, or a name is not a known
+     *             {@link DatabaseConfig} property.
      */
     Properties resolve(final DbUnitConfig config)
     {
@@ -64,41 +58,7 @@ final class DatabaseConfigPropertiesResolver
         {
             return new Properties();
         }
-        final DbUnitProperty[] properties = config.properties();
-        final boolean providerSet =
-                config.propertiesProvider() != DatabaseConfigPropertiesProvider.class;
-        ProvidedAttribute.rejectBothSet(properties.length > 0 && providerSet, "@DbUnitConfig",
-                "properties()", "propertiesProvider()", null);
-        return providerSet ? fromProvider(config) : fromInlineProperties(properties);
-    }
-
-    private Properties fromProvider(final DbUnitConfig config)
-    {
-        final Properties provided = ProvidedAttribute.requireProvided(
-                ReflectiveInstantiation
-                        .instantiate(config.propertiesProvider(),
-                                "DbUnitConfig.propertiesProvider")
-                        .getDatabaseConfigProperties(),
-                DatabaseConfigPropertiesProvider.class.getSimpleName(),
-                config.propertiesProvider(), "DbUnitConfig.propertiesProvider",
-                "getDatabaseConfigProperties");
-        final String source = "DatabaseConfigPropertiesProvider "
-                + config.propertiesProvider().getName();
-        final Properties own = new Properties();
-        own.putAll(provided);
-        final Properties result = new Properties();
-        for (final String name : own.stringPropertyNames())
-        {
-            final String fullName = requireKnownDatabaseConfigProperty(name, source);
-            if (result.containsKey(fullName))
-            {
-                throw new IllegalStateException(source + " supplies more than one value for the"
-                        + " DatabaseConfig property '" + fullName + "', under both its long and"
-                        + " its short name; supply at most one per property.");
-            }
-            result.setProperty(fullName, own.getProperty(name));
-        }
-        return result;
+        return fromInlineProperties(config.properties());
     }
 
     private Properties fromInlineProperties(final DbUnitProperty[] properties)
@@ -121,9 +81,9 @@ final class DatabaseConfigPropertiesResolver
     }
 
     /**
-     * Rejects a {@link DatabaseConfig} property name - from {@code @DbUnitProperty} or a
-     * {@link DatabaseConfigPropertiesProvider} - that {@link DatabaseConfig} does not recognize
-     * in either its long {@code http://www.dbunit.org/...} or short form. A typo would otherwise
+     * Rejects a {@link DatabaseConfig} property name from {@code @DbUnitProperty} that
+     * {@link DatabaseConfig} does not recognize in either its long
+     * {@code http://www.dbunit.org/...} or short form. A typo would otherwise
      * be dropped silently by {@link DatabaseConfig#setPropertiesByString(Properties)}, which
      * only logs and moves on, leaving the test running with the misspelled property never
      * applied.

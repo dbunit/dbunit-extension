@@ -186,7 +186,7 @@ class TestCaseConfigurer
         log.warn("DbUnitConfig declares {} @DbUnitProperty value(s) and the DbUnitTestCase {}"
                 + " overrides setUpDatabaseConfig(DatabaseConfig); those values reach the"
                 + " connection only if that override calls super.setUpDatabaseConfig(config)."
-                + " Add the super call, or drop properties()/propertiesProvider() and configure"
+                + " Add the super call, or drop properties() and configure"
                 + " the DatabaseConfig entirely in the override.", properties.size(),
                 testCase.getClass().getName());
     }

@@ -21,9 +21,7 @@
 package org.dbunit.annotation.runtime;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import org.dbunit.util.fileloader.DataSetPathsProvider;
 import org.junit.jupiter.api.Test;
 
 class DataSetPathsResolverTest
@@ -33,8 +31,8 @@ class DataSetPathsResolverTest
     @Test
     void testResolve_annotationAbsent_returnsEmpty()
     {
-        final String[] resolved = resolver.resolve("DbUnitPrep", DataSetPathsResolverTest.class,
-                "", null, DataSetPathsProvider.class);
+        final String[] resolved =
+                resolver.resolve(DataSetPathsResolverTest.class, "", null);
 
         assertThat(resolved).as("A null value() means the annotation was not declared.")
                 .isEmpty();
@@ -43,8 +41,8 @@ class DataSetPathsResolverTest
     @Test
     void testResolve_inlineValue_resolvesEachRelativeToTheTestClassPackage()
     {
-        final String[] resolved = resolver.resolve("DbUnitPrep", DataSetPathsResolverTest.class,
-                "", new String[] {"a.xml", "b.xml"}, DataSetPathsProvider.class);
+        final String[] resolved = resolver.resolve(DataSetPathsResolverTest.class, "",
+                new String[] {"a.xml", "b.xml"});
 
         assertThat(resolved).containsExactly(
                 "/org/dbunit/annotation/runtime/a.xml",
@@ -54,9 +52,8 @@ class DataSetPathsResolverTest
     @Test
     void testResolve_dataSetBaseDirSet_prefixesEachRelativePath()
     {
-        final String[] resolved = resolver.resolve("DbUnitExpected",
-                DataSetPathsResolverTest.class, "datasets", new String[] {"a.xml"},
-                DataSetPathsProvider.class);
+        final String[] resolved = resolver.resolve(DataSetPathsResolverTest.class, "datasets",
+                new String[] {"a.xml"});
 
         assertThat(resolved).containsExactly("/datasets/a.xml");
     }
@@ -64,78 +61,10 @@ class DataSetPathsResolverTest
     @Test
     void testResolve_absolutePath_isUsedAsIs()
     {
-        final String[] resolved = resolver.resolve("DbUnitPrep", DataSetPathsResolverTest.class,
-                "datasets", new String[] {"/shared/a.xml"}, DataSetPathsProvider.class);
+        final String[] resolved = resolver.resolve(DataSetPathsResolverTest.class, "datasets",
+                new String[] {"/shared/a.xml"});
 
         assertThat(resolved).as("A leading slash wins over dataSetBaseDir and the package.")
                 .containsExactly("/shared/a.xml");
-    }
-
-    @Test
-    void testResolve_provider_resolvesThePathsItSupplies()
-    {
-        final String[] resolved = resolver.resolve("DbUnitPrep", DataSetPathsResolverTest.class,
-                "", new String[0], SuppliesOnePath.class);
-
-        assertThat(resolved).containsExactly("/org/dbunit/annotation/runtime/from-provider.xml");
-    }
-
-    @Test
-    void testResolve_bothInlineValueAndProviderSet_throwsNamingTheAnnotationAndTestClass()
-    {
-        assertThatThrownBy(() -> resolver.resolve("DbUnitPrep", DataSetPathsResolverTest.class,
-                "", new String[] {"a.xml"}, SuppliesOnePath.class))
-                        .isInstanceOf(IllegalStateException.class)
-                        .hasMessageContaining("@DbUnitPrep on " + DataSetPathsResolverTest.class
-                                .getName())
-                        .hasMessageContaining("value()")
-                        .hasMessageContaining("provider()");
-    }
-
-    @Test
-    void testResolve_providerReturnsNull_throwsNamingTheProvider()
-    {
-        assertThatThrownBy(() -> resolver.resolve("DbUnitPrep", DataSetPathsResolverTest.class,
-                "", new String[0], ReturnsNull.class))
-                        .isInstanceOf(IllegalStateException.class)
-                        .hasMessageContaining(ReturnsNull.class.getName())
-                        .hasMessageContaining("DbUnitPrep.provider");
-    }
-
-    @Test
-    void testResolve_providerReturnsNothing_throwsWithTheDropTheAnnotationHint()
-    {
-        assertThatThrownBy(() -> resolver.resolve("DbUnitExpected",
-                DataSetPathsResolverTest.class, "", new String[0], ReturnsNothing.class))
-                        .isInstanceOf(IllegalStateException.class)
-                        .hasMessageContaining("returned nothing")
-                        .hasMessageContaining("drop @DbUnitExpected");
-    }
-
-    static class SuppliesOnePath implements DataSetPathsProvider
-    {
-        @Override
-        public String[] getDataSetPaths()
-        {
-            return new String[] {"from-provider.xml"};
-        }
-    }
-
-    static class ReturnsNull implements DataSetPathsProvider
-    {
-        @Override
-        public String[] getDataSetPaths()
-        {
-            return null;
-        }
-    }
-
-    static class ReturnsNothing implements DataSetPathsProvider
-    {
-        @Override
-        public String[] getDataSetPaths()
-        {
-            return new String[0];
-        }
     }
 }

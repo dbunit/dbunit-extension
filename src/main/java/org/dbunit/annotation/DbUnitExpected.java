@@ -29,7 +29,6 @@ import java.lang.annotation.Target;
 
 import org.dbunit.PrepAndExpectedTestCase;
 import org.dbunit.VerifyTableDefinition;
-import org.dbunit.util.fileloader.DataSetPathsProvider;
 
 /**
  * Specifies the expected dataset file(s) to verify actual database state against after each
@@ -42,9 +41,11 @@ import org.dbunit.util.fileloader.DataSetPathsProvider;
  * class annotation is inherited by subclasses. Valid with no {@link DbUnitPrep} at all - the
  * database state already present is what gets verified.
  *
- * <p>An expected dataset must always be named, with {@link #value()} or {@link #provider()}:
- * the tables verified are compared to it, so the forms below only choose which of its tables
- * are compared. An annotation naming none is rejected, whatever else it declares.
+ * <p>An expected dataset must always be named, with {@link #value()}: the tables verified are
+ * compared to it, so the forms below only choose which of its tables are compared. An
+ * annotation naming none is rejected, whatever else it declares. A path shared through a
+ * composed annotation should be absolute, as a relative one resolves against the class
+ * carrying the composed annotation, not the class using it.
  *
  * <p>Which tables to verify, and with what rules, resolves through the following forms so the
  * common cases stay short - highest-priority form first:
@@ -85,7 +86,6 @@ import org.dbunit.util.fileloader.DataSetPathsProvider;
  * @since 3.6.0
  * @see DbUnitPrep
  * @see DbUnitVerifyTable
- * @see org.dbunit.VerifyTableDefinitionsProvider
  */
 @Target({ElementType.TYPE, ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)
@@ -96,23 +96,9 @@ public @interface DbUnitExpected
     /**
      * Classpath resource paths for the expected dataset files to load.
      *
-     * <p>Mutually exclusive with {@link #provider()}; setting both is rejected.
-     *
      * @return Zero or more dataset resource paths.
      */
     String[] value() default {};
-
-    /**
-     * A {@link DataSetPathsProvider} implementation to reflectively instantiate and ask for
-     * the expected dataset paths, for a path list shared across several test classes.
-     *
-     * <p>Mutually exclusive with {@link #value()}; setting both is rejected. The provider
-     * returning {@code null} or an empty array is rejected too - it is wired to supply paths,
-     * so supplying none is a misconfiguration.
-     *
-     * @return The provider class; the interface itself (the default) means "not set".
-     */
-    Class<? extends DataSetPathsProvider> provider() default DataSetPathsProvider.class;
 
     /**
      * Names of the tables to verify, using default verification rules - or, when
@@ -133,10 +119,16 @@ public @interface DbUnitExpected
 
     /**
      * One or more catalog classes to read shared {@link VerifyTableDefinition}
-     * constants from - either a {@link org.dbunit.VerifyTableDefinitionsProvider}
-     * implementation, or a plain class exposing {@code public static final
+     * constants from: plain classes exposing {@code public static final
      * VerifyTableDefinition} fields. Overrides
      * {@link DbUnitConfig#verifyDefinitions()} when both are set.
+     *
+     * <p>A catalog is read once and shared by every test naming it for the whole run, its
+     * {@link VerifyTableDefinition} objects included. A test must never change them, through
+     * their setters such as {@code setSortOnFilteredColumnsOnly()} or
+     * {@code setVerifyTableDefinitionVerifier()} included, and a
+     * {@link org.dbunit.assertion.comparer.value.ValueComparer} or verifier inside one must be
+     * stateless; otherwise the result of a later test depends on the order the tests ran in.
      *
      * @return The catalog classes; empty (the default) means "not set".
      */
