@@ -72,7 +72,7 @@ public class AnnotatedTestConfiguration
     private final FailureHandler failureHandler;
     private final boolean closeConnectionAfterTest;
     private final Class<? extends DatabaseTesterFactory> databaseTesterFactory;
-    private final Class<? extends PrepAndExpectedTestCase> prepAndExpectedTestCaseClass;
+    private final Class<? extends DefaultPrepAndExpectedTestCase> prepAndExpectedTestCaseClass;
     private final boolean rowCountCheckDeclared;
     private final boolean rowCountCheckEnabled;
     private final String[] rowCountCheckExclude;
@@ -86,7 +86,7 @@ public class AnnotatedTestConfiguration
             final Properties databaseConfigProperties, final FailureHandler failureHandler,
             final boolean closeConnectionAfterTest,
             final Class<? extends DatabaseTesterFactory> databaseTesterFactory,
-            final Class<? extends PrepAndExpectedTestCase> prepAndExpectedTestCaseClass,
+            final Class<? extends DefaultPrepAndExpectedTestCase> prepAndExpectedTestCaseClass,
             final boolean rowCountCheckDeclared, final boolean rowCountCheckEnabled,
             final String[] rowCountCheckExclude)
     {
@@ -199,7 +199,7 @@ public class AnnotatedTestConfiguration
         final Class<? extends DatabaseTesterFactory> databaseTesterFactory = config == null
                 || config.databaseTesterFactory() == DatabaseTesterFactory.class ? null
                         : config.databaseTesterFactory();
-        final Class<? extends PrepAndExpectedTestCase> prepAndExpectedTestCaseClass =
+        final Class<? extends DefaultPrepAndExpectedTestCase> prepAndExpectedTestCaseClass =
                 config == null ? DefaultPrepAndExpectedTestCase.class
                         : config.prepAndExpectedTestCase();
 
@@ -467,7 +467,7 @@ public class AnnotatedTestConfiguration
      *
      * @return The test case class; {@link DefaultPrepAndExpectedTestCase} when not set.
      */
-    public Class<? extends PrepAndExpectedTestCase> getPrepAndExpectedTestCaseClass()
+    public Class<? extends DefaultPrepAndExpectedTestCase> getPrepAndExpectedTestCaseClass()
     {
         return prepAndExpectedTestCaseClass;
     }
