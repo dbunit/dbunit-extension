@@ -264,7 +264,7 @@ final class AnnotatedRowCountCheck
      * captured <em>before</em> {@code @DbUnitPrep} loads, so a prep dataset that is never torn
      * down reads as leaked rows and fails the check - a common first surprise. Otherwise
      * returns {@code e} unchanged. Keyed on the teardown operation the tester actually just ran
-     * ({@link DatabaseOperation#NONE}), so an explicit {@code @DbUnitTearDown(operation = NONE)}
+     * ({@link DatabaseOperation#NONE}), so an explicit {@code @DbUnitTearDownOperation(NONE)}
      * is covered too.
      */
     private UnexpectedRowCountException augmentForUnclearedPrep(
@@ -277,7 +277,7 @@ final class AnnotatedRowCountCheck
             return new UnexpectedRowCountException(e.getDifferences(),
                     "The @DbUnitRowCountCheck baseline is captured before @DbUnitPrep loads, so"
                             + " a prep dataset that is never torn down reads as leaked rows. Add"
-                            + " @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL) (or"
+                            + " @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL) (or"
                             + " CLEAN_INSERT), or list these tables in"
                             + " @DbUnitRowCountCheck(exclude = ...).");
         }

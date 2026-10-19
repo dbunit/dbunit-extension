@@ -6,7 +6,7 @@ Jeff Jensen
 link:../apidocs/org/dbunit/spring/DbUnitTestExecutionListener.html[DbUnitTestExecutionListener]
 is a Spring TestContext Framework `TestExecutionListener` that drives the
 same declarative `org.dbunit.annotation` family —
-`@DbUnitPrep`, `@DbUnitSetup`, `@DbUnitExpected`, `@DbUnitTearDown`, and
+`@DbUnitPrep`, `@DbUnitSetUpOperation`, `@DbUnitExpected`, `@DbUnitTearDownOperation`, and
 `@DbUnitConfig` — that link:DbUnitExtension.html[DbUnitExtension] drives for
 JUnit 5/6 (Jupiter), but for a test run through Spring's TestContext
 Framework instead, with JUnit 5's `SpringExtension`. See
@@ -183,8 +183,8 @@ link:annotations.html[DbUnit Annotations].
 The listener acts only on a test that opts into that vocabulary, by the rule
 `DbUnitExtension` applies to decide that a test is annotation-driven:
 
-* any of `@DbUnitConfig`, `@DbUnitPrep`, `@DbUnitSetup`, `@DbUnitExpected`,
-  `@DbUnitTearDown` or `@DbUnitRowCountCheck` on the test method or the test
+* any of `@DbUnitConfig`, `@DbUnitPrep`, `@DbUnitSetUpOperation`, `@DbUnitExpected`,
+  `@DbUnitTearDownOperation` or `@DbUnitRowCountCheck` on the test method or the test
   class, directly or through a composed annotation, or
 * a `@DbUnitTester` or `@DbUnitTestCase` field in the test class or a class
   enclosing it.
@@ -255,12 +255,12 @@ ends a `@Transactional` test's transaction in those same phases. Spring runs
 the before-callbacks in ascending order and the after-callbacks in reverse, so
 around a `@Transactional` test the steps run in this order:
 
-. DbUnit's prep (`@DbUnitPrep`, `@DbUnitSetup`) runs and commits.
+. DbUnit's prep (`@DbUnitPrep`, `@DbUnitSetUpOperation`) runs and commits.
 . `@BeforeTransaction` methods run; the test-managed transaction starts.
 . The test method runs.
 . The transaction ends, rolled back by default or committed with `@Commit`;
   `@AfterTransaction` methods run.
-. DbUnit verifies `@DbUnitExpected` and tears down with `@DbUnitTearDown`.
+. DbUnit verifies `@DbUnitExpected` and tears down with `@DbUnitTearDownOperation`.
 . `@DirtiesContext` closes the application context, if the test asks for it.
 
 What follows from that:
@@ -268,7 +268,7 @@ What follows from that:
 * *DbUnit's work is never part of the test-managed transaction.* Prep and
   teardown commit directly against the database, whatever the transaction
   does, so they are not rolled back with it: a test relying on `@Transactional`
-  rollback for per-method isolation still needs `@DbUnitTearDown` (for example
+  rollback for per-method isolation still needs `@DbUnitTearDownOperation` (for example
   `DELETE_ALL`) to remove what DbUnit's prep inserted. The tester uses its own
   connection and no test-managed transaction is active at these steps, so even
   a tester built on a `TransactionAwareDataSourceProxy` gets an ordinary

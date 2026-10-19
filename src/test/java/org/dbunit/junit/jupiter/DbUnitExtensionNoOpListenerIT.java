@@ -31,7 +31,7 @@ import org.dbunit.IDatabaseTester;
 import org.dbunit.IOperationListener;
 import org.dbunit.annotation.DbUnitExpected;
 import org.dbunit.annotation.DbUnitPrep;
-import org.dbunit.annotation.DbUnitTearDown;
+import org.dbunit.annotation.DbUnitTearDownOperation;
 import org.dbunit.annotation.DbUnitTester;
 import org.dbunit.annotation.DbUnitVerifyTable;
 import org.dbunit.database.IDatabaseConnection;
@@ -112,7 +112,7 @@ class DbUnitExtensionNoOpListenerIT
     @DbUnitPrep("annotation-it-prep.xml")
     @DbUnitExpected(value = "annotation-it-expected.xml",
             verify = @DbUnitVerifyTable(value = TEST_TABLE, include = {"COLUMN0", "COLUMN1"}))
-    @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+    @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
     static class ExpectedPathSample
     {
         @DbUnitTester

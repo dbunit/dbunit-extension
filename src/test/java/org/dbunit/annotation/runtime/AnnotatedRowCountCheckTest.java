@@ -208,7 +208,7 @@ class AnnotatedRowCountCheckTest
                 .as("With @DbUnitRowCountCheck + @DbUnitPrep + a NONE teardown, the message"
                         + " names the un-torn-down-prep fix.")
                 .contains("baseline is captured before @DbUnitPrep loads")
-                .contains("@DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)");
+                .contains("@DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)");
     }
 
     @Test

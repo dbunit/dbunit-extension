@@ -32,9 +32,9 @@ import org.dbunit.operation.DatabaseOperation;
  * <p>Both lifecycle paths take one at the start of a test and restore it at the end, so a
  * tester shared across methods - a {@code static @DbUnitTester} field, or any tester field
  * under {@code @TestInstance(Lifecycle.PER_CLASS)} - carries no per-method
- * {@code @DbUnitPrep}/{@code @DbUnitSetup}/{@code @DbUnitTearDown} onto the next method. A
- * value a {@code @BeforeEach} method set is the captured snapshot and is restored unchanged,
- * so configuring the tester in {@code @BeforeEach} still works.
+ * {@code @DbUnitPrep}/{@code @DbUnitSetUpOperation}/{@code @DbUnitTearDownOperation} onto the next
+ * method. A value a {@code @BeforeEach} method set is the captured snapshot and is restored
+ * unchanged, so configuring the tester in {@code @BeforeEach} still works.
  *
  * @author Jeff Jensen
  * @since 3.6.0

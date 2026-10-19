@@ -31,15 +31,16 @@ import org.dbunit.operation.DbUnitOperation;
 
 /**
  * Specifies the database operation to apply before each test method, alongside
- * {@link DbUnitPrep} for the dataset to apply it to.
+ * {@link DbUnitPrep} for the dataset to apply it to. It names an operation, not a dataset:
+ * the files are {@link DbUnitPrep}'s.
  *
  * <p>A method-level annotation overrides a class-level annotation on a per-test basis; the
  * class annotation is inherited by subclasses. Declaring only {@link DbUnitPrep} is the
- * common case: {@link #operation()} defaults to {@link DbUnitOperation#CLEAN_INSERT} already,
+ * common case: {@link #value()} defaults to {@link DbUnitOperation#CLEAN_INSERT} already,
  * so most tests never need this annotation at all.
  *
- * <p>Data ({@link DbUnitPrep}) and operation ({@link DbUnitSetup}) are deliberately separate
- * annotations rather than one fused annotation, so a class-level operation survives a
+ * <p>Data ({@link DbUnitPrep}) and operation ({@link DbUnitSetUpOperation}) are deliberately
+ * separate annotations rather than one fused annotation, so a class-level operation survives a
  * method-level {@link DbUnitPrep} instead of silently reverting to the default the moment a
  * method declares its own files.
  *
@@ -54,7 +55,7 @@ import org.dbunit.operation.DbUnitOperation;
  * naming its own prep file:
  * <pre>{@code
  * @DbUnitTest
- * @DbUnitSetup(operation = DbUnitOperation.REFRESH)
+ * @DbUnitSetUpOperation(DbUnitOperation.REFRESH)
  * class UserRepositoryTest {
  *     IDatabaseTester databaseTester;
  *
@@ -71,19 +72,19 @@ import org.dbunit.operation.DbUnitOperation;
  * @author Jeff Jensen
  * @since 3.6.0
  * @see DbUnitPrep
- * @see DbUnitTearDown
+ * @see DbUnitTearDownOperation
  * @see DbUnitOperation
  */
 @Target({ElementType.TYPE, ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
 @Inherited
-public @interface DbUnitSetup
+public @interface DbUnitSetUpOperation
 {
     /**
      * The database operation to apply during setup.
      *
      * @return The setup operation; defaults to {@link DbUnitOperation#CLEAN_INSERT}.
      */
-    DbUnitOperation operation() default DbUnitOperation.CLEAN_INSERT;
+    DbUnitOperation value() default DbUnitOperation.CLEAN_INSERT;
 }

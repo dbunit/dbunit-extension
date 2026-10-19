@@ -83,13 +83,13 @@ class UnexpectedRowCountExceptionTest
                 Collections.singletonList(new RowCountDifference("ACCOUNT_AUDIT", 0, 3));
 
         final UnexpectedRowCountException exception = new UnexpectedRowCountException(
-                differences, "Add @DbUnitTearDown(operation = DELETE_ALL).");
+                differences, "Add @DbUnitTearDownOperation(DELETE_ALL).");
 
         assertThat(exception.getMessage())
                 .as("The standard per-table detail must still be present, with the extra advice"
                         + " appended after it.")
                 .contains("ACCOUNT_AUDIT").contains("0 -> 3")
-                .contains("Add @DbUnitTearDown(operation = DELETE_ALL).");
+                .contains("Add @DbUnitTearDownOperation(DELETE_ALL).");
         assertThat(exception.getDifferences())
                 .as("The two-arg constructor must keep getDifferences() working.")
                 .isEqualTo(differences);

@@ -29,7 +29,7 @@ import java.lang.annotation.Target;
 import java.lang.reflect.Method;
 
 import org.dbunit.annotation.DbUnitExpected;
-import org.dbunit.annotation.DbUnitTearDown;
+import org.dbunit.annotation.DbUnitTearDownOperation;
 import org.dbunit.operation.DbUnitOperation;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.context.NestedTestConfiguration;
@@ -42,10 +42,10 @@ class SpringAnnotationLookupTest
     {
         final SpringAnnotationLookup lookup = lookupFor(new MethodLevelTearDown(), "aTestMethod");
 
-        final DbUnitTearDown found = lookup.find(DbUnitTearDown.class);
+        final DbUnitTearDownOperation found = lookup.find(DbUnitTearDownOperation.class);
 
         assertThat(found).as("An annotation on the test method must be found.").isNotNull();
-        assertThat(found.operation()).as("The method's own operation must be returned.")
+        assertThat(found.value()).as("The method's own operation must be returned.")
                 .isEqualTo(DbUnitOperation.TRUNCATE_TABLE);
     }
 
@@ -55,7 +55,7 @@ class SpringAnnotationLookupTest
         final SpringAnnotationLookup lookup =
                 lookupFor(new ClassAndMethodLevelTearDown(), "aTestMethod");
 
-        assertThat(lookup.find(DbUnitTearDown.class).operation())
+        assertThat(lookup.find(DbUnitTearDownOperation.class).value())
                 .as("A method-level annotation must win over a class-level one.")
                 .isEqualTo(DbUnitOperation.TRUNCATE_TABLE);
     }
@@ -65,7 +65,7 @@ class SpringAnnotationLookupTest
     {
         final SpringAnnotationLookup lookup = lookupFor(new ClassLevelTearDown(), "aTestMethod");
 
-        assertThat(lookup.find(DbUnitTearDown.class).operation())
+        assertThat(lookup.find(DbUnitTearDownOperation.class).value())
                 .as("A class-level annotation must be found when the method has none.")
                 .isEqualTo(DbUnitOperation.DELETE_ALL);
     }
@@ -76,7 +76,7 @@ class SpringAnnotationLookupTest
         final SpringAnnotationLookup lookup =
                 lookupFor(new SubclassOfClassLevelTearDown(), "aTestMethod");
 
-        assertThat(lookup.find(DbUnitTearDown.class).operation())
+        assertThat(lookup.find(DbUnitTearDownOperation.class).value())
                 .as("A class-level annotation must be found through the superclass.")
                 .isEqualTo(DbUnitOperation.DELETE_ALL);
     }
@@ -87,7 +87,7 @@ class SpringAnnotationLookupTest
         final SpringAnnotationLookup lookup =
                 lookupFor(new ComposedClassLevelTearDown(), "aTestMethod");
 
-        assertThat(lookup.find(DbUnitTearDown.class).operation())
+        assertThat(lookup.find(DbUnitTearDownOperation.class).value())
                 .as("An annotation meta-present on a composed class annotation must be found.")
                 .isEqualTo(DbUnitOperation.DELETE_ALL);
     }
@@ -98,7 +98,7 @@ class SpringAnnotationLookupTest
         final SpringAnnotationLookup lookup =
                 lookupFor(new ComposedMethodLevelTearDown(), "aTestMethod");
 
-        assertThat(lookup.find(DbUnitTearDown.class).operation())
+        assertThat(lookup.find(DbUnitTearDownOperation.class).value())
                 .as("An annotation meta-present on a composed method annotation must be found.")
                 .isEqualTo(DbUnitOperation.DELETE_ALL);
     }
@@ -124,7 +124,7 @@ class SpringAnnotationLookupTest
         final EnclosingWithTearDown enclosing = new EnclosingWithTearDown();
         final SpringAnnotationLookup lookup = lookupFor(enclosing.new Nested(), "aTestMethod");
 
-        assertThat(lookup.find(DbUnitTearDown.class).operation())
+        assertThat(lookup.find(DbUnitTearDownOperation.class).value())
                 .as("A @Nested class inherits its enclosing class's annotations, as Spring"
                         + " inherits the rest of the enclosing configuration.")
                 .isEqualTo(DbUnitOperation.DELETE_ALL);
@@ -135,7 +135,7 @@ class SpringAnnotationLookupTest
     {
         final SpringAnnotationLookup lookup = lookupFor(new NothingDeclared(), "aTestMethod");
 
-        assertThat(lookup.find(DbUnitTearDown.class))
+        assertThat(lookup.find(DbUnitTearDownOperation.class))
                 .as("With no annotation on the method or class, there is nothing to find.")
                 .isNull();
     }
@@ -148,7 +148,7 @@ class SpringAnnotationLookupTest
         final SpringAnnotationLookup lookup =
                 lookupFor(enclosing.new NestedOverriding(), "aTestMethod");
 
-        assertThat(lookup.find(DbUnitTearDown.class))
+        assertThat(lookup.find(DbUnitTearDownOperation.class))
                 .as("A @Nested class annotated @NestedTestConfiguration(OVERRIDE) inherits"
                         + " nothing from its enclosing class, annotations included.")
                 .isNull();
@@ -160,7 +160,7 @@ class SpringAnnotationLookupTest
     {
         final SpringAnnotationLookup lookup = lookupFor(new MethodLevelTearDown(), "aTestMethod");
 
-        assertThat(lookup.findDeclaringClass(DbUnitTearDown.class))
+        assertThat(lookup.findDeclaringClass(DbUnitTearDownOperation.class))
                 .as("The class declaring the annotated test method declares the annotation.")
                 .isEqualTo(MethodLevelTearDown.class);
     }
@@ -173,7 +173,7 @@ class SpringAnnotationLookupTest
         final SpringAnnotationLookup lookup =
                 lookupFor(new InheritsMethodLevelTearDown(), inheritedMethod);
 
-        assertThat(lookup.findDeclaringClass(DbUnitTearDown.class))
+        assertThat(lookup.findDeclaringClass(DbUnitTearDownOperation.class))
                 .as("An annotation on an inherited test method is declared by the superclass"
                         + " that declares the method, not by the concrete test class.")
                 .isEqualTo(MethodLevelTearDown.class);
@@ -186,7 +186,7 @@ class SpringAnnotationLookupTest
         final SpringAnnotationLookup lookup =
                 lookupFor(new MethodLevelOverSuperclassClassLevel(), "anotherTestMethod");
 
-        assertThat(lookup.findDeclaringClass(DbUnitTearDown.class))
+        assertThat(lookup.findDeclaringClass(DbUnitTearDownOperation.class))
                 .as("The method-level annotation wins, so the class declaring the method is the"
                         + " declaring class, not the superclass carrying a class-level one.")
                 .isEqualTo(MethodLevelOverSuperclassClassLevel.class);
@@ -197,7 +197,7 @@ class SpringAnnotationLookupTest
     {
         final SpringAnnotationLookup lookup = lookupFor(new ClassLevelTearDown(), "aTestMethod");
 
-        assertThat(lookup.findDeclaringClass(DbUnitTearDown.class))
+        assertThat(lookup.findDeclaringClass(DbUnitTearDownOperation.class))
                 .as("A class-level annotation is declared by the class carrying it.")
                 .isEqualTo(ClassLevelTearDown.class);
     }
@@ -208,7 +208,7 @@ class SpringAnnotationLookupTest
         final SpringAnnotationLookup lookup =
                 lookupFor(new SubclassOfClassLevelTearDown(), "aTestMethod");
 
-        assertThat(lookup.findDeclaringClass(DbUnitTearDown.class))
+        assertThat(lookup.findDeclaringClass(DbUnitTearDownOperation.class))
                 .as("An annotation inherited from a superclass is declared by that superclass.")
                 .isEqualTo(ClassLevelTearDown.class);
     }
@@ -220,7 +220,7 @@ class SpringAnnotationLookupTest
         final SpringAnnotationLookup lookup =
                 lookupFor(new ImplementsTearDownInterface(), "aTestMethod");
 
-        assertThat(lookup.findDeclaringClass(DbUnitTearDown.class))
+        assertThat(lookup.findDeclaringClass(DbUnitTearDownOperation.class))
                 .as("An annotation found on an interface the test class implements is declared"
                         + " by that interface.")
                 .isEqualTo(TearDownInterface.class);
@@ -233,7 +233,7 @@ class SpringAnnotationLookupTest
         final SpringAnnotationLookup lookup =
                 lookupFor(new ComposedClassLevelTearDown(), "aTestMethod");
 
-        assertThat(lookup.findDeclaringClass(DbUnitTearDown.class))
+        assertThat(lookup.findDeclaringClass(DbUnitTearDownOperation.class))
                 .as("An annotation found through a composed annotation is declared by the class"
                         + " carrying the composed annotation.")
                 .isEqualTo(ComposedClassLevelTearDown.class);
@@ -246,7 +246,7 @@ class SpringAnnotationLookupTest
         final SpringAnnotationLookup lookup =
                 lookupFor(new SubclassOfComposedClassLevelTearDown(), "aTestMethod");
 
-        assertThat(lookup.findDeclaringClass(DbUnitTearDown.class))
+        assertThat(lookup.findDeclaringClass(DbUnitTearDownOperation.class))
                 .as("An annotation found through a composed annotation on a superclass is"
                         + " declared by that superclass, not by the annotation type or the"
                         + " concrete test class.")
@@ -260,7 +260,7 @@ class SpringAnnotationLookupTest
         final EnclosingWithTearDown enclosing = new EnclosingWithTearDown();
         final SpringAnnotationLookup lookup = lookupFor(enclosing.new Nested(), "aTestMethod");
 
-        assertThat(lookup.findDeclaringClass(DbUnitTearDown.class))
+        assertThat(lookup.findDeclaringClass(DbUnitTearDownOperation.class))
                 .as("An annotation a @Nested class inherits from its enclosing class is declared"
                         + " by the enclosing class.")
                 .isEqualTo(EnclosingWithTearDown.class);
@@ -274,7 +274,7 @@ class SpringAnnotationLookupTest
         final SpringAnnotationLookup lookup =
                 lookupFor(enclosing.new NestedOverriding(), "aTestMethod");
 
-        assertThat(lookup.findDeclaringClass(DbUnitTearDown.class))
+        assertThat(lookup.findDeclaringClass(DbUnitTearDownOperation.class))
                 .as("With nothing found, as the enclosing class's annotation is not inherited,"
                         + " the declaring class is the test class.")
                 .isEqualTo(EnclosingForOverride.NestedOverriding.class);
@@ -285,7 +285,7 @@ class SpringAnnotationLookupTest
     {
         final SpringAnnotationLookup lookup = lookupFor(new NothingDeclared(), "aTestMethod");
 
-        assertThat(lookup.findDeclaringClass(DbUnitTearDown.class))
+        assertThat(lookup.findDeclaringClass(DbUnitTearDownOperation.class))
                 .as("With no such annotation, the declaring class is the test class.")
                 .isEqualTo(NothingDeclared.class);
     }
@@ -297,11 +297,11 @@ class SpringAnnotationLookupTest
         final SpringAnnotationLookup lookup =
                 lookupFor(new ComposedOnSubclassOverDirectOnSuperclass(), "aTestMethod");
 
-        assertThat(lookup.find(DbUnitTearDown.class).operation())
+        assertThat(lookup.find(DbUnitTearDownOperation.class).value())
                 .as("Spring searches the closest class first, so the annotation composed on the"
                         + " test class wins over the one its superclass declares directly.")
                 .isEqualTo(DbUnitOperation.DELETE_ALL);
-        assertThat(lookup.findDeclaringClass(DbUnitTearDown.class))
+        assertThat(lookup.findDeclaringClass(DbUnitTearDownOperation.class))
                 .as("The declaring class must belong to that same declaration, or a dataset path"
                         + " would resolve next to a class that never declared it.")
                 .isEqualTo(ComposedOnSubclassOverDirectOnSuperclass.class);
@@ -325,29 +325,29 @@ class SpringAnnotationLookupTest
 
     @Retention(RetentionPolicy.RUNTIME)
     @Target({ElementType.TYPE, ElementType.METHOD})
-    @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+    @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
     @interface DeletesAllRows
     {
     }
 
     static class MethodLevelTearDown
     {
-        @DbUnitTearDown(operation = DbUnitOperation.TRUNCATE_TABLE)
+        @DbUnitTearDownOperation(DbUnitOperation.TRUNCATE_TABLE)
         void aTestMethod()
         {
         }
     }
 
-    @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+    @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
     static class ClassAndMethodLevelTearDown
     {
-        @DbUnitTearDown(operation = DbUnitOperation.TRUNCATE_TABLE)
+        @DbUnitTearDownOperation(DbUnitOperation.TRUNCATE_TABLE)
         void aTestMethod()
         {
         }
     }
 
-    @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+    @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
     static class ClassLevelTearDown
     {
         void aTestMethod()
@@ -399,7 +399,7 @@ class SpringAnnotationLookupTest
      * The inner class uses its enclosing instance, so {@code javac} keeps the reference to it
      * whatever the compiler target.
      */
-    @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+    @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
     static class EnclosingWithTearDown
     {
         class Nested
@@ -419,20 +419,20 @@ class SpringAnnotationLookupTest
     {
     }
 
-    @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+    @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
     static class ClassLevelTearDownForSubclassMethod
     {
     }
 
     static class MethodLevelOverSuperclassClassLevel extends ClassLevelTearDownForSubclassMethod
     {
-        @DbUnitTearDown(operation = DbUnitOperation.TRUNCATE_TABLE)
+        @DbUnitTearDownOperation(DbUnitOperation.TRUNCATE_TABLE)
         void anotherTestMethod()
         {
         }
     }
 
-    @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+    @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
     interface TearDownInterface
     {
     }
@@ -452,7 +452,7 @@ class SpringAnnotationLookupTest
         }
     }
 
-    @DbUnitTearDown(operation = DbUnitOperation.TRUNCATE_TABLE)
+    @DbUnitTearDownOperation(DbUnitOperation.TRUNCATE_TABLE)
     static class DirectTearDownOnSuperclass
     {
     }
@@ -469,7 +469,7 @@ class SpringAnnotationLookupTest
      * The inner class uses its enclosing instance, so {@code javac} keeps the reference to it
      * whatever the compiler target.
      */
-    @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+    @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
     static class EnclosingForOverride
     {
         @NestedTestConfiguration(EnclosingConfiguration.OVERRIDE)

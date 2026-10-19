@@ -67,8 +67,8 @@ import org.dbunit.annotation.DbUnitExpected;
 import org.dbunit.annotation.DbUnitPrep;
 import org.dbunit.annotation.DbUnitProperty;
 import org.dbunit.annotation.DbUnitRowCountCheck;
-import org.dbunit.annotation.DbUnitSetup;
-import org.dbunit.annotation.DbUnitTearDown;
+import org.dbunit.annotation.DbUnitSetUpOperation;
+import org.dbunit.annotation.DbUnitTearDownOperation;
 import org.dbunit.annotation.DbUnitTestCase;
 import org.dbunit.assertion.DefaultFailureHandler;
 import org.dbunit.assertion.DiffCollectingFailureHandler;
@@ -225,7 +225,7 @@ class AnnotatedTestExecutorTest
     {
         // @DbUnitPrep alone means CLEAN_INSERT, so it replaces a different operation the tester
         // already carried, for the duration of the test only. A caller who wants to keep that
-        // operation declares @DbUnitSetup alongside it.
+        // operation declares @DbUnitSetUpOperation alongside it.
         final RecordingAbstractDatabaseTester presetTester = new RecordingAbstractDatabaseTester();
         presetTester.setSetUpOperation(DatabaseOperation.REFRESH);
         final DbUnitPrep prep = WithPrep.class.getAnnotation(DbUnitPrep.class);
@@ -237,7 +237,8 @@ class AnnotatedTestExecutorTest
         executor.beforeTest();
 
         assertThat(presetTester.setUpOperationsRun)
-                .as("@DbUnitPrep without @DbUnitSetup runs the default CLEAN_INSERT, not the"
+                .as("@DbUnitPrep without @DbUnitSetUpOperation runs the default CLEAN_INSERT, not"
+                        + " the"
                         + " operation the tester was preset to.")
                 .containsExactly(DatabaseOperation.CLEAN_INSERT);
 
@@ -269,8 +270,8 @@ class AnnotatedTestExecutorTest
     @Test
     void testAfterTest_tearDownDeclared_setsOperationThenOnTearDown() throws Exception
     {
-        final DbUnitTearDown tearDown =
-                WithTearDown.class.getAnnotation(DbUnitTearDown.class);
+        final DbUnitTearDownOperation tearDown =
+                WithTearDown.class.getAnnotation(DbUnitTearDownOperation.class);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(WithTearDown.class, null, null, null, null, tearDown, null);
         final AnnotatedTestExecutor executor =
@@ -287,9 +288,9 @@ class AnnotatedTestExecutorTest
     void testAfterTest_tearDownNotDeclared_runsWithAndRestoresTheBeforeEachSetTeardownOperation()
             throws Exception
     {
-        // A @DbUnitTearDown-less method must run onTearDown() with the operation a @BeforeEach
-        // method set (not a forced NONE - issue 945), then restore it so a shared tester is
-        // left exactly as it was found.
+        // A @DbUnitTearDownOperation-less method must run onTearDown() with the operation a
+        // @BeforeEach method set (not a forced NONE - issue 945), then restore it so a shared
+        // tester is left exactly as it was found.
         final RecordingAbstractDatabaseTester sharedTester = new RecordingAbstractDatabaseTester();
         sharedTester.setTearDownOperation(DatabaseOperation.DELETE_ALL);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
@@ -375,9 +376,11 @@ class AnnotatedTestExecutorTest
         final RecordingAbstractDatabaseTester sharedTester = new RecordingAbstractDatabaseTester();
         sharedTester.setSetUpOperation(DatabaseOperation.REFRESH);
         sharedTester.setTearDownOperation(DatabaseOperation.DELETE_ALL);
-        final DbUnitSetup setup = WithSetupNoPrep.class.getAnnotation(DbUnitSetup.class);
+        final DbUnitSetUpOperation setup =
+                WithSetupNoPrep.class.getAnnotation(DbUnitSetUpOperation.class);
         final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
-        final DbUnitTearDown tearDown = WithBareTearDown.class.getAnnotation(DbUnitTearDown.class);
+        final DbUnitTearDownOperation tearDown =
+                WithBareTearDown.class.getAnnotation(DbUnitTearDownOperation.class);
         final DefaultPrepAndExpectedTestCase injectedTestCase =
                 mock(DefaultPrepAndExpectedTestCase.class);
 
@@ -439,11 +442,13 @@ class AnnotatedTestExecutorTest
         executor.beforeTest();
 
         assertThat(ownTester.getSetUpOperation())
-                .as("With no @DbUnitPrep and no @DbUnitSetup, the setup operation the tester"
+                .as("With no @DbUnitPrep and no @DbUnitSetUpOperation, the setup operation the"
+                        + " tester"
                         + " already has must stay.")
                 .isEqualTo(DatabaseOperation.REFRESH);
         assertThat(ownTester.getTearDownOperation())
-                .as("With no @DbUnitTearDown, the teardown operation the tester already has,"
+                .as("With no @DbUnitTearDownOperation, the teardown operation the tester already"
+                        + " has,"
                         + " such as one a @BeforeEach method set, must stay.")
                 .isEqualTo(DatabaseOperation.DELETE_ALL);
     }
@@ -455,7 +460,8 @@ class AnnotatedTestExecutorTest
         final RecordingAbstractDatabaseTester ownTester = new RecordingAbstractDatabaseTester();
         ownTester.setSetUpOperation(DatabaseOperation.REFRESH);
         ownTester.setTearDownOperation(DatabaseOperation.DELETE_ALL);
-        final DbUnitSetup setup = WithSetupNoPrep.class.getAnnotation(DbUnitSetup.class);
+        final DbUnitSetUpOperation setup =
+                WithSetupNoPrep.class.getAnnotation(DbUnitSetUpOperation.class);
         final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
         final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
                 AnnotatedTestConfiguration.from(WithExpected.class, null, null, setup, expected,
@@ -465,10 +471,11 @@ class AnnotatedTestExecutorTest
         executor.beforeTest();
 
         assertThat(ownTester.getSetUpOperation())
-                .as("A declared @DbUnitSetup operation must replace the tester's own.")
+                .as("A declared @DbUnitSetUpOperation operation must replace the tester's own.")
                 .isEqualTo(DatabaseOperation.NONE);
         assertThat(ownTester.getTearDownOperation())
-                .as("The teardown operation, which no @DbUnitTearDown declared, must stay.")
+                .as("The teardown operation, which no @DbUnitTearDownOperation declared, must"
+                        + " stay.")
                 .isEqualTo(DatabaseOperation.DELETE_ALL);
     }
 
@@ -489,11 +496,13 @@ class AnnotatedTestExecutorTest
         executor.beforeTest();
 
         assertThat(ownTester.getSetUpOperation())
-                .as("@DbUnitPrep without @DbUnitSetup means CLEAN_INSERT on this path too, so"
+                .as("@DbUnitPrep without @DbUnitSetUpOperation means CLEAN_INSERT on this path"
+                        + " too, so"
                         + " it replaces the operation the tester already has.")
                 .isEqualTo(DatabaseOperation.CLEAN_INSERT);
         assertThat(ownTester.getTearDownOperation())
-                .as("The teardown operation, which no @DbUnitTearDown declared, must stay.")
+                .as("The teardown operation, which no @DbUnitTearDownOperation declared, must"
+                        + " stay.")
                 .isEqualTo(DatabaseOperation.DELETE_ALL);
     }
 
@@ -504,7 +513,8 @@ class AnnotatedTestExecutorTest
         final RecordingAbstractDatabaseTester ownTester = new RecordingAbstractDatabaseTester();
         ownTester.setSetUpOperation(DatabaseOperation.REFRESH);
         ownTester.setTearDownOperation(DatabaseOperation.TRUNCATE_TABLE);
-        final DbUnitTearDown tearDown = WithTearDown.class.getAnnotation(DbUnitTearDown.class);
+        final DbUnitTearDownOperation tearDown =
+                WithTearDown.class.getAnnotation(DbUnitTearDownOperation.class);
         final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
         final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
                 AnnotatedTestConfiguration.from(WithExpected.class, null, null, null, expected,
@@ -514,10 +524,11 @@ class AnnotatedTestExecutorTest
         executor.beforeTest();
 
         assertThat(ownTester.getTearDownOperation())
-                .as("A declared @DbUnitTearDown operation must replace the tester's own.")
+                .as("A declared @DbUnitTearDownOperation operation must replace the tester's own.")
                 .isEqualTo(DatabaseOperation.DELETE_ALL);
         assertThat(ownTester.getSetUpOperation())
-                .as("The setup operation, which neither @DbUnitPrep nor @DbUnitSetup declared,"
+                .as("The setup operation, which neither @DbUnitPrep nor @DbUnitSetUpOperation"
+                        + " declared,"
                         + " must stay.")
                 .isEqualTo(DatabaseOperation.REFRESH);
     }
@@ -527,10 +538,11 @@ class AnnotatedTestExecutorTest
             throws Exception
     {
         // Two methods share one tester (a static @DbUnitTester field, or @TestInstance(PER_CLASS)).
-        // Method A declares @DbUnitTearDown(DELETE_ALL); method B declares none. B must run
-        // onTearDown() with the tester's baseline NONE, not A's leftover DELETE_ALL.
+        // Method A declares @DbUnitTearDownOperation(DELETE_ALL); method B declares none. B must
+        // run onTearDown() with the tester's baseline NONE, not A's leftover DELETE_ALL.
         final RecordingAbstractDatabaseTester sharedTester = new RecordingAbstractDatabaseTester();
-        final DbUnitTearDown tearDown = WithTearDown.class.getAnnotation(DbUnitTearDown.class);
+        final DbUnitTearDownOperation tearDown =
+                WithTearDown.class.getAnnotation(DbUnitTearDownOperation.class);
 
         final AnnotatedTestExecutor methodA = new AnnotatedTestExecutor(
                 AnnotatedTestConfiguration.from(WithTearDown.class, null, null, null, null,
@@ -540,7 +552,8 @@ class AnnotatedTestExecutorTest
         methodA.afterTest(false);
 
         assertThat(sharedTester.getTearDownOperation())
-                .as("Method A's @DbUnitTearDown is undone after A, not left on the shared tester.")
+                .as("Method A's @DbUnitTearDownOperation is undone after A, not left on the shared"
+                        + " tester.")
                 .isEqualTo(DatabaseOperation.NONE);
 
         final AnnotatedTestExecutor methodB = new AnnotatedTestExecutor(
@@ -561,10 +574,11 @@ class AnnotatedTestExecutorTest
             throws Exception
     {
         // The teardown side of warnIfNonNoneOperationHasNoDataset(): a non-NONE
-        // @DbUnitTearDown operation with no @DbUnitPrep files and no dataset on the tester
+        // @DbUnitTearDownOperation operation with no @DbUnitPrep files and no dataset on the tester
         // would run against a null dataset - a built-in tester NPEs deep inside the operation
         // with no hint - so warn, naming the fixes, rather than fail silently.
-        final DbUnitTearDown tearDown = WithTearDown.class.getAnnotation(DbUnitTearDown.class);
+        final DbUnitTearDownOperation tearDown =
+                WithTearDown.class.getAnnotation(DbUnitTearDownOperation.class);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(WithTearDown.class, null, null, null, null, tearDown, null);
         final AnnotatedTestExecutor executor =
@@ -581,13 +595,13 @@ class AnnotatedTestExecutorTest
 
             assertThat(appender.list)
                     .filteredOn(event -> event.getLevel() == Level.WARN)
-                    .as("@DbUnitTearDown(operation = DELETE_ALL) with no @DbUnitPrep and no"
+                    .as("@DbUnitTearDownOperation(DELETE_ALL) with no @DbUnitPrep and no"
                             + " dataset on the tester must warn before onTearDown() - not fail"
                             + " silently or NPE with no hint - mirroring the setup-side"
                             + " warning.")
                     .hasSize(1)
                     .allSatisfy(event -> assertThat(event.getFormattedMessage())
-                            .contains("@DbUnitTearDown").contains("onTearDown()")
+                            .contains("@DbUnitTearDownOperation").contains("onTearDown()")
                             .contains("NONE"));
         } finally
         {
@@ -598,8 +612,8 @@ class AnnotatedTestExecutorTest
     @Test
     void testAfterTest_bareTearDownNoneWithNoDataset_doesNotWarn() throws Exception
     {
-        final DbUnitTearDown tearDown =
-                WithBareTearDown.class.getAnnotation(DbUnitTearDown.class);
+        final DbUnitTearDownOperation tearDown =
+                WithBareTearDown.class.getAnnotation(DbUnitTearDownOperation.class);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(WithBareTearDown.class, null, null, null, null, tearDown, null);
         final AnnotatedTestExecutor executor =
@@ -616,7 +630,8 @@ class AnnotatedTestExecutorTest
 
             assertThat(appender.list)
                     .filteredOn(event -> event.getLevel() == Level.WARN)
-                    .as("A bare @DbUnitTearDown resolves to NONE, which needs no dataset, so"
+                    .as("A bare @DbUnitTearDownOperation resolves to NONE, which needs no dataset,"
+                            + " so"
                             + " this must not warn.")
                     .isEmpty();
         } finally
@@ -634,7 +649,8 @@ class AnnotatedTestExecutorTest
         // say) and throw a second exception masking the real failure. Mirrors afterExpectedTest()'s
         // guard on the prep/expected path.
         when(tester.getConnection()).thenThrow(new SQLException("cannot connect"));
-        final DbUnitTearDown tearDown = WithTearDown.class.getAnnotation(DbUnitTearDown.class);
+        final DbUnitTearDownOperation tearDown =
+                WithTearDown.class.getAnnotation(DbUnitTearDownOperation.class);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(WithTearDown.class, null, null, null, null, tearDown, null);
         final AnnotatedTestExecutor executor =
@@ -1127,7 +1143,8 @@ class AnnotatedTestExecutorTest
         // gives the prep/expected path.
         stubDisabledConnection();
         when(jdbcConnection.getAutoCommit()).thenReturn(false);
-        final DbUnitSetup setup = WithSetupNoPrep.class.getAnnotation(DbUnitSetup.class);
+        final DbUnitSetUpOperation setup =
+                WithSetupNoPrep.class.getAnnotation(DbUnitSetUpOperation.class);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(WithSetupNoPrep.class, null, null, setup, null, null, null);
         final AnnotatedTestExecutor executor =
@@ -1196,8 +1213,8 @@ class AnnotatedTestExecutorTest
         final JdbcDatabaseTester jdbcTester = jdbcTesterReturningTheConnection(null);
         final DbUnitConfig config = WithCloseConnectionAfterTestFalseAndSetupNoPrep.class
                 .getAnnotation(DbUnitConfig.class);
-        final DbUnitSetup setup = WithCloseConnectionAfterTestFalseAndSetupNoPrep.class
-                .getAnnotation(DbUnitSetup.class);
+        final DbUnitSetUpOperation setup = WithCloseConnectionAfterTestFalseAndSetupNoPrep.class
+                .getAnnotation(DbUnitSetUpOperation.class);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration.from(
                 WithCloseConnectionAfterTestFalseAndSetupNoPrep.class, config, null, setup, null,
                 null, null);
@@ -1226,7 +1243,8 @@ class AnnotatedTestExecutorTest
             throws Exception
     {
         final JdbcDatabaseTester jdbcTester = jdbcTesterReturningTheConnection(null);
-        final DbUnitSetup setup = WithSetupNoPrep.class.getAnnotation(DbUnitSetup.class);
+        final DbUnitSetUpOperation setup =
+                WithSetupNoPrep.class.getAnnotation(DbUnitSetUpOperation.class);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(WithSetupNoPrep.class, null, null, setup, null, null, null);
         final AnnotatedTestExecutor executor =
@@ -1256,8 +1274,8 @@ class AnnotatedTestExecutorTest
                 jdbcTesterReturningTheConnection(new CachingConnectionProvider());
         final DbUnitConfig config = WithCloseConnectionAfterTestFalseAndSetupNoPrep.class
                 .getAnnotation(DbUnitConfig.class);
-        final DbUnitSetup setup = WithCloseConnectionAfterTestFalseAndSetupNoPrep.class
-                .getAnnotation(DbUnitSetup.class);
+        final DbUnitSetUpOperation setup = WithCloseConnectionAfterTestFalseAndSetupNoPrep.class
+                .getAnnotation(DbUnitSetUpOperation.class);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration.from(
                 WithCloseConnectionAfterTestFalseAndSetupNoPrep.class, config, null, setup, null,
                 null, null);
@@ -1290,8 +1308,8 @@ class AnnotatedTestExecutorTest
         final JdbcDatabaseTester jdbcTester = jdbcTesterReturningTheConnection(null);
         final DbUnitConfig config = WithCloseConnectionAfterTestFalseAndSetupNoPrep.class
                 .getAnnotation(DbUnitConfig.class);
-        final DbUnitSetup setup = WithCloseConnectionAfterTestFalseAndSetupNoPrep.class
-                .getAnnotation(DbUnitSetup.class);
+        final DbUnitSetUpOperation setup = WithCloseConnectionAfterTestFalseAndSetupNoPrep.class
+                .getAnnotation(DbUnitSetUpOperation.class);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration.from(
                 WithCloseConnectionAfterTestFalseAndSetupNoPrep.class, config, null, setup, null,
                 null, null);
@@ -1324,8 +1342,8 @@ class AnnotatedTestExecutorTest
     {
         // The classic first surprise: the baseline is captured before @DbUnitPrep loads, so a
         // prep dataset that is never torn down reads as leaked rows and fails the check. The
-        // exception must name the fix - @DbUnitTearDown(DELETE_ALL) or an exclude - not just
-        // the per-table delta.
+        // exception must name the fix - @DbUnitTearDownOperation(DELETE_ALL) or an exclude - not
+        // just the per-table delta.
         stubEnabledConnection("ACCOUNT");
         when(connection.getRowCount("ACCOUNT")).thenReturn(0);
         when(tester.getTearDownOperation()).thenReturn(DatabaseOperation.NONE);
@@ -1349,7 +1367,7 @@ class AnnotatedTestExecutorTest
                 .as("The message must name the teardown fix and explain the before-prep"
                         + " baseline, on top of the standard per-table detail.")
                 .contains("baseline is captured before @DbUnitPrep loads")
-                .contains("@DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)")
+                .contains("@DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)")
                 .contains("ACCOUNT");
     }
 
@@ -1378,7 +1396,7 @@ class AnnotatedTestExecutorTest
         assertThat(thrown).isInstanceOf(UnexpectedRowCountException.class);
         assertThat(thrown.getMessage())
                 .as("No teardown hint when a non-NONE teardown operation ran.")
-                .doesNotContain("@DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)");
+                .doesNotContain("@DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)");
     }
 
     @Test
@@ -1654,7 +1672,8 @@ class AnnotatedTestExecutorTest
         // a @BeforeEach parameter resolved it, postTest()/cleanupData() never runs to close it
         // the instance's own way, and closing it here would strand the instance holding a
         // closed connection for the next test method.
-        final DbUnitSetup setup = WithSetupNoPrep.class.getAnnotation(DbUnitSetup.class);
+        final DbUnitSetUpOperation setup =
+                WithSetupNoPrep.class.getAnnotation(DbUnitSetUpOperation.class);
         final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(WithExpected.class, null, null, setup, expected, null, null);
@@ -1689,7 +1708,8 @@ class AnnotatedTestExecutorTest
         stubOpenJdbcConnection();
         final DbUnitConfig config = WithConstructedCachingTestCase.class
                 .getAnnotation(DbUnitConfig.class);
-        final DbUnitSetup setup = WithSetupNoPrep.class.getAnnotation(DbUnitSetup.class);
+        final DbUnitSetUpOperation setup =
+                WithSetupNoPrep.class.getAnnotation(DbUnitSetUpOperation.class);
         final DbUnitExpected expected = WithConstructedCachingTestCase.class
                 .getAnnotation(DbUnitExpected.class);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration.from(
@@ -2682,8 +2702,8 @@ class AnnotatedTestExecutorTest
     {
         final DbUnitConfig config =
                 WithPropertiesAndSetupNone.class.getAnnotation(DbUnitConfig.class);
-        final DbUnitSetup setup =
-                WithPropertiesAndSetupNone.class.getAnnotation(DbUnitSetup.class);
+        final DbUnitSetUpOperation setup =
+                WithPropertiesAndSetupNone.class.getAnnotation(DbUnitSetUpOperation.class);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(WithPropertiesAndSetupNone.class, config, null, setup, null, null, null);
         final DatabaseConfig realConfig = new DatabaseConfig();
@@ -2709,8 +2729,8 @@ class AnnotatedTestExecutorTest
     {
         final DbUnitConfig config =
                 WithPropertiesAndSetupNone.class.getAnnotation(DbUnitConfig.class);
-        final DbUnitSetup setup =
-                WithPropertiesAndSetupNone.class.getAnnotation(DbUnitSetup.class);
+        final DbUnitSetUpOperation setup =
+                WithPropertiesAndSetupNone.class.getAnnotation(DbUnitSetUpOperation.class);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(WithPropertiesAndSetupNone.class, config, null, setup, null, null, null);
         when(tester.getConnection()).thenReturn(null);
@@ -2990,7 +3010,8 @@ class AnnotatedTestExecutorTest
     void testAfterTest_restoringTesterStateFails_stillUndoesTheTestCaseConfiguration()
             throws Exception
     {
-        final DbUnitSetup setup = WithSetupNoPrep.class.getAnnotation(DbUnitSetup.class);
+        final DbUnitSetUpOperation setup =
+                WithSetupNoPrep.class.getAnnotation(DbUnitSetUpOperation.class);
         final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(WithExpected.class, null, null, setup, expected, null, null);
@@ -3639,7 +3660,8 @@ class AnnotatedTestExecutorTest
             throws Exception
     {
         stubDisabledConnection();
-        final DbUnitSetup setup = WithSetupNoPrep.class.getAnnotation(DbUnitSetup.class);
+        final DbUnitSetUpOperation setup =
+                WithSetupNoPrep.class.getAnnotation(DbUnitSetUpOperation.class);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(WithSetupNoPrep.class, null, null, setup, null, null, null);
         final AnnotatedTestExecutor executor =
@@ -3656,7 +3678,8 @@ class AnnotatedTestExecutorTest
     void testBeforeTest_bareSetupNoPrepAndTesterHasNoDataset_warnsBeforeOnSetup()
             throws Exception
     {
-        final DbUnitSetup setup = WithBareSetupNoPrep.class.getAnnotation(DbUnitSetup.class);
+        final DbUnitSetUpOperation setup =
+                WithBareSetupNoPrep.class.getAnnotation(DbUnitSetUpOperation.class);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(WithBareSetupNoPrep.class, null, null, setup, null, null, null);
         final AnnotatedTestExecutor executor =
@@ -3672,13 +3695,14 @@ class AnnotatedTestExecutorTest
 
             assertThat(appender.list)
                     .filteredOn(event -> event.getLevel() == Level.WARN)
-                    .as("A bare @DbUnitSetup (resolves to CLEAN_INSERT) with no @DbUnitPrep and"
+                    .as("A bare @DbUnitSetUpOperation (resolves to CLEAN_INSERT) with no"
+                            + " @DbUnitPrep and"
                             + " no dataset on the tester must warn - a built-in tester will fail"
                             + " in onSetup() - not fail silently or throw (a custom tester or"
                             + " test double may legitimately source its dataset elsewhere).")
                     .hasSize(1)
                     .allSatisfy(event -> assertThat(event.getFormattedMessage())
-                            .contains("@DbUnitSetup").contains("NONE"));
+                            .contains("@DbUnitSetUpOperation").contains("NONE"));
         } finally
         {
             lifecycleLogger.detachAppender(appender);
@@ -3688,7 +3712,8 @@ class AnnotatedTestExecutorTest
     @Test
     void testBeforeTest_setupNoneNoPrepAndTesterHasNoDataset_doesNotWarn() throws Exception
     {
-        final DbUnitSetup setup = WithSetupNoPrep.class.getAnnotation(DbUnitSetup.class);
+        final DbUnitSetUpOperation setup =
+                WithSetupNoPrep.class.getAnnotation(DbUnitSetUpOperation.class);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(WithSetupNoPrep.class, null, null, setup, null, null, null);
         final AnnotatedTestExecutor executor =
@@ -3704,7 +3729,7 @@ class AnnotatedTestExecutorTest
 
             assertThat(appender.list)
                     .filteredOn(event -> event.getLevel() == Level.WARN)
-                    .as("@DbUnitSetup(operation = NONE) with no dataset is the documented"
+                    .as("@DbUnitSetUpOperation(NONE) with no dataset is the documented"
                             + " suppress-the-tester's-dataset case and must not warn.")
                     .isEmpty();
         } finally
@@ -4147,7 +4172,7 @@ class AnnotatedTestExecutorTest
     }
 
     @DbUnitConfig(closeConnectionAfterTest = false)
-    @DbUnitSetup(operation = DbUnitOperation.NONE)
+    @DbUnitSetUpOperation(DbUnitOperation.NONE)
     static class WithCloseConnectionAfterTestFalseAndSetupNoPrep
     {
     }
@@ -4158,22 +4183,22 @@ class AnnotatedTestExecutorTest
     {
     }
 
-    @DbUnitSetup(operation = DbUnitOperation.NONE)
+    @DbUnitSetUpOperation(DbUnitOperation.NONE)
     static class WithSetupNoPrep
     {
     }
 
-    @DbUnitSetup
+    @DbUnitSetUpOperation
     static class WithBareSetupNoPrep
     {
     }
 
-    @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+    @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
     static class WithTearDown
     {
     }
 
-    @DbUnitTearDown
+    @DbUnitTearDownOperation
     static class WithBareTearDown
     {
     }
@@ -4270,7 +4295,7 @@ class AnnotatedTestExecutorTest
     }
 
     @DbUnitConfig(properties = @DbUnitProperty(name = "batchSize", value = "50"))
-    @DbUnitSetup(operation = DbUnitOperation.NONE)
+    @DbUnitSetUpOperation(DbUnitOperation.NONE)
     static class WithPropertiesAndSetupNone
     {
     }

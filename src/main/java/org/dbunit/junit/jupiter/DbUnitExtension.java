@@ -33,8 +33,8 @@ import org.dbunit.annotation.DbUnitConfig;
 import org.dbunit.annotation.DbUnitExpected;
 import org.dbunit.annotation.DbUnitPrep;
 import org.dbunit.annotation.DbUnitRowCountCheck;
-import org.dbunit.annotation.DbUnitSetup;
-import org.dbunit.annotation.DbUnitTearDown;
+import org.dbunit.annotation.DbUnitSetUpOperation;
+import org.dbunit.annotation.DbUnitTearDownOperation;
 import org.dbunit.annotation.DbUnitTestCase;
 import org.dbunit.annotation.DbUnitTester;
 import org.dbunit.annotation.runtime.AnnotatedTestConfiguration;
@@ -57,15 +57,16 @@ import org.slf4j.LoggerFactory;
 
 /**
  * JUnit 5/6 extension for DbUnit that manages the dbUnit lifecycle around each test method,
- * driven by the {@code org.dbunit.annotation} family: {@link DbUnitPrep}, {@link DbUnitSetup},
- * {@link DbUnitExpected}, {@link DbUnitTearDown}, and {@link DbUnitConfig}. Add
+ * driven by the {@code org.dbunit.annotation} family: {@link DbUnitPrep}, {@link
+ * DbUnitSetUpOperation},
+ * {@link DbUnitExpected}, {@link DbUnitTearDownOperation}, and {@link DbUnitConfig}. Add
  * {@link DbUnitTest @DbUnitTest} (or {@code @ExtendWith(DbUnitExtension.class)} directly) to
  * opt a test class in.
  *
  * <h2>The two paths</h2>
  *
  * <p>Without {@link DbUnitExpected}, this is the setup/teardown path: the
- * {@link DbUnitPrep} dataset (if any) and {@link DbUnitSetup} operation are applied, then
+ * {@link DbUnitPrep} dataset (if any) and {@link DbUnitSetUpOperation} operation are applied, then
  * {@link IDatabaseTester#onSetup()} runs before the test method and
  * {@link IDatabaseTester#onTearDown()} after it. The test method asserts results however it
  * likes.
@@ -162,10 +163,11 @@ import org.slf4j.LoggerFactory;
  * {@link IDatabaseConnection}, and {@link Connection} parameters on {@code @Test} and
  * {@code @BeforeEach} methods - but only for a test that opts into the
  * {@code org.dbunit.annotation} family: one carrying {@link DbUnitTest @DbUnitTest} or any
- * {@code @DbUnit*} annotation ({@link DbUnitConfig}, {@link DbUnitPrep}, {@link DbUnitSetup},
- * {@link DbUnitExpected}, {@link DbUnitTearDown}, {@link DbUnitRowCountCheck}) on the class or
- * method, or a {@link DbUnitTester @DbUnitTester}/{@link DbUnitTestCase @DbUnitTestCase} field.
- * A bare {@code @ExtendWith(DbUnitExtension.class)} class with only a plain, unannotated
+ * {@code @DbUnit*} annotation ({@link DbUnitConfig}, {@link DbUnitPrep}, {@link
+ * DbUnitSetUpOperation},
+ * {@link DbUnitExpected}, {@link DbUnitTearDownOperation}, {@link DbUnitRowCountCheck}) on the
+ * class or method, or a {@link DbUnitTester @DbUnitTester}/{@link DbUnitTestCase @DbUnitTestCase}
+ * field. A bare {@code @ExtendWith(DbUnitExtension.class)} class with only a plain, unannotated
  * {@link IDatabaseTester} field keeps the 3.5.0 lifecycle and has no
  * parameter claimed here, so another extension resolving a {@link Connection} (or any of the
  * other three types) on the same test stays unambiguous. Switch such a class to
@@ -206,9 +208,9 @@ import org.slf4j.LoggerFactory;
  * @author Jeff Jensen
  * @since 3.5.0
  * @see DbUnitPrep
- * @see DbUnitSetup
+ * @see DbUnitSetUpOperation
  * @see DbUnitExpected
- * @see DbUnitTearDown
+ * @see DbUnitTearDownOperation
  * @see DbUnitConfig
  * @see DbUnitRowCountCheck
  * @see DbUnitTest

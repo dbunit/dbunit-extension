@@ -37,14 +37,14 @@ import org.slf4j.LoggerFactory;
 /**
  * The setup/teardown path of one test's dbUnit lifecycle, driven by
  * {@link AnnotatedTestExecutor} when {@link AnnotatedTestConfiguration#isExpected()} is false:
- * apply the {@code @DbUnitPrep} dataset (if any) and the {@code @DbUnitSetup}/
- * {@code @DbUnitTearDown} operations to the tester, run its {@code onSetup()}/{@code onTearDown()},
- * and around them capture and verify the {@link AnnotatedRowCountCheck} baseline.
+ * apply the {@code @DbUnitPrep} dataset (if any) and the {@code @DbUnitSetUpOperation}/
+ * {@code @DbUnitTearDownOperation} operations to the tester, run its {@code onSetup()}/{@code
+ * onTearDown()}, and around them capture and verify the {@link AnnotatedRowCountCheck} baseline.
  *
  * <p>Operations are applied only for a declared annotation: with no {@code @DbUnitPrep} and no
- * {@code @DbUnitSetup}, {@code onSetup()} runs with whatever dataset and setup operation the
- * tester already carries (e.g. from a {@code @BeforeEach} method); with no
- * {@code @DbUnitTearDown}, {@code onTearDown()} runs with the tester's current teardown
+ * {@code @DbUnitSetUpOperation}, {@code onSetup()} runs with whatever dataset and setup operation
+ * the tester already carries (e.g. from a {@code @BeforeEach} method); with no
+ * {@code @DbUnitTearDownOperation}, {@code onTearDown()} runs with the tester's current teardown
  * operation. The dataset and both operations {@link #tester} carries coming into the test are
  * snapshotted at the start and restored at the end (see {@link TesterStateSnapshot}), so a
  * tester shared across methods carries no per-method state onto the next method.
@@ -152,14 +152,16 @@ final class SetupTeardownLifecycle
     {
         if (configuration.replacesSetUpOperation())
         {
-            // With @DbUnitSetup but no @DbUnitPrep, there is no dataset to apply the operation
-            // to, but the operation itself - most usefully NONE - still applies to whatever
-            // dataset the tester already has; see AnnotatedTestConfiguration#isSetupDeclared().
+            // With @DbUnitSetUpOperation but no @DbUnitPrep, there is no dataset to apply the
+            // operation to, but the operation itself - most usefully NONE - still applies to
+            // whatever dataset the tester already has; see
+            // AnnotatedTestConfiguration#isSetupDeclared().
             final DatabaseOperation setUpOperation = configuration.getSetUpOperation();
             tester.setSetUpOperation(setUpOperation);
             return setUpOperation;
         }
-        log.debug("No @DbUnitPrep data files and no @DbUnitSetup declared; running with the"
+        log.debug("No @DbUnitPrep data files and no @DbUnitSetUpOperation declared; running with"
+                + " the"
                 + " tester's current dataset and setup operation, restored afterward.");
         return tester.getSetUpOperation();
     }
@@ -167,8 +169,8 @@ final class SetupTeardownLifecycle
     /**
      * Applies the {@code @DbUnitPrep} dataset to the tester: a single file loaded directly, or
      * multiple files combined (see {@link #combine}). With no {@code @DbUnitPrep} data files this
-     * only warns, when {@code @DbUnitSetup} declares a non-NONE operation with no dataset for it
-     * to act on - {@link #applySetUpOperation()} has already applied the operation itself.
+     * only warns, when {@code @DbUnitSetUpOperation} declares a non-NONE operation with no dataset
+     * for it to act on - {@link #applySetUpOperation()} has already applied the operation itself.
      *
      * <p>When the connection comes from {@code onSetup()} itself, none is resolved yet to read
      * the case sensitivity the combine needs, so the files are combined case-insensitively for
@@ -196,14 +198,16 @@ final class SetupTeardownLifecycle
         if (configuration.isSetupDeclared())
         {
             final DatabaseOperation setUpOperation = configuration.getSetUpOperation();
-            warnIfNonNoneOperationHasNoDataset("@DbUnitSetup", "onSetup()", setUpOperation);
-            log.debug("No @DbUnitPrep data files declared; applied @DbUnitSetup's operation"
+            warnIfNonNoneOperationHasNoDataset("@DbUnitSetUpOperation", "onSetup()",
+                    setUpOperation);
+            log.debug("No @DbUnitPrep data files declared; applied @DbUnitSetUpOperation's"
+                    + " operation"
                     + " {} without changing the tester's dataset.", setUpOperation);
         }
     }
 
     /**
-     * Applies the teardown operation (when {@code @DbUnitTearDown} was declared), runs
+     * Applies the teardown operation (when {@code @DbUnitTearDownOperation} was declared), runs
      * {@code onTearDown()}, then verifies the row count check baseline unless {@code testFailed}
      * - all skipped when {@link #before()} threw before {@code onSetup()} ran, since
      * {@code onTearDown()} would then act on state {@code onSetup()} never established and throw
@@ -226,11 +230,11 @@ final class SetupTeardownLifecycle
                     final DatabaseOperation tearDownOperation =
                             configuration.getTearDownOperation();
                     tester.setTearDownOperation(tearDownOperation);
-                    warnIfNonNoneOperationHasNoDataset("@DbUnitTearDown", "onTearDown()",
+                    warnIfNonNoneOperationHasNoDataset("@DbUnitTearDownOperation", "onTearDown()",
                             tearDownOperation);
                 } else
                 {
-                    log.debug("No @DbUnitTearDown declared; running onTearDown() with the"
+                    log.debug("No @DbUnitTearDownOperation declared; running onTearDown() with the"
                             + " tester's current teardown operation, restored afterward.");
                 }
                 tester.onTearDown();
@@ -248,24 +252,26 @@ final class SetupTeardownLifecycle
     }
 
     /**
-     * Warns when {@code annotationName} ({@code @DbUnitSetup} or {@code @DbUnitTearDown})
-     * declares a non-{@link DatabaseOperation#NONE} operation with no {@code @DbUnitPrep} data
-     * files and no dataset already on the tester - every such operation ({@code CLEAN_INSERT},
+     * Warns when {@code annotationName} ({@code @DbUnitSetUpOperation} or
+     * {@code @DbUnitTearDownOperation}) declares a non-{@link DatabaseOperation#NONE} operation
+     * with no
+     * {@code @DbUnitPrep} data files and no dataset already on the tester - every such operation
+     * ({@code CLEAN_INSERT},
      * {@code INSERT}, {@code REFRESH}, {@code UPDATE}, {@code DELETE}, {@code DELETE_ALL},
      * {@code TRUNCATE_TABLE}) needs a dataset to act on, so {@code AbstractDatabaseTester}'s
      * {@code testerMethodName} would run the operation against a {@code null} dataset. A bare
-     * {@code @DbUnitSetup} resolves to {@code CLEAN_INSERT}, so that is the likely shape of the
-     * mistake on the setup side; a bare {@code @DbUnitTearDown} resolves to {@code NONE}, so on
-     * the teardown side reaching this warning means the {@code operation} member was set
-     * explicitly.
+     * {@code @DbUnitSetUpOperation} resolves to {@code CLEAN_INSERT}, so that is the likely shape
+     * of the mistake on the setup side; a bare {@code @DbUnitTearDownOperation} resolves to {@code
+     * NONE}, so on the teardown side reaching this warning means the {@code operation} member was
+     * set explicitly.
      *
      * <p>A warning rather than an {@link IllegalStateException}: a custom {@link IDatabaseTester}
      * whose {@code onSetup()}/{@code onTearDown()} sources its dataset some other way, or a
      * test double, legitimately has {@code getDataSet()} return {@code null} here and handles
      * the operation itself.
      *
-     * @param annotationName The declaring annotation, {@code "@DbUnitSetup"} or
-     *            {@code "@DbUnitTearDown"}.
+     * @param annotationName The declaring annotation, {@code "@DbUnitSetUpOperation"} or
+     *            {@code "@DbUnitTearDownOperation"}.
      * @param testerMethodName The tester lifecycle method that would run the operation,
      *            {@code "onSetup()"} or {@code "onTearDown()"}.
      * @param resolvedOperation The operation the annotation resolved to.

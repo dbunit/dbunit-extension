@@ -257,8 +257,8 @@ final class ExpectedLifecycle
     }
 
     /**
-     * Applies {@code @DbUnitSetup}'s operation to {@link #tester} when the annotations declare
-     * one - see {@link AnnotatedTestConfiguration#replacesSetUpOperation()} - which is
+     * Applies {@code @DbUnitSetUpOperation}'s operation to {@link #tester} when the annotations
+     * declare one - see {@link AnnotatedTestConfiguration#replacesSetUpOperation()} - which is
      * {@link org.dbunit.operation.DatabaseOperation#CLEAN_INSERT} for {@code @DbUnitPrep} files
      * alone, as on the setup/teardown path. Otherwise the tester's own operation stays, such as
      * one a {@code @BeforeEach} method set, which can be one {@code DbUnitOperation} cannot
@@ -275,7 +275,7 @@ final class ExpectedLifecycle
     }
 
     /**
-     * Applies {@code @DbUnitTearDown}'s operation to {@link #tester} when the annotations
+     * Applies {@code @DbUnitTearDownOperation}'s operation to {@link #tester} when the annotations
      * declare one, as the setup/teardown path does. Otherwise the tester's own operation stays,
      * which {@code cleanupData()} reads from the tester lazily. Whatever this applies is undone
      * by {@link #after(boolean)} restoring {@link #incomingState} once the test finishes, so a

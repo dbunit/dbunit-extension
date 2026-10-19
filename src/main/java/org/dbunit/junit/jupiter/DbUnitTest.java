@@ -41,7 +41,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
  * @Inherited
  * @DbUnitTest
  * @DbUnitConfig(dataFileLoader = FlatXmlDataFileLoader.class)
- * @DbUnitSetup(operation = DbUnitOperation.DELETE_ALL)
+ * @DbUnitSetUpOperation(DbUnitOperation.REFRESH)
  * public @interface AppDatabaseTest {}
  * }</pre>
  *
