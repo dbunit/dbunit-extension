@@ -36,7 +36,7 @@ import org.dbunit.IOperationListener;
 import org.dbunit.annotation.DbUnitExpected;
 import org.dbunit.annotation.DbUnitPrep;
 import org.dbunit.annotation.DbUnitRowCountCheck;
-import org.dbunit.annotation.DbUnitTearDown;
+import org.dbunit.annotation.DbUnitTearDownOperation;
 import org.dbunit.annotation.DbUnitTester;
 import org.dbunit.annotation.DbUnitVerifyTable;
 import org.dbunit.database.DatabaseConnection;
@@ -227,7 +227,7 @@ class DbUnitExtensionAutoCommitOffIT
         @DbUnitExpected(value = "annotation-it-expected.xml",
                 verify = @DbUnitVerifyTable(value = TEST_TABLE,
                         include = {"COLUMN0", "COLUMN1"}))
-        @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+        @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
         void mutateTheSeededRow(final Connection connection) throws Exception
         {
             try (Statement statement = connection.createStatement())
@@ -247,7 +247,7 @@ class DbUnitExtensionAutoCommitOffIT
 
         @Test
         @DbUnitPrep("annotation-it-prep.xml")
-        @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+        @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
         void seedsThePrepDataset()
         {
             // The @DbUnitPrep CLEAN_INSERT is the point of interest; the body does nothing.

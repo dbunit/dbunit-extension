@@ -30,7 +30,7 @@ import org.dbunit.DefaultDatabaseTester;
 import org.dbunit.IDatabaseTester;
 import org.dbunit.IOperationListener;
 import org.dbunit.annotation.DbUnitRowCountCheck;
-import org.dbunit.annotation.DbUnitSetup;
+import org.dbunit.annotation.DbUnitSetUpOperation;
 import org.dbunit.annotation.DbUnitTester;
 import org.dbunit.database.DatabaseConfig;
 import org.dbunit.database.IDatabaseConnection;
@@ -135,7 +135,7 @@ class DbUnitExtensionRowCountCheckIT
 
     @ExtendWith(DbUnitExtension.class)
     @DbUnitRowCountCheck
-    @DbUnitSetup(operation = DbUnitOperation.NONE)
+    @DbUnitSetUpOperation(DbUnitOperation.NONE)
     static class LeakedRowSample
     {
         @DbUnitTester
@@ -155,7 +155,7 @@ class DbUnitExtensionRowCountCheckIT
 
     @ExtendWith(DbUnitExtension.class)
     @DbUnitRowCountCheck(exclude = EMPTY_TABLE)
-    @DbUnitSetup(operation = DbUnitOperation.NONE)
+    @DbUnitSetUpOperation(DbUnitOperation.NONE)
     static class ExcludedTableSample
     {
         @DbUnitTester

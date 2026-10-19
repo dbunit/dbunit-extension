@@ -197,7 +197,7 @@ class AccountWithdrawalTest
     @Test
     @DbUnitPrep(ACCOUNT_PREP)
     @DbUnitExpected(value = ACCOUNT_EXPECTED, verifyTables = "account")
-    @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+    @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
     void testWithdraw_sufficientBalance_decrementsBalance() throws Exception
     {
         try (Connection connection = DriverManager.getConnection(CONNECTION_URL);
@@ -210,7 +210,7 @@ class AccountWithdrawalTest
 ----
 
 `databaseTester.setTearDownOperation(DELETE_ALL)` from step 4 becomes
-`@DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)` — declared per
+`@DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)` — declared per
 method, or once per class when every method needs the same cleanup. Leaving
 it off entirely means no teardown runs at all (`NONE` is the actual
 default), not some baseline cleanup "for free" — declare it whenever a test

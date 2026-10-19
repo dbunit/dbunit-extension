@@ -65,8 +65,8 @@ import org.dbunit.PrepAndExpectedTestCase;
  * substitute here: it is rejected outright alongside this annotation (see above), and even if
  * it were not, {@code DbUnitExtension}'s tester resolution does not consult one for this
  * fallback. In that case the factory-resolved tester must be the exact instance this test case
- * actually uses internally, or {@code @DbUnitSetup}/{@code @DbUnitTearDown} operations set on
- * it may silently never reach what this test case actually runs.
+ * actually uses internally, or {@code @DbUnitSetUpOperation}/{@code @DbUnitTearDownOperation}
+ * operations set on it may silently never reach what this test case actually runs.
  *
  * @author Jeff Jensen
  * @since 3.6.0

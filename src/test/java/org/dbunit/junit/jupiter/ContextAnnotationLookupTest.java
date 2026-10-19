@@ -27,7 +27,7 @@ import java.lang.reflect.Method;
 import java.util.Optional;
 
 import org.dbunit.annotation.DbUnitExpected;
-import org.dbunit.annotation.DbUnitTearDown;
+import org.dbunit.annotation.DbUnitTearDownOperation;
 import org.dbunit.operation.DbUnitOperation;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -49,10 +49,10 @@ class ContextAnnotationLookupTest
         final ContextAnnotationLookup lookup =
                 lookupFor(MethodLevelTearDown.class, "aTestMethod");
 
-        final DbUnitTearDown found = lookup.find(DbUnitTearDown.class);
+        final DbUnitTearDownOperation found = lookup.find(DbUnitTearDownOperation.class);
 
         assertThat(found).as("An annotation on the test method must be found.").isNotNull();
-        assertThat(found.operation()).as("The method's own operation must be returned.")
+        assertThat(found.value()).as("The method's own operation must be returned.")
                 .isEqualTo(DbUnitOperation.TRUNCATE_TABLE);
     }
 
@@ -62,7 +62,7 @@ class ContextAnnotationLookupTest
         final ContextAnnotationLookup lookup =
                 lookupFor(ClassAndMethodLevelTearDown.class, "aTestMethod");
 
-        assertThat(lookup.find(DbUnitTearDown.class).operation())
+        assertThat(lookup.find(DbUnitTearDownOperation.class).value())
                 .as("A method-level annotation must win over a class-level one.")
                 .isEqualTo(DbUnitOperation.TRUNCATE_TABLE);
     }
@@ -73,7 +73,7 @@ class ContextAnnotationLookupTest
         final ContextAnnotationLookup lookup =
                 lookupFor(SubclassOfClassLevelTearDown.class, "aTestMethod");
 
-        assertThat(lookup.find(DbUnitTearDown.class).operation())
+        assertThat(lookup.find(DbUnitTearDownOperation.class).value())
                 .as("A class-level annotation must be found through the superclass.")
                 .isEqualTo(DbUnitOperation.DELETE_ALL);
     }
@@ -85,7 +85,7 @@ class ContextAnnotationLookupTest
         final ContextAnnotationLookup lookup = lookupFor(EnclosingWithTearDown.Nested.class,
                 "aTestMethod", EnclosingWithTearDown.class);
 
-        assertThat(lookup.find(DbUnitTearDown.class).operation())
+        assertThat(lookup.find(DbUnitTearDownOperation.class).value())
                 .as("A @Nested class must find its enclosing class's annotations.")
                 .isEqualTo(DbUnitOperation.DELETE_ALL);
     }
@@ -97,7 +97,7 @@ class ContextAnnotationLookupTest
         final ContextAnnotationLookup lookup = lookupFor(Outermost.Middle.Innermost.class,
                 "aTestMethod", Outermost.class, Outermost.Middle.class);
 
-        assertThat(lookup.find(DbUnitTearDown.class).operation())
+        assertThat(lookup.find(DbUnitTearDownOperation.class).value())
                 .as("The annotation of the enclosing class closest to the test class must win"
                         + " over that of a farther one.")
                 .isEqualTo(DbUnitOperation.TRUNCATE_TABLE);
@@ -121,7 +121,7 @@ class ContextAnnotationLookupTest
     {
         final ContextAnnotationLookup lookup = lookupFor(NothingDeclared.class, "aTestMethod");
 
-        assertThat(lookup.find(DbUnitTearDown.class))
+        assertThat(lookup.find(DbUnitTearDownOperation.class))
                 .as("With no annotation on the method or class, there is nothing to find.")
                 .isNull();
     }
@@ -134,7 +134,7 @@ class ContextAnnotationLookupTest
         final ContextAnnotationLookup lookup =
                 lookupFor(InheritsMethodLevelTearDown.class, inheritedMethod);
 
-        assertThat(lookup.findDeclaringClass(DbUnitTearDown.class))
+        assertThat(lookup.findDeclaringClass(DbUnitTearDownOperation.class))
                 .as("The lookup must hand the finder the context's test method.")
                 .isEqualTo(MethodLevelTearDown.class);
     }
@@ -145,7 +145,7 @@ class ContextAnnotationLookupTest
         final ContextAnnotationLookup lookup =
                 lookupFor(SubclassOfClassLevelTearDown.class, "aTestMethod");
 
-        assertThat(lookup.findDeclaringClass(DbUnitTearDown.class))
+        assertThat(lookup.findDeclaringClass(DbUnitTearDownOperation.class))
                 .as("The lookup must hand the finder the context's test class.")
                 .isEqualTo(ClassLevelTearDown.class);
     }
@@ -157,7 +157,7 @@ class ContextAnnotationLookupTest
         final ContextAnnotationLookup lookup = lookupFor(EnclosingWithTearDown.Nested.class,
                 "aTestMethod", EnclosingWithTearDown.class);
 
-        assertThat(lookup.findDeclaringClass(DbUnitTearDown.class))
+        assertThat(lookup.findDeclaringClass(DbUnitTearDownOperation.class))
                 .as("The lookup must hand the finder the context's enclosing classes.")
                 .isEqualTo(EnclosingWithTearDown.class);
     }
@@ -169,7 +169,7 @@ class ContextAnnotationLookupTest
         final ContextAnnotationLookup lookup = lookupFor(Outermost.Middle.Innermost.class,
                 "aTestMethod", Outermost.class, Outermost.Middle.class);
 
-        assertThat(lookup.findDeclaringClass(DbUnitTearDown.class))
+        assertThat(lookup.findDeclaringClass(DbUnitTearDownOperation.class))
                 .as("The declaring class must be the closest enclosing class declaring it, the"
                         + " one whose annotation find() returns.")
                 .isEqualTo(Outermost.Middle.class);
@@ -180,7 +180,7 @@ class ContextAnnotationLookupTest
     {
         final ContextAnnotationLookup lookup = lookupFor(NothingDeclared.class, "aTestMethod");
 
-        assertThat(lookup.findDeclaringClass(DbUnitTearDown.class))
+        assertThat(lookup.findDeclaringClass(DbUnitTearDownOperation.class))
                 .as("With no such annotation, the declaring class is the test class.")
                 .isEqualTo(NothingDeclared.class);
     }
@@ -204,7 +204,7 @@ class ContextAnnotationLookupTest
 
     static class MethodLevelTearDown
     {
-        @DbUnitTearDown(operation = DbUnitOperation.TRUNCATE_TABLE)
+        @DbUnitTearDownOperation(DbUnitOperation.TRUNCATE_TABLE)
         void aTestMethod()
         {
         }
@@ -214,16 +214,16 @@ class ContextAnnotationLookupTest
     {
     }
 
-    @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+    @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
     static class ClassAndMethodLevelTearDown
     {
-        @DbUnitTearDown(operation = DbUnitOperation.TRUNCATE_TABLE)
+        @DbUnitTearDownOperation(DbUnitOperation.TRUNCATE_TABLE)
         void aTestMethod()
         {
         }
     }
 
-    @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+    @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
     static class ClassLevelTearDown
     {
         void aTestMethod()
@@ -255,7 +255,7 @@ class ContextAnnotationLookupTest
         }
     }
 
-    @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+    @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
     static class EnclosingWithTearDown
     {
         class Nested
@@ -266,10 +266,10 @@ class ContextAnnotationLookupTest
         }
     }
 
-    @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+    @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
     static class Outermost
     {
-        @DbUnitTearDown(operation = DbUnitOperation.TRUNCATE_TABLE)
+        @DbUnitTearDownOperation(DbUnitOperation.TRUNCATE_TABLE)
         class Middle
         {
             class Innermost

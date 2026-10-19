@@ -25,7 +25,7 @@ class AccountRepositoryTest
     @Test
     @DbUnitPrep("/dbunit/accounts/prep.xml")
     @DbUnitExpected(value = "/dbunit/accounts/expected.xml", verifyTables = "ACCOUNT")
-    @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+    @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
     void testWithdraw_sufficientBalance_decrementsBalance()
     {
         // code under test
@@ -50,10 +50,10 @@ with its full rules:
 
 |`@DbUnitTest` |Opts a class into `DbUnitExtension` — exactly `@ExtendWith(DbUnitExtension.class)`.
 |`@DbUnitPrep` |Dataset file(s) to load before the test — see <<prepandsetup>>.
-|`@DbUnitSetup` |The operation to load them with; needed only to change the `CLEAN_INSERT` default — see <<prepandsetup>>.
+|`@DbUnitSetUpOperation` |The operation to load them with; needed only to change the `CLEAN_INSERT` default — see <<prepandsetup>>.
 |`@DbUnitExpected` |Dataset file(s) to verify after the test; presence switches the test onto the prep/expected path — see <<expected>>.
 |`@DbUnitVerifyTable`, `@DbUnitColumnComparer` |Full per-table/per-column verify rules, nested inside `@DbUnitExpected` — see <<expected>>.
-|`@DbUnitTearDown` |The cleanup operation to run after the test; defaults to doing nothing — see <<prepandsetup>>.
+|`@DbUnitTearDownOperation` |The cleanup operation to run after the test; defaults to doing nothing — see <<prepandsetup>>.
 |`@DbUnitConfig` |Class-level wiring: loader, tester factory, `DatabaseConfig` properties, catalog default, base directory, failure handler, connection-close behavior — see <<config>>.
 |`@DbUnitProperty` |One `DatabaseConfig` name/value pair, nested inside `@DbUnitConfig` — see <<properties>>.
 |`@DbUnitTester`, `@DbUnitTestCase` |Field markers injecting an already-built `IDatabaseTester` / `PrepAndExpectedTestCase`, in place of the plain-field auto-scan — see <<resolution>>.
@@ -70,14 +70,14 @@ Presence of `@DbUnitExpected` decides which path a test runs:
 |===
 |Path |Behaviour
 
-|Setup/teardown |The `@DbUnitPrep` dataset (if any) and the `@DbUnitSetup`
+|Setup/teardown |The `@DbUnitPrep` dataset (if any) and the `@DbUnitSetUpOperation`
 operation are applied, then `IDatabaseTester.onSetup()` runs before the test
 method and `onTearDown()` after it — the same lifecycle
 link:DbUnitExtension.html[DbUnitExtension] has always run. The test method
 asserts results however it likes.
 
 |Prep/expected |`@DbUnitExpected` present. The `@DbUnitPrep` dataset (if any)
-and the `@DbUnitSetup` operation are applied the same as the setup/teardown
+and the `@DbUnitSetUpOperation` operation are applied the same as the setup/teardown
 path, then the extension drives a
 link:PrepAndExpectedTestCase.html[PrepAndExpectedTestCase]:
 `configureTest()`/`preTest()` before the test method,
@@ -93,7 +93,7 @@ path when you want dbUnit's expected-dataset comparison to do it. Neither is a
 reduced form of the other — they run different lifecycles.
 
 The setup/teardown path's reach is deliberately wide: `@DbUnitPrep`/
-`@DbUnitSetup`/`@DbUnitTearDown` drive `onSetup()`/`onTearDown()` on *any*
+`@DbUnitSetUpOperation`/`@DbUnitTearDownOperation` drive `onSetup()`/`onTearDown()` on *any*
 `IDatabaseTester` implementation - built-in or a project's own. A project's
 own implementation should override `getOperationListener()` (returning the
 value `setOperationListener()` was last given, the way `AbstractDatabaseTester`
@@ -176,7 +176,7 @@ external. A `@DbUnitTester` field is not a substitute here: it is rejected
 outright alongside `@DbUnitTestCase` (see above), and even if it were not,
 this fallback does not consult one. In that case, the factory-resolved
 tester must be the exact instance the injected test case actually uses
-internally, or `@DbUnitSetup`/`@DbUnitTearDown` operations set on it may
+internally, or `@DbUnitSetUpOperation`/`@DbUnitTearDownOperation` operations set on it may
 silently never reach what it actually runs.
 
 `@DbUnitTester` and `@DbUnitTestCase` both accept a `static` field, the way a
@@ -219,7 +219,7 @@ a class sharing a `static` `@DbUnitTester`/`@DbUnitTestCase` field running seque
 give each test method its own non-static field instead.
 
 [#prepandsetup]
-== @DbUnitPrep and @DbUnitSetup
+== @DbUnitPrep and @DbUnitSetUpOperation
 
 `DbUnitOperation` has eight values, each mapping to the corresponding
 `DatabaseOperation` constant:
@@ -229,14 +229,14 @@ give each test method its own non-static field instead.
 |Value |Meaning
 
 |`CLEAN_INSERT` |Deletes all rows then inserts the dataset rows. The
-default `@DbUnitSetup` operation.
+default `@DbUnitSetUpOperation` operation.
 |`INSERT` |Inserts dataset rows. Fails if a row already exists.
 |`UPDATE` |Updates existing rows in the dataset.
 |`REFRESH` |Inserts or updates rows (upsert).
 |`DELETE` |Deletes rows matching the dataset.
 |`DELETE_ALL` |Deletes all rows from each table in the dataset.
 |`TRUNCATE_TABLE` |Truncates each table in the dataset.
-|`NONE` |Performs no operation. The default `@DbUnitTearDown` operation.
+|`NONE` |Performs no operation. The default `@DbUnitTearDownOperation` operation.
 |===
 
 Data and operation are deliberately separate annotations rather than one
@@ -247,7 +247,7 @@ fused annotation:
 | |Before the test |After the test
 
 |*Data* |`@DbUnitPrep(files)` |`@DbUnitExpected(files, ...)`
-|*Operation* |`@DbUnitSetup(operation)` |`@DbUnitTearDown(operation)`
+|*Operation* |`@DbUnitSetUpOperation(operation)` |`@DbUnitTearDownOperation(operation)`
 |===
 
 The split matters because a method-level annotation overrides a class-level
@@ -258,8 +258,8 @@ the two resolve independently:
 [source,java]
 ----
 @DbUnitTest
-@DbUnitSetup(operation = DbUnitOperation.REFRESH)   // class-wide, set once
-@DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+@DbUnitSetUpOperation(DbUnitOperation.REFRESH)   // class-wide, set once
+@DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
 class AccountRepositoryTest
 {
     IDatabaseTester databaseTester;
@@ -282,16 +282,16 @@ class AccountRepositoryTest
 
 Because the default is already right, the common case is a single
 annotation — `@DbUnitPrep("accounts.xml")` alone means
-`DbUnitOperation.CLEAN_INSERT`. `@DbUnitSetup` with no `@DbUnitPrep` at all
+`DbUnitOperation.CLEAN_INSERT`. `@DbUnitSetUpOperation` with no `@DbUnitPrep` at all
 is valid: no dataset is prepared, but the operation is still set on the
 tester and applies to whatever dataset the tester already holds — most
 usefully `NONE`, to suppress a dataset the tester was already carrying. A
 non-`NONE` operation there needs the tester to already hold a dataset (set
-in a `@BeforeEach`); a bare `@DbUnitSetup` resolves to `CLEAN_INSERT`, not
-`NONE`, so `@DbUnitSetup` with no `@DbUnitPrep` and no `@BeforeEach` dataset
+in a `@BeforeEach`); a bare `@DbUnitSetUpOperation` resolves to `CLEAN_INSERT`, not
+`NONE`, so `@DbUnitSetUpOperation` with no `@DbUnitPrep` and no `@BeforeEach` dataset
 logs a `WARN` (a built-in tester then fails inside `onSetup()`; a custom one
 may source its dataset elsewhere). Both annotations otherwise apply the same
-way on either path: the `@DbUnitSetup` operation runs before `preTest()` too
+way on either path: the `@DbUnitSetUpOperation` operation runs before `preTest()` too
 when `@DbUnitExpected` is present, not just before `onSetup()` on the
 setup/teardown path.
 
@@ -303,13 +303,13 @@ name merge into one. Names are matched ignoring case unless the test's connectio
 On either path, the tester's own setup operation and teardown operation are kept —
 preserving a `@BeforeEach` method's own `setSetUpOperation()`/`setTearDownOperation()`,
 including an operation `DbUnitOperation` cannot express — except where an annotation
-replaces them: `@DbUnitTearDown` replaces the teardown operation, and either `@DbUnitPrep` or
-`@DbUnitSetup` the setup operation. On the setup/teardown path the tester's own dataset is kept
+replaces them: `@DbUnitTearDownOperation` replaces the teardown operation, and either `@DbUnitPrep` or
+`@DbUnitSetUpOperation` the setup operation. On the setup/teardown path the tester's own dataset is kept
 too, preserving a `@BeforeEach` method's own `setDataSet()`, unless `@DbUnitPrep` replaces it; on
 the prep/expected path the test case prepares and cleans up with the `@DbUnitPrep` and
 `@DbUnitExpected` datasets, not with one set on the tester. So `@DbUnitPrep("a.xml")` alone runs
 `CLEAN_INSERT` even on a tester already set to `REFRESH`, which would have kept the rows already
-there; declare `@DbUnitSetup(operation = DbUnitOperation.REFRESH)` alongside it to keep that
+there; declare `@DbUnitSetUpOperation(DbUnitOperation.REFRESH)` alongside it to keep that
 operation. Each replacement lasts for that test only.
 
 *Nothing bleeds between test methods.* Each method's resolved annotations —
@@ -318,14 +318,14 @@ determine what gets applied for that method, on either path. Before the
 method the tester's dataset and setup/teardown operations are snapshotted,
 and after it they are restored, so a `static` `@DbUnitTester` field (or any
 tester under `@TestInstance(PER_CLASS)`) never carries one method's
-`@DbUnitPrep`/`@DbUnitSetup`/`@DbUnitTearDown` onto the next. A `@BeforeEach`
+`@DbUnitPrep`/`@DbUnitSetUpOperation`/`@DbUnitTearDownOperation` onto the next. A `@BeforeEach`
 value, being re-set every method, survives. The same holds for `@DbUnitProperty`
 values on a connection that outlives the test, such as a fixed connection handed
 to the tester, one a `CachingConnectionProvider` caches, or one kept with
 `closeConnectionAfterTest = false`: they are put back when the test ends — see
 <<properties>>.
 
-`@DbUnitTearDown` is the counterpart of `@DbUnitSetup`, defaulting to
+`@DbUnitTearDownOperation` is the counterpart of `@DbUnitSetUpOperation`, defaulting to
 `DbUnitOperation.NONE`. It has no data annotation of its own: the dataset
 already prepared (prep, or prep plus expected on the other path) is what the
 operation runs against. To tear down an extra table, list it — empty — in
@@ -406,7 +406,7 @@ rules:
                 exclude = "CREATED_TS",
                 columnComparers = @DbUnitColumnComparer(column = "BALANCE",
                         comparer = IsActualGreaterThanExpectedValueComparer.class)))
-@DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+@DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
 void testWithdraw_sufficientBalance_decrementsBalance() { ... }
 ----
 
@@ -471,7 +471,7 @@ public class AppVerifyTables
 ----
 @DbUnitTest
 @DbUnitConfig(verifyDefinitions = AppVerifyTables.class)
-@DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+@DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
 class AccountRepositoryTest
 {
     IDatabaseTester databaseTester;
@@ -786,9 +786,9 @@ wrongly listed (whose count went *down*).
 
 Because the baseline is taken before `@DbUnitPrep`, a passing check means teardown
 returned the database to its *pre-prep* state — the prep data removed too, not just the
-test's own writes. `@DbUnitRowCountCheck` with `@DbUnitPrep` and no `@DbUnitTearDown` (the
+test's own writes. `@DbUnitRowCountCheck` with `@DbUnitPrep` and no `@DbUnitTearDownOperation` (the
 `NONE` default) therefore *fails*: the prep rows are still there. Pair it with
-`@DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)`, as the example below does.
+`@DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)`, as the example below does.
 
 [source,java]
 ----
@@ -800,7 +800,7 @@ class AccountRepositoryTest
 
     @Test
     @DbUnitPrep("accounts-prep.xml")
-    @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+    @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
     void testWithdraw_sufficientBalance_decrementsBalance() { ... }
 }
 ----
@@ -865,7 +865,7 @@ composed (meta-)annotations, not just directly-declared ones:
 @DbUnitTest
 @DbUnitConfig(dataFileLoader = FlatXmlDataFileLoader.class,
         properties = @DbUnitProperty(name = "caseSensitiveTableNames", value = "true"))
-@DbUnitSetup(operation = DbUnitOperation.REFRESH)
+@DbUnitSetUpOperation(DbUnitOperation.REFRESH)
 public @interface AppDatabaseTest {}
 ----
 
@@ -915,7 +915,7 @@ class AccountRepositoryTest
     @Test
     @DbUnitPrep("accounts-prep.xml")
     @DbUnitExpected("accounts-expected.xml")
-    @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+    @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
     void testWithdraw_sufficientBalance_decrementsBalance() { }
 }
 ----
@@ -932,7 +932,7 @@ We cannot write every dbUnit test with annotations.
 
 *You want dbUnit to seed data but verify results your own way.* That is not
 a gap — it is the <<twopaths,setup/teardown path>>. Use `@DbUnitPrep`/
-`@DbUnitSetup`/`@DbUnitTearDown` with no `@DbUnitExpected`, and assert in the
+`@DbUnitSetUpOperation`/`@DbUnitTearDownOperation` with no `@DbUnitExpected`, and assert in the
 test method with whatever tooling you already have. `@DbUnitExpected` exists
 only for the case where you want dbUnit's expected-dataset comparison to do
 the verifying; there is no annotation to substitute a different verifier for

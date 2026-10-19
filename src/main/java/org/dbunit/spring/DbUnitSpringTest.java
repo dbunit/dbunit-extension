@@ -59,7 +59,7 @@ import org.springframework.test.context.TestExecutionListeners.MergeMode;
  * @Inherited
  * @DbUnitSpringTest
  * @DbUnitConfig(dataFileLoader = FlatXmlDataFileLoader.class)
- * @DbUnitSetup(operation = DbUnitOperation.DELETE_ALL)
+ * @DbUnitSetUpOperation(DbUnitOperation.REFRESH)
  * public @interface AppSpringDatabaseTest {}
  * }</pre>
  *
