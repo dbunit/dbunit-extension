@@ -37,7 +37,7 @@ import org.dbunit.IDatabaseTester;
 import org.dbunit.IOperationListener;
 import org.dbunit.annotation.DbUnitExpected;
 import org.dbunit.annotation.DbUnitPrep;
-import org.dbunit.annotation.DbUnitTearDown;
+import org.dbunit.annotation.DbUnitTearDownOperation;
 import org.dbunit.annotation.DbUnitTester;
 import org.dbunit.annotation.DbUnitVerifyTable;
 import org.dbunit.database.IDatabaseConnection;
@@ -84,7 +84,7 @@ class DbUnitTestExecutionListenerIT
 
             final IDatabaseConnection verifyConnection = environment.getConnection();
             assertThat(TestTableRows.count(verifyConnection, TEST_TABLE))
-                    .as("@DbUnitTearDown(operation = DELETE_ALL), driven through"
+                    .as("@DbUnitTearDownOperation(DELETE_ALL), driven through"
                             + " DbUnitTestExecutionListener via a real SpringExtension-managed"
                             + " test, must have cleaned up.")
                     .isZero();
@@ -111,7 +111,8 @@ class DbUnitTestExecutionListenerIT
             assertThat(TestTableRows.count(verifyConnection, TEST_TABLE))
                     .as("The tester resolved from the sole IDatabaseTester ApplicationContext"
                             + " bean - no @DbUnitTester/@DbUnitTestCase field at all - must still"
-                            + " drive prep, verify, and @DbUnitTearDown(DELETE_ALL) end to end.")
+                            + " drive prep, verify, and @DbUnitTearDownOperation(DELETE_ALL) end"
+                            + " to end.")
                     .isZero();
         } finally
         {
@@ -144,7 +145,7 @@ class DbUnitTestExecutionListenerIT
                     .as("Only the third method declares an @DbUnitExpected its test body does not"
                             + " meet, so only it may fail: Spring's TestContext serves all three"
                             + " methods, and each must get its own @DbUnitPrep, @DbUnitExpected"
-                            + " and @DbUnitTearDown rather than the first method's.")
+                            + " and @DbUnitTearDownOperation rather than the first method's.")
                     .containsExactly("testThirdMethod_expectedNeverMet_failsVerification()");
         } finally
         {
@@ -180,7 +181,8 @@ class DbUnitTestExecutionListenerIT
                     .assertStatistics(stats -> stats.started(1).succeeded(1));
 
             assertThat(TestTableRows.count(environment.getConnection(), TEST_TABLE))
-                    .as("The enclosing class's @DbUnitTearDown(DELETE_ALL) must apply to the"
+                    .as("The enclosing class's @DbUnitTearDownOperation(DELETE_ALL) must apply to"
+                            + " the"
                             + " @Nested class's test, driven through the enclosing instance's"
                             + " @DbUnitTester field.")
                     .isZero();
@@ -207,7 +209,7 @@ class DbUnitTestExecutionListenerIT
 
         @Test
         @DbUnitPrep(ItDataSets.PREP)
-        @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+        @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
         void testPrepSeedsRow_dbUnitTesterField_rowVisibleToTestMethod() throws Exception
         {
             try (Statement statement = databaseTester.getConnection().getConnection()
@@ -236,7 +238,7 @@ class DbUnitTestExecutionListenerIT
         @Test
         @Order(1)
         @DbUnitPrep(ItDataSets.PREP)
-        @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+        @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
         void testFirstMethod_prepSeedsTestTable_testTableHasTheRow() throws Exception
         {
             assertThat(TestTableRows.count(databaseTester.getConnection(), TEST_TABLE))
@@ -247,7 +249,7 @@ class DbUnitTestExecutionListenerIT
         @Test
         @Order(2)
         @DbUnitPrep(ItDataSets.PK_PREP)
-        @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+        @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
         void testSecondMethod_prepSeedsPkTable_onlyItsOwnPrepWasLoaded() throws Exception
         {
             assertThat(TestTableRows.count(databaseTester.getConnection(), PK_TABLE))
@@ -265,7 +267,7 @@ class DbUnitTestExecutionListenerIT
         @DbUnitExpected(value = ItDataSets.EXPECTED,
                 verify = @DbUnitVerifyTable(value = TEST_TABLE,
                         include = {"COLUMN0", "COLUMN1"}))
-        @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+        @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
         void testThirdMethod_expectedNeverMet_failsVerification()
         {
             // changes nothing, so TEST_TABLE still holds the prep's "before" value where
@@ -276,7 +278,7 @@ class DbUnitTestExecutionListenerIT
     @ExtendWith(SpringExtension.class)
     @ContextConfiguration(classes = EmptyConfig.class)
     @DbUnitSpringTest
-    @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+    @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
     static class NestedSample
     {
         static IDatabaseTester sharedTester;
@@ -334,7 +336,7 @@ class DbUnitTestExecutionListenerIT
         @DbUnitExpected(value = ItDataSets.EXPECTED,
                 verify = @DbUnitVerifyTable(value = TEST_TABLE,
                         include = {"COLUMN0", "COLUMN1"}))
-        @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+        @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
         void testUpdateRow_preppedRowAndTesterBean_matchesExpectedDataSet(
                 @Autowired final IDatabaseTester databaseTester) throws Exception
         {

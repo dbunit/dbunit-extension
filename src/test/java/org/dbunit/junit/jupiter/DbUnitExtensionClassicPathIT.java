@@ -74,7 +74,8 @@ class DbUnitExtensionClassicPathIT
             assertThat(rowCount(verifyConnection, TEST_TABLE))
                     .as("The @BeforeEach method's databaseTester.setTearDownOperation(DELETE_ALL)"
                             + " must survive to onTearDown() - the classic path must not reset the"
-                            + " tester's teardown operation to NONE when no @DbUnitTearDown is"
+                            + " tester's teardown operation to NONE when no"
+                            + " @DbUnitTearDownOperation is"
                             + " declared.")
                     .isZero();
         } finally

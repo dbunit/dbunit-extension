@@ -96,13 +96,14 @@ public class InjectedTestCaseTesterBinding
             // Opted into automatic wiring by overriding setDatabaseTester(), so a round-trip
             // failure means the override itself is broken - fail fast the same way every other
             // @DbUnitConfig-driven setter does for a silent no-op, rather than let
-            // @DbUnitSetup/@DbUnitTearDown operations quietly target a tester this test case
-            // never actually uses.
+            // @DbUnitSetUpOperation/@DbUnitTearDownOperation operations quietly target a tester
+            // this test case never actually uses.
             throw new IllegalStateException(fieldDescription
                     + " is annotated @DbUnitTestCase; its value's type ("
                     + testCase.getClass().getName() + ") overrides setDatabaseTester(), but"
                     + " getDatabaseTester() does not return the same instance right after being"
-                    + " given it. @DbUnitSetup/@DbUnitTearDown operations set on the resolved"
+                    + " given it. @DbUnitSetUpOperation/@DbUnitTearDownOperation operations set on"
+                    + " the resolved"
                     + " IDatabaseTester would silently never reach the operations this test case"
                     + " actually runs. Fix setDatabaseTester()/getDatabaseTester() to round-trip"
                     + " the same instance.");
@@ -111,7 +112,8 @@ public class InjectedTestCaseTesterBinding
         // self-managed-connection pattern, not a bug - see annotations.adoc - so this stays a
         // diagnostic log, not a failure.
         log.debug("PrepAndExpectedTestCase {} does not round-trip getDatabaseTester()/"
-                + "setDatabaseTester(); @DbUnitSetup/@DbUnitTearDown operations set on the"
+                + "setDatabaseTester(); @DbUnitSetUpOperation/@DbUnitTearDownOperation operations"
+                + " set on the"
                 + " resolved IDatabaseTester may not reach the operations this test case actually"
                 + " runs unless it independently uses the same tester instance.",
                 testCase.getClass().getName());

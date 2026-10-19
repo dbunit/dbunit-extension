@@ -20,19 +20,19 @@
  */
 package org.dbunit.operation;
 
-import org.dbunit.annotation.DbUnitSetup;
-import org.dbunit.annotation.DbUnitTearDown;
+import org.dbunit.annotation.DbUnitSetUpOperation;
+import org.dbunit.annotation.DbUnitTearDownOperation;
 
 /**
- * Enumerates the database operations available for use with {@link DbUnitSetup} and
- * {@link DbUnitTearDown} annotations.
+ * Enumerates the database operations available for use with {@link DbUnitSetUpOperation} and
+ * {@link DbUnitTearDownOperation} annotations.
  *
  * <p>Each constant maps to the corresponding {@link DatabaseOperation} constant.
  *
  * @author Jeff Jensen
  * @since 3.6.0
- * @see DbUnitSetup
- * @see DbUnitTearDown
+ * @see DbUnitSetUpOperation
+ * @see DbUnitTearDownOperation
  */
 public enum DbUnitOperation
 {

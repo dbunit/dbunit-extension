@@ -30,8 +30,8 @@ import org.dbunit.annotation.DbUnitConfig;
 import org.dbunit.annotation.DbUnitExpected;
 import org.dbunit.annotation.DbUnitPrep;
 import org.dbunit.annotation.DbUnitRowCountCheck;
-import org.dbunit.annotation.DbUnitSetup;
-import org.dbunit.annotation.DbUnitTearDown;
+import org.dbunit.annotation.DbUnitSetUpOperation;
+import org.dbunit.annotation.DbUnitTearDownOperation;
 import org.dbunit.assertion.FailureHandler;
 import org.dbunit.operation.DatabaseOperation;
 import org.dbunit.util.fileloader.DataFileLoader;
@@ -115,9 +115,9 @@ public class AnnotatedTestConfiguration
      * @param testClass The test class; used to resolve dataset paths relative to its package.
      * @param config The resolved {@code @DbUnitConfig}, or {@code null} if absent.
      * @param prep The resolved {@code @DbUnitPrep}, or {@code null} if absent.
-     * @param setup The resolved {@code @DbUnitSetup}, or {@code null} if absent.
+     * @param setup The resolved {@code @DbUnitSetUpOperation}, or {@code null} if absent.
      * @param expected The resolved {@code @DbUnitExpected}, or {@code null} if absent.
-     * @param tearDown The resolved {@code @DbUnitTearDown}, or {@code null} if absent.
+     * @param tearDown The resolved {@code @DbUnitTearDownOperation}, or {@code null} if absent.
      * @param rowCountCheck The resolved {@code @DbUnitRowCountCheck}, or {@code null} if
      *            absent.
      * @return The resolved configuration.
@@ -125,8 +125,8 @@ public class AnnotatedTestConfiguration
      *             a named provider, catalog, or comparer class cannot be instantiated.
      */
     public static AnnotatedTestConfiguration from(final Class<?> testClass,
-            final DbUnitConfig config, final DbUnitPrep prep, final DbUnitSetup setup,
-            final DbUnitExpected expected, final DbUnitTearDown tearDown,
+            final DbUnitConfig config, final DbUnitPrep prep, final DbUnitSetUpOperation setup,
+            final DbUnitExpected expected, final DbUnitTearDownOperation tearDown,
             final DbUnitRowCountCheck rowCountCheck)
     {
         return from(testClass, testClass, testClass, config, prep, setup, expected, tearDown,
@@ -146,9 +146,9 @@ public class AnnotatedTestConfiguration
      *            package-relative paths.
      * @param config The resolved {@code @DbUnitConfig}, or {@code null} if absent.
      * @param prep The resolved {@code @DbUnitPrep}, or {@code null} if absent.
-     * @param setup The resolved {@code @DbUnitSetup}, or {@code null} if absent.
+     * @param setup The resolved {@code @DbUnitSetUpOperation}, or {@code null} if absent.
      * @param expected The resolved {@code @DbUnitExpected}, or {@code null} if absent.
-     * @param tearDown The resolved {@code @DbUnitTearDown}, or {@code null} if absent.
+     * @param tearDown The resolved {@code @DbUnitTearDownOperation}, or {@code null} if absent.
      * @param rowCountCheck The resolved {@code @DbUnitRowCountCheck}, or {@code null} if
      *            absent.
      * @return The resolved configuration.
@@ -157,8 +157,8 @@ public class AnnotatedTestConfiguration
      */
     public static AnnotatedTestConfiguration from(final Class<?> testClass,
             final Class<?> prepDeclaringClass, final Class<?> expectedDeclaringClass,
-            final DbUnitConfig config, final DbUnitPrep prep, final DbUnitSetup setup,
-            final DbUnitExpected expected, final DbUnitTearDown tearDown,
+            final DbUnitConfig config, final DbUnitPrep prep, final DbUnitSetUpOperation setup,
+            final DbUnitExpected expected, final DbUnitTearDownOperation tearDown,
             final DbUnitRowCountCheck rowCountCheck)
     {
         final String dataSetBaseDir = config == null ? "" : config.dataSetBaseDir();
@@ -174,11 +174,11 @@ public class AnnotatedTestConfiguration
                 prep == null ? DataSetPathsProvider.class : prep.provider());
         final boolean setupDeclared = setup != null;
         final DatabaseOperation setUpOperation = setup == null ? DatabaseOperation.CLEAN_INSERT
-                : setup.operation().toDatabaseOperation();
+                : setup.value().toDatabaseOperation();
         final boolean tearDownDeclared = tearDown != null;
         final DatabaseOperation tearDownOperation =
                 tearDown == null ? DatabaseOperation.NONE
-                        : tearDown.operation().toDatabaseOperation();
+                        : tearDown.value().toDatabaseOperation();
 
         final boolean hasExpected = expected != null;
         final String[] expectedDataFiles = !hasExpected ? new String[0]
@@ -235,9 +235,9 @@ public class AnnotatedTestConfiguration
     {
         final DbUnitConfig config = lookup.find(DbUnitConfig.class);
         final DbUnitPrep prep = lookup.find(DbUnitPrep.class);
-        final DbUnitSetup setup = lookup.find(DbUnitSetup.class);
+        final DbUnitSetUpOperation setup = lookup.find(DbUnitSetUpOperation.class);
         final DbUnitExpected expected = lookup.find(DbUnitExpected.class);
-        final DbUnitTearDown tearDown = lookup.find(DbUnitTearDown.class);
+        final DbUnitTearDownOperation tearDown = lookup.find(DbUnitTearDownOperation.class);
         final DbUnitRowCountCheck rowCountCheck = lookup.find(DbUnitRowCountCheck.class);
         final Class<?> prepDeclaringClass = lookup.findDeclaringClass(DbUnitPrep.class);
         final Class<?> expectedDeclaringClass = lookup.findDeclaringClass(DbUnitExpected.class);
@@ -272,15 +272,15 @@ public class AnnotatedTestConfiguration
     }
 
     /**
-     * Returns whether {@code @DbUnitSetup} was declared.
+     * Returns whether {@code @DbUnitSetUpOperation} was declared.
      *
-     * <p>With {@code @DbUnitSetup} declared but no {@code @DbUnitPrep}, the operation is still
-     * applied - most usefully {@link org.dbunit.operation.DatabaseOperation#NONE} - to whatever
-     * dataset the tester already has, rather than leaving a tester with no dataset at all to
-     * run its unrelated default operation against. See {@link #replacesSetUpOperation()} for
+     * <p>With {@code @DbUnitSetUpOperation} declared but no {@code @DbUnitPrep}, the operation is
+     * still applied - most usefully {@link org.dbunit.operation.DatabaseOperation#NONE} - to
+     * whatever dataset the tester already has, rather than leaving a tester with no dataset at all
+     * to run its unrelated default operation against. See {@link #replacesSetUpOperation()} for
      * when a binding applies the operation at all.
      *
-     * @return True when {@code @DbUnitSetup} was declared.
+     * @return True when {@code @DbUnitSetUpOperation} was declared.
      */
     public boolean isSetupDeclared()
     {
@@ -290,14 +290,14 @@ public class AnnotatedTestConfiguration
     /**
      * Returns whether the annotations replace the tester's own setup operation with
      * {@link #getSetUpOperation()}: {@code @DbUnitPrep} files were declared, or
-     * {@code @DbUnitSetup} was.
+     * {@code @DbUnitSetUpOperation} was.
      *
      * <p>A binding consults this to decide whether to call {@code setSetUpOperation} at all, on
      * either path. With neither annotation the test runs with the tester's own pre-configured
      * setup operation, such as one a {@code @BeforeEach} method set, which can be one
      * {@code DbUnitOperation} cannot express. A binding driving a tester shared across methods
      * should restore the tester's dataset and operations afterward, so a per-method
-     * {@code @DbUnitSetup}/{@code @DbUnitPrep} does not carry onto a later method.
+     * {@code @DbUnitSetUpOperation}/{@code @DbUnitPrep} does not carry onto a later method.
      *
      * @return True when the annotations declare the setup operation to run.
      */
@@ -310,7 +310,7 @@ public class AnnotatedTestConfiguration
      * Returns the setup operation.
      *
      * @return The setup operation; {@link DatabaseOperation#CLEAN_INSERT} when no
-     *         {@code @DbUnitSetup} was declared.
+     *         {@code @DbUnitSetUpOperation} was declared.
      */
     public DatabaseOperation getSetUpOperation()
     {
@@ -388,17 +388,17 @@ public class AnnotatedTestConfiguration
     }
 
     /**
-     * Returns whether {@code @DbUnitTearDown} was declared.
+     * Returns whether {@code @DbUnitTearDownOperation} was declared.
      *
      * <p>A binding consults this to decide whether to call {@code setTearDownOperation} at all,
-     * on either path: with no {@code @DbUnitTearDown}, the teardown runs with the tester's own
-     * pre-configured teardown operation - e.g. one set in a {@code @BeforeEach} method - rather
+     * on either path: with no {@code @DbUnitTearDownOperation}, the teardown runs with the tester's
+     * own pre-configured teardown operation - e.g. one set in a {@code @BeforeEach} method - rather
      * than a forced {@link DatabaseOperation#NONE}, mirroring how an undeclared setup operation
      * is handled (see {@link #replacesSetUpOperation()}). A binding driving a tester shared
      * across methods should restore the operation afterward so a per-method
-     * {@code @DbUnitTearDown} does not carry onto a later method.
+     * {@code @DbUnitTearDownOperation} does not carry onto a later method.
      *
-     * @return True when {@code @DbUnitTearDown} was declared.
+     * @return True when {@code @DbUnitTearDownOperation} was declared.
      */
     public boolean isTearDownDeclared()
     {
@@ -409,7 +409,7 @@ public class AnnotatedTestConfiguration
      * Returns the teardown operation.
      *
      * @return The teardown operation; {@link DatabaseOperation#NONE} when no
-     *         {@code @DbUnitTearDown} was declared.
+     *         {@code @DbUnitTearDownOperation} was declared.
      */
     public DatabaseOperation getTearDownOperation()
     {

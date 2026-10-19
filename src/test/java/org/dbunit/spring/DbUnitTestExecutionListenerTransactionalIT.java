@@ -43,7 +43,7 @@ import org.dbunit.IDatabaseTester;
 import org.dbunit.IOperationListener;
 import org.dbunit.annotation.DbUnitExpected;
 import org.dbunit.annotation.DbUnitPrep;
-import org.dbunit.annotation.DbUnitTearDown;
+import org.dbunit.annotation.DbUnitTearDownOperation;
 import org.dbunit.annotation.DbUnitVerifyTable;
 import org.dbunit.assertion.DbComparisonFailure;
 import org.dbunit.database.IDatabaseConnection;
@@ -118,7 +118,8 @@ class DbUnitTestExecutionListenerTransactionalIT
                             "test transaction completed",
                             "DbUnit step, test transaction active: false");
             assertThat(TestTableRows.count(environment.getConnection(), TEST_TABLE))
-                    .as("@DbUnitTearDown(DELETE_ALL) must have cleaned up the prepped row.")
+                    .as("@DbUnitTearDownOperation(DELETE_ALL) must have cleaned up the prepped"
+                            + " row.")
                     .isZero();
         } finally
         {
@@ -140,7 +141,7 @@ class DbUnitTestExecutionListenerTransactionalIT
                     .assertStatistics(stats -> stats.started(1).succeeded(1));
 
             assertThat(TestTableRows.count(environment.getConnection(), TEST_TABLE))
-                    .as("@DbUnitTearDown(DELETE_ALL) must have cleaned up after the"
+                    .as("@DbUnitTearDownOperation(DELETE_ALL) must have cleaned up after the"
                             + " verification.")
                     .isZero();
             assertThat(warningsOf(listenerLog))
@@ -189,7 +190,7 @@ class DbUnitTestExecutionListenerTransactionalIT
                             .contains("@Commit"));
 
             assertThat(TestTableRows.count(environment.getConnection(), TEST_TABLE))
-                    .as("@DbUnitTearDown(DELETE_ALL) must still have cleaned up after the"
+                    .as("@DbUnitTearDownOperation(DELETE_ALL) must still have cleaned up after the"
                             + " failed verification.")
                     .isZero();
         } finally
@@ -286,7 +287,7 @@ class DbUnitTestExecutionListenerTransactionalIT
         @Test
         @Transactional
         @DbUnitPrep(ItDataSets.PREP)
-        @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+        @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
         void testTransactionalTest_prepCommittedBeforeTransaction_rowVisibleInTransaction()
                 throws Exception
         {
@@ -328,7 +329,7 @@ class DbUnitTestExecutionListenerTransactionalIT
         @DbUnitExpected(value = ItDataSets.EXPECTED,
                 verify = @DbUnitVerifyTable(value = TEST_TABLE,
                         include = {"COLUMN0", "COLUMN1"}))
-        @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+        @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
         void testTransactionalCommit_updatesPreppedRow_changeCommittedForVerification()
                 throws Exception
         {
@@ -350,7 +351,7 @@ class DbUnitTestExecutionListenerTransactionalIT
         @DbUnitExpected(value = ItDataSets.EXPECTED,
                 verify = @DbUnitVerifyTable(value = TEST_TABLE,
                         include = {"COLUMN0", "COLUMN1"}))
-        @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+        @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
         void testTransactionalRollback_updatesPreppedRow_changeRolledBackBeforeVerification()
                 throws Exception
         {

@@ -29,16 +29,16 @@ import org.dbunit.annotation.DbUnitConfig;
 import org.dbunit.annotation.DbUnitExpected;
 import org.dbunit.annotation.DbUnitPrep;
 import org.dbunit.annotation.DbUnitRowCountCheck;
-import org.dbunit.annotation.DbUnitSetup;
-import org.dbunit.annotation.DbUnitTearDown;
+import org.dbunit.annotation.DbUnitSetUpOperation;
+import org.dbunit.annotation.DbUnitTearDownOperation;
 import org.dbunit.annotation.DbUnitTestCase;
 import org.dbunit.annotation.DbUnitTester;
 
 /**
  * Decides whether a test opts into the {@code org.dbunit.annotation} family, and so into the
  * annotation-driven lifecycle: any of the annotations that configure a test
- * ({@link DbUnitConfig}, {@link DbUnitPrep}, {@link DbUnitSetup}, {@link DbUnitExpected},
- * {@link DbUnitTearDown}, {@link DbUnitRowCountCheck}) on the test method or class, or a
+ * ({@link DbUnitConfig}, {@link DbUnitPrep}, {@link DbUnitSetUpOperation}, {@link DbUnitExpected},
+ * {@link DbUnitTearDownOperation}, {@link DbUnitRowCountCheck}) on the test method or class, or a
  * {@link DbUnitTester @DbUnitTester}/{@link DbUnitTestCase @DbUnitTestCase} field in the test
  * class or one enclosing it. A plain, unannotated {@link org.dbunit.IDatabaseTester} field alone
  * is not an opt-in - that is the 3.5.0 lifecycle-only style, left exactly as it was.
@@ -58,8 +58,8 @@ public class AnnotatedTestOptIn
 {
     /** The annotations any one of which, on the test method or class, opts a test in. */
     private static final List<Class<? extends Annotation>> OPT_IN_ANNOTATIONS = Arrays.asList(
-            DbUnitConfig.class, DbUnitPrep.class, DbUnitSetup.class, DbUnitExpected.class,
-            DbUnitTearDown.class, DbUnitRowCountCheck.class);
+            DbUnitConfig.class, DbUnitPrep.class, DbUnitSetUpOperation.class, DbUnitExpected.class,
+            DbUnitTearDownOperation.class, DbUnitRowCountCheck.class);
 
     private AnnotatedTestOptIn()
     {

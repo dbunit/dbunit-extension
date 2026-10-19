@@ -41,8 +41,8 @@ import org.dbunit.PrepAndExpectedTestCase;
 import org.dbunit.annotation.DbUnitConfig;
 import org.dbunit.annotation.DbUnitExpected;
 import org.dbunit.annotation.DbUnitPrep;
-import org.dbunit.annotation.DbUnitSetup;
-import org.dbunit.annotation.DbUnitTearDown;
+import org.dbunit.annotation.DbUnitSetUpOperation;
+import org.dbunit.annotation.DbUnitTearDownOperation;
 import org.dbunit.annotation.DbUnitTestCase;
 import org.dbunit.annotation.DbUnitTester;
 import org.dbunit.annotation.DbUnitVerifyTable;
@@ -59,9 +59,9 @@ import org.junit.platform.testkit.engine.EngineTestKit;
 /**
  * Real-database (hsqldb) integration test of the annotation-driven path through
  * {@link DbUnitExtension}: {@code @DbUnitPrep} seeds, the test mutates, {@code @DbUnitExpected}
- * verifies, and {@code @DbUnitTearDown} cleans up - plus a class-level {@code @DbUnitSetup}
- * operation staying in force across a method that declares its own {@code @DbUnitPrep}, the
- * override trap the split between the two annotations exists to prevent - and the
+ * verifies, and {@code @DbUnitTearDownOperation} cleans up - plus a class-level
+ * {@code @DbUnitSetUpOperation} operation staying in force across a method that declares its own
+ * {@code @DbUnitPrep}, the override trap the split between the two annotations exists to prevent - and the
  * {@code @DbUnitTestCase}/{@code databaseTesterFactory()} resolution tiers, which
  * {@code AnnotatedTestExecutorTest}'s mocked tester/test case cannot prove actually drive a real
  * connection end to end.
@@ -90,7 +90,7 @@ class DbUnitExtensionAnnotationIT
             // (closeConnectionAfterTest defaults to true), so verify with a fresh one.
             final IDatabaseConnection verifyConnection = environment.getConnection();
             assertThat(rowCount(verifyConnection, TEST_TABLE))
-                    .as("@DbUnitTearDown(operation = DELETE_ALL) must have cleaned up.")
+                    .as("@DbUnitTearDownOperation(DELETE_ALL) must have cleaned up.")
                     .isZero();
         } finally
         {
@@ -119,7 +119,8 @@ class DbUnitExtensionAnnotationIT
                     .as("The prep/expected path must load a JSON @DbUnitPrep and @DbUnitExpected"
                             + " file through the default FileExtensionDataFileLoader (dispatched"
                             + " by the .json extension to JsonDataFileLoader), verify, and run"
-                            + " @DbUnitTearDown(DELETE_ALL) - end to end, the same as flat XML.")
+                            + " @DbUnitTearDownOperation(DELETE_ALL) - end to end, the same as"
+                            + " flat XML.")
                     .isZero();
         } finally
         {
@@ -151,7 +152,8 @@ class DbUnitExtensionAnnotationIT
 
             assertThat(rowCountForPks(connection, 997, 998))
                     .as("REFRESH (an upsert) must not have wiped the pre-existing row (PK 997)"
-                            + " the way CLEAN_INSERT would have; the class-level @DbUnitSetup"
+                            + " the way CLEAN_INSERT would have; the class-level"
+                            + " @DbUnitSetUpOperation"
                             + " operation must have survived the method's own @DbUnitPrep"
                             + " (which seeds PK 998).")
                     .isEqualTo(2);
@@ -187,7 +189,8 @@ class DbUnitExtensionAnnotationIT
 
             assertThat(rowCountForPks(connection, 895, 998))
                     .as("REFRESH (an upsert) must not have wiped the pre-existing row (PK 895)"
-                            + " the way CLEAN_INSERT would have; the class-level @DbUnitSetup"
+                            + " the way CLEAN_INSERT would have; the class-level"
+                            + " @DbUnitSetUpOperation"
                             + " operation must apply on the @DbUnitExpected prep/expected path"
                             + " too, the same as it already does on the setup/teardown path.")
                     .isEqualTo(2);
@@ -213,7 +216,7 @@ class DbUnitExtensionAnnotationIT
             // (closeConnectionAfterTest defaults to true), so verify with a fresh one.
             final IDatabaseConnection verifyConnection = environment.getConnection();
             assertThat(rowCount(verifyConnection, TEST_TABLE))
-                    .as("@DbUnitTearDown(operation = DELETE_ALL), driven through the"
+                    .as("@DbUnitTearDownOperation(DELETE_ALL), driven through the"
                             + " @DbUnitTestCase-injected PrepAndExpectedTestCase and a"
                             + " databaseTesterFactory-resolved tester, must have cleaned up.")
                     .isZero();
@@ -244,7 +247,7 @@ class DbUnitExtensionAnnotationIT
                             + " DefaultOperationListener wrapped by the extension, not a"
                             + " NO_OP-listener DefaultDatabaseTester as the samples above use -"
                             + " must still run setup, verify (against an injected Connection's"
-                            + " mutation), and @DbUnitTearDown(DELETE_ALL) end to end.")
+                            + " mutation), and @DbUnitTearDownOperation(DELETE_ALL) end to end.")
                     .isZero();
         } finally
         {
@@ -272,7 +275,8 @@ class DbUnitExtensionAnnotationIT
                             + " extension's ExecutorOperationListener wraps the tester's own"
                             + " DefaultOperationListener, the row count baseline piggybacks on"
                             + " onSetup()'s connection, and onTearDown() opens a different one -"
-                            + " must still apply @DbUnitPrep and @DbUnitTearDown(DELETE_ALL) end"
+                            + " must still apply @DbUnitPrep and"
+                            + " @DbUnitTearDownOperation(DELETE_ALL) end"
                             + " to end.")
                     .isZero();
         } finally
@@ -400,7 +404,7 @@ class DbUnitExtensionAnnotationIT
         @DbUnitExpected(value = "annotation-it-expected.xml",
                 verify = @DbUnitVerifyTable(value = TEST_TABLE,
                         include = {"COLUMN0", "COLUMN1"}))
-        @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+        @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
         void testWithdraw_sufficientBalance_decrementsBalance() throws Exception
         {
             try (Statement statement =
@@ -423,7 +427,7 @@ class DbUnitExtensionAnnotationIT
         @DbUnitExpected(value = "annotation-it-expected.json",
                 verify = @DbUnitVerifyTable(value = TEST_TABLE,
                         include = {"COLUMN0", "COLUMN1"}))
-        @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+        @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
         void testWithdraw_sufficientBalance_decrementsBalance() throws Exception
         {
             try (Statement statement =
@@ -446,7 +450,7 @@ class DbUnitExtensionAnnotationIT
         @DbUnitExpected(value = "annotation-it-expected.xml",
                 verify = @DbUnitVerifyTable(value = TEST_TABLE,
                         include = {"COLUMN0", "COLUMN1"}))
-        @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+        @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
         void testUpdate_throughInjectedConnection_verifiesAndCleansUp(
                 final Connection connection) throws Exception
         {
@@ -466,7 +470,7 @@ class DbUnitExtensionAnnotationIT
 
         @Test
         @DbUnitPrep("annotation-it-prep.xml")
-        @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+        @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
         void testPrepSeedsRow_visibleThroughInjectedConnection(final Connection connection)
                 throws Exception
         {
@@ -495,7 +499,7 @@ class DbUnitExtensionAnnotationIT
 
         @Test
         @DbUnitPrep("annotation-it-prep.xml")
-        @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+        @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
         void testMethodOne(final Connection connection)
         {
             connectionsSeen.add(connection);
@@ -503,7 +507,7 @@ class DbUnitExtensionAnnotationIT
 
         @Test
         @DbUnitPrep("annotation-it-prep.xml")
-        @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+        @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
         void testMethodTwo(final Connection connection)
         {
             connectionsSeen.add(connection);
@@ -514,7 +518,7 @@ class DbUnitExtensionAnnotationIT
     // closeConnectionAfterTest = false: databaseTester wraps the outer test's own connection,
     // reused below (rowCountForPks) after this sample class finishes running.
     @DbUnitConfig(closeConnectionAfterTest = false)
-    @DbUnitSetup(operation = DbUnitOperation.REFRESH)
+    @DbUnitSetUpOperation(DbUnitOperation.REFRESH)
     static class ClassLevelOperationSample
     {
         @DbUnitTester
@@ -531,15 +535,15 @@ class DbUnitExtensionAnnotationIT
     // closeConnectionAfterTest = false: databaseTester wraps the outer test's own connection,
     // reused below (rowCountForPks) after this sample class finishes running.
     @DbUnitConfig(closeConnectionAfterTest = false)
-    @DbUnitSetup(operation = DbUnitOperation.REFRESH)
+    @DbUnitSetUpOperation(DbUnitOperation.REFRESH)
     static class ExpectedPathClassLevelOperationSample
     {
         @DbUnitTester
         static IDatabaseTester databaseTester;
 
         // The expected dataset holds the REFRESH result - the pre-existing row plus the prep
-        // row - so the verification itself proves the class-level @DbUnitSetup operation was
-        // applied on the prep/expected path too, not just on the setup/teardown path.
+        // row - so the verification itself proves the class-level @DbUnitSetUpOperation operation
+        // was applied on the prep/expected path too, not just on the setup/teardown path.
         @Test
         @DbUnitPrep("annotation-it-pk-prep.xml")
         @DbUnitExpected(value = "annotation-it-pk-refreshed-expected.xml",
@@ -564,7 +568,7 @@ class DbUnitExtensionAnnotationIT
         @DbUnitExpected(value = "annotation-it-expected.xml",
                 verify = @DbUnitVerifyTable(value = TEST_TABLE,
                         include = {"COLUMN0", "COLUMN1"}))
-        @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+        @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
         void testWithdraw_sufficientBalance_decrementsBalance() throws Exception
         {
             final IDatabaseConnection connection = testCase.getDatabaseTester().getConnection();

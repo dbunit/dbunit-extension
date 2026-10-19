@@ -34,16 +34,16 @@ import org.dbunit.util.fileloader.DataSetPathsProvider;
  * seeding the state the test needs to run.
  *
  * <p>A method-level annotation overrides a class-level annotation on a per-test basis; the
- * class annotation is inherited by subclasses. Pair with {@link DbUnitSetup} only when a
+ * class annotation is inherited by subclasses. Pair with {@link DbUnitSetUpOperation} only when a
  * setup operation other than the default
  * {@link org.dbunit.operation.DbUnitOperation#CLEAN_INSERT} is needed - see
- * {@link DbUnitSetup} for why the two are separate annotations.
+ * {@link DbUnitSetUpOperation} for why the two are separate annotations.
  *
- * <p>Declaring this without {@link DbUnitSetup} means that default
+ * <p>Declaring this without {@link DbUnitSetUpOperation} means that default
  * {@link org.dbunit.operation.DbUnitOperation#CLEAN_INSERT} for the test, even on a tester
  * already preset to another setup operation such as {@code REFRESH}, which would otherwise
  * not delete the rows already there; the tester's own operation is restored afterward.
- * Declare {@link DbUnitSetup} with that operation to keep it.
+ * Declare {@link DbUnitSetUpOperation} with that operation to keep it.
  *
  * <p>Each path is resolved to an absolute classpath resource: a path already starting with
  * {@code /} is used as-is; otherwise it is resolved relative to the package of the class
@@ -69,7 +69,7 @@ import org.dbunit.util.fileloader.DataSetPathsProvider;
  *
  * @author Jeff Jensen
  * @since 3.6.0
- * @see DbUnitSetup
+ * @see DbUnitSetUpOperation
  * @see DbUnitExpected
  * @see DataSetPathsProvider
  */
