@@ -27,6 +27,7 @@ import org.dbunit.DefaultPrepAndExpectedTestCase;
 import org.dbunit.IDatabaseTester;
 import org.dbunit.PrepAndExpectedTestCase;
 import org.dbunit.PrepAndExpectedTestData;
+import org.dbunit.VerifyTableDefinition;
 import org.dbunit.database.IDatabaseConnection;
 import org.dbunit.util.fileloader.DataFileLoader;
 
@@ -223,10 +224,10 @@ final class ExpectedLifecycle
     /**
      * Configures {@link #testCase} with the files and the tables to verify the annotations
      * declare. When they declare no tables, a {@link DefaultPrepAndExpectedTestCase} takes them
-     * from the expected datasets it loads anyway, with
-     * {@link PrepAndExpectedTestData#verifyingExpectedTables(String[], String[])}, instead of
-     * this class parsing the expected files a first time just to list their tables; any other
-     * test case is given the tables derived here.
+     * from the expected datasets it loads anyway, with the rules of the class-level catalogs, with
+     * {@link PrepAndExpectedTestData#verifyingExpectedTables(String[], String[],
+     * VerifyTableDefinition[])}, instead of this class parsing the expected files a first time
+     * just to list their tables; any other test case is given the tables derived here.
      */
     private void configureTestCase() throws Exception
     {
@@ -235,9 +236,8 @@ final class ExpectedLifecycle
         if (configuration.derivesVerifyTableDefinitions()
                 && testCase instanceof DefaultPrepAndExpectedTestCase)
         {
-            testCase.configureTest(
-                    PrepAndExpectedTestData.verifyingExpectedTables(prepDataFiles,
-                            expectedDataFiles));
+            testCase.configureTest(PrepAndExpectedTestData.verifyingExpectedTables(prepDataFiles,
+                    expectedDataFiles, configuration.getCatalogDefinitions()));
             return;
         }
         testCase.configureTest(configuration.getVerifyTableDefinitions(effectiveDataFileLoader()),

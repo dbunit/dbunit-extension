@@ -65,6 +65,8 @@ public class AnnotatedTestConfiguration
     private final String[] expectedDataFiles;
     // null when the annotations declare none, to be derived from the expected datasets later.
     private final VerifyTableDefinition[] verifyTableDefinitions;
+    // the rules of the class-level catalogs, for the tables derived from the expected datasets.
+    private final VerifyTableDefinition[] catalogDefinitions;
     private final boolean tearDownDeclared;
     private final DatabaseOperation tearDownOperation;
     private final Properties databaseConfigProperties;
@@ -81,6 +83,7 @@ public class AnnotatedTestConfiguration
             final DatabaseOperation setUpOperation, final boolean expected,
             final String[] expectedDataFiles,
             final VerifyTableDefinition[] verifyTableDefinitions,
+            final VerifyTableDefinition[] catalogDefinitions,
             final boolean tearDownDeclared, final DatabaseOperation tearDownOperation,
             final Properties databaseConfigProperties, final FailureHandler failureHandler,
             final Class<? extends DatabaseTesterFactory> databaseTesterFactory,
@@ -96,6 +99,7 @@ public class AnnotatedTestConfiguration
         this.expected = expected;
         this.expectedDataFiles = expectedDataFiles;
         this.verifyTableDefinitions = verifyTableDefinitions;
+        this.catalogDefinitions = catalogDefinitions;
         this.tearDownDeclared = tearDownDeclared;
         this.tearDownOperation = tearDownOperation;
         this.databaseConfigProperties = databaseConfigProperties;
@@ -194,12 +198,14 @@ public class AnnotatedTestConfiguration
         final String[] expectedDataFiles = !hasExpected ? new String[0]
                 : pathsResolver.resolve(expectedDeclaringClass, dataSetBaseDir,
                         expected.value());
+        final VerifyTableDefinitionResolver verifyResolver = new VerifyTableDefinitionResolver();
         final VerifyTableDefinition[] verifyTableDefinitions = !hasExpected
                 ? new VerifyTableDefinition[0]
-                : new VerifyTableDefinitionResolver()
-                        .resolveDeclared(config.getVerifyDefinitions(), expected,
-                                expectedDataFiles)
-                        .orElse(null);
+                : verifyResolver.resolveDeclared(config.getVerifyDefinitions(), expected,
+                        expectedDataFiles).orElse(null);
+        final VerifyTableDefinition[] catalogDefinitions = !hasExpected
+                ? new VerifyTableDefinition[0]
+                : verifyResolver.catalogDefinitions(config.getVerifyDefinitions());
 
         final Properties databaseConfigProperties =
                 new DatabaseConfigPropertiesResolver().resolve(config.getProperties());
@@ -219,7 +225,7 @@ public class AnnotatedTestConfiguration
 
         return new AnnotatedTestConfiguration(dataFileLoader, dataFileLoaderDeclared,
                 prepDataFiles, setupDeclared, setUpOperation, hasExpected, expectedDataFiles,
-                verifyTableDefinitions, tearDownDeclared, tearDownOperation,
+                verifyTableDefinitions, catalogDefinitions, tearDownDeclared, tearDownOperation,
                 databaseConfigProperties, failureHandler, databaseTesterFactory,
                 prepAndExpectedTestCaseClass, rowCountCheckDeclared, rowCountCheckEnabled,
                 rowCountCheckExclude);
@@ -378,7 +384,9 @@ public class AnnotatedTestConfiguration
      * default of one per table in the expected datasets applies: either derived by reading the
      * expected datasets - see {@link #getVerifyTableDefinitions(DataFileLoader)} - or, by a
      * binding whose {@code PrepAndExpectedTestCase} loads those datasets itself, from the
-     * dataset it has loaded, so the files are not parsed twice.
+     * dataset it has loaded, so the files are not parsed twice. In both, the rules of a table
+     * are its definition in the class-level catalogs - see {@link #getCatalogDefinitions()} -
+     * and the default ones for a table they do not define.
      *
      * @return True when the table definitions are to be derived from the expected datasets;
      *         false when the annotations declare them, or {@link #isExpected()} is false.
@@ -405,9 +413,23 @@ public class AnnotatedTestConfiguration
         if (verifyTableDefinitions == null)
         {
             return new VerifyTableDefinitionResolver().deriveFromExpectedDatasets(
-                    expectedDataLoader, expectedDataFiles);
+                    expectedDataLoader, expectedDataFiles, catalogDefinitions);
         }
         return verifyTableDefinitions.clone();
+    }
+
+    /**
+     * Returns the definitions of the class-level {@code @DbUnitConfig(verifyDefinitions)}
+     * catalogs, the rules of the tables derived from the expected datasets when
+     * {@link #derivesVerifyTableDefinitions()}: a table a catalog defines is verified with its
+     * definition, any other with the default rules.
+     *
+     * @return The catalogs' definitions; empty when the test declares no catalog, or
+     *         {@link #isExpected()} is false.
+     */
+    public VerifyTableDefinition[] getCatalogDefinitions()
+    {
+        return catalogDefinitions.clone();
     }
 
     /**

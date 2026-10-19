@@ -39,7 +39,7 @@ import org.dbunit.assertion.comparer.value.ValueComparer;
  *
  * <p>For a shared, reusable table definition - especially one needing a configured
  * {@link ValueComparer} instance that has no no-arg constructor - prefer a catalog class over
- * this inline form; see {@link DbUnitExpected#verifyDefinitions()}.
+ * this inline form; see {@link DbUnitConfig#verifyDefinitions()}.
  *
  * @author Jeff Jensen
  * @since 3.6.0

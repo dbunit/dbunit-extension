@@ -21,6 +21,7 @@
 package org.dbunit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.jupiter.api.Test;
 
@@ -138,6 +139,74 @@ class PrepAndExpectedTestDataTest
         assertThat(testData.getPrepDataFiles()).containsExactly("/prep/accounts.xml");
         assertThat(testData.getExpectedDataFiles())
                 .containsExactly("/expected/accounts-after.xml");
+    }
+
+    @Test
+    void testVerifyingExpectedTables_definitionsGiven_carriesThemAsTheRulesOfTheTablesTheyDefine()
+    {
+        final PrepAndExpectedTestData testData = PrepAndExpectedTestData.verifyingExpectedTables(
+                new String[0], new String[] {"/expected/accounts-after.xml"},
+                new VerifyTableDefinition[] {ACCOUNT_TABLE});
+
+        assertThat(testData.isVerifyingEveryExpectedTable())
+                .as("The definitions give some tables rules; every table is still verified.")
+                .isTrue();
+        assertThat(testData.getVerifyTableDefinitions()).containsExactly(ACCOUNT_TABLE);
+    }
+
+    @Test
+    void testVerifyingExpectedTables_nullDefinitions_isTheSameAsGivingNone()
+    {
+        assertThat(PrepAndExpectedTestData.verifyingExpectedTables(new String[0],
+                new String[] {"/expected/a.xml"}, null))
+                        .isEqualTo(PrepAndExpectedTestData.verifyingExpectedTables(new String[0],
+                                new String[] {"/expected/a.xml"}));
+    }
+
+    @Test
+    void testVerifyingExpectedTables_emptyExpectedFiles_throwsIllegalArgumentException()
+    {
+        assertThatThrownBy(() -> PrepAndExpectedTestData.verifyingExpectedTables(
+                new String[] {"/prep/accounts.xml"}, new String[0]))
+                        .as("A scenario that verifies every expected table needs an expected"
+                                + " data file, or the test passes with nothing verified.")
+                        .isInstanceOf(IllegalArgumentException.class)
+                        .hasMessageContaining("prepOnly()");
+    }
+
+    @Test
+    void testVerifyingExpectedTables_nullExpectedFiles_throwsIllegalArgumentException()
+    {
+        assertThatThrownBy(() -> PrepAndExpectedTestData.verifyingExpectedTables(
+                new String[] {"/prep/accounts.xml"}, null))
+                        .as("A null list of expected data files verifies nothing, as an empty"
+                                + " one does.")
+                        .isInstanceOf(IllegalArgumentException.class)
+                        .hasMessageContaining("prepOnly()");
+    }
+
+    @Test
+    void testVerifyingExpectedTables_emptyExpectedFilesWithDefinitions_throwsIllegalArgumentException()
+    {
+        assertThatThrownBy(() -> PrepAndExpectedTestData.verifyingExpectedTables(new String[0],
+                new String[0], new VerifyTableDefinition[] {ACCOUNT_TABLE}))
+                        .as("Rules for a table do not give the scenario an expected data file"
+                                + " to verify against.")
+                        .isInstanceOf(IllegalArgumentException.class)
+                        .hasMessageContaining("prepOnly()");
+    }
+
+    @Test
+    void testEquals_sameFilesButDifferentRules_areNotEqual()
+    {
+        final PrepAndExpectedTestData withRules = PrepAndExpectedTestData.verifyingExpectedTables(
+                new String[0], new String[] {"/expected/a.xml"},
+                new VerifyTableDefinition[] {ACCOUNT_TABLE});
+        final PrepAndExpectedTestData withoutRules = PrepAndExpectedTestData
+                .verifyingExpectedTables(new String[0], new String[] {"/expected/a.xml"});
+
+        assertThat(withRules).as("The rules are part of the scenario.")
+                .isNotEqualTo(withoutRules);
     }
 
     @Test
