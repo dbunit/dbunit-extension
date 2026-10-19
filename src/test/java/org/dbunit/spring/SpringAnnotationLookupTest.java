@@ -28,9 +28,15 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.lang.reflect.Method;
 
+import org.dbunit.annotation.DbUnitConfig;
 import org.dbunit.annotation.DbUnitExpected;
+import org.dbunit.annotation.DbUnitProperty;
 import org.dbunit.annotation.DbUnitTearDownOperation;
+import org.dbunit.annotation.runtime.AnnotatedTestConfiguration;
+import org.dbunit.assertion.DiffCollectingFailureHandler;
+import org.dbunit.database.DatabaseConfig;
 import org.dbunit.operation.DbUnitOperation;
+import org.dbunit.util.fileloader.FlatXmlDataFileLoader;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.context.NestedTestConfiguration;
 import org.springframework.test.context.NestedTestConfiguration.EnclosingConfiguration;
@@ -152,6 +158,85 @@ class SpringAnnotationLookupTest
                 .as("A @Nested class annotated @NestedTestConfiguration(OVERRIDE) inherits"
                         + " nothing from its enclosing class, annotations included.")
                 .isNull();
+    }
+
+    @Test
+    void testFindAll_annotationOnMethodAndClass_methodFirst() throws Exception
+    {
+        final SpringAnnotationLookup lookup =
+                lookupFor(new ClassAndMethodLevelTearDown(), "aTestMethod");
+
+        assertThat(lookup.findAll(DbUnitTearDownOperation.class))
+                .extracting(DbUnitTearDownOperation::value)
+                .as("Every declaration is returned, the method-level one first.")
+                .containsExactly(DbUnitOperation.TRUNCATE_TABLE, DbUnitOperation.DELETE_ALL);
+    }
+
+    @Test
+    void testFindAll_composedOnSubclassAndDirectOnSuperclass_closestClassFirst() throws Exception
+    {
+        final SpringAnnotationLookup lookup =
+                lookupFor(new ComposedOnSubclassOverDirectOnSuperclass(), "aTestMethod");
+
+        assertThat(lookup.findAll(DbUnitTearDownOperation.class))
+                .extracting(DbUnitTearDownOperation::value)
+                .as("The subclass's composed declaration is nearer than the superclass's own.")
+                .containsExactly(DbUnitOperation.DELETE_ALL, DbUnitOperation.TRUNCATE_TABLE);
+    }
+
+    @Test
+    void testFindAll_nestedClassWithoutAnnotation_returnsEnclosingClassesAnnotation()
+            throws Exception
+    {
+        final EnclosingWithTearDown enclosing = new EnclosingWithTearDown();
+        final SpringAnnotationLookup lookup = lookupFor(enclosing.new Nested(), "aTestMethod");
+
+        assertThat(lookup.findAll(DbUnitTearDownOperation.class))
+                .extracting(DbUnitTearDownOperation::value)
+                .containsExactly(DbUnitOperation.DELETE_ALL);
+    }
+
+    @Test
+    void testFindAll_nothingDeclared_returnsEmpty() throws Exception
+    {
+        final SpringAnnotationLookup lookup = lookupFor(new NothingDeclared(), "aTestMethod");
+
+        assertThat(lookup.findAll(DbUnitTearDownOperation.class)).isEmpty();
+    }
+
+    @Test
+    void testFrom_subclassDeclaresOnlyAFailureHandler_keepsTheBaseClassLoaderAndProperties()
+            throws Exception
+    {
+        final SpringAnnotationLookup lookup =
+                lookupFor(new SubclassDeclaringAFailureHandler(), "aTestMethod");
+
+        final AnnotatedTestConfiguration config = AnnotatedTestConfiguration
+                .from(SubclassDeclaringAFailureHandler.class, lookup);
+
+        assertThat(config.getFailureHandler()).as("The subclass's own attribute applies.")
+                .isInstanceOf(DiffCollectingFailureHandler.class);
+        assertThat(config.getDataFileLoader()).as("The base class's loader is kept.")
+                .isInstanceOf(FlatXmlDataFileLoader.class);
+        assertThat(config.getDatabaseConfigProperties())
+                .as("The base class's properties are kept.")
+                .containsEntry(DatabaseConfig.PROPERTY_BATCH_SIZE, "50");
+    }
+
+    @Test
+    void testFrom_composedAnnotationAndOwnDeclaration_mergesBoth() throws Exception
+    {
+        final SpringAnnotationLookup lookup =
+                lookupFor(new ComposedAndOwnDeclaration(), "aTestMethod");
+
+        final AnnotatedTestConfiguration config =
+                AnnotatedTestConfiguration.from(ComposedAndOwnDeclaration.class, lookup);
+
+        assertThat(config.getFailureHandler()).as("The class's own declaration applies.")
+                .isInstanceOf(DiffCollectingFailureHandler.class);
+        assertThat(config.getDataFileLoader())
+                .as("The composed annotation's loader is kept, not discarded by the own one.")
+                .isInstanceOf(FlatXmlDataFileLoader.class);
     }
 
     @Test
@@ -487,6 +572,40 @@ class SpringAnnotationLookupTest
     }
 
     static class NothingDeclared
+    {
+        void aTestMethod()
+        {
+        }
+    }
+
+    @DbUnitConfig(dataFileLoader = FlatXmlDataFileLoader.class,
+            properties = @DbUnitProperty(name = "batchSize", value = "50"))
+    static class BaseDeclaringLoaderAndProperties
+    {
+        void aTestMethod()
+        {
+        }
+    }
+
+    @DbUnitConfig(failureHandler = DiffCollectingFailureHandler.class)
+    static class SubclassDeclaringAFailureHandler extends BaseDeclaringLoaderAndProperties
+    {
+        @Override
+        void aTestMethod()
+        {
+        }
+    }
+
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.TYPE)
+    @DbUnitConfig(dataFileLoader = FlatXmlDataFileLoader.class)
+    @interface ReadsFlatXml
+    {
+    }
+
+    @ReadsFlatXml
+    @DbUnitConfig(failureHandler = DiffCollectingFailureHandler.class)
+    static class ComposedAndOwnDeclaration
     {
         void aTestMethod()
         {

@@ -25,7 +25,6 @@ import java.util.List;
 
 import org.dbunit.DefaultPrepAndExpectedTestCase;
 import org.dbunit.PrepAndExpectedTestCase;
-import org.dbunit.util.fileloader.FileExtensionDataFileLoader;
 
 /**
  * Rejects the declarations that ask more of an injected {@code @DbUnitTestCase} than it gives.
@@ -133,8 +132,8 @@ class InjectedTestCaseDeclarationCheck
         final List<String> declared = new ArrayList<>();
         addIf(configuration.isSetupDeclared(), declared, "@DbUnitSetUpOperation");
         addIf(configuration.isTearDownDeclared(), declared, "@DbUnitTearDownOperation");
-        addIf(configuration.getDataFileLoader().getClass() != FileExtensionDataFileLoader.class,
-                declared, "@DbUnitConfig(dataFileLoader)");
+        addIf(configuration.isDataFileLoaderDeclared(), declared,
+                "@DbUnitConfig(dataFileLoader)");
         addIf(configuration.getFailureHandler() != null, declared, "@DbUnitConfig(failureHandler)");
         addIf(!configuration.getDatabaseConfigProperties().isEmpty(), declared,
                 "@DbUnitConfig(properties)");
