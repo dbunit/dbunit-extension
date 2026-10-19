@@ -55,6 +55,17 @@ import org.dbunit.util.fileloader.FileExtensionDataFileLoader;
  * public @interface AppDatabaseTest {}
  * }</pre>
  *
+ * <p>Several declarations can be in scope of one test: on its class, its superclasses, the
+ * annotations composed into them, and the enclosing classes of a nested test class. They merge
+ * attribute by attribute. For each attribute the nearest declaration that sets it wins, so a
+ * subclass declaring only {@link #failureHandler()} keeps the {@link #dataFileLoader()} and the
+ * {@link #properties()} of its base class. An attribute counts as set when it differs from its
+ * default. A nearer declaration therefore overrides an inherited value by naming the one it
+ * wants, but cannot clear it. The nearest declaration that sets {@link #verifyDefinitions()}
+ * supplies the whole array, never combined with a farther one's. The {@link #properties()}
+ * merge by property name instead: a nearer declaration overrides a property of a farther one by
+ * naming it, in its long or its short form, and keeps the others.
+ *
  * @author Jeff Jensen
  * @since 3.6.0
  * @see DbUnitProperty
@@ -81,9 +92,10 @@ public @interface DbUnitConfig
      * it parsed among all instances of its class, parses each file once per run instead of once
      * per test.
      *
-     * @return The loader class; defaults to {@link FileExtensionDataFileLoader}.
+     * @return The loader class; the interface itself (the default) means "not set", and
+     *         {@link FileExtensionDataFileLoader} is used.
      */
-    Class<? extends DataFileLoader> dataFileLoader() default FileExtensionDataFileLoader.class;
+    Class<? extends DataFileLoader> dataFileLoader() default DataFileLoader.class;
 
     /**
      * A {@link DatabaseTesterFactory} implementation to reflectively instantiate (with its
@@ -132,6 +144,10 @@ public @interface DbUnitConfig
      * so a connection that outlives the test - a fixed connection, one cached by a
      * {@code CachingConnectionProvider}, or one the tester's listener leaves open - carries
      * none of them into whatever uses it next.
+     *
+     * <p>Declarations in scope merge by property name: a nearer declaration overrides a property
+     * of a farther one by naming it, in its long or its short form, and the other properties of
+     * the farther one still apply. A declaration that names one property twice fails the test.
      *
      * @return The properties; empty (the default) applies none.
      */

@@ -48,6 +48,9 @@ import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.datatype.DataType;
 import org.dbunit.operation.DatabaseOperation;
 import org.dbunit.operation.DbUnitOperation;
+import org.dbunit.util.fileloader.FileExtensionDataFileLoader;
+import org.dbunit.util.fileloader.FlatXmlDataFileLoader;
+import org.dbunit.util.fileloader.FullXmlDataFileLoader;
 import org.junit.jupiter.api.Test;
 
 import java.util.Properties;
@@ -138,6 +141,56 @@ class AnnotatedTestConfigurationTest
                 .containsExactlyInAnyOrder(DbUnitConfig.class, DbUnitPrep.class,
                         DbUnitSetUpOperation.class, DbUnitExpected.class,
                         DbUnitTearDownOperation.class, DbUnitRowCountCheck.class);
+    }
+
+    @Test
+    void testFrom_lookupFindsSeveralDbUnitConfigs_mergesThemAttributeByAttribute()
+    {
+        final DbUnitConfig near = SetsOnlyTheHandlerConfig.class.getAnnotation(DbUnitConfig.class);
+        final DbUnitConfig far =
+                SetsLoaderAndPropertiesConfig.class.getAnnotation(DbUnitConfig.class);
+        final AnnotationLookup lookup = new FakeAnnotationLookup(SetsOnlyTheHandlerConfig.class)
+                .finding(near).finding(far);
+
+        final AnnotatedTestConfiguration config =
+                AnnotatedTestConfiguration.from(SetsOnlyTheHandlerConfig.class, lookup);
+
+        assertThat(config.getFailureHandler()).as("The nearer declaration's attribute applies.")
+                .isInstanceOf(DiffCollectingFailureHandler.class);
+        assertThat(config.getDataFileLoader())
+                .as("An attribute the nearer declaration leaves unset comes from the farther one.")
+                .isInstanceOf(FlatXmlDataFileLoader.class);
+        assertThat(config.isDataFileLoaderDeclared()).as("The loader is declared.").isTrue();
+        assertThat(config.getDatabaseConfigProperties())
+                .containsEntry(DatabaseConfig.PROPERTY_BATCH_SIZE, "50");
+    }
+
+    @Test
+    void testFrom_nearerDeclarationSetsTheSameAttribute_nearerWins()
+    {
+        final DbUnitConfig near = SetsOtherLoaderConfig.class.getAnnotation(DbUnitConfig.class);
+        final DbUnitConfig far =
+                SetsLoaderAndPropertiesConfig.class.getAnnotation(DbUnitConfig.class);
+        final AnnotationLookup lookup =
+                new FakeAnnotationLookup(SetsOtherLoaderConfig.class).finding(near).finding(far);
+
+        final AnnotatedTestConfiguration config =
+                AnnotatedTestConfiguration.from(SetsOtherLoaderConfig.class, lookup);
+
+        assertThat(config.getDataFileLoader()).as("The nearer declaration's loader wins.")
+                .isInstanceOf(FullXmlDataFileLoader.class);
+    }
+
+    @Test
+    void testFrom_noDataFileLoaderDeclared_usesFileExtensionLoaderAndReportsItUndeclared()
+    {
+        final AnnotatedTestConfiguration config = AnnotatedTestConfiguration
+                .from(SetupOnly.class, null, null, null, null, null, null);
+
+        assertThat(config.getDataFileLoader())
+                .as("Without a declaration the loader dispatches by file extension.")
+                .isInstanceOf(FileExtensionDataFileLoader.class);
+        assertThat(config.isDataFileLoaderDeclared()).as("No declaration names it.").isFalse();
     }
 
     @Test
@@ -772,6 +825,22 @@ class AnnotatedTestConfigurationTest
         NoNoArgFailureHandler(final String unused)
         {
         }
+    }
+
+    @DbUnitConfig(failureHandler = DiffCollectingFailureHandler.class)
+    static class SetsOnlyTheHandlerConfig
+    {
+    }
+
+    @DbUnitConfig(dataFileLoader = FlatXmlDataFileLoader.class,
+            properties = @DbUnitProperty(name = "batchSize", value = "50"))
+    static class SetsLoaderAndPropertiesConfig
+    {
+    }
+
+    @DbUnitConfig(dataFileLoader = FullXmlDataFileLoader.class)
+    static class SetsOtherLoaderConfig
+    {
     }
 
     @DbUnitConfig(failureHandler = DiffCollectingFailureHandler.class)

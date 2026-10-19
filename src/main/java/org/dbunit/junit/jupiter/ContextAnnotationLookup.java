@@ -45,7 +45,8 @@ import org.junit.platform.commons.support.AnnotationSupport;
  *
  * <p>The declaring class comes from {@link DeclaringClassFinder}, which looks where
  * {@link AnnotationSupport} does, in the same order, so it names the declaration
- * {@link #find(Class)} returned.
+ * {@link #find(Class)} returned. {@link #findAll(Class)} comes from {@link DeclarationsFinder},
+ * which looks in that order too.
  *
  * @author Jeff Jensen
  * @since 3.6.0
@@ -85,6 +86,20 @@ class ContextAnnotationLookup implements AnnotationLookup
             return onTestClass.get();
         }
         return findOnEnclosingClasses(annotationType);
+    }
+
+    /**
+     * {@inheritDoc}
+     * <p>
+     * Collects them with a {@link DeclarationsFinder}, which searches in the order
+     * {@link #find(Class)} does.
+     */
+    @Override
+    public <A extends Annotation> List<A> findAll(final Class<A> annotationType)
+    {
+        final DeclarationsFinder finder = new DeclarationsFinder(context.getTestMethod(),
+                context.getRequiredTestClass(), EnclosingTestClasses.of(context));
+        return finder.findAll(annotationType);
     }
 
     @Override

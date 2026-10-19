@@ -26,6 +26,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.lang.ref.WeakReference;
+import java.util.Optional;
 
 import org.dbunit.VerifyTableDefinition;
 import org.dbunit.annotation.DbUnitExpected;
@@ -47,7 +48,7 @@ class VerifyTableDefinitionResolverTest
                 WithVerifyTables.class.getAnnotation(DbUnitExpected.class);
 
         final VerifyTableDefinition[] definitions =
-                resolver.resolveDeclared(null, expected, new String[] {"expected.xml"}).get();
+                resolveDeclared(expected, new String[] {"expected.xml"}).get();
 
         assertThat(definitions).extracting(VerifyTableDefinition::getTableName)
                 .containsExactly("ACCOUNT", "LEDGER");
@@ -59,7 +60,7 @@ class VerifyTableDefinitionResolverTest
         final DbUnitExpected expected =
                 WithDuplicateVerifyTables.class.getAnnotation(DbUnitExpected.class);
 
-        assertThatThrownBy(() -> resolver.resolveDeclared(null, expected,
+        assertThatThrownBy(() -> resolveDeclared(expected,
                 new String[] {"expected.xml"}))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("more than one")
@@ -72,7 +73,7 @@ class VerifyTableDefinitionResolverTest
         final DbUnitExpected expected =
                 WithDifferentCaseDuplicateVerifyTables.class.getAnnotation(DbUnitExpected.class);
 
-        assertThatThrownBy(() -> resolver.resolveDeclared(null, expected,
+        assertThatThrownBy(() -> resolveDeclared(expected,
                 new String[] {"expected.xml"}))
                         .as("'ACCOUNT' and 'account' name the same table, as dbUnit compares"
                                 + " table names ignoring case unless told otherwise.")
@@ -87,7 +88,7 @@ class VerifyTableDefinitionResolverTest
         final DbUnitExpected expected =
                 WithDifferentCaseInlineVerify.class.getAnnotation(DbUnitExpected.class);
 
-        assertThatThrownBy(() -> resolver.resolveDeclared(null, expected,
+        assertThatThrownBy(() -> resolveDeclared(expected,
                 new String[] {"expected.xml"}))
                         .as("Two @DbUnitVerifyTable entries naming one table in different case"
                                 + " verify it twice.")
@@ -103,7 +104,7 @@ class VerifyTableDefinitionResolverTest
                 WithLowerCaseTableAndCatalog.class.getAnnotation(DbUnitExpected.class);
 
         final VerifyTableDefinition[] definitions =
-                resolver.resolveDeclared(null, expected, new String[] {"expected.xml"}).get();
+                resolveDeclared(expected, new String[] {"expected.xml"}).get();
 
         assertThat(definitions)
                 .as("verifyTables selects from the catalog ignoring case, the way dbUnit finds a"
@@ -116,7 +117,7 @@ class VerifyTableDefinitionResolverTest
     {
         final DbUnitExpected expected = Bare.class.getAnnotation(DbUnitExpected.class);
 
-        assertThat(resolver.resolveDeclared(null, expected, new String[] {"expected.xml"}))
+        assertThat(resolveDeclared(expected, new String[] {"expected.xml"}))
                 .as("With no verify spec, nothing is declared and no loader is touched yet:"
                         + " the tables are derived later, with the loader that will compare"
                         + " them.")
@@ -160,7 +161,7 @@ class VerifyTableDefinitionResolverTest
     {
         final DbUnitExpected expected = NoDatasetNoSpec.class.getAnnotation(DbUnitExpected.class);
 
-        assertThatThrownBy(() -> resolver.resolveDeclared(null, expected, new String[0]))
+        assertThatThrownBy(() -> resolveDeclared(expected, new String[0]))
                 .as("A @DbUnitExpected naming no dataset and no tables has nothing to verify"
                         + " against, which must be rejected rather than silently pass.")
                 .isInstanceOf(IllegalStateException.class)
@@ -173,7 +174,7 @@ class VerifyTableDefinitionResolverTest
         final DbUnitExpected expected =
                 VerifyTablesWithoutDataset.class.getAnnotation(DbUnitExpected.class);
 
-        assertThatThrownBy(() -> resolver.resolveDeclared(null, expected, new String[0]))
+        assertThatThrownBy(() -> resolveDeclared(expected, new String[0]))
                 .as("Naming tables to verify does not make a missing expected dataset valid:"
                         + " the tables are compared to that dataset, and verifying one that is"
                         + " not in it always fails afterward with an obscure error.")
@@ -187,7 +188,7 @@ class VerifyTableDefinitionResolverTest
         final DbUnitExpected expected =
                 InlineVerifyWithoutDataset.class.getAnnotation(DbUnitExpected.class);
 
-        assertThatThrownBy(() -> resolver.resolveDeclared(null, expected, new String[0]))
+        assertThatThrownBy(() -> resolveDeclared(expected, new String[0]))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("names no expected dataset");
     }
@@ -202,7 +203,7 @@ class VerifyTableDefinitionResolverTest
         Class<?> declaring = loader.loadClass(DeclaresIsolatedComparer.class.getName());
         DbUnitExpected expected = declaring.getAnnotation(DbUnitExpected.class);
 
-        resolver.resolveDeclared(null, expected, new String[] {"expected.xml"});
+        resolveDeclared(expected, new String[] {"expected.xml"});
         loader = null;
         declaring = null;
         expected = null;
@@ -211,6 +212,13 @@ class VerifyTableDefinitionResolverTest
                 .as("Resolving a comparer class must not pin the class loader that defined it,"
                         + " as a JVM-lifetime cache keyed by the class would.")
                 .isTrue();
+    }
+
+    /** Resolves what the annotations spell out, with no class-level catalog declared. */
+    private Optional<VerifyTableDefinition[]> resolveDeclared(final DbUnitExpected expected,
+            final String[] expectedDataFiles)
+    {
+        return resolver.resolveDeclared(new Class<?>[0], expected, expectedDataFiles);
     }
 
     @DbUnitExpected(verify = @DbUnitVerifyTable(value = "ACCOUNT",

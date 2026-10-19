@@ -72,7 +72,8 @@ final class VerifyTableDefinitionResolver
      * to {@link #deriveFromExpectedDatasets(DataFileLoader, String[])}, so the loader can be the
      * one the test case that will compare those datasets actually uses.
      *
-     * @param config The resolved {@code @DbUnitConfig}, or {@code null} if absent.
+     * @param classLevelCatalogs The catalog classes {@code @DbUnitConfig(verifyDefinitions)}
+     *            declares, as the default for a method that names none; empty when none.
      * @param expected The resolved {@code @DbUnitExpected} (never {@code null} - this runs only
      *            when it is present).
      * @param expectedDataFiles The resolved expected dataset paths.
@@ -81,7 +82,7 @@ final class VerifyTableDefinitionResolver
      * @throws IllegalStateException If no expected dataset is named, or the spec is
      *             contradictory.
      */
-    Optional<VerifyTableDefinition[]> resolveDeclared(final DbUnitConfig config,
+    Optional<VerifyTableDefinition[]> resolveDeclared(final Class<?>[] classLevelCatalogs,
             final DbUnitExpected expected, final String[] expectedDataFiles)
     {
         if (expectedDataFiles.length == 0)
@@ -92,8 +93,6 @@ final class VerifyTableDefinitionResolver
                     + " dataset are compared. Name the dataset with value(), or drop"
                     + " @DbUnitExpected for a test that verifies nothing.");
         }
-        final Class<?>[] classLevelCatalogs =
-                config == null ? new Class<?>[0] : config.verifyDefinitions();
         final DbUnitVerifyTable[] verify = expected.verify();
         final String[] verifyTables = expected.verifyTables();
 
