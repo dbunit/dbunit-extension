@@ -57,6 +57,7 @@ import org.dbunit.util.fileloader.FileExtensionDataFileLoader;
 public class AnnotatedTestConfiguration
 {
     private final DataFileLoader dataFileLoader;
+    private final boolean dataFileLoaderDeclared;
     private final String[] prepDataFiles;
     private final boolean setupDeclared;
     private final DatabaseOperation setUpOperation;
@@ -75,7 +76,8 @@ public class AnnotatedTestConfiguration
     private final String[] rowCountCheckExclude;
 
     private AnnotatedTestConfiguration(final DataFileLoader dataFileLoader,
-            final String[] prepDataFiles, final boolean setupDeclared,
+            final boolean dataFileLoaderDeclared, final String[] prepDataFiles,
+            final boolean setupDeclared,
             final DatabaseOperation setUpOperation, final boolean expected,
             final String[] expectedDataFiles,
             final VerifyTableDefinition[] verifyTableDefinitions,
@@ -87,6 +89,7 @@ public class AnnotatedTestConfiguration
             final String[] rowCountCheckExclude)
     {
         this.dataFileLoader = dataFileLoader;
+        this.dataFileLoaderDeclared = dataFileLoaderDeclared;
         this.prepDataFiles = prepDataFiles;
         this.setupDeclared = setupDeclared;
         this.setUpOperation = setUpOperation;
@@ -156,11 +159,24 @@ public class AnnotatedTestConfiguration
             final DbUnitExpected expected, final DbUnitTearDownOperation tearDown,
             final DbUnitRowCountCheck rowCountCheck)
     {
-        final String dataSetBaseDir = config == null ? "" : config.dataSetBaseDir();
+        return from(prepDeclaringClass, expectedDeclaringClass, MergedDbUnitConfig.ofOne(config),
+                prep, setup, expected, tearDown, rowCountCheck);
+    }
+
+    private static AnnotatedTestConfiguration from(final Class<?> prepDeclaringClass,
+            final Class<?> expectedDeclaringClass, final MergedDbUnitConfig config,
+            final DbUnitPrep prep, final DbUnitSetUpOperation setup,
+            final DbUnitExpected expected, final DbUnitTearDownOperation tearDown,
+            final DbUnitRowCountCheck rowCountCheck)
+    {
+        final String dataSetBaseDir = config.getDataSetBaseDir();
         final DataSetPathsResolver pathsResolver = new DataSetPathsResolver();
 
-        final Class<? extends DataFileLoader> dataFileLoaderClass =
-                config == null ? FileExtensionDataFileLoader.class : config.dataFileLoader();
+        final Class<? extends DataFileLoader> declaredDataFileLoaderClass =
+                config.getDataFileLoader();
+        final boolean dataFileLoaderDeclared = declaredDataFileLoaderClass != null;
+        final Class<? extends DataFileLoader> dataFileLoaderClass = dataFileLoaderDeclared
+                ? declaredDataFileLoaderClass : FileExtensionDataFileLoader.class;
         final DataFileLoader dataFileLoader =
                 instantiate(dataFileLoaderClass, "DbUnitConfig.dataFileLoader");
 
@@ -181,19 +197,19 @@ public class AnnotatedTestConfiguration
         final VerifyTableDefinition[] verifyTableDefinitions = !hasExpected
                 ? new VerifyTableDefinition[0]
                 : new VerifyTableDefinitionResolver()
-                        .resolveDeclared(config, expected, expectedDataFiles).orElse(null);
+                        .resolveDeclared(config.getVerifyDefinitions(), expected,
+                                expectedDataFiles)
+                        .orElse(null);
 
         final Properties databaseConfigProperties =
-                new DatabaseConfigPropertiesResolver().resolve(config);
-        final FailureHandler failureHandler = config == null
-                || config.failureHandler() == FailureHandler.class ? null
-                        : instantiate(config.failureHandler(), "DbUnitConfig.failureHandler");
-        final Class<? extends DatabaseTesterFactory> databaseTesterFactory = config == null
-                || config.databaseTesterFactory() == DatabaseTesterFactory.class ? null
-                        : config.databaseTesterFactory();
+                new DatabaseConfigPropertiesResolver().resolve(config.getProperties());
+        final Class<? extends FailureHandler> failureHandlerClass = config.getFailureHandler();
+        final FailureHandler failureHandler = failureHandlerClass == null ? null
+                : instantiate(failureHandlerClass, "DbUnitConfig.failureHandler");
+        final Class<? extends DatabaseTesterFactory> databaseTesterFactory =
+                config.getDatabaseTesterFactory();
         final Class<? extends DefaultPrepAndExpectedTestCase> prepAndExpectedTestCaseClass =
-                config == null ? DefaultPrepAndExpectedTestCase.class
-                        : config.prepAndExpectedTestCase();
+                config.getPrepAndExpectedTestCase();
 
         final boolean rowCountCheckDeclared = rowCountCheck != null;
         final boolean rowCountCheckEnabled =
@@ -201,19 +217,22 @@ public class AnnotatedTestConfiguration
         final String[] rowCountCheckExclude =
                 rowCountCheckDeclared ? rowCountCheck.exclude() : new String[0];
 
-        return new AnnotatedTestConfiguration(dataFileLoader, prepDataFiles, setupDeclared,
-                setUpOperation, hasExpected, expectedDataFiles, verifyTableDefinitions,
-                tearDownDeclared, tearDownOperation, databaseConfigProperties, failureHandler,
-                databaseTesterFactory, prepAndExpectedTestCaseClass, rowCountCheckDeclared,
-                rowCountCheckEnabled, rowCountCheckExclude);
+        return new AnnotatedTestConfiguration(dataFileLoader, dataFileLoaderDeclared,
+                prepDataFiles, setupDeclared, setUpOperation, hasExpected, expectedDataFiles,
+                verifyTableDefinitions, tearDownDeclared, tearDownOperation,
+                databaseConfigProperties, failureHandler, databaseTesterFactory,
+                prepAndExpectedTestCaseClass, rowCountCheckDeclared, rowCountCheckEnabled,
+                rowCountCheckExclude);
     }
 
     /**
      * Resolves a configuration from the annotations a binding's {@link AnnotationLookup} finds
      * for one test - the six {@code org.dbunit.annotation} annotations that configure a test,
-     * method-level before class-level - so a binding supplies only its search strategy. A dataset
-     * path written relative to a package is resolved against the package of the class the lookup
-     * reports as declaring the annotation naming it - see
+     * method-level before class-level - so a binding supplies only its search strategy. The
+     * nearest declaration of an annotation wins whole, except {@link DbUnitConfig}: every
+     * declaration in scope is merged attribute by attribute - see {@link MergedDbUnitConfig}. A
+     * dataset path written relative to a package is resolved against the package of the class
+     * the lookup reports as declaring the annotation naming it - see
      * {@link AnnotationLookup#findDeclaringClass(Class)}.
      *
      * @param testClass The test class; used in diagnostics.
@@ -225,7 +244,8 @@ public class AnnotatedTestConfiguration
     public static AnnotatedTestConfiguration from(final Class<?> testClass,
             final AnnotationLookup lookup)
     {
-        final DbUnitConfig config = lookup.find(DbUnitConfig.class);
+        final MergedDbUnitConfig config =
+                MergedDbUnitConfig.of(lookup.findAll(DbUnitConfig.class));
         final DbUnitPrep prep = lookup.find(DbUnitPrep.class);
         final DbUnitSetUpOperation setup = lookup.find(DbUnitSetUpOperation.class);
         final DbUnitExpected expected = lookup.find(DbUnitExpected.class);
@@ -233,8 +253,8 @@ public class AnnotatedTestConfiguration
         final DbUnitRowCountCheck rowCountCheck = lookup.find(DbUnitRowCountCheck.class);
         final Class<?> prepDeclaringClass = lookup.findDeclaringClass(DbUnitPrep.class);
         final Class<?> expectedDeclaringClass = lookup.findDeclaringClass(DbUnitExpected.class);
-        return from(testClass, prepDeclaringClass, expectedDeclaringClass, config, prep, setup,
-                expected, tearDown, rowCountCheck);
+        return from(prepDeclaringClass, expectedDeclaringClass, config, prep, setup, expected,
+                tearDown, rowCountCheck);
     }
 
     private static <T> T instantiate(final Class<? extends T> implementationClass,
@@ -251,6 +271,17 @@ public class AnnotatedTestConfiguration
     public DataFileLoader getDataFileLoader()
     {
         return dataFileLoader;
+    }
+
+    /**
+     * Returns whether a {@code @DbUnitConfig} declares the data file loader, rather than the
+     * default {@link FileExtensionDataFileLoader} being used for want of one.
+     *
+     * @return True when a declaration names the loader.
+     */
+    public boolean isDataFileLoaderDeclared()
+    {
+        return dataFileLoaderDeclared;
     }
 
     /**
