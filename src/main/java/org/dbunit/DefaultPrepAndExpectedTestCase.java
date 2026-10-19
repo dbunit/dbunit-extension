@@ -677,7 +677,6 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * @throws Exception On dbUnit errors.
      * @since 3.4.0
      */
-    @Override
     public IDatabaseConnection getReusableConnection() throws Exception
     {
         final IDatabaseConnection connection = reusableConnectionHolder.getConnection();
@@ -2220,7 +2219,6 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      *
      * @return The databaseTester.
      */
-    @Override
     public IDatabaseTester getDatabaseTester()
     {
         return databaseTester;
@@ -2238,7 +2236,6 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * @param databaseTester
      *            The databaseTester to set.
      */
-    @Override
     public void setDatabaseTester(final IDatabaseTester databaseTester)
     {
         if (databaseTester == this.databaseTester)
@@ -2290,7 +2287,6 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * @return True if it is closed, false if not.
      * @since 3.4.0
      */
-    @Override
     public boolean isCloseConnectionAfterTest()
     {
         return closeConnectionAfterTest;
@@ -2314,7 +2310,6 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      *            True to close it, false to leave it open.
      * @since 3.4.0
      */
-    @Override
     public void setCloseConnectionAfterTest(
             final boolean closeConnectionAfterTest)
     {
@@ -2328,7 +2323,6 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      *
      * @return The dataFileLoader.
      */
-    @Override
     public DataFileLoader getDataFileLoader()
     {
         return dataFileLoader;
@@ -2342,7 +2336,6 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * @param dataFileLoader
      *            The dataFileLoader to set.
      */
-    @Override
     public void setDataFileLoader(final DataFileLoader dataFileLoader)
     {
         this.dataFileLoader = dataFileLoader;
@@ -2430,7 +2423,6 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * @return The failureHandler.
      * @since 3.5.0
      */
-    @Override
     public FailureHandler getFailureHandler()
     {
         return failureHandler;
@@ -2445,7 +2437,6 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      *            The failureHandler to set.
      * @since 3.5.0
      */
-    @Override
     public void setFailureHandler(final FailureHandler failureHandler)
     {
         this.failureHandler = failureHandler;
@@ -2492,7 +2483,6 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      *            The excluded table patterns; null is treated as empty (excludes none).
      * @since 3.6.0
      */
-    @Override
     public void setRowCountCheckOverride(final boolean enabled, final String[] exclude)
     {
         rowCountChecker.setEnabledOverride(enabled, exclude);
@@ -2509,7 +2499,6 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * @see #rowCountChecker
      * @since 3.6.0
      */
-    @Override
     public void clearRowCountCheckOverride()
     {
         rowCountChecker.clearEnabledOverride();
@@ -2524,7 +2513,6 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * @return A copy of the properties, or null if none are set.
      * @since 3.6.0
      */
-    @Override
     public Properties getDatabaseConfigProperties()
     {
         if (databaseConfigProperties == null)
@@ -2553,7 +2541,6 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      *            The properties to apply; null or empty applies none.
      * @since 3.6.0
      */
-    @Override
     public void setDatabaseConfigProperties(final Properties databaseConfigProperties)
     {
         restoreDatabaseConfig();
