@@ -134,7 +134,7 @@ class DbUnitExtensionInjectedTestCaseSettingsIT
     static class KeepsConnectionSample
     {
         @DbUnitTestCase
-        static PrepAndExpectedTestCase testCase;
+        static DefaultPrepAndExpectedTestCase testCase;
 
         @Test
         @DbUnitPrep("annotation-it-prep.xml")
@@ -156,7 +156,7 @@ class DbUnitExtensionInjectedTestCaseSettingsIT
     static class KeepsConnectionWithParameterSample
     {
         @DbUnitTestCase
-        static PrepAndExpectedTestCase testCase;
+        static DefaultPrepAndExpectedTestCase testCase;
 
         @Test
         @DbUnitPrep("annotation-it-prep.xml")
@@ -177,7 +177,7 @@ class DbUnitExtensionInjectedTestCaseSettingsIT
     static class OwnLoaderSample
     {
         @DbUnitTestCase
-        static PrepAndExpectedTestCase testCase;
+        static DefaultPrepAndExpectedTestCase testCase;
 
         @Test
         @DbUnitPrep("annotation-it-full-prep.xml")

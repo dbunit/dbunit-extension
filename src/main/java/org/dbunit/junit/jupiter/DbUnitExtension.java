@@ -544,7 +544,18 @@ public class DbUnitExtension implements BeforeTestExecutionCallback,
             @Override
             Object resolve(final AnnotatedTestExecutor executor)
             {
-                return executor.getTester();
+                final IDatabaseTester tester = executor.getTester();
+                if (tester == null)
+                {
+                    final String testCaseClassName =
+                            executor.getPrepAndExpectedTestCase().getClass().getName();
+                    throw new IllegalStateException("The @DbUnitTestCase field's test case "
+                            + testCaseClassName + " is not a DefaultPrepAndExpectedTestCase, so"
+                            + " dbUnit has no IDatabaseTester of it to inject. Remove the"
+                            + " IDatabaseTester parameter, or reach the tester where the test"
+                            + " case is built.");
+                }
+                return tester;
             }
         },
 

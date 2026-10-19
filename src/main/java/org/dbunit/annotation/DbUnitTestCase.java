@@ -38,35 +38,26 @@ import org.dbunit.PrepAndExpectedTestCase;
  * typically declared. Declaring this alongside a {@link DbUnitTester} field, or more than one
  * field with either marker at the same class level, is rejected as ambiguous.
  *
- * <p>For an instance reused across methods this way that also caches its own
- * {@link PrepAndExpectedTestCase#getReusableConnection()} connection, the extension leaves that
+ * <p>The instance keeps the settings it was built with. {@link DbUnitConfig} pushes onto a
+ * {@link org.dbunit.DefaultPrepAndExpectedTestCase} only what a test declares, for that test
+ * only, and puts the instance's own values back afterward; see
+ * {@link DbUnitConfig#dataFileLoader()} and {@link DbUnitConfig#closeConnectionAfterTest()} for
+ * the two defaults that behave slightly differently. The extension leaves an instance's
  * connection alone when a test aborts before {@code configureTest()} (e.g. a
- * {@code @DbUnitConfig} value the instance's type cannot apply) - the instance keeps ownership
+ * {@code @DbUnitConfig} value the instance cannot apply) - the instance keeps ownership
  * rather than the extension closing a connection the next method would reuse. A single-use
  * instance the extension constructs itself still has its connection closed on such a failure.
  *
- * <p>The instance keeps the settings it was built with. {@link DbUnitConfig} pushes onto it only
- * what a test declares, for that test only, and puts the instance's own values back afterward;
- * see {@link DbUnitConfig#dataFileLoader()} and {@link DbUnitConfig#closeConnectionAfterTest()}
- * for the two defaults that behave slightly differently.
- *
- * <p>Marking this field does not, by itself, remove the need for a resolvable
- * {@code IDatabaseTester}: the extension's own machinery (installing the
- * {@code @DbUnitProperty} listener, and any {@code IDatabaseTester} parameter injection) needs
- * one regardless of test case type. For an implementation whose type overrides
- * {@link PrepAndExpectedTestCase#getDatabaseTester()}/
- * {@link PrepAndExpectedTestCase#setDatabaseTester(org.dbunit.IDatabaseTester)} - {@code
- * DefaultPrepAndExpectedTestCase} does - one is found and wired on automatically when none is
- * set yet. Any other implementation may override those same two methods to get the same
- * automatic wiring; one that does not (their default is a no-op reporting no tester) needs
- * {@link DbUnitConfig#databaseTesterFactory()} configured even when it manages its own
- * connection internally - otherwise resolution fails with "No IDatabaseTester field found" for
- * a test case that otherwise needs nothing external. A {@link DbUnitTester} field is not a
- * substitute here: it is rejected outright alongside this annotation (see above), and even if
- * it were not, {@code DbUnitExtension}'s tester resolution does not consult one for this
- * fallback. In that case the factory-resolved tester must be the exact instance this test case
- * actually uses internally, or {@code @DbUnitSetUpOperation}/{@code @DbUnitTearDownOperation}
- * operations set on it may silently never reach what this test case actually runs.
+ * <p>A {@link org.dbunit.DefaultPrepAndExpectedTestCase} with no tester is given the one the
+ * extension resolves for the test, which it takes off again when the test is over. Any other
+ * implementation of {@link PrepAndExpectedTestCase} is driven as it is: the extension gives it the
+ * test's files and calls {@code configureTest()}, {@code preTest()} and {@code postTest()}, and
+ * nothing else. It tells the extension of no tester and no connection, so a test declaring
+ * anything that needs one - {@code @DbUnitSetUpOperation}, {@code @DbUnitTearDownOperation},
+ * {@code @DbUnitRowCountCheck}, the {@link DbUnitConfig} attributes that configure the test
+ * case, a test without {@link DbUnitExpected}, or an {@code IDatabaseTester},
+ * {@code IDatabaseConnection} or {@code Connection} test method parameter - is rejected with
+ * {@link IllegalStateException}. Configure such a test case where it is built.
  *
  * @author Jeff Jensen
  * @since 3.6.0

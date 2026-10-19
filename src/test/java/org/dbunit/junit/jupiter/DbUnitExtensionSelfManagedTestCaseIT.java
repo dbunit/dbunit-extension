@@ -29,16 +29,11 @@ import java.sql.Statement;
 
 import org.dbunit.DatabaseEnvironment;
 import org.dbunit.DatabaseProfile;
-import org.dbunit.DatabaseTesterFactory;
-import org.dbunit.DefaultDatabaseTester;
 import org.dbunit.DefaultPrepAndExpectedTestCase;
-import org.dbunit.IDatabaseTester;
-import org.dbunit.IOperationListener;
 import org.dbunit.JdbcDatabaseTester;
 import org.dbunit.PrepAndExpectedTestCase;
 import org.dbunit.PrepAndExpectedTestCaseSteps;
 import org.dbunit.VerifyTableDefinition;
-import org.dbunit.annotation.DbUnitConfig;
 import org.dbunit.annotation.DbUnitExpected;
 import org.dbunit.annotation.DbUnitPrep;
 import org.dbunit.annotation.DbUnitTestCase;
@@ -49,24 +44,16 @@ import org.dbunit.operation.DatabaseOperation;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.platform.testkit.engine.EngineTestKit;
-import org.slf4j.LoggerFactory;
-
-import ch.qos.logback.classic.Level;
-import ch.qos.logback.classic.Logger;
-import ch.qos.logback.classic.spi.ILoggingEvent;
-import ch.qos.logback.core.read.ListAppender;
 
 /**
  * Real-database integration test of the composition-style {@link PrepAndExpectedTestCase}:
  * a hand-written implementation (not a {@link DefaultPrepAndExpectedTestCase} subclass) that
- * does <em>not</em> override {@code getDatabaseTester()}/{@code setDatabaseTester()} and manages
- * its own tester and connection internally, injected through a {@code @DbUnitTestCase} field.
- * {@code annotations.adoc} documents this pattern as supported (with
- * {@code databaseTesterFactory} configured so the extension's own machinery still has a tester);
- * only mock-based unit tests exercise the resolution fallback, so a real database confirms the
+ * manages its own tester and connection internally, injected through a {@code @DbUnitTestCase}
+ * field. dbUnit drives such an instance as it is: it gives it the test's files and calls
+ * {@code configureTest()}, {@code preTest()} and {@code postTest()}. A real database confirms the
  * full {@code configureTest} / {@code preTest} / {@code @DbUnitExpected} verify / {@code cleanupData}
- * lifecycle actually runs through such an instance, and that the round-trip-fallback stays a
- * diagnostic log rather than an error.
+ * lifecycle actually runs through such an instance, with no tester and no connection of its own
+ * known to dbUnit.
  *
  * <p>Matrix row 10 (G-c2).
  */
@@ -75,7 +62,7 @@ class DbUnitExtensionSelfManagedTestCaseIT
     private static final String TEST_TABLE = "TEST_TABLE";
 
     @Test
-    void testAfterTestExecution_selfManagedConnectionTestCaseWithoutTesterOverride_runsTheFullLifecycle()
+    void testAfterTestExecution_selfManagedConnectionTestCase_runsTheFullLifecycle()
             throws Exception
     {
         final DatabaseEnvironment environment = DatabaseEnvironment.getInstance();
@@ -83,25 +70,11 @@ class DbUnitExtensionSelfManagedTestCaseIT
         deleteAllRowsQuietly(environment);
         SelfManagedSample.testCase = new SelfManagedTestCase(profile);
 
-        final Logger extensionLogger = (Logger) LoggerFactory
-                .getLogger("org.dbunit.annotation.runtime.InjectedTestCaseTesterBinding");
-        final Level originalLevel = extensionLogger.getLevel();
-        extensionLogger.setLevel(Level.DEBUG);
-        final ListAppender<ILoggingEvent> appender = new ListAppender<>();
-        appender.start();
-        extensionLogger.addAppender(appender);
         try
         {
             EngineTestKit.engine("junit-jupiter")
                     .selectors(selectClass(SelfManagedSample.class)).execute().testEvents()
                     .assertStatistics(stats -> stats.started(1).succeeded(1));
-
-            assertThat(appender.list)
-                    .as("A @DbUnitTestCase whose type does not override"
-                            + " getDatabaseTester()/setDatabaseTester() is the documented"
-                            + " self-managed-connection pattern - the resolution round-trip"
-                            + " failure must be a diagnostic log, never an exception.")
-                    .anyMatch(event -> event.getFormattedMessage().contains("does not round-trip"));
 
             final IDatabaseConnection verifyConnection = environment.getConnection();
             assertThat(rowCount(verifyConnection, TEST_TABLE))
@@ -112,9 +85,6 @@ class DbUnitExtensionSelfManagedTestCaseIT
                     .isZero();
         } finally
         {
-            extensionLogger.detachAppender(appender);
-            appender.stop();
-            extensionLogger.setLevel(originalLevel);
             deleteAllRowsQuietly(environment);
             environment.closeConnection();
         }
@@ -145,40 +115,23 @@ class DbUnitExtensionSelfManagedTestCaseIT
     }
 
     @ExtendWith(DbUnitExtension.class)
-    @DbUnitConfig(databaseTesterFactory = SelfManagedSample.NoOpTesterFactory.class)
     static class SelfManagedSample
     {
         @DbUnitTestCase
-        static PrepAndExpectedTestCase testCase;
+        static SelfManagedTestCase testCase;
 
         @Test
         @DbUnitPrep("annotation-it-prep.xml")
         @DbUnitExpected(value = "annotation-it-expected.xml",
                 verify = @DbUnitVerifyTable(value = TEST_TABLE,
                         include = {"COLUMN0", "COLUMN1"}))
-        void mutateTheSeededRow(final Connection connection) throws Exception
+        void mutateTheSeededRow() throws Exception
         {
-            try (Statement statement = connection.createStatement())
+            final IDatabaseConnection connection = testCase.getReusableConnection();
+            try (Statement statement = connection.getConnection().createStatement())
             {
                 statement.execute("UPDATE " + TEST_TABLE
                         + " SET COLUMN1 = 'after' WHERE COLUMN0 = 'row0'");
-            }
-        }
-
-        /**
-         * Supplies the tester the extension's own machinery needs (it never reaches the
-         * composition test case's internal one); a NO_OP listener so nothing it does closes a
-         * connection out from under that internal lifecycle.
-         */
-        static class NoOpTesterFactory implements DatabaseTesterFactory
-        {
-            @Override
-            public IDatabaseTester getDatabaseTester() throws Exception
-            {
-                final IDatabaseTester tester = new DefaultDatabaseTester(
-                        DatabaseEnvironment.getInstance().getConnection());
-                tester.setOperationListener(IOperationListener.NO_OP_OPERATION_LISTENER);
-                return tester;
             }
         }
     }
@@ -186,12 +139,11 @@ class DbUnitExtensionSelfManagedTestCaseIT
     /**
      * A composition {@link PrepAndExpectedTestCase}: every abstract method delegates to an
      * internal {@link DefaultPrepAndExpectedTestCase} built over its own {@link JdbcDatabaseTester},
-     * with its own {@code DELETE_ALL} teardown operation. It deliberately does not override
-     * {@code getDatabaseTester()}/{@code setDatabaseTester()} - the resolution fallback the
-     * enclosing test asserts about. It does override {@code getReusableConnection()} so an
-     * injected {@code Connection} parameter still reaches the connection its own lifecycle uses.
+     * with its own {@code DELETE_ALL} teardown operation. It tells dbUnit of no tester and no
+     * connection; a test method reaches the connection its own lifecycle uses through
+     * {@code getReusableConnection()}.
      */
-    static final class SelfManagedTestCase implements PrepAndExpectedTestCase
+    static class SelfManagedTestCase implements PrepAndExpectedTestCase
     {
         private final DefaultPrepAndExpectedTestCase delegate;
 
@@ -205,7 +157,6 @@ class DbUnitExtensionSelfManagedTestCaseIT
                     new org.dbunit.util.fileloader.FlatXmlDataFileLoader(), tester);
         }
 
-        @Override
         public IDatabaseConnection getReusableConnection() throws Exception
         {
             return delegate.getReusableConnection();
