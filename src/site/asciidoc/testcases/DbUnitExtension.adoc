@@ -99,10 +99,9 @@ shares one connection for the whole test and closes it at the end, or give the t
 
 == Parameter Injection
 
-`DbUnitExtension` also resolves `IDatabaseTester`, `PrepAndExpectedTestCase`,
-`IDatabaseConnection`, and `Connection` parameters on `@Test` and
-`@BeforeEach` methods, so a test can ask for the tester or its connection
-directly instead of reaching through a field:
+`DbUnitExtension` also resolves `IDatabaseTester` and `IDatabaseConnection`
+parameters on `@Test` and `@BeforeEach` methods, so a test can ask for the
+tester or its connection directly instead of reaching through a field:
 
 [source,java]
 ----
@@ -118,18 +117,18 @@ class AccountRepositoryTest
     }
 
     @Test
-    void testWithdraw_sufficientBalance_decrementsBalance(final Connection connection)
+    void testWithdraw_sufficientBalance_decrementsBalance(final IDatabaseConnection connection)
             throws Exception
     {
-        // use connection directly
+        // connection.getConnection() is the JDBC connection
     }
 }
 ----
 
 A parameter is matched by its declared type exactly: a parameter declared as a
-subtype, such as a `JdbcDatabaseTester` or a driver's own `Connection`
-interface, is left to whichever other resolver supplies it, since the value
-injected here is not necessarily an instance of that subtype.
+subtype, such as a `JdbcDatabaseTester`, is left to whichever other resolver
+supplies it, since the value injected here is not necessarily an instance of
+that subtype.
 
 Parameter injection is claimed only for a test that opts into
 link:annotations.html[`org.dbunit.annotation`] — one carrying `@DbUnitTest`
@@ -137,8 +136,8 @@ or any `@DbUnit*` annotation on the class or method, or a `@DbUnitTester`/
 `@DbUnitTestCase` field. A bare `@ExtendWith(DbUnitExtension.class)` class
 with only a plain, unannotated `IDatabaseTester` field keeps the
 lifecycle-only behavior it has always had and no parameter is claimed for
-it, so another extension resolving a `Connection` (or any of the other three
-types) on the same test method is not left competing with a claim here. That
+it, so another extension resolving one of these types on the same test method
+is not left competing with a claim here. That
 class takes the link:../components/rowcountcheck.html[row count check] baseline,
 whether or not the check is enabled, because the setting lives on a connection's
 `DatabaseConfig`, from the connection `onSetup()` retrieves, after the tester's
@@ -161,14 +160,11 @@ the tester's listener is `NO_OP_OPERATION_LISTENER`.
 Switch such a class to `@DbUnitTest`, or mark its field `@DbUnitTester`, to
 opt its parameters in.
 
-*On an annotation-driven test this extension claims every
-`java.sql.Connection` parameter.* If another extension on the same test also
-resolves `java.sql.Connection` — Spring's `SpringExtension`, Testcontainers,
-a JPA/JDBC harness — JUnit fails the test with "discovered multiple competing
-ParameterResolvers". Set `@DbUnitConfig(injectConnectionParameter = false)`
-to yield the bare `Connection` to that extension; the dbUnit-specific
-`IDatabaseConnection` parameter is still resolved (no other framework claims
-that type), so inject it and call its `getConnection()`.
+*A bare `java.sql.Connection` parameter is never claimed*, so another
+extension on the same test that resolves it — Spring's `SpringExtension`,
+Testcontainers, a JPA/JDBC harness — does not collide with JUnit's "discovered
+multiple competing ParameterResolvers". Inject the `IDatabaseConnection` and
+call its `getConnection()` for the JDBC connection.
 
 A `@BeforeEach` parameter resolves before this extension's own setup runs —
 JUnit Jupiter always calls `@BeforeEach` methods first — so it sees the
@@ -188,7 +184,7 @@ fixed-connection tester it returns the connection this extension just
 closed; on a fresh-connection tester (`JdbcDatabaseTester`) it opens one
 nothing will close. Do post-test database work in the `@Test` method itself,
 or in an `@AfterEach` that fully owns its own connection. The injected
-`IDatabaseConnection`/`Connection` is managed for the test's duration and
+`IDatabaseConnection` is managed for the test's duration and
 closed afterward — by the extension on the setup/teardown path, by the driven
 `PrepAndExpectedTestCase` on the prep/expected path; do not close it yourself.
 That includes a `@BeforeEach` method that fails after receiving it: the test

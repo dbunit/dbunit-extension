@@ -116,7 +116,7 @@ elsewhere: neither closes them.
 enabling the link:rowcountcheck.html[row count check], applies to it too. That includes
 the connection a plain `@ExtendWith(DbUnitExtension.class)` test resolves for the row
 count baseline when `onSetup()` cannot be relied on to retrieve one, a `NONE` setup
-operation, say, and, on the setup/teardown path, a `Connection` or `IDatabaseConnection`
+operation, say, and, on the setup/teardown path, an `IDatabaseConnection`
 test method parameter. The prep/expected path offers it to your listener's
 `connectionRetrieved()` too, each time `DefaultPrepAndExpectedTestCase` runs a set up or
 tear down operation, but never to the `*Finished` callbacks: that class decides when its

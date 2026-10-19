@@ -111,7 +111,7 @@ final class ExpectedLifecycle
      * not already exist (no {@code @DbUnitTestCase} field supplied one, and nothing has
      * constructed one yet). Safe to call more than once - construction only happens once - and
      * safe to call before {@link #before()} does, e.g. from a binding resolving an early
-     * {@code @BeforeEach} {@code Connection} parameter through
+     * {@code @BeforeEach} {@code IDatabaseConnection} parameter through
      * {@link DefaultPrepAndExpectedTestCase#getReusableConnection()}, since construction has no side
      * effect beyond reflectively instantiating the instance.
      *
@@ -131,7 +131,7 @@ final class ExpectedLifecycle
      * Returns {@link #testCase} after applying the declared values to it, once - see
      * {@link TestCaseConfigurer} - so a connection it hands out already carries them.
      * {@link #before()} calls this, and so does a binding resolving an early {@code @BeforeEach}
-     * {@code Connection} parameter through {@link DefaultPrepAndExpectedTestCase#getReusableConnection()}
+     * {@code IDatabaseConnection} parameter through {@link DefaultPrepAndExpectedTestCase#getReusableConnection()}
      * before {@code before()} runs: the connection is acquired with the test case's properties
      * in force at that moment. Whatever this applies is undone by {@link #after(boolean)}, or by
      * {@link #undoConfiguration()} when {@code after()} never runs. An injected test case is
