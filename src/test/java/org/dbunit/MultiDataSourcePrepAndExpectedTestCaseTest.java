@@ -210,6 +210,34 @@ class MultiDataSourcePrepAndExpectedTestCaseTest
     }
 
     @Test
+    void testPreTest_dataSourceVerifiesEveryExpectedTable_handsTheBundleToItsTestCase()
+            throws Exception
+    {
+        final List<PrepAndExpectedTestData> received = new ArrayList<>();
+        final RecordingTestCase catalog = new RecordingTestCase("catalog", new ArrayList<>())
+        {
+            @Override
+            public void preTest(final PrepAndExpectedTestData testData) throws Exception
+            {
+                received.add(testData);
+            }
+        };
+        final Map<String, PrepAndExpectedTestCase> wired = new HashMap<>();
+        wired.put("catalog", catalog);
+        final MultiDataSourcePrepAndExpectedTestCase testCase =
+                new MultiDataSourcePrepAndExpectedTestCase(wired);
+        final PrepAndExpectedTestData everyTable = PrepAndExpectedTestData
+                .verifyingExpectedTables(new String[0], new String[] {"/expected/a.xml"});
+
+        testCase.preTest(map("catalog", everyTable));
+
+        assertThat(received)
+                .as("A data source's test case must receive its data as given, so a scenario that"
+                        + " verifies every expected table is not reduced to verifying none.")
+                .containsExactly(everyTable);
+    }
+
+    @Test
     void testPreTest_zeroDataSources_throwsIllegalStateException()
     {
         final MultiDataSourcePrepAndExpectedTestCase testCase =
@@ -786,7 +814,7 @@ class MultiDataSourcePrepAndExpectedTestCaseTest
      * Records the exact {@code preTest}/{@code postTest(boolean)} calls and their order via a
      * shared call log, and can be told to throw on demand from either.
      */
-    private static final class RecordingTestCase implements PrepAndExpectedTestCase
+    private static class RecordingTestCase implements PrepAndExpectedTestCase
     {
         private final String name;
 
