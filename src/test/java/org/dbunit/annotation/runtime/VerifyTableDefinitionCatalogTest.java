@@ -27,7 +27,6 @@ import java.lang.ref.WeakReference;
 import java.util.Collections;
 
 import org.dbunit.VerifyTableDefinition;
-import org.dbunit.VerifyTableDefinitionsProvider;
 import org.dbunit.assertion.comparer.value.ValueComparers;
 import org.junit.jupiter.api.Test;
 
@@ -151,29 +150,6 @@ class VerifyTableDefinitionCatalogTest
                         + " require to be public.")
                 .extracting(VerifyTableDefinition::getTableName)
                 .containsExactly("ACCOUNT");
-    }
-
-    @Test
-    void testRead_classImplementingProvider_usesProviderInsteadOfConstants()
-    {
-        final VerifyTableDefinitionCatalog catalog =
-                new VerifyTableDefinitionCatalog(ProviderCatalog.class);
-
-        assertThat(catalog.select()).as("A VerifyTableDefinitionsProvider must be used"
-                + " instead of reading the class's constant fields.")
-                .extracting(VerifyTableDefinition::getTableName)
-                .containsExactly("FROM_PROVIDER");
-    }
-
-    @Test
-    void testRead_providerReturnsNull_throwsIllegalStateException()
-    {
-        assertThatThrownBy(() -> new VerifyTableDefinitionCatalog(NullReturningProviderCatalog.class))
-                .as("A VerifyTableDefinitionsProvider returning null must be rejected with a"
-                        + " clear message, not a raw NullPointerException.")
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining(VerifyTableDefinitionsProvider.class.getSimpleName())
-                .hasMessageContaining(NullReturningProviderCatalog.class.getName());
     }
 
     @Test
@@ -406,32 +382,9 @@ class VerifyTableDefinitionCatalogTest
         public static final String WRONG_TYPE = "not a VerifyTableDefinition";
     }
 
-    static class ProviderCatalog implements VerifyTableDefinitionsProvider
-    {
-        @SuppressWarnings("unused")
-        public static final VerifyTableDefinition IGNORED_CONSTANT =
-                new VerifyTableDefinition("IGNORED", (String[]) null);
-
-        @Override
-        public VerifyTableDefinition[] getVerifyTableDefinitions()
-        {
-            return new VerifyTableDefinition[] {
-                    new VerifyTableDefinition("FROM_PROVIDER", (String[]) null)};
-        }
-    }
-
     static class NullConstantCatalog
     {
         public static final VerifyTableDefinition ACCOUNT = null;
-    }
-
-    static class NullReturningProviderCatalog implements VerifyTableDefinitionsProvider
-    {
-        @Override
-        public VerifyTableDefinition[] getVerifyTableDefinitions()
-        {
-            return null;
-        }
     }
 
     static class ComparerCatalog

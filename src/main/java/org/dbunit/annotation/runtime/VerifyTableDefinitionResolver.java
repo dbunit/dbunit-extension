@@ -89,8 +89,8 @@ final class VerifyTableDefinitionResolver
             throw new IllegalStateException("@DbUnitExpected names no expected dataset, so"
                     + " there is nothing to verify the database against: verify(),"
                     + " verifyTables() and verifyDefinitions() only choose which tables of that"
-                    + " dataset are compared. Name the dataset with value() or provider(), or"
-                    + " drop @DbUnitExpected for a test that verifies nothing.");
+                    + " dataset are compared. Name the dataset with value(), or drop"
+                    + " @DbUnitExpected for a test that verifies nothing.");
         }
         final Class<?>[] classLevelCatalogs =
                 config == null ? new Class<?>[0] : config.verifyDefinitions();
@@ -99,7 +99,7 @@ final class VerifyTableDefinitionResolver
 
         ProvidedAttribute.rejectBothSet(
                 verify.length > 0 && expected.verifyDefinitions().length > 0, "@DbUnitExpected",
-                "verify()", "verifyDefinitions()", "See VerifyTableDefinitionsProvider.");
+                "verify()", "verifyDefinitions()", null);
         ProvidedAttribute.rejectBothSet(verify.length > 0 && verifyTables.length > 0,
                 "@DbUnitExpected", "verify()", "verifyTables()",
                 "verifyTables() only narrows a catalog.");

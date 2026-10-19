@@ -34,9 +34,8 @@ class DataSetResourcePathResolverTest
     {
         assertThatThrownBy(() -> resolver.resolve(null, DataSetResourcePathResolverTest.class,
                 ""))
-                        .as("A null path - e.g. a DataSetPathsProvider returning an array"
-                                + " containing a null element - must be rejected clearly"
-                                + " rather than throwing a raw NullPointerException.")
+                        .as("A null path must be rejected clearly rather than throwing a raw"
+                                + " NullPointerException.")
                         .isInstanceOf(IllegalStateException.class)
                         .hasMessageContaining(DataSetResourcePathResolverTest.class.getName());
     }

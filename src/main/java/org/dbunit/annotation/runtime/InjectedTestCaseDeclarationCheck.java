@@ -137,7 +137,7 @@ class InjectedTestCaseDeclarationCheck
                 declared, "@DbUnitConfig(dataFileLoader)");
         addIf(configuration.getFailureHandler() != null, declared, "@DbUnitConfig(failureHandler)");
         addIf(!configuration.getDatabaseConfigProperties().isEmpty(), declared,
-                "@DbUnitConfig(properties or propertiesProvider)");
+                "@DbUnitConfig(properties)");
         addIf(configuration.getDatabaseTesterFactory() != null, declared,
                 "@DbUnitConfig(databaseTesterFactory)");
         addIf(configuration.getPrepAndExpectedTestCaseClass() != DefaultPrepAndExpectedTestCase.class,
