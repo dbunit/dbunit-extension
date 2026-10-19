@@ -27,8 +27,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
-import java.util.concurrent.Callable;
-import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import org.dbunit.assertion.DefaultFailureHandler;
@@ -736,66 +734,59 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     }
 
     /**
-     * Make a {@link ReusableConnectionDatabaseTester} configured with the
-     * given dataset and databaseTester's setUpOperation and
-     * tearDownOperation, for setupData() or cleanupData() to run
-     * {@link IDatabaseTester#onSetup()} or {@link IDatabaseTester#onTearDown()}
-     * on, respectively. Setting both operations regardless of which one the
-     * caller uses is safe: {@link AbstractDatabaseTester#onSetup()} only
-     * reads setUpOperation and {@link AbstractDatabaseTester#onTearDown()}
-     * only reads tearDownOperation, so the other is simply never consulted.
+     * Runs a set up or tear down operation on the shared connection
+     * {@link #getReusableConnection()} hands out, after telling the listeners about it with
+     * {@link #tellListenersAboutConnection(IDatabaseConnection)}. A NONE operation retrieves no
+     * connection and tells no listener, as when a databaseTester runs it. No listener is ever
+     * told the operation finished, as this instance, not a listener, decides when the shared
+     * connection closes.
      *
+     * @param operation
+     *            The operation to run.
      * @param dataSet
-     *            The dataset to run the operation against.
-     * @return The configured tester.
-     * @throws Exception On dbUnit errors.
-     * @since 3.4.0
+     *            The dataset to run it against.
+     * @throws Exception
+     *             On dbUnit errors.
+     * @since 3.6.0
      */
-    private IDatabaseTester makeReusableConnectionDatabaseTester(
-            final IDataSet dataSet) throws Exception
+    private void runOperation(final DatabaseOperation operation, final IDataSet dataSet)
+            throws Exception
     {
-        final IDatabaseTester reusableTester =
-                new ReusableConnectionDatabaseTester(
-                        this::getReusableConnection);
-        reusableTester.setSetUpOperation(getSetUpOperation());
-        reusableTester.setTearDownOperation(getTearDownOperation());
-        reusableTester.setDataSet(dataSet);
-        // This instance, not the listener, owns the shared connection's lifecycle (see
-        // getReusableConnection()/closeReusableConnection()), so a blanket
-        // ConnectionPreservingOperationListener keeps operationSetUpFinished/
-        // operationTearDownFinished from closing it while still forwarding connectionRetrieved
-        // so a user-defined listener runs its connection-configuration logic.
-        reusableTester.setOperationListener(newConnectionRetrievedListener());
-        return reusableTester;
+        if (operation == DatabaseOperation.NONE)
+        {
+            return;
+        }
+
+        final IDatabaseConnection connection = getReusableConnection();
+        tellListenersAboutConnection(connection);
+        operation.execute(connection, dataSet);
     }
 
     /**
-     * Makes the listener for {@link #makeReusableConnectionDatabaseTester(IDataSet)}: a blanket
-     * {@link ConnectionPreservingOperationListener} over this instance's own listener, so only
-     * connectionRetrieved() gets through and nothing is closed behind this instance's back.
-     * When the databaseTester has a listener of its own, a caller's way to configure every
-     * connection, it is told about the connection first, as it is when the tester drives
-     * onSetup()/onTearDown() itself, and this instance's own listener, which applies
+     * Tells the listeners about a connection a set up or tear down operation is about to run
+     * on. When the databaseTester has a listener of its own, a caller's way to configure every
+     * connection, it is told first, as it is when the tester drives onSetup()/onTearDown()
+     * itself, and this instance's own listener, which applies
      * {@link #setUpDatabaseConfig(DatabaseConfig)}, second, so the values this instance applies
-     * win. As that call does nothing for a connection the values are already applied to, they are
-     * applied again directly after the databaseTester's listener, which may have changed any of
-     * them. A databaseTester listener that is this instance's own, or the no-op listener, is not
-     * told again.
+     * win. As that call does nothing for a connection the values are already applied to, they
+     * are applied again directly after the databaseTester's listener, which may have changed
+     * any of them. A databaseTester listener that is this instance's own, or the no-op
+     * listener, is not told again.
      *
-     * @return The listener for the shared connection's tester.
+     * @param connection
+     *            The connection the operation runs on.
      */
-    private IOperationListener newConnectionRetrievedListener()
+    private void tellListenersAboutConnection(final IDatabaseConnection connection)
     {
         final IOperationListener ownListener = getOperationListener();
         final IOperationListener testersListener = getTestersOwnListener();
-        if (testersListener == null || testersListener == ownListener
-                || testersListener == IOperationListener.NO_OP_OPERATION_LISTENER)
+        if (testersListener != null && testersListener != ownListener
+                && testersListener != IOperationListener.NO_OP_OPERATION_LISTENER)
         {
-            return new ConnectionPreservingOperationListener(ownListener);
+            testersListener.connectionRetrieved(connection);
+            applyDatabaseConfigProperties(connection.getConfig());
         }
-        return new TestersListenerFirstOperationListener(testersListener,
-                connection -> applyDatabaseConfigProperties(connection.getConfig()),
-                ownListener);
+        ownListener.connectionRetrieved(connection);
     }
 
     /**
@@ -1009,9 +1000,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
             log.info("cleanupData: about to clean up {} tables={}", count,
                     tableNames);
 
-            final IDatabaseTester reusableTester =
-                    makeReusableConnectionDatabaseTester(dataset);
-            reusableTester.onTearDown();
+            runOperation(getTearDownOperation(), dataset);
             log.debug("cleanupData: Clean up done");
             verifyRowCountUnchanged();
             closeReusableConnection();
@@ -1123,9 +1112,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
 
         try
         {
-            final IDatabaseTester reusableTester =
-                    makeReusableConnectionDatabaseTester(getDataSet());
-            reusableTester.onSetup();
+            runOperation(getSetUpOperation(), getDataSet());
         } catch (final Exception e)
         {
             log.error("setupData: Exception with setting up data:", e);
@@ -2504,75 +2491,6 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
             copy.putAll(databaseConfigProperties);
             this.databaseConfigProperties = copy;
             this.databaseConfigOverrides = new DatabaseConfigOverrides(copy);
-        }
-    }
-
-    /**
-     * A blanket {@link ConnectionPreservingOperationListener} over this instance's own listener
-     * that tells the databaseTester's listener about each connection retrieved before its
-     * delegate, the instance's own listener, hears of it, and puts this instance's
-     * values back on the connection in between.
-     *
-     * @since 3.6.0
-     */
-    private static final class TestersListenerFirstOperationListener
-            extends ConnectionPreservingOperationListener
-    {
-        private final IOperationListener testersListener;
-        private final Consumer<IDatabaseConnection> afterTestersListener;
-
-        private TestersListenerFirstOperationListener(final IOperationListener testersListener,
-                final Consumer<IDatabaseConnection> afterTestersListener,
-                final IOperationListener ownListener)
-        {
-            super(ownListener);
-            this.testersListener = testersListener;
-            this.afterTestersListener = afterTestersListener;
-        }
-
-        @Override
-        public void connectionRetrieved(final IDatabaseConnection connection)
-        {
-            testersListener.connectionRetrieved(connection);
-            afterTestersListener.accept(connection);
-            super.connectionRetrieved(connection);
-        }
-    }
-
-    /**
-     * {@link IDatabaseTester} that runs setUp/tearDown operations against a
-     * connection supplied by the given {@link Callable} instead of calling
-     * {@code getConnection()} on a wrapped {@link IDatabaseTester}, so
-     * repeated {@link #onSetup()}/{@link #onTearDown()} calls driven through
-     * this instance share whatever connection the supplier itself caches
-     * (here, {@link DefaultPrepAndExpectedTestCase#getReusableConnection()})
-     * rather than each opening a new one.
-     *
-     * @since 3.4.0
-     */
-    private static final class ReusableConnectionDatabaseTester
-            extends AbstractDatabaseTester
-    {
-        private final Callable<IDatabaseConnection> connectionSupplier;
-
-        /**
-         * Create new instance with the specified connection supplier.
-         *
-         * @param connectionSupplier
-         *            Supplies the connection to use; invoked once per
-         *            {@link #getConnection()} call, so it is responsible for
-         *            any caching of its own.
-         */
-        private ReusableConnectionDatabaseTester(
-                final Callable<IDatabaseConnection> connectionSupplier)
-        {
-            this.connectionSupplier = connectionSupplier;
-        }
-
-        @Override
-        public IDatabaseConnection getConnection() throws Exception
-        {
-            return connectionSupplier.call();
         }
     }
 }
