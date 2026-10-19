@@ -21,16 +21,13 @@
 package org.dbunit.annotation.runtime;
 
 /**
- * The shared rules, and the one message shape, for an {@code org.dbunit.annotation} attribute
- * that can be given inline or through a provider class. Three rules recur across
- * {@code @DbUnitPrep}/{@code @DbUnitExpected} {@code value()}/{@code provider()},
- * {@code @DbUnitConfig} {@code properties()}/{@code propertiesProvider()}, {@code @DbUnitExpected}
- * {@code verify()}/{@code verifyDefinitions()}/{@code verifyTables()}, and
- * {@code @DbUnitConfig} {@code databaseTesterFactory()}: setting two mutually exclusive ways is
- * an error, a provider returning {@code null} is an error, and a provider returning nothing -
- * where nothing is a misconfiguration rather than a valid "none" - is an error. Routing every
- * site's diagnostic through here keeps a user who trips two of them across different attributes
- * from getting two differently shaped messages for the same class of mistake.
+ * The shared rules, and the one message shape, for two checks on an {@code org.dbunit.annotation}
+ * attribute: setting two mutually exclusive attributes - {@code @DbUnitExpected}
+ * {@code verify()}/{@code verifyDefinitions()}/{@code verifyTables()} - is an error, and a
+ * factory class returning {@code null} - {@code @DbUnitConfig} {@code databaseTesterFactory()} -
+ * is an error. Routing every site's diagnostic through here keeps a user who trips two of them
+ * across different attributes from getting two differently shaped messages for the same class of
+ * mistake.
  *
  * <p>Public so a binding outside {@code org.dbunit.annotation.runtime} - such as
  * {@code DbUnitExtension}, for {@code databaseTesterFactory()} - can reach it too.
@@ -49,11 +46,9 @@ public class ProvidedAttribute
      * same attribute were both used.
      *
      * @param bothSet Whether both were given a non-default value.
-     * @param owner The annotation carrying both attributes, with the test class where that
-     *            adds clarity, e.g. {@code "@DbUnitConfig"} or
-     *            {@code "@DbUnitPrep on com.example.FooTest"}.
-     * @param attributeA One attribute, e.g. {@code "value()"}.
-     * @param attributeB The other, e.g. {@code "provider()"}.
+     * @param owner The annotation carrying both attributes, e.g. {@code "@DbUnitExpected"}.
+     * @param attributeA One attribute, e.g. {@code "verify()"}.
+     * @param attributeB The other, e.g. {@code "verifyDefinitions()"}.
      * @param note An extra sentence appended after {@code "set only one."}, or {@code null} for
      *            none.
      */
@@ -77,10 +72,12 @@ public class ProvidedAttribute
      * @param <T> The provider's value type.
      * @param provided The value the provider returned.
      * @param providerInterface The provider interface's simple name, e.g.
-     *            {@code "DataSetPathsProvider"}.
+     *            {@code "DatabaseTesterFactory"}.
      * @param providerClass The provider implementation class.
-     * @param namedBy The attribute that named the provider, e.g. {@code "@DbUnitPrep.provider"}.
-     * @param getter The provider method called, without parentheses, e.g. {@code "getDataSetPaths"}.
+     * @param namedBy The attribute that named the provider, e.g.
+     *            {@code "DbUnitConfig.databaseTesterFactory"}.
+     * @param getter The provider method called, without parentheses, e.g.
+     *            {@code "getDatabaseTester"}.
      * @return {@code provided}, when non-{@code null}.
      */
     public static <T> T requireProvided(final T provided, final String providerInterface,
@@ -92,27 +89,6 @@ public class ProvidedAttribute
                     + " returned null from " + getter + "().");
         }
         return provided;
-    }
-
-    /**
-     * Throws an {@link IllegalStateException} when a provider returned nothing.
-     *
-     * @param empty Whether the provider's output is empty.
-     * @param providerInterface The provider interface's simple name.
-     * @param providerClass The provider implementation class.
-     * @param namedBy The attribute that named the provider.
-     * @param getter The provider method called, without parentheses.
-     * @param note Guidance appended to the message explaining why nothing is a misconfiguration.
-     */
-    public static void rejectEmptyProvider(final boolean empty, final String providerInterface,
-            final Class<?> providerClass, final String namedBy, final String getter,
-            final String note)
-    {
-        if (empty)
-        {
-            throw new IllegalStateException(describe(providerInterface, providerClass, namedBy)
-                    + " returned nothing from " + getter + "(). " + note);
-        }
     }
 
     private static String describe(final String providerInterface, final Class<?> providerClass,
