@@ -36,16 +36,16 @@ class DatabaseConfigPropertiesResolverTest
             new DatabaseConfigPropertiesResolver();
 
     @Test
-    void testResolve_noConfig_returnsEmpty()
+    void testResolve_nothingDeclared_returnsEmpty()
     {
-        assertThat(resolver.resolve(null)).as("No @DbUnitConfig declares no properties.")
+        assertThat(resolver.resolve(new DbUnitProperty[0])).as("No entry declares no properties.")
                 .isEmpty();
     }
 
     @Test
     void testResolve_inlineProperties_collectsEveryNameValuePair()
     {
-        final Properties properties = resolver.resolve(config(WithProperties.class));
+        final Properties properties = resolver.resolve(declaredIn(WithProperties.class));
 
         assertThat(properties)
                 .as("Every name is stored in the long form DatabaseConfig names the property by,"
@@ -58,7 +58,7 @@ class DatabaseConfigPropertiesResolverTest
     @Test
     void testResolve_duplicatePropertyName_throwsNamingIt()
     {
-        assertThatThrownBy(() -> resolver.resolve(config(WithDuplicatePropertyName.class)))
+        assertThatThrownBy(() -> resolver.resolve(declaredIn(WithDuplicatePropertyName.class)))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("more than one")
                 .hasMessageContaining("batchSize");
@@ -67,7 +67,7 @@ class DatabaseConfigPropertiesResolverTest
     @Test
     void testResolve_longAndShortFormOfOnePropertyDeclared_throwsNamingIt()
     {
-        assertThatThrownBy(() -> resolver.resolve(config(WithLongAndShortFormOfOneName.class)))
+        assertThatThrownBy(() -> resolver.resolve(declaredIn(WithLongAndShortFormOfOneName.class)))
                 .as("'batchSize' and its long form name one property, so which value wins would"
                         + " depend on the order a Properties happens to be iterated in.")
                 .isInstanceOf(IllegalStateException.class)
@@ -78,7 +78,7 @@ class DatabaseConfigPropertiesResolverTest
     @Test
     void testResolve_inlineUnknownPropertyName_throwsNamingItAndTheSource()
     {
-        assertThatThrownBy(() -> resolver.resolve(config(WithUnknownPropertyName.class)))
+        assertThatThrownBy(() -> resolver.resolve(declaredIn(WithUnknownPropertyName.class)))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("notAProperty")
                 .hasMessageContaining("@DbUnitConfig.properties()");
@@ -87,7 +87,7 @@ class DatabaseConfigPropertiesResolverTest
     @Test
     void testResolve_inlineNameIsOnlyTheEndOfAShortName_throwsNamingIt()
     {
-        assertThatThrownBy(() -> resolver.resolve(config(WithPartialPropertyName.class)))
+        assertThatThrownBy(() -> resolver.resolve(declaredIn(WithPartialPropertyName.class)))
                 .as("'Size' is only the end of the short name batchSize, so it must be"
                         + " rejected as unknown rather than applied to batchSize.")
                 .isInstanceOf(IllegalStateException.class)
@@ -95,9 +95,9 @@ class DatabaseConfigPropertiesResolverTest
                 .hasMessageContaining("is not a known dbUnit DatabaseConfig property name");
     }
 
-    private static DbUnitConfig config(final Class<?> annotated)
+    private static DbUnitProperty[] declaredIn(final Class<?> annotated)
     {
-        return annotated.getAnnotation(DbUnitConfig.class);
+        return annotated.getAnnotation(DbUnitConfig.class).properties();
     }
 
     @DbUnitConfig(properties = {@DbUnitProperty(name = "batchSize", value = "50"),
