@@ -24,12 +24,9 @@ package org.dbunit;
  * Produces a configured {@link IDatabaseTester} for
  * {@code org.dbunit.annotation.DbUnitConfig#databaseTesterFactory()}.
  *
- * <p>An {@code org.dbunit.annotation} provider or factory class: it is named on an annotation
- * attribute by {@link Class}, instantiated once through its own public no-arg constructor, and
- * asked for its one value - here {@link #getDatabaseTester()}. The other members of this family
- * are {@link org.dbunit.util.fileloader.DataSetPathsProvider},
- * {@link org.dbunit.database.DatabaseConfigPropertiesProvider}, and
- * {@link VerifyTableDefinitionsProvider}. A factory rather than a bare provider because
+ * <p>An {@code org.dbunit.annotation} factory class: it is named on an annotation attribute by
+ * {@link Class}, instantiated once through its own public no-arg constructor, and asked for its
+ * one value - here {@link #getDatabaseTester()}. A factory because
  * {@link IDatabaseTester} implementations have no uniform no-arg constructor -
  * {@link JdbcDatabaseTester} needs a driver and URL, {@link DataSourceDatabaseTester} a
  * {@code DataSource}, {@link JndiDatabaseTester} a lookup name.
@@ -39,9 +36,6 @@ package org.dbunit;
  *
  * @author Jeff Jensen
  * @since 3.6.0
- * @see org.dbunit.util.fileloader.DataSetPathsProvider
- * @see org.dbunit.database.DatabaseConfigPropertiesProvider
- * @see VerifyTableDefinitionsProvider
  */
 public interface DatabaseTesterFactory
 {

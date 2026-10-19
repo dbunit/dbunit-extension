@@ -28,7 +28,6 @@ import java.util.Properties;
 import org.dbunit.annotation.DbUnitConfig;
 import org.dbunit.annotation.DbUnitProperty;
 import org.dbunit.database.DatabaseConfig;
-import org.dbunit.database.DatabaseConfigPropertiesProvider;
 import org.junit.jupiter.api.Test;
 
 class DatabaseConfigPropertiesResolverTest
@@ -77,17 +76,6 @@ class DatabaseConfigPropertiesResolverTest
     }
 
     @Test
-    void testResolve_providerSuppliesLongAndShortFormOfOneProperty_throwsNamingTheProvider()
-    {
-        assertThatThrownBy(() -> resolver.resolve(config(WithLongAndShortFormProvider.class)))
-                .as("A provider is held to the same rule as the inline entries.")
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("more than one")
-                .hasMessageContaining("batchSize")
-                .hasMessageContaining(LongAndShortFormProvider.class.getName());
-    }
-
-    @Test
     void testResolve_inlineUnknownPropertyName_throwsNamingItAndTheSource()
     {
         assertThatThrownBy(() -> resolver.resolve(config(WithUnknownPropertyName.class)))
@@ -105,43 +93,6 @@ class DatabaseConfigPropertiesResolverTest
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("'Size'")
                 .hasMessageContaining("is not a known dbUnit DatabaseConfig property name");
-    }
-
-    @Test
-    void testResolve_propertiesProvider_usesTheValuesItSupplies()
-    {
-        final Properties properties = resolver.resolve(config(WithPropertiesProvider.class));
-
-        assertThat(properties)
-                .as("A provider's names are stored in the long form too.")
-                .containsEntry(DatabaseConfig.PROPERTY_FETCH_SIZE, "25").hasSize(1);
-    }
-
-    @Test
-    void testResolve_propertiesProviderReturnsNull_throwsNamingTheProvider()
-    {
-        assertThatThrownBy(() -> resolver.resolve(config(WithNullReturningProvider.class)))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining(NullReturningProvider.class.getName())
-                .hasMessageContaining("DbUnitConfig.propertiesProvider");
-    }
-
-    @Test
-    void testResolve_propertiesProviderSuppliesUnknownName_throwsNamingItAndTheProvider()
-    {
-        assertThatThrownBy(() -> resolver.resolve(config(WithUnknownNameProvider.class)))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("notAProperty")
-                .hasMessageContaining(UnknownNameProvider.class.getName());
-    }
-
-    @Test
-    void testResolve_bothPropertiesAndProviderSet_throws()
-    {
-        assertThatThrownBy(() -> resolver.resolve(config(WithBothPropertiesAndProvider.class)))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("properties()")
-                .hasMessageContaining("propertiesProvider()");
     }
 
     private static DbUnitConfig config(final Class<?> annotated)
@@ -167,23 +118,6 @@ class DatabaseConfigPropertiesResolverTest
     {
     }
 
-    @DbUnitConfig(propertiesProvider = LongAndShortFormProvider.class)
-    private static class WithLongAndShortFormProvider
-    {
-    }
-
-    static class LongAndShortFormProvider implements DatabaseConfigPropertiesProvider
-    {
-        @Override
-        public Properties getDatabaseConfigProperties()
-        {
-            final Properties properties = new Properties();
-            properties.setProperty("batchSize", "10");
-            properties.setProperty(DatabaseConfig.PROPERTY_BATCH_SIZE, "50");
-            return properties;
-        }
-    }
-
     @DbUnitConfig(properties = @DbUnitProperty(name = "Size", value = "10"))
     private static class WithPartialPropertyName
     {
@@ -194,55 +128,4 @@ class DatabaseConfigPropertiesResolverTest
     {
     }
 
-    @DbUnitConfig(propertiesProvider = SuppliesFetchSize.class)
-    private static class WithPropertiesProvider
-    {
-    }
-
-    @DbUnitConfig(propertiesProvider = NullReturningProvider.class)
-    private static class WithNullReturningProvider
-    {
-    }
-
-    @DbUnitConfig(propertiesProvider = UnknownNameProvider.class)
-    private static class WithUnknownNameProvider
-    {
-    }
-
-    @DbUnitConfig(properties = @DbUnitProperty(name = "batchSize", value = "50"),
-            propertiesProvider = SuppliesFetchSize.class)
-    private static class WithBothPropertiesAndProvider
-    {
-    }
-
-    static class SuppliesFetchSize implements DatabaseConfigPropertiesProvider
-    {
-        @Override
-        public Properties getDatabaseConfigProperties()
-        {
-            final Properties properties = new Properties();
-            properties.setProperty("fetchSize", "25");
-            return properties;
-        }
-    }
-
-    static class NullReturningProvider implements DatabaseConfigPropertiesProvider
-    {
-        @Override
-        public Properties getDatabaseConfigProperties()
-        {
-            return null;
-        }
-    }
-
-    static class UnknownNameProvider implements DatabaseConfigPropertiesProvider
-    {
-        @Override
-        public Properties getDatabaseConfigProperties()
-        {
-            final Properties properties = new Properties();
-            properties.setProperty("notAProperty", "x");
-            return properties;
-        }
-    }
 }

@@ -27,19 +27,19 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import org.junit.jupiter.api.Test;
 
 /**
- * Pins the one message shape every {@code value()}-or-{@code provider()} call site shares - so
- * a change to it is a change here, not four scattered edits.
+ * Pins the one message shape its call sites share - so a change to it is a change here, not
+ * scattered edits.
  */
 class ProvidedAttributeTest
 {
     @Test
     void testRejectBothSet_bothSetWithNoNote_namesBothAttributesAndSaysSetOne()
     {
-        assertThatThrownBy(() -> ProvidedAttribute.rejectBothSet(true, "@DbUnitConfig",
-                "properties()", "propertiesProvider()", null))
+        assertThatThrownBy(() -> ProvidedAttribute.rejectBothSet(true, "@DbUnitExpected",
+                "verify()", "verifyDefinitions()", null))
                         .isInstanceOf(IllegalStateException.class)
-                        .hasMessage("@DbUnitConfig sets both properties() and"
-                                + " propertiesProvider(); set only one.");
+                        .hasMessage("@DbUnitExpected sets both verify() and"
+                                + " verifyDefinitions(); set only one.");
     }
 
     @Test
@@ -64,39 +64,21 @@ class ProvidedAttributeTest
     {
         final String[] value = {"a"};
 
-        assertThat(ProvidedAttribute.requireProvided(value, "DataSetPathsProvider",
-                ProvidedAttributeTest.class, "@DbUnitPrep.provider", "getDataSetPaths"))
-                        .isSameAs(value);
+        assertThat(ProvidedAttribute.requireProvided(value, "DatabaseTesterFactory",
+                ProvidedAttributeTest.class, "DbUnitConfig.databaseTesterFactory",
+                "getDatabaseTester")).isSameAs(value);
     }
 
     @Test
     void testRequireProvided_null_throwsNamingProviderClassAttributeAndGetter()
     {
-        assertThatThrownBy(() -> ProvidedAttribute.requireProvided(null, "DataSetPathsProvider",
-                ProvidedAttributeTest.class, "@DbUnitPrep.provider", "getDataSetPaths"))
+        assertThatThrownBy(() -> ProvidedAttribute.requireProvided(null, "DatabaseTesterFactory",
+                ProvidedAttributeTest.class, "DbUnitConfig.databaseTesterFactory",
+                "getDatabaseTester"))
                         .isInstanceOf(IllegalStateException.class)
-                        .hasMessage("DataSetPathsProvider " + ProvidedAttributeTest.class.getName()
-                                + ", named by @DbUnitPrep.provider, returned null from"
-                                + " getDataSetPaths().");
+                        .hasMessage("DatabaseTesterFactory " + ProvidedAttributeTest.class.getName()
+                                + ", named by DbUnitConfig.databaseTesterFactory, returned null"
+                                + " from getDatabaseTester().");
     }
 
-    @Test
-    void testRejectEmptyProvider_empty_throwsWithTheNoteAppended()
-    {
-        assertThatThrownBy(() -> ProvidedAttribute.rejectEmptyProvider(true,
-                "DataSetPathsProvider", ProvidedAttributeTest.class, "@DbUnitPrep.provider",
-                "getDataSetPaths", "Drop the annotation instead."))
-                        .isInstanceOf(IllegalStateException.class)
-                        .hasMessage("DataSetPathsProvider " + ProvidedAttributeTest.class.getName()
-                                + ", named by @DbUnitPrep.provider, returned nothing from"
-                                + " getDataSetPaths(). Drop the annotation instead.");
-    }
-
-    @Test
-    void testRejectEmptyProvider_notEmpty_doesNotThrow()
-    {
-        assertThatCode(() -> ProvidedAttribute.rejectEmptyProvider(false, "DataSetPathsProvider",
-                ProvidedAttributeTest.class, "@DbUnitPrep.provider", "getDataSetPaths", "x."))
-                        .doesNotThrowAnyException();
-    }
 }

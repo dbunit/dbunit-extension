@@ -37,18 +37,17 @@ import org.dbunit.annotation.DbUnitRowCountCheck;
 import org.dbunit.annotation.DbUnitSetUpOperation;
 import org.dbunit.annotation.DbUnitTearDownOperation;
 import org.dbunit.annotation.DbUnitVerifyTable;
+import org.dbunit.assertion.DefaultFailureHandler;
 import org.dbunit.assertion.DiffCollectingFailureHandler;
 import org.dbunit.assertion.comparer.value.IsActualGreaterThanExpectedValueComparer;
 import org.dbunit.assertion.comparer.value.IsActualWithinToleranceOfExpectedTimestampValueComparer;
 import org.dbunit.assertion.comparer.value.ValueComparer;
 import org.dbunit.database.DatabaseConfig;
-import org.dbunit.database.DatabaseConfigPropertiesProvider;
 import org.dbunit.dataset.DefaultDataSet;
 import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.datatype.DataType;
 import org.dbunit.operation.DatabaseOperation;
 import org.dbunit.operation.DbUnitOperation;
-import org.dbunit.util.fileloader.DataSetPathsProvider;
 import org.junit.jupiter.api.Test;
 
 import java.util.Properties;
@@ -87,97 +86,6 @@ class AnnotatedTestConfigurationTest
 
         assertThat(config.getPrepDataFiles())
                 .as("@DbUnitSetUpOperation with no @DbUnitPrep must produce no dataset.").isEmpty();
-    }
-
-    @Test
-    void testFrom_inlineValueAndProviderBothSet_throwsIllegalStateException()
-    {
-        final DbUnitPrep prep = BothValueAndProvider.class.getAnnotation(DbUnitPrep.class);
-
-        assertThatThrownBy(() -> AnnotatedTestConfiguration
-                .from(BothValueAndProvider.class, null, prep, null, null, null, null))
-                        .as("Setting both value() and provider() must be rejected.")
-                        .isInstanceOf(IllegalStateException.class)
-                        .hasMessageContaining("DbUnitPrep");
-    }
-
-    @Test
-    void testFrom_providerConstructorThrows_reportsConstructorFailureNotMissingConstructor()
-    {
-        final DbUnitPrep prep =
-                WithThrowingConstructorProvider.class.getAnnotation(DbUnitPrep.class);
-
-        assertThatThrownBy(() -> AnnotatedTestConfiguration
-                .from(WithThrowingConstructorProvider.class, null, prep, null, null, null,
-                        null))
-                        .as("A provider whose no-arg constructor throws must report that"
-                                + " failure, not be misreported as having no accessible no-arg"
-                                + " constructor.")
-                        .isInstanceOf(IllegalStateException.class)
-                        .hasMessageNotContaining("no accessible no-arg constructor")
-                        .hasCauseInstanceOf(RuntimeException.class)
-                        .hasRootCauseMessage("boom");
-    }
-
-    @Test
-    void testFrom_providerWithoutNoArgConstructor_throwsIllegalStateException()
-    {
-        final DbUnitPrep prep = WithBadProvider.class.getAnnotation(DbUnitPrep.class);
-
-        assertThatThrownBy(() -> AnnotatedTestConfiguration
-                .from(WithBadProvider.class, null, prep, null, null, null, null))
-                        .as("A provider class with no accessible no-arg constructor must be"
-                                + " rejected.")
-                        .isInstanceOf(IllegalStateException.class)
-                        .hasMessageContaining(NoNoArgProvider.class.getName());
-    }
-
-    @Test
-    void testFrom_dataSetPathsProviderReturnsNull_throwsIllegalStateException()
-    {
-        final DbUnitPrep prep = WithNullReturningProvider.class.getAnnotation(DbUnitPrep.class);
-
-        assertThatThrownBy(() -> AnnotatedTestConfiguration
-                .from(WithNullReturningProvider.class, null, prep, null, null, null, null))
-                        .as("A DataSetPathsProvider returning null must be rejected with a"
-                                + " clear message, not a raw NullPointerException.")
-                        .isInstanceOf(IllegalStateException.class)
-                        .hasMessageContaining(DataSetPathsProvider.class.getSimpleName())
-                        .hasMessageContaining(NullReturningProvider.class.getName())
-                        .hasMessageContaining("DbUnitPrep.provider");
-    }
-
-    @Test
-    void testFrom_dataSetPathsProviderReturnsEmptyForPrep_throwsIllegalStateException()
-    {
-        final DbUnitPrep prep =
-                WithEmptyReturningPrepProvider.class.getAnnotation(DbUnitPrep.class);
-
-        assertThatThrownBy(() -> AnnotatedTestConfiguration
-                .from(WithEmptyReturningPrepProvider.class, null, prep, null, null, null, null))
-                        .as("A @DbUnitPrep.provider() returning no paths is a misconfiguration -"
-                                + " the provider was wired to supply them - and must be rejected,"
-                                + " not silently treated as no prep dataset.")
-                        .isInstanceOf(IllegalStateException.class)
-                        .hasMessageContaining(EmptyReturningProvider.class.getName())
-                        .hasMessageContaining("DbUnitPrep.provider")
-                        .hasMessageContaining("returned nothing");
-    }
-
-    @Test
-    void testFrom_dataSetPathsProviderReturnsEmptyForExpected_throwsIllegalStateException()
-    {
-        final DbUnitExpected expected =
-                WithEmptyReturningExpectedProvider.class.getAnnotation(DbUnitExpected.class);
-
-        assertThatThrownBy(() -> AnnotatedTestConfiguration.from(
-                WithEmptyReturningExpectedProvider.class, null, null, null, expected, null, null))
-                        .as("A @DbUnitExpected.provider() returning no paths must be rejected the"
-                                + " same as the @DbUnitPrep side.")
-                        .isInstanceOf(IllegalStateException.class)
-                        .hasMessageContaining(EmptyReturningProvider.class.getName())
-                        .hasMessageContaining("DbUnitExpected.provider")
-                        .hasMessageContaining("returned nothing");
     }
 
     @Test
@@ -741,51 +649,6 @@ class AnnotatedTestConfigurationTest
     }
 
     @Test
-    void testFrom_propertiesProviderSet_usesProviderProperties()
-    {
-        final DbUnitConfig config =
-                WithPropertiesProvider.class.getAnnotation(DbUnitConfig.class);
-
-        final AnnotatedTestConfiguration resolved = AnnotatedTestConfiguration
-                .from(WithPropertiesProvider.class, config, null, null, null, null, null);
-
-        assertThat(resolved.getDatabaseConfigProperties())
-                .as("A properties provider must supply the DatabaseConfig properties.")
-                .containsEntry(DatabaseConfig.PROPERTY_FETCH_SIZE, "25");
-    }
-
-    @Test
-    void testFrom_propertiesProviderReturnsNull_throwsIllegalStateException()
-    {
-        final DbUnitConfig config =
-                WithNullReturningPropertiesProvider.class.getAnnotation(DbUnitConfig.class);
-
-        assertThatThrownBy(() -> AnnotatedTestConfiguration
-                .from(WithNullReturningPropertiesProvider.class, config, null, null, null, null,
-                        null))
-                        .as("A DatabaseConfigPropertiesProvider returning null must be rejected"
-                                + " with a clear message, not a raw NullPointerException.")
-                        .isInstanceOf(IllegalStateException.class)
-                        .hasMessageContaining(DatabaseConfigPropertiesProvider.class
-                                .getSimpleName())
-                        .hasMessageContaining(NullReturningPropertiesProvider.class.getName())
-                        .hasMessageContaining("DbUnitConfig.propertiesProvider");
-    }
-
-    @Test
-    void testFrom_propertiesAndPropertiesProviderBothSet_throwsIllegalStateException()
-    {
-        final DbUnitConfig config =
-                WithPropertiesAndProvider.class.getAnnotation(DbUnitConfig.class);
-
-        assertThatThrownBy(() -> AnnotatedTestConfiguration
-                .from(WithPropertiesAndProvider.class, config, null, null, null, null, null))
-                        .as("Setting both properties() and propertiesProvider() must be"
-                                + " rejected.")
-                        .isInstanceOf(IllegalStateException.class);
-    }
-
-    @Test
     void testFrom_unknownPropertyName_throwsIllegalStateExceptionNamingIt()
     {
         final DbUnitConfig config =
@@ -802,23 +665,6 @@ class AnnotatedTestConfigurationTest
     }
 
     @Test
-    void testFrom_propertiesProviderSuppliesUnknownName_throwsIllegalStateException()
-    {
-        final DbUnitConfig config = WithUnknownNamePropertiesProvider.class
-                .getAnnotation(DbUnitConfig.class);
-
-        assertThatThrownBy(() -> AnnotatedTestConfiguration.from(
-                WithUnknownNamePropertiesProvider.class, config, null, null, null, null, null))
-                        .as("An unknown property name from a DatabaseConfigPropertiesProvider"
-                                + " must be rejected the same way an inline @DbUnitProperty"
-                                + " one is.")
-                        .isInstanceOf(IllegalStateException.class)
-                        .hasMessageContaining("notAProperty")
-                        .hasMessageContaining(
-                                UnknownNamePropertiesProvider.class.getName());
-    }
-
-    @Test
     void testFrom_failureHandlerConfigured_instantiatesAndReturnsIt()
     {
         final DbUnitConfig config = WithFailureHandler.class.getAnnotation(DbUnitConfig.class);
@@ -831,6 +677,20 @@ class AnnotatedTestConfigurationTest
                 .as("@DbUnitConfig.failureHandler() must be reflectively instantiated and"
                         + " returned by getFailureHandler().")
                 .isInstanceOf(DiffCollectingFailureHandler.class);
+    }
+
+    @Test
+    void testFrom_failureHandlerWithoutNoArgConstructor_throwsIllegalStateException()
+    {
+        final DbUnitConfig config = WithBadFailureHandler.class.getAnnotation(DbUnitConfig.class);
+
+        assertThatThrownBy(() -> AnnotatedTestConfiguration
+                .from(WithBadFailureHandler.class, config, null, null, null, null, null))
+                        .as("A class an attribute names with no accessible no-arg constructor"
+                                + " must be rejected, naming the attribute.")
+                        .isInstanceOf(IllegalStateException.class)
+                        .hasMessageContaining("DbUnitConfig.failureHandler")
+                        .hasMessageContaining(NoNoArgFailureHandler.class.getName());
     }
 
     @Test
@@ -902,87 +762,15 @@ class AnnotatedTestConfigurationTest
     {
     }
 
-    @DbUnitPrep(value = "a.xml", provider = SomeProvider.class)
-    static class BothValueAndProvider
+    @DbUnitConfig(failureHandler = NoNoArgFailureHandler.class)
+    static class WithBadFailureHandler
     {
     }
 
-    static class SomeProvider implements DataSetPathsProvider
+    static class NoNoArgFailureHandler extends DefaultFailureHandler
     {
-        @Override
-        public String[] getDataSetPaths()
+        NoNoArgFailureHandler(final String unused)
         {
-            return new String[] {"b.xml"};
-        }
-    }
-
-    @DbUnitPrep(provider = NoNoArgProvider.class)
-    static class WithBadProvider
-    {
-    }
-
-    static class NoNoArgProvider implements DataSetPathsProvider
-    {
-        NoNoArgProvider(final String unused)
-        {
-        }
-
-        @Override
-        public String[] getDataSetPaths()
-        {
-            return new String[0];
-        }
-    }
-
-    @DbUnitPrep(provider = NullReturningProvider.class)
-    static class WithNullReturningProvider
-    {
-    }
-
-    static class NullReturningProvider implements DataSetPathsProvider
-    {
-        @Override
-        public String[] getDataSetPaths()
-        {
-            return null;
-        }
-    }
-
-    @DbUnitPrep(provider = EmptyReturningProvider.class)
-    static class WithEmptyReturningPrepProvider
-    {
-    }
-
-    @DbUnitExpected(provider = EmptyReturningProvider.class)
-    static class WithEmptyReturningExpectedProvider
-    {
-    }
-
-    static class EmptyReturningProvider implements DataSetPathsProvider
-    {
-        @Override
-        public String[] getDataSetPaths()
-        {
-            return new String[0];
-        }
-    }
-
-    @DbUnitPrep(provider = ThrowingConstructorProvider.class)
-    static class WithThrowingConstructorProvider
-    {
-    }
-
-    static class ThrowingConstructorProvider implements DataSetPathsProvider
-    {
-        ThrowingConstructorProvider()
-        {
-            throw new RuntimeException("boom");
-        }
-
-        @Override
-        public String[] getDataSetPaths()
-        {
-            return new String[0];
         }
     }
 
@@ -1194,60 +982,9 @@ class AnnotatedTestConfigurationTest
     {
     }
 
-    @DbUnitConfig(propertiesProvider = SomePropertiesProvider.class)
-    static class WithPropertiesProvider
-    {
-    }
-
-    static class SomePropertiesProvider implements DatabaseConfigPropertiesProvider
-    {
-        @Override
-        public Properties getDatabaseConfigProperties()
-        {
-            final Properties properties = new Properties();
-            properties.setProperty("fetchSize", "25");
-            return properties;
-        }
-    }
-
-    @DbUnitConfig(propertiesProvider = NullReturningPropertiesProvider.class)
-    static class WithNullReturningPropertiesProvider
-    {
-    }
-
-    static class NullReturningPropertiesProvider implements DatabaseConfigPropertiesProvider
-    {
-        @Override
-        public Properties getDatabaseConfigProperties()
-        {
-            return null;
-        }
-    }
-
-    @DbUnitConfig(properties = @DbUnitProperty(name = "batchSize", value = "50"),
-            propertiesProvider = SomePropertiesProvider.class)
-    static class WithPropertiesAndProvider
-    {
-    }
-
     @DbUnitConfig(properties = @DbUnitProperty(name = "batchsize", value = "50"))
     static class WithUnknownPropertyName
     {
     }
 
-    @DbUnitConfig(propertiesProvider = UnknownNamePropertiesProvider.class)
-    static class WithUnknownNamePropertiesProvider
-    {
-    }
-
-    static class UnknownNamePropertiesProvider implements DatabaseConfigPropertiesProvider
-    {
-        @Override
-        public Properties getDatabaseConfigProperties()
-        {
-            final Properties properties = new Properties();
-            properties.setProperty("notAProperty", "x");
-            return properties;
-        }
-    }
 }

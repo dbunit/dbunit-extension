@@ -38,9 +38,8 @@ import org.dbunit.assertion.comparer.value.ValueComparer;
  * annotation cannot express {@code null}.
  *
  * <p>For a shared, reusable table definition - especially one needing a configured
- * {@link ValueComparer} instance that has no no-arg constructor - prefer a
- * {@link org.dbunit.VerifyTableDefinitionsProvider} catalog over this inline form;
- * see {@link DbUnitExpected#verifyDefinitions()}.
+ * {@link ValueComparer} instance that has no no-arg constructor - prefer a catalog class over
+ * this inline form; see {@link DbUnitExpected#verifyDefinitions()}.
  *
  * @author Jeff Jensen
  * @since 3.6.0
