@@ -24,7 +24,6 @@ import java.util.function.Supplier;
 
 import org.dbunit.ConnectionPreservingOperationListener;
 import org.dbunit.DatabaseUnitException;
-import org.dbunit.DefaultOperationListener;
 import org.dbunit.DefaultPrepAndExpectedTestCase;
 import org.dbunit.IDatabaseTester;
 import org.dbunit.IOperationListener;
@@ -77,9 +76,10 @@ import org.slf4j.LoggerFactory;
  * prep/expected path is always annotation-driven (it needs {@code @DbUnitExpected}).
  *
  * <p>Any test leaves the tester's {@link IOperationListener} untouched when its tester does not
- * report the listener it carries - an {@link IDatabaseTester} that does not override
- * {@link IDatabaseTester#getOperationListener()}, as {@link org.dbunit.AbstractDatabaseTester}
- * does. Wrapping a listener takes reading it, and putting it back takes comparing it, so
+ * report the listener it carries - an {@link IDatabaseTester} whose
+ * {@link IDatabaseTester#getOperationListener()} returns {@code null}, as the default method does
+ * for an implementation that does not override it; {@link org.dbunit.AbstractDatabaseTester}
+ * always reports one. Wrapping a listener takes reading it, and putting it back takes comparing it, so
  * replacing one that cannot be read would discard it for good - for example the no-op listener
  * that says the tester's connections are managed elsewhere. For such a test the row count check
  * baseline is always captured from a connection this executor resolves itself, and an
@@ -154,7 +154,7 @@ public class AnnotatedTestExecutor
      * Creates an executor for one test.
      *
      * <p>Mutates {@code tester}'s listener only when {@code tester} reports the listener it
-     * carries (it overrides {@link IDatabaseTester#getOperationListener()}):
+     * carries ({@link IDatabaseTester#getOperationListener()} returns one):
      * {@link #installOperationListener()} runs here, replacing {@code tester}'s
      * {@link IOperationListener} with an {@code ExecutorOperationListener} wrapping the previous
      * one, which {@link #afterTest(boolean)} - or {@link #releaseIfAfterTestDidNotRun()} - puts
@@ -244,23 +244,23 @@ public class AnnotatedTestExecutor
             installOperationListener();
         } else
         {
-            log.debug("{} does not override IDatabaseTester.getOperationListener(), so its"
-                    + " operation listener cannot be read to wrap and put back; leaving it as it"
-                    + " is.", tester.getClass().getName());
+            log.debug("{} reports no operation listener, so its operation listener cannot be"
+                    + " read to wrap and put back; leaving it as it is.",
+                    tester.getClass().getName());
         }
     }
 
     /**
      * Returns whether {@code tester} reports the listener it carries, which
      * {@link #installOperationListener()} needs to wrap it and {@link #restoreOperationListener()}
-     * to put it back: its type overrides {@link IDatabaseTester#getOperationListener()}, whose
-     * default reports none. Replacing the listener of a tester that does not would discard the
-     * one it has, and leave the replacement on it for good.
+     * to put it back: {@link IDatabaseTester#getOperationListener()} returns one, as
+     * {@link org.dbunit.AbstractDatabaseTester} always does; the default method reports none.
+     * Replacing the listener of a tester that reports none would discard the one it has, and
+     * leave the replacement on it for good.
      */
     private static boolean exposesOperationListener(final IDatabaseTester tester)
     {
-        return DefaultMethodOverrideCheck.overridesDefaultMethod(tester.getClass(),
-                IDatabaseTester.class, "getOperationListener");
+        return tester.getOperationListener() != null;
     }
 
     /**
@@ -460,13 +460,10 @@ public class AnnotatedTestExecutor
     private void installOperationListener()
     {
         listenerToRestore = withoutExecutorListener(tester.getOperationListener());
-        final IOperationListener delegate = listenerToRestore == null
-                ? new DefaultOperationListener()
-                : listenerToRestore;
         final Supplier<IDatabaseConnection> protectedConnection =
                 annotationDriven ? this::peekResolvedConnection : () -> null;
         installedListener = new ExecutorOperationListener(this::applyDatabaseConfigProperties,
-                protectedConnection, delegate, this::onListenerFirstConnectionRetrieved);
+                protectedConnection, listenerToRestore, this::onListenerFirstConnectionRetrieved);
         tester.setOperationListener(installedListener);
     }
 
