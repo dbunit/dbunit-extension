@@ -21,10 +21,10 @@
 package org.dbunit.annotation.runtime;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
@@ -34,9 +34,6 @@ import static org.mockito.Mockito.verify;
 import java.util.Properties;
 
 import org.dbunit.DefaultPrepAndExpectedTestCase;
-import org.dbunit.PrepAndExpectedTestCase;
-import org.dbunit.PrepAndExpectedTestCaseSteps;
-import org.dbunit.VerifyTableDefinition;
 import org.dbunit.annotation.DbUnitConfig;
 import org.dbunit.annotation.DbUnitProperty;
 import org.dbunit.annotation.DbUnitRowCountCheck;
@@ -44,7 +41,6 @@ import org.dbunit.assertion.DiffCollectingFailureHandler;
 import org.dbunit.assertion.FailureHandler;
 import org.dbunit.database.DatabaseConfig;
 import org.dbunit.database.rowcount.ClearRowCountCheckSystemProperties;
-import org.dbunit.dataset.IDataSet;
 import org.dbunit.util.fileloader.DataFileLoader;
 import org.dbunit.util.fileloader.FileExtensionDataFileLoader;
 import org.dbunit.util.fileloader.FlatXmlDataFileLoader;
@@ -121,21 +117,6 @@ class InjectedTestCaseConfigurerTest
     }
 
     @Test
-    void testUndo_setterOverriddenButNotGetter_doesNotSetThePropertiesToNull()
-    {
-        final SetterOnlyPropertiesTestCase testCase = new SetterOnlyPropertiesTestCase();
-        final InjectedTestCaseRestoration restoration =
-                new InjectedTestCaseConfigurer(configFrom(Nothing.class), testCase).applyAll();
-
-        restoration.undo();
-
-        assertThat(testCase.setterCalls)
-                .as("An instance that cannot report its properties has nothing to put back, and"
-                        + " setting null would wipe the ones it was built with.")
-                .isZero();
-    }
-
-    @Test
     void testApplyAll_nothingConfiguredOnInstanceWithItsOwnSettings_leavesThemUntouched()
     {
         final DataFileLoader ownLoader = new FullXmlDataFileLoader();
@@ -162,36 +143,6 @@ class InjectedTestCaseConfigurerTest
         assertThat(testCase.getDatabaseConfigProperties())
                 .as("Properties set on the instance stand when none are configured.")
                 .isEqualTo(ownProperties);
-    }
-
-    @Test
-    void testApplyAll_nothingDeclaredAndLoaderGetterNotOverridden_doesNotReplaceTheLoader()
-    {
-        final SettersOnlyTestCase testCase = new SettersOnlyTestCase();
-
-        new InjectedTestCaseConfigurer(configFrom(Nothing.class), testCase).applyAll();
-
-        assertThat(testCase.loaderSetterCalls)
-                .as("An instance that cannot report its loader may already have one, so a"
-                        + " missing loader must not be filled in over it.")
-                .isZero();
-    }
-
-    @Test
-    void testUndo_declaredAttributesAndGettersNotOverridden_writesNoDefaultsBack()
-    {
-        final SettersOnlyTestCase testCase = new SettersOnlyTestCase();
-        final InjectedTestCaseRestoration restoration = new InjectedTestCaseConfigurer(
-                configFrom(LoaderFailureHandlerAndCloseFalse.class), testCase).applyAll();
-
-        restoration.undo();
-
-        assertThat(new int[] {testCase.loaderSetterCalls, testCase.failureHandlerSetterCalls,
-                testCase.closeSetterCalls})
-                .as("Each declared value is applied once; with no getter to say what it"
-                        + " replaced, undo must not write null, null and true back over what the"
-                        + " instance was built with.")
-                .containsExactly(1, 1, 1);
     }
 
     @Test
@@ -305,16 +256,18 @@ class InjectedTestCaseConfigurerTest
     }
 
     @Test
-    void testApplyAll_laterAttributeFailsFast_undoesTheEarlierOnesBeforeThrowing()
+    void testApplyAll_laterAttributeFails_undoesTheEarlierOnesBeforeThrowing()
     {
         final DataFileLoader ownLoader = new FullXmlDataFileLoader();
-        final LoaderOnlyTestCase testCase = new LoaderOnlyTestCase(ownLoader);
+        final DefaultPrepAndExpectedTestCase testCase =
+                spy(new DefaultPrepAndExpectedTestCase(ownLoader, null, true));
+        final IllegalStateException failure = new IllegalStateException("handler rejected");
+        doThrow(failure).when(testCase).setFailureHandler(any());
 
         assertThatThrownBy(() -> new InjectedTestCaseConfigurer(
                 configFrom(LoaderAndFailureHandler.class), testCase).applyAll())
-                .as("The failure handler cannot be applied by this instance, so it fails fast.")
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("failureHandler");
+                .as("The failure of a later value is the one reported.")
+                .isSameAs(failure);
 
         assertThat(testCase.getDataFileLoader())
                 .as("The loader applied before the failure must not stay behind on the instance.")
@@ -339,63 +292,9 @@ class InjectedTestCaseConfigurerTest
     }
 
     @Test
-    void testApplyAll_configuredDataFileLoaderNotOverridden_throwsNamingTheClassAndAttribute()
-    {
-        final PrepAndExpectedTestCase testCase = new NonOverridingTestCase();
-
-        assertThatThrownBy(() -> new InjectedTestCaseConfigurer(
-                configFrom(AllAttributes.class), testCase).applyAll())
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("dataFileLoader")
-                .hasMessageContaining(NonOverridingTestCase.class.getName());
-    }
-
-    @Test
-    void testApplyAll_rowCountCheckDeclaredNotOverridden_throws()
-    {
-        final PrepAndExpectedTestCase testCase = new NonOverridingTestCase();
-
-        assertThatThrownBy(() -> new InjectedTestCaseConfigurer(
-                configFrom(OnlyRowCountCheck.class), testCase).applyAll())
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("DbUnitRowCountCheck");
-    }
-
-    @Test
-    void testApplyAll_closeConnectionAfterTestFalseNotOverridden_warnsRatherThanThrows()
-    {
-        final PrepAndExpectedTestCase testCase = new NonOverridingTestCase();
-        final ListAppender<ILoggingEvent> appender = attachAppender();
-        try
-        {
-            assertThatCode(() -> new InjectedTestCaseConfigurer(
-                    configFrom(OnlyCloseConnectionFalse.class), testCase).applyAll())
-                    .as("closeConnectionAfterTest only warns - the executor honors the flag for"
-                            + " its own connection regardless.")
-                    .doesNotThrowAnyException();
-            assertThat(appender.list).filteredOn(e -> e.getLevel() == Level.WARN).hasSize(1);
-        } finally
-        {
-            detachAppender(appender);
-        }
-    }
-
-    @Test
-    void testApplyAll_nothingConfiguredAndNotOverridden_doesNotThrow()
-    {
-        final PrepAndExpectedTestCase testCase = new NonOverridingTestCase();
-
-        assertThatCode(() -> new InjectedTestCaseConfigurer(
-                configFrom(Nothing.class), testCase).applyAll())
-                .as("Nothing configured means nothing for a non-overriding instance to fail to"
-                        + " apply.")
-                .doesNotThrowAnyException();
-    }
-
-    @Test
     void testApplyAll_propertiesConfiguredAndSubclassOverridesSetUpDatabaseConfig_warns()
     {
-        final PrepAndExpectedTestCase testCase = new SetUpDatabaseConfigOverridingTestCase();
+        final DefaultPrepAndExpectedTestCase testCase = new SetUpDatabaseConfigOverridingTestCase();
         final ListAppender<ILoggingEvent> appender = attachAppender();
         try
         {
@@ -500,133 +399,9 @@ class InjectedTestCaseConfigurerTest
     {
     }
 
-    /** Implements {@link PrepAndExpectedTestCase} without overriding any configurer setter. */
-    public static class NonOverridingTestCase implements PrepAndExpectedTestCase
-    {
-        @Override
-        public void configureTest(final VerifyTableDefinition[] verifyTableDefinitions,
-                final String[] prepDataFiles, final String[] expectedDataFiles)
-        {
-        }
-
-        @Override
-        public void preTest()
-        {
-        }
-
-        @Override
-        public void preTest(final VerifyTableDefinition[] verifyTables,
-                final String[] prepDataFiles, final String[] expectedDataFiles)
-        {
-        }
-
-        @Override
-        public Object runTest(final VerifyTableDefinition[] verifyTables,
-                final String[] prepDataFiles, final String[] expectedDataFiles,
-                final PrepAndExpectedTestCaseSteps testSteps)
-        {
-            return null;
-        }
-
-        @Override
-        public void postTest()
-        {
-        }
-
-        @Override
-        public void postTest(final boolean verifyData)
-        {
-        }
-
-        @Override
-        public void verifyData()
-        {
-        }
-
-        @Override
-        public void cleanupData()
-        {
-        }
-
-        @Override
-        public IDataSet getPrepDataset()
-        {
-            return null;
-        }
-
-        @Override
-        public IDataSet getExpectedDataset()
-        {
-            return null;
-        }
-    }
-
-    /** Overrides only the properties setter, so its current properties cannot be reported. */
-    public static class SetterOnlyPropertiesTestCase extends NonOverridingTestCase
-    {
-        int setterCalls;
-
-        @Override
-        public void setDatabaseConfigProperties(final Properties databaseConfigProperties)
-        {
-            setterCalls++;
-        }
-    }
-
-    /** Overrides only the data file loader accessors, so the failure handler cannot be applied. */
-    public static class LoaderOnlyTestCase extends NonOverridingTestCase
-    {
-        private DataFileLoader dataFileLoader;
-
-        public LoaderOnlyTestCase(final DataFileLoader dataFileLoader)
-        {
-            this.dataFileLoader = dataFileLoader;
-        }
-
-        @Override
-        public DataFileLoader getDataFileLoader()
-        {
-            return dataFileLoader;
-        }
-
-        @Override
-        public void setDataFileLoader(final DataFileLoader dataFileLoader)
-        {
-            this.dataFileLoader = dataFileLoader;
-        }
-    }
-
-    /** Overrides only the loader, failure handler and close-flag setters, not their getters. */
-    public static class SettersOnlyTestCase extends NonOverridingTestCase
-    {
-        int loaderSetterCalls;
-        int failureHandlerSetterCalls;
-        int closeSetterCalls;
-
-        @Override
-        public void setDataFileLoader(final DataFileLoader dataFileLoader)
-        {
-            loaderSetterCalls++;
-        }
-
-        @Override
-        public void setFailureHandler(final FailureHandler failureHandler)
-        {
-            failureHandlerSetterCalls++;
-        }
-
-        @Override
-        public void setCloseConnectionAfterTest(final boolean closeConnectionAfterTest)
-        {
-            closeSetterCalls++;
-        }
-    }
-
     /**
      * A {@link DefaultPrepAndExpectedTestCase} subclass overriding
-     * {@code setUpDatabaseConfig()} - and, so the properties setter itself resolves as
-     * overridden rather than tripping its own fail-fast check first,
-     * {@code setDatabaseConfigProperties()} too.
+     * {@code setUpDatabaseConfig()}.
      */
     public static class SetUpDatabaseConfigOverridingTestCase
             extends DefaultPrepAndExpectedTestCase
@@ -640,11 +415,6 @@ class InjectedTestCaseConfigurerTest
         protected void setUpDatabaseConfig(final DatabaseConfig config)
         {
             // deliberately does not call super
-        }
-
-        @Override
-        public void setDatabaseConfigProperties(final Properties databaseConfigProperties)
-        {
         }
     }
 }

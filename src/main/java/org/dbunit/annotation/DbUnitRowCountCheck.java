@@ -65,14 +65,12 @@ import org.dbunit.database.DatabaseConfig;
  * merging would make "why is this table still excluded?" answerable only by reading two
  * declarations.
  *
- * <p>On the prep/expected path ({@link DbUnitExpected} declared), this annotation only
- * overrides the resolved check when the test case resolves to a
- * {@link DefaultPrepAndExpectedTestCase} - the only {@link PrepAndExpectedTestCase}
- * implementation exposing a setter for it; a {@link DbUnitTestCase} field injecting a
- * different implementation fails fast with {@link IllegalStateException} instead, since a
- * silent no-op here would otherwise leave the check never running for this test at all. On
- * the setup/teardown path (no {@link DbUnitExpected}), this restriction does not apply - the
- * check runs directly against the connection regardless of test case type.
+ * <p>On the prep/expected path ({@link DbUnitExpected} declared), this annotation overrides
+ * the check the {@link DefaultPrepAndExpectedTestCase} resolves from its connection. A
+ * {@link DbUnitTestCase} field injecting any other {@link PrepAndExpectedTestCase} is rejected
+ * with {@link IllegalStateException} instead, since a silent no-op here would otherwise leave
+ * the check never running for this test at all. On the setup/teardown path (no
+ * {@link DbUnitExpected}), the check runs directly against the connection.
  *
  * @author Jeff Jensen
  * @since 3.6.0

@@ -561,7 +561,7 @@ class DbUnitExtensionAnnotationIT
         // resolved via getDatabaseTester()/setDatabaseTester() round-tripping, from the
         // Factory below - see DbUnitExtension's tester/test case resolution order.
         @DbUnitTestCase
-        static final PrepAndExpectedTestCase testCase = new DefaultPrepAndExpectedTestCase();
+        static final DefaultPrepAndExpectedTestCase testCase = new DefaultPrepAndExpectedTestCase();
 
         @Test
         @DbUnitPrep("annotation-it-prep.xml")

@@ -27,6 +27,7 @@ import org.dbunit.DefaultPrepAndExpectedTestCase;
 import org.dbunit.IDatabaseTester;
 import org.dbunit.PrepAndExpectedTestCase;
 import org.dbunit.PrepAndExpectedTestData;
+import org.dbunit.database.IDatabaseConnection;
 import org.dbunit.util.fileloader.DataFileLoader;
 
 /**
@@ -67,14 +68,22 @@ final class ExpectedLifecycle
      *
      * @param configuration The resolved configuration.
      * @param tester The tester to construct a {@link PrepAndExpectedTestCase} around when one
-     *            is not injected, and whose setup/teardown operations to set.
+     *            is not injected, and whose setup/teardown operations to set; {@code null} for
+     *            an injected test case that tells dbUnit of none.
      * @param injectedTestCase An already-injected {@code @DbUnitTestCase} instance to drive, or
      *            {@code null} to construct one from
      *            {@link AnnotatedTestConfiguration#getPrepAndExpectedTestCaseClass()}.
+     * @throws IllegalStateException If the test declares anything the injected test case cannot
+     *             be given - see {@link InjectedTestCaseDeclarationCheck}.
      */
     ExpectedLifecycle(final AnnotatedTestConfiguration configuration,
             final IDatabaseTester tester, final PrepAndExpectedTestCase injectedTestCase)
     {
+        if (injectedTestCase != null)
+        {
+            new InjectedTestCaseDeclarationCheck(configuration).requireSupportedBy(
+                    injectedTestCase);
+        }
         this.configuration = configuration;
         this.tester = tester;
         this.testCase = injectedTestCase;
@@ -100,7 +109,7 @@ final class ExpectedLifecycle
      * constructed one yet). Safe to call more than once - construction only happens once - and
      * safe to call before {@link #before()} does, e.g. from a binding resolving an early
      * {@code @BeforeEach} {@code Connection} parameter through
-     * {@link PrepAndExpectedTestCase#getReusableConnection()}, since construction has no side
+     * {@link DefaultPrepAndExpectedTestCase#getReusableConnection()}, since construction has no side
      * effect beyond reflectively instantiating the instance.
      *
      * @return The test case this lifecycle drives.
@@ -119,7 +128,7 @@ final class ExpectedLifecycle
      * Returns {@link #testCase} after pushing the {@code @DbUnitConfig} values onto it, once -
      * see {@link InjectedTestCaseConfigurer} - so a connection it hands out already carries them.
      * {@link #before()} calls this, and so does a binding resolving an early {@code @BeforeEach}
-     * {@code Connection} parameter through {@link PrepAndExpectedTestCase#getReusableConnection()}
+     * {@code Connection} parameter through {@link DefaultPrepAndExpectedTestCase#getReusableConnection()}
      * before {@code before()} runs: the connection is acquired with the test case's properties
      * in force at that moment. Whatever this applies is undone by {@link #after(boolean)}, or by
      * {@link #undoConfiguration()} when {@code after()} never runs.
@@ -130,12 +139,34 @@ final class ExpectedLifecycle
     PrepAndExpectedTestCase ensureConfiguredTestCase() throws Exception
     {
         ensureTestCase();
-        if (testCaseRestoration == null)
+        if (testCaseRestoration == null && testCase instanceof DefaultPrepAndExpectedTestCase)
         {
-            testCaseRestoration =
-                    new InjectedTestCaseConfigurer(configuration, testCase).applyAll();
+            testCaseRestoration = new InjectedTestCaseConfigurer(configuration,
+                    (DefaultPrepAndExpectedTestCase) testCase).applyAll();
         }
         return testCase;
+    }
+
+    /**
+     * Returns the connection the test case shares across its lifecycle, configuring it first as
+     * {@link #ensureConfiguredTestCase()} does.
+     *
+     * @return The test case's connection.
+     * @throws IllegalStateException If the test case is not a
+     *             {@link DefaultPrepAndExpectedTestCase}, which tells dbUnit of no connection.
+     * @throws Exception If constructing or configuring the test case, or resolving the
+     *             connection, fails.
+     */
+    IDatabaseConnection getReusableConnection() throws Exception
+    {
+        final PrepAndExpectedTestCase configured = ensureConfiguredTestCase();
+        if (configured instanceof DefaultPrepAndExpectedTestCase)
+        {
+            return ((DefaultPrepAndExpectedTestCase) configured).getReusableConnection();
+        }
+        throw new IllegalStateException("The @DbUnitTestCase field's test case "
+                + configured.getClass().getName() + " is not a DefaultPrepAndExpectedTestCase,"
+                + " so dbUnit has no connection of it to give a test method or to close.");
     }
 
     /**
@@ -153,7 +184,7 @@ final class ExpectedLifecycle
 
     /**
      * Returns whether the connection came from an injected {@code @DbUnitTestCase} instance's
-     * {@link PrepAndExpectedTestCase#getReusableConnection()} for a {@code @BeforeEach}
+     * {@link DefaultPrepAndExpectedTestCase#getReusableConnection()} for a {@code @BeforeEach}
      * parameter, and {@link #before()} then failed before {@code configureTest()} - so
      * {@code postTest()}/{@code cleanupData()} never ran to close that connection the test
      * case's own way. It is the {@code borrowingLifecycleRan} input to
@@ -185,7 +216,10 @@ final class ExpectedLifecycle
     void before() throws Exception
     {
         ensureTestCase();
-        incomingState = TesterStateSnapshot.capture(tester);
+        if (tester != null)
+        {
+            incomingState = TesterStateSnapshot.capture(tester);
+        }
         ensureConfiguredTestCase();
         applySetUpOperation();
         applyTearDownOperation();
@@ -267,7 +301,7 @@ final class ExpectedLifecycle
      */
     private void applySetUpOperation()
     {
-        if (configuration.replacesSetUpOperation())
+        if (tester != null && configuration.replacesSetUpOperation())
         {
             tester.setSetUpOperation(configuration.getSetUpOperation());
         }
@@ -282,7 +316,7 @@ final class ExpectedLifecycle
      */
     private void applyTearDownOperation()
     {
-        if (configuration.isTearDownDeclared())
+        if (tester != null && configuration.isTearDownDeclared())
         {
             tester.setTearDownOperation(configuration.getTearDownOperation());
         }
@@ -295,19 +329,23 @@ final class ExpectedLifecycle
      */
     private DataFileLoader effectiveDataFileLoader()
     {
-        final DataFileLoader testCaseLoader = testCase.getDataFileLoader();
-        if (testCaseLoader == null)
+        if (testCase instanceof DefaultPrepAndExpectedTestCase)
         {
-            return configuration.getDataFileLoader();
+            final DataFileLoader testCaseLoader =
+                    ((DefaultPrepAndExpectedTestCase) testCase).getDataFileLoader();
+            if (testCaseLoader != null)
+            {
+                return testCaseLoader;
+            }
         }
-        return testCaseLoader;
+        return configuration.getDataFileLoader();
     }
 
     private PrepAndExpectedTestCase newTestCase() throws Exception
     {
-        final Class<? extends PrepAndExpectedTestCase> testCaseClass =
+        final Class<? extends DefaultPrepAndExpectedTestCase> testCaseClass =
                 configuration.getPrepAndExpectedTestCaseClass();
-        final Constructor<? extends PrepAndExpectedTestCase> constructor;
+        final Constructor<? extends DefaultPrepAndExpectedTestCase> constructor;
         try
         {
             constructor = testCaseClass.getDeclaredConstructor(DataFileLoader.class,

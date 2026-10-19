@@ -35,6 +35,7 @@ import org.dbunit.IOperationListener;
 import org.dbunit.JdbcDatabaseTester;
 import org.dbunit.PrepAndExpectedTestCase;
 import org.dbunit.annotation.DbUnitConfig;
+import org.dbunit.annotation.DbUnitExpected;
 import org.dbunit.annotation.DbUnitTestCase;
 import org.dbunit.annotation.DbUnitTester;
 import org.dbunit.database.DatabaseConfig;
@@ -151,6 +152,44 @@ class DbUnitExtensionParameterResolverTest
                 .as("Injecting a PrepAndExpectedTestCase parameter with no @DbUnitTestCase"
                         + " field must fail clearly rather than injecting null.")
                 .hasMessageContaining("@DbUnitTestCase");
+    }
+
+    @Test
+    void testResolveParameter_testCaseThatIsNotDefaultAndTesterParameter_failsClearly()
+    {
+        final Throwable reported = failureOf(OtherTestCaseTesterParameterSample.class);
+
+        assertThat(reported)
+                .as("A test case that is not a DefaultPrepAndExpectedTestCase tells dbUnit of no"
+                        + " tester, so an IDatabaseTester parameter must fail clearly rather than"
+                        + " inject null.")
+                .rootCause()
+                .hasMessageContaining("no IDatabaseTester");
+    }
+
+    @Test
+    void testResolveParameter_testCaseThatIsNotDefaultAndConnectionParameter_failsClearly()
+    {
+        final Throwable reported = failureOf(OtherTestCaseConnectionParameterSample.class);
+
+        assertThat(reported)
+                .as("A test case that is not a DefaultPrepAndExpectedTestCase tells dbUnit of no"
+                        + " connection, so an IDatabaseConnection parameter must fail clearly"
+                        + " rather than inject null.")
+                .rootCause()
+                .hasMessageContaining("no connection");
+    }
+
+    private static Throwable failureOf(final Class<?> sample)
+    {
+        final Event failedEvent = EngineTestKit.engine("junit-jupiter")
+                .selectors(selectClass(sample))
+                .execute()
+                .testEvents()
+                .failed().stream().findFirst()
+                .orElseThrow(() -> new AssertionError("Expected one failed test event."));
+        return failedEvent.getRequiredPayload(TestExecutionResult.class).getThrowable()
+                .orElseThrow(() -> new AssertionError("Expected a reported throwable."));
     }
 
     @Test
@@ -382,6 +421,32 @@ class DbUnitExtensionParameterResolverTest
 
         @Test
         void testParameterInjected(final PrepAndExpectedTestCase testCase)
+        {
+        }
+    }
+
+    @ExtendWith(DbUnitExtension.class)
+    static class OtherTestCaseTesterParameterSample
+    {
+        @DbUnitTestCase
+        static PrepAndExpectedTestCase testCase = mock(PrepAndExpectedTestCase.class);
+
+        @Test
+        @DbUnitExpected("expected.xml")
+        void testParameterInjected(final IDatabaseTester tester)
+        {
+        }
+    }
+
+    @ExtendWith(DbUnitExtension.class)
+    static class OtherTestCaseConnectionParameterSample
+    {
+        @DbUnitTestCase
+        static PrepAndExpectedTestCase testCase = mock(PrepAndExpectedTestCase.class);
+
+        @Test
+        @DbUnitExpected("expected.xml")
+        void testParameterInjected(final IDatabaseConnection connection)
         {
         }
     }

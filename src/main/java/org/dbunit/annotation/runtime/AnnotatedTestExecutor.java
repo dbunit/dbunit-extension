@@ -88,7 +88,7 @@ import org.slf4j.LoggerFactory;
  * executor holds is not shielded from a close by the tester's own listener.
  *
  * <p>The connection {@link #getConnection()} memoizes - the tester's own on the setup/teardown
- * path, {@link PrepAndExpectedTestCase#getReusableConnection()}'s on the prep/expected path so a
+ * path, {@link DefaultPrepAndExpectedTestCase#getReusableConnection()}'s on the prep/expected path so a
  * {@code Connection}/{@code IDatabaseConnection} parameter shares the test case's own - is used
  * by the row count check and by a binding's parameter injection, and closed in
  * {@link #afterTest(boolean)} when {@link ConnectionOwnership#mayClose()} allows it, unless the
@@ -128,7 +128,7 @@ public class AnnotatedTestExecutor
     private boolean afterTestRan;
     private ExecutorOperationListener installedListener;
     private IOperationListener listenerToRestore;
-    private PrepAndExpectedTestCase testCaseToUnbindTesterFrom;
+    private DefaultPrepAndExpectedTestCase testCaseToUnbindTesterFrom;
 
     /**
      * Creates an executor for an annotation-driven test - equivalent to
@@ -224,14 +224,14 @@ public class AnnotatedTestExecutor
         this.annotationDriven = annotationDriven;
         if (testerBoundToTestCase)
         {
-            this.testCaseToUnbindTesterFrom = prepAndExpectedTestCase;
+            this.testCaseToUnbindTesterFrom = (DefaultPrepAndExpectedTestCase) prepAndExpectedTestCase;
         }
         this.databaseConfigOverrides =
                 new DatabaseConfigOverrides(configuration.getDatabaseConfigProperties());
         this.expectedLifecycle =
                 new ExpectedLifecycle(configuration, tester, prepAndExpectedTestCase);
         final ConnectionOwnership ownership = new ConnectionOwnership(
-                this::mayCloseConnectionAfterTest, tester::getOperationListener,
+                this::mayCloseConnectionAfterTest, this::testersOperationListener,
                 this::borrowingLifecycleRan);
         this.leftOpenConnectionWarning = new LeftOpenConnectionWarning(ownership, () -> tester);
         this.testScopedConnection = new TestScopedConnection(this::acquireConnection, ownership,
@@ -242,7 +242,7 @@ public class AnnotatedTestExecutor
         if (installsOperationListener)
         {
             installOperationListener();
-        } else
+        } else if (tester != null)
         {
             log.debug("{} reports no operation listener, so its operation listener cannot be"
                     + " read to wrap and put back; leaving it as it is.",
@@ -260,7 +260,16 @@ public class AnnotatedTestExecutor
      */
     private static boolean exposesOperationListener(final IDatabaseTester tester)
     {
-        return tester.getOperationListener() != null;
+        return tester != null && tester.getOperationListener() != null;
+    }
+
+    private IOperationListener testersOperationListener()
+    {
+        if (tester == null)
+        {
+            return null;
+        }
+        return tester.getOperationListener();
     }
 
     /**
@@ -294,8 +303,8 @@ public class AnnotatedTestExecutor
     /**
      * The {@code closeConnectionAfterTest} input to this executor's {@link ConnectionOwnership}:
      * the {@code @DbUnitConfig} flag, and on the prep/expected path also the test case's own
-     * {@link PrepAndExpectedTestCase#isCloseConnectionAfterTest()}. The connection a binding
-     * injects there is the test case's {@link PrepAndExpectedTestCase#getReusableConnection()},
+     * {@link DefaultPrepAndExpectedTestCase#isCloseConnectionAfterTest()}. The connection a binding
+     * injects there is the test case's {@link DefaultPrepAndExpectedTestCase#getReusableConnection()},
      * so an injected instance built to keep its connection open for its real owner must not
      * have it closed here just because {@code @DbUnitConfig} says nothing about it.
      */
@@ -303,8 +312,9 @@ public class AnnotatedTestExecutor
     {
         final boolean configuredToClose = configuration.isCloseConnectionAfterTest();
         final PrepAndExpectedTestCase testCase = expectedLifecycle.getPrepAndExpectedTestCase();
-        final boolean testCaseCloses = !configuration.isExpected() || testCase == null
-                || testCase.isCloseConnectionAfterTest();
+        final boolean testCaseCloses = !configuration.isExpected()
+                || !(testCase instanceof DefaultPrepAndExpectedTestCase)
+                || ((DefaultPrepAndExpectedTestCase) testCase).isCloseConnectionAfterTest();
         return configuredToClose && testCaseCloses;
     }
 
@@ -323,7 +333,7 @@ public class AnnotatedTestExecutor
     private IDatabaseConnection acquireConnection() throws Exception
     {
         return configuration.isExpected()
-                ? expectedLifecycle.ensureConfiguredTestCase().getReusableConnection()
+                ? expectedLifecycle.getReusableConnection()
                 : tester.getConnection();
     }
 
@@ -414,7 +424,7 @@ public class AnnotatedTestExecutor
      * baseline/verify calls on the setup/teardown path, and a binding injecting an
      * {@code IDatabaseConnection}/{@code Connection} parameter on either path. On the
      * prep/expected path ({@link AnnotatedTestConfiguration#isExpected()} true), delegates to
-     * {@link PrepAndExpectedTestCase#getReusableConnection()} - constructing the test case first
+     * {@link DefaultPrepAndExpectedTestCase#getReusableConnection()} - constructing the test case first
      * via {@link ExpectedLifecycle#ensureTestCase()} if it does not exist yet - instead of
      * asking {@link #tester} directly, so a parameter injection shares that test case's own
      * connection; on the setup/teardown path, asks {@link #tester} directly. For a tester with
@@ -513,7 +523,7 @@ public class AnnotatedTestExecutor
      * {@link AnnotatedRowCountCheck} for the piggybacked baseline capture. The classic path
      * makes no warning, as it never did. A no-op on the prep/expected path: the row count check
      * there is the {@link PrepAndExpectedTestCase}'s own, and the connection identity is
-     * {@link PrepAndExpectedTestCase#getReusableConnection()}'s - adopting a
+     * {@link DefaultPrepAndExpectedTestCase#getReusableConnection()}'s - adopting a
      * directly-retrieved one here would reintroduce, for a
      * {@link PrepAndExpectedTestCase} implementation that drives {@code tester.onSetup()}
      * itself, the connection-identity split {@link #getConnection()}'s path split exists to
@@ -734,7 +744,7 @@ public class AnnotatedTestExecutor
      * <p>A binding calls this once the whole test is over, after {@link #afterTest(boolean)} or
      * {@link #releaseIfAfterTestDidNotRun()} and after any {@code @AfterEach} method, which may
      * still use the tester through the test case.
-     * {@link PrepAndExpectedTestCase#setDatabaseTester(IDatabaseTester)} with {@code null}
+     * {@link DefaultPrepAndExpectedTestCase#setDatabaseTester(IDatabaseTester)} with {@code null}
      * releases the connection it holds, as {@code DefaultPrepAndExpectedTestCase} does, closing
      * it only if its {@code closeConnectionAfterTest} says to. That is the instance's own value
      * by now: a {@code false} the test declared was put back when the test's configuration was
@@ -744,7 +754,7 @@ public class AnnotatedTestExecutor
      */
     public void unbindTesterFromInjectedTestCase()
     {
-        final PrepAndExpectedTestCase testCase = testCaseToUnbindTesterFrom;
+        final DefaultPrepAndExpectedTestCase testCase = testCaseToUnbindTesterFrom;
         testCaseToUnbindTesterFrom = null;
         if (testCase == null)
         {
