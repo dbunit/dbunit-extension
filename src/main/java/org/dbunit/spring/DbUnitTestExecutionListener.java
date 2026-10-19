@@ -21,14 +21,21 @@
 package org.dbunit.spring;
 
 import java.util.List;
+import java.util.function.BooleanSupplier;
 
+import org.dbunit.DatabaseUnitRuntimeException;
+import org.dbunit.annotation.DbUnitExpected;
 import org.dbunit.annotation.runtime.AnnotatedTestConfiguration;
 import org.dbunit.annotation.runtime.AnnotatedTestExecutor;
 import org.dbunit.annotation.runtime.AnnotatedTestOptIn;
 import org.dbunit.annotation.runtime.AnnotationLookup;
 import org.dbunit.annotation.runtime.TestInstanceTesterResolver;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.test.context.TestContext;
 import org.springframework.test.context.support.AbstractTestExecutionListener;
+import org.springframework.test.context.transaction.TestTransaction;
+import org.springframework.util.ClassUtils;
 
 /**
  * Spring TestContext Framework {@link org.springframework.test.context.TestExecutionListener} for
@@ -116,6 +123,15 @@ import org.springframework.test.context.support.AbstractTestExecutionListener;
  * {@code @DbUnitConfig(injectConnectionParameter)} is specific to the JUnit 5 binding and has no
  * effect here.
  *
+ * <h2>Rolled-back transactional tests</h2>
+ *
+ * <p>The verification of {@code @DbUnitExpected} runs after the test-managed transaction has
+ * ended, so a test whose transaction rolls back is verified without its own changes. Just before
+ * such a test method runs, this listener logs one warning naming {@code @Commit} and
+ * {@code @Rollback(false)} as the remedy, and if the verification then fails, attaches the same
+ * hint to the failure as a suppressed exception. Without {@code spring-tx} on the classpath the
+ * test cannot be transactional, and neither is done.
+ *
  * @author Jeff Jensen
  * @since 3.6.0
  * @see DbUnitSpringTest
@@ -137,15 +153,37 @@ public class DbUnitTestExecutionListener extends AbstractTestExecutionListener
      */
     public static final int ORDER = 3500;
 
+    private static final Logger log = LoggerFactory.getLogger(DbUnitTestExecutionListener.class);
+
     /** Package-visible so tests can reference it instead of duplicating the literal. */
     static final String EXECUTOR_ATTRIBUTE =
             DbUnitTestExecutionListener.class.getName() + ".executor";
 
+    private static final String ROLLED_BACK_ATTRIBUTE =
+            DbUnitTestExecutionListener.class.getName() + ".rolledBack";
+
+    private static final String ROLLBACK_HINT = "The test's transaction rolled back before"
+            + " @DbUnitExpected was verified, so the database no longer holds the changes the"
+            + " test made and the expected dataset cannot match them. Add @Commit (or"
+            + " @Rollback(false)) to the test, or leave it non-transactional.";
+
     private final SpringTesterResolver testerResolver = new SpringTesterResolver();
+
+    private final BooleanSupplier testTransactionRollsBack;
 
     /** Creates the listener; Spring instantiates it through this constructor. */
     public DbUnitTestExecutionListener()
     {
+        this(newTestTransactionRollbackCheck(DbUnitTestExecutionListener.class.getClassLoader()));
+    }
+
+    /**
+     * Creates the listener with its own answer to whether the current test transaction is set
+     * to roll back, so a test needs no transaction to exercise what the listener does with it.
+     */
+    DbUnitTestExecutionListener(final BooleanSupplier testTransactionRollsBack)
+    {
+        this.testTransactionRollsBack = testTransactionRollsBack;
     }
 
     /**
@@ -193,6 +231,44 @@ public class DbUnitTestExecutionListener extends AbstractTestExecutionListener
     }
 
     /**
+     * Warns, just before the test method runs, when the test declares {@code @DbUnitExpected} and
+     * its test-managed transaction is set to roll back: the verification runs after the rollback
+     * and cannot see what the test changed. Does nothing for a test this listener does not act
+     * on.
+     *
+     * @param testContext The test context.
+     */
+    @Override
+    public void beforeTestExecution(final TestContext testContext)
+    {
+        if (!isVerifiedInRollingBackTransaction(testContext))
+        {
+            return;
+        }
+        log.warn("{}.{}() declares @DbUnitExpected, but its test transaction is set to roll"
+                + " back, so the verification will not see the test's changes. Add @Commit (or"
+                + " @Rollback(false)) to the test, or leave it non-transactional.",
+                testContext.getTestClass().getSimpleName(), testContext.getTestMethod().getName());
+    }
+
+    /**
+     * Remembers whether the test declares {@code @DbUnitExpected} and its test-managed
+     * transaction is set to roll back, for {@link #afterTestMethod(TestContext)} to explain a
+     * failed verification. Runs while the transaction is still active, so it sees the final
+     * decision, including a {@code TestTransaction.flagForCommit()} the test made.
+     *
+     * @param testContext The test context.
+     */
+    @Override
+    public void afterTestExecution(final TestContext testContext)
+    {
+        if (isVerifiedInRollingBackTransaction(testContext))
+        {
+            testContext.setAttribute(ROLLED_BACK_ATTRIBUTE, Boolean.TRUE);
+        }
+    }
+
+    /**
      * Removes the {@link AnnotatedTestExecutor} {@link #beforeTestMethod(TestContext)} kept for
      * this test method and runs its after-test steps: the verification of
      * {@code @DbUnitExpected} and the teardown operation. Does nothing when
@@ -207,7 +283,8 @@ public class DbUnitTestExecutionListener extends AbstractTestExecutionListener
      *
      * <p>Verification is skipped when the test failed - an exception from the test method, from a
      * {@code @BeforeEach} or {@code @AfterEach} method, or from an extension - so a difference
-     * never masks the real failure.
+     * never masks the real failure. A verification that fails after the test's transaction rolled
+     * back carries a hint to add {@code @Commit} as a suppressed exception.
      *
      * @param testContext The test context.
      * @throws Exception If the after-test steps fail.
@@ -217,6 +294,7 @@ public class DbUnitTestExecutionListener extends AbstractTestExecutionListener
     {
         final AnnotatedTestExecutor executor =
                 (AnnotatedTestExecutor) testContext.removeAttribute(EXECUTOR_ATTRIBUTE);
+        final Object rolledBack = testContext.removeAttribute(ROLLED_BACK_ATTRIBUTE);
         if (executor == null)
         {
             return;
@@ -226,6 +304,13 @@ public class DbUnitTestExecutionListener extends AbstractTestExecutionListener
         try
         {
             executor.afterTest(testFailed);
+        } catch (final Throwable verificationFailure)
+        {
+            if (rolledBack != null)
+            {
+                verificationFailure.addSuppressed(new DatabaseUnitRuntimeException(ROLLBACK_HINT));
+            }
+            throw verificationFailure;
         } finally
         {
             executor.unbindTesterFromInjectedTestCase();
@@ -241,6 +326,55 @@ public class DbUnitTestExecutionListener extends AbstractTestExecutionListener
     public int getOrder()
     {
         return ORDER;
+    }
+
+    private boolean isVerifiedInRollingBackTransaction(final TestContext testContext)
+    {
+        if (testContext.getAttribute(EXECUTOR_ATTRIBUTE) == null)
+        {
+            return false;
+        }
+        final AnnotationLookup lookup = new SpringAnnotationLookup(testContext);
+        if (lookup.find(DbUnitExpected.class) == null)
+        {
+            return false;
+        }
+        return testTransactionRollsBack.getAsBoolean();
+    }
+
+    /**
+     * Returns the check for a test transaction set to roll back, or one that never finds
+     * one when {@code spring-tx}, which Spring's {@code TestTransaction} needs, is not visible
+     * from {@code classLoader}. Spring's {@code spring-test} does not itself require it.
+     * Package-visible so a test can pass a class loader that hides {@code spring-tx}.
+     */
+    static BooleanSupplier newTestTransactionRollbackCheck(final ClassLoader classLoader)
+    {
+        if (ClassUtils.isPresent("org.springframework.transaction.PlatformTransactionManager",
+                classLoader))
+        {
+            return new TestTransactionRollbackCheck();
+        }
+        return () -> false;
+    }
+
+    /**
+     * Asks Spring's {@link TestTransaction}. A class of its own so that it is loaded, and with
+     * it {@code spring-tx}, only when {@code spring-tx} is present.
+     */
+    static class TestTransactionRollbackCheck implements BooleanSupplier
+    {
+        /**
+         * {@inheritDoc}
+         * <p>
+         * Returns {@code true} when {@link TestTransaction#isActive()} and
+         * {@link TestTransaction#isFlaggedForRollback()} both return {@code true}.
+         */
+        @Override
+        public boolean getAsBoolean()
+        {
+            return TestTransaction.isActive() && TestTransaction.isFlaggedForRollback();
+        }
     }
 
     private boolean isOptedIn(final TestContext testContext, final AnnotationLookup lookup)

@@ -280,7 +280,12 @@ What follows from that:
   as the rollback left it, so such a test fails against an expected dataset
   holding its changes. Add `@Commit` (or `@Rollback(false)`) to a
   `@Transactional` test that verifies its own changes, or leave it
-  non-transactional.
+  non-transactional. The listener tells you: just before a test that declares
+  `@DbUnitExpected` runs with its transaction set to roll back, it logs one
+  warning naming `@Commit` and `@Rollback(false)`, and when the verification
+  then fails it attaches the same advice to the failure as a suppressed
+  exception. Without `spring-tx` on the classpath a test cannot be
+  transactional, and the listener neither warns nor attaches anything.
 * *The steps wrap JUnit's callbacks as well.* Prep runs before the
   `@BeforeEach` methods and before `@Sql` scripts with
   `executionPhase = BEFORE_TEST_METHOD`; verification and teardown run after
