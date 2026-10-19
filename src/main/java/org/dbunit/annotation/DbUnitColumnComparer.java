@@ -37,10 +37,17 @@ import org.dbunit.assertion.comparer.value.ValueComparer;
  * {@code ValueComparers} constant that is a configured instance built with constructor
  * arguments - the timestamp-tolerance comparers, for example
  * {@code isActualWithinOneMinuteNewerOfExpectedTimestamp}; naming one of those here fails
- * fast with an {@link IllegalStateException} pointing at a
- * {@link org.dbunit.VerifyTableDefinitionsProvider} catalog as the fix, since a
- * configured comparer can only be expressed as a {@code VerifyTableDefinition}
- * constant written in Java.
+ * fast with an {@link IllegalStateException} naming the two ways to use it: as a
+ * {@code VerifyTableDefinition} constant written in Java in a catalog class, or through a
+ * subclass whose public no-arg constructor passes the arguments on, which works inline:
+ * <pre>{@code
+ * public class WithinOneMinuteNewer
+ *         extends IsActualWithinToleranceOfExpectedTimestampValueComparer {
+ *     public WithinOneMinuteNewer() {
+ *         super(0, 60_000);
+ *     }
+ * }
+ * }</pre>
  *
  * <p>The instantiated comparer is cached for as long as its class stays loaded, keyed by
  * class, and reused by every later {@code @DbUnitColumnComparer}/{@link DbUnitVerifyTable#defaultComparer()}
