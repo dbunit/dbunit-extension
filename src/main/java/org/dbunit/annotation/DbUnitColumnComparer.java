@@ -52,8 +52,8 @@ import org.dbunit.assertion.comparer.value.ValueComparer;
  * <p>The instantiated comparer is cached for as long as its class stays loaded, keyed by
  * class, and reused by every later {@code @DbUnitColumnComparer}/{@link DbUnitVerifyTable#defaultComparer()}
  * naming the same class, rather than reflectively constructed anew for every test method - the
- * same once-and-reused-forever caching a {@link org.dbunit.VerifyTableDefinitionsProvider}
- * catalog gets. One instance therefore serves every test naming the class, in whatever order
+ * same once-and-reused-forever caching a catalog class gets.
+ * One instance therefore serves every test naming the class, in whatever order
  * they run, so a custom {@link ValueComparer} named here must be stateless: a pure function that
  * keeps nothing between calls and has no dependency on mutable external state that could
  * legitimately differ between the tests reusing it.

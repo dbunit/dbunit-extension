@@ -27,8 +27,6 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-import org.dbunit.util.fileloader.DataSetPathsProvider;
-
 /**
  * Specifies the dataset file(s) to load and insert into the database before each test method,
  * seeding the state the test needs to run.
@@ -50,6 +48,8 @@ import org.dbunit.util.fileloader.DataSetPathsProvider;
  * declaring this annotation - the base class, for an inherited one - or to
  * {@code DbUnitConfig#dataSetBaseDir()} when that is set. The file format is inferred from
  * the extension by the configured {@code DataFileLoader} - see {@link DbUnitConfig#dataFileLoader()}.
+ * A path shared through a composed annotation should be absolute, as a relative one resolves
+ * against the class carrying the composed annotation, not the class using it.
  *
  * <p>Example:
  * <pre>{@code
@@ -71,7 +71,6 @@ import org.dbunit.util.fileloader.DataSetPathsProvider;
  * @since 3.6.0
  * @see DbUnitSetUpOperation
  * @see DbUnitExpected
- * @see DataSetPathsProvider
  */
 @Target({ElementType.TYPE, ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)
@@ -82,22 +81,7 @@ public @interface DbUnitPrep
     /**
      * Classpath resource paths for the prep dataset files to load.
      *
-     * <p>Mutually exclusive with {@link #provider()}; setting both is rejected.
-     *
      * @return Zero or more dataset resource paths.
      */
     String[] value() default {};
-
-    /**
-     * A {@link DataSetPathsProvider} implementation to reflectively instantiate and ask for
-     * the prep dataset paths, for a path list shared across several test classes.
-     *
-     * <p>Mutually exclusive with {@link #value()}; setting both is rejected. The provider
-     * returning {@code null} or an empty array is rejected too - it is wired to supply paths,
-     * so supplying none is a misconfiguration; drop {@code @DbUnitPrep} for a test that needs
-     * no dataset.
-     *
-     * @return The provider class; the interface itself (the default) means "not set".
-     */
-    Class<? extends DataSetPathsProvider> provider() default DataSetPathsProvider.class;
 }
