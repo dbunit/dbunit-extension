@@ -22,6 +22,7 @@ package org.dbunit;
 
 import java.sql.SQLException;
 import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -424,21 +425,39 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     /**
      * {@inheritDoc}
      * <p>
-     * Calls {@link #configureTest(VerifyTableDefinition[], String[], String[])}, then sets one
-     * default definition per table of the expected dataset it loaded, so each expected data
-     * file is parsed once. A subclass that overrides that {@code configureTest} may expect the
-     * definitions it is given, so it reports {@code false}, and the caller derives the
-     * definitions itself as for any other implementation. Fails and cleans up as
-     * {@code configureTest} does.
+     * Honors {@link PrepAndExpectedTestData#verifyingExpectedTables(String[], String[])}: one
+     * default {@link VerifyTableDefinition} per table of the expected dataset this loads, so
+     * each expected data file is parsed once. A subclass that overrides
+     * {@link #configureTest(VerifyTableDefinition[], String[], String[])} may expect the
+     * definitions it is given, so for it they are derived by loading the expected data files
+     * first, and passed on. Fails and cleans up as {@code configureTest} does.
      */
     @Override
-    public boolean configureTestVerifyingEveryExpectedTable(final String[] prepDataFiles,
+    public void configureTest(final PrepAndExpectedTestData testData) throws Exception
+    {
+        if (testData.isVerifyingEveryExpectedTable())
+        {
+            configureVerifyingEveryExpectedTable(testData.getPrepDataFiles(),
+                    testData.getExpectedDataFiles());
+        } else
+        {
+            PrepAndExpectedTestCase.super.configureTest(testData);
+        }
+    }
+
+    /**
+     * Configures the test to verify every table of the expected data files, each with a default
+     * definition.
+     */
+    private void configureVerifyingEveryExpectedTable(final String[] prepDataFiles,
             final String[] expectedDataFiles) throws Exception
     {
         if (isOverriddenBySubclass("configureTest", VerifyTableDefinition[].class,
                 String[].class, String[].class))
         {
-            return false;
+            configureTest(deriveVerifyTableDefinitions(expectedDataFiles), prepDataFiles,
+                    expectedDataFiles);
+            return;
         }
 
         configuringTest(() ->
@@ -446,7 +465,6 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
             configureTest(new VerifyTableDefinition[0], prepDataFiles, expectedDataFiles);
             this.verifyTableDefs = makeDefaultVerifyTableDefinitions(expectedDataSet);
         });
-        return true;
     }
 
     /**
@@ -525,13 +543,34 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     }
 
     /**
-     * Makes one default {@link VerifyTableDefinition} per table of the dataset, for
-     * {@link #configureTestVerifyingEveryExpectedTable(String[], String[])}.
+     * Makes one default {@link VerifyTableDefinition} per table of the expected data files,
+     * read with the dataFileLoader, in first-seen order. Reads the files only to list their
+     * tables, for a subclass that expects the definitions
+     * {@link #configureTest(VerifyTableDefinition[], String[], String[])} is given.
+     */
+    private VerifyTableDefinition[] deriveVerifyTableDefinitions(
+            final String[] expectedDataFiles) throws DataSetException
+    {
+        final Set<String> tableNames = new LinkedHashSet<>();
+        for (final String path : expectedDataFiles)
+        {
+            tableNames.addAll(Arrays.asList(dataFileLoader.load(path).getTableNames()));
+        }
+        return makeDefaultVerifyTableDefinitions(tableNames.toArray(new String[0]));
+    }
+
+    /**
+     * Makes one default {@link VerifyTableDefinition} per table of the dataset.
      */
     private VerifyTableDefinition[] makeDefaultVerifyTableDefinitions(
             final IDataSet dataSet) throws DataSetException
     {
-        final String[] tableNames = dataSet.getTableNames();
+        return makeDefaultVerifyTableDefinitions(dataSet.getTableNames());
+    }
+
+    private VerifyTableDefinition[] makeDefaultVerifyTableDefinitions(
+            final String[] tableNames)
+    {
         final VerifyTableDefinition[] definitions =
                 new VerifyTableDefinition[tableNames.length];
         for (int i = 0; i < tableNames.length; i++)
@@ -856,15 +895,52 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * {@inheritDoc}
      */
     @Override
+    public void preTest(final PrepAndExpectedTestData testData) throws Exception
+    {
+        if (testData.isVerifyingEveryExpectedTable())
+        {
+            configureTest(testData);
+            preTest();
+        } else
+        {
+            PrepAndExpectedTestCase.super.preTest(testData);
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public Object runTest(final VerifyTableDefinition[] verifyTables,
             final String[] prepDataFiles, final String[] expectedDataFiles,
+            final PrepAndExpectedTestCaseSteps testSteps) throws Exception
+    {
+        return runPreparedTest(() -> preTest(verifyTables, prepDataFiles, expectedDataFiles),
+                testSteps);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Object runTest(final PrepAndExpectedTestData testData,
+            final PrepAndExpectedTestCaseSteps testSteps) throws Exception
+    {
+        if (testData.isVerifyingEveryExpectedTable())
+        {
+            return runPreparedTest(() -> preTest(testData), testSteps);
+        }
+        return PrepAndExpectedTestCase.super.runTest(testData, testSteps);
+    }
+
+    private Object runPreparedTest(final LifecycleStep preTestStep,
             final PrepAndExpectedTestCaseSteps testSteps) throws Exception
     {
         final Object result;
 
         try
         {
-            preTest(verifyTables, prepDataFiles, expectedDataFiles);
+            preTestStep.run();
             log.info("runTest: running test steps");
             result = runTestSteps(testSteps);
         } catch (final Throwable e)

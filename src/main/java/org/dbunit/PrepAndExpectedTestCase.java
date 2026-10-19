@@ -66,44 +66,17 @@ public interface PrepAndExpectedTestCase
      * @param testData
      *            The verification definitions and prep and expected data files
      *            for this test.
+     * @throws UnsupportedOperationException If {@code testData} verifies every expected table
+     *             ({@link PrepAndExpectedTestData#verifyingExpectedTables(String[], String[])})
+     *             and this implementation does not override this method to honor that.
      * @throws Exception If the test cannot be configured.
      * @since 3.6.0
      */
     default void configureTest(final PrepAndExpectedTestData testData)
             throws Exception
     {
-        configureTest(testData.getVerifyTableDefinitions(),
+        configureTest(testData.getVerifyTableDefinitionsFor(this),
                 testData.getPrepDataFiles(), testData.getExpectedDataFiles());
-    }
-
-    /**
-     * Configure the test to verify every table of the expected data files, each with a default
-     * {@link VerifyTableDefinition}, taking the tables from the expected dataset this
-     * implementation loads for the comparison anyway. A caller that would otherwise parse the
-     * expected files itself, only to list their tables for
-     * {@link #configureTest(VerifyTableDefinition[], String[], String[])}, can let this
-     * implementation parse them once.
-     * <p>
-     * Default method for binary compatibility with implementations predating this method, and
-     * for ones that cannot derive the tables from the dataset they load: it configures nothing
-     * and reports {@code false}, and the caller derives the definitions itself and calls
-     * {@link #configureTest(VerifyTableDefinition[], String[], String[])}.
-     *
-     * @param prepDataFiles
-     *            The prep data files (as classpath resources) to load and insert contents into
-     *            the database as seed data; null means none.
-     * @param expectedDataFiles
-     *            The expected data files (as classpath resources) to load as expected data and
-     *            verify actual data matches at test end; null means none.
-     * @return {@code true} when this implementation configured the test, {@code false} when it
-     *         did not and left the test unconfigured.
-     * @throws Exception If the test cannot be configured.
-     * @since 3.6.0
-     */
-    default boolean configureTestVerifyingEveryExpectedTable(final String[] prepDataFiles,
-            final String[] expectedDataFiles) throws Exception
-    {
-        return false;
     }
 
     /**
@@ -140,12 +113,14 @@ public interface PrepAndExpectedTestCase
      * @param testData
      *            The verification definitions and prep and expected data files
      *            for this test.
+     * @throws UnsupportedOperationException If {@code testData} verifies every expected table
+     *             and this implementation does not override this method to honor that.
      * @throws Exception If the pre-test steps fail.
      * @since 3.6.0
      */
     default void preTest(final PrepAndExpectedTestData testData) throws Exception
     {
-        preTest(testData.getVerifyTableDefinitions(),
+        preTest(testData.getVerifyTableDefinitionsFor(this),
                 testData.getPrepDataFiles(), testData.getExpectedDataFiles());
     }
 
@@ -182,13 +157,15 @@ public interface PrepAndExpectedTestCase
      * @param testSteps
      *            The test steps to run.
      * @return The user-defined object from running the test steps.
+     * @throws UnsupportedOperationException If {@code testData} verifies every expected table
+     *             and this implementation does not override this method to honor that.
      * @throws Exception If the test steps fail.
      * @since 3.6.0
      */
     default Object runTest(final PrepAndExpectedTestData testData,
             final PrepAndExpectedTestCaseSteps testSteps) throws Exception
     {
-        return runTest(testData.getVerifyTableDefinitions(),
+        return runTest(testData.getVerifyTableDefinitionsFor(this),
                 testData.getPrepDataFiles(), testData.getExpectedDataFiles(),
                 testSteps);
     }

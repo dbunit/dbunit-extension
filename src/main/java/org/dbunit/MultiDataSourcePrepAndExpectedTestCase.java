@@ -453,8 +453,7 @@ public class MultiDataSourcePrepAndExpectedTestCase
             final PrepAndExpectedTestCase testCase = testCasesByDataSourceName.get(dataSourceName);
             try
             {
-                testCase.preTest(data.getVerifyTableDefinitions(), data.getPrepDataFiles(),
-                        data.getExpectedDataFiles());
+                testCase.preTest(data);
             } catch (final Throwable setupFailure)
             {
                 setUpSoFar.add(dataSourceName);

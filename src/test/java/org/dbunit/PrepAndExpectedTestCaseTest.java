@@ -22,6 +22,7 @@ package org.dbunit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.Properties;
 
@@ -53,15 +54,40 @@ class PrepAndExpectedTestCaseTest
     }
 
     @Test
-    void testConfigureTestVerifyingEveryExpectedTable_notOverridden_configuresNothingAndReportsFalse()
-            throws Exception
+    void testConfigureTest_everyExpectedTableBundleAndNotOverridden_throwsUnsupportedOperationException()
     {
-        assertThat(new Bare().configureTestVerifyingEveryExpectedTable(new String[0],
-                new String[] {"expected.xml"}))
-                        .as("An implementation predating the method cannot take the tables from"
-                                + " the dataset it loads, so it reports that it configured"
-                                + " nothing and the caller derives the definitions itself.")
-                        .isFalse();
+        final PrepAndExpectedTestData everyTable = PrepAndExpectedTestData
+                .verifyingExpectedTables(new String[0], new String[] {"expected.xml"});
+
+        assertThatThrownBy(() -> new Bare().configureTest(everyTable))
+                .as("An implementation that does not override the bundle method cannot take the"
+                        + " tables from the dataset it loads, and must not silently verify"
+                        + " nothing.")
+                .isInstanceOf(UnsupportedOperationException.class)
+                .hasMessageContaining(Bare.class.getName())
+                .hasMessageContaining("verifyingExpectedTables");
+    }
+
+    @Test
+    void testPreTest_everyExpectedTableBundleAndNotOverridden_throwsUnsupportedOperationException()
+    {
+        final PrepAndExpectedTestData everyTable = PrepAndExpectedTestData
+                .verifyingExpectedTables(new String[0], new String[] {"expected.xml"});
+
+        assertThatThrownBy(() -> new Bare().preTest(everyTable))
+                .as("preTest() has the same refusal as configureTest().")
+                .isInstanceOf(UnsupportedOperationException.class);
+    }
+
+    @Test
+    void testRunTest_everyExpectedTableBundleAndNotOverridden_throwsUnsupportedOperationException()
+    {
+        final PrepAndExpectedTestData everyTable = PrepAndExpectedTestData
+                .verifyingExpectedTables(new String[0], new String[] {"expected.xml"});
+
+        assertThatThrownBy(() -> new Bare().runTest(everyTable, () -> null))
+                .as("runTest() has the same refusal as configureTest().")
+                .isInstanceOf(UnsupportedOperationException.class);
     }
 
     @Test
