@@ -121,14 +121,14 @@ class DefaultDatabaseTesterTest
     }
 
     @Test
-    void testGetOperationListener_noneSet_returnsNull() throws Exception
+    void testGetOperationListener_noneSet_returnsDefaultOperationListener() throws Exception
     {
         final DefaultDatabaseTester tester = new DefaultDatabaseTester(newRealConnection());
 
         assertThat(tester.getOperationListener())
-                .as("getOperationListener() must return null before setOperationListener() is"
-                        + " ever called.")
-                .isNull();
+                .as("getOperationListener() must return the listener the tester would use before"
+                        + " setOperationListener() is ever called, never null.")
+                .isInstanceOf(DefaultOperationListener.class);
     }
 
     @Test
