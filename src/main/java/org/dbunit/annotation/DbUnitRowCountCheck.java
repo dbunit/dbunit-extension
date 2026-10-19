@@ -60,7 +60,8 @@ import org.dbunit.database.DatabaseConfig;
  * {@link #exclude()}; it never replaces them.
  *
  * <p>A method-level annotation overrides a class-level one <em>wholesale</em>, {@link #exclude()}
- * included - the same rule as every other annotation in this family. A method that wants one
+ * included - the same rule as every other annotation in this family except {@link DbUnitConfig},
+ * which merges attribute by attribute. A method that wants one
  * extra exclusion beyond the class-level ones has to repeat them; this is deliberate, since
  * merging would make "why is this table still excluded?" answerable only by reading two
  * declarations.
