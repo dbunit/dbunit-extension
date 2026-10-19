@@ -542,20 +542,6 @@ class AnnotatedTestConfigurationTest
     }
 
     @Test
-    void testFrom_verifyAndVerifyDefinitionsBothSet_throwsIllegalStateException()
-    {
-        final DbUnitExpected expected =
-                WithVerifyAndVerifyDefinitions.class.getAnnotation(DbUnitExpected.class);
-
-        assertThatThrownBy(() -> AnnotatedTestConfiguration
-                .from(WithVerifyAndVerifyDefinitions.class, null, null, null, expected, null,
-                        null))
-                        .as("verify() together with verifyDefinitions() must be rejected as"
-                                + " ambiguous.")
-                        .isInstanceOf(IllegalStateException.class);
-    }
-
-    @Test
     void testFrom_verifyAndVerifyTablesBothSet_throwsIllegalStateException()
     {
         final DbUnitExpected expected =
@@ -570,19 +556,45 @@ class AnnotatedTestConfigurationTest
     }
 
     @Test
-    void testFrom_verifyDefinitionsNarrowedByVerifyTables_selectsNamedTablesFromCatalog()
+    void testFrom_classLevelCatalogMissingATableOfTheExpectedDataset_derivedTableGetsDefaultRules()
+            throws Exception
     {
-        final DbUnitExpected expected =
-                WithCatalogNarrowedByVerifyTables.class.getAnnotation(DbUnitExpected.class);
+        final DbUnitConfig config = AccountOnlyCatalog.class.getAnnotation(DbUnitConfig.class);
+        final DbUnitExpected expected = method(AccountOnlyCatalog.class, "method")
+                .getAnnotation(DbUnitExpected.class);
 
-        final AnnotatedTestConfiguration config = AnnotatedTestConfiguration.from(
-                WithCatalogNarrowedByVerifyTables.class, null, null, null, expected, null,
-                null);
+        final AnnotatedTestConfiguration resolved = AnnotatedTestConfiguration
+                .from(AccountOnlyCatalog.class, config, null, null, expected, null, null);
 
-        assertThat(config.getVerifyTableDefinitions())
-                .as("verifyDefinitions narrowed by verifyTables must select just those"
-                        + " tables from the catalog.")
-                .containsExactly(Catalog.CUSTOMER);
+        final VerifyTableDefinition[] definitions = resolved.getVerifyTableDefinitions();
+        assertThat(definitions).extracting(VerifyTableDefinition::getTableName)
+                .as("The expected dataset decides which tables are verified.")
+                .containsExactlyInAnyOrder("ACCOUNT", "CUSTOMER");
+        assertThat(definitions).as("The catalog's own definition is used for the table it"
+                + " defines.").contains(Catalog.ACCOUNT);
+    }
+
+    @Test
+    void testFrom_classLevelCatalogDefinesATableTheExpectedDatasetLacks_doesNotVerifyIt()
+            throws Exception
+    {
+        final DbUnitConfig config = AuditCatalog.class.getAnnotation(DbUnitConfig.class);
+        final DbUnitExpected expected = method(AuditCatalog.class, "method")
+                .getAnnotation(DbUnitExpected.class);
+
+        final AnnotatedTestConfiguration resolved = AnnotatedTestConfiguration
+                .from(AuditCatalog.class, config, null, null, expected, null, null);
+
+        assertThat(resolved.getVerifyTableDefinitions())
+                .extracting(VerifyTableDefinition::getTableName)
+                .as("A catalog table the expected dataset lacks must not fail the test: the"
+                        + " catalog supplies rules, the dataset decides the tables.")
+                .containsExactlyInAnyOrder("ACCOUNT", "CUSTOMER");
+        assertThat(resolved.derivesVerifyTableDefinitions())
+                .as("The tables still come from the expected dataset.").isTrue();
+        assertThat(resolved.getCatalogDefinitions())
+                .as("The catalog's definitions are the rules those tables are verified with.")
+                .contains(Catalog.ACCOUNT, Catalog.CUSTOMER);
     }
 
     @Test
@@ -985,21 +997,38 @@ class AnnotatedTestConfigurationTest
     }
 
     @DbUnitExpected(value = "expected.xml",
-            verify = @DbUnitVerifyTable("ACCOUNT"), verifyDefinitions = Catalog.class)
-    static class WithVerifyAndVerifyDefinitions
-    {
-    }
-
-    @DbUnitExpected(value = "expected.xml",
             verify = @DbUnitVerifyTable("ACCOUNT"), verifyTables = "ACCOUNT")
     static class WithVerifyAndVerifyTables
     {
     }
 
-    @DbUnitExpected(value = "expected.xml", verifyDefinitions = Catalog.class,
-            verifyTables = "CUSTOMER")
-    static class WithCatalogNarrowedByVerifyTables
+    @DbUnitConfig(verifyDefinitions = AccountOnly.class)
+    static class AccountOnlyCatalog
     {
+        @DbUnitExpected("expected.xml")
+        void method()
+        {
+        }
+    }
+
+    static class AccountOnly
+    {
+        public static final VerifyTableDefinition ACCOUNT = Catalog.ACCOUNT;
+    }
+
+    @DbUnitConfig(verifyDefinitions = {Catalog.class, AuditOnly.class})
+    static class AuditCatalog
+    {
+        @DbUnitExpected("expected.xml")
+        void method()
+        {
+        }
+    }
+
+    static class AuditOnly
+    {
+        public static final VerifyTableDefinition AUDIT =
+                new VerifyTableDefinition("AUDIT", (String[]) null);
     }
 
     @DbUnitConfig(verifyDefinitions = Catalog.class)

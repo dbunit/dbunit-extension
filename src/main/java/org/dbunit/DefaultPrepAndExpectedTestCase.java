@@ -423,11 +423,16 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * {@inheritDoc}
      * <p>
      * Honors {@link PrepAndExpectedTestData#verifyingExpectedTables(String[], String[])}: one
-     * default {@link VerifyTableDefinition} per table of the expected dataset this loads, so
-     * each expected data file is parsed once. A subclass that overrides
+     * {@link VerifyTableDefinition} per table of the expected dataset this loads, the one the
+     * bundle defines for the table when it does and a default one otherwise, so each expected
+     * data file is parsed once. A subclass that overrides
      * {@link #configureTest(VerifyTableDefinition[], String[], String[])} may expect the
      * definitions it is given, so for it they are derived by loading the expected data files
-     * first, and passed on. Fails and cleans up as {@code configureTest} does.
+     * first, and passed on. {@link #preTest(PrepAndExpectedTestData)} and
+     * {@link #runTest(PrepAndExpectedTestData, PrepAndExpectedTestCaseSteps)} do the same for a
+     * subclass that overrides the array {@code preTest} or {@code runTest}. Fails and cleans up
+     * as {@code configureTest} does, also when loading the expected data files for such a
+     * subclass fails.
      */
     @Override
     public void configureTest(final PrepAndExpectedTestData testData) throws Exception
@@ -435,7 +440,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
         if (testData.isVerifyingEveryExpectedTable())
         {
             configureVerifyingEveryExpectedTable(testData.getPrepDataFiles(),
-                    testData.getExpectedDataFiles());
+                    testData.getExpectedDataFiles(), testData.getVerifyTableDefinitions());
         } else
         {
             PrepAndExpectedTestCase.super.configureTest(testData);
@@ -443,24 +448,29 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     }
 
     /**
-     * Configures the test to verify every table of the expected data files, each with a default
-     * definition.
+     * Configures the test to verify every table of the expected data files, each with its
+     * definition from {@code definitions} when that has one and a default one otherwise.
      */
     private void configureVerifyingEveryExpectedTable(final String[] prepDataFiles,
-            final String[] expectedDataFiles) throws Exception
+            final String[] expectedDataFiles, final VerifyTableDefinition[] definitions)
+            throws Exception
     {
-        if (isOverriddenBySubclass("configureTest", VerifyTableDefinition[].class,
-                String[].class, String[].class))
+        if (isArrayConfigureTestOverridden())
         {
-            configureTest(deriveVerifyTableDefinitions(expectedDataFiles), prepDataFiles,
-                    expectedDataFiles);
+            configuringTest(() ->
+            {
+                final VerifyTableDefinition[] derived =
+                        deriveVerifyTableDefinitions(expectedDataFiles, definitions);
+                configureTest(derived, prepDataFiles, expectedDataFiles);
+            });
             return;
         }
 
         configuringTest(() ->
         {
             configureTest(new VerifyTableDefinition[0], prepDataFiles, expectedDataFiles);
-            this.verifyTableDefs = makeDefaultVerifyTableDefinitions(expectedDataSet);
+            this.verifyTableDefs =
+                    makeVerifyTableDefinitions(expectedDataSet.getTableNames(), definitions);
         });
     }
 
@@ -540,41 +550,70 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     }
 
     /**
-     * Makes one default {@link VerifyTableDefinition} per table of the expected data files,
-     * read with the dataFileLoader, in first-seen order. Reads the files only to list their
-     * tables, for a subclass that expects the definitions
+     * Makes one {@link VerifyTableDefinition} per table of the expected data files, read with
+     * the dataFileLoader, in first-seen order. Reads the files only to list their tables, for a
+     * subclass that expects the definitions
      * {@link #configureTest(VerifyTableDefinition[], String[], String[])} is given.
      */
     private VerifyTableDefinition[] deriveVerifyTableDefinitions(
-            final String[] expectedDataFiles) throws DataSetException
+            final String[] expectedDataFiles, final VerifyTableDefinition[] definitions)
+            throws DataSetException
     {
         final Set<String> tableNames = new LinkedHashSet<>();
         for (final String path : expectedDataFiles)
         {
             tableNames.addAll(Arrays.asList(dataFileLoader.load(path).getTableNames()));
         }
-        return makeDefaultVerifyTableDefinitions(tableNames.toArray(new String[0]));
+        return makeVerifyTableDefinitions(tableNames.toArray(new String[0]), definitions);
     }
 
     /**
-     * Makes one default {@link VerifyTableDefinition} per table of the dataset.
+     * Derives the definitions of a bundle that verifies every expected table, for a subclass
+     * that overrides the array {@code preTest} or {@code runTest} and so expects them, as it
+     * does for an overridden array {@code configureTest}. Empties the per-test data when loading
+     * the expected data files fails, as {@link #configuringTest(LifecycleStep)} does, so the
+     * {@code cleanupData()} that follows cleans nothing left over from an earlier test.
      */
-    private VerifyTableDefinition[] makeDefaultVerifyTableDefinitions(
-            final IDataSet dataSet) throws DataSetException
+    private VerifyTableDefinition[] deriveVerifyTableDefinitions(
+            final PrepAndExpectedTestData testData) throws DataSetException
     {
-        return makeDefaultVerifyTableDefinitions(dataSet.getTableNames());
+        try
+        {
+            return deriveVerifyTableDefinitions(testData.getExpectedDataFiles(),
+                    testData.getVerifyTableDefinitions());
+        } catch (final Throwable t)
+        {
+            clearPerTestData();
+            throw t;
+        }
     }
 
-    private VerifyTableDefinition[] makeDefaultVerifyTableDefinitions(
-            final String[] tableNames)
+    /**
+     * Makes one {@link VerifyTableDefinition} per table: the one {@code definitions} holds for
+     * the table, matched by name ignoring case, and a default one for the others.
+     */
+    private VerifyTableDefinition[] makeVerifyTableDefinitions(final String[] tableNames,
+            final VerifyTableDefinition[] definitions)
     {
-        final VerifyTableDefinition[] definitions =
-                new VerifyTableDefinition[tableNames.length];
+        final VerifyTableDefinition[] made = new VerifyTableDefinition[tableNames.length];
         for (int i = 0; i < tableNames.length; i++)
         {
-            definitions[i] = new VerifyTableDefinition(tableNames[i], (String[]) null);
+            made[i] = definitionFor(tableNames[i], definitions);
         }
-        return definitions;
+        return made;
+    }
+
+    private static VerifyTableDefinition definitionFor(final String tableName,
+            final VerifyTableDefinition[] definitions)
+    {
+        for (final VerifyTableDefinition definition : definitions)
+        {
+            if (definition.getTableName().equalsIgnoreCase(tableName))
+            {
+                return definition;
+            }
+        }
+        return new VerifyTableDefinition(tableName, (String[]) null);
     }
 
     /**
@@ -889,18 +928,42 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
 
     /**
      * {@inheritDoc}
+     * <p>
+     * A bundle that verifies every expected table configures the test as
+     * {@link #configureTest(PrepAndExpectedTestData)} does, then sets up the database. A
+     * subclass that overrides {@link #preTest(VerifyTableDefinition[], String[], String[])} is
+     * called instead, as it is for any other bundle, with the definitions derived by loading the
+     * expected data files first.
      */
     @Override
     public void preTest(final PrepAndExpectedTestData testData) throws Exception
     {
         if (testData.isVerifyingEveryExpectedTable())
         {
-            configureTest(testData);
-            preTest();
+            preTestVerifyingEveryExpectedTable(testData);
         } else
         {
             PrepAndExpectedTestCase.super.preTest(testData);
         }
+    }
+
+    /**
+     * Sets up the test for a bundle that verifies every expected table: through the array
+     * {@code preTest} when a subclass overrides it, as for any other bundle, else by
+     * configuring the test from the bundle and setting up the database.
+     */
+    private void preTestVerifyingEveryExpectedTable(final PrepAndExpectedTestData testData)
+            throws Exception
+    {
+        if (isArrayPreTestOverridden())
+        {
+            final VerifyTableDefinition[] derived = deriveVerifyTableDefinitions(testData);
+            preTest(derived, testData.getPrepDataFiles(), testData.getExpectedDataFiles());
+            return;
+        }
+
+        configureTest(testData);
+        preTest();
     }
 
     /**
@@ -917,6 +980,13 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
 
     /**
      * {@inheritDoc}
+     * <p>
+     * A bundle that verifies every expected table prepares the test as
+     * {@link #preTest(PrepAndExpectedTestData)} does. A subclass that overrides
+     * {@link #runTest(VerifyTableDefinition[], String[], String[], PrepAndExpectedTestCaseSteps)}
+     * is called instead, as it is for any other bundle, with the definitions derived by loading
+     * the expected data files first. When loading them fails, nothing has run yet, and the
+     * per-test data is emptied.
      */
     @Override
     public Object runTest(final PrepAndExpectedTestData testData,
@@ -924,9 +994,27 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     {
         if (testData.isVerifyingEveryExpectedTable())
         {
-            return runPreparedTest(() -> preTest(testData), testSteps);
+            return runTestVerifyingEveryExpectedTable(testData, testSteps);
         }
         return PrepAndExpectedTestCase.super.runTest(testData, testSteps);
+    }
+
+    /**
+     * Runs the test for a bundle that verifies every expected table: through the array
+     * {@code runTest} when a subclass overrides it, as for any other bundle, else by preparing
+     * the test from the bundle and running the steps.
+     */
+    private Object runTestVerifyingEveryExpectedTable(final PrepAndExpectedTestData testData,
+            final PrepAndExpectedTestCaseSteps testSteps) throws Exception
+    {
+        if (isArrayRunTestOverridden())
+        {
+            final VerifyTableDefinition[] derived = deriveVerifyTableDefinitions(testData);
+            return runTest(derived, testData.getPrepDataFiles(), testData.getExpectedDataFiles(),
+                    testSteps);
+        }
+
+        return runPreparedTest(() -> preTest(testData), testSteps);
     }
 
     private Object runPreparedTest(final LifecycleStep preTestStep,
@@ -1486,6 +1574,46 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     {
         return isOverriddenBySubclass("loadTableDataFromDatabase", String.class,
                 IDatabaseConnection.class);
+    }
+
+    /**
+     * Returns whether a subclass overrides
+     * {@link #configureTest(VerifyTableDefinition[], String[], String[])}, in which case a
+     * bundle that verifies every expected table passes it the definitions it expects.
+     *
+     * @return True if a subclass overrides it.
+     */
+    private boolean isArrayConfigureTestOverridden()
+    {
+        return isOverriddenBySubclass("configureTest", VerifyTableDefinition[].class,
+                String[].class, String[].class);
+    }
+
+    /**
+     * Returns whether a subclass overrides
+     * {@link #preTest(VerifyTableDefinition[], String[], String[])}, in which case a bundle that
+     * verifies every expected table passes it the definitions it expects.
+     *
+     * @return True if a subclass overrides it.
+     */
+    private boolean isArrayPreTestOverridden()
+    {
+        return isOverriddenBySubclass("preTest", VerifyTableDefinition[].class, String[].class,
+                String[].class);
+    }
+
+    /**
+     * Returns whether a subclass overrides
+     * {@link #runTest(VerifyTableDefinition[], String[], String[], PrepAndExpectedTestCaseSteps)},
+     * in which case a bundle that verifies every expected table passes it the definitions it
+     * expects.
+     *
+     * @return True if a subclass overrides it.
+     */
+    private boolean isArrayRunTestOverridden()
+    {
+        return isOverriddenBySubclass("runTest", VerifyTableDefinition[].class, String[].class,
+                String[].class, PrepAndExpectedTestCaseSteps.class);
     }
 
     /**

@@ -23,7 +23,7 @@ package org.dbunit.annotation.runtime;
 /**
  * The shared rules, and the one message shape, for two checks on an {@code org.dbunit.annotation}
  * attribute: setting two mutually exclusive attributes - {@code @DbUnitExpected}
- * {@code verify()}/{@code verifyDefinitions()}/{@code verifyTables()} - is an error, and a
+ * {@code verify()}/{@code verifyTables()} - is an error, and a
  * factory class returning {@code null} - {@code @DbUnitConfig} {@code databaseTesterFactory()} -
  * is an error. Routing every site's diagnostic through here keeps a user who trips two of them
  * across different attributes from getting two differently shaped messages for the same class of
@@ -48,7 +48,7 @@ public class ProvidedAttribute
      * @param bothSet Whether both were given a non-default value.
      * @param owner The annotation carrying both attributes, e.g. {@code "@DbUnitExpected"}.
      * @param attributeA One attribute, e.g. {@code "verify()"}.
-     * @param attributeB The other, e.g. {@code "verifyDefinitions()"}.
+     * @param attributeB The other, e.g. {@code "verifyTables()"}.
      * @param note An extra sentence appended after {@code "set only one."}, or {@code null} for
      *            none.
      */

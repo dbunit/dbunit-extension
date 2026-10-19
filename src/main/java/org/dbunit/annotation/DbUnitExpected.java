@@ -47,22 +47,33 @@ import org.dbunit.VerifyTableDefinition;
  * composed annotation should be absolute, as a relative one resolves against the class
  * carrying the composed annotation, not the class using it.
  *
- * <p>Which tables to verify, and with what rules, resolves through the following forms so the
- * common cases stay short - highest-priority form first:
+ * <p>The following forms decide which rules verify each table, so the common cases stay short.
+ * dbUnit compares a table only with a {@link VerifyTableDefinition}, so every table of the
+ * expected dataset needs one: {@link #verify()} and {@link #verifyTables()} have to name all of
+ * them, and a class-level {@link DbUnitConfig#verifyDefinitions() catalog} only supplies each
+ * table's rules:
  * <ol>
- *   <li>{@link #verify()} together with {@link #verifyDefinitions()} or {@link #verifyTables()}
- *   - rejected as ambiguous.</li>
- *   <li>{@link #verifyDefinitions()}, else - when this method declares neither it nor
- *   {@link #verify()} - {@link DbUnitConfig#verifyDefinitions()} as the class-level default -
- *   every definition in whichever named catalog class(es) is in play, narrowed to
- *   {@link #verifyTables()} when that is also given.</li>
- *   <li>{@link #verify()} - full per-table rules, inline.</li>
- *   <li>{@link #verifyTables()}, with no catalog in play (neither this method's own
- *   {@link #verifyDefinitions()} nor a class-level {@link DbUnitConfig#verifyDefinitions()}) -
- *   a default {@link VerifyTableDefinition} per named table.</li>
- *   <li>None of the above - a default {@link VerifyTableDefinition} per table in the expected
- *   dataset.</li>
+ *   <li>{@link #verify()} - full per-table rules, inline, for every table of the expected
+ *   dataset. Rejected together with {@link #verifyTables()}.</li>
+ *   <li>{@link #verifyTables()} - every table of the expected dataset, each with its definition
+ *   from the catalog when the catalog defines it and a default {@link VerifyTableDefinition}
+ *   when not.</li>
+ *   <li>None of the above - every table in the expected dataset, with the catalog's definition
+ *   for the tables it defines and a default {@link VerifyTableDefinition} for the others. A
+ *   catalog table the expected dataset lacks is not verified.</li>
  * </ol>
+ *
+ * <p>The test fails when the expected dataset holds a table that {@link #verify()} or
+ * {@link #verifyTables()} does not name, because dbUnit cannot compare a table without a
+ * definition and would otherwise let an expected table go unchecked. A name that the expected
+ * dataset does not hold fails as well, with
+ * {@code Problem obtaining table 'OTHER' from expected dataset}. So the expected dataset holds
+ * only the tables the test verifies. A table that only the teardown operation cleans goes in the
+ * {@link DbUnitPrep} dataset instead, with no rows when it starts empty. A test class that
+ * verifies fewer tables than the expected dataset holds on purpose declares
+ * {@code @DbUnitProperty(name = "allowVerifytabledefinitionExpectedtableCountMismatch",
+ * value = "true")} in the {@link DbUnitConfig#properties()} of its class, which applies to every
+ * test of the class and leaves the tables without a definition unverified.
  *
  * <p>Example:
  * <pre>{@code
@@ -101,36 +112,20 @@ public @interface DbUnitExpected
     String[] value() default {};
 
     /**
-     * Names of the tables to verify, using default verification rules - or, when
-     * {@link #verifyDefinitions()} is also set, the subset of that catalog's tables to select.
+     * Names of the tables to verify, which have to be every table of the expected dataset, with
+     * the rules of the class-level {@link DbUnitConfig#verifyDefinitions() catalog} for a table
+     * it defines and default rules for the others.
      *
-     * @return The table names; empty (the default) means "every table", the exact meaning
-     *         depending on which other members are set - see the class Javadoc.
+     * @return The table names, all the tables of the expected dataset; empty (the default)
+     *         derives one definition for every table of the expected dataset.
      */
     String[] verifyTables() default {};
 
     /**
-     * Full per-table verification rules, inline.
+     * Full per-table verification rules, inline, one for every table of the expected dataset.
      *
-     * @return The table definitions; empty (the default) defers to {@link #verifyTables()} or
-     *         {@link #verifyDefinitions()}.
+     * @return The table definitions; empty (the default) defers to {@link #verifyTables()} or,
+     *         with that empty too, to every table of the expected dataset.
      */
     DbUnitVerifyTable[] verify() default {};
-
-    /**
-     * One or more catalog classes to read shared {@link VerifyTableDefinition}
-     * constants from: plain classes exposing {@code public static final
-     * VerifyTableDefinition} fields. Overrides
-     * {@link DbUnitConfig#verifyDefinitions()} when both are set.
-     *
-     * <p>A catalog is read once and shared by every test naming it for the whole run, its
-     * {@link VerifyTableDefinition} objects included. A test must never change them, through
-     * their setters such as {@code setSortOnFilteredColumnsOnly()} or
-     * {@code setVerifyTableDefinitionVerifier()} included, and a
-     * {@link org.dbunit.assertion.comparer.value.ValueComparer} or verifier inside one must be
-     * stateless; otherwise the result of a later test depends on the order the tests ran in.
-     *
-     * @return The catalog classes; empty (the default) means "not set".
-     */
-    Class<?>[] verifyDefinitions() default {};
 }

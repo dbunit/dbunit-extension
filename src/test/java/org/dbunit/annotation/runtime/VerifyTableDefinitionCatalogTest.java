@@ -253,16 +253,18 @@ class VerifyTableDefinitionCatalogTest
     }
 
     @Test
-    void testSelect_nameAbsentFromCatalog_listsTheTablesWithTheirOwnSpelling()
+    void testSelect_nameAbsentFromCatalog_returnsADefaultDefinitionForIt()
     {
-        final VerifyTableDefinitionCatalog catalog =
-                new VerifyTableDefinitionCatalog(CatalogLowerCaseAccount.class);
+        final VerifyTableDefinitionCatalog catalog = new VerifyTableDefinitionCatalog(
+                ConstantsOnlyCatalog.class);
 
-        assertThatThrownBy(() -> catalog.select("NOT_IN_CATALOG"))
-                .as("The available table names are listed as the catalog spells them, not in"
-                        + " the form it compares them by.")
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("[account]");
+        final VerifyTableDefinition[] selected = catalog.select("NOT_IN_CATALOG");
+
+        assertThat(selected).as("A table the catalog does not define is verified with default"
+                + " rules, as without a catalog.").hasSize(1);
+        assertThat(selected[0].getTableName()).isEqualTo("NOT_IN_CATALOG");
+        assertThat(selected[0].getColumnExclusionFilters())
+                .as("A default definition excludes nothing.").isNull();
     }
 
     @Test
@@ -285,22 +287,6 @@ class VerifyTableDefinitionCatalogTest
         assertThat(catalog.select())
                 .as("No names given must return every definition in the catalog.")
                 .containsExactlyInAnyOrder(CatalogA.ACCOUNT, CatalogB.CUSTOMER);
-    }
-
-    @Test
-    void testSelect_nameAbsentFromCatalog_throwsListingCatalogClassAndAvailableNames()
-    {
-        final VerifyTableDefinitionCatalog catalog = new VerifyTableDefinitionCatalog(
-                ConstantsOnlyCatalog.class);
-
-        assertThatThrownBy(() -> catalog.select("NOT_IN_CATALOG"))
-                .as("An unknown table name must throw, naming the catalog and the"
-                        + " available table names.")
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("NOT_IN_CATALOG")
-                .hasMessageContaining(ConstantsOnlyCatalog.class.getName())
-                .hasMessageContaining("ACCOUNT")
-                .hasMessageContaining("CUSTOMER");
     }
 
     @Test

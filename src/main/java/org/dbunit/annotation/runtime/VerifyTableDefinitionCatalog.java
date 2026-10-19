@@ -35,9 +35,10 @@ import org.dbunit.annotation.DbUnitConfig;
 import org.dbunit.annotation.DbUnitExpected;
 
 /**
- * Reads one or more catalog classes named by {@link DbUnitConfig#verifyDefinitions()} or
- * {@link DbUnitExpected#verifyDefinitions()} and indexes their {@link VerifyTableDefinition}s
- * by table name, for {@link DbUnitExpected#verifyTables()} to select from.
+ * Reads one or more catalog classes named by {@link DbUnitConfig#verifyDefinitions()} and
+ * indexes their {@link VerifyTableDefinition}s by table name, for the tables a test verifies to
+ * take their rules from: {@link DbUnitExpected#verifyTables()} selects from them, and a bare
+ * {@link DbUnitExpected} applies them to the tables of the expected dataset.
  *
  * <p>Each catalog class's {@code public static final VerifyTableDefinition} fields are read
  * directly. The same table name appearing in two catalog classes is rejected rather than
@@ -67,7 +68,6 @@ public class VerifyTableDefinitionCatalog
     private final Map<String, VerifyTableDefinition> definitionsByTableNameKey =
             new LinkedHashMap<>();
     private final Map<String, Class<?>> catalogClassByTableNameKey = new LinkedHashMap<>();
-    private final List<String> catalogClassNames = new ArrayList<>();
 
     /**
      * Returns the catalog for the given classes, reading and merging them only the first time
@@ -80,7 +80,7 @@ public class VerifyTableDefinitionCatalog
      * rest of the JVM run. A catalog is read-only once built, so every thread shares it, and so
      * does every test: its {@link VerifyTableDefinition}s are not copied, so a test that changed
      * one would change it for all the tests after it - see
-     * {@link DbUnitExpected#verifyDefinitions()}.
+     * {@link DbUnitConfig#verifyDefinitions()}.
      *
      * <p>The cache key is order-sensitive: {@code forClasses(A, B)} and {@code forClasses(B, A)}
      * are different combinations, each cached (and merged) separately, even though the same
@@ -116,7 +116,6 @@ public class VerifyTableDefinitionCatalog
     {
         for (final Class<?> catalogClass : catalogClasses)
         {
-            catalogClassNames.add(catalogClass.getName());
             for (final VerifyTableDefinition definition : readDefinitions(catalogClass))
             {
                 addDefinition(catalogClass, definition);
@@ -194,13 +193,13 @@ public class VerifyTableDefinitionCatalog
 
     /**
      * Selects the named tables' definitions, or every definition in the catalog when no names
-     * are given.
+     * are given. A named table the catalog does not define gets a default definition, which
+     * verifies every column of it with the default rules.
      *
      * @param tableNames The table names to select, compared ignoring case; empty selects every
      *            definition in the catalog.
      * @return The selected definitions, in the order named (or catalog order, when every
      *         definition is selected).
-     * @throws IllegalStateException When a named table is not present in the catalog.
      */
     public VerifyTableDefinition[] select(final String... tableNames)
     {
@@ -224,20 +223,8 @@ public class VerifyTableDefinitionCatalog
                 definitionsByTableNameKey.get(TableNameKey.of(tableName));
         if (definition == null)
         {
-            throw new IllegalStateException("Table '" + tableName
-                    + "' not found in catalog class(es) " + catalogClassNames
-                    + ". Available table names: " + availableTableNames() + ".");
+            return new VerifyTableDefinition(tableName, (String[]) null);
         }
         return definition;
-    }
-
-    private List<String> availableTableNames()
-    {
-        final List<String> tableNames = new ArrayList<>(definitionsByTableNameKey.size());
-        for (final VerifyTableDefinition definition : definitionsByTableNameKey.values())
-        {
-            tableNames.add(definition.getTableName());
-        }
-        return tableNames;
     }
 }
