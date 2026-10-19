@@ -31,7 +31,6 @@ import java.util.List;
 
 import org.dbunit.DatabaseEnvironment;
 import org.dbunit.DatabaseProfile;
-import org.dbunit.DatabaseTesterFactory;
 import org.dbunit.DefaultDatabaseTester;
 import org.dbunit.DefaultPrepAndExpectedTestCase;
 import org.dbunit.IDatabaseTester;
@@ -202,7 +201,7 @@ class DbUnitExtensionAnnotationIT
     }
 
     @Test
-    void testAfterTestExecution_injectedTestCaseAndFactoryResolvedTester_verifiesAndCleansUp()
+    void testAfterTestExecution_injectedTestCaseBuiltWithItsTesterAndOperations_verifiesAndCleansUp()
             throws Exception
     {
         final DatabaseEnvironment environment = DatabaseEnvironment.getInstance();
@@ -216,9 +215,9 @@ class DbUnitExtensionAnnotationIT
             // (closeConnectionAfterTest defaults to true), so verify with a fresh one.
             final IDatabaseConnection verifyConnection = environment.getConnection();
             assertThat(rowCount(verifyConnection, TEST_TABLE))
-                    .as("@DbUnitTearDownOperation(DELETE_ALL), driven through the"
-                            + " @DbUnitTestCase-injected PrepAndExpectedTestCase and a"
-                            + " databaseTesterFactory-resolved tester, must have cleaned up.")
+                    .as("The DELETE_ALL teardown operation its tester was built with, driven"
+                            + " through the @DbUnitTestCase-injected PrepAndExpectedTestCase,"
+                            + " must have cleaned up.")
                     .isZero();
         } finally
         {
@@ -555,20 +554,18 @@ class DbUnitExtensionAnnotationIT
     }
 
     @ExtendWith(DbUnitExtension.class)
-    @DbUnitConfig(databaseTesterFactory = InjectedTestCaseSample.Factory.class)
     static class InjectedTestCaseSample
     {
-        // resolved via getDatabaseTester()/setDatabaseTester() round-tripping, from the
-        // Factory below - see DbUnitExtension's tester/test case resolution order.
+        // Used as it is built: with its loader and its tester, which carries the teardown
+        // operation - see DbUnitExtension's tester/test case resolution order.
         @DbUnitTestCase
-        static final DefaultPrepAndExpectedTestCase testCase = new DefaultPrepAndExpectedTestCase();
+        static final DefaultPrepAndExpectedTestCase testCase = newTestCase();
 
         @Test
         @DbUnitPrep("annotation-it-prep.xml")
         @DbUnitExpected(value = "annotation-it-expected.xml",
                 verify = @DbUnitVerifyTable(value = TEST_TABLE,
                         include = {"COLUMN0", "COLUMN1"}))
-        @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
         void testWithdraw_sufficientBalance_decrementsBalance() throws Exception
         {
             final IDatabaseConnection connection = testCase.getDatabaseTester().getConnection();
@@ -579,15 +576,18 @@ class DbUnitExtensionAnnotationIT
             }
         }
 
-        static class Factory implements DatabaseTesterFactory
+        private static DefaultPrepAndExpectedTestCase newTestCase()
         {
-            @Override
-            public IDatabaseTester getDatabaseTester() throws Exception
+            try
             {
                 final IDatabaseTester tester = new DefaultDatabaseTester(
                         DatabaseEnvironment.getInstance().getConnection());
                 tester.setOperationListener(IOperationListener.NO_OP_OPERATION_LISTENER);
-                return tester;
+                tester.setTearDownOperation(DatabaseOperation.DELETE_ALL);
+                return new DefaultPrepAndExpectedTestCase(new FlatXmlDataFileLoader(), tester);
+            } catch (final Exception e)
+            {
+                throw new IllegalStateException("Cannot build the injected test case.", e);
             }
         }
     }

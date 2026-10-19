@@ -51,9 +51,9 @@ import org.mockito.InOrder;
 class TestScopedConnectionTest
 {
     private final ConnectionOwnership alwaysMayClose =
-            new ConnectionOwnership(() -> true, () -> null, () -> true);
+            new ConnectionOwnership(() -> true, () -> null);
     private final ConnectionOwnership neverMayClose =
-            new ConnectionOwnership(() -> false, () -> null, () -> true);
+            new ConnectionOwnership(() -> false, () -> null);
 
     private IDatabaseConnection openConnection() throws SQLException
     {

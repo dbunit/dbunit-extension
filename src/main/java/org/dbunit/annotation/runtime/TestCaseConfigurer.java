@@ -29,48 +29,41 @@ import org.dbunit.DefaultPrepAndExpectedTestCase;
 import org.dbunit.assertion.FailureHandler;
 import org.dbunit.database.DatabaseConfig;
 import org.dbunit.database.DatabaseConfig.ConfigProperty;
-import org.dbunit.util.fileloader.DataFileLoader;
-import org.dbunit.util.fileloader.FileExtensionDataFileLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Pushes the {@code @DbUnitConfig}-driven values that reach an injected {@code @DbUnitTestCase}
- * instance only through its own public API - the data file loader, the failure handler, the
- * {@code @DbUnitProperty} values, {@code closeConnectionAfterTest}, and the
- * {@code @DbUnitRowCountCheck} override - onto that {@link DefaultPrepAndExpectedTestCase}, in a
- * fixed order.
+ * Applies the values a test declares that a {@link DefaultPrepAndExpectedTestCase} can only
+ * receive through its own API - the failure handler, the {@code @DbUnitProperty} values and the
+ * {@code @DbUnitRowCountCheck} override - in a fixed order.
  *
- * <p>Only a value the test actually declares is pushed: an instance built with its own loader,
- * failure handler, properties or {@code closeConnectionAfterTest=false} keeps them when
- * {@code @DbUnitConfig} says nothing about them. The one exception is a missing data file
- * loader, which an instance cannot load datasets without, so it is given the configured one.
- * Declared properties are added to the instance's own rather than replacing them.
- * {@code closeConnectionAfterTest} is declared only by setting it to {@code false}, since the
- * default {@code true} is indistinguishable from not writing it. Each value pushed is recorded
- * as an undo step, returned as an {@link InjectedTestCaseRestoration}, so a shared instance
- * carries nothing from one method to the next.
+ * <p>The loader and the close-connection flag reach a test case dbUnit builds through its
+ * constructor, so this class does not touch them. An injected {@code @DbUnitTestCase} is used as
+ * its owner built it, and {@link InjectedTestCaseDeclarationCheck} rejects what would configure
+ * it other than the row count override, so for it this applies that alone. Declared properties
+ * are added to the test case's own rather than replacing them. Each value applied is recorded as
+ * an undo step, returned as a {@link TestCaseRestoration}, so a shared instance carries nothing
+ * from one method to the next.
  *
  * <p>Not intended for direct use by test code; machinery consumed by {@link ExpectedLifecycle}.
  *
  * @author Jeff Jensen
  * @since 3.6.0
  */
-class InjectedTestCaseConfigurer
+class TestCaseConfigurer
 {
-    private static final Logger log = LoggerFactory.getLogger(InjectedTestCaseConfigurer.class);
+    private static final Logger log = LoggerFactory.getLogger(TestCaseConfigurer.class);
 
     private final AnnotatedTestConfiguration configuration;
     private final DefaultPrepAndExpectedTestCase testCase;
 
     /**
-     * Creates a configurer for one injected test case.
+     * Creates a configurer for one test case.
      *
-     * @param configuration The resolved configuration whose {@code @DbUnitConfig} values to
-     *            apply.
-     * @param testCase The already-constructed {@code @DbUnitTestCase} instance to apply them to.
+     * @param configuration The resolved configuration whose declared values to apply.
+     * @param testCase The test case to apply them to.
      */
-    InjectedTestCaseConfigurer(final AnnotatedTestConfiguration configuration,
+    TestCaseConfigurer(final AnnotatedTestConfiguration configuration,
             final DefaultPrepAndExpectedTestCase testCase)
     {
         this.configuration = configuration;
@@ -78,47 +71,29 @@ class InjectedTestCaseConfigurer
     }
 
     /**
-     * Applies every declared {@code @DbUnitConfig}-driven value to {@link #testCase}, in a fixed
-     * order: data file loader, failure handler, {@code DatabaseConfig} properties,
-     * close-connection flag, then row count check override.
+     * Applies every declared value to {@link #testCase}, in a fixed order: failure handler,
+     * {@code DatabaseConfig} properties, then row count check override.
      *
      * <p>If applying one value fails, the ones already applied are undone before the failure is
-     * thrown, so a failed attempt leaves the instance as it was found.
+     * thrown, so a failed attempt leaves the test case as it was found.
      *
      * @return The restoration that puts back what this applied; undoing it is a no-op when
      *         nothing was applied.
      */
-    InjectedTestCaseRestoration applyAll()
+    TestCaseRestoration applyAll()
     {
         final List<Runnable> undoSteps = new ArrayList<>();
         try
         {
-            applyDataFileLoader(undoSteps);
             applyFailureHandler(undoSteps);
             applyDatabaseConfigProperties(undoSteps);
-            applyCloseConnectionAfterTest(undoSteps);
             applyRowCountCheckOverride(undoSteps);
         } catch (final RuntimeException failure)
         {
-            InjectedTestCaseRestoration.undoSuppressing(
-                    new InjectedTestCaseRestoration(undoSteps), failure);
+            TestCaseRestoration.undoSuppressing(new TestCaseRestoration(undoSteps), failure);
             throw failure;
         }
-        return new InjectedTestCaseRestoration(undoSteps);
-    }
-
-    private void applyDataFileLoader(final List<Runnable> undoSteps)
-    {
-        final DataFileLoader dataFileLoader = configuration.getDataFileLoader();
-        final boolean declared = dataFileLoader.getClass() != FileExtensionDataFileLoader.class;
-        final DataFileLoader incoming = testCase.getDataFileLoader();
-        if (!declared && incoming != null)
-        {
-            return;
-        }
-
-        testCase.setDataFileLoader(dataFileLoader);
-        undoSteps.add(() -> testCase.setDataFileLoader(incoming));
+        return new TestCaseRestoration(undoSteps);
     }
 
     private void applyFailureHandler(final List<Runnable> undoSteps)
@@ -140,7 +115,7 @@ class InjectedTestCaseConfigurer
         final Properties incoming = testCase.getDatabaseConfigProperties();
         if (properties.isEmpty())
         {
-            // Setting the instance's own properties again is what puts back, on a connection it
+            // Setting the test case's own properties again is what puts back, on a connection it
             // kept, the DatabaseConfig values it applied from them, when its lifecycle is
             // abandoned before cleanupData() runs.
             undoSteps.add(() -> testCase.setDatabaseConfigProperties(incoming));
@@ -165,8 +140,8 @@ class InjectedTestCaseConfigurer
     }
 
     /**
-     * Returns whether {@code ownName}, a property name of the instance's own, names a property
-     * {@code declared} also holds. The declared names are the long ones, and the instance's own
+     * Returns whether {@code ownName}, a property name of the test case's own, names a property
+     * {@code declared} also holds. The declared names are the long ones, and the test case's own
      * may be spelled in the short form, so leaving both in would have which value wins depend
      * on the order a {@link Properties} happens to be iterated in.
      */
@@ -178,18 +153,6 @@ class InjectedTestCaseConfigurer
         }
         final ConfigProperty known = DatabaseConfig.findByNameOrShortName((String) ownName);
         return known != null && declared.containsKey(known.getProperty());
-    }
-
-    private void applyCloseConnectionAfterTest(final List<Runnable> undoSteps)
-    {
-        if (configuration.isCloseConnectionAfterTest())
-        {
-            return;
-        }
-
-        final boolean incoming = testCase.isCloseConnectionAfterTest();
-        testCase.setCloseConnectionAfterTest(false);
-        undoSteps.add(() -> testCase.setCloseConnectionAfterTest(incoming));
     }
 
     private void applyRowCountCheckOverride(final List<Runnable> undoSteps)
@@ -220,12 +183,12 @@ class InjectedTestCaseConfigurer
         {
             return;
         }
-        log.warn("DbUnitConfig declares {} @DbUnitProperty value(s) and the injected"
-                + " DbUnitTestCase {} overrides setUpDatabaseConfig(DatabaseConfig); those"
-                + " values reach the connection only if that override calls"
-                + " super.setUpDatabaseConfig(config). Add the super call, or drop"
-                + " properties()/propertiesProvider() and configure the DatabaseConfig"
-                + " entirely in the override.", properties.size(),
+        log.warn("DbUnitConfig declares {} @DbUnitProperty value(s) and the test case class {},"
+                + " which @DbUnitConfig(prepAndExpectedTestCase) names,"
+                + " overrides setUpDatabaseConfig(DatabaseConfig); those values reach the"
+                + " connection only if that override calls super.setUpDatabaseConfig(config)."
+                + " Add the super call, or drop properties()/propertiesProvider() and configure"
+                + " the DatabaseConfig entirely in the override.", properties.size(),
                 testCase.getClass().getName());
     }
 
