@@ -31,22 +31,19 @@ import java.util.List;
 
 import org.dbunit.DatabaseEnvironment;
 import org.dbunit.DatabaseProfile;
-import org.dbunit.DatabaseTesterFactory;
 import org.dbunit.DefaultPrepAndExpectedTestCase;
 import org.dbunit.IDatabaseTester;
 import org.dbunit.JdbcDatabaseTester;
-import org.dbunit.PrepAndExpectedTestCase;
-import org.dbunit.annotation.DbUnitConfig;
 import org.dbunit.annotation.DbUnitExpected;
 import org.dbunit.annotation.DbUnitPrep;
 import org.dbunit.annotation.DbUnitRowCountCheck;
-import org.dbunit.annotation.DbUnitTearDownOperation;
 import org.dbunit.annotation.DbUnitTestCase;
 import org.dbunit.annotation.DbUnitVerifyTable;
 import org.dbunit.database.CachingConnectionProvider;
 import org.dbunit.database.IDatabaseConnection;
 import org.dbunit.database.rowcount.ClearRowCountCheckSystemProperties;
-import org.dbunit.operation.DbUnitOperation;
+import org.dbunit.operation.DatabaseOperation;
+import org.dbunit.util.fileloader.FlatXmlDataFileLoader;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Test;
@@ -58,7 +55,7 @@ import org.junit.platform.testkit.engine.EngineTestKit;
  * exact combination that broke a downstream build three separate ways (issues #962/#964/#965):
  * a single {@link DefaultPrepAndExpectedTestCase} reused across test methods through a
  * {@code @DbUnitTestCase} field, its tester built over a shared {@link CachingConnectionProvider},
- * {@code @DbUnitConfig(closeConnectionAfterTest = false)} so the connection is pinned across
+ * itself built with {@code closeConnectionAfterTest = false} so the connection is pinned across
  * methods, and {@code @DbUnitRowCountCheck} active - then the pinned connection is force-closed
  * between two methods, as a pool max-lifetime reap or a database idle-in-transaction timeout
  * would do.
@@ -67,7 +64,7 @@ import org.junit.platform.testkit.engine.EngineTestKit;
  * {@code DatabaseTesterConnectionReuseIT} (which never goes through {@link DbUnitExtension}) cannot
  * prove the annotation layer stacked on top of that machinery also recovers. This does:
  * every repetition after the kill must re-acquire a live connection rather than fail on the dead
- * one, and every repetition's {@code @DbUnitTearDownOperation} must have actually committed.
+ * one, and every repetition's teardown operation must have actually committed.
  *
  * <p>Matrix rows 8 + G-c5 (see {@code plan-docs/annotation-branch-connection-matrix.adoc}).
  */
@@ -82,8 +79,7 @@ class DbUnitExtensionConnectionReuseIT
         final DatabaseEnvironment environment = DatabaseEnvironment.getInstance();
         final CachingConnectionProvider provider = new CachingConnectionProvider();
         deleteAllRowsQuietly(environment);
-        ReusedInstanceSample.profile = environment.getProfile();
-        ReusedInstanceSample.provider = provider;
+        ReusedInstanceSample.testCase = newTestCase(environment.getProfile(), provider);
         ReusedInstanceSample.reset();
         try
         {
@@ -115,7 +111,7 @@ class DbUnitExtensionConnectionReuseIT
 
             final IDatabaseConnection verifyConnection = environment.getConnection();
             assertThat(rowCount(verifyConnection, TEST_TABLE))
-                    .as("Each repetition's @DbUnitTearDownOperation(DELETE_ALL) must have"
+                    .as("Each repetition's DELETE_ALL teardown operation must have"
                             + " committed:"
                             + " a separate connection must see TEST_TABLE empty after the run,"
                             + " not the rows a never-committed teardown would leave behind"
@@ -127,6 +123,21 @@ class DbUnitExtensionConnectionReuseIT
             provider.close();
             environment.closeConnection();
         }
+    }
+
+    /**
+     * Builds the one instance the sample reuses for the whole class, with everything dbUnit
+     * uses it as built: its loader, its tester over the shared provider with the teardown
+     * operation, and the pinned connection.
+     */
+    private static DefaultPrepAndExpectedTestCase newTestCase(final DatabaseProfile profile,
+            final CachingConnectionProvider provider) throws Exception
+    {
+        final IDatabaseTester tester = new JdbcDatabaseTester(profile.getDriverClass(),
+                profile.getConnectionUrl(), profile.getUser(), profile.getPassword(),
+                profile.getSchema(), provider);
+        tester.setTearDownOperation(DatabaseOperation.DELETE_ALL);
+        return new DefaultPrepAndExpectedTestCase(new FlatXmlDataFileLoader(), tester, false);
     }
 
     private static int rowCount(final IDatabaseConnection connection, final String tableName)
@@ -155,22 +166,17 @@ class DbUnitExtensionConnectionReuseIT
 
     @ExtendWith(DbUnitExtension.class)
     @ClearRowCountCheckSystemProperties
-    @DbUnitConfig(closeConnectionAfterTest = false,
-            databaseTesterFactory = ReusedInstanceSample.SharedProviderTesterFactory.class)
     @DbUnitRowCountCheck
     static class ReusedInstanceSample
     {
-        static DatabaseProfile profile;
-        static CachingConnectionProvider provider;
         static final List<Connection> rawConnectionsSeen = new ArrayList<>();
         static int repetitionsCompleted;
 
         // One instance for the whole class - the reuse-across-methods scenario #962 is about.
-        // The extension resolves its tester once (getDatabaseTester() is null the first
-        // repetition, non-null afterward), so all repetitions share the one tester and the one
+        // It carries its own tester, so all repetitions share the one tester and the one
         // CachingConnectionProvider behind it.
         @DbUnitTestCase
-        static final PrepAndExpectedTestCase testCase = new DefaultPrepAndExpectedTestCase();
+        static DefaultPrepAndExpectedTestCase testCase;
 
         static void reset()
         {
@@ -183,7 +189,6 @@ class DbUnitExtensionConnectionReuseIT
         @DbUnitExpected(value = "annotation-it-expected.xml",
                 verify = @DbUnitVerifyTable(value = TEST_TABLE,
                         include = {"COLUMN0", "COLUMN1"}))
-        @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
         void mutateTheSeededRow() throws Exception
         {
             final IDatabaseConnection connection = reusableConnection();
@@ -201,8 +206,8 @@ class DbUnitExtensionConnectionReuseIT
             repetitionsCompleted++;
             if (repetitionsCompleted == 2)
             {
-                // The 2nd repetition has fully finished - its @DbUnitExpected verify,
-                // @DbUnitTearDownOperation(DELETE_ALL) and @DbUnitRowCountCheck all ran. Now the
+                // The 2nd repetition has fully finished - its @DbUnitExpected verify, the
+                // DELETE_ALL teardown operation and @DbUnitRowCountCheck all ran. Now the
                 // pool or the server drops the idle connection, exactly as an Agroal max-lifetime
                 // reap or a PostgreSQL idle_in_transaction_session_timeout would.
                 reusableConnection().getConnection().close();
@@ -211,18 +216,7 @@ class DbUnitExtensionConnectionReuseIT
 
         private static IDatabaseConnection reusableConnection() throws Exception
         {
-            return ((DefaultPrepAndExpectedTestCase) testCase).getReusableConnection();
-        }
-
-        static class SharedProviderTesterFactory implements DatabaseTesterFactory
-        {
-            @Override
-            public IDatabaseTester getDatabaseTester() throws Exception
-            {
-                return new JdbcDatabaseTester(profile.getDriverClass(),
-                        profile.getConnectionUrl(), profile.getUser(), profile.getPassword(),
-                        profile.getSchema(), provider);
-            }
+            return testCase.getReusableConnection();
         }
     }
 }

@@ -105,7 +105,7 @@ import org.slf4j.LoggerFactory;
  * overrides whichever of the two would otherwise resolve one from the connection's own
  * {@link DatabaseConfig} - for the prep/expected path via
  * {@link DefaultPrepAndExpectedTestCase#setRowCountCheckOverride(boolean, String[])} (applied
- * by {@link InjectedTestCaseConfigurer}), which resolves that connection lazily on its own so
+ * by {@link TestCaseConfigurer}), which resolves that connection lazily on its own so
  * this executor needs none just to build the override.
  *
  * @author Jeff Jensen
@@ -128,7 +128,6 @@ public class AnnotatedTestExecutor
     private boolean afterTestRan;
     private ExecutorOperationListener installedListener;
     private IOperationListener listenerToRestore;
-    private DefaultPrepAndExpectedTestCase testCaseToUnbindTesterFrom;
 
     /**
      * Creates an executor for an annotation-driven test - equivalent to
@@ -190,49 +189,15 @@ public class AnnotatedTestExecutor
             final PrepAndExpectedTestCase prepAndExpectedTestCase,
             final boolean annotationDriven)
     {
-        this(configuration, tester, prepAndExpectedTestCase, annotationDriven, false);
-    }
-
-    /**
-     * Creates an executor for one test from what a binding resolved, taking the tester, the
-     * injected {@link PrepAndExpectedTestCase} if any, and whether the resolution gave that test
-     * case its tester. When it did, {@link #unbindTesterFromInjectedTestCase()} gives the test
-     * case no tester again once the whole test is over, so an injected test case shared across
-     * tests, such as a {@code static} {@code @DbUnitTestCase} field, does not keep the first
-     * test's tester for all the others. Otherwise the same as
-     * {@link #AnnotatedTestExecutor(AnnotatedTestConfiguration, IDatabaseTester, PrepAndExpectedTestCase, boolean)}.
-     *
-     * @param configuration The resolved configuration to execute.
-     * @param resolution The tester, and any injected test case, a binding resolved for this test.
-     * @param annotationDriven Whether the test opted into the {@code org.dbunit.annotation}
-     *            family, as for the other constructor.
-     */
-    public AnnotatedTestExecutor(final AnnotatedTestConfiguration configuration,
-            final TestInstanceTesterResolver.Resolution resolution, final boolean annotationDriven)
-    {
-        this(configuration, resolution.getTester(), resolution.getTestCase(), annotationDriven,
-                resolution.isTesterBoundToTestCase());
-    }
-
-    private AnnotatedTestExecutor(final AnnotatedTestConfiguration configuration,
-            final IDatabaseTester tester,
-            final PrepAndExpectedTestCase prepAndExpectedTestCase,
-            final boolean annotationDriven, final boolean testerBoundToTestCase)
-    {
         this.configuration = configuration;
         this.tester = tester;
         this.annotationDriven = annotationDriven;
-        if (testerBoundToTestCase)
-        {
-            this.testCaseToUnbindTesterFrom = (DefaultPrepAndExpectedTestCase) prepAndExpectedTestCase;
-        }
         this.databaseConfigOverrides =
                 new DatabaseConfigOverrides(configuration.getDatabaseConfigProperties());
         this.expectedLifecycle =
                 new ExpectedLifecycle(configuration, tester, prepAndExpectedTestCase);
         final ConnectionOwnership ownership = new ConnectionOwnership(
-                this::mayCloseConnectionAfterTest, this::testersOperationListener,
-                this::borrowingLifecycleRan);
+                this::mayCloseConnectionAfterTest, this::testersOperationListener);
         this.leftOpenConnectionWarning = new LeftOpenConnectionWarning(ownership, () -> tester);
         this.testScopedConnection = new TestScopedConnection(this::acquireConnection, ownership,
                 this::onConnectionAcquired);
@@ -248,6 +213,23 @@ public class AnnotatedTestExecutor
                     + " read to wrap and put back; leaving it as it is.",
                     tester.getClass().getName());
         }
+    }
+
+    /**
+     * Creates an executor for one test from what a binding resolved: the tester, and the
+     * injected {@link PrepAndExpectedTestCase} if any, which is used as its owner built it.
+     * Otherwise the same as
+     * {@link #AnnotatedTestExecutor(AnnotatedTestConfiguration, IDatabaseTester, PrepAndExpectedTestCase, boolean)}.
+     *
+     * @param configuration The resolved configuration to execute.
+     * @param resolution The tester, and any injected test case, a binding resolved for this test.
+     * @param annotationDriven Whether the test opted into the {@code org.dbunit.annotation}
+     *            family, as for the other constructor.
+     */
+    public AnnotatedTestExecutor(final AnnotatedTestConfiguration configuration,
+            final TestInstanceTesterResolver.Resolution resolution, final boolean annotationDriven)
+    {
+        this(configuration, resolution.getTester(), resolution.getTestCase(), annotationDriven);
     }
 
     /**
@@ -316,18 +298,6 @@ public class AnnotatedTestExecutor
                 || !(testCase instanceof DefaultPrepAndExpectedTestCase)
                 || ((DefaultPrepAndExpectedTestCase) testCase).isCloseConnectionAfterTest();
         return configuredToClose && testCaseCloses;
-    }
-
-    /**
-     * The {@code borrowingLifecycleRan} input to this executor's {@link ConnectionOwnership}:
-     * true unless the connection is held by a reused injected {@code @DbUnitTestCase} instance
-     * whose {@link ExpectedLifecycle#before()} failed before {@code configureTest()} - see
-     * {@link ExpectedLifecycle#isConnectionOwnedByUnconfiguredInjectedTestCase()}.
-     */
-    private boolean borrowingLifecycleRan()
-    {
-        return !(configuration.isExpected()
-                && expectedLifecycle.isConnectionOwnedByUnconfiguredInjectedTestCase());
     }
 
     private IDatabaseConnection acquireConnection() throws Exception
@@ -731,50 +701,6 @@ public class AnnotatedTestExecutor
         if (failure != null)
         {
             throw failure;
-        }
-    }
-
-    /**
-     * Gives the injected test case no tester again, when the resolution gave it this one because
-     * it carried none: the tester was chosen for this test, by a {@code databaseTesterFactory}, an
-     * unmarked field or a Spring bean, and the test case, shared across tests as a
-     * {@code static @DbUnitTestCase} field is, would otherwise keep it - never asking for the
-     * next test's own.
-     *
-     * <p>A binding calls this once the whole test is over, after {@link #afterTest(boolean)} or
-     * {@link #releaseIfAfterTestDidNotRun()} and after any {@code @AfterEach} method, which may
-     * still use the tester through the test case.
-     * {@link DefaultPrepAndExpectedTestCase#setDatabaseTester(IDatabaseTester)} with {@code null}
-     * releases the connection it holds, as {@code DefaultPrepAndExpectedTestCase} does, closing
-     * it only if its {@code closeConnectionAfterTest} says to. That is the instance's own value
-     * by now: a {@code false} the test declared was put back when the test's configuration was
-     * undone. So when the test declared {@code false}, the connection belongs to its real owner,
-     * and the instance is held to that while the tester comes off. A no-op when nothing was
-     * bound, or it was already taken off.
-     */
-    public void unbindTesterFromInjectedTestCase()
-    {
-        final DefaultPrepAndExpectedTestCase testCase = testCaseToUnbindTesterFrom;
-        testCaseToUnbindTesterFrom = null;
-        if (testCase == null)
-        {
-            return;
-        }
-
-        if (configuration.isCloseConnectionAfterTest())
-        {
-            testCase.setDatabaseTester(null);
-            return;
-        }
-
-        final boolean ownCloseConnectionAfterTest = testCase.isCloseConnectionAfterTest();
-        testCase.setCloseConnectionAfterTest(false);
-        try
-        {
-            testCase.setDatabaseTester(null);
-        } finally
-        {
-            testCase.setCloseConnectionAfterTest(ownCloseConnectionAfterTest);
         }
     }
 

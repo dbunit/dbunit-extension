@@ -42,8 +42,9 @@ import org.dbunit.operation.DbUnitOperation;
  * the resolved {@code IDatabaseTester}, which only reaches the actual teardown call when the
  * test case reads its own teardown operation from that same tester the way
  * {@link org.dbunit.DefaultPrepAndExpectedTestCase} does. A {@link DbUnitTestCase} field
- * injecting a different implementation that manages its own tester internally leaves this
- * annotation silently unapplied there.
+ * injecting an already-built test case is used as it was built, with its tester's operations:
+ * declaring this annotation next to one fails fast with {@link IllegalStateException}, so set
+ * the operation on the instance's tester where it is built.
  *
  * <p>Example — delete all rows after each test:
  * <pre>{@code

@@ -70,15 +70,12 @@ class LeftOpenConnectionWarningTest
     private static ConnectionOwnership ownership(final boolean closeConnectionAfterTest,
             final IOperationListener testerListener)
     {
-        return new ConnectionOwnership(() -> closeConnectionAfterTest, () -> testerListener,
-                () -> true);
+        return new ConnectionOwnership(() -> closeConnectionAfterTest, () -> testerListener);
     }
 
     private static ConnectionOwnership ownershipThatMustNotBeConsulted()
     {
         return new ConnectionOwnership(() -> {
-            throw new AssertionError("The ownership must not be consulted.");
-        }, () -> {
             throw new AssertionError("The ownership must not be consulted.");
         }, () -> {
             throw new AssertionError("The ownership must not be consulted.");

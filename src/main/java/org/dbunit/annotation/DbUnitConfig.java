@@ -77,11 +77,9 @@ public @interface DbUnitConfig
      *
      * <p>On the prep/expected path ({@link DbUnitExpected} declared), a freshly-constructed
      * {@link #prepAndExpectedTestCase()} always receives this value through its constructor.
-     * A {@link DbUnitTestCase} field injecting an already-built
-     * {@link DefaultPrepAndExpectedTestCase} also receives it, when this names a non-default
-     * loader or the instance has none of its own. Naming a non-default loader here next to any
-     * other injected {@link PrepAndExpectedTestCase} fails fast with
-     * {@link IllegalStateException}, since that test case loads with its own.
+     * A {@link DbUnitTestCase} field injecting an already-built test case is used as it was
+     * built, with its own loader: naming a non-default loader here next to one fails fast with
+     * {@link IllegalStateException}.
      *
      * <p>A new loader is constructed for each test, so
      * {@link org.dbunit.util.fileloader.CachingFileExtensionDataFileLoader}, which shares what
@@ -95,7 +93,9 @@ public @interface DbUnitConfig
     /**
      * A {@link DatabaseTesterFactory} implementation to reflectively instantiate (with its
      * no-arg constructor) and ask to create the {@code IDatabaseTester} to use, when neither a
-     * {@link DbUnitTestCase} nor a {@link DbUnitTester} field is declared.
+     * {@link DbUnitTestCase} nor a {@link DbUnitTester} field is declared. Naming one next to a
+     * {@link DbUnitTestCase} field fails fast with {@link IllegalStateException}, as the injected
+     * instance carries its own tester.
      *
      * @return The factory class; the interface itself (the default) means "not set", falling
      *         through to the plain field auto-scan.
@@ -107,7 +107,8 @@ public @interface DbUnitConfig
      * prep/expected path when no {@link DbUnitTestCase} field supplies one already, via a
      * constructor accepting {@code (DataFileLoader, IDatabaseTester, boolean)} - the same
      * shape {@link DefaultPrepAndExpectedTestCase} itself has - for example one overriding a
-     * hook such as {@code setUpDatabaseConfig()}.
+     * hook such as {@code setUpDatabaseConfig()}. Naming one next to a {@link DbUnitTestCase}
+     * field, which supplies the test case, fails fast with {@link IllegalStateException}.
      *
      * @return The test case class; defaults to {@link DefaultPrepAndExpectedTestCase}.
      */
@@ -120,10 +121,11 @@ public @interface DbUnitConfig
      *
      * <p>On the prep/expected path ({@link DbUnitExpected} declared), applied by the
      * {@link DefaultPrepAndExpectedTestCase} to its connection. A {@link DbUnitTestCase} field
-     * injecting any other {@link PrepAndExpectedTestCase} fails fast with
-     * {@link IllegalStateException} instead, since that path has no other route to the
-     * connection at all. On the setup/teardown path (no {@link DbUnitExpected}), every value
-     * reaches the tester's connection.
+     * injecting an already-built test case is used as it was built, so declaring these next to
+     * one fails fast with {@link IllegalStateException}: set them where it is built, with
+     * {@link DefaultPrepAndExpectedTestCase#setDatabaseConfigProperties(java.util.Properties)}.
+     * On the setup/teardown path (no {@link DbUnitExpected}), every value reaches the tester's
+     * connection.
      *
      * <p><strong>On the prep/expected path, a {@link DefaultPrepAndExpectedTestCase} subclass
      * that overrides {@code setUpDatabaseConfig(DatabaseConfig)} must call
@@ -179,10 +181,11 @@ public @interface DbUnitConfig
      * The {@link FailureHandler} to hand verification failures to, in place of dbUnit's own
      * default.
      *
-     * <p>Applied by the {@link DefaultPrepAndExpectedTestCase}. A {@link DbUnitTestCase} field
-     * injecting any other {@link PrepAndExpectedTestCase} fails fast with
-     * {@link IllegalStateException} instead, naming the implementation and this attribute,
-     * since a silent no-op here would otherwise leave the configured handler applied nowhere.
+     * <p>Applied by the {@link DefaultPrepAndExpectedTestCase} dbUnit constructs. A
+     * {@link DbUnitTestCase} field injecting an already-built test case is used as it was
+     * built, so declaring this next to one fails fast with {@link IllegalStateException},
+     * naming the implementation and this attribute: set the handler where the instance is
+     * built.
      *
      * @return The failure handler class, reflectively instantiated with its no-arg
      *         constructor; the interface itself (the default) means "not set".
@@ -204,13 +207,12 @@ public @interface DbUnitConfig
      * <p>On the prep/expected path, a freshly constructed {@link #prepAndExpectedTestCase()} -
      * no {@link DbUnitTestCase} field supplies one already - always receives this value through
      * its {@code (DataFileLoader, IDatabaseTester, boolean)} constructor. A
-     * {@link DbUnitTestCase} field injecting an already-built
-     * {@link DefaultPrepAndExpectedTestCase} receives it too when this is {@code false} - the
-     * default {@code true} leaves a value the instance was built with alone. Setting this to
-     * {@code false} next to any other injected {@link PrepAndExpectedTestCase} fails fast with
-     * {@link IllegalStateException}. That connection is also left open when the injected
-     * instance itself reports {@link DefaultPrepAndExpectedTestCase#isCloseConnectionAfterTest()}
-     * as {@code false}, even when this attribute is left at its default.
+     * {@link DbUnitTestCase} field injecting an already-built test case is used as it was
+     * built: setting this to {@code false} next to one fails fast with
+     * {@link IllegalStateException}, so build the instance with the flag it needs. That
+     * connection is also left open when the injected instance itself reports
+     * {@link DefaultPrepAndExpectedTestCase#isCloseConnectionAfterTest()} as {@code false},
+     * even when this attribute is left at its default.
      *
      * <p>Leaving the connection open, by this attribute or the no-op listener, requires a tester
      * that hands out the same connection on repeated calls, as one over a
