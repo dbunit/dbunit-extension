@@ -33,16 +33,15 @@ import org.junit.jupiter.api.Test;
 class ConnectionOwnershipTest
 {
     private static ConnectionOwnership ownership(final boolean closeConnectionAfterTest,
-            final IOperationListener listener, final boolean borrowingLifecycleRan)
+            final IOperationListener listener)
     {
-        return new ConnectionOwnership(() -> closeConnectionAfterTest, () -> listener,
-                () -> borrowingLifecycleRan);
+        return new ConnectionOwnership(() -> closeConnectionAfterTest, () -> listener);
     }
 
     @Test
     void testMayClose_closeConnectionAfterTestFalse_returnsFalse()
     {
-        assertThat(ownership(false, new DefaultOperationListener(), true).mayClose())
+        assertThat(ownership(false, new DefaultOperationListener()).mayClose())
                 .as("closeConnectionAfterTest=false: a real owner closes it elsewhere.")
                 .isFalse();
     }
@@ -50,7 +49,7 @@ class ConnectionOwnershipTest
     @Test
     void testMayClose_listenerUnwrapsToNoOp_returnsFalse()
     {
-        assertThat(ownership(true, IOperationListener.NO_OP_OPERATION_LISTENER, true).mayClose())
+        assertThat(ownership(true, IOperationListener.NO_OP_OPERATION_LISTENER).mayClose())
                 .as("A NO_OP listener is the signal the connection is managed elsewhere.")
                 .isFalse();
     }
@@ -61,27 +60,18 @@ class ConnectionOwnershipTest
         final IOperationListener wrapped = new ConnectionPreservingOperationListener(
                 IOperationListener.NO_OP_OPERATION_LISTENER);
 
-        assertThat(ownership(true, wrapped, true).mayClose())
+        assertThat(ownership(true, wrapped).mayClose())
                 .as("A NO_OP listener still counts when wrapped by a"
                         + " ConnectionPreservingOperationListener.")
                 .isFalse();
     }
 
     @Test
-    void testMayClose_borrowingLifecycleDidNotRun_returnsFalse()
+    void testMayClose_flagSetAndPlainListener_returnsTrue()
     {
-        assertThat(ownership(true, new DefaultOperationListener(), false).mayClose())
-                .as("The borrowing lifecycle never took ownership - e.g. an injected test case"
-                        + " that threw before configureTest() - so leave the connection alone.")
-                .isFalse();
-    }
-
-    @Test
-    void testMayClose_flagSetLifecycleRanAndPlainListener_returnsTrue()
-    {
-        assertThat(ownership(true, new DefaultOperationListener(), true).mayClose())
-                .as("The only combination that closes: the flag is set, the lifecycle ran, and"
-                        + " no listener claims the connection.")
+        assertThat(ownership(true, new DefaultOperationListener()).mayClose())
+                .as("The only combination that closes: the flag is set, and no listener claims"
+                        + " the connection.")
                 .isTrue();
     }
 
@@ -89,7 +79,7 @@ class ConnectionOwnershipTest
     void testMayClose_nullListener_treatedAsNotNoOp()
     {
         final ConnectionOwnership ownership =
-                new ConnectionOwnership(() -> true, () -> null, () -> true);
+                new ConnectionOwnership(() -> true, () -> null);
 
         assertThat(ownership.mayClose())
                 .as("A null listener is not the NO_OP listener, so it does not block a close.")
@@ -101,7 +91,7 @@ class ConnectionOwnershipTest
     {
         final boolean[] closeFlag = {false};
         final ConnectionOwnership ownership = new ConnectionOwnership(() -> closeFlag[0],
-                () -> new DefaultOperationListener(), () -> true);
+                () -> new DefaultOperationListener());
 
         assertThat(ownership.mayClose()).as("Initially the flag is false.").isFalse();
         closeFlag[0] = true;
@@ -111,7 +101,7 @@ class ConnectionOwnershipTest
     @Test
     void testIsLeftOpenByConfiguration_closeConnectionAfterTestFalse_returnsTrue()
     {
-        assertThat(ownership(false, new DefaultOperationListener(), true)
+        assertThat(ownership(false, new DefaultOperationListener())
                 .isLeftOpenByConfiguration())
                         .as("closeConnectionAfterTest=false leaves the connection to a real"
                                 + " owner.")
@@ -121,7 +111,7 @@ class ConnectionOwnershipTest
     @Test
     void testIsLeftOpenByConfiguration_listenerUnwrapsToNoOp_returnsTrue()
     {
-        assertThat(ownership(true, IOperationListener.NO_OP_OPERATION_LISTENER, true)
+        assertThat(ownership(true, IOperationListener.NO_OP_OPERATION_LISTENER)
                 .isLeftOpenByConfiguration())
                         .as("A NO_OP listener is the signal the connection is managed"
                                 + " elsewhere.")
@@ -134,7 +124,7 @@ class ConnectionOwnershipTest
         final IOperationListener wrapped = new ConnectionPreservingOperationListener(
                 IOperationListener.NO_OP_OPERATION_LISTENER);
 
-        assertThat(ownership(true, wrapped, true).isLeftOpenByConfiguration())
+        assertThat(ownership(true, wrapped).isLeftOpenByConfiguration())
                 .as("A NO_OP listener still counts when wrapped by a"
                         + " ConnectionPreservingOperationListener.")
                 .isTrue();
@@ -146,7 +136,7 @@ class ConnectionOwnershipTest
         final IOperationListener blanket =
                 new ConnectionPreservingOperationListener(new DefaultOperationListener());
 
-        assertThat(ownership(true, blanket, true).mayClose())
+        assertThat(ownership(true, blanket).mayClose())
                 .as("A blanket ConnectionPreservingOperationListener says the caller owns every"
                         + " connection, so the lifecycle must not close the one it borrowed.")
                 .isFalse();
@@ -158,7 +148,7 @@ class ConnectionOwnershipTest
         final IOperationListener blanket =
                 new ConnectionPreservingOperationListener(new DefaultOperationListener());
 
-        assertThat(ownership(true, blanket, true).isLeftOpenByConfiguration())
+        assertThat(ownership(true, blanket).isLeftOpenByConfiguration())
                 .as("A blanket ConnectionPreservingOperationListener leaves the connection to"
                         + " its real owner, as the NO_OP listener does.")
                 .isTrue();
@@ -167,31 +157,17 @@ class ConnectionOwnershipTest
     @Test
     void testIsLeftOpenByConfiguration_flagSetAndPlainListener_returnsFalse()
     {
-        assertThat(ownership(true, new DefaultOperationListener(), true)
+        assertThat(ownership(true, new DefaultOperationListener())
                 .isLeftOpenByConfiguration())
                         .as("Nothing in the configuration claims the connection.")
                         .isFalse();
     }
 
     @Test
-    void testIsLeftOpenByConfiguration_borrowingLifecycleDidNotRun_doesNotCount()
-    {
-        final ConnectionOwnership ownership =
-                ownership(true, new DefaultOperationListener(), false);
-
-        assertThat(ownership.isLeftOpenByConfiguration())
-                .as("A lifecycle that never ran is not the configuration leaving the connection"
-                        + " open: the instance holding it closes it its own way.")
-                .isFalse();
-        assertThat(ownership.mayClose())
-                .as("mayClose() still refuses, as that is its own, wider question.").isFalse();
-    }
-
-    @Test
     void testIsLeftOpenByConfiguration_nullListener_treatedAsNotNoOp()
     {
         final ConnectionOwnership ownership =
-                new ConnectionOwnership(() -> true, () -> null, () -> true);
+                new ConnectionOwnership(() -> true, () -> null);
 
         assertThat(ownership.isLeftOpenByConfiguration())
                 .as("A null listener is not the NO_OP listener.").isFalse();
@@ -202,7 +178,7 @@ class ConnectionOwnershipTest
     {
         final boolean[] closeFlag = {true};
         final ConnectionOwnership ownership = new ConnectionOwnership(() -> closeFlag[0],
-                () -> new DefaultOperationListener(), () -> true);
+                () -> new DefaultOperationListener());
 
         assertThat(ownership.isLeftOpenByConfiguration()).as("Initially the flag is set.")
                 .isFalse();

@@ -32,8 +32,8 @@ import org.dbunit.IOperationListener;
  * {@link TestScopedConnection} consults its {@code ConnectionOwnership} in
  * {@link TestScopedConnection#release()}.
  *
- * <p>Three inputs, each read fresh at release time since the tester's listener and the
- * borrowing lifecycle's own state can both still change after this is constructed:
+ * <p>Two inputs, each read fresh at release time since the tester's listener and the
+ * configured flag can both still change after this is constructed:
  *
  * <ol>
  * <li><b>{@code closeConnectionAfterTest}</b> - the {@code @DbUnitConfig} flag, {@code true} by
@@ -47,29 +47,20 @@ import org.dbunit.IOperationListener;
  * {@link ConnectionPreservingOperationListener} layer, which keeps every connection from a
  * close, says the same - see
  * {@link ConnectionPreservingOperationListener#leavesEveryConnectionOpen(IOperationListener)}.</li>
- * <li><b>{@code borrowingLifecycleRan}</b> - whether the borrowing lifecycle actually reached
- * the point of owning the connection. On the setup/teardown path a connection was actually
- * acquired; on the prep/expected path with an injected {@code @DbUnitTestCase}, its
- * {@code configureTest()} completed. When it did not - the injected instance threw before
- * {@code configureTest()}, so its own {@code postTest()}/{@code cleanupData()} never ran to
- * close the connection its way - closing here would strand that reused instance holding a
- * closed connection.</li>
  * </ol>
  *
  * <p>Truth table - "close" only when every input allows it:
  *
  * <pre>
- * closeConnectionAfterTest | listener leaves all open  | borrowing lifecycle ran | -&gt; decision
- * ------------------------- | ------------------------ | ----------------------- | -----------
- *          false            |            -             |            -            |    SKIP
- *          true             |           true           |            -            |    SKIP
- *          true             |          false           |          false          |    SKIP
- *          true             |          false           |          true           |    CLOSE
+ * closeConnectionAfterTest | listener leaves all open  | -&gt; decision
+ * ------------------------- | ------------------------ | -----------
+ *          false            |            -             |    SKIP
+ *          true             |           true           |    SKIP
+ *          true             |          false           |    CLOSE
  * </pre>
  *
- * <p>{@link #isLeftOpenByConfiguration()} answers the narrower question of the first two
- * rows, for a caller that needs to know the configuration leaves the connection to another
- * owner whatever the borrowing lifecycle did.
+ * <p>{@link #isLeftOpenByConfiguration()} answers whether either input leaves the connection
+ * to another owner, for a caller that needs to know.
  *
  * <p>{@link TestScopedConnection#release()} additionally skips a connection that is already
  * closed - an idempotency guard, not part of this decision: on the {@code @DbUnitExpected}
@@ -83,38 +74,32 @@ public class ConnectionOwnership
 {
     private final BooleanSupplier closeConnectionAfterTest;
     private final Supplier<IOperationListener> testerListener;
-    private final BooleanSupplier borrowingLifecycleRan;
 
     /**
-     * Creates an ownership decision from its three inputs, each a supplier read fresh every
+     * Creates an ownership decision from its two inputs, each a supplier read fresh every
      * time {@link #mayClose()} or {@link #isLeftOpenByConfiguration()} is called.
      *
      * @param closeConnectionAfterTest Supplies the {@code @DbUnitConfig} flag.
      * @param testerListener Supplies the tester's current {@link IOperationListener}; may
      *            supply {@code null}, treated as a listener that does not leave every connection
      *            open.
-     * @param borrowingLifecycleRan Supplies whether the borrowing lifecycle reached the point
-     *            of owning the connection.
      */
     public ConnectionOwnership(final BooleanSupplier closeConnectionAfterTest,
-            final Supplier<IOperationListener> testerListener,
-            final BooleanSupplier borrowingLifecycleRan)
+            final Supplier<IOperationListener> testerListener)
     {
         this.closeConnectionAfterTest = closeConnectionAfterTest;
         this.testerListener = testerListener;
-        this.borrowingLifecycleRan = borrowingLifecycleRan;
     }
 
     /**
      * Returns whether the borrowing lifecycle may close the connection it borrowed.
      *
-     * @return {@code true} only when the {@code closeConnectionAfterTest} flag is set, the
-     *         lifecycle actually ran, and the tester's listener does not leave every connection
-     *         open.
+     * @return {@code true} only when the {@code closeConnectionAfterTest} flag is set and the
+     *         tester's listener does not leave every connection open.
      */
     public boolean mayClose()
     {
-        return closeConnectionAfterTest.getAsBoolean() && borrowingLifecycleRan.getAsBoolean()
+        return closeConnectionAfterTest.getAsBoolean()
                 && !ConnectionPreservingOperationListener
                         .leavesEveryConnectionOpen(testerListener.get());
     }
@@ -124,9 +109,8 @@ public class ConnectionOwnership
      * close: the {@code closeConnectionAfterTest} flag is {@code false}, or the tester's
      * listener leaves every connection open - it is (or wraps)
      * {@link IOperationListener#NO_OP_OPERATION_LISTENER}, or has a blanket
-     * {@link ConnectionPreservingOperationListener} layer. That is the first two rows of the
-     * truth table. {@link #mayClose()} also refuses when the borrowing lifecycle did not run,
-     * which is not the configuration's doing, so that input does not count here.
+     * {@link ConnectionPreservingOperationListener} layer. That is the SKIP rows of the truth
+     * table.
      *
      * @return {@code true} when the flag is not set or the tester's listener leaves every
      *         connection open.
