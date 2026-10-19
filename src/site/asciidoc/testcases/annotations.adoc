@@ -417,9 +417,22 @@ those whose implementation class has a no-arg constructor. It does *not*
 reach a `ValueComparers` constant that is a configured instance built with
 constructor arguments — the timestamp-tolerance comparers, for example
 `isActualWithinOneMinuteNewerOfExpectedTimestamp`; naming one of those here
-fails fast with an `IllegalStateException` pointing at
-<<catalog,the catalog>> as the fix, since a configured comparer can only be
-expressed as a `VerifyTableDefinition` constant written in Java.
+fails fast with an `IllegalStateException` naming the two ways to use one. Either
+declare it as a `VerifyTableDefinition` constant in <<catalog,a catalog class>>,
+or name a subclass whose public no-arg constructor passes the arguments on, which
+works inline:
+
+[source,java]
+----
+public class WithinOneMinuteNewer
+        extends IsActualWithinToleranceOfExpectedTimestampValueComparer
+{
+    public WithinOneMinuteNewer()
+    {
+        super(0, 60_000);
+    }
+}
+----
 
 Each comparer class is instantiated once for the whole run and shared by every test that names
 it, in whatever order the tests run, so a custom comparer must be stateless: it keeps nothing
