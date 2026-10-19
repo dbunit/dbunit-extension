@@ -20,7 +20,6 @@
  */
 package org.dbunit.junit.jupiter;
 
-import java.lang.annotation.Annotation;
 import java.lang.reflect.Executable;
 import java.lang.reflect.Method;
 import java.sql.Connection;
@@ -159,8 +158,8 @@ import org.slf4j.LoggerFactory;
  *
  * <h2>Parameter injection</h2>
  *
- * <p>Also a {@link ParameterResolver} for {@link IDatabaseTester}, {@link PrepAndExpectedTestCase},
- * {@link IDatabaseConnection}, and {@link Connection} parameters on {@code @Test} and
+ * <p>Also a {@link ParameterResolver} for {@link IDatabaseTester} and
+ * {@link IDatabaseConnection} parameters on {@code @Test} and
  * {@code @BeforeEach} methods - but only for a test that opts into the
  * {@code org.dbunit.annotation} family: one carrying {@link DbUnitTest @DbUnitTest} or any
  * {@code @DbUnit*} annotation ({@link DbUnitConfig}, {@link DbUnitPrep}, {@link
@@ -169,22 +168,18 @@ import org.slf4j.LoggerFactory;
  * class or method, or a {@link DbUnitTester @DbUnitTester}/{@link DbUnitTestCase @DbUnitTestCase}
  * field. A bare {@code @ExtendWith(DbUnitExtension.class)} class with only a plain, unannotated
  * {@link IDatabaseTester} field keeps the 3.5.0 lifecycle and has no
- * parameter claimed here, so another extension resolving a {@link Connection} (or any of the
- * other three types) on the same test stays unambiguous. Switch such a class to
+ * parameter claimed here, so another extension resolving one of these types on the same test
+ * stays unambiguous. Switch such a class to
  * {@link DbUnitTest @DbUnitTest}, or mark its field {@link DbUnitTester @DbUnitTester}, to opt
  * its parameters in.
  *
- * <p><strong>On an annotation-driven test this extension claims <em>every</em>
- * {@link Connection} parameter</strong> on a {@code @Test}/{@code @BeforeEach} method. Another
- * extension on the same test that also resolves {@code java.sql.Connection} - Spring's
- * {@code SpringExtension}, Testcontainers, a JPA harness - then collides with JUnit's
- * "discovered multiple competing ParameterResolvers". Set
- * {@link DbUnitConfig#injectConnectionParameter() @DbUnitConfig(injectConnectionParameter = false)}
- * to yield the bare {@code Connection} to that extension; the dbUnit-specific
- * {@link IDatabaseConnection} parameter is still resolved (no other framework claims that
- * type) - inject it and call {@code getConnection()}.
+ * <p>A bare {@link Connection} parameter is never resolved here, so Spring's
+ * {@code SpringExtension}, Testcontainers or a JPA harness can supply it without colliding with
+ * JUnit's "discovered multiple competing ParameterResolvers". Take the
+ * {@link IDatabaseConnection} instead and call {@code getConnection()} for the JDBC
+ * connection.
  *
- * <p>The injected {@link IDatabaseConnection}/{@link Connection} is managed for the test's
+ * <p>The injected {@link IDatabaseConnection} is managed for the test's
  * duration and closed afterward - by this extension on the setup/teardown path, by the
  * driven {@link PrepAndExpectedTestCase} on the prep/expected path; do not close it
  * yourself. That includes a {@code @BeforeEach} method that fails after receiving it: the
@@ -282,7 +277,7 @@ public class DbUnitExtension implements BeforeTestExecutionCallback,
     /**
      * Closes the connection a {@code @BeforeEach} parameter resolved when the test method never
      * ran. JUnit Jupiter skips {@link #afterTestExecution(ExtensionContext)} once a
-     * {@code @BeforeEach} method fails, yet an {@code IDatabaseConnection}/{@code Connection}
+     * {@code @BeforeEach} method fails, yet an {@code IDatabaseConnection}
      * parameter on that very method may already have opened a connection for the stored
      * {@link AnnotatedTestExecutor}; nothing else would ever close it. This callback always runs
      * for a test the extension was registered on, and does nothing when
@@ -305,9 +300,9 @@ public class DbUnitExtension implements BeforeTestExecutionCallback,
     }
 
     /**
-     * Reports whether this extension resolves the given parameter: an {@link IDatabaseTester},
-     * {@link PrepAndExpectedTestCase}, {@link IDatabaseConnection}, or {@link Connection}
-     * parameter, declared on the current test method or a {@code @BeforeEach} method - the only
+     * Reports whether this extension resolves the given parameter: an {@link IDatabaseTester}
+     * or {@link IDatabaseConnection} parameter, declared on the current test method or a
+     * {@code @BeforeEach} method - the only
      * two contexts {@link #afterTestExecution(ExtensionContext)} still runs after, so a
      * connection this executor resolves is guaranteed to still be open, and eventually closed,
      * for the parameter's entire lifetime. A matching parameter on any other method
@@ -321,11 +316,9 @@ public class DbUnitExtension implements BeforeTestExecutionCallback,
      * A bare {@code @ExtendWith(DbUnitExtension.class)} class with only a plain, unannotated
      * {@link IDatabaseTester} field is the 3.5.0 lifecycle-only style: it never claimed a
      * parameter before this method existed, and does not now, so another extension resolving
-     * one of these types - {@link Connection} especially - on the same test is not left
-     * competing with an unconditional claim here. An annotation-driven test can still opt its
-     * bare {@link Connection} parameter back out with
-     * {@link DbUnitConfig#injectConnectionParameter() @DbUnitConfig(injectConnectionParameter = false)}
-     * while keeping the other three types.
+     * one of these types on the same test is not left competing with an unconditional claim
+     * here. A bare {@link Connection} parameter is never claimed, annotation-driven test or
+     * not.
      *
      * @param parameterContext The parameter to resolve.
      * @param extensionContext The extension context for the test method.
@@ -340,24 +333,9 @@ public class DbUnitExtension implements BeforeTestExecutionCallback,
     {
         final Class<?> type = parameterContext.getParameter().getType();
         final InjectableParameter injectable = InjectableParameter.forType(type);
-        final boolean typeSupported = injectable != null
-                && (injectable != InjectableParameter.JDBC_CONNECTION
-                        || claimsBareConnectionParameter(extensionContext));
-        return typeSupported
+        return injectable != null
                 && isTestMethodOrBeforeEach(parameterContext, extensionContext)
                 && isAnnotationDriven(extensionContext);
-    }
-
-    /**
-     * Returns whether this extension resolves a bare {@link Connection} parameter for the
-     * current test - {@link DbUnitConfig#injectConnectionParameter()}, {@code true} by default.
-     * Set {@code false} to yield {@code java.sql.Connection} to a co-registered resolver
-     * (Spring, Testcontainers, ...); the {@link IDatabaseConnection} parameter is unaffected.
-     */
-    private boolean claimsBareConnectionParameter(final ExtensionContext context)
-    {
-        final DbUnitConfig config = findAnnotation(context, DbUnitConfig.class);
-        return config == null || config.injectConnectionParameter();
     }
 
     /**
@@ -412,15 +390,9 @@ public class DbUnitExtension implements BeforeTestExecutionCallback,
      * {@code beforeTestExecution} runs) rather than resolving a second tester or test case
      * independently.
      *
-     * <p>A {@link PrepAndExpectedTestCase} parameter requires a {@link DbUnitTestCase @DbUnitTestCase}
-     * field: without one, the executor may not have constructed its own instance yet - see
-     * {@link AnnotatedTestExecutor#getPrepAndExpectedTestCase()} - so there is no single
-     * instance to inject.
-     *
      * @param parameterContext The parameter to resolve.
      * @param extensionContext The extension context for the test method.
-     * @return The resolved {@link IDatabaseTester}, {@link PrepAndExpectedTestCase},
-     *         {@link IDatabaseConnection}, or {@link Connection} value.
+     * @return The resolved {@link IDatabaseTester} or {@link IDatabaseConnection} value.
      * @throws ParameterResolutionException If no test instance exists yet, or if resolution
      *             otherwise fails. The first is not reachable through JUnit Jupiter's own
      *             engine for a parameter this class actually claims - a static-scope context
@@ -437,10 +409,10 @@ public class DbUnitExtension implements BeforeTestExecutionCallback,
         if (!extensionContext.getTestInstances().isPresent())
         {
             throw new ParameterResolutionException("Cannot inject a dbUnit parameter of type "
-                    + type.getName() + " here; IDatabaseTester, PrepAndExpectedTestCase,"
-                    + " IDatabaseConnection, and Connection parameters are only supported for"
-                    + " @Test and @BeforeEach methods, where a test instance already exists -"
-                    + " not @BeforeAll or other static-scope contexts.");
+                    + type.getName() + " here; IDatabaseTester and IDatabaseConnection"
+                    + " parameters are only supported for @Test and @BeforeEach methods, where"
+                    + " a test instance already exists - not @BeforeAll or other static-scope"
+                    + " contexts.");
         }
         try
         {
@@ -493,41 +465,15 @@ public class DbUnitExtension implements BeforeTestExecutionCallback,
         return AnnotatedTestConfiguration.from(testClass, lookup);
     }
 
-    private <A extends Annotation> A findAnnotation(final ExtensionContext context,
-            final Class<A> annotationType)
-    {
-        return new ContextAnnotationLookup(context).find(annotationType);
-    }
-
     /**
      * The parameter types this extension resolves, each paired with how to obtain its value
      * from the resolved {@link AnnotatedTestExecutor}, in resolution order.
      * {@link #supportsParameter(ParameterContext, ExtensionContext)} and
      * {@link #resolveParameter(ParameterContext, ExtensionContext)} both consult this one list,
-     * so a supported type cannot be declared in one and forgotten in the other. The bare
-     * {@link Connection} opt-out ({@link #claimsBareConnectionParameter(ExtensionContext)}) is a
-     * separate gate layered on top, since it turns one entry off per test rather than adding or
-     * removing a type.
+     * so a supported type cannot be declared in one and forgotten in the other.
      */
     private enum InjectableParameter
     {
-        /** A {@link PrepAndExpectedTestCase}, from the {@code @DbUnitTestCase} field. */
-        PREP_AND_EXPECTED_TEST_CASE(PrepAndExpectedTestCase.class)
-        {
-            @Override
-            Object resolve(final AnnotatedTestExecutor executor)
-            {
-                final PrepAndExpectedTestCase testCase = executor.getPrepAndExpectedTestCase();
-                if (testCase == null)
-                {
-                    throw new IllegalStateException("No PrepAndExpectedTestCase available to"
-                            + " inject; declare a @DbUnitTestCase field so there is a single"
-                            + " instance to use.");
-                }
-                return testCase;
-            }
-        },
-
         /** The {@link IDatabaseTester} this executor drives. */
         DATABASE_TESTER(IDatabaseTester.class)
         {
@@ -551,17 +497,13 @@ public class DbUnitExtension implements BeforeTestExecutionCallback,
             @Override
             Object resolve(final AnnotatedTestExecutor executor) throws Exception
             {
-                return requireConnection(executor);
-            }
-        },
-
-        /** The underlying JDBC {@link Connection}, unwrapped from the shared {@link IDatabaseConnection}. */
-        JDBC_CONNECTION(Connection.class)
-        {
-            @Override
-            Object resolve(final AnnotatedTestExecutor executor) throws Exception
-            {
-                return requireConnection(executor).getConnection();
+                final IDatabaseConnection connection = executor.getConnection();
+                if (connection == null)
+                {
+                    throw new IllegalStateException("IDatabaseTester#getConnection() returned"
+                            + " null; cannot inject an IDatabaseConnection parameter.");
+                }
+                return connection;
             }
         };
 
@@ -581,24 +523,10 @@ public class DbUnitExtension implements BeforeTestExecutionCallback,
          */
         abstract Object resolve(AnnotatedTestExecutor executor) throws Exception;
 
-        private static IDatabaseConnection requireConnection(final AnnotatedTestExecutor executor)
-                throws Exception
-        {
-            final IDatabaseConnection connection = executor.getConnection();
-            if (connection == null)
-            {
-                throw new IllegalStateException("IDatabaseTester#getConnection() returned"
-                        + " null; cannot inject an IDatabaseConnection or Connection"
-                        + " parameter.");
-            }
-            return connection;
-        }
-
         /**
          * Returns the entry whose type is exactly {@code parameterType}, or {@code null} when
-         * none is. A subtype is not matched: the value injected is whatever the tester or test
-         * case happens to be, not necessarily an instance of the subtype, and a vendor subtype
-         * of {@link Connection} belongs to whichever resolver knows how to produce it.
+         * none is. A subtype is not matched: the value injected is whatever the tester happens
+         * to be, not necessarily an instance of the subtype.
          *
          * @param parameterType The declared parameter type.
          * @return The matching entry, or {@code null}.

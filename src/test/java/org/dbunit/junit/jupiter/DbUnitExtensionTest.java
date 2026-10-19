@@ -176,7 +176,7 @@ class DbUnitExtensionTest
     {
         doReturn(AnnotationDrivenHost.class).when(context).getRequiredTestClass();
         for (final Class<?> methodParam : new Class<?>[] {IDatabaseTester.class,
-                PrepAndExpectedTestCase.class, IDatabaseConnection.class, Connection.class})
+                IDatabaseConnection.class})
         {
             final Method method = ParameterHost.class
                     .getDeclaredMethod("with" + methodParam.getSimpleName(), methodParam);
@@ -193,41 +193,24 @@ class DbUnitExtensionTest
     }
 
     @Test
-    void testSupportsParameter_bareConnectionWithInjectConnectionParameterFalse_returnsFalse()
-            throws Exception
+    void testSupportsParameter_connectionAndTestCaseTypes_returnsFalse() throws Exception
     {
-        // @DbUnitConfig(injectConnectionParameter = false) yields java.sql.Connection to a
-        // co-registered resolver (Spring, Testcontainers, ...) so JUnit does not fail with
-        // "discovered multiple competing ParameterResolvers".
-        doReturn(NoConnectionInjectionHost.class).when(context).getRequiredTestClass();
-        final Method method = ParameterHost.class
-                .getDeclaredMethod("withConnection", Connection.class);
-        final ParameterContext parameterContext = mock(ParameterContext.class);
-        when(parameterContext.getParameter()).thenReturn(method.getParameters()[0]);
-        when(context.getTestMethod()).thenReturn(Optional.of(method));
+        // java.sql.Connection is left to Spring's SpringExtension, Testcontainers or a JPA
+        // harness, so JUnit does not fail with "discovered multiple competing
+        // ParameterResolvers"; the test case is reached through its @DbUnitTestCase field.
+        for (final Class<?> methodParam : new Class<?>[] {PrepAndExpectedTestCase.class,
+                Connection.class})
+        {
+            final Method method = ParameterHost.class
+                    .getDeclaredMethod("with" + methodParam.getSimpleName(), methodParam);
+            final ParameterContext parameterContext = mock(ParameterContext.class);
+            when(parameterContext.getParameter()).thenReturn(method.getParameters()[0]);
 
-        assertThat(extension.supportsParameter(parameterContext, context))
-                .as("A bare java.sql.Connection parameter must not be claimed when"
-                        + " @DbUnitConfig(injectConnectionParameter = false).")
-                .isFalse();
-    }
-
-    @Test
-    void testSupportsParameter_iDatabaseConnectionWithInjectConnectionParameterFalse_stillReturnsTrue()
-            throws Exception
-    {
-        doReturn(NoConnectionInjectionHost.class).when(context).getRequiredTestClass();
-        final Method method = ParameterHost.class
-                .getDeclaredMethod("withIDatabaseConnection", IDatabaseConnection.class);
-        final ParameterContext parameterContext = mock(ParameterContext.class);
-        when(parameterContext.getParameter()).thenReturn(method.getParameters()[0]);
-        when(parameterContext.getDeclaringExecutable()).thenReturn(method);
-        when(context.getTestMethod()).thenReturn(Optional.of(method));
-
-        assertThat(extension.supportsParameter(parameterContext, context))
-                .as("injectConnectionParameter = false must drop only the bare Connection"
-                        + " claim; the dbUnit-specific IDatabaseConnection is still resolved.")
-                .isTrue();
+            assertThat(extension.supportsParameter(parameterContext, context))
+                    .as(methodParam.getName() + " must not be a parameter this extension"
+                            + " claims, annotation-driven test or not.")
+                    .isFalse();
+        }
     }
 
     @Test
@@ -236,11 +219,11 @@ class DbUnitExtensionTest
     {
         // A bare @ExtendWith(DbUnitExtension.class) class with only a plain, unannotated
         // IDatabaseTester field - the 3.5.0 lifecycle-only style - must not have its parameters
-        // claimed, so another extension resolving a Connection on the same test stays
+        // claimed, so another extension resolving one of these types on the same test stays
         // unambiguous.
         doReturn(HasTwoUnmarkedTesterFields.class).when(context).getRequiredTestClass();
         final Method method = ParameterHost.class
-                .getDeclaredMethod("withConnection", Connection.class);
+                .getDeclaredMethod("withIDatabaseConnection", IDatabaseConnection.class);
         final ParameterContext parameterContext = mock(ParameterContext.class);
         when(parameterContext.getParameter()).thenReturn(method.getParameters()[0]);
         when(parameterContext.getDeclaringExecutable()).thenReturn(method);
@@ -307,25 +290,22 @@ class DbUnitExtensionTest
     }
 
     @Test
-    void testResolveParameter_connectionType_returnsUnderlyingJdbcConnection() throws Exception
+    void testResolveParameter_iDatabaseConnectionType_returnsTestersConnection() throws Exception
     {
         final IDatabaseTester tester = mock(IDatabaseTester.class);
         final IDatabaseConnection databaseConnection = mock(IDatabaseConnection.class);
-        final Connection jdbcConnection = mock(Connection.class);
         when(tester.getConnection()).thenReturn(databaseConnection);
-        when(databaseConnection.getConnection()).thenReturn(jdbcConnection);
         givenTestInstance(new HasTester(tester), HasTester.class);
-        final Method method =
-                ParameterHost.class.getDeclaredMethod("withConnection", Connection.class);
+        final Method method = ParameterHost.class
+                .getDeclaredMethod("withIDatabaseConnection", IDatabaseConnection.class);
         final ParameterContext parameterContext = mock(ParameterContext.class);
         when(parameterContext.getParameter()).thenReturn(method.getParameters()[0]);
 
         final Object resolved = extension.resolveParameter(parameterContext, context);
 
         assertThat(resolved)
-                .as("A Connection parameter must resolve to the IDatabaseConnection's"
-                        + " underlying JDBC Connection, not the IDatabaseConnection itself.")
-                .isSameAs(jdbcConnection);
+                .as("An IDatabaseConnection parameter must resolve to the tester's connection.")
+                .isSameAs(databaseConnection);
     }
 
     @Test
@@ -350,7 +330,7 @@ class DbUnitExtensionTest
     }
 
     @Test
-    void testResolveParameter_connectionTypeAndTesterConnectionIsNull_throwsClearParameterResolutionException()
+    void testResolveParameter_iDatabaseConnectionTypeAndTesterConnectionIsNull_throwsClearParameterResolutionException()
             throws Exception
     {
         final IDatabaseTester tester = mock(IDatabaseTester.class);
@@ -363,32 +343,12 @@ class DbUnitExtensionTest
 
         assertThatThrownBy(() -> extension.resolveParameter(parameterContext, context))
                 .as("IDatabaseTester#getConnection() returning null must be reported clearly"
-                        + " when injecting an IDatabaseConnection/Connection parameter, not"
+                        + " when injecting an IDatabaseConnection parameter, not"
                         + " left as a bare NullPointerException from calling getConnection()"
                         + " on the result.")
                 .isInstanceOf(ParameterResolutionException.class)
                 .cause().isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("getConnection()").hasMessageContaining("null");
-    }
-
-    @Test
-    void testResolveParameter_prepAndExpectedTestCaseTypeWithNoTestCaseField_throwsClearParameterResolutionException()
-            throws Exception
-    {
-        final IDatabaseTester tester = mock(IDatabaseTester.class);
-        givenTestInstance(new HasTester(tester), HasTester.class);
-        final Method method = ParameterHost.class.getDeclaredMethod(
-                "withPrepAndExpectedTestCase", PrepAndExpectedTestCase.class);
-        final ParameterContext parameterContext = mock(ParameterContext.class);
-        when(parameterContext.getParameter()).thenReturn(method.getParameters()[0]);
-
-        assertThatThrownBy(() -> extension.resolveParameter(parameterContext, context))
-                .as("A PrepAndExpectedTestCase parameter with no @DbUnitTestCase field to"
-                        + " supply a single instance must be rejected with a clear message"
-                        + " instead of an opaque failure.")
-                .isInstanceOf(ParameterResolutionException.class)
-                .cause().isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("@DbUnitTestCase");
     }
 
     @Test
@@ -485,12 +445,6 @@ class DbUnitExtensionTest
     /** A test class carrying a @DbUnit* annotation, so its parameters are injectable. */
     @DbUnitConfig
     static class AnnotationDrivenHost
-    {
-    }
-
-    /** Annotation-driven, but opts its bare java.sql.Connection parameter back out. */
-    @DbUnitConfig(injectConnectionParameter = false)
-    static class NoConnectionInjectionHost
     {
     }
 }

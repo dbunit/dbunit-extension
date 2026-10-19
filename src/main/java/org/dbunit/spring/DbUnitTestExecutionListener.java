@@ -116,14 +116,12 @@ import org.springframework.util.ClassUtils;
  *
  * <h2>Not supported: parameter injection</h2>
  *
- * <p>Unlike {@code DbUnitExtension}, this listener never injects an {@code IDatabaseTester},
- * {@code PrepAndExpectedTestCase}, or connection as a test method parameter - Spring's
+ * <p>Unlike {@code DbUnitExtension}, this listener never injects an {@code IDatabaseTester} or
+ * connection as a test method parameter - Spring's
  * {@code TestExecutionListener} has no equivalent of JUnit 5's {@code ParameterResolver}. Declare
  * a {@code @DbUnitTester}/{@code @DbUnitTestCase} field, or autowire the {@code IDatabaseTester}
  * bean, to reach it from the test method; {@code SpringExtension} itself resolves
  * {@code @Autowired} test method parameters, so the bean can be a parameter too.
- * {@code @DbUnitConfig(injectConnectionParameter)} is specific to the JUnit 5 binding and has no
- * effect here.
  *
  * <h2>Rolled-back transactional tests</h2>
  *
