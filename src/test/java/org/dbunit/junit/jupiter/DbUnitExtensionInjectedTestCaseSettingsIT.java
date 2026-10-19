@@ -29,14 +29,14 @@ import java.sql.Statement;
 import org.dbunit.DatabaseEnvironment;
 import org.dbunit.DefaultDatabaseTester;
 import org.dbunit.DefaultPrepAndExpectedTestCase;
-import org.dbunit.PrepAndExpectedTestCase;
+import org.dbunit.IDatabaseTester;
 import org.dbunit.annotation.DbUnitExpected;
 import org.dbunit.annotation.DbUnitPrep;
 import org.dbunit.annotation.DbUnitTearDownOperation;
 import org.dbunit.annotation.DbUnitTestCase;
 import org.dbunit.annotation.DbUnitVerifyTable;
 import org.dbunit.database.IDatabaseConnection;
-import org.dbunit.operation.DbUnitOperation;
+import org.dbunit.operation.DatabaseOperation;
 import org.dbunit.util.fileloader.FlatXmlDataFileLoader;
 import org.dbunit.util.fileloader.FullXmlDataFileLoader;
 import org.junit.jupiter.api.Test;
@@ -66,7 +66,8 @@ class DbUnitExtensionInjectedTestCaseSettingsIT
             environment.deleteAllRows(TEST_TABLE);
             final IDatabaseConnection connection = environment.getConnection();
             KeepsConnectionSample.testCase = new DefaultPrepAndExpectedTestCase(
-                    new FlatXmlDataFileLoader(), new DefaultDatabaseTester(connection), false);
+                    new FlatXmlDataFileLoader(), testerDeletingAllRowsAfterwards(connection),
+                    false);
 
             EngineTestKit.engine("junit-jupiter")
                     .selectors(selectClass(KeepsConnectionSample.class)).execute().testEvents()
@@ -93,7 +94,8 @@ class DbUnitExtensionInjectedTestCaseSettingsIT
         {
             final IDatabaseConnection connection = environment.getConnection();
             KeepsConnectionWithParameterSample.testCase = new DefaultPrepAndExpectedTestCase(
-                    new FlatXmlDataFileLoader(), new DefaultDatabaseTester(connection), false);
+                    new FlatXmlDataFileLoader(), testerDeletingAllRowsAfterwards(connection),
+                    false);
 
             EngineTestKit.engine("junit-jupiter")
                     .selectors(selectClass(KeepsConnectionWithParameterSample.class)).execute()
@@ -119,7 +121,8 @@ class DbUnitExtensionInjectedTestCaseSettingsIT
         {
             final IDatabaseConnection connection = environment.getConnection();
             OwnLoaderSample.testCase = new DefaultPrepAndExpectedTestCase(
-                    new FullXmlDataFileLoader(), new DefaultDatabaseTester(connection), false);
+                    new FullXmlDataFileLoader(), testerDeletingAllRowsAfterwards(connection),
+                    false);
 
             EngineTestKit.engine("junit-jupiter").selectors(selectClass(OwnLoaderSample.class))
                     .execute().testEvents()
@@ -128,6 +131,18 @@ class DbUnitExtensionInjectedTestCaseSettingsIT
         {
             environment.closeConnection();
         }
+    }
+
+    /**
+     * The teardown operation is the tester's, as an injected test case is used as it was built:
+     * {@code @DbUnitTearDownOperation} cannot be declared next to it.
+     */
+    private static IDatabaseTester testerDeletingAllRowsAfterwards(
+            final IDatabaseConnection connection)
+    {
+        final IDatabaseTester tester = new DefaultDatabaseTester(connection);
+        tester.setTearDownOperation(DatabaseOperation.DELETE_ALL);
+        return tester;
     }
 
     @ExtendWith(DbUnitExtension.class)
@@ -140,7 +155,6 @@ class DbUnitExtensionInjectedTestCaseSettingsIT
         @DbUnitPrep("annotation-it-prep.xml")
         @DbUnitExpected(value = "annotation-it-expected.xml",
                 verify = @DbUnitVerifyTable(value = TEST_TABLE, include = {"COLUMN0", "COLUMN1"}))
-        @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
         void mutateTheSeededRow() throws Exception
         {
             final IDatabaseConnection connection = testCase.getDatabaseTester().getConnection();
@@ -162,7 +176,6 @@ class DbUnitExtensionInjectedTestCaseSettingsIT
         @DbUnitPrep("annotation-it-prep.xml")
         @DbUnitExpected(value = "annotation-it-expected.xml",
                 verify = @DbUnitVerifyTable(value = TEST_TABLE, include = {"COLUMN0", "COLUMN1"}))
-        @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
         void mutateTheSeededRow(final Connection connection) throws Exception
         {
             try (Statement statement = connection.createStatement())
@@ -182,7 +195,6 @@ class DbUnitExtensionInjectedTestCaseSettingsIT
         @Test
         @DbUnitPrep("annotation-it-full-prep.xml")
         @DbUnitExpected("annotation-it-full-expected.xml")
-        @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
         void mutateTheSeededRow() throws Exception
         {
             final IDatabaseConnection connection = testCase.getDatabaseTester().getConnection();

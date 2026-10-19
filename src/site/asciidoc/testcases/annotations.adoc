@@ -152,22 +152,14 @@ shadows an enclosing one. Ambiguity is only ever rejected with
 two fields with the same marker there, or both a `@DbUnitTester` and a
 `@DbUnitTestCase` field declared on that same instance.
 
-A `@DbUnitTestCase` field resolving tier 1 does not, by itself, remove the
-need for a tester when it is a `DefaultPrepAndExpectedTestCase` that carries
-none: tier 3-4 still run afterward - tier 2's `@DbUnitTester` field is not
-consulted here - since the extension's own machinery - installing the
-`@DbUnitProperty` listener, and any `IDatabaseTester` parameter injection -
-needs one regardless. The tester found this way is also wired onto the
-instance for that test, and taken off it again when the whole test is over
-(under `DbUnitExtension`, after any `@AfterEach` method, which can still use
-it), so an instance shared across tests, such as a `static` field, is given
-each test's own tester rather than keeping the first. The connection the
-instance holds is released then as it is after the test: left open when the
-test declares `closeConnectionAfterTest = false`, for its real owner. A
-`@DbUnitTester` field is not a substitute for a tester: it is rejected
-outright alongside `@DbUnitTestCase` (see above). Any other
-`PrepAndExpectedTestCase` implementation tells dbUnit of no tester, and
-needs none - see <<othertestcase>>.
+A `@DbUnitTestCase` field resolving tier 1 supplies the tester too, when it is a
+`DefaultPrepAndExpectedTestCase`: its own, which it must already have, as dbUnit uses
+the instance as its owner built it (<<injected-testcase-config>>). An instance without a tester
+is rejected with an `IllegalStateException` that says to give it one where it is built, and
+tiers 2 to 4 and `databaseTesterFactory` are not consulted for it. A `@DbUnitTester` field is not
+a substitute for a tester: it is rejected outright alongside `@DbUnitTestCase` (see above). Any
+other `PrepAndExpectedTestCase` implementation tells dbUnit of no tester, and needs none - see
+<<othertestcase>>.
 
 [#othertestcase]
 === A Test Case That Is Not a DefaultPrepAndExpectedTestCase
@@ -322,7 +314,9 @@ the prep/expected path the test case prepares and cleans up with the `@DbUnitPre
 `@DbUnitExpected` datasets, not with one set on the tester. So `@DbUnitPrep("a.xml")` alone runs
 `CLEAN_INSERT` even on a tester already set to `REFRESH`, which would have kept the rows already
 there; declare `@DbUnitSetUpOperation(DbUnitOperation.REFRESH)` alongside it to keep that
-operation. Each replacement lasts for that test only.
+operation. Each replacement lasts for that test only. An injected `@DbUnitTestCase` is the
+exception: it runs with its tester's operations as its owner set them, so neither annotation
+replaces them, and declaring either next to it is rejected - see <<injected-testcase-config>>.
 
 *Nothing bleeds between test methods.* Each method's resolved annotations —
 its own, plus any inherited from its class or a parent class — fully
@@ -363,8 +357,7 @@ so the common cases stay short:
 
 |nothing |Verify every table in the expected dataset, default rules per
 table. The tables are read with the same data file loader that later compares
-the dataset: an injected `@DbUnitTestCase` instance's own loader when it keeps
-one.
+the dataset: an injected `@DbUnitTestCase` instance's own loader.
 
 |`verifyTables = {"ACCOUNT", "TXN"}` |Verify exactly these tables. Narrows a
 class- or method-level `verifyDefinitions` catalog to just these tables when
@@ -594,6 +587,9 @@ carrying `@DbUnitConfig` as a meta-annotation is found the same as a
 directly-declared one - a different mechanism from `@Inherited`, not a
 consequence of it:
 
+Next to a `@DbUnitTestCase` field, the attributes that would configure that instance are
+rejected: it is used as its owner built it - see <<injected-testcase-config>>.
+
 [cols="1,3", options="header"]
 |===
 |Attribute |Purpose
@@ -636,7 +632,7 @@ this attribute, when the tester's `IOperationListener` is
 managed elsewhere - or a blanket `ConnectionPreservingOperationListener`, which
 says the same, or, on the prep/expected path, when the injected
 `@DbUnitTestCase` instance itself reports `isCloseConnectionAfterTest()` as
-`false`. Leaving the connection open requires a tester that hands out the same
+`false`, which is where to set it for an injected instance. Leaving the connection open requires a tester that hands out the same
 connection on repeated calls, as one over a `CachingConnectionProvider` or over one fixed
 connection does. With a tester that hands out a new one each time, such as a `JdbcDatabaseTester`
 without a `CachingConnectionProvider` or a `DataSourceDatabaseTester` over a connection pool,
@@ -659,33 +655,39 @@ link:DbUnitExtension.html#parameter_injection[DbUnitExtension].
 [#injected-testcase-config]
 === @DbUnitConfig and an injected @DbUnitTestCase
 
-`dataFileLoader`, `failureHandler`, `properties`/`propertiesProvider`,
-`closeConnectionAfterTest`, and `@DbUnitRowCountCheck` are also pushed into a
-`@DbUnitTestCase`-injected `DefaultPrepAndExpectedTestCase` after it is constructed,
-so a shared instance built without them still runs with the configured values.
-This targets `DefaultPrepAndExpectedTestCase` and its subclasses; any other
-implementation is rejected when the test declares them - see <<othertestcase>>.
+An injected `@DbUnitTestCase` instance is used as its owner built it. dbUnit gives it the
+test's files (`@DbUnitPrep`, `@DbUnitExpected`) and calls `configureTest()`, `preTest()` and
+`postTest()`; for a `DefaultPrepAndExpectedTestCase` or a subclass it also applies
+`@DbUnitRowCountCheck`, through `setRowCountCheckOverride()`, and clears it when the test ends,
+so a `static` field never carries one method's override onto the next. Nothing else is
+configured: the data file loader, failure handler, `DatabaseConfig` properties,
+`closeConnectionAfterTest`, and the tester with its setup and teardown operations belong to the
+instance, and are set where it is built.
 
-Only what a test declares is pushed. An instance built with its own loader, failure
-handler, properties or `closeConnectionAfterTest = false` keeps them when `@DbUnitConfig`
-says nothing about them, and a declared `properties` value is added to the instance's own
-rather than replacing them. Two details follow from the `@DbUnitConfig` defaults: an instance
-with no data file loader at all is given the configured one, since it cannot load datasets
-without it; and `closeConnectionAfterTest` is declared only by setting it to `false`, because
-the default `true` cannot be told apart from leaving it out, so an instance built with `false`
-keeps it even when `@DbUnitConfig(closeConnectionAfterTest = true)` is written out.
+A test that declares anything that would configure the instance is therefore rejected before
+any database work, with one `IllegalStateException` that names it and says to configure the
+instance where it is built: `@DbUnitSetUpOperation`, `@DbUnitTearDownOperation`, and the
+`@DbUnitConfig` attributes `dataFileLoader`, `failureHandler`, `properties`/`propertiesProvider`,
+`closeConnectionAfterTest`, `databaseTesterFactory` and `prepAndExpectedTestCase`. An instance
+without a tester is rejected too, when it is resolved, and so is one without a data file
+loader when the test names dataset files, which a `@BeforeEach` method may still give it. Any other
+`PrepAndExpectedTestCase` implementation is rejected for more - see <<othertestcase>>.
 
-What a test pushes lasts for that test only. When it ends, the instance's own values are put
-back - a `@DbUnitRowCountCheck` override, which the instance cannot report, is cleared
-instead - so a `static` `@DbUnitTestCase` field never carries one method's configuration onto
-the next.
+[source,java]
+----
+@DbUnitTestCase
+static final DefaultPrepAndExpectedTestCase testCase = newTestCase();
 
-The configuration is pushed as soon as the test needs the instance's connection, which for a
-`Connection` or `IDatabaseConnection` parameter on a `@BeforeEach` method is before that method's
-body runs. A `@BeforeEach` body that then calls `setFailureHandler()`, `setDataFileLoader()` or
-`setDatabaseConfigProperties()` on the injected instance replaces the pushed value for that
-test, and the instance's values from before the body are what get put back afterward. Build the
-instance with those values, or set them before the test, rather than in a `@BeforeEach` body.
+private static DefaultPrepAndExpectedTestCase newTestCase()
+{
+    IDatabaseTester tester = new JdbcDatabaseTester(...);
+    tester.setTearDownOperation(DatabaseOperation.DELETE_ALL);
+    DefaultPrepAndExpectedTestCase testCase =
+            new DefaultPrepAndExpectedTestCase(new FlatXmlDataFileLoader(), tester, true);
+    testCase.setFailureHandler(new DiffCollectingFailureHandler());
+    return testCase;
+}
+----
 
 [#properties]
 === DatabaseConfig Properties
@@ -743,9 +745,10 @@ it resolves for `configureTest()`/`setupData()`/`verifyData()`/`cleanupData()`
 — that path never goes through the tester's `IOperationListener` to do so, so
 the setup/teardown operation does not matter. It does tell the tester's own listener's
 `connectionRetrieved()` about the connection each set up and tear down operation
-retrieves, before applying these values, so they win over what that listener sets (see
-<<injected-testcase-config>> for what an injected non-`DefaultPrepAndExpectedTestCase`
-instance needs).
+retrieves, before applying these values, so they win over what that listener sets. An injected
+`@DbUnitTestCase` takes its properties from where it is built, through
+`setDatabaseConfigProperties()`: declaring them next to it is rejected - see
+<<injected-testcase-config>>.
 
 On the prep/expected path, `DefaultPrepAndExpectedTestCase` applies
 `@DbUnitProperty` values through its `setUpDatabaseConfig(DatabaseConfig)`
@@ -839,8 +842,8 @@ guess wrong:
   without changing how many rows are present passes. It catches a leaked or wrongly
   removed row, not a data mismatch; that is what `@DbUnitExpected` verification is for.
 * On the prep/expected path (`@DbUnitExpected` declared), this annotation drives the check
-  through the test case — see <<injected-testcase-config>> for what an injected instance
-  that is not a `DefaultPrepAndExpectedTestCase` subclass needs. On the setup/teardown path
+  through the test case — an injected `DefaultPrepAndExpectedTestCase` takes it through its
+  override methods, and any other injected implementation rejects it, see <<othertestcase>>. On the setup/teardown path
   (no `@DbUnitExpected`), the check runs directly against the connection regardless of test
   case type.
 

@@ -33,7 +33,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import org.dbunit.DatabaseTesterFactory;
 import org.dbunit.DefaultPrepAndExpectedTestCase;
 import org.dbunit.IDatabaseTester;
 import org.dbunit.IOperationListener;
@@ -54,6 +53,7 @@ import org.dbunit.junit.jupiter.inheritance.MethodLevelExpectedBase;
 import org.dbunit.junit.jupiter.inheritance.MethodLevelPrepBase;
 import org.dbunit.operation.DatabaseOperation;
 import org.dbunit.operation.DbUnitOperation;
+import org.dbunit.util.fileloader.FlatXmlDataFileLoader;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeEach;
@@ -268,7 +268,7 @@ class DbUnitExtensionLifecycleTest
     {
         final OperationHoldingTester tester = new OperationHoldingTester();
         final OperationReadingPrepAndExpectedTestCase testCase =
-                new OperationReadingPrepAndExpectedTestCase();
+                new OperationReadingPrepAndExpectedTestCase(tester);
         BeforeEachOperationsExpectedPathSample.tester = tester;
         BeforeEachOperationsExpectedPathSample.testCase = testCase;
 
@@ -380,77 +380,22 @@ class DbUnitExtensionLifecycleTest
     }
 
     @Test
-    void testBeforeTestExecution_expectedAnnotationAndOverridingTestCase_syncsDatabaseTesterWithResolvedOne()
+    void testBeforeTestExecution_expectedAnnotationAndInjectedTestCase_runsOnTheTestCasesOwnTester()
     {
-        TesterSyncSample.testCase = new TesterSyncingPrepAndExpectedTestCase();
-        TesterSyncSample.databaseTesterInstance = new CallLoggingTester(new ArrayList<>());
+        final CallLoggingTester ownTester = new CallLoggingTester(new ArrayList<>());
+        OwnTesterSample.testCase = new TesterRecordingPrepAndExpectedTestCase(ownTester);
+        OwnTesterSample.otherTester = new CallLoggingTester(new ArrayList<>());
 
         EngineTestKit.engine("junit-jupiter")
-                .selectors(selectClass(TesterSyncSample.class))
+                .selectors(selectClass(OwnTesterSample.class))
                 .execute()
                 .testEvents()
                 .assertStatistics(stats -> stats.started(1).succeeded(1));
 
-        assertThat(TesterSyncSample.testCase.databaseTesterAtPreTest)
-                .as("A @DbUnitTestCase-injected PrepAndExpectedTestCase overriding"
-                        + " getDatabaseTester()/setDatabaseTester() - not just"
-                        + " DefaultPrepAndExpectedTestCase - must be wired to the exact same"
-                        + " IDatabaseTester instance DbUnitExtension resolves for it (here, the"
-                        + " auto-scanned field), not a different one - otherwise"
-                        + " @DbUnitSetUpOperation/@DbUnitTearDownOperation operations set on the"
-                        + " resolved tester"
-                        + " would silently not reach what this test case actually runs.")
-                .isSameAs(TesterSyncSample.databaseTesterInstance);
-    }
-
-    @Test
-    void testBeforeTestExecution_sharedTestCaseWithoutTesterAndDifferentFactories_eachTestRunsOnItsOwnFactorysTester()
-    {
-        SharedTestCaseState.testCase = new TesterSyncingPrepAndExpectedTestCase();
-        SharedTestCaseState.testerSeenByFirst = null;
-        SharedTestCaseState.testerSeenBySecond = null;
-
-        EngineTestKit.engine("junit-jupiter")
-                .selectors(selectClass(FirstFactorySample.class),
-                        selectClass(SecondFactorySample.class))
-                .execute()
-                .testEvents()
-                .assertStatistics(stats -> stats.started(2).succeeded(2));
-
-        assertThat(SharedTestCaseState.testerSeenByFirst)
-                .as("The first test class's factory supplies the tester its test case runs on.")
-                .isSameAs(FirstTesterFactory.tester);
-        assertThat(SharedTestCaseState.testerSeenBySecond)
-                .as("A test case shared with an earlier test class, built without a tester, is"
-                        + " given the tester of this test class's own factory, not left holding"
-                        + " the earlier one's.")
-                .isSameAs(SecondTesterFactory.tester);
-        assertThat(SharedTestCaseState.testCase.getDatabaseTester())
-                .as("The tester a test case was only given for one test is taken off it again"
-                        + " when the test ends.")
-                .isNull();
-    }
-
-    @Test
-    void testAfterEach_sharedTestCaseGivenATesterForTheTest_stillHoldsItInAnAfterEachMethod()
-    {
-        SharedTestCaseState.testCase = new TesterSyncingPrepAndExpectedTestCase();
-        SharedTestCaseState.testerSeenByAfterEach = null;
-
-        EngineTestKit.engine("junit-jupiter")
-                .selectors(selectClass(AfterEachReadsTheTestCasesTesterSample.class))
-                .execute()
-                .testEvents()
-                .assertStatistics(stats -> stats.started(1).succeeded(1));
-
-        assertThat(SharedTestCaseState.testerSeenByAfterEach)
-                .as("A test may use the tester of the test case it injected in an @AfterEach"
-                        + " method, so the tester stays on the test case until the whole test"
-                        + " is over.")
-                .isSameAs(FirstTesterFactory.tester);
-        assertThat(SharedTestCaseState.testCase.getDatabaseTester())
-                .as("Once the whole test is over the tester is taken off the test case.")
-                .isNull();
+        assertThat(OwnTesterSample.testCase.databaseTesterAtPreTest)
+                .as("An injected test case is used as it was built: dbUnit does not give it the"
+                        + " tester of another field of the test.")
+                .isSameAs(ownTester);
     }
 
     @Test
@@ -857,100 +802,19 @@ class DbUnitExtensionLifecycleTest
     }
 
     @DbUnitTest
-    static class TesterSyncSample
+    static class OwnTesterSample
     {
-        static TesterSyncingPrepAndExpectedTestCase testCase;
-        static IDatabaseTester databaseTesterInstance;
+        static TesterRecordingPrepAndExpectedTestCase testCase;
+        static IDatabaseTester otherTester;
 
         @DbUnitTestCase
         PrepAndExpectedTestCase injected = testCase;
-        IDatabaseTester databaseTester = databaseTesterInstance;
+        IDatabaseTester databaseTester = otherTester;
 
         @Test
         @DbUnitExpected("expected.xml")
         void testExpectedPath()
         {
-        }
-    }
-
-    /** The test case two sample classes share, as a {@code static @DbUnitTestCase} field would. */
-    static class SharedTestCaseState
-    {
-        static TesterSyncingPrepAndExpectedTestCase testCase;
-        static IDatabaseTester testerSeenByFirst;
-        static IDatabaseTester testerSeenBySecond;
-        static IDatabaseTester testerSeenByAfterEach;
-    }
-
-    public static class FirstTesterFactory implements DatabaseTesterFactory
-    {
-        static final IDatabaseTester tester = new CallLoggingTester(new ArrayList<>());
-
-        @Override
-        public IDatabaseTester getDatabaseTester()
-        {
-            return tester;
-        }
-    }
-
-    public static class SecondTesterFactory implements DatabaseTesterFactory
-    {
-        static final IDatabaseTester tester = new CallLoggingTester(new ArrayList<>());
-
-        @Override
-        public IDatabaseTester getDatabaseTester()
-        {
-            return tester;
-        }
-    }
-
-    @DbUnitTest
-    @DbUnitConfig(databaseTesterFactory = FirstTesterFactory.class)
-    static class FirstFactorySample
-    {
-        @DbUnitTestCase
-        PrepAndExpectedTestCase injected = SharedTestCaseState.testCase;
-
-        @Test
-        void testRecordsTheTesterTheSharedTestCaseHolds()
-        {
-            SharedTestCaseState.testerSeenByFirst =
-                    SharedTestCaseState.testCase.getDatabaseTester();
-        }
-    }
-
-    @DbUnitTest
-    @DbUnitConfig(databaseTesterFactory = FirstTesterFactory.class)
-    static class AfterEachReadsTheTestCasesTesterSample
-    {
-        @DbUnitTestCase
-        PrepAndExpectedTestCase injected = SharedTestCaseState.testCase;
-
-        @Test
-        void testDoesNothing()
-        {
-        }
-
-        @AfterEach
-        void readTheTesterTheSharedTestCaseHolds()
-        {
-            SharedTestCaseState.testerSeenByAfterEach =
-                    SharedTestCaseState.testCase.getDatabaseTester();
-        }
-    }
-
-    @DbUnitTest
-    @DbUnitConfig(databaseTesterFactory = SecondTesterFactory.class)
-    static class SecondFactorySample
-    {
-        @DbUnitTestCase
-        PrepAndExpectedTestCase injected = SharedTestCaseState.testCase;
-
-        @Test
-        void testRecordsTheTesterTheSharedTestCaseHolds()
-        {
-            SharedTestCaseState.testerSeenBySecond =
-                    SharedTestCaseState.testCase.getDatabaseTester();
         }
     }
 
@@ -1158,10 +1022,15 @@ class DbUnitExtensionLifecycleTest
      * {@code preTest()} and {@code postTest(boolean)} run: setup first, then teardown.
      */
     private static class OperationReadingPrepAndExpectedTestCase
-            extends TesterSyncingPrepAndExpectedTestCase
+            extends RecordingPrepAndExpectedTestCase
     {
         final List<DatabaseOperation> operationsAtPreTest = new ArrayList<>();
         final List<DatabaseOperation> operationsAtPostTest = new ArrayList<>();
+
+        OperationReadingPrepAndExpectedTestCase(final IDatabaseTester tester)
+        {
+            super(tester);
+        }
 
         @Override
         public void preTest()
@@ -1196,6 +1065,16 @@ class DbUnitExtensionLifecycleTest
         RuntimeException postTestFailure;
         String[] configuredExpectedDataFiles;
 
+        RecordingPrepAndExpectedTestCase()
+        {
+            this(new CallLoggingTester(new ArrayList<>()));
+        }
+
+        RecordingPrepAndExpectedTestCase(final IDatabaseTester tester)
+        {
+            super(new FlatXmlDataFileLoader(), tester);
+        }
+
         @Override
         public void configureTest(final VerifyTableDefinition[] verifyTableDefinitions,
                 final String[] prepDataFiles, final String[] expectedDataFiles)
@@ -1227,15 +1106,18 @@ class DbUnitExtensionLifecycleTest
 
     /**
      * Extends {@link RecordingPrepAndExpectedTestCase} to also record the tester it holds when
-     * {@code preTest()} runs - proving {@code DbUnitExtension#resolve} keeps this test case's
-     * tester in sync with the one it resolves.
+     * {@code preTest()} runs - proving {@code DbUnitExtension} leaves this test case's tester as
+     * its owner built it.
      */
-    private static class TesterSyncingPrepAndExpectedTestCase
+    private static class TesterRecordingPrepAndExpectedTestCase
             extends RecordingPrepAndExpectedTestCase
     {
-        // The tester it held when preTest() ran: the extension takes a tester it only gave the
-        // test case for the test off it again afterward.
         IDatabaseTester databaseTesterAtPreTest;
+
+        TesterRecordingPrepAndExpectedTestCase(final IDatabaseTester tester)
+        {
+            super(tester);
+        }
 
         @Override
         public void preTest()

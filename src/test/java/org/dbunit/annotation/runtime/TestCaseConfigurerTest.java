@@ -23,6 +23,7 @@ package org.dbunit.annotation.runtime;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -37,12 +38,12 @@ import org.dbunit.DefaultPrepAndExpectedTestCase;
 import org.dbunit.annotation.DbUnitConfig;
 import org.dbunit.annotation.DbUnitProperty;
 import org.dbunit.annotation.DbUnitRowCountCheck;
+import org.dbunit.assertion.DefaultFailureHandler;
 import org.dbunit.assertion.DiffCollectingFailureHandler;
 import org.dbunit.assertion.FailureHandler;
 import org.dbunit.database.DatabaseConfig;
 import org.dbunit.database.rowcount.ClearRowCountCheckSystemProperties;
 import org.dbunit.util.fileloader.DataFileLoader;
-import org.dbunit.util.fileloader.FileExtensionDataFileLoader;
 import org.dbunit.util.fileloader.FlatXmlDataFileLoader;
 import org.dbunit.util.fileloader.FullXmlDataFileLoader;
 import org.junit.jupiter.api.Test;
@@ -58,7 +59,7 @@ import ch.qos.logback.core.read.ListAppender;
 
 @ExtendWith(MockitoExtension.class)
 @ClearRowCountCheckSystemProperties
-class InjectedTestCaseConfigurerTest
+class TestCaseConfigurerTest
 {
     @Test
     void testApplyAll_overridingInstance_appliesEveryConfiguredValue()
@@ -66,26 +67,23 @@ class InjectedTestCaseConfigurerTest
         final DefaultPrepAndExpectedTestCase testCase =
                 mock(DefaultPrepAndExpectedTestCase.class);
 
-        new InjectedTestCaseConfigurer(configFrom(AllAttributes.class), testCase).applyAll();
+        new TestCaseConfigurer(configFrom(AllAttributes.class), testCase).applyAll();
 
-        verify(testCase).setDataFileLoader(any(FlatXmlDataFileLoader.class));
         verify(testCase).setFailureHandler(any(DiffCollectingFailureHandler.class));
         verify(testCase).setDatabaseConfigProperties(any(Properties.class));
         verify(testCase).setRowCountCheckOverride(true, new String[0]);
     }
 
     @Test
-    void testApplyAll_noAttributesConfigured_touchesNoSetterExceptTheMissingLoader()
+    void testApplyAll_noAttributesConfigured_changesNothingOnTheTestCase()
     {
-        // A DefaultPrepAndExpectedTestCase mock, so the getters count as overridden and the
-        // missing loader can be seen.
         final DefaultPrepAndExpectedTestCase testCase = mock(DefaultPrepAndExpectedTestCase.class);
 
-        new InjectedTestCaseConfigurer(configFrom(Nothing.class), testCase).applyAll();
+        new TestCaseConfigurer(configFrom(Nothing.class), testCase).applyAll();
 
-        // Nothing declared means nothing to change on an instance that already has its own
-        // settings; only a missing loader is filled in, since the instance cannot load without one.
-        verify(testCase).setDataFileLoader(any(FileExtensionDataFileLoader.class));
+        // Nothing declared means nothing to change on a test case that has its own settings,
+        // the loader and the close flag included: a built one gets them through its constructor.
+        verify(testCase, never()).setDataFileLoader(any());
         verify(testCase, never()).setFailureHandler(any());
         verify(testCase, never()).setDatabaseConfigProperties(any());
         verify(testCase, never()).setCloseConnectionAfterTest(anyBoolean());
@@ -101,8 +99,8 @@ class InjectedTestCaseConfigurerTest
         final Properties ownProperties = new Properties();
         ownProperties.setProperty("batchSize", "7");
         testCase.setDatabaseConfigProperties(ownProperties);
-        final InjectedTestCaseRestoration restoration =
-                new InjectedTestCaseConfigurer(configFrom(Nothing.class), testCase).applyAll();
+        final TestCaseRestoration restoration =
+                new TestCaseConfigurer(configFrom(Nothing.class), testCase).applyAll();
         verify(testCase, times(1)).setDatabaseConfigProperties(any());
 
         restoration.undo();
@@ -128,7 +126,7 @@ class InjectedTestCaseConfigurerTest
         ownProperties.setProperty("batchSize", "7");
         testCase.setDatabaseConfigProperties(ownProperties);
 
-        new InjectedTestCaseConfigurer(configFrom(Nothing.class), testCase).applyAll();
+        new TestCaseConfigurer(configFrom(Nothing.class), testCase).applyAll();
 
         assertThat(testCase.getDataFileLoader())
                 .as("A loader built into the instance stands when @DbUnitConfig names none.")
@@ -150,17 +148,12 @@ class InjectedTestCaseConfigurerTest
     {
         final DefaultPrepAndExpectedTestCase testCase = newInstanceWithOwnSettings();
 
-        new InjectedTestCaseConfigurer(configFrom(EveryDeclaredAttribute.class), testCase)
+        new TestCaseConfigurer(configFrom(FailureHandlerAndProperties.class), testCase)
                 .applyAll();
 
-        assertThat(testCase.getDataFileLoader()).as("The declared loader replaces the instance's.")
-                .isInstanceOf(FlatXmlDataFileLoader.class);
         assertThat(testCase.getFailureHandler())
                 .as("The declared failure handler replaces the instance's.")
                 .isInstanceOf(DiffCollectingFailureHandler.class);
-        assertThat(testCase.isCloseConnectionAfterTest())
-                .as("A declared closeConnectionAfterTest=false replaces the instance's true.")
-                .isFalse();
         final Properties expected = new Properties();
         expected.setProperty("fetchSize", "9");
         expected.setProperty(DatabaseConfig.PROPERTY_BATCH_SIZE, "50");
@@ -178,7 +171,7 @@ class InjectedTestCaseConfigurerTest
         ownProperties.setProperty("batchSize", "7");
         testCase.setDatabaseConfigProperties(ownProperties);
 
-        new InjectedTestCaseConfigurer(configFrom(OnlyProperties.class), testCase).applyAll();
+        new TestCaseConfigurer(configFrom(OnlyProperties.class), testCase).applyAll();
 
         final Properties expected = new Properties();
         expected.setProperty("fetchSize", "9");
@@ -194,20 +187,15 @@ class InjectedTestCaseConfigurerTest
     void testUndo_afterDeclaredValuesApplied_putsTheInstancesOwnBack()
     {
         final DefaultPrepAndExpectedTestCase testCase = newInstanceWithOwnSettings();
-        final DataFileLoader ownLoader = testCase.getDataFileLoader();
         final FailureHandler ownHandler = testCase.getFailureHandler();
         final Properties ownProperties = testCase.getDatabaseConfigProperties();
-        final InjectedTestCaseRestoration restoration = new InjectedTestCaseConfigurer(
-                configFrom(EveryDeclaredAttribute.class), testCase).applyAll();
+        final TestCaseRestoration restoration = new TestCaseConfigurer(
+                configFrom(FailureHandlerAndProperties.class), testCase).applyAll();
 
         restoration.undo();
 
-        assertThat(testCase.getDataFileLoader()).as("The loader is put back.")
-                .isSameAs(ownLoader);
         assertThat(testCase.getFailureHandler()).as("The failure handler is put back.")
                 .isSameAs(ownHandler);
-        assertThat(testCase.isCloseConnectionAfterTest())
-                .as("closeConnectionAfterTest is put back.").isTrue();
         assertThat(testCase.getDatabaseConfigProperties()).as("The properties are put back.")
                 .isEqualTo(ownProperties);
     }
@@ -216,62 +204,38 @@ class InjectedTestCaseConfigurerTest
     void testApplyAll_reusedInstanceWhoseFirstTestDeclaredValues_secondTestSeesItsOwn()
     {
         final DefaultPrepAndExpectedTestCase testCase = newInstanceWithOwnSettings();
-        final DataFileLoader ownLoader = testCase.getDataFileLoader();
         final FailureHandler ownHandler = testCase.getFailureHandler();
-        new InjectedTestCaseConfigurer(configFrom(EveryDeclaredAttribute.class), testCase)
+        new TestCaseConfigurer(configFrom(FailureHandlerAndProperties.class), testCase)
                 .applyAll().undo();
 
-        new InjectedTestCaseConfigurer(configFrom(Nothing.class), testCase).applyAll();
+        new TestCaseConfigurer(configFrom(Nothing.class), testCase).applyAll();
 
-        assertThat(testCase.getDataFileLoader())
-                .as("A second test declaring nothing sees the instance's own loader, not the"
-                        + " first test's.")
-                .isSameAs(ownLoader);
         assertThat(testCase.getFailureHandler())
-                .as("A second test declaring nothing sees the instance's own failure handler.")
+                .as("A second test declaring nothing sees the instance's own failure handler,"
+                        + " not the first test's.")
                 .isSameAs(ownHandler);
-        assertThat(testCase.isCloseConnectionAfterTest())
-                .as("A second test declaring nothing sees the instance's own"
-                        + " closeConnectionAfterTest.")
-                .isTrue();
-    }
-
-    @Test
-    void testApplyAll_instanceHasNoDataFileLoader_givesItTheConfiguredOneAndUndoRemovesIt()
-    {
-        final DefaultPrepAndExpectedTestCase testCase = new DefaultPrepAndExpectedTestCase();
-
-        final InjectedTestCaseRestoration restoration =
-                new InjectedTestCaseConfigurer(configFrom(Nothing.class), testCase).applyAll();
-
-        assertThat(testCase.getDataFileLoader())
-                .as("An instance with no loader cannot load datasets, so it gets the configured"
-                        + " one.")
-                .isInstanceOf(FileExtensionDataFileLoader.class);
-
-        restoration.undo();
-
-        assertThat(testCase.getDataFileLoader()).as("The instance is left as it was found.")
-                .isNull();
     }
 
     @Test
     void testApplyAll_laterAttributeFails_undoesTheEarlierOnesBeforeThrowing()
     {
-        final DataFileLoader ownLoader = new FullXmlDataFileLoader();
-        final DefaultPrepAndExpectedTestCase testCase =
-                spy(new DefaultPrepAndExpectedTestCase(ownLoader, null, true));
-        final IllegalStateException failure = new IllegalStateException("handler rejected");
-        doThrow(failure).when(testCase).setFailureHandler(any());
+        final FailureHandler ownHandler = new DefaultFailureHandler();
+        final DefaultPrepAndExpectedTestCase testCase = spy(new DefaultPrepAndExpectedTestCase(
+                new FullXmlDataFileLoader(), null, true));
+        testCase.setFailureHandler(ownHandler);
+        final IllegalStateException failure = new IllegalStateException("properties rejected");
+        doThrow(failure).when(testCase).setDatabaseConfigProperties(
+                argThat(properties -> properties != null && !properties.isEmpty()));
 
-        assertThatThrownBy(() -> new InjectedTestCaseConfigurer(
-                configFrom(LoaderAndFailureHandler.class), testCase).applyAll())
+        assertThatThrownBy(() -> new TestCaseConfigurer(
+                configFrom(FailureHandlerAndProperties.class), testCase).applyAll())
                 .as("The failure of a later value is the one reported.")
                 .isSameAs(failure);
 
-        assertThat(testCase.getDataFileLoader())
-                .as("The loader applied before the failure must not stay behind on the instance.")
-                .isSameAs(ownLoader);
+        assertThat(testCase.getFailureHandler())
+                .as("The failure handler applied before the failure must not stay behind on the"
+                        + " instance.")
+                .isSameAs(ownHandler);
     }
 
     @Test
@@ -280,7 +244,7 @@ class InjectedTestCaseConfigurerTest
         final DefaultPrepAndExpectedTestCase testCase =
                 spy(new DefaultPrepAndExpectedTestCase(new FlatXmlDataFileLoader(), null, true));
 
-        final InjectedTestCaseRestoration restoration = new InjectedTestCaseConfigurer(
+        final TestCaseRestoration restoration = new TestCaseConfigurer(
                 configFrom(OnlyRowCountCheck.class), testCase).applyAll();
 
         verify(testCase).setRowCountCheckOverride(true, new String[0]);
@@ -298,7 +262,7 @@ class InjectedTestCaseConfigurerTest
         final ListAppender<ILoggingEvent> appender = attachAppender();
         try
         {
-            new InjectedTestCaseConfigurer(configFrom(OnlyProperties.class), testCase).applyAll();
+            new TestCaseConfigurer(configFrom(OnlyProperties.class), testCase).applyAll();
 
             assertThat(appender.list)
                     .filteredOn(e -> e.getLevel() == Level.WARN)
@@ -329,7 +293,7 @@ class InjectedTestCaseConfigurerTest
     private static ListAppender<ILoggingEvent> attachAppender()
     {
         final Logger logger =
-                (Logger) LoggerFactory.getLogger(InjectedTestCaseConfigurer.class);
+                (Logger) LoggerFactory.getLogger(TestCaseConfigurer.class);
         final ListAppender<ILoggingEvent> appender = new ListAppender<>();
         appender.start();
         logger.addAppender(appender);
@@ -338,7 +302,7 @@ class InjectedTestCaseConfigurerTest
 
     private static void detachAppender(final ListAppender<ILoggingEvent> appender)
     {
-        ((Logger) LoggerFactory.getLogger(InjectedTestCaseConfigurer.class))
+        ((Logger) LoggerFactory.getLogger(TestCaseConfigurer.class))
                 .detachAppender(appender);
     }
 
@@ -363,34 +327,14 @@ class InjectedTestCaseConfigurerTest
     {
     }
 
-    @DbUnitConfig(dataFileLoader = FlatXmlDataFileLoader.class,
-            failureHandler = DiffCollectingFailureHandler.class,
-            closeConnectionAfterTest = false,
+    @DbUnitConfig(failureHandler = DiffCollectingFailureHandler.class,
             properties = @DbUnitProperty(name = "batchSize", value = "50"))
-    private static class EveryDeclaredAttribute
-    {
-    }
-
-    @DbUnitConfig(dataFileLoader = FlatXmlDataFileLoader.class,
-            failureHandler = DiffCollectingFailureHandler.class)
-    private static class LoaderAndFailureHandler
-    {
-    }
-
-    @DbUnitConfig(dataFileLoader = FlatXmlDataFileLoader.class,
-            failureHandler = DiffCollectingFailureHandler.class,
-            closeConnectionAfterTest = false)
-    private static class LoaderFailureHandlerAndCloseFalse
+    private static class FailureHandlerAndProperties
     {
     }
 
     @DbUnitRowCountCheck
     private static class OnlyRowCountCheck
-    {
-    }
-
-    @DbUnitConfig(closeConnectionAfterTest = false)
-    private static class OnlyCloseConnectionFalse
     {
     }
 

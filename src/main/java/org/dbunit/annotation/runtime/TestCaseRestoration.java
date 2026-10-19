@@ -24,11 +24,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Puts back what {@link InjectedTestCaseConfigurer} changed on an injected
- * {@code @DbUnitTestCase} instance, in reverse order, so a test case shared across test methods -
- * a {@code static} field, or any field under {@code @TestInstance(Lifecycle.PER_CLASS)} -
- * carries one method's {@code @DbUnitConfig} values onto neither the next method nor the settings
- * its owner built into it. The counterpart of {@link TesterStateSnapshot} for the tester.
+ * Puts back what {@link TestCaseConfigurer} changed on a test case, in reverse order, so a test
+ * case shared across test methods - a {@code static} field, or any field under
+ * {@code @TestInstance(Lifecycle.PER_CLASS)} - carries one method's declared values onto neither
+ * the next method nor the settings its owner built into it. The counterpart of
+ * {@link TesterStateSnapshot} for the tester.
  *
  * <p>Holds one undo step per value the configurer actually applied; a value it left alone has
  * none, so undoing never touches a setting that was never changed.
@@ -36,7 +36,7 @@ import java.util.List;
  * @author Jeff Jensen
  * @since 3.6.0
  */
-final class InjectedTestCaseRestoration
+class TestCaseRestoration
 {
     private final List<Runnable> undoSteps;
 
@@ -45,7 +45,7 @@ final class InjectedTestCaseRestoration
      *
      * @param undoSteps One step per applied change; copied, not retained.
      */
-    InjectedTestCaseRestoration(final List<Runnable> undoSteps)
+    TestCaseRestoration(final List<Runnable> undoSteps)
     {
         this.undoSteps = new ArrayList<>(undoSteps);
     }
@@ -92,7 +92,7 @@ final class InjectedTestCaseRestoration
      * @param restoration The restoration to undo, or {@code null} to do nothing.
      * @param primary The failure already being thrown, to attach an undo failure to.
      */
-    static void undoSuppressing(final InjectedTestCaseRestoration restoration,
+    static void undoSuppressing(final TestCaseRestoration restoration,
             final Throwable primary)
     {
         if (restoration == null)
@@ -115,7 +115,7 @@ final class InjectedTestCaseRestoration
      *
      * @param restoration The restoration to undo, or {@code null} to do nothing.
      */
-    static void undoIfPresent(final InjectedTestCaseRestoration restoration)
+    static void undoIfPresent(final TestCaseRestoration restoration)
     {
         if (restoration != null)
         {

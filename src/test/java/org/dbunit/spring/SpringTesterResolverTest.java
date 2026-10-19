@@ -22,7 +22,9 @@ package org.dbunit.spring;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -98,27 +100,21 @@ class SpringTesterResolverTest
     }
 
     @Test
-    void testResolve_dbUnitTestCaseWithoutTesterAndApplicationContextBean_usesBeanAsItsTester()
+    void testResolve_dbUnitTestCaseWithoutTesterAndApplicationContextBean_failsSayingToGiveItATester()
             throws Exception
     {
         final IDatabaseTester beanTester = mock(IDatabaseTester.class);
         final DefaultPrepAndExpectedTestCase testCase = mock(DefaultPrepAndExpectedTestCase.class);
-        // A raw mock does not store what setDatabaseTester() is given, so stub the getter to
-        // report what a real override round-trips: nothing at first, then the tester set.
-        when(testCase.getDatabaseTester()).thenReturn(null, beanTester);
         final FakeTestContext context = fakeTestContext(new HasTestCaseField(testCase),
                 applicationContextWithTester(beanTester));
 
-        final TestInstanceTesterResolver.Resolution resolution =
-                resolver.resolve(context, noFactoryConfiguration);
-
-        assertThat(resolution.getTester())
-                .as("A @DbUnitTestCase field whose test case has no tester gets the one the"
-                        + " Spring tiers find - here the ApplicationContext bean.")
-                .isSameAs(beanTester);
-        assertThat(resolution.getTestCase()).as("The injected test case must be returned.")
-                .isSameAs(testCase);
-        verify(testCase).setDatabaseTester(beanTester);
+        assertThatThrownBy(() -> resolver.resolve(context, noFactoryConfiguration))
+                .as("A @DbUnitTestCase field's test case is used as it was built, so one with no"
+                        + " tester is not given the ApplicationContext bean.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("has no IDatabaseTester")
+                .hasMessageContaining("give it a tester where it is built");
+        verify(testCase, never()).setDatabaseTester(any());
     }
 
     @Test
