@@ -197,7 +197,7 @@ public class AnnotatedTestExecutor
         this.expectedLifecycle =
                 new ExpectedLifecycle(configuration, tester, prepAndExpectedTestCase);
         final ConnectionOwnership ownership = new ConnectionOwnership(
-                this::mayCloseConnectionAfterTest, this::testersOperationListener);
+                this::testCaseClosesItsConnection, this::testersOperationListener);
         this.leftOpenConnectionWarning = new LeftOpenConnectionWarning(ownership, () -> tester);
         this.testScopedConnection = new TestScopedConnection(this::acquireConnection, ownership,
                 this::onConnectionAcquired);
@@ -284,20 +284,19 @@ public class AnnotatedTestExecutor
 
     /**
      * The {@code closeConnectionAfterTest} input to this executor's {@link ConnectionOwnership}:
-     * the {@code @DbUnitConfig} flag, and on the prep/expected path also the test case's own
-     * {@link DefaultPrepAndExpectedTestCase#isCloseConnectionAfterTest()}. The connection a binding
-     * injects there is the test case's {@link DefaultPrepAndExpectedTestCase#getReusableConnection()},
-     * so an injected instance built to keep its connection open for its real owner must not
-     * have it closed here just because {@code @DbUnitConfig} says nothing about it.
+     * on the prep/expected path the test case's own
+     * {@link DefaultPrepAndExpectedTestCase#isCloseConnectionAfterTest()}, and {@code true}
+     * elsewhere, where the tester's listener is the only signal that someone else owns the
+     * connection. The connection a binding injects on the prep/expected path is the test case's
+     * {@link DefaultPrepAndExpectedTestCase#getReusableConnection()}, so an injected instance
+     * built to keep its connection open for its real owner must not have it closed here.
      */
-    private boolean mayCloseConnectionAfterTest()
+    private boolean testCaseClosesItsConnection()
     {
-        final boolean configuredToClose = configuration.isCloseConnectionAfterTest();
         final PrepAndExpectedTestCase testCase = expectedLifecycle.getPrepAndExpectedTestCase();
-        final boolean testCaseCloses = !configuration.isExpected()
+        return !configuration.isExpected()
                 || !(testCase instanceof DefaultPrepAndExpectedTestCase)
                 || ((DefaultPrepAndExpectedTestCase) testCase).isCloseConnectionAfterTest();
-        return configuredToClose && testCaseCloses;
     }
 
     private IDatabaseConnection acquireConnection() throws Exception

@@ -29,8 +29,6 @@ import java.lang.annotation.Target;
 
 import org.dbunit.DatabaseTesterFactory;
 import org.dbunit.DefaultPrepAndExpectedTestCase;
-import org.dbunit.IOperationListener;
-import org.dbunit.PrepAndExpectedTestCase;
 import org.dbunit.VerifyTableDefinition;
 import org.dbunit.assertion.FailureHandler;
 import org.dbunit.database.DatabaseConfig;
@@ -105,8 +103,8 @@ public @interface DbUnitConfig
     /**
      * The {@link DefaultPrepAndExpectedTestCase} subclass to reflectively instantiate for the
      * prep/expected path when no {@link DbUnitTestCase} field supplies one already, via a
-     * constructor accepting {@code (DataFileLoader, IDatabaseTester, boolean)} - the same
-     * shape {@link DefaultPrepAndExpectedTestCase} itself has - for example one overriding a
+     * constructor accepting {@code (DataFileLoader, IDatabaseTester)} - the same shape
+     * {@link DefaultPrepAndExpectedTestCase} itself has - for example one overriding a
      * hook such as {@code setUpDatabaseConfig()}. Naming one next to a {@link DbUnitTestCase}
      * field, which supplies the test case, fails fast with {@link IllegalStateException}.
      *
@@ -137,8 +135,8 @@ public @interface DbUnitConfig
      *
      * <p>The values last for the test: when it ends, each is put back to the value it replaced,
      * so a connection that outlives the test - a fixed connection, one cached by a
-     * {@code CachingConnectionProvider}, or one kept with {@link #closeConnectionAfterTest()}
-     * false - carries none of them into whatever uses it next.
+     * {@code CachingConnectionProvider}, or one the tester's listener leaves open - carries
+     * none of them into whatever uses it next.
      *
      * @return The properties; empty (the default) applies none.
      */
@@ -191,44 +189,6 @@ public @interface DbUnitConfig
      *         constructor; the interface itself (the default) means "not set".
      */
     Class<? extends FailureHandler> failureHandler() default FailureHandler.class;
-
-    /**
-     * Whether the connection this executor resolves - for the prep/expected path, the row count
-     * check, or parameter injection - is closed after each test.
-     *
-     * <p>Set to {@code false} when the {@code IDatabaseTester} shares a
-     * {@code CachingConnectionProvider} across test methods, so this test does not close a
-     * connection other tests still expect to reuse. The connection is also left open,
-     * regardless of this attribute, when the tester's {@link IOperationListener} is
-     * {@link IOperationListener#NO_OP_OPERATION_LISTENER} - the established, pre-existing
-     * signal that a tester's connection is managed elsewhere - so a connection already
-     * protected that way needs no explicit {@code false} here.
-     *
-     * <p>On the prep/expected path, a freshly constructed {@link #prepAndExpectedTestCase()} -
-     * no {@link DbUnitTestCase} field supplies one already - always receives this value through
-     * its {@code (DataFileLoader, IDatabaseTester, boolean)} constructor. A
-     * {@link DbUnitTestCase} field injecting an already-built test case is used as it was
-     * built: setting this to {@code false} next to one fails fast with
-     * {@link IllegalStateException}, so build the instance with the flag it needs. That
-     * connection is also left open when the injected instance itself reports
-     * {@link DefaultPrepAndExpectedTestCase#isCloseConnectionAfterTest()} as {@code false},
-     * even when this attribute is left at its default.
-     *
-     * <p>Leaving the connection open, by this attribute or the no-op listener, requires a tester
-     * that hands out the same connection on repeated calls, as one over a
-     * {@code CachingConnectionProvider} or over one fixed connection does. With a tester that
-     * hands out a new connection each time, such as a {@code JdbcDatabaseTester} without a
-     * {@code CachingConnectionProvider} or a {@code DataSourceDatabaseTester} over a connection
-     * pool, nothing closes the connection left open, so each test leaves one open, except that
-     * an injected test case reused across tests keeps one. On the prep/expected path, a step
-     * that fails also makes the test case forget its connection so that the next step acquires
-     * another, and the forgotten one stays open with nothing referencing it. A warning is
-     * logged when the tester is a {@code JdbcDatabaseTester} without a
-     * {@code CachingConnectionProvider}.
-     *
-     * @return True to close the connection after each test; defaults to true.
-     */
-    boolean closeConnectionAfterTest() default true;
 
     /**
      * Whether the JUnit binding resolves a bare {@link java.sql.Connection} parameter on this
