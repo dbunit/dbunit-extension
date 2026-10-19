@@ -96,7 +96,8 @@ connection it resolves itself.
 On an annotation-driven test it also applies the `@DbUnitProperty` values and protects the
 one connection the extension holds. Wrapping the listener and putting it back rely on the
 tester reporting it through `getOperationListener()`, as `AbstractDatabaseTester` and the
-testers built on it do. A
+testers built on it do, never returning `null`: a tester nobody gave a listener reports the
+default one it would use. A
 custom `IDatabaseTester` that does not override it reports none, so the extension leaves
 its listener exactly as configured rather than replace it with one it could not put back.
 For such a tester the `@DbUnitProperty` values reach only the connection the extension

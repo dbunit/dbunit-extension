@@ -120,6 +120,7 @@ class AnnotatedTestExecutorTest
     @BeforeEach
     void resetRecordingPrepAndExpectedTestCase()
     {
+        lenient().when(tester.getOperationListener()).thenReturn(new DefaultOperationListener());
         RecordingPrepAndExpectedTestCase.instance = null;
         RecordingPrepAndExpectedTestCase.lastTester = null;
         RecordingPrepAndExpectedTestCase.lastCloseConnectionAfterTest = false;
@@ -2375,6 +2376,7 @@ class AnnotatedTestExecutorTest
         };
         realTester.setDataSet(new DefaultDataSet());
         realTester.setTearDownOperation(DatabaseOperation.DELETE_ALL);
+        final IOperationListener testersOwnListener = realTester.getOperationListener();
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
         final AnnotatedTestExecutor executor =
@@ -2388,8 +2390,8 @@ class AnnotatedTestExecutorTest
                         + " retrieve, as the 3.5.0 lifecycle did.")
                 .isEqualTo(2);
         assertThat(realTester.getOperationListener())
-                .as("The listener the tester carried, none here, must be put back after the test.")
-                .isNull();
+                .as("The listener the tester carried must be put back after the test.")
+                .isSameAs(testersOwnListener);
     }
 
     @Test

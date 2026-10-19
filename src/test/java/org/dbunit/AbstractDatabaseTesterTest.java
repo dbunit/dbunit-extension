@@ -96,6 +96,42 @@ class AbstractDatabaseTesterTest
         verify(listener).operationTearDownFinished(connection);
     }
 
+    @Test
+    void testGetOperationListener_noneSet_returnsDefaultOperationListener()
+    {
+        final DefaultDatabaseTester freshTester = new DefaultDatabaseTester(connection);
+
+        assertThat(freshTester.getOperationListener())
+                .as("A tester nobody gave a listener must report the default one it would use,"
+                        + " never null.")
+                .isInstanceOf(DefaultOperationListener.class);
+    }
+
+    @Test
+    void testSetOperationListener_null_storesDefaultOperationListener()
+    {
+        tester.setOperationListener(null);
+
+        assertThat(tester.getOperationListener())
+                .as("A null listener must be replaced by the default one, so that"
+                        + " getOperationListener() never returns null.")
+                .isInstanceOf(DefaultOperationListener.class);
+    }
+
+    @Test
+    void testOnSetup_listenerSetToNull_closesTheConnectionAsTheDefaultListenerDoes()
+            throws Exception
+    {
+        tester.setOperationListener(null);
+
+        tester.onSetup();
+
+        assertThat(connection.getConnection().isClosed())
+                .as("Setting a null listener must leave the tester closing the connection once"
+                        + " the operation is finished, as the default listener does.")
+                .isTrue();
+    }
+
     // The order below is relied on by org.dbunit.annotation.runtime.AnnotatedTestExecutor: it
     // takes the row count check baseline from the connection the listener is told about, before
     // the operation changes any data, and finishes combining several @DbUnitPrep files, setting
