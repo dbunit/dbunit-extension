@@ -40,7 +40,7 @@ import org.springframework.util.ClassUtils;
 /**
  * Spring TestContext Framework {@link org.springframework.test.context.TestExecutionListener} for
  * DbUnit: drives the same {@code org.dbunit.annotation} family - {@code @DbUnitPrep},
- * {@code @DbUnitSetup}, {@code @DbUnitExpected}, {@code @DbUnitTearDown}, and
+ * {@code @DbUnitSetUpOperation}, {@code @DbUnitExpected}, {@code @DbUnitTearDownOperation}, and
  * {@code @DbUnitConfig} - that {@link org.dbunit.junit.jupiter.DbUnitExtension} drives for
  * JUnit 5/6, for a test run through Spring's TestContext Framework instead, with JUnit 5's
  * {@code SpringExtension}. See {@code annotations.adoc} for the annotation vocabulary itself,
@@ -55,8 +55,10 @@ import org.springframework.util.ClassUtils;
  *
  * <p>Only a test that opts into the {@code org.dbunit.annotation} family, by the rule
  * {@code DbUnitExtension} applies for its annotation-driven lifecycle: any of
- * {@code @DbUnitConfig}, {@code @DbUnitPrep}, {@code @DbUnitSetup}, {@code @DbUnitExpected},
- * {@code @DbUnitTearDown} or {@code @DbUnitRowCountCheck} on the test method or class, or a
+ * {@code @DbUnitConfig}, {@code @DbUnitPrep}, {@code @DbUnitSetUpOperation},
+ * {@code @DbUnitExpected},
+ * {@code @DbUnitTearDownOperation} or {@code @DbUnitRowCountCheck} on the test method or class, or
+ * a
  * {@code @DbUnitTester}/{@code @DbUnitTestCase} field. For any other test it does nothing, so
  * {@link DbUnitSpringTest @DbUnitSpringTest} on a shared base class or composed annotation
  * neither needs a tester for, nor fails, the tests that use no DbUnit. A plain, unmarked

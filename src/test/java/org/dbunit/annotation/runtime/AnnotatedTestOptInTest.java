@@ -34,8 +34,8 @@ import org.dbunit.annotation.DbUnitConfig;
 import org.dbunit.annotation.DbUnitExpected;
 import org.dbunit.annotation.DbUnitPrep;
 import org.dbunit.annotation.DbUnitRowCountCheck;
-import org.dbunit.annotation.DbUnitSetup;
-import org.dbunit.annotation.DbUnitTearDown;
+import org.dbunit.annotation.DbUnitSetUpOperation;
+import org.dbunit.annotation.DbUnitTearDownOperation;
 import org.dbunit.annotation.DbUnitTestCase;
 import org.dbunit.annotation.DbUnitTester;
 import org.junit.jupiter.api.Test;
@@ -46,8 +46,8 @@ class AnnotatedTestOptInTest
 {
     static Stream<Class<? extends Annotation>> configuringAnnotations()
     {
-        return Stream.of(DbUnitConfig.class, DbUnitPrep.class, DbUnitSetup.class,
-                DbUnitExpected.class, DbUnitTearDown.class, DbUnitRowCountCheck.class);
+        return Stream.of(DbUnitConfig.class, DbUnitPrep.class, DbUnitSetUpOperation.class,
+                DbUnitExpected.class, DbUnitTearDownOperation.class, DbUnitRowCountCheck.class);
     }
 
     @ParameterizedTest
@@ -130,9 +130,9 @@ class AnnotatedTestOptInTest
 
     @DbUnitConfig
     @DbUnitPrep("prep.xml")
-    @DbUnitSetup
+    @DbUnitSetUpOperation
     @DbUnitExpected("expected.xml")
-    @DbUnitTearDown
+    @DbUnitTearDownOperation
     @DbUnitRowCountCheck
     static class AllConfiguringAnnotations
     {

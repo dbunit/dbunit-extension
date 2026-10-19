@@ -32,7 +32,7 @@ import org.dbunit.DefaultPrepAndExpectedTestCase;
 import org.dbunit.PrepAndExpectedTestCase;
 import org.dbunit.annotation.DbUnitExpected;
 import org.dbunit.annotation.DbUnitPrep;
-import org.dbunit.annotation.DbUnitTearDown;
+import org.dbunit.annotation.DbUnitTearDownOperation;
 import org.dbunit.annotation.DbUnitTestCase;
 import org.dbunit.annotation.DbUnitVerifyTable;
 import org.dbunit.database.IDatabaseConnection;
@@ -140,7 +140,7 @@ class DbUnitExtensionInjectedTestCaseSettingsIT
         @DbUnitPrep("annotation-it-prep.xml")
         @DbUnitExpected(value = "annotation-it-expected.xml",
                 verify = @DbUnitVerifyTable(value = TEST_TABLE, include = {"COLUMN0", "COLUMN1"}))
-        @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+        @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
         void mutateTheSeededRow() throws Exception
         {
             final IDatabaseConnection connection = testCase.getDatabaseTester().getConnection();
@@ -162,7 +162,7 @@ class DbUnitExtensionInjectedTestCaseSettingsIT
         @DbUnitPrep("annotation-it-prep.xml")
         @DbUnitExpected(value = "annotation-it-expected.xml",
                 verify = @DbUnitVerifyTable(value = TEST_TABLE, include = {"COLUMN0", "COLUMN1"}))
-        @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+        @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
         void mutateTheSeededRow(final Connection connection) throws Exception
         {
             try (Statement statement = connection.createStatement())
@@ -182,7 +182,7 @@ class DbUnitExtensionInjectedTestCaseSettingsIT
         @Test
         @DbUnitPrep("annotation-it-full-prep.xml")
         @DbUnitExpected("annotation-it-full-expected.xml")
-        @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+        @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
         void mutateTheSeededRow() throws Exception
         {
             final IDatabaseConnection connection = testCase.getDatabaseTester().getConnection();

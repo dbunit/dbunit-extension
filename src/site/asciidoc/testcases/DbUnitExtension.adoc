@@ -69,7 +69,7 @@ so a `@Nested` test class inherits its enclosing class's tester field.
 
 Rather than a `@BeforeEach` method, the dataset and operation can be
 declared directly on the class or method with `org.dbunit.annotation` —
-`@DbUnitPrep`, `@DbUnitSetup`, `@DbUnitExpected`, `@DbUnitTearDown`, and
+`@DbUnitPrep`, `@DbUnitSetUpOperation`, `@DbUnitExpected`, `@DbUnitTearDownOperation`, and
 `@DbUnitConfig`. This also unlocks the
 link:PrepAndExpectedTestCase.html[PrepAndExpectedTestCase] prep/expected
 path declaratively, and a `@DbUnitTester`/`@DbUnitTestCase` field marker in

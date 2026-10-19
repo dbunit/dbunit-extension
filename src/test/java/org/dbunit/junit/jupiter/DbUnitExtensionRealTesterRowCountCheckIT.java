@@ -34,8 +34,8 @@ import org.dbunit.JdbcDatabaseTester;
 import org.dbunit.annotation.DbUnitExpected;
 import org.dbunit.annotation.DbUnitPrep;
 import org.dbunit.annotation.DbUnitRowCountCheck;
-import org.dbunit.annotation.DbUnitSetup;
-import org.dbunit.annotation.DbUnitTearDown;
+import org.dbunit.annotation.DbUnitSetUpOperation;
+import org.dbunit.annotation.DbUnitTearDownOperation;
 import org.dbunit.annotation.DbUnitTester;
 import org.dbunit.annotation.DbUnitVerifyTable;
 import org.dbunit.database.IDatabaseConnection;
@@ -77,7 +77,8 @@ class DbUnitExtensionRealTesterRowCountCheckIT
                 .as("The setup/teardown path with @DbUnitRowCountCheck, driven through a real"
                         + " JdbcDatabaseTester: baseline piggybacks on onSetup()'s connection,"
                         + " verify re-uses that memoized connection, and"
-                        + " @DbUnitTearDown(DELETE_ALL) commits - a separate connection sees"
+                        + " @DbUnitTearDownOperation(DELETE_ALL) commits - a separate connection"
+                        + " sees"
                         + " TEST_TABLE empty.")
                 .isZero();
     }
@@ -94,7 +95,7 @@ class DbUnitExtensionRealTesterRowCountCheckIT
                 .as("The prep/expected path with @DbUnitRowCountCheck, driven through a real"
                         + " JdbcDatabaseTester: DefaultPrepAndExpectedTestCase captures the"
                         + " baseline and verifies data + row counts on its reusable connection,"
-                        + " and @DbUnitTearDown(DELETE_ALL) commits.")
+                        + " and @DbUnitTearDownOperation(DELETE_ALL) commits.")
                 .isZero();
     }
 
@@ -222,7 +223,7 @@ class DbUnitExtensionRealTesterRowCountCheckIT
 
         @Test
         @DbUnitPrep("annotation-it-prep.xml")
-        @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+        @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
         void mutateTheSeededRow(final Connection connection) throws Exception
         {
             try (Statement statement = connection.createStatement())
@@ -246,7 +247,7 @@ class DbUnitExtensionRealTesterRowCountCheckIT
         @DbUnitExpected(value = "annotation-it-expected.xml",
                 verify = @DbUnitVerifyTable(value = TEST_TABLE,
                         include = {"COLUMN0", "COLUMN1"}))
-        @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+        @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
         void mutateTheSeededRow(final Connection connection) throws Exception
         {
             try (Statement statement = connection.createStatement())
@@ -260,7 +261,7 @@ class DbUnitExtensionRealTesterRowCountCheckIT
     @ExtendWith(DbUnitExtension.class)
     @ClearRowCountCheckSystemProperties
     @DbUnitRowCountCheck
-    @DbUnitSetup(operation = DbUnitOperation.NONE)
+    @DbUnitSetUpOperation(DbUnitOperation.NONE)
     static class LeakThroughRealTesterSample
     {
         @DbUnitTester

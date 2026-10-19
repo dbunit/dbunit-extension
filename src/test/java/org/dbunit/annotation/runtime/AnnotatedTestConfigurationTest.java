@@ -34,8 +34,8 @@ import org.dbunit.annotation.DbUnitExpected;
 import org.dbunit.annotation.DbUnitPrep;
 import org.dbunit.annotation.DbUnitProperty;
 import org.dbunit.annotation.DbUnitRowCountCheck;
-import org.dbunit.annotation.DbUnitSetup;
-import org.dbunit.annotation.DbUnitTearDown;
+import org.dbunit.annotation.DbUnitSetUpOperation;
+import org.dbunit.annotation.DbUnitTearDownOperation;
 import org.dbunit.annotation.DbUnitVerifyTable;
 import org.dbunit.assertion.DiffCollectingFailureHandler;
 import org.dbunit.assertion.comparer.value.IsActualGreaterThanExpectedValueComparer;
@@ -55,12 +55,13 @@ import java.util.Properties;
 
 class AnnotatedTestConfigurationTest
 {
-    // ---- @DbUnitPrep / @DbUnitSetup ----
+    // ---- @DbUnitPrep / @DbUnitSetUpOperation ----
 
     @Test
     void testFrom_classLevelSetupAndMethodLevelPrep_keepsClassLevelOperation() throws Exception
     {
-        final DbUnitSetup setup = ClassLevelSetup.class.getAnnotation(DbUnitSetup.class);
+        final DbUnitSetUpOperation setup =
+                ClassLevelSetup.class.getAnnotation(DbUnitSetUpOperation.class);
         final DbUnitPrep prep = method(ClassLevelSetup.class, "method")
                 .getAnnotation(DbUnitPrep.class);
 
@@ -78,13 +79,14 @@ class AnnotatedTestConfigurationTest
     @Test
     void testFrom_setupWithoutPrep_producesNoDataSet()
     {
-        final DbUnitSetup setup = SetupOnly.class.getAnnotation(DbUnitSetup.class);
+        final DbUnitSetUpOperation setup =
+                SetupOnly.class.getAnnotation(DbUnitSetUpOperation.class);
 
         final AnnotatedTestConfiguration config = AnnotatedTestConfiguration
                 .from(SetupOnly.class, null, null, setup, null, null, null);
 
         assertThat(config.getPrepDataFiles())
-                .as("@DbUnitSetup with no @DbUnitPrep must produce no dataset.").isEmpty();
+                .as("@DbUnitSetUpOperation with no @DbUnitPrep must produce no dataset.").isEmpty();
     }
 
     @Test
@@ -197,7 +199,8 @@ class AnnotatedTestConfigurationTest
     @Test
     void testFrom_lookupSuppliesAnnotations_buildsConfigurationFromThem() throws Exception
     {
-        final DbUnitSetup setup = ClassLevelSetup.class.getAnnotation(DbUnitSetup.class);
+        final DbUnitSetUpOperation setup =
+                ClassLevelSetup.class.getAnnotation(DbUnitSetUpOperation.class);
         final DbUnitPrep prep = method(ClassLevelSetup.class, "method")
                 .getAnnotation(DbUnitPrep.class);
         final AnnotationLookup lookup =
@@ -225,8 +228,8 @@ class AnnotatedTestConfigurationTest
                 .as("Every annotation that configures a test must be looked up, so a binding"
                         + " cannot forget one.")
                 .containsExactlyInAnyOrder(DbUnitConfig.class, DbUnitPrep.class,
-                        DbUnitSetup.class, DbUnitExpected.class, DbUnitTearDown.class,
-                        DbUnitRowCountCheck.class);
+                        DbUnitSetUpOperation.class, DbUnitExpected.class,
+                        DbUnitTearDownOperation.class, DbUnitRowCountCheck.class);
     }
 
     @Test
@@ -270,19 +273,19 @@ class AnnotatedTestConfigurationTest
                 .containsExactly("/org/dbunit/dataset/expected.xml");
     }
 
-    // ---- @DbUnitTearDown ----
+    // ---- @DbUnitTearDownOperation ----
 
     @Test
     void testFrom_tearDownDeclared_reportsDeclaredAndResolvesOperation()
     {
-        final DbUnitTearDown tearDown =
-                WithTearDown.class.getAnnotation(DbUnitTearDown.class);
+        final DbUnitTearDownOperation tearDown =
+                WithTearDown.class.getAnnotation(DbUnitTearDownOperation.class);
 
         final AnnotatedTestConfiguration config = AnnotatedTestConfiguration
                 .from(WithTearDown.class, null, null, null, null, tearDown, null);
 
         assertThat(config.isTearDownDeclared())
-                .as("@DbUnitTearDown presence must be reported.").isTrue();
+                .as("@DbUnitTearDownOperation presence must be reported.").isTrue();
         assertThat(config.getTearDownOperation())
                 .as("The declared teardown operation must resolve to DELETE_ALL.")
                 .isEqualTo(DatabaseOperation.DELETE_ALL);
@@ -295,7 +298,7 @@ class AnnotatedTestConfigurationTest
                 .from(AnnotatedTestConfigurationTest.class, null, null, null, null, null, null);
 
         assertThat(config.isTearDownDeclared())
-                .as("No @DbUnitTearDown must be reported as not declared, so a binding"
+                .as("No @DbUnitTearDownOperation must be reported as not declared, so a binding"
                         + " leaves the tester's own teardown operation untouched.")
                 .isFalse();
     }
@@ -887,7 +890,7 @@ class AnnotatedTestConfigurationTest
     {
     }
 
-    @DbUnitSetup(operation = DbUnitOperation.REFRESH)
+    @DbUnitSetUpOperation(DbUnitOperation.REFRESH)
     static class ClassLevelSetup
     {
         @DbUnitPrep("method.xml")
@@ -896,7 +899,7 @@ class AnnotatedTestConfigurationTest
         }
     }
 
-    @DbUnitSetup(operation = DbUnitOperation.REFRESH)
+    @DbUnitSetUpOperation(DbUnitOperation.REFRESH)
     static class SetupOnly
     {
     }
@@ -996,7 +999,7 @@ class AnnotatedTestConfigurationTest
     {
     }
 
-    @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+    @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
     static class WithTearDown
     {
     }

@@ -212,7 +212,7 @@ class AccountRepositoryTest
     @Test
     @DbUnitPrep("/dbunit/accounts/prep.xml")
     @DbUnitExpected(value = "/dbunit/accounts/expected.xml", verifyTables = "ACCOUNT")
-    @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+    @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
     void testWithdraw_sufficientBalance_decrementsBalance()
     {
         // code under test
