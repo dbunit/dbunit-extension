@@ -98,21 +98,6 @@ class VerifyTableDefinitionResolverTest
     }
 
     @Test
-    void testResolveDeclared_verifyTablesNamedInDifferentCaseThanTheCatalog_selectsTheCatalogsDefinition()
-    {
-        final DbUnitExpected expected =
-                WithLowerCaseTableAndCatalog.class.getAnnotation(DbUnitExpected.class);
-
-        final VerifyTableDefinition[] definitions =
-                resolveDeclared(expected, new String[] {"expected.xml"}).get();
-
-        assertThat(definitions)
-                .as("verifyTables selects from the catalog ignoring case, the way dbUnit finds a"
-                        + " table in a dataset.")
-                .containsExactly(UpperCaseAccountCatalog.ACCOUNT);
-    }
-
-    @Test
     void testResolveDeclared_noVerifySpecWithExpectedDataset_declaresNothingSoTablesAreDerivedLater()
     {
         final DbUnitExpected expected = Bare.class.getAnnotation(DbUnitExpected.class);
@@ -134,10 +119,62 @@ class VerifyTableDefinitionResolverTest
         when(loader.load("expected.xml")).thenReturn(dataSet);
 
         final VerifyTableDefinition[] definitions =
-                resolver.deriveFromExpectedDatasets(loader, new String[] {"expected.xml"});
+                resolver.deriveFromExpectedDatasets(loader, new String[] {"expected.xml"},
+                        new VerifyTableDefinition[0]);
 
         assertThat(definitions).extracting(VerifyTableDefinition::getTableName)
                 .containsExactly("ACCOUNT", "LEDGER");
+    }
+
+    @Test
+    void testDeriveFromExpectedDatasets_catalogDefinesSomeTables_usesItsDefinitionsAndDefaultsForTheRest()
+            throws Exception
+    {
+        final DataFileLoader loader = loaderOfTables("ACCOUNT", "LEDGER");
+        final VerifyTableDefinition ledgerRules = new VerifyTableDefinition("LEDGER",
+                new String[] {"UPDATED_AT"});
+
+        final VerifyTableDefinition[] definitions = resolver.deriveFromExpectedDatasets(loader,
+                new String[] {"expected.xml"}, new VerifyTableDefinition[] {ledgerRules});
+
+        assertThat(definitions).extracting(VerifyTableDefinition::getTableName)
+                .containsExactly("ACCOUNT", "LEDGER");
+        assertThat(definitions[1])
+                .as("A table the catalog defines is verified with the catalog's own definition.")
+                .isSameAs(ledgerRules);
+        assertThat(definitions[0].getColumnExclusionFilters())
+                .as("A table it does not define is verified with the default rules.").isNull();
+    }
+
+    @Test
+    void testDeriveFromExpectedDatasets_catalogDefinesATableTheDatasetLacks_doesNotVerifyIt()
+            throws Exception
+    {
+        final DataFileLoader loader = loaderOfTables("ACCOUNT");
+        final VerifyTableDefinition audit = new VerifyTableDefinition("AUDIT", (String[]) null);
+
+        final VerifyTableDefinition[] definitions = resolver.deriveFromExpectedDatasets(loader,
+                new String[] {"expected.xml"}, new VerifyTableDefinition[] {audit});
+
+        assertThat(definitions).extracting(VerifyTableDefinition::getTableName)
+                .as("The expected dataset decides which tables are verified, the catalog only"
+                        + " supplies rules.")
+                .containsExactly("ACCOUNT");
+    }
+
+    @Test
+    void testDeriveFromExpectedDatasets_catalogSpellsTheTableNameInAnotherCase_usesItsDefinition()
+            throws Exception
+    {
+        final DataFileLoader loader = loaderOfTables("account");
+        final VerifyTableDefinition upperCase =
+                new VerifyTableDefinition("ACCOUNT", (String[]) null);
+
+        final VerifyTableDefinition[] definitions = resolver.deriveFromExpectedDatasets(loader,
+                new String[] {"expected.xml"}, new VerifyTableDefinition[] {upperCase});
+
+        assertThat(definitions).as("Tables are matched ignoring case, as dbUnit finds a table in"
+                + " a dataset.").containsExactly(upperCase);
     }
 
     @Test
@@ -150,10 +187,84 @@ class VerifyTableDefinitionResolverTest
         when(loader.load("expected.xml")).thenReturn(dataSet);
 
         assertThatThrownBy(() -> resolver.deriveFromExpectedDatasets(loader,
-                new String[] {"expected.xml"}))
+                new String[] {"expected.xml"}, new VerifyTableDefinition[0]))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("expected.xml")
                 .hasCauseInstanceOf(DataSetException.class);
+    }
+
+    @Test
+    void testResolveDeclared_verifyTablesNamedInDifferentCaseThanTheCatalog_selectsTheCatalogsDefinition()
+    {
+        final DbUnitExpected expected =
+                WithLowerCaseTable.class.getAnnotation(DbUnitExpected.class);
+
+        final VerifyTableDefinition[] definitions = resolver.resolveDeclared(
+                new Class<?>[] {UpperCaseAccountCatalog.class}, expected,
+                new String[] {"expected.xml"}).get();
+
+        assertThat(definitions)
+                .as("verifyTables selects from the catalog ignoring case, the way dbUnit finds a"
+                        + " table in a dataset.")
+                .containsExactly(UpperCaseAccountCatalog.ACCOUNT);
+    }
+
+    @Test
+    void testResolveDeclared_verifyTablesNamesATableTheCatalogLacks_getsADefaultDefinition()
+    {
+        final DbUnitExpected expected =
+                WithVerifyTables.class.getAnnotation(DbUnitExpected.class);
+
+        final VerifyTableDefinition[] definitions = resolver.resolveDeclared(
+                new Class<?>[] {UpperCaseAccountCatalog.class}, expected,
+                new String[] {"expected.xml"}).get();
+
+        assertThat(definitions).extracting(VerifyTableDefinition::getTableName)
+                .containsExactly("ACCOUNT", "LEDGER");
+        assertThat(definitions[0]).as("The table the catalog defines keeps its definition.")
+                .isSameAs(UpperCaseAccountCatalog.ACCOUNT);
+    }
+
+    @Test
+    void testResolveDeclared_inlineVerifyAndCatalog_inlineVerifyWins()
+    {
+        final DbUnitExpected expected =
+                InlineAccount.class.getAnnotation(DbUnitExpected.class);
+
+        final VerifyTableDefinition[] definitions = resolver.resolveDeclared(
+                new Class<?>[] {UpperCaseAccountCatalog.class}, expected,
+                new String[] {"expected.xml"}).get();
+
+        assertThat(definitions).hasSize(1);
+        assertThat(definitions[0]).as("The inline rules are the test's own, not the catalog's.")
+                .isNotSameAs(UpperCaseAccountCatalog.ACCOUNT);
+    }
+
+    @Test
+    void testResolveDeclared_verifyAndVerifyTablesBothSet_throws()
+    {
+        final DbUnitExpected expected =
+                InlineAndVerifyTables.class.getAnnotation(DbUnitExpected.class);
+
+        assertThatThrownBy(() -> resolveDeclared(expected, new String[] {"expected.xml"}))
+                .as("verify() declares the rules of its tables, so verifyTables() beside it is"
+                        + " ambiguous.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("verify()")
+                .hasMessageContaining("verifyTables()");
+    }
+
+    @Test
+    void testCatalogDefinitions_catalogClasses_returnsEveryDefinitionTheyHold()
+    {
+        assertThat(resolver.catalogDefinitions(new Class<?>[] {UpperCaseAccountCatalog.class}))
+                .containsExactly(UpperCaseAccountCatalog.ACCOUNT);
+    }
+
+    @Test
+    void testCatalogDefinitions_noCatalogClass_returnsNone()
+    {
+        assertThat(resolver.catalogDefinitions(new Class<?>[0])).isEmpty();
     }
 
     @Test
@@ -214,6 +325,15 @@ class VerifyTableDefinitionResolverTest
                 .isTrue();
     }
 
+    private static DataFileLoader loaderOfTables(final String... tableNames) throws Exception
+    {
+        final DataFileLoader loader = mock(DataFileLoader.class);
+        final IDataSet dataSet = mock(IDataSet.class);
+        when(dataSet.getTableNames()).thenReturn(tableNames);
+        when(loader.load("expected.xml")).thenReturn(dataSet);
+        return loader;
+    }
+
     /** Resolves what the annotations spell out, with no class-level catalog declared. */
     private Optional<VerifyTableDefinition[]> resolveDeclared(final DbUnitExpected expected,
             final String[] expectedDataFiles)
@@ -268,9 +388,19 @@ class VerifyTableDefinitionResolverTest
     {
     }
 
-    @DbUnitExpected(value = "expected.xml", verifyTables = "account",
-            verifyDefinitions = UpperCaseAccountCatalog.class)
-    private static class WithLowerCaseTableAndCatalog
+    @DbUnitExpected(value = "expected.xml", verifyTables = "account")
+    private static class WithLowerCaseTable
+    {
+    }
+
+    @DbUnitExpected(value = "expected.xml", verify = @DbUnitVerifyTable("ACCOUNT"))
+    private static class InlineAccount
+    {
+    }
+
+    @DbUnitExpected(value = "expected.xml", verify = @DbUnitVerifyTable("ACCOUNT"),
+            verifyTables = "ACCOUNT")
+    private static class InlineAndVerifyTables
     {
     }
 

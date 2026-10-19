@@ -1825,6 +1825,33 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
+    void testBeforeTest_expectedPathClassLevelCatalogAndInjectedDefaultTestCase_handsItTheCatalogsRules()
+            throws Exception
+    {
+        final DbUnitConfig config = WithCatalogAndExpected.class.getAnnotation(DbUnitConfig.class);
+        final DbUnitExpected expected =
+                WithCatalogAndExpected.class.getAnnotation(DbUnitExpected.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(WithCatalogAndExpected.class, config, null, null, expected, null, null);
+        final DefaultPrepAndExpectedTestCase injected = injectedDefaultTestCase();
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, tester, injected);
+
+        executor.beforeTest();
+
+        final ArgumentCaptor<PrepAndExpectedTestData> testData =
+                ArgumentCaptor.forClass(PrepAndExpectedTestData.class);
+        verify(injected).configureTest(testData.capture());
+        assertThat(testData.getValue())
+                .as("The Default test case still takes the tables from the expected dataset it"
+                        + " loads, with the class-level catalog's definitions as the rules of the"
+                        + " tables they define, so the dataset is parsed once.")
+                .isEqualTo(PrepAndExpectedTestData.verifyingExpectedTables(new String[0],
+                        configuration.getExpectedDataFiles(),
+                        new VerifyTableDefinition[] {RulesCatalog.ACCOUNT}));
+    }
+
+    @Test
     void testBeforeTest_expectedPathInjectedDefaultGivenItsLoaderAfterConstruction_accepts()
             throws Exception
     {
@@ -3868,6 +3895,19 @@ class AnnotatedTestExecutorTest
     @DbUnitExpected("expected.xml")
     static class WithExpected
     {
+    }
+
+    @DbUnitConfig(verifyDefinitions = RulesCatalog.class)
+    @DbUnitExpected("expected.xml")
+    static class WithCatalogAndExpected
+    {
+    }
+
+    /** Public, so the resolver can read its constants whatever package the test runs in. */
+    public static class RulesCatalog
+    {
+        public static final VerifyTableDefinition ACCOUNT =
+                new VerifyTableDefinition("ACCOUNT", new String[] {"UPDATED_AT"});
     }
 
     @DbUnitExpected("only-the-injected-loader-reads.custom")

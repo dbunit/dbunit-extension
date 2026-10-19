@@ -252,9 +252,14 @@ with no verification.
 `PrepAndExpectedTestData.verifyingExpectedTables(String[], String[])` builds one that
 verifies every table of its expected data files, each with a default
 `VerifyTableDefinition`, as a bare `@DbUnitExpected` does, so the tables need
-not be listed. `DefaultPrepAndExpectedTestCase` honors it, parsing each expected
+not be listed; the overload taking a `VerifyTableDefinition[]` as its third argument gives the
+tables those define, matched by name ignoring case, their own rules and leaves the others on
+the default ones. `DefaultPrepAndExpectedTestCase` honors it, parsing each expected
 file once; any other implementation of `PrepAndExpectedTestCase` rejects it with an
 `UnsupportedOperationException`, as it would otherwise verify nothing.
+Both factories reject a call that names no expected data file with an
+`IllegalArgumentException`, as a `@DbUnitExpected` without a dataset is rejected; use
+`prepOnly(String...)` for a scenario that verifies nothing.
 
 === Before
 

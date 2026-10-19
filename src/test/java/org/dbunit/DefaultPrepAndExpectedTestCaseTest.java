@@ -126,6 +126,64 @@ class DefaultPrepAndExpectedTestCaseTest
     }
 
     @Test
+    void testConfigureTest_everyExpectedTableBundleWithRules_usesThemForTheTablesTheyDefine()
+            throws Exception
+    {
+        final String[] expectedTableNames =
+                dataFileLoader.load(EXP_DATA_FILE_NAME).getTableNames();
+        final VerifyTableDefinition rules = new VerifyTableDefinition(
+                expectedTableNames[0].toLowerCase(), new String[] {"IGNORED"});
+        final VerifyTableDefinition forATableTheDatasetLacks =
+                new VerifyTableDefinition("NOT_IN_THE_EXPECTED_DATASET", (String[]) null);
+
+        tc.configureTest(PrepAndExpectedTestData.verifyingExpectedTables(
+                new String[] {PREP_DATA_FILE_NAME}, new String[] {EXP_DATA_FILE_NAME},
+                new VerifyTableDefinition[] {rules, forATableTheDatasetLacks}));
+
+        assertThat(tc.getVerifyTableDefs()).extracting(VerifyTableDefinition::getTableName)
+                .as("The expected dataset decides which tables are verified.")
+                .doesNotContain("NOT_IN_THE_EXPECTED_DATASET")
+                .hasSize(expectedTableNames.length);
+        assertThat(tc.getVerifyTableDefs())
+                .as("A table the rules define, found ignoring case, is verified with them.")
+                .contains(rules)
+                .doesNotContain(forATableTheDatasetLacks);
+    }
+
+    @Test
+    void testConfigureTest_everyExpectedTableBundleWithRulesAndSubclassOverridingConfigureTest_passesTheRulesToIt()
+            throws Exception
+    {
+        final List<VerifyTableDefinition[]> given = new ArrayList<>();
+        final DefaultPrepAndExpectedTestCase subclass =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester)
+                {
+                    @Override
+                    public void configureTest(final VerifyTableDefinition[] verifyTables,
+                            final String[] prepDataFiles, final String[] expectedDataFiles)
+                            throws Exception
+                    {
+                        given.add(verifyTables);
+                        super.configureTest(verifyTables, prepDataFiles, expectedDataFiles);
+                    }
+                };
+        final String[] expectedTableNames =
+                dataFileLoader.load(EXP_DATA_FILE_NAME).getTableNames();
+        final VerifyTableDefinition rules =
+                new VerifyTableDefinition(expectedTableNames[0], new String[] {"IGNORED"});
+
+        subclass.configureTest(PrepAndExpectedTestData.verifyingExpectedTables(
+                new String[] {PREP_DATA_FILE_NAME}, new String[] {EXP_DATA_FILE_NAME},
+                new VerifyTableDefinition[] {rules}));
+
+        assertThat(given).as("The override is called once.").hasSize(1);
+        assertThat(given.get(0)).as("It gets the rules for the table they define.")
+                .contains(rules);
+        assertThat(given.get(0)).extracting(VerifyTableDefinition::getTableName)
+                .containsExactly(expectedTableNames);
+    }
+
+    @Test
     void testConfigureTest_everyExpectedTableBundleAndSubclassOverridingConfigureTest_passesTheDerivedDefinitionsToIt()
             throws Exception
     {

@@ -423,8 +423,9 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * {@inheritDoc}
      * <p>
      * Honors {@link PrepAndExpectedTestData#verifyingExpectedTables(String[], String[])}: one
-     * default {@link VerifyTableDefinition} per table of the expected dataset this loads, so
-     * each expected data file is parsed once. A subclass that overrides
+     * {@link VerifyTableDefinition} per table of the expected dataset this loads, the one the
+     * bundle defines for the table when it does and a default one otherwise, so each expected
+     * data file is parsed once. A subclass that overrides
      * {@link #configureTest(VerifyTableDefinition[], String[], String[])} may expect the
      * definitions it is given, so for it they are derived by loading the expected data files
      * first, and passed on. Fails and cleans up as {@code configureTest} does.
@@ -435,7 +436,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
         if (testData.isVerifyingEveryExpectedTable())
         {
             configureVerifyingEveryExpectedTable(testData.getPrepDataFiles(),
-                    testData.getExpectedDataFiles());
+                    testData.getExpectedDataFiles(), testData.getVerifyTableDefinitions());
         } else
         {
             PrepAndExpectedTestCase.super.configureTest(testData);
@@ -443,24 +444,26 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     }
 
     /**
-     * Configures the test to verify every table of the expected data files, each with a default
-     * definition.
+     * Configures the test to verify every table of the expected data files, each with its
+     * definition from {@code definitions} when that has one and a default one otherwise.
      */
     private void configureVerifyingEveryExpectedTable(final String[] prepDataFiles,
-            final String[] expectedDataFiles) throws Exception
+            final String[] expectedDataFiles, final VerifyTableDefinition[] definitions)
+            throws Exception
     {
         if (isOverriddenBySubclass("configureTest", VerifyTableDefinition[].class,
                 String[].class, String[].class))
         {
-            configureTest(deriveVerifyTableDefinitions(expectedDataFiles), prepDataFiles,
-                    expectedDataFiles);
+            configureTest(deriveVerifyTableDefinitions(expectedDataFiles, definitions),
+                    prepDataFiles, expectedDataFiles);
             return;
         }
 
         configuringTest(() ->
         {
             configureTest(new VerifyTableDefinition[0], prepDataFiles, expectedDataFiles);
-            this.verifyTableDefs = makeDefaultVerifyTableDefinitions(expectedDataSet);
+            this.verifyTableDefs =
+                    makeVerifyTableDefinitions(expectedDataSet.getTableNames(), definitions);
         });
     }
 
@@ -540,41 +543,49 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     }
 
     /**
-     * Makes one default {@link VerifyTableDefinition} per table of the expected data files,
-     * read with the dataFileLoader, in first-seen order. Reads the files only to list their
-     * tables, for a subclass that expects the definitions
+     * Makes one {@link VerifyTableDefinition} per table of the expected data files, read with
+     * the dataFileLoader, in first-seen order. Reads the files only to list their tables, for a
+     * subclass that expects the definitions
      * {@link #configureTest(VerifyTableDefinition[], String[], String[])} is given.
      */
     private VerifyTableDefinition[] deriveVerifyTableDefinitions(
-            final String[] expectedDataFiles) throws DataSetException
+            final String[] expectedDataFiles, final VerifyTableDefinition[] definitions)
+            throws DataSetException
     {
         final Set<String> tableNames = new LinkedHashSet<>();
         for (final String path : expectedDataFiles)
         {
             tableNames.addAll(Arrays.asList(dataFileLoader.load(path).getTableNames()));
         }
-        return makeDefaultVerifyTableDefinitions(tableNames.toArray(new String[0]));
+        return makeVerifyTableDefinitions(tableNames.toArray(new String[0]), definitions);
     }
 
     /**
-     * Makes one default {@link VerifyTableDefinition} per table of the dataset.
+     * Makes one {@link VerifyTableDefinition} per table: the one {@code definitions} holds for
+     * the table, matched by name ignoring case, and a default one for the others.
      */
-    private VerifyTableDefinition[] makeDefaultVerifyTableDefinitions(
-            final IDataSet dataSet) throws DataSetException
+    private VerifyTableDefinition[] makeVerifyTableDefinitions(final String[] tableNames,
+            final VerifyTableDefinition[] definitions)
     {
-        return makeDefaultVerifyTableDefinitions(dataSet.getTableNames());
-    }
-
-    private VerifyTableDefinition[] makeDefaultVerifyTableDefinitions(
-            final String[] tableNames)
-    {
-        final VerifyTableDefinition[] definitions =
-                new VerifyTableDefinition[tableNames.length];
+        final VerifyTableDefinition[] made = new VerifyTableDefinition[tableNames.length];
         for (int i = 0; i < tableNames.length; i++)
         {
-            definitions[i] = new VerifyTableDefinition(tableNames[i], (String[]) null);
+            made[i] = definitionFor(tableNames[i], definitions);
         }
-        return definitions;
+        return made;
+    }
+
+    private static VerifyTableDefinition definitionFor(final String tableName,
+            final VerifyTableDefinition[] definitions)
+    {
+        for (final VerifyTableDefinition definition : definitions)
+        {
+            if (definition.getTableName().equalsIgnoreCase(tableName))
+            {
+                return definition;
+            }
+        }
+        return new VerifyTableDefinition(tableName, (String[]) null);
     }
 
     /**
