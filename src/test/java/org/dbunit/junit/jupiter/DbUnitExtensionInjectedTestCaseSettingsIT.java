@@ -176,9 +176,9 @@ class DbUnitExtensionInjectedTestCaseSettingsIT
         @DbUnitPrep("annotation-it-prep.xml")
         @DbUnitExpected(value = "annotation-it-expected.xml",
                 verify = @DbUnitVerifyTable(value = TEST_TABLE, include = {"COLUMN0", "COLUMN1"}))
-        void mutateTheSeededRow(final Connection connection) throws Exception
+        void mutateTheSeededRow(final IDatabaseConnection connection) throws Exception
         {
-            try (Statement statement = connection.createStatement())
+            try (Statement statement = connection.getConnection().createStatement())
             {
                 statement.execute("UPDATE " + TEST_TABLE
                         + " SET COLUMN1 = 'after' WHERE COLUMN0 = 'row0'");

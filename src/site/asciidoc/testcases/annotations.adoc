@@ -176,7 +176,7 @@ when the test declares it:
 * the `@DbUnitConfig` attributes `dataFileLoader`, `failureHandler`,
   `properties`/`propertiesProvider`, `databaseTesterFactory` and `prepAndExpectedTestCase`;
 * a test without `@DbUnitExpected`, which would have no tester to set up; and
-* an `IDatabaseTester`, `IDatabaseConnection` or `Connection` test method parameter.
+* an `IDatabaseTester` or `IDatabaseConnection` test method parameter.
 
 Configure such a test case where it is built instead. The rest works as for any other
 test case, including the tables to verify: a `@DbUnitExpected` that names none verifies
@@ -620,18 +620,14 @@ see <<properties>> below. Mutually exclusive.
 
 |`failureHandler` |A `FailureHandler` for verification failures, in place of
 dbUnit's own default.
-
-|`injectConnectionParameter` |Whether the extension resolves a bare
-`java.sql.Connection` test-method parameter; default `true`. Set `false` when
-a co-registered resolver (Spring, Testcontainers) needs it — see
-link:DbUnitExtension.html#parameter_injection[DbUnitExtension].
 |===
 
 [#connection-ownership]
 === Who Closes the Connection
 
 dbUnit closes the connection it resolves for a test — for the prep/expected path, the row count
-check or a `Connection` parameter — when the test is over, unless it belongs to someone else.
+check or an `IDatabaseConnection` parameter — when the test is over, unless it belongs to someone
+else.
 The one signal for that is set on the tester, once, where it is built, so every test that uses
 the tester gets it right: an `IOperationListener` that is, or wraps,
 `NO_OP_OPERATION_LISTENER` says its connections are managed elsewhere, as it did in the 3.5.0

@@ -89,7 +89,7 @@ import org.slf4j.LoggerFactory;
  *
  * <p>The connection {@link #getConnection()} memoizes - the tester's own on the setup/teardown
  * path, {@link DefaultPrepAndExpectedTestCase#getReusableConnection()}'s on the prep/expected path so a
- * {@code Connection}/{@code IDatabaseConnection} parameter shares the test case's own - is used
+ * {@code IDatabaseConnection} parameter shares the test case's own - is used
  * by the row count check and by a binding's parameter injection, and closed in
  * {@link #afterTest(boolean)} when {@link ConnectionOwnership#mayClose()} allows it, unless the
  * classic path took it over from {@code onSetup()}. On an
@@ -377,8 +377,8 @@ public class AnnotatedTestExecutor
      * constructed one yet - a binding resolving a parameter before {@link #beforeTest()} runs
      * (e.g. a {@code @BeforeEach} parameter) sees {@code null} unless one was already injected
      * through the constructor, or an earlier parameter resolution this same test already
-     * triggered {@link ExpectedLifecycle#ensureTestCase()} (e.g. a {@code Connection} parameter
-     * resolved via {@link #getConnection()}).
+     * triggered {@link ExpectedLifecycle#ensureTestCase()} (e.g. an {@code IDatabaseConnection}
+     * parameter resolved via {@link #getConnection()}).
      *
      * @return The test case this executor drives, or {@code null} if none exists yet.
      */
@@ -391,7 +391,7 @@ public class AnnotatedTestExecutor
      * Returns the connection this test's steps use, resolved at most once per test and reused
      * by every caller instead of each asking independently - the row count check's own
      * baseline/verify calls on the setup/teardown path, and a binding injecting an
-     * {@code IDatabaseConnection}/{@code Connection} parameter on either path. On the
+     * {@code IDatabaseConnection} parameter on either path. On the
      * prep/expected path ({@link AnnotatedTestConfiguration#isExpected()} true), delegates to
      * {@link DefaultPrepAndExpectedTestCase#getReusableConnection()} - constructing the test case first
      * via {@link ExpectedLifecycle#ensureTestCase()} if it does not exist yet - instead of
@@ -660,7 +660,7 @@ public class AnnotatedTestExecutor
      * Closes the connection {@link #testScopedConnection} memoized, when {@link #afterTest(boolean)}
      * never ran. A binding calls this once the test method's whole lifecycle is over, to cover
      * the one path {@link #afterTest(boolean)} cannot: a {@code @BeforeEach} method that fails
-     * after a {@code Connection}/{@code IDatabaseConnection} parameter already resolved this
+     * after an {@code IDatabaseConnection} parameter already resolved this
      * executor's connection, so the test method - and with it the binding's after-test callback -
      * never runs. A no-op when {@link #afterTest(boolean)} already ran, which released the
      * connection itself, and when no connection was ever resolved, which it never acquires.

@@ -452,9 +452,9 @@ class DbUnitExtensionAnnotationIT
                         include = {"COLUMN0", "COLUMN1"}))
         @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
         void testUpdate_throughInjectedConnection_verifiesAndCleansUp(
-                final Connection connection) throws Exception
+                final IDatabaseConnection connection) throws Exception
         {
-            try (Statement statement = connection.createStatement())
+            try (Statement statement = connection.getConnection().createStatement())
             {
                 statement.execute(
                         "UPDATE " + TEST_TABLE + " SET COLUMN1 = 'after' WHERE COLUMN0 = 'row0'");
@@ -471,10 +471,10 @@ class DbUnitExtensionAnnotationIT
         @Test
         @DbUnitPrep("annotation-it-prep.xml")
         @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
-        void testPrepSeedsRow_visibleThroughInjectedConnection(final Connection connection)
+        void testPrepSeedsRow_visibleThroughInjectedConnection(final IDatabaseConnection connection)
                 throws Exception
         {
-            try (Statement statement = connection.createStatement();
+            try (Statement statement = connection.getConnection().createStatement();
                     ResultSet resultSet = statement.executeQuery(
                             "SELECT COUNT(*) FROM " + TEST_TABLE + " WHERE COLUMN0 = 'row0'"))
             {
@@ -499,17 +499,17 @@ class DbUnitExtensionAnnotationIT
         @Test
         @DbUnitPrep("annotation-it-prep.xml")
         @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
-        void testMethodOne(final Connection connection)
+        void testMethodOne(final IDatabaseConnection connection) throws Exception
         {
-            connectionsSeen.add(connection);
+            connectionsSeen.add(connection.getConnection());
         }
 
         @Test
         @DbUnitPrep("annotation-it-prep.xml")
         @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
-        void testMethodTwo(final Connection connection)
+        void testMethodTwo(final IDatabaseConnection connection) throws Exception
         {
-            connectionsSeen.add(connection);
+            connectionsSeen.add(connection.getConnection());
         }
     }
 

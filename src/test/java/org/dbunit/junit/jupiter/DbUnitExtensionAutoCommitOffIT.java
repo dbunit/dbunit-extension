@@ -228,9 +228,9 @@ class DbUnitExtensionAutoCommitOffIT
                 verify = @DbUnitVerifyTable(value = TEST_TABLE,
                         include = {"COLUMN0", "COLUMN1"}))
         @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
-        void mutateTheSeededRow(final Connection connection) throws Exception
+        void mutateTheSeededRow(final IDatabaseConnection connection) throws Exception
         {
-            try (Statement statement = connection.createStatement())
+            try (Statement statement = connection.getConnection().createStatement())
             {
                 statement.execute("UPDATE " + TEST_TABLE
                         + " SET COLUMN1 = 'after' WHERE COLUMN0 = 'row0'");
