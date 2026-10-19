@@ -125,6 +125,43 @@ class PrepAndExpectedTestDataTest
     }
 
     @Test
+    void testVerifyingExpectedTables_filesGiven_carriesThemAndVerifiesEveryExpectedTable()
+    {
+        final PrepAndExpectedTestData testData = PrepAndExpectedTestData.verifyingExpectedTables(
+                new String[] {"/prep/accounts.xml"}, new String[] {"/expected/accounts-after.xml"});
+
+        assertThat(testData.isVerifyingEveryExpectedTable())
+                .as("The factory describes a scenario that verifies every expected table.")
+                .isTrue();
+        assertThat(testData.getVerifyTableDefinitions())
+                .as("The tables are the expected data's, so none are named.").isEmpty();
+        assertThat(testData.getPrepDataFiles()).containsExactly("/prep/accounts.xml");
+        assertThat(testData.getExpectedDataFiles())
+                .containsExactly("/expected/accounts-after.xml");
+    }
+
+    @Test
+    void testIsVerifyingEveryExpectedTable_constructedWithDefinitions_isFalse()
+    {
+        assertThat(new PrepAndExpectedTestData(new VerifyTableDefinition[] {ACCOUNT_TABLE}, null,
+                new String[] {"/expected/accounts-after.xml"}).isVerifyingEveryExpectedTable())
+                        .as("Naming the tables verifies those tables only.").isFalse();
+    }
+
+    @Test
+    void testEquals_sameFilesButOnlyOneVerifiesEveryExpectedTable_areNotEqual()
+    {
+        final PrepAndExpectedTestData everyTable = PrepAndExpectedTestData
+                .verifyingExpectedTables(new String[0], new String[] {"/expected/a.xml"});
+        final PrepAndExpectedTestData noTables = new PrepAndExpectedTestData(null, null,
+                new String[] {"/expected/a.xml"});
+
+        assertThat(everyTable)
+                .as("Verifying every table and verifying none are different scenarios.")
+                .isNotEqualTo(noTables);
+    }
+
+    @Test
     void testNone_sharedConstant_hasEmptyArraysForAllThree()
     {
         assertThat(PrepAndExpectedTestData.NONE.getVerifyTableDefinitions())
