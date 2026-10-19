@@ -52,9 +52,8 @@ import org.dbunit.PrepAndExpectedTestCase;
  * <p>Any other implementation of {@link PrepAndExpectedTestCase} tells the extension of no
  * tester and no connection, so a test declaring anything that needs one -
  * {@code @DbUnitRowCountCheck}, a test without {@link DbUnitExpected}, or an
- * {@code IDatabaseTester}, {@code IDatabaseConnection} or {@code Connection} test method
- * parameter - is rejected with {@link IllegalStateException} too. Configure such a test case
- * where it is built.
+ * {@code IDatabaseTester} or {@code IDatabaseConnection} test method parameter - is rejected
+ * with {@link IllegalStateException} too. Configure such a test case where it is built.
  *
  * @author Jeff Jensen
  * @since 3.6.0
