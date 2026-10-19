@@ -55,6 +55,15 @@ import org.dbunit.util.fileloader.FileExtensionDataFileLoader;
  * public @interface AppDatabaseTest {}
  * }</pre>
  *
+ * <p>Several declarations can be in scope of one test: on its class, its superclasses, the
+ * annotations composed into them, and the enclosing classes of a nested test class. They merge
+ * attribute by attribute. For each attribute the nearest declaration that sets it wins, so a
+ * subclass declaring only {@link #failureHandler()} keeps the {@link #dataFileLoader()} and the
+ * {@link #properties()} of its base class. An attribute is set when it differs from its
+ * default, and an array attribute such as {@link #properties()} is taken whole from the nearest
+ * declaration that sets it, never combined with a farther one's. A nearer declaration therefore
+ * overrides an inherited value by naming the one it wants, but cannot clear it.
+ *
  * @author Jeff Jensen
  * @since 3.6.0
  * @see DbUnitProperty
@@ -81,9 +90,10 @@ public @interface DbUnitConfig
      * it parsed among all instances of its class, parses each file once per run instead of once
      * per test.
      *
-     * @return The loader class; defaults to {@link FileExtensionDataFileLoader}.
+     * @return The loader class; the interface itself (the default) means "not set", and
+     *         {@link FileExtensionDataFileLoader} is used.
      */
-    Class<? extends DataFileLoader> dataFileLoader() default FileExtensionDataFileLoader.class;
+    Class<? extends DataFileLoader> dataFileLoader() default DataFileLoader.class;
 
     /**
      * A {@link DatabaseTesterFactory} implementation to reflectively instantiate (with its

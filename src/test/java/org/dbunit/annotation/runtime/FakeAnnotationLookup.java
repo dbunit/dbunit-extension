@@ -31,11 +31,12 @@ import java.util.Map;
  * An {@link AnnotationLookup} that finds the annotations a test hands it, each with the class
  * that declares it, and records which annotation types were asked for. A type it was handed
  * nothing for is not found, and its declaring class is the test class, as for a real binding.
+ * Handed several of one type, it finds them nearest first, in the order it was handed them.
  */
 class FakeAnnotationLookup implements AnnotationLookup
 {
     private final Class<?> testClass;
-    private final Map<Class<? extends Annotation>, Annotation> annotations;
+    private final Map<Class<? extends Annotation>, List<Annotation>> annotations;
     private final Map<Class<? extends Annotation>, Class<?>> declaringClasses;
     private final List<Class<? extends Annotation>> askedFor = new ArrayList<>();
 
@@ -51,7 +52,7 @@ class FakeAnnotationLookup implements AnnotationLookup
     }
 
     private FakeAnnotationLookup(final Class<?> testClass,
-            final Map<Class<? extends Annotation>, Annotation> annotations,
+            final Map<Class<? extends Annotation>, List<Annotation>> annotations,
             final Map<Class<? extends Annotation>, Class<?>> declaringClasses)
     {
         this.testClass = testClass;
@@ -60,7 +61,8 @@ class FakeAnnotationLookup implements AnnotationLookup
     }
 
     /**
-     * Returns a lookup that finds {@code annotation} as well as what this one finds.
+     * Returns a lookup that finds {@code annotation} as well as what this one finds. One of the
+     * same type this lookup already finds is nearer than this one.
      *
      * @param annotation The annotation to find, declared by the test class.
      * @return The new lookup.
@@ -71,7 +73,9 @@ class FakeAnnotationLookup implements AnnotationLookup
     }
 
     /**
-     * Returns a lookup that finds {@code annotation} as well as what this one finds.
+     * Returns a lookup that finds {@code annotation} as well as what this one finds. One of the
+     * same type this lookup already finds is nearer than this one, and its declaring class is the
+     * one reported.
      *
      * @param annotation The annotation to find.
      * @param declaringClass The class that declares it.
@@ -80,12 +84,15 @@ class FakeAnnotationLookup implements AnnotationLookup
     FakeAnnotationLookup finding(final Annotation annotation, final Class<?> declaringClass)
     {
         final Class<? extends Annotation> annotationType = annotation.annotationType();
-        final Map<Class<? extends Annotation>, Annotation> moreAnnotations =
+        final Map<Class<? extends Annotation>, List<Annotation>> moreAnnotations =
                 new HashMap<>(annotations);
-        moreAnnotations.put(annotationType, annotation);
+        final List<Annotation> declarations = new ArrayList<>(
+                annotations.getOrDefault(annotationType, Collections.<Annotation>emptyList()));
+        declarations.add(annotation);
+        moreAnnotations.put(annotationType, declarations);
         final Map<Class<? extends Annotation>, Class<?>> moreDeclaringClasses =
                 new HashMap<>(declaringClasses);
-        moreDeclaringClasses.put(annotationType, declaringClass);
+        moreDeclaringClasses.putIfAbsent(annotationType, declaringClass);
         return new FakeAnnotationLookup(testClass, moreAnnotations, moreDeclaringClasses);
     }
 
@@ -93,7 +100,25 @@ class FakeAnnotationLookup implements AnnotationLookup
     public <A extends Annotation> A find(final Class<A> annotationType)
     {
         askedFor.add(annotationType);
-        return annotationType.cast(annotations.get(annotationType));
+        final List<Annotation> declarations = annotations.get(annotationType);
+        if (declarations == null)
+        {
+            return null;
+        }
+        return annotationType.cast(declarations.get(0));
+    }
+
+    @Override
+    public <A extends Annotation> List<A> findAll(final Class<A> annotationType)
+    {
+        askedFor.add(annotationType);
+        final List<A> found = new ArrayList<>();
+        for (final Annotation declaration : annotations.getOrDefault(annotationType,
+                Collections.<Annotation>emptyList()))
+        {
+            found.add(annotationType.cast(declaration));
+        }
+        return found;
     }
 
     @Override
@@ -103,7 +128,8 @@ class FakeAnnotationLookup implements AnnotationLookup
     }
 
     /**
-     * Returns the annotation types {@link #find(Class)} was asked for, in order.
+     * Returns the annotation types {@link #find(Class)} or {@link #findAll(Class)} was asked
+     * for, in order.
      *
      * @return The annotation types asked for.
      */

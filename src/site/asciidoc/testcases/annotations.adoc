@@ -254,7 +254,7 @@ fused annotation:
 |===
 
 The split matters because a method-level annotation overrides a class-level
-one *wholesale* — attributes do not merge. Fused, a class-level operation
+one *wholesale* — attributes do not merge (`@DbUnitConfig` is the one exception, see <<config>>). Fused, a class-level operation
 would be silently lost the moment a method declared its own files. Split,
 the two resolve independently:
 
@@ -599,6 +599,17 @@ have to reimplement dataset loading, comparison, and cleanup — see
 dbUnit's own default.
 |===
 
+*Declarations merge attribute by attribute.* A test can be in scope of several `@DbUnitConfig`
+declarations at once: on its class, on its superclasses, on the annotations composed into any
+of them (<<composed>>), and on the enclosing classes of a `@Nested` one. For each attribute the
+nearest declaration that sets it wins, so a subclass that declares only `failureHandler` keeps
+the `dataFileLoader` and the `properties` of its base class. An attribute is set when it differs
+from its default, and an array attribute such as `properties` or `verifyDefinitions` is taken
+whole from the nearest declaration that sets it, never combined with a farther one's. A nearer
+declaration can therefore override an inherited value by naming the one it wants, for example
+`dataFileLoader = FileExtensionDataFileLoader.class`, but it cannot clear an inherited
+`properties`. Every other annotation in this family is replaced whole by the nearer declaration.
+
 [#connection-ownership]
 === Who Closes the Connection
 
@@ -841,7 +852,10 @@ composed (meta-)annotations, not just directly-declared ones:
 public @interface AppDatabaseTest {}
 ----
 
-Every test class then carries a single `@AppDatabaseTest`. The same works for a shared
+Every test class then carries a single `@AppDatabaseTest`. Its `@DbUnitConfig` merges, attribute
+by attribute, with the one a class declares itself and with a base class's (<<config>>), so a
+class adding `@DbUnitConfig(failureHandler = ...)` keeps the loader and the properties it
+composes. The same works for a shared
 dataset: a composed annotation carrying `@DbUnitPrep("/dbunit/accounts/prep.xml")` gives each
 test class carrying it that prep file. Write such a path as an absolute one, as a relative
 path resolves against the class that carries the composed annotation (<<paths>>).

@@ -22,14 +22,13 @@ package org.dbunit.annotation.runtime;
 
 import java.util.Properties;
 
-import org.dbunit.annotation.DbUnitConfig;
 import org.dbunit.annotation.DbUnitProperty;
 import org.dbunit.database.DatabaseConfig;
 import org.dbunit.database.DatabaseConfig.ConfigProperty;
 
 /**
- * Resolves {@code @DbUnitConfig}'s {@link DatabaseConfig} properties - its
- * {@code properties()} {@link DbUnitProperty} entries - into the {@link Properties}
+ * Resolves the {@link DatabaseConfig} properties a test declares - the
+ * {@code @DbUnitConfig(properties)} {@link DbUnitProperty} entries - into the {@link Properties}
  * {@link AnnotatedTestConfiguration} carries.
  *
  * <p>Rejects a property declared more than once - under one name or under its long and its
@@ -47,18 +46,14 @@ final class DatabaseConfigPropertiesResolver
     /**
      * Resolves the {@link DatabaseConfig} properties.
      *
-     * @param config The resolved {@code @DbUnitConfig}, or {@code null} when absent.
+     * @param properties The declared entries; empty when none were declared.
      * @return The resolved properties, by long name; empty when none were declared.
      * @throws IllegalStateException If a property is declared twice, or a name is not a known
      *             {@link DatabaseConfig} property.
      */
-    Properties resolve(final DbUnitConfig config)
+    Properties resolve(final DbUnitProperty[] properties)
     {
-        if (config == null)
-        {
-            return new Properties();
-        }
-        return fromInlineProperties(config.properties());
+        return fromInlineProperties(properties);
     }
 
     private Properties fromInlineProperties(final DbUnitProperty[] properties)
