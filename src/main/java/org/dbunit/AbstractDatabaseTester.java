@@ -71,7 +71,7 @@ public abstract class AbstractDatabaseTester extends SimpleAssert implements IDa
     private String schema;
     private DatabaseOperation setUpOperation = DatabaseOperation.CLEAN_INSERT;
     private DatabaseOperation tearDownOperation = DatabaseOperation.NONE;
-    private IOperationListener operationListener;
+    private IOperationListener operationListener = new DefaultOperationListener();
 
     /**
      * Creates a tester with no schema.
@@ -209,13 +209,6 @@ public abstract class AbstractDatabaseTester extends SimpleAssert implements IDa
 
         if (operation != DatabaseOperation.NONE)
         {
-            // Ensure that the operationListener is set
-            if (operationListener == null)
-            {
-                logger.debug("OperationListener is null and will be defaulted.");
-                operationListener = new DefaultOperationListener();
-            }
-
             IDatabaseConnection connection = getConnection();
 
             try
@@ -242,16 +235,30 @@ public abstract class AbstractDatabaseTester extends SimpleAssert implements IDa
         }
     }
 
+    /**
+     * Sets the listener notified of connection-retrieval and setup/tear-down events.
+     *
+     * @param operationListener
+     *            The listener to use; {@code null} sets a new {@link DefaultOperationListener},
+     *            the listener a tester uses when none is set.
+     */
     public void setOperationListener(IOperationListener operationListener)
     {
         logger.debug("setOperationListener(operationListener={}) - start", operationListener);
-        this.operationListener = operationListener;
+        if (operationListener == null)
+        {
+            this.operationListener = new DefaultOperationListener();
+        } else
+        {
+            this.operationListener = operationListener;
+        }
     }
 
     /**
      * Returns the listener notified of connection-retrieval and setup/tear-down events.
      *
-     * @return The current {@link IOperationListener}, or {@code null} if none is set.
+     * @return The current {@link IOperationListener}; a {@link DefaultOperationListener} when
+     *         none was set. Never {@code null}.
      * @since 3.6.0
      */
     public IOperationListener getOperationListener()
