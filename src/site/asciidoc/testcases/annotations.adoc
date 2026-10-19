@@ -180,7 +180,8 @@ when the test declares it:
 
 Configure such a test case where it is built instead. The rest works as for any other
 test case, including the tables to verify: a `@DbUnitExpected` that names none verifies
-every table of the expected datasets, read with the `@DbUnitConfig` loader.
+every table of the expected datasets, read with the `@DbUnitConfig` loader, with the rules of
+the `@DbUnitConfig(verifyDefinitions)` catalog for the tables it defines.
 
 `@DbUnitTester` and `@DbUnitTestCase` both accept a `static` field, the way a
 tester or test case shared across every method in a class is typically
@@ -346,47 +347,32 @@ compared to it, so the forms below only choose which of its tables are
 compared, and an annotation naming no dataset fails fast, whatever else it
 declares, instead of failing at the end of the test with an obscure error.
 
-Which tables to verify, and with what rules, escalates through four forms
-so the common cases stay short:
+Which tables to verify, and with what rules, comes in three forms so the common cases
+stay short. The expected dataset, or `verifyTables` when given, decides which tables are
+verified; a class-level `@DbUnitConfig(verifyDefinitions)` catalog only supplies each table's
+rules (see <<catalog,the catalog section>> below):
 
 [cols="1,3", options="header"]
 |===
 |Written |Meaning
 
-|nothing |Verify every table in the expected dataset, default rules per
-table. The tables are read with the same data file loader that later compares
-the dataset: an injected `@DbUnitTestCase` instance's own loader.
+|nothing |Verify every table in the expected dataset. A table the catalog defines is
+verified with the catalog's definition, any other with the default rules; a catalog table the
+expected dataset lacks is not verified. The tables are read with the same data file loader that
+later compares the dataset: an injected `@DbUnitTestCase` instance's own loader.
 
-|`verifyTables = {"ACCOUNT", "TXN"}` |Verify exactly these tables. Narrows a
-class- or method-level `verifyDefinitions` catalog to just these tables when
-one is in play (see <<catalog,the catalog section>> below); with no catalog
-at all, a default `VerifyTableDefinition` per named table instead — avoids
+|`verifyTables = {"ACCOUNT", "TXN"}` |Verify exactly these tables, each with its
+definition from the catalog when it has one and the default rules when not — which also avoids
 repeating a bare `@DbUnitVerifyTable` per table just to name them.
 
-|`verify = @DbUnitVerifyTable(...)` |Full per-table rules: column
+|`verify = @DbUnitVerifyTable(...)` |Full per-table rules, inline: column
 include/exclude, comparers, sort mode.
-
-|`verifyDefinitions = AppVerifyTables.class` |Definitions from a shared
-catalog class, optionally narrowed by `verifyTables` — see
-<<catalog,the catalog section>> below. The one that scales to a whole suite.
 |===
 
-`verify` together with `verifyDefinitions` or `verifyTables` is rejected as
-ambiguous. Use `verifyTables` only to narrow a catalog selected by
-`verifyDefinitions`.
+`verify` together with `verifyTables` is rejected as ambiguous: `verify` declares the rules
+of its tables, `verifyTables` takes them from a catalog.
 
-That table's four forms plus the rejected combination are the five branches
-resolution actually walks, strictly in this order - highest priority first:
-
-. `verify` set together with `verifyDefinitions` or `verifyTables` - rejected.
-. `verifyDefinitions` - this method's own, else (when this method sets
-neither it nor `verify`) the class-level `@DbUnitConfig.verifyDefinitions`
-default - narrowed to `verifyTables` when that is also set.
-. `verify` alone.
-. `verifyTables` alone, with no catalog in play from either level.
-. None of the above.
-
-Setting `verify` together with either of the other two fails fast rather
+Setting `verify` together with `verifyTables` fails fast rather
 than silently picking one:
 
 [source,java]
@@ -449,8 +435,9 @@ array does for a `VerifyTableDefinition`; an annotation cannot express `null`.
 
 One fixed table set for every test is not how real suites actually verify
 data — they keep one shared class holding a `VerifyTableDefinition` constant
-per table, and each test picks a different subset. `verifyDefinitions` names one or more **catalog
-classes**, and `verifyTables` selects from them by table name:
+per table, and each test verifies a different subset. `@DbUnitConfig(verifyDefinitions)` names one
+or more **catalog classes**. The catalog supplies the rules of each table; the expected dataset, or
+`verifyTables`, decides which tables are verified:
 
 [source,java]
 ----
@@ -499,14 +486,16 @@ class AccountRepositoryTest
     @Test
     @DbUnitPrep("accounts-prep.xml")
     @DbUnitExpected("full-expected.xml")
-    void testFullRefresh_noVerifyAttributeAtAll_verifiesEveryCatalogDefinition() { }
+    void testFullRefresh_noVerifyAttributeAtAll_verifiesEveryTableOfTheExpectedDataset() { }
 }
 ----
 
-The third method sets neither `verify` nor `verifyDefinitions` itself, so
-resolution falls through to the class-level `@DbUnitConfig.verifyDefinitions`
-default with no `verifyTables` to narrow it - every definition in
-`AppVerifyTables` (`ACCOUNT`, `TRANSACTION`, and `CUSTOMER`) is verified.
+The third method sets neither `verify` nor `verifyTables`, so every table of
+`full-expected.xml` is verified: `ACCOUNT`, `TRANSACTION` and `CUSTOMER` with the
+definitions `AppVerifyTables` holds for them, and a table the catalog does not define, such as
+`AUDIT`, with the default rules. A catalog table that `full-expected.xml` does not contain is not
+verified, and a table `verifyTables` names that the catalog lacks is verified with the default
+rules too.
 
 The catalog is a *plain constants class* — no interface, no boilerplate,
 nothing to keep in sync. This is deliberately the same shape
@@ -520,9 +509,9 @@ The definitions are shared, too: every test naming the same catalog classes gets
 `setSortOnFilteredColumnsOnly()`, included - and a comparer or verifier inside one must be
 stateless, or a later test's result depends on the order the tests ran in.
 
-`verifyDefinitions` sits on both `@DbUnitConfig` (the class-level default)
-and `@DbUnitExpected` (a per-method override); the two resolve independently,
-the same rule as everywhere else in this family. A catalog class has its
+`verifyDefinitions` is an attribute of `@DbUnitConfig` only, so the catalogs are
+set once for a class or a composed annotation, and a method chooses with `verify` or
+`verifyTables`. A catalog class has its
 `public static final VerifyTableDefinition` fields read directly. The same
 table name defined in two catalog classes named together is rejected rather
 than silently resolved by declaration order. Table names are compared ignoring
@@ -591,7 +580,7 @@ have to reimplement dataset loading, comparison, and cleanup — see
 
 |`properties` |`DatabaseConfig` properties to apply — see <<properties>> below.
 
-|`verifyDefinitions` |The class-level catalog default — see <<catalog>>.
+|`verifyDefinitions` |The catalog classes that supply the rules of the tables a test verifies — see <<catalog>>.
 
 |`dataSetBaseDir` |A classpath directory prefix — see <<paths>> below.
 

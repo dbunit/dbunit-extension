@@ -41,7 +41,9 @@ import java.util.Objects;
  * <p>
  * {@link #verifyingExpectedTables(String[], String[])} describes a scenario that
  * verifies every table of its expected data files instead of the tables given, the
- * way a bare {@code @DbUnitExpected} does.
+ * way a bare {@code @DbUnitExpected} does, and
+ * {@link #verifyingExpectedTables(String[], String[], VerifyTableDefinition[])} gives
+ * some of those tables rules of their own.
  * <p>
  * An instance carries no mutable state of its own: the constructor copies each
  * array in, every getter copies its array out, and a {@code null} array is
@@ -141,7 +143,35 @@ public class PrepAndExpectedTestData
     public static PrepAndExpectedTestData verifyingExpectedTables(
             final String[] prepDataFiles, final String[] expectedDataFiles)
     {
-        return new PrepAndExpectedTestData(true, NO_VERIFY_TABLE_DEFINITIONS, prepDataFiles,
+        return verifyingExpectedTables(prepDataFiles, expectedDataFiles,
+                NO_VERIFY_TABLE_DEFINITIONS);
+    }
+
+    /**
+     * Creates an instance that loads the given prep data files and verifies every table
+     * of the given expected data files: a table that {@code definitions} defines with that
+     * {@link VerifyTableDefinition}, matched by table name ignoring case, the others with a
+     * default one. A definition for a table the expected data files lack is not used.
+     * {@link #getVerifyTableDefinitions()} returns {@code definitions} for it.
+     * <p>
+     * Only a {@link PrepAndExpectedTestCase} that reads the expected data itself can honor
+     * this, as {@link DefaultPrepAndExpectedTestCase} does; any other rejects it with an
+     * {@link UnsupportedOperationException}, as it would otherwise verify nothing.
+     *
+     * @param prepDataFiles The prep data files (as classpath resources) to load and insert
+     *            as seed data; {@code null} or empty loads none.
+     * @param expectedDataFiles The expected data files (as classpath resources) whose every
+     *            table is verified after the test runs.
+     * @param definitions The rules of the tables that have any, such as the shared constants
+     *            of a suite; {@code null} or empty gives every table the default rules.
+     * @return The instance.
+     * @since 3.6.0
+     */
+    public static PrepAndExpectedTestData verifyingExpectedTables(
+            final String[] prepDataFiles, final String[] expectedDataFiles,
+            final VerifyTableDefinition[] definitions)
+    {
+        return new PrepAndExpectedTestData(true, definitions, prepDataFiles,
                 expectedDataFiles);
     }
 
@@ -159,8 +189,8 @@ public class PrepAndExpectedTestData
     /**
      * Returns the table definitions to verify after the test runs.
      *
-     * @return A copy of the verify table definitions; empty if none, and when
-     *         {@link #isVerifyingEveryExpectedTable()}.
+     * @return A copy of the verify table definitions; empty if none. When
+     *         {@link #isVerifyingEveryExpectedTable()}, the rules of the tables that have any.
      */
     public VerifyTableDefinition[] getVerifyTableDefinitions()
     {
@@ -169,10 +199,11 @@ public class PrepAndExpectedTestData
 
     /**
      * Returns whether this verifies every table of the expected data files, each with a
-     * default {@link VerifyTableDefinition}, instead of the tables
-     * {@link #getVerifyTableDefinitions()} names.
+     * default {@link VerifyTableDefinition} unless {@link #getVerifyTableDefinitions()} defines
+     * it, instead of only the tables {@link #getVerifyTableDefinitions()} names.
      *
-     * @return {@code true} when created by {@link #verifyingExpectedTables(String[], String[])}.
+     * @return {@code true} when created by {@link #verifyingExpectedTables(String[], String[])}
+     *         or {@link #verifyingExpectedTables(String[], String[], VerifyTableDefinition[])}.
      * @since 3.6.0
      */
     public boolean isVerifyingEveryExpectedTable()

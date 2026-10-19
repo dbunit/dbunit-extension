@@ -28,6 +28,7 @@ import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import org.dbunit.DatabaseEnvironment;
 import org.dbunit.DatabaseProfile;
@@ -37,6 +38,7 @@ import org.dbunit.IDatabaseTester;
 import org.dbunit.IOperationListener;
 import org.dbunit.JdbcDatabaseTester;
 import org.dbunit.PrepAndExpectedTestCase;
+import org.dbunit.VerifyTableDefinition;
 import org.dbunit.annotation.DbUnitConfig;
 import org.dbunit.annotation.DbUnitExpected;
 import org.dbunit.annotation.DbUnitPrep;
@@ -45,6 +47,7 @@ import org.dbunit.annotation.DbUnitTearDownOperation;
 import org.dbunit.annotation.DbUnitTestCase;
 import org.dbunit.annotation.DbUnitTester;
 import org.dbunit.annotation.DbUnitVerifyTable;
+import org.dbunit.assertion.comparer.value.ValueComparer;
 import org.dbunit.database.CachingConnectionProvider;
 import org.dbunit.database.IDatabaseConnection;
 import org.dbunit.dataset.IDataSet;
@@ -69,6 +72,28 @@ class DbUnitExtensionAnnotationIT
 {
     private static final String TEST_TABLE = "TEST_TABLE";
     private static final String PK_TABLE = "PK_TABLE";
+
+    @Test
+    void testAfterTestExecution_classLevelCatalogAndBareExpected_appliesTheCatalogsRulesToTheDatasetsTables()
+            throws Exception
+    {
+        final DatabaseEnvironment environment = DatabaseEnvironment.getInstance();
+        try
+        {
+            final IDatabaseConnection connection = environment.getConnection();
+            CatalogRulesSample.databaseTester = new DefaultDatabaseTester(connection);
+            CatalogRulesSample.databaseTester
+                    .setOperationListener(IOperationListener.NO_OP_OPERATION_LISTENER);
+
+            EngineTestKit.engine("junit-jupiter")
+                    .selectors(selectClass(CatalogRulesSample.class)).execute().testEvents()
+                    .assertStatistics(stats -> stats.started(1).succeeded(1));
+        } finally
+        {
+            deleteAllRowsQuietly(environment, TEST_TABLE);
+            environment.closeConnection();
+        }
+    }
 
     @Test
     void testAfterTestExecution_prepMutateExpected_verifiesAndCleansUp() throws Exception
@@ -390,6 +415,40 @@ class DbUnitExtensionAnnotationIT
         } catch (final Exception e)
         {
             // best-effort cleanup only; a failure here must not fail the test that already ran
+        }
+    }
+
+    /**
+     * The expected dataset decides which tables are verified, and this catalog supplies the
+     * rules of the one it defines: only the table's COLUMN0 is compared, so the value the sample
+     * leaves in COLUMN1, which the expected file does not hold, passes.
+     */
+    public static class ComparesOnlyColumn0Catalog
+    {
+        public static final VerifyTableDefinition TEST_TABLE_RULES = new VerifyTableDefinition(
+                TEST_TABLE, (String[]) null, new String[] {"COLUMN0"}, (ValueComparer) null,
+                (Map<String, ValueComparer>) null);
+    }
+
+    @ExtendWith(DbUnitExtension.class)
+    @DbUnitConfig(verifyDefinitions = ComparesOnlyColumn0Catalog.class)
+    static class CatalogRulesSample
+    {
+        @DbUnitTester
+        static IDatabaseTester databaseTester;
+
+        @Test
+        @DbUnitPrep("annotation-it-prep.xml")
+        @DbUnitExpected("annotation-it-expected.xml")
+        @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
+        void testMutateToAValueTheExpectedFileLacks_catalogComparesOnlyColumn0() throws Exception
+        {
+            try (Statement statement =
+                    databaseTester.getConnection().getConnection().createStatement())
+            {
+                statement.execute("UPDATE " + TEST_TABLE
+                        + " SET COLUMN1 = 'not in the expected file' WHERE COLUMN0 = 'row0'");
+            }
         }
     }
 

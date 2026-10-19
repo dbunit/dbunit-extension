@@ -141,6 +141,41 @@ class PrepAndExpectedTestDataTest
     }
 
     @Test
+    void testVerifyingExpectedTables_definitionsGiven_carriesThemAsTheRulesOfTheTablesTheyDefine()
+    {
+        final PrepAndExpectedTestData testData = PrepAndExpectedTestData.verifyingExpectedTables(
+                new String[0], new String[] {"/expected/accounts-after.xml"},
+                new VerifyTableDefinition[] {ACCOUNT_TABLE});
+
+        assertThat(testData.isVerifyingEveryExpectedTable())
+                .as("The definitions give some tables rules; every table is still verified.")
+                .isTrue();
+        assertThat(testData.getVerifyTableDefinitions()).containsExactly(ACCOUNT_TABLE);
+    }
+
+    @Test
+    void testVerifyingExpectedTables_nullDefinitions_isTheSameAsGivingNone()
+    {
+        assertThat(PrepAndExpectedTestData.verifyingExpectedTables(new String[0],
+                new String[] {"/expected/a.xml"}, null))
+                        .isEqualTo(PrepAndExpectedTestData.verifyingExpectedTables(new String[0],
+                                new String[] {"/expected/a.xml"}));
+    }
+
+    @Test
+    void testEquals_sameFilesButDifferentRules_areNotEqual()
+    {
+        final PrepAndExpectedTestData withRules = PrepAndExpectedTestData.verifyingExpectedTables(
+                new String[0], new String[] {"/expected/a.xml"},
+                new VerifyTableDefinition[] {ACCOUNT_TABLE});
+        final PrepAndExpectedTestData withoutRules = PrepAndExpectedTestData
+                .verifyingExpectedTables(new String[0], new String[] {"/expected/a.xml"});
+
+        assertThat(withRules).as("The rules are part of the scenario.")
+                .isNotEqualTo(withoutRules);
+    }
+
+    @Test
     void testIsVerifyingEveryExpectedTable_constructedWithDefinitions_isFalse()
     {
         assertThat(new PrepAndExpectedTestData(new VerifyTableDefinition[] {ACCOUNT_TABLE}, null,
