@@ -54,7 +54,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class AnnotatedRowCountCheckTest
 {
     private final ConnectionOwnership alwaysMayClose =
-            new ConnectionOwnership(() -> true, () -> null, () -> true);
+            new ConnectionOwnership(() -> true, () -> null);
 
     // ---- canPiggybackBaselineOn(): the decision matrix ----
 

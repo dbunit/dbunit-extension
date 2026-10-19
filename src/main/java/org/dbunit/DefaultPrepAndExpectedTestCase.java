@@ -180,10 +180,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     /**
      * Builds {@link #reusableConnectionHolder}. Its {@link ConnectionOwnership}
      * reads {@link #closeConnectionAfterTest} and {@link #getOwnershipListener()}
-     * fresh at release time; its third input - whether the borrowing lifecycle
-     * ran - is always {@code true} here, since this class only ever releases the
-     * connection from its own cleanupData(), which runs only after setupData()
-     * already acquired it. Since 3.6.0 a listener that is
+     * fresh at release time. Since 3.6.0 a listener that is
      * (or wraps) {@link IOperationListener#NO_OP_OPERATION_LISTENER}, or has a
      * blanket {@link ConnectionPreservingOperationListener} layer, keeps
      * cleanupData() from closing the connection even when
@@ -198,7 +195,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     private TestScopedConnection newReusableConnectionHolder()
     {
         final ConnectionOwnership ownership = new ConnectionOwnership(
-                () -> closeConnectionAfterTest, this::getOwnershipListener, () -> true);
+                () -> closeConnectionAfterTest, this::getOwnershipListener);
         final LeftOpenConnectionWarning leftOpenConnectionWarning =
                 new LeftOpenConnectionWarning(ownership, () -> databaseTester);
         return new TestScopedConnection(this::acquireSharedConnection, ownership,

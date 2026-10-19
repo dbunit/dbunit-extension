@@ -25,7 +25,6 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -50,7 +49,6 @@ import org.dbunit.dataset.DefaultDataSet;
 import org.dbunit.operation.DatabaseOperation;
 import org.dbunit.operation.DbUnitOperation;
 import org.junit.jupiter.api.Test;
-import org.mockito.InOrder;
 import org.slf4j.LoggerFactory;
 import org.springframework.test.context.support.DirtiesContextTestExecutionListener;
 import org.springframework.test.context.transaction.TransactionalTestExecutionListener;
@@ -144,40 +142,6 @@ class DbUnitTestExecutionListenerTest
         listener.afterTestMethod(context);
 
         verify(executor).afterTest(false);
-    }
-
-    @Test
-    void testAfterTestMethod_executorStored_unbindsTheTesterFromTheInjectedTestCaseAfterTheAfterTestSteps()
-            throws Exception
-    {
-        final AnnotatedTestExecutor executor = mock(AnnotatedTestExecutor.class);
-        final FakeTestContext context = new FakeTestContext(HasTesterField.class)
-                .beginMethod(new HasTesterField(mock(IDatabaseTester.class)), "aTestMethod");
-        context.setAttribute(EXECUTOR_ATTRIBUTE, executor);
-
-        listener.afterTestMethod(context);
-
-        final InOrder inOrder = inOrder(executor);
-        inOrder.verify(executor).afterTest(false);
-        inOrder.verify(executor).unbindTesterFromInjectedTestCase();
-    }
-
-    @Test
-    void testAfterTestMethod_afterTestStepsFail_stillUnbindsTheTesterFromTheInjectedTestCase()
-            throws Exception
-    {
-        final AnnotatedTestExecutor executor = mock(AnnotatedTestExecutor.class);
-        doThrow(new IllegalStateException("verification failed")).when(executor)
-                .afterTest(false);
-        final FakeTestContext context = new FakeTestContext(HasTesterField.class)
-                .beginMethod(new HasTesterField(mock(IDatabaseTester.class)), "aTestMethod");
-        context.setAttribute(EXECUTOR_ATTRIBUTE, executor);
-
-        assertThatThrownBy(() -> listener.afterTestMethod(context))
-                .as("The failure of the after-test steps is the one reported.")
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessage("verification failed");
-        verify(executor).unbindTesterFromInjectedTestCase();
     }
 
     @Test
@@ -621,6 +585,57 @@ class DbUnitTestExecutionListenerTest
 
         assertThat(thrown.getSuppressed())
                 .as("A verification failure not caused by a rollback needs no rollback hint.")
+                .isEmpty();
+    }
+
+    @Test
+    void testAfterTestMethod_tearDownFailsAfterTheTransactionRolledBack_attachesNoHint()
+            throws Exception
+    {
+        final DbUnitTestExecutionListener rollingBack =
+                new DbUnitTestExecutionListener(() -> true);
+        final AnnotatedTestExecutor executor = mock(AnnotatedTestExecutor.class);
+        final IllegalStateException tearDownFailure = new IllegalStateException("tear down failed");
+        doThrow(tearDownFailure).when(executor).afterTest(false);
+        final FakeTestContext context = new FakeTestContext(HasExpectedDeclared.class)
+                .beginMethod(new HasExpectedDeclared(mock(IDatabaseTester.class)),
+                        "aTestMethod");
+        context.setAttribute(EXECUTOR_ATTRIBUTE, executor);
+        rollingBack.afterTestExecution(context);
+
+        final Throwable thrown = catchThrowable(() -> rollingBack.afterTestMethod(context));
+
+        assertThat(thrown)
+                .as("The failure of the tear down must be the one reported.")
+                .isSameAs(tearDownFailure);
+        assertThat(thrown.getSuppressed())
+                .as("A failure of the tear down, a connection or the row count check is not a"
+                        + " failed verification, so the rollback hint does not explain it.")
+                .isEmpty();
+    }
+
+    @Test
+    void testAfterTestMethod_testFailedItselfAfterTheTransactionRolledBack_attachesNoHint()
+            throws Exception
+    {
+        final DbUnitTestExecutionListener rollingBack =
+                new DbUnitTestExecutionListener(() -> true);
+        final AnnotatedTestExecutor executor = mock(AnnotatedTestExecutor.class);
+        final AssertionError afterTestFailure = new AssertionError("a listener asserted");
+        doThrow(afterTestFailure).when(executor).afterTest(true);
+        final FakeTestContext context = new FakeTestContext(HasExpectedDeclared.class)
+                .beginMethod(new HasExpectedDeclared(mock(IDatabaseTester.class)),
+                        "aTestMethod")
+                .failWith(new IllegalStateException("the test failed"));
+        context.setAttribute(EXECUTOR_ATTRIBUTE, executor);
+        rollingBack.afterTestExecution(context);
+
+        final Throwable thrown = catchThrowable(() -> rollingBack.afterTestMethod(context));
+
+        assertThat(thrown.getSuppressed())
+                .as("Verification is skipped for a test that failed, so no failure of the"
+                        + " after-test steps is a verification that missed the test's changes,"
+                        + " and the rollback hint does not apply.")
                 .isEmpty();
     }
 
