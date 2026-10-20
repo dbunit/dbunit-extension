@@ -60,30 +60,10 @@ import org.slf4j.LoggerFactory;
  *
  * <p>A <em>classic</em> test - a bare {@code @ExtendWith(DbUnitExtension.class)} class with one
  * plain, unannotated {@link IDatabaseTester} field, the 3.5.0 lifecycle-only style - keeps that
- * lifecycle: {@link ClassicLifecycle} lets {@code onSetup()}/{@code onTearDown()} manage their
- * own connections, as {@code DbUnitExtension} did before this class existed, and the tester's
- * {@link IOperationListener} is wrapped for the test by a {@link ClassicOperationListener} that
- * forwards every callback to it, shields no connection from the closes it makes, and only takes
- * the row count check baseline from the connection {@code onSetup()} retrieves, so the test
- * opens no connection the 3.5.0 lifecycle did not. The listener is put back when the test is
- * over. The connection {@code onSetup()} retrieved stays the tester's listener's to close or to
- * keep open, as in the 3.5.0 lifecycle: that listener was told the operation finished on it, and
- * one that left it open keeps it for another owner, such as the fixed connection of a
- * {@link org.dbunit.DefaultDatabaseTester} that later tests reuse. A connection this executor
- * has to resolve itself, because {@code onSetup()} cannot be trusted to retrieve one, is first
- * offered to the tester's own listener's
- * {@link IOperationListener#connectionRetrieved(IDatabaseConnection)}, as every connection
- * retrieved from the tester is, so a {@code DatabaseConfig} customization made there - such as
- * enabling the row count check - applies to it, and is the only one this executor closes.
- *
- * <p>A classic test leaves the tester's {@link IOperationListener} untouched when its tester
- * does not report the listener it carries - an {@link IDatabaseTester} whose
- * {@link IDatabaseTester#getOperationListener()} returns {@code null}, as the default method
- * does for an implementation that does not override it; {@link org.dbunit.AbstractDatabaseTester}
- * always reports one. Wrapping a listener takes reading it, and putting it back takes comparing
- * it, so replacing one that cannot be read would discard it for good - for example the no-op
- * listener that says the tester's connections are managed elsewhere. For such a test the row
- * count check baseline is always captured from a connection this executor resolves itself.
+ * lifecycle, run by {@link ClassicLifecycle}, with the tester's {@link IOperationListener}
+ * wrapped for the test by a {@link ClassicOperationListener} and put back when the test is over.
+ * A tester that does not report its listener is left untouched. Both classes document how the
+ * row count check baseline and the connections are handled.
  *
  * @author Jeff Jensen
  * @since 3.6.0
