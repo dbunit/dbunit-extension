@@ -213,10 +213,12 @@ class AccountRepositoryTest
 only read, so a `static` `@DbUnitTester` is shared safely, also under parallel execution
 (`junit.jupiter.execution.parallel.enabled=true` with per-class or per-method concurrency), as
 long as it hands out a connection of its own on each call; a tester over one fixed connection
-shares that connection among the concurrent test methods. A `static` `@DbUnitTestCase` holds the
-datasets and the connection of one test at a time, so concurrent test methods would race each
-other. Keep a class sharing a `static` `@DbUnitTestCase` field, or a tester over one fixed
-connection, running sequentially, or give each test method its own non-static field instead.
+shares that connection among the concurrent test methods. A `static` `@DbUnitTestCase`, or any
+`@DbUnitTestCase` instance field under `@TestInstance(Lifecycle.PER_CLASS)`, holds the datasets
+and the connection of one test at a time, so concurrent test methods would race each other, as
+dbUnit drives it without synchronization. Keep a class sharing such a field, or a tester over one
+fixed connection, running sequentially (JUnit Jupiter's own default), or give each test method its
+own non-shared field instead.
 
 [#prepandsetup]
 == @DbUnitPrep and @DbUnitSetUpOperation
