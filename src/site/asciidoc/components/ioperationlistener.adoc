@@ -104,11 +104,6 @@ its listener exactly as configured rather than replace it with one it could not 
 For such a tester the row count check baseline is captured from a connection of its own before
 `onSetup()`.
 
-* A listener wrapped in a `ConnectionPreservingOperationListener` keeps that wrapper in
-force: the extension does not replace it. A blanket one, built without a connection supplier,
-protects every connection, which the extension and `DefaultPrepAndExpectedTestCase` take, like
-`NO_OP_OPERATION_LISTENER`, as the sign that the tester's connections are managed
-elsewhere: neither closes them.
 * A connection the extension resolves itself, rather than through the tester's
 `onSetup()` or `onTearDown()`, is first offered to your listener's
 `connectionRetrieved()`, so a `DatabaseConfig` customization made there, such as
