@@ -45,7 +45,7 @@ import org.dbunit.util.fileloader.DataFileLoader;
  * @author Jeff Jensen
  * @since 3.6.0
  */
-public class DataSetResourcePathResolver
+class DataSetResourcePathResolver
 {
     /**
      * Resolves {@code path} to an absolute classpath resource path.

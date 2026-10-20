@@ -114,7 +114,7 @@ public class AnnotatedTestExecutor
      *            constructing one, or {@code null} to have this executor construct one from
      *            {@link AnnotatedTestConfiguration#getPrepAndExpectedTestCaseClass()}.
      */
-    public AnnotatedTestExecutor(final AnnotatedTestConfiguration configuration,
+    AnnotatedTestExecutor(final AnnotatedTestConfiguration configuration,
             final IDatabaseTester tester,
             final PrepAndExpectedTestCase prepAndExpectedTestCase)
     {
@@ -122,18 +122,9 @@ public class AnnotatedTestExecutor
     }
 
     /**
-     * Creates an executor for one test.
-     *
-     * <p>An annotation-driven test installs nothing on {@code tester}. A classic one mutates
-     * {@code tester}'s listener only when {@code tester} reports the listener it carries
-     * ({@link IDatabaseTester#getOperationListener()} returns one):
-     * {@link #installOperationListener()} runs here, replacing {@code tester}'s
-     * {@link IOperationListener} with a {@code ClassicOperationListener} wrapping the previous
-     * one, which {@link #afterTest(boolean)} - or {@link #releaseIfAfterTestDidNotRun()} - puts
-     * back, so a {@code tester} shared across methods (e.g. a {@code static @DbUnitTester}
-     * field) carries nothing onto the next test or the next user of the tester. When
-     * {@code tester} cannot report its listener, the tester's listener is left untouched; see
-     * the class Javadoc.
+     * Creates an executor for one test, as
+     * {@link #AnnotatedTestExecutor(AnnotatedTestConfiguration, TestInstanceTesterResolver.Resolution, boolean)}
+     * does for a tester and test case that are not in a resolution.
      *
      * @param configuration The resolved configuration to execute.
      * @param tester The tester to drive on the classic path, or to construct a
@@ -143,14 +134,9 @@ public class AnnotatedTestExecutor
      *            constructing one, or {@code null} to have this executor construct one from
      *            {@link AnnotatedTestConfiguration#getPrepAndExpectedTestCaseClass()}.
      * @param annotationDriven Whether the test opted into the {@code org.dbunit.annotation}
-     *            family - any {@code @DbUnit*} annotation, or a
-     *            {@code @DbUnitTester}/{@code @DbUnitTestCase} field. False for a bare
-     *            {@code @ExtendWith(DbUnitExtension.class)} class with one plain, unannotated
-     *            {@link IDatabaseTester} field, which keeps the 3.5.0 lifecycle, apart from the
-     *            tester's listener being wrapped for the test to take the row count check
-     *            baseline from the connection {@code onSetup()} retrieves.
+     *            family.
      */
-    public AnnotatedTestExecutor(final AnnotatedTestConfiguration configuration,
+    AnnotatedTestExecutor(final AnnotatedTestConfiguration configuration,
             final IDatabaseTester tester,
             final PrepAndExpectedTestCase prepAndExpectedTestCase,
             final boolean annotationDriven)
@@ -190,13 +176,28 @@ public class AnnotatedTestExecutor
     /**
      * Creates an executor for one test from what a binding resolved: the tester, and the
      * injected {@link PrepAndExpectedTestCase} if any, which is used as its owner built it.
-     * Otherwise the same as
-     * {@link #AnnotatedTestExecutor(AnnotatedTestConfiguration, IDatabaseTester, PrepAndExpectedTestCase, boolean)}.
+     *
+     * <p>An annotation-driven test installs nothing on the tester. A classic one mutates the
+     * tester's listener only when the tester reports the listener it carries
+     * ({@link IDatabaseTester#getOperationListener()} returns one): the listener is replaced here
+     * with a {@code ClassicOperationListener} wrapping the previous one, which
+     * {@link #afterTest(boolean)} - or {@link #releaseIfAfterTestDidNotRun()} - puts back, so a
+     * tester shared across methods (e.g. a {@code static @DbUnitTester} field) carries nothing
+     * onto the next test or the next user of the tester. When the tester cannot report its
+     * listener, its listener is left untouched; see the class Javadoc.
      *
      * @param configuration The resolved configuration to execute.
-     * @param resolution The tester, and any injected test case, a binding resolved for this test.
+     * @param resolution The tester, and any injected test case, a binding resolved for this
+     *            test. The tester is driven on the classic path, or a
+     *            {@link PrepAndExpectedTestCase} is constructed around it when no test case was
+     *            injected and the test is annotation-driven.
      * @param annotationDriven Whether the test opted into the {@code org.dbunit.annotation}
-     *            family, as for the other constructor.
+     *            family - any {@code @DbUnit*} annotation, or a
+     *            {@code @DbUnitTester}/{@code @DbUnitTestCase} field. False for a bare
+     *            {@code @ExtendWith(DbUnitExtension.class)} class with one plain, unannotated
+     *            {@link IDatabaseTester} field, which keeps the 3.5.0 lifecycle, apart from the
+     *            tester's listener being wrapped for the test to take the row count check
+     *            baseline from the connection {@code onSetup()} retrieves.
      */
     public AnnotatedTestExecutor(final AnnotatedTestConfiguration configuration,
             final TestInstanceTesterResolver.Resolution resolution, final boolean annotationDriven)
