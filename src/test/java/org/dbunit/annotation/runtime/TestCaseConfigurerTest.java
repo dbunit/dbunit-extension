@@ -43,6 +43,7 @@ import org.dbunit.assertion.DiffCollectingFailureHandler;
 import org.dbunit.assertion.FailureHandler;
 import org.dbunit.database.DatabaseConfig;
 import org.dbunit.database.rowcount.ClearRowCountCheckSystemProperties;
+import org.dbunit.database.rowcount.RowCountCheckOverride;
 import org.dbunit.util.fileloader.DataFileLoader;
 import org.dbunit.util.fileloader.FlatXmlDataFileLoader;
 import org.dbunit.util.fileloader.FullXmlDataFileLoader;
@@ -71,7 +72,8 @@ class TestCaseConfigurerTest
 
         verify(testCase).setFailureHandler(any(DiffCollectingFailureHandler.class));
         verify(testCase).setDatabaseConfigProperties(any(Properties.class));
-        verify(testCase).setRowCountCheckOverride(true, new String[0]);
+        verify(testCase)
+                .setRowCountCheckOverride(new RowCountCheckOverride(true, new String[0]));
     }
 
     @Test
@@ -87,8 +89,7 @@ class TestCaseConfigurerTest
         verify(testCase, never()).setFailureHandler(any());
         verify(testCase, never()).setDatabaseConfigProperties(any());
         verify(testCase, never()).setCloseConnectionAfterTest(anyBoolean());
-        verify(testCase, never()).setRowCountCheckOverride(anyBoolean(), any(String[].class));
-        verify(testCase, never()).clearRowCountCheckOverride();
+        verify(testCase, never()).setRowCountCheckOverride(any());
     }
 
     @Test
@@ -242,17 +243,43 @@ class TestCaseConfigurerTest
     void testApplyAll_rowCountCheckDeclared_setsTheOverrideAndUndoClearsIt()
     {
         final DefaultPrepAndExpectedTestCase testCase =
-                spy(new DefaultPrepAndExpectedTestCase(new FlatXmlDataFileLoader(), null, true));
+                new DefaultPrepAndExpectedTestCase(new FlatXmlDataFileLoader(), null, true);
 
         final TestCaseRestoration restoration = new TestCaseConfigurer(
                 configFrom(OnlyRowCountCheck.class), testCase).applyAll();
 
-        verify(testCase).setRowCountCheckOverride(true, new String[0]);
-        verify(testCase, never()).clearRowCountCheckOverride();
+        assertThat(testCase.getRowCountCheckOverride())
+                .as("The declared check must be the override while the test runs.")
+                .isEqualTo(new RowCountCheckOverride(true, new String[0]));
 
         restoration.undo();
 
-        verify(testCase).clearRowCountCheckOverride();
+        assertThat(testCase.getRowCountCheckOverride())
+                .as("A test case that had no override must have none again afterward.")
+                .isNull();
+    }
+
+    @Test
+    void testApplyAll_rowCountCheckDeclaredOnInstanceWithItsOwnOverride_undoPutsTheOwnBack()
+    {
+        final DefaultPrepAndExpectedTestCase testCase =
+                new DefaultPrepAndExpectedTestCase(new FlatXmlDataFileLoader(), null, true);
+        final RowCountCheckOverride ownOverride =
+                new RowCountCheckOverride(false, new String[] {"AUDIT_LOG"});
+        testCase.setRowCountCheckOverride(ownOverride);
+
+        final TestCaseRestoration restoration = new TestCaseConfigurer(
+                configFrom(OnlyRowCountCheck.class), testCase).applyAll();
+
+        assertThat(testCase.getRowCountCheckOverride())
+                .as("The declared check must replace the instance's own while the test runs.")
+                .isEqualTo(new RowCountCheckOverride(true, new String[0]));
+
+        restoration.undo();
+
+        assertThat(testCase.getRowCountCheckOverride())
+                .as("The override the instance was built with must be back afterward.")
+                .isEqualTo(ownOverride);
     }
 
     @Test
