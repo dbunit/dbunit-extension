@@ -48,12 +48,11 @@ import org.junit.platform.testkit.engine.EngineTestKit;
 
 /**
  * Real-database integration test proving an {@code @DbUnitProperty} value actually reaches
- * {@link IDatabaseConnection#getConfig()} on both the setup/teardown path (the {@code
- * IOperationListener} wiring described in the annotations plan's execution model) and the
- * prep/expected path ({@code DefaultPrepAndExpectedTestCase}'s own connection resolution,
- * which never goes through that listener) - neither is something
- * {@code AnnotatedTestExecutorTest}'s mocked connection can prove - and that a connection kept
- * open past the test carries the value into no later test.
+ * {@link IDatabaseConnection#getConfig()} for an annotated test that declares
+ * {@code @DbUnitPrep} and for one that declares {@code @DbUnitExpected}, because
+ * {@code DefaultPrepAndExpectedTestCase}'s own connection resolution applies it in both -
+ * neither is something {@code AnnotatedTestExecutorTest}'s mocked connection can prove - and
+ * that a connection kept open past the test carries the value into no later test.
  */
 class DbUnitConfigPropertiesIT
 {
@@ -111,7 +110,7 @@ class DbUnitConfigPropertiesIT
     }
 
     @Test
-    void testBeforeTestExecution_dbUnitPropertyDeclaredOnExpectedPath_reachesConnectionConfig()
+    void testBeforeTestExecution_dbUnitPropertyDeclaredWithExpected_reachesConnectionConfig()
             throws Exception
     {
         final DatabaseEnvironment environment = DatabaseEnvironment.getInstance();
@@ -119,20 +118,18 @@ class DbUnitConfigPropertiesIT
         {
             final IDatabaseConnection connection = environment.getConnection();
             connection.getConfig().setFeature(DatabaseConfig.FEATURE_BATCHED_STATEMENTS, false);
-            ExpectedPathPropertySample.databaseTester = new DefaultDatabaseTester(connection);
-            ExpectedPathPropertySample.databaseTester
+            ExpectedPropertySample.databaseTester = new DefaultDatabaseTester(connection);
+            ExpectedPropertySample.databaseTester
                     .setOperationListener(IOperationListener.NO_OP_OPERATION_LISTENER);
 
             EngineTestKit.engine("junit-jupiter")
-                    .selectors(selectClass(ExpectedPathPropertySample.class)).execute()
+                    .selectors(selectClass(ExpectedPropertySample.class)).execute()
                     .testEvents().assertStatistics(stats -> stats.started(1).succeeded(1));
 
-            assertThat(ExpectedPathPropertySample.batchedStatementsDuringTest)
+            assertThat(ExpectedPropertySample.batchedStatementsDuringTest)
                     .as("The @DbUnitProperty value must reach the connection"
                             + " DefaultPrepAndExpectedTestCase actually uses for"
-                            + " setupData()/verifyData()/cleanupData() - the"
-                            + " setup/teardown path's IOperationListener wiring is never"
-                            + " triggered by those methods.")
+                            + " setupData()/verifyData()/cleanupData().")
                     .isTrue();
             assertThat(
                     connection.getConfig().getFeature(DatabaseConfig.FEATURE_BATCHED_STATEMENTS))
@@ -151,7 +148,7 @@ class DbUnitConfigPropertiesIT
     // not one owned by this one test, so its listener is the no-op one.
     @DbUnitConfig(properties = @DbUnitProperty(name = "batchedStatements", value = "true"))
     @DbUnitExpected("empty.xml")
-    static class ExpectedPathPropertySample
+    static class ExpectedPropertySample
     {
         @DbUnitTester
         static IDatabaseTester databaseTester;

@@ -47,13 +47,13 @@ import org.dbunit.operation.DbUnitOperation;
  * method-level {@link DbUnitPrep} instead of silently reverting to the default the moment a
  * method declares its own files.
  *
- * <p>On the prep/expected path ({@link DbUnitExpected} declared), this operation is applied to
- * the resolved {@code IDatabaseTester}, which only reaches the actual setup call when the test
- * case reads its own setup operation from that same tester the way
- * {@link org.dbunit.DefaultPrepAndExpectedTestCase} does. A {@link DbUnitTestCase} field
- * injecting an already-built test case is used as it was built, with its tester's operations:
- * declaring this annotation next to one fails fast with {@link IllegalStateException}, so set
- * the operation on the instance's tester where it is built.
+ * <p>This operation is the setup operation of the
+ * {@link org.dbunit.DefaultPrepAndExpectedTestCase} that runs the test, for that test only; the
+ * tester is not written and keeps its own. It acts on the {@link DbUnitPrep} dataset: a test that
+ * declares none sets up no data, and the dataset a tester holds is never read. A
+ * {@link DbUnitTestCase} field injecting an already-built test case is used as it was built, with
+ * its tester's operations: declaring this annotation next to one fails fast with
+ * {@link IllegalStateException}, so set the operation on the instance's tester where it is built.
  *
  * <p>Example — a class-wide {@link DbUnitOperation#REFRESH} operation, with each test method
  * naming its own prep file:

@@ -34,10 +34,12 @@ import org.dbunit.database.rowcount.UnexpectedRowCountException;
 import org.dbunit.operation.DatabaseOperation;
 
 /**
- * The row count check for {@link SetupTeardownLifecycle}: captures a baseline before
+ * The row count check for {@link ClassicLifecycle}: captures a baseline before
  * {@code onSetup()} and verifies it after {@code onTearDown()}, so a table the test left
  * dirty - one it should have cleaned and did not, or a reference table it wrongly cleaned -
- * fails the test.
+ * fails the test. Whether the check is enabled is the connection's {@code DatabaseConfig}'s to
+ * say, as a classic test declares no {@code @DbUnitRowCountCheck}; an annotation-driven test's
+ * check is its test case's own.
  *
  * <p>Capturing that baseline needs a connection - to read whether the check is even enabled -
  * but resolving one just for that would cost a plain {@code JdbcDatabaseTester} an extra
@@ -47,7 +49,7 @@ import org.dbunit.operation.DatabaseOperation;
  * <ul>
  * <li>when {@link #canPiggybackBaselineOn(DatabaseOperation)} can prove {@code onSetup()} is
  * about to retrieve one on its own, {@link #adoptAndCaptureBaselineOnFirstConnection(IDatabaseConnection)}
- * piggybacks on that connection - via the {@link ExecutorOperationListener} - so no connection
+ * piggybacks on that connection - via the {@link ClassicOperationListener} - so no connection
  * is resolved here at all;</li>
  * <li>otherwise - a custom {@link IDatabaseTester}, a {@link DatabaseOperation#NONE} setup
  * operation, a connection already memoized from a {@code @BeforeEach} parameter, or a tester
@@ -56,7 +58,7 @@ import org.dbunit.operation.DatabaseOperation;
  * </ul>
  *
  * <p>Either way a baseline is always decided - captured, or found disabled - before the test
- * method runs; which route got there differs only in cost. {@link SetupTeardownLifecycle}
+ * method runs; which route got there differs only in cost. {@link ClassicLifecycle}
  * re-runs {@link #captureBaselineEagerly()} after {@code onSetup()} as a last-resort net for a
  * piggyback it trusted that still did not fire ({@link #isBaselineAttempted()} reports whether
  * that is needed).
@@ -66,9 +68,8 @@ import org.dbunit.operation.DatabaseOperation;
  * @author Jeff Jensen
  * @since 3.6.0
  */
-final class AnnotatedRowCountCheck
+class ClassicRowCountCheck
 {
-    private final AnnotatedTestConfiguration configuration;
     private final IDatabaseTester tester;
     private final TestScopedConnection connection;
     private final BooleanSupplier operationListenerInPlace;
@@ -79,20 +80,17 @@ final class AnnotatedRowCountCheck
     /**
      * Creates the row count check for one test.
      *
-     * @param configuration The resolved configuration.
      * @param tester The tester being driven.
      * @param connection The shared per-test connection holder.
-     * @param operationListenerInPlace Supplies whether the {@link ExecutorOperationListener}
+     * @param operationListenerInPlace Supplies whether the {@link ClassicOperationListener}
      *            installed for this test still hears the tester's callbacks, read when the
      *            setup is about to run - false for a tester that cannot report its listener,
-     *            where none was installed, and once something has replaced it, such as a
-     *            {@code @BeforeEach} method given the tester as a parameter.
+     *            where none was installed, and for one that does not carry it, such as a tester
+     *            whose {@code setOperationListener()} ignores it.
      */
-    AnnotatedRowCountCheck(final AnnotatedTestConfiguration configuration,
-            final IDatabaseTester tester, final TestScopedConnection connection,
+    ClassicRowCountCheck(final IDatabaseTester tester, final TestScopedConnection connection,
             final BooleanSupplier operationListenerInPlace)
     {
-        this.configuration = configuration;
         this.tester = tester;
         this.connection = connection;
         this.operationListenerInPlace = operationListenerInPlace;
@@ -100,27 +98,23 @@ final class AnnotatedRowCountCheck
 
     /**
      * Returns whether {@code onSetup()} can be trusted to retrieve a connection and notify
-     * {@link ExecutorOperationListener#connectionRetrieved(IDatabaseConnection)} on its own, so
+     * {@link ClassicOperationListener#connectionRetrieved(IDatabaseConnection)} on its own, so
      * the baseline can be captured from that connection via
      * {@link #adoptAndCaptureBaselineOnFirstConnection(IDatabaseConnection)} instead of
      * {@link #captureBaselineEagerly()} resolving a separate one just to find out whether the
      * check is even enabled.
      *
-     * <p>True only when this is provably safe: the {@link ExecutorOperationListener} installed on
+     * <p>True only when this is provably safe: the {@link ClassicOperationListener} installed on
      * the tester is still there to piggyback on, not replaced since by one that would never
      * pass the connection on, which would leave only a capture after {@code onSetup()} had
-     * already inserted the prep rows; {@code tester} is dbUnit's own {@link AbstractDatabaseTester}
+     * already inserted its rows; {@code tester} is dbUnit's own {@link AbstractDatabaseTester}
      * <em>and does not override {@code onSetup()}</em>,
      * so {@code executeOperation()} - known by reading its source, not by assuming it - runs and
      * calls {@code getConnection()} and notifies the listener <em>before</em> the operation
      * touches any data, whenever the operation is not {@link DatabaseOperation#NONE}; and no
      * connection is already memoized (e.g. by an earlier {@code @BeforeEach} parameter
      * injection), since piggybacking on a second, different connection than one already in hand
-     * would orphan the first rather than reuse it. {@link SetupTeardownLifecycle} consults this
-     * before it combines a multi-file {@code @DbUnitPrep} dataset, precisely so that combine's
-     * case-sensitivity read does not resolve a connection first and rule the piggyback out
-     * here; on this route it combines again, with the case sensitivity of the connection
-     * {@code onSetup()} retrieves, once the listener is notified of it. A custom
+     * would orphan the first rather than reuse it. A custom
      * {@link IDatabaseTester}, or an
      * {@link AbstractDatabaseTester} subclass that overrides {@code onSetup()} and might apply
      * the setup operation some other way, is never assumed to behave the same way -
@@ -155,7 +149,7 @@ final class AnnotatedRowCountCheck
     /**
      * Eagerly resolves the shared connection and captures the baseline from it. The route taken
      * when {@link #canPiggybackBaselineOn(DatabaseOperation)} said no connection is coming from
-     * {@code onSetup()} on its own, and, run again by {@link SetupTeardownLifecycle} after
+     * {@code onSetup()} on its own, and, run again by {@link ClassicLifecycle} after
      * {@code onSetup()}, the last-resort net for a piggyback that was trusted but never fired.
      *
      * @throws Exception If resolving the connection or capturing the baseline fails.
@@ -173,7 +167,7 @@ final class AnnotatedRowCountCheck
      * would, so every other caller this test - the later verify, a parameter injection, the
      * end-of-test close - reuses this exact connection.
      *
-     * <p>Called only from {@link ExecutorOperationListener}, which declares no checked
+     * <p>Called only from {@link ClassicOperationListener}, which declares no checked
      * exceptions, so a failure here is wrapped in a {@link DatabaseUnitRuntimeException} rather
      * than a checked one.
      *
@@ -209,17 +203,12 @@ final class AnnotatedRowCountCheck
         {
             return;
         }
-        if (configuration.isRowCountCheckDeclared())
-        {
-            checker.setEnabledOverride(configuration.isRowCountCheckEnabled(),
-                    configuration.getRowCountCheckExclude());
-        }
         checker.capture(from);
     }
 
     /**
      * Returns whether a baseline capture has been attempted this test - captured, found
-     * disabled, or found to have no connection. {@link SetupTeardownLifecycle} checks this
+     * disabled, or found to have no connection. {@link ClassicLifecycle} checks this
      * after {@code onSetup()} to decide whether the last-resort eager capture is still needed.
      *
      * @return True once a capture has been attempted.
@@ -231,9 +220,7 @@ final class AnnotatedRowCountCheck
 
     /**
      * Verifies the captured baseline against the shared connection's current row counts, unless
-     * no baseline was captured (the check is disabled, or there was no connection). A mismatch
-     * is rethrown with an extra hint when it is the classic {@code @DbUnitRowCountCheck} +
-     * {@code @DbUnitPrep} + no-teardown shape.
+     * no baseline was captured (the check is disabled, or there was no connection).
      *
      * @throws Exception If resolving the connection or verifying fails, including
      *             {@link UnexpectedRowCountException} on a mismatch.
@@ -249,38 +236,6 @@ final class AnnotatedRowCountCheck
         {
             return;
         }
-        try
-        {
-            checker.verify(against);
-        } catch (final UnexpectedRowCountException e)
-        {
-            throw augmentForUnclearedPrep(e);
-        }
-    }
-
-    /**
-     * Rethrows {@code e} with an extra hint when the mismatch is the classic
-     * {@code @DbUnitRowCountCheck} + {@code @DbUnitPrep} + no-teardown shape: the baseline is
-     * captured <em>before</em> {@code @DbUnitPrep} loads, so a prep dataset that is never torn
-     * down reads as leaked rows and fails the check - a common first surprise. Otherwise
-     * returns {@code e} unchanged. Keyed on the teardown operation the tester actually just ran
-     * ({@link DatabaseOperation#NONE}), so an explicit {@code @DbUnitTearDownOperation(NONE)}
-     * is covered too.
-     */
-    private UnexpectedRowCountException augmentForUnclearedPrep(
-            final UnexpectedRowCountException e)
-    {
-        if (configuration.isRowCountCheckDeclared()
-                && configuration.getPrepDataFiles().length > 0
-                && tester.getTearDownOperation() == DatabaseOperation.NONE)
-        {
-            return new UnexpectedRowCountException(e.getDifferences(),
-                    "The @DbUnitRowCountCheck baseline is captured before @DbUnitPrep loads, so"
-                            + " a prep dataset that is never torn down reads as leaked rows. Add"
-                            + " @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL) (or"
-                            + " CLEAN_INSERT), or list these tables in"
-                            + " @DbUnitRowCountCheck(exclude = ...).");
-        }
-        return e;
+        checker.verify(against);
     }
 }
