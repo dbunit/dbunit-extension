@@ -133,10 +133,11 @@ class MultiDataSourcePrepAndExpectedTestCaseIT
         createSchema(inventoryJdbcConnection,
                 "CREATE TABLE STOCK (SKU VARCHAR(20) PRIMARY KEY, QTY_ON_HAND INTEGER)");
 
-        testCase = MultiDataSourcePrepAndExpectedTestCase.forTesters(dataFileLoader)
+        testCase = MultiDataSourcePrepAndExpectedTestCase.builder()
+                .dataFileLoader(dataFileLoader)
                 .add(CATALOG, testerFor(catalogJdbcConnection))
                 .add(ORDERS, testerFor(ordersJdbcConnection))
-                .add(INVENTORY, testerFor(inventoryJdbcConnection));
+                .add(INVENTORY, testerFor(inventoryJdbcConnection)).build();
     }
 
     @AfterEach
@@ -182,10 +183,11 @@ class MultiDataSourcePrepAndExpectedTestCaseIT
     @Test
     void testRunTest_dataSourceOmittedFromTheRow_itsConnectionIsNeverOpened() throws Exception
     {
-        testCase = MultiDataSourcePrepAndExpectedTestCase.forTesters(dataFileLoader)
+        testCase = MultiDataSourcePrepAndExpectedTestCase.builder()
+                .dataFileLoader(dataFileLoader)
                 .add(CATALOG, testerFor(catalogJdbcConnection))
                 .add(ORDERS, testerFor(ordersJdbcConnection))
-                .add(INVENTORY, new ThrowingDatabaseTester());
+                .add(INVENTORY, new ThrowingDatabaseTester()).build();
 
         final Map<String, PrepAndExpectedTestData> data = new LinkedHashMap<>();
         data.put(CATALOG, catalogData(CATALOG_EXPECTED));

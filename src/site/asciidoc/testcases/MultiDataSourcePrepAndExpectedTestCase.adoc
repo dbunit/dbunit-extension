@@ -26,10 +26,12 @@ delegate.
 
 Two things vary on two different schedules:
 
-Wiring (fixed for the instance's life):: the `{name -> PrepAndExpectedTestCase}` (or
-`{name -> IDatabaseTester}`) map, assembled with the constructors,
-`from(String, PrepAndExpectedTestCase)`, the `forTesters(...)` factories, and `add`/`addAll` -
-each returning the instance so calls chain - then frozen on the first `preTest`/`runTest` call.
+Wiring (fixed when the instance is created):: the `{name -> PrepAndExpectedTestCase}` (or
+`{name -> IDatabaseTester}`) map, assembled with `builder()` - `add`, `addAll`, `dataFileLoader`
+and `closeConnectionAfterTest`, in any order, then `build()` - or with the `Map` constructor. A
+tester added with `add(name, tester)` is wrapped in a `DefaultPrepAndExpectedTestCase` that uses
+the builder's loader, a `FileExtensionDataFileLoader` unless one is set, and its
+`closeConnectionAfterTest`, `true` unless set otherwise.
 
 Data (varies per test method, per `@ParameterizedTest` row):: the
 `{name -> PrepAndExpectedTestData}` map passed to `preTest(map)`/`runTest(map, steps)`. A wired
@@ -75,10 +77,11 @@ private MultiDataSourcePrepAndExpectedTestCase testCase;
 @BeforeEach
 void setUp()
 {
-    final Map<String, IDatabaseTester> testers = new LinkedHashMap<>();
-    testers.put("orders", makeTester(ordersDataSource));
-    testers.put("inventory", makeTester(inventoryDataSource));
-    testCase = MultiDataSourcePrepAndExpectedTestCase.forTesters(loader, testers);
+    testCase = MultiDataSourcePrepAndExpectedTestCase.builder()
+            .dataFileLoader(loader)
+            .add("orders", makeTester(ordersDataSource))
+            .add("inventory", makeTester(inventoryDataSource))
+            .build();
 }
 
 @Test
@@ -195,9 +198,10 @@ public class PrimarySecondaryDbTester
             @Qualifier("primaryTestCase") PrepAndExpectedTestCase primaryTestCase,
             @Qualifier("secondaryTestCase") PrepAndExpectedTestCase secondaryTestCase)
     {
-        testCase = MultiDataSourcePrepAndExpectedTestCase
-                .from("primary", primaryTestCase)
-                .add("secondary", secondaryTestCase);
+        testCase = MultiDataSourcePrepAndExpectedTestCase.builder()
+                .add("primary", primaryTestCase)
+                .add("secondary", secondaryTestCase)
+                .build();
     }
 
     public Object runTest(PrepAndExpectedTestData primary, PrepAndExpectedTestData secondary,
