@@ -12,8 +12,10 @@ pair calling `onSetup()`/`onTearDown()`.
 NOTE: The extension needs JUnit Jupiter 5.7 or later, the release that added the
 newest Jupiter API it calls. dbUnit itself is built and tested against JUnit 6.
 
-Register it with `@ExtendWith(DbUnitExtension.class)`, or with the shorter
-`@DbUnitTest`. The test class still holds its own `IDatabaseTester` field —
+Register it with `@ExtendWith(DbUnitExtension.class)`, which keeps the 3.5.0 lifecycle
+described here, or with `@DbUnitTest`, which also opts the class into the annotation-driven
+lifecycle described under <<annotation-driven,Annotation-Driven Configuration>>. The test class
+still holds its own `IDatabaseTester` field —
 this is the same composition style as link:IDatabaseTester.html[the
 IDatabaseTester guide], just with the lifecycle calls automated instead of
 written by hand:
@@ -65,6 +67,7 @@ fields, including inherited ones:
 Field discovery also walks every enclosing test instance, innermost first,
 so a `@Nested` test class inherits its enclosing class's tester field.
 
+[#annotation-driven]
 == Annotation-Driven Configuration
 
 Rather than a `@BeforeEach` method, the dataset and operation can be

@@ -30,8 +30,19 @@ import java.lang.annotation.Target;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 /**
- * One-line opt-in for {@link DbUnitExtension}: {@code @DbUnitTest} is exactly
- * {@code @ExtendWith(DbUnitExtension.class)}.
+ * One-line opt-in for {@link DbUnitExtension}: {@code @DbUnitTest} registers the extension, as
+ * {@code @ExtendWith(DbUnitExtension.class)} does, and also opts the class into the
+ * annotation-driven lifecycle, even when it declares no other dbUnit annotation. A bare
+ * {@code @ExtendWith(DbUnitExtension.class)} class with one plain, unannotated
+ * {@link org.dbunit.IDatabaseTester} field keeps the 3.5.0 lifecycle instead.
+ *
+ * <p>The opt-in has these consequences for a test that declares nothing else: the test runs
+ * through a {@link org.dbunit.PrepAndExpectedTestCase}, which reads the tester's connection and
+ * operations, never its dataset, and sets up no data without a {@code @DbUnitPrep} file, so the
+ * tester's own {@code onSetup()} and {@code onTearDown()} do not run; the connection warnings of
+ * that test case are logged; and
+ * {@code IDatabaseTester} and {@code IDatabaseConnection} test method parameters are resolved.
+ * The Spring binding differs: {@code @DbUnitSpringTest} alone opts nothing in.
  *
  * <p>Also the natural carrier for a project's own composed annotation, bundling
  * {@code @DbUnitTest} with shared {@code @DbUnitConfig} and lifecycle annotations:
