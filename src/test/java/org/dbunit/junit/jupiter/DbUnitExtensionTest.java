@@ -24,6 +24,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
@@ -43,7 +44,9 @@ import org.dbunit.PrepAndExpectedTestCase;
 import org.dbunit.annotation.DbUnitConfig;
 import org.dbunit.annotation.DbUnitTester;
 import org.dbunit.annotation.runtime.AnnotatedTestExecutor;
+import org.dbunit.database.DatabaseConfig;
 import org.dbunit.database.IDatabaseConnection;
+import org.dbunit.operation.DatabaseOperation;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -71,14 +74,18 @@ class DbUnitExtensionTest
     {
         final IDatabaseTester marked = mock(IDatabaseTester.class);
         final IDatabaseTester unmarked = mock(IDatabaseTester.class);
+        final IDatabaseConnection markedConnection = mock(IDatabaseConnection.class);
+        when(markedConnection.getConfig()).thenReturn(new DatabaseConfig());
+        when(marked.getConnection()).thenReturn(markedConnection);
+        when(marked.getSetUpOperation()).thenReturn(DatabaseOperation.NONE);
         final HasMarkedTesterAndPlainTester testInstance =
                 new HasMarkedTesterAndPlainTester(marked, unmarked);
         givenTestInstance(testInstance, HasMarkedTesterAndPlainTester.class);
 
         extension.beforeTestExecution(context);
 
-        verify(marked).onSetup();
-        verify(unmarked, never()).onSetup();
+        verify(marked, atLeastOnce()).getConnection();
+        verify(unmarked, never()).getConnection();
     }
 
     @Test

@@ -47,22 +47,17 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.platform.testkit.engine.EngineTestKit;
 
 /**
- * Real-database integration test that every annotation-driven path leaves the connection ledger
- * balanced: no connection the run opened is left unclosed, and the runtime never holds more than
- * its memoized connection plus one the tester opens for an operation. Runs each path through a
- * {@link DataSourceDatabaseTester} over a {@link CountingDataSource}, which hands out real
- * connections and tracks open/close and peak concurrency.
+ * Real-database integration test that every annotation-driven test leaves the connection ledger
+ * balanced: no connection the run opened is left unclosed, and the runtime holds no more than
+ * one at a time. Runs each shape through a {@link DataSourceDatabaseTester} over a
+ * {@link CountingDataSource}, which hands out real connections and tracks open/close and peak
+ * concurrency.
  *
- * <p>Turns the "delicate connection lifecycle" concern into a per-path assertion (matrix item 9 /
- * G-c3 companion). Also pins the peak concurrency each path actually reaches:
- * <ul>
- * <li>The prep/expected path reaches only <strong>one</strong> - {@code DefaultPrepAndExpectedTestCase}
- * runs setup, verify and cleanup all on its one reusable connection.</li>
- * <li>The setup/teardown path reaches <strong>two</strong> - the extension memoizes the
- * connection {@code onSetup()} retrieves (for a possible row count check baseline or a parameter
- * injection) and holds it to end of test, so {@code onTearDown()} opening its own makes two.
- * This holds even with the row count check disabled: the memoize is unconditional on that path.</li>
- * </ul>
+ * <p>Turns the "delicate connection lifecycle" concern into a per-shape assertion (matrix item 9 /
+ * G-c3 companion). Also pins the peak concurrency every shape reaches, <strong>one</strong>:
+ * {@code DefaultPrepAndExpectedTestCase} runs setup, verify and cleanup, with or without
+ * {@code @DbUnitExpected}, all on its one reusable connection, which a connection parameter
+ * shares and the row count check uses too.
  */
 @ClearRowCountCheckSystemProperties
 class DbUnitExtensionConnectionBalanceIT
@@ -70,31 +65,31 @@ class DbUnitExtensionConnectionBalanceIT
     private static final String TEST_TABLE = "TEST_TABLE";
 
     @Test
-    void testAfterTestExecution_setupTeardownPathNoRowCountCheck_balancedPeakOfTwo()
+    void testAfterTestExecution_noExpectedAndNoRowCountCheck_balancedPeakOfOne()
             throws Exception
     {
-        runBalanced(SetupTeardownNoCheckSample.class, 2);
+        runBalanced(NoExpectedNoCheckSample.class, 1);
     }
 
     @Test
-    void testAfterTestExecution_setupTeardownPathWithRowCountCheck_balancedPeakOfTwo()
+    void testAfterTestExecution_noExpectedAndRowCountCheck_balancedPeakOfOne()
             throws Exception
     {
-        runBalanced(SetupTeardownWithCheckSample.class, 2);
+        runBalanced(NoExpectedWithCheckSample.class, 1);
     }
 
     @Test
-    void testAfterTestExecution_prepExpectedPathWithRowCountCheck_balancedPeakOfOne()
+    void testAfterTestExecution_expectedAndRowCountCheck_balancedPeakOfOne()
             throws Exception
     {
-        runBalanced(PrepExpectedWithCheckSample.class, 1);
+        runBalanced(ExpectedWithCheckSample.class, 1);
     }
 
     @Test
-    void testAfterTestExecution_injectedConnectionParameterWithRowCountCheck_balancedPeakOfTwo()
+    void testAfterTestExecution_injectedConnectionParameterWithRowCountCheck_balancedPeakOfOne()
             throws Exception
     {
-        runBalanced(InjectedConnectionSample.class, 2);
+        runBalanced(InjectedConnectionSample.class, 1);
     }
 
     @Test
@@ -127,7 +122,7 @@ class DbUnitExtensionConnectionBalanceIT
     }
 
     @Test
-    void testBeforeTestExecution_invalidPropertyValueThrowsInTheListener_closesTheTestersConnection()
+    void testBeforeTestExecution_invalidPropertyValueWithoutExpected_closesTheTestersConnection()
             throws Exception
     {
         final DatabaseEnvironment environment = DatabaseEnvironment.getInstance();
@@ -141,11 +136,13 @@ class DbUnitExtensionConnectionBalanceIT
                     .testEvents().assertStatistics(stats -> stats.started(1).failed(1));
 
             assertThat(dataSource.opened())
-                    .as("onSetup() must have opened a connection, or this test proves nothing.")
+                    .as("configureTest() must have opened a connection, or this test proves"
+                            + " nothing.")
                     .isPositive();
             assertThat(dataSource.leaked())
-                    .as("A connection the tester opened must be closed even when the executor's"
-                            + " listener throws while applying a @DbUnitProperty value to it.")
+                    .as("A connection the tester opened must be closed even when applying a"
+                            + " @DbUnitProperty value to it fails in a test without"
+                            + " @DbUnitExpected.")
                     .isZero();
         } finally
         {
@@ -154,7 +151,7 @@ class DbUnitExtensionConnectionBalanceIT
     }
 
     @Test
-    void testBeforeTestExecution_invalidPropertyValueOnTheExpectedPath_closesTheTestersConnection()
+    void testBeforeTestExecution_invalidPropertyValueWithExpected_closesTheTestersConnection()
             throws Exception
     {
         final DatabaseEnvironment environment = DatabaseEnvironment.getInstance();
@@ -164,7 +161,7 @@ class DbUnitExtensionConnectionBalanceIT
         try
         {
             EngineTestKit.engine("junit-jupiter")
-                    .selectors(selectClass(InvalidPropertyValueOnExpectedPathSample.class))
+                    .selectors(selectClass(InvalidPropertyValueWithExpectedSample.class))
                     .execute().testEvents()
                     .assertStatistics(stats -> stats.started(1).failed(1));
 
@@ -174,7 +171,7 @@ class DbUnitExtensionConnectionBalanceIT
                     .isPositive();
             assertThat(dataSource.leaked())
                     .as("A connection the tester opened must be closed even when applying a"
-                            + " @DbUnitProperty value to it fails on the prep/expected path.")
+                            + " @DbUnitProperty value to it fails in a test with @DbUnitExpected.")
                     .isZero();
         } finally
         {
@@ -257,7 +254,7 @@ class DbUnitExtensionConnectionBalanceIT
 
     @ExtendWith(DbUnitExtension.class)
     @ClearRowCountCheckSystemProperties
-    static class SetupTeardownNoCheckSample extends BalanceSample
+    static class NoExpectedNoCheckSample extends BalanceSample
     {
         @Test
         @DbUnitPrep("annotation-it-prep.xml")
@@ -270,7 +267,7 @@ class DbUnitExtensionConnectionBalanceIT
     @ExtendWith(DbUnitExtension.class)
     @ClearRowCountCheckSystemProperties
     @DbUnitRowCountCheck
-    static class SetupTeardownWithCheckSample extends BalanceSample
+    static class NoExpectedWithCheckSample extends BalanceSample
     {
         @Test
         @DbUnitPrep("annotation-it-prep.xml")
@@ -283,7 +280,7 @@ class DbUnitExtensionConnectionBalanceIT
     @ExtendWith(DbUnitExtension.class)
     @ClearRowCountCheckSystemProperties
     @DbUnitRowCountCheck
-    static class PrepExpectedWithCheckSample extends BalanceSample
+    static class ExpectedWithCheckSample extends BalanceSample
     {
         @Test
         @DbUnitPrep("annotation-it-prep.xml")
@@ -356,7 +353,7 @@ class DbUnitExtensionConnectionBalanceIT
     @ExtendWith(DbUnitExtension.class)
     @ClearRowCountCheckSystemProperties
     @DbUnitConfig(properties = @DbUnitProperty(name = "batchSize", value = "notANumber"))
-    static class InvalidPropertyValueOnExpectedPathSample extends BalanceSample
+    static class InvalidPropertyValueWithExpectedSample extends BalanceSample
     {
         @Test
         @DbUnitPrep("annotation-it-prep.xml")

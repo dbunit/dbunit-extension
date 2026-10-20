@@ -84,30 +84,29 @@ databaseTester.setOperationListener(listener);
 [#extension]
 == Under the JUnit Jupiter Extension
 
-link:../testcases/DbUnitExtension.html[`DbUnitExtension`] wraps the tester's listener for
-the duration of one test, then puts the tester's own listener back, so a tester shared
-across test methods carries nothing from one test to the next. On a plain
-`@ExtendWith(DbUnitExtension.class)` test, the 3.5.0 style, the wrapper only forwards every
-callback to your listener, closes included, and takes the row count baseline from the
-connection `onSetup()` retrieves, so the tester opens only the connections it did in 3.5.0.
-That connection stays your listener's to close or to keep open, so a non-closing listener
-still keeps a fixed connection alive for the next test; the extension closes only a
-connection it resolves itself.
-On an annotation-driven test it also applies the `@DbUnitProperty` values and protects the
-one connection the extension holds. Wrapping the listener and putting it back rely on the
+link:../testcases/DbUnitExtension.html[`DbUnitExtension`] leaves the listener of the tester of an
+annotation-driven test alone: that test runs through a `DefaultPrepAndExpectedTestCase`, which
+only reads the tester, so a tester shared across test methods carries nothing from one test to
+the next. On a plain `@ExtendWith(DbUnitExtension.class)` test, the 3.5.0 style, the extension
+wraps the tester's listener for the duration of one test, then puts the tester's own listener
+back. The wrapper only forwards every callback to your listener, closes included, and takes the
+row count baseline from the connection `onSetup()` retrieves, so capturing it opens no
+connection of its own. That connection stays your listener's to close or to keep open, so
+a non-closing listener still keeps a fixed connection alive for the next test. The extension
+closes only a connection it resolves itself, and with the row count check enabled it
+resolves one to verify after `onTearDown()` when your listener closed the one `onSetup()`
+retrieved, as the default listener does. Wrapping the listener and putting it back rely on the
 tester reporting it through `getOperationListener()`, as `AbstractDatabaseTester` and the
 testers built on it do, never returning `null`: a tester nobody gave a listener reports the
 default one it would use. A
 custom `IDatabaseTester` that does not override it reports none, so the extension leaves
 its listener exactly as configured rather than replace it with one it could not put back.
-For such a tester the `@DbUnitProperty` values reach only the connection the extension
-resolves itself, not one the tester's own `onSetup()` or `onTearDown()` retrieves, and the
-row count check baseline is captured from a connection of its own before `onSetup()`.
+For such a tester the row count check baseline is captured from a connection of its own before
+`onSetup()`.
 
 * A listener wrapped in a `ConnectionPreservingOperationListener` keeps that wrapper in
-force: the extension adds its own protection for the one connection it holds on top of it,
-and does not replace it. A blanket one, built without a connection supplier, protects every
-connection, which the extension and `DefaultPrepAndExpectedTestCase` take, like
+force: the extension does not replace it. A blanket one, built without a connection supplier,
+protects every connection, which the extension and `DefaultPrepAndExpectedTestCase` take, like
 `NO_OP_OPERATION_LISTENER`, as the sign that the tester's connections are managed
 elsewhere: neither closes them.
 * A connection the extension resolves itself, rather than through the tester's
@@ -116,11 +115,11 @@ elsewhere: neither closes them.
 enabling the link:rowcountcheck.html[row count check], applies to it too. That includes
 the connection a plain `@ExtendWith(DbUnitExtension.class)` test resolves for the row
 count baseline when `onSetup()` cannot be relied on to retrieve one, a `NONE` setup
-operation, say, and, on the setup/teardown path, an `IDatabaseConnection`
-test method parameter. The prep/expected path offers it to your listener's
-`connectionRetrieved()` too, each time `DefaultPrepAndExpectedTestCase` runs a set up or
-tear down operation, but never to the `*Finished` callbacks: that class decides when its
-shared connection closes. The same connection can be offered more than once, by the extension
-and again when `onSetup()` retrieves it, and your listener sees one more retrieval than the
-3.5.0 lifecycle gave it, so keep `connectionRetrieved()` idempotent, as configuring a
-`DatabaseConfig` is.
+operation, say, and the one it resolves to verify the baseline after `onTearDown()` when
+your listener closed the connection `onSetup()` retrieved. An annotation-driven test never
+calls `onSetup()` or `onTearDown()`: its
+`DefaultPrepAndExpectedTestCase` offers your listener's `connectionRetrieved()` the shared
+connection each time it runs a set up or tear down operation, but never the `*Finished`
+callbacks, as that class decides when its shared connection closes. The same connection can be
+offered more than once, and on a plain test by the extension and again when `onSetup()` retrieves
+it, so keep `connectionRetrieved()` idempotent, as configuring a `DatabaseConfig` is.

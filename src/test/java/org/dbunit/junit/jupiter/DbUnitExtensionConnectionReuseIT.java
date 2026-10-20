@@ -51,7 +51,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.platform.testkit.engine.EngineTestKit;
 
 /**
- * Real-database (hsqldb) integration test of the annotation-driven prep/expected path under the
+ * Real-database (hsqldb) integration test of an annotation-driven test under the
  * exact combination that broke a downstream build three separate ways (issues #962/#964/#965):
  * a single {@link DefaultPrepAndExpectedTestCase} reused across test methods through a
  * {@code @DbUnitTestCase} field, its tester built over a shared {@link CachingConnectionProvider},

@@ -27,8 +27,7 @@ import java.util.List;
  * Puts back what {@link TestCaseConfigurer} changed on a test case, in reverse order, so a test
  * case shared across test methods - a {@code static} field, or any field under
  * {@code @TestInstance(Lifecycle.PER_CLASS)} - carries one method's declared values onto neither
- * the next method nor the settings its owner built into it. The counterpart of
- * {@link TesterStateSnapshot} for the tester.
+ * the next method nor the settings its owner built into it.
  *
  * <p>Holds one undo step per value the configurer actually applied; a value it left alone has
  * none, so undoing never touches a setting that was never changed.

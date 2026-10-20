@@ -53,9 +53,8 @@ import org.junit.platform.testkit.engine.Event;
  * {@link JdbcDatabaseTester} - a fresh physical connection per {@code getConnection()} call, its
  * own {@code DefaultOperationListener}, no {@code CachingConnectionProvider} and no fixed
  * connection. The other row-count-check ITs use a {@code DefaultDatabaseTester} built from one
- * connection with a {@code NO_OP} listener, so the baseline/verify connection identity and the
- * piggyback on {@code onSetup()}'s connection are never exercised against a real fresh-connection
- * tester end to end.
+ * connection with a {@code NO_OP} listener, so the baseline/verify connection identity is never
+ * exercised against a real fresh-connection tester end to end.
  *
  * <p>Matrix rows 3 & 9 with a real tester; partial G-c1.
  */
@@ -66,34 +65,33 @@ class DbUnitExtensionRealTesterRowCountCheckIT
     private static final String EMPTY_TABLE = "EMPTY_TABLE";
 
     @Test
-    void testAfterTestExecution_setupTeardownPathWithRowCountCheck_piggybacksBaselineAndVerifiesClean()
+    void testAfterTestExecution_noExpectedWithRowCountCheck_verifiesRowCountsClean()
             throws Exception
     {
         final DatabaseEnvironment environment = DatabaseEnvironment.getInstance();
-        runSampleExpectingSuccess(environment, SetupTeardownPathSample.class);
+        runSampleExpectingSuccess(environment, NoExpectedSample.class);
 
         final IDatabaseConnection verifyConnection = environment.getConnection();
         assertThat(rowCount(verifyConnection, TEST_TABLE))
-                .as("The setup/teardown path with @DbUnitRowCountCheck, driven through a real"
-                        + " JdbcDatabaseTester: baseline piggybacks on onSetup()'s connection,"
-                        + " verify re-uses that memoized connection, and"
+                .as("A test with @DbUnitRowCountCheck but no @DbUnitExpected, driven through a"
+                        + " real JdbcDatabaseTester: DefaultPrepAndExpectedTestCase captures the"
+                        + " baseline and verifies the row counts on its reusable connection, and"
                         + " @DbUnitTearDownOperation(DELETE_ALL) commits - a separate connection"
-                        + " sees"
-                        + " TEST_TABLE empty.")
+                        + " sees TEST_TABLE empty.")
                 .isZero();
     }
 
     @Test
-    void testAfterTestExecution_prepExpectedPathWithRowCountCheck_verifiesDataAndRowCountsClean()
+    void testAfterTestExecution_expectedWithRowCountCheck_verifiesDataAndRowCountsClean()
             throws Exception
     {
         final DatabaseEnvironment environment = DatabaseEnvironment.getInstance();
-        runSampleExpectingSuccess(environment, PrepExpectedPathSample.class);
+        runSampleExpectingSuccess(environment, ExpectedSample.class);
 
         final IDatabaseConnection verifyConnection = environment.getConnection();
         assertThat(rowCount(verifyConnection, TEST_TABLE))
-                .as("The prep/expected path with @DbUnitRowCountCheck, driven through a real"
-                        + " JdbcDatabaseTester: DefaultPrepAndExpectedTestCase captures the"
+                .as("A test with @DbUnitExpected and @DbUnitRowCountCheck, driven through a"
+                        + " real JdbcDatabaseTester: DefaultPrepAndExpectedTestCase captures the"
                         + " baseline and verifies data + row counts on its reusable connection,"
                         + " and @DbUnitTearDownOperation(DELETE_ALL) commits.")
                 .isZero();
@@ -114,7 +112,7 @@ class DbUnitExtensionRealTesterRowCountCheckIT
             statement.execute("INSERT INTO " + TEST_TABLE + " (COLUMN0) VALUES ('stray1')");
         }
 
-        runSampleExpectingSuccess(environment, PrepExpectedPathSample.class);
+        runSampleExpectingSuccess(environment, ExpectedSample.class);
 
         assertThat(rowCount(environment.getConnection(), TEST_TABLE))
                 .as("The lifecycle's teardown must leave TEST_TABLE empty, stray rows included.")
@@ -171,12 +169,12 @@ class DbUnitExtensionRealTesterRowCountCheckIT
 
     private void setSampleTester(final Class<?> sampleClass, final IDatabaseTester tester)
     {
-        if (sampleClass == SetupTeardownPathSample.class)
+        if (sampleClass == NoExpectedSample.class)
         {
-            SetupTeardownPathSample.databaseTester = tester;
+            NoExpectedSample.databaseTester = tester;
         } else
         {
-            PrepExpectedPathSample.databaseTester = tester;
+            ExpectedSample.databaseTester = tester;
         }
     }
 
@@ -216,7 +214,7 @@ class DbUnitExtensionRealTesterRowCountCheckIT
     @ExtendWith(DbUnitExtension.class)
     @ClearRowCountCheckSystemProperties
     @DbUnitRowCountCheck
-    static class SetupTeardownPathSample
+    static class NoExpectedSample
     {
         @DbUnitTester
         static IDatabaseTester databaseTester;
@@ -237,7 +235,7 @@ class DbUnitExtensionRealTesterRowCountCheckIT
     @ExtendWith(DbUnitExtension.class)
     @ClearRowCountCheckSystemProperties
     @DbUnitRowCountCheck
-    static class PrepExpectedPathSample
+    static class ExpectedSample
     {
         @DbUnitTester
         static IDatabaseTester databaseTester;

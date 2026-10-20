@@ -189,19 +189,18 @@ public abstract class AbstractDatabaseTester extends SimpleAssert implements IDa
      * Executes a DatabaseOperation with a IDatabaseConnection supplied by
      * {@link #getConnection()} and the test dataset.
      *
-     * <p>{@code org.dbunit.annotation.runtime.AnnotatedTestExecutor} depends on this method's
-     * exact behavior when {@code operation != DatabaseOperation.NONE}: it always calls
-     * {@link #getConnection()} and notifies {@code operationListener.connectionRetrieved()}
-     * before it reads the dataset with {@link #getDataSet()} and runs the operation. That lets
-     * the executor capture its row count check baseline from the same connection instead of
-     * eagerly resolving a second one of its own just to find out whether the check is even
-     * enabled, and finish combining several {@code @DbUnitPrep} files, setting the dataset,
-     * with the case sensitivity of that connection. A change here that breaks this - skipping
-     * the listener notification, resolving a connection some other way, or reading the
-     * dataset first - only degrades the baseline back to its always-safe eager fallback (a
-     * tested safety net there catches a wrong prediction) and leaves a multi-file prep dataset
-     * combined case-insensitively, not a correctness break, but is still worth knowing about
-     * before making it. {@code AbstractDatabaseTesterTest} pins the order.
+     * <p>The classic lifecycle of {@code org.dbunit.annotation.runtime.AnnotatedTestExecutor},
+     * which a test that opts into no annotation keeps, depends on this method's exact behavior
+     * when {@code operation != DatabaseOperation.NONE}: it always calls {@link #getConnection()}
+     * and notifies {@code operationListener.connectionRetrieved()} before it reads the dataset
+     * with {@link #getDataSet()} and runs the operation. That lets the executor capture its row
+     * count check baseline from the same connection instead of eagerly resolving a second one of
+     * its own just to find out whether the check is even enabled. A change here that breaks this
+     * - skipping the listener notification, resolving a connection some other way, or reading
+     * the dataset first - only degrades the baseline back to its always-safe eager fallback (a
+     * tested safety net there catches a wrong prediction), not a correctness break, but is
+     * still worth knowing about before making it. {@code AbstractDatabaseTesterTest} pins the
+     * order.
      */
     private void executeOperation(DatabaseOperation operation, OperationType type) throws Exception
     {
