@@ -51,69 +51,63 @@ with its full rules:
 |`@DbUnitTest` |Opts a class into `DbUnitExtension` — exactly `@ExtendWith(DbUnitExtension.class)`.
 |`@DbUnitPrep` |Dataset file(s) to load before the test — see <<prepandsetup>>.
 |`@DbUnitSetUpOperation` |The operation to load them with; needed only to replace the tester's own, `CLEAN_INSERT` for dbUnit's built-in testers — see <<prepandsetup>>.
-|`@DbUnitExpected` |Dataset file(s) to verify after the test; presence switches the test onto the prep/expected path — see <<expected>>.
+|`@DbUnitExpected` |Dataset file(s) to verify after the test — see <<expected>>.
 |`@DbUnitVerifyTable`, `@DbUnitColumnComparer` |Full per-table/per-column verify rules, nested inside `@DbUnitExpected` — see <<expected>>.
 |`@DbUnitTearDownOperation` |The cleanup operation to run after the test; defaults to doing nothing — see <<prepandsetup>>.
-|`@DbUnitConfig` |Class-level wiring: loader, tester factory, `DatabaseConfig` properties, catalog default, base directory, failure handler, connection-close behavior — see <<config>>.
+|`@DbUnitConfig` |Class-level wiring: loader, tester factory, `DatabaseConfig` properties, catalog default, base directory, failure handler — see <<config>>.
 |`@DbUnitProperty` |One `DatabaseConfig` name/value pair, nested inside `@DbUnitConfig` — see <<properties>>.
 |`@DbUnitTester`, `@DbUnitTestCase` |Field markers injecting an already-built `IDatabaseTester` / `PrepAndExpectedTestCase`, in place of the plain-field auto-scan — see <<resolution>>.
 |`@DbUnitRowCountCheck` |Fails the test when a table's row count moved between setup and teardown, catching a table teardown forgot or wrongly cleaned — see <<rowcountcheck>>.
 |A catalog class, a composed annotation, or a `DatabaseTesterFactory` implementation |Sharing verify-table definitions, annotation values, or tester construction across many test classes — see <<catalog>>, <<composed>> and <<factories>>.
 |===
 
-[#twopaths]
-== The Two Paths
+[#lifecycle]
+== The Lifecycle
 
-Presence of `@DbUnitExpected` decides which path a test runs:
+A test that uses the annotations runs through a
+link:PrepAndExpectedTestCase.html[PrepAndExpectedTestCase], whether or not it declares
+`@DbUnitExpected`: dbUnit builds a `DefaultPrepAndExpectedTestCase` around the tester for the
+test (see `@DbUnitConfig(prepAndExpectedTestCase)`), or drives the `@DbUnitTestCase` instance it
+is given.
 
 [cols="1,3", options="header"]
 |===
-|Path |Behaviour
+|Step |Behaviour
 
-|Setup/teardown |The `@DbUnitPrep` dataset (if any) and the `@DbUnitSetUpOperation`
-operation are applied, then `IDatabaseTester.onSetup()` runs before the test
-method and `onTearDown()` after it — the same lifecycle
-link:DbUnitExtension.html[DbUnitExtension] has always run. The test method
-asserts results however it likes.
+|Before the test method |`configureTest()` loads the `@DbUnitPrep` and `@DbUnitExpected`
+datasets, and `preTest()` sets up the `@DbUnitPrep` dataset with the tester's setup operation, or
+the one `@DbUnitSetUpOperation` declares. A test that names no `@DbUnitPrep` file sets up no
+data, whatever dataset the tester holds: see <<prepandsetup>>.
 
-|Prep/expected |`@DbUnitExpected` present. The `@DbUnitPrep` dataset (if any)
-and the `@DbUnitSetUpOperation` operation are applied the same as the setup/teardown
-path, then the extension drives a
-link:PrepAndExpectedTestCase.html[PrepAndExpectedTestCase]:
-`configureTest()`/`preTest()` before the test method,
-`postTest()` after it. `postTest()` compares the database against the
-`@DbUnitExpected` dataset, so the verifying is done for you. Verification is
-skipped when the test method itself already failed, so a verification
-failure never masks the real cause.
+|After the test method |`postTest()` compares the database against the `@DbUnitExpected`
+dataset, when the test declares one, so the verifying is done for you, then tears down with the
+tester's teardown operation, or the one `@DbUnitTearDownOperation` declares, over the prep and
+expected datasets. The comparison is skipped when the test method itself already failed, so a
+verification failure never masks the real cause.
 |===
 
-Choose by what you want verified: the *setup/teardown* path when the test
-method does its own asserting (or just needs seeded data), the *prep/expected*
-path when you want dbUnit's expected-dataset comparison to do it. Neither is a
-reduced form of the other — they run different lifecycles.
+Without `@DbUnitExpected` the test method asserts results however it likes, or just needs seeded
+data; with it, dbUnit's expected-dataset comparison does the verifying.
 
-The setup/teardown path's reach is deliberately wide: `@DbUnitPrep`/
-`@DbUnitSetUpOperation`/`@DbUnitTearDownOperation` drive `onSetup()`/`onTearDown()` on *any*
-`IDatabaseTester` implementation - built-in or a project's own. A project's
-own implementation should override `getOperationListener()` (returning the
-value `setOperationListener()` was last given, the way `AbstractDatabaseTester`
-does) so the extension can wrap that listener for the test and put it back
-afterward. One that does not has its listener left exactly as configured - a
-non-closing listener protecting a shared connection stays in force - but the
-`@DbUnitProperty` values then reach only the connection the extension resolves
-itself, not one the tester's own `onSetup()` retrieves. The prep/expected path
-is narrower, but by necessity rather than omission:
-expected-data verification is the entire reason `@DbUnitExpected` exists, and
-it is a capability `IDatabaseTester` does not have at all -
-`PrepAndExpectedTestCase` is the only dbUnit interface that defines it, so it
-is the only thing this path can target. dbUnit configures only
-`DefaultPrepAndExpectedTestCase` and its subclasses: it builds one around the
-tester for the test (see `@DbUnitConfig(prepAndExpectedTestCase)`), or drives
-the `@DbUnitTestCase` instance it is given. A hand-written
-`PrepAndExpectedTestCase` is driven as it is - see <<othertestcase>>.
+*The tester is only read.* The test case takes its connection from the tester, and its
+operations unless an annotation declares them for the test; its dataset is never read. Nothing
+is written to the tester and its listener is not replaced, so
+a tester shared through a `static` field or a Spring singleton bean carries nothing from one test
+to the next. The tester's own `onSetup()` and `onTearDown()` do not run, so an override of either in
+a tester subclass has no effect on such a test, and its listener is told about each connection
+through `connectionRetrieved()` but never `operationSetUpFinished()` or
+`operationTearDownFinished()`: the test case decides when its connection closes, see
+<<connection-ownership>>.
 
-Both paths run the same tester/test-case resolution below, and both honor
-`@DbUnitConfig`.
+*A test that uses none of the annotations keeps the 3.5.0 lifecycle:* a bare
+`@ExtendWith(DbUnitExtension.class)` class with one plain, unannotated `IDatabaseTester` field.
+The extension then calls the tester's `onSetup()` and `onTearDown()` and runs the row count check
+around them, as before — see link:DbUnitExtension.html[DbUnitExtension].
+
+dbUnit configures only `DefaultPrepAndExpectedTestCase` and its subclasses. A hand-written
+`PrepAndExpectedTestCase` is driven as it is — see <<othertestcase>>.
+
+Every annotated test runs the same tester/test-case resolution below and honors `@DbUnitConfig`.
 
 [#resolution]
 == Resolving the Tester or Test Case
@@ -174,8 +168,7 @@ when the test declares it:
 
 * `@DbUnitSetUpOperation`, `@DbUnitTearDownOperation` and `@DbUnitRowCountCheck`;
 * the `@DbUnitConfig` attributes `dataFileLoader`, `failureHandler`,
-  `properties`, `databaseTesterFactory` and `prepAndExpectedTestCase`;
-* a test without `@DbUnitExpected`, which would have no tester to set up; and
+  `properties`, `databaseTesterFactory` and `prepAndExpectedTestCase`; and
 * an `IDatabaseTester` or `IDatabaseConnection` test method parameter.
 
 Configure such a test case where it is built instead. The rest works as for any other
@@ -214,13 +207,14 @@ class AccountRepositoryTest
 }
 ----
 
-*A `static` field is one instance shared by every test method in the class* — safe
-under JUnit 5/6's default sequential execution, but not under parallel execution
-(`junit.jupiter.execution.parallel.enabled=true` with per-class or per-method concurrency):
-concurrent test methods would drive the same `IDatabaseTester`/`PrepAndExpectedTestCase`
-instance's `onSetup()`/`onTearDown()`/dataset state at the same time, racing each other. Keep
-a class sharing a `static` `@DbUnitTester`/`@DbUnitTestCase` field running sequentially, or
-give each test method its own non-static field instead.
+*A `static` field is one instance shared by every test method in the class.* A tester is
+only read, so a `static` `@DbUnitTester` is shared safely, also under parallel execution
+(`junit.jupiter.execution.parallel.enabled=true` with per-class or per-method concurrency), as
+long as it hands out a connection of its own on each call; a tester over one fixed connection
+shares that connection among the concurrent test methods. A `static` `@DbUnitTestCase` holds the
+datasets and the connection of one test at a time, so concurrent test methods would race each
+other. Keep a class sharing a `static` `@DbUnitTestCase` field, or a tester over one fixed
+connection, running sequentially, or give each test method its own non-static field instead.
 
 [#prepandsetup]
 == @DbUnitPrep and @DbUnitSetUpOperation
@@ -287,62 +281,65 @@ class AccountRepositoryTest
 Because dbUnit's built-in testers already default to `CLEAN_INSERT`, the common case is a
 single annotation — `@DbUnitPrep("accounts.xml")` alone names only the dataset and runs the
 tester's own setup operation. `@DbUnitSetUpOperation` with no `@DbUnitPrep` at all
-is valid: no dataset is prepared, but the operation is still set on the
-tester and applies to whatever dataset the tester already holds — most
-usefully `NONE`, to suppress a dataset the tester was already carrying. A
-non-`NONE` operation there needs the tester to already hold a dataset (set
-in a `@BeforeEach`); a bare `@DbUnitSetUpOperation` resolves to `CLEAN_INSERT`, not
-`NONE`, so `@DbUnitSetUpOperation` with no `@DbUnitPrep` and no `@BeforeEach` dataset
-logs a `WARN` (a built-in tester then fails inside `onSetup()`; a custom one
-may source its dataset elsewhere). Both annotations otherwise apply the same
-way on either path: the `@DbUnitSetUpOperation` operation runs before `preTest()` too
-when `@DbUnitExpected` is present, not just before `onSetup()` on the
-setup/teardown path.
+is valid, but the operation runs over no data: no dataset is loaded from files and the
+dataset a tester holds is never read. A bare `@DbUnitSetUpOperation` resolves to
+`CLEAN_INSERT`, not `NONE`, so `@DbUnitSetUpOperation` with no `@DbUnitPrep` logs a `WARN`,
+as the operation has nothing to act on.
 
 `@DbUnitPrep` takes several files, which are combined into one dataset; tables of the same
 name merge into one. Names are matched ignoring case unless the test's connection has
 `FEATURE_CASE_SENSITIVE_TABLE_NAMES` on, set for example with a `@DbUnitProperty`, as
 `DefaultPrepAndExpectedTestCase` does for its own prep files.
 
-On either path, the tester's own setup operation and teardown operation are kept —
+The tester's own setup and teardown operations are used —
 preserving a `@BeforeEach` method's own `setSetUpOperation()`/`setTearDownOperation()`,
 including an operation `DbUnitOperation` cannot express, such as MSSQL's
 `InsertIdentityOperation.CLEAN_INSERT` or a `TransactionOperation` — except where an annotation
-replaces them: `@DbUnitSetUpOperation` replaces the setup operation and
-`@DbUnitTearDownOperation` the teardown operation. `@DbUnitPrep` names only the dataset. On the
-setup/teardown path the tester's own dataset is kept too, preserving a `@BeforeEach` method's own
-`setDataSet()`, unless `@DbUnitPrep` replaces it; on the prep/expected path the test case prepares
-and cleans up with the `@DbUnitPrep` and `@DbUnitExpected` datasets, not with one set on the
-tester. So `@DbUnitPrep("a.xml")` alone runs `REFRESH` on a tester already set to `REFRESH`, and
-`CLEAN_INSERT` on a built-in tester nobody changed; declare
-`@DbUnitSetUpOperation(DbUnitOperation.CLEAN_INSERT)` alongside it to run that on the former. Each
-replacement lasts for that test only. An injected `@DbUnitTestCase` is the
-exception: it runs with its tester's operations as its owner set them, so neither annotation
+replaces them for the test: `@DbUnitSetUpOperation` replaces the setup operation and
+`@DbUnitTearDownOperation` the teardown operation. The dataset is never the tester's: it is the
+files `@DbUnitPrep` names, and a test that names none sets up no data. `@DbUnitPrep` names only
+the dataset. So `@DbUnitPrep("a.xml")` alone runs `REFRESH` on
+a tester already set to `REFRESH`, and `CLEAN_INSERT` on a built-in tester nobody changed;
+declare `@DbUnitSetUpOperation(DbUnitOperation.CLEAN_INSERT)` alongside it to run that on the
+former. A replacement is the operation of the test case that runs this test, never
+written to the tester, and lasts for that test only. The test case sets up and cleans up with
+the `@DbUnitPrep` and `@DbUnitExpected` datasets, the teardown operation running over both, with or
+without `@DbUnitExpected`. An
+injected `@DbUnitTestCase` is the exception: it runs with its tester's operations as its owner set
+them and takes its datasets from the files the test names, so neither operation annotation
 replaces them, and declaring either next to it is rejected - see <<injected-testcase-config>>.
+
+*Migrating a `@BeforeEach` dataset.* A 3.5.0-style test that gives the tester its dataset with
+`setDataSet()` in a `@BeforeEach` method keeps working while it uses none of these annotations:
+the extension then runs the tester's own `onSetup()` and `onTearDown()`, dataset included, as
+before - see link:DbUnitExtension.html[DbUnitExtension]. Once the test uses an annotation, such as
+`@DbUnitExpected` or `@DbUnitRowCountCheck`, the dataset is not read and dbUnit logs a `WARN` that
+says so: move the dataset into a file and name it with `@DbUnitPrep`. A dataset that has to be
+built in code stays with the 3.5.0 lifecycle, or with the programmatic
+link:PrepAndExpectedTestCase.html[PrepAndExpectedTestCase] API.
 
 *Nothing bleeds between test methods.* Each method's resolved annotations —
 its own, plus any inherited from its class or a parent class — fully
-determine what gets applied for that method, on either path. Before the
-method the tester's dataset and setup/teardown operations are snapshotted,
-and after it they are restored, so a `static` `@DbUnitTester` field (or any
-tester under `@TestInstance(PER_CLASS)`) never carries one method's
-`@DbUnitPrep`/`@DbUnitSetUpOperation`/`@DbUnitTearDownOperation` onto the next. A `@BeforeEach`
-value, being re-set every method, survives. The same holds for `@DbUnitProperty`
+determine what gets applied for that method. The tester is never written, so a `static`
+`@DbUnitTester` field (or any tester under `@TestInstance(PER_CLASS)`, or a Spring singleton bean)
+never carries one method's `@DbUnitPrep`/`@DbUnitSetUpOperation`/`@DbUnitTearDownOperation` onto
+the next, and a `@BeforeEach` operation, being re-set every method, is read as it is. The
+same holds for `@DbUnitProperty`
 values on a connection that outlives the test, such as a fixed connection handed
 to the tester, one a `CachingConnectionProvider` caches, or one its tester's listener leaves
 open: they are put back when the test ends — see <<properties>>.
 
 `@DbUnitTearDownOperation` is the counterpart of `@DbUnitSetUpOperation`, defaulting to
 `DbUnitOperation.NONE`. It has no data annotation of its own: the dataset
-already prepared (prep, or prep plus expected on the other path) is what the
+already prepared (prep, plus expected when there is one) is what the
 operation runs against. To tear down an extra table, list it — empty — in
 the prep dataset instead.
 
 [#expected]
 == @DbUnitExpected, @DbUnitVerifyTable, @DbUnitColumnComparer
 
-`@DbUnitExpected` names the expected dataset file(s) and switches the test
-onto the prep/expected path. Valid with no `@DbUnitPrep` at all — the
+`@DbUnitExpected` names the expected dataset file(s) to verify after the test.
+Valid with no `@DbUnitPrep` at all — the
 database state already present is what gets verified. The expected dataset
 must always be named, with `value`: the tables verified are
 compared to it, so the forms below only choose which of its tables are
@@ -571,7 +568,7 @@ test — see link:../datasets/fileloader.html#caching[Caching Parsed Datasets].
 |`databaseTesterFactory` |See <<resolution,resolution order>> tier 3.
 
 |`prepAndExpectedTestCase` |The `PrepAndExpectedTestCase` implementation to
-construct for the prep/expected path when no `@DbUnitTestCase` field
+construct to run the test when no `@DbUnitTestCase` field
 supplies one, via a `(DataFileLoader, IDatabaseTester)`
 constructor — the same shape `DefaultPrepAndExpectedTestCase` itself has.
 Defaults to `DefaultPrepAndExpectedTestCase`. In practice this means a
@@ -607,15 +604,15 @@ whole by the nearer declaration.
 [#connection-ownership]
 === Who Closes the Connection
 
-dbUnit closes the connection it resolves for a test — for the prep/expected path, the row count
-check or an `IDatabaseConnection` parameter — when the test is over, unless it belongs to someone
-else.
+dbUnit closes the connection the test case sets up, verifies and cleans up on — which the row
+count check and an `IDatabaseConnection` parameter share — when the test is over, unless it
+belongs to someone else.
 The one signal for that is set on the tester, once, where it is built, so every test that uses
 the tester gets it right: an `IOperationListener` that is, or wraps,
 `NO_OP_OPERATION_LISTENER` says its connections are managed elsewhere, as it did in the 3.5.0
-lifecycle, and so does a blanket `ConnectionPreservingOperationListener`. On the prep/expected
-path an injected `@DbUnitTestCase` instance built with `setCloseConnectionAfterTest(false)`
-keeps its connection open too. A tester that is not given the no-op listener only costs a new
+lifecycle, and so does a blanket `ConnectionPreservingOperationListener`. An injected
+`@DbUnitTestCase` instance built with `setCloseConnectionAfterTest(false)` keeps its connection
+open too. A tester that is not given the no-op listener only costs a new
 connection per test when it shares a `CachingConnectionProvider`, which replaces a closed
 connection.
 
@@ -624,7 +621,7 @@ calls, as one over a `CachingConnectionProvider` or over one fixed connection do
 tester that hands out a new one each time, such as a `JdbcDatabaseTester` without a
 `CachingConnectionProvider` or a `DataSourceDatabaseTester` over a connection pool, nothing
 closes the connection left open, so each test leaves one open, except that an injected test
-case reused across tests keeps one. On the prep/expected path, a step that fails also makes the
+case reused across tests keeps one. A step that fails also makes the
 test case forget its connection so that the next step acquires another, and the forgotten one
 stays open with nothing referencing it. dbUnit logs a warning when it sees a connection left
 open with a `JdbcDatabaseTester` that has no `CachingConnectionProvider`. A connection dbUnit
@@ -651,8 +648,10 @@ instance where it is built: `@DbUnitSetUpOperation`, `@DbUnitTearDownOperation`,
 `@DbUnitConfig` attributes `dataFileLoader`, `failureHandler`, `properties`,
 `databaseTesterFactory` and `prepAndExpectedTestCase`. An instance
 without a tester is rejected too, when it is resolved, and so is one without a data file
-loader when the test names dataset files, which a `@BeforeEach` method may still give it. Any other
-`PrepAndExpectedTestCase` implementation is rejected for more - see <<othertestcase>>.
+loader when the test runs, which a `@BeforeEach` method may still give it: its
+`configureTest()`, which dbUnit calls for every test, needs the loader even when the test names
+no dataset file. Any other `PrepAndExpectedTestCase` implementation is rejected for more - see
+<<othertestcase>>.
 
 [source,java]
 ----
@@ -708,36 +707,19 @@ value that itself contains `=` (an escape pattern, for instance). For
 properties shared across several test classes, put them in a composed
 annotation (<<factories>>).
 
-*How properties reach the connection differs by path.* On the
-setup/teardown path, the extension applies `@DbUnitProperty` values to
-whichever connection it ends up using - the tester's own `onSetup()`/
-`onTearDown()` retrieve
-independently, via the tester's `IOperationListener`, and this executor's
-own memoized connection, applied the moment it resolves one - so in practice
-they reach the connection on every test where `IDatabaseTester#getConnection()`
-returns non-null, regardless of the setup/teardown operations. The exception is
-a custom `IDatabaseTester` that does not override `getOperationListener()`: the
-extension leaves its listener as it is, so the values reach only the connection
-the extension resolves itself, not one the tester's own `onSetup()` retrieves.
-That memoized
-connection itself is resolved as cheaply as possible: when the tester is a
-real `AbstractDatabaseTester` with a non-`NONE` setup operation, this
-executor never resolves a connection of its own at all - it reuses the one
-`onSetup()` was already about to retrieve, the same connection
-`@DbUnitProperty` reaches either way; only a custom `IDatabaseTester`
-implementation, or a `NONE` setup operation with nothing else to retrieve
-one, makes this executor resolve a connection eagerly by itself. On
-the prep/expected path, the test case applies them directly to the connection
-it resolves for `configureTest()`/`setupData()`/`verifyData()`/`cleanupData()`
-— that path never goes through the tester's `IOperationListener` to do so, so
-the setup/teardown operation does not matter. It does tell the tester's own listener's
+*Which connection the properties reach.* The test case applies `@DbUnitProperty` values
+directly to the connection it resolves for
+`configureTest()`/`setupData()`/`verifyData()`/`cleanupData()`, which is also the one an
+`IDatabaseConnection` parameter is given, so the setup and teardown operations do not matter, and
+nothing goes through the tester's `IOperationListener` to do it. A connection the test method
+retrieves from the tester itself does not get them. The test case tells the tester's own listener's
 `connectionRetrieved()` about the connection each set up and tear down operation
 retrieves, before applying these values, so they win over what that listener sets. An injected
 `@DbUnitTestCase` takes its properties from where it is built, through
 `setDatabaseConfigProperties()`: declaring them next to it is rejected - see
 <<injected-testcase-config>>.
 
-On the prep/expected path, `DefaultPrepAndExpectedTestCase` applies
+`DefaultPrepAndExpectedTestCase` applies
 `@DbUnitProperty` values through its `setUpDatabaseConfig(DatabaseConfig)`
 hook. *A subclass that overrides `setUpDatabaseConfig()` — the pre-3.6.0 way to
 configure a `DatabaseConfig` — must call `super.setUpDatabaseConfig(config)`*,
@@ -828,11 +810,9 @@ guess wrong:
 * The check compares *row counts*, not row contents — an `UPDATE` that changes a value
   without changing how many rows are present passes. It catches a leaked or wrongly
   removed row, not a data mismatch; that is what `@DbUnitExpected` verification is for.
-* On the prep/expected path (`@DbUnitExpected` declared), this annotation drives the check
-  through the test case — an injected `DefaultPrepAndExpectedTestCase` takes it through its
-  override methods, and any other injected implementation rejects it, see <<othertestcase>>. On the setup/teardown path
-  (no `@DbUnitExpected`), the check runs directly against the connection regardless of test
-  case type.
+* This annotation drives the check through the test case — an injected
+  `DefaultPrepAndExpectedTestCase` takes it through its override methods, and any other
+  injected implementation rejects it, see <<othertestcase>>.
 
 [#composed]
 == Reusing a Whole Configuration: Composed Annotations
@@ -923,7 +903,7 @@ full (non-flat) XML instead.
 We cannot write every dbUnit test with annotations.
 
 *You want dbUnit to seed data but verify results your own way.* That is not
-a gap — it is the <<twopaths,setup/teardown path>>. Use `@DbUnitPrep`/
+a gap — it is the <<lifecycle,lifecycle without @DbUnitExpected>>. Use `@DbUnitPrep`/
 `@DbUnitSetUpOperation`/`@DbUnitTearDownOperation` with no `@DbUnitExpected`, and assert in the
 test method with whatever tooling you already have. `@DbUnitExpected` exists
 only for the case where you want dbUnit's expected-dataset comparison to do

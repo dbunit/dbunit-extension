@@ -46,14 +46,16 @@ import org.dbunit.PrepAndExpectedTestCase;
  * is built, so a test declaring {@link DbUnitSetUpOperation}, {@link DbUnitTearDownOperation}
  * or a {@link DbUnitConfig} attribute that would configure it is rejected with
  * {@link IllegalStateException}. A {@link org.dbunit.DefaultPrepAndExpectedTestCase} must
- * already have a tester when it is resolved, and a data file loader when the test names
- * dataset files.
+ * already have a tester when the extension resolves it, and a data file loader when the test
+ * runs, which a {@code @BeforeEach} method can still give it: its {@code configureTest()}, which
+ * the extension calls for every test, needs the loader even when the test names no dataset
+ * file.
  *
  * <p>Any other implementation of {@link PrepAndExpectedTestCase} tells the extension of no
  * tester and no connection, so a test declaring anything that needs one -
- * {@code @DbUnitRowCountCheck}, a test without {@link DbUnitExpected}, or an
- * {@code IDatabaseTester} or {@code IDatabaseConnection} test method parameter - is rejected
- * with {@link IllegalStateException} too. Configure such a test case where it is built.
+ * {@code @DbUnitRowCountCheck}, or an {@code IDatabaseTester} or {@code IDatabaseConnection}
+ * test method parameter - is rejected with {@link IllegalStateException} too. Configure such a
+ * test case where it is built.
  *
  * @author Jeff Jensen
  * @since 3.6.0

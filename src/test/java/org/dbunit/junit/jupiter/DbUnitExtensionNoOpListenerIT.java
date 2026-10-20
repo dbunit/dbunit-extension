@@ -43,32 +43,33 @@ import org.junit.platform.testkit.engine.EngineTestKit;
 /**
  * Real-database integration test proving a tester whose {@link IOperationListener} is the
  * no-op listener - the established signal that its connection is managed elsewhere - keeps
- * that connection open on both lifecycle paths, which is what {@code @DbUnitConfig}'s
- * {@code closeConnectionAfterTest} documents. {@link DatabaseEnvironment#getConnection()}
- * silently reopens a closed connection, so these tests assert on the very connection object
- * handed to the tester instead of re-asking the environment for one.
+ * that connection open with and without {@code @DbUnitExpected}, as the "Who Closes the
+ * Connection" section of the annotations site page documents.
+ * {@link DatabaseEnvironment#getConnection()} silently reopens a closed connection, so these
+ * tests assert on the very connection object handed to the tester instead of re-asking the
+ * environment for one.
  */
 class DbUnitExtensionNoOpListenerIT
 {
     private static final String TEST_TABLE = "TEST_TABLE";
 
     @Test
-    void testAfterTestExecution_prepExpectedPathWithNoOpTester_leavesTheTestersConnectionOpen()
+    void testAfterTestExecution_expectedWithNoOpTester_leavesTheTestersConnectionOpen()
             throws Exception
     {
         final DatabaseEnvironment environment = DatabaseEnvironment.getInstance();
         try
         {
             final IDatabaseConnection connection = environment.getConnection();
-            ExpectedPathSample.databaseTester = newNoOpTester(connection);
+            ExpectedSample.databaseTester = newNoOpTester(connection);
 
-            EngineTestKit.engine("junit-jupiter").selectors(selectClass(ExpectedPathSample.class))
+            EngineTestKit.engine("junit-jupiter").selectors(selectClass(ExpectedSample.class))
                     .execute().testEvents()
                     .assertStatistics(stats -> stats.started(1).succeeded(1));
 
             assertThat(connection.getConnection().isClosed())
-                    .as("The prep/expected path must not close a connection whose tester has the"
-                            + " no-op listener, because that connection is managed elsewhere.")
+                    .as("A test with @DbUnitExpected must not close a connection whose tester has"
+                            + " the no-op listener, because that connection is managed elsewhere.")
                     .isFalse();
         } finally
         {
@@ -77,22 +78,22 @@ class DbUnitExtensionNoOpListenerIT
     }
 
     @Test
-    void testAfterTestExecution_setupTeardownPathWithNoOpTester_leavesTheTestersConnectionOpen()
+    void testAfterTestExecution_noExpectedWithNoOpTester_leavesTheTestersConnectionOpen()
             throws Exception
     {
         final DatabaseEnvironment environment = DatabaseEnvironment.getInstance();
         try
         {
             final IDatabaseConnection connection = environment.getConnection();
-            SetupTeardownPathSample.databaseTester = newNoOpTester(connection);
+            NoExpectedSample.databaseTester = newNoOpTester(connection);
 
             EngineTestKit.engine("junit-jupiter")
-                    .selectors(selectClass(SetupTeardownPathSample.class)).execute().testEvents()
+                    .selectors(selectClass(NoExpectedSample.class)).execute().testEvents()
                     .assertStatistics(stats -> stats.started(1).succeeded(1));
 
             assertThat(connection.getConnection().isClosed())
-                    .as("The setup/teardown path must not close a connection whose tester has"
-                            + " the no-op listener, because that connection is managed"
+                    .as("A test without @DbUnitExpected must not close a connection whose tester"
+                            + " has the no-op listener, because that connection is managed"
                             + " elsewhere.")
                     .isFalse();
         } finally
@@ -113,7 +114,7 @@ class DbUnitExtensionNoOpListenerIT
     @DbUnitExpected(value = "annotation-it-expected.xml",
             verify = @DbUnitVerifyTable(value = TEST_TABLE, include = {"COLUMN0", "COLUMN1"}))
     @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
-    static class ExpectedPathSample
+    static class ExpectedSample
     {
         @DbUnitTester
         static IDatabaseTester databaseTester;
@@ -132,7 +133,7 @@ class DbUnitExtensionNoOpListenerIT
 
     @ExtendWith(DbUnitExtension.class)
     @DbUnitPrep("empty.xml")
-    static class SetupTeardownPathSample
+    static class NoExpectedSample
     {
         @DbUnitTester
         static IDatabaseTester databaseTester;

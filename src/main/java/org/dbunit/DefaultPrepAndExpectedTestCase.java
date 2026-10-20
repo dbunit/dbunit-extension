@@ -179,6 +179,16 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     private VerifyTableDefinition[] verifyTableDefs = {};
 
     /**
+     * Decides whether this instance may close the connection it shares across a test's
+     * lifecycle. It reads {@link #closeConnectionAfterTest} and {@link #getOwnershipListener()}
+     * each time it is asked, as both can still change after construction.
+     *
+     * @since 3.6.0
+     */
+    private final ConnectionOwnership connectionOwnership = new ConnectionOwnership(
+            () -> closeConnectionAfterTest, this::getOwnershipListener);
+
+    /**
      * Connection shared by setupData()/verifyData()/cleanupData() for one
      * test's lifecycle instead of each acquiring (and often closing) its own:
      * acquired lazily on first use from {@link #getConnection()}, closed once
@@ -210,11 +220,9 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      */
     private TestScopedConnection newReusableConnectionHolder()
     {
-        final ConnectionOwnership ownership = new ConnectionOwnership(
-                () -> closeConnectionAfterTest, this::getOwnershipListener);
         final LeftOpenConnectionWarning leftOpenConnectionWarning =
-                new LeftOpenConnectionWarning(ownership, () -> databaseTester);
-        return new TestScopedConnection(this::acquireSharedConnection, ownership,
+                new LeftOpenConnectionWarning(connectionOwnership, () -> databaseTester);
+        return new TestScopedConnection(this::acquireSharedConnection, connectionOwnership,
                 new AutoCommitOffWarning().andThen(leftOpenConnectionWarning));
     }
 
@@ -235,6 +243,11 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
         requireDatabaseTester();
 
         final IDatabaseConnection connection = databaseTester.getConnection();
+        if (connection == null)
+        {
+            throw new IllegalStateException("databaseTester.getConnection() returned null; a test"
+                    + " lifecycle needs a connection to run its operations on.");
+        }
         try
         {
             setUpDatabaseConfig(connection.getConfig());
@@ -2333,6 +2346,24 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     public boolean isCloseConnectionAfterTest()
     {
         return closeConnectionAfterTest;
+    }
+
+    /**
+     * Gets whether cleanupData() leaves the connection this instance shares across a test's
+     * lifecycle open for another owner to close. That is the case when
+     * {@link #isCloseConnectionAfterTest()} is false, and when the databaseTester's operation
+     * listener or this instance's own {@link #getOperationListener()} is
+     * {@link IOperationListener#NO_OP_OPERATION_LISTENER}. Whoever else holds that connection,
+     * such as the executor of the annotation runtime that resolved it for a test method
+     * parameter, must leave it open too.
+     *
+     * @return {@code true} when cleanupData() leaves the connection open, {@code false} when it
+     *         may close it.
+     * @since 3.6.0
+     */
+    public boolean isConnectionLeftOpen()
+    {
+        return connectionOwnership.isLeftOpenByConfiguration();
     }
 
     /**

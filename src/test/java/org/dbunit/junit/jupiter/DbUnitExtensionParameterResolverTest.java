@@ -332,18 +332,11 @@ class DbUnitExtensionParameterResolverTest
     @ExtendWith(DbUnitExtension.class)
     static class ConnectionInjectionSample
     {
-        static final IDatabaseConnection TESTER_CONNECTION = mockConnection();
+        static final IDatabaseConnection TESTER_CONNECTION = newMockConnection();
         static IDatabaseConnection injectedConnection;
 
         @DbUnitTester
         IDatabaseTester databaseTester = new NoOpTester(TESTER_CONNECTION);
-
-        private static IDatabaseConnection mockConnection()
-        {
-            final IDatabaseConnection connection = mock(IDatabaseConnection.class);
-            when(connection.getConfig()).thenReturn(new DatabaseConfig());
-            return connection;
-        }
 
         @Test
         void testParameterInjected(final IDatabaseConnection connection)
@@ -436,13 +429,24 @@ class DbUnitExtensionParameterResolverTest
         }
     }
 
+    private static IDatabaseConnection newMockConnection()
+    {
+        final IDatabaseConnection connection = mock(IDatabaseConnection.class);
+        when(connection.getConfig()).thenReturn(new DatabaseConfig());
+        return connection;
+    }
+
+    /**
+     * A tester that does nothing, but hands out a connection and runs no operation, as the test
+     * case of an annotation-driven test needs of it.
+     */
     private static class NoOpTester implements IDatabaseTester
     {
         private final IDatabaseConnection connection;
 
         private NoOpTester()
         {
-            this(null);
+            this(newMockConnection());
         }
 
         private NoOpTester(final IDatabaseConnection connection)
@@ -480,13 +484,13 @@ class DbUnitExtensionParameterResolverTest
         @Override
         public DatabaseOperation getSetUpOperation()
         {
-            return null;
+            return DatabaseOperation.NONE;
         }
 
         @Override
         public DatabaseOperation getTearDownOperation()
         {
-            return null;
+            return DatabaseOperation.NONE;
         }
 
         @Override
