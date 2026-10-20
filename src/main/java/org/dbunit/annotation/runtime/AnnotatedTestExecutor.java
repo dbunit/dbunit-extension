@@ -20,7 +20,6 @@
  */
 package org.dbunit.annotation.runtime;
 
-import org.dbunit.ConnectionPreservingOperationListener;
 import org.dbunit.DefaultPrepAndExpectedTestCase;
 import org.dbunit.IDatabaseTester;
 import org.dbunit.IOperationListener;
@@ -218,41 +217,30 @@ public class AnnotatedTestExecutor
         return tester != null && tester.getOperationListener() != null;
     }
 
+    /**
+     * Returns the tester's own listener: the one this executor's wrapper forwards to on the
+     * classic path, so {@link ConnectionOwnership} sees the no-op listener a tester was given
+     * through it.
+     */
     private IOperationListener testersOperationListener()
     {
         if (tester == null)
         {
             return null;
         }
-        return tester.getOperationListener();
+        return withoutExecutorListener(tester.getOperationListener());
     }
 
     /**
      * Returns whether the {@link ClassicOperationListener} {@link #installOperationListener()}
-     * put on the tester still hears its callbacks: the tester carries it, directly or beneath
-     * {@link ConnectionPreservingOperationListener} layers, which forward every
-     * {@code connectionRetrieved()}. False when none was installed, and when something has
-     * replaced it since - a {@code @BeforeEach} method given the tester as a parameter runs
-     * after this executor was built and may set a listener of its own - as the tester's
-     * {@code onSetup()} would then never pass its connection on for the row count check
-     * baseline.
+     * put on the tester still hears its callbacks: the tester still carries it. False when none
+     * was installed, and when the tester does not carry it - one whose
+     * {@code setOperationListener()} ignores it, say - as the tester's {@code onSetup()} would
+     * then never pass its connection on for the row count check baseline.
      */
     private boolean isInstalledListenerInPlace()
     {
-        IOperationListener layer = tester.getOperationListener();
-        while (layer != null)
-        {
-            if (layer == installedListener)
-            {
-                return true;
-            }
-            if (!(layer instanceof ConnectionPreservingOperationListener))
-            {
-                return false;
-            }
-            layer = ((ConnectionPreservingOperationListener) layer).getDelegate();
-        }
-        return false;
+        return installedListener != null && tester.getOperationListener() == installedListener;
     }
 
     /**
@@ -375,9 +363,7 @@ public class AnnotatedTestExecutor
     /**
      * Returns {@code listener} with a wrapper an executor installed on an earlier test peeled
      * off, so re-wrapping a tester shared across tests does not nest one layer per test.
-     * Anything else is returned as it is - including a caller's own
-     * {@link org.dbunit.ConnectionPreservingOperationListener}, which expresses who owns the
-     * connections and must stay in force beneath this executor's wrapper.
+     * Anything else is returned as it is.
      */
     private static IOperationListener withoutExecutorListener(final IOperationListener listener)
     {

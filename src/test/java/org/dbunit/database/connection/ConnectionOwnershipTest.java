@@ -22,7 +22,6 @@ package org.dbunit.database.connection;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import org.dbunit.ConnectionPreservingOperationListener;
 import org.dbunit.DefaultOperationListener;
 import org.dbunit.IOperationListener;
 import org.junit.jupiter.api.Test;
@@ -47,22 +46,10 @@ class ConnectionOwnershipTest
     }
 
     @Test
-    void testMayClose_listenerUnwrapsToNoOp_returnsFalse()
+    void testMayClose_noOpListener_returnsFalse()
     {
         assertThat(ownership(true, IOperationListener.NO_OP_OPERATION_LISTENER).mayClose())
                 .as("A NO_OP listener is the signal the connection is managed elsewhere.")
-                .isFalse();
-    }
-
-    @Test
-    void testMayClose_noOpListenerBehindAWrapper_returnsFalse()
-    {
-        final IOperationListener wrapped = new ConnectionPreservingOperationListener(
-                IOperationListener.NO_OP_OPERATION_LISTENER);
-
-        assertThat(ownership(true, wrapped).mayClose())
-                .as("A NO_OP listener still counts when wrapped by a"
-                        + " ConnectionPreservingOperationListener.")
                 .isFalse();
     }
 
@@ -109,49 +96,13 @@ class ConnectionOwnershipTest
     }
 
     @Test
-    void testIsLeftOpenByConfiguration_listenerUnwrapsToNoOp_returnsTrue()
+    void testIsLeftOpenByConfiguration_noOpListener_returnsTrue()
     {
         assertThat(ownership(true, IOperationListener.NO_OP_OPERATION_LISTENER)
                 .isLeftOpenByConfiguration())
                         .as("A NO_OP listener is the signal the connection is managed"
                                 + " elsewhere.")
                         .isTrue();
-    }
-
-    @Test
-    void testIsLeftOpenByConfiguration_noOpListenerBehindAWrapper_returnsTrue()
-    {
-        final IOperationListener wrapped = new ConnectionPreservingOperationListener(
-                IOperationListener.NO_OP_OPERATION_LISTENER);
-
-        assertThat(ownership(true, wrapped).isLeftOpenByConfiguration())
-                .as("A NO_OP listener still counts when wrapped by a"
-                        + " ConnectionPreservingOperationListener.")
-                .isTrue();
-    }
-
-    @Test
-    void testMayClose_blanketPreservingListener_returnsFalse()
-    {
-        final IOperationListener blanket =
-                new ConnectionPreservingOperationListener(new DefaultOperationListener());
-
-        assertThat(ownership(true, blanket).mayClose())
-                .as("A blanket ConnectionPreservingOperationListener says the caller owns every"
-                        + " connection, so the lifecycle must not close the one it borrowed.")
-                .isFalse();
-    }
-
-    @Test
-    void testIsLeftOpenByConfiguration_blanketPreservingListener_returnsTrue()
-    {
-        final IOperationListener blanket =
-                new ConnectionPreservingOperationListener(new DefaultOperationListener());
-
-        assertThat(ownership(true, blanket).isLeftOpenByConfiguration())
-                .as("A blanket ConnectionPreservingOperationListener leaves the connection to"
-                        + " its real owner, as the NO_OP listener does.")
-                .isTrue();
     }
 
     @Test
