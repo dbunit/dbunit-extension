@@ -55,7 +55,7 @@ import org.dbunit.util.fileloader.DataFileLoader;
  * @author Jeff Jensen
  * @since 3.6.0
  */
-final class VerifyTableDefinitionResolver
+class VerifyTableDefinitionResolver
 {
     private static final ClassValue<ValueComparer> COMPARERS = new ClassValue<ValueComparer>()
     {

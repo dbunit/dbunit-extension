@@ -46,7 +46,7 @@ import org.junit.jupiter.api.extension.TestInstances;
  * @author Jeff Jensen
  * @since 3.6.0
  */
-final class TesterResolver
+class TesterResolver
 {
     /**
      * Resolves the tester and test case for the current test.
