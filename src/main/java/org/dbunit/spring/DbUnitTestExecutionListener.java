@@ -29,6 +29,7 @@ import org.dbunit.annotation.runtime.AnnotatedTestConfiguration;
 import org.dbunit.annotation.runtime.AnnotatedTestExecutor;
 import org.dbunit.annotation.runtime.AnnotatedTestOptIn;
 import org.dbunit.annotation.runtime.AnnotationLookup;
+import org.dbunit.annotation.runtime.DataFileLoaderInstances;
 import org.dbunit.annotation.runtime.TestInstanceTesterResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -162,6 +163,9 @@ public class DbUnitTestExecutionListener extends AbstractTestExecutionListener
     private static final String ROLLED_BACK_ATTRIBUTE =
             DbUnitTestExecutionListener.class.getName() + ".rolledBack";
 
+    private static final String DATA_FILE_LOADERS_ATTRIBUTE =
+            DbUnitTestExecutionListener.class.getName() + ".dataFileLoaders";
+
     private static final String ROLLBACK_HINT = "The test's transaction rolled back before"
             + " @DbUnitExpected was verified, so the database no longer holds the changes the"
             + " test made and the expected dataset cannot match them. Add @Commit (or"
@@ -220,14 +224,26 @@ public class DbUnitTestExecutionListener extends AbstractTestExecutionListener
             return;
         }
         final Class<?> testClass = testContext.getTestClass();
+        final DataFileLoaderInstances dataFileLoaders = dataFileLoadersOfTheTestClass(testContext);
         final AnnotatedTestConfiguration configuration =
-                AnnotatedTestConfiguration.from(testClass, lookup);
+                AnnotatedTestConfiguration.from(testClass, lookup, dataFileLoaders);
         final TestInstanceTesterResolver.Resolution resolution =
                 testerResolver.resolve(testContext, configuration);
         final AnnotatedTestExecutor executor =
                 new AnnotatedTestExecutor(configuration, resolution, true);
         testContext.setAttribute(EXECUTOR_ATTRIBUTE, executor);
         executor.beforeTest();
+    }
+
+    /**
+     * Returns the data file loaders the test methods of the test class share, one for each
+     * caching loader class: they are kept as an attribute of the test context, which lives as
+     * long as the test class.
+     */
+    private DataFileLoaderInstances dataFileLoadersOfTheTestClass(final TestContext testContext)
+    {
+        return testContext.computeAttribute(DATA_FILE_LOADERS_ATTRIBUTE,
+                name -> new DataFileLoaderInstances());
     }
 
     /**
