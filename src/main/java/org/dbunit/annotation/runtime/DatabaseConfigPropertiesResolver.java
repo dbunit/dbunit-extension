@@ -41,7 +41,7 @@ import org.dbunit.database.DatabaseConfig.ConfigProperty;
  * @author Jeff Jensen
  * @since 3.6.0
  */
-final class DatabaseConfigPropertiesResolver
+class DatabaseConfigPropertiesResolver
 {
     /**
      * Resolves the {@link DatabaseConfig} properties.
