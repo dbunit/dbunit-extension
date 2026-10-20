@@ -137,7 +137,9 @@ final class SetupTeardownLifecycle
     }
 
     /**
-     * Resolves the setup operation {@code onSetup()} will run and applies it to the tester.
+     * Resolves the setup operation {@code onSetup()} will run and applies it to the tester when
+     * {@code @DbUnitSetUpOperation} declares one; otherwise it stays the tester's own, even with
+     * {@code @DbUnitPrep} files.
      * Reads only the configuration and the tester's own current operation, never a connection,
      * so {@link #before()} can settle the row count check baseline route - see
      * {@link AnnotatedRowCountCheck#canPiggybackBaselineOn(DatabaseOperation)} - <em>before</em>
@@ -150,7 +152,7 @@ final class SetupTeardownLifecycle
      */
     private DatabaseOperation applySetUpOperation()
     {
-        if (configuration.replacesSetUpOperation())
+        if (configuration.isSetupDeclared())
         {
             // With @DbUnitSetUpOperation but no @DbUnitPrep, there is no dataset to apply the
             // operation to, but the operation itself - most usefully NONE - still applies to
@@ -160,9 +162,8 @@ final class SetupTeardownLifecycle
             tester.setSetUpOperation(setUpOperation);
             return setUpOperation;
         }
-        log.debug("No @DbUnitPrep data files and no @DbUnitSetUpOperation declared; running with"
-                + " the"
-                + " tester's current dataset and setup operation, restored afterward.");
+        log.debug("No @DbUnitSetUpOperation declared; running with the tester's current setup"
+                + " operation, restored afterward.");
         return tester.getSetUpOperation();
     }
 

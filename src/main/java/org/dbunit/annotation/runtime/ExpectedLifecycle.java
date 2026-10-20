@@ -283,17 +283,16 @@ final class ExpectedLifecycle
 
     /**
      * Applies {@code @DbUnitSetUpOperation}'s operation to {@link #tester} when the annotations
-     * declare one - see {@link AnnotatedTestConfiguration#replacesSetUpOperation()} - which is
-     * {@link org.dbunit.operation.DatabaseOperation#CLEAN_INSERT} for {@code @DbUnitPrep} files
-     * alone, as on the setup/teardown path. Otherwise the tester's own operation stays, such as
-     * one a {@code @BeforeEach} method set, which can be one {@code DbUnitOperation} cannot
-     * express. Whatever this applies is undone by {@link #after(boolean)} restoring
+     * declare one - see {@link AnnotatedTestConfiguration#isSetupDeclared()}. Otherwise the
+     * tester's own operation stays, even with {@code @DbUnitPrep} files, such as one a
+     * {@code @BeforeEach} method set, which can be one {@code DbUnitOperation} cannot express.
+     * Whatever this applies is undone by {@link #after(boolean)} restoring
      * {@link #incomingState} once the test finishes, so a shared tester carries no per-method
      * operation forward.
      */
     private void applySetUpOperation()
     {
-        if (tester != null && configuration.replacesSetUpOperation())
+        if (tester != null && configuration.isSetupDeclared())
         {
             tester.setSetUpOperation(configuration.getSetUpOperation());
         }

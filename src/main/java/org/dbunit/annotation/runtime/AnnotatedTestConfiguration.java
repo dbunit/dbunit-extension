@@ -301,13 +301,21 @@ public class AnnotatedTestConfiguration
     }
 
     /**
-     * Returns whether {@code @DbUnitSetUpOperation} was declared.
+     * Returns whether {@code @DbUnitSetUpOperation} was declared, which is what replaces the
+     * tester's own setup operation with {@link #getSetUpOperation()}.
+     *
+     * <p>A binding consults this to decide whether to call {@code setSetUpOperation} at all, on
+     * either path. Without it the test runs with the tester's own pre-configured setup
+     * operation, such as one a {@code @BeforeEach} method set, which can be one
+     * {@code DbUnitOperation} cannot express: {@code @DbUnitPrep} names only the dataset. A
+     * binding driving a tester shared across methods should restore the tester's dataset and
+     * operations afterward, so a per-method {@code @DbUnitSetUpOperation}/{@code @DbUnitPrep}
+     * does not carry onto a later method.
      *
      * <p>With {@code @DbUnitSetUpOperation} declared but no {@code @DbUnitPrep}, the operation is
      * still applied - most usefully {@link org.dbunit.operation.DatabaseOperation#NONE} - to
      * whatever dataset the tester already has, rather than leaving a tester with no dataset at all
-     * to run its unrelated default operation against. See {@link #replacesSetUpOperation()} for
-     * when a binding applies the operation at all.
+     * to run its unrelated default operation against.
      *
      * @return True when {@code @DbUnitSetUpOperation} was declared.
      */
@@ -317,29 +325,11 @@ public class AnnotatedTestConfiguration
     }
 
     /**
-     * Returns whether the annotations replace the tester's own setup operation with
-     * {@link #getSetUpOperation()}: {@code @DbUnitPrep} files were declared, or
-     * {@code @DbUnitSetUpOperation} was.
-     *
-     * <p>A binding consults this to decide whether to call {@code setSetUpOperation} at all, on
-     * either path. With neither annotation the test runs with the tester's own pre-configured
-     * setup operation, such as one a {@code @BeforeEach} method set, which can be one
-     * {@code DbUnitOperation} cannot express. A binding driving a tester shared across methods
-     * should restore the tester's dataset and operations afterward, so a per-method
-     * {@code @DbUnitSetUpOperation}/{@code @DbUnitPrep} does not carry onto a later method.
-     *
-     * @return True when the annotations declare the setup operation to run.
-     */
-    public boolean replacesSetUpOperation()
-    {
-        return prepDataFiles.length > 0 || setupDeclared;
-    }
-
-    /**
      * Returns the setup operation.
      *
-     * @return The setup operation; {@link DatabaseOperation#CLEAN_INSERT} when no
-     *         {@code @DbUnitSetUpOperation} was declared.
+     * @return The setup operation {@code @DbUnitSetUpOperation} declared;
+     *         {@link DatabaseOperation#CLEAN_INSERT} when none was, which a binding applies to
+     *         the tester only when {@link #isSetupDeclared()}.
      */
     public DatabaseOperation getSetUpOperation()
     {
@@ -439,7 +429,7 @@ public class AnnotatedTestConfiguration
      * on either path: with no {@code @DbUnitTearDownOperation}, the teardown runs with the tester's
      * own pre-configured teardown operation - e.g. one set in a {@code @BeforeEach} method - rather
      * than a forced {@link DatabaseOperation#NONE}, mirroring how an undeclared setup operation
-     * is handled (see {@link #replacesSetUpOperation()}). A binding driving a tester shared
+     * is handled (see {@link #isSetupDeclared()}). A binding driving a tester shared
      * across methods should restore the operation afterward so a per-method
      * {@code @DbUnitTearDownOperation} does not carry onto a later method.
      *

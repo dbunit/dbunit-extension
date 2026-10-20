@@ -36,8 +36,11 @@ import org.dbunit.operation.DbUnitOperation;
  *
  * <p>A method-level annotation overrides a class-level annotation on a per-test basis; the
  * class annotation is inherited by subclasses. Declaring only {@link DbUnitPrep} is the
- * common case: {@link #value()} defaults to {@link DbUnitOperation#CLEAN_INSERT} already,
- * so most tests never need this annotation at all.
+ * common case: the test then runs the setup operation the tester has, which is
+ * {@link DbUnitOperation#CLEAN_INSERT} for dbUnit's built-in testers, so most tests never need
+ * this annotation at all. Only this annotation replaces the tester's setup operation, for that
+ * test only; a bare {@code @DbUnitSetUpOperation} replaces it with {@link #value()}'s default,
+ * {@link DbUnitOperation#CLEAN_INSERT}.
  *
  * <p>Data ({@link DbUnitPrep}) and operation ({@link DbUnitSetUpOperation}) are deliberately
  * separate annotations rather than one fused annotation, so a class-level operation survives a
