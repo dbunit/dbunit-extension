@@ -38,13 +38,12 @@ import org.dbunit.operation.DbUnitOperation;
  * {@link DbUnitExpected} is present - is what the operation runs against. Declaring an extra
  * table to tear down is done by listing it, empty, in the prep dataset instead.
  *
- * <p>On the prep/expected path ({@link DbUnitExpected} declared), this operation is applied to
- * the resolved {@code IDatabaseTester}, which only reaches the actual teardown call when the
- * test case reads its own teardown operation from that same tester the way
- * {@link org.dbunit.DefaultPrepAndExpectedTestCase} does. A {@link DbUnitTestCase} field
- * injecting an already-built test case is used as it was built, with its tester's operations:
- * declaring this annotation next to one fails fast with {@link IllegalStateException}, so set
- * the operation on the instance's tester where it is built.
+ * <p>This operation is the teardown operation of the
+ * {@link org.dbunit.DefaultPrepAndExpectedTestCase} that runs the test, for that test only; the
+ * tester is not written and keeps its own. A {@link DbUnitTestCase} field injecting an
+ * already-built test case is used as it was built, with its tester's operations: declaring this
+ * annotation next to one fails fast with {@link IllegalStateException}, so set the operation on
+ * the instance's tester where it is built.
  *
  * <p>Example — delete all rows after each test:
  * <pre>{@code

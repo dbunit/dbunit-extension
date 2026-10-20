@@ -204,8 +204,8 @@ class AnnotatedTestConfigurationTest
         assertThat(config.getSetUpOperation())
                 .as("With no annotation found, the setup operation defaults to CLEAN_INSERT.")
                 .isEqualTo(DatabaseOperation.CLEAN_INSERT);
-        assertThat(config.isExpected()).as("With no @DbUnitExpected found, the test is not on"
-                + " the prep/expected path.").isFalse();
+        assertThat(config.getExpectedDataFiles())
+                .as("With no @DbUnitExpected found, no expected file is named.").isEmpty();
     }
 
     @Test

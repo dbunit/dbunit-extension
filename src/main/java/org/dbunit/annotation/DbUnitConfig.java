@@ -39,7 +39,7 @@ import org.dbunit.util.fileloader.FileExtensionDataFileLoader;
  * Class-level wiring for annotation-driven dbUnit test configuration: which
  * {@link DataFileLoader} loads dataset files, how to obtain a tester via
  * {@link DatabaseTesterFactory} when no field supplies one, which
- * {@link DefaultPrepAndExpectedTestCase} subclass drives the prep/expected path,
+ * {@link DefaultPrepAndExpectedTestCase} subclass runs the test,
  * {@link DatabaseConfig} properties, and the shared table-definition catalog.
  *
  * <p>For configuration shared across many test classes, compose one custom annotation
@@ -81,11 +81,10 @@ public @interface DbUnitConfig
      * {@link DbUnitExpected} dataset file, reflectively instantiated with its no-arg
      * constructor.
      *
-     * <p>On the prep/expected path ({@link DbUnitExpected} declared), a freshly-constructed
-     * {@link #prepAndExpectedTestCase()} always receives this value through its constructor.
-     * A {@link DbUnitTestCase} field injecting an already-built test case is used as it was
-     * built, with its own loader: naming a non-default loader here next to one fails fast with
-     * {@link IllegalStateException}.
+     * <p>A freshly-constructed {@link #prepAndExpectedTestCase()} always receives this value
+     * through its constructor. A {@link DbUnitTestCase} field injecting an already-built test
+     * case is used as it was built, with its own loader: naming a non-default loader here next
+     * to one fails fast with {@link IllegalStateException}.
      *
      * <p>A new loader is constructed for each test, so
      * {@link org.dbunit.util.fileloader.CachingFileExtensionDataFileLoader}, which shares what
@@ -110,8 +109,8 @@ public @interface DbUnitConfig
     Class<? extends DatabaseTesterFactory> databaseTesterFactory() default DatabaseTesterFactory.class;
 
     /**
-     * The {@link DefaultPrepAndExpectedTestCase} subclass to reflectively instantiate for the
-     * prep/expected path when no {@link DbUnitTestCase} field supplies one already, via a
+     * The {@link DefaultPrepAndExpectedTestCase} subclass to reflectively instantiate to run the
+     * test when no {@link DbUnitTestCase} field supplies one already, via a
      * constructor accepting {@code (DataFileLoader, IDatabaseTester)} - the same shape
      * {@link DefaultPrepAndExpectedTestCase} itself has - for example one overriding a
      * hook such as {@code setUpDatabaseConfig()}. Naming one next to a {@link DbUnitTestCase}
@@ -124,15 +123,14 @@ public @interface DbUnitConfig
     /**
      * Inline {@link DatabaseConfig} property name/value pairs to apply.
      *
-     * <p>On the prep/expected path ({@link DbUnitExpected} declared), applied by the
-     * {@link DefaultPrepAndExpectedTestCase} to its connection. A {@link DbUnitTestCase} field
+     * <p>Applied by the {@link DefaultPrepAndExpectedTestCase} that runs the test to its
+     * connection, the one it sets up, verifies and cleans up on. A connection the test method
+     * retrieves from the tester itself does not get them. A {@link DbUnitTestCase} field
      * injecting an already-built test case is used as it was built, so declaring these next to
      * one fails fast with {@link IllegalStateException}: set them where it is built, with
      * {@link DefaultPrepAndExpectedTestCase#setDatabaseConfigProperties(java.util.Properties)}.
-     * On the setup/teardown path (no {@link DbUnitExpected}), every value reaches the tester's
-     * connection.
      *
-     * <p><strong>On the prep/expected path, a {@link DefaultPrepAndExpectedTestCase} subclass
+     * <p><strong>A {@link DefaultPrepAndExpectedTestCase} subclass
      * that overrides {@code setUpDatabaseConfig(DatabaseConfig)} must call
      * {@code super.setUpDatabaseConfig(config)}</strong> - the pre-3.6.0 way to configure a
      * {@link DatabaseConfig} - or these values are silently dropped: they are applied through
