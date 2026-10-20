@@ -77,5 +77,66 @@ jobs:
         with:
           name: target-directory
           path: target/
+      # icr.io, the registry of the DB2 image, regularly times out, so keep the image in the Actions
+      # cache and go to the registry only when the cache has no copy. The cache steps never fail the
+      # job: a copy that does not load or save leaves the pull below to do the work. The key holds
+      # the image name, so a new image version in pom.xml starts a new copy.
+      - name: Name the DB2 image
+        id: db2-image
+        if: matrix.database.profile == 'db2-11-5'
+        run: |
+          image=$(sed -n 's|.*<docker.image.name.db2-11>\(.*\)</docker.image.name.db2-11>.*|\1|p' pom.xml)
+          test -n "$image" || { echo "docker.image.name.db2-11 is not set in pom.xml."; exit 1; }
+          echo "name=$image" >> "$GITHUB_OUTPUT"
+      - name: Restore the DB2 image from the cache
+        id: db2-image-cache
+        if: matrix.database.profile == 'db2-11-5'
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ runner.temp }}/db2-image.tar
+          key: ${{ runner.os }}-docker-image-${{ steps.db2-image.outputs.name }}
+      - name: Load the cached DB2 image
+        if: matrix.database.profile == 'db2-11-5' && steps.db2-image-cache.outputs.cache-hit == 'true'
+        continue-on-error: true
+        run: docker load --input "$RUNNER_TEMP/db2-image.tar"
+      # The docker-maven-plugin does not retry a pull and then finds the image already pulled and
+      # skips its pull. The registry can stay unreachable for minutes, and a connect timeout fails an
+      # attempt after 30 seconds, so retry within a time budget, not a count of attempts. The last
+      # attempt starts within 10 minutes and takes at most 5 more, which leaves the rest of the job's
+      # timeout for the tests.
+      - name: Pull the DB2 image, retrying when the registry times out
+        if: matrix.database.profile == 'db2-11-5'
+        env:
+          IMAGE: ${{ steps.db2-image.outputs.name }}
+        run: |
+          if docker image inspect "$IMAGE" > /dev/null 2>&1; then
+            echo "$IMAGE is already present."
+            exit 0
+          fi
+          deadline=$((SECONDS + 600))
+          attempt=0
+          while true; do
+            attempt=$((attempt + 1))
+            if timeout 5m docker pull "$IMAGE"; then
+              exit 0
+            fi
+            echo "Pulling $IMAGE failed on attempt $attempt."
+            pause=$((attempt * 30))
+            test $((SECONDS + pause)) -lt "$deadline" || exit 1
+            sleep "$pause"
+          done
+      - name: Export the pulled DB2 image
+        id: db2-image-export
+        if: matrix.database.profile == 'db2-11-5' && steps.db2-image-cache.outputs.cache-hit != 'true'
+        continue-on-error: true
+        env:
+          IMAGE: ${{ steps.db2-image.outputs.name }}
+        run: docker save --output "$RUNNER_TEMP/db2-image.tar" "$IMAGE"
+      - name: Save the DB2 image into the cache
+        if: matrix.database.profile == 'db2-11-5' && steps.db2-image-export.outcome == 'success'
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ runner.temp }}/db2-image.tar
+          key: ${{ runner.os }}-docker-image-${{ steps.db2-image.outputs.name }}
       - name: Run ${{ matrix.database.name }} integration tests
         run: ${{ env.MAVEN_COMMAND }} ${{ env.MAVEN_CLI_COMMON }} -P${{ matrix.database.profile }} verify ${{ matrix.database.url != '' && format('-Ddbunit.profile.url={0}', matrix.database.url) || '' }}
