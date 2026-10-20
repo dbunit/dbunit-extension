@@ -37,6 +37,7 @@ import org.dbunit.annotation.DbUnitTestCase;
 import org.dbunit.annotation.DbUnitTester;
 import org.dbunit.annotation.runtime.AnnotatedTestConfiguration;
 import org.dbunit.annotation.runtime.TestInstanceTesterResolver;
+import org.dbunit.annotation.runtime.TesterFields;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
@@ -56,7 +57,9 @@ import org.springframework.test.context.ContextHierarchy;
  */
 class SpringTesterResolverTest
 {
-    private final SpringTesterResolver resolver = new SpringTesterResolver();
+    private final TesterFields testerFields = new TesterFields();
+    private final SpringTesterResolver resolver =
+            new SpringTesterResolver(testerFields, new TestInstanceTesterResolver(testerFields));
     private final AnnotatedTestConfiguration noFactoryConfiguration = AnnotatedTestConfiguration
             .from(SpringTesterResolverTest.class, null, null, null, null, null, null);
 

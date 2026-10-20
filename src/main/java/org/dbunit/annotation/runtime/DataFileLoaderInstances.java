@@ -47,6 +47,7 @@ import org.dbunit.util.fileloader.DataFileLoader;
  */
 public class DataFileLoaderInstances
 {
+    private final ReflectiveInstantiation instantiation = new ReflectiveInstantiation();
     private final ConcurrentMap<Class<? extends DataFileLoader>, DataFileLoader> loaders =
             new ConcurrentHashMap<>();
 
@@ -72,6 +73,6 @@ public class DataFileLoaderInstances
 
     private DataFileLoader instantiate(final Class<? extends DataFileLoader> loaderClass)
     {
-        return ReflectiveInstantiation.instantiate(loaderClass, "DbUnitConfig.dataFileLoader");
+        return instantiation.instantiate(loaderClass, "DbUnitConfig.dataFileLoader");
     }
 }

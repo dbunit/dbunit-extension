@@ -61,8 +61,17 @@ public class AnnotatedTestOptIn
             DbUnitConfig.class, DbUnitPrep.class, DbUnitSetUpOperation.class, DbUnitExpected.class,
             DbUnitTearDownOperation.class, DbUnitRowCountCheck.class);
 
-    private AnnotatedTestOptIn()
+    private final TesterFields testerFields;
+
+    /**
+     * Creates an opt-in check that finds the marked tester fields by the given rules.
+     *
+     * @param testerFields The rules for which fields are tester fields; share the instance with
+     *            whatever else of the binding applies them.
+     */
+    public AnnotatedTestOptIn(final TesterFields testerFields)
     {
+        this.testerFields = testerFields;
     }
 
     /**
@@ -74,7 +83,7 @@ public class AnnotatedTestOptIn
      * @return {@code true} when the test carries an annotation that configures it, or a class
      *         in scope declares a {@code @DbUnitTester} or {@code @DbUnitTestCase} field.
      */
-    public static boolean isOptedIn(final AnnotationLookup lookup,
+    public boolean isOptedIn(final AnnotationLookup lookup,
             final Collection<Class<?>> testClasses)
     {
         for (final Class<? extends Annotation> annotationType : OPT_IN_ANNOTATIONS)
@@ -86,7 +95,7 @@ public class AnnotatedTestOptIn
         }
         for (final Class<?> testClass : testClasses)
         {
-            if (TesterFields.declaresMarkedField(testClass))
+            if (testerFields.declaresMarkedField(testClass))
             {
                 return true;
             }
