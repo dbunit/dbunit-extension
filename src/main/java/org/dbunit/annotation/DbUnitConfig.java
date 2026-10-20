@@ -86,10 +86,16 @@ public @interface DbUnitConfig
      * case is used as it was built, with its own loader: naming a non-default loader here next
      * to one fails fast with {@link IllegalStateException}.
      *
-     * <p>A new loader is constructed for each test, so
-     * {@link org.dbunit.util.fileloader.CachingFileExtensionDataFileLoader}, which shares what
-     * it parsed among all instances of its class, parses each file once per run instead of once
-     * per test.
+     * <p>A loader class that is made to be shared, a
+     * {@link org.dbunit.util.fileloader.CachingDataFileLoader} or a subclass of it, such as
+     * {@link org.dbunit.util.fileloader.CachingFileExtensionDataFileLoader}, which holds the
+     * datasets it loaded, is built once and shared by the tests of its scope: all the tests of
+     * the run under JUnit Jupiter, those of one test class under Spring. So each file is loaded
+     * once for the scope instead of once per test, a value the constructor computes, such as a
+     * replacement of the current time, is computed once for the scope, and the loader must be
+     * safe for tests that run in parallel. A loader of any other class, the default included, is
+     * built for each test, so a test case that changes the loader it is given, such as by adding
+     * replacement objects, changes no other test's.
      *
      * @return The loader class; the interface itself (the default) means "not set", and
      *         {@link FileExtensionDataFileLoader} is used.
