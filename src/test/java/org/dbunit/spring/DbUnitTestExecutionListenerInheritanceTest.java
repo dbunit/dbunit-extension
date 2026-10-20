@@ -22,23 +22,25 @@ package org.dbunit.spring;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.platform.engine.discovery.DiscoverySelectors.selectClass;
-import static org.mockito.Mockito.atLeastOnce;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import org.dbunit.AbstractDatabaseTester;
+import org.dbunit.DatabaseUnitException;
 import org.dbunit.IDatabaseTester;
 import org.dbunit.annotation.DbUnitTester;
+import org.dbunit.database.IDatabaseConnection;
+import org.dbunit.database.InMemoryDatabaseConnection;
 import org.dbunit.dataset.IDataSet;
+import org.dbunit.operation.DatabaseOperation;
 import org.dbunit.spring.inheritance.ClassLevelPrepBase;
 import org.dbunit.spring.inheritance.MethodLevelPrepBase;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.platform.testkit.engine.EngineTestKit;
-import org.mockito.ArgumentCaptor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
@@ -63,12 +65,12 @@ class DbUnitTestExecutionListenerInheritanceTest
     void testBeforeTestMethod_classLevelPrepInheritedFromAnotherPackage_loadsFileNextToTheDeclaringClass()
             throws Exception
     {
-        final IDatabaseTester tester = mock(IDatabaseTester.class);
+        final SetUpRecordingTester tester = new SetUpRecordingTester();
         InheritedClassLevelPrepSample.tester = tester;
 
         runSuccessfully(InheritedClassLevelPrepSample.class);
 
-        assertThat(tableNamesOfFirstDataSetSetOn(tester))
+        assertThat(tester.getTableNamesOfTheFirstDataSetSetUp())
                 .as("A relative @DbUnitPrep path inherited from a base class in another package"
                         + " names a file next to that base class, not next to the subclass.")
                 .containsExactly("SPRING_BASE_CLASS_TABLE");
@@ -78,12 +80,12 @@ class DbUnitTestExecutionListenerInheritanceTest
     void testBeforeTestMethod_methodLevelPrepOnInheritedTestMethod_loadsFileNextToTheDeclaringClass()
             throws Exception
     {
-        final IDatabaseTester tester = mock(IDatabaseTester.class);
+        final SetUpRecordingTester tester = new SetUpRecordingTester();
         InheritedMethodLevelPrepSample.tester = tester;
 
         runSuccessfully(InheritedMethodLevelPrepSample.class);
 
-        assertThat(tableNamesOfFirstDataSetSetOn(tester))
+        assertThat(tester.getTableNamesOfTheFirstDataSetSetUp())
                 .as("A relative @DbUnitPrep path on an inherited test method names a file next"
                         + " to the class that declares the method.")
                 .containsExactly("SPRING_BASE_METHOD_TABLE");
@@ -96,16 +98,39 @@ class DbUnitTestExecutionListenerInheritanceTest
     }
 
     /**
-     * Returns the tables of the first data set the listener set on {@code tester}; it sets the
-     * tester's own data set back afterwards, which is a later call.
+     * A tester over a fresh in-memory database whose setup operation records the tables of the
+     * dataset it is run on and changes nothing.
      */
-    private static List<String> tableNamesOfFirstDataSetSetOn(final IDatabaseTester tester)
-            throws Exception
+    private static class SetUpRecordingTester extends AbstractDatabaseTester
     {
-        final ArgumentCaptor<IDataSet> dataSets = ArgumentCaptor.forClass(IDataSet.class);
-        verify(tester, atLeastOnce()).setDataSet(dataSets.capture());
-        final IDataSet first = dataSets.getAllValues().get(0);
-        return Arrays.asList(first.getTableNames());
+        private final List<List<String>> setUpDataSets = new ArrayList<>();
+
+        SetUpRecordingTester()
+        {
+            setSetUpOperation(new DatabaseOperation()
+            {
+                @Override
+                public void execute(final IDatabaseConnection connection, final IDataSet dataSet)
+                        throws DatabaseUnitException
+                {
+                    setUpDataSets.add(Arrays.asList(dataSet.getTableNames()));
+                }
+            });
+        }
+
+        @Override
+        public IDatabaseConnection getConnection() throws Exception
+        {
+            return InMemoryDatabaseConnection.create();
+        }
+
+        /**
+         * Returns the tables of the first dataset the setup operation ran on.
+         */
+        List<String> getTableNamesOfTheFirstDataSetSetUp()
+        {
+            return setUpDataSets.get(0);
+        }
     }
 
     @Configuration

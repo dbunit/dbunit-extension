@@ -61,7 +61,6 @@ public class AnnotatedTestConfiguration
     private final String[] prepDataFiles;
     private final boolean setupDeclared;
     private final DatabaseOperation setUpOperation;
-    private final boolean expected;
     private final String[] expectedDataFiles;
     // null when the annotations declare none, to be derived from the expected datasets later.
     private final VerifyTableDefinition[] verifyTableDefinitions;
@@ -80,7 +79,7 @@ public class AnnotatedTestConfiguration
     private AnnotatedTestConfiguration(final DataFileLoader dataFileLoader,
             final boolean dataFileLoaderDeclared, final String[] prepDataFiles,
             final boolean setupDeclared,
-            final DatabaseOperation setUpOperation, final boolean expected,
+            final DatabaseOperation setUpOperation,
             final String[] expectedDataFiles,
             final VerifyTableDefinition[] verifyTableDefinitions,
             final VerifyTableDefinition[] catalogDefinitions,
@@ -96,7 +95,6 @@ public class AnnotatedTestConfiguration
         this.prepDataFiles = prepDataFiles;
         this.setupDeclared = setupDeclared;
         this.setUpOperation = setUpOperation;
-        this.expected = expected;
         this.expectedDataFiles = expectedDataFiles;
         this.verifyTableDefinitions = verifyTableDefinitions;
         this.catalogDefinitions = catalogDefinitions;
@@ -224,7 +222,7 @@ public class AnnotatedTestConfiguration
                 rowCountCheckDeclared ? rowCountCheck.exclude() : new String[0];
 
         return new AnnotatedTestConfiguration(dataFileLoader, dataFileLoaderDeclared,
-                prepDataFiles, setupDeclared, setUpOperation, hasExpected, expectedDataFiles,
+                prepDataFiles, setupDeclared, setUpOperation, expectedDataFiles,
                 verifyTableDefinitions, catalogDefinitions, tearDownDeclared, tearDownOperation,
                 databaseConfigProperties, failureHandler, databaseTesterFactory,
                 prepAndExpectedTestCaseClass, rowCountCheckDeclared, rowCountCheckEnabled,
@@ -337,20 +335,9 @@ public class AnnotatedTestConfiguration
     }
 
     /**
-     * Returns whether {@code @DbUnitExpected} was declared, switching the test onto the
-     * prep/expected path.
-     *
-     * @return True when {@code @DbUnitExpected} was declared.
-     */
-    public boolean isExpected()
-    {
-        return expected;
-    }
-
-    /**
      * Returns the resolved, absolute classpath paths of the expected dataset files.
      *
-     * @return The expected dataset paths; empty when {@link #isExpected()} is false.
+     * @return The expected dataset paths; empty when no {@code @DbUnitExpected} was declared.
      */
     public String[] getExpectedDataFiles()
     {
@@ -362,7 +349,7 @@ public class AnnotatedTestConfiguration
      * {@link #getDataFileLoader()} when the annotations declare none - see
      * {@link #getVerifyTableDefinitions(DataFileLoader)}.
      *
-     * @return The table definitions; empty when {@link #isExpected()} is false.
+     * @return The table definitions; empty when no {@code @DbUnitExpected} was declared.
      */
     public VerifyTableDefinition[] getVerifyTableDefinitions()
     {
@@ -379,11 +366,12 @@ public class AnnotatedTestConfiguration
      * and the default ones for a table they do not define.
      *
      * @return True when the table definitions are to be derived from the expected datasets;
-     *         false when the annotations declare them, or {@link #isExpected()} is false.
+     *         false when the annotations declare them, or no {@code @DbUnitExpected} was
+     *         declared.
      */
     public boolean derivesVerifyTableDefinitions()
     {
-        return expected && verifyTableDefinitions == null;
+        return verifyTableDefinitions == null;
     }
 
     /**
@@ -395,7 +383,7 @@ public class AnnotatedTestConfiguration
      *
      * @param expectedDataLoader The loader to read the expected datasets with when the
      *            definitions must be derived from them.
-     * @return The table definitions; empty when {@link #isExpected()} is false.
+     * @return The table definitions; empty when no {@code @DbUnitExpected} was declared.
      */
     public VerifyTableDefinition[] getVerifyTableDefinitions(
             final DataFileLoader expectedDataLoader)
@@ -415,7 +403,7 @@ public class AnnotatedTestConfiguration
      * definition, any other with the default rules.
      *
      * @return The catalogs' definitions; empty when the test declares no catalog, or
-     *         {@link #isExpected()} is false.
+     *         no {@code @DbUnitExpected} was declared.
      */
     public VerifyTableDefinition[] getCatalogDefinitions()
     {
@@ -486,8 +474,8 @@ public class AnnotatedTestConfiguration
     }
 
     /**
-     * Returns the {@link PrepAndExpectedTestCase} implementation to use for the prep/expected
-     * path when no test case field is declared.
+     * Returns the {@link PrepAndExpectedTestCase} implementation to build for an
+     * annotation-driven test when no test case field is declared.
      *
      * @return The test case class; {@link DefaultPrepAndExpectedTestCase} when not set.
      */

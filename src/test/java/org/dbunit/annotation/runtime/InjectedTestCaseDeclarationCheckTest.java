@@ -86,13 +86,17 @@ class InjectedTestCaseDeclarationCheckTest
     }
 
     @Test
-    void testRequireSupportedBy_otherTestCaseAndNoExpected_rejects()
+    void testRequireSupportedBy_otherTestCaseAndNoExpected_accepts()
     {
-        assertRejected(WithPrepOnly.class, otherTestCase, "a test without @DbUnitExpected");
+        assertThatCode(() -> check(WithPrepOnly.class, otherTestCase))
+                .as("A test without @DbUnitExpected is the same lifecycle with no expected"
+                        + " files: configureTest(), preTest() and postTest() are all a test case"
+                        + " that is not a DefaultPrepAndExpectedTestCase is given.")
+                .doesNotThrowAnyException();
     }
 
     @Test
-    void testRequireDataFileLoaderForTheFiles_defaultTestCaseWithLoader_accepts()
+    void testRequireDataFileLoader_defaultTestCaseWithLoader_accepts()
     {
         when(defaultTestCase.getDataFileLoader()).thenReturn(mock(DataFileLoader.class));
 
@@ -102,27 +106,29 @@ class InjectedTestCaseDeclarationCheckTest
     }
 
     @Test
-    void testRequireDataFileLoaderForTheFiles_defaultTestCaseWithoutLoaderAndFilesDeclared_rejects()
+    void testRequireDataFileLoader_defaultTestCaseWithoutLoaderAndFilesDeclared_rejects()
     {
         assertThatThrownBy(() -> checkLoader(FilesAndCatalog.class, defaultTestCase))
                 .as("dbUnit does not give an injected test case a loader, so one with none cannot"
                         + " read the files the test names.")
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining(defaultTestCase.getClass().getName())
-                .hasMessageContaining("has no DataFileLoader to read the test's dataset files")
+                .hasMessageContaining("has no DataFileLoader, which its configureTest() needs")
                 .hasMessageContaining("where it is built, or in a @BeforeEach method");
     }
 
     @Test
-    void testRequireDataFileLoaderForTheFiles_defaultTestCaseWithoutLoaderAndNoFilesDeclared_accepts()
+    void testRequireDataFileLoader_defaultTestCaseWithoutLoaderAndNoFilesDeclared_rejects()
     {
-        assertThatCode(() -> checkLoader(NoFiles.class, defaultTestCase))
-                .as("A loader is needed only to read files, and the test names none.")
-                .doesNotThrowAnyException();
+        assertThatThrownBy(() -> checkLoader(NoFiles.class, defaultTestCase))
+                .as("dbUnit calls configureTest() for every test, and that needs a loader even"
+                        + " when the test names no files.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("has no DataFileLoader");
     }
 
     @Test
-    void testRequireDataFileLoaderForTheFiles_otherTestCase_acceptsAsItTellsDbUnitOfNoLoader()
+    void testRequireDataFileLoader_otherTestCase_acceptsAsItTellsDbUnitOfNoLoader()
     {
         assertThatCode(() -> checkLoader(FilesAndCatalog.class, otherTestCase))
                 .as("Only a DefaultPrepAndExpectedTestCase tells dbUnit of its loader, so there is"
@@ -225,7 +231,7 @@ class InjectedTestCaseDeclarationCheckTest
     private static void checkLoader(final Class<?> fixture, final PrepAndExpectedTestCase testCase)
     {
         new InjectedTestCaseDeclarationCheck(configFrom(fixture))
-                .requireDataFileLoaderForTheFiles(testCase);
+                .requireDataFileLoader(testCase);
     }
 
     private static AnnotatedTestConfiguration configFrom(final Class<?> fixture)

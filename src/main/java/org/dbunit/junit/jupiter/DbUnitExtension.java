@@ -62,21 +62,25 @@ import org.slf4j.LoggerFactory;
  * {@link DbUnitTest @DbUnitTest} (or {@code @ExtendWith(DbUnitExtension.class)} directly) to
  * opt a test class in.
  *
- * <h2>The two paths</h2>
+ * <h2>The lifecycle</h2>
  *
- * <p>Without {@link DbUnitExpected}, this is the setup/teardown path: the
- * {@link DbUnitPrep} dataset (if any) and {@link DbUnitSetUpOperation} operation are applied, then
- * {@link IDatabaseTester#onSetup()} runs before the test method and
- * {@link IDatabaseTester#onTearDown()} after it. The test method asserts results however it
- * likes.
+ * <p>A test that opts into the annotations - see below - runs through a
+ * {@link PrepAndExpectedTestCase}, built around its tester or supplied by a
+ * {@link DbUnitTestCase} field, whether or not it declares {@link DbUnitExpected}:
+ * {@code configureTest()} and {@code preTest()} run before the test method, {@code postTest()}
+ * after it. {@code preTest()} sets up the {@link DbUnitPrep} dataset - the dataset the tester
+ * holds, when the test declares none - with the setup operation the tester has, or
+ * {@link DbUnitSetUpOperation} declares. {@code postTest()} compares the database against the
+ * {@link DbUnitExpected} dataset, when the test declares one, so the verifying is done for you,
+ * skipping it when the test method itself already failed so a verification failure never masks
+ * the real cause, then tears down with the teardown operation the tester has, or
+ * {@link DbUnitTearDownOperation} declares. Without {@link DbUnitExpected} the test method
+ * asserts results however it likes.
  *
- * <p>With {@link DbUnitExpected} present, the test switches onto the
- * {@link PrepAndExpectedTestCase} prep/expected path: {@code configureTest()} and
- * {@code preTest()} run before the test method, {@code postTest()} after it - {@code postTest()}
- * compares the database against the {@link DbUnitExpected} dataset, so the verifying is done
- * for you, skipping it when the test method itself already failed so a verification failure
- * never masks the real cause. Neither path is a reduced form of the other; they run different
- * lifecycles.
+ * <p>The tester is only read, never written, so a tester shared across tests carries nothing
+ * from one to the next. Its own {@code onSetup()} and {@code onTearDown()} do not run, so an
+ * override of either in a tester subclass has no effect on such a test; only the 3.5.0
+ * lifecycle below calls them.
  *
  * <pre>{@code
  * @DbUnitTest
@@ -179,25 +183,26 @@ import org.slf4j.LoggerFactory;
  * {@link IDatabaseConnection} instead and call {@code getConnection()} for the JDBC
  * connection.
  *
- * <p>The injected {@link IDatabaseConnection} is managed for the test's
- * duration and closed afterward - by this extension on the setup/teardown path, by the
- * driven {@link PrepAndExpectedTestCase} on the prep/expected path; do not close it
- * yourself. That includes a {@code @BeforeEach} method that fails after receiving it: the
- * extension then closes it in {@link #afterEach(ExtensionContext)}, since the test method and
- * its {@link #afterTestExecution(ExtensionContext)} never run. A {@code @BeforeEach}
- * parameter resolves before {@link #beforeTestExecution(ExtensionContext)} runs - JUnit Jupiter
- * always calls
- * {@code @BeforeEach} methods first - so it sees the tester/connection exactly as they exist
- * before this extension's own setup: {@link DbUnitPrep}'s dataset, if any, is not loaded onto
- * it yet.
+ * <p>The injected {@link IDatabaseConnection} is the connection of the driven
+ * {@link PrepAndExpectedTestCase}. It is managed for the test's duration and closed afterward,
+ * by that test case; do not close it yourself. That includes a {@code @BeforeEach} method that
+ * fails after receiving it: the extension then closes it in
+ * {@link #afterEach(ExtensionContext)}, since the test method and its
+ * {@link #afterTestExecution(ExtensionContext)} never run. A {@code @BeforeEach} parameter
+ * resolves before {@link #beforeTestExecution(ExtensionContext)} runs - JUnit Jupiter always
+ * calls {@code @BeforeEach} methods first - so it sees the tester/connection exactly as they
+ * exist before this extension's own setup: {@link DbUnitPrep}'s dataset, if any, is not loaded
+ * onto it yet.
  *
- * <p>Not safe for concurrent execution of test methods that resolve to the same tester or test
- * case instance - e.g. a {@code static} {@link DbUnitTester @DbUnitTester}/
- * {@link DbUnitTestCase @DbUnitTestCase} field, or any instance field at all under
- * {@code @TestInstance(Lifecycle.PER_CLASS)} - since this extension applies annotations and
- * drives the dbUnit lifecycle against it without synchronization. Run such test methods
- * sequentially (JUnit Jupiter's own default) rather than under
- * {@code junit.jupiter.execution.parallel.enabled=true}, or give each test method's own tester
+ * <p>The tester of an annotation-driven test is only read, so one shared by test methods that
+ * run at the same time - a {@code static} {@link DbUnitTester @DbUnitTester} field, say - carries
+ * nothing from one to another, as long as it hands out a connection of its own on each call. A
+ * tester over one fixed connection shares that connection among them, and a
+ * {@link DbUnitTestCase @DbUnitTestCase} instance shared that way - a {@code static} field, or
+ * any instance field at all under {@code @TestInstance(Lifecycle.PER_CLASS)} - holds the
+ * datasets and the connection of one test at a time. This extension drives it without
+ * synchronization, so run such test methods sequentially (JUnit Jupiter's own default) rather
+ * than under {@code junit.jupiter.execution.parallel.enabled=true}, or give each test method
  * its own non-shared field.
  *
  * @author Jeff Jensen
@@ -497,13 +502,7 @@ public class DbUnitExtension implements BeforeTestExecutionCallback,
             @Override
             Object resolve(final AnnotatedTestExecutor executor) throws Exception
             {
-                final IDatabaseConnection connection = executor.getConnection();
-                if (connection == null)
-                {
-                    throw new IllegalStateException("IDatabaseTester#getConnection() returned"
-                            + " null; cannot inject an IDatabaseConnection parameter.");
-                }
-                return connection;
+                return executor.getConnection();
             }
         };
 

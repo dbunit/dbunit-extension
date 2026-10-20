@@ -34,10 +34,10 @@ import org.dbunit.PrepAndExpectedTestCase;
  * override methods, and nothing else. Everything that would configure it, or needs a tester or a
  * connection of it that a test case which is not a {@link DefaultPrepAndExpectedTestCase} cannot
  * tell dbUnit about, is rejected with one message when declared instead of silently never
- * taking effect. The loader the test's files need is checked separately, just before the test
- * case is used, see {@link #requireDataFileLoaderForTheFiles(PrepAndExpectedTestCase)}.
+ * taking effect. The loader it needs is checked separately, just before the test case is used,
+ * see {@link #requireDataFileLoader(PrepAndExpectedTestCase)}.
  *
- * <p>Not intended for direct use by test code; machinery consumed by {@link ExpectedLifecycle}.
+ * <p>Not intended for direct use by test code; machinery consumed by {@link TestCaseLifecycle}.
  *
  * @author Jeff Jensen
  * @since 3.6.0
@@ -70,8 +70,6 @@ class InjectedTestCaseDeclarationCheck
         if (!defaultTestCase)
         {
             addIf(configuration.isRowCountCheckDeclared(), unsupported, "@DbUnitRowCountCheck");
-            addIf(!configuration.isExpected(), unsupported,
-                    "a test without @DbUnitExpected, which would have no tester to set up");
         }
         if (unsupported.isEmpty())
         {
@@ -95,35 +93,35 @@ class InjectedTestCaseDeclarationCheck
     }
 
     /**
-     * Fails when the test names dataset files and an injected
-     * {@link DefaultPrepAndExpectedTestCase} has no loader to read them with: dbUnit gives it
-     * none, as it uses the instance as it was built. Run just before the test case is used
-     * rather than when the executor is created, as a {@code @BeforeEach} method of the test
-     * class may still be setting the loader. Any other {@link PrepAndExpectedTestCase} tells
-     * dbUnit of no loader, so nothing is checked for it. The tester is not checked here: the
-     * {@link TestInstanceTesterResolver} requires one of the instance when it resolves it.
+     * Fails when an injected {@link DefaultPrepAndExpectedTestCase} has no loader: dbUnit gives
+     * it none, as it uses the instance as it was built, and its {@code configureTest()}, which
+     * dbUnit calls for every test, needs one to read the test's dataset files, however many it
+     * names. Run just before the test case is used rather than when the executor is created, as
+     * a {@code @BeforeEach} method of the test class may still be setting the loader. Any other
+     * {@link PrepAndExpectedTestCase} tells dbUnit of no loader, so nothing is checked for it.
+     * The tester is not checked here: the {@link TestInstanceTesterResolver} requires one of the
+     * instance when it resolves it.
      *
      * @param testCase The injected {@code @DbUnitTestCase} instance.
-     * @throws IllegalStateException If the test names dataset files and {@code testCase} has no
-     *             loader.
+     * @throws IllegalStateException If {@code testCase} is a
+     *             {@link DefaultPrepAndExpectedTestCase} with no loader.
      */
-    void requireDataFileLoaderForTheFiles(final PrepAndExpectedTestCase testCase)
+    void requireDataFileLoader(final PrepAndExpectedTestCase testCase)
     {
         if (!(testCase instanceof DefaultPrepAndExpectedTestCase))
         {
             return;
         }
 
-        final boolean namesFiles = configuration.getPrepDataFiles().length > 0
-                || configuration.getExpectedDataFiles().length > 0;
         final DefaultPrepAndExpectedTestCase defaultTestCase =
                 (DefaultPrepAndExpectedTestCase) testCase;
-        if (namesFiles && defaultTestCase.getDataFileLoader() == null)
+        if (defaultTestCase.getDataFileLoader() == null)
         {
             throw new IllegalStateException("The @DbUnitTestCase field's test case "
-                    + testCase.getClass().getName() + " has no DataFileLoader to read the test's"
-                    + " dataset files with. dbUnit uses it as it was built: give it one where it"
-                    + " is built, or in a @BeforeEach method.");
+                    + testCase.getClass().getName() + " has no DataFileLoader, which its"
+                    + " configureTest() needs to read the test's dataset files with. dbUnit uses"
+                    + " it as it was built: give it one where it is built, or in a @BeforeEach"
+                    + " method.");
         }
     }
 

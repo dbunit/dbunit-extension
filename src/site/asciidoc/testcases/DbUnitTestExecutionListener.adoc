@@ -85,8 +85,8 @@ link:../dependencies.html[Dependencies] report of this dbUnit release lists for
 [#discovery]
 == Field, Bean, or Factory Discovery
 
-The listener resolves the `IDatabaseTester` (and, for the prep/expected
-path, the `PrepAndExpectedTestCase`) in this order, first match wins:
+The listener resolves the `IDatabaseTester` (and the `PrepAndExpectedTestCase`, when a field
+supplies one) in this order, first match wins:
 
 . A field annotated `@DbUnitTestCase`, whose type implements
   `PrepAndExpectedTestCase` — that instance is driven directly.
@@ -231,18 +231,18 @@ link:annotations.html#rowcountcheck[`@DbUnitRowCountCheck`].
 
 An `IDatabaseTester` bean is a singleton of the `ApplicationContext`, and Spring
 caches a context and shares it among every test class with the same
-configuration, so one tester serves all of them. For each test the listener
-sets the dataset and operations on the tester, and it wraps the tester's
-operation listener while the test runs; afterwards it puts the dataset, the
-operations and the operation listener back as it found them, so a class that
-later uses the bean without the listener sees none of the previous test's
-`@DbUnitProperty` values or callbacks.
+configuration, so one tester serves all of them. The listener only reads the tester: it
+sets nothing on it and leaves its operation listener alone, so a class that later uses the bean
+without the listener sees nothing of a previous test. The `@DbUnitProperty` values go to the
+connection the test case uses and are put back when the test ends.
 
-None of that is synchronized. A tester shared this way — as a bean in a cached
-context, through a `static` `@DbUnitTester` field, or as an instance field under
-`@TestInstance(Lifecycle.PER_CLASS)` — is not safe for tests that run at the
-same time, for example under `junit.jupiter.execution.parallel.enabled=true`.
-Run such tests sequentially, or give each its own tester.
+A tester shared this way — as a bean in a cached context, through a `static`
+`@DbUnitTester` field, or as an instance field under `@TestInstance(Lifecycle.PER_CLASS)` — is
+safe for tests that run at the same time, for example under
+`junit.jupiter.execution.parallel.enabled=true`, as long as it hands out a connection of its own
+on each call. A tester over one fixed connection shares that connection among them, and
+a `@DbUnitTestCase` instance shared that way holds the datasets and the connection of one test
+at a time. Run such tests sequentially, or give each its own tester or test case.
 
 [#ordering]
 == Listener Ordering and Transactional Tests
@@ -293,9 +293,11 @@ What follows from that:
   `executionPhase = AFTER_TEST_METHOD`. A `@DbUnitTester` field must already be
   set when prep starts: initialize it in its declaration or the constructor, or
   have Spring `@Autowired` it, rather than assigning it in `@BeforeEach`. For
-  the same reason, a `@BeforeEach` method cannot adjust the tester's dataset
-  for the listener's setup; declare the dataset and operations with the
-  annotations instead.
+  the same reason, a `@BeforeEach` method cannot adjust the tester's setup
+  operation for the listener's setup, which has already run; declare the
+  operations with the annotations instead. The dataset is never the tester's,
+  as under `DbUnitExtension`: name it with `@DbUnitPrep`, and a test that
+  names none sets up no data.
 
 == Tests That Expect an Exception
 

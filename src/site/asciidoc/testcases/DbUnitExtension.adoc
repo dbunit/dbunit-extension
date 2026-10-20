@@ -70,10 +70,14 @@ so a `@Nested` test class inherits its enclosing class's tester field.
 Rather than a `@BeforeEach` method, the dataset and operation can be
 declared directly on the class or method with `org.dbunit.annotation` —
 `@DbUnitPrep`, `@DbUnitSetUpOperation`, `@DbUnitExpected`, `@DbUnitTearDownOperation`, and
-`@DbUnitConfig`. This also unlocks the
-link:PrepAndExpectedTestCase.html[PrepAndExpectedTestCase] prep/expected
-path declaratively, and a `@DbUnitTester`/`@DbUnitTestCase` field marker in
-place of the plain-field auto-scan described above. See
+`@DbUnitConfig`. A test that does so no longer runs through the tester's `onSetup()` and
+`onTearDown()`: the extension runs a
+link:PrepAndExpectedTestCase.html[PrepAndExpectedTestCase] around it instead, which reads the
+tester's connection and operations, never its dataset, and writes nothing to it — see
+link:annotations.html#lifecycle[The Lifecycle]. It also
+unlocks the verification that `@DbUnitExpected` declares, and a `@DbUnitTester`/`@DbUnitTestCase`
+field marker in place of the plain-field auto-scan described above. A dataset a `@BeforeEach`
+method gave the tester is not set up for such a test: name its file with `@DbUnitPrep`. See
 link:annotations.html[DbUnit Annotations] for the full reference.
 
 == Row Count Check
@@ -81,7 +85,9 @@ link:annotations.html[DbUnit Annotations] for the full reference.
 The same link:../components/rowcountcheck.html[RowCountCheck] diagnostic available to
 link:PrepAndExpectedTestCase.html[PrepAndExpectedTestCase] applies here too: a baseline is
 captured from the connection of the resolved `IDatabaseTester` before the setup operation
-changes any data, and verified after `onTearDown()`, failing the test by name when a table's row count moved. Verification
+changes any data, and verified after `onTearDown()`, failing the test by name when a table's row count moved.
+An annotation-driven test's check is its test case's own, captured before its setup operation and
+verified after its teardown operation. Verification
 is skipped whenever `onTearDown()` itself throws, and also when the test method threw
 before reaching it, since either way the database is left in an unknown state and a count
 difference would only be noise around the real failure. It is off by default; enable it
@@ -172,8 +178,7 @@ closed; on a fresh-connection tester (`JdbcDatabaseTester`) it opens one
 nothing will close. Do post-test database work in the `@Test` method itself,
 or in an `@AfterEach` that fully owns its own connection. The injected
 `IDatabaseConnection` is managed for the test's duration and
-closed afterward — by the extension on the setup/teardown path, by the driven
-`PrepAndExpectedTestCase` on the prep/expected path; do not close it yourself.
+closed afterward by the driven `PrepAndExpectedTestCase`; do not close it yourself.
 That includes a `@BeforeEach` method that fails after receiving it: the test
 method and the extension's after-test callback never run then, so the extension
 closes the connection in its `afterEach` callback instead.

@@ -38,10 +38,10 @@ import org.slf4j.LoggerFactory;
  * database's idle-in-transaction timeout may terminate mid-run.
  *
  * <p>Used as the {@code onAcquired} hook of a {@link TestScopedConnection} so the check runs
- * once per acquired connection at the single acquisition point, whichever path - the annotation
- * runtime's setup/teardown handling, or {@link org.dbunit.DefaultPrepAndExpectedTestCase} -
- * borrowed it. One instance per lifecycle owner; it warns at most once regardless of how many
- * times the connection is (re)acquired.
+ * once per acquired connection at the single acquisition point, whichever lifecycle owner
+ * borrowed it, such as {@link org.dbunit.DefaultPrepAndExpectedTestCase}. One instance per
+ * lifecycle owner; it warns at most once regardless of how many times the connection is
+ * (re)acquired.
  *
  * @author Jeff Jensen
  * @since 3.6.0

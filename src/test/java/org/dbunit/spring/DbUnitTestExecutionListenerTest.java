@@ -33,12 +33,18 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.function.BooleanSupplier;
 
 import org.dbunit.AbstractDatabaseTester;
+import org.dbunit.DefaultPrepAndExpectedTestCase;
 import org.dbunit.IDatabaseTester;
 import org.dbunit.IOperationListener;
+import org.dbunit.VerifyTableDefinition;
+import org.dbunit.annotation.DbUnitConfig;
 import org.dbunit.annotation.DbUnitExpected;
 import org.dbunit.annotation.DbUnitTearDownOperation;
 import org.dbunit.annotation.DbUnitTester;
@@ -46,8 +52,12 @@ import org.dbunit.annotation.runtime.AnnotatedTestExecutor;
 import org.dbunit.database.IDatabaseConnection;
 import org.dbunit.database.InMemoryDatabaseConnection;
 import org.dbunit.dataset.DefaultDataSet;
+import org.dbunit.dataset.DefaultTable;
+import org.dbunit.dataset.IDataSet;
 import org.dbunit.operation.DatabaseOperation;
 import org.dbunit.operation.DbUnitOperation;
+import org.dbunit.util.fileloader.DataFileLoader;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
 import org.springframework.test.context.support.DirtiesContextTestExecutionListener;
@@ -64,6 +74,12 @@ class DbUnitTestExecutionListenerTest
             DbUnitTestExecutionListener.EXECUTOR_ATTRIBUTE;
 
     private final DbUnitTestExecutionListener listener = new DbUnitTestExecutionListener();
+
+    @BeforeEach
+    void resetRecordingTestCase()
+    {
+        RecordingTestCase.reset();
+    }
 
     @Test
     void testGetOrder_defaultListener_returnsOrderConstant()
@@ -84,21 +100,6 @@ class DbUnitTestExecutionListenerTest
                         + " teardown runs after it ended, yet after @DirtiesContext, so the"
                         + " application context is not closed under verify and teardown.")
                 .isGreaterThan(dirtiesContextOrder).isLessThan(transactionalOrder);
-    }
-
-    @Test
-    void testBeforeAndAfterTestMethod_oneTestMethod_runsOnSetupThenOnTearDownOnSameTester()
-            throws Exception
-    {
-        final IDatabaseTester tester = mock(IDatabaseTester.class);
-        final FakeTestContext context = new FakeTestContext(HasTesterField.class)
-                .beginMethod(new HasTesterField(tester), "aTestMethod");
-
-        listener.beforeTestMethod(context);
-        listener.afterTestMethod(context);
-
-        verify(tester).onSetup();
-        verify(tester).onTearDown();
     }
 
     @Test
@@ -145,57 +146,6 @@ class DbUnitTestExecutionListenerTest
     }
 
     @Test
-    void testBeforeAndAfterTestMethod_methodAndClassLevelDbUnitTearDown_methodLevelWins()
-            throws Exception
-    {
-        final IDatabaseTester tester = mock(IDatabaseTester.class);
-        final FakeTestContext context = new FakeTestContext(HasClassAndMethodLevelTearDown.class)
-                .beginMethod(new HasClassAndMethodLevelTearDown(tester), "aTestMethod");
-
-        listener.beforeTestMethod(context);
-        listener.afterTestMethod(context);
-
-        verify(tester).setTearDownOperation(DatabaseOperation.TRUNCATE_TABLE);
-        verify(tester, never()).setTearDownOperation(DatabaseOperation.DELETE_ALL);
-    }
-
-    @Test
-    void testBeforeAndAfterTestMethod_nestedClassWithoutOwnAnnotations_usesEnclosingClassesTesterAndTearDown()
-            throws Exception
-    {
-        final IDatabaseTester tester = mock(IDatabaseTester.class);
-        final EnclosingWithTearDown enclosing = new EnclosingWithTearDown(tester);
-        final EnclosingWithTearDown.Nested nested = enclosing.new Nested();
-        final FakeTestContext context = new FakeTestContext(EnclosingWithTearDown.Nested.class)
-                .beginMethod(nested, "aTestMethod");
-
-        listener.beforeTestMethod(context);
-        listener.afterTestMethod(context);
-
-        verify(tester).onSetup();
-        verify(tester).setTearDownOperation(DatabaseOperation.DELETE_ALL);
-        verify(tester).onTearDown();
-    }
-
-    @Test
-    void testBeforeAndAfterTestMethod_nestedClassWithOwnTearDown_nestedTearDownWinsOverEnclosing()
-            throws Exception
-    {
-        final IDatabaseTester tester = mock(IDatabaseTester.class);
-        final EnclosingWithTearDown enclosing = new EnclosingWithTearDown(tester);
-        final EnclosingWithTearDown.NestedWithTearDown nested = enclosing.new NestedWithTearDown();
-        final FakeTestContext context =
-                new FakeTestContext(EnclosingWithTearDown.NestedWithTearDown.class)
-                        .beginMethod(nested, "aTestMethod");
-
-        listener.beforeTestMethod(context);
-        listener.afterTestMethod(context);
-
-        verify(tester).setTearDownOperation(DatabaseOperation.TRUNCATE_TABLE);
-        verify(tester, never()).setTearDownOperation(DatabaseOperation.DELETE_ALL);
-    }
-
-    @Test
     void testBeforeAndAfterTestMethod_onlyUnmarkedTesterFieldAndNoDbUnitAnnotation_leavesTesterAlone()
             throws Exception
     {
@@ -226,79 +176,6 @@ class DbUnitTestExecutionListenerTest
         }).as("@DbUnitSpringTest alone, e.g. inherited from a base class, is no reason to look"
                 + " for a tester: a test that uses no DbUnit must not fail for want of one.")
                 .doesNotThrowAnyException();
-    }
-
-    @Test
-    void testBeforeAndAfterTestMethod_dbUnitAnnotationOnClassAndUnmarkedTesterField_runsLifecycle()
-            throws Exception
-    {
-        final IDatabaseTester tester = mock(IDatabaseTester.class);
-        final FakeTestContext context = new FakeTestContext(ClassLevelTearDownOnly.class)
-                .beginMethod(new ClassLevelTearDownOnly(tester), "aTestMethod");
-
-        listener.beforeTestMethod(context);
-        listener.afterTestMethod(context);
-
-        verify(tester).onSetup();
-        verify(tester).setTearDownOperation(DatabaseOperation.DELETE_ALL);
-        verify(tester).onTearDown();
-    }
-
-    @Test
-    void testBeforeAndAfterTestMethod_composedAnnotationBundlingDbUnitAnnotation_runsLifecycle()
-            throws Exception
-    {
-        final IDatabaseTester tester = mock(IDatabaseTester.class);
-        final FakeTestContext context = new FakeTestContext(ComposedTearDownOnly.class)
-                .beginMethod(new ComposedTearDownOnly(tester), "aTestMethod");
-
-        listener.beforeTestMethod(context);
-        listener.afterTestMethod(context);
-
-        verify(tester).onSetup();
-        verify(tester).onTearDown();
-    }
-
-    @Test
-    void testBeforeAndAfterTestMethod_markedTesterFieldOnlyOnEnclosingClass_runsLifecycleForNestedTest()
-            throws Exception
-    {
-        final IDatabaseTester tester = mock(IDatabaseTester.class);
-        final EnclosingWithMarkedTester enclosing = new EnclosingWithMarkedTester(tester);
-        final EnclosingWithMarkedTester.Nested nested = enclosing.new Nested();
-        final FakeTestContext context = new FakeTestContext(EnclosingWithMarkedTester.Nested.class)
-                .beginMethod(nested, "aTestMethod");
-
-        listener.beforeTestMethod(context);
-        listener.afterTestMethod(context);
-
-        verify(tester).onSetup();
-        verify(tester).onTearDown();
-    }
-
-    @Test
-    void testBeforeAndAfterTestMethod_twoMethodsSharingOneTestContext_eachUsesItsOwnTesterAndTearDown()
-            throws Exception
-    {
-        final IDatabaseTester firstTester = mock(IDatabaseTester.class);
-        final IDatabaseTester secondTester = mock(IDatabaseTester.class);
-        final FakeTestContext context = new FakeTestContext(HasTwoTestMethods.class);
-
-        context.beginMethod(new HasTwoTestMethods(firstTester), "firstTestMethod");
-        listener.beforeTestMethod(context);
-        listener.afterTestMethod(context);
-        context.beginMethod(new HasTwoTestMethods(secondTester), "secondTestMethod");
-        listener.beforeTestMethod(context);
-        listener.afterTestMethod(context);
-
-        verify(firstTester).onSetup();
-        verify(firstTester).onTearDown();
-        verify(firstTester).setTearDownOperation(DatabaseOperation.TRUNCATE_TABLE);
-        verify(firstTester, never()).setTearDownOperation(DatabaseOperation.DELETE_ALL);
-        verify(secondTester).onSetup();
-        verify(secondTester).onTearDown();
-        verify(secondTester).setTearDownOperation(DatabaseOperation.DELETE_ALL);
-        verify(secondTester, never()).setTearDownOperation(DatabaseOperation.TRUNCATE_TABLE);
     }
 
     @Test
@@ -339,55 +216,6 @@ class DbUnitTestExecutionListenerTest
     }
 
     @Test
-    void testAfterTestMethod_onSetupFailedInBeforeTestMethod_stillRunsOnTearDown()
-            throws Exception
-    {
-        final IDatabaseTester tester = mock(IDatabaseTester.class);
-        doThrow(new IllegalStateException("set up failed")).when(tester).onSetup();
-        final FakeTestContext context = new FakeTestContext(HasTesterField.class)
-                .beginMethod(new HasTesterField(tester), "aTestMethod");
-
-        assertThatThrownBy(() -> listener.beforeTestMethod(context))
-                .as("A failing setup must propagate.").isInstanceOf(IllegalStateException.class)
-                .hasMessage("set up failed");
-        listener.afterTestMethod(context);
-
-        verify(tester).onTearDown();
-    }
-
-    @Test
-    void testBeforeAndAfterTestMethod_testerSharedByTwoMethods_putsItsOwnListenerBackAfterEach()
-            throws Exception
-    {
-        final IOperationListener testersOwn = mock(IOperationListener.class);
-        final InMemoryTester tester = InMemoryTester.working();
-        tester.setOperationListener(testersOwn);
-        final FakeTestContext context = new FakeTestContext(HasTwoTestMethods.class);
-
-        context.beginMethod(new HasTwoTestMethods(tester), "firstTestMethod");
-        listener.beforeTestMethod(context);
-        final IOperationListener whileFirstMethodRuns = tester.getOperationListener();
-        listener.afterTestMethod(context);
-        final IOperationListener afterFirstMethod = tester.getOperationListener();
-        context.beginMethod(new HasTwoTestMethods(tester), "secondTestMethod");
-        listener.beforeTestMethod(context);
-        listener.afterTestMethod(context);
-
-        assertThat(whileFirstMethodRuns)
-                .as("While a test method runs, the tester carries the executor's own listener.")
-                .isNotSameAs(testersOwn);
-        assertThat(afterFirstMethod)
-                .as("A tester shared by several methods - or, as a bean, by several test classes -"
-                        + " must be left as found after each, not carry the last method's"
-                        + " listener to the next test or the next user of the tester.")
-                .isSameAs(testersOwn);
-        assertThat(tester.getOperationListener())
-                .as("The listener must be put back after the second method too, not stacked on"
-                        + " the first's.")
-                .isSameAs(testersOwn);
-    }
-
-    @Test
     void testBeforeAndAfterTestMethod_testerHadItsDefaultListener_leavesItBack() throws Exception
     {
         final InMemoryTester tester = InMemoryTester.working();
@@ -405,13 +233,237 @@ class DbUnitTestExecutionListenerTest
     }
 
     @Test
-    void testAfterTestMethod_tearDownFails_stillPutsTestersOwnListenerBack() throws Exception
+    void testBeforeAndAfterTestMethod_oneTestMethod_runsTheTestCaseOnTheSameTester()
+            throws Exception
+    {
+        final IDatabaseTester tester = mock(IDatabaseTester.class);
+        final FakeTestContext context = new FakeTestContext(HasTesterField.class)
+                .beginMethod(new HasTesterField(tester), "aTestMethod");
+
+        listener.beforeTestMethod(context);
+        listener.afterTestMethod(context);
+
+        assertThat(RecordingTestCase.testersAtPreTest)
+                .as("The test case is set up on the tester the test holds.")
+                .containsExactly(tester);
+        assertThat(RecordingTestCase.postTestCalls)
+                .as("The test case is cleaned up after the test, with verification.")
+                .containsExactly(true);
+        verify(tester, never()).onSetup();
+        verify(tester, never()).onTearDown();
+    }
+
+    @Test
+    void testBeforeAndAfterTestMethod_testerHoldsADataSetAndNoPrepFileIsNamed_setsUpNoData()
+            throws Exception
+    {
+        final InMemoryTester tester = InMemoryTester.working();
+        tester.setDataSet(new DefaultDataSet(new DefaultTable("TESTERS_TABLE")));
+        final FakeTestContext context = new FakeTestContext(HasTesterField.class)
+                .beginMethod(new HasTesterField(tester), "aTestMethod");
+
+        listener.beforeTestMethod(context);
+        listener.afterTestMethod(context);
+
+        assertThat(RecordingTestCase.prepTableNamesAtPreTest)
+                .as("As under DbUnitExtension, a test that names no @DbUnitPrep file sets up no"
+                        + " data, whatever dataset the tester holds, such as one a @BeforeEach"
+                        + " method gave it.")
+                .containsExactly(Collections.emptyList());
+    }
+
+    @Test
+    void testBeforeAndAfterTestMethod_methodAndClassLevelDbUnitTearDown_methodLevelWins()
+            throws Exception
+    {
+        final IDatabaseTester tester = mock(IDatabaseTester.class);
+        final FakeTestContext context = new FakeTestContext(HasClassAndMethodLevelTearDown.class)
+                .beginMethod(new HasClassAndMethodLevelTearDown(tester), "aTestMethod");
+
+        listener.beforeTestMethod(context);
+        listener.afterTestMethod(context);
+
+        assertThat(RecordingTestCase.tearDownOperations)
+                .as("The method-level teardown operation replaces the class-level one.")
+                .containsExactly(DatabaseOperation.TRUNCATE_TABLE);
+    }
+
+    @Test
+    void testBeforeAndAfterTestMethod_nestedClassWithoutOwnAnnotations_usesEnclosingClassesTesterAndTearDown()
+            throws Exception
+    {
+        final IDatabaseTester tester = mock(IDatabaseTester.class);
+        final EnclosingWithTearDown enclosing = new EnclosingWithTearDown(tester);
+        final EnclosingWithTearDown.Nested nested = enclosing.new Nested();
+        final FakeTestContext context = new FakeTestContext(EnclosingWithTearDown.Nested.class)
+                .beginMethod(nested, "aTestMethod");
+
+        listener.beforeTestMethod(context);
+        listener.afterTestMethod(context);
+
+        assertThat(RecordingTestCase.testersAtPreTest)
+                .as("A nested test uses the tester of its enclosing instance.")
+                .containsExactly(tester);
+        assertThat(RecordingTestCase.tearDownOperations)
+                .as("A nested test uses the teardown operation of its enclosing class.")
+                .containsExactly(DatabaseOperation.DELETE_ALL);
+    }
+
+    @Test
+    void testBeforeAndAfterTestMethod_nestedClassWithOwnTearDown_nestedTearDownWinsOverEnclosing()
+            throws Exception
+    {
+        final IDatabaseTester tester = mock(IDatabaseTester.class);
+        final EnclosingWithTearDown enclosing = new EnclosingWithTearDown(tester);
+        final EnclosingWithTearDown.NestedWithTearDown nested = enclosing.new NestedWithTearDown();
+        final FakeTestContext context =
+                new FakeTestContext(EnclosingWithTearDown.NestedWithTearDown.class)
+                        .beginMethod(nested, "aTestMethod");
+
+        listener.beforeTestMethod(context);
+        listener.afterTestMethod(context);
+
+        assertThat(RecordingTestCase.tearDownOperations)
+                .as("The nested class's own teardown operation replaces the enclosing class's.")
+                .containsExactly(DatabaseOperation.TRUNCATE_TABLE);
+    }
+
+    @Test
+    void testBeforeAndAfterTestMethod_dbUnitAnnotationOnClassAndUnmarkedTesterField_runsLifecycle()
+            throws Exception
+    {
+        final IDatabaseTester tester = mock(IDatabaseTester.class);
+        final FakeTestContext context = new FakeTestContext(ClassLevelTearDownOnly.class)
+                .beginMethod(new ClassLevelTearDownOnly(tester), "aTestMethod");
+
+        listener.beforeTestMethod(context);
+        listener.afterTestMethod(context);
+
+        assertThat(RecordingTestCase.testersAtPreTest)
+                .as("An annotation on the class opts the test in, and the unmarked tester field"
+                        + " is the tester.")
+                .containsExactly(tester);
+        assertThat(RecordingTestCase.tearDownOperations)
+                .as("The class-level teardown operation is the test case's.")
+                .containsExactly(DatabaseOperation.DELETE_ALL);
+    }
+
+    @Test
+    void testBeforeAndAfterTestMethod_composedAnnotationBundlingDbUnitAnnotation_runsLifecycle()
+            throws Exception
+    {
+        final IDatabaseTester tester = mock(IDatabaseTester.class);
+        final FakeTestContext context = new FakeTestContext(ComposedTearDownOnly.class)
+                .beginMethod(new ComposedTearDownOnly(tester), "aTestMethod");
+
+        listener.beforeTestMethod(context);
+        listener.afterTestMethod(context);
+
+        assertThat(RecordingTestCase.testersAtPreTest)
+                .as("A composed annotation bundling a DbUnit annotation opts the test in.")
+                .containsExactly(tester);
+        assertThat(RecordingTestCase.tearDownOperations)
+                .as("The class-level teardown operation is the test case's.")
+                .containsExactly(DatabaseOperation.DELETE_ALL);
+    }
+
+    @Test
+    void testBeforeAndAfterTestMethod_markedTesterFieldOnlyOnEnclosingClass_runsLifecycleForNestedTest()
+            throws Exception
+    {
+        final IDatabaseTester tester = mock(IDatabaseTester.class);
+        final EnclosingWithMarkedTester enclosing = new EnclosingWithMarkedTester(tester);
+        final EnclosingWithMarkedTester.Nested nested = enclosing.new Nested();
+        final FakeTestContext context = new FakeTestContext(EnclosingWithMarkedTester.Nested.class)
+                .beginMethod(nested, "aTestMethod");
+
+        listener.beforeTestMethod(context);
+        listener.afterTestMethod(context);
+
+        assertThat(RecordingTestCase.testersAtPreTest)
+                .as("A marked tester field of the enclosing class opts the nested test in.")
+                .containsExactly(tester);
+    }
+
+    @Test
+    void testBeforeAndAfterTestMethod_twoMethodsSharingOneTestContext_eachUsesItsOwnTesterAndTearDown()
+            throws Exception
+    {
+        final IDatabaseTester firstTester = mock(IDatabaseTester.class);
+        final IDatabaseTester secondTester = mock(IDatabaseTester.class);
+        final FakeTestContext context = new FakeTestContext(HasTwoTestMethods.class);
+
+        context.beginMethod(new HasTwoTestMethods(firstTester), "firstTestMethod");
+        listener.beforeTestMethod(context);
+        listener.afterTestMethod(context);
+        context.beginMethod(new HasTwoTestMethods(secondTester), "secondTestMethod");
+        listener.beforeTestMethod(context);
+        listener.afterTestMethod(context);
+
+        assertThat(RecordingTestCase.testersAtPreTest)
+                .as("Each method is set up on the tester of its own test instance.")
+                .containsExactly(firstTester, secondTester);
+        assertThat(RecordingTestCase.tearDownOperations)
+                .as("Each method is cleaned up with its own teardown operation.")
+                .containsExactly(DatabaseOperation.TRUNCATE_TABLE, DatabaseOperation.DELETE_ALL);
+    }
+
+    @Test
+    void testAfterTestMethod_setUpFailedInBeforeTestMethod_stillCleansUp() throws Exception
+    {
+        RecordingTestCase.preTestFailure = new IllegalStateException("set up failed");
+        final IDatabaseTester tester = mock(IDatabaseTester.class);
+        final FakeTestContext context = new FakeTestContext(HasTesterField.class)
+                .beginMethod(new HasTesterField(tester), "aTestMethod");
+
+        assertThatThrownBy(() -> listener.beforeTestMethod(context))
+                .as("A failing setup must propagate.").isInstanceOf(IllegalStateException.class)
+                .hasMessage("set up failed");
+        listener.afterTestMethod(context);
+
+        assertThat(RecordingTestCase.postTestCalls)
+                .as("The test case is cleaned up although its setup failed part way.")
+                .hasSize(1);
+    }
+
+    @Test
+    void testBeforeAndAfterTestMethod_testerSharedByTwoMethods_leavesItsOwnListenerInPlace()
+            throws Exception
+    {
+        final IOperationListener testersOwn = mock(IOperationListener.class);
+        final InMemoryTester tester = InMemoryTester.working();
+        tester.setOperationListener(testersOwn);
+        final FakeTestContext context = new FakeTestContext(HasPlainTesterField.class);
+
+        context.beginMethod(new HasPlainTesterField(tester), "firstTestMethod");
+        listener.beforeTestMethod(context);
+        final IOperationListener whileFirstMethodRuns = tester.getOperationListener();
+        listener.afterTestMethod(context);
+        final IOperationListener afterFirstMethod = tester.getOperationListener();
+        context.beginMethod(new HasPlainTesterField(tester), "secondTestMethod");
+        listener.beforeTestMethod(context);
+        listener.afterTestMethod(context);
+
+        assertThat(whileFirstMethodRuns)
+                .as("The tester is only read while a test method runs: it keeps its own"
+                        + " listener, so a tester shared by several methods, test classes or"
+                        + " tests running at the same time carries nothing from one to another.")
+                .isSameAs(testersOwn);
+        assertThat(afterFirstMethod).isSameAs(testersOwn);
+        assertThat(tester.getOperationListener()).isSameAs(testersOwn);
+        assertThat(tester.getWrites())
+                .as("Nothing is written to a tester a method runs on.").isEmpty();
+    }
+
+    @Test
+    void testAfterTestMethod_tearDownFails_propagatesAndLeavesTheTestersListenerAlone()
+            throws Exception
     {
         final IOperationListener testersOwn = mock(IOperationListener.class);
         final InMemoryTester tester = InMemoryTester.failingOnTearDown();
         tester.setOperationListener(testersOwn);
-        final FakeTestContext context = new FakeTestContext(HasTesterField.class)
-                .beginMethod(new HasTesterField(tester), "aTestMethod");
+        final FakeTestContext context = new FakeTestContext(HasPlainTesterField.class)
+                .beginMethod(new HasPlainTesterField(tester), "aTestMethod");
         listener.beforeTestMethod(context);
 
         assertThatThrownBy(() -> listener.afterTestMethod(context))
@@ -419,35 +471,28 @@ class DbUnitTestExecutionListenerTest
                 .isInstanceOf(IllegalStateException.class).hasMessage("tear down failed");
 
         assertThat(tester.getOperationListener())
-                .as("A failing tear down must not leave the executor's listener on a tester that"
-                        + " outlives the test.")
+                .as("A failing tear down leaves the tester's listener as it was.")
                 .isSameAs(testersOwn);
     }
 
     @Test
-    void testAfterTestMethod_onSetupFailedInBeforeTestMethod_stillPutsTestersOwnListenerBack()
+    void testBeforeTestMethod_setUpFails_propagatesAndLeavesTheTestersListenerAlone()
             throws Exception
     {
         final IOperationListener testersOwn = mock(IOperationListener.class);
         final InMemoryTester tester = InMemoryTester.failingOnSetUp();
         tester.setOperationListener(testersOwn);
-        final FakeTestContext context = new FakeTestContext(HasTesterField.class)
-                .beginMethod(new HasTesterField(tester), "aTestMethod");
+        final FakeTestContext context = new FakeTestContext(HasPlainTesterField.class)
+                .beginMethod(new HasPlainTesterField(tester), "aTestMethod");
 
         final Throwable setUpFailure = catchThrowable(() -> listener.beforeTestMethod(context));
-        final IOperationListener afterFailedSetUp = tester.getOperationListener();
         context.failWith(setUpFailure);
         listener.afterTestMethod(context);
 
         assertThat(setUpFailure).as("A failing setup must propagate.")
                 .isInstanceOf(IllegalStateException.class).hasMessage("set up failed");
-        assertThat(afterFailedSetUp)
-                .as("The executor's own listener is on the tester when its setup fails, which"
-                        + " makes the next assertion meaningful.")
-                .isNotSameAs(testersOwn);
         assertThat(tester.getOperationListener())
-                .as("A failing setup must not leave the executor's listener on a tester that"
-                        + " outlives the test.")
+                .as("A failing setup leaves the tester's listener as it was.")
                 .isSameAs(testersOwn);
     }
 
@@ -734,14 +779,66 @@ class DbUnitTestExecutionListenerTest
     }
 
     /**
+     * The test case the listener builds for a sample that names it: it records what the listener
+     * gives it and the operations it would run, and touches no database.
+     */
+    public static class RecordingTestCase extends DefaultPrepAndExpectedTestCase
+    {
+        static final List<IDatabaseTester> testersAtPreTest = new ArrayList<>();
+        static final List<List<String>> prepTableNamesAtPreTest = new ArrayList<>();
+        static final List<DatabaseOperation> tearDownOperations = new ArrayList<>();
+        static final List<Boolean> postTestCalls = new ArrayList<>();
+        static volatile RuntimeException preTestFailure;
+
+        static void reset()
+        {
+            testersAtPreTest.clear();
+            prepTableNamesAtPreTest.clear();
+            tearDownOperations.clear();
+            postTestCalls.clear();
+            preTestFailure = null;
+        }
+
+        public RecordingTestCase(final DataFileLoader dataFileLoader,
+                final IDatabaseTester tester)
+        {
+            super(dataFileLoader, tester);
+        }
+
+        @Override
+        public void configureTest(final VerifyTableDefinition[] verifyTableDefinitions,
+                final String[] prepDataFiles, final String[] expectedDataFiles)
+        {
+        }
+
+        @Override
+        public void preTest() throws Exception
+        {
+            testersAtPreTest.add(getDatabaseTester());
+            prepTableNamesAtPreTest.add(Arrays.asList(getPrepDataset().getTableNames()));
+            if (preTestFailure != null)
+            {
+                throw preTestFailure;
+            }
+        }
+
+        @Override
+        public void postTest(final boolean verifyData) throws Exception
+        {
+            postTestCalls.add(verifyData);
+            tearDownOperations.add(getTearDownOperation());
+        }
+    }
+
+    /**
      * A real tester over a fresh in-memory database, so its own {@link IOperationListener}
      * behaves as it does for a user, unlike a mock's. It can be made to fail its set up or its
-     * tear down.
+     * tear down, which its setup or teardown operation then does, and it records what is written
+     * to it.
      */
     private static class InMemoryTester extends AbstractDatabaseTester
     {
-        private final boolean failOnSetUp;
-        private final boolean failOnTearDown;
+        private final List<String> writes = new ArrayList<>();
 
         static InMemoryTester working()
         {
@@ -760,9 +857,15 @@ class DbUnitTestExecutionListenerTest
 
         private InMemoryTester(final boolean failOnSetUp, final boolean failOnTearDown)
         {
-            this.failOnSetUp = failOnSetUp;
-            this.failOnTearDown = failOnTearDown;
-            setDataSet(new DefaultDataSet());
+            if (failOnSetUp)
+            {
+                super.setSetUpOperation(new FailingOperation("set up failed"));
+            }
+            if (failOnTearDown)
+            {
+                super.setTearDownOperation(new FailingOperation("tear down failed"));
+            }
+            super.setDataSet(new DefaultDataSet());
         }
 
         @Override
@@ -771,27 +874,51 @@ class DbUnitTestExecutionListenerTest
             return InMemoryDatabaseConnection.create();
         }
 
-        @Override
-        public void onSetup() throws Exception
+        List<String> getWrites()
         {
-            if (failOnSetUp)
-            {
-                throw new IllegalStateException("set up failed");
-            }
-            super.onSetup();
+            return writes;
         }
 
         @Override
-        public void onTearDown() throws Exception
+        public void setDataSet(final IDataSet dataSet)
         {
-            if (failOnTearDown)
-            {
-                throw new IllegalStateException("tear down failed");
-            }
-            super.onTearDown();
+            writes.add("setDataSet");
+            super.setDataSet(dataSet);
+        }
+
+        @Override
+        public void setSetUpOperation(final DatabaseOperation setUpOperation)
+        {
+            writes.add("setSetUpOperation");
+            super.setSetUpOperation(setUpOperation);
+        }
+
+        @Override
+        public void setTearDownOperation(final DatabaseOperation tearDownOperation)
+        {
+            writes.add("setTearDownOperation");
+            super.setTearDownOperation(tearDownOperation);
         }
     }
 
+    /** An operation that fails with the given message. */
+    private static class FailingOperation extends DatabaseOperation
+    {
+        private final String message;
+
+        FailingOperation(final String message)
+        {
+            this.message = message;
+        }
+
+        @Override
+        public void execute(final IDatabaseConnection connection, final IDataSet dataSet)
+        {
+            throw new IllegalStateException(message);
+        }
+    }
+
+    @DbUnitConfig(prepAndExpectedTestCase = RecordingTestCase.class)
     static class HasTesterField
     {
         @DbUnitTester
@@ -803,6 +930,29 @@ class DbUnitTestExecutionListenerTest
         }
 
         void aTestMethod()
+        {
+        }
+    }
+
+    static class HasPlainTesterField
+    {
+        @DbUnitTester
+        IDatabaseTester databaseTester;
+
+        HasPlainTesterField(final IDatabaseTester databaseTester)
+        {
+            this.databaseTester = databaseTester;
+        }
+
+        void aTestMethod()
+        {
+        }
+
+        void firstTestMethod()
+        {
+        }
+
+        void secondTestMethod()
         {
         }
     }
@@ -824,6 +974,7 @@ class DbUnitTestExecutionListenerTest
     }
 
     @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
+    @DbUnitConfig(prepAndExpectedTestCase = RecordingTestCase.class)
     static class HasClassAndMethodLevelTearDown
     {
         @DbUnitTester
@@ -845,6 +996,7 @@ class DbUnitTestExecutionListenerTest
      * whatever the compiler target.
      */
     @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
+    @DbUnitConfig(prepAndExpectedTestCase = RecordingTestCase.class)
     static class EnclosingWithTearDown
     {
         @DbUnitTester
@@ -904,6 +1056,7 @@ class DbUnitTestExecutionListenerTest
     }
 
     @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
+    @DbUnitConfig(prepAndExpectedTestCase = RecordingTestCase.class)
     static class ClassLevelTearDownOnly
     {
         IDatabaseTester databaseTester;
@@ -926,6 +1079,7 @@ class DbUnitTestExecutionListenerTest
     }
 
     @DeletesAllRows
+    @DbUnitConfig(prepAndExpectedTestCase = RecordingTestCase.class)
     static class ComposedTearDownOnly
     {
         IDatabaseTester databaseTester;
@@ -944,6 +1098,7 @@ class DbUnitTestExecutionListenerTest
      * The inner class uses its enclosing instance, so {@code javac} keeps the reference to it
      * whatever the compiler target.
      */
+    @DbUnitConfig(prepAndExpectedTestCase = RecordingTestCase.class)
     static class EnclosingWithMarkedTester
     {
         @DbUnitTester
@@ -967,6 +1122,7 @@ class DbUnitTestExecutionListenerTest
         }
     }
 
+    @DbUnitConfig(prepAndExpectedTestCase = RecordingTestCase.class)
     static class HasTwoTestMethods
     {
         @DbUnitTester

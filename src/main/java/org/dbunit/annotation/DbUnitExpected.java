@@ -33,9 +33,9 @@ import org.dbunit.VerifyTableDefinition;
 /**
  * Specifies the expected dataset file(s) to verify actual database state against after each
  * test method, and (optionally) which tables and rules to verify with. Presence of this
- * annotation is what switches the test from the setup/teardown path onto the
- * {@link PrepAndExpectedTestCase} prep/expected path - which runs dbUnit's expected-dataset
- * comparison for you. Leave it off, and the test method does its own asserting.
+ * annotation is what has the {@link PrepAndExpectedTestCase} that runs the test run dbUnit's
+ * expected-dataset comparison for you. Leave it off, and the test method does its own
+ * asserting.
  *
  * <p>A method-level annotation overrides a class-level annotation on a per-test basis; the
  * class annotation is inherited by subclasses. Valid with no {@link DbUnitPrep} at all - the

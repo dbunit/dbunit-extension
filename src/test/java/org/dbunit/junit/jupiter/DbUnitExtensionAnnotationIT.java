@@ -54,6 +54,7 @@ import org.dbunit.dataset.IDataSet;
 import org.dbunit.operation.DatabaseOperation;
 import org.dbunit.operation.DbUnitOperation;
 import org.dbunit.util.fileloader.FlatXmlDataFileLoader;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.platform.testkit.engine.EngineTestKit;
@@ -110,7 +111,7 @@ class DbUnitExtensionAnnotationIT
                     .selectors(selectClass(PrepExpectedSample.class)).execute().testEvents()
                     .assertStatistics(stats -> stats.started(1).succeeded(1));
 
-            // the prep/expected path closes its own connection when the test finishes
+            // the test case closes its own connection when the test finishes
             // (closeConnectionAfterTest defaults to true), so verify with a fresh one.
             final IDatabaseConnection verifyConnection = environment.getConnection();
             assertThat(rowCount(verifyConnection, TEST_TABLE))
@@ -140,7 +141,7 @@ class DbUnitExtensionAnnotationIT
 
             final IDatabaseConnection verifyConnection = environment.getConnection();
             assertThat(rowCount(verifyConnection, TEST_TABLE))
-                    .as("The prep/expected path must load a JSON @DbUnitPrep and @DbUnitExpected"
+                    .as("An annotated test must load a JSON @DbUnitPrep and @DbUnitExpected"
                             + " file through the default FileExtensionDataFileLoader (dispatched"
                             + " by the .json extension to JsonDataFileLoader), verify, and run"
                             + " @DbUnitTearDownOperation(DELETE_ALL) - end to end, the same as"
@@ -189,16 +190,16 @@ class DbUnitExtensionAnnotationIT
     }
 
     @Test
-    void testBeforeTestExecution_expectedPathClassLevelSetupOperation_survivesMethodLevelPrep()
+    void testBeforeTestExecution_classLevelSetupOperationWithExpected_survivesMethodLevelPrep()
             throws Exception
     {
         final DatabaseEnvironment environment = DatabaseEnvironment.getInstance();
         try
         {
             final IDatabaseConnection connection = environment.getConnection();
-            ExpectedPathClassLevelOperationSample.databaseTester =
+            ClassLevelOperationWithExpectedSample.databaseTester =
                     new DefaultDatabaseTester(connection);
-            ExpectedPathClassLevelOperationSample.databaseTester
+            ClassLevelOperationWithExpectedSample.databaseTester
                     .setOperationListener(IOperationListener.NO_OP_OPERATION_LISTENER);
             // CLEAN_INSERT empties PK_TABLE first, so rows other integration tests left behind
             // cannot reach the whole-table comparison the sample ends with, while the sample's
@@ -208,19 +209,81 @@ class DbUnitExtensionAnnotationIT
             DatabaseOperation.CLEAN_INSERT.execute(connection, preexisting);
 
             EngineTestKit.engine("junit-jupiter")
-                    .selectors(selectClass(ExpectedPathClassLevelOperationSample.class)).execute()
+                    .selectors(selectClass(ClassLevelOperationWithExpectedSample.class)).execute()
                     .testEvents().assertStatistics(stats -> stats.started(1).succeeded(1));
 
             assertThat(rowCountForPks(connection, 895, 998))
                     .as("REFRESH (an upsert) must not have wiped the pre-existing row (PK 895)"
                             + " the way CLEAN_INSERT would have; the class-level"
                             + " @DbUnitSetUpOperation"
-                            + " operation must apply on the @DbUnitExpected prep/expected path"
-                            + " too, the same as it already does on the setup/teardown path.")
+                            + " operation must apply together with @DbUnitExpected too.")
                     .isEqualTo(2);
         } finally
         {
             deletePksQuietly(environment, 895, 998);
+            environment.closeConnection();
+        }
+    }
+
+    @Test
+    void testBeforeTestExecution_prepAloneAndTesterPresetToRefresh_runsTheTestersRefresh()
+            throws Exception
+    {
+        final DatabaseEnvironment environment = DatabaseEnvironment.getInstance();
+        try
+        {
+            final IDatabaseConnection connection = environment.getConnection();
+            TestersOwnOperationSample.databaseTester = new DefaultDatabaseTester(connection);
+            TestersOwnOperationSample.databaseTester
+                    .setOperationListener(IOperationListener.NO_OP_OPERATION_LISTENER);
+            TestersOwnOperationSample.databaseTester.setSetUpOperation(DatabaseOperation.REFRESH);
+            try (Statement statement = connection.getConnection().createStatement())
+            {
+                statement.execute("INSERT INTO " + PK_TABLE
+                        + " (PK0, PK1, PK2, NORMAL0) VALUES (997, 997, 997, 'preexisting')");
+            }
+
+            EngineTestKit.engine("junit-jupiter")
+                    .selectors(selectClass(TestersOwnOperationSample.class)).execute()
+                    .testEvents().assertStatistics(stats -> stats.started(1).succeeded(1));
+
+            assertThat(rowCountForPks(connection, 997, 998))
+                    .as("@DbUnitPrep alone names only the dataset, so the REFRESH the tester was"
+                            + " preset to ran: it did not wipe the pre-existing row (PK 997) the"
+                            + " way a CLEAN_INSERT would have, and it seeded the prep row (PK"
+                            + " 998).")
+                    .isEqualTo(2);
+        } finally
+        {
+            deletePksQuietly(environment, 997, 998);
+            environment.closeConnection();
+        }
+    }
+
+    @Test
+    void testAfterTestExecution_noPrepFilesAndDataSetFromBeforeEach_setsUpNothing()
+            throws Exception
+    {
+        final DatabaseEnvironment environment = DatabaseEnvironment.getInstance();
+        try
+        {
+            final IDatabaseConnection connection = environment.getConnection();
+            TestersOwnDataSetSample.databaseTester = new DefaultDatabaseTester(connection);
+            TestersOwnDataSetSample.databaseTester
+                    .setOperationListener(IOperationListener.NO_OP_OPERATION_LISTENER);
+            deleteAllRowsQuietly(environment, TEST_TABLE);
+
+            EngineTestKit.engine("junit-jupiter")
+                    .selectors(selectClass(TestersOwnDataSetSample.class)).execute().testEvents()
+                    .assertStatistics(stats -> stats.started(1).succeeded(1));
+
+            assertThat(rowCount(connection, TEST_TABLE))
+                    .as("The dataset a @BeforeEach method gave the tester is not set up, which"
+                            + " the sample asserts, so the table is still empty after the test.")
+                    .isZero();
+        } finally
+        {
+            deleteAllRowsQuietly(environment, TEST_TABLE);
             environment.closeConnection();
         }
     }
@@ -236,7 +299,7 @@ class DbUnitExtensionAnnotationIT
                     .selectors(selectClass(InjectedTestCaseSample.class)).execute().testEvents()
                     .assertStatistics(stats -> stats.started(1).succeeded(1));
 
-            // the prep/expected path closes its own connection when the test finishes
+            // the test case closes its own connection when the test finishes
             // (closeConnectionAfterTest defaults to true), so verify with a fresh one.
             final IDatabaseConnection verifyConnection = environment.getConnection();
             assertThat(rowCount(verifyConnection, TEST_TABLE))
@@ -252,23 +315,23 @@ class DbUnitExtensionAnnotationIT
     }
 
     @Test
-    void testAfterTestExecution_realJdbcDatabaseTesterExpectedPath_verifiesAndCleansUp()
+    void testAfterTestExecution_realJdbcDatabaseTesterWithExpected_verifiesAndCleansUp()
             throws Exception
     {
         final DatabaseEnvironment environment = DatabaseEnvironment.getInstance();
         try
         {
-            JdbcTesterExpectedPathSample.databaseTester = newJdbcDatabaseTester(environment);
+            JdbcTesterWithExpectedSample.databaseTester = newJdbcDatabaseTester(environment);
 
             EngineTestKit.engine("junit-jupiter")
-                    .selectors(selectClass(JdbcTesterExpectedPathSample.class)).execute()
+                    .selectors(selectClass(JdbcTesterWithExpectedSample.class)).execute()
                     .testEvents().assertStatistics(stats -> stats.started(1).succeeded(1));
 
             final IDatabaseConnection verifyConnection = environment.getConnection();
             assertThat(rowCount(verifyConnection, TEST_TABLE))
-                    .as("The prep/expected path driven through a real JdbcDatabaseTester - a"
+                    .as("A test with @DbUnitExpected driven through a real JdbcDatabaseTester - a"
                             + " fresh physical connection per getConnection() call, its default"
-                            + " DefaultOperationListener wrapped by the extension, not a"
+                            + " DefaultOperationListener left as it is, not a"
                             + " NO_OP-listener DefaultDatabaseTester as the samples above use -"
                             + " must still run setup, verify (against an injected Connection's"
                             + " mutation), and @DbUnitTearDownOperation(DELETE_ALL) end to end.")
@@ -281,27 +344,25 @@ class DbUnitExtensionAnnotationIT
     }
 
     @Test
-    void testAfterTestExecution_realJdbcDatabaseTesterSetupTeardownPath_setsUpAndTearsDown()
+    void testAfterTestExecution_realJdbcDatabaseTesterNoExpected_setsUpAndTearsDown()
             throws Exception
     {
         final DatabaseEnvironment environment = DatabaseEnvironment.getInstance();
         try
         {
-            JdbcTesterSetupTeardownPathSample.databaseTester = newJdbcDatabaseTester(environment);
+            JdbcTesterNoExpectedSample.databaseTester = newJdbcDatabaseTester(environment);
 
             EngineTestKit.engine("junit-jupiter")
-                    .selectors(selectClass(JdbcTesterSetupTeardownPathSample.class)).execute()
+                    .selectors(selectClass(JdbcTesterNoExpectedSample.class)).execute()
                     .testEvents().assertStatistics(stats -> stats.started(1).succeeded(1));
 
             final IDatabaseConnection verifyConnection = environment.getConnection();
             assertThat(rowCount(verifyConnection, TEST_TABLE))
-                    .as("The setup/teardown path driven through a real JdbcDatabaseTester - where the"
-                            + " extension's ExecutorOperationListener wraps the tester's own"
-                            + " DefaultOperationListener, the row count baseline piggybacks on"
-                            + " onSetup()'s connection, and onTearDown() opens a different one -"
-                            + " must still apply @DbUnitPrep and"
-                            + " @DbUnitTearDownOperation(DELETE_ALL) end"
-                            + " to end.")
+                    .as("A test without @DbUnitExpected, driven through a real"
+                            + " JdbcDatabaseTester - a fresh physical connection per"
+                            + " getConnection() call, its default DefaultOperationListener left"
+                            + " as it is - must still apply @DbUnitPrep and"
+                            + " @DbUnitTearDownOperation(DELETE_ALL) end to end.")
                     .isZero();
         } finally
         {
@@ -499,7 +560,7 @@ class DbUnitExtensionAnnotationIT
     }
 
     @ExtendWith(DbUnitExtension.class)
-    static class JdbcTesterExpectedPathSample
+    static class JdbcTesterWithExpectedSample
     {
         @DbUnitTester
         static IDatabaseTester databaseTester;
@@ -522,7 +583,7 @@ class DbUnitExtensionAnnotationIT
     }
 
     @ExtendWith(DbUnitExtension.class)
-    static class JdbcTesterSetupTeardownPathSample
+    static class JdbcTesterNoExpectedSample
     {
         @DbUnitTester
         static IDatabaseTester databaseTester;
@@ -592,21 +653,58 @@ class DbUnitExtensionAnnotationIT
     // databaseTester wraps the outer test's own connection, reused below (rowCountForPks) after
     // this sample class finishes running, so its listener is the no-op one.
     @DbUnitSetUpOperation(DbUnitOperation.REFRESH)
-    static class ExpectedPathClassLevelOperationSample
+    static class ClassLevelOperationWithExpectedSample
     {
         @DbUnitTester
         static IDatabaseTester databaseTester;
 
         // The expected dataset holds the REFRESH result - the pre-existing row plus the prep
         // row - so the verification itself proves the class-level @DbUnitSetUpOperation operation
-        // was applied on the prep/expected path too, not just on the setup/teardown path.
+        // was applied with @DbUnitExpected too, not just without it.
         @Test
         @DbUnitPrep("annotation-it-pk-prep.xml")
         @DbUnitExpected(value = "annotation-it-pk-refreshed-expected.xml",
                 verify = @DbUnitVerifyTable(value = PK_TABLE,
                         include = {"PK0", "PK1", "PK2", "NORMAL0"}))
-        void testPrepDeclaredOnMethod_expectedPathWithClassLevelSetupOperation_bothApply()
+        void testPrepDeclaredOnMethod_expectedAndClassLevelSetupOperationDeclared_bothApply()
         {
+        }
+    }
+
+    @ExtendWith(DbUnitExtension.class)
+    static class TestersOwnOperationSample
+    {
+        @DbUnitTester
+        static IDatabaseTester databaseTester;
+
+        @Test
+        @DbUnitPrep("annotation-it-pk-prep.xml")
+        void testPrepDeclaredAlone_theTestersOwnOperationRuns()
+        {
+        }
+    }
+
+    @ExtendWith(DbUnitExtension.class)
+    static class TestersOwnDataSetSample
+    {
+        @DbUnitTester
+        static IDatabaseTester databaseTester;
+
+        @BeforeEach
+        void giveTheTesterItsDataSet() throws Exception
+        {
+            databaseTester.setDataSet(new FlatXmlDataFileLoader()
+                    .load("/org/dbunit/junit/jupiter/annotation-it-prep.xml"));
+        }
+
+        @Test
+        void testDataSetOfBeforeEach_isNotSetUpBeforeTheTest(final IDatabaseConnection connection)
+                throws Exception
+        {
+            assertThat(rowCount(connection, TEST_TABLE))
+                    .as("The dataset the @BeforeEach method gave the tester must not be set up:"
+                            + " the test names no @DbUnitPrep file.")
+                    .isZero();
         }
     }
 
