@@ -3264,8 +3264,8 @@ class AnnotatedTestExecutorTest
             throws Exception
     {
         // A mocked IDatabaseTester (as almost every other test in this file uses) never
-        // exercises this path at all: canPiggybackRowCountBaseline() only predicts a piggyback
-        // for a real AbstractDatabaseTester, and a plain Mockito mock of the IDatabaseTester
+        // exercises this path at all: ClassicRowCountCheck.canPiggybackBaselineOn() trusts
+        // only a real AbstractDatabaseTester, and a plain Mockito mock of the IDatabaseTester
         // interface is never an instanceof it. Only a real subclass - and a real connection,
         // since onSetup() actually runs CLEAN_INSERT against it - can prove the optimization
         // itself: that no @DbUnitRowCountCheck declared, plus AbstractDatabaseTester's own
@@ -3562,10 +3562,11 @@ class AnnotatedTestExecutorTest
     {
         // A subclass that overrides onSetup() is not guaranteed to route through
         // executeOperation() and notify the listener, and might apply the setup operation some
-        // other way. canPiggybackRowCountBaseline() must decline it, so the baseline is captured
-        // eagerly BEFORE onSetup() - a baseline captured afterward (as the after-the-fact safety
-        // net would) already includes the rows onSetup() inserts, hiding the very leak the check
-        // exists to catch. Here onSetup() bumps ACCOUNT 5 -> 6; the baseline must read 5.
+        // other way. ClassicRowCountCheck.canPiggybackBaselineOn() must decline it, so the
+        // baseline is captured eagerly BEFORE onSetup() - a baseline captured afterward (as the
+        // after-the-fact safety net would) already includes the rows onSetup() inserts, hiding
+        // the very leak the check exists to catch. Here onSetup() bumps ACCOUNT 5 -> 6; the
+        // baseline must read 5.
         final AtomicInteger accountRows = new AtomicInteger(5);
         stubEnabledConnection("ACCOUNT");
         when(connection.getRowCount("ACCOUNT")).thenAnswer(invocation -> accountRows.get());
