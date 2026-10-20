@@ -33,15 +33,15 @@ import java.lang.annotation.Target;
  *
  * <p>A method-level annotation overrides a class-level annotation on a per-test basis; the
  * class annotation is inherited by subclasses. Pair with {@link DbUnitSetUpOperation} only when a
- * setup operation other than the default
- * {@link org.dbunit.operation.DbUnitOperation#CLEAN_INSERT} is needed - see
- * {@link DbUnitSetUpOperation} for why the two are separate annotations.
+ * setup operation other than the tester's own is needed - see {@link DbUnitSetUpOperation} for
+ * why the two are separate annotations.
  *
- * <p>Declaring this without {@link DbUnitSetUpOperation} means that default
- * {@link org.dbunit.operation.DbUnitOperation#CLEAN_INSERT} for the test, even on a tester
- * already preset to another setup operation such as {@code REFRESH}, which would otherwise
- * not delete the rows already there; the tester's own operation is restored afterward.
- * Declare {@link DbUnitSetUpOperation} with that operation to keep it.
+ * <p>Declaring this without {@link DbUnitSetUpOperation} names only the dataset: the test runs
+ * the setup operation the tester has. That is
+ * {@link org.dbunit.operation.DbUnitOperation#CLEAN_INSERT} for dbUnit's built-in testers unless
+ * the test set another, such as {@code REFRESH}, or one {@code DbUnitOperation} has no constant
+ * for, such as MSSQL's {@code InsertIdentityOperation.CLEAN_INSERT} or a
+ * {@code TransactionOperation}. Declare {@link DbUnitSetUpOperation} to replace it for the test.
  *
  * <p>Each path is resolved to an absolute classpath resource: a path already starting with
  * {@code /} is used as-is; otherwise it is resolved relative to the package of the class
