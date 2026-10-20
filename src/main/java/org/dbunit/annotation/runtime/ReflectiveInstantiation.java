@@ -30,22 +30,16 @@ import java.lang.reflect.InvocationTargetException;
  * {@code DatabaseTesterFactory}, and so on) so a missing or throwing constructor is reported
  * consistently everywhere.
  *
- * <p>Public so a binding outside {@code org.dbunit.annotation.runtime} - such as
- * {@code DbUnitExtension} - can reach it too.
- *
  * @author Jeff Jensen
  * @since 3.6.0
  */
-public class ReflectiveInstantiation
+class ReflectiveInstantiation
 {
-    private ReflectiveInstantiation()
-    {
-    }
-
     /**
      * Instantiates {@code implementationClass} via its no-arg constructor, wrapping any failure
      * in an {@link IllegalStateException} that names {@code attributeDescription}.
      *
+     * @param <T> The type the instance is used as.
      * @param implementationClass The class to instantiate.
      * @param attributeDescription The annotation attribute that named this class, used only for
      *            the exception message.
@@ -53,12 +47,15 @@ public class ReflectiveInstantiation
      * @throws IllegalStateException If the no-arg constructor is missing, inaccessible, or
      *             itself throws.
      */
-    public static <T> T instantiate(final Class<? extends T> implementationClass,
+    <T> T instantiate(final Class<? extends T> implementationClass,
             final String attributeDescription)
     {
         try
         {
-            return newInstance(implementationClass);
+            final Constructor<? extends T> constructor =
+                    implementationClass.getDeclaredConstructor();
+            constructor.setAccessible(true);
+            return constructor.newInstance();
         } catch (final InvocationTargetException e)
         {
             throw new IllegalStateException(attributeDescription + " class "
@@ -70,24 +67,5 @@ public class ReflectiveInstantiation
                     + implementationClass.getName()
                     + " has no accessible no-arg constructor.", e);
         }
-    }
-
-    /**
-     * Instantiates {@code implementationClass} via its no-arg constructor, for a caller that
-     * needs to report a failure in its own, more specific words rather than
-     * {@link #instantiate}'s generic message.
-     *
-     * @param implementationClass The class to instantiate.
-     * @return The new instance.
-     * @throws ReflectiveOperationException If the no-arg constructor is missing, inaccessible,
-     *             or itself throws (as an {@link InvocationTargetException}).
-     */
-    public static <T> T newInstance(final Class<? extends T> implementationClass)
-            throws ReflectiveOperationException
-    {
-        final Constructor<? extends T> constructor =
-                implementationClass.getDeclaredConstructor();
-        constructor.setAccessible(true);
-        return constructor.newInstance();
     }
 }

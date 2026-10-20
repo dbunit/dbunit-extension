@@ -74,8 +74,18 @@ public class TestInstanceTesterResolver
 {
     private static final Logger log = LoggerFactory.getLogger(TestInstanceTesterResolver.class);
 
-    private TestInstanceTesterResolver()
+    private final TesterFields testerFields;
+    private final ReflectiveInstantiation instantiation = new ReflectiveInstantiation();
+
+    /**
+     * Creates a resolver that finds tester fields by the given rules.
+     *
+     * @param testerFields The rules for which fields are tester fields; share the instance with
+     *            whatever else of the binding applies them.
+     */
+    public TestInstanceTesterResolver(final TesterFields testerFields)
     {
+        this.testerFields = testerFields;
     }
 
     /**
@@ -93,7 +103,7 @@ public class TestInstanceTesterResolver
      *             or a {@link DefaultPrepAndExpectedTestCase} it holds has no tester.
      * @throws Exception If {@code unmarkedTester} fails.
      */
-    public static Resolution resolve(final List<Object> instances,
+    public Resolution resolve(final List<Object> instances,
             final Callable<IDatabaseTester> unmarkedTester) throws Exception
     {
         final MarkedFields marked = findMarkedFields(instances);
@@ -119,7 +129,7 @@ public class TestInstanceTesterResolver
      *             {@code null}.
      * @throws Exception If the factory fails creating the tester.
      */
-    public static IDatabaseTester fromFactory(final AnnotatedTestConfiguration configuration)
+    public IDatabaseTester fromFactory(final AnnotatedTestConfiguration configuration)
             throws Exception
     {
         final Class<? extends DatabaseTesterFactory> factoryClass =
@@ -129,12 +139,15 @@ public class TestInstanceTesterResolver
             return null;
         }
         final DatabaseTesterFactory factory =
-                ReflectiveInstantiation.instantiate(factoryClass,
-                        "DbUnitConfig.databaseTesterFactory");
+                instantiation.instantiate(factoryClass, "DbUnitConfig.databaseTesterFactory");
         final IDatabaseTester created = factory.getDatabaseTester();
-        return ProvidedAttribute.requireProvided(created,
-                DatabaseTesterFactory.class.getSimpleName(), factoryClass,
-                "DbUnitConfig.databaseTesterFactory", "getDatabaseTester");
+        if (created == null)
+        {
+            throw new IllegalStateException("DatabaseTesterFactory " + factoryClass.getName()
+                    + ", named by DbUnitConfig.databaseTesterFactory, returned null from"
+                    + " getDatabaseTester().");
+        }
+        return created;
     }
 
     /**
@@ -150,7 +163,7 @@ public class TestInstanceTesterResolver
      *             found holds {@code null}.
      * @throws IllegalAccessException If the field cannot be read.
      */
-    public static IDatabaseTester fromUnmarkedField(final List<Object> instances)
+    public IDatabaseTester fromUnmarkedField(final List<Object> instances)
             throws IllegalAccessException
     {
         for (final Object instance : instances)
@@ -169,7 +182,7 @@ public class TestInstanceTesterResolver
         return null;
     }
 
-    private static Resolution resolveFromTestCaseField(final FieldMatch testCaseField)
+    private Resolution resolveFromTestCaseField(final FieldMatch testCaseField)
             throws Exception
     {
         final Object value = testCaseField.value();
@@ -204,7 +217,7 @@ public class TestInstanceTesterResolver
         return new Resolution(tester, testCase);
     }
 
-    private static IDatabaseTester readTesterField(final FieldMatch testerField)
+    private IDatabaseTester readTesterField(final FieldMatch testerField)
             throws IllegalAccessException
     {
         final Object value = testerField.value();
@@ -234,7 +247,7 @@ public class TestInstanceTesterResolver
      * @throws IllegalStateException If one instance declares both markers, or more than one
      *             field for the same marker within one instance's class hierarchy.
      */
-    private static MarkedFields findMarkedFields(final List<Object> instances)
+    private MarkedFields findMarkedFields(final List<Object> instances)
     {
         for (final Object instance : instances)
         {
@@ -259,10 +272,10 @@ public class TestInstanceTesterResolver
      *
      * @throws IllegalStateException If more than one such field is found.
      */
-    private static FieldMatch findMarkedField(final Object instance,
+    private FieldMatch findMarkedField(final Object instance,
             final Class<? extends Annotation> marker)
     {
-        final List<Field> matches = TesterFields.findAll(instance.getClass(),
+        final List<Field> matches = testerFields.findAll(instance.getClass(),
                 field -> field.isAnnotationPresent(marker));
         if (matches.size() > 1)
         {
@@ -278,9 +291,9 @@ public class TestInstanceTesterResolver
         return new FieldMatch(match, instance);
     }
 
-    private static Field findUnmarkedTesterField(final Class<?> clazz, final Object instance)
+    private Field findUnmarkedTesterField(final Class<?> clazz, final Object instance)
     {
-        final List<Field> matches = TesterFields.declaredBy(clazz, TesterFields::isUnmarkedTester);
+        final List<Field> matches = testerFields.declaredBy(clazz, testerFields::isUnmarkedTester);
         if (matches.size() > 1)
         {
             throw new IllegalStateException("Multiple IDatabaseTester fields found in "
@@ -296,7 +309,7 @@ public class TestInstanceTesterResolver
         return matches.get(0);
     }
 
-    private static IDatabaseTester readUnmarkedTesterField(final Field field,
+    private IDatabaseTester readUnmarkedTesterField(final Field field,
             final Object instance) throws IllegalAccessException
     {
         field.setAccessible(true);

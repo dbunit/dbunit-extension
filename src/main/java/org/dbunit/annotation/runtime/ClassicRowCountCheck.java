@@ -74,6 +74,7 @@ class ClassicRowCountCheck
     private final TestScopedConnection connection;
     private final BooleanSupplier operationListenerInPlace;
     private final RowCountBaselineTracker baselineTracker = new RowCountBaselineTracker();
+    private final DefaultMethodOverrideCheck overrideCheck = new DefaultMethodOverrideCheck();
 
     private boolean baselineAttempted;
 
@@ -142,8 +143,8 @@ class ClassicRowCountCheck
      */
     private boolean testerOverridesOnSetup()
     {
-        return DefaultMethodOverrideCheck.declaresBelow(tester.getClass(),
-                AbstractDatabaseTester.class, "onSetup");
+        return overrideCheck.declaresBelow(tester.getClass(), AbstractDatabaseTester.class,
+                "onSetup");
     }
 
     /**

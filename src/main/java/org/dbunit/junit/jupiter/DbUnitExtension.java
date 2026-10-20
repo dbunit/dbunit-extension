@@ -42,6 +42,7 @@ import org.dbunit.annotation.runtime.AnnotatedTestOptIn;
 import org.dbunit.annotation.runtime.AnnotationLookup;
 import org.dbunit.annotation.runtime.DataFileLoaderInstances;
 import org.dbunit.annotation.runtime.TestInstanceTesterResolver;
+import org.dbunit.annotation.runtime.TesterFields;
 import org.dbunit.database.IDatabaseConnection;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.AfterEachCallback;
@@ -231,7 +232,10 @@ public class DbUnitExtension implements BeforeTestExecutionCallback,
 
     private static final String DATA_FILE_LOADERS_KEY = "dataFileLoaders";
 
-    private final TesterResolver testerResolver = new TesterResolver();
+    private final TesterFields testerFields = new TesterFields();
+    private final AnnotatedTestOptIn optIn = new AnnotatedTestOptIn(testerFields);
+    private final TesterResolver testerResolver =
+            new TesterResolver(new TestInstanceTesterResolver(testerFields));
 
     /** Creates the extension. */
     public DbUnitExtension()
@@ -365,7 +369,7 @@ public class DbUnitExtension implements BeforeTestExecutionCallback,
             return true;
         }
         final List<Class<?>> testClasses = testClassesInScope(context);
-        return AnnotatedTestOptIn.isOptedIn(lookup, testClasses);
+        return optIn.isOptedIn(lookup, testClasses);
     }
 
     private List<Class<?>> testClassesInScope(final ExtensionContext context)

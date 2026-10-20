@@ -48,6 +48,19 @@ import org.junit.jupiter.api.extension.TestInstances;
  */
 class TesterResolver
 {
+    private final TestInstanceTesterResolver instanceResolver;
+
+    /**
+     * Creates a resolver that applies the field rules of the given instance resolver.
+     *
+     * @param instanceResolver The binding-neutral resolver this one supplies the test
+     *            instances to.
+     */
+    TesterResolver(final TestInstanceTesterResolver instanceResolver)
+    {
+        this.instanceResolver = instanceResolver;
+    }
+
     /**
      * Resolves the tester and test case for the current test.
      *
@@ -64,7 +77,7 @@ class TesterResolver
     {
         final Class<?> testClass = context.getRequiredTestClass();
         final List<Object> instances = innermostFirst(context.getRequiredTestInstances());
-        return TestInstanceTesterResolver.resolve(instances,
+        return instanceResolver.resolve(instances,
                 () -> findTester(instances, testClass, configuration));
     }
 
@@ -79,12 +92,12 @@ class TesterResolver
             final AnnotatedTestConfiguration configuration) throws Exception
     {
         final IDatabaseTester factoryTester =
-                TestInstanceTesterResolver.fromFactory(configuration);
+                instanceResolver.fromFactory(configuration);
         if (factoryTester != null)
         {
             return factoryTester;
         }
-        final IDatabaseTester fieldTester = TestInstanceTesterResolver.fromUnmarkedField(instances);
+        final IDatabaseTester fieldTester = instanceResolver.fromUnmarkedField(instances);
         if (fieldTester != null)
         {
             return fieldTester;
