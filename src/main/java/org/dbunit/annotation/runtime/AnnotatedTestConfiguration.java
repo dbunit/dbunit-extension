@@ -319,20 +319,14 @@ public class AnnotatedTestConfiguration
 
     /**
      * Returns whether {@code @DbUnitSetUpOperation} was declared, which is what replaces the
-     * tester's own setup operation with {@link #getSetUpOperation()}.
+     * tester's own setup operation with {@link #getSetUpOperation()} for the test case that runs
+     * the test. Without it the test case uses the tester's setup operation, such as one a
+     * {@code @BeforeEach} method set, which can be one {@code DbUnitOperation} cannot express:
+     * {@code @DbUnitPrep} names only the dataset. The tester itself is never written.
      *
-     * <p>A binding consults this to decide whether to call {@code setSetUpOperation} at all, on
-     * either path. Without it the test runs with the tester's own pre-configured setup
-     * operation, such as one a {@code @BeforeEach} method set, which can be one
-     * {@code DbUnitOperation} cannot express: {@code @DbUnitPrep} names only the dataset. A
-     * binding driving a tester shared across methods should restore the tester's dataset and
-     * operations afterward, so a per-method {@code @DbUnitSetUpOperation}/{@code @DbUnitPrep}
-     * does not carry onto a later method.
-     *
-     * <p>With {@code @DbUnitSetUpOperation} declared but no {@code @DbUnitPrep}, the operation is
-     * still applied - most usefully {@link org.dbunit.operation.DatabaseOperation#NONE} - to
-     * whatever dataset the tester already has, rather than leaving a tester with no dataset at all
-     * to run its unrelated default operation against.
+     * <p>With {@code @DbUnitSetUpOperation} declared but no {@code @DbUnitPrep}, the operation
+     * runs over no data, as the dataset the tester holds is never read, so only an operation that
+     * sources its own data changes anything.
      *
      * @return True when {@code @DbUnitSetUpOperation} was declared.
      */
@@ -345,8 +339,8 @@ public class AnnotatedTestConfiguration
      * Returns the setup operation.
      *
      * @return The setup operation {@code @DbUnitSetUpOperation} declared;
-     *         {@link DatabaseOperation#CLEAN_INSERT} when none was, which a binding applies to
-     *         the tester only when {@link #isSetupDeclared()}.
+     *         {@link DatabaseOperation#CLEAN_INSERT} when none was, which applies only when
+     *         {@link #isSetupDeclared()}.
      */
     public DatabaseOperation getSetUpOperation()
     {
@@ -430,15 +424,11 @@ public class AnnotatedTestConfiguration
     }
 
     /**
-     * Returns whether {@code @DbUnitTearDownOperation} was declared.
-     *
-     * <p>A binding consults this to decide whether to call {@code setTearDownOperation} at all,
-     * on either path: with no {@code @DbUnitTearDownOperation}, the teardown runs with the tester's
-     * own pre-configured teardown operation - e.g. one set in a {@code @BeforeEach} method - rather
-     * than a forced {@link DatabaseOperation#NONE}, mirroring how an undeclared setup operation
-     * is handled (see {@link #isSetupDeclared()}). A binding driving a tester shared
-     * across methods should restore the operation afterward so a per-method
-     * {@code @DbUnitTearDownOperation} does not carry onto a later method.
+     * Returns whether {@code @DbUnitTearDownOperation} was declared. Without it the test case
+     * that runs the test uses the tester's own teardown operation, such as one set in a
+     * {@code @BeforeEach} method, rather than a forced {@link DatabaseOperation#NONE}, as for an
+     * undeclared setup operation (see {@link #isSetupDeclared()}). The tester itself is never
+     * written.
      *
      * @return True when {@code @DbUnitTearDownOperation} was declared.
      */
