@@ -22,7 +22,6 @@ package org.dbunit.annotation.runtime;
 
 import java.util.function.Consumer;
 
-import org.dbunit.ConnectionPreservingOperationListener;
 import org.dbunit.IOperationListener;
 import org.dbunit.database.IDatabaseConnection;
 
@@ -39,15 +38,12 @@ import org.dbunit.database.IDatabaseConnection;
  * connection from a close the delegate makes: the connection {@code onSetup()} retrieved stays
  * the tester's listener's to close or to keep open, as in the 3.5.0 lifecycle.
  *
- * <p>It is a {@link ConnectionPreservingOperationListener} that protects nothing, so that
- * {@link org.dbunit.database.connection.ConnectionOwnership} sees through it to the tester's own
- * listener, such as the no-op one that says the tester's connections are managed elsewhere.
- *
  * @author Jeff Jensen
  * @since 3.6.0
  */
-class ClassicOperationListener extends ConnectionPreservingOperationListener
+class ClassicOperationListener implements IOperationListener
 {
+    private final IOperationListener delegate;
     private final Consumer<IDatabaseConnection> onConnectionRetrieved;
 
     private boolean active = true;
@@ -62,8 +58,18 @@ class ClassicOperationListener extends ConnectionPreservingOperationListener
     ClassicOperationListener(final IOperationListener delegate,
             final Consumer<IDatabaseConnection> onConnectionRetrieved)
     {
-        super(delegate, () -> null);
+        this.delegate = delegate;
         this.onConnectionRetrieved = onConnectionRetrieved;
+    }
+
+    /**
+     * Returns the listener this one forwards to.
+     *
+     * @return The tester's own listener.
+     */
+    IOperationListener getDelegate()
+    {
+        return delegate;
     }
 
     /**
@@ -77,13 +83,41 @@ class ClassicOperationListener extends ConnectionPreservingOperationListener
         active = false;
     }
 
+    /**
+     * {@inheritDoc}
+     * <p>
+     * Forwards to the delegate, then offers the connection to the {@code onConnectionRetrieved}
+     * callback. After {@link #deactivate()} it forwards only.
+     */
     @Override
     public void connectionRetrieved(final IDatabaseConnection connection)
     {
-        super.connectionRetrieved(connection);
+        delegate.connectionRetrieved(connection);
         if (active)
         {
             onConnectionRetrieved.accept(connection);
         }
+    }
+
+    /**
+     * {@inheritDoc}
+     * <p>
+     * Forwards to the delegate only.
+     */
+    @Override
+    public void operationSetUpFinished(final IDatabaseConnection connection)
+    {
+        delegate.operationSetUpFinished(connection);
+    }
+
+    /**
+     * {@inheritDoc}
+     * <p>
+     * Forwards to the delegate only.
+     */
+    @Override
+    public void operationTearDownFinished(final IDatabaseConnection connection)
+    {
+        delegate.operationTearDownFinished(connection);
     }
 }
