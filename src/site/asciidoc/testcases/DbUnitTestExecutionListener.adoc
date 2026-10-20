@@ -320,6 +320,13 @@ or a connection as a test method parameter the way `DbUnitExtension` does. Reach
 bean, as a field or as a parameter: `SpringExtension` itself resolves
 `@Autowired` test method parameters.
 
+*No lifecycle-only style, and `@DbUnitSpringTest` alone opts nothing in.* `DbUnitExtension`
+treats `@DbUnitTest` as an opt-in, so a class carrying only that runs the annotation-driven
+lifecycle, while a bare `@ExtendWith(DbUnitExtension.class)` class keeps the 3.5.0 lifecycle.
+This listener has no such second style: it acts on a test only when the test declares a
+`@DbUnit*` annotation or a `@DbUnitTester`/`@DbUnitTestCase` field, and
+`@DbUnitSpringTest` registers the listener without being one of those.
+
 *An added resolution tier.* The `ApplicationContext` bean lookup described
 above has no JUnit 5 equivalent, since a plain JUnit 5 test has no bean
 container to ask.

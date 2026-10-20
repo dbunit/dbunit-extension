@@ -59,8 +59,10 @@ import org.slf4j.LoggerFactory;
  * driven by the {@code org.dbunit.annotation} family: {@link DbUnitPrep}, {@link
  * DbUnitSetUpOperation},
  * {@link DbUnitExpected}, {@link DbUnitTearDownOperation}, and {@link DbUnitConfig}. Add
- * {@link DbUnitTest @DbUnitTest} (or {@code @ExtendWith(DbUnitExtension.class)} directly) to
- * opt a test class in.
+ * {@link DbUnitTest @DbUnitTest} to register it and opt a test class into that lifecycle, or
+ * {@code @ExtendWith(DbUnitExtension.class)} directly to register it for the 3.5.0 lifecycle
+ * only; a class registered that way opts in by declaring any of the annotations or a marker
+ * field.
  *
  * <h2>The lifecycle</h2>
  *
