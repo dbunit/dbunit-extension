@@ -41,7 +41,7 @@ import org.junit.platform.commons.support.AnnotationSupport;
  * @author Jeff Jensen
  * @since 3.6.0
  */
-final class DeclaringClassFinder
+class DeclaringClassFinder
 {
     private final Optional<Method> testMethod;
     private final Class<?> testClass;
