@@ -65,6 +65,24 @@ class SpringTesterResolver
 {
     private static final Logger log = LoggerFactory.getLogger(SpringTesterResolver.class);
 
+    private final TesterFields testerFields;
+    private final TestInstanceTesterResolver instanceResolver;
+
+    /**
+     * Creates a resolver that applies the field rules of the given instances.
+     *
+     * @param testerFields The rules for which fields are tester fields, for the checks of an
+     *            enclosing instance that cannot be reached.
+     * @param instanceResolver The binding-neutral resolver this one supplies the test
+     *            instances to.
+     */
+    SpringTesterResolver(final TesterFields testerFields,
+            final TestInstanceTesterResolver instanceResolver)
+    {
+        this.testerFields = testerFields;
+        this.instanceResolver = instanceResolver;
+    }
+
     /**
      * Resolves the tester and test case for the current test.
      *
@@ -84,9 +102,9 @@ class SpringTesterResolver
         final List<Object> instances = chain.getInnermostFirst();
         if (!anyDeclaresMarkedField(instances))
         {
-            rejectUnreachableFields(chain, testClass, TesterFields::isMarked);
+            rejectUnreachableFields(chain, testClass, testerFields::isMarked);
         }
-        return TestInstanceTesterResolver.resolve(instances,
+        return instanceResolver.resolve(instances,
                 () -> findTester(instances, chain, testContext, configuration));
     }
 
@@ -95,20 +113,20 @@ class SpringTesterResolver
             throws Exception
     {
         final IDatabaseTester factoryTester =
-                TestInstanceTesterResolver.fromFactory(configuration);
+                instanceResolver.fromFactory(configuration);
         if (factoryTester != null)
         {
             return factoryTester;
         }
 
-        final IDatabaseTester fieldTester = TestInstanceTesterResolver.fromUnmarkedField(instances);
+        final IDatabaseTester fieldTester = instanceResolver.fromUnmarkedField(instances);
         if (fieldTester != null)
         {
             return fieldTester;
         }
 
         final Class<?> testClass = testContext.getTestClass();
-        rejectUnreachableFields(chain, testClass, TesterFields::isUnmarkedTester);
+        rejectUnreachableFields(chain, testClass, testerFields::isUnmarkedTester);
 
         final ApplicationContext applicationContext = findApplicationContext(testContext);
         if (applicationContext != null)
@@ -187,7 +205,7 @@ class SpringTesterResolver
         for (final Object instance : instances)
         {
             final Field field =
-                    TesterFields.findFirst(instance.getClass(), TesterFields::isMarked);
+                    testerFields.findFirst(instance.getClass(), testerFields::isMarked);
             if (field != null)
             {
                 return true;
@@ -206,7 +224,7 @@ class SpringTesterResolver
     {
         for (final Class<?> enclosingClass : chain.getUnreachableEnclosingClasses())
         {
-            final Field field = TesterFields.findFirst(enclosingClass, matches);
+            final Field field = testerFields.findFirst(enclosingClass, matches);
             if (field != null)
             {
                 throw new IllegalStateException("The enclosing class " + enclosingClass.getName()

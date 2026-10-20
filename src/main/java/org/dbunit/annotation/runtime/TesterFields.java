@@ -49,17 +49,13 @@ import org.dbunit.annotation.DbUnitTester;
  */
 public class TesterFields
 {
-    private TesterFields()
-    {
-    }
-
     /**
      * Returns whether the field is marked {@link DbUnitTester} or {@link DbUnitTestCase}.
      *
      * @param field The field to check.
      * @return {@code true} for a marked field.
      */
-    public static boolean isMarked(final Field field)
+    public boolean isMarked(final Field field)
     {
         return field.isAnnotationPresent(DbUnitTester.class)
                 || field.isAnnotationPresent(DbUnitTestCase.class);
@@ -72,7 +68,7 @@ public class TesterFields
      * @param field The field to check.
      * @return {@code true} for an unmarked tester field.
      */
-    public static boolean isUnmarkedTester(final Field field)
+    public boolean isUnmarkedTester(final Field field)
     {
         return !Modifier.isStatic(field.getModifiers())
                 && IDatabaseTester.class.isAssignableFrom(field.getType());
@@ -85,9 +81,9 @@ public class TesterFields
      * @return {@code true} when a {@link DbUnitTester} or {@link DbUnitTestCase} field is
      *         declared anywhere in the hierarchy.
      */
-    public static boolean declaresMarkedField(final Class<?> clazz)
+    public boolean declaresMarkedField(final Class<?> clazz)
     {
-        return findFirst(clazz, TesterFields::isMarked) != null;
+        return findFirst(clazz, this::isMarked) != null;
     }
 
     /**
@@ -98,7 +94,7 @@ public class TesterFields
      * @param matches Which fields to accept.
      * @return The first matching field, or {@code null} when none is.
      */
-    public static Field findFirst(final Class<?> clazz, final Predicate<Field> matches)
+    public Field findFirst(final Class<?> clazz, final Predicate<Field> matches)
     {
         Class<?> current = clazz;
         while (current != null && current != Object.class)
@@ -123,7 +119,7 @@ public class TesterFields
      * @param matches Which fields to accept.
      * @return The matching fields; empty when none is.
      */
-    public static List<Field> findAll(final Class<?> clazz, final Predicate<Field> matches)
+    public List<Field> findAll(final Class<?> clazz, final Predicate<Field> matches)
     {
         final List<Field> found = new ArrayList<>();
         Class<?> current = clazz;
@@ -143,7 +139,7 @@ public class TesterFields
      * @param matches Which fields to accept.
      * @return The matching fields; empty when none is.
      */
-    public static List<Field> declaredBy(final Class<?> clazz, final Predicate<Field> matches)
+    public List<Field> declaredBy(final Class<?> clazz, final Predicate<Field> matches)
     {
         final List<Field> found = new ArrayList<>();
         for (final Field field : clazz.getDeclaredFields())

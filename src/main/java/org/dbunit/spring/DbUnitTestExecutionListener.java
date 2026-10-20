@@ -31,6 +31,7 @@ import org.dbunit.annotation.runtime.AnnotatedTestOptIn;
 import org.dbunit.annotation.runtime.AnnotationLookup;
 import org.dbunit.annotation.runtime.DataFileLoaderInstances;
 import org.dbunit.annotation.runtime.TestInstanceTesterResolver;
+import org.dbunit.annotation.runtime.TesterFields;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.test.context.TestContext;
@@ -171,7 +172,10 @@ public class DbUnitTestExecutionListener extends AbstractTestExecutionListener
             + " test made and the expected dataset cannot match them. Add @Commit (or"
             + " @Rollback(false)) to the test, or leave it non-transactional.";
 
-    private final SpringTesterResolver testerResolver = new SpringTesterResolver();
+    private final TesterFields testerFields = new TesterFields();
+    private final AnnotatedTestOptIn optIn = new AnnotatedTestOptIn(testerFields);
+    private final SpringTesterResolver testerResolver = new SpringTesterResolver(testerFields,
+            new TestInstanceTesterResolver(testerFields));
 
     private final BooleanSupplier testTransactionRollsBack;
 
@@ -402,6 +406,6 @@ public class DbUnitTestExecutionListener extends AbstractTestExecutionListener
     {
         final List<Class<?>> testClasses =
                 TestInstanceChain.classesInScope(testContext.getTestClass());
-        return AnnotatedTestOptIn.isOptedIn(lookup, testClasses);
+        return optIn.isOptedIn(lookup, testClasses);
     }
 }

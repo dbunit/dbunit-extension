@@ -20,6 +20,7 @@
  */
 package org.dbunit.annotation.runtime;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -98,10 +99,12 @@ class VerifyTableDefinitionResolver
         final DbUnitVerifyTable[] verify = expected.verify();
         final String[] verifyTables = expected.verifyTables();
 
-        ProvidedAttribute.rejectBothSet(verify.length > 0 && verifyTables.length > 0,
-                "@DbUnitExpected", "verify()", "verifyTables()",
-                "verify() declares the rules of its tables, verifyTables() takes them from a"
-                        + " catalog.");
+        if (verify.length > 0 && verifyTables.length > 0)
+        {
+            throw new IllegalStateException("@DbUnitExpected sets both verify() and"
+                    + " verifyTables(); set only one. verify() declares the rules of its"
+                    + " tables, verifyTables() takes them from a catalog.");
+        }
         requireNoDuplicateTableNames(verifyTables);
         if (verify.length > 0)
         {
@@ -260,7 +263,10 @@ class VerifyTableDefinitionResolver
     {
         try
         {
-            return ReflectiveInstantiation.newInstance(comparerClass);
+            final Constructor<? extends ValueComparer> constructor =
+                    comparerClass.getDeclaredConstructor();
+            constructor.setAccessible(true);
+            return constructor.newInstance();
         } catch (final InvocationTargetException e)
         {
             throw new IllegalStateException("ValueComparer " + comparerClass.getName()
