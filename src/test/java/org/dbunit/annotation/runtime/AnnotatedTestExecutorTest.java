@@ -132,7 +132,7 @@ class AnnotatedTestExecutorTest
     // ---- setup/teardown path: setup ----
 
     @Test
-    void testBeforeTest_setupTeardownPathWithPrepFiles_setsDataSetAndOperationThenOnSetup()
+    void testBeforeTest_setupTeardownPathWithPrepFiles_setsOnlyTheDataSetThenOnSetup()
             throws Exception
     {
         stubDisabledConnection();
@@ -146,7 +146,7 @@ class AnnotatedTestExecutorTest
         executor.beforeTest();
 
         verify(tester).setDataSet(any(IDataSet.class));
-        verify(tester).setSetUpOperation(DatabaseOperation.CLEAN_INSERT);
+        verify(tester, never()).setSetUpOperation(any(DatabaseOperation.class));
         verify(tester).onSetup();
     }
 
@@ -222,12 +222,12 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
-    void testBeforeTest_prepDeclaredWithoutSetupAndTesterPresetToRefresh_appliesCleanInsertThenRestoresIt()
+    void testBeforeTest_prepDeclaredWithoutSetupAndTesterPresetToRefresh_runsTheTestersRefresh()
             throws Exception
     {
-        // @DbUnitPrep alone means CLEAN_INSERT, so it replaces a different operation the tester
-        // already carried, for the duration of the test only. A caller who wants to keep that
-        // operation declares @DbUnitSetUpOperation alongside it.
+        // @DbUnitPrep alone names only the dataset, so the operation stays the one the tester
+        // carries, such as an identity insert or a TransactionOperation that DbUnitOperation has
+        // no constant for. A caller who wants another operation declares @DbUnitSetUpOperation.
         final RecordingAbstractDatabaseTester presetTester = new RecordingAbstractDatabaseTester();
         presetTester.setSetUpOperation(DatabaseOperation.REFRESH);
         final DbUnitPrep prep = WithPrep.class.getAnnotation(DbUnitPrep.class);
@@ -239,9 +239,36 @@ class AnnotatedTestExecutorTest
         executor.beforeTest();
 
         assertThat(presetTester.setUpOperationsRun)
-                .as("@DbUnitPrep without @DbUnitSetUpOperation runs the default CLEAN_INSERT, not"
-                        + " the"
-                        + " operation the tester was preset to.")
+                .as("@DbUnitPrep without @DbUnitSetUpOperation runs the operation the tester was"
+                        + " preset to.")
+                .containsExactly(DatabaseOperation.REFRESH);
+
+        executor.afterTest(false);
+
+        assertThat(presetTester.getSetUpOperation())
+                .as("The tester's own operation is still the one it was preset to.")
+                .isEqualTo(DatabaseOperation.REFRESH);
+    }
+
+    @Test
+    void testBeforeTest_prepDeclaredWithSetupAndTesterPresetToRefresh_runsTheDeclaredOperationThenRestoresTheTestersOwn()
+            throws Exception
+    {
+        final RecordingAbstractDatabaseTester presetTester = new RecordingAbstractDatabaseTester();
+        presetTester.setSetUpOperation(DatabaseOperation.REFRESH);
+        final DbUnitPrep prep = WithPrep.class.getAnnotation(DbUnitPrep.class);
+        final DbUnitSetUpOperation setup =
+                WithBareSetupNoPrep.class.getAnnotation(DbUnitSetUpOperation.class);
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                AnnotatedTestConfiguration.from(WithPrep.class, null, prep, setup, null, null,
+                        null),
+                presetTester, null);
+
+        executor.beforeTest();
+
+        assertThat(presetTester.setUpOperationsRun)
+                .as("A declared @DbUnitSetUpOperation replaces the operation the tester was"
+                        + " preset to.")
                 .containsExactly(DatabaseOperation.CLEAN_INSERT);
 
         executor.afterTest(false);
@@ -510,7 +537,7 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
-    void testBeforeTest_expectedPathPrepFilesWithoutSetup_replacesTheSetupOperationWithCleanInsert()
+    void testBeforeTest_expectedPathPrepFilesWithoutSetup_keepsTheTestersSetupOperation()
             throws Exception
     {
         final RecordingAbstractDatabaseTester ownTester = new RecordingAbstractDatabaseTester();
@@ -528,10 +555,9 @@ class AnnotatedTestExecutorTest
         executor.beforeTest();
 
         assertThat(ownTester.getSetUpOperation())
-                .as("@DbUnitPrep without @DbUnitSetUpOperation means CLEAN_INSERT on this path"
-                        + " too, so"
-                        + " it replaces the operation the tester already has.")
-                .isEqualTo(DatabaseOperation.CLEAN_INSERT);
+                .as("@DbUnitPrep without @DbUnitSetUpOperation names only the dataset on this"
+                        + " path too, so the operation the tester already has stays.")
+                .isEqualTo(DatabaseOperation.REFRESH);
         assertThat(ownTester.getTearDownOperation())
                 .as("The teardown operation, which no @DbUnitTearDownOperation declared, must"
                         + " stay.")
