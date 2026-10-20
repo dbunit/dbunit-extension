@@ -113,9 +113,14 @@ class DbUnitTestExecutionListenerTransactionalIT
                     .as("DbUnit's prep must run, and commit, before the test-managed transaction"
                             + " opens - so the test sees the prepped row - and its teardown"
                             + " after the transaction has completed.")
-                    .containsExactly("DbUnit step, test transaction active: false",
+                    .containsExactly(
+                            // the test case acquires its connection, and so tells the listener
+                            "DbUnit step, test transaction active: false",
+                            // the set up operation
+                            "DbUnit step, test transaction active: false",
                             "test body, prepped row visible in the test transaction: true",
                             "test transaction completed",
+                            // the tear down operation
                             "DbUnit step, test transaction active: false");
             assertThat(TestTableRows.count(environment.getConnection(), TEST_TABLE))
                     .as("@DbUnitTearDownOperation(DELETE_ALL) must have cleaned up the prepped"
