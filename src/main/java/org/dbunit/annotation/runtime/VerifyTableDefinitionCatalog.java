@@ -52,7 +52,7 @@ import org.dbunit.annotation.DbUnitExpected;
  * @author Jeff Jensen
  * @since 3.6.0
  */
-public class VerifyTableDefinitionCatalog
+class VerifyTableDefinitionCatalog
 {
     private static final ClassValue<Map<List<Class<?>>, VerifyTableDefinitionCatalog>> CACHE =
             new ClassValue<Map<List<Class<?>>, VerifyTableDefinitionCatalog>>()
