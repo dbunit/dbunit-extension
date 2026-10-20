@@ -31,7 +31,7 @@ import org.dbunit.util.fileloader.DataFileLoader;
  * @author Jeff Jensen
  * @since 3.6.0
  */
-final class DataSetPathsResolver
+class DataSetPathsResolver
 {
     private final DataSetResourcePathResolver pathResolver = new DataSetResourcePathResolver();
 
