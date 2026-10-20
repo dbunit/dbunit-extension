@@ -1273,6 +1273,119 @@ class DefaultPrepAndExpectedTestCaseTest
     }
 
     @Test
+    void testSetupData_setUpOperationSet_runsItNotTheTestersAndLeavesTheTesterAlone()
+            throws Exception
+    {
+        final RecordingDatabaseOperation testersOperation = new RecordingDatabaseOperation();
+        final RecordingDatabaseOperation ownOperation = new RecordingDatabaseOperation();
+        databaseTester.setSetUpOperation(testersOperation);
+        tc.setPrepDs(new DefaultDataSet(new DefaultTable("PREP_ONLY_TABLE")));
+        tc.setSetUpOperation(ownOperation);
+
+        tc.setupData();
+
+        assertThat(ownOperation.getExecutedTableNames())
+                .as("An operation set on the test case runs on the prep dataset.")
+                .containsExactly(Arrays.asList("PREP_ONLY_TABLE"));
+        assertThat(testersOperation.getExecutedTableNames())
+                .as("The tester's own operation does not run beside it.").isEmpty();
+        assertThat(databaseTester.getSetUpOperation())
+                .as("Setting the test case's operation writes nothing to the tester, which"
+                        + " other test cases may share.")
+                .isSameAs(testersOperation);
+    }
+
+    @Test
+    void testSetupData_setUpOperationSetBackToNull_runsTheTestersOperationAgain()
+            throws Exception
+    {
+        final RecordingDatabaseOperation testersOperation = new RecordingDatabaseOperation();
+        final RecordingDatabaseOperation ownOperation = new RecordingDatabaseOperation();
+        databaseTester.setSetUpOperation(testersOperation);
+        tc.setPrepDs(new DefaultDataSet(new DefaultTable("PREP_ONLY_TABLE")));
+        tc.setSetUpOperation(ownOperation);
+        tc.setSetUpOperation(null);
+
+        tc.setupData();
+
+        assertThat(testersOperation.getExecutedTableNames())
+                .as("Null returns to the tester's own operation.")
+                .containsExactly(Arrays.asList("PREP_ONLY_TABLE"));
+        assertThat(ownOperation.getExecutedTableNames())
+                .as("The operation that was set and then cleared does not run.").isEmpty();
+    }
+
+    @Test
+    void testSetupData_setUpOperationSetAndSubclassOverridesGetSetUpOperation_runsTheOverride()
+            throws Exception
+    {
+        final RecordingDatabaseOperation ownOperation = new RecordingDatabaseOperation();
+        final RecordingDatabaseOperation overridingOperation = new RecordingDatabaseOperation();
+        final DefaultPrepAndExpectedTestCase overriding =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester)
+                {
+                    @Override
+                    protected DatabaseOperation getSetUpOperation() throws Exception
+                    {
+                        return overridingOperation;
+                    }
+                };
+        overriding.setPrepDs(new DefaultDataSet(new DefaultTable("PREP_ONLY_TABLE")));
+        overriding.setSetUpOperation(ownOperation);
+
+        overriding.setupData();
+
+        assertThat(overridingOperation.getExecutedTableNames())
+                .as("A subclass that overrides getSetUpOperation() decides for itself.")
+                .containsExactly(Arrays.asList("PREP_ONLY_TABLE"));
+        assertThat(ownOperation.getExecutedTableNames()).isEmpty();
+    }
+
+    @Test
+    void testCleanupData_tearDownOperationSet_runsItNotTheTestersAndLeavesTheTesterAlone()
+            throws Exception
+    {
+        final RecordingDatabaseOperation testersOperation = new RecordingDatabaseOperation();
+        final RecordingDatabaseOperation ownOperation = new RecordingDatabaseOperation();
+        databaseTester.setTearDownOperation(testersOperation);
+        tc.setPrepDs(new DefaultDataSet(new DefaultTable("PREP_ONLY_TABLE")));
+        tc.setExpectedDs(new DefaultDataSet(new DefaultTable("EXPECTED_ONLY_TABLE")));
+        tc.setTearDownOperation(ownOperation);
+
+        tc.cleanupData();
+
+        assertThat(ownOperation.getExecutedTableNames())
+                .as("An operation set on the test case runs over the prep and expected tables.")
+                .containsExactly(Arrays.asList("PREP_ONLY_TABLE", "EXPECTED_ONLY_TABLE"));
+        assertThat(testersOperation.getExecutedTableNames())
+                .as("The tester's own operation does not run beside it.").isEmpty();
+        assertThat(databaseTester.getTearDownOperation())
+                .as("Setting the test case's operation writes nothing to the tester, which"
+                        + " other test cases may share.")
+                .isSameAs(testersOperation);
+    }
+
+    @Test
+    void testCleanupData_tearDownOperationSetBackToNull_runsTheTestersOperationAgain()
+            throws Exception
+    {
+        final RecordingDatabaseOperation testersOperation = new RecordingDatabaseOperation();
+        final RecordingDatabaseOperation ownOperation = new RecordingDatabaseOperation();
+        databaseTester.setTearDownOperation(testersOperation);
+        tc.setPrepDs(new DefaultDataSet(new DefaultTable("PREP_ONLY_TABLE")));
+        tc.setTearDownOperation(ownOperation);
+        tc.setTearDownOperation(null);
+
+        tc.cleanupData();
+
+        assertThat(testersOperation.getExecutedTableNames())
+                .as("Null returns to the tester's own operation.")
+                .containsExactly(Arrays.asList("PREP_ONLY_TABLE"));
+        assertThat(ownOperation.getExecutedTableNames())
+                .as("The operation that was set and then cleared does not run.").isEmpty();
+    }
+
+    @Test
     void testSetupData_operationRuns_receivesTheSharedConnectionTheTestersListenerWasTold()
             throws Exception
     {

@@ -157,6 +157,22 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      */
     private boolean closeConnectionAfterTest = true;
 
+    /**
+     * The operation setupData() runs, instead of the databaseTester's own; null, the default,
+     * runs the databaseTester's.
+     *
+     * @since 3.6.0
+     */
+    private DatabaseOperation setUpOperation;
+
+    /**
+     * The operation cleanupData() runs, instead of the databaseTester's own; null, the default,
+     * runs the databaseTester's.
+     *
+     * @since 3.6.0
+     */
+    private DatabaseOperation tearDownOperation;
+
     // per test data
     private IDataSet prepDataSet = new DefaultDataSet();
     private IDataSet expectedDataSet = new DefaultDataSet();
@@ -1216,16 +1232,35 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
         }
     }
 
+    /**
+     * {@inheritDoc} Returns the operation set with {@link #setSetUpOperation(DatabaseOperation)},
+     * or the databaseTester's own when none is set.
+     */
     @Override
     protected DatabaseOperation getSetUpOperation() throws Exception
     {
+        if (setUpOperation != null)
+        {
+            return setUpOperation;
+        }
+
         requireDatabaseTester();
         return databaseTester.getSetUpOperation();
     }
 
+    /**
+     * {@inheritDoc} Returns the operation set with
+     * {@link #setTearDownOperation(DatabaseOperation)}, or the databaseTester's own when none is
+     * set.
+     */
     @Override
     protected DatabaseOperation getTearDownOperation() throws Exception
     {
+        if (tearDownOperation != null)
+        {
+            return tearDownOperation;
+        }
+
         requireDatabaseTester();
         return databaseTester.getTearDownOperation();
     }
@@ -2322,6 +2357,43 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
             final boolean closeConnectionAfterTest)
     {
         this.closeConnectionAfterTest = closeConnectionAfterTest;
+    }
+
+    /**
+     * Set the operation setupData() runs on the prep dataset, instead of the databaseTester's
+     * own set up operation, which the databaseTester keeps unchanged. A caller that configures
+     * one test case without touching the databaseTester other test cases share, such as the
+     * annotation runtime for {@code @DbUnitSetUpOperation}, sets it here. A subclass overriding
+     * {@link #getSetUpOperation()} decides for itself and ignores it.
+     *
+     * @see #setupData()
+     *
+     * @param setUpOperation
+     *            The operation to run; null, the default, runs the databaseTester's own.
+     * @since 3.6.0
+     */
+    public void setSetUpOperation(final DatabaseOperation setUpOperation)
+    {
+        this.setUpOperation = setUpOperation;
+    }
+
+    /**
+     * Set the operation cleanupData() runs over the prep and expected datasets, instead of the
+     * databaseTester's own tear down operation, which the databaseTester keeps unchanged. A
+     * caller that configures one test case without touching the databaseTester other test cases
+     * share, such as the annotation runtime for {@code @DbUnitTearDownOperation}, sets it
+     * here. A subclass overriding {@link #getTearDownOperation()} decides for itself and
+     * ignores it.
+     *
+     * @see #cleanupData()
+     *
+     * @param tearDownOperation
+     *            The operation to run; null, the default, runs the databaseTester's own.
+     * @since 3.6.0
+     */
+    public void setTearDownOperation(final DatabaseOperation tearDownOperation)
+    {
+        this.tearDownOperation = tearDownOperation;
     }
 
     /**

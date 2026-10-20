@@ -330,6 +330,24 @@ Six constants collapse to one, three method parameters to one, and three columns
 per `@MethodSource` row to one. Each scenario's three facts now sit together
 instead of being matched by position across three arrays.
 
+[#Operations_Of_Its_Own]
+== Setup and Teardown Operations of Its Own
+
+`setupData()` runs the setup operation of the `IDatabaseTester` on the prep dataset and
+`cleanupData()` its teardown operation over the prep and expected datasets, so the operations
+belong to the tester, which several test cases may share. `setSetUpOperation(DatabaseOperation)`
+and `setTearDownOperation(DatabaseOperation)` give one test case operations of its own instead,
+leaving the tester as it is; `null`, the default, runs the tester's again.
+
+[source,java]
+----
+testCase.setSetUpOperation(DatabaseOperation.REFRESH);
+testCase.setTearDownOperation(DatabaseOperation.DELETE_ALL);
+----
+
+A subclass that overrides `getSetUpOperation()` or `getTearDownOperation()` decides for itself
+and ignores them.
+
 [#Configuring_Without_Subclassing]
 == Configuring DatabaseConfig Without Subclassing
 
