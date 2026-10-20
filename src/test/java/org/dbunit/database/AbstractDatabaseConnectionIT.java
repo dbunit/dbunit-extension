@@ -131,6 +131,11 @@ abstract class AbstractDatabaseConnectionIT extends AbstractDatabaseIT
     @Override
     protected IDatabaseConnection getConnection() throws Exception
     {
+        if (_connection != null)
+        {
+            _connection.close();
+        }
+
         final String name = profile.getDriverClass();
         Class.forName(name);
         final Connection connection =
