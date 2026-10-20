@@ -23,7 +23,6 @@ package org.dbunit.database.connection;
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
-import org.dbunit.ConnectionPreservingOperationListener;
 import org.dbunit.IOperationListener;
 
 /**
@@ -42,22 +41,18 @@ import org.dbunit.IOperationListener;
  * {@link org.dbunit.database.CachingConnectionProvider}, an externally-supplied fixed
  * connection - and it, not this lifecycle, closes the connection.</li>
  * <li><b>{@code testerListener}</b> - the tester's {@link IOperationListener}. When it is
- * (directly, or wrapped by a {@link ConnectionPreservingOperationListener})
  * {@link IOperationListener#NO_OP_OPERATION_LISTENER}, that is the established, pre-existing
- * signal that the connection is managed elsewhere and must not be closed. A blanket
- * {@link ConnectionPreservingOperationListener} layer, which keeps every connection from a
- * close, says the same - see
- * {@link ConnectionPreservingOperationListener#leavesEveryConnectionOpen(IOperationListener)}.</li>
+ * signal that the connection is managed elsewhere and must not be closed.</li>
  * </ol>
  *
  * <p>Truth table - "close" only when every input allows it:
  *
  * <pre>
- * closeConnectionAfterTest | listener leaves all open  | -&gt; decision
- * ------------------------- | ------------------------ | -----------
- *          false            |            -             |    SKIP
- *          true             |           true           |    SKIP
- *          true             |          false           |    CLOSE
+ * closeConnectionAfterTest | listener is the no-op one | -&gt; decision
+ * ------------------------- | ------------------------- | -----------
+ *          false            |             -             |    SKIP
+ *          true             |            true           |    SKIP
+ *          true             |           false           |    CLOSE
  * </pre>
  *
  * <p>{@link #isLeftOpenByConfiguration()} answers whether either input leaves the connection
@@ -83,8 +78,7 @@ public class ConnectionOwnership
      * @param closeConnectionAfterTest Supplies the test case's flag; {@code true} where the
      *            lifecycle has no test case flag to ask.
      * @param testerListener Supplies the tester's current {@link IOperationListener}; may
-     *            supply {@code null}, treated as a listener that does not leave every connection
-     *            open.
+     *            supply {@code null}, treated as a listener that is not the no-op one.
      */
     public ConnectionOwnership(final BooleanSupplier closeConnectionAfterTest,
             final Supplier<IOperationListener> testerListener)
@@ -97,30 +91,25 @@ public class ConnectionOwnership
      * Returns whether the borrowing lifecycle may close the connection it borrowed.
      *
      * @return {@code true} only when the {@code closeConnectionAfterTest} flag is set and the
-     *         tester's listener does not leave every connection open.
+     *         tester's listener is not the no-op one.
      */
     public boolean mayClose()
     {
         return closeConnectionAfterTest.getAsBoolean()
-                && !ConnectionPreservingOperationListener
-                        .leavesEveryConnectionOpen(testerListener.get());
+                && testerListener.get() != IOperationListener.NO_OP_OPERATION_LISTENER;
     }
 
     /**
      * Returns whether the configuration leaves the connection open for another owner to
      * close: the {@code closeConnectionAfterTest} flag is {@code false}, or the tester's
-     * listener leaves every connection open - it is (or wraps)
-     * {@link IOperationListener#NO_OP_OPERATION_LISTENER}, or has a blanket
-     * {@link ConnectionPreservingOperationListener} layer. That is the SKIP rows of the truth
-     * table.
+     * listener is {@link IOperationListener#NO_OP_OPERATION_LISTENER}. That is the SKIP rows of
+     * the truth table.
      *
-     * @return {@code true} when the flag is not set or the tester's listener leaves every
-     *         connection open.
+     * @return {@code true} when the flag is not set or the tester's listener is the no-op one.
      */
     public boolean isLeftOpenByConfiguration()
     {
         return !closeConnectionAfterTest.getAsBoolean()
-                || ConnectionPreservingOperationListener
-                        .leavesEveryConnectionOpen(testerListener.get());
+                || testerListener.get() == IOperationListener.NO_OP_OPERATION_LISTENER;
     }
 }

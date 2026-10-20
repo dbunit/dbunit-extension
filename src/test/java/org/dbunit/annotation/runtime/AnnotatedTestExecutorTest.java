@@ -59,7 +59,6 @@ import java.util.stream.Stream;
 import org.dbunit.AbstractDatabaseTester;
 import org.dbunit.DatabaseUnitException;
 import org.dbunit.DatabaseUnitRuntimeException;
-import org.dbunit.ConnectionPreservingOperationListener;
 import org.dbunit.DefaultDatabaseTester;
 import org.dbunit.DefaultOperationListener;
 import org.dbunit.DefaultPrepAndExpectedTestCase;
@@ -2671,25 +2670,6 @@ class AnnotatedTestExecutorTest
                 .as("A listener the test itself installed after the executor did is the test's"
                         + " to keep, not the executor's to overwrite.")
                 .isSameAs(installedByTheTest);
-    }
-
-    @Test
-    void testConstructor_testerCarriesAUserBlanketShield_keepsItUnderTheExecutorsListener()
-    {
-        // A caller who wraps a listener in a blanket ConnectionPreservingOperationListener owns
-        // every connection the tester hands out; the executor adding its own scoped shield on
-        // top must not discard that blanket and let the wrapped listener close the others.
-        final IOperationListener userListener = mock(IOperationListener.class);
-        final IDatabaseTester realTester = new DefaultDatabaseTester(connection);
-        realTester.setOperationListener(new ConnectionPreservingOperationListener(userListener));
-        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
-                .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
-        new AnnotatedTestExecutor(configuration, realTester, null);
-        final IDatabaseConnection otherConnection = mock(IDatabaseConnection.class);
-
-        realTester.getOperationListener().operationSetUpFinished(otherConnection);
-
-        verify(userListener, never()).operationSetUpFinished(otherConnection);
     }
 
     /** Enables the row count check on every connection it is handed, as a user listener may. */

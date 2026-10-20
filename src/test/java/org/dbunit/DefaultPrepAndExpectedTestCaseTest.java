@@ -1455,32 +1455,6 @@ class DefaultPrepAndExpectedTestCaseTest
     }
 
     @Test
-    void testSetupData_databaseTesterListenerIsWrappedByASubclassOfConnectionPreserving_tellsOnlyTheWrappedListener()
-            throws Exception
-    {
-        // the annotation runtime installs a ConnectionPreservingOperationListener subclass on the
-        // tester, which would apply the @DbUnitProperty values and capture the row count baseline
-        // again if it were told about the connection; only the caller's listener beneath it is
-        final IOperationListener callersListener = Mockito.mock(IOperationListener.class);
-        final IOperationListener wrapperListener = Mockito.mock(IOperationListener.class);
-        databaseTester.setOperationListener(
-                new ConnectionPreservingOperationListener(callersListener)
-                {
-                    @Override
-                    public void connectionRetrieved(final IDatabaseConnection connection)
-                    {
-                        wrapperListener.connectionRetrieved(connection);
-                        super.connectionRetrieved(connection);
-                    }
-                });
-
-        tc.setupData();
-
-        Mockito.verify(callersListener).connectionRetrieved(Mockito.any(IDatabaseConnection.class));
-        Mockito.verifyNoInteractions(wrapperListener);
-    }
-
-    @Test
     void testSetupData_databaseTesterListenerIsTheTestCasesOwnListener_tellsItOnce()
             throws Exception
     {
@@ -2217,36 +2191,6 @@ class DefaultPrepAndExpectedTestCaseTest
         // The tester, not the test case, is what a caller configures with the NO_OP listener to
         // say its connection is managed elsewhere; the test case must honor that signal too.
         databaseTester.setOperationListener(IOperationListener.NO_OP_OPERATION_LISTENER);
-
-        tc.cleanupData();
-
-        final MockDatabaseConnection connection =
-                (MockDatabaseConnection) databaseTester.getConnection();
-        connection.setExpectedCloseCalls(0);
-        connection.verify();
-    }
-
-    @Test
-    void testCleanupData_databaseTesterListenerWrapsNoOp_leavesTheSharedConnectionOpen()
-            throws Exception
-    {
-        databaseTester.setOperationListener(new ConnectionPreservingOperationListener(
-                IOperationListener.NO_OP_OPERATION_LISTENER));
-
-        tc.cleanupData();
-
-        final MockDatabaseConnection connection =
-                (MockDatabaseConnection) databaseTester.getConnection();
-        connection.setExpectedCloseCalls(0);
-        connection.verify();
-    }
-
-    @Test
-    void testCleanupData_databaseTesterListenerIsBlanketPreserving_leavesTheSharedConnectionOpen()
-            throws Exception
-    {
-        databaseTester.setOperationListener(
-                new ConnectionPreservingOperationListener(new DefaultOperationListener()));
 
         tc.cleanupData();
 
