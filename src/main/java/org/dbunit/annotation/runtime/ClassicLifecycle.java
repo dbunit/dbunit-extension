@@ -38,6 +38,22 @@ import org.dbunit.database.connection.TestScopedConnection;
  * is not written to. Nothing here applies a dataset, an operation or a {@code DatabaseConfig}
  * value, as no annotation declares one.
  *
+ * <p>The connection {@code onSetup()} retrieved stays the tester's listener's to close or to
+ * keep open, as in 3.5.0: that listener was told the operation finished on it, and one that left
+ * it open keeps it for another owner, such as the fixed connection of a
+ * {@link org.dbunit.DefaultDatabaseTester} that later tests reuse. A connection that has to be
+ * resolved here instead, because {@code onSetup()} cannot be trusted to retrieve one, is first
+ * offered to the tester's own listener's
+ * {@link org.dbunit.IOperationListener#connectionRetrieved(IDatabaseConnection)}, as every
+ * connection retrieved from the tester is, so a {@code DatabaseConfig} customization made there,
+ * such as enabling the row count check, applies to it. It is the only connection closed here.
+ *
+ * <p>The tester's {@link org.dbunit.IOperationListener} can be wrapped only when the tester
+ * reports the one it carries: wrapping takes reading it and putting it back takes comparing it,
+ * so replacing one that cannot be read would discard it for good, for example the no-op listener
+ * that says the tester's connections are managed elsewhere. For such a tester the row count check
+ * baseline is always captured from a connection resolved here.
+ *
  * @author Jeff Jensen
  * @since 3.6.0
  */
