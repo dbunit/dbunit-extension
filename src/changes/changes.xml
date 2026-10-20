@@ -60,6 +60,9 @@
       <action dev="jeffjensen" type="update" issue="1005" system="github" due-to="jeffjensen">
         Update DefaultPrepAndExpectedTestCase to tell the tester's own IOperationListener about its shared connection when it acquires it, before the row count check baseline or any other step reads the connection's configuration, and again before each of its set up and tear down operations, so a listener that configures every connection, for example to set a data type factory or enable the row count check, now also runs for those connections. The listener never hears operationSetUpFinished() or operationTearDownFinished(), as the test case decides when its shared connection closes.
       </action>
+      <action dev="jeffjensen" type="add" issue="1009" system="github" due-to="jeffjensen">
+        Add CachingDataFileLoader, which wraps any DataFileLoader and loads each data file once, handing the dataset to every later load of the same resource instead of loading it again for each test. The datasets are dropped by clearCache() or by a change to the loader's replacement objects or substrings. Share one instance among the test cases that use the same files. It suits immutable classpath fixtures: a resource that changes while the JVM keeps running is not read again until clearCache().
+      </action>
       <action dev="jeffjensen" type="fix" issue="1010" system="github" due-to="jeffjensen">
         Fix DefaultPrepAndExpectedTestCase leaking the connection its tester handed out when applying a databaseConfigProperties value to it failed. Nothing referenced that connection afterward, so a tester that hands out a new one on each call, such as over a JDBC URL or a DataSource, leaked one per failing test. The connection is now released, unless closeConnectionAfterTest is false or the tester's listener is the no-op listener, before the failure propagates.
       </action>
