@@ -41,8 +41,9 @@ import org.dbunit.database.connection.AutoCommitOffWarning;
 import org.dbunit.database.connection.ConnectionOwnership;
 import org.dbunit.database.connection.LeftOpenConnectionWarning;
 import org.dbunit.database.connection.TestScopedConnection;
+import org.dbunit.database.rowcount.RowCountBaselineTracker;
 import org.dbunit.database.rowcount.RowCountCheck;
-import org.dbunit.database.rowcount.RowCountChecker;
+import org.dbunit.database.rowcount.RowCountCheckOverride;
 import org.dbunit.dataset.Column;
 import org.dbunit.dataset.ColumnFilterTable;
 import org.dbunit.dataset.Columns;
@@ -299,7 +300,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      *
      * @since 3.6.0
      */
-    private final RowCountChecker rowCountChecker = new RowCountChecker();
+    private final RowCountBaselineTracker rowCountBaselineTracker = new RowCountBaselineTracker();
 
     private ExpectedDataSetAndVerifyTableDefinitionVerifier expectedDataSetAndVerifyTableDefinitionVerifier =
             new DefaultExpectedDataSetAndVerifyTableDefinitionVerifier();
@@ -903,7 +904,8 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      */
     private void captureRowCountBaseline() throws Exception
     {
-        releasingIfAcquiredOnFailure(() -> rowCountChecker.capture(getReusableConnection()));
+        releasingIfAcquiredOnFailure(
+                () -> rowCountBaselineTracker.capture(getReusableConnection()));
     }
 
     /**
@@ -1038,12 +1040,12 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
                 verifyData();
             } else
             {
-                rowCountChecker.discardBaseline();
+                rowCountBaselineTracker.discardBaseline();
             }
         } catch (final Throwable t)
         {
             verifyFailure = t;
-            rowCountChecker.discardBaseline();
+            rowCountBaselineTracker.discardBaseline();
             throw t;
         } finally
         {
@@ -1128,9 +1130,9 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      */
     private void verifyRowCountUnchanged() throws Exception
     {
-        if (rowCountChecker.hasBaseline())
+        if (rowCountBaselineTracker.hasBaseline())
         {
-            rowCountChecker.verify(getReusableConnection());
+            rowCountBaselineTracker.verify(getReusableConnection());
         }
     }
 
@@ -2308,7 +2310,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      */
     private void releaseReplacedTestersConnection()
     {
-        rowCountChecker.discardBaseline();
+        rowCountBaselineTracker.discardBaseline();
         if (!reusableConnectionHolder.isResolved())
         {
             return;
@@ -2547,21 +2549,21 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     /**
      * Get the RowCountCheck in use.
      *
-     * @see #rowCountChecker
+     * @see #rowCountBaselineTracker
      *
      * @return The RowCountCheck, or null if none has been resolved or set yet.
      * @since 3.6.0
      */
     public RowCountCheck getRowCountCheck()
     {
-        return rowCountChecker.getRowCountCheck();
+        return rowCountBaselineTracker.getRowCountCheck();
     }
 
     /**
      * Set the RowCountCheck, overriding the one otherwise lazily built from the shared
      * connection's DatabaseConfig.
      *
-     * @see #rowCountChecker
+     * @see #rowCountBaselineTracker
      *
      * @param rowCountCheck
      *            The RowCountCheck to use.
@@ -2569,7 +2571,21 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      */
     public void setRowCountCheck(final RowCountCheck rowCountCheck)
     {
-        rowCountChecker.setRowCountCheck(rowCountCheck);
+        rowCountBaselineTracker.setRowCountCheck(rowCountCheck);
+    }
+
+    /**
+     * Get the enabled flag and excluded table patterns the RowCountCheck is resolved from.
+     *
+     * @see #rowCountBaselineTracker
+     *
+     * @return The override, or null when the RowCountCheck is resolved from the shared
+     *         connection's DatabaseConfig.
+     * @since 3.6.0
+     */
+    public RowCountCheckOverride getRowCountCheckOverride()
+    {
+        return rowCountBaselineTracker.getOverride();
     }
 
     /**
@@ -2577,33 +2593,21 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * of the shared connection's DatabaseConfig - the values an annotation such as
      * {@code @DbUnitRowCountCheck} declares.
      *
-     * @see #rowCountChecker
-     *
-     * @param enabled
-     *            Whether the check is enabled.
-     * @param exclude
-     *            The excluded table patterns; null is treated as empty (excludes none).
-     * @since 3.6.0
-     */
-    public void setRowCountCheckOverride(final boolean enabled, final String[] exclude)
-    {
-        rowCountChecker.setEnabledOverride(enabled, exclude);
-    }
-
-    /**
-     * Clear a previously set enabled flag and excluded table patterns override, returning to
-     * resolving a RowCountCheck from the shared connection's DatabaseConfig.
-     *
      * <p>A caller reusing one instance across several tests - e.g. one held by a
-     * {@code @DbUnitTestCase} static field - must call this once a test that set an override is
-     * over, so that test's override does not silently carry over onto the next one.
+     * {@code @DbUnitTestCase} static field - must set the override back to what it was, null
+     * for none, once a test that set one is over, so that test's override does not silently
+     * carry over onto the next one.
      *
-     * @see #rowCountChecker
+     * @see #rowCountBaselineTracker
+     *
+     * @param rowCountCheckOverride
+     *            The enabled flag and excluded table patterns to resolve from, or null to
+     *            resolve from the shared connection's DatabaseConfig again.
      * @since 3.6.0
      */
-    public void clearRowCountCheckOverride()
+    public void setRowCountCheckOverride(final RowCountCheckOverride rowCountCheckOverride)
     {
-        rowCountChecker.clearEnabledOverride();
+        rowCountBaselineTracker.setOverride(rowCountCheckOverride);
     }
 
     /**

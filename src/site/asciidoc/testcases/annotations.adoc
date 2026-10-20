@@ -635,8 +635,9 @@ committed - see link:../connections.html[Connections].
 An injected `@DbUnitTestCase` instance is used as its owner built it. dbUnit gives it the
 test's files (`@DbUnitPrep`, `@DbUnitExpected`) and calls `configureTest()`, `preTest()` and
 `postTest()`; for a `DefaultPrepAndExpectedTestCase` or a subclass it also applies
-`@DbUnitRowCountCheck`, through `setRowCountCheckOverride()`, and clears it when the test ends,
-so a `static` field never carries one method's override onto the next. Nothing else is
+`@DbUnitRowCountCheck`, through `setRowCountCheckOverride()`, and puts back the override the
+instance had when the test ends, so a `static` field never carries one method's override onto the
+next. Nothing else is
 configured: the data file loader, failure handler, `DatabaseConfig` properties,
 `closeConnectionAfterTest`, and the tester with its setup and teardown operations belong to the
 instance, and are set where it is built.
