@@ -41,12 +41,10 @@ import org.springframework.util.ClassUtils;
 
 /**
  * Spring TestContext Framework {@link org.springframework.test.context.TestExecutionListener} for
- * DbUnit: drives the same {@code org.dbunit.annotation} family - {@code @DbUnitPrep},
- * {@code @DbUnitSetUpOperation}, {@code @DbUnitExpected}, {@code @DbUnitTearDownOperation}, and
- * {@code @DbUnitConfig} - that {@link org.dbunit.junit.jupiter.DbUnitExtension} drives for
- * JUnit 5/6, for a test run through Spring's TestContext Framework instead, with JUnit 5's
- * {@code SpringExtension}. See {@code annotations.adoc} for the annotation vocabulary itself,
- * which is identical either way.
+ * DbUnit: drives the same {@code org.dbunit.annotation} family that
+ * {@link org.dbunit.junit.jupiter.DbUnitExtension} drives for JUnit 5/6, for a test run through
+ * Spring's TestContext Framework instead, with JUnit 5's {@code SpringExtension}. The annotation
+ * vocabulary is identical either way.
  *
  * <p>Register it with {@link DbUnitSpringTest @DbUnitSpringTest}, or directly with
  * {@code @TestExecutionListeners(listeners = DbUnitTestExecutionListener.class, mergeMode =
@@ -55,12 +53,8 @@ import org.springframework.util.ClassUtils;
  *
  * <h2>Which tests it acts on</h2>
  *
- * <p>Only a test that opts into the {@code org.dbunit.annotation} family, by the rule
- * {@code DbUnitExtension} applies for its annotation-driven lifecycle: any of
- * {@code @DbUnitConfig}, {@code @DbUnitPrep}, {@code @DbUnitSetUpOperation},
- * {@code @DbUnitExpected},
- * {@code @DbUnitTearDownOperation} or {@code @DbUnitRowCountCheck} on the test method or class, or
- * a
+ * <p>Only a test that opts into the {@code org.dbunit.annotation} family: any of its configuring
+ * annotations on the test method or class, or a
  * {@code @DbUnitTester}/{@code @DbUnitTestCase} field. For any other test it does nothing, so
  * {@link DbUnitSpringTest @DbUnitSpringTest} on a shared base class or composed annotation
  * neither needs a tester for, nor fails, the tests that use no DbUnit. A plain, unmarked
@@ -69,61 +63,26 @@ import org.springframework.util.ClassUtils;
  *
  * <h2>Resolving the tester or test case</h2>
  *
- * <p>First match wins:
- * <ol>
- *   <li>A field annotated {@code @DbUnitTestCase}, whose type implements
- *   {@link org.dbunit.PrepAndExpectedTestCase} - that instance is driven directly.</li>
- *   <li>A field annotated {@code @DbUnitTester}, whose type implements
- *   {@link org.dbunit.IDatabaseTester}.</li>
- *   <li>{@code @DbUnitConfig(databaseTesterFactory = ...)}, reflectively instantiated and asked
- *   to create a tester.</li>
- *   <li>The 3.5.0-style auto-scan: exactly one non-static field assignable to
- *   {@code IDatabaseTester}.</li>
- *   <li>Spring-specific, and last: the {@code IDatabaseTester} bean in the test's
- *   {@code ApplicationContext} - the sole one, or when several exist the one Spring's candidate
- *   rules single out: the one marked {@code @Primary}, the only one not marked
- *   {@code @Fallback}, or the only default candidate - so a test class needs no dbUnit-specific
- *   field at all when its test configuration already exposes one, e.g. a
- *   {@code @TestConfiguration} bean wrapping the application's own {@code DataSource} in a
- *   {@link org.dbunit.DataSourceDatabaseTester}. No bean, or several that those rules do not tell
- *   apart, is not an error here, since an unused bean of this type is an unremarkable case for a
- *   Spring context.</li>
- * </ol>
- *
- * <p>The first four tiers are {@code DbUnitExtension}'s, by the same rules: fields are found in
- * the whole class hierarchy of the test instance, and a second marked field there is ambiguous.
- * The bean should be a singleton: for a prototype-scoped bean the lookup creates a new instance
- * that the test's own {@code @Autowired} field does not share.
+ * <p>First match wins: a {@code @DbUnitTestCase} field, a {@code @DbUnitTester} field,
+ * {@code @DbUnitConfig(databaseTesterFactory = ...)}, then the 3.5.0-style auto-scan for exactly
+ * one non-static {@code IDatabaseTester} field - the rules of {@code DbUnitExtension}, applied to
+ * every enclosing test instance of a {@code @Nested} class that can be reached - and last the
+ * {@code IDatabaseTester} bean of the test's {@code ApplicationContext}. The bean should be a
+ * singleton.
  *
  * <h2>Shared testers</h2>
  *
- * <p>An {@code IDatabaseTester} bean is a singleton of the application context, and Spring caches
- * a context and shares it among every test class with the same configuration, so one tester
- * serves all of them. The listener sets the dataset and the operations on it for each test and
- * restores them afterwards, and wraps its operation listener while the test runs, all without
- * synchronization. A tester shared this way - or through a {@code static}
- * {@code @DbUnitTester} field, or any instance field under
- * {@code @TestInstance(Lifecycle.PER_CLASS)} - is therefore not safe for tests that run at the
- * same time, such as under {@code junit.jupiter.execution.parallel.enabled=true}: run them
- * sequentially, or give each its own tester.
- *
- * <h2>Nested test classes</h2>
- *
- * <p>For a JUnit Jupiter {@code @Nested} test class Spring inherits the enclosing class's
- * configuration, and so does this listener, as {@code DbUnitExtension} does: the enclosing
- * class's class-level annotations apply unless the nested class or its method declares its own,
- * and the tester field is searched in the nested instance first, then in each enclosing instance
- * outward. An enclosing instance is reachable only when the nested class uses it - see the
- * {@code DbUnitTestExecutionListener} site page for how to work with that limit.
+ * <p>An {@code IDatabaseTester} bean is a singleton of the application context, which Spring
+ * caches and shares among every test class with the same configuration. The listener only reads
+ * the tester, so a shared one carries nothing from one test to the next, and it is safe for tests
+ * that run at the same time as long as it hands out a connection of its own on each call.
  *
  * <h2>Not supported: parameter injection</h2>
  *
  * <p>Unlike {@code DbUnitExtension}, this listener never injects an {@code IDatabaseTester} or
- * connection as a test method parameter - Spring's
- * {@code TestExecutionListener} has no equivalent of JUnit 5's {@code ParameterResolver}. Declare
- * a {@code @DbUnitTester}/{@code @DbUnitTestCase} field, or autowire the {@code IDatabaseTester}
- * bean, to reach it from the test method; {@code SpringExtension} itself resolves
- * {@code @Autowired} test method parameters, so the bean can be a parameter too.
+ * connection as a test method parameter: Spring's {@code TestExecutionListener} has no equivalent
+ * of JUnit 5's {@code ParameterResolver}. Declare a
+ * {@code @DbUnitTester}/{@code @DbUnitTestCase} field, or autowire the bean, instead.
  *
  * <h2>Rolled-back transactional tests</h2>
  *
@@ -131,8 +90,12 @@ import org.springframework.util.ClassUtils;
  * ended, so a test whose transaction rolls back is verified without its own changes. Just before
  * such a test method runs, this listener logs one warning naming {@code @Commit} and
  * {@code @Rollback(false)} as the remedy, and if the verification then fails, attaches the same
- * hint to the failure as a suppressed exception. Without {@code spring-tx} on the classpath the
- * test cannot be transactional, and neither is done.
+ * hint to the failure as a suppressed exception.
+ *
+ * <p>How the bean candidates are chosen, how a {@code @Nested} class reaches its enclosing
+ * instances, and the cases of shared testers and transactional tests are on the
+ * <a href="https://dbunit.github.io/dbunit-extension/testcases/DbUnitTestExecutionListener.html">DbUnitTestExecutionListener</a>
+ * site page.
  *
  * @author Jeff Jensen
  * @since 3.6.0
