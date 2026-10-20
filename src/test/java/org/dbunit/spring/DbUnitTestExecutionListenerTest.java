@@ -37,6 +37,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BooleanSupplier;
 
 import org.dbunit.AbstractDatabaseTester;
@@ -56,7 +57,9 @@ import org.dbunit.dataset.DefaultTable;
 import org.dbunit.dataset.IDataSet;
 import org.dbunit.operation.DatabaseOperation;
 import org.dbunit.operation.DbUnitOperation;
+import org.dbunit.util.fileloader.CachingFileExtensionDataFileLoader;
 import org.dbunit.util.fileloader.DataFileLoader;
+import org.dbunit.util.fileloader.FlatXmlDataFileLoader;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
@@ -79,6 +82,74 @@ class DbUnitTestExecutionListenerTest
     void resetRecordingTestCase()
     {
         RecordingTestCase.reset();
+    }
+
+    @Test
+    void testBeforeTestMethod_twoMethodsOfOneTestClass_shareOneLoader() throws Exception
+    {
+        final FakeTestContext context = new FakeTestContext(HasLoaderDeclared.class);
+
+        context.beginMethod(new HasLoaderDeclared(InMemoryTester.working()), "aTestMethod");
+        listener.beforeTestMethod(context);
+        listener.afterTestMethod(context);
+        context.beginMethod(new HasLoaderDeclared(InMemoryTester.working()), "anotherTestMethod");
+        listener.beforeTestMethod(context);
+        listener.afterTestMethod(context);
+
+        assertThat(RecordingTestCase.dataFileLoaders)
+                .as("Each method builds its test case with the loader of the class's scope.")
+                .hasSize(2);
+        assertThat(RecordingTestCase.dataFileLoaders.get(1))
+                .as("The test context lives as long as the test class, and so does the loader.")
+                .isSameAs(RecordingTestCase.dataFileLoaders.get(0))
+                .isExactlyInstanceOf(CountedLoader.class);
+        assertThat(CountedLoader.constructed.get())
+                .as("The loader class is built once for the test class, not once per method.")
+                .isEqualTo(1);
+    }
+
+    @Test
+    void testBeforeTestMethod_twoMethodsOfOneTestClassNamingAPlainLoader_eachBuildsItsOwn()
+            throws Exception
+    {
+        final FakeTestContext context = new FakeTestContext(HasPlainLoaderDeclared.class);
+
+        context.beginMethod(new HasPlainLoaderDeclared(InMemoryTester.working()), "aTestMethod");
+        listener.beforeTestMethod(context);
+        listener.afterTestMethod(context);
+        context.beginMethod(new HasPlainLoaderDeclared(InMemoryTester.working()),
+                "anotherTestMethod");
+        listener.beforeTestMethod(context);
+        listener.afterTestMethod(context);
+
+        assertThat(RecordingTestCase.dataFileLoaders)
+                .as("A loader that does not cache is built for every method, so a test case that"
+                        + " changes the loader it is given changes no other test's.")
+                .hasSize(2).doesNotHaveDuplicates();
+        assertThat(PlainCountedLoader.constructed.get())
+                .as("The loader class is built for each method.").isEqualTo(2);
+    }
+
+    @Test
+    void testBeforeTestMethod_twoTestContextsNamingTheSameLoaderClass_eachBuildsItsOwn()
+            throws Exception
+    {
+        final FakeTestContext first = new FakeTestContext(HasLoaderDeclared.class)
+                .beginMethod(new HasLoaderDeclared(InMemoryTester.working()), "aTestMethod");
+        final FakeTestContext second = new FakeTestContext(HasLoaderDeclared.class)
+                .beginMethod(new HasLoaderDeclared(InMemoryTester.working()), "aTestMethod");
+
+        listener.beforeTestMethod(first);
+        listener.afterTestMethod(first);
+        listener.beforeTestMethod(second);
+        listener.afterTestMethod(second);
+
+        assertThat(RecordingTestCase.dataFileLoaders.get(1))
+                .as("The scope under Spring is a test class, so another test class does not"
+                        + " share the loader.")
+                .isNotSameAs(RecordingTestCase.dataFileLoaders.get(0));
+        assertThat(CountedLoader.constructed.get())
+                .as("The loader class is built once for each test class.").isEqualTo(2);
     }
 
     @Test
@@ -788,6 +859,7 @@ class DbUnitTestExecutionListenerTest
         static final List<List<String>> prepTableNamesAtPreTest = new ArrayList<>();
         static final List<DatabaseOperation> tearDownOperations = new ArrayList<>();
         static final List<Boolean> postTestCalls = new ArrayList<>();
+        static final List<DataFileLoader> dataFileLoaders = new ArrayList<>();
         static volatile RuntimeException preTestFailure;
 
         static void reset()
@@ -796,13 +868,17 @@ class DbUnitTestExecutionListenerTest
             prepTableNamesAtPreTest.clear();
             tearDownOperations.clear();
             postTestCalls.clear();
+            dataFileLoaders.clear();
             preTestFailure = null;
+            CountedLoader.constructed.set(0);
+            PlainCountedLoader.constructed.set(0);
         }
 
         public RecordingTestCase(final DataFileLoader dataFileLoader,
                 final IDatabaseTester tester)
         {
             super(dataFileLoader, tester);
+            dataFileLoaders.add(dataFileLoader);
         }
 
         @Override
@@ -915,6 +991,70 @@ class DbUnitTestExecutionListenerTest
         public void execute(final IDatabaseConnection connection, final IDataSet dataSet)
         {
             throw new IllegalStateException(message);
+        }
+    }
+
+    /** A caching loader that counts how often it is built. */
+    public static class CountedLoader extends CachingFileExtensionDataFileLoader
+    {
+        static final AtomicInteger constructed = new AtomicInteger();
+
+        public CountedLoader()
+        {
+            constructed.incrementAndGet();
+        }
+    }
+
+    /** A loader that does not cache, which counts how often it is built. */
+    public static class PlainCountedLoader extends FlatXmlDataFileLoader
+    {
+        static final AtomicInteger constructed = new AtomicInteger();
+
+        public PlainCountedLoader()
+        {
+            constructed.incrementAndGet();
+        }
+    }
+
+    @DbUnitConfig(dataFileLoader = CountedLoader.class,
+            prepAndExpectedTestCase = RecordingTestCase.class)
+    static class HasLoaderDeclared
+    {
+        @DbUnitTester
+        IDatabaseTester databaseTester;
+
+        HasLoaderDeclared(final IDatabaseTester databaseTester)
+        {
+            this.databaseTester = databaseTester;
+        }
+
+        void aTestMethod()
+        {
+        }
+
+        void anotherTestMethod()
+        {
+        }
+    }
+
+    @DbUnitConfig(dataFileLoader = PlainCountedLoader.class,
+            prepAndExpectedTestCase = RecordingTestCase.class)
+    static class HasPlainLoaderDeclared
+    {
+        @DbUnitTester
+        IDatabaseTester databaseTester;
+
+        HasPlainLoaderDeclared(final IDatabaseTester databaseTester)
+        {
+            this.databaseTester = databaseTester;
+        }
+
+        void aTestMethod()
+        {
+        }
+
+        void anotherTestMethod()
+        {
         }
     }
 

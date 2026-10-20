@@ -563,8 +563,14 @@ rejected: it is used as its owner built it - see <<injected-testcase-config>>.
 |`dataFileLoader` |The `DataFileLoader` used for every dataset file.
 Defaults to
 link:../apidocs/org/dbunit/util/fileloader/FileExtensionDataFileLoader.html[FileExtensionDataFileLoader],
-which dispatches by extension — see link:../datasets/fileloader.html[Data File Loader]. Use
-`CachingFileExtensionDataFileLoader` to parse each file once per run instead of once per
+which dispatches by extension — see link:../datasets/fileloader.html[Data File Loader]. A loader
+of that default or of any other class that does not cache is built for each test, so a test case
+that changes the loader it is given, such as by adding replacement objects, changes no other
+test's. One instance of a `CachingDataFileLoader` class is built and shared by the tests of its
+scope instead: all the tests of the run under JUnit Jupiter, those of one test class under
+Spring. A value its constructor computes, such as a replacement of the current time, is then
+computed once for the scope, and the loader must be safe for tests that run in parallel. Use
+`CachingFileExtensionDataFileLoader` to load each file once for the scope instead of once per
 test — see link:../datasets/fileloader.html#caching[Caching Parsed Datasets].
 
 |`databaseTesterFactory` |See <<resolution,resolution order>> tier 3.

@@ -162,14 +162,14 @@ public class AnnotatedTestConfiguration
             final DbUnitRowCountCheck rowCountCheck)
     {
         return from(prepDeclaringClass, expectedDeclaringClass, MergedDbUnitConfig.ofOne(config),
-                prep, setup, expected, tearDown, rowCountCheck);
+                prep, setup, expected, tearDown, rowCountCheck, new DataFileLoaderInstances());
     }
 
     private static AnnotatedTestConfiguration from(final Class<?> prepDeclaringClass,
             final Class<?> expectedDeclaringClass, final MergedDbUnitConfig config,
             final DbUnitPrep prep, final DbUnitSetUpOperation setup,
             final DbUnitExpected expected, final DbUnitTearDownOperation tearDown,
-            final DbUnitRowCountCheck rowCountCheck)
+            final DbUnitRowCountCheck rowCountCheck, final DataFileLoaderInstances dataFileLoaders)
     {
         final String dataSetBaseDir = config.getDataSetBaseDir();
         final DataSetPathsResolver pathsResolver = new DataSetPathsResolver();
@@ -179,8 +179,7 @@ public class AnnotatedTestConfiguration
         final boolean dataFileLoaderDeclared = declaredDataFileLoaderClass != null;
         final Class<? extends DataFileLoader> dataFileLoaderClass = dataFileLoaderDeclared
                 ? declaredDataFileLoaderClass : FileExtensionDataFileLoader.class;
-        final DataFileLoader dataFileLoader =
-                instantiate(dataFileLoaderClass, "DbUnitConfig.dataFileLoader");
+        final DataFileLoader dataFileLoader = dataFileLoaders.get(dataFileLoaderClass);
 
         final String[] prepDataFiles = pathsResolver.resolve(prepDeclaringClass, dataSetBaseDir,
                 prep == null ? null : prep.value());
@@ -239,6 +238,10 @@ public class AnnotatedTestConfiguration
      * the lookup reports as declaring the annotation naming it - see
      * {@link AnnotationLookup#findDeclaringClass(Class)}.
      *
+     * <p>The data file loader is built for this configuration alone. A binding that wants the
+     * tests of a scope to share one loader of each caching class calls
+     * {@link #from(Class, AnnotationLookup, DataFileLoaderInstances)} instead.
+     *
      * @param testClass The test class; used in diagnostics.
      * @param lookup Finds the annotations that apply to the test, and the classes declaring them.
      * @return The resolved configuration.
@@ -247,6 +250,27 @@ public class AnnotatedTestConfiguration
      */
     public static AnnotatedTestConfiguration from(final Class<?> testClass,
             final AnnotationLookup lookup)
+    {
+        return from(testClass, lookup, new DataFileLoaderInstances());
+    }
+
+    /**
+     * Resolves a configuration as {@link #from(Class, AnnotationLookup)} does, taking the data
+     * file loader from the given instances: the one of the loader class the merged
+     * {@code @DbUnitConfig} names, or of {@link FileExtensionDataFileLoader} when it names none.
+     * Every configuration resolved with the same instances therefore uses the same loader of a
+     * caching class, built on the first request, and a loader of its own of any other class.
+     *
+     * @param testClass The test class; used in diagnostics.
+     * @param lookup Finds the annotations that apply to the test, and the classes declaring them.
+     * @param dataFileLoaders The loaders of the binding's scope: one for each caching loader
+     *            class, a new one for each request of any other.
+     * @return The resolved configuration.
+     * @throws IllegalStateException If two mutually exclusive attributes are both set, or if
+     *             a named provider, catalog, or comparer class cannot be instantiated.
+     */
+    public static AnnotatedTestConfiguration from(final Class<?> testClass,
+            final AnnotationLookup lookup, final DataFileLoaderInstances dataFileLoaders)
     {
         final MergedDbUnitConfig config =
                 MergedDbUnitConfig.of(lookup.findAll(DbUnitConfig.class));
@@ -258,7 +282,7 @@ public class AnnotatedTestConfiguration
         final Class<?> prepDeclaringClass = lookup.findDeclaringClass(DbUnitPrep.class);
         final Class<?> expectedDeclaringClass = lookup.findDeclaringClass(DbUnitExpected.class);
         return from(prepDeclaringClass, expectedDeclaringClass, config, prep, setup, expected,
-                tearDown, rowCountCheck);
+                tearDown, rowCountCheck, dataFileLoaders);
     }
 
     private static <T> T instantiate(final Class<? extends T> implementationClass,

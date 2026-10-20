@@ -40,6 +40,7 @@ import org.dbunit.annotation.runtime.AnnotatedTestConfiguration;
 import org.dbunit.annotation.runtime.AnnotatedTestExecutor;
 import org.dbunit.annotation.runtime.AnnotatedTestOptIn;
 import org.dbunit.annotation.runtime.AnnotationLookup;
+import org.dbunit.annotation.runtime.DataFileLoaderInstances;
 import org.dbunit.annotation.runtime.TestInstanceTesterResolver;
 import org.dbunit.database.IDatabaseConnection;
 import org.junit.jupiter.api.BeforeEach;
@@ -227,6 +228,8 @@ public class DbUnitExtension implements BeforeTestExecutionCallback,
 
     /** Package-visible so tests can reference it instead of duplicating the literal. */
     static final String EXECUTOR_KEY = "annotatedTestExecutor";
+
+    private static final String DATA_FILE_LOADERS_KEY = "dataFileLoaders";
 
     private final TesterResolver testerResolver = new TesterResolver();
 
@@ -469,7 +472,19 @@ public class DbUnitExtension implements BeforeTestExecutionCallback,
     {
         final Class<?> testClass = context.getRequiredTestClass();
         final AnnotationLookup lookup = new ContextAnnotationLookup(context);
-        return AnnotatedTestConfiguration.from(testClass, lookup);
+        final DataFileLoaderInstances dataFileLoaders = dataFileLoadersOfTheRun(context);
+        return AnnotatedTestConfiguration.from(testClass, lookup, dataFileLoaders);
+    }
+
+    /**
+     * Returns the data file loaders the tests of the run share, one for each caching loader
+     * class: they are kept in the store of the root context, which lives as long as the run.
+     */
+    private DataFileLoaderInstances dataFileLoadersOfTheRun(final ExtensionContext context)
+    {
+        final ExtensionContext.Store runStore = context.getRoot().getStore(NAMESPACE);
+        return runStore.getOrComputeIfAbsent(DATA_FILE_LOADERS_KEY,
+                key -> new DataFileLoaderInstances(), DataFileLoaderInstances.class);
     }
 
     /**

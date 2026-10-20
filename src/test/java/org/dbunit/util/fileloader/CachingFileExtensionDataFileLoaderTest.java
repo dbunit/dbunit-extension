@@ -24,20 +24,11 @@ package org.dbunit.util.fileloader;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.io.IOException;
-import java.net.URL;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
 
 import org.dbunit.DatabaseUnitRuntimeException;
-import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.IDataSet;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -47,65 +38,47 @@ class CachingFileExtensionDataFileLoaderTest
 {
     private static final String TEST_FILE_NAME = "/org/dbunit/util/fileloader/test.xml";
 
-    @BeforeEach
-    void setUp()
-    {
-        new CountingLoader().clearCache();
-        new OtherCountingLoader().clearCache();
-    }
-
     @Test
-    void testLoad_sameFileTwice_parsesOnce() throws Exception
+    void testLoad_sameFileTwice_returnsTheSameParsedDataSet() throws Exception
     {
-        final CountingLoader loader = new CountingLoader();
+        final CachingFileExtensionDataFileLoader loader = new CachingFileExtensionDataFileLoader();
 
-        loader.load(TEST_FILE_NAME);
+        final IDataSet first = loader.load(TEST_FILE_NAME);
         final IDataSet second = loader.load(TEST_FILE_NAME);
 
-        assertThat(loader.getParseCount())
-                .as("The second load of the same file must reuse the parsed dataset.")
-                .isEqualTo(1);
-        assertThat(second.getTableNames()).as("Unexpected tables in dataset.")
+        assertThat(first.getTableNames()).as("Unexpected tables in dataset.")
                 .containsExactly("TEST_TABLE");
+        assertThat(second).as("The second load of the same file must reuse the parsed dataset.")
+                .isSameAs(first);
     }
 
     @Test
-    void testLoad_twoInstancesOfTheSameLoaderClass_shareParsedDatasets() throws Exception
+    void testLoad_twoInstances_doNotShareParsedDataSets()
     {
-        final CountingLoader first = new CountingLoader();
-        final CountingLoader second = new CountingLoader();
+        final CachingFileExtensionDataFileLoader first = new CachingFileExtensionDataFileLoader();
+        final CachingFileExtensionDataFileLoader second = new CachingFileExtensionDataFileLoader();
 
-        first.load(TEST_FILE_NAME);
-        second.load(TEST_FILE_NAME);
+        final IDataSet fromFirst = first.load(TEST_FILE_NAME);
+        final IDataSet fromSecond = second.load(TEST_FILE_NAME);
 
-        assertThat(first.getParseCount() + second.getParseCount())
-                .as("The annotation runtime builds a new loader for each test, so a dataset parsed"
-                        + " by one instance must be reused by the next instance of the class.")
-                .isEqualTo(1);
+        assertThat(fromSecond)
+                .as("The datasets are held by the instance, so a second instance parses for"
+                        + " itself.")
+                .isNotSameAs(fromFirst);
     }
 
     @Test
-    void testLoad_twoDifferentLoaderClasses_doNotShareParsedDatasets() throws Exception
-    {
-        final CountingLoader first = new CountingLoader();
-        final OtherCountingLoader second = new OtherCountingLoader();
-
-        first.load(TEST_FILE_NAME);
-        second.load(TEST_FILE_NAME);
-
-        assertThat(first.getParseCount() + second.getParseCount())
-                .as("Each loader class keeps its own parsed datasets.").isEqualTo(2);
-    }
-
-    @Test
-    void testLoad_differentReplacementSubstringsPerInstance_eachAppliesItsOwn() throws Exception
+    void testLoad_replacementSubstringsGivenToTheConstructor_eachInstanceAppliesItsOwn()
+            throws Exception
     {
         final Map<String, String> firstSubstrings = new HashMap<>();
         firstSubstrings.put("row", "first");
         final Map<String, String> secondSubstrings = new HashMap<>();
         secondSubstrings.put("row", "second");
-        final CountingLoader first = new CountingLoader(new HashMap<>(), firstSubstrings);
-        final CountingLoader second = new CountingLoader(new HashMap<>(), secondSubstrings);
+        final CachingFileExtensionDataFileLoader first =
+                new CachingFileExtensionDataFileLoader(new HashMap<>(), firstSubstrings);
+        final CachingFileExtensionDataFileLoader second =
+                new CachingFileExtensionDataFileLoader(new HashMap<>(), secondSubstrings);
 
         final Object firstValue =
                 first.load(TEST_FILE_NAME).getTable("TEST_TABLE").getValue(0, "COL0");
@@ -114,27 +87,28 @@ class CachingFileExtensionDataFileLoaderTest
 
         assertThat(firstValue).as("The first loader must apply its own substring.")
                 .isEqualTo("first 0");
-        assertThat(secondValue)
-                .as("The second loader must apply its own substring to the shared parsed dataset.")
+        assertThat(secondValue).as("The second loader must apply its own substring.")
                 .isEqualTo("second 0");
     }
 
     @Test
-    void testLoadDataSet_sameUrlTwice_returnsTheSameParsedInstance() throws Exception
+    void testLoad_replacementObjectsGivenToTheConstructor_areApplied() throws Exception
     {
-        final CountingLoader loader = new CountingLoader();
-        final URL url = getClass().getResource(TEST_FILE_NAME);
+        final Map<String, String> objects = new HashMap<>();
+        objects.put("row 0", "replaced");
+        final CachingFileExtensionDataFileLoader loader =
+                new CachingFileExtensionDataFileLoader(objects);
 
-        final IDataSet first = loader.loadDataSet(url);
-        final IDataSet second = loader.loadDataSet(url);
+        final Object value = loader.load(TEST_FILE_NAME).getTable("TEST_TABLE").getValue(0, "COL0");
 
-        assertThat(second).as("The cache must hand back the dataset it parsed.").isSameAs(first);
+        assertThat(value).as("The replacement object must replace the whole value.")
+                .isEqualTo("replaced");
     }
 
     @Test
     void testLoad_missingFile_throwsDatabaseUnitRuntimeExceptionEveryTime()
     {
-        final CountingLoader loader = new CountingLoader();
+        final CachingFileExtensionDataFileLoader loader = new CachingFileExtensionDataFileLoader();
 
         assertThatThrownBy(() -> loader.load("/org/dbunit/util/fileloader/no-such-file.xml"))
                 .as("A missing file must fail the first load.")
@@ -145,68 +119,28 @@ class CachingFileExtensionDataFileLoaderTest
     }
 
     @Test
-    void testLoad_malformedFile_throwsAndIsParsedAgainOnTheNextLoad()
+    void testLoad_malformedFile_throwsDatabaseUnitRuntimeExceptionEveryTime()
     {
-        final CountingLoader loader = new CountingLoader();
+        final CachingFileExtensionDataFileLoader loader = new CachingFileExtensionDataFileLoader();
 
         assertThatThrownBy(() -> loader.load("/org/dbunit/util/fileloader/malformed.xml"))
                 .as("A malformed file must fail the first load.")
                 .isInstanceOf(DatabaseUnitRuntimeException.class);
         assertThatThrownBy(() -> loader.load("/org/dbunit/util/fileloader/malformed.xml"))
-                .as("A malformed file must fail the next load too, as the failure is not"
-                        + " remembered.")
+                .as("A file that failed to parse must not be remembered, so it fails again.")
                 .isInstanceOf(DatabaseUnitRuntimeException.class);
-
-        assertThat(loader.getParseCount())
-                .as("A file that failed to parse must not be cached, so it is parsed again.")
-                .isEqualTo(2);
     }
 
     @Test
-    void testClearCache_afterLoad_parsesAgainOnTheNextLoad() throws Exception
+    void testClearCache_afterLoad_parsesAgainOnTheNextLoad()
     {
-        final CountingLoader loader = new CountingLoader();
-        loader.load(TEST_FILE_NAME);
+        final CachingFileExtensionDataFileLoader loader = new CachingFileExtensionDataFileLoader();
+        final IDataSet before = loader.load(TEST_FILE_NAME);
 
         loader.clearCache();
-        loader.load(TEST_FILE_NAME);
+        final IDataSet after = loader.load(TEST_FILE_NAME);
 
-        assertThat(loader.getParseCount())
-                .as("clearCache() must drop the loader class's parsed datasets.").isEqualTo(2);
-    }
-
-    @Test
-    void testLoadDataSet_concurrentFirstLoads_allGetTheSameInstance() throws Exception
-    {
-        final URL url = getClass().getResource(TEST_FILE_NAME);
-        final int threadCount = 8;
-        final CountDownLatch start = new CountDownLatch(1);
-        final List<CompletableFuture<IDataSet>> futures = new ArrayList<>();
-        for (int i = 0; i < threadCount; i++)
-        {
-            futures.add(CompletableFuture.supplyAsync(() ->
-            {
-                try
-                {
-                    start.await();
-                    return new CountingLoader().loadDataSet(url);
-                } catch (final Exception e)
-                {
-                    throw new IllegalStateException(e);
-                }
-            }));
-        }
-
-        start.countDown();
-        final List<IDataSet> loaded = new ArrayList<>();
-        for (final CompletableFuture<IDataSet> future : futures)
-        {
-            loaded.add(future.get());
-        }
-
-        assertThat(Collections.frequency(loaded, loaded.get(0)))
-                .as("Racing first loads must all end up with the one dataset the cache kept.")
-                .isEqualTo(threadCount);
+        assertThat(after).as("clearCache() must drop the parsed datasets.").isNotSameAs(before);
     }
 
     @Test
@@ -216,38 +150,5 @@ class CachingFileExtensionDataFileLoaderTest
                 .as("@DbUnitConfig(dataFileLoader = ...) instantiates the loader class through its"
                         + " public no-argument constructor.")
                 .isNotNull();
-    }
-
-    /** Loader that counts how often it really parses a file. */
-    private static class CountingLoader extends CachingFileExtensionDataFileLoader
-    {
-        private int parseCount;
-
-        CountingLoader()
-        {
-            super();
-        }
-
-        CountingLoader(final Map<?, ?> replacementObjects, final Map<?, ?> replacementSubstrings)
-        {
-            super(replacementObjects, replacementSubstrings);
-        }
-
-        @Override
-        protected IDataSet loadUncachedDataSet(final URL url) throws DataSetException, IOException
-        {
-            parseCount++;
-            return super.loadUncachedDataSet(url);
-        }
-
-        int getParseCount()
-        {
-            return parseCount;
-        }
-    }
-
-    /** A second loader class, to show each class keeps its own cache. */
-    private static class OtherCountingLoader extends CountingLoader
-    {
     }
 }

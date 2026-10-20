@@ -48,6 +48,7 @@ import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.datatype.DataType;
 import org.dbunit.operation.DatabaseOperation;
 import org.dbunit.operation.DbUnitOperation;
+import org.dbunit.util.fileloader.CachingFileExtensionDataFileLoader;
 import org.dbunit.util.fileloader.FileExtensionDataFileLoader;
 import org.dbunit.util.fileloader.FlatXmlDataFileLoader;
 import org.dbunit.util.fileloader.FullXmlDataFileLoader;
@@ -191,6 +192,99 @@ class AnnotatedTestConfigurationTest
                 .as("Without a declaration the loader dispatches by file extension.")
                 .isInstanceOf(FileExtensionDataFileLoader.class);
         assertThat(config.isDataFileLoaderDeclared()).as("No declaration names it.").isFalse();
+    }
+
+    @Test
+    void testFrom_sharedLoaderInstances_twoConfigurationsNamingTheSameCachingLoaderClassShareIt()
+    {
+        final DbUnitConfig config =
+                SetsCachingLoaderConfig.class.getAnnotation(DbUnitConfig.class);
+        final AnnotationLookup lookup = new FakeAnnotationLookup(SetupOnly.class).finding(config);
+        final DataFileLoaderInstances instances = new DataFileLoaderInstances();
+
+        final AnnotatedTestConfiguration first =
+                AnnotatedTestConfiguration.from(SetupOnly.class, lookup, instances);
+        final AnnotatedTestConfiguration second =
+                AnnotatedTestConfiguration.from(SetupOnly.class, lookup, instances);
+
+        assertThat(second.getDataFileLoader())
+                .as("The tests of a scope share the one loader of a caching class they name.")
+                .isSameAs(first.getDataFileLoader())
+                .isExactlyInstanceOf(CachingFileExtensionDataFileLoader.class);
+    }
+
+    @Test
+    void testFrom_sharedLoaderInstances_twoConfigurationsNamingTheSamePlainLoaderClassEachBuildItsOwn()
+    {
+        final DbUnitConfig config =
+                SetsLoaderAndPropertiesConfig.class.getAnnotation(DbUnitConfig.class);
+        final AnnotationLookup lookup = new FakeAnnotationLookup(SetupOnly.class).finding(config);
+        final DataFileLoaderInstances instances = new DataFileLoaderInstances();
+
+        final AnnotatedTestConfiguration first =
+                AnnotatedTestConfiguration.from(SetupOnly.class, lookup, instances);
+        final AnnotatedTestConfiguration second =
+                AnnotatedTestConfiguration.from(SetupOnly.class, lookup, instances);
+
+        assertThat(second.getDataFileLoader())
+                .as("A loader that does not cache is built for every test, so a test case that"
+                        + " changes its replacement objects changes no other test's loader.")
+                .isNotSameAs(first.getDataFileLoader())
+                .isExactlyInstanceOf(FlatXmlDataFileLoader.class);
+    }
+
+    @Test
+    void testFrom_sharedLoaderInstances_noLoaderDeclared_eachBuildsTheDefaultFileExtensionLoaderOfItsOwn()
+    {
+        final AnnotationLookup lookup = new FakeAnnotationLookup(SetupOnly.class);
+        final DataFileLoaderInstances instances = new DataFileLoaderInstances();
+
+        final AnnotatedTestConfiguration first =
+                AnnotatedTestConfiguration.from(SetupOnly.class, lookup, instances);
+        final AnnotatedTestConfiguration second =
+                AnnotatedTestConfiguration.from(SetupOnly.class, lookup, instances);
+
+        assertThat(second.getDataFileLoader())
+                .as("The default loader does not cache, so every test builds its own.")
+                .isNotSameAs(first.getDataFileLoader())
+                .isExactlyInstanceOf(FileExtensionDataFileLoader.class);
+        assertThat(second.isDataFileLoaderDeclared()).as("No declaration names it.").isFalse();
+    }
+
+    @Test
+    void testFrom_sharedLoaderInstances_differentLoaderClasses_doNotShareALoader()
+    {
+        final DbUnitConfig flatXml =
+                SetsLoaderAndPropertiesConfig.class.getAnnotation(DbUnitConfig.class);
+        final DbUnitConfig fullXml = SetsOtherLoaderConfig.class.getAnnotation(DbUnitConfig.class);
+        final DataFileLoaderInstances instances = new DataFileLoaderInstances();
+
+        final AnnotatedTestConfiguration first = AnnotatedTestConfiguration.from(SetupOnly.class,
+                new FakeAnnotationLookup(SetupOnly.class).finding(flatXml), instances);
+        final AnnotatedTestConfiguration second = AnnotatedTestConfiguration.from(SetupOnly.class,
+                new FakeAnnotationLookup(SetupOnly.class).finding(fullXml), instances);
+
+        assertThat(first.getDataFileLoader()).as("Each loader class has a loader of its own.")
+                .isExactlyInstanceOf(FlatXmlDataFileLoader.class);
+        assertThat(second.getDataFileLoader()).as("Each loader class has a loader of its own.")
+                .isExactlyInstanceOf(FullXmlDataFileLoader.class);
+    }
+
+    @Test
+    void testFrom_withoutLoaderInstances_eachConfigurationBuildsALoaderOfItsOwn()
+    {
+        final DbUnitConfig config =
+                SetsLoaderAndPropertiesConfig.class.getAnnotation(DbUnitConfig.class);
+        final AnnotationLookup lookup = new FakeAnnotationLookup(SetupOnly.class).finding(config);
+
+        final AnnotatedTestConfiguration first =
+                AnnotatedTestConfiguration.from(SetupOnly.class, lookup);
+        final AnnotatedTestConfiguration second =
+                AnnotatedTestConfiguration.from(SetupOnly.class, lookup);
+
+        assertThat(second.getDataFileLoader())
+                .as("Nothing is shared unless the caller hands in the instances to share.")
+                .isNotSameAs(first.getDataFileLoader());
     }
 
     @Test
@@ -852,6 +946,11 @@ class AnnotatedTestConfigurationTest
 
     @DbUnitConfig(dataFileLoader = FullXmlDataFileLoader.class)
     static class SetsOtherLoaderConfig
+    {
+    }
+
+    @DbUnitConfig(dataFileLoader = CachingFileExtensionDataFileLoader.class)
+    static class SetsCachingLoaderConfig
     {
     }
 
