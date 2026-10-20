@@ -605,9 +605,9 @@ dbUnit closes the connection the test case sets up, verifies and cleans up on â€
 count check and an `IDatabaseConnection` parameter share â€” when the test is over, unless it
 belongs to someone else.
 The one signal for that is set on the tester, once, where it is built, so every test that uses
-the tester gets it right: an `IOperationListener` that is, or wraps,
-`NO_OP_OPERATION_LISTENER` says its connections are managed elsewhere, as it did in the 3.5.0
-lifecycle, and so does a blanket `ConnectionPreservingOperationListener`. An injected
+the tester gets it right: an `IOperationListener` that is `NO_OP_OPERATION_LISTENER` itself says
+its connections are managed elsewhere, as it did in the 3.5.0 lifecycle. A listener that wraps
+it, such as a decorator of your own, does not say so. An injected
 `@DbUnitTestCase` instance built with `setCloseConnectionAfterTest(false)` keeps its connection
 open too. A tester that is not given the no-op listener only costs a new
 connection per test when it shares a `CachingConnectionProvider`, which replaces a closed
