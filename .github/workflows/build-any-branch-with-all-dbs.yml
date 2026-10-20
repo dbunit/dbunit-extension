@@ -77,5 +77,21 @@ jobs:
         with:
           name: target-directory
           path: target/
+      # icr.io, the registry of the DB2 image, regularly times out, and the docker-maven-plugin
+      # does not retry a pull. The plugin then finds the image already pulled and skips its pull.
+      # Four attempts of at most 5 minutes each, with their pauses, end inside the job's timeout.
+      - name: Pull the DB2 image, retrying when the registry times out
+        if: matrix.database.profile == 'db2-11-5'
+        run: |
+          image=$(sed -n 's|.*<docker.image.name.db2-11>\(.*\)</docker.image.name.db2-11>.*|\1|p' pom.xml)
+          test -n "$image" || { echo "docker.image.name.db2-11 is not set in pom.xml."; exit 1; }
+          for attempt in 1 2 3 4; do
+            if timeout 5m docker pull "$image"; then
+              exit 0
+            fi
+            echo "Pulling $image failed on attempt $attempt."
+            test "$attempt" -eq 4 || sleep $((attempt * 20))
+          done
+          exit 1
       - name: Run ${{ matrix.database.name }} integration tests
         run: ${{ env.MAVEN_COMMAND }} ${{ env.MAVEN_CLI_COMMON }} -P${{ matrix.database.profile }} verify ${{ matrix.database.url != '' && format('-Ddbunit.profile.url={0}', matrix.database.url) || '' }}
