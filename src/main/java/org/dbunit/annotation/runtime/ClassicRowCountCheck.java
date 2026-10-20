@@ -29,7 +29,7 @@ import org.dbunit.DatabaseUnitRuntimeException;
 import org.dbunit.IDatabaseTester;
 import org.dbunit.database.IDatabaseConnection;
 import org.dbunit.database.connection.TestScopedConnection;
-import org.dbunit.database.rowcount.RowCountChecker;
+import org.dbunit.database.rowcount.RowCountBaselineTracker;
 import org.dbunit.database.rowcount.UnexpectedRowCountException;
 import org.dbunit.operation.DatabaseOperation;
 
@@ -73,7 +73,7 @@ class ClassicRowCountCheck
     private final IDatabaseTester tester;
     private final TestScopedConnection connection;
     private final BooleanSupplier operationListenerInPlace;
-    private final RowCountChecker checker = new RowCountChecker();
+    private final RowCountBaselineTracker baselineTracker = new RowCountBaselineTracker();
 
     private boolean baselineAttempted;
 
@@ -203,7 +203,7 @@ class ClassicRowCountCheck
         {
             return;
         }
-        checker.capture(from);
+        baselineTracker.capture(from);
     }
 
     /**
@@ -227,7 +227,7 @@ class ClassicRowCountCheck
      */
     void verify() throws Exception
     {
-        if (!checker.hasBaseline())
+        if (!baselineTracker.hasBaseline())
         {
             return;
         }
@@ -236,6 +236,6 @@ class ClassicRowCountCheck
         {
             return;
         }
-        checker.verify(against);
+        baselineTracker.verify(against);
     }
 }
