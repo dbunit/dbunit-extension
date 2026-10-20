@@ -197,23 +197,31 @@ public class InsertOperationIT extends AbstractDatabaseIT
             {
                 final Column[] columns =
                         databaseTable.getTableMetaData().getColumns();
-                final ITable xmlTable = xmlDataSet.getTable(tableName);
+                final String firstColumnName = columns[0].getColumnName();
+                final String[] sortColumnNames = {firstColumnName};
+
+                // the table has no key, so the database returns its rows in no
+                // defined order: sort both tables the same way
+                final ITable xmlTable = new SortedTable(
+                        xmlDataSet.getTable(tableName), sortColumnNames);
+                final ITable sortedDatabaseTable =
+                        new SortedTable(databaseTable, sortColumnNames);
 
                 // verify row count
-                assertThat(databaseTable.getRowCount()).as("row count")
+                assertThat(sortedDatabaseTable.getRowCount()).as("row count")
                         .isEqualTo(xmlTable.getRowCount());
 
                 // for each table row
-                for (int j = 0; j < databaseTable.getRowCount(); j++)
+                for (int j = 0; j < sortedDatabaseTable.getRowCount(); j++)
                 {
                     // verify first column values
                     final Object expected =
-                            xmlTable.getValue(j, columns[0].getColumnName());
-                    final Object actual = databaseTable.getValue(j,
-                            columns[0].getColumnName());
+                            xmlTable.getValue(j, firstColumnName);
+                    final Object actual =
+                            sortedDatabaseTable.getValue(j, firstColumnName);
 
                     assertThat(actual)
-                            .as(tableName + "." + columns[0].getColumnName())
+                            .as(tableName + "." + firstColumnName)
                             .isEqualTo(expected);
 
                     // all remaining columns should be null except mssql server
@@ -221,7 +229,7 @@ public class InsertOperationIT extends AbstractDatabaseIT
                     for (int k = 1; k < columns.length; k++)
                     {
                         final String columnName = columns[k].getColumnName();
-                        assertThat(databaseTable.getValue(j, columnName))
+                        assertThat(sortedDatabaseTable.getValue(j, columnName))
                                 .as(tableName + "." + columnName).isNull();
                     }
                 }
