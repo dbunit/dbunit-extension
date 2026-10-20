@@ -22,7 +22,6 @@ package org.dbunit.annotation.runtime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import java.util.ArrayList;
@@ -35,79 +34,61 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-class ExecutorOperationListenerTest
+class ClassicOperationListenerTest
 {
     private final IOperationListener delegate = mock(IOperationListener.class);
     private final IDatabaseConnection connection = mock(IDatabaseConnection.class);
 
     @Test
-    void testConnectionRetrieved_activeListener_runsDelegateThenPropertiesThenHook()
+    void testConnectionRetrieved_active_runsDelegateThenHook()
     {
         final List<String> order = new ArrayList<>();
         final IOperationListener recordingDelegate = new RecordingConnectionRetrieved(order);
-        final ExecutorOperationListener listener = new ExecutorOperationListener(
-                c -> order.add("properties"), () -> null, recordingDelegate,
-                c -> order.add("hook"));
+        final ClassicOperationListener listener =
+                new ClassicOperationListener(recordingDelegate, c -> order.add("hook"));
 
         listener.connectionRetrieved(connection);
 
         assertThat(order)
-                .as("The delegate configures the DatabaseConfig first, then @DbUnitProperty"
-                        + " values are applied on top, then the connection is offered to the"
-                        + " row count baseline hook - so the hook never reads a stale config.")
-                .containsExactly("delegate", "properties", "hook");
-    }
-
-    @Test
-    void testConnectionRetrieved_nothingToApply_stillForwardsToDelegateAndCallsHook()
-    {
-        final boolean[] hookCalled = {false};
-        final ExecutorOperationListener listener = new ExecutorOperationListener(c ->
-        {
-        }, () -> null, delegate, c -> hookCalled[0] = true);
-
-        listener.connectionRetrieved(connection);
-
-        verify(delegate).connectionRetrieved(connection);
-        assertThat(hookCalled[0]).as("The hook runs even with no @DbUnitProperty values.")
-                .isTrue();
+                .as("The delegate configures the DatabaseConfig first, then the connection is"
+                        + " offered to the row count baseline hook - so the hook never reads a"
+                        + " stale config.")
+                .containsExactly("delegate", "hook");
     }
 
     @Test
     void testConnectionRetrieved_deactivated_onlyForwardsToDelegate()
     {
         final List<String> order = new ArrayList<>();
-        final ExecutorOperationListener listener = new ExecutorOperationListener(
-                c -> order.add("properties"), () -> null, delegate, c -> order.add("hook"));
+        final ClassicOperationListener listener =
+                new ClassicOperationListener(delegate, c -> order.add("hook"));
         listener.deactivate();
 
         listener.connectionRetrieved(connection);
 
         verify(delegate).connectionRetrieved(connection);
-        assertThat(order).as("A finished executor's listener must apply nothing and capture"
-                + " nothing, though it can stay in the tester's chain.").isEmpty();
+        assertThat(order).as("A finished executor's listener must capture nothing, though it"
+                + " can stay in the tester's chain.").isEmpty();
     }
 
     @Test
-    void testOperationSetUpFinished_protectedConnection_notForwardedSoDelegateCannotCloseIt()
+    void testOperationFinished_active_forwardedToDelegateForEveryConnection()
     {
-        final ExecutorOperationListener listener = new ExecutorOperationListener(c ->
-        {
-        }, () -> connection, delegate, c ->
+        final ClassicOperationListener listener = new ClassicOperationListener(delegate, c ->
         {
         });
 
         listener.operationSetUpFinished(connection);
+        listener.operationTearDownFinished(connection);
 
-        verify(delegate, never()).operationSetUpFinished(connection);
+        verify(delegate).operationSetUpFinished(connection);
+        verify(delegate).operationTearDownFinished(connection);
     }
 
     @Test
-    void testOperationFinished_deactivatedAndConnectionWasProtected_forwardedToDelegate()
+    void testOperationFinished_deactivated_stillForwardedToDelegate()
     {
-        final ExecutorOperationListener listener = new ExecutorOperationListener(c ->
-        {
-        }, () -> connection, delegate, c ->
+        final ClassicOperationListener listener = new ClassicOperationListener(delegate, c ->
         {
         });
         listener.deactivate();
@@ -120,18 +101,14 @@ class ExecutorOperationListenerTest
     }
 
     @Test
-    void testOperationSetUpFinished_otherConnection_forwardedAsBefore()
+    void testGetDelegate_created_isTheTestersOwnListener()
     {
-        final IDatabaseConnection other = mock(IDatabaseConnection.class);
-        final ExecutorOperationListener listener = new ExecutorOperationListener(c ->
-        {
-        }, () -> connection, delegate, c ->
+        final ClassicOperationListener listener = new ClassicOperationListener(delegate, c ->
         {
         });
 
-        listener.operationSetUpFinished(other);
-
-        verify(delegate).operationSetUpFinished(other);
+        assertThat(listener.getDelegate()).as("Put back when the test is over.")
+                .isSameAs(delegate);
     }
 
     private static final class RecordingConnectionRetrieved implements IOperationListener

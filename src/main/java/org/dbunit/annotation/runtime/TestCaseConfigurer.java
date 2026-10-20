@@ -45,7 +45,7 @@ import org.slf4j.LoggerFactory;
  * an undo step, returned as a {@link TestCaseRestoration}, so a shared instance carries nothing
  * from one method to the next.
  *
- * <p>Not intended for direct use by test code; machinery consumed by {@link ExpectedLifecycle}.
+ * <p>Not intended for direct use by test code; machinery consumed by {@link TestCaseLifecycle}.
  *
  * @author Jeff Jensen
  * @since 3.6.0

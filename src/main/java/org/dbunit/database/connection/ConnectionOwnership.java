@@ -64,8 +64,8 @@ import org.dbunit.IOperationListener;
  * to another owner, for a caller that needs to know.
  *
  * <p>{@link TestScopedConnection#release()} additionally skips a connection that is already
- * closed - an idempotency guard, not part of this decision: on the {@code @DbUnitExpected}
- * path the executor's borrowed connection and {@link org.dbunit.DefaultPrepAndExpectedTestCase}'s
+ * closed - an idempotency guard, not part of this decision: for an annotation-driven test the
+ * executor's borrowed connection and {@link org.dbunit.DefaultPrepAndExpectedTestCase}'s
  * are the same object, and whichever releases first closes it.
  *
  * @author Jeff Jensen

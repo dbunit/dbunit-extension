@@ -54,8 +54,8 @@ import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 
 /**
- * Real-database integration test of the annotation prep/expected path when it is handed a
- * connection with autocommit disabled (issue #965). {@code DefaultPrepAndExpectedTestCase}'s
+ * Real-database integration test of an annotated test that is handed a connection with
+ * autocommit disabled (issue #965). {@code DefaultPrepAndExpectedTestCase}'s
  * setup/teardown operations do not manage a transaction, so their writes are never committed;
  * the row count check's own read transactions are still rolled back so the run completes and
  * the connection is not left idle-in-transaction (issue #964). This proves both, end to end
@@ -102,8 +102,8 @@ class DbUnitExtensionAutoCommitOffIT
             assertThat(appender.list)
                     .filteredOn(event -> event.getLevel() == Level.WARN
                             && event.getFormattedMessage().contains("autocommit disabled"))
-                    .as("A non-autocommit connection on the prep/expected path must be warned"
-                            + " about (#965).")
+                    .as("A non-autocommit connection in a test with @DbUnitExpected must be"
+                            + " warned about (#965).")
                     .hasSize(1);
 
             final IDatabaseConnection verifyConnection = environment.getConnection();
@@ -124,7 +124,7 @@ class DbUnitExtensionAutoCommitOffIT
     }
 
     @Test
-    void testBeforeTestExecution_setupTeardownPrepOnANonAutocommitConnection_warnsAndPersistsNothing()
+    void testBeforeTestExecution_prepWithoutExpectedOnANonAutocommitConnection_warnsAndPersistsNothing()
             throws Exception
     {
         final DatabaseEnvironment environment = DatabaseEnvironment.getInstance();
@@ -134,7 +134,7 @@ class DbUnitExtensionAutoCommitOffIT
         final Connection nonAutocommit = DriverManager.getConnection(
                 profile.getConnectionUrl(), profile.getUser(), profile.getPassword());
         nonAutocommit.setAutoCommit(false);
-        AutoCommitOffSetupTeardownSample.databaseTester = new DefaultDatabaseTester(
+        AutoCommitOffNoExpectedSample.databaseTester = new DefaultDatabaseTester(
                 new DatabaseConnection(nonAutocommit, profile.getSchema()));
 
         final Logger warningLogger = (Logger) LoggerFactory
@@ -145,21 +145,22 @@ class DbUnitExtensionAutoCommitOffIT
         try
         {
             EngineTestKit.engine("junit-jupiter")
-                    .selectors(selectClass(AutoCommitOffSetupTeardownSample.class)).execute()
+                    .selectors(selectClass(AutoCommitOffNoExpectedSample.class)).execute()
                     .testEvents().assertStatistics(stats -> stats.started(1).succeeded(1));
 
             assertThat(appender.list)
                     .filteredOn(event -> event.getLevel() == Level.WARN
                             && event.getFormattedMessage().contains("autocommit disabled"))
-                    .as("The setup/teardown path must warn about a non-autocommit connection"
-                            + " too - its @DbUnitPrep runs through the tester with no"
-                            + " transaction, exactly the #965 shape the prep/expected path"
-                            + " already warns about.")
+                    .as("A test without @DbUnitExpected must warn about a non-autocommit"
+                            + " connection too - its @DbUnitPrep runs with no transaction,"
+                            + " exactly the #965 shape a test with @DbUnitExpected already"
+                            + " warns about.")
                     .hasSize(1);
 
-            // The extension closes the tester's connection at end of test (default
-            // closeConnectionAfterTest, no non-closing listener), which rolls the
-            // never-committed @DbUnitPrep back, so a separate connection sees no rows.
+            // The test case the runtime builds closes the tester's connection when the test
+            // ends (its closeConnectionAfterTest is true and the tester keeps its default
+            // listener), rolling the never-committed @DbUnitPrep back first, so a separate
+            // connection sees no rows.
             final IDatabaseConnection verifyConnection = environment.getConnection();
             assertThat(rowCount(verifyConnection, TEST_TABLE))
                     .as("The @DbUnitPrep CLEAN_INSERT ran on the never-committed transaction, so"
@@ -240,7 +241,7 @@ class DbUnitExtensionAutoCommitOffIT
 
     @ExtendWith(DbUnitExtension.class)
     @ClearRowCountCheckSystemProperties
-    static class AutoCommitOffSetupTeardownSample
+    static class AutoCommitOffNoExpectedSample
     {
         @DbUnitTester
         static IDatabaseTester databaseTester;
