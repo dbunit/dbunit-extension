@@ -29,6 +29,7 @@ import org.dbunit.DefaultPrepAndExpectedTestCase;
 import org.dbunit.assertion.FailureHandler;
 import org.dbunit.database.DatabaseConfig;
 import org.dbunit.database.DatabaseConfig.ConfigProperty;
+import org.dbunit.database.rowcount.RowCountCheckOverride;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,8 +43,8 @@ import org.slf4j.LoggerFactory;
  * its owner built it, and {@link InjectedTestCaseDeclarationCheck} rejects what would configure
  * it other than the row count override, so for it this applies that alone. Declared properties
  * are added to the test case's own rather than replacing them. Each value applied is recorded as
- * an undo step, returned as a {@link TestCaseRestoration}, so a shared instance carries nothing
- * from one method to the next.
+ * an undo step, returned as a {@link TestCaseRestoration}, that puts back what the test case had
+ * before, so a shared instance carries nothing from one method to the next.
  *
  * <p>Not intended for direct use by test code; machinery consumed by {@link TestCaseLifecycle}.
  *
@@ -162,9 +163,11 @@ class TestCaseConfigurer
             return;
         }
 
-        testCase.setRowCountCheckOverride(configuration.isRowCountCheckEnabled(),
-                configuration.getRowCountCheckExclude());
-        undoSteps.add(testCase::clearRowCountCheckOverride);
+        final RowCountCheckOverride incoming = testCase.getRowCountCheckOverride();
+        final RowCountCheckOverride declared = new RowCountCheckOverride(
+                configuration.isRowCountCheckEnabled(), configuration.getRowCountCheckExclude());
+        testCase.setRowCountCheckOverride(declared);
+        undoSteps.add(() -> testCase.setRowCountCheckOverride(incoming));
     }
 
     /**

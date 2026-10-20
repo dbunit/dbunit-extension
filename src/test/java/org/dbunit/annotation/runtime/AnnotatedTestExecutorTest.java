@@ -85,6 +85,7 @@ import org.dbunit.database.connection.LeftOpenConnectionWarning;
 import org.dbunit.database.rowcount.ClearRowCountCheckSystemProperties;
 import org.dbunit.database.rowcount.RowCountCheck;
 import org.dbunit.database.rowcount.RowCountCheckConfiguration;
+import org.dbunit.database.rowcount.RowCountCheckOverride;
 import org.dbunit.database.rowcount.RowCountDifference;
 import org.dbunit.database.rowcount.UnexpectedRowCountException;
 import org.dbunit.dataset.Column;
@@ -1836,8 +1837,7 @@ class AnnotatedTestExecutorTest
                 new RecordingPrepAndExpectedTestCase(mock(DataFileLoader.class), tester)
                 {
                     @Override
-                    public void setRowCountCheckOverride(final boolean enabled,
-                            final String[] exclude)
+                    public void setRowCountCheckOverride(final RowCountCheckOverride override)
                     {
                         throw new IllegalStateException(
                                 "This instance rejects a row count check override.");
@@ -3182,7 +3182,8 @@ class AnnotatedTestExecutorTest
 
         executor.beforeTest();
 
-        verify(mockTestCase).setRowCountCheckOverride(true, new String[0]);
+        verify(mockTestCase)
+                .setRowCountCheckOverride(new RowCountCheckOverride(true, new String[0]));
     }
 
     @Test
@@ -3206,7 +3207,8 @@ class AnnotatedTestExecutorTest
         // with no real connection) if ever called; the override must still apply, proving it
         // needs no connection of this executor's own to build - the wasted-connection bug this
         // pass-through exists to fix.
-        verify(mockTestCase).setRowCountCheckOverride(true, new String[0]);
+        verify(mockTestCase)
+                .setRowCountCheckOverride(new RowCountCheckOverride(true, new String[0]));
         verify(tester, never()).getConnection();
     }
 
@@ -3223,8 +3225,7 @@ class AnnotatedTestExecutorTest
 
         executor.beforeTest();
 
-        verify(mockTestCase, never()).setRowCountCheckOverride(anyBoolean(), any());
-        verify(mockTestCase, never()).clearRowCountCheckOverride();
+        verify(mockTestCase, never()).setRowCountCheckOverride(any());
     }
 
     @Test
@@ -3262,12 +3263,15 @@ class AnnotatedTestExecutorTest
         final AnnotatedTestExecutor executor =
                 new AnnotatedTestExecutor(configuration, tester, shared);
         executor.beforeTest();
-        verify(shared).setRowCountCheckOverride(true, new String[0]);
-        verify(shared, never()).clearRowCountCheckOverride();
+        assertThat(shared.getRowCountCheckOverride())
+                .as("The declared check must be the override while the test runs.")
+                .isEqualTo(new RowCountCheckOverride(true, new String[0]));
 
         executor.afterTest(false);
 
-        verify(shared).clearRowCountCheckOverride();
+        assertThat(shared.getRowCountCheckOverride())
+                .as("The shared instance must carry no override into the next method.")
+                .isNull();
     }
 
     @Test
@@ -3292,7 +3296,9 @@ class AnnotatedTestExecutorTest
 
         assertThatThrownBy(() -> executor.afterTest(false)).isInstanceOf(AssertionError.class);
 
-        verify(shared).clearRowCountCheckOverride();
+        assertThat(shared.getRowCountCheckOverride())
+                .as("A failed postTest() must still leave the shared instance with no override.")
+                .isNull();
     }
 
     // ---- row count check baseline: piggybacking on onSetup()'s own connection ----

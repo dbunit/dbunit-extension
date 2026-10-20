@@ -106,7 +106,7 @@ whichever test happens to run next. It is off by default; turn it on with
 verifying a suite's teardown correctness, and see
 link:../components/rowcountcheck.html[the RowCountCheck page] for what it catches, how
 to exclude legitimately-changing tables, and how to read a failure. On a
-`DefaultPrepAndExpectedTestCase` instance, `setRowCountCheckOverride(enabled, exclude)`
+`DefaultPrepAndExpectedTestCase` instance, `setRowCountCheckOverride(RowCountCheckOverride)`
 sets both directly instead - see
 <<Configuring_Without_Subclassing,Configuring DatabaseConfig Without Subclassing>> below.
 
@@ -389,7 +389,7 @@ no-op listener) carries none of them into whatever uses it next. Calling
 `setUpDatabaseConfig()` override, by contrast, changes the `DatabaseConfig` for good, as it
 always has.
 
-`setRowCountCheckOverride(boolean, String[])` / `clearRowCountCheckOverride()`:: Enables
+`setRowCountCheckOverride(RowCountCheckOverride)`:: Enables
 or disables link:../components/rowcountcheck.html[RowCountCheck] and sets its excluded
 table patterns directly, instead of setting
 `FEATURE_ROW_COUNT_CHECK`/`PROPERTY_ROW_COUNT_CHECK_EXCLUDE_TABLES` via
@@ -397,12 +397,12 @@ table patterns directly, instead of setting
 +
 [source,java]
 ----
-testCase.setRowCountCheckOverride(true, new String[] {"AUDIT_LOG"});
+testCase.setRowCountCheckOverride(new RowCountCheckOverride(true, new String[] {"AUDIT_LOG"}));
 ----
 +
-Call `clearRowCountCheckOverride()` to return to resolving the check from the
-connection's own `DatabaseConfig`. This only matters when one instance is reused across
-more than one test (e.g. a JUnit 5/6 `@DbUnitTestCase` static field - see
+Pass `null` to return to resolving the check from the connection's own `DatabaseConfig`;
+`getRowCountCheckOverride()` returns what is set. This only matters when one instance is
+reused across more than one test (e.g. a JUnit 5/6 `@DbUnitTestCase` static field - see
 <<Annotation_Driven_Equivalent,Annotation-Driven Equivalent>> above) - otherwise an
 earlier test's override would silently carry over onto a later test that declares none.
 

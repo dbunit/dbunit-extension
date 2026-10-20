@@ -26,6 +26,7 @@ import org.dbunit.database.MockDatabaseConnection;
 import org.dbunit.database.connection.LeftOpenConnectionWarning;
 import org.dbunit.database.rowcount.ClearRowCountCheckSystemProperties;
 import org.dbunit.database.rowcount.RowCountCheck;
+import org.dbunit.database.rowcount.RowCountCheckOverride;
 import org.dbunit.database.rowcount.RowCountDifference;
 import org.dbunit.database.rowcount.RowCountSnapshot;
 import org.dbunit.database.rowcount.UnexpectedRowCountException;
@@ -2696,7 +2697,7 @@ class DefaultPrepAndExpectedTestCaseTest
         // here - winning instead.
         databaseTester.getConnection().getConfig()
                 .setFeature(DatabaseConfig.FEATURE_ROW_COUNT_CHECK, true);
-        tc.setRowCountCheckOverride(false, new String[0]);
+        tc.setRowCountCheckOverride(new RowCountCheckOverride(false, new String[0]));
 
         tc.preTest();
         tc.cleanupData();
@@ -2706,6 +2707,30 @@ class DefaultPrepAndExpectedTestCaseTest
                         + " proving the override path was actually exercised rather than"
                         + " skipped outright.")
                 .isNotNull();
+    }
+
+    @Test
+    void testGetRowCountCheckOverride_noneSet_returnsNull()
+    {
+        assertThat(tc.getRowCountCheckOverride())
+                .as("A new test case resolves the check from the connection's DatabaseConfig.")
+                .isNull();
+    }
+
+    @Test
+    void testGetRowCountCheckOverride_afterSetAndAfterSetToNull_returnsWhatWasSet()
+    {
+        final RowCountCheckOverride override =
+                new RowCountCheckOverride(true, new String[] {"AUDIT_LOG"});
+
+        tc.setRowCountCheckOverride(override);
+        assertThat(tc.getRowCountCheckOverride()).as("The override set is the one returned.")
+                .isEqualTo(override);
+
+        tc.setRowCountCheckOverride(null);
+        assertThat(tc.getRowCountCheckOverride())
+                .as("Setting null returns to resolving from the connection's DatabaseConfig.")
+                .isNull();
     }
 
     @Test

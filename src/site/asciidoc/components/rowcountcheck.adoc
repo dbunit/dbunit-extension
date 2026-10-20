@@ -75,7 +75,7 @@ force-enables the check, while `=false` disables the check for every test.
 It is wired into both link:../testcases/PrepAndExpectedTestCase.html[PrepAndExpectedTestCase]
 and link:../testcases/DbUnitExtension.html[DbUnitExtension]; enabling the feature (or the
 system property) is everything a test needs to do. Both integration points share the same
-`org.dbunit.database.rowcount.RowCountChecker`, the class that captures a baseline, verifies
+`org.dbunit.database.rowcount.RowCountBaselineTracker`, the class that captures a baseline, verifies
 it later, and lets it be discarded when a verify would be noise (e.g. the test's own steps
 already failed) — plumbing a test integration reuses, not something a test author calls
 directly. A baseline is good for one verify, whether it passes or fails, so a later test on
