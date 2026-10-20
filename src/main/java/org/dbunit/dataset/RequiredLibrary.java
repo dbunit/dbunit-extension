@@ -34,7 +34,7 @@ import org.dbunit.DatabaseUnitRuntimeException;
  * @author Jeff Jensen
  * @since 3.6.0
  */
-public final class RequiredLibrary
+public class RequiredLibrary
 {
     /** Jackson, needed to read and write JSON datasets and to compare JSON column values. */
     public static final RequiredLibrary JACKSON = new RequiredLibrary("JSON", "Jackson",
