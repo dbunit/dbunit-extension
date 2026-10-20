@@ -6,8 +6,8 @@ Jeff Jensen
 `org.dbunit.annotation` declares the dataset and operation for a test
 directly on the class or method, instead of writing `@BeforeEach`/
 `@AfterEach` calls or driving link:PrepAndExpectedTestCase.html[PrepAndExpectedTestCase]
-by hand. On JUnit 5/6 (Jupiter), add `@DbUnitTest` to opt a class in — it is
-exactly `@ExtendWith(DbUnitExtension.class)`:
+by hand. On JUnit 5/6 (Jupiter), add `@DbUnitTest` to register the extension and opt the
+class in, also when it declares no other dbUnit annotation:
 
 [source,java]
 ----
@@ -48,7 +48,7 @@ with its full rules:
 |===
 |Annotation |Use it for
 
-|`@DbUnitTest` |Opts a class into `DbUnitExtension` — exactly `@ExtendWith(DbUnitExtension.class)`.
+|`@DbUnitTest` |Registers `DbUnitExtension` and opts the class into the annotation-driven lifecycle, also when it declares no other dbUnit annotation — unlike a bare `@ExtendWith(DbUnitExtension.class)`, which keeps the 3.5.0 lifecycle.
 |`@DbUnitPrep` |Dataset file(s) to load before the test — see <<prepandsetup>>.
 |`@DbUnitSetUpOperation` |The operation to load them with; needed only to replace the tester's own, `CLEAN_INSERT` for dbUnit's built-in testers — see <<prepandsetup>>.
 |`@DbUnitExpected` |Dataset file(s) to verify after the test — see <<expected>>.
@@ -101,6 +101,8 @@ through `connectionRetrieved()` but never `operationSetUpFinished()` or
 
 *A test that uses none of the annotations keeps the 3.5.0 lifecycle:* a bare
 `@ExtendWith(DbUnitExtension.class)` class with one plain, unannotated `IDatabaseTester` field.
+`@DbUnitTest` is not "none of the annotations": it opts the class in, also when nothing else is
+declared.
 The extension then calls the tester's `onSetup()` and `onTearDown()` and runs the row count check
 around them, as before — see link:DbUnitExtension.html[DbUnitExtension].
 
