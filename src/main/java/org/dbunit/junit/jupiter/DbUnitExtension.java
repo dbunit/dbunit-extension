@@ -57,34 +57,24 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * JUnit 5/6 extension for DbUnit that manages the dbUnit lifecycle around each test method,
- * driven by the {@code org.dbunit.annotation} family: {@link DbUnitPrep}, {@link
- * DbUnitSetUpOperation},
- * {@link DbUnitExpected}, {@link DbUnitTearDownOperation}, and {@link DbUnitConfig}. Add
- * {@link DbUnitTest @DbUnitTest} to register it and opt a test class into that lifecycle, or
- * {@code @ExtendWith(DbUnitExtension.class)} directly to register it for the 3.5.0 lifecycle
- * only; a class registered that way opts in by declaring any of the annotations or a marker
- * field.
+ * JUnit 5/6 extension for DbUnit that manages the dbUnit lifecycle around each test method, and
+ * resolves {@link IDatabaseTester} and {@link IDatabaseConnection} test parameters. Add
+ * {@link DbUnitTest @DbUnitTest} to register it and opt the class into the annotation-driven
+ * lifecycle, or {@code @ExtendWith(DbUnitExtension.class)} to register it for the 3.5.0
+ * lifecycle only; a class registered that way opts in by declaring any annotation of
+ * {@code org.dbunit.annotation} ({@link DbUnitPrep}, {@link DbUnitSetUpOperation},
+ * {@link DbUnitExpected}, {@link DbUnitTearDownOperation}, {@link DbUnitConfig},
+ * {@link DbUnitRowCountCheck}) or a {@link DbUnitTester @DbUnitTester}/
+ * {@link DbUnitTestCase @DbUnitTestCase} field.
  *
- * <h2>The lifecycle</h2>
+ * <h2>The two lifecycles</h2>
  *
- * <p>A test that opts into the annotations - see below - runs through a
- * {@link PrepAndExpectedTestCase}, built around its tester or supplied by a
- * {@link DbUnitTestCase} field, whether or not it declares {@link DbUnitExpected}:
- * {@code configureTest()} and {@code preTest()} run before the test method, {@code postTest()}
- * after it. {@code preTest()} sets up the {@link DbUnitPrep} dataset - the dataset the tester
- * holds, when the test declares none - with the setup operation the tester has, or
- * {@link DbUnitSetUpOperation} declares. {@code postTest()} compares the database against the
- * {@link DbUnitExpected} dataset, when the test declares one, so the verifying is done for you,
- * skipping it when the test method itself already failed so a verification failure never masks
- * the real cause, then tears down with the teardown operation the tester has, or
- * {@link DbUnitTearDownOperation} declares. Without {@link DbUnitExpected} the test method
- * asserts results however it likes.
- *
- * <p>The tester is only read, never written, so a tester shared across tests carries nothing
- * from one to the next. Its own {@code onSetup()} and {@code onTearDown()} do not run, so an
- * override of either in a tester subclass has no effect on such a test; only the 3.5.0
- * lifecycle below calls them.
+ * <p>A test that opts in runs through a {@link PrepAndExpectedTestCase}, built around its tester
+ * or supplied by a {@link DbUnitTestCase} field, whether or not it declares
+ * {@link DbUnitExpected}: {@code preTest()} sets up the {@link DbUnitPrep} dataset before the
+ * test method, and {@code postTest()} after it verifies the {@link DbUnitExpected} dataset, when
+ * one is declared and the test method did not itself fail, then tears down. The tester is only
+ * read, never written, and its own {@code onSetup()} and {@code onTearDown()} do not run.
  *
  * <pre>{@code
  * @DbUnitTest
@@ -102,112 +92,35 @@ import org.slf4j.LoggerFactory;
  * }
  * }</pre>
  *
+ * <p>A bare {@code @ExtendWith(DbUnitExtension.class)} class with one plain, unannotated
+ * {@link IDatabaseTester} field keeps the 3.5.0 lifecycle: configure the tester, its dataset
+ * included, in a {@code @BeforeEach} method, and the extension calls {@code onSetup()} before and
+ * {@code onTearDown()} after the test method, with the row count check around them.
+ *
  * <h2>Resolving the tester or test case</h2>
  *
- * <p>First match wins:
- * <ol>
- *   <li>A field annotated {@link DbUnitTestCase}, whose type implements
- *   {@link PrepAndExpectedTestCase} - that instance is driven directly.</li>
- *   <li>A field annotated {@link DbUnitTester}, whose type implements
- *   {@link IDatabaseTester}.</li>
- *   <li>{@link DbUnitConfig#databaseTesterFactory()}, reflectively instantiated and asked to
- *   create a tester.</li>
- *   <li>The original (3.5.0) auto-scan: exactly one non-static field assignable to
- *   {@link IDatabaseTester}, nearest declaring class wins - unchanged, so every 3.5.0 test
- *   keeps working untouched.</li>
- * </ol>
- *
- * <p>Field discovery walks every test instance in scope, innermost first, so a {@code @Nested}
- * test class inherits its enclosing class's tester field.
- *
- * <h2>Programmatic setup</h2>
- *
- * <p>Without annotations, configure the tester - including its dataset - in a
- * {@code @BeforeEach} method; those run before this extension's setup callback:
- *
- * <pre>{@code
- * @ExtendWith(DbUnitExtension.class)
- * class MyDatabaseTest {
- *     IDatabaseTester databaseTester;
- *
- *     MyDatabaseTest() throws ClassNotFoundException {
- *         databaseTester = new JdbcDatabaseTester("driver", "url", "user", "pass");
- *     }
- *
- *     @BeforeEach
- *     void loadDataset() throws Exception {
- *         databaseTester.setDataSet(new FlatXmlDataSetBuilder().build(...));
- *     }
- *
- *     @Test
- *     void testSomething() { ... }
- * }
- * }</pre>
- *
- * <p>This zero-annotation style is the 3.5.0 lifecycle: the extension calls only
- * {@code onSetup()}/{@code onTearDown()} on the tester and runs the row count check around
- * them. The row count baseline comes from the connection {@code onSetup()} retrieves, so the
- * tester opens only the connections it did in 3.5.0: the extension wraps the tester's
- * {@link org.dbunit.IOperationListener} for the test, forwards every callback to it unchanged,
- * and puts it back afterward. A {@code DatabaseConfig} customization made in the listener's
- * {@code connectionRetrieved()}, such as enabling the check, applies to the baseline. When
- * {@code onSetup()} cannot be trusted to retrieve a connection - a {@code NONE} setup
- * operation, or a tester that overrides {@code onSetup()} or cannot report its listener - the
- * extension resolves one from the tester before {@code onSetup()} for the baseline instead and
- * offers it to that listener's {@code connectionRetrieved()} first, so the listener sees one
- * more retrieval than the 3.5.0 lifecycle gave it. That connection is never closed before
- * {@code onSetup()} - a tester that returns one fixed connection from every call (e.g. a
- * {@code DefaultDatabaseTester} built from a fixed connection) would otherwise run
- * {@code onSetup()} against a closed one - and is closed after the test unless the tester's
- * listener is {@code NO_OP}.
- * Adding any {@code @DbUnit*} annotation or a
- * {@link DbUnitTester @DbUnitTester}/{@link DbUnitTestCase @DbUnitTestCase} field opts the test
- * into the fuller annotation-driven lifecycle described above.
+ * <p>First match wins: a {@link DbUnitTestCase} field whose type implements
+ * {@link PrepAndExpectedTestCase}; a {@link DbUnitTester} field whose type implements
+ * {@link IDatabaseTester}; {@link DbUnitConfig#databaseTesterFactory()}; then the 3.5.0
+ * auto-scan for exactly one non-static field assignable to {@link IDatabaseTester}, nearest
+ * declaring class first. Field discovery walks every test instance in scope, innermost first, so
+ * a {@code @Nested} test class inherits its enclosing class's tester field.
  *
  * <h2>Parameter injection</h2>
  *
- * <p>Also a {@link ParameterResolver} for {@link IDatabaseTester} and
- * {@link IDatabaseConnection} parameters on {@code @Test} and
- * {@code @BeforeEach} methods - but only for a test that opts into the
- * {@code org.dbunit.annotation} family: one carrying {@link DbUnitTest @DbUnitTest} or any
- * {@code @DbUnit*} annotation ({@link DbUnitConfig}, {@link DbUnitPrep}, {@link
- * DbUnitSetUpOperation},
- * {@link DbUnitExpected}, {@link DbUnitTearDownOperation}, {@link DbUnitRowCountCheck}) on the
- * class or method, or a {@link DbUnitTester @DbUnitTester}/{@link DbUnitTestCase @DbUnitTestCase}
- * field. A bare {@code @ExtendWith(DbUnitExtension.class)} class with only a plain, unannotated
- * {@link IDatabaseTester} field keeps the 3.5.0 lifecycle and has no
- * parameter claimed here, so another extension resolving one of these types on the same test
- * stays unambiguous. Switch such a class to
- * {@link DbUnitTest @DbUnitTest}, or mark its field {@link DbUnitTester @DbUnitTester}, to opt
- * its parameters in.
+ * <p>A test that opts in can take {@link IDatabaseTester} and {@link IDatabaseConnection}
+ * parameters on {@code @Test} and {@code @BeforeEach} methods. A bare {@link Connection} is never
+ * claimed, so another extension can supply it; call {@code getConnection()} on the
+ * {@link IDatabaseConnection} instead. The injected connection belongs to the driven test case,
+ * which closes it: do not close it yourself.
  *
- * <p>A bare {@link Connection} parameter is never resolved here, so Spring's
- * {@code SpringExtension}, Testcontainers or a JPA harness can supply it without colliding with
- * JUnit's "discovered multiple competing ParameterResolvers". Take the
- * {@link IDatabaseConnection} instead and call {@code getConnection()} for the JDBC
- * connection.
- *
- * <p>The injected {@link IDatabaseConnection} is the connection of the driven
- * {@link PrepAndExpectedTestCase}. It is managed for the test's duration and closed afterward,
- * by that test case; do not close it yourself. That includes a {@code @BeforeEach} method that
- * fails after receiving it: the extension then closes it in
- * {@link #afterEach(ExtensionContext)}, since the test method and its
- * {@link #afterTestExecution(ExtensionContext)} never run. A {@code @BeforeEach} parameter
- * resolves before {@link #beforeTestExecution(ExtensionContext)} runs - JUnit Jupiter always
- * calls {@code @BeforeEach} methods first - so it sees the tester/connection exactly as they
- * exist before this extension's own setup: {@link DbUnitPrep}'s dataset, if any, is not loaded
- * onto it yet.
- *
- * <p>The tester of an annotation-driven test is only read, so one shared by test methods that
- * run at the same time - a {@code static} {@link DbUnitTester @DbUnitTester} field, say - carries
- * nothing from one to another, as long as it hands out a connection of its own on each call. A
- * tester over one fixed connection shares that connection among them, and a
- * {@link DbUnitTestCase @DbUnitTestCase} instance shared that way - a {@code static} field, or
- * any instance field at all under {@code @TestInstance(Lifecycle.PER_CLASS)} - holds the
- * datasets and the connection of one test at a time. This extension drives it without
- * synchronization, so run such test methods sequentially (JUnit Jupiter's own default) rather
- * than under {@code junit.jupiter.execution.parallel.enabled=true}, or give each test method
- * its own non-shared field.
+ * <p>The cases around these contracts are on the site pages
+ * <a href="https://dbunit.github.io/dbunit-extension/testcases/DbUnitExtension.html">DbUnitExtension</a>
+ * and
+ * <a href="https://dbunit.github.io/dbunit-extension/testcases/annotations.html">DbUnit Annotations</a>:
+ * what the 3.5.0 lifecycle does with the tester's listener and connections, when a
+ * {@code @BeforeEach} parameter sees the prepped data, and how a tester or test case can be
+ * shared by test methods that run in parallel.
  *
  * @author Jeff Jensen
  * @since 3.5.0
