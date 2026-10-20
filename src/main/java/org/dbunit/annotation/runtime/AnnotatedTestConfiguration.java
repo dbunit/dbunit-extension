@@ -208,7 +208,8 @@ public class AnnotatedTestConfiguration
                 new DatabaseConfigPropertiesResolver().resolve(config.getProperties());
         final Class<? extends FailureHandler> failureHandlerClass = config.getFailureHandler();
         final FailureHandler failureHandler = failureHandlerClass == null ? null
-                : instantiate(failureHandlerClass, "DbUnitConfig.failureHandler");
+                : new ReflectiveInstantiation().instantiate(failureHandlerClass,
+                        "DbUnitConfig.failureHandler");
         final Class<? extends DatabaseTesterFactory> databaseTesterFactory =
                 config.getDatabaseTesterFactory();
         final Class<? extends DefaultPrepAndExpectedTestCase> prepAndExpectedTestCaseClass =
@@ -283,12 +284,6 @@ public class AnnotatedTestConfiguration
         final Class<?> expectedDeclaringClass = lookup.findDeclaringClass(DbUnitExpected.class);
         return from(prepDeclaringClass, expectedDeclaringClass, config, prep, setup, expected,
                 tearDown, rowCountCheck, dataFileLoaders);
-    }
-
-    private static <T> T instantiate(final Class<? extends T> implementationClass,
-            final String attributeDescription)
-    {
-        return ReflectiveInstantiation.instantiate(implementationClass, attributeDescription);
     }
 
     /**

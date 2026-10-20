@@ -250,8 +250,9 @@ class VerifyTableDefinitionResolverTest
                 .as("verify() declares the rules of its tables, so verifyTables() beside it is"
                         + " ambiguous.")
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("verify()")
-                .hasMessageContaining("verifyTables()");
+                .hasMessage("@DbUnitExpected sets both verify() and verifyTables(); set only"
+                        + " one. verify() declares the rules of its tables, verifyTables() takes"
+                        + " them from a catalog.");
     }
 
     @Test

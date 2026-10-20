@@ -23,25 +23,26 @@ package org.dbunit.annotation.runtime;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.lang.reflect.InvocationTargetException;
-
 import org.junit.jupiter.api.Test;
 
 class ReflectiveInstantiationTest
 {
+    private final ReflectiveInstantiation instantiation = new ReflectiveInstantiation();
+
     @Test
-    void testNewInstance_publicNoArgConstructor_returnsNewInstance() throws Exception
+    void testInstantiate_publicNoArgConstructor_returnsNewInstance()
     {
-        final PublicNoArg instance = ReflectiveInstantiation.newInstance(PublicNoArg.class);
+        final PublicNoArg instance = instantiation.instantiate(PublicNoArg.class, "someAttribute()");
 
         assertThat(instance).as("A public no-arg constructor must be invoked directly.")
                 .isNotNull();
     }
 
     @Test
-    void testNewInstance_privateNoArgConstructor_returnsNewInstanceAnyway() throws Exception
+    void testInstantiate_privateNoArgConstructor_returnsNewInstanceAnyway()
     {
-        final PrivateNoArg instance = ReflectiveInstantiation.newInstance(PrivateNoArg.class);
+        final PrivateNoArg instance =
+                instantiation.instantiate(PrivateNoArg.class, "someAttribute()");
 
         assertThat(instance)
                 .as("A private no-arg constructor must still be invoked - setAccessible(true)"
@@ -52,42 +53,10 @@ class ReflectiveInstantiationTest
     }
 
     @Test
-    void testNewInstance_noNoArgConstructor_throwsNoSuchMethodException()
-    {
-        assertThatThrownBy(() -> ReflectiveInstantiation.newInstance(NoNoArgConstructor.class))
-                .as("A class with no no-arg constructor at all must surface as a"
-                        + " ReflectiveOperationException the caller can catch specifically, not"
-                        + " some other unrelated failure.")
-                .isInstanceOf(NoSuchMethodException.class);
-    }
-
-    @Test
-    void testNewInstance_constructorThrows_throwsInvocationTargetExceptionWrappingIt()
-    {
-        assertThatThrownBy(() -> ReflectiveInstantiation.newInstance(ThrowingNoArg.class))
-                .as("A no-arg constructor that itself throws must surface as an"
-                        + " InvocationTargetException wrapping the original failure, not the"
-                        + " original failure directly nor some other exception type.")
-                .isInstanceOf(InvocationTargetException.class)
-                .cause().isInstanceOf(IllegalStateException.class)
-                .hasMessage("simulated constructor failure");
-    }
-
-    @Test
-    void testInstantiate_publicNoArgConstructor_returnsNewInstance()
-    {
-        final PublicNoArg instance =
-                ReflectiveInstantiation.instantiate(PublicNoArg.class, "someAttribute()");
-
-        assertThat(instance).as("A public no-arg constructor must be invoked directly.")
-                .isNotNull();
-    }
-
-    @Test
     void testInstantiate_noNoArgConstructor_throwsIllegalStateExceptionNamingTheAttribute()
     {
-        assertThatThrownBy(() -> ReflectiveInstantiation.instantiate(NoNoArgConstructor.class,
-                "someAttribute()"))
+        assertThatThrownBy(
+                () -> instantiation.instantiate(NoNoArgConstructor.class, "someAttribute()"))
                         .as("A class with no no-arg constructor must be rejected with a clear"
                                 + " message naming both the attribute that named it and the"
                                 + " class itself, not a raw NoSuchMethodException.")
@@ -100,19 +69,17 @@ class ReflectiveInstantiationTest
     @Test
     void testInstantiate_constructorThrows_throwsIllegalStateExceptionWithOriginalCauseUnwrapped()
     {
-        assertThatThrownBy(() -> ReflectiveInstantiation.instantiate(ThrowingNoArg.class,
-                "someAttribute()"))
-                        .as("A constructor that itself throws must be rejected with a clear"
-                                + " message naming both the attribute and the class, with the"
-                                + " original failure as the cause - not the"
-                                + " InvocationTargetException wrapper newInstance() itself"
-                                + " throws.")
-                        .isInstanceOf(IllegalStateException.class)
-                        .hasMessageContaining("someAttribute()")
-                        .hasMessageContaining(ThrowingNoArg.class.getName())
-                        .hasMessageContaining("threw from its no-arg constructor")
-                        .cause().isInstanceOf(IllegalStateException.class)
-                        .hasMessage("simulated constructor failure");
+        assertThatThrownBy(() -> instantiation.instantiate(ThrowingNoArg.class, "someAttribute()"))
+                .as("A constructor that itself throws must be rejected with a clear message"
+                        + " naming both the attribute and the class, with the original failure"
+                        + " as the cause - not the InvocationTargetException the reflective call"
+                        + " throws.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("someAttribute()")
+                .hasMessageContaining(ThrowingNoArg.class.getName())
+                .hasMessageContaining("threw from its no-arg constructor")
+                .cause().isInstanceOf(IllegalStateException.class)
+                .hasMessage("simulated constructor failure");
     }
 
     public static class PublicNoArg
