@@ -111,8 +111,8 @@ class DbUnitExtensionAnnotationIT
                     .selectors(selectClass(PrepExpectedSample.class)).execute().testEvents()
                     .assertStatistics(stats -> stats.started(1).succeeded(1));
 
-            // the test case closes its own connection when the test finishes
-            // (closeConnectionAfterTest defaults to true), so verify with a fresh one.
+            // The tester's no-op listener keeps the test case from closing the environment's
+            // connection, so it is still open to verify with.
             final IDatabaseConnection verifyConnection = environment.getConnection();
             assertThat(rowCount(verifyConnection, TEST_TABLE))
                     .as("@DbUnitTearDownOperation(DELETE_ALL) must have cleaned up.")
@@ -299,8 +299,8 @@ class DbUnitExtensionAnnotationIT
                     .selectors(selectClass(InjectedTestCaseSample.class)).execute().testEvents()
                     .assertStatistics(stats -> stats.started(1).succeeded(1));
 
-            // the test case closes its own connection when the test finishes
-            // (closeConnectionAfterTest defaults to true), so verify with a fresh one.
+            // The tester's no-op listener keeps the test case from closing the environment's
+            // connection, so it is still open to verify with.
             final IDatabaseConnection verifyConnection = environment.getConnection();
             assertThat(rowCount(verifyConnection, TEST_TABLE))
                     .as("The DELETE_ALL teardown operation its tester was built with, driven"
