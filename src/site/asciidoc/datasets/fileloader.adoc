@@ -82,28 +82,65 @@ IDataSet ds = loader.load("/the/package/prepData.xml");
 Every `load()` parses its file again, so a suite whose tests share the same prep and
 expected files parses each of them once per test: a SAX parse and the building of the tables
 for flat XML, and much more for Excel files.
+link:../apidocs/org/dbunit/util/fileloader/CachingDataFileLoader.html[CachingDataFileLoader]
+(since 3.6.0) wraps any other loader and loads each file once, handing the dataset to every
+later `load()` of that file:
+
+[source,java]
+----
+DataFileLoader loader = new CachingDataFileLoader(new FlatXmlDataFileLoader());
+----
+
+The datasets are held by the instance, so share the instance among the test cases that should
+share them. `clearCache()` drops them, and so does a change to the replacements made through
+the caching loader, so the next load applies it. A load that fails is not kept.
+
+An annotation can name only a class with a public no-argument constructor, so
 link:../apidocs/org/dbunit/util/fileloader/CachingFileExtensionDataFileLoader.html[CachingFileExtensionDataFileLoader]
-(since 3.6.0) dispatches by extension like `FileExtensionDataFileLoader`, and parses each
-file once per run, handing every later `load()` of that file the parsed dataset:
+is a `CachingDataFileLoader` around a `FileExtensionDataFileLoader`, which dispatches by
+extension:
 
 [source,java]
 ----
 @DbUnitConfig(dataFileLoader = CachingFileExtensionDataFileLoader.class)
 ----
 
-The annotation runtime builds a new loader for each test, so the parsed datasets are held
-per loader class, not per instance: every instance of the class reuses what the others
-parsed, and a subclass keeps its own. Replacement objects and substrings still apply per
-instance, because only the parsed dataset is shared and each `load()` wraps it in its own
-`ReplacementDataSet`.
+To cache another loader, extend `CachingDataFileLoader` with a no-argument constructor that
+passes it:
 
-Use it for immutable classpath fixtures:
+[source,java]
+----
+public class CachingFlatXmlDataFileLoader extends CachingDataFileLoader
+{
+    public CachingFlatXmlDataFileLoader()
+    {
+        super(new FlatXmlDataFileLoader());
+    }
+}
+----
+
+The annotation runtime builds one instance of each `CachingDataFileLoader` class named in
+`@DbUnitConfig(dataFileLoader)` and shares it among the tests of its scope: all the tests of
+the run under JUnit Jupiter, those of one test class under Spring. It therefore loads each file
+once for the scope. A loader of any other class, the default `FileExtensionDataFileLoader`
+included, is built for each test, so a test case that changes the loader it is given, such as
+by adding replacement objects, changes no other test's. Sharing the instance has three
+consequences for a caching loader class:
+
+* A value its constructor computes, such as a replacement of the current time, is computed once
+  for the scope rather than once per test.
+* It must be safe for tests that run in parallel. The loaders dbUnit provides are, as long as
+  nothing changes their replacements while tests run.
+* A replacement added to it later, such as by a test case, reaches every test of the scope and
+  drops the datasets it holds, so give it its replacements in its constructor.
+
+Use caching for immutable classpath fixtures:
 
 * A resource that changes while the JVM keeps running, as in a test daemon or an IDE runner,
-  is not read again until `clearCache()` drops the loader class's datasets.
-* The shared datasets must be treated as read-only, as every test sees the same ones.
-* The datasets stay in memory for the rest of the run, so mind the number of distinct large
-  files, such as Excel workbooks.
+  is not read again until `clearCache()` drops the datasets.
+* The cached datasets must be treated as read-only, as every test sees the same ones.
+* The datasets stay in memory for the scope, so mind the number of distinct large files, such
+  as Excel workbooks.
 
 == Replacement Objects and Substrings
 
