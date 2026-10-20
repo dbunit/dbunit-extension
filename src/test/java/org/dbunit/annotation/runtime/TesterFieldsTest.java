@@ -13,61 +13,63 @@ import org.junit.jupiter.api.Test;
 
 class TesterFieldsTest
 {
+    private final TesterFields testerFields = new TesterFields();
+
     @Test
     void testIsMarked_dbUnitTesterField_returnsTrue() throws Exception
     {
-        assertThat(TesterFields.isMarked(field(Fields.class, "marked"))).isTrue();
+        assertThat(testerFields.isMarked(field(Fields.class, "marked"))).isTrue();
     }
 
     @Test
     void testIsMarked_dbUnitTestCaseField_returnsTrue() throws Exception
     {
-        assertThat(TesterFields.isMarked(field(Fields.class, "markedTestCase"))).isTrue();
+        assertThat(testerFields.isMarked(field(Fields.class, "markedTestCase"))).isTrue();
     }
 
     @Test
     void testIsMarked_unmarkedTesterField_returnsFalse() throws Exception
     {
-        assertThat(TesterFields.isMarked(field(Fields.class, "unmarked")))
+        assertThat(testerFields.isMarked(field(Fields.class, "unmarked")))
                 .as("A tester field is only marked by an annotation.").isFalse();
     }
 
     @Test
     void testIsUnmarkedTester_nonStaticTesterField_returnsTrue() throws Exception
     {
-        assertThat(TesterFields.isUnmarkedTester(field(Fields.class, "unmarked"))).isTrue();
+        assertThat(testerFields.isUnmarkedTester(field(Fields.class, "unmarked"))).isTrue();
     }
 
     @Test
     void testIsUnmarkedTester_staticTesterField_returnsFalse() throws Exception
     {
-        assertThat(TesterFields.isUnmarkedTester(field(Fields.class, "staticTester")))
+        assertThat(testerFields.isUnmarkedTester(field(Fields.class, "staticTester")))
                 .as("The 3.5.0 auto-scan only reads instance fields.").isFalse();
     }
 
     @Test
     void testIsUnmarkedTester_fieldOfAnotherType_returnsFalse() throws Exception
     {
-        assertThat(TesterFields.isUnmarkedTester(field(Fields.class, "notATester"))).isFalse();
+        assertThat(testerFields.isUnmarkedTester(field(Fields.class, "notATester"))).isFalse();
     }
 
     @Test
     void testDeclaresMarkedField_markedFieldOnASuperclass_returnsTrue()
     {
-        assertThat(TesterFields.declaresMarkedField(SubclassOfFields.class))
+        assertThat(testerFields.declaresMarkedField(SubclassOfFields.class))
                 .as("The whole hierarchy is searched.").isTrue();
     }
 
     @Test
     void testDeclaresMarkedField_noMarkedField_returnsFalse()
     {
-        assertThat(TesterFields.declaresMarkedField(NoMarkedField.class)).isFalse();
+        assertThat(testerFields.declaresMarkedField(NoMarkedField.class)).isFalse();
     }
 
     @Test
     void testFindFirst_matchesInSubclassAndSuperclass_returnsTheMostDerivedClassesField()
     {
-        final Field found = TesterFields.findFirst(SubclassOfFields.class, TesterFields::isMarked);
+        final Field found = testerFields.findFirst(SubclassOfFields.class, testerFields::isMarked);
 
         assertThat(found.getName())
                 .as("The nearest declaring class wins.").isEqualTo("subclassMarked");
@@ -76,14 +78,14 @@ class TesterFieldsTest
     @Test
     void testFindFirst_noMatch_returnsNull()
     {
-        assertThat(TesterFields.findFirst(NoMarkedField.class, TesterFields::isMarked)).isNull();
+        assertThat(testerFields.findFirst(NoMarkedField.class, testerFields::isMarked)).isNull();
     }
 
     @Test
     void testFindAll_matchesInSubclassAndSuperclass_returnsEveryOneMostDerivedFirst()
     {
-        final List<Field> found = TesterFields.findAll(SubclassOfFields.class,
-                TesterFields::isMarked);
+        final List<Field> found = testerFields.findAll(SubclassOfFields.class,
+                testerFields::isMarked);
 
         assertThat(found).extracting(Field::getName)
                 .as("Every matching field of the hierarchy, the subclass's first.")
@@ -94,8 +96,8 @@ class TesterFieldsTest
     @Test
     void testDeclaredBy_subclass_leavesOutSuperclassFields()
     {
-        final List<Field> found = TesterFields.declaredBy(SubclassOfFields.class,
-                TesterFields::isMarked);
+        final List<Field> found = testerFields.declaredBy(SubclassOfFields.class,
+                testerFields::isMarked);
 
         assertThat(found).extracting(Field::getName)
                 .as("Only what the class declares itself.").containsExactly("subclassMarked");

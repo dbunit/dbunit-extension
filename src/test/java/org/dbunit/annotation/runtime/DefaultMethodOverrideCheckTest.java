@@ -26,10 +26,12 @@ import org.junit.jupiter.api.Test;
 
 class DefaultMethodOverrideCheckTest
 {
+    private final DefaultMethodOverrideCheck check = new DefaultMethodOverrideCheck();
+
     @Test
     void testDeclaresBelow_startTypeItselfDeclaresIt_returnsTrue()
     {
-        final boolean result = DefaultMethodOverrideCheck.declaresBelow(Redeclaring.class,
+        final boolean result = check.declaresBelow(Redeclaring.class,
                 Base.class, "hook");
 
         assertThat(result).as("The start type declaring its own hook() counts.").isTrue();
@@ -38,7 +40,7 @@ class DefaultMethodOverrideCheckTest
     @Test
     void testDeclaresBelow_anIntermediateClassDeclaresIt_returnsTrue()
     {
-        final boolean result = DefaultMethodOverrideCheck.declaresBelow(
+        final boolean result = check.declaresBelow(
                 InheritsRedeclaration.class, Base.class, "hook");
 
         assertThat(result)
@@ -51,7 +53,7 @@ class DefaultMethodOverrideCheckTest
     @Test
     void testDeclaresBelow_onlyTheCeilingDeclaresIt_returnsFalse()
     {
-        final boolean result = DefaultMethodOverrideCheck.declaresBelow(InheritsFromBase.class,
+        final boolean result = check.declaresBelow(InheritsFromBase.class,
                 Base.class, "hook");
 
         assertThat(result)
@@ -64,7 +66,7 @@ class DefaultMethodOverrideCheckTest
     @Test
     void testDeclaresBelow_parameterTypesDoNotMatch_returnsFalse()
     {
-        final boolean result = DefaultMethodOverrideCheck.declaresBelow(Redeclaring.class,
+        final boolean result = check.declaresBelow(Redeclaring.class,
                 Base.class, "hook", String.class);
 
         assertThat(result)

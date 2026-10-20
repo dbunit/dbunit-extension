@@ -55,6 +55,7 @@ class TestCaseConfigurer
 {
     private static final Logger log = LoggerFactory.getLogger(TestCaseConfigurer.class);
 
+    private final DefaultMethodOverrideCheck overrideCheck = new DefaultMethodOverrideCheck();
     private final AnnotatedTestConfiguration configuration;
     private final DefaultPrepAndExpectedTestCase testCase;
 
@@ -204,7 +205,7 @@ class TestCaseConfigurer
      */
     private boolean overridesSetUpDatabaseConfig()
     {
-        return DefaultMethodOverrideCheck.declaresBelow(testCase.getClass(),
+        return overrideCheck.declaresBelow(testCase.getClass(),
                 DefaultPrepAndExpectedTestCase.class, "setUpDatabaseConfig",
                 DatabaseConfig.class);
     }
