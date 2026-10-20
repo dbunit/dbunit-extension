@@ -33,6 +33,7 @@ import org.dbunit.IDatabaseTester;
 import org.dbunit.annotation.DbUnitConfig;
 import org.dbunit.annotation.runtime.AnnotatedTestConfiguration;
 import org.dbunit.annotation.runtime.TestInstanceTesterResolver;
+import org.dbunit.annotation.runtime.TesterFields;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -45,7 +46,8 @@ import org.junit.jupiter.api.extension.TestInstances;
  */
 class TesterResolverTest
 {
-    private final TesterResolver resolver = new TesterResolver();
+    private final TesterResolver resolver =
+            new TesterResolver(new TestInstanceTesterResolver(new TesterFields()));
     private final AnnotatedTestConfiguration noFactoryConfiguration = AnnotatedTestConfiguration
             .from(TesterResolverTest.class, null, null, null, null, null, null);
 

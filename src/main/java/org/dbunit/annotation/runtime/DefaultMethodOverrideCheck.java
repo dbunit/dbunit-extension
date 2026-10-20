@@ -22,21 +22,14 @@ package org.dbunit.annotation.runtime;
 
 /**
  * Checks whether a type provides its own body for a method a known base class declares
- * ({@link #declaresBelow}). Shared by every {@code org.dbunit.annotation} call site that needs
- * to react when a subclass redeclares a hook, instead of silently doing nothing.
- *
- * <p>Public so a binding outside {@code org.dbunit.annotation.runtime} - such as
- * {@code DbUnitExtension} - can reach it too.
+ * ({@link #declaresBelow}), for a call site that reacts when a subclass redeclares a hook
+ * instead of silently doing nothing.
  *
  * @author Jeff Jensen
  * @since 3.6.0
  */
-public class DefaultMethodOverrideCheck
+class DefaultMethodOverrideCheck
 {
-    private DefaultMethodOverrideCheck()
-    {
-    }
-
     /**
      * Returns whether {@code type}, or any class between it and {@code ceiling} (exclusive),
      * declares the named method - the "does a concrete class redeclare this method below a
@@ -53,7 +46,7 @@ public class DefaultMethodOverrideCheck
      * @param parameterTypes The method's parameter types.
      * @return True when some class in {@code [type, ceiling)} declares the method.
      */
-    public static boolean declaresBelow(final Class<?> type, final Class<?> ceiling,
+    boolean declaresBelow(final Class<?> type, final Class<?> ceiling,
             final String methodName, final Class<?>... parameterTypes)
     {
         Class<?> current = type;
