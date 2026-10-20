@@ -44,6 +44,7 @@ import org.dbunit.PrepAndExpectedTestCase;
 import org.dbunit.annotation.DbUnitConfig;
 import org.dbunit.annotation.DbUnitTester;
 import org.dbunit.annotation.runtime.AnnotatedTestExecutor;
+import org.dbunit.annotation.runtime.DataFileLoaderInstances;
 import org.dbunit.database.DatabaseConfig;
 import org.dbunit.database.IDatabaseConnection;
 import org.dbunit.operation.DatabaseOperation;
@@ -383,6 +384,10 @@ class DbUnitExtensionTest
         // first, where this stub is never consulted.
         lenient().when(context.getStore(any(ExtensionContext.Namespace.class)))
                 .thenReturn(store);
+        // the data file loaders of the run live in the store of the root context
+        lenient().when(context.getRoot()).thenReturn(context);
+        lenient().when(store.getOrComputeIfAbsent(any(), any(), any()))
+                .thenReturn(new DataFileLoaderInstances());
         doReturn(testClass).when(context).getRequiredTestClass();
         final TestInstances instances = mock(TestInstances.class);
         when(instances.getAllInstances()).thenReturn(Collections.singletonList(testInstance));
