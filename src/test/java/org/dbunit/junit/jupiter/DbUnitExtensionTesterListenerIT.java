@@ -46,10 +46,10 @@ import org.junit.platform.testkit.engine.EngineTestKit;
 
 /**
  * Real-database integration test proving an annotated test tells the tester's own
- * {@link IOperationListener} about the connection each of its set up and tear down operations
- * retrieves, as the tester's {@code onSetup()}/{@code onTearDown()} do, and that a
- * {@code @DbUnitProperty} value still wins over what that listener sets, because the
- * annotation values are applied after it.
+ * {@link IOperationListener} about its shared connection when it acquires it and again before
+ * each of its set up and tear down operations, as the tester's {@code onSetup()}/{@code
+ * onTearDown()} do for the connections they retrieve, and that a {@code @DbUnitProperty} value
+ * still wins over what that listener sets, because the annotation values are applied after it.
  */
 class DbUnitExtensionTesterListenerIT
 {
@@ -58,7 +58,7 @@ class DbUnitExtensionTesterListenerIT
     private static final String ANNOTATION_BATCH_SIZE = "7";
 
     @Test
-    void testBeforeTestExecution_annotationDrivenWithTesterListener_tellsItPerOperationAndAnnotationValuesWin()
+    void testBeforeTestExecution_annotationDrivenWithTesterListener_tellsItOnAcquisitionAndPerOperationAndAnnotationValuesWin()
             throws Exception
     {
         final DatabaseEnvironment environment = DatabaseEnvironment.getInstance();
@@ -76,9 +76,10 @@ class DbUnitExtensionTesterListenerIT
                     .assertStatistics(stats -> stats.started(1).succeeded(1));
 
             assertThat(listener.getRetrievedCount())
-                    .as("The tester's listener must hear of the connection once for the set up"
-                            + " operation and once for the tear down operation.")
-                    .isEqualTo(2);
+                    .as("The tester's listener must hear of the connection when the test case"
+                            + " acquires it, once for the set up operation and once for the"
+                            + " tear down operation.")
+                    .isEqualTo(3);
             assertThat(TesterListenerSample.batchSizeSeenByTest)
                     .as("The @DbUnitProperty value must be in force during the test, because"
                             + " it is applied after the tester's listener has set its own.")
