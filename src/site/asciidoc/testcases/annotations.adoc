@@ -627,6 +627,18 @@ open too. A tester that is not given the no-op listener only costs a new
 connection per test when it shares a `CachingConnectionProvider`, which replaces a closed
 connection.
 
+A tester over one fixed connection, such as a `DefaultDatabaseTester` built on an
+`IDatabaseConnection`, cannot replace a closed connection, so it needs the no-op listener: with
+any other listener, one that only configures each connection's `DatabaseConfig` in
+`connectionRetrieved()` and closes nothing included, the connection is closed after the first
+test and every later test finds it closed. Configure a fixed connection's `DatabaseConfig` once,
+where the connection is built, and give the tester `NO_OP_OPERATION_LISTENER`. A bare
+`@ExtendWith(DbUnitExtension.class)` class keeps the 3.5.0 lifecycle and does not close that
+connection, as it knows that a `DefaultDatabaseTester` hands out the same one again. It closes a
+connection it resolved itself from any tester that is not known to, so a custom tester over one
+fixed connection needs the no-op listener there too; see
+link:DbUnitExtension.html[DbUnitExtension].
+
 Leaving the connection open requires a tester that hands out the same connection on repeated
 calls, as one over a `CachingConnectionProvider` or over one fixed connection does. With a
 tester that hands out a new one each time, such as a `JdbcDatabaseTester` without a

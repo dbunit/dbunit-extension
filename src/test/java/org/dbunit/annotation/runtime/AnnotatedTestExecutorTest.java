@@ -82,6 +82,7 @@ import org.dbunit.database.DatabaseConfig;
 import org.dbunit.database.IDatabaseConnection;
 import org.dbunit.database.InMemoryDatabaseConnection;
 import org.dbunit.database.connection.LeftOpenConnectionWarning;
+import org.dbunit.database.connection.ClosedConnectionHandedOutWarning;
 import org.dbunit.database.rowcount.ClearRowCountCheckSystemProperties;
 import org.dbunit.database.rowcount.RowCountCheck;
 import org.dbunit.database.rowcount.RowCountCheckConfiguration;
@@ -1076,12 +1077,13 @@ class AnnotatedTestExecutorTest
     void testAfterTest_verifyThrowsAndClosingConnectionAlsoThrows_reportsVerifyFailureWithCloseFailureSuppressed()
             throws Exception
     {
-        stubEnabledConnection("ACCOUNT");
+        final JdbcDatabaseTester jdbcTester = jdbcTesterOpeningANewConnectionOnEachCall();
+        stubCountingConnection(true, "ACCOUNT");
         when(connection.getRowCount("ACCOUNT")).thenReturn(5);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
         final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, null, false);
+                new AnnotatedTestExecutor(configuration, jdbcTester, null, false);
         executor.beforeTest();
         when(connection.getRowCount("ACCOUNT")).thenReturn(6);
         final SQLException closeFailure = new SQLException("connection lost");
@@ -1227,14 +1229,16 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
-    void testAfterTest_connectionResolved_closesItByDefault() throws Exception
+    void testAfterTest_rowCountCheckEnabledAndTesterOpensANewConnectionOnEachCall_closesTheResolvedConnection()
+            throws Exception
     {
-        stubEnabledConnection("ACCOUNT");
+        final JdbcDatabaseTester jdbcTester = jdbcTesterOpeningANewConnectionOnEachCall();
+        stubCountingConnection(true, "ACCOUNT");
         when(connection.getRowCount("ACCOUNT")).thenReturn(5);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
         final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, null, false);
+                new AnnotatedTestExecutor(configuration, jdbcTester, null, false);
         executor.beforeTest();
 
         executor.afterTest(false);
@@ -1275,12 +1279,11 @@ class AnnotatedTestExecutorTest
     void testReleaseIfAfterTestDidNotRun_connectionResolvedButAfterTestNeverRan_closesIt()
             throws Exception
     {
-        when(tester.getConnection()).thenReturn(connection);
-        stubOpenJdbcConnection();
+        final JdbcDatabaseTester jdbcTester = jdbcTesterOpeningANewConnectionOnEachCall();
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
         final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, null, false);
+                new AnnotatedTestExecutor(configuration, jdbcTester, null, false);
         // Resolved the way a @BeforeEach parameter resolves it, before beforeTest() would run.
         executor.getConnection();
 
@@ -1293,12 +1296,13 @@ class AnnotatedTestExecutorTest
     void testReleaseIfAfterTestDidNotRun_afterTestAlreadyRan_doesNotCloseAgain()
             throws Exception
     {
-        stubEnabledConnection("ACCOUNT");
+        final JdbcDatabaseTester jdbcTester = jdbcTesterOpeningANewConnectionOnEachCall();
+        stubCountingConnection(true, "ACCOUNT");
         when(connection.getRowCount("ACCOUNT")).thenReturn(5);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
         final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, null, false);
+                new AnnotatedTestExecutor(configuration, jdbcTester, null, false);
         executor.beforeTest();
         executor.afterTest(false);
         // A connection resolved after afterTest(), as a binding's late parameter resolution
@@ -2484,6 +2488,351 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
+    void testAfterTest_classicPathFixedConnectionTesterWithNoneSetUp_leavesTheResolvedConnectionOpen()
+            throws Exception
+    {
+        // A DefaultDatabaseTester hands out one fixed connection, and a listener that only
+        // configures connections keeps it open without being the no-op one. The NONE setup
+        // operation leaves onSetup() with no connection to take the baseline from, so the
+        // executor resolves the connection itself. It is the connection the next test needs, and
+        // the 3.5.0 extension, which resolved none, never closed it.
+        when(connection.getConfig()).thenReturn(new DatabaseConfig());
+        stubOpenJdbcConnection();
+        final IDatabaseTester fixedConnectionTester = new DefaultDatabaseTester(connection);
+        fixedConnectionTester.setSetUpOperation(DatabaseOperation.NONE);
+        fixedConnectionTester.setOperationListener(mock(IOperationListener.class));
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, fixedConnectionTester, null, false);
+        executor.beforeTest();
+
+        executor.afterTest(false);
+
+        verify(connection, never()).close();
+    }
+
+    @Test
+    void testAfterTest_classicPathFixedConnectionSharedByTwoTests_secondTestFindsItOpen()
+            throws Exception
+    {
+        // The failure end to end on a real database: the first test closed the one connection
+        // its tester hands out again to the second, which then had no open connection to count
+        // the rows through.
+        final IDatabaseConnection database = InMemoryDatabaseConnection.create("PUBLIC");
+        try
+        {
+            try (Statement statement = database.getConnection().createStatement())
+            {
+                statement.execute("CREATE TABLE ACCOUNT (ID INT PRIMARY KEY)");
+            }
+            database.getConfig().setFeature(DatabaseConfig.FEATURE_ROW_COUNT_CHECK, true);
+            final IDatabaseTester sharedTester = new DefaultDatabaseTester(database);
+            sharedTester.setSetUpOperation(DatabaseOperation.NONE);
+            sharedTester.setOperationListener(mock(IOperationListener.class));
+            final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                    .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
+            final AnnotatedTestExecutor firstTest =
+                    new AnnotatedTestExecutor(configuration, sharedTester, null, false);
+            firstTest.beforeTest();
+            firstTest.afterTest(false);
+            final AnnotatedTestExecutor secondTest =
+                    new AnnotatedTestExecutor(configuration, sharedTester, null, false);
+
+            final Throwable thrown = catchThrowable(() ->
+            {
+                secondTest.beforeTest();
+                secondTest.afterTest(false);
+            });
+
+            assertThat(thrown)
+                    .as("The second test must run on the connection the first one left open.")
+                    .isNull();
+            assertThat(database.getConnection().isClosed())
+                    .as("The fixed connection must still be open after both tests.")
+                    .isFalse();
+        } finally
+        {
+            database.close();
+        }
+    }
+
+    @Test
+    void testAfterTest_classicPathTesterReportsNoListenerAndNoneSetUp_closesTheResolvedConnection()
+            throws Exception
+    {
+        // A from-scratch IDatabaseTester predating getOperationListener() reports no listener
+        // and is not known to hand out one fixed connection. Like most testers it may open a new
+        // connection on every call, and nothing else closes the one the executor resolved. One
+        // that returns a fixed connection from every call says so with the no-op listener.
+        when(connection.getConfig()).thenReturn(new DatabaseConfig());
+        stubOpenJdbcConnection();
+        final TesterNotReportingItsListener legacyTester =
+                new TesterNotReportingItsListener(() -> connection);
+        legacyTester.setSetUpOperation(DatabaseOperation.NONE);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, legacyTester, null, false);
+        executor.beforeTest();
+
+        executor.afterTest(false);
+
+        verify(connection).close();
+    }
+
+    @Test
+    void testBeforeTest_classicPathTesterReportsNoListenerOverOneFixedConnection_warnsWhenTheNextTestIsHandedItClosed()
+            throws Exception
+    {
+        // The executor closes the connection it resolved from a tester not known to hand out
+        // one fixed connection, so a legacy tester that does hands it out closed to the next
+        // test.
+        final IDatabaseConnection fixedConnection = InMemoryDatabaseConnection.create();
+        final TesterNotReportingItsListener legacyTester =
+                new TesterNotReportingItsListener(() -> fixedConnection);
+        legacyTester.setSetUpOperation(DatabaseOperation.NONE);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
+        final ListAppender<ILoggingEvent> appender =
+                startCapturingLogOf(ClosedConnectionHandedOutWarning.class);
+        try
+        {
+            final AnnotatedTestExecutor firstTest =
+                    new AnnotatedTestExecutor(configuration, legacyTester, null, false);
+            firstTest.beforeTest();
+            firstTest.afterTest(false);
+
+            assertThat(appender.list).filteredOn(event -> event.getLevel() == Level.WARN)
+                    .as("The first test is handed the connection open, so it warns about"
+                            + " nothing.")
+                    .isEmpty();
+            assertThat(isClosed(fixedConnection))
+                    .as("The executor closes the connection it resolved from a tester not known"
+                            + " to hand out one fixed connection.")
+                    .isTrue();
+
+            final AnnotatedTestExecutor secondTest =
+                    new AnnotatedTestExecutor(configuration, legacyTester, null, false);
+            secondTest.beforeTest();
+            secondTest.afterTest(false);
+
+            assertThat(appender.list).filteredOn(event -> event.getLevel() == Level.WARN)
+                    .as("The second test is handed the connection closed, which must be warned"
+                            + " about once.")
+                    .hasSize(1);
+        } finally
+        {
+            stopCapturingLogOf(ClosedConnectionHandedOutWarning.class, appender);
+            fixedConnection.close();
+        }
+    }
+
+    @Test
+    void testBeforeTest_classicPathFixedConnectionTheListenerOfTheTesterClosed_warnsWhenTheNextTestIsHandedItClosed()
+            throws Exception
+    {
+        // The default listener closes the connection after each setup operation, as in 3.5.0,
+        // so a DefaultDatabaseTester without the no-op listener hands its one fixed connection
+        // out closed to the onSetup() of the next test.
+        final IDatabaseConnection fixedConnection = InMemoryDatabaseConnection.create();
+        final IDatabaseTester sharedTester = new DefaultDatabaseTester(fixedConnection);
+        sharedTester.setDataSet(new DefaultDataSet());
+        sharedTester.setSetUpOperation(new RecordingDatabaseOperation());
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
+        final ListAppender<ILoggingEvent> appender =
+                startCapturingLogOf(ClosedConnectionHandedOutWarning.class);
+        try
+        {
+            final AnnotatedTestExecutor firstTest =
+                    new AnnotatedTestExecutor(configuration, sharedTester, null, false);
+            firstTest.beforeTest();
+            firstTest.afterTest(false);
+
+            assertThat(appender.list).filteredOn(event -> event.getLevel() == Level.WARN)
+                    .as("The onSetup() of the first test is handed the connection open, so it"
+                            + " warns about nothing.")
+                    .isEmpty();
+
+            final AnnotatedTestExecutor secondTest =
+                    new AnnotatedTestExecutor(configuration, sharedTester, null, false);
+            secondTest.beforeTest();
+            secondTest.afterTest(false);
+
+            assertThat(appender.list).filteredOn(event -> event.getLevel() == Level.WARN)
+                    .as("The onSetup() of the second test is handed the connection the listener"
+                            + " closed in the first, which must be warned about once.")
+                    .hasSize(1);
+        } finally
+        {
+            stopCapturingLogOf(ClosedConnectionHandedOutWarning.class, appender);
+            fixedConnection.close();
+        }
+    }
+
+    @Test
+    void testAfterTest_classicPathCustomTesterOpeningANewConnectionOnEachCallAndNoneSetUp_closesTheResolvedConnection()
+            throws Exception
+    {
+        // The NONE setup operation leaves onSetup() with no connection to take the row count
+        // baseline from, so the executor resolves one itself, with the check off as well as on.
+        final TesterOpeningANewConnectionOnEachCall customTester =
+                new TesterOpeningANewConnectionOnEachCall(false);
+        customTester.setSetUpOperation(DatabaseOperation.NONE);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, customTester, null, false);
+        executor.beforeTest();
+
+        executor.afterTest(false);
+
+        assertThat(customTester.handedOut)
+                .as("The NONE setup operation makes the executor resolve one connection itself.")
+                .hasSize(1);
+        assertThat(isClosed(customTester.handedOut.get(0)))
+                .as("Nothing but the executor holds the connection a tester that opens a new one"
+                        + " on every call handed it, so the executor must close it.")
+                .isTrue();
+    }
+
+    @Test
+    void testAfterTest_classicPathCustomTesterOverridingOnSetup_closesTheConnectionTheExecutorResolved()
+            throws Exception
+    {
+        // A tester that overrides onSetup() may not retrieve a connection the way the
+        // AbstractDatabaseTester one does, so the executor resolves one before onSetup(); the
+        // default listener closes the connection onSetup() retrieves.
+        final TesterOpeningANewConnectionOnEachCall customTester =
+                new TesterOpeningANewConnectionOnEachCall(false)
+                {
+                    @Override
+                    public void onSetup() throws Exception
+                    {
+                        super.onSetup();
+                    }
+                };
+        customTester.setDataSet(new DefaultDataSet());
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, customTester, null, false);
+        executor.beforeTest();
+
+        executor.afterTest(false);
+
+        assertThat(customTester.handedOut)
+                .as("One connection for the executor and one for onSetup().")
+                .hasSize(2);
+        assertThat(closedStatesOf(customTester.handedOut))
+                .as("The executor closes the connection it resolved, and the default listener the"
+                        + " one onSetup() retrieved, so none is left open.")
+                .containsOnly(true);
+    }
+
+    @Test
+    void testAfterTest_classicPathCustomTesterWithRowCountCheckOn_closesTheConnectionResolvedToVerify()
+            throws Exception
+    {
+        // The default listener closes the connection onSetup() retrieved, so the executor
+        // resolves another to verify the baseline after onTearDown().
+        final TesterOpeningANewConnectionOnEachCall customTester =
+                new TesterOpeningANewConnectionOnEachCall(true);
+        customTester.setDataSet(new DefaultDataSet());
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, customTester, null, false);
+        executor.beforeTest();
+
+        executor.afterTest(false);
+
+        assertThat(customTester.handedOut)
+                .as("One connection for onSetup() and one the executor resolved to verify.")
+                .hasSize(2);
+        assertThat(closedStatesOf(customTester.handedOut))
+                .as("No connection is left open, the one resolved to verify included.")
+                .containsOnly(true);
+    }
+
+    @Test
+    void testAfterTest_classicPathCustomTesterOverOneFixedConnectionWithNoOpListener_leavesTheResolvedConnectionOpen()
+            throws Exception
+    {
+        // The no-op listener is the signal that a tester's connection is managed elsewhere, for a
+        // tester of any kind.
+        final IDatabaseConnection fixedConnection = InMemoryDatabaseConnection.create();
+        try
+        {
+            final AbstractDatabaseTester customTester = new AbstractDatabaseTester()
+            {
+                @Override
+                public IDatabaseConnection getConnection()
+                {
+                    return fixedConnection;
+                }
+            };
+            customTester.setSetUpOperation(DatabaseOperation.NONE);
+            customTester.setOperationListener(IOperationListener.NO_OP_OPERATION_LISTENER);
+            final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                    .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
+            final AnnotatedTestExecutor executor =
+                    new AnnotatedTestExecutor(configuration, customTester, null, false);
+            executor.beforeTest();
+
+            executor.afterTest(false);
+
+            assertThat(isClosed(fixedConnection))
+                    .as("The no-op listener says the connection is managed elsewhere, so the"
+                            + " executor must leave it open for the next test.")
+                    .isFalse();
+        } finally
+        {
+            fixedConnection.close();
+        }
+    }
+
+    @Test
+    void testAfterTest_classicPathJdbcTesterReusesItsConnection_leavesTheResolvedConnectionOpen()
+            throws Exception
+    {
+        // The CachingConnectionProvider of the tester holds the connection it hands out again on
+        // the next call, so closing it after every test only makes the next test open another.
+        final JdbcDatabaseTester jdbcTester =
+                jdbcTesterReturningTheConnection(new CachingConnectionProvider());
+        jdbcTester.setSetUpOperation(DatabaseOperation.NONE);
+        jdbcTester.setTearDownOperation(DatabaseOperation.NONE);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, jdbcTester, null, false);
+        executor.beforeTest();
+
+        executor.afterTest(false);
+
+        verify(connection, never()).close();
+    }
+
+    @Test
+    void testAfterTest_classicPathJdbcTesterOpensANewConnectionOnEachCall_closesTheResolvedConnection()
+            throws Exception
+    {
+        // The tester hands out a connection nothing else holds, so the one the executor resolved
+        // for the baseline is closed with the test, or each test leaves one open.
+        final JdbcDatabaseTester jdbcTester = jdbcTesterOpeningANewConnectionOnEachCall();
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, jdbcTester, null, false);
+        executor.beforeTest();
+
+        executor.afterTest(false);
+
+        verify(connection).close();
+    }
+
+    @Test
     void testBeforeTest_classicPathRowCountDisabled_doesNotCloseTheTesterConnectionBeforeOnSetup()
             throws Exception
     {
@@ -2492,16 +2841,16 @@ class AnnotatedTestExecutorTest
         // onSetup() to free a bounded pool - which ran onSetup() against a closed connection.
         // The classic path now holds that connection until afterTest(), honoring the 3.5.0
         // contract that the extension never closes a tester's connection early.
-        stubDisabledConnection();
+        final JdbcDatabaseTester jdbcTester = jdbcTesterOpeningANewConnectionOnEachCall();
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
         final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, null, false);
+                new AnnotatedTestExecutor(configuration, jdbcTester, null, false);
 
         executor.beforeTest();
 
         verify(connection, never()).close();
-        verify(tester).onSetup();
+        verify(jdbcTester).onSetup();
 
         executor.afterTest(false);
         verify(connection).close();
@@ -3689,7 +4038,9 @@ class AnnotatedTestExecutorTest
         final JdbcDatabaseTester jdbcTester = spy(new JdbcDatabaseTester("org.h2.Driver",
                 "jdbc:h2:mem:left_open_connection_executor", null, null, null, provider));
         lenient().doReturn(connection).when(jdbcTester).getConnection();
-        when(connection.getConfig()).thenReturn(new DatabaseConfig());
+        // lenient(): a caller that only resolves and releases the connection never reads its
+        // configuration, which strict stubbing would flag as an unused stubbing.
+        lenient().when(connection.getConfig()).thenReturn(new DatabaseConfig());
         stubOpenJdbcConnection();
         return jdbcTester;
     }
@@ -3706,6 +4057,37 @@ class AnnotatedTestExecutorTest
         jdbcTester.setOperationListener(IOperationListener.NO_OP_OPERATION_LISTENER);
         clearInvocations(jdbcTester);
         return jdbcTester;
+    }
+
+    /**
+     * A {@link #jdbcTesterReturningTheConnection(CachingConnectionProvider)} without a provider,
+     * so it opens a new connection on every call, that runs no database operation, so only the
+     * executor under test decides what happens to the connection it resolves from it.
+     */
+    private JdbcDatabaseTester jdbcTesterOpeningANewConnectionOnEachCall() throws Exception
+    {
+        final JdbcDatabaseTester jdbcTester = jdbcTesterReturningTheConnection(null);
+        jdbcTester.setSetUpOperation(DatabaseOperation.NONE);
+        jdbcTester.setTearDownOperation(DatabaseOperation.NONE);
+        return jdbcTester;
+    }
+
+    private static boolean isClosed(final IDatabaseConnection databaseConnection)
+            throws SQLException
+    {
+        final Connection jdbcConnection = databaseConnection.getConnection();
+        return jdbcConnection.isClosed();
+    }
+
+    private static List<Boolean> closedStatesOf(final List<IDatabaseConnection> connections)
+            throws SQLException
+    {
+        final List<Boolean> closedStates = new ArrayList<>();
+        for (final IDatabaseConnection databaseConnection : connections)
+        {
+            closedStates.add(isClosed(databaseConnection));
+        }
+        return closedStates;
     }
 
     private static ListAppender<ILoggingEvent> startCapturingLogOf(final Class<?> loggedClass)
@@ -3747,6 +4129,16 @@ class AnnotatedTestExecutorTest
             throws Exception
     {
         when(tester.getConnection()).thenReturn(connection);
+        stubCountingConnection(rowCountCheckFeature, tableNames);
+    }
+
+    /**
+     * Stubs {@link #connection} as {@link #stubConnection(boolean, String...)} does, for a test
+     * whose own tester hands it out instead of the {@link #tester} mock.
+     */
+    private void stubCountingConnection(final boolean rowCountCheckFeature,
+            final String... tableNames) throws Exception
+    {
         final DatabaseConfig databaseConfig = new DatabaseConfig();
         databaseConfig.setFeature(DatabaseConfig.FEATURE_ROW_COUNT_CHECK, rowCountCheckFeature);
         when(connection.getConfig()).thenReturn(databaseConfig);
@@ -4288,6 +4680,34 @@ class AnnotatedTestExecutorTest
                 final String[] prepDataFiles, final String[] expectedDataFiles)
         {
             configureTestCalled = true;
+        }
+    }
+
+    /**
+     * A custom tester as a user writes one by extending {@link AbstractDatabaseTester}: it opens
+     * a new connection to a database of its own on every call and holds none, so nothing but the
+     * code that takes a connection from it can close that connection. Records every connection
+     * it hands out.
+     */
+    static class TesterOpeningANewConnectionOnEachCall extends AbstractDatabaseTester
+    {
+        final List<IDatabaseConnection> handedOut = new ArrayList<>();
+
+        private final boolean rowCountCheckEnabled;
+
+        TesterOpeningANewConnectionOnEachCall(final boolean rowCountCheckEnabled)
+        {
+            this.rowCountCheckEnabled = rowCountCheckEnabled;
+        }
+
+        @Override
+        public IDatabaseConnection getConnection() throws Exception
+        {
+            final IDatabaseConnection opened = InMemoryDatabaseConnection.create();
+            final DatabaseConfig config = opened.getConfig();
+            config.setFeature(DatabaseConfig.FEATURE_ROW_COUNT_CHECK, rowCountCheckEnabled);
+            handedOut.add(opened);
+            return opened;
         }
     }
 
