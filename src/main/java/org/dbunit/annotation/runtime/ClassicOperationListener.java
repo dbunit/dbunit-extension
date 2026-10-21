@@ -32,7 +32,8 @@ import org.dbunit.database.IDatabaseConnection;
  * for it to configure the connection's {@code DatabaseConfig} (e.g. to enable the row count
  * check or set a custom {@code RowCounter}) - and, after the delegate's
  * {@code connectionRetrieved}, offers the connection to {@code onConnectionRetrieved} for the
- * row count check baseline capture (a no-op after the first call). Reading
+ * row count check baseline capture (a no-op after the first call) and the warning about a
+ * connection that is already closed. Reading
  * {@code DatabaseConfig} last this way means the row count check always sees the delegate's
  * configuration already applied, never a stale value from before it ran. It shields no
  * connection from a close the delegate makes: the connection {@code onSetup()} retrieved stays
