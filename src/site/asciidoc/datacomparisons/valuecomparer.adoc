@@ -57,7 +57,10 @@ takes the expected dataset value as a regular expression and passes when it
 matches the actual value in its entirety, the same rule as
 `java.lang.String.matches`. To match only part of the value, wrap the pattern in
 `.*` on both ends, e.g. `.*[0-9]{4}.*`; a `.` does not cross a line terminator,
-so prefix the pattern with `(?s)` when the actual value may contain a newline.
+so prefix the pattern with `(?s)` when the actual value may contain a newline. The
+rows are lined up before they are compared, and a column that has a comparer of its own,
+such as this one on a generated id, is the last column they are sorted by - see
+link:../components/verifytabledefinition.html#sortmode[Sort Mode].
 
 Some implementations are deliberately left off
 link:../apidocs/org/dbunit/assertion/comparer/value/ValueComparers.html[ValueComparers]

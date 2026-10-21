@@ -144,6 +144,15 @@ or every column is filtered out, every column is selected as before. A subclass 
 keeps deciding what is loaded. The default `false` still selects every column, because each
 one is a sort key there.
 
+Whichever mode sorts, since 3.6.0 a column that has a comparer of its own in
+`columnValueComparers` is the last column of the sort key of both tables. Its expected value
+is often not the actual value - a pattern for `RegularExpressionValueComparer`, a tolerance
+for a timestamp comparer - so ordering the rows by it first would line each expected row up
+against the wrong actual row, for example when every expected row holds the same pattern for a
+generated id and the actual rows are ordered by their real ids. Ordered last, the column only
+orders rows that tie on every other column: give such rows the same pattern, or tell them
+apart by another column. A table that names no comparer sorts as before.
+
 [#usage]
 == Usage Examples
 
