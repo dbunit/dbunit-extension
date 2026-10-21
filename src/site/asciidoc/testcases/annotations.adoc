@@ -628,8 +628,14 @@ A tester over one fixed connection, such as a `DefaultDatabaseTester` built on a
 `IDatabaseConnection`, cannot replace a closed connection, so it needs the no-op listener: with
 any other listener, one that only configures each connection's `DatabaseConfig` in
 `connectionRetrieved()` and closes nothing included, the connection is closed after the first
-test and every later test finds it closed. Configure a fixed connection's `DatabaseConfig` once,
-where the connection is built, and give the tester `NO_OP_OPERATION_LISTENER`. A bare
+test and every later test finds it closed. dbUnit logs a warning when it is about to close the
+connection of a `DefaultDatabaseTester`, or of a tester that reports no listener, which cannot say
+that it keeps its connection open, for a second test, as a tester built for one test is right to
+have its connection closed. A test that is handed a connection that is already closed logs a
+warning that names the no-op listener, whatever kind of tester hands it out: that is the notice a
+custom tester over one fixed connection gets, in the second test. Configure a fixed connection's
+`DatabaseConfig` once, where the connection is built, and give the tester
+`NO_OP_OPERATION_LISTENER`. A bare
 `@ExtendWith(DbUnitExtension.class)` class keeps the 3.5.0 lifecycle and does not close that
 connection, as it knows that a `DefaultDatabaseTester` hands out the same one again. It closes a
 connection it resolved itself from any tester that is not known to, so a custom tester over one

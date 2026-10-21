@@ -30,6 +30,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import org.dbunit.assertion.DefaultFailureHandler;
@@ -40,6 +41,8 @@ import org.dbunit.database.DatabaseConfigOverrides;
 import org.dbunit.database.IDatabaseConnection;
 import org.dbunit.database.IResultSetTableFactory;
 import org.dbunit.database.connection.AutoCommitOffWarning;
+import org.dbunit.database.connection.ClosedConnectionHandedOutWarning;
+import org.dbunit.database.connection.ClosedFixedConnectionWarning;
 import org.dbunit.database.connection.ConnectionOwnership;
 import org.dbunit.database.connection.LeftOpenConnectionWarning;
 import org.dbunit.database.connection.TestScopedConnection;
@@ -94,6 +97,16 @@ import org.slf4j.LoggerFactory;
  * class forget the connection so that the next step acquires another.
  * This class logs a warning when it detects a {@link JdbcDatabaseTester}
  * without a CachingConnectionProvider in that situation.
+ * <p>
+ * Closing the connection is as much a mistake for a databaseTester that hands
+ * out the same connection again. A {@link DefaultDatabaseTester} over one fixed
+ * connection has no way to replace it once closed, so every later test that
+ * uses the databaseTester finds it closed, and a databaseTester that reports no
+ * operation listener cannot say that it keeps its connection open for another
+ * owner. This class logs a warning when it is about to close the connection of
+ * either for a second test, as a databaseTester built for one test is right to
+ * have its connection closed. The no-op listener on the databaseTester or
+ * {@link #setCloseConnectionAfterTest(boolean)} set to false prevents it.
  * <p>
  * This class tells the databaseTester's own {@link IOperationListener} about
  * the shared connection through {@link IOperationListener#connectionRetrieved}
@@ -193,6 +206,17 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
             () -> closeConnectionAfterTest, this::getOwnershipListener);
 
     /**
+     * Warns, once the databaseTester serves a second test, that the connection it may hand out
+     * again is going to be closed. Told when each lifecycle of this instance ends, at the end of
+     * {@link #cleanupData()}, so that an instance reused across tests counts each test once,
+     * except one whose lifecycle ended without it, see {@link ClosedFixedConnectionWarning}.
+     *
+     * @since 3.6.0
+     */
+    private final ClosedFixedConnectionWarning closedFixedConnectionWarning =
+            new ClosedFixedConnectionWarning(connectionOwnership, () -> databaseTester);
+
+    /**
      * Connection shared by setupData()/verifyData()/cleanupData() for one
      * test's lifecycle instead of each acquiring (and often closing) its own:
      * acquired lazily on first use from the databaseTester, through
@@ -215,17 +239,23 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * {@link #closeConnectionAfterTest} is true - the established signal that the
      * connection is owned elsewhere, now honored on this path too and not only
      * by the annotation runtime. On each connection it acquires, it logs the warnings of
-     * {@link AutoCommitOffWarning} and {@link LeftOpenConnectionWarning}, the latter reading the
-     * databaseTester when it runs, as the databaseTester can change between tests.
+     * {@link AutoCommitOffWarning}, {@link ClosedConnectionHandedOutWarning},
+     * {@link LeftOpenConnectionWarning} and {@link ClosedFixedConnectionWarning}, the last three
+     * reading the databaseTester when they run, as the databaseTester can change between tests.
      *
      * @return The holder.
      */
     private TestScopedConnection newReusableConnectionHolder()
     {
+        final ClosedConnectionHandedOutWarning closedConnectionHandedOutWarning =
+                new ClosedConnectionHandedOutWarning(() -> databaseTester);
         final LeftOpenConnectionWarning leftOpenConnectionWarning =
                 new LeftOpenConnectionWarning(connectionOwnership, () -> databaseTester);
+        final Consumer<IDatabaseConnection> warnings = new AutoCommitOffWarning()
+                .andThen(closedConnectionHandedOutWarning).andThen(leftOpenConnectionWarning)
+                .andThen(closedFixedConnectionWarning);
         return new TestScopedConnection(this::acquireSharedConnection, connectionOwnership,
-                new AutoCommitOffWarning().andThen(leftOpenConnectionWarning));
+                warnings);
     }
 
     /**
@@ -550,9 +580,11 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     /**
      * Runs a lifecycle step, and when it fails, an {@link Error} included, releases the shared
      * connection if the step is what acquired it, attaching a close failure to the step's
-     * failure: no cleanupData() follows a step that failed before setupData(), so nothing else
-     * would release it. A connection already acquired before the step, for example by injecting
-     * it into a test method parameter, is left open for the caller.
+     * failure: a caller that runs no postTest() after a step that failed before setupData(), as
+     * the annotation runtime does when configureTest() fails, would have nothing else release it,
+     * while runTest() runs postTest(false), and so cleanupData(), after any failed step. A
+     * connection already acquired before the step, for example by injecting it into a test
+     * method parameter, is left open for the caller.
      */
     private void releasingIfAcquiredOnFailure(final LifecycleStep step) throws Exception
     {
@@ -1132,12 +1164,27 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * See #800. A failure of the tear down operation or of the row count
      * check, an {@link Error} such as an {@link AssertionError} from the
      * tester's listener included, releases the connection the same way and
-     * propagates unchanged.
+     * propagates unchanged. Either way this test's lifecycle ends here.
      */
     @Override
     public void cleanupData() throws Exception
     {
         requireDatabaseTester();
+        try
+        {
+            cleanUpAndRelease();
+        } finally
+        {
+            closedFixedConnectionWarning.lifecycleEnded();
+        }
+    }
+
+    /**
+     * Runs the tear down operation and the row count check, and releases the shared connection,
+     * also when either fails.
+     */
+    private void cleanUpAndRelease() throws Exception
+    {
         try
         {
             final boolean isCaseSensitiveTableNames;

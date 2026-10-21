@@ -81,8 +81,9 @@ import org.dbunit.database.CachingConnectionProvider;
 import org.dbunit.database.DatabaseConfig;
 import org.dbunit.database.IDatabaseConnection;
 import org.dbunit.database.InMemoryDatabaseConnection;
-import org.dbunit.database.connection.LeftOpenConnectionWarning;
 import org.dbunit.database.connection.ClosedConnectionHandedOutWarning;
+import org.dbunit.database.connection.ClosedFixedConnectionWarning;
+import org.dbunit.database.connection.LeftOpenConnectionWarning;
 import org.dbunit.database.rowcount.ClearRowCountCheckSystemProperties;
 import org.dbunit.database.rowcount.RowCountCheck;
 import org.dbunit.database.rowcount.RowCountCheckConfiguration;
@@ -1479,6 +1480,178 @@ class AnnotatedTestExecutorTest
         } finally
         {
             stopCapturingLogOf(LeftOpenConnectionWarning.class, appender);
+        }
+    }
+
+    @Test
+    void testBeforeTest_annotationDrivenFixedConnectionTesterAndAnotherListenerThanTheNoOpOne_warnsOnceWhenASecondTestClosesTheConnection()
+            throws Exception
+    {
+        // The listener only configures connections and closes nothing, but it is not the no-op
+        // one, so the test case closes the one fixed connection the tester hands out again.
+        when(connection.getConfig()).thenReturn(new DatabaseConfig());
+        stubOpenJdbcConnection();
+        final IDatabaseTester fixedConnectionTester = new DefaultDatabaseTester(connection);
+        fixedConnectionTester.setSetUpOperation(DatabaseOperation.NONE);
+        fixedConnectionTester.setOperationListener(mock(IOperationListener.class));
+        final DbUnitSetUpOperation setup =
+                WithSetupNoPrep.class.getAnnotation(DbUnitSetUpOperation.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(WithSetupNoPrep.class, null, null, setup, null, null, null);
+        final AnnotatedTestExecutor firstTest =
+                new AnnotatedTestExecutor(configuration, fixedConnectionTester, null);
+        final AnnotatedTestExecutor secondTest =
+                new AnnotatedTestExecutor(configuration, fixedConnectionTester, null);
+        final AnnotatedTestExecutor thirdTest =
+                new AnnotatedTestExecutor(configuration, fixedConnectionTester, null);
+        final ListAppender<ILoggingEvent> appender =
+                startCapturingLogOf(ClosedFixedConnectionWarning.class);
+        try
+        {
+            firstTest.beforeTest();
+            firstTest.afterTest(false);
+
+            assertThat(appender.list).filteredOn(event -> event.getLevel() == Level.WARN)
+                    .as("A tester built for one test is right to have its connection closed, so"
+                            + " the first test warns about nothing.")
+                    .isEmpty();
+
+            secondTest.beforeTest();
+            secondTest.afterTest(false);
+            thirdTest.beforeTest();
+            thirdTest.afterTest(false);
+
+            assertThat(appender.list).filteredOn(event -> event.getLevel() == Level.WARN)
+                    .as("A tester over one fixed connection that serves a second test, whose"
+                            + " connection the first one closed, must be warned about exactly"
+                            + " once, not once per test.")
+                    .hasSize(1);
+            verify(connection, times(3)).close();
+        } finally
+        {
+            stopCapturingLogOf(ClosedFixedConnectionWarning.class, appender);
+        }
+    }
+
+    @Test
+    void testBeforeTest_annotationDrivenFixedConnectionTesterWithNoOpListener_doesNotWarn()
+            throws Exception
+    {
+        when(connection.getConfig()).thenReturn(new DatabaseConfig());
+        stubOpenJdbcConnection();
+        final IDatabaseTester fixedConnectionTester = new DefaultDatabaseTester(connection);
+        fixedConnectionTester.setSetUpOperation(DatabaseOperation.NONE);
+        fixedConnectionTester.setOperationListener(IOperationListener.NO_OP_OPERATION_LISTENER);
+        final DbUnitSetUpOperation setup =
+                WithSetupNoPrep.class.getAnnotation(DbUnitSetUpOperation.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(WithSetupNoPrep.class, null, null, setup, null, null, null);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, fixedConnectionTester, null);
+        final ListAppender<ILoggingEvent> appender =
+                startCapturingLogOf(ClosedFixedConnectionWarning.class);
+        try
+        {
+            executor.beforeTest();
+            executor.afterTest(false);
+
+            assertThat(appender.list)
+                    .as("The documented way to keep the connection of a tester over one fixed"
+                            + " connection open is the no-op listener, which must not warn.")
+                    .isEmpty();
+            verify(connection, never()).close();
+        } finally
+        {
+            stopCapturingLogOf(ClosedFixedConnectionWarning.class, appender);
+        }
+    }
+
+    @Test
+    void testBeforeTest_annotationDrivenTesterReportsNoListener_warnsOnceWhenASecondTestClosesTheConnection()
+            throws Exception
+    {
+        when(connection.getConfig()).thenReturn(new DatabaseConfig());
+        stubOpenJdbcConnection();
+        final TesterNotReportingItsListener legacyTester =
+                new TesterNotReportingItsListener(() -> connection);
+        legacyTester.setSetUpOperation(DatabaseOperation.NONE);
+        final DbUnitSetUpOperation setup =
+                WithSetupNoPrep.class.getAnnotation(DbUnitSetUpOperation.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(WithSetupNoPrep.class, null, null, setup, null, null, null);
+        final AnnotatedTestExecutor firstTest =
+                new AnnotatedTestExecutor(configuration, legacyTester, null);
+        final AnnotatedTestExecutor secondTest =
+                new AnnotatedTestExecutor(configuration, legacyTester, null);
+        final ListAppender<ILoggingEvent> appender =
+                startCapturingLogOf(ClosedFixedConnectionWarning.class);
+        try
+        {
+            firstTest.beforeTest();
+            firstTest.afterTest(false);
+
+            assertThat(appender.list).filteredOn(event -> event.getLevel() == Level.WARN)
+                    .as("The first test of a tester warns about nothing.")
+                    .isEmpty();
+
+            secondTest.beforeTest();
+            secondTest.afterTest(false);
+
+            assertThat(appender.list).filteredOn(event -> event.getLevel() == Level.WARN)
+                    .as("A tester that cannot report its listener gives no way to say it keeps"
+                            + " its connection open, so closing the connection for a second test"
+                            + " must be warned about once.")
+                    .hasSize(1);
+        } finally
+        {
+            stopCapturingLogOf(ClosedFixedConnectionWarning.class, appender);
+        }
+    }
+
+    @Test
+    void testBeforeTest_annotationDrivenCustomTesterOverOneFixedConnection_warnsWhenASecondTestIsHandedItClosed()
+            throws Exception
+    {
+        // The test case closes the connection it shares when a test ends, as the listener of
+        // the tester is not the no-op one, so a custom tester over one fixed connection hands it
+        // out closed to the next test, whatever kind of tester it is.
+        final IDatabaseConnection fixedConnection = InMemoryDatabaseConnection.create();
+        final RecordingAbstractDatabaseTester customTester = new RecordingAbstractDatabaseTester();
+        customTester.connection = fixedConnection;
+        final DbUnitSetUpOperation setup =
+                WithSetupNoPrep.class.getAnnotation(DbUnitSetUpOperation.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(WithSetupNoPrep.class, null, null, setup, null, null, null);
+        final ListAppender<ILoggingEvent> appender =
+                startCapturingLogOf(ClosedConnectionHandedOutWarning.class);
+        try
+        {
+            final AnnotatedTestExecutor firstTest =
+                    new AnnotatedTestExecutor(configuration, customTester, null);
+            firstTest.beforeTest();
+            firstTest.afterTest(false);
+
+            assertThat(appender.list).filteredOn(event -> event.getLevel() == Level.WARN)
+                    .as("The first test is handed the connection open, so it warns about"
+                            + " nothing.")
+                    .isEmpty();
+            assertThat(isClosed(fixedConnection))
+                    .as("The test case closes the connection it shares when the test ends.")
+                    .isTrue();
+
+            final AnnotatedTestExecutor secondTest =
+                    new AnnotatedTestExecutor(configuration, customTester, null);
+            secondTest.beforeTest();
+            secondTest.afterTest(false);
+
+            assertThat(appender.list).filteredOn(event -> event.getLevel() == Level.WARN)
+                    .as("The second test is handed the connection closed, which must be warned"
+                            + " about once.")
+                    .hasSize(1);
+        } finally
+        {
+            stopCapturingLogOf(ClosedConnectionHandedOutWarning.class, appender);
+            fixedConnection.close();
         }
     }
 
