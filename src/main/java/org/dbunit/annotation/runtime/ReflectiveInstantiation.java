@@ -50,6 +50,29 @@ class ReflectiveInstantiation
     <T> T instantiate(final Class<? extends T> implementationClass,
             final String attributeDescription)
     {
+        return instantiate(implementationClass, attributeDescription, "");
+    }
+
+    /**
+     * Instantiates {@code implementationClass} as
+     * {@link #instantiate(Class, String)} does, appending {@code missingConstructorHint} to the
+     * message of the failure that says the no-arg constructor is missing or inaccessible, for an
+     * attribute whose users need to be told what to do about it. The message of a constructor
+     * that itself throws does not get it.
+     *
+     * @param <T> The type the instance is used as.
+     * @param implementationClass The class to instantiate.
+     * @param attributeDescription The annotation attribute that named this class, used only for
+     *            the exception message.
+     * @param missingConstructorHint The sentence that says what to do about a class without an
+     *            accessible no-arg constructor; empty for none.
+     * @return The new instance.
+     * @throws IllegalStateException If the no-arg constructor is missing, inaccessible, or
+     *             itself throws.
+     */
+    <T> T instantiate(final Class<? extends T> implementationClass,
+            final String attributeDescription, final String missingConstructorHint)
+    {
         try
         {
             final Constructor<? extends T> constructor =
@@ -63,9 +86,13 @@ class ReflectiveInstantiation
                     + " threw from its no-arg constructor.", e.getCause());
         } catch (final ReflectiveOperationException e)
         {
-            throw new IllegalStateException(attributeDescription + " class "
-                    + implementationClass.getName()
-                    + " has no accessible no-arg constructor.", e);
+            final String message = attributeDescription + " class "
+                    + implementationClass.getName() + " has no accessible no-arg constructor.";
+            if (missingConstructorHint.isEmpty())
+            {
+                throw new IllegalStateException(message, e);
+            }
+            throw new IllegalStateException(message + " " + missingConstructorHint, e);
         }
     }
 }
