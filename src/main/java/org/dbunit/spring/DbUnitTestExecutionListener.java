@@ -103,6 +103,8 @@ import org.springframework.util.ClassUtils;
  */
 public class DbUnitTestExecutionListener extends AbstractTestExecutionListener
 {
+    private static final Logger log = LoggerFactory.getLogger(DbUnitTestExecutionListener.class);
+
     /**
      * Runs between Spring's {@code DirtiesContextTestExecutionListener} (order 3000) and its
      * {@code TransactionalTestExecutionListener} (order 4000), in the same before-test-method and
@@ -117,8 +119,6 @@ public class DbUnitTestExecutionListener extends AbstractTestExecutionListener
      * means for a test.
      */
     public static final int ORDER = 3500;
-
-    private static final Logger log = LoggerFactory.getLogger(DbUnitTestExecutionListener.class);
 
     /** Package-visible so tests can reference it instead of duplicating the literal. */
     static final String EXECUTOR_ATTRIBUTE =
