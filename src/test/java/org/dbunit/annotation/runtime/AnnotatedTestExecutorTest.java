@@ -4159,7 +4159,7 @@ class AnnotatedTestExecutorTest
                 lookup = lookup.finding(annotation, annotatedClass);
             }
         }
-        return AnnotatedTestConfiguration.from(AnnotatedTestExecutorTest.class, lookup);
+        return AnnotatedTestConfiguration.from(lookup);
     }
 
     // ---- fixtures ----

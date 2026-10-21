@@ -28,7 +28,7 @@ import java.util.List;
  * test it is running, and the class that declares it: the one search strategy that differs
  * between test frameworks, since each has its own rules for meta-annotations, inheritance and
  * enclosing classes. Everything else that turns annotations into a configuration is shared - see
- * {@link AnnotatedTestConfiguration#from(Class, AnnotationLookup)}.
+ * {@link AnnotatedTestConfiguration#from(AnnotationLookup)}.
  *
  * <p>Public so a binding outside {@code org.dbunit.annotation.runtime} - such as
  * {@code DbUnitExtension} or a Spring {@code TestExecutionListener} - can implement it.
