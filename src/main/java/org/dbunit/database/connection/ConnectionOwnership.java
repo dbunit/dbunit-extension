@@ -39,7 +39,9 @@ import org.dbunit.IOperationListener;
  * connection, such as {@link org.dbunit.DefaultPrepAndExpectedTestCase}'s, {@code true} by
  * default. {@code false} means a real owner exists elsewhere - a
  * {@link org.dbunit.database.CachingConnectionProvider}, an externally-supplied fixed
- * connection - and it, not this lifecycle, closes the connection.</li>
+ * connection - and it, not this lifecycle, closes the connection. A lifecycle with no test case
+ * supplies instead whether the connection is one it may close, such as the classic lifecycle of
+ * {@code AnnotatedTestExecutor} for a connection it resolved itself.</li>
  * <li><b>{@code testerListener}</b> - the tester's {@link IOperationListener}. When it is
  * {@link IOperationListener#NO_OP_OPERATION_LISTENER}, that is the established, pre-existing
  * signal that the connection is managed elsewhere and must not be closed.</li>
@@ -75,8 +77,8 @@ public class ConnectionOwnership
      * Creates an ownership decision from its two inputs, each a supplier read fresh every
      * time {@link #mayClose()} or {@link #isLeftOpenByConfiguration()} is called.
      *
-     * @param closeConnectionAfterTest Supplies the test case's flag; {@code true} where the
-     *            lifecycle has no test case flag to ask.
+     * @param closeConnectionAfterTest Supplies the test case's flag, or where the lifecycle has
+     *            no test case flag to ask, whether the connection is one it may close.
      * @param testerListener Supplies the tester's current {@link IOperationListener}; may
      *            supply {@code null}, treated as a listener that is not the no-op one.
      */

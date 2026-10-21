@@ -25,6 +25,8 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.sql.Connection;
@@ -161,6 +163,79 @@ class ClassicRowCountCheckTest
                 .as("A null connection (e.g. a test double) still counts as an attempt, so the"
                         + " prediction is never retried later.")
                 .isTrue();
+    }
+
+    @Test
+    void testCaptureBaselineEagerly_checkDisabledAndConnectionResolvedHere_closesTheConnection()
+            throws Exception
+    {
+        final IDatabaseConnection connection = mock(IDatabaseConnection.class);
+        final Connection jdbc = mock(Connection.class);
+        when(connection.getConnection()).thenReturn(jdbc);
+        when(connection.getConfig()).thenReturn(new DatabaseConfig());
+        final TestScopedConnection holder =
+                new TestScopedConnection(() -> connection, alwaysMayClose, null);
+        final ClassicRowCountCheck check = new ClassicRowCountCheck(
+                mock(IDatabaseTester.class), holder, () -> true);
+
+        check.captureBaselineEagerly();
+
+        verify(connection).close();
+        assertThat(holder.isResolved())
+                .as("The released connection is forgotten, so a later request acquires a new one.")
+                .isFalse();
+    }
+
+    @Test
+    void testCaptureBaselineEagerly_checkEnabled_keepsTheConnectionOpenForTheVerification()
+            throws Exception
+    {
+        final IDatabaseConnection connection = mock(IDatabaseConnection.class);
+        stubRowCountCheckConnection(connection, "ACCOUNT", 5);
+        final TestScopedConnection holder =
+                new TestScopedConnection(() -> connection, alwaysMayClose, null);
+        final ClassicRowCountCheck check = new ClassicRowCountCheck(
+                mock(IDatabaseTester.class), holder, () -> true);
+
+        check.captureBaselineEagerly();
+
+        verify(connection, never()).close();
+        assertThat(holder.peekConnection())
+                .as("The verification after the test reads the counts through this connection.")
+                .isSameAs(connection);
+    }
+
+    @Test
+    void testCaptureBaselineEagerly_checkDisabledAndConnectionAlreadyResolved_leavesItOpen()
+            throws Exception
+    {
+        final IDatabaseConnection connection = mock(IDatabaseConnection.class);
+        when(connection.getConfig()).thenReturn(new DatabaseConfig());
+        final TestScopedConnection holder =
+                new TestScopedConnection(() -> connection, alwaysMayClose, null);
+        holder.getConnection();
+        final ClassicRowCountCheck check = new ClassicRowCountCheck(
+                mock(IDatabaseTester.class), holder, () -> true);
+
+        check.captureBaselineEagerly();
+
+        verify(connection, never()).close();
+    }
+
+    @Test
+    void testCaptureBaselineEagerly_checkDisabledAndOwnerKeepsTheConnection_leavesItOpen()
+            throws Exception
+    {
+        final IDatabaseConnection connection = mock(IDatabaseConnection.class);
+        when(connection.getConfig()).thenReturn(new DatabaseConfig());
+        final TestScopedConnection holder = new TestScopedConnection(() -> connection,
+                new ConnectionOwnership(() -> false, () -> null), null);
+        final ClassicRowCountCheck check = new ClassicRowCountCheck(
+                mock(IDatabaseTester.class), holder, () -> true);
+
+        check.captureBaselineEagerly();
+
+        verify(connection, never()).close();
     }
 
     @Test

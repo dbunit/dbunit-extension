@@ -64,6 +64,8 @@ import org.dbunit.operation.DatabaseOperation;
  * that is needed).
  *
  * <p>Holds no connection of its own; every route takes the shared {@link TestScopedConnection}.
+ * A connection resolved eagerly for a check that is disabled is released at once; see
+ * {@link #captureBaselineEagerly()}.
  *
  * @author Jeff Jensen
  * @since 3.6.0
@@ -153,11 +155,25 @@ class ClassicRowCountCheck
      * {@code onSetup()} on its own, and, run again by {@link ClassicLifecycle} after
      * {@code onSetup()}, the last-resort net for a piggyback that was trusted but never fired.
      *
-     * @throws Exception If resolving the connection or capturing the baseline fails.
+     * <p>When this call resolved the connection and the check turns out disabled, nothing needs
+     * the connection any more, so it is released at once under the same {@link
+     * TestScopedConnection#release()} ownership rule as at the end of the test: a test holds no
+     * connection it does not use while its method runs, which a bounded pool needs. A
+     * connection already resolved before this call, for example for a {@code @BeforeEach}
+     * parameter, is left to the test.
+     *
+     * @throws Exception If resolving the connection, capturing the baseline or releasing the
+     *             connection fails.
      */
     void captureBaselineEagerly() throws Exception
     {
+        final boolean resolvedBefore = connection.isResolved();
         captureBaseline(connection.getConnection());
+        final boolean needsNoConnection = !resolvedBefore && !baselineTracker.hasBaseline();
+        if (needsNoConnection)
+        {
+            connection.release();
+        }
     }
 
     /**
