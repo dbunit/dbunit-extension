@@ -196,7 +196,8 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     /**
      * Connection shared by setupData()/verifyData()/cleanupData() for one
      * test's lifecycle instead of each acquiring (and often closing) its own:
-     * acquired lazily on first use from {@link #getConnection()}, closed once
+     * acquired lazily on first use from the databaseTester, through
+     * {@link #getReusableConnection()}, closed once
      * by cleanupData() unless {@link #closeConnectionAfterTest} is false or
      * the tester's or this instance's operation listener is the no-op one,
      * and re-acquired if the pool or server closed it between reused test
@@ -335,9 +336,9 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
 
     /**
      * DatabaseConfig property name/value pairs applied to the connection shared by
-     * setupData(), verifyData() and cleanupData(), every time {@link #getConnection()}
-     * resolves it - see {@link #setUpDatabaseConfig(DatabaseConfig)}. Null (the default)
-     * applies none.
+     * setupData(), verifyData() and cleanupData(), when {@link #getReusableConnection()}
+     * acquires it and again on a connection kept from an earlier test - see
+     * {@link #setUpDatabaseConfig(DatabaseConfig)}. Null (the default) applies none.
      *
      * @since 3.6.0
      */
@@ -2978,8 +2979,8 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
 
     /**
      * Set DatabaseConfig property name/value pairs to apply to the connection shared by
-     * setupData(), verifyData() and cleanupData(), every time {@link #getConnection()}
-     * resolves it.
+     * setupData(), verifyData() and cleanupData(), when {@link #getReusableConnection()}
+     * acquires it and again on a connection kept from an earlier test.
      *
      * <p>
      * Puts back, first, whatever the previous properties replaced, so that changing them - as
