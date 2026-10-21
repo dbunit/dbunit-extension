@@ -102,8 +102,8 @@ public class YamlProducer implements IDataSetProducer
     /**
      * Creates a producer reading YAML from the given stream.
      *
-     * @param inputStream the stream to read YAML from.
-     * @param closeInputStream whether the producer closes {@code inputStream} once it has produced
+     * @param inputStream The stream to read YAML from.
+     * @param closeInputStream Whether the producer closes {@code inputStream} once it has produced
      *            the dataset, which it does for a stream it opened itself.
      */
     YamlProducer(InputStream inputStream, boolean closeInputStream)
@@ -256,7 +256,7 @@ public class YamlProducer implements IDataSetProducer
      * Returns the rows of a table: none for a table with no value, otherwise one for each entry
      * of its list.
      *
-     * @throws DataSetException if the table is not a list of rows, or one of its rows is not
+     * @throws DataSetException If the table is not a list of rows, or one of its rows is not
      *             a row.
      */
     private static List<Map<String, Object>> rowsOf(String tableName, Object value)
@@ -284,7 +284,7 @@ public class YamlProducer implements IDataSetProducer
      * Returns one row of a table, its column names mapped to their values, with no columns for
      * an entry with no value, which makes a row of nulls.
      *
-     * @throws DataSetException if the entry is not a mapping of column names to values.
+     * @throws DataSetException If the entry is not a mapping of column names to values.
      */
     private static Map<String, Object> rowOf(String tableName, int rowIndex, Object entry)
             throws DataSetException
@@ -313,7 +313,7 @@ public class YamlProducer implements IDataSetProducer
      * Returns a table or column name, which YAML reads as something other than a string when it
      * looks like a number, a boolean such as {@code on} or {@code no}, or null.
      *
-     * @throws DataSetException if the name is not a string.
+     * @throws DataSetException If the name is not a string.
      */
     private static String nameOf(Object key, String description) throws DataSetException
     {
