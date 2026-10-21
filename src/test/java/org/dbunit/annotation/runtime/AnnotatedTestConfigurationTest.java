@@ -547,6 +547,7 @@ class AnnotatedTestConfigurationTest
                                 + " failure, not be misreported as having no accessible no-arg"
                                 + " constructor.")
                         .isInstanceOf(IllegalStateException.class)
+                        .hasMessageContaining("DbUnitColumnComparer.comparer class")
                         .hasMessageNotContaining("no accessible no-arg constructor")
                         .hasCauseInstanceOf(RuntimeException.class)
                         .hasRootCauseMessage("boom");
@@ -564,9 +565,10 @@ class AnnotatedTestConfigurationTest
                                 + " rejected, naming both ways out: a catalog class, and a"
                                 + " subclass with a no-arg constructor.")
                         .isInstanceOf(IllegalStateException.class)
-                        .hasMessageContaining(
-                                IsActualWithinToleranceOfExpectedTimestampValueComparer.class
-                                        .getName())
+                        .hasMessageContaining("DbUnitColumnComparer.comparer class "
+                                + IsActualWithinToleranceOfExpectedTimestampValueComparer.class
+                                        .getName()
+                                + " has no accessible no-arg constructor")
                         .hasMessageContaining("catalog class")
                         .hasMessageContaining("subclass with a public no-arg constructor");
     }

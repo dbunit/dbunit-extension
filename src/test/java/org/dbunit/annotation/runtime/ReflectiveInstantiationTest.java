@@ -67,6 +67,31 @@ class ReflectiveInstantiationTest
     }
 
     @Test
+    void testInstantiate_noNoArgConstructorAndAHint_appendsTheHintToTheMessage()
+    {
+        assertThatThrownBy(() -> instantiation.instantiate(NoNoArgConstructor.class,
+                "someAttribute()", "Name a subclass that passes the argument."))
+                        .as("A hint says what to do about a missing constructor, after the"
+                                + " message every class gets.")
+                        .isInstanceOf(IllegalStateException.class)
+                        .hasMessageContaining("someAttribute() class "
+                                + NoNoArgConstructor.class.getName()
+                                + " has no accessible no-arg constructor.")
+                        .hasMessageEndingWith(" Name a subclass that passes the argument.");
+    }
+
+    @Test
+    void testInstantiate_constructorThrowsAndAHint_leavesTheHintOut()
+    {
+        assertThatThrownBy(() -> instantiation.instantiate(ThrowingNoArg.class, "someAttribute()",
+                "Name a subclass that passes the argument."))
+                        .as("The hint is about a missing constructor, which is not what failed.")
+                        .isInstanceOf(IllegalStateException.class)
+                        .hasMessageContaining("threw from its no-arg constructor")
+                        .hasMessageNotContaining("Name a subclass");
+    }
+
+    @Test
     void testInstantiate_constructorThrows_throwsIllegalStateExceptionWithOriginalCauseUnwrapped()
     {
         assertThatThrownBy(() -> instantiation.instantiate(ThrowingNoArg.class, "someAttribute()"))

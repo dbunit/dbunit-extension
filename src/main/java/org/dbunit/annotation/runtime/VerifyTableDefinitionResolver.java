@@ -20,8 +20,6 @@
  */
 package org.dbunit.annotation.runtime;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -58,6 +56,11 @@ import org.dbunit.util.fileloader.DataFileLoader;
  */
 class VerifyTableDefinitionResolver
 {
+    private static final String COMPARER_CONSTRUCTOR_HINT = "It is likely a configured instance"
+            + " built with constructor arguments, which an annotation cannot express. Either"
+            + " declare it as a VerifyTableDefinition constant in a catalog class, or name a"
+            + " subclass with a public no-arg constructor that passes the arguments to super(...).";
+
     private static final ClassValue<ValueComparer> COMPARERS = new ClassValue<ValueComparer>()
     {
         @Override
@@ -261,24 +264,7 @@ class VerifyTableDefinitionResolver
     private static ValueComparer newComparerInstance(
             final Class<? extends ValueComparer> comparerClass)
     {
-        try
-        {
-            final Constructor<? extends ValueComparer> constructor =
-                    comparerClass.getDeclaredConstructor();
-            constructor.setAccessible(true);
-            return constructor.newInstance();
-        } catch (final InvocationTargetException e)
-        {
-            throw new IllegalStateException("ValueComparer " + comparerClass.getName()
-                    + " threw from its no-arg constructor.", e.getCause());
-        } catch (final ReflectiveOperationException e)
-        {
-            throw new IllegalStateException("ValueComparer " + comparerClass.getName()
-                    + " has no accessible no-arg constructor - it is likely a configured"
-                    + " instance built with constructor arguments, which an annotation cannot"
-                    + " express. Either declare it as a VerifyTableDefinition constant in a"
-                    + " catalog class, or name a subclass with a public no-arg constructor that"
-                    + " passes the arguments to super(...).", e);
-        }
+        return new ReflectiveInstantiation().instantiate(comparerClass,
+                "DbUnitColumnComparer.comparer", COMPARER_CONSTRUCTOR_HINT);
     }
 }
