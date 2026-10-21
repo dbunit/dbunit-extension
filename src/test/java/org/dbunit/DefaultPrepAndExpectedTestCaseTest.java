@@ -18,7 +18,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.dbunit.assertion.DbComparisonFailure;
 import org.dbunit.assertion.DbUnitAssertBase;
 import org.dbunit.assertion.DiffCollectingFailureHandler;
+import org.dbunit.assertion.comparer.value.RegularExpressionValueComparer;
 import org.dbunit.assertion.comparer.value.ValueComparer;
+import org.dbunit.assertion.comparer.value.ValueComparers;
+import org.dbunit.assertion.comparer.value.builder.ColumnValueComparerMapBuilder;
 import org.dbunit.database.CachingConnectionProvider;
 import org.dbunit.database.DatabaseConfig;
 import org.dbunit.database.IDatabaseConnection;
@@ -1751,6 +1754,74 @@ class DefaultPrepAndExpectedTestCaseTest
     }
 
     @Test
+    void testVerifyData_patternComparerOnALeadingGeneratedIdAndIdsOutOfDataOrder_alignsTheRowsByTheOtherColumns()
+            throws Exception
+    {
+        final ITable actualTable = makeLeadingIdActualTable();
+        final ITable expectedTable = makeLeadingIdExpectedTable("[0-9]+", "[0-9]+");
+        final Map<String, ValueComparer> comparers = new ColumnValueComparerMapBuilder()
+                .add("ID", new RegularExpressionValueComparer()).build();
+
+        assertThatCode(() -> tc.verifyData(expectedTable, actualTable, new String[0],
+                new String[0], null, comparers, false))
+                        .as("The expected rows hold the same pattern in the ID column, so the"
+                                + " rows must be lined up by the columns whose values are exact,"
+                                + " not by the generated ids.")
+                        .doesNotThrowAnyException();
+    }
+
+    @Test
+    void testVerifyData_patternComparerOnALeadingGeneratedIdWhenSortingOnFilteredColumnsOnly_alignsTheRowsByTheOtherColumns()
+            throws Exception
+    {
+        final ITable actualTable = makeLeadingIdActualTable();
+        final ITable expectedTable = makeLeadingIdExpectedTable("[0-9]+", "[0-9]+");
+        final Map<String, ValueComparer> comparers = new ColumnValueComparerMapBuilder()
+                .add("ID", new RegularExpressionValueComparer()).build();
+
+        assertThatCode(() -> tc.verifyData(expectedTable, actualTable, new String[0],
+                new String[0], null, comparers, true))
+                        .as("Sorting on the filtered columns only keeps the column that has a"
+                                + " comparer of its own last in the sort key too.")
+                        .doesNotThrowAnyException();
+    }
+
+    @Test
+    void testVerifyData_differentPatternsInANumericIdColumn_sortsWithoutTypingThePatterns()
+            throws Exception
+    {
+        final ITable actualTable = makeLeadingIdActualTable();
+        final ITable expectedTable = makeLeadingIdExpectedTable("8[0-9]*", "7[0-9]*");
+        final Map<String, ValueComparer> comparers = new ColumnValueComparerMapBuilder()
+                .add("ID", new RegularExpressionValueComparer()).build();
+
+        assertThatCode(() -> tc.verifyData(expectedTable, actualTable, new String[0],
+                new String[0], null, comparers, false))
+                        .as("Rows that differ in the other columns are ordered before the ID"
+                                + " column is reached, so its patterns are never compared as"
+                                + " numbers.")
+                        .doesNotThrowAnyException();
+    }
+
+    @Test
+    void testVerifyData_comparerOfAnotherColumnAndIdsOutOfDataOrder_stillSortsByTheLeadingColumn()
+            throws Exception
+    {
+        final ITable actualTable = makeLeadingIdActualTable();
+        final ITable expectedTable = makeLeadingIdExpectedTable("7", "8");
+        final Map<String, ValueComparer> comparers = new ColumnValueComparerMapBuilder()
+                .add("NAME", ValueComparers.isActualEqualToExpected).build();
+
+        final Throwable thrown = catchThrowable(() -> tc.verifyData(expectedTable, actualTable,
+                new String[0], new String[0], null, comparers, false));
+
+        assertThat(thrown)
+                .as("A comparer on NAME moves NAME last, so both tables sort by ID: the actual"
+                        + " rows are 7/b and 8/a, which are not the expected 7/a and 8/b.")
+                .isInstanceOf(DbComparisonFailure.class);
+    }
+
+    @Test
     void testVerifyData_defaultSortExpectedOmitsAColumnAndComparisonPasses_throwsNothing()
             throws Exception
     {
@@ -3186,6 +3257,35 @@ class DefaultPrepAndExpectedTestCaseTest
         final DefaultTable table = new DefaultTable("TEST_TABLE", columns);
         table.addRow(new Object[] {firstId, firstCol1});
         table.addRow(new Object[] {secondId, secondCol1});
+        return table;
+    }
+
+    /**
+     * An actual table of a database-generated {@code ID} column that leads and a {@code NAME}
+     * column, whose generated ids are in the opposite order to the names.
+     */
+    private static DefaultTable makeLeadingIdActualTable() throws DataSetException
+    {
+        final Column[] columns = {new Column("ID", DataType.BIGINT),
+                new Column("NAME", DataType.VARCHAR)};
+        final DefaultTable table = new DefaultTable("ACCOUNT", columns);
+        table.addRow(new Object[] {7L, "b"});
+        table.addRow(new Object[] {8L, "a"});
+        return table;
+    }
+
+    /**
+     * An expected table of the columns of {@link #makeLeadingIdActualTable()} that holds a
+     * pattern in its {@code ID} column, as a dataset file does, and whose columns are untyped.
+     */
+    private static DefaultTable makeLeadingIdExpectedTable(final String firstIdPattern,
+            final String secondIdPattern) throws DataSetException
+    {
+        final Column[] columns = {new Column("ID", DataType.UNKNOWN),
+                new Column("NAME", DataType.UNKNOWN)};
+        final DefaultTable table = new DefaultTable("ACCOUNT", columns);
+        table.addRow(new Object[] {firstIdPattern, "a"});
+        table.addRow(new Object[] {secondIdPattern, "b"});
         return table;
     }
 
