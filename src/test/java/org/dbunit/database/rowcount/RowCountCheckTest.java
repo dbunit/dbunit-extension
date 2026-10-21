@@ -33,6 +33,7 @@ import static org.mockito.Mockito.when;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -40,6 +41,7 @@ import java.util.Map;
 
 import org.dbunit.database.DatabaseConfig;
 import org.dbunit.database.IDatabaseConnection;
+import org.dbunit.database.InMemoryDatabaseConnection;
 import org.dbunit.dataset.IDataSet;
 import org.junit.jupiter.api.Test;
 
@@ -299,6 +301,242 @@ class RowCountCheckTest
                 .rollback();
         verify(jdbcConnection, never())
                 .commit();
+    }
+
+    @Test
+    void testCapture_connectionWithoutASchema_countsOnlyTheTablesOfTheCurrentSchema()
+            throws Exception
+    {
+        final IDatabaseConnection connection = InMemoryDatabaseConnection.create();
+        try
+        {
+            execute(connection, "create table ACCOUNT (ID int)",
+                    "insert into ACCOUNT values (1)", "insert into ACCOUNT values (2)",
+                    "create table ACCOUNT_AUDIT (ID int)", "create schema OTHER",
+                    "create table OTHER.ELSEWHERE (ID int)");
+            final RowCountCheck check =
+                    new RowCountCheck(new RowCountCheckConfiguration(enabledDatabaseConfig()));
+
+            final RowCountSnapshot baseline = check.capture(connection);
+
+            assertThat(baseline.getRowCounts())
+                    .as("A connection that names no schema must count the tables of the JDBC"
+                            + " connection's current schema, not the system tables of the"
+                            + " database or the tables of another schema, which cannot be"
+                            + " counted by their unqualified names.")
+                    .containsOnlyKeys("ACCOUNT", "ACCOUNT_AUDIT")
+                    .containsEntry("ACCOUNT", 2).containsEntry("ACCOUNT_AUDIT", 0);
+        } finally
+        {
+            connection.close();
+        }
+    }
+
+    @Test
+    void testCapture_connectionWithoutASchemaAndACurrentSchemaNamedWithAHyphen_countsItsTables()
+            throws Exception
+    {
+        assertCapturesTheTablesOfCurrentSchema("\"app-data\"", null);
+    }
+
+    @Test
+    void testCapture_connectionWithoutASchemaAndACurrentSchemaInLowerCase_countsItsTables()
+            throws Exception
+    {
+        assertCapturesTheTablesOfCurrentSchema("\"appdata\"", null);
+    }
+
+    @Test
+    void testCapture_connectionWithoutASchemaAndAnEscapePattern_countsTheQuotedCurrentSchema()
+            throws Exception
+    {
+        assertCapturesTheTablesOfCurrentSchema("\"app-data\"", "\"?\"");
+    }
+
+    private void assertCapturesTheTablesOfCurrentSchema(final String quotedSchema,
+            final String escapePattern) throws Exception
+    {
+        final IDatabaseConnection connection = InMemoryDatabaseConnection.create();
+        try
+        {
+            execute(connection, "create schema " + quotedSchema, "set schema " + quotedSchema,
+                    "create table ACCOUNT (ID int)", "insert into ACCOUNT values (1)");
+            connection.getConfig().setProperty(DatabaseConfig.PROPERTY_ESCAPE_PATTERN,
+                    escapePattern);
+            final RowCountCheck check =
+                    new RowCountCheck(new RowCountCheckConfiguration(enabledDatabaseConfig()));
+
+            final RowCountSnapshot baseline = check.capture(connection);
+
+            assertThat(baseline.getRowCounts())
+                    .as("A current schema whose stored name needs quoting must be counted"
+                            + " through that name, quoted, not through an unquoted prefix.")
+                    .containsOnlyKeys("ACCOUNT").containsEntry("ACCOUNT", 1);
+        } finally
+        {
+            connection.close();
+        }
+    }
+
+    @Test
+    void testCaptureThenVerify_connectionWithoutASchema_reportsARowLeftBehind() throws Exception
+    {
+        final IDatabaseConnection connection = InMemoryDatabaseConnection.create();
+        try
+        {
+            execute(connection, "create table ACCOUNT (ID int)");
+            final RowCountCheck check =
+                    new RowCountCheck(new RowCountCheckConfiguration(enabledDatabaseConfig()));
+            final RowCountSnapshot baseline = check.capture(connection);
+            execute(connection, "insert into ACCOUNT values (1)");
+
+            assertThatThrownBy(() -> check.verify(baseline, connection))
+                    .as("A row added to a table of the current schema must be reported on a"
+                            + " connection that names no schema, by the name the table has"
+                            + " there.")
+                    .isInstanceOf(UnexpectedRowCountException.class)
+                    .hasMessageContaining("ACCOUNT").hasMessageContaining("0 -> 1");
+        } finally
+        {
+            connection.close();
+        }
+    }
+
+    @Test
+    void testCapture_connectionNamingItsSchema_countsTheTablesOfThatSchemaOnly() throws Exception
+    {
+        final IDatabaseConnection connection = InMemoryDatabaseConnection.create("PUBLIC");
+        try
+        {
+            execute(connection, "create table ACCOUNT (ID int)",
+                    "insert into ACCOUNT values (1)", "create schema OTHER",
+                    "create table OTHER.ELSEWHERE (ID int)", "set schema OTHER");
+            final RowCountCheck check =
+                    new RowCountCheck(new RowCountCheckConfiguration(enabledDatabaseConfig()));
+
+            final RowCountSnapshot baseline = check.capture(connection);
+
+            assertThat(baseline.getRowCounts())
+                    .as("A connection that names its schema keeps counting that schema's tables,"
+                            + " whatever the current schema of its JDBC connection is.")
+                    .containsOnlyKeys("ACCOUNT")
+                    .containsEntry("ACCOUNT", 1);
+        } finally
+        {
+            connection.close();
+        }
+    }
+
+    @Test
+    void testCapture_connectionWithoutASchemaAndTheDriverReportsNone_countsThroughTheConnectionItself()
+            throws Exception
+    {
+        final Connection jdbcConnection = mock(Connection.class);
+        final RowCounter rowCounter = mock(RowCounter.class);
+        final IDatabaseConnection connection =
+                connectionWithTablesAndJdbcConnection(jdbcConnection, "ACCOUNT");
+        when(rowCounter.countRows(any(), any())).thenReturn(mapOf("ACCOUNT", 5));
+        final RowCountCheck check = new RowCountCheck(
+                new RowCountCheckConfiguration(enabledDatabaseConfig(rowCounter)));
+
+        check.capture(connection);
+
+        verify(rowCounter).countRows(connection, Arrays.asList("ACCOUNT"));
+    }
+
+    @Test
+    void testCapture_connectionWithoutASchemaAndTheDriverReportsAnEmptyOne_countsThroughTheConnectionItself()
+            throws Exception
+    {
+        final Connection jdbcConnection = mock(Connection.class);
+        when(jdbcConnection.getSchema()).thenReturn("");
+        final RowCounter rowCounter = mock(RowCounter.class);
+        final IDatabaseConnection connection =
+                connectionWithTablesAndJdbcConnection(jdbcConnection, "ACCOUNT");
+        when(rowCounter.countRows(any(), any())).thenReturn(mapOf("ACCOUNT", 5));
+        final RowCountCheck check = new RowCountCheck(
+                new RowCountCheckConfiguration(enabledDatabaseConfig(rowCounter)));
+
+        check.capture(connection);
+
+        verify(rowCounter).countRows(connection, Arrays.asList("ACCOUNT"));
+    }
+
+    @Test
+    void testCapture_connectionWithoutASchemaAndQualifiedTableNames_countsTheTablesOfEverySchema()
+            throws Exception
+    {
+        final IDatabaseConnection connection = InMemoryDatabaseConnection.create();
+        try
+        {
+            execute(connection, "create table ACCOUNT (ID int)", "create schema OTHER",
+                    "create table OTHER.ELSEWHERE (ID int)",
+                    "insert into OTHER.ELSEWHERE values (1)");
+            connection.getConfig().setFeature(DatabaseConfig.FEATURE_QUALIFIED_TABLE_NAMES,
+                    true);
+            final RowCountCheck check =
+                    new RowCountCheck(new RowCountCheckConfiguration(enabledDatabaseConfig()));
+
+            final RowCountSnapshot baseline = check.capture(connection);
+
+            assertThat(baseline.getRowCounts())
+                    .as("A connection whose table names carry their schema is counted as it is,"
+                            + " by the qualified names of the tables of every schema it lists,"
+                            + " and not in its current schema only.")
+                    .containsEntry("PUBLIC.ACCOUNT", 0)
+                    .containsEntry("OTHER.ELSEWHERE", 1);
+        } finally
+        {
+            connection.close();
+        }
+    }
+
+    @Test
+    void testCapture_connectionWithoutASchemaAndTheDriverFailsToReportOne_countsThroughTheConnectionItself()
+            throws Exception
+    {
+        final Connection jdbcConnection = mock(Connection.class);
+        when(jdbcConnection.getSchema()).thenThrow(new SQLException("not supported"));
+        final RowCounter rowCounter = mock(RowCounter.class);
+        final IDatabaseConnection connection =
+                connectionWithTablesAndJdbcConnection(jdbcConnection, "ACCOUNT");
+        when(rowCounter.countRows(any(), any())).thenReturn(mapOf("ACCOUNT", 5));
+        final RowCountCheck check = new RowCountCheck(
+                new RowCountCheckConfiguration(enabledDatabaseConfig(rowCounter)));
+
+        check.capture(connection);
+
+        verify(rowCounter).countRows(connection, Arrays.asList("ACCOUNT"));
+    }
+
+    @Test
+    void testCapture_connectionWithoutASchemaAndTheDriverLacksJdbc41_countsThroughTheConnectionItself()
+            throws Exception
+    {
+        final Connection jdbcConnection = mock(Connection.class);
+        when(jdbcConnection.getSchema()).thenThrow(new AbstractMethodError());
+        final RowCounter rowCounter = mock(RowCounter.class);
+        final IDatabaseConnection connection =
+                connectionWithTablesAndJdbcConnection(jdbcConnection, "ACCOUNT");
+        when(rowCounter.countRows(any(), any())).thenReturn(mapOf("ACCOUNT", 5));
+        final RowCountCheck check = new RowCountCheck(
+                new RowCountCheckConfiguration(enabledDatabaseConfig(rowCounter)));
+
+        check.capture(connection);
+
+        verify(rowCounter).countRows(connection, Arrays.asList("ACCOUNT"));
+    }
+
+    private static void execute(final IDatabaseConnection connection, final String... statements)
+            throws SQLException
+    {
+        try (Statement statement = connection.getConnection().createStatement())
+        {
+            for (final String sql : statements)
+            {
+                statement.execute(sql);
+            }
+        }
     }
 
     private static DatabaseConfig enabledDatabaseConfig()
