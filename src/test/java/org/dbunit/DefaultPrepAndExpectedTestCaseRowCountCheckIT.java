@@ -23,10 +23,13 @@ package org.dbunit;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.catchThrowable;
+import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
+import java.sql.Connection;
 import java.sql.Statement;
 
 import org.dbunit.database.DatabaseConfig;
+import org.dbunit.database.DatabaseConnection;
 import org.dbunit.database.IDatabaseConnection;
 import org.dbunit.database.rowcount.ClearRowCountCheckSystemProperties;
 import org.dbunit.database.rowcount.RowCountDifference;
@@ -166,6 +169,53 @@ class DefaultPrepAndExpectedTestCaseRowCountCheckIT
                 .as("A table matching an exclude pattern must never be reported, even"
                         + " though its count actually changed.")
                 .doesNotThrowAnyException();
+    }
+
+    @Test
+    void testPostTest_connectionWithoutASchema_reportsALeakedRow() throws Exception
+    {
+        final Connection jdbcConnection = connection.getConnection();
+        final String currentSchema = jdbcConnection.getSchema();
+        // DB2 reports its current schema blank-padded, as it does its CURRENT SCHEMA register
+        final boolean driverReportsAnotherSchema = currentSchema != null
+                && !currentSchema.trim().equalsIgnoreCase(connection.getSchema());
+        assumeFalse(driverReportsAnotherSchema,
+                "The driver reports a current schema that is not the schema the tables are in,"
+                        + " so a connection that names none would count the tables of that"
+                        + " other schema.");
+        final IDatabaseConnection schemaLessConnection = new DatabaseConnection(jdbcConnection);
+        copyProfileSettings(connection.getConfig(), schemaLessConnection.getConfig());
+        final IDatabaseTester schemaLessTester = new DefaultDatabaseTester(schemaLessConnection);
+        schemaLessTester.setTearDownOperation(DatabaseOperation.DELETE_ALL);
+        final DefaultPrepAndExpectedTestCase schemaLessTestCase =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, schemaLessTester);
+
+        schemaLessTestCase.preTest();
+        insertRow(EMPTY_TABLE);
+        final Throwable thrown = catchThrowable(() -> schemaLessTestCase.postTest());
+
+        assertThat(thrown)
+                .as("A row left behind must be reported on a connection that names no schema."
+                        + " One whose driver reports its current schema, blank-padded on DB2,"
+                        + " counts the tables of that schema and not the system tables or the"
+                        + " other schemas the database has. One whose driver reports none, as on"
+                        + " MySQL and MariaDB, is counted as it is, which in these profiles"
+                        + " lists the tables of the test database only.")
+                .isInstanceOf(UnexpectedRowCountException.class);
+        assertThat(differenceFor((UnexpectedRowCountException) thrown, EMPTY_TABLE).getDelta())
+                .as("A row was left behind, so the delta must be positive.")
+                .isPositive();
+    }
+
+    private static void copyProfileSettings(final DatabaseConfig from, final DatabaseConfig to)
+    {
+        to.setFeature(DatabaseConfig.FEATURE_ROW_COUNT_CHECK, true);
+        to.setProperty(DatabaseConfig.PROPERTY_DATATYPE_FACTORY,
+                from.getProperty(DatabaseConfig.PROPERTY_DATATYPE_FACTORY));
+        to.setProperty(DatabaseConfig.PROPERTY_METADATA_HANDLER,
+                from.getProperty(DatabaseConfig.PROPERTY_METADATA_HANDLER));
+        to.setProperty(DatabaseConfig.PROPERTY_ESCAPE_PATTERN,
+                from.getProperty(DatabaseConfig.PROPERTY_ESCAPE_PATTERN));
     }
 
     private RowCountDifference differenceFor(final UnexpectedRowCountException exception,
