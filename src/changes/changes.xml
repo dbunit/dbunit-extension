@@ -143,6 +143,9 @@
       <action dev="jeffjensen" type="fix" system="github" due-to="jeffjensen">
           Fix DatabaseConfig.findByShortName() matching any ending of a property's name, so a name that is only the end of a short name, such as Size, resolved to the first property ending with it, batchSize, and DatabaseConfig.setPropertiesByString(), @DbUnitProperty and DefaultPrepAndExpectedTestCase.setDatabaseConfigProperties() applied it to that property instead of reporting it unknown. A short name now matches the whole last part of a property's name, or several whole last parts, such as mssql/identityColumnFilter.
       </action>
+      <action dev="jeffjensen" type="fix" system="github" due-to="jeffjensen">
+          Fix DefaultPrepAndExpectedTestCase.postTest() and runTest() throwing an IllegalArgumentException, "Self-suppression not permitted", in place of the real failure when the clean up throws the very instance that the verification or the test steps threw, as a listener or a connection that rethrows a stored exception does. That failure is now thrown as it is.
+      </action>
     </release>
     <release version="3.5.2" date="Sep 7, 2026" description="DefaultPrepAndExpectedTestCase connection hygiene: replace a connection the pool or database dropped between tests, and warn when handed a non-autocommit connection">
       <action dev="jeffjensen" type="fix" issue="962" system="github" due-to="jeffjensen">

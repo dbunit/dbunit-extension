@@ -1031,8 +1031,12 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
             } catch (final Throwable cleanupFailure)
             {
                 // never let a cleanup failure replace and hide the real test
-                // failure; keep e as the thrown exception, cleanupFailure alongside
-                e.addSuppressed(cleanupFailure);
+                // failure; keep e as the thrown exception, cleanupFailure alongside,
+                // unless it is e itself, which a throwable cannot suppress
+                if (cleanupFailure != e)
+                {
+                    e.addSuppressed(cleanupFailure);
+                }
             }
             throw e;
         }
@@ -1101,13 +1105,14 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
             // those not using an in-memory db or transaction rollback),
             // otherwise would mask probable cause of subsequent test
             // failures; the verify failure rides along as suppressed on the
-            // cleanup exception so it is not lost entirely
+            // cleanup exception so it is not lost entirely, unless it is the
+            // cleanup exception itself, which a throwable cannot suppress
             try
             {
                 cleanupData();
             } catch (final Throwable cleanupFailure)
             {
-                if (verifyFailure != null)
+                if (verifyFailure != null && cleanupFailure != verifyFailure)
                 {
                     cleanupFailure.addSuppressed(verifyFailure);
                 }
