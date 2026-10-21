@@ -58,8 +58,9 @@ public class DataFileLoaderInstances
      * @param loaderClass The loader class, with a no-arg constructor.
      * @return The one instance of the class in this scope when it is a
      *         {@link CachingDataFileLoader}, a new instance otherwise.
-     * @throws IllegalStateException If the class has no accessible no-arg constructor, or the
-     *             constructor throws. Nothing is kept then, so a later request tries again.
+     * @throws IllegalStateException If the class is an interface or abstract, has no accessible
+     *             no-arg constructor, or its constructor throws. Nothing is kept then, so a later
+     *             request tries again.
      */
     public DataFileLoader get(final Class<? extends DataFileLoader> loaderClass)
     {
