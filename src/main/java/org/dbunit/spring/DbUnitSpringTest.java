@@ -63,6 +63,13 @@ import org.springframework.test.context.TestExecutionListeners.MergeMode;
  * public @interface AppSpringDatabaseTest {}
  * }</pre>
  *
+ * <p>A test that injects a {@code @DbUnitTestCase} cannot carry such a composed annotation: an
+ * injected test case is used as its owner built it, so a {@code @DbUnitSetUpOperation},
+ * {@code @DbUnitTearDownOperation} or {@code @DbUnitConfig} attribute that would configure it,
+ * one a composed annotation or a base class carries included, is rejected with an
+ * {@link IllegalStateException}, and a test class cannot take an inherited declaration back.
+ * Use the composed annotation on the test classes that let dbUnit build their test case.
+ *
  * @author Jeff Jensen
  * @since 3.6.0
  * @see DbUnitTestExecutionListener
