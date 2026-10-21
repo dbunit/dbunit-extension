@@ -672,6 +672,13 @@ without a tester is rejected too, when it is resolved, and so is one without a d
 loader when the test names dataset files, which a `@BeforeEach` method may still give it. Any other
 `PrepAndExpectedTestCase` implementation is rejected for more - see <<othertestcase>>.
 
+A declaration that reaches the test from outside its class counts too: one on a base class, or
+one a composed annotation carries (<<composed>>), and a test class cannot take it back. A
+composed annotation that bundles `@DbUnitConfig(dataFileLoader)` or `@DbUnitSetUpOperation`, as
+the examples in the Javadoc of `@DbUnitTest` and `@DbUnitSpringTest` do, therefore cannot be used
+on a test class that injects a `@DbUnitTestCase`. Use it on the test classes that let dbUnit
+build their test case, and configure an injected instance where it is built.
+
 [source,java]
 ----
 @DbUnitTestCase
@@ -853,6 +860,10 @@ composes. The same works for a shared
 dataset: a composed annotation carrying `@DbUnitPrep("/dbunit/accounts/prep.xml")` gives each
 test class carrying it that prep file. Write such a path as an absolute one, as a relative
 path resolves against the class that carries the composed annotation (<<paths>>).
+
+A composed annotation that carries `@DbUnitSetUpOperation`, `@DbUnitTearDownOperation` or those
+`@DbUnitConfig` attributes cannot be used on a test class that injects a `@DbUnitTestCase`: such
+a class is rejected, as <<injected-testcase-config>> describes.
 
 [#paths]
 == Dataset Path Resolution
