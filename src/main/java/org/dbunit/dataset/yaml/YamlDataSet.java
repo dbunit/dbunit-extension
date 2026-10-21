@@ -78,7 +78,7 @@ public class YamlDataSet extends CachedDataSet
      *
      * @param file the YAML file to load.
      * @throws IOException if the file cannot be read.
-     * @throws DataSetException if the document cannot be parsed, or SnakeYAML is not on the
+     * @throws DataSetException If the document cannot be parsed, or SnakeYAML is not on the
      *             classpath.
      */
     public YamlDataSet(File file) throws IOException, DataSetException
@@ -90,7 +90,7 @@ public class YamlDataSet extends CachedDataSet
      * Creates a YAML dataset based on an inputstream
      *
      * @param inputStream An inputstream pointing to a YAML dataset
-     * @throws DataSetException if the document cannot be parsed, or SnakeYAML is not on the
+     * @throws DataSetException If the document cannot be parsed, or SnakeYAML is not on the
      *             classpath.
      */
     public YamlDataSet(InputStream inputStream) throws DataSetException
@@ -118,7 +118,7 @@ public class YamlDataSet extends CachedDataSet
      *
      * @param dataSet the dataset to write.
      * @param out the writer to write the YAML document to.
-     * @throws DataSetException if the dataset cannot be read, or SnakeYAML is not on the
+     * @throws DataSetException If the dataset cannot be read, or SnakeYAML is not on the
      *             classpath.
      */
     public static void write(IDataSet dataSet, Writer out)
