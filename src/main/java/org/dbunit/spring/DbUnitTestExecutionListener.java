@@ -190,10 +190,9 @@ public class DbUnitTestExecutionListener extends AbstractTestExecutionListener
         {
             return;
         }
-        final Class<?> testClass = testContext.getTestClass();
         final DataFileLoaderInstances dataFileLoaders = dataFileLoadersOfTheTestClass(testContext);
         final AnnotatedTestConfiguration configuration =
-                AnnotatedTestConfiguration.from(testClass, lookup, dataFileLoaders);
+                AnnotatedTestConfiguration.from(lookup, dataFileLoaders);
         final TestInstanceTesterResolver.Resolution resolution =
                 testerResolver.resolve(testContext, configuration);
         final AnnotatedTestExecutor executor =

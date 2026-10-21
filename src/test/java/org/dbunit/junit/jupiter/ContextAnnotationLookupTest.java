@@ -173,7 +173,7 @@ class ContextAnnotationLookupTest
                 lookupFor(SubclassDeclaringAFailureHandler.class, "aTestMethod");
 
         final AnnotatedTestConfiguration config = AnnotatedTestConfiguration
-                .from(SubclassDeclaringAFailureHandler.class, lookup);
+                .from(lookup);
 
         assertThat(config.getFailureHandler()).as("The subclass's own attribute applies.")
                 .isInstanceOf(DiffCollectingFailureHandler.class);
@@ -191,7 +191,7 @@ class ContextAnnotationLookupTest
                 lookupFor(ComposedAndOwnDeclaration.class, "aTestMethod");
 
         final AnnotatedTestConfiguration config =
-                AnnotatedTestConfiguration.from(ComposedAndOwnDeclaration.class, lookup);
+                AnnotatedTestConfiguration.from(lookup);
 
         assertThat(config.getFailureHandler()).as("The class's own declaration applies.")
                 .isInstanceOf(DiffCollectingFailureHandler.class);
