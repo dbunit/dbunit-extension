@@ -57,7 +57,16 @@ takes the expected dataset value as a regular expression and passes when it
 matches the actual value in its entirety, the same rule as
 `java.lang.String.matches`. To match only part of the value, wrap the pattern in
 `.*` on both ends, e.g. `.*[0-9]{4}.*`; a `.` does not cross a line terminator,
-so prefix the pattern with `(?s)` when the actual value may contain a newline.
+so prefix the pattern with `(?s)` when the actual value may contain a newline. When
+`DefaultPrepAndExpectedTestCase` or `@DbUnitExpected` verifies a table, the rows are lined up
+before they are compared, and the columns that have a comparer of their own, such as this one
+on a generated id, are the last columns they are sorted by, in their original order. Rows that
+tie on every other column and hold different patterns in a numeric column fail with a message
+that says so - see
+link:../components/verifytabledefinition.html#sortmode[Sort Mode].
+`Assertion.assertWithValueComparer` and the other assert methods compare the rows in the order
+the two tables give them, so when that order is not fixed, sort both tables, for example with
+link:../apidocs/org/dbunit/dataset/SortedTable.html[SortedTable].
 
 Some implementations are deliberately left off
 link:../apidocs/org/dbunit/assertion/comparer/value/ValueComparers.html[ValueComparers]
