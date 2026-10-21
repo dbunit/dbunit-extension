@@ -151,10 +151,20 @@ connection - a `NONE` setup operation, say - the extension resolves one from the
 before `onSetup()` instead. With the check enabled it also resolves one to verify after
 `onTearDown()` when the listener already closed the one `onSetup()` retrieved, as the
 default listener does. It offers either connection to `connectionRetrieved()` first, so
-the listener sees one more retrieval than in 3.5.0, and closes it after the test unless
-the tester's listener is `NO_OP_OPERATION_LISTENER`.
-Switch such a class to `@DbUnitTest`, or mark its field `@DbUnitTester`, to
-opt its parameters in.
+the listener sees one more retrieval than in 3.5.0, and closes it after the test unless the
+tester is known to hand out one fixed connection, as a `DefaultDatabaseTester` does and a
+`JdbcDatabaseTester`, a `DataSourceDatabaseTester` or a `JndiDatabaseTester` built with a
+`CachingConnectionProvider` does, or its listener is `NO_OP_OPERATION_LISTENER`. That
+connection stays open for its owner and the next test, as in 3.5.0, which resolved no
+connection of its own. Any other tester, a custom one included, may open a new connection on
+every call, and nothing else would close the one the extension resolved from it, so a custom
+tester that returns one fixed connection needs `NO_OP_OPERATION_LISTENER`: set it on the
+tester, or return it from `getOperationListener()` when the tester is not an
+`AbstractDatabaseTester`. When the tester hands a test a connection that is already closed, as
+a tester over one fixed connection does once its listener or the extension closed it, the
+extension logs a warning that names this remedy.
+Switch a bare `@ExtendWith(DbUnitExtension.class)` test class to `@DbUnitTest`, or mark its
+tester field `@DbUnitTester`, to opt its parameters in.
 
 *A bare `java.sql.Connection` parameter is never claimed*, so another
 extension on the same test that resolves it — Spring's `SpringExtension`,

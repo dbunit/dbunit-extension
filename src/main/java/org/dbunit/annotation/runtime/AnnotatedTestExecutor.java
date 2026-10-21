@@ -20,11 +20,14 @@
  */
 package org.dbunit.annotation.runtime;
 
+import java.util.function.Consumer;
+
 import org.dbunit.DefaultPrepAndExpectedTestCase;
 import org.dbunit.IDatabaseTester;
 import org.dbunit.IOperationListener;
 import org.dbunit.PrepAndExpectedTestCase;
 import org.dbunit.database.IDatabaseConnection;
+import org.dbunit.database.connection.ClosedConnectionHandedOutWarning;
 import org.dbunit.database.connection.ConnectionOwnership;
 import org.dbunit.database.connection.TestScopedConnection;
 import org.slf4j.Logger;
@@ -62,8 +65,13 @@ import org.slf4j.LoggerFactory;
  * plain, unannotated {@link IDatabaseTester} field, the 3.5.0 lifecycle-only style - keeps that
  * lifecycle, run by {@link ClassicLifecycle}, with the tester's {@link IOperationListener}
  * wrapped for the test by a {@link ClassicOperationListener} and put back when the test is over.
- * A tester that does not report its listener is left untouched. Both classes document how the
- * row count check baseline and the connections are handled.
+ * A tester that does not report its listener is left untouched. A connection this executor
+ * resolves itself, which the 3.5.0 lifecycle never did, is closed after the test unless the
+ * tester is known to hand out one fixed connection, see {@link FixedConnectionCheck}, or its
+ * listener is the no-op listener: either way the connection is the one the next test needs.
+ * Both classes document how the row count check baseline and the connections are handled. A
+ * connection the tester hands out already closed, as it hands out one fixed connection once
+ * something closed it, is warned about, see {@link ClosedConnectionHandedOutWarning}.
  *
  * @author Jeff Jensen
  * @since 3.6.0
@@ -77,6 +85,7 @@ public class AnnotatedTestExecutor
     private final TestScopedConnection testScopedConnection;
     private final TestCaseLifecycle testCaseLifecycle;
     private final ClassicLifecycle classicLifecycle;
+    private final ClosedConnectionHandedOutWarning closedConnectionWarning;
 
     private boolean afterTestRan;
     private ClassicOperationListener installedListener;
@@ -128,6 +137,7 @@ public class AnnotatedTestExecutor
             this.testCaseLifecycle =
                     new TestCaseLifecycle(configuration, tester, prepAndExpectedTestCase);
             this.classicLifecycle = null;
+            this.closedConnectionWarning = null;
             final ConnectionOwnership ownership = new ConnectionOwnership(
                     this::testCaseClosesItsConnection, this::testersOperationListener);
             this.testScopedConnection = new TestScopedConnection(
@@ -135,10 +145,15 @@ public class AnnotatedTestExecutor
         } else
         {
             this.testCaseLifecycle = null;
-            final ConnectionOwnership ownership =
-                    new ConnectionOwnership(() -> true, this::testersOperationListener);
+            this.closedConnectionWarning = new ClosedConnectionHandedOutWarning(() -> tester);
+            final FixedConnectionCheck handsOutOneFixedConnection = new FixedConnectionCheck(tester);
+            final ConnectionOwnership ownership = new ConnectionOwnership(
+                    () -> !handsOutOneFixedConnection.getAsBoolean(),
+                    this::testersOperationListener);
+            final Consumer<IDatabaseConnection> onAcquired =
+                    closedConnectionWarning.andThen(this::notifyTesterListenerOfRetrieval);
             this.testScopedConnection = new TestScopedConnection(() -> tester.getConnection(),
-                    ownership, this::notifyTesterListenerOfRetrieval);
+                    ownership, onAcquired);
             this.classicLifecycle = new ClassicLifecycle(tester, testScopedConnection,
                     this::isInstalledListenerInPlace);
             if (exposesOperationListener(tester))
@@ -377,11 +392,13 @@ public class AnnotatedTestExecutor
 
     /**
      * Runs when the tester's own {@code onSetup()}/{@code onTearDown()} retrieves a connection
-     * and notifies the installed {@link ClassicOperationListener}: offers it to
-     * {@link ClassicRowCountCheck} for the piggybacked baseline capture.
+     * and notifies the installed {@link ClassicOperationListener}: warns when the connection is
+     * already closed, and offers it to {@link ClassicRowCountCheck} for the piggybacked baseline
+     * capture.
      */
     private void onListenerFirstConnectionRetrieved(final IDatabaseConnection connection)
     {
+        closedConnectionWarning.accept(connection);
         classicLifecycle.adoptAndCaptureBaselineOnFirstConnection(connection);
     }
 
@@ -466,7 +483,9 @@ public class AnnotatedTestExecutor
     /**
      * Releases the connection {@link #testScopedConnection} memoized. On the classic path one
      * it took over from the tester's own {@code onSetup()} is only forgotten, as the tester's
-     * listener already decided whether to close it; see the class Javadoc.
+     * listener already decided whether to close it, and one it resolved itself is closed unless
+     * the tester is known to hand out one fixed connection or its listener is the no-op
+     * listener; see the class Javadoc.
      *
      * @throws Exception If closing the connection fails.
      */
