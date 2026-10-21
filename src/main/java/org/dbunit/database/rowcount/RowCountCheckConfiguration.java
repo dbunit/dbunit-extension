@@ -89,7 +89,7 @@ public class RowCountCheckConfiguration
      * {@link #DBUNIT_ROW_COUNT_CHECK} system property, when present, wins over the
      * {@link DatabaseConfig#FEATURE_ROW_COUNT_CHECK} feature in either direction.
      *
-     * @param databaseConfig the database config to read {@link DatabaseConfig#FEATURE_ROW_COUNT_CHECK},
+     * @param databaseConfig The database config to read {@link DatabaseConfig#FEATURE_ROW_COUNT_CHECK},
      *            {@link DatabaseConfig#PROPERTY_ROW_COUNT_CHECK_EXCLUDE_TABLES}, and
      *            {@link DatabaseConfig#PROPERTY_ROW_COUNTER} from.
      */
@@ -114,10 +114,10 @@ public class RowCountCheckConfiguration
      * {@code dbunit.rowCountCheckExcludeTables} system property adds its patterns to
      * {@code excludeTablePatterns}.
      *
-     * @param enabled whether the test declares the check enabled.
-     * @param excludeTablePatterns the excluded table patterns the test declares; {@code null}
+     * @param enabled Whether the test declares the check enabled.
+     * @param excludeTablePatterns The excluded table patterns the test declares; {@code null}
      *            resolves to no exclusions of its own.
-     * @param rowCounter the {@link RowCounter} to use; {@code null} resolves to a new
+     * @param rowCounter The {@link RowCounter} to use; {@code null} resolves to a new
      *            {@link QueryPerTableRowCounter}, so a value not carried by
      *            {@link DatabaseConfig}'s own default initialization is still tolerated.
      */
@@ -196,7 +196,7 @@ public class RowCountCheckConfiguration
     /**
      * Returns the filter built from the resolved exclude table patterns.
      *
-     * @return the exclude table filter.
+     * @return The exclude table filter.
      */
     public ExcludeTableFilter getExcludeTableFilter()
     {
@@ -206,7 +206,7 @@ public class RowCountCheckConfiguration
     /**
      * Returns the {@link RowCounter} to use.
      *
-     * @return the configured row counter.
+     * @return The configured row counter.
      */
     public RowCounter getRowCounter()
     {
