@@ -387,10 +387,9 @@ public class DbUnitExtension implements BeforeTestExecutionCallback,
 
     private AnnotatedTestConfiguration resolveConfiguration(final ExtensionContext context)
     {
-        final Class<?> testClass = context.getRequiredTestClass();
         final AnnotationLookup lookup = new ContextAnnotationLookup(context);
         final DataFileLoaderInstances dataFileLoaders = dataFileLoadersOfTheRun(context);
-        return AnnotatedTestConfiguration.from(testClass, lookup, dataFileLoaders);
+        return AnnotatedTestConfiguration.from(lookup, dataFileLoaders);
     }
 
     /**
