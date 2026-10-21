@@ -29,9 +29,12 @@ import java.lang.ref.WeakReference;
 import java.util.Optional;
 
 import org.dbunit.VerifyTableDefinition;
+import org.dbunit.annotation.DbUnitColumnComparer;
 import org.dbunit.annotation.DbUnitExpected;
 import org.dbunit.annotation.DbUnitVerifyTable;
+import org.dbunit.assertion.comparer.value.IsActualWithinToleranceOfExpectedTimestampValueComparer;
 import org.dbunit.assertion.comparer.value.NeverFailsValueComparer;
+import org.dbunit.assertion.comparer.value.ValueComparerTemplateBase;
 import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.IDataSet;
 import org.dbunit.util.fileloader.DataFileLoader;
@@ -326,6 +329,55 @@ class VerifyTableDefinitionResolverTest
                 .isTrue();
     }
 
+    @Test
+    void testResolveDeclared_defaultComparerWithoutNoArgConstructor_namesTheDefaultComparerAttribute()
+    {
+        final DbUnitExpected expected = DeclaresDefaultComparerWithoutNoArgConstructor.class
+                .getAnnotation(DbUnitExpected.class);
+
+        assertThatThrownBy(() -> resolveDeclared(expected, new String[] {"expected.xml"}))
+                .as("A comparer class that defaultComparer names must be reported under that"
+                        + " attribute, with the advice for a configured comparer.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageStartingWith("DbUnitVerifyTable.defaultComparer names a ValueComparer"
+                        + " that dbUnit cannot instantiate. ValueComparer class "
+                        + IsActualWithinToleranceOfExpectedTimestampValueComparer.class.getName()
+                        + " has no accessible no-arg constructor.")
+                .hasMessageContaining("catalog class")
+                .hasCauseInstanceOf(NoSuchMethodException.class);
+    }
+
+    @Test
+    void testResolveDeclared_columnComparerWithoutNoArgConstructor_namesTheColumnComparerAttribute()
+    {
+        final DbUnitExpected expected = DeclaresColumnComparerWithoutNoArgConstructor.class
+                .getAnnotation(DbUnitExpected.class);
+
+        assertThatThrownBy(() -> resolveDeclared(expected, new String[] {"expected.xml"}))
+                .as("A comparer class that a @DbUnitColumnComparer names must be reported under"
+                        + " that attribute.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageStartingWith("DbUnitColumnComparer.comparer names a ValueComparer"
+                        + " that dbUnit cannot instantiate.");
+    }
+
+    @Test
+    void testResolveDeclared_abstractComparer_saysItIsAbstractWithoutTheConstructorAdvice()
+    {
+        final DbUnitExpected expected =
+                DeclaresAbstractComparer.class.getAnnotation(DbUnitExpected.class);
+
+        assertThatThrownBy(() -> resolveDeclared(expected, new String[] {"expected.xml"}))
+                .as("An abstract comparer class has a no-arg constructor, so the message must"
+                        + " say that it is abstract, not that it is a configured instance"
+                        + " built with constructor arguments.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("DbUnitVerifyTable.defaultComparer names a ValueComparer that dbUnit"
+                        + " cannot instantiate. ValueComparer class "
+                        + ValueComparerTemplateBase.class.getName() + " is abstract. Name a"
+                        + " concrete subclass that has a no-arg constructor.");
+    }
+
     private static DataFileLoader loaderOfTables(final String... tableNames) throws Exception
     {
         final DataFileLoader loader = mock(DataFileLoader.class);
@@ -410,6 +462,25 @@ class VerifyTableDefinitionResolverTest
     {
         public static final VerifyTableDefinition ACCOUNT =
                 new VerifyTableDefinition("ACCOUNT", (String[]) null);
+    }
+
+    @DbUnitExpected(value = "expected.xml", verify = @DbUnitVerifyTable(value = "ACCOUNT",
+            defaultComparer = IsActualWithinToleranceOfExpectedTimestampValueComparer.class))
+    private static class DeclaresDefaultComparerWithoutNoArgConstructor
+    {
+    }
+
+    @DbUnitExpected(value = "expected.xml", verify = @DbUnitVerifyTable(value = "ACCOUNT",
+            columnComparers = @DbUnitColumnComparer(column = "CREATED",
+                    comparer = IsActualWithinToleranceOfExpectedTimestampValueComparer.class)))
+    private static class DeclaresColumnComparerWithoutNoArgConstructor
+    {
+    }
+
+    @DbUnitExpected(value = "expected.xml", verify = @DbUnitVerifyTable(value = "ACCOUNT",
+            defaultComparer = ValueComparerTemplateBase.class))
+    private static class DeclaresAbstractComparer
+    {
     }
 
     @DbUnitExpected("expected.xml")

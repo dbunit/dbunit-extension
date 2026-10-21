@@ -20,8 +20,6 @@
  */
 package org.dbunit.annotation.runtime;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -60,6 +58,11 @@ import org.dbunit.util.fileloader.DataFileLoader;
  */
 class VerifyTableDefinitionResolver
 {
+    private static final String COMPARER_CONSTRUCTOR_HINT = "It is likely a configured instance"
+            + " built with constructor arguments, which an annotation cannot express. Either"
+            + " declare it as a VerifyTableDefinition constant in a catalog class, or name a"
+            + " subclass with a public no-arg constructor that passes the arguments to super(...).";
+
     private static final ClassValue<ValueComparer> COMPARERS = new ClassValue<ValueComparer>()
     {
         @Override
@@ -165,7 +168,7 @@ class VerifyTableDefinitionResolver
     {
         final String[] include = v.include().length == 0 ? null : v.include();
         final ValueComparer defaultComparer = v.defaultComparer() == ValueComparer.class ? null
-                : instantiateComparer(v.defaultComparer());
+                : instantiateComparer(v.defaultComparer(), "DbUnitVerifyTable.defaultComparer");
         final Map<String, ValueComparer> columnComparers =
                 new LinkedHashMap<>(v.columnComparers().length);
         for (final DbUnitColumnComparer c : v.columnComparers())
@@ -176,7 +179,8 @@ class VerifyTableDefinitionResolver
                         + "\") declares more than one @DbUnitColumnComparer for column '"
                         + c.column() + "'; declare at most one per column.");
             }
-            columnComparers.put(c.column(), instantiateComparer(c.comparer()));
+            columnComparers.put(c.column(),
+                    instantiateComparer(c.comparer(), "DbUnitColumnComparer.comparer"));
         }
         return new VerifyTableDefinition(v.value(), v.exclude(), include, defaultComparer,
                 columnComparers, v.sortOnFilteredColumnsOnly());
@@ -253,34 +257,29 @@ class VerifyTableDefinitionResolver
      * itself, through a {@link ClassValue}, so it goes away with the class and its class loader
      * rather than keeping them alive. See {@link DbUnitColumnComparer#comparer()} for the
      * resulting purity requirement.
+     *
+     * <p>One instance serves both attributes that name a comparer class, so the cache cannot
+     * know which attribute asks. A class it cannot instantiate stays out of the cache, and its
+     * failure is reported here under {@code attributeDescription}, with the cause of the
+     * cache's failure.
      */
     private static ValueComparer instantiateComparer(
-            final Class<? extends ValueComparer> comparerClass)
+            final Class<? extends ValueComparer> comparerClass, final String attributeDescription)
     {
-        return COMPARERS.get(comparerClass);
+        try
+        {
+            return COMPARERS.get(comparerClass);
+        } catch (final IllegalStateException e)
+        {
+            throw new IllegalStateException(attributeDescription + " names a ValueComparer that"
+                    + " dbUnit cannot instantiate. " + e.getMessage(), e.getCause());
+        }
     }
 
     private static ValueComparer newComparerInstance(
             final Class<? extends ValueComparer> comparerClass)
     {
-        try
-        {
-            final Constructor<? extends ValueComparer> constructor =
-                    comparerClass.getDeclaredConstructor();
-            constructor.setAccessible(true);
-            return constructor.newInstance();
-        } catch (final InvocationTargetException e)
-        {
-            throw new IllegalStateException("ValueComparer " + comparerClass.getName()
-                    + " threw from its no-arg constructor.", e.getCause());
-        } catch (final ReflectiveOperationException e)
-        {
-            throw new IllegalStateException("ValueComparer " + comparerClass.getName()
-                    + " has no accessible no-arg constructor - it is likely a configured"
-                    + " instance built with constructor arguments, which an annotation cannot"
-                    + " express. Either declare it as a VerifyTableDefinition constant in a"
-                    + " catalog class, or name a subclass with a public no-arg constructor that"
-                    + " passes the arguments to super(...).", e);
-        }
+        return new ReflectiveInstantiation().instantiate(comparerClass, "ValueComparer",
+                COMPARER_CONSTRUCTOR_HINT);
     }
 }
