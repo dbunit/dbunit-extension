@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.dbunit.DatabaseUnitException;
+import org.dbunit.database.DatabaseConfig;
 import org.dbunit.database.IDatabaseConnection;
 import org.dbunit.dataset.filter.ExcludeTableFilter;
 import org.slf4j.Logger;
@@ -41,6 +42,12 @@ import org.slf4j.LoggerFactory;
  * Every method is a no-op, and never queries the connection, when
  * {@link RowCountCheckConfiguration#isEnabled()} is {@code false} - the check costs nothing
  * when a caller has not opted in.
+ * <p>
+ * It counts the tables its connection lists. A connection that names no schema is counted
+ * through the current schema of its JDBC connection when the driver reports one, so the check
+ * does not meet the system schemas of a database such as H2, or the tables of other schemas,
+ * which it cannot count by their unqualified names. When the driver reports none, the connection
+ * is counted as it is.
  *
  * @author dbunit
  * @since 3.6.0
@@ -112,7 +119,8 @@ public class RowCountCheck
     {
         try
         {
-            final String[] allTableNames = connection.createDataSet().getTableNames();
+            final IDatabaseConnection countingConnection = connectionToCountThrough(connection);
+            final String[] allTableNames = countingConnection.createDataSet().getTableNames();
             final ExcludeTableFilter excludeTableFilter = configuration.getExcludeTableFilter();
 
             final List<String> tableNames = new ArrayList<>();
@@ -125,12 +133,89 @@ public class RowCountCheck
             }
 
             final Map<String, Integer> rowCounts =
-                    configuration.getRowCounter().countRows(connection, tableNames);
+                    configuration.getRowCounter().countRows(countingConnection, tableNames);
             return new RowCountSnapshot(rowCounts);
         }
         finally
         {
             endReadTransaction(connection);
+        }
+    }
+
+    /**
+     * Returns the connection to list and count the tables through: {@code connection} itself,
+     * unless it names no schema and its JDBC connection reports a current one, in which case a
+     * view of it that names that schema. Without a schema a connection lists the tables of every
+     * schema it can see, the system schemas of a database such as H2 among them, and counts them
+     * by names that carry no schema, so a table of another schema cannot be counted.
+     *
+     * @param connection the connection the check was asked to count.
+     * @return the connection to count through.
+     * @throws SQLException if reading the JDBC connection fails.
+     */
+    private IDatabaseConnection connectionToCountThrough(final IDatabaseConnection connection)
+            throws SQLException
+    {
+        final String currentSchema = currentSchemaOf(connection);
+        if (currentSchema == null)
+        {
+            return connection;
+        }
+
+        log.debug("connectionToCountThrough: the connection names no schema, so counting the"
+                + " tables of the current schema '{}'", currentSchema);
+        return new CurrentSchemaConnection(connection, currentSchema);
+    }
+
+    /**
+     * Returns the current schema of the JDBC connection of a connection that names no schema,
+     * or null when there is none to count in: the connection names a schema, or its table names
+     * already carry theirs, or it has no JDBC connection, or the driver reports no current
+     * schema, fails to report it, or predates JDBC 4.1 and cannot.
+     *
+     * @param connection the connection the check was asked to count.
+     * @return the current schema, or null if the connection is to be counted as it is.
+     * @throws SQLException if reading the JDBC connection of the connection fails.
+     */
+    private String currentSchemaOf(final IDatabaseConnection connection) throws SQLException
+    {
+        if (connection.getSchema() != null)
+        {
+            return null;
+        }
+
+        final Connection jdbcConnection = connection.getConnection();
+        if (jdbcConnection == null)
+        {
+            return null;
+        }
+
+        final String currentSchema = currentSchemaReportedBy(jdbcConnection);
+        if (currentSchema == null || currentSchema.isEmpty())
+        {
+            return null;
+        }
+
+        final boolean tableNamesCarryTheirSchema =
+                connection.getConfig().getFeature(DatabaseConfig.FEATURE_QUALIFIED_TABLE_NAMES);
+        if (tableNamesCarryTheirSchema)
+        {
+            return null;
+        }
+        return currentSchema;
+    }
+
+    private String currentSchemaReportedBy(final Connection jdbcConnection)
+    {
+        try
+        {
+            return jdbcConnection.getSchema();
+        }
+        catch (final SQLException | AbstractMethodError e)
+        {
+            log.debug("currentSchemaReportedBy: the JDBC connection does not report its current"
+                    + " schema", e);
+            return null;
         }
     }
 
