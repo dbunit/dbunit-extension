@@ -925,6 +925,37 @@ class DefaultPrepAndExpectedTestCaseTest
     }
 
     @Test
+    void testRunTest_whenTestStepsAndCleanupThrowTheSameFailure_throwsItUnchanged()
+            throws Exception
+    {
+        final RuntimeException sharedFailure = new RuntimeException("one failure for both");
+        final DefaultPrepAndExpectedTestCase throwingTc =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester)
+                {
+                    @Override
+                    public void cleanupData() throws Exception
+                    {
+                        throw sharedFailure;
+                    }
+                };
+        final PrepAndExpectedTestCaseSteps steps = () -> {
+            throw sharedFailure;
+        };
+
+        final Throwable thrown = catchThrowable(() -> throwingTc.runTest(
+                new VerifyTableDefinition[] {}, new String[] {}, new String[] {}, steps));
+
+        assertThat(thrown)
+                .as("A failure that both the test steps and the clean up throw must be thrown as"
+                        + " it is, not replaced by the IllegalArgumentException that adding a"
+                        + " throwable to its own suppressed ones throws.")
+                .isSameAs(sharedFailure);
+        assertThat(thrown.getSuppressed())
+                .as("A failure is not suppressed by itself.")
+                .isEmpty();
+    }
+
+    @Test
     void testPostTest_withVerifyDataDefaultTrue_verifiesDataAndClosesConnectionOnce()
             throws Exception
     {
@@ -1035,6 +1066,39 @@ class DefaultPrepAndExpectedTestCaseTest
                         + " cleanup failure is an Error rather than an"
                         + " Exception.")
                 .containsExactly(verifyFailure);
+    }
+
+    @Test
+    void testPostTest_whenVerifyAndCleanupThrowTheSameFailure_throwsItUnchanged()
+            throws Exception
+    {
+        final RuntimeException sharedFailure = new RuntimeException("one failure for both");
+        final DefaultPrepAndExpectedTestCase throwingTc =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester)
+                {
+                    @Override
+                    public void verifyData() throws Exception
+                    {
+                        throw sharedFailure;
+                    }
+
+                    @Override
+                    public void cleanupData() throws Exception
+                    {
+                        throw sharedFailure;
+                    }
+                };
+
+        final Throwable thrown = catchThrowable(() -> throwingTc.postTest(true));
+
+        assertThat(thrown)
+                .as("A failure that both the verification and the clean up throw must be thrown"
+                        + " as it is, not replaced by the IllegalArgumentException that adding a"
+                        + " throwable to its own suppressed ones throws.")
+                .isSameAs(sharedFailure);
+        assertThat(thrown.getSuppressed())
+                .as("A failure is not suppressed by itself.")
+                .isEmpty();
     }
 
     @Test
