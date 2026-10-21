@@ -26,6 +26,8 @@ import org.dbunit.database.CachingConnectionProvider;
 import org.dbunit.database.DatabaseConfig;
 import org.dbunit.database.IDatabaseConnection;
 import org.dbunit.database.MockDatabaseConnection;
+import org.dbunit.database.connection.ClosedConnectionHandedOutWarning;
+import org.dbunit.database.connection.ClosedFixedConnectionWarning;
 import org.dbunit.database.connection.LeftOpenConnectionWarning;
 import org.dbunit.database.rowcount.ClearRowCountCheckSystemProperties;
 import org.dbunit.database.rowcount.RowCountCheck;
@@ -2819,6 +2821,250 @@ class DefaultPrepAndExpectedTestCaseTest
         } finally
         {
             stopCapturingLogOf(LeftOpenConnectionWarning.class, appender);
+        }
+    }
+
+    @Test
+    void testGetReusableConnection_defaultDatabaseTesterUsedForOneTest_logsNoClosedFixedConnectionWarning()
+            throws Exception
+    {
+        final ListAppender<ILoggingEvent> appender =
+                startCapturingLogOf(ClosedFixedConnectionWarning.class);
+        try
+        {
+            tc.configureTest(new VerifyTableDefinition[] {}, new String[] {}, new String[] {});
+            tc.preTest();
+            tc.postTest();
+
+            assertThat(appender.list).filteredOn(event -> event.getLevel() == Level.WARN)
+                    .as("A tester built for one test is right to have its connection closed, so"
+                            + " nothing is warned about until a second test uses the tester.")
+                    .isEmpty();
+        } finally
+        {
+            stopCapturingLogOf(ClosedFixedConnectionWarning.class, appender);
+        }
+    }
+
+    @Test
+    void testRunTest_defaultDatabaseTesterAndConfigureTestFails_logsNoClosedFixedConnectionWarning()
+            throws Exception
+    {
+        final ListAppender<ILoggingEvent> appender =
+                startCapturingLogOf(ClosedFixedConnectionWarning.class);
+        try
+        {
+            final Throwable thrown = catchThrowable(() -> tc.runTest(
+                    new VerifyTableDefinition[] {}, new String[] {MISSING_DATA_FILE_NAME},
+                    new String[] {}, () -> null));
+
+            assertThat(thrown).as("The missing prep file fails the test.").isNotNull();
+            assertThat(appender.list).filteredOn(event -> event.getLevel() == Level.WARN)
+                    .as("The clean up after the failed configureTest() acquires the connection"
+                            + " again within the same test, which is not a second test using the"
+                            + " tester.")
+                    .isEmpty();
+        } finally
+        {
+            stopCapturingLogOf(ClosedFixedConnectionWarning.class, appender);
+        }
+    }
+
+    @Test
+    void testGetReusableConnection_sameTestCaseServingSeveralTestsWithTheSameTester_logsExactlyOneWarning()
+            throws Exception
+    {
+        final ListAppender<ILoggingEvent> appender =
+                startCapturingLogOf(ClosedFixedConnectionWarning.class);
+        try
+        {
+            for (int test = 0; test < 3; test++)
+            {
+                tc.configureTest(new VerifyTableDefinition[] {}, new String[] {},
+                        new String[] {});
+                tc.preTest();
+                tc.postTest();
+            }
+
+            assertThat(appender.list).filteredOn(event -> event.getLevel() == Level.WARN)
+                    .as("A test case reused across tests, such as one in a static field, serves"
+                            + " each test with the same tester, so its second test is the"
+                            + " tester's second use and is warned about once.")
+                    .hasSize(1);
+        } finally
+        {
+            stopCapturingLogOf(ClosedFixedConnectionWarning.class, appender);
+        }
+    }
+
+    @Test
+    void testGetReusableConnection_defaultDatabaseTesterServingSeveralTests_logsExactlyOneWarning()
+            throws Exception
+    {
+        final DefaultPrepAndExpectedTestCase secondTc =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester);
+        final DefaultPrepAndExpectedTestCase thirdTc =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester);
+        final ListAppender<ILoggingEvent> appender =
+                startCapturingLogOf(ClosedFixedConnectionWarning.class);
+        try
+        {
+            for (final DefaultPrepAndExpectedTestCase testCase : Arrays.asList(tc, secondTc,
+                    thirdTc))
+            {
+                testCase.configureTest(new VerifyTableDefinition[] {}, new String[] {},
+                        new String[] {});
+                testCase.preTest();
+                testCase.postTest();
+            }
+
+            assertThat(appender.list).filteredOn(event -> event.getLevel() == Level.WARN)
+                    .as("A DefaultDatabaseTester hands out the connection it holds again and"
+                            + " cleanupData() closes it with the default closeConnectionAfterTest,"
+                            + " so the tester must be warned about exactly once, when the second"
+                            + " test uses it: not for the first test, not once per test case and"
+                            + " not once per getReusableConnection() call.")
+                    .hasSize(1);
+        } finally
+        {
+            stopCapturingLogOf(ClosedFixedConnectionWarning.class, appender);
+        }
+    }
+
+    @Test
+    void testGetReusableConnection_defaultDatabaseTesterWithNoOpListener_logsNoClosedFixedConnectionWarning()
+            throws Exception
+    {
+        databaseTester.setOperationListener(IOperationListener.NO_OP_OPERATION_LISTENER);
+        final ListAppender<ILoggingEvent> appender =
+                startCapturingLogOf(ClosedFixedConnectionWarning.class);
+        try
+        {
+            tc.configureTest(new VerifyTableDefinition[] {}, new String[] {}, new String[] {});
+            tc.preTest();
+            tc.postTest();
+
+            assertThat(appender.list)
+                    .as("The no-op listener leaves the connection open, so nothing the next test"
+                            + " needs is closed.")
+                    .isEmpty();
+        } finally
+        {
+            stopCapturingLogOf(ClosedFixedConnectionWarning.class, appender);
+        }
+    }
+
+    @Test
+    void testGetReusableConnection_defaultDatabaseTesterAndCloseAfterTestFalse_logsNoClosedFixedConnectionWarning()
+            throws Exception
+    {
+        tc.setCloseConnectionAfterTest(false);
+        final ListAppender<ILoggingEvent> appender =
+                startCapturingLogOf(ClosedFixedConnectionWarning.class);
+        try
+        {
+            tc.configureTest(new VerifyTableDefinition[] {}, new String[] {}, new String[] {});
+            tc.preTest();
+            tc.postTest();
+
+            assertThat(appender.list)
+                    .as("closeConnectionAfterTest false leaves the connection open for its owner,"
+                            + " so nothing the next test needs is closed.")
+                    .isEmpty();
+        } finally
+        {
+            stopCapturingLogOf(ClosedFixedConnectionWarning.class, appender);
+        }
+    }
+
+    @Test
+    void testGetReusableConnection_customTesterHandsOutItsFixedConnectionClosed_warnsOnce()
+            throws Exception
+    {
+        final IDatabaseConnection fixedConnection = databaseTester.getConnection();
+        tc.setDatabaseTester(new AbstractDatabaseTester()
+        {
+            @Override
+            public IDatabaseConnection getConnection()
+            {
+                return fixedConnection;
+            }
+        });
+        Mockito.when(mockConnection.isClosed()).thenReturn(true);
+        final ListAppender<ILoggingEvent> appender =
+                startCapturingLogOf(ClosedConnectionHandedOutWarning.class);
+        try
+        {
+            tc.getReusableConnection();
+
+            assertThat(appender.list).filteredOn(event -> event.getLevel() == Level.WARN)
+                    .as("A tester that hands the test case a connection that is already closed is"
+                            + " warned about, whatever kind of tester it is.")
+                    .hasSize(1);
+        } finally
+        {
+            stopCapturingLogOf(ClosedConnectionHandedOutWarning.class, appender);
+        }
+    }
+
+    @Test
+    void testGetReusableConnection_customTesterHandsOutItsFixedConnectionOpen_doesNotWarn()
+            throws Exception
+    {
+        final IDatabaseConnection fixedConnection = databaseTester.getConnection();
+        tc.setDatabaseTester(new AbstractDatabaseTester()
+        {
+            @Override
+            public IDatabaseConnection getConnection()
+            {
+                return fixedConnection;
+            }
+        });
+        final ListAppender<ILoggingEvent> appender =
+                startCapturingLogOf(ClosedConnectionHandedOutWarning.class);
+        try
+        {
+            tc.getReusableConnection();
+
+            assertThat(appender.list)
+                    .as("A connection that is open is nothing to warn about.")
+                    .isEmpty();
+        } finally
+        {
+            stopCapturingLogOf(ClosedConnectionHandedOutWarning.class, appender);
+        }
+    }
+
+    @Test
+    void testConfigureTest_reusedTestCaseWhoseFailedConfigureTestClosedTheFixedConnection_warnsInTheNextTest()
+            throws Exception
+    {
+        final ListAppender<ILoggingEvent> appender =
+                startCapturingLogOf(ClosedConnectionHandedOutWarning.class);
+        try
+        {
+            final Throwable firstFailure = catchThrowable(() -> tc.configureTest(
+                    new VerifyTableDefinition[] {}, new String[] {MISSING_DATA_FILE_NAME},
+                    new String[] {}));
+            // the clean up of the failed configureTest() closed the fixed connection, and no
+            // cleanupData() ended the lifecycle, as when the annotation runtime drives the test
+            Mockito.when(mockConnection.isClosed()).thenReturn(true);
+
+            assertThat(firstFailure).as("The missing prep file fails the first test.")
+                    .isNotNull();
+            assertThat(appender.list).filteredOn(event -> event.getLevel() == Level.WARN)
+                    .as("The first test is handed the connection open.").isEmpty();
+
+            tc.configureTest(new VerifyTableDefinition[] {}, new String[] {}, new String[] {});
+
+            assertThat(appender.list).filteredOn(event -> event.getLevel() == Level.WARN)
+                    .as("The test that is handed the connection the earlier test closed is told"
+                            + " so, whether or not the earlier lifecycle ended with"
+                            + " cleanupData().")
+                    .hasSize(1);
+        } finally
+        {
+            stopCapturingLogOf(ClosedConnectionHandedOutWarning.class, appender);
         }
     }
 
