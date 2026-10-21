@@ -256,8 +256,8 @@ public class AnnotatedTestExecutor
      * that way running on one route and silently off on another. The executor's own listener
      * is bypassed: it would offer the connection to the baseline capture again. Used on the
      * classic path only; an annotation-driven test's {@link DefaultPrepAndExpectedTestCase}
-     * tells the tester's own listener about the connection each of its set up and tear down
-     * operations retrieves.
+     * tells the tester's own listener about its shared connection when it acquires it, and again
+     * before each of its set up and tear down operations.
      */
     private void notifyTesterListenerOfRetrieval(final IDatabaseConnection connection)
     {

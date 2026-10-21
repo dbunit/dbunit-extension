@@ -114,7 +114,9 @@ operation, say, and the one it resolves to verify the baseline after `onTearDown
 your listener closed the connection `onSetup()` retrieved. An annotation-driven test never
 calls `onSetup()` or `onTearDown()`: its
 `DefaultPrepAndExpectedTestCase` offers your listener's `connectionRetrieved()` the shared
-connection each time it runs a set up or tear down operation, but never the `*Finished`
-callbacks, as that class decides when its shared connection closes. The same connection can be
-offered more than once, and on a plain test by the extension and again when `onSetup()` retrieves
-it, so keep `connectionRetrieved()` idempotent, as configuring a `DatabaseConfig` is.
+connection when it acquires it, before the row count baseline or anything else reads the
+connection's configuration, and again each time it runs a set up or tear down operation, but
+never the `*Finished` callbacks, as that class decides when its shared connection closes. The
+same connection can be offered more than once, and on a plain test by the extension and again
+when `onSetup()` retrieves it, so keep `connectionRetrieved()` idempotent, as configuring a
+`DatabaseConfig` is.

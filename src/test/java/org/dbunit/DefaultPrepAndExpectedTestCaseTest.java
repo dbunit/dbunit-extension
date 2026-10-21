@@ -1134,7 +1134,8 @@ class DefaultPrepAndExpectedTestCaseTest
 
         final MockDatabaseConnection connection =
                 (MockDatabaseConnection) databaseTester.getConnection();
-        Mockito.verify(testersListener).connectionRetrieved(connection);
+        // once when the shared connection was acquired and once before the operation
+        Mockito.verify(testersListener, Mockito.times(2)).connectionRetrieved(connection);
         Mockito.verify(testersListener, Mockito.never())
                 .operationSetUpFinished(Mockito.any(IDatabaseConnection.class));
         // the listener may configure the connection, but this instance owns closing it
@@ -1155,7 +1156,8 @@ class DefaultPrepAndExpectedTestCaseTest
 
         final MockDatabaseConnection connection =
                 (MockDatabaseConnection) databaseTester.getConnection();
-        Mockito.verify(testersListener).connectionRetrieved(connection);
+        // once when the shared connection was acquired and once before the operation
+        Mockito.verify(testersListener, Mockito.times(2)).connectionRetrieved(connection);
         Mockito.verify(testersListener, Mockito.never())
                 .operationTearDownFinished(Mockito.any(IDatabaseConnection.class));
     }
@@ -1176,7 +1178,7 @@ class DefaultPrepAndExpectedTestCaseTest
     }
 
     @Test
-    void testCleanupData_tearDownOperationIsNone_tellsNeitherListenerAboutAConnection()
+    void testCleanupData_tearDownOperationIsNone_tellsTheTestersListenerOnlyWhenAcquiringTheConnection()
             throws Exception
     {
         final IOperationListener testersListener = Mockito.mock(IOperationListener.class);
@@ -1187,7 +1189,13 @@ class DefaultPrepAndExpectedTestCaseTest
 
         noneTestCase.cleanupData();
 
-        Mockito.verifyNoInteractions(testersListener, ownListener);
+        final MockDatabaseConnection connection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        // cleanupData() acquires the shared connection to read the case sensitivity, which tells
+        // the tester's listener once; the NONE operation retrieves nothing, so it tells no one
+        Mockito.verify(testersListener).connectionRetrieved(connection);
+        Mockito.verifyNoMoreInteractions(testersListener);
+        Mockito.verifyNoInteractions(ownListener);
     }
 
     @Test
@@ -1402,7 +1410,7 @@ class DefaultPrepAndExpectedTestCaseTest
                 .as("The set up operation must run on the connection shared with the rest of"
                         + " the test's lifecycle, not on one of its own.")
                 .containsExactly(shared);
-        Mockito.verify(testersListener).connectionRetrieved(shared);
+        Mockito.verify(testersListener, Mockito.atLeastOnce()).connectionRetrieved(shared);
     }
 
     @Test
@@ -1498,8 +1506,80 @@ class DefaultPrepAndExpectedTestCaseTest
         ownListenerTestCase.setupData();
 
         final InOrder inOrder = Mockito.inOrder(testersListener, ownListener);
-        inOrder.verify(testersListener).connectionRetrieved(Mockito.any(IDatabaseConnection.class));
+        inOrder.verify(testersListener, Mockito.atLeastOnce())
+                .connectionRetrieved(Mockito.any(IDatabaseConnection.class));
         inOrder.verify(ownListener).connectionRetrieved(Mockito.any(IDatabaseConnection.class));
+    }
+
+    @Test
+    void testPostTest_testersListenerEnablesTheRowCountCheck_failsWhenARowIsLeftBehind()
+            throws Exception
+    {
+        final MockDatabaseConnection connectionGainingARow = makeConnectionWhoseTableGainsARow();
+        final IDatabaseTester ownTester = new DefaultDatabaseTester(connectionGainingARow);
+        ownTester.setOperationListener(new RowCountCheckEnablingListener());
+        final DefaultPrepAndExpectedTestCase testCase =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, ownTester);
+        testCase.preTest();
+
+        final Throwable thrown = catchThrowable(() -> testCase.postTest());
+
+        assertThat(thrown)
+                .as("A row left behind must fail the test when the tester's own listener enables"
+                        + " the row count check on the connection it is told about, as it does"
+                        + " when the tester drives onSetup() and onTearDown() itself.")
+                .isInstanceOf(UnexpectedRowCountException.class);
+    }
+
+    @Test
+    void testPreTest_testersListenerHasItsOwnListener_toldBeforeTheTableListIsFirstRead()
+            throws Exception
+    {
+        final List<String> events = new ArrayList<>();
+        final MockDatabaseConnection connectionGainingARow = makeConnectionWhoseTableGainsARow();
+        Mockito.lenient().doAnswer(invocation ->
+        {
+            events.add("createDataSet");
+            return invocation.callRealMethod();
+        }).when(connectionGainingARow).createDataSet();
+        final IOperationListener testersListener = Mockito.mock(IOperationListener.class);
+        Mockito.doAnswer(invocation ->
+        {
+            events.add("connectionRetrieved");
+            return null;
+        }).when(testersListener).connectionRetrieved(Mockito.any(IDatabaseConnection.class));
+        final IDatabaseTester ownTester = new DefaultDatabaseTester(connectionGainingARow);
+        ownTester.setOperationListener(testersListener);
+        final DefaultPrepAndExpectedTestCase testCase =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, ownTester);
+        testCase.setRowCountCheckOverride(new RowCountCheckOverride(true, new String[0]));
+
+        testCase.preTest();
+
+        assertThat(events).first()
+                .as("The first read of the connection's tables builds the metadata the connection"
+                        + " keeps, from the configuration in force at that moment, so the"
+                        + " listener that may configure it must have been told before.")
+                .isEqualTo("connectionRetrieved");
+    }
+
+    @Test
+    void testVerifyData_setUpAndTearDownOperationsAreNone_tellsTheTestersListenerAboutTheConnection()
+            throws Exception
+    {
+        final IOperationListener testersListener = Mockito.mock(IOperationListener.class);
+        databaseTester.setOperationListener(testersListener);
+        databaseTester.setSetUpOperation(DatabaseOperation.NONE);
+        databaseTester.setTearDownOperation(DatabaseOperation.NONE);
+
+        tc.verifyData();
+
+        final MockDatabaseConnection connection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        Mockito.verify(testersListener).connectionRetrieved(connection);
+        // verifyData() leaves the connection open for cleanupData(), which never runs here
+        connection.setExpectedCloseCalls(0);
+        connection.verify();
     }
 
     @Test
@@ -3208,6 +3288,42 @@ class DefaultPrepAndExpectedTestCaseTest
         {
             // nothing to do
         }
+    }
+
+    /** Enables the row count check on every connection it is told about, as a user listener may. */
+    private static final class RowCountCheckEnablingListener implements IOperationListener
+    {
+        @Override
+        public void connectionRetrieved(final IDatabaseConnection connection)
+        {
+            connection.getConfig().setFeature(DatabaseConfig.FEATURE_ROW_COUNT_CHECK, true);
+        }
+
+        @Override
+        public void operationSetUpFinished(final IDatabaseConnection connection)
+        {
+            // nothing to do
+        }
+
+        @Override
+        public void operationTearDownFinished(final IDatabaseConnection connection)
+        {
+            // nothing to do
+        }
+    }
+
+    /**
+     * A spy of the mock connection whose dataset lists the table LEAKY, and which counts no rows
+     * in it the first time it is asked and one row every time after, as when a test leaves a
+     * row behind.
+     */
+    private MockDatabaseConnection makeConnectionWhoseTableGainsARow() throws Exception
+    {
+        final MockDatabaseConnection spied =
+                Mockito.spy((MockDatabaseConnection) makeDatabaseConnection());
+        spied.setupDataSet(new DefaultTable("LEAKY"));
+        Mockito.lenient().doReturn(0).doReturn(1).when(spied).getRowCount("LEAKY");
+        return spied;
     }
 
     private static DefaultPrepAndExpectedTestCase makeTestCaseWithListener(

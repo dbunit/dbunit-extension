@@ -2560,6 +2560,38 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
+    void testAfterTest_annotationDrivenListenerEnablesTheCheckInConnectionRetrieved_stillDetectsALeak()
+            throws Exception
+    {
+        // The annotation-driven twin of the classic path test above: the test case built around
+        // the tester takes the baseline, so the tester's listener must have enabled the check on
+        // the connection the test case acquires before the baseline reads that connection's
+        // config.
+        when(connection.getConfig()).thenReturn(new DatabaseConfig());
+        stubOpenJdbcConnection();
+        final IDataSet dataSet = mock(IDataSet.class);
+        when(dataSet.getTableNames()).thenReturn(new String[] {"ACCOUNT"});
+        when(connection.createDataSet()).thenReturn(dataSet);
+        when(connection.getRowCount("ACCOUNT")).thenReturn(5);
+        final IDatabaseTester realTester = new DefaultDatabaseTester(connection);
+        realTester.setSetUpOperation(DatabaseOperation.NONE);
+        realTester.setOperationListener(new RowCountCheckEnablingListener());
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, realTester, null, true);
+        executor.beforeTest();
+        when(connection.getRowCount("ACCOUNT")).thenReturn(6);
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown)
+                .as("A leaked row must fail an annotation-driven test whose tester's listener"
+                        + " enables the row count check on the connection it is handed.")
+                .isInstanceOf(UnexpectedRowCountException.class);
+    }
+
+    @Test
     void testAfterTest_testerSharedAcrossMethods_putsTheTestersOwnListenerBack() throws Exception
     {
         // A tester shared across methods (a static @DbUnitTester field) must not keep the last

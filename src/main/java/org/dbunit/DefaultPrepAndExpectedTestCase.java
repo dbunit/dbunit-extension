@@ -93,12 +93,14 @@ import org.slf4j.LoggerFactory;
  * This class logs a warning when it detects a {@link JdbcDatabaseTester}
  * without a CachingConnectionProvider in that situation.
  * <p>
- * The databaseTester's own {@link IOperationListener} is told about the
- * connection each of setupData()'s and cleanupData()'s operations retrieves,
- * through {@link IOperationListener#connectionRetrieved}, so a listener that
- * configures every connection runs here as it does when the tester drives
- * onSetup() and onTearDown() itself. It is never told the operations finished,
- * as this class decides when the shared connection closes.
+ * This class tells the databaseTester's own {@link IOperationListener} about
+ * the shared connection through {@link IOperationListener#connectionRetrieved}
+ * when it acquires the connection, before the row count check baseline or any
+ * other step reads the connection's configuration, and again before each of
+ * setupData()'s and cleanupData()'s operations. A listener that configures
+ * every connection therefore runs here as it does when the tester drives
+ * onSetup() and onTearDown() itself. The listener never hears that an operation
+ * finished, as this class decides when the shared connection closes.
  * <p>
  * The connection must be in autocommit mode. The setup and teardown
  * operations run here (CLEAN_INSERT, DELETE_ALL, ...) do not manage a
@@ -225,15 +227,21 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
 
     /**
      * Acquires the connection {@link #reusableConnectionHolder} shares: the databaseTester's
-     * connection with {@link #setUpDatabaseConfig(DatabaseConfig)} applied to it, as
-     * {@link #getConnection()} does. That method cannot release a connection whose configuration
-     * fails to apply, for example because a {@code databaseConfigProperties} value is invalid, so
-     * one the databaseTester hands out afresh on each call would be referenced by nothing and
-     * leak. This releases it, honoring who owns it, before the failure propagates.
+     * connection, which this method tells the databaseTester's own listener about first, as the
+     * tester does when it drives onSetup() itself, and then applies
+     * {@link #setUpDatabaseConfig(DatabaseConfig)} to, as {@link #getConnection()} does, so this
+     * instance's values win over what the listener sets. Every step that reads the connection's
+     * configuration, among them the case sensitivity {@link #configureTest} resolves and the row
+     * count check baseline, gets the connection through here, so the listener has run before any
+     * of them. {@link #getConnection()} cannot release a connection whose configuration fails to
+     * apply, for example because a {@code databaseConfigProperties} value is invalid, so one the
+     * databaseTester hands out afresh on each call would be referenced by nothing and leak. This
+     * releases it, honoring who owns it, before the failure propagates, whether the listener or
+     * the configuration failed.
      *
      * @return The connection, configured.
-     * @throws Exception If the databaseTester cannot supply a connection, or applying the
-     *             configuration fails.
+     * @throws Exception If the databaseTester cannot supply a connection, its listener fails, or
+     *             applying the configuration fails.
      */
     private IDatabaseConnection acquireSharedConnection() throws Exception
     {
@@ -247,6 +255,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
         }
         try
         {
+            tellTestersListenerAboutConnection(connection);
             setUpDatabaseConfig(connection.getConfig());
         } catch (final Throwable t)
         {
@@ -808,9 +817,10 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * Runs a set up or tear down operation on the shared connection
      * {@link #getReusableConnection()} hands out, after telling the listeners about it with
      * {@link #tellListenersAboutConnection(IDatabaseConnection)}. A NONE operation retrieves no
-     * connection and tells no listener, as when a databaseTester runs it. No listener is ever
-     * told the operation finished, as this instance, not a listener, decides when the shared
-     * connection closes.
+     * connection and tells no listener, as when a databaseTester runs it; the databaseTester's
+     * own listener has heard about the shared connection anyway, when it was acquired. No
+     * listener is ever told the operation finished, as this instance, not a listener, decides
+     * when the shared connection closes.
      *
      * @param operation
      *            The operation to run.
@@ -841,23 +851,60 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * {@link #setUpDatabaseConfig(DatabaseConfig)}, second, so the values this instance applies
      * win. As that call does nothing for a connection the values are already applied to, they
      * are applied again directly after the databaseTester's listener, which may have changed
-     * any of them. A databaseTester listener that is this instance's own, or the no-op
-     * listener, is not told again.
+     * any of them. The databaseTester's listener heard about the connection when it was
+     * acquired too, see {@link #tellTestersListenerAboutConnection(IDatabaseConnection)}, and
+     * hears about it again here, as the tester's own listener does at each operation the tester
+     * runs. A databaseTester listener that is this instance's own, or the no-op listener, is
+     * not told again.
      *
      * @param connection
      *            The connection the operation runs on.
      */
     private void tellListenersAboutConnection(final IDatabaseConnection connection)
     {
-        final IOperationListener ownListener = getOperationListener();
-        final IOperationListener testersListener = getTestersOwnListener();
-        if (testersListener != null && testersListener != ownListener
-                && testersListener != IOperationListener.NO_OP_OPERATION_LISTENER)
+        final IOperationListener testersListener = getTestersListenerToTell();
+        if (testersListener != null)
         {
             testersListener.connectionRetrieved(connection);
             applyDatabaseConfigProperties(connection.getConfig());
         }
-        ownListener.connectionRetrieved(connection);
+        getOperationListener().connectionRetrieved(connection);
+    }
+
+    /**
+     * Tells the databaseTester's own listener about the connection this instance has just
+     * acquired, before any step reads its configuration. Does nothing when
+     * {@link #getTestersListenerToTell()} finds no listener to tell.
+     *
+     * @param connection
+     *            The connection just acquired from the databaseTester.
+     */
+    private void tellTestersListenerAboutConnection(final IDatabaseConnection connection)
+    {
+        final IOperationListener testersListener = getTestersListenerToTell();
+        if (testersListener != null)
+        {
+            testersListener.connectionRetrieved(connection);
+        }
+    }
+
+    /**
+     * Returns the databaseTester's own listener when this instance tells it about a
+     * connection, and null when it does not: the databaseTester has none, the listener is this
+     * instance's own, which is told on its own, or it is the no-op listener, which does
+     * nothing.
+     *
+     * @return The listener to tell, or null if there is none.
+     */
+    private IOperationListener getTestersListenerToTell()
+    {
+        final IOperationListener testersListener = getTestersOwnListener();
+        if (testersListener == null || testersListener == getOperationListener()
+                || testersListener == IOperationListener.NO_OP_OPERATION_LISTENER)
+        {
+            return null;
+        }
+        return testersListener;
     }
 
     /**
