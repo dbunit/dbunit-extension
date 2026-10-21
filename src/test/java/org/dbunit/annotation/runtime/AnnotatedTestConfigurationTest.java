@@ -547,6 +547,9 @@ class AnnotatedTestConfigurationTest
                                 + " failure, not be misreported as having no accessible no-arg"
                                 + " constructor.")
                         .isInstanceOf(IllegalStateException.class)
+                        .hasMessageStartingWith("DbUnitVerifyTable.defaultComparer names a"
+                                + " ValueComparer that dbUnit cannot instantiate.")
+                        .hasMessageContaining("threw from its no-arg constructor")
                         .hasMessageNotContaining("no accessible no-arg constructor")
                         .hasCauseInstanceOf(RuntimeException.class)
                         .hasRootCauseMessage("boom");
@@ -564,9 +567,12 @@ class AnnotatedTestConfigurationTest
                                 + " rejected, naming both ways out: a catalog class, and a"
                                 + " subclass with a no-arg constructor.")
                         .isInstanceOf(IllegalStateException.class)
-                        .hasMessageContaining(
-                                IsActualWithinToleranceOfExpectedTimestampValueComparer.class
-                                        .getName())
+                        .hasMessageStartingWith("DbUnitVerifyTable.defaultComparer names a"
+                                + " ValueComparer that dbUnit cannot instantiate.")
+                        .hasMessageContaining("ValueComparer class "
+                                + IsActualWithinToleranceOfExpectedTimestampValueComparer.class
+                                        .getName()
+                                + " has no accessible no-arg constructor")
                         .hasMessageContaining("catalog class")
                         .hasMessageContaining("subclass with a public no-arg constructor");
     }
