@@ -55,7 +55,8 @@ their filtered columns, a suppressed exception on the failure, and a logged warn
 that setting.
 
 Column type/case reconciliation:: The expected table sorts by the actual database
-table's column definitions, in the database's column order and with its data types,
+table's column definitions, in the database's column order, with the columns that have a
+value comparer last, and with its data types,
 whatever the expected dataset declares: `UNKNOWN` data types (common for a
 `FlatXmlDataSet` with no DTD), or data types and a column order of its own. Columns are
 matched case-insensitively (`Locale.ENGLISH`, so a Turkish default locale can't break
