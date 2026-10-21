@@ -106,7 +106,7 @@ class AnnotatedTestConfigurationTest
                 .containsExactly("/dbunit/accounts/prep.xml");
     }
 
-    // ---- from(Class, AnnotationLookup) ----
+    // ---- from(AnnotationLookup) ----
 
     @Test
     void testFrom_lookupSuppliesAnnotations_buildsConfigurationFromThem() throws Exception
@@ -119,7 +119,7 @@ class AnnotatedTestConfigurationTest
                 new FakeAnnotationLookup(ClassLevelSetup.class).finding(setup).finding(prep);
 
         final AnnotatedTestConfiguration config =
-                AnnotatedTestConfiguration.from(ClassLevelSetup.class, lookup);
+                AnnotatedTestConfiguration.from(lookup);
 
         assertThat(config.getSetUpOperation())
                 .as("The class-level operation the lookup found must be used.")
@@ -134,7 +134,7 @@ class AnnotatedTestConfigurationTest
     {
         final FakeAnnotationLookup lookup = new FakeAnnotationLookup(SetupOnly.class);
 
-        AnnotatedTestConfiguration.from(SetupOnly.class, lookup);
+        AnnotatedTestConfiguration.from(lookup);
 
         assertThat(lookup.getAskedFor())
                 .as("Every annotation that configures a test must be looked up, so a binding"
@@ -154,7 +154,7 @@ class AnnotatedTestConfigurationTest
                 .finding(near).finding(far);
 
         final AnnotatedTestConfiguration config =
-                AnnotatedTestConfiguration.from(SetsOnlyTheHandlerConfig.class, lookup);
+                AnnotatedTestConfiguration.from(lookup);
 
         assertThat(config.getFailureHandler()).as("The nearer declaration's attribute applies.")
                 .isInstanceOf(DiffCollectingFailureHandler.class);
@@ -176,7 +176,7 @@ class AnnotatedTestConfigurationTest
                 new FakeAnnotationLookup(SetsOtherLoaderConfig.class).finding(near).finding(far);
 
         final AnnotatedTestConfiguration config =
-                AnnotatedTestConfiguration.from(SetsOtherLoaderConfig.class, lookup);
+                AnnotatedTestConfiguration.from(lookup);
 
         assertThat(config.getDataFileLoader()).as("The nearer declaration's loader wins.")
                 .isInstanceOf(FullXmlDataFileLoader.class);
@@ -203,9 +203,9 @@ class AnnotatedTestConfigurationTest
         final DataFileLoaderInstances instances = new DataFileLoaderInstances();
 
         final AnnotatedTestConfiguration first =
-                AnnotatedTestConfiguration.from(SetupOnly.class, lookup, instances);
+                AnnotatedTestConfiguration.from(lookup, instances);
         final AnnotatedTestConfiguration second =
-                AnnotatedTestConfiguration.from(SetupOnly.class, lookup, instances);
+                AnnotatedTestConfiguration.from(lookup, instances);
 
         assertThat(second.getDataFileLoader())
                 .as("The tests of a scope share the one loader of a caching class they name.")
@@ -222,9 +222,9 @@ class AnnotatedTestConfigurationTest
         final DataFileLoaderInstances instances = new DataFileLoaderInstances();
 
         final AnnotatedTestConfiguration first =
-                AnnotatedTestConfiguration.from(SetupOnly.class, lookup, instances);
+                AnnotatedTestConfiguration.from(lookup, instances);
         final AnnotatedTestConfiguration second =
-                AnnotatedTestConfiguration.from(SetupOnly.class, lookup, instances);
+                AnnotatedTestConfiguration.from(lookup, instances);
 
         assertThat(second.getDataFileLoader())
                 .as("A loader that does not cache is built for every test, so a test case that"
@@ -240,9 +240,9 @@ class AnnotatedTestConfigurationTest
         final DataFileLoaderInstances instances = new DataFileLoaderInstances();
 
         final AnnotatedTestConfiguration first =
-                AnnotatedTestConfiguration.from(SetupOnly.class, lookup, instances);
+                AnnotatedTestConfiguration.from(lookup, instances);
         final AnnotatedTestConfiguration second =
-                AnnotatedTestConfiguration.from(SetupOnly.class, lookup, instances);
+                AnnotatedTestConfiguration.from(lookup, instances);
 
         assertThat(second.getDataFileLoader())
                 .as("The default loader does not cache, so every test builds its own.")
@@ -259,10 +259,10 @@ class AnnotatedTestConfigurationTest
         final DbUnitConfig fullXml = SetsOtherLoaderConfig.class.getAnnotation(DbUnitConfig.class);
         final DataFileLoaderInstances instances = new DataFileLoaderInstances();
 
-        final AnnotatedTestConfiguration first = AnnotatedTestConfiguration.from(SetupOnly.class,
-                new FakeAnnotationLookup(SetupOnly.class).finding(flatXml), instances);
-        final AnnotatedTestConfiguration second = AnnotatedTestConfiguration.from(SetupOnly.class,
-                new FakeAnnotationLookup(SetupOnly.class).finding(fullXml), instances);
+        final AnnotatedTestConfiguration first = AnnotatedTestConfiguration
+                .from(new FakeAnnotationLookup(SetupOnly.class).finding(flatXml), instances);
+        final AnnotatedTestConfiguration second = AnnotatedTestConfiguration
+                .from(new FakeAnnotationLookup(SetupOnly.class).finding(fullXml), instances);
 
         assertThat(first.getDataFileLoader()).as("Each loader class has a loader of its own.")
                 .isExactlyInstanceOf(FlatXmlDataFileLoader.class);
@@ -278,9 +278,9 @@ class AnnotatedTestConfigurationTest
         final AnnotationLookup lookup = new FakeAnnotationLookup(SetupOnly.class).finding(config);
 
         final AnnotatedTestConfiguration first =
-                AnnotatedTestConfiguration.from(SetupOnly.class, lookup);
+                AnnotatedTestConfiguration.from(lookup);
         final AnnotatedTestConfiguration second =
-                AnnotatedTestConfiguration.from(SetupOnly.class, lookup);
+                AnnotatedTestConfiguration.from(lookup);
 
         assertThat(second.getDataFileLoader())
                 .as("Nothing is shared unless the caller hands in the instances to share.")
@@ -293,7 +293,7 @@ class AnnotatedTestConfigurationTest
         final AnnotationLookup lookup = new FakeAnnotationLookup(SetupOnly.class);
 
         final AnnotatedTestConfiguration config =
-                AnnotatedTestConfiguration.from(SetupOnly.class, lookup);
+                AnnotatedTestConfiguration.from(lookup);
 
         assertThat(config.getSetUpOperation())
                 .as("With no annotation found, the setup operation defaults to CLEAN_INSERT.")
@@ -316,7 +316,7 @@ class AnnotatedTestConfigurationTest
                         .finding(expected, DefaultDataSet.class);
 
         final AnnotatedTestConfiguration config =
-                AnnotatedTestConfiguration.from(AnnotatedTestConfigurationTest.class, lookup);
+                AnnotatedTestConfiguration.from(lookup);
 
         assertThat(config.getPrepDataFiles())
                 .as("The prep path is relative to the class the lookup reports as declaring"
@@ -886,9 +886,9 @@ class AnnotatedTestConfigurationTest
         // Classes of three different packages stand in for a base class declaring each
         // annotation; the nested fixtures here share this test's own package, so they could not
         // tell the three apart.
-        final AnnotatedTestConfiguration config = AnnotatedTestConfiguration.from(
-                AnnotatedTestConfigurationTest.class, DefaultDatabaseTester.class,
-                DefaultDataSet.class, null, prep, null, expected, null, null);
+        final AnnotatedTestConfiguration config = AnnotatedTestConfiguration
+                .from(DefaultDatabaseTester.class, DefaultDataSet.class, null, prep, null, expected,
+                        null, null);
 
         assertThat(config.getPrepDataFiles())
                 .as("The prep path is relative to the class declaring @DbUnitPrep.")
