@@ -1450,10 +1450,10 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     /**
      * Loads the given table's actual data from the database.
      *
-     * @param tableName the name of the table to load.
-     * @param connection the database connection to load the data from.
-     * @return the table's actual data.
-     * @throws Exception if loading the table fails.
+     * @param tableName The name of the table to load.
+     * @param connection The database connection to load the data from.
+     * @return The table's actual data.
+     * @throws Exception If loading the table fails.
      */
     public ITable loadTableDataFromDatabase(final String tableName,
             final IDatabaseConnection connection) throws Exception
