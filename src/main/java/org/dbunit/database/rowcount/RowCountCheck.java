@@ -61,7 +61,7 @@ public class RowCountCheck
     /**
      * Creates a check using the given configuration.
      *
-     * @param configuration resolves whether the check is enabled, the excluded table patterns,
+     * @param configuration Resolves whether the check is enabled, the excluded table patterns,
      *            and the {@link RowCounter} to use.
      */
     public RowCountCheck(final RowCountCheckConfiguration configuration)
@@ -74,10 +74,10 @@ public class RowCountCheck
      * against, of every table {@code connection} exposes that survives the configured exclude
      * patterns.
      *
-     * @param connection the connection to capture the baseline from.
-     * @return the baseline snapshot, or {@code null} when the check is disabled.
-     * @throws DatabaseUnitException if enumerating or filtering the tables fails.
-     * @throws SQLException if counting a table's rows fails.
+     * @param connection The connection to capture the baseline from.
+     * @return The baseline snapshot, or {@code null} when the check is disabled.
+     * @throws DatabaseUnitException If enumerating or filtering the tables fails.
+     * @throws SQLException If counting a table's rows fails.
      */
     public RowCountSnapshot capture(final IDatabaseConnection connection)
             throws DatabaseUnitException, SQLException
@@ -91,12 +91,12 @@ public class RowCountCheck
      * {@code baseline} is {@code null} - the latter meaning no baseline was captured, e.g.
      * because the caller intentionally skipped {@link #capture(IDatabaseConnection)}.
      *
-     * @param baseline the baseline to compare against; {@code null} to skip the check silently.
-     * @param connection the connection to read the current row counts from.
-     * @throws DatabaseUnitException if enumerating or filtering the tables fails, or if any
+     * @param baseline The baseline to compare against; {@code null} to skip the check silently.
+     * @param connection The connection to read the current row counts from.
+     * @throws DatabaseUnitException If enumerating or filtering the tables fails, or if any
      *             table's row count no longer matches the baseline
      *             ({@link UnexpectedRowCountException}).
-     * @throws SQLException if counting a table's rows fails.
+     * @throws SQLException If counting a table's rows fails.
      */
     public void verify(final RowCountSnapshot baseline, final IDatabaseConnection connection)
             throws DatabaseUnitException, SQLException
@@ -149,9 +149,9 @@ public class RowCountCheck
      * schema it can see, the system schemas of a database such as H2 among them, and counts them
      * by names that carry no schema, so a table of another schema cannot be counted.
      *
-     * @param connection the connection the check was asked to count.
-     * @return the connection to count through.
-     * @throws SQLException if reading the JDBC connection fails.
+     * @param connection The connection the check was asked to count.
+     * @return The connection to count through.
+     * @throws SQLException If reading the JDBC connection fails.
      */
     private IDatabaseConnection connectionToCountThrough(final IDatabaseConnection connection)
             throws SQLException
@@ -173,9 +173,9 @@ public class RowCountCheck
      * already carry theirs, or it has no JDBC connection, or the driver reports no current
      * schema, fails to report it, or predates JDBC 4.1 and cannot.
      *
-     * @param connection the connection the check was asked to count.
-     * @return the current schema, or null if the connection is to be counted as it is.
-     * @throws SQLException if reading the JDBC connection of the connection fails.
+     * @param connection The connection the check was asked to count.
+     * @return The current schema, or null if the connection is to be counted as it is.
+     * @throws SQLException If reading the JDBC connection of the connection fails.
      */
     private String currentSchemaOf(final IDatabaseConnection connection) throws SQLException
     {
@@ -235,7 +235,7 @@ public class RowCountCheck
      * best-effort attempt - a snapshot that already failed, or a connection the database has
      * dropped, is the caller's to handle.
      *
-     * @param connection the connection the snapshot queried.
+     * @param connection The connection the snapshot queried.
      */
     private void endReadTransaction(final IDatabaseConnection connection)
     {
