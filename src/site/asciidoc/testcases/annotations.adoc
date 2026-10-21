@@ -94,10 +94,11 @@ operations unless an annotation declares them for the test; its dataset is never
 is written to the tester and its listener is not replaced, so
 a tester shared through a `static` field or a Spring singleton bean carries nothing from one test
 to the next. The tester's own `onSetup()` and `onTearDown()` do not run, so an override of either in
-a tester subclass has no effect on such a test, and its listener is told about each connection
-through `connectionRetrieved()` but never `operationSetUpFinished()` or
-`operationTearDownFinished()`: the test case decides when its connection closes, see
-<<connection-ownership>>.
+a tester subclass has no effect on such a test, and its listener is told about the shared
+connection through `connectionRetrieved()` when the test case acquires it, before the row count
+baseline or anything else reads the connection's configuration, and again before each set up and
+tear down operation, but never `operationSetUpFinished()` or `operationTearDownFinished()`: the
+test case decides when its connection closes, see <<connection-ownership>>.
 
 *A test that uses none of the annotations keeps the 3.5.0 lifecycle:* a bare
 `@ExtendWith(DbUnitExtension.class)` class with one plain, unannotated `IDatabaseTester` field.
@@ -724,8 +725,9 @@ directly to the connection it resolves for
 `IDatabaseConnection` parameter is given, so the setup and teardown operations do not matter, and
 nothing goes through the tester's `IOperationListener` to do it. A connection the test method
 retrieves from the tester itself does not get them. The test case tells the tester's own listener's
-`connectionRetrieved()` about the connection each set up and tear down operation
-retrieves, before applying these values, so they win over what that listener sets. An injected
+`connectionRetrieved()` about the shared connection when it acquires it and again before each set
+up and tear down operation, always before applying these values, so they win over what that
+listener sets. An injected
 `@DbUnitTestCase` takes its properties from where it is built, through
 `setDatabaseConfigProperties()`: declaring them next to it is rejected - see
 <<injected-testcase-config>>.

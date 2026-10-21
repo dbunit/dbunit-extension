@@ -38,6 +38,11 @@ public interface IOperationListener {
      * Is invoked immediately after a connection was newly created or an existing
      * connection is retrieved to do some work on it. It should be used to initialize the 
      * {@link DatabaseConfig} of the connection with user defined parameters.
+     * <p>
+     * dbUnit can offer the same connection to this method more than once. For example, a test
+     * case that shares one connection for a whole test offers it when it acquires it and again
+     * before each set up or tear down operation it runs. Write this method so that repeating it
+     * for one connection does no harm, as configuring a {@link DatabaseConfig} does.
      * @param connection The database connection 
      * @since 2.4.4
      */
