@@ -42,6 +42,18 @@ It does *not* catch:
 
 Neither leaves extra or missing rows, which is the problem this check solves.
 
+[#which-tables]
+== Which Tables It Counts
+
+It counts the tables its connection lists, less the ones the exclude patterns name (see
+<<exclusions>>). A connection that names a schema lists the tables of that schema. A connection
+that names none, such as `new DatabaseConnection(connection)`, is counted through the current
+schema of its JDBC connection, as `java.sql.Connection.getSchema()` reports it, so the check does
+not meet the system schemas a database such as H2 has, or the tables of other schemas, which it
+cannot count by their unqualified names. A driver that reports no current schema leaves the
+connection as it is, listing every table it can see: give such a connection a schema, or exclude
+the tables it cannot count.
+
 [#enabling]
 == Enabling It
 
@@ -162,6 +174,11 @@ A `RowCounter` implementation's contract:
 * Counts must be *exact* — a vendor statistics view (e.g. PostgreSQL's
 `pg_stat_user_tables`) lags asynchronously and would produce false failures, however cheap
 it is to query.
+
+The `connection` it is handed is the one the check was asked to count or, when that connection
+names no schema and its JDBC connection reports a current one, a view of it that names that
+schema, with the same JDBC connection and `DatabaseConfig`. Count through it, not through a
+connection of your own, so each table is found in the schema it was listed in.
 
 Table enumeration and exclusion filtering happen in `RowCountCheck` itself, outside the
 strategy, so an implementation's whole job is counting the list it is handed:

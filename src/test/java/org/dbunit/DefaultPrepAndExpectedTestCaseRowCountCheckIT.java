@@ -23,10 +23,13 @@ package org.dbunit;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.catchThrowable;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+import java.sql.Connection;
 import java.sql.Statement;
 
 import org.dbunit.database.DatabaseConfig;
+import org.dbunit.database.DatabaseConnection;
 import org.dbunit.database.IDatabaseConnection;
 import org.dbunit.database.rowcount.ClearRowCountCheckSystemProperties;
 import org.dbunit.database.rowcount.RowCountDifference;
@@ -166,6 +169,47 @@ class DefaultPrepAndExpectedTestCaseRowCountCheckIT
                 .as("A table matching an exclude pattern must never be reported, even"
                         + " though its count actually changed.")
                 .doesNotThrowAnyException();
+    }
+
+    @Test
+    void testPostTest_connectionWithoutASchema_countsTheCurrentSchemaAndReportsALeakedRow()
+            throws Exception
+    {
+        final Connection jdbcConnection = connection.getConnection();
+        final String currentSchema = jdbcConnection.getSchema();
+        assumeTrue(currentSchema != null && currentSchema.equalsIgnoreCase(connection.getSchema()),
+                "The driver reports no current schema, or one that is not the schema the"
+                        + " tables are in, so a connection that names none has nothing to count.");
+        final IDatabaseConnection schemaLessConnection = new DatabaseConnection(jdbcConnection);
+        copyProfileSettings(connection.getConfig(), schemaLessConnection.getConfig());
+        final IDatabaseTester schemaLessTester = new DefaultDatabaseTester(schemaLessConnection);
+        schemaLessTester.setTearDownOperation(DatabaseOperation.DELETE_ALL);
+        final DefaultPrepAndExpectedTestCase schemaLessTestCase =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, schemaLessTester);
+
+        schemaLessTestCase.preTest();
+        insertRow(EMPTY_TABLE);
+        final Throwable thrown = catchThrowable(() -> schemaLessTestCase.postTest());
+
+        assertThat(thrown)
+                .as("A row left behind must be reported on a connection that names no schema,"
+                        + " which counts the tables of the JDBC connection's current schema"
+                        + " and not the system tables or the other schemas the database has.")
+                .isInstanceOf(UnexpectedRowCountException.class);
+        assertThat(differenceFor((UnexpectedRowCountException) thrown, EMPTY_TABLE).getDelta())
+                .as("A row was left behind, so the delta must be positive.")
+                .isPositive();
+    }
+
+    private static void copyProfileSettings(final DatabaseConfig from, final DatabaseConfig to)
+    {
+        to.setFeature(DatabaseConfig.FEATURE_ROW_COUNT_CHECK, true);
+        to.setProperty(DatabaseConfig.PROPERTY_DATATYPE_FACTORY,
+                from.getProperty(DatabaseConfig.PROPERTY_DATATYPE_FACTORY));
+        to.setProperty(DatabaseConfig.PROPERTY_METADATA_HANDLER,
+                from.getProperty(DatabaseConfig.PROPERTY_METADATA_HANDLER));
+        to.setProperty(DatabaseConfig.PROPERTY_ESCAPE_PATTERN,
+                from.getProperty(DatabaseConfig.PROPERTY_ESCAPE_PATTERN));
     }
 
     private RowCountDifference differenceFor(final UnexpectedRowCountException exception,
