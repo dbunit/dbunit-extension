@@ -69,9 +69,9 @@ public class RowCountBaselineTracker
      * connection-config state instead of reusing a stale resolution left over from an
      * earlier test that reused this same instance.
      *
-     * @param connection the connection to capture the baseline from.
-     * @throws DatabaseUnitException if enumerating or filtering the tables fails.
-     * @throws SQLException if counting a table's rows fails.
+     * @param connection The connection to capture the baseline from.
+     * @throws DatabaseUnitException If enumerating or filtering the tables fails.
+     * @throws SQLException If counting a table's rows fails.
      */
     public void capture(final IDatabaseConnection connection)
             throws DatabaseUnitException, SQLException
@@ -92,11 +92,11 @@ public class RowCountBaselineTracker
      * {@link #capture(IDatabaseConnection)} was never called, or {@link #discardBaseline()}
      * was, or an earlier {@code verify} already used it.
      *
-     * @param connection the connection to read the current row counts from.
-     * @throws DatabaseUnitException if enumerating or filtering the tables fails, or if any
+     * @param connection The connection to read the current row counts from.
+     * @throws DatabaseUnitException If enumerating or filtering the tables fails, or if any
      *             table's row count no longer matches the baseline
      *             ({@link UnexpectedRowCountException}).
-     * @throws SQLException if counting a table's rows fails.
+     * @throws SQLException If counting a table's rows fails.
      */
     public void verify(final IDatabaseConnection connection)
             throws DatabaseUnitException, SQLException
@@ -175,7 +175,7 @@ public class RowCountBaselineTracker
     /**
      * Returns the {@link RowCountCheck} in use.
      *
-     * @return the row count check, or {@code null} if none has been resolved or set yet.
+     * @return The row count check, or {@code null} if none has been resolved or set yet.
      */
     public RowCountCheck getRowCountCheck()
     {
@@ -186,7 +186,7 @@ public class RowCountBaselineTracker
      * Sets the {@link RowCountCheck} to use, overriding the one otherwise lazily built from
      * a connection's DatabaseConfig on first use.
      *
-     * @param rowCountCheck the row count check to use.
+     * @param rowCountCheck The row count check to use.
      */
     public void setRowCountCheck(final RowCountCheck rowCountCheck)
     {
