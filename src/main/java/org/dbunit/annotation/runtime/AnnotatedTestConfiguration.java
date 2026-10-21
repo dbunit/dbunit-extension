@@ -129,7 +129,7 @@ public class AnnotatedTestConfiguration
             final DbUnitExpected expected, final DbUnitTearDownOperation tearDown,
             final DbUnitRowCountCheck rowCountCheck)
     {
-        return from(testClass, testClass, testClass, config, prep, setup, expected, tearDown,
+        return from(testClass, testClass, config, prep, setup, expected, tearDown,
                 rowCountCheck);
     }
 
@@ -139,7 +139,6 @@ public class AnnotatedTestConfiguration
      * declares the annotation naming it. That is the test class itself unless the annotation is
      * inherited from a base class, or sits on an inherited test method, in another package.
      *
-     * @param testClass The test class; used in diagnostics.
      * @param prepDeclaringClass The class declaring {@code prep}; used to resolve its
      *            package-relative paths.
      * @param expectedDeclaringClass The class declaring {@code expected}; used to resolve its
@@ -155,9 +154,9 @@ public class AnnotatedTestConfiguration
      * @throws IllegalStateException If two mutually exclusive attributes are both set, or if
      *             a named provider, catalog, or comparer class cannot be instantiated.
      */
-    public static AnnotatedTestConfiguration from(final Class<?> testClass,
-            final Class<?> prepDeclaringClass, final Class<?> expectedDeclaringClass,
-            final DbUnitConfig config, final DbUnitPrep prep, final DbUnitSetUpOperation setup,
+    public static AnnotatedTestConfiguration from(final Class<?> prepDeclaringClass,
+            final Class<?> expectedDeclaringClass, final DbUnitConfig config,
+            final DbUnitPrep prep, final DbUnitSetUpOperation setup,
             final DbUnitExpected expected, final DbUnitTearDownOperation tearDown,
             final DbUnitRowCountCheck rowCountCheck)
     {
@@ -241,28 +240,25 @@ public class AnnotatedTestConfiguration
      *
      * <p>The data file loader is built for this configuration alone. A binding that wants the
      * tests of a scope to share one loader of each caching class calls
-     * {@link #from(Class, AnnotationLookup, DataFileLoaderInstances)} instead.
+     * {@link #from(AnnotationLookup, DataFileLoaderInstances)} instead.
      *
-     * @param testClass The test class; used in diagnostics.
      * @param lookup Finds the annotations that apply to the test, and the classes declaring them.
      * @return The resolved configuration.
      * @throws IllegalStateException If two mutually exclusive attributes are both set, or if
      *             a named provider, catalog, or comparer class cannot be instantiated.
      */
-    public static AnnotatedTestConfiguration from(final Class<?> testClass,
-            final AnnotationLookup lookup)
+    public static AnnotatedTestConfiguration from(final AnnotationLookup lookup)
     {
-        return from(testClass, lookup, new DataFileLoaderInstances());
+        return from(lookup, new DataFileLoaderInstances());
     }
 
     /**
-     * Resolves a configuration as {@link #from(Class, AnnotationLookup)} does, taking the data
+     * Resolves a configuration as {@link #from(AnnotationLookup)} does, taking the data
      * file loader from the given instances: the one of the loader class the merged
      * {@code @DbUnitConfig} names, or of {@link FileExtensionDataFileLoader} when it names none.
      * Every configuration resolved with the same instances therefore uses the same loader of a
      * caching class, built on the first request, and a loader of its own of any other class.
      *
-     * @param testClass The test class; used in diagnostics.
      * @param lookup Finds the annotations that apply to the test, and the classes declaring them.
      * @param dataFileLoaders The loaders of the binding's scope: one for each caching loader
      *            class, a new one for each request of any other.
@@ -270,8 +266,8 @@ public class AnnotatedTestConfiguration
      * @throws IllegalStateException If two mutually exclusive attributes are both set, or if
      *             a named provider, catalog, or comparer class cannot be instantiated.
      */
-    public static AnnotatedTestConfiguration from(final Class<?> testClass,
-            final AnnotationLookup lookup, final DataFileLoaderInstances dataFileLoaders)
+    public static AnnotatedTestConfiguration from(final AnnotationLookup lookup,
+            final DataFileLoaderInstances dataFileLoaders)
     {
         final MergedDbUnitConfig config =
                 MergedDbUnitConfig.of(lookup.findAll(DbUnitConfig.class));
