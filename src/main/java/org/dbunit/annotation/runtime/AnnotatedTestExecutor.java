@@ -473,7 +473,12 @@ public class AnnotatedTestExecutor
                 releaseConnection();
             } catch (final Exception closeFailure)
             {
-                primaryFailure.addSuppressed(closeFailure);
+                // a connection that rethrows the failure already in flight cannot have it
+                // suppress itself
+                if (closeFailure != primaryFailure)
+                {
+                    primaryFailure.addSuppressed(closeFailure);
+                }
             }
             throw primaryFailure;
         }
@@ -553,7 +558,8 @@ public class AnnotatedTestExecutor
     /**
      * Returns {@code primary}, with {@code later} attached to it as suppressed, or {@code later}
      * itself when nothing has failed yet - so the first failure is the one that surfaces and a
-     * cleanup step after it cannot replace it.
+     * cleanup step after it cannot replace it. A later failure that is the very instance of the
+     * first is not attached, as a throwable cannot suppress itself.
      */
     private static Exception withSuppressed(final Exception primary, final Exception later)
     {
@@ -561,7 +567,10 @@ public class AnnotatedTestExecutor
         {
             return later;
         }
-        primary.addSuppressed(later);
+        if (primary != later)
+        {
+            primary.addSuppressed(later);
+        }
         return primary;
     }
 }
