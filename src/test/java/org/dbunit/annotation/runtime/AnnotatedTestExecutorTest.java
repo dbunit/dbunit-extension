@@ -3574,6 +3574,70 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
+    void testReleaseIfAfterTestDidNotRun_releaseAndUndoThrowTheSameFailure_throwsItUnchanged()
+            throws Exception
+    {
+        final RuntimeException sharedFailure = new RuntimeException("one failure for both");
+        final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(WithExpected.class, null, null, null, expected, null, null);
+        when(tester.getConnection()).thenReturn(connection);
+        when(connection.getConfig()).thenReturn(new DatabaseConfig());
+        stubOpenJdbcConnection();
+        doThrow(sharedFailure).when(connection).close();
+        final DefaultPrepAndExpectedTestCase testCase =
+                new DefaultPrepAndExpectedTestCase(new FlatXmlDataFileLoader(), tester)
+                {
+                    @Override
+                    public void setDatabaseConfigProperties(final Properties properties)
+                    {
+                        throw sharedFailure;
+                    }
+                };
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, tester, testCase);
+        executor.getConnection();
+
+        final Throwable thrown = catchThrowable(executor::releaseIfAfterTestDidNotRun);
+
+        assertThat(thrown)
+                .as("A failure that both closing the connection and undoing the configuration"
+                        + " throw must be thrown as it is, not replaced by the"
+                        + " IllegalArgumentException that adding a throwable to its own"
+                        + " suppressed ones throws.")
+                .isSameAs(sharedFailure);
+        assertThat(thrown.getSuppressed())
+                .as("A failure is not suppressed by itself.")
+                .isEmpty();
+    }
+
+    @Test
+    void testAfterTest_classicPathTearDownAndCloseThrowTheSameFailure_throwsItUnchanged()
+            throws Exception
+    {
+        final RuntimeException sharedFailure = new RuntimeException("one failure for both");
+        stubDisabledConnection();
+        doThrow(sharedFailure).when(tester).onTearDown();
+        doThrow(sharedFailure).when(connection).close();
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, tester, null, false);
+        executor.beforeTest();
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown)
+                .as("A failure that both onTearDown() and closing the connection throw must be"
+                        + " thrown as it is, not replaced by the IllegalArgumentException that"
+                        + " adding a throwable to its own suppressed ones throws.")
+                .isSameAs(sharedFailure);
+        assertThat(thrown.getSuppressed())
+                .as("A failure is not suppressed by itself.")
+                .isEmpty();
+    }
+
+    @Test
     void testBeforeTest_withProperties_appliesPropertiesToTheBuiltTestCase()
             throws Exception
     {

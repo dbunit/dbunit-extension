@@ -146,6 +146,9 @@
       <action dev="jeffjensen" type="fix" system="github" due-to="jeffjensen">
           Fix DefaultPrepAndExpectedTestCase.postTest() and runTest() throwing an IllegalArgumentException, "Self-suppression not permitted", in place of the real failure when the clean up throws the very instance that the verification or the test steps threw, as a listener or a connection that rethrows a stored exception does. That failure is now thrown as it is.
       </action>
+      <action dev="jeffjensen" type="fix" system="github" due-to="jeffjensen">
+          Fix DefaultPrepAndExpectedTestCase.cleanupData(), and the annotation runtime when it releases the connection after a failed test step, throwing an IllegalArgumentException, "Self-suppression not permitted", in place of the real failure when closing the connection throws the very instance that failed, as a connection that rethrows a stored exception does. That failure is now thrown as it is.
+      </action>
     </release>
     <release version="3.5.2" date="Sep 7, 2026" description="DefaultPrepAndExpectedTestCase connection hygiene: replace a connection the pool or database dropped between tests, and warn when handed a non-autocommit connection">
       <action dev="jeffjensen" type="fix" issue="962" system="github" due-to="jeffjensen">

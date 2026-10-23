@@ -3343,6 +3343,40 @@ class DefaultPrepAndExpectedTestCaseTest
     }
 
     @Test
+    void testCleanupData_tearDownAndCloseThrowTheSameFailure_throwsItUnchanged() throws Exception
+    {
+        final RuntimeException sharedFailure = new RuntimeException("one failure for both");
+        final IDatabaseConnection brokenConnection = Mockito.mock(IDatabaseConnection.class);
+        final Connection brokenJdbcConnection = Mockito.mock(Connection.class);
+        Mockito.when(brokenConnection.getConnection()).thenReturn(brokenJdbcConnection);
+        Mockito.when(brokenConnection.getConfig()).thenReturn(new DatabaseConfig());
+        Mockito.lenient().when(brokenJdbcConnection.getAutoCommit()).thenReturn(true);
+        Mockito.doThrow(sharedFailure).when(brokenConnection).close();
+        final IDatabaseTester brokenTester = new DefaultDatabaseTester(brokenConnection);
+        brokenTester.setTearDownOperation(new DatabaseOperation()
+        {
+            @Override
+            public void execute(final IDatabaseConnection connection, final IDataSet dataSet)
+            {
+                throw sharedFailure;
+            }
+        });
+        final DefaultPrepAndExpectedTestCase brokenTc =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, brokenTester);
+
+        final Throwable thrown = catchThrowable(() -> brokenTc.cleanupData());
+
+        assertThat(thrown)
+                .as("A failure that both the tear down operation and closing the connection throw"
+                        + " must be thrown as it is, not replaced by the IllegalArgumentException"
+                        + " that adding a throwable to its own suppressed ones throws.")
+                .isSameAs(sharedFailure);
+        assertThat(thrown.getSuppressed())
+                .as("A failure is not suppressed by itself.")
+                .isEmpty();
+    }
+
+    @Test
     void testCleanupData_afterPostTestAlreadyVerifiedTheBaseline_doesNotVerifyTheSpentBaselineAgain()
             throws Exception
     {
