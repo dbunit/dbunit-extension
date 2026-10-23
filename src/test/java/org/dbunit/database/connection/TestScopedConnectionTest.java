@@ -21,6 +21,7 @@
 package org.dbunit.database.connection;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
@@ -394,6 +395,27 @@ class TestScopedConnectionTest
         holder.releaseSuppressing(primary);
 
         assertThat(primary.getSuppressed()).containsExactly(closeFailure);
+        assertThat(holder.isResolved()).as("releaseSuppressing always forgets the connection.")
+                .isFalse();
+    }
+
+    @Test
+    void testReleaseSuppressing_closeThrowsThePrimaryItself_suppressesNothingAndForgetsTheConnection()
+            throws Exception
+    {
+        final IDatabaseConnection connection = openConnection();
+        final SQLException primary = new SQLException("the real failure, stored by the connection");
+        doThrow(primary).when(connection).close();
+        final TestScopedConnection holder =
+                new TestScopedConnection(() -> connection, alwaysMayClose, null);
+        holder.getConnection();
+
+        assertThatCode(() -> holder.releaseSuppressing(primary))
+                .as("A close that throws the failure already in flight must not make it suppress"
+                        + " itself, which throws an IllegalArgumentException in its place.")
+                .doesNotThrowAnyException();
+
+        assertThat(primary.getSuppressed()).as("A throwable cannot suppress itself.").isEmpty();
         assertThat(holder.isResolved()).as("releaseSuppressing always forgets the connection.")
                 .isFalse();
     }

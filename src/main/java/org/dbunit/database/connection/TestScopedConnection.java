@@ -263,7 +263,12 @@ public final class TestScopedConnection
             release();
         } catch (final Exception closeFailure)
         {
-            primary.addSuppressed(closeFailure);
+            // a connection that rethrows the failure already in flight cannot have it suppress
+            // itself
+            if (closeFailure != primary)
+            {
+                primary.addSuppressed(closeFailure);
+            }
         }
         discardOnFailure();
     }
