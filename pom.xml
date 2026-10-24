@@ -57,7 +57,7 @@
     <logbackClassicVersion>1.6.5</logbackClassicVersion>
     <mockitoVersion>5.24.0</mockitoVersion>
     <poiVersion>5.5.1</poiVersion>
-    <spotbugsAnnotationsVersion>4.10.4</spotbugsAnnotationsVersion>
+    <spotbugsAnnotationsVersion>4.10.5</spotbugsAnnotationsVersion>
     <!-- spring-core/spring-context/spring-test are released in lockstep, one version. It is the
          version the build tests the integration against, not the oldest one it supports: the
          site page testcases/DbUnitTestExecutionListener.adoc states that one, in Requirements. -->
