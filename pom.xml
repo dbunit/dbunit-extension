@@ -121,7 +121,7 @@
     <sourcePluginVersion>3.4.0</sourcePluginVersion>
     <spotbugsMavenPluginVersion>4.10.4.1</spotbugsMavenPluginVersion>
     <surefirePluginVersion>3.6.0</surefirePluginVersion>
-    <versionsMavenPluginVersion>2.22.0</versionsMavenPluginVersion>
+    <versionsMavenPluginVersion>2.23.0</versionsMavenPluginVersion>
 
     <!-- docker images -->
     <docker.image.name.db2-11>icr.io/db2_community/db2:11.5.9.0</docker.image.name.db2-11>
