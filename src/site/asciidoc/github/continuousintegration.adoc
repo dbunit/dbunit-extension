@@ -37,8 +37,18 @@ which `-DjunitVersion` selects:
 ./mvnw clean compile -DjunitVersion=5.7.0
 ----
 
-The job only compiles, because dbUnit's own tests need JUnit 6. When the supported version
-changes, change the page and the job together.
+The job compiles against Spring Framework 6.2.0 too, the oldest release that the
+link:../testcases/DbUnitTestExecutionListener.html#requirements[DbUnitTestExecutionListener]
+page promises, while the build compiles against Spring Framework 7. `-DspringFrameworkVersion`
+selects it:
+
+[source,bash]
+----
+./mvnw clean compile -DspringFrameworkVersion=6.2.0
+----
+
+The job only compiles, because dbUnit's own tests run against JUnit 6 and Spring Framework 7.
+When a supported version changes, change its page and the job together.
 
 [#what-ci-does-not-cover]
 == What CI Does Not Cover
