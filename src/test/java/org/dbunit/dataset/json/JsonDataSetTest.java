@@ -45,6 +45,8 @@ import org.dbunit.dataset.datatype.DataType;
 import org.dbunit.testutil.TestUtils;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * Tests for {@link JsonDataSet}.
@@ -201,6 +203,44 @@ class JsonDataSetTest extends AbstractDataSetTest
                 .as("trailing content after the root JSON object must be rejected.")
                 .isInstanceOf(DataSetException.class)
                 .hasMessage("JSON dataset must not contain content after the root object");
+    }
+
+    @Test
+    void testConstructor_withEmptyObject_returnsDataSetWithNoTables() throws Exception
+    {
+        final InputStream in = new ByteArrayInputStream("{}".getBytes(StandardCharsets.UTF_8));
+
+        final IDataSet dataSet = new JsonDataSet(in);
+
+        assertThat(dataSet.getTableNames())
+                .as("an empty JSON object is the empty dataset, which has no tables.").isEmpty();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"", " \n\t "})
+    void testConstructor_withoutContent_throwsDataSetException(final String json)
+    {
+        final InputStream in = new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8));
+
+        assertThatThrownBy(() -> new JsonDataSet(in))
+                .as("a document with no content must be rejected, so that a truncated file is"
+                        + " not read as an empty dataset.")
+                .isInstanceOf(DataSetException.class)
+                .hasMessage("JSON dataset must be a JSON object at the root level");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"// comment\n{}", "/* comment */ {}", "# comment\n{}",
+            "{\"TEST_TABLE\": [] // comment\n}"})
+    void testConstructor_withComment_throwsDataSetException(final String json)
+    {
+        final InputStream in = new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8));
+
+        assertThatThrownBy(() -> new JsonDataSet(in))
+                .as("a comment must be rejected, even beside valid content, as JSON has none.")
+                .isInstanceOf(DataSetException.class)
+                .hasMessage("Error reading JSON dataset")
+                .hasCauseInstanceOf(IOException.class);
     }
 
     @Test
