@@ -755,7 +755,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      *
      * @return The shared connection.
      * @throws Exception On dbUnit errors.
-     * @since 3.4.0
+     * @since 3.6.0
      */
     public IDatabaseConnection getReusableConnection() throws Exception
     {
