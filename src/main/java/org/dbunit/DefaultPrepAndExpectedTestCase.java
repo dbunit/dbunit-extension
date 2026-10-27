@@ -752,6 +752,10 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * possibly a failure the driver has already noticed. A connection the server
      * dropped before anything noticed reads open, so this method hands it back
      * and the next use of it fails.
+     * <p>
+     * This method is for the annotation runtime in {@code org.dbunit.annotation.runtime}, which
+     * calls it to share this connection with the parameters it injects. It is public because that
+     * runtime lives in another package. Test code should not rely on it.
      *
      * @return The shared connection.
      * @throws Exception On dbUnit errors.
@@ -2518,6 +2522,10 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * {@link IOperationListener#NO_OP_OPERATION_LISTENER}. Whoever else holds that connection,
      * such as the executor of the annotation runtime that resolved it for a test method
      * parameter, must leave it open too.
+     * <p>
+     * This method is for the annotation runtime in {@code org.dbunit.annotation.runtime}, which
+     * calls it to decide whether it may close a connection it resolved. It is public because that
+     * runtime lives in another package. Test code should not rely on it.
      *
      * @return {@code true} when cleanupData() leaves the connection open, {@code false} when it
      *         may close it.
