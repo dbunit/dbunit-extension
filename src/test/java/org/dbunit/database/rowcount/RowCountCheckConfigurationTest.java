@@ -21,6 +21,8 @@
 package org.dbunit.database.rowcount;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 
 import java.util.Properties;
@@ -28,6 +30,8 @@ import java.util.Properties;
 import org.dbunit.database.DatabaseConfig;
 import org.dbunit.dataset.DataSetException;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * CAUTION: mutates the {@code dbunit.rowCountCheck} and
@@ -124,20 +128,48 @@ class RowCountCheckConfigurationTest
                 .isTrue();
     }
 
-    @Test
-    void testIsEnabled_systemPropertyWithUnrecognizedValue_returnsFalse()
+    @ParameterizedTest
+    @ValueSource(strings = {"yes", "on", "1", "nope", "ture", "y", "enabled"})
+    void testIsEnabled_systemPropertyWithUnrecognizedValue_throwsNamingThePropertyAndTheValue(
+            final String value)
     {
         final DatabaseConfig databaseConfig = new DatabaseConfig();
         databaseConfig.setFeature(DatabaseConfig.FEATURE_ROW_COUNT_CHECK, true);
-        System.setProperty(RowCountCheckConfiguration.DBUNIT_ROW_COUNT_CHECK, "nope");
+        System.setProperty(RowCountCheckConfiguration.DBUNIT_ROW_COUNT_CHECK, value);
+
+        assertThatThrownBy(() -> new RowCountCheckConfiguration(databaseConfig))
+                .as("A value that is neither true nor false would turn the check off for the whole"
+                        + " run, also over a feature that enables it, so it is rejected.")
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("The dbunit.rowCountCheck system property is '" + value
+                        + "', which is neither true nor false. Set it to true, or give it no value,"
+                        + " to turn the row count check on, or to false to turn it off.");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"true", "TRUE", " true ", "false", "False", " false ", "", "  "})
+    void testIsEnabled_systemPropertyTrueFalseOrNoValue_isAccepted(final String value)
+    {
+        System.setProperty(RowCountCheckConfiguration.DBUNIT_ROW_COUNT_CHECK, value);
+
+        assertThatCode(() -> new RowCountCheckConfiguration(new DatabaseConfig()))
+                .as("'%s' is true, false or no value, whatever its case and the whitespace around"
+                        + " it, so it is accepted.", value)
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void testIsEnabled_systemPropertyTrueWithSurroundingWhitespace_returnsTrue()
+    {
+        System.setProperty(RowCountCheckConfiguration.DBUNIT_ROW_COUNT_CHECK, " true ");
 
         final RowCountCheckConfiguration configuration =
-                new RowCountCheckConfiguration(databaseConfig);
+                new RowCountCheckConfiguration(new DatabaseConfig());
 
         assertThat(configuration.isEnabled())
-                .as("A value that is not true still follows Boolean.parseBoolean(), so a typo"
-                        + " cannot turn the check on.")
-                .isFalse();
+                .as("Whitespace around true, as a properties file or a CI variable can leave,"
+                        + " must not turn the check off.")
+                .isTrue();
     }
 
     @Test
@@ -343,6 +375,20 @@ class RowCountCheckConfigurationTest
         assertThat(configuration.isEnabled())
                 .as("Forcing the check on must leave a test that declared it enabled enabled.")
                 .isTrue();
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void testValueConstructor_systemPropertyWithUnrecognizedValue_throwsWhateverTheTestDeclares(
+            final boolean declaredEnabled)
+    {
+        System.setProperty(RowCountCheckConfiguration.DBUNIT_ROW_COUNT_CHECK, "yes");
+
+        assertThatThrownBy(() -> new RowCountCheckConfiguration(declaredEnabled, null, null))
+                .as("The value is wrong for the whole run, so it is rejected for a test that"
+                        + " declared the check disabled as it is for one that declared it enabled.")
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("dbunit.rowCountCheck").hasMessageContaining("'yes'");
     }
 
     @Test
