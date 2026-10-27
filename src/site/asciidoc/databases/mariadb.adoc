@@ -45,10 +45,12 @@ with a `SQLSyntaxErrorException` the moment it tries to operate on one of
 those leaked tables (e.g. during `DELETE_ALL`). `MySqlMetadataHandler`
 fixes this for a connection that names its schema, because it passes the
 schema as the JDBC catalog argument, which MariaDB Connector/J does honor
-even though it ignores the schema pattern argument. Equivalently — or in
-addition, for defense in depth — add `nullCatalogMeansCurrent=true` to the
-MariaDB JDBC URL, which restricts such a call to the connection's current
-database.
+even though it ignores the schema pattern argument. An empty schema means the
+database the connection works in: the handler passes that database as the
+catalog, which is also how MariaDB Connector/J reads an empty catalog.
+Equivalently — or in addition, for defense in depth — add
+`nullCatalogMeansCurrent=true` to the MariaDB JDBC URL, which restricts such
+a call to the connection's current database.
 
 == Connection Preconfiguration Class
 

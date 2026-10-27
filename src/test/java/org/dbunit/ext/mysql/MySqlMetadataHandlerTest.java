@@ -22,9 +22,11 @@ package org.dbunit.ext.mysql;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.stream.Stream;
@@ -119,5 +121,77 @@ class MySqlMetadataHandlerTest
                         + " a schema to the driver as the catalog, so it must report that"
                         + " database.")
                 .isEqualTo("mydb");
+    }
+
+    @Test
+    void testGetTables_emptySchema_passesTheCurrentDatabaseAsTheCatalog() throws Exception
+    {
+        final DatabaseMetaData metaData = metaDataOfAConnectionWorkingIn("mydb");
+        final String[] tableTypes = {"TABLE"};
+
+        handler.getTables(metaData, "", tableTypes);
+
+        verify(metaData).getTables("mydb", null, "%", tableTypes);
+    }
+
+    @Test
+    void testGetTables_noSchema_passesNoCatalog() throws Exception
+    {
+        final DatabaseMetaData metaData = metaDataOfAConnectionWorkingIn("mydb");
+        final String[] tableTypes = {"TABLE"};
+
+        handler.getTables(metaData, null, tableTypes);
+
+        verify(metaData).getTables(null, null, "%", tableTypes);
+    }
+
+    @Test
+    void testGetColumns_emptySchema_passesTheCurrentDatabaseAsTheCatalog() throws Exception
+    {
+        final DatabaseMetaData metaData = metaDataOfAConnectionWorkingIn("mydb");
+
+        handler.getColumns(metaData, "", "TEST_TABLE");
+
+        verify(metaData).getColumns("mydb", null, "TEST_TABLE", "%");
+    }
+
+    @Test
+    void testGetPrimaryKeys_emptySchema_passesTheCurrentDatabaseAsTheCatalog() throws Exception
+    {
+        final DatabaseMetaData metaData = metaDataOfAConnectionWorkingIn("mydb");
+
+        handler.getPrimaryKeys(metaData, "", "TEST_TABLE");
+
+        verify(metaData).getPrimaryKeys("mydb", null, "TEST_TABLE");
+    }
+
+    @Test
+    void testTableExists_emptySchema_looksInTheCurrentDatabase() throws Exception
+    {
+        final DatabaseMetaData metaData = metaDataOfAConnectionWorkingIn("mydb");
+        final ResultSet tables = mock(ResultSet.class);
+        when(metaData.getTables("mydb", null, "TEST_TABLE", null)).thenReturn(tables);
+        when(tables.next()).thenReturn(true);
+
+        final boolean exists = handler.tableExists(metaData, "", "TEST_TABLE");
+
+        assertThat(exists)
+                .as("An empty schema must mean the database the connection works in, as MySQL"
+                        + " Connector/J lists nothing for an empty catalog.")
+                .isTrue();
+    }
+
+    /**
+     * Returns metadata of a connection that works in the given database, which MySQL Connector/J
+     * and MariaDB Connector/J report as the catalog of the connection.
+     */
+    private static DatabaseMetaData metaDataOfAConnectionWorkingIn(final String database)
+            throws SQLException
+    {
+        final Connection connection = mock(Connection.class);
+        when(connection.getCatalog()).thenReturn(database);
+        final DatabaseMetaData metaData = mock(DatabaseMetaData.class);
+        when(metaData.getConnection()).thenReturn(connection);
+        return metaData;
     }
 }

@@ -58,8 +58,9 @@ automatically when `PROPERTY_METADATA_HANDLER` is left unset.
 |link:../databases/db2.html[`Db2MetadataHandler`] |DB2, fixing a catalog/schema
 column-matching bug.
 |link:../databases/mysql.html[`MySqlMetadataHandler`] |MySQL/MariaDB, fixing
-catalog/schema comparison so qualified-table-name lookups don't spuriously miss, and reporting
-the database a connection works in as its current schema.
+catalog/schema comparison so qualified-table-name lookups don't spuriously miss, reporting
+the database a connection works in as its current schema, and reading an empty schema as that
+database.
 |link:../databases/mysql.html[`MultiSchemaMySqlMetadataHandler`] |A MySQL connection
 (e.g. as `root`) that must see tables across every catalog it can access, without MySQL's
 system catalogs, whatever the driver's `nullCatalogMeansCurrent` setting.
