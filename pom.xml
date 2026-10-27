@@ -63,7 +63,9 @@
     <spotbugsAnnotationsVersion>4.10.4</spotbugsAnnotationsVersion>
     <!-- spring-core/spring-context/spring-test are released in lockstep, one version. It is the
          version the build tests the integration against, not the oldest one it supports: the
-         site page testcases/DbUnitTestExecutionListener.adoc states that one, in Requirements. -->
+         site page testcases/DbUnitTestExecutionListener.adoc states that one, in Requirements.
+         The oldest-supported-versions job of build-any-branch-with-all-dbs.yml compiles against
+         it by overriding this property. -->
     <springFrameworkVersion>7.0.9</springFrameworkVersion>
     <xmlparserv2Version>23.26.3.0.0</xmlparserv2Version>
 
