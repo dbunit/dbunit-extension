@@ -32,13 +32,21 @@ exists.
 For a connection not restricted to a single schema — e.g. connecting as
 `root` specifically to work across several schemas at once — use
 link:../apidocs/org/dbunit/ext/mysql/MultiSchemaMySqlMetadataHandler.html[MultiSchemaMySqlMetadataHandler]
-instead. MySQL Connector/J's `nullCatalogMeansCurrent` default treats a
-`null` catalog as "the connection's current catalog only" rather than "every
-catalog", so `MySqlMetadataHandler` alone can silently hide tables in every
-schema but one, surfacing as `NoSuchTableException` for a table you can see
-exists. `MultiSchemaMySqlMetadataHandler` works around this by enumerating
-and unioning results across the connection's visible schemas itself; pair it
-with link:../properties.html#qualifiedtablenames[the qualified table names
+instead. Without a schema, `MySqlMetadataHandler` passes a `null` catalog
+to the driver, which under Connector/J 8.0 and later lists the tables of every
+catalog the user can see. Most tables of MySQL's system catalogs are reported
+as `SYSTEM TABLE` or `SYSTEM VIEW` and stay out of a dataset, but not all: for
+`root`, the `sys_config` table of the `sys` catalog comes back as an ordinary
+table. Only with the driver's `nullCatalogMeansCurrent` property set to
+`true`, its default in Connector/J 5.1, does a `null` catalog mean the
+connection's current catalog, so `MySqlMetadataHandler` alone can silently
+hide tables in every schema but one, surfacing as `NoSuchTableException` for
+a table you can see exists. `MultiSchemaMySqlMetadataHandler` never passes a
+`null` catalog: it enumerates the catalogs the connection can see, skips
+`information_schema`, `mysql`, `performance_schema` and `sys`, and unions the
+results across the rest itself, so it lists the same tables whatever
+`nullCatalogMeansCurrent` is set to. Pair it with
+link:../properties.html#qualifiedtablenames[the qualified table names
 feature] so same-named tables in different schemas stay distinguishable.
 
 == Connection Preconfiguration Class

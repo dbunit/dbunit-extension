@@ -55,8 +55,8 @@ column-matching bug.
 |link:../databases/mysql.html[`MySqlMetadataHandler`] |MySQL/MariaDB, fixing
 catalog/schema comparison so qualified-table-name lookups don't spuriously miss.
 |link:../databases/mysql.html[`MultiSchemaMySqlMetadataHandler`] |A MySQL connection
-(e.g. as `root`) that must see tables across every catalog it can access, not just its
-current one.
+(e.g. as `root`) that must see tables across every catalog it can access, without MySQL's
+system catalogs, whatever the driver's `nullCatalogMeansCurrent` setting.
 |link:../databases/netezza.html[`NetezzaMetadataHandler`] |Netezza, which reports schema
 information via the catalog column.
 |link:../databases/h2.html[`H2MetadataHandler`] |H2 2.x, excluding `INFORMATION_SCHEMA`
@@ -70,10 +70,11 @@ A `java.sql.ResultSet` is a forward-only cursor over one query — rows can't be
 out of it, or several combined, after the fact. That's a problem for a handler that
 needs to correct *which* rows come back, not just how they're compared:
 
-* MySQL Connector/J's `nullCatalogMeansCurrent` default treats a `null` catalog as "the
-connection's current catalog only" instead of "every catalog," per the JDBC spec.
-Correcting that means issuing one real `getTables()` call *per* catalog and combining
-the results.
+* A `null` catalog lists either the connection's current catalog only or every catalog,
+MySQL's system catalogs included, depending on MySQL Connector/J's
+`nullCatalogMeansCurrent` property (`true` by default in 5.1, `false` since 8.0).
+Listing every catalog but the system ones, whatever that setting, means issuing one real
+`getTables()` call *per* catalog and combining the results.
 * H2 2.x's `INFORMATION_SCHEMA` now reports its own internal tables with the same JDBC
 `TABLE_TYPE` as real user tables (see link:../databases/h2.html[H2]). Correcting that
 means running the real `getTables()` call once and dropping the rows that don't belong.

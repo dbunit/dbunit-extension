@@ -39,13 +39,10 @@ public class MariaDbEnvironment extends DatabaseEnvironment
     /**
      * {@inheritDoc}
      * <p>
-     * Also registers {@link MySqlMetadataHandler}: unlike MySQL Connector/J
-     * (whose {@code nullCatalogMeansCurrent} default restricts an unfiltered
-     * {@code DatabaseMetaData#getTables()} call to the current database),
-     * MariaDB Connector/J returns every catalog's tables - including
-     * {@code information_schema}/{@code performance_schema} - unless the
-     * schema is passed as the JDBC catalog argument, which is exactly what
-     * {@link MySqlMetadataHandler} does.
+     * Also registers {@link MySqlMetadataHandler}: MariaDB Connector/J
+     * returns every catalog's tables - including {@code performance_schema}
+     * system tables - unless the schema is passed as the JDBC catalog
+     * argument, which is exactly what {@link MySqlMetadataHandler} does.
      */
     @Override
     protected void setupDatabaseConfig(DatabaseConfig config)

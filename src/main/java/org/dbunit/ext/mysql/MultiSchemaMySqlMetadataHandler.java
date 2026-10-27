@@ -43,13 +43,17 @@ import org.slf4j.LoggerFactory;
  * enabled.
  * <p>
  * {@link MySqlMetadataHandler}'s {@code getTables()}/{@code getColumns()}/{@code getPrimaryKeys()}
- * pass a {@code null} schema straight through as the JDBC {@code catalog} argument. Per the JDBC
- * specification {@code catalog=null} means "do not narrow the search by catalog", but MySQL
- * Connector/J instead treats it as "the connection's current catalog only" by default (its
- * {@code nullCatalogMeansCurrent} connection property), so tables in every other catalog are
- * silently invisible and a lookup for one of them fails with {@link org.dbunit.dataset.NoSuchTableException}.
+ * pass a {@code null} schema straight through as the JDBC {@code catalog} argument, and what the
+ * driver makes of it depends on its {@code nullCatalogMeansCurrent} connection property. Since
+ * MySQL Connector/J 8.0 the property defaults to {@code false}, which follows the JDBC
+ * specification, where {@code catalog=null} means "do not narrow the search by catalog": the
+ * result includes every catalog the connection can see, and for a user such as "root" a table of
+ * MySQL's own {@code sys} catalog among them. Set to {@code true}, the default of MySQL
+ * Connector/J 5.1, it means "the connection's current catalog only", so tables in every other
+ * catalog are silently invisible and a lookup for one of them fails with
+ * {@link org.dbunit.dataset.NoSuchTableException}.
  * <p>
- * This handler works around that driver behavior at the application level: whenever no single
+ * This handler lists the same tables whatever the property is set to: whenever no single
  * schema is given, it enumerates the catalogs visible to the connection (skipping MySQL's own
  * {@code information_schema}/{@code mysql}/{@code performance_schema}/{@code sys} system
  * catalogs) and unions the per-catalog results instead of ever passing a {@code null} catalog to

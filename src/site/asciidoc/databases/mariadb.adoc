@@ -34,19 +34,21 @@ link:../connections.html[Connections & Configuration].
 There is no MariaDB-specific `IMetadataHandler` — register MySQL's
 link:../apidocs/org/dbunit/ext/mysql/MySqlMetadataHandler.html[MySqlMetadataHandler]
 instead, and treat it as a requirement rather than an option: MariaDB
-Connector/J needs it even more than MySQL does. MySQL Connector/J's
-`nullCatalogMeansCurrent` default already restricts an unfiltered
-`DatabaseMetaData#getTables()` call to the connection's current database;
-MariaDB Connector/J has no such default, so a connection using dbUnit's
-plain default handler sees every catalog's tables, including
-`information_schema`/`performance_schema` system tables. dbUnit then fails
+Connector/J needs it even more than MySQL does. Like MySQL Connector/J
+8.0 and later, it defaults `nullCatalogMeansCurrent` to `false`, so an
+unfiltered `DatabaseMetaData#getTables()` call lists the tables of every
+database the user can see. Unlike MySQL Connector/J, it also returns
+`performance_schema` system tables for the `TABLE` table type dbUnit asks
+for, so a connection using dbUnit's plain default handler sees them even
+when the user can see a single database. dbUnit then fails
 with a `SQLSyntaxErrorException` the moment it tries to operate on one of
 those leaked tables (e.g. during `DELETE_ALL`). `MySqlMetadataHandler`
-fixes this because it passes the schema as the JDBC catalog argument,
-which MariaDB Connector/J does honor even though it ignores the schema
-pattern argument. Equivalently — or in addition, for defense in depth —
-add `nullCatalogMeansCurrent=true` to the MariaDB JDBC URL to match MySQL
-Connector/J's own default.
+fixes this for a connection that names its schema, because it passes the
+schema as the JDBC catalog argument, which MariaDB Connector/J does honor
+even though it ignores the schema pattern argument. Equivalently — or in
+addition, for defense in depth — add `nullCatalogMeansCurrent=true` to the
+MariaDB JDBC URL, which restricts such a call to the connection's current
+database.
 
 == Connection Preconfiguration Class
 
@@ -72,6 +74,6 @@ plus MariaDB's own `UUID`/`INET4`/`INET6` handling — see
 
 Forgetting to register `MySqlMetadataHandler` (or the
 `nullCatalogMeansCurrent=true` URL parameter) is the most common surprise
-on MariaDB: it surfaces as a `SQLSyntaxErrorException` naming an
-`information_schema`/`performance_schema` table rather than anything
+on MariaDB: it surfaces as a `SQLSyntaxErrorException` naming a
+`performance_schema` table such as `global_status` rather than anything
 that looks like a configuration problem — see `IMetadataHandler` above.
