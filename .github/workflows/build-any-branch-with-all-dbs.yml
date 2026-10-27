@@ -44,6 +44,26 @@ jobs:
         path: target/
         retention-days: 11
 
+  oldest-supported-versions:
+    # Waits for the unit test job so that it, not this job, saves the Maven cache that the jobs of
+    # this workflow restore: the cache key is the hash of the pom, the first job to finish saves
+    # it, and this job resolves fewer dependencies than the tests need.
+    needs: [compile-and-unit-test]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        persist-credentials: false
+    - uses: ./.github/actions/jdk-setup
+    # The build compiles against JUnit Jupiter 6, but DbUnitExtension.adoc promises 5.7 or later,
+    # so a call of a newer JUnit API would pass the build and fail a user with a
+    # NoSuchMethodError. Keep the version here in step with that page.
+    - name: Compile against JUnit Jupiter 5.7.0
+      run: ${{ env.MAVEN_COMMAND }} ${{ env.MAVEN_CLI_COMMON }} clean compile -DjunitVersion=5.7.0
+
   ITs:
     needs: [compile-and-unit-test]
     runs-on: ubuntu-latest
