@@ -77,13 +77,15 @@ public final class TestScopedConnection
     /**
      * Returns the connection for this test, acquiring it from the supplier on first use and
      * returning the same one thereafter. A memoized connection that has since been closed - by
-     * a pool max-lifetime, a server reap, a
-     * {@link org.dbunit.database.CachingConnectionProvider#close()} between reused test methods
-     * - is dropped and re-acquired rather than handed back dead. Whether it is closed is read
-     * from the JDBC connection captured when it was acquired, never by asking the
-     * {@link IDatabaseConnection} for its JDBC connection again: a
+     * its pool, or by {@link org.dbunit.database.CachingConnectionProvider#close()} between
+     * reused test methods - is dropped and re-acquired rather than handed back dead. Whether it
+     * is closed is read from the JDBC connection captured when it was acquired, never by asking
+     * the {@link IDatabaseConnection} for its JDBC connection again: a
      * {@link org.dbunit.database.DatabaseDataSourceConnection} that was closed answers that
-     * question by checking out a new one. A connection that has no JDBC connection to capture
+     * question by checking out a new one. The read is {@link Connection#isClosed()}, which
+     * reports a {@code close()} call and may report a failure the driver has already noticed.
+     * It does not report a connection the server dropped before anything noticed: that one
+     * reads open until a use of it fails. A connection that has no JDBC connection to capture
      * when it is acquired - it threw, as a {@link org.dbunit.database.DatabaseDataSourceConnection}
      * does when its pool times out, or returned {@code null} - cannot be asked whether it is
      * closed, so it is kept for the rest of the test rather than replaced on every call, which
