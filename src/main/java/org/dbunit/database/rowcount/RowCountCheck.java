@@ -27,8 +27,12 @@ import java.util.List;
 import java.util.Map;
 
 import org.dbunit.DatabaseUnitException;
+import org.dbunit.database.AbstractDatabaseConnection;
 import org.dbunit.database.DatabaseConfig;
+import org.dbunit.database.DatabaseDataSet;
 import org.dbunit.database.IDatabaseConnection;
+import org.dbunit.dataset.DataSetException;
+import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.filter.ExcludeTableFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,11 +47,17 @@ import org.slf4j.LoggerFactory;
  * {@link RowCountCheckConfiguration#isEnabled()} is {@code false} - the check costs nothing
  * when a caller has not opted in.
  * <p>
- * It counts the tables its connection lists. A connection that names no schema is counted
- * through the current schema of its JDBC connection when the driver reports one, so the check
- * does not meet the system schemas of a database such as H2, or the tables of other schemas,
- * which it cannot count by their unqualified names. When the driver reports none, the connection
- * is counted as it is.
+ * It counts the tables its connection lists. A dbUnit connection, an
+ * {@link AbstractDatabaseConnection}, keeps the dataset of its first listing for its lifetime, so
+ * the check lists the tables of such a connection anew for each snapshot, through the metadata of
+ * its JDBC connection. The check therefore counts a table the test creates or drops as empty in
+ * the snapshot it is missing from, and lists a connection that narrows its dataset by overriding
+ * {@link IDatabaseConnection#createDataSet()} in full, which leaves such tables to the exclude
+ * patterns. It lists any other implementation of {@link IDatabaseConnection} through its own
+ * {@code createDataSet()}. A connection that names no schema is counted through the current
+ * schema of its JDBC connection when the driver reports one, so the check does not meet the
+ * system schemas of a database such as H2, or the tables of other schemas, which it cannot count
+ * by their unqualified names. When the driver reports none, the connection is counted as it is.
  *
  * @author dbunit
  * @since 3.6.0
@@ -120,7 +130,7 @@ public class RowCountCheck
         try
         {
             final IDatabaseConnection countingConnection = connectionToCountThrough(connection);
-            final String[] allTableNames = countingConnection.createDataSet().getTableNames();
+            final String[] allTableNames = tableNamesListedAfresh(countingConnection);
             final ExcludeTableFilter excludeTableFilter = configuration.getExcludeTableFilter();
 
             final List<String> tableNames = new ArrayList<>();
@@ -203,6 +213,34 @@ public class RowCountCheck
             return null;
         }
         return currentSchema;
+    }
+
+    /**
+     * Lists the tables of a connection for one snapshot. An {@link AbstractDatabaseConnection}
+     * keeps the dataset of its first listing for its lifetime, so this lists the tables of such a
+     * connection anew, through a new {@link DatabaseDataSet} like the one its first listing built,
+     * and sees the tables that exist when the snapshot is taken, whether or not the connection
+     * names a schema. It lists any other implementation of {@link IDatabaseConnection} through
+     * its own {@link IDatabaseConnection#createDataSet()}, as it cannot know how that one lists.
+     *
+     * @param connection The connection to count through.
+     * @return The names of the tables the connection lists.
+     * @throws SQLException If reading the metadata of the connection fails.
+     * @throws DataSetException If listing the tables fails.
+     */
+    private static String[] tableNamesListedAfresh(final IDatabaseConnection connection)
+            throws SQLException, DataSetException
+    {
+        if (connection instanceof AbstractDatabaseConnection)
+        {
+            final boolean caseSensitiveTableNames = connection.getConfig()
+                    .getFeature(DatabaseConfig.FEATURE_CASE_SENSITIVE_TABLE_NAMES);
+            final IDataSet dataSet = new DatabaseDataSet(connection, caseSensitiveTableNames);
+            return dataSet.getTableNames();
+        }
+
+        final IDataSet dataSet = connection.createDataSet();
+        return dataSet.getTableNames();
     }
 
     private String currentSchemaReportedBy(final Connection jdbcConnection)
