@@ -23,6 +23,7 @@ package org.dbunit;
 
 import org.dbunit.database.DatabaseConfig;
 import org.dbunit.ext.mysql.MySqlDataTypeFactory;
+import org.dbunit.ext.mysql.MySqlMetadataHandler;
 
 /**
  * @author John Hurst (adapted from Manuel Laflamme: OracleEnvironment)
@@ -36,11 +37,22 @@ public class MySqlEnvironment extends DatabaseEnvironment
         super(profile);
     }
 
+    /**
+     * {@inheritDoc}
+     * <p>
+     * Also registers {@link MySqlMetadataHandler}, as
+     * {@link org.dbunit.ext.mysql.MySqlConnection} does, so the ITs run with
+     * the handler the MySQL page recommends: it passes a schema to the
+     * driver as the catalog, and reports the database a connection works in
+     * as its current schema.
+     */
     @Override
     protected void setupDatabaseConfig(DatabaseConfig config)
     {
         config.setProperty(DatabaseConfig.PROPERTY_DATATYPE_FACTORY,
                 new MySqlDataTypeFactory());
+        config.setProperty(DatabaseConfig.PROPERTY_METADATA_HANDLER,
+                new MySqlMetadataHandler());
     }
 
     /**
