@@ -382,6 +382,107 @@ class RowCountCheckTest
     }
 
     @Test
+    void testCaptureThenVerify_connectionNamingItsSchemaAndATableCreatedSinceTheBaseline_reportsItsRows()
+            throws Exception
+    {
+        final IDatabaseConnection connection = InMemoryDatabaseConnection.create("PUBLIC");
+        try
+        {
+            execute(connection, "create table ACCOUNT (ID int)");
+            final RowCountCheck check =
+                    new RowCountCheck(new RowCountCheckConfiguration(enabledDatabaseConfig()));
+            final RowCountSnapshot baseline = check.capture(connection);
+            execute(connection, "create table ACCOUNT_AUDIT (ID int)",
+                    "insert into ACCOUNT_AUDIT values (1)");
+
+            assertThatThrownBy(() -> check.verify(baseline, connection))
+                    .as("A table the test created and left a row in must be reported on a"
+                            + " connection that names its schema, as the verification lists the"
+                            + " tables again.")
+                    .isInstanceOf(UnexpectedRowCountException.class)
+                    .hasMessageContaining("ACCOUNT_AUDIT").hasMessageContaining("0 -> 1");
+        } finally
+        {
+            connection.close();
+        }
+    }
+
+    @Test
+    void testCaptureThenVerify_connectionNamingItsSchemaAndATableDroppedSinceTheBaseline_reportsItsRowsAsRemoved()
+            throws Exception
+    {
+        final IDatabaseConnection connection = InMemoryDatabaseConnection.create("PUBLIC");
+        try
+        {
+            execute(connection, "create table ACCOUNT (ID int)",
+                    "create table COUNTRY_CODE (ID int)", "insert into COUNTRY_CODE values (1)",
+                    "insert into COUNTRY_CODE values (2)");
+            final RowCountCheck check =
+                    new RowCountCheck(new RowCountCheckConfiguration(enabledDatabaseConfig()));
+            final RowCountSnapshot baseline = check.capture(connection);
+            execute(connection, "drop table COUNTRY_CODE");
+
+            assertThatThrownBy(() -> check.verify(baseline, connection))
+                    .as("A table the test dropped must be reported with its rows removed on a"
+                            + " connection that names its schema, not fail the count of a table"
+                            + " that no longer exists.")
+                    .isInstanceOf(UnexpectedRowCountException.class)
+                    .hasMessageContaining("COUNTRY_CODE").hasMessageContaining("2 -> 0");
+        } finally
+        {
+            connection.close();
+        }
+    }
+
+    @Test
+    void testCaptureThenVerify_connectionListedBeforeATableWasCreated_countsThatTable()
+            throws Exception
+    {
+        final IDatabaseConnection connection = InMemoryDatabaseConnection.create("PUBLIC");
+        try
+        {
+            execute(connection, "create table ACCOUNT (ID int)");
+            assertThat(connection.createDataSet().getTableNames())
+                    .as("Precondition: the connection keeps the dataset of this first listing,"
+                            + " as a connection kept across tests keeps the one an earlier test"
+                            + " asked for.")
+                    .containsExactly("ACCOUNT");
+            execute(connection, "create table ACCOUNT_AUDIT (ID int)");
+            final RowCountCheck check =
+                    new RowCountCheck(new RowCountCheckConfiguration(enabledDatabaseConfig()));
+            final RowCountSnapshot baseline = check.capture(connection);
+            execute(connection, "insert into ACCOUNT_AUDIT values (1)");
+
+            assertThatThrownBy(() -> check.verify(baseline, connection))
+                    .as("A table created after the connection first listed its tables, such as"
+                            + " one a later test's migration creates, must be counted.")
+                    .isInstanceOf(UnexpectedRowCountException.class)
+                    .hasMessageContaining("ACCOUNT_AUDIT").hasMessageContaining("0 -> 1");
+        } finally
+        {
+            connection.close();
+        }
+    }
+
+    @Test
+    void testCapture_connectionOfAnotherImplementation_listsTheTablesOfItsOwnDataSet()
+            throws Exception
+    {
+        final RowCounter rowCounter = mock(RowCounter.class);
+        final RowCountCheck check = new RowCountCheck(
+                new RowCountCheckConfiguration(enabledDatabaseConfig(rowCounter)));
+        final IDatabaseConnection connection = connectionWithTablesAndJdbcConnection(
+                mock(Connection.class), "ACCOUNT", "ACCOUNT_AUDIT");
+        when(rowCounter.countRows(any(), any()))
+                .thenReturn(mapOf("ACCOUNT", 5, "ACCOUNT_AUDIT", 0));
+
+        check.capture(connection);
+
+        verify(connection).createDataSet();
+        verify(rowCounter).countRows(connection, Arrays.asList("ACCOUNT", "ACCOUNT_AUDIT"));
+    }
+
+    @Test
     void testCapture_connectionWithoutASchemaAndTheDriverReportsNone_countsThroughTheConnectionItself()
             throws Exception
     {
