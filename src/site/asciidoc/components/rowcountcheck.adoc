@@ -65,6 +65,15 @@ link:../databases/mysql.html[MySQL] and link:../databases/mariadb.html[MariaDB] 
 and `MySqlMetadataHandler` on MariaDB. Or add `nullCatalogMeansCurrent=true` to the JDBC URL,
 which limits the listing to the connection's current database.
 
+Each snapshot lists the tables anew. A dbUnit connection, an `AbstractDatabaseConnection`, keeps
+the dataset its `createDataSet()` returns from its first listing for its lifetime, so the check
+lists the tables of such a connection through its metadata instead: a table the test creates or
+drops counts as empty in the snapshot it is missing from, and a table created after an earlier
+test listed the connection is counted too. A connection that narrows its dataset by overriding
+`createDataSet()`, such as `MsSqlConnection`, which leaves out `dtproperties`, is listed in full,
+so exclude such tables with the exclude patterns. Any other `IDatabaseConnection` implementation
+is listed through its own `createDataSet()`.
+
 [#enabling]
 == Enabling It
 
