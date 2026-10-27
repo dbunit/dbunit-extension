@@ -184,7 +184,9 @@ class DefaultPrepAndExpectedTestCaseRowCountCheckIT
                         + " so a connection that names none would count the tables of that"
                         + " other schema.");
         final IDatabaseConnection schemaLessConnection = new DatabaseConnection(jdbcConnection);
-        copyProfileSettings(connection.getConfig(), schemaLessConnection.getConfig());
+        final DatabaseConfig schemaLessConfig = schemaLessConnection.getConfig();
+        DatabaseEnvironment.getInstance().setupDatabaseConfig(schemaLessConfig);
+        schemaLessConfig.setFeature(DatabaseConfig.FEATURE_ROW_COUNT_CHECK, true);
         final IDatabaseTester schemaLessTester = new DefaultDatabaseTester(schemaLessConnection);
         schemaLessTester.setTearDownOperation(DatabaseOperation.DELETE_ALL);
         final DefaultPrepAndExpectedTestCase schemaLessTestCase =
@@ -196,26 +198,16 @@ class DefaultPrepAndExpectedTestCaseRowCountCheckIT
 
         assertThat(thrown)
                 .as("A row left behind must be reported on a connection that names no schema."
-                        + " One whose driver reports its current schema, blank-padded on DB2,"
+                        + " One whose metadata handler reports its current schema, blank-padded"
+                        + " on DB2 and the database itself with MariaDB's MySqlMetadataHandler,"
                         + " counts the tables of that schema and not the system tables or the"
-                        + " other schemas the database has. One whose driver reports none, as on"
-                        + " MySQL and MariaDB, is counted as it is, which in these profiles"
-                        + " lists the tables of the test database only.")
+                        + " other schemas the database has. One whose handler reports none, as"
+                        + " the default handler on MySQL, is counted as it is, which in that"
+                        + " profile lists the tables of the test database only.")
                 .isInstanceOf(UnexpectedRowCountException.class);
         assertThat(differenceFor((UnexpectedRowCountException) thrown, EMPTY_TABLE).getDelta())
                 .as("A row was left behind, so the delta must be positive.")
                 .isPositive();
-    }
-
-    private static void copyProfileSettings(final DatabaseConfig from, final DatabaseConfig to)
-    {
-        to.setFeature(DatabaseConfig.FEATURE_ROW_COUNT_CHECK, true);
-        to.setProperty(DatabaseConfig.PROPERTY_DATATYPE_FACTORY,
-                from.getProperty(DatabaseConfig.PROPERTY_DATATYPE_FACTORY));
-        to.setProperty(DatabaseConfig.PROPERTY_METADATA_HANDLER,
-                from.getProperty(DatabaseConfig.PROPERTY_METADATA_HANDLER));
-        to.setProperty(DatabaseConfig.PROPERTY_ESCAPE_PATTERN,
-                from.getProperty(DatabaseConfig.PROPERTY_ESCAPE_PATTERN));
     }
 
     private RowCountDifference differenceFor(final UnexpectedRowCountException exception,
