@@ -31,6 +31,7 @@ import org.dbunit.database.AbstractDatabaseConnection;
 import org.dbunit.database.DatabaseConfig;
 import org.dbunit.database.DatabaseDataSet;
 import org.dbunit.database.IDatabaseConnection;
+import org.dbunit.database.IMetadataHandler;
 import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.filter.ExcludeTableFilter;
@@ -54,10 +55,14 @@ import org.slf4j.LoggerFactory;
  * the snapshot it is missing from, and lists a connection that narrows its dataset by overriding
  * {@link IDatabaseConnection#createDataSet()} in full, which leaves such tables to the exclude
  * patterns. It lists any other implementation of {@link IDatabaseConnection} through its own
- * {@code createDataSet()}. A connection that names no schema is counted through the current
- * schema of its JDBC connection when the driver reports one, so the check does not meet the
- * system schemas of a database such as H2, or the tables of other schemas, which it cannot count
- * by their unqualified names. When the driver reports none, the connection is counted as it is.
+ * {@code createDataSet()}, except one that the check counts through the schema it works in, as
+ * the next sentence describes. A connection that names no schema is counted through the schema it
+ * works in, as its metadata handler reports it with
+ * {@link IMetadataHandler#getCurrentSchema(Connection)}: by default the current schema of its
+ * JDBC connection, and with {@code MySqlMetadataHandler} the database a MySQL or MariaDB
+ * connection works in. The check then does not meet the system schemas of a database such as
+ * H2, or the tables of other schemas or databases, which it cannot count by their unqualified
+ * names. When the handler reports none, the connection is counted as it is.
  *
  * @author dbunit
  * @since 3.6.0
@@ -154,7 +159,7 @@ public class RowCountCheck
 
     /**
      * Returns the connection to list and count the tables through: {@code connection} itself,
-     * unless it names no schema and its JDBC connection reports a current one, in which case a
+     * unless it names no schema and its metadata handler reports a current one, in which case a
      * view of it that names that schema. Without a schema a connection lists the tables of every
      * schema it can see, the system schemas of a database such as H2 among them, and counts them
      * by names that carry no schema, so a table of another schema cannot be counted.
@@ -178,10 +183,11 @@ public class RowCountCheck
     }
 
     /**
-     * Returns the current schema of the JDBC connection of a connection that names no schema,
-     * or null when there is none to count in: the connection names a schema, or its table names
-     * already carry theirs, or it has no JDBC connection, or the driver reports no current
-     * schema, fails to report it, or predates JDBC 4.1 and cannot.
+     * Returns the schema that a connection which names none works in, as its metadata handler
+     * reports it for its JDBC connection, or null when there is none to count in: the connection
+     * names a schema, or its table names already carry theirs, or it has no JDBC connection, or
+     * the handler reports no current schema, fails to report it, or reads it from a driver that
+     * predates JDBC 4.1 and cannot.
      *
      * @param connection The connection the check was asked to count.
      * @return The current schema, or null if the connection is to be counted as it is.
@@ -200,14 +206,17 @@ public class RowCountCheck
             return null;
         }
 
-        final String currentSchema = currentSchemaReportedBy(jdbcConnection);
+        final DatabaseConfig config = connection.getConfig();
+        final IMetadataHandler metadataHandler =
+                (IMetadataHandler) config.getProperty(DatabaseConfig.PROPERTY_METADATA_HANDLER);
+        final String currentSchema = currentSchemaReportedBy(metadataHandler, jdbcConnection);
         if (currentSchema == null || currentSchema.isEmpty())
         {
             return null;
         }
 
         final boolean tableNamesCarryTheirSchema =
-                connection.getConfig().getFeature(DatabaseConfig.FEATURE_QUALIFIED_TABLE_NAMES);
+                config.getFeature(DatabaseConfig.FEATURE_QUALIFIED_TABLE_NAMES);
         if (tableNamesCarryTheirSchema)
         {
             return null;
@@ -243,16 +252,17 @@ public class RowCountCheck
         return dataSet.getTableNames();
     }
 
-    private String currentSchemaReportedBy(final Connection jdbcConnection)
+    private String currentSchemaReportedBy(final IMetadataHandler metadataHandler,
+            final Connection jdbcConnection)
     {
         try
         {
-            return jdbcConnection.getSchema();
+            return metadataHandler.getCurrentSchema(jdbcConnection);
         }
         catch (final SQLException | AbstractMethodError e)
         {
-            log.debug("currentSchemaReportedBy: the JDBC connection does not report its current"
-                    + " schema", e);
+            log.debug("currentSchemaReportedBy: the metadata handler does not report the current"
+                    + " schema of the JDBC connection", e);
             return null;
         }
     }
