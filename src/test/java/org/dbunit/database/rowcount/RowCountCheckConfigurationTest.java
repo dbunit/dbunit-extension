@@ -23,11 +23,23 @@ package org.dbunit.database.rowcount;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
+import java.util.List;
 import java.util.Properties;
+import java.util.stream.Collectors;
 
 import org.dbunit.database.DatabaseConfig;
 import org.dbunit.dataset.DataSetException;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.slf4j.LoggerFactory;
+
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 
 /**
  * CAUTION: mutates the {@code dbunit.rowCountCheck} and
@@ -38,6 +50,30 @@ import org.junit.jupiter.api.Test;
 @ClearRowCountCheckSystemProperties
 class RowCountCheckConfigurationTest
 {
+    private final Logger logger =
+            (Logger) LoggerFactory.getLogger(RowCountCheckConfiguration.class);
+    private final ListAppender<ILoggingEvent> appender = new ListAppender<>();
+
+    @BeforeEach
+    void attachAppender()
+    {
+        appender.start();
+        logger.addAppender(appender);
+    }
+
+    @AfterEach
+    void detachAppender()
+    {
+        logger.detachAppender(appender);
+        appender.stop();
+    }
+
+    private List<ILoggingEvent> warnings()
+    {
+        return appender.list.stream().filter(event -> event.getLevel() == Level.WARN)
+                .collect(Collectors.toList());
+    }
+
     @Test
     void testIsEnabled_noSystemPropertyAndNoFeature_returnsFalse()
     {
@@ -138,6 +174,51 @@ class RowCountCheckConfigurationTest
                 .as("A value that is not true still follows Boolean.parseBoolean(), so a typo"
                         + " cannot turn the check on.")
                 .isFalse();
+    }
+
+    @Test
+    void testIsEnabled_systemPropertyWithUnrecognizedValue_logsAWarningNamingTheValue()
+    {
+        System.setProperty(RowCountCheckConfiguration.DBUNIT_ROW_COUNT_CHECK, "yes");
+
+        new RowCountCheckConfiguration(new DatabaseConfig());
+
+        assertThat(warnings())
+                .as("A value that is neither true nor false turns the check off, so it must be"
+                        + " logged rather than go unnoticed.")
+                .hasSize(1);
+        assertThat(warnings().get(0).getFormattedMessage())
+                .as("The warning names the system property, the value it holds and what the"
+                        + " value does.")
+                .contains("dbunit.rowCountCheck", "'yes'", "counts as false");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"true", "TRUE", " true ", "false", "False", " false ", "", "  "})
+    void testIsEnabled_systemPropertyTrueFalseOrNoValue_logsNoWarning(final String value)
+    {
+        System.setProperty(RowCountCheckConfiguration.DBUNIT_ROW_COUNT_CHECK, value);
+
+        new RowCountCheckConfiguration(new DatabaseConfig());
+
+        assertThat(warnings())
+                .as("'%s' is true, false or no value, whatever its case and the whitespace"
+                        + " around it, so it must not be warned about.", value)
+                .isEmpty();
+    }
+
+    @Test
+    void testIsEnabled_systemPropertyTrueWithSurroundingWhitespace_returnsTrue()
+    {
+        System.setProperty(RowCountCheckConfiguration.DBUNIT_ROW_COUNT_CHECK, " true ");
+
+        final RowCountCheckConfiguration configuration =
+                new RowCountCheckConfiguration(new DatabaseConfig());
+
+        assertThat(configuration.isEnabled())
+                .as("Whitespace around true, as a properties file or a CI variable can leave,"
+                        + " must not turn the check off.")
+                .isTrue();
     }
 
     @Test
@@ -343,6 +424,33 @@ class RowCountCheckConfigurationTest
         assertThat(configuration.isEnabled())
                 .as("Forcing the check on must leave a test that declared it enabled enabled.")
                 .isTrue();
+    }
+
+    @Test
+    void testValueConstructor_systemPropertyWithUnrecognizedValueAndPassedTrue_returnsFalse()
+    {
+        System.setProperty(RowCountCheckConfiguration.DBUNIT_ROW_COUNT_CHECK, "yes");
+
+        final RowCountCheckConfiguration configuration =
+                new RowCountCheckConfiguration(true, null, null);
+
+        assertThat(configuration.isEnabled())
+                .as("A value that is neither true nor false counts as false, so it disables the"
+                        + " check for a test that declared it enabled, as false does.")
+                .isFalse();
+    }
+
+    @Test
+    void testValueConstructor_systemPropertyWithUnrecognizedValueAndPassedFalse_logsAWarning()
+    {
+        System.setProperty(RowCountCheckConfiguration.DBUNIT_ROW_COUNT_CHECK, "yes");
+
+        new RowCountCheckConfiguration(false, null, null);
+
+        assertThat(warnings())
+                .as("The value is wrong for the whole run, so it must be warned about for a"
+                        + " test that declared the check disabled too.")
+                .hasSize(1);
     }
 
     @Test

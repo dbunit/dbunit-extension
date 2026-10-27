@@ -25,6 +25,8 @@ import java.util.Arrays;
 import org.dbunit.database.DatabaseConfig;
 import org.dbunit.dataset.filter.ExcludeTableFilter;
 import org.dbunit.util.CommaSeparatedValues;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Resolves whether the row count check is enabled, its excluded table patterns, and the
@@ -64,12 +66,17 @@ import org.dbunit.util.CommaSeparatedValues;
  */
 public class RowCountCheckConfiguration
 {
+    private static final Logger log = LoggerFactory.getLogger(RowCountCheckConfiguration.class);
+
     /**
      * System property overriding the enabled flag when present. {@code false} force-disables the
      * check, whatever the {@link DatabaseConfig#FEATURE_ROW_COUNT_CHECK} feature or a test
      * declares. {@code true}, or a bare {@code -Ddbunit.rowCountCheck}, which Java reads as an
      * empty value, force-enables it over the feature, but not for a test that declares it
-     * disabled. Any other value follows {@link Boolean#parseBoolean(String)}.
+     * disabled. The case of {@code true} and {@code false} and the whitespace around them do not
+     * matter. Any other value, such as {@code yes} or {@code on}, counts as {@code false}, as
+     * {@link Boolean#parseBoolean(String)} reads it, and this class logs a warning that names the
+     * value each time it resolves a configuration.
      */
     public static final String DBUNIT_ROW_COUNT_CHECK = "dbunit.rowCountCheck";
 
@@ -147,16 +154,27 @@ public class RowCountCheckConfiguration
         {
             return declaredValue;
         }
-        return declaredValue && isSystemPropertyTrue(systemProperty);
+        // read even when declaredValue is false, so an unrecognized value is still warned about
+        final boolean systemPropertyEnabled = isSystemPropertyTrue(systemProperty);
+        return declaredValue && systemPropertyEnabled;
     }
 
     private static boolean isSystemPropertyTrue(final String systemProperty)
     {
-        if (systemProperty.trim().isEmpty())
+        final String value = systemProperty.trim();
+        if (value.isEmpty() || Boolean.parseBoolean(value))
         {
             return true;
         }
-        return Boolean.parseBoolean(systemProperty);
+        if (!"false".equalsIgnoreCase(value))
+        {
+            log.warn("The {} system property is '{}', which is neither true nor false, so it"
+                    + " counts as false and turns the row count check off, whatever the"
+                    + " DatabaseConfig feature or the test declares. Set it to true, or give it no"
+                    + " value, to turn the check on, or to false to turn it off.",
+                    DBUNIT_ROW_COUNT_CHECK, systemProperty);
+        }
+        return false;
     }
 
     private static String[] withSystemPropertyPatterns(final String[] ownPatterns)

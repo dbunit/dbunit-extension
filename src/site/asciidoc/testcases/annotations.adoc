@@ -836,7 +836,7 @@ force-enables the check across a CI run for every test that declares nothing.
 |5 |Default `false`.
 |===
 
-Four behaviours worth knowing explicitly, because each is a place a reader would otherwise
+Five behaviours worth knowing explicitly, because each is a place a reader would otherwise
 guess wrong:
 
 * A method-level `@DbUnitRowCountCheck` overrides a class-level one *wholesale* —
@@ -845,6 +845,10 @@ guess wrong:
 * The `-Ddbunit.rowCountCheckExcludeTables` system property *adds* its patterns to `exclude()`
   and never replaces them, so a suite-wide list does not re-enable the check for the tables a
   test excluded.
+* A `-Ddbunit.rowCountCheck` value other than `true`, `false` or none, such as `yes`, `on` or
+  `1`, counts as `false`: it disables the check as order 1 does, for a test that declares
+  `@DbUnitRowCountCheck` too, and dbUnit logs a warning that names the value. The case of
+  `true` and `false` does not matter.
 * The check compares *row counts*, not row contents — an `UPDATE` that changes a value
   without changing how many rows are present passes. It catches a leaked or wrongly
   removed row, not a data mismatch; that is what `@DbUnitExpected` verification is for.
