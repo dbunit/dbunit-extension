@@ -197,13 +197,11 @@ class DefaultPrepAndExpectedTestCaseRowCountCheckIT
         final Throwable thrown = catchThrowable(() -> schemaLessTestCase.postTest());
 
         assertThat(thrown)
-                .as("A row left behind must be reported on a connection that names no schema."
-                        + " One whose metadata handler reports its current schema, blank-padded"
-                        + " on DB2 and the database itself with MariaDB's MySqlMetadataHandler,"
-                        + " counts the tables of that schema and not the system tables or the"
-                        + " other schemas the database has. One whose handler reports none, as"
-                        + " the default handler on MySQL, is counted as it is, which in that"
-                        + " profile lists the tables of the test database only.")
+                .as("A row left behind must be reported on a connection that names no schema,"
+                        + " which is counted in the schema its metadata handler reports,"
+                        + " blank-padded on DB2 and the database itself with MySqlMetadataHandler"
+                        + " on MySQL and MariaDB, and not in the system tables or the other"
+                        + " schemas the database has.")
                 .isInstanceOf(UnexpectedRowCountException.class);
         assertThat(differenceFor((UnexpectedRowCountException) thrown, EMPTY_TABLE).getDelta())
                 .as("A row was left behind, so the delta must be positive.")
