@@ -21,7 +21,10 @@
 package org.dbunit.database;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
+import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.Statement;
@@ -240,5 +243,18 @@ class DefaultMetadataHandlerTest
 
         assertThat(matches).as("case-sensitive match succeeds with correct case.").isTrue();
         resultSet.close();
+    }
+
+    @Test
+    void testGetCurrentSchema_connectionReportingASchema_returnsThatSchema() throws Exception
+    {
+        final Connection jdbcConnection = mock(Connection.class);
+        when(jdbcConnection.getSchema()).thenReturn("APP");
+
+        final String currentSchema = handler.getCurrentSchema(jdbcConnection);
+
+        assertThat(currentSchema)
+                .as("The default handler must report the current schema of the JDBC connection.")
+                .isEqualTo("APP");
     }
 }

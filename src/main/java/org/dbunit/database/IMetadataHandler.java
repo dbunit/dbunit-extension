@@ -20,6 +20,7 @@
  */
 package org.dbunit.database;
 
+import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -181,6 +182,28 @@ public interface IMetadataHandler
     default boolean supportsColumnCache()
     {
         return false;
+    }
+
+    /**
+     * Returns the schema that a connection which names none works in, as this handler names
+     * schemas: the name that, passed as the {@code schemaName} of
+     * {@link #getTables(DatabaseMetaData, String, String[])}, lists the tables that the
+     * unqualified table names of the connection refer to.
+     * {@link org.dbunit.database.rowcount.RowCountCheck} counts a connection that names no schema
+     * in it.
+     * <p>
+     * The default implementation returns {@link Connection#getSchema()}. A handler that passes a
+     * schema to the driver as something else, such as the catalog, overrides it to return the
+     * name in those terms.
+     *
+     * @param connection The JDBC connection to read the current schema of.
+     * @return The current schema, or {@code null} if the connection reports none.
+     * @throws SQLException If reading the current schema fails.
+     * @since 3.6.0
+     */
+    default String getCurrentSchema(Connection connection) throws SQLException
+    {
+        return connection.getSchema();
     }
 
 }

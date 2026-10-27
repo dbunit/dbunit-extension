@@ -20,6 +20,7 @@
  */
 package org.dbunit.ext.mysql;
 
+import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -100,6 +101,23 @@ public class MySqlMetadataHandler implements IMetadataHandler {
             schemaName = catalogName;
         }
         return schemaName;
+    }
+
+    /**
+     * Returns the database the connection works in, its JDBC catalog. MySQL Connector/J and
+     * MariaDB Connector/J report that database as the catalog and no current schema by default,
+     * and this handler passes a schema to the driver as the catalog, so the database is the
+     * current schema in this handler's terms.
+     *
+     * @param connection The JDBC connection to read the current database of.
+     * @return The current database, or {@code null} if the connection works in none.
+     * @throws SQLException If reading the catalog fails.
+     * @since 3.6.0
+     */
+    @Override
+    public String getCurrentSchema(Connection connection) throws SQLException
+    {
+        return connection.getCatalog();
     }
 
     public boolean tableExists(DatabaseMetaData metaData, String schema, String tableName) 
