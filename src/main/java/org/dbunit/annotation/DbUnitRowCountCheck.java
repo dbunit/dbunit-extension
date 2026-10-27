@@ -47,7 +47,9 @@ import org.dbunit.database.DatabaseConfig;
  * <p>Precedence, highest first:
  * <ol>
  *   <li>The {@code -Ddbunit.rowCountCheck=false} system property - force-disables the check
- *   locally without editing code.</li>
+ *   locally without editing code. Any value other than {@code true}, {@code false} or none, such
+ *   as {@code yes}, is rejected with an {@link IllegalArgumentException} that names the property
+ *   and the value, rather than read as {@code false} and turn the check off.</li>
  *   <li>This annotation - method level, else class level. An {@code enabled = false} stays an
  *   opt-out when a CI run force-enables the check.</li>
  *   <li>The {@code -Ddbunit.rowCountCheck} system property, set to {@code true} or present with
