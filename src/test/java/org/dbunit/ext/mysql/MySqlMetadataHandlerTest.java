@@ -24,10 +24,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.stream.Stream;
 
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -101,5 +103,21 @@ class MySqlMetadataHandlerTest
     private static Stream<Arguments> provideSwapScenarios()
     {
         return Stream.of(Arguments.of("mydb", "mydb", true), Arguments.of("mydb", "otherdb", false));
+    }
+
+    @Test
+    void testGetCurrentSchema_connectionWorkingInADatabase_returnsThatDatabase() throws Exception
+    {
+        final Connection jdbcConnection = mock(Connection.class);
+        when(jdbcConnection.getCatalog()).thenReturn("mydb");
+
+        final String currentSchema = handler.getCurrentSchema(jdbcConnection);
+
+        assertThat(currentSchema)
+                .as("MySQL Connector/J and MariaDB Connector/J report the database a connection"
+                        + " works in as its catalog and no current schema, and the handler passes"
+                        + " a schema to the driver as the catalog, so it must report that"
+                        + " database.")
+                .isEqualTo("mydb");
     }
 }
