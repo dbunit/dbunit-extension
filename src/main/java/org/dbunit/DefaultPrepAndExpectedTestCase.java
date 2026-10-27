@@ -740,15 +740,18 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * acquiring it on first use instead of a fresh connection at each step.
      * <p>
      * When {@link #closeConnectionAfterTest} is false this connection is kept
-     * across test methods, where the connection pool or the database server can
-     * close it between tests - a pool max-lifetime or reap, a bounced
-     * application context, a
+     * across test methods, where the connection pool can close it between
+     * tests, as can a bounced application context or a
      * {@link org.dbunit.database.CachingConnectionProvider#close()}. A closed
      * one is discarded before it is handed back, so the next call re-acquires
      * from databaseTester - letting a
      * {@link org.dbunit.database.CachingConnectionProvider} behind it supply a
      * live replacement - rather than this instance reusing a connection every
-     * later lifecycle step would only fail on.
+     * later lifecycle step would only fail on. Whether it is closed is what
+     * {@link java.sql.Connection#isClosed()} reports: a {@code close()} call, and
+     * possibly a failure the driver has already noticed. A connection the server
+     * dropped before anything noticed reads open, so this method hands it back
+     * and the next use of it fails.
      *
      * @return The shared connection.
      * @throws Exception On dbUnit errors.
