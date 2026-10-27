@@ -10,7 +10,8 @@ link:https://github.com/dbunit/dbunit-extension/actions/workflows/build-any-bran
 this workflow's runs]. Triggers on push and pull request, *except* when every changed
 path is documentation (`src/site/**`, `**/*.adoc`, `**/*.md`) — a pure documentation
 change never triggers it. Compiles, runs unit tests, then runs the full multi-database
-integration-test matrix.
+integration-test matrix, next to a compile against
+<<oldest-supported-versions,the oldest supported versions>>.
 
 `publish-docs.yml`::
 link:https://github.com/dbunit/dbunit-extension/actions/workflows/publish-docs.yml[Monitor
@@ -20,6 +21,24 @@ workflow) completes, and manually via `workflow_dispatch`. *It only runs against
 `main`* — there is no `pull_request` trigger — so no feature branch ever gets a
 published-site preview from CI. The only pre-merge check for a documentation change is
 rendering the site locally: `mvnw clean install site` (see link:../building.html[Building]).
+
+[#oldest-supported-versions]
+== Compiling Against the Oldest Supported Versions
+
+The build compiles against JUnit Jupiter 6, but the
+link:../testcases/DbUnitExtension.html[DbUnitExtension] page promises JUnit Jupiter 5.7 or
+later. A call of a newer JUnit API would pass that build and fail a user with a
+`NoSuchMethodError`, so the `oldest-supported-versions` job of
+`build-any-branch-with-all-dbs.yml` compiles the main sources against JUnit Jupiter 5.7.0,
+which `-DjunitVersion` selects:
+
+[source,bash]
+----
+./mvnw clean compile -DjunitVersion=5.7.0
+----
+
+The job only compiles, because dbUnit's own tests need JUnit 6. When the supported version
+changes, change the page and the job together.
 
 [#what-ci-does-not-cover]
 == What CI Does Not Cover
