@@ -69,7 +69,11 @@ public class RowCountCheckConfiguration
      * check, whatever the {@link DatabaseConfig#FEATURE_ROW_COUNT_CHECK} feature or a test
      * declares. {@code true}, or a bare {@code -Ddbunit.rowCountCheck}, which Java reads as an
      * empty value, force-enables it over the feature, but not for a test that declares it
-     * disabled. Any other value follows {@link Boolean#parseBoolean(String)}.
+     * disabled. The case of {@code true} and {@code false} and the whitespace around them do not
+     * matter. Any other value, such as {@code yes}, {@code on} or {@code 1}, makes resolving a
+     * configuration throw an {@link IllegalArgumentException}, also for a test that declares the
+     * check disabled, instead of counting as {@code false}: a value meant to turn the check on
+     * would otherwise turn it off, and a run that the check would have failed would pass.
      */
     public static final String DBUNIT_ROW_COUNT_CHECK = "dbunit.rowCountCheck";
 
@@ -92,6 +96,8 @@ public class RowCountCheckConfiguration
      * @param databaseConfig The database config to read {@link DatabaseConfig#FEATURE_ROW_COUNT_CHECK},
      *            {@link DatabaseConfig#PROPERTY_ROW_COUNT_CHECK_EXCLUDE_TABLES}, and
      *            {@link DatabaseConfig#PROPERTY_ROW_COUNTER} from.
+     * @throws IllegalArgumentException If the {@link #DBUNIT_ROW_COUNT_CHECK} system property
+     *             holds a value that is neither {@code true} nor {@code false}, nor empty.
      */
     public RowCountCheckConfiguration(final DatabaseConfig databaseConfig)
     {
@@ -120,6 +126,9 @@ public class RowCountCheckConfiguration
      * @param rowCounter The {@link RowCounter} to use; {@code null} resolves to a new
      *            {@link QueryPerTableRowCounter}, so a value not carried by
      *            {@link DatabaseConfig}'s own default initialization is still tolerated.
+     * @throws IllegalArgumentException If the {@link #DBUNIT_ROW_COUNT_CHECK} system property
+     *             holds a value that is neither {@code true} nor {@code false}, nor empty,
+     *             whatever {@code enabled} is.
      */
     public RowCountCheckConfiguration(final boolean enabled,
             final String[] excludeTablePatterns, final RowCounter rowCounter)
@@ -147,16 +156,32 @@ public class RowCountCheckConfiguration
         {
             return declaredValue;
         }
-        return declaredValue && isSystemPropertyTrue(systemProperty);
+        // checked even when declaredValue is false, so a bad value fails every test
+        final boolean systemPropertyEnabled = isSystemPropertyTrue(systemProperty);
+        return declaredValue && systemPropertyEnabled;
     }
 
+    /**
+     * Returns whether the system property turns the check on: {@code true} for {@code true}
+     * in any case or no value, {@code false} for {@code false} in any case, the whitespace
+     * around either ignored. Any other value would count as {@code false} and turn the check off
+     * for the whole run, whatever the test or the {@link DatabaseConfig} says, so it is rejected.
+     */
     private static boolean isSystemPropertyTrue(final String systemProperty)
     {
-        if (systemProperty.trim().isEmpty())
+        final String value = systemProperty.trim();
+        if (value.isEmpty() || "true".equalsIgnoreCase(value))
         {
             return true;
         }
-        return Boolean.parseBoolean(systemProperty);
+        if ("false".equalsIgnoreCase(value))
+        {
+            return false;
+        }
+        throw new IllegalArgumentException("The " + DBUNIT_ROW_COUNT_CHECK
+                + " system property is '" + systemProperty + "', which is neither true nor"
+                + " false. Set it to true, or give it no value, to turn the row count check on,"
+                + " or to false to turn it off.");
     }
 
     private static String[] withSystemPropertyPatterns(final String[] ownPatterns)

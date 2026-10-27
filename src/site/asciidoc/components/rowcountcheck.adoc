@@ -93,7 +93,14 @@ configures:
 
 A bare `-Ddbunit.rowCountCheck` with no value enables it too; use `=false` to force it off.
 A test that declares `@DbUnitRowCountCheck(enabled = false)` stays exempt when the property
-force-enables the check, while `=false` disables the check for every test.
+force-enables the check, while `=false` disables the check for every test. Any other value,
+such as `yes`, `on` or `1`, is rejected rather than read as `false`: every test that dbUnit runs
+through a `DefaultPrepAndExpectedTestCase` or `DbUnitExtension` fails, when dbUnit takes its
+row count baseline, with an `IllegalArgumentException` that names the property and the
+value, whether it uses the check or declares `@DbUnitRowCountCheck(enabled = false)`, so a
+value meant to turn the check on cannot quietly turn it off and let the tests it would
+have failed pass. The case of `true` and `false` and the whitespace around them do not
+matter.
 
 It is wired into both link:../testcases/PrepAndExpectedTestCase.html[PrepAndExpectedTestCase]
 and link:../testcases/DbUnitExtension.html[DbUnitExtension]; enabling the feature (or the

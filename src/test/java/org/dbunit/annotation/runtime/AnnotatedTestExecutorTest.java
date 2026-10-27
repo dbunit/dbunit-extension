@@ -1799,6 +1799,45 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
+    void testBeforeTest_systemPropertyWithUnrecognizedValueAnnotationDriven_failsNamingTheProperty()
+            throws Exception
+    {
+        System.setProperty(RowCountCheckConfiguration.DBUNIT_ROW_COUNT_CHECK, "yes");
+        stubDisabledConnection();
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, tester, null);
+
+        assertThatThrownBy(executor::beforeTest)
+                .as("A value that would turn the check off for the whole run fails the test, so a"
+                        + " CI run meant to turn the check on cannot pass without counting a"
+                        + " table.")
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("dbunit.rowCountCheck")
+                .hasMessageContaining("'yes'");
+    }
+
+    @Test
+    void testBeforeTest_systemPropertyWithUnrecognizedValueClassic_failsNamingTheProperty()
+            throws Exception
+    {
+        System.setProperty(RowCountCheckConfiguration.DBUNIT_ROW_COUNT_CHECK, "yes");
+        stubDisabledConnection();
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, tester, null, false);
+
+        assertThatThrownBy(executor::beforeTest)
+                .as("The 3.5.0 lifecycle takes the baseline of the check too, so it rejects the"
+                        + " value as the annotation-driven one does.")
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("dbunit.rowCountCheck")
+                .hasMessageContaining("'yes'");
+    }
+
+    @Test
     void testBeforeTest_systemPropertyTrueAndAnnotationDisabled_leavesCheckDisabled()
             throws Exception
     {
