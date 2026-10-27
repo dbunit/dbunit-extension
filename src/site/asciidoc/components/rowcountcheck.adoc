@@ -47,23 +47,27 @@ Neither leaves extra or missing rows, which is the problem this check solves.
 
 It counts the tables its connection lists, less the ones the exclude patterns name (see
 <<exclusions>>). A connection that names a schema lists the tables of that schema. A connection
-that names none, such as `new DatabaseConnection(connection)`, is counted through the current
-schema of its JDBC connection, as `java.sql.Connection.getSchema()` reports it, so the check does
-not meet the system schemas a database such as H2 has, or the tables of other schemas, which it
-cannot count by their unqualified names. A driver that reports no current schema leaves the
-connection as it is, listing every table it can see: give such a connection a schema, or exclude
-the tables it cannot count.
+that names none, such as `new DatabaseConnection(connection)`, is counted through the schema it
+works in, as its metadata handler reports it with `IMetadataHandler.getCurrentSchema()`: by
+default the current schema of its JDBC connection, as `java.sql.Connection.getSchema()` reports
+it. The check then does not meet the system schemas a database such as H2 has, or the tables of
+other schemas, which it cannot count by their unqualified names. A connection whose handler
+reports no current schema is counted as it is, listing every table it can see: give such a
+connection a schema, or exclude the tables it cannot count. A connection with
+`DatabaseConfig.FEATURE_QUALIFIED_TABLE_NAMES` on is counted as it is too, as its table names
+already carry their schema: it lists every schema it can see, by schema-qualified names.
 
-MySQL Connector/J and MariaDB Connector/J are such drivers: by default they report the database a
-connection uses as its catalog, and no current schema. A connection that names no schema then
-lists the tables of every database the user can see, and on MariaDB some `performance_schema`
-system tables too, so the check fails on a table name two databases share, with an
-`AmbiguousTableNameException`, or on a table it cannot count by its unqualified name, with the
-database's error. Give such a connection its database as its schema, as the
-link:../databases/mysql.html[MySQL] and link:../databases/mariadb.html[MariaDB] pages do:
-`new MySqlConnection(jdbcConnection, "mydb")` on MySQL, or a `DatabaseConnection` with that schema
-and `MySqlMetadataHandler` on MariaDB. Or add `nullCatalogMeansCurrent=true` to the JDBC URL,
-which limits the listing to the connection's current database.
+MySQL Connector/J and MariaDB Connector/J report the database a connection uses as its catalog,
+and no current schema. `MySqlMetadataHandler`, which `MySqlConnection` registers and the
+link:../databases/mariadb.html[MariaDB] page requires, reports that database as the current
+schema, so the check counts a connection that names none in its database. With the default
+handler such a connection lists the tables of every database the user can see, and on MariaDB
+some `performance_schema` system tables too, so the check fails on a table name two databases
+share, with an `AmbiguousTableNameException`, or on a table it cannot count by its unqualified
+name, with the database's error. Register `MySqlMetadataHandler` (see
+link:../databases/mysql.html[MySQL]), give the connection its database as its schema, or add
+`nullCatalogMeansCurrent=true` to the JDBC URL, which limits the listing to the connection's
+current database.
 
 Each snapshot lists the tables anew. A dbUnit connection, an `AbstractDatabaseConnection`, keeps
 the dataset its `createDataSet()` returns from its first listing for its lifetime, so the check
@@ -198,7 +202,7 @@ A `RowCounter` implementation's contract:
 it is to query.
 
 The `connection` it is handed is the one the check was asked to count or, when that connection
-names no schema and its JDBC connection reports a current one, a view of it that names that
+names no schema and its metadata handler reports a current one, a view of it that names that
 schema, with the same JDBC connection and `DatabaseConfig`. Count through it, not through a
 connection of your own, so each table is found in the schema it was listed in.
 

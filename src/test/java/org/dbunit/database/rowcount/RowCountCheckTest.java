@@ -40,6 +40,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import org.dbunit.database.DatabaseConfig;
+import org.dbunit.database.DefaultMetadataHandler;
 import org.dbunit.database.IDatabaseConnection;
 import org.dbunit.database.InMemoryDatabaseConnection;
 import org.dbunit.dataset.IDataSet;
@@ -357,6 +358,43 @@ class RowCountCheckTest
     }
 
     @Test
+    void testCapture_connectionWithoutASchemaAndAHandlerReportingItsCurrentSchema_countsTheTablesOfThatSchema()
+            throws Exception
+    {
+        final IDatabaseConnection connection = InMemoryDatabaseConnection.create();
+        try
+        {
+            execute(connection, "create table ACCOUNT (ID int)", "create schema OTHER",
+                    "create table OTHER.ELSEWHERE (ID int)",
+                    "insert into OTHER.ELSEWHERE values (1)");
+            connection.getConfig().setProperty(DatabaseConfig.PROPERTY_METADATA_HANDLER,
+                    new DefaultMetadataHandler()
+                    {
+                        @Override
+                        public String getCurrentSchema(final Connection jdbcConnection)
+                        {
+                            return "OTHER";
+                        }
+                    });
+            final RowCountCheck check =
+                    new RowCountCheck(new RowCountCheckConfiguration(enabledDatabaseConfig()));
+
+            final RowCountSnapshot baseline = check.capture(connection);
+
+            assertThat(baseline.getRowCounts())
+                    .as("A connection that names no schema must be counted in the schema its"
+                            + " metadata handler reports, as MySqlMetadataHandler reports the"
+                            + " database of a MySQL connection, and not in the one the JDBC"
+                            + " connection reports.")
+                    .containsOnlyKeys("ELSEWHERE")
+                    .containsEntry("ELSEWHERE", 1);
+        } finally
+        {
+            connection.close();
+        }
+    }
+
+    @Test
     void testCapture_connectionNamingItsSchema_countsTheTablesOfThatSchemaOnly() throws Exception
     {
         final IDatabaseConnection connection = InMemoryDatabaseConnection.create("PUBLIC");
@@ -576,6 +614,7 @@ class RowCountCheckTest
     {
         final IDatabaseConnection connection = connectionWithTables(tableNames);
         when(connection.getConnection()).thenReturn(jdbcConnection);
+        when(connection.getConfig()).thenReturn(new DatabaseConfig());
         return connection;
     }
 

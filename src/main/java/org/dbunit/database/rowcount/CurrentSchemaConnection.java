@@ -28,12 +28,13 @@ import org.dbunit.database.DatabaseConfig;
 import org.dbunit.database.IDatabaseConnection;
 
 /**
- * A view of a connection that names no schema, which names the current schema of its JDBC
- * connection instead. It has the same JDBC connection and the same {@link DatabaseConfig}, so
- * every setting of the caller still applies, but the tables it lists, and the names it counts
- * them by, are those of that one schema. {@link RowCountCheck} counts through it for a connection
- * that names none: such a connection lists the tables of every schema it can see, the system
- * schemas of a database such as H2 among them, and counts them by names that carry no schema.
+ * A view of a connection that names no schema, which names the schema its JDBC connection
+ * works in instead, as the metadata handler of the connection reports it. It has the same JDBC
+ * connection and the same {@link DatabaseConfig}, so every setting of the caller still applies,
+ * but the tables it lists, and the names it counts them by, are those of that one schema.
+ * {@link RowCountCheck} counts through it for a connection that names none: such a connection
+ * lists the tables of every schema it can see, the system schemas of a database such as H2 among
+ * them, and counts them by names that carry no schema.
  *
  * <p>It is a view and not a connection of its own, so closing it closes nothing.
  *
@@ -49,8 +50,8 @@ class CurrentSchemaConnection extends AbstractDatabaseConnection
      * Creates a view of a connection that names the given schema.
      *
      * @param connection The connection to view, which names no schema.
-     * @param schema The schema to name, the current one of the JDBC connection of
-     *            {@code connection}.
+     * @param schema The schema to name, the one the JDBC connection of {@code connection}
+     *            works in.
      */
     CurrentSchemaConnection(final IDatabaseConnection connection, final String schema)
     {
