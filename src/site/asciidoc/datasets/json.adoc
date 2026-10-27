@@ -47,6 +47,12 @@ case-insensitive table lookup fallback.
 A table name repeated as a second top-level key throws `AmbiguousTableNameException`
 while the document is being read.
 
+The empty dataset is `{}`. An empty file, or one with only whitespace, is rejected with a
+`DataSetException`, as is any comment (`//`, `/* */` or `#`), because JSON has neither an empty
+document nor comments. A file that a failed export left empty therefore fails the test instead
+of running it without its data. In contrast to link:yaml.html[YAML], where an empty document, or
+one with only comments, is an empty dataset, the JSON reader stays strict.
+
 Load a dataset:
 
 [source,java]
