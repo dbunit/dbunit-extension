@@ -63,6 +63,10 @@ jobs:
     # NoSuchMethodError. Keep the version here in step with that page.
     - name: Compile against JUnit Jupiter 5.7.0
       run: ${{ env.MAVEN_COMMAND }} ${{ env.MAVEN_CLI_COMMON }} clean compile -DjunitVersion=5.7.0
+    # The build compiles against Spring Framework 7, but DbUnitTestExecutionListener.adoc promises
+    # 6.2 or later. Keep the version here in step with that page.
+    - name: Compile against Spring Framework 6.2.0
+      run: ${{ env.MAVEN_COMMAND }} ${{ env.MAVEN_CLI_COMMON }} clean compile -DspringFrameworkVersion=6.2.0
 
   ITs:
     needs: [compile-and-unit-test]
