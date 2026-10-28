@@ -474,7 +474,7 @@ public class AnnotatedTestExecutor
             try
             {
                 releaseConnection();
-            } catch (final Exception closeFailure)
+            } catch (final Throwable closeFailure)
             {
                 // a connection that rethrows the failure already in flight cannot have it
                 // suppress itself
@@ -517,9 +517,13 @@ public class AnnotatedTestExecutor
      * never runs. A no-op when {@link #afterTest(boolean)} already ran, which released the
      * connection itself, and when no connection was ever resolved, which it never acquires.
      * Closes under the same {@link ConnectionOwnership#mayClose()} rules as
-     * {@link #afterTest(boolean)}.
+     * {@link #afterTest(boolean)}. A failure from closing the connection, whether an
+     * {@link Exception} or an {@link Error}, does not stop this method from undoing the
+     * configuration and restoring the tester's listener: it throws the first failure last and
+     * attaches any later one to it as suppressed.
      *
      * @throws Exception If closing the connection fails.
+     * @throws Error If closing the connection fails with an {@code Error}.
      */
     public void releaseIfAfterTestDidNotRun() throws Exception
     {
@@ -527,11 +531,11 @@ public class AnnotatedTestExecutor
         {
             return;
         }
-        Exception failure = null;
+        Throwable failure = null;
         try
         {
             releaseConnection();
-        } catch (final Exception releaseFailure)
+        } catch (final Throwable releaseFailure)
         {
             failure = releaseFailure;
         }
@@ -552,10 +556,7 @@ public class AnnotatedTestExecutor
         {
             failure = withSuppressed(failure, restoreFailure);
         }
-        if (failure != null)
-        {
-            throw failure;
-        }
+        throwIfFailed(failure);
     }
 
     /**
@@ -564,7 +565,7 @@ public class AnnotatedTestExecutor
      * cleanup step after it cannot replace it. A later failure that is the very instance of the
      * first is not attached, as a throwable cannot suppress itself.
      */
-    private static Exception withSuppressed(final Exception primary, final Exception later)
+    private static Throwable withSuppressed(final Throwable primary, final Throwable later)
     {
         if (primary == null)
         {
@@ -575,5 +576,22 @@ public class AnnotatedTestExecutor
             primary.addSuppressed(later);
         }
         return primary;
+    }
+
+    /**
+     * Throws {@code failure} as the kind of throwable it is, an {@link Error} as an
+     * {@code Error} and anything else as an {@link Exception}, which is all the steps of
+     * {@link #releaseIfAfterTestDidNotRun()} can throw. Does nothing when nothing failed.
+     */
+    private static void throwIfFailed(final Throwable failure) throws Exception
+    {
+        if (failure instanceof Error)
+        {
+            throw (Error) failure;
+        }
+        if (failure != null)
+        {
+            throw (Exception) failure;
+        }
     }
 }
