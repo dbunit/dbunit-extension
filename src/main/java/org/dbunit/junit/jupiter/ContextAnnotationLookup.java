@@ -66,6 +66,12 @@ class ContextAnnotationLookup implements AnnotationLookup
         this.context = context;
     }
 
+    /**
+     * {@inheritDoc}
+     * <p>
+     * Looks on the test method, then on the test class, then on the enclosing classes of a
+     * nested test class, the closest one first.
+     */
     @Override
     public <A extends Annotation> A find(final Class<A> annotationType)
     {
@@ -102,6 +108,12 @@ class ContextAnnotationLookup implements AnnotationLookup
         return finder.findAll(annotationType);
     }
 
+    /**
+     * {@inheritDoc}
+     * <p>
+     * Asks a {@link DeclaringClassFinder}, which looks where {@link #find(Class)} does, so the
+     * class it names declares the annotation {@link #find(Class)} returns.
+     */
     @Override
     public Class<?> findDeclaringClass(final Class<? extends Annotation> annotationType)
     {
