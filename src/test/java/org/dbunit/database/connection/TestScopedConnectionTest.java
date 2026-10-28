@@ -421,6 +421,28 @@ class TestScopedConnectionTest
     }
 
     @Test
+    void testReleaseSuppressing_closeThrowsAnError_attachesItToPrimaryAndForgetsTheConnection()
+            throws Exception
+    {
+        final IDatabaseConnection connection = openConnection();
+        final AssertionError closeError = new AssertionError("close asserted");
+        doThrow(closeError).when(connection).close();
+        final TestScopedConnection holder =
+                new TestScopedConnection(() -> connection, alwaysMayClose, null);
+        holder.getConnection();
+        final RuntimeException primary = new RuntimeException("the real failure");
+
+        assertThatCode(() -> holder.releaseSuppressing(primary))
+                .as("An Error from closing the connection must not replace the failure already"
+                        + " in flight.")
+                .doesNotThrowAnyException();
+
+        assertThat(primary.getSuppressed()).containsExactly(closeError);
+        assertThat(holder.isResolved()).as("releaseSuppressing always forgets the connection.")
+                .isFalse();
+    }
+
+    @Test
     void testDiscardOnFailure_thenGetConnection_reacquires() throws Exception
     {
         final AtomicInteger calls = new AtomicInteger();
