@@ -63,6 +63,12 @@ class VerifyTableDefinitionResolver
 
     private static final ClassValue<ValueComparer> COMPARERS = new ClassValue<ValueComparer>()
     {
+        /**
+         * {@inheritDoc}
+         * <p>
+         * Creates the comparer the first time a caller asks for the class, and the
+         * {@link ClassValue} keeps it from then on.
+         */
         @Override
         @SuppressWarnings("unchecked")
         protected ValueComparer computeValue(final Class<?> comparerClass)

@@ -67,6 +67,12 @@ class SpringAnnotationLookup implements AnnotationLookup
         this.testMethod = testContext.getTestMethod();
     }
 
+    /**
+     * {@inheritDoc}
+     * <p>
+     * Searches the test method first, then the test class as {@link TestContextAnnotationUtils}
+     * does, and returns the first annotation it finds, as Spring synthesizes it.
+     */
     @Override
     public <A extends Annotation> A find(final Class<A> annotationType)
     {
@@ -97,6 +103,12 @@ class SpringAnnotationLookup implements AnnotationLookup
         return found;
     }
 
+    /**
+     * {@inheritDoc}
+     * <p>
+     * Reads it from the source of the merged annotation that {@link #find(Class)} returns: the
+     * class that declares the method, or the class that carries the annotation.
+     */
     @Override
     public Class<?> findDeclaringClass(final Class<? extends Annotation> annotationType)
     {
