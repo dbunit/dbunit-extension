@@ -1105,6 +1105,35 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
+    void testAfterTest_verifyThrowsAndCloseThrowsAnError_reportsVerifyFailureWithTheErrorSuppressed()
+            throws Exception
+    {
+        final JdbcDatabaseTester jdbcTester = jdbcTesterOpeningANewConnectionOnEachCall();
+        stubCountingConnection(true, "ACCOUNT");
+        when(connection.getRowCount("ACCOUNT")).thenReturn(5);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, jdbcTester, null, false);
+        executor.beforeTest();
+        when(connection.getRowCount("ACCOUNT")).thenReturn(6);
+        final AssertionError closeError = new AssertionError("close asserted");
+        doThrow(closeError).when(connection).close();
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown)
+                .as("The row count mismatch must stay the primary failure when closing the"
+                        + " connection fails with an Error, which a catch of Exception alone"
+                        + " lets replace it.")
+                .isInstanceOf(UnexpectedRowCountException.class);
+        assertThat(thrown.getSuppressed())
+                .as("The Error from closing the connection must still be visible, attached as"
+                        + " suppressed onto the primary failure.")
+                .containsExactly(closeError);
+    }
+
+    @Test
     void testBeforeTest_classicPathRealTesterWithFixedConnection_neverClosesConnectionDuringOnSetup()
             throws Exception
     {
@@ -3609,6 +3638,61 @@ class AnnotatedTestExecutorTest
         assertThat(thrown.getSuppressed())
                 .as("A failure is not suppressed by itself.")
                 .isEmpty();
+    }
+
+    @Test
+    void testReleaseIfAfterTestDidNotRun_closeThrowsAnError_stillPutsTheListenerBackAndThrowsIt()
+            throws Exception
+    {
+        final JdbcDatabaseTester jdbcTester = jdbcTesterOpeningANewConnectionOnEachCall();
+        final IOperationListener testersOwn = jdbcTester.getOperationListener();
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, jdbcTester, null, false);
+        executor.getConnection();
+        final AssertionError closeError = new AssertionError("close asserted");
+        doThrow(closeError).when(connection).close();
+
+        final Throwable thrown = catchThrowable(executor::releaseIfAfterTestDidNotRun);
+
+        assertThat(thrown)
+                .as("The Error from closing the connection is the failure that surfaces, as the"
+                        + " same instance.")
+                .isSameAs(closeError);
+        assertThat(jdbcTester.getOperationListener())
+                .as("An Error from closing the connection must not skip putting back the"
+                        + " listener the tester carried into the test.")
+                .isSameAs(testersOwn);
+    }
+
+    @Test
+    void testReleaseIfAfterTestDidNotRun_annotationDrivenCloseThrowsAnError_stillPutsValuesBack()
+            throws Exception
+    {
+        final DbUnitConfig config = WithProperties.class.getAnnotation(DbUnitConfig.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(WithProperties.class, config, null, null, null, null, null);
+        final DatabaseConfig realConfig = new DatabaseConfig();
+        when(connection.getConfig()).thenReturn(realConfig);
+        stubOpenJdbcConnection();
+        final AssertionError closeError = new AssertionError("close asserted");
+        doThrow(closeError).when(connection).close();
+        final IDatabaseTester realTester = new DefaultDatabaseTester(connection);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, realTester, null);
+        executor.getConnection();
+
+        final Throwable thrown = catchThrowable(executor::releaseIfAfterTestDidNotRun);
+
+        assertThat(thrown)
+                .as("The Error from closing the connection is the failure that surfaces, as the"
+                        + " same instance.")
+                .isSameAs(closeError);
+        assertThat(realConfig.getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE))
+                .as("An Error from closing the connection must not skip putting back the"
+                        + " @DbUnitProperty values of the test.")
+                .isEqualTo(new DatabaseConfig().getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE));
     }
 
     @Test

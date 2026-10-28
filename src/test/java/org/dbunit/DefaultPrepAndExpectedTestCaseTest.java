@@ -3446,6 +3446,41 @@ class DefaultPrepAndExpectedTestCaseTest
     }
 
     @Test
+    void testCleanupData_tearDownFailsAndCloseThrowsAnError_keepsTheTearDownFailureAndRestoresValues()
+            throws Exception
+    {
+        final AssertionError closeError = new AssertionError("close asserted");
+        final DatabaseConfig connectionConfig = new DatabaseConfig();
+        final IDatabaseConnection brokenConnection = Mockito.mock(IDatabaseConnection.class);
+        final Connection brokenJdbcConnection = Mockito.mock(Connection.class);
+        Mockito.when(brokenConnection.getConnection()).thenReturn(brokenJdbcConnection);
+        Mockito.when(brokenConnection.getConfig()).thenReturn(connectionConfig);
+        Mockito.lenient().when(brokenJdbcConnection.getAutoCommit()).thenReturn(true);
+        Mockito.doThrow(closeError).when(brokenConnection).close();
+        final IDatabaseTester brokenTester = new DefaultDatabaseTester(brokenConnection);
+        brokenTester.setTearDownOperation(new FailingDatabaseOperation());
+        final DefaultPrepAndExpectedTestCase brokenTc =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, brokenTester);
+        brokenTc.setDatabaseConfigProperties(batchSizeProperties("50"));
+        brokenTc.configureTest(new VerifyTableDefinition[] {}, new String[] {},
+                new String[] {});
+
+        final Throwable thrown = catchThrowable(() -> brokenTc.cleanupData());
+
+        assertThat(thrown)
+                .as("The tear down failure must stay the failure that surfaces, not be replaced"
+                        + " by the Error from closing the connection.")
+                .isInstanceOf(DatabaseUnitException.class);
+        assertThat(thrown.getSuppressed())
+                .as("The Error from closing the connection must ride along, not replace it.")
+                .containsExactly(closeError);
+        assertThat(connectionConfig.getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE))
+                .as("An Error from closing the connection must not skip putting back the"
+                        + " property values the test replaced.")
+                .isEqualTo(new DatabaseConfig().getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE));
+    }
+
+    @Test
     void testConfigureTestThenSetupData_withCloseDisabledNoProvider_doesNotReacquireConnection()
             throws Exception
     {
