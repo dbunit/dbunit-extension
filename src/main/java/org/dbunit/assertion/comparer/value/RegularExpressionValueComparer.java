@@ -78,6 +78,12 @@ public class RegularExpressionValueComparer extends ValueComparerTemplateBase
         this.patterns = patterns;
     }
 
+    /**
+     * {@inheritDoc}
+     * <p>
+     * Two {@code null} values match and a single {@code null} value does not. Otherwise the
+     * regular expression that the expected value holds must match the whole actual value.
+     */
     @Override
     protected boolean isExpected(final ITable expectedTable,
             final ITable actualTable, final int rowNum, final String columnName,
@@ -163,6 +169,11 @@ public class RegularExpressionValueComparer extends ValueComparerTemplateBase
         }
     }
 
+    /**
+     * {@inheritDoc}
+     * <p>
+     * Returns {@code "not matching the regular expression"}.
+     */
     @Override
     protected String getFailPhrase()
     {
