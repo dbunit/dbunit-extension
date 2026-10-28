@@ -252,9 +252,10 @@ public final class TestScopedConnection
     }
 
     /**
-     * Releases the connection, attaching any close failure to {@code primary} via
-     * {@link Throwable#addSuppressed(Throwable)} rather than letting it replace the more useful
-     * failure already in flight, then {@linkplain #discardOnFailure() discards} the memo.
+     * Releases the connection, attaching any close failure, whether an {@link Exception} or an
+     * {@link Error}, to {@code primary} via {@link Throwable#addSuppressed(Throwable)} rather
+     * than letting it replace the more useful failure already in flight, then
+     * {@linkplain #discardOnFailure() discards} the memo.
      *
      * @param primary The failure already being thrown, to attach a close failure to.
      */
@@ -263,7 +264,7 @@ public final class TestScopedConnection
         try
         {
             release();
-        } catch (final Exception closeFailure)
+        } catch (final Throwable closeFailure)
         {
             // a connection that rethrows the failure already in flight cannot have it suppress
             // itself
