@@ -54,7 +54,8 @@ class TestCaseRestoration
      * fails, so one broken setter cannot leave the rest of the instance changed.
      *
      * @throws RuntimeException The first failure from an undo step, with any later ones attached
-     *             as suppressed.
+     *             as suppressed. This method skips a later failure that is the very instance of
+     *             the first, as a throwable cannot suppress itself.
      */
     void undo()
     {
@@ -69,7 +70,7 @@ class TestCaseRestoration
                 if (firstFailure == null)
                 {
                     firstFailure = failure;
-                } else
+                } else if (failure != firstFailure)
                 {
                     firstFailure.addSuppressed(failure);
                 }
@@ -85,8 +86,9 @@ class TestCaseRestoration
     /**
      * Undoes {@code restoration} while {@code primary} is already being thrown, attaching any
      * failure from the undo itself to it via {@link Throwable#addSuppressed(Throwable)} rather
-     * than letting that failure replace the one already in flight. A {@code null} restoration is
-     * a no-op.
+     * than letting that failure replace the one already in flight. This method does not attach an
+     * undo failure that is {@code primary} itself, as a throwable cannot suppress itself. A
+     * {@code null} restoration is a no-op.
      *
      * @param restoration The restoration to undo, or {@code null} to do nothing.
      * @param primary The failure already being thrown, to attach an undo failure to.
@@ -104,7 +106,10 @@ class TestCaseRestoration
             restoration.undo();
         } catch (final RuntimeException undoFailure)
         {
-            primary.addSuppressed(undoFailure);
+            if (undoFailure != primary)
+            {
+                primary.addSuppressed(undoFailure);
+            }
         }
     }
 
