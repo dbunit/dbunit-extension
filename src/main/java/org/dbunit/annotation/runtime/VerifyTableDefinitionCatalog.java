@@ -57,6 +57,12 @@ class VerifyTableDefinitionCatalog
     private static final ClassValue<Map<List<Class<?>>, VerifyTableDefinitionCatalog>> CACHE =
             new ClassValue<Map<List<Class<?>>, VerifyTableDefinitionCatalog>>()
             {
+                /**
+                 * {@inheritDoc}
+                 * <p>
+                 * Creates the map that holds the catalogs of the combinations that start with
+                 * {@code firstCatalogClass}.
+                 */
                 @Override
                 protected Map<List<Class<?>>, VerifyTableDefinitionCatalog> computeValue(
                         final Class<?> firstCatalogClass)
