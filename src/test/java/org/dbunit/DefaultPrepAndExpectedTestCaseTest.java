@@ -3424,6 +3424,28 @@ class DefaultPrepAndExpectedTestCaseTest
     }
 
     @Test
+    void testCleanupData_tearDownFails_doesNotVerifyTheBaselineInALaterCleanupData()
+            throws Exception
+    {
+        final RowCountCheck mockRowCountCheck = Mockito.mock(RowCountCheck.class);
+        final RowCountSnapshot baseline =
+                new RowCountSnapshot(Collections.singletonMap("ACCOUNT", 5));
+        Mockito.when(mockRowCountCheck.capture(Mockito.any())).thenReturn(baseline);
+        tc.setRowCountCheck(mockRowCountCheck);
+        tc.preTest();
+        databaseTester.setTearDownOperation(new FailingDatabaseOperation());
+        assertThatThrownBy(() -> tc.cleanupData())
+                .as("The tear down failure must surface.")
+                .isInstanceOf(DatabaseUnitException.class);
+        databaseTester.setTearDownOperation(DatabaseOperation.NONE);
+
+        tc.cleanupData();
+
+        Mockito.verify(mockRowCountCheck, Mockito.never())
+                .verify(Mockito.any(), Mockito.any());
+    }
+
+    @Test
     void testConfigureTestThenSetupData_withCloseDisabledNoProvider_doesNotReacquireConnection()
             throws Exception
     {
