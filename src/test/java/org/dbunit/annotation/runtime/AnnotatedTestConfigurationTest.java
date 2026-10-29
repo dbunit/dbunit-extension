@@ -521,6 +521,22 @@ class AnnotatedTestConfigurationTest
     }
 
     @Test
+    void testFrom_columnComparersForNamesDifferingOnlyInCase_throwsIllegalStateException()
+    {
+        final DbUnitExpected expected =
+                WithColumnComparersDifferingOnlyInCase.class.getAnnotation(DbUnitExpected.class);
+
+        assertThatThrownBy(() -> AnnotatedTestConfiguration.from(
+                WithColumnComparersDifferingOnlyInCase.class, null, null, null, expected, null,
+                null))
+                        .as("A column name matches its column without regard to case, so two"
+                                + " @DbUnitColumnComparer entries for BALANCE and balance name"
+                                + " one column and must be rejected.")
+                        .isInstanceOf(IllegalStateException.class)
+                        .hasMessageContaining("'balance'");
+    }
+
+    @Test
     void testFrom_duplicateVerifyTableForSameTable_throwsIllegalStateException()
     {
         final DbUnitExpected expected =
@@ -1043,6 +1059,17 @@ class AnnotatedTestConfigurationTest
                             @DbUnitColumnComparer(column = "BALANCE",
                                     comparer = IsActualGreaterThanExpectedValueComparer.class)}))
     static class WithDuplicateColumnComparer
+    {
+    }
+
+    @DbUnitExpected(value = "expected.xml",
+            verify = @DbUnitVerifyTable(value = "ACCOUNT",
+                    columnComparers = {
+                            @DbUnitColumnComparer(column = "BALANCE",
+                                    comparer = IsActualGreaterThanExpectedValueComparer.class),
+                            @DbUnitColumnComparer(column = "balance",
+                                    comparer = IsActualGreaterThanExpectedValueComparer.class)}))
+    static class WithColumnComparersDifferingOnlyInCase
     {
     }
 

@@ -26,6 +26,7 @@ import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeSet;
 
 import org.dbunit.VerifyTableDefinition;
 import org.dbunit.annotation.DbUnitColumnComparer;
@@ -175,13 +176,15 @@ class VerifyTableDefinitionResolver
                 : instantiateComparer(v.defaultComparer());
         final Map<String, ValueComparer> columnComparers =
                 new LinkedHashMap<>(v.columnComparers().length);
+        final Set<String> columnNames = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
         for (final DbUnitColumnComparer c : v.columnComparers())
         {
-            if (columnComparers.containsKey(c.column()))
+            if (!columnNames.add(c.column()))
             {
                 throw new IllegalStateException("@DbUnitVerifyTable(\"" + v.value()
                         + "\") declares more than one @DbUnitColumnComparer for column '"
-                        + c.column() + "'; declare at most one per column.");
+                        + c.column() + "', whose name matches the column without regard to"
+                        + " case; declare at most one per column.");
             }
             columnComparers.put(c.column(), instantiateComparer(c.comparer()));
         }

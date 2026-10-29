@@ -23,7 +23,7 @@ per table you want verified after a test runs.
 |`columnExclusionFilters` (`getColumnExclusionFilters()`) |Columns to leave out of the comparison; `null`/empty means exclude none.
 |`columnInclusionFilters` (`getColumnInclusionFilters()`) |Columns to restrict the comparison to; `null` or empty means include all.
 |`defaultValueComparer` (`getDefaultValueComparer()`, since 2.6.0) |The `ValueComparer` used for any column not present in `columnValueComparers`. `null` defaults to equality comparison.
-|`columnValueComparers` (`getColumnValueComparers()`, since 2.6.0) |A `Map<String, ValueComparer>` of per-column comparers, keyed by column name.
+|`columnValueComparers` (`getColumnValueComparers()`, since 2.6.0) |A `Map<String, ValueComparer>` of per-column comparers, keyed by column name. Since 3.6.0 `DefaultPrepAndExpectedTestCase` matches a key to its column without regard to case, as it matches the exclusion and inclusion filters, and rejects two keys that differ only in case with `IllegalArgumentException`.
 |`sortOnFilteredColumnsOnly` (`isSortOnFilteredColumnsOnly()`/`setSortOnFilteredColumnsOnly()`, since 3.5.0) |Whether comparison sorts both tables by only this table's filtered columns instead of all of the actual table's native columns, and, since 3.6.0, also selects only those columns from the database. Default `false`. See <<sortmode,Sort Mode>> below.
 |===
 

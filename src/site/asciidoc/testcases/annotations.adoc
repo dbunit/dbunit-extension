@@ -434,6 +434,11 @@ between calls and depends on no mutable external state.
 An empty `include()` (the default) includes every column, as a `null` or empty include
 array does for a `VerifyTableDefinition`; an annotation cannot express `null`.
 
+The column names in `exclude`, `include` and `@DbUnitColumnComparer(column)` all match the
+expected dataset's columns without regard to case, so `column = "balance"` compares a `BALANCE`
+column. Two `@DbUnitColumnComparer` entries in one `@DbUnitVerifyTable` whose names differ only
+in case name the same column and fail fast, as two for the same column do.
+
 [#catalog]
 == The Shared VerifyTableDefinition Catalog
 

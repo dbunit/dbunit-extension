@@ -27,9 +27,9 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -1703,7 +1703,10 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      *            columns. Key is column name, value is the
      *            {@link ValueComparer}. Can be <code>null</code> and will
      *            default to defaultValueComparer for all columns in all tables.
+     *            Since 3.6.0 a key matches its column without regard to case.
      * @throws DatabaseUnitException if the tables' row counts, columns, or data do not match.
+     * @throws IllegalArgumentException if two keys of columnValueComparers
+     *             differ only in case, as they name the same column.
      * @see #verifyData(ITable, ITable, String[], String[], ValueComparer, Map, boolean)
      *      to also control whether sorting considers only the filtered
      *      columns; this overload always sorts by all native columns.
@@ -1748,7 +1751,9 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      *            Since 3.6.0 the columns that have a comparer here come last
      *            in the sort key of both tables, so a comparer that matches a
      *            pattern or a tolerance, on a generated id for example, does
-     *            not line the rows up against the wrong counterparts.
+     *            not line the rows up against the wrong counterparts. Also
+     *            since 3.6.0 a key matches its column without regard to case,
+     *            as the column names of excludeColumns and includeColumns do.
      * @param sortOnFilteredColumnsOnly
      *            True to sort the expected and actual tables by only the
      *            columns that survive excludeColumns/includeColumns, instead
@@ -1760,6 +1765,8 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      *            columns carries a suppressed exception naming this as the
      *            remedy.
      * @throws DatabaseUnitException if the tables' row counts, columns, or data do not match.
+     * @throws IllegalArgumentException if two keys of columnValueComparers
+     *             differ only in case, as they name the same column.
      * @since 3.5.0
      */
     protected void verifyData(final ITable expectedTable,
@@ -1771,6 +1778,9 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
             throws DatabaseUnitException
     {
         final String methodName = "verifyData";
+
+        final Map<String, ValueComparer> caseInsensitiveComparers =
+                withColumnNamesIgnoringCase(columnValueComparers);
 
         final ITableMetaData actualTableMetaData =
                 actualTable.getTableMetaData();
@@ -1801,9 +1811,9 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
         }
 
         final Column[] expectedSortKey = moveComparerColumnsLast(
-                expectedSortColumns, columnValueComparers);
+                expectedSortColumns, caseInsensitiveComparers);
         final Column[] actualSortKey = moveComparerColumnsLast(
-                actualSortColumns, columnValueComparers);
+                actualSortColumns, caseInsensitiveComparers);
 
         final SortedTable expectedSortedTable =
                 sortByColumns(expectedTable, expectedSortKey, true);
@@ -1842,7 +1852,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
         {
             compareData(expectedFilteredTable, actualFilteredTable,
                     additionalColumnInfo, defaultValueComparer,
-                    columnValueComparers);
+                    caseInsensitiveComparers);
         } catch (final AssertionError e)
         {
             if (sortKeysDiffer)
@@ -1850,7 +1860,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
                 final boolean passesWhenSortedOnFilteredColumnsOnly =
                         passesWhenSortedOnFilteredColumnsOnly(expectedTable,
                                 actualTable, excludeColumns, includeColumns,
-                                defaultValueComparer, columnValueComparers);
+                                defaultValueComparer, caseInsensitiveComparers);
                 if (passesWhenSortedOnFilteredColumnsOnly)
                 {
                     final DatabaseUnitRuntimeException hint = makeSortHint(
@@ -1901,14 +1911,14 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * first lines them up against the wrong counterparts, for example by the
      * generated ids of the actual rows when every expected row holds the same
      * pattern in that column. Ordered last, such a column only orders the rows
-     * that tie on every other one. The names are matched without regard to
-     * case, so a column moves even when its key differs from it in case, which
-     * the comparison itself would not find.
+     * that tie on every other one.
      *
      * @param sortColumns
      *            The columns to sort by.
      * @param columnValueComparers
-     *            The value comparers of the columns that have one; can be null.
+     *            The value comparers of the columns that have one, keyed
+     *            without regard to case as verifyData keys them, so that the
+     *            sort and the comparison find the same columns; can be null.
      * @return The sort columns with those that have a comparer last, or
      *         sortColumns itself when none has.
      */
@@ -1920,18 +1930,12 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
             return sortColumns;
         }
 
-        final Set<String> comparerColumnNames = columnValueComparers.keySet()
-                .stream().filter(Objects::nonNull)
-                .map(name -> name.toLowerCase(Locale.ENGLISH))
-                .collect(Collectors.toSet());
-
         final List<Column> sortedColumns = new ArrayList<>();
         final List<Column> comparerColumns = new ArrayList<>();
         for (final Column column : sortColumns)
         {
-            final String columnName =
-                    column.getColumnName().toLowerCase(Locale.ENGLISH);
-            if (comparerColumnNames.contains(columnName))
+            final String columnName = column.getColumnName();
+            if (columnValueComparers.containsKey(columnName))
             {
                 comparerColumns.add(column);
             } else
@@ -1941,6 +1945,52 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
         }
         sortedColumns.addAll(comparerColumns);
         return sortedColumns.toArray(new Column[sortedColumns.size()]);
+    }
+
+    /**
+     * Returns a copy of the column value comparers whose keys match the column
+     * names without regard to case, as the column names of the exclude and
+     * include filters do, so that a comparer keyed {@code id} compares an
+     * {@code ID} column. A null key names no column, so the copy leaves it out.
+     *
+     * @param columnValueComparers
+     *            The value comparers of the columns that have one; can be null.
+     * @return The copy, or null when columnValueComparers is null, so that the
+     *         comparison still falls back to its default comparers.
+     * @throws IllegalArgumentException
+     *             If two keys differ only in case, as they name the same
+     *             column.
+     */
+    private static Map<String, ValueComparer> withColumnNamesIgnoringCase(
+            final Map<String, ValueComparer> columnValueComparers)
+    {
+        if (columnValueComparers == null)
+        {
+            return null;
+        }
+
+        final TreeMap<String, ValueComparer> ignoringCase =
+                new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        for (final Map.Entry<String, ValueComparer> entry : columnValueComparers
+                .entrySet())
+        {
+            final String columnName = entry.getKey();
+            if (columnName != null)
+            {
+                if (ignoringCase.containsKey(columnName))
+                {
+                    final String existingKey = ignoringCase.floorKey(columnName);
+                    throw new IllegalArgumentException(
+                            "columnValueComparers has the keys '" + existingKey
+                                    + "' and '" + columnName
+                                    + "', which name the same column, as a key"
+                                    + " matches its column without regard to"
+                                    + " case; keep one of them.");
+                }
+                ignoringCase.put(columnName, entry.getValue());
+            }
+        }
+        return ignoringCase;
     }
 
     /**
@@ -2223,7 +2273,9 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * @param actualTable the table containing all actual results.
      * @param additionalColumnInfo the additional columns to include in failure messages.
      * @param defaultValueComparer the value comparer used when no more specific comparer is configured.
-     * @param columnValueComparers the per-column value comparers to use.
+     * @param columnValueComparers the per-column value comparers to use;
+     *            verifyData passes a copy whose keys match the column names
+     *            without regard to case, or null when it has none.
      * @throws DatabaseUnitException if the tables' row counts, columns, or data do not match.
      */
     protected void compareData(final ITable expectedTable,

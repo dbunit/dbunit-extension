@@ -1824,6 +1824,43 @@ class DefaultPrepAndExpectedTestCaseTest
     }
 
     @Test
+    void testVerifyData_comparerKeyedInAnotherCaseThanItsColumn_comparesTheColumnWithIt()
+            throws Exception
+    {
+        final ITable actualTable = makeLeadingIdActualTable();
+        final ITable expectedTable = makeLeadingIdExpectedTable("[0-9]+", "[0-9]+");
+        final Map<String, ValueComparer> comparers = new ColumnValueComparerMapBuilder()
+                .add("id", new RegularExpressionValueComparer()).build();
+
+        assertThatCode(() -> tc.verifyData(expectedTable, actualTable, new String[0],
+                new String[0], null, comparers, false))
+                        .as("A comparer keyed id must compare the ID column, as the column names"
+                                + " of the exclude and include filters match without regard"
+                                + " to case.")
+                        .doesNotThrowAnyException();
+    }
+
+    @Test
+    void testVerifyData_comparersKeyedByNamesDifferingOnlyInCase_throwsIllegalArgumentException()
+            throws Exception
+    {
+        final ITable actualTable = makeLeadingIdActualTable();
+        final ITable expectedTable = makeLeadingIdExpectedTable("[0-9]+", "[0-9]+");
+        final Map<String, ValueComparer> comparers = new ColumnValueComparerMapBuilder()
+                .add("ID", new RegularExpressionValueComparer())
+                .add("id", ValueComparers.isActualEqualToExpected).build();
+
+        assertThatThrownBy(() -> tc.verifyData(expectedTable, actualTable, new String[0],
+                new String[0], null, comparers, false))
+                        .as("Two comparers keyed by names that differ only in case name one"
+                                + " column, so they must be rejected instead of one silently"
+                                + " winning.")
+                        .isInstanceOf(IllegalArgumentException.class)
+                        .hasMessageContaining("'ID'")
+                        .hasMessageContaining("'id'");
+    }
+
+    @Test
     void testVerifyData_defaultSortExpectedOmitsAColumnAndComparisonPasses_throwsNothing()
             throws Exception
     {
