@@ -22,6 +22,14 @@ package org.dbunit.annotation.runtime;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.util.ArrayList;
+import java.util.EnumSet;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.function.IntPredicate;
+import java.util.stream.Collectors;
 
 import org.dbunit.DefaultPrepAndExpectedTestCase;
 import org.dbunit.IDatabaseTester;
@@ -29,8 +37,12 @@ import org.dbunit.PrepAndExpectedTestCase;
 import org.dbunit.PrepAndExpectedTestData;
 import org.dbunit.VerifyTableDefinition;
 import org.dbunit.database.IDatabaseConnection;
+import org.dbunit.database.rowcount.RowCountDifference;
 import org.dbunit.database.rowcount.UnexpectedRowCountException;
+import org.dbunit.dataset.DataSetException;
+import org.dbunit.dataset.IDataSet;
 import org.dbunit.operation.DatabaseOperation;
+import org.dbunit.operation.DbUnitOperation;
 import org.dbunit.util.fileloader.DataFileLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -69,6 +81,28 @@ import org.slf4j.LoggerFactory;
 class TestCaseLifecycle
 {
     private static final Logger log = LoggerFactory.getLogger(TestCaseLifecycle.class);
+
+    /**
+     * The setup operations that delete every row of the prep tables before they insert, so a row a
+     * prep table held at the row count check's baseline is gone when the check counts again.
+     */
+    private static final Set<DbUnitOperation> SET_UP_OPERATIONS_THAT_EMPTY_THE_PREP_TABLES =
+            EnumSet.of(DbUnitOperation.CLEAN_INSERT, DbUnitOperation.DELETE_ALL,
+                    DbUnitOperation.TRUNCATE_TABLE);
+
+    /**
+     * The setup operations that add the prep rows to the rows a prep table already holds, so a
+     * teardown that deletes every row of the table deletes those rows too.
+     */
+    private static final Set<DbUnitOperation> SET_UP_OPERATIONS_THAT_ONLY_ADD_ROWS =
+            EnumSet.of(DbUnitOperation.INSERT, DbUnitOperation.REFRESH);
+
+    /**
+     * The teardown operations that delete every row of the prep tables, not only the rows of the
+     * datasets.
+     */
+    private static final Set<DbUnitOperation> TEAR_DOWN_OPERATIONS_THAT_EMPTY_THE_PREP_TABLES =
+            EnumSet.of(DbUnitOperation.DELETE_ALL, DbUnitOperation.TRUNCATE_TABLE);
 
     private final AnnotatedTestConfiguration configuration;
     private final IDatabaseTester tester;
@@ -266,8 +300,9 @@ class TestCaseLifecycle
      * afterward - on a failure, with any undo failure attached as suppressed rather than
      * masking the primary.
      *
-     * <p>A row count difference gets a hint when it is the classic {@code @DbUnitRowCountCheck}
-     * + {@code @DbUnitPrep} + no-teardown shape, see {@link #withHintForUnclearedPrep}.
+     * <p>A row count difference in a prep table gets a hint when the prep rows are never torn
+     * down or the setup operation deleted the rows the table held, see
+     * {@link #withHintForUnclearedPrep}.
      *
      * @param testFailed Whether the test method itself already threw.
      * @throws Exception If {@code postTest()} fails.
@@ -412,31 +447,124 @@ class TestCaseLifecycle
     }
 
     /**
-     * Returns {@code failure} with an extra hint when it is the classic
-     * {@code @DbUnitRowCountCheck} + {@code @DbUnitPrep} + no-teardown shape: the baseline is
-     * captured <em>before</em> {@code @DbUnitPrep} loads, so a prep dataset that is never torn
-     * down reads as leaked rows and fails the check - a common first surprise. Otherwise returns
-     * {@code failure} unchanged. Keyed on the teardown operation the test case actually ran
-     * ({@link DatabaseOperation#NONE}), so an explicit
-     * {@code @DbUnitTearDownOperation(NONE)} is covered too.
+     * Returns {@code failure} with a hint for each way the prep data of the test can explain a
+     * difference in a prep table, as the baseline is captured <em>before</em> {@code @DbUnitPrep}
+     * loads - a common first surprise. Whatever turned the check on gets the hints:
+     * {@code @DbUnitRowCountCheck}, the {@code -Ddbunit.rowCountCheck} system property that a
+     * suite-wide run sets, or {@link org.dbunit.database.DatabaseConfig#FEATURE_ROW_COUNT_CHECK}.
+     *
+     * <ul>
+     * <li>A prep table that holds more rows than at the baseline, when the teardown operation is
+     * {@link DatabaseOperation#NONE}: the prep rows are never torn down, so the hint names a
+     * {@code DELETE} teardown after an {@code INSERT} or {@code REFRESH} setup, which adds the
+     * prep rows to the rows the table already holds and which a {@code DELETE_ALL} teardown would
+     * delete too, and a {@code DELETE_ALL} teardown after any other setup, where the table holds
+     * only the prep rows. A table that held rows at the baseline and that the expected dataset
+     * lists too gets another advice, as the teardown operation acts on the expected dataset as
+     * well and a {@code DELETE} teardown would delete the rows it lists, the rows the table held
+     * at the baseline among them: the hint names an exclusion.</li>
+     * <li>A prep table that holds fewer rows than at the baseline, when the setup operation
+     * empties the prep tables before it inserts ({@code CLEAN_INSERT}, {@code DELETE_ALL} or
+     * {@code TRUNCATE_TABLE}): it deleted rows the table held, such as seed rows, which no
+     * teardown can bring back, so the hint names an {@code INSERT} setup with a {@code DELETE}
+     * teardown, which add and remove only the rows of the datasets, or an exclusion for a table
+     * the expected dataset lists too, as that teardown would delete the rows it lists.</li>
+     * <li>A prep table that holds fewer rows than at the baseline, when the teardown operation
+     * empties the prep tables ({@code DELETE_ALL} or {@code TRUNCATE_TABLE}) after a setup
+     * operation that does not: the teardown deleted rows the table held, so the hint names a
+     * {@code DELETE} teardown, which removes only the rows of the datasets, or an exclusion for a
+     * table the expected dataset lists too.</li>
+     * <li>A prep table that holds fewer rows than at the baseline and that the expected dataset
+     * lists, when the teardown operation is {@code DELETE} after a setup operation that does not
+     * empty the prep tables: the teardown acts on the expected dataset as well, so it deleted the
+     * rows the expected dataset lists, the rows the table held at the baseline among them, and
+     * the hint names an exclusion.</li>
+     * </ul>
+     *
+     * <p>The operations are the declared ones or else the tester's, as a test case this class
+     * constructed runs them, so an explicit {@code @DbUnitTearDownOperation(NONE)} is covered
+     * too. A difference in a table the prep dataset does not hold has another cause and gets no
+     * hint, nor does a drop after any other setup operation. An injected test case gets none: it
+     * runs the operations its owner set on it, which dbUnit cannot read, and the annotations the
+     * hints name are rejected next to it. Otherwise returns {@code failure} unchanged.
      */
     private UnexpectedRowCountException withHintForUnclearedPrep(
             final UnexpectedRowCountException failure)
     {
-        final boolean prepFilesDeclared = configuration.getPrepDataFiles().length > 0;
-        if (!configuration.isRowCountCheckDeclared() || !prepFilesDeclared
-                || effectiveTearDownOperation() != DatabaseOperation.NONE)
+        if (injected)
         {
             return failure;
         }
 
-        final UnexpectedRowCountException hinted = new UnexpectedRowCountException(
-                failure.getDifferences(),
-                "The @DbUnitRowCountCheck baseline is captured before @DbUnitPrep loads, so"
-                        + " a prep dataset that is never torn down reads as leaked rows. Add"
-                        + " @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL) (or"
-                        + " CLEAN_INSERT), or list these tables in"
-                        + " @DbUnitRowCountCheck(exclude = ...).");
+        final boolean prepFilesDeclared = configuration.getPrepDataFiles().length > 0;
+        if (!prepFilesDeclared)
+        {
+            return failure;
+        }
+
+        final Set<String> prepTableKeys = tableKeysOf(testCase.getPrepDataset(), "prep");
+        final Set<String> expectedTableKeys =
+                tableKeysOf(testCase.getExpectedDataset(), "expected");
+        final List<RowCountDifference> leakedPrep =
+                differencesInPrepTables(failure, prepTableKeys, delta -> delta > 0);
+        final List<RowCountDifference> lostPrep =
+                differencesInPrepTables(failure, prepTableKeys, delta -> delta < 0);
+        final List<String> hints = new ArrayList<>();
+        final boolean prepNeverTornDown =
+                effectiveTearDownOperation() == DatabaseOperation.NONE;
+        if (prepNeverTornDown && !leakedPrep.isEmpty())
+        {
+            hints.add("The row count check's baseline is captured before @DbUnitPrep loads, so"
+                    + " a prep dataset that is never torn down reads as leaked rows. "
+                    + tearDownAdviceForLeakedPrep(leakedPrep, expectedTableKeys));
+        }
+        final DbUnitOperation emptyingSetUp = setUpOperationThatEmptiesThePrepTables();
+        if (emptyingSetUp != null && !lostPrep.isEmpty())
+        {
+            final String advice = adviceThatKeepsBaselineRows(lostPrep, expectedTableKeys,
+                    tables -> "To keep such rows, declare"
+                            + " @DbUnitSetUpOperation(DbUnitOperation.INSERT) and"
+                            + " @DbUnitTearDownOperation(DbUnitOperation.DELETE), which add and"
+                            + " delete only the rows of the datasets, or exclude " + tables
+                            + " from the check.");
+            hints.add("The setup operation, " + emptyingSetUp + ", deletes every row of the prep"
+                    + " tables before it inserts, so rows they held at the row count check's"
+                    + " baseline are gone. " + advice);
+        }
+        final DbUnitOperation emptyingTearDown = tearDownOperationThatEmptiesThePrepTables();
+        if (emptyingSetUp == null && emptyingTearDown != null && !lostPrep.isEmpty())
+        {
+            final String advice = adviceThatKeepsBaselineRows(lostPrep, expectedTableKeys,
+                    tables -> "To keep such rows, declare"
+                            + " @DbUnitTearDownOperation(DbUnitOperation.DELETE), which deletes"
+                            + " only the rows of the datasets, or exclude " + tables
+                            + " from the check.");
+            hints.add("The teardown operation, " + emptyingTearDown + ", deletes every row of the"
+                    + " prep tables, so rows they held at the row count check's baseline are gone."
+                    + " " + advice);
+        }
+        final boolean deletesTheDatasetRows =
+                effectiveTearDownOperation() == DbUnitOperation.DELETE.toDatabaseOperation();
+        if (emptyingSetUp == null && deletesTheDatasetRows)
+        {
+            final List<RowCountDifference> listedByExpected =
+                    withBaselineRowsListedByExpected(lostPrep, expectedTableKeys);
+            if (!listedByExpected.isEmpty())
+            {
+                hints.add("The teardown operation, DELETE, deletes every row of the datasets, the"
+                        + " expected dataset among them, so rows the prep tables held at the row"
+                        + " count check's baseline are gone. "
+                        + adviceForBaselineRowsListedByExpected(listedByExpected));
+            }
+        }
+        if (hints.isEmpty())
+        {
+            return failure;
+        }
+
+        final String hintText = String.join(System.lineSeparator(), hints);
+        final UnexpectedRowCountException hinted =
+                new UnexpectedRowCountException(failure.getDifferences(), hintText);
         hinted.setStackTrace(failure.getStackTrace());
         for (final Throwable suppressed : failure.getSuppressed())
         {
@@ -446,8 +574,208 @@ class TestCaseLifecycle
     }
 
     /**
-     * Returns the teardown operation the test case runs: the one the annotations declared, else
-     * the tester's own; {@code null} when the annotations declare none and no tester is known.
+     * Returns the tables of the row count difference whose delta matches {@code deltaMatches}
+     * and that are tables of the prep dataset the test case loaded, compared ignoring case as
+     * dbUnit finds a table in a dataset.
+     */
+    private static List<RowCountDifference> differencesInPrepTables(
+            final UnexpectedRowCountException failure, final Set<String> prepTableKeys,
+            final IntPredicate deltaMatches)
+    {
+        final List<RowCountDifference> inPrepTables = new ArrayList<>();
+        for (final RowCountDifference difference : failure.getDifferences())
+        {
+            final String differenceKey = TableNameKey.of(difference.getTableName());
+            final boolean inAPrepTable = prepTableKeys.contains(differenceKey);
+            if (inAPrepTable && deltaMatches.test(difference.getDelta()))
+            {
+                inPrepTables.add(difference);
+            }
+        }
+        return inPrepTables;
+    }
+
+    /**
+     * Returns the table names of {@code dataset} in the form {@link TableNameKey} compares them
+     * by; empty when there is no dataset or it cannot list its tables. The dataset is loaded by
+     * now, so this reads its table names and parses nothing. A dataset that cannot list its
+     * tables counts as holding none: a hint is advice, and must not hide the failure it
+     * explains.
+     *
+     * @param dataset The prep or the expected dataset of {@link #testCase}, or {@code null}.
+     * @param datasetKind The word for the dataset in the log message.
+     */
+    private static Set<String> tableKeysOf(final IDataSet dataset, final String datasetKind)
+    {
+        final Set<String> tableKeys = new HashSet<>();
+        try
+        {
+            if (dataset == null)
+            {
+                return tableKeys;
+            }
+            for (final String tableName : dataset.getTableNames())
+            {
+                tableKeys.add(TableNameKey.of(tableName));
+            }
+        } catch (final DataSetException | RuntimeException e)
+        {
+            log.debug("The {} dataset could not list its tables, so a row count difference is"
+                    + " not traced to it.", datasetKind, e);
+            tableKeys.clear();
+        }
+        return tableKeys;
+    }
+
+    /**
+     * Returns the advice that keeps the rows the prep tables held at the baseline, which
+     * {@code adviceForTables} words for the tables it is given. The teardown operation acts on
+     * the expected dataset as well as on the prep dataset, so a {@code DELETE} teardown deletes
+     * every row the expected dataset lists. For a table that held rows at the baseline and that
+     * the expected dataset lists, those rows are among them: no teardown operation removes the
+     * prep rows and keeps them, and the advice is an exclusion. The other tables get
+     * {@code adviceForTables}.
+     */
+    private static String adviceThatKeepsBaselineRows(final List<RowCountDifference> differences,
+            final Set<String> expectedTableKeys,
+            final Function<String, String> adviceForTables)
+    {
+        final List<RowCountDifference> listedByExpected =
+                withBaselineRowsListedByExpected(differences, expectedTableKeys);
+        if (listedByExpected.isEmpty())
+        {
+            return adviceForTables.apply("these tables");
+        }
+
+        final String expectedAdvice = adviceForBaselineRowsListedByExpected(listedByExpected);
+        final List<RowCountDifference> others = new ArrayList<>(differences);
+        others.removeAll(listedByExpected);
+        if (others.isEmpty())
+        {
+            return expectedAdvice;
+        }
+        final String otherTables = tableNames(others);
+        return "For " + otherTables + ": " + adviceForTables.apply(otherTables) + " "
+                + expectedAdvice;
+    }
+
+    /**
+     * Returns the differences of the tables that held rows at the baseline and that the expected
+     * dataset lists, compared ignoring case. A table that held none has no baseline rows for a
+     * {@code DELETE} teardown to delete.
+     */
+    private static List<RowCountDifference> withBaselineRowsListedByExpected(
+            final List<RowCountDifference> differences, final Set<String> expectedTableKeys)
+    {
+        final List<RowCountDifference> listedByExpected = new ArrayList<>();
+        for (final RowCountDifference difference : differences)
+        {
+            final String differenceKey = TableNameKey.of(difference.getTableName());
+            final boolean heldRowsAtTheBaseline = difference.getBaselineCount() > 0;
+            final boolean listedByExpectedDataset = expectedTableKeys.contains(differenceKey);
+            if (heldRowsAtTheBaseline && listedByExpectedDataset)
+            {
+                listedByExpected.add(difference);
+            }
+        }
+        return listedByExpected;
+    }
+
+    private static String adviceForBaselineRowsListedByExpected(
+            final List<RowCountDifference> listedByExpected)
+    {
+        final String tableNames = tableNames(listedByExpected);
+        return "The expected dataset lists " + tableNames + " too, and the teardown operation acts"
+                + " on the expected dataset as well as on the prep dataset, so a DELETE teardown"
+                + " deletes the rows it lists too, those the tables held at the baseline among"
+                + " them. Exclude them from the check, or keep those rows out of the tables the"
+                + " test loads and verifies.";
+    }
+
+    private static String tableNames(final List<RowCountDifference> differences)
+    {
+        return differences.stream().map(RowCountDifference::getTableName)
+                .collect(Collectors.joining(", "));
+    }
+
+    /**
+     * Returns the setup operation a test case this class constructed runs, the one the
+     * annotations declared or else the tester's own, when it is one that deletes every row of the
+     * prep tables before it inserts; {@code null} for any other operation, or when the
+     * annotations declare none and no tester is known.
+     */
+    private DbUnitOperation setUpOperationThatEmptiesThePrepTables()
+    {
+        final DatabaseOperation setUpOperation = effectiveSetUpOperation();
+        return operationAmong(SET_UP_OPERATIONS_THAT_EMPTY_THE_PREP_TABLES, setUpOperation);
+    }
+
+    /**
+     * Returns the teardown operation a test case this class constructed runs when it is one that
+     * deletes every row of the prep tables; {@code null} for any other operation, or when the
+     * annotations declare none and no tester is known.
+     */
+    private DbUnitOperation tearDownOperationThatEmptiesThePrepTables()
+    {
+        final DatabaseOperation tearDownOperation = effectiveTearDownOperation();
+        return operationAmong(TEAR_DOWN_OPERATIONS_THAT_EMPTY_THE_PREP_TABLES, tearDownOperation);
+    }
+
+    /**
+     * Returns the advice for prep rows that no teardown removes: a {@code DELETE} teardown after
+     * a setup operation that only adds rows, as a {@code DELETE_ALL} teardown would delete the
+     * rows the prep tables held at the baseline too, except for a table the expected dataset
+     * lists as well, for which it is an exclusion, and a {@code DELETE_ALL} teardown after any
+     * other setup operation, after which the prep tables hold only the prep rows.
+     */
+    private String tearDownAdviceForLeakedPrep(final List<RowCountDifference> leakedPrep,
+            final Set<String> expectedTableKeys)
+    {
+        final DatabaseOperation setUpOperation = effectiveSetUpOperation();
+        final DbUnitOperation addingSetUp =
+                operationAmong(SET_UP_OPERATIONS_THAT_ONLY_ADD_ROWS, setUpOperation);
+        if (addingSetUp == null)
+        {
+            return "Add @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL), or exclude these"
+                    + " tables from the check.";
+        }
+        return adviceThatKeepsBaselineRows(leakedPrep, expectedTableKeys,
+                tables -> "Add @DbUnitTearDownOperation(DbUnitOperation.DELETE), which deletes"
+                        + " only the rows of the datasets and keeps the rows the tables held"
+                        + " before the " + addingSetUp + " setup, or exclude " + tables
+                        + " from the check.");
+    }
+
+    private static DbUnitOperation operationAmong(final Set<DbUnitOperation> candidates,
+            final DatabaseOperation operation)
+    {
+        for (final DbUnitOperation candidate : candidates)
+        {
+            if (candidate.toDatabaseOperation() == operation)
+            {
+                return candidate;
+            }
+        }
+        return null;
+    }
+
+    private DatabaseOperation effectiveSetUpOperation()
+    {
+        if (configuration.isSetupDeclared())
+        {
+            return configuration.getSetUpOperation();
+        }
+        if (tester == null)
+        {
+            return null;
+        }
+        return tester.getSetUpOperation();
+    }
+
+    /**
+     * Returns the teardown operation a test case this class constructed runs: the one the
+     * annotations declared, else the tester's own; {@code null} when the annotations declare none
+     * and no tester is known.
      */
     private DatabaseOperation effectiveTearDownOperation()
     {

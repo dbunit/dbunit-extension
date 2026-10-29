@@ -115,6 +115,36 @@ value meant to turn the check on cannot quietly turn it off and let the tests it
 have failed pass. The case of `true` and `false` and the whitespace around them do not
 matter.
 
+The baseline is taken before the test's prep data is set up, so once the property turns
+the check on for a suite, an annotation-driven test that loads `@DbUnitPrep` data and
+tears nothing down fails it. When dbUnit builds the test case, and one of the prep tables
+holds more rows than at the baseline while the teardown operation is `NONE`, the failure says
+so and names the fix, a `@DbUnitTearDownOperation` or an exclusion. After an `INSERT` or
+`REFRESH` setup operation, which add the prep rows to the rows a table already holds, such as
+seed rows, it names `DbUnitOperation.DELETE`, because a `DELETE_ALL` teardown would delete the
+seed rows too. After any other setup operation it names `DbUnitOperation.DELETE_ALL`. A prep
+table can also hold fewer rows: the setup operation, `CLEAN_INSERT` by default, `DELETE_ALL` or
+`TRUNCATE_TABLE`, deletes every row of the prep tables before it inserts, seed rows included,
+and no teardown brings them back. The failure then names the other fix,
+`@DbUnitSetUpOperation(DbUnitOperation.INSERT)` with
+`@DbUnitTearDownOperation(DbUnitOperation.DELETE)`, which add and delete only the rows of the
+datasets, or an exclusion. A `DELETE_ALL` or `TRUNCATE_TABLE` teardown after a setup operation
+that does not empty the tables deletes those rows too; the failure then names a `DELETE`
+teardown. Both `DELETE` pieces of advice assume that the prep table is not in the expected
+dataset as well, as the teardown operation acts on the expected dataset too and `DELETE`
+removes every row it lists. A prep table that held rows at the baseline and that the expected
+dataset lists, because the test verifies it, would lose those rows to a `DELETE` teardown too,
+as the verification only passes when the expected dataset lists them. No teardown operation
+removes the prep rows and keeps the others then. The failure names an exclusion for such a
+table, and so it does when the test followed the advice and a `DELETE` teardown removed the
+rows: the table is excluded from the check, or its rows are kept out of the tables the test
+loads and verifies. A table that held no rows at the baseline keeps the `DELETE` advice. A
+difference in a table the prep data does not hold has another
+cause, so the failure gives no such advice then, only the per-table detail. Nor does a test
+that injects a `@DbUnitTestCase` get it: that test case runs the setup and teardown operations
+its owner set on it, which dbUnit cannot read, and an annotation that declares either operation
+is rejected next to it.
+
 It is wired into both link:../testcases/PrepAndExpectedTestCase.html[PrepAndExpectedTestCase]
 and link:../testcases/DbUnitExtension.html[DbUnitExtension]; enabling the feature (or the
 system property) is everything a test needs to do. Both integration points share the same

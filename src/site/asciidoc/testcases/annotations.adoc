@@ -827,7 +827,19 @@ Because the baseline is taken before `@DbUnitPrep`, a passing check means teardo
 returned the database to its *pre-prep* state — the prep data removed too, not just the
 test's own writes. `@DbUnitRowCountCheck` with `@DbUnitPrep` and no `@DbUnitTearDownOperation` (the
 `NONE` default) therefore *fails*: the prep rows are still there. Pair it with
-`@DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)`, as the example below does.
+`@DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)`, as the example below does. That
+assumes the prep tables are empty at the baseline. A prep table that already holds rows, such
+as seed data, loses them to the default `CLEAN_INSERT` setup, so its count goes *down*: declare
+`@DbUnitSetUpOperation(DbUnitOperation.INSERT)` with
+`@DbUnitTearDownOperation(DbUnitOperation.DELETE)` instead, and the failure names that fix when
+it sees the drop. A `DELETE_ALL` teardown after an `INSERT` or `REFRESH` setup deletes the
+seed rows too, so the failure for prep rows that no teardown removes names `DELETE` after
+those setup operations. That holds for a prep table that the expected dataset does not list.
+The teardown operation acts on the expected dataset as well and `DELETE` removes every row it
+lists, so for a prep table that held seed rows and that the test verifies with
+`@DbUnitExpected`, whose expected dataset has to list them, no teardown operation removes the
+prep rows and keeps the seed rows: the failure names an exclusion for that table, and also
+after a `DELETE` teardown that deleted the seed rows.
 
 [source,java]
 ----
