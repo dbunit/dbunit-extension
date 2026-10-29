@@ -32,6 +32,7 @@ import org.dbunit.annotation.runtime.TesterFields;
 import org.dbunit.annotation.runtime.TestInstanceTesterResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.BeanFactoryUtils;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.ApplicationContext;
 import org.springframework.test.context.ContextConfiguration;
@@ -131,7 +132,7 @@ class SpringTesterResolver
         final ApplicationContext applicationContext = findApplicationContext(testContext);
         if (applicationContext != null)
         {
-            final IDatabaseTester beanTester = findTesterBean(applicationContext);
+            final IDatabaseTester beanTester = findTesterBean(applicationContext, testClass);
             if (beanTester != null)
             {
                 return beanTester;
@@ -164,7 +165,15 @@ class SpringTesterResolver
                 || TestContextAnnotationUtils.hasAnnotation(testClass, ContextHierarchy.class);
     }
 
-    private IDatabaseTester findTesterBean(final ApplicationContext applicationContext)
+    /**
+     * Returns the {@code IDatabaseTester} bean Spring's candidate rules single out, or
+     * {@code null} when the context, its ancestors included, holds none.
+     *
+     * @throws IllegalStateException If it holds several and the rules single out none, naming
+     *             the beans.
+     */
+    private IDatabaseTester findTesterBean(final ApplicationContext applicationContext,
+            final Class<?> testClass)
     {
         final ObjectProvider<IDatabaseTester> beans =
                 applicationContext.getBeanProvider(IDatabaseTester.class);
@@ -173,8 +182,26 @@ class SpringTesterResolver
         {
             log.debug("Resolved IDatabaseTester bean of type '{}' from the ApplicationContext",
                     tester.getClass().getName());
+            return tester;
         }
-        return tester;
+        final String[] candidates = BeanFactoryUtils
+                .beanNamesForTypeIncludingAncestors(applicationContext, IDatabaseTester.class);
+        if (candidates.length > 1)
+        {
+            throw new IllegalStateException(severalTestersMessage(testClass, candidates));
+        }
+        return null;
+    }
+
+    private String severalTestersMessage(final Class<?> testClass, final String[] candidates)
+    {
+        final String beanNames = String.join(", ", candidates);
+        return "The ApplicationContext of " + testClass.getName() + " holds several"
+                + " IDatabaseTester beans, " + beanNames + ", and none is the one to use: mark"
+                + " one @Primary, or declare a @DbUnitTester field holding the one to use, for"
+                + " example @Autowired @Qualifier(\"" + candidates[0] + "\") @DbUnitTester"
+                + " IDatabaseTester databaseTester, or configure @DbUnitConfig(databaseTesterFactory"
+                + " = ...).";
     }
 
     private String noTesterMessage(final Class<?> testClass, final boolean contextConsulted)
