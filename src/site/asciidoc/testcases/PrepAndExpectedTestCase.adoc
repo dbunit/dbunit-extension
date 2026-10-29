@@ -108,7 +108,8 @@ verifying a suite's teardown correctness, and see
 link:../components/rowcountcheck.html[the RowCountCheck page] for what it catches, how
 to exclude legitimately-changing tables, and how to read a failure. On a
 `DefaultPrepAndExpectedTestCase` instance, `setRowCountCheckOverride(RowCountCheckOverride)`
-sets both directly instead - see
+sets the enabled flag in place of `FEATURE_ROW_COUNT_CHECK` and adds its excluded table
+patterns to the ones `PROPERTY_ROW_COUNT_CHECK_EXCLUDE_TABLES` configures - see
 <<Configuring_Without_Subclassing,Configuring DatabaseConfig Without Subclassing>> below.
 
 == Usage
@@ -398,10 +399,10 @@ no-op listener) carries none of them into whatever uses it next. Calling
 always has.
 
 `setRowCountCheckOverride(RowCountCheckOverride)`:: Enables
-or disables link:../components/rowcountcheck.html[RowCountCheck] and sets its excluded
-table patterns directly, instead of setting
-`FEATURE_ROW_COUNT_CHECK`/`PROPERTY_ROW_COUNT_CHECK_EXCLUDE_TABLES` via
-`setUpDatabaseConfig()`.
+or disables link:../components/rowcountcheck.html[RowCountCheck] in place of
+`FEATURE_ROW_COUNT_CHECK`, and adds its excluded table patterns to the ones
+`PROPERTY_ROW_COUNT_CHECK_EXCLUDE_TABLES` configures, so neither needs a
+`setUpDatabaseConfig()` override.
 +
 [source,java]
 ----

@@ -21,6 +21,9 @@
 package org.dbunit.database.rowcount;
 
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 import org.dbunit.DatabaseUnitException;
 import org.dbunit.database.DatabaseConfig;
@@ -150,12 +153,13 @@ public class RowCountBaselineTracker
     /**
      * Builds the {@link RowCountCheckConfiguration} to resolve a {@link RowCountCheck} from:
      * straight from {@code connectionConfig} when no override is set, or from the
-     * {@link #override} plus {@code connectionConfig}'s own {@link RowCounter} when one is - so
-     * an override controls only the enabled flag and the exclude patterns it declares. The
-     * system properties apply as {@link RowCountCheckConfiguration} documents:
-     * {@code -Ddbunit.rowCountCheck=false} still disables the check, a declared {@code false}
-     * stays disabled when the property force-enables it, and the exclude property adds to the
-     * declared patterns.
+     * {@link #override} plus {@code connectionConfig}'s own exclude patterns and
+     * {@link RowCounter} when one is. An override therefore decides the enabled flag, and its
+     * exclude patterns add to the ones {@code connectionConfig} configures, so a table a project
+     * excludes once stays excluded when a test turns the check on. The system properties apply
+     * as {@link RowCountCheckConfiguration} documents: {@code -Ddbunit.rowCountCheck=false}
+     * still disables the check, a declared {@code false} stays disabled when the property
+     * force-enables it, and the exclude property adds to the patterns.
      *
      * @param connectionConfig The connection's own {@link DatabaseConfig}.
      * @return The configuration to resolve a {@link RowCountCheck} from.
@@ -168,8 +172,21 @@ public class RowCountBaselineTracker
         }
         final RowCounter rowCounter =
                 (RowCounter) connectionConfig.getProperty(DatabaseConfig.PROPERTY_ROW_COUNTER);
-        return new RowCountCheckConfiguration(override.isEnabled(), override.getExclude(),
-                rowCounter);
+        final String[] configuredPatterns = (String[]) connectionConfig
+                .getProperty(DatabaseConfig.PROPERTY_ROW_COUNT_CHECK_EXCLUDE_TABLES);
+        final String[] patterns = withOverridePatterns(configuredPatterns);
+        return new RowCountCheckConfiguration(override.isEnabled(), patterns, rowCounter);
+    }
+
+    private String[] withOverridePatterns(final String[] configuredPatterns)
+    {
+        final List<String> patterns = new ArrayList<>();
+        if (configuredPatterns != null)
+        {
+            patterns.addAll(Arrays.asList(configuredPatterns));
+        }
+        patterns.addAll(Arrays.asList(override.getExclude()));
+        return patterns.toArray(new String[0]);
     }
 
     /**
@@ -208,7 +225,8 @@ public class RowCountBaselineTracker
 
     /**
      * Sets the enabled flag and excluded table patterns to resolve a {@link RowCountCheck}
-     * from, instead of a connection's own {@link org.dbunit.database.DatabaseConfig} - the
+     * from, in place of the enabled flag of a connection's own
+     * {@link org.dbunit.database.DatabaseConfig} and in addition to its exclude patterns - the
      * values an annotation such as {@code @DbUnitRowCountCheck} declares, carried over onto
      * whatever connection this tracker ends up resolving one from, rather than a caller having
      * to resolve a connection of its own just to read its {@link RowCounter}.
