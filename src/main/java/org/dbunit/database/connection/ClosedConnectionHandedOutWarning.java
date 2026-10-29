@@ -45,8 +45,9 @@ import org.slf4j.LoggerFactory;
  * tester's listener is the no-op one or its {@code closeConnectionAfterTest} is {@code false}.
  * The classic lifecycle of a bare {@code @ExtendWith(DbUnitExtension.class)} class closes a
  * connection it resolved itself unless the tester is known to hand out one fixed connection or
- * its listener is the no-op listener; a custom tester over one fixed connection is not known to,
- * as nothing tells it apart from one that opens a new connection on every call.</li>
+ * its listener is the no-op listener; a custom tester over one fixed connection counts as one
+ * only when it overrides {@link org.dbunit.IDatabaseTester#isReusingConnection()}, as nothing
+ * else tells it apart from one that opens a new connection on every call.</li>
  * </ul>
  *
  * <p>{@link org.dbunit.IOperationListener#NO_OP_OPERATION_LISTENER} keeps the connection open

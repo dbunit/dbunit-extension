@@ -121,19 +121,17 @@ public class JndiDatabaseTester extends AbstractDatabaseTester
     }
 
     /**
-     * Returns whether {@link #getConnection()} hands out one connection, cached by the
-     * {@link CachingConnectionProvider} this tester was built with, instead of asking the
-     * {@link DataSource} it looked up for a connection on every call. A caller that leaves a
-     * connection open for its owner to close can rely on a tester that reuses its connection;
-     * with one that asks the data source on every call, each connection it hands out is the
-     * caller's to close.
+     * {@inheritDoc}
      *
-     * <p>A subclass that overrides {@link #getConnection()} to reuse a connection overrides
-     * this method to say so.
+     * <p>A tester built with a {@link CachingConnectionProvider} hands out the connection the
+     * provider caches; one built without asks the {@link DataSource} it looked up for a
+     * connection on every call. A subclass that overrides {@link #getConnection()} to reuse a
+     * connection overrides this method to say so.
      *
      * @return {@code true} when this tester was built with a {@link CachingConnectionProvider}.
      * @since 3.6.0
      */
+    @Override
     public boolean isReusingConnection()
     {
         return connectionProvider != null;

@@ -22,11 +22,7 @@ package org.dbunit.annotation.runtime;
 
 import java.util.function.BooleanSupplier;
 
-import org.dbunit.DataSourceDatabaseTester;
-import org.dbunit.DefaultDatabaseTester;
 import org.dbunit.IDatabaseTester;
-import org.dbunit.JdbcDatabaseTester;
-import org.dbunit.JndiDatabaseTester;
 
 /**
  * Answers whether a tester is known to hand out one fixed connection from every
@@ -34,18 +30,17 @@ import org.dbunit.JndiDatabaseTester;
  * tester is not that lifecycle's to close: the tester or its owner holds it, and the next test
  * uses it again.
  *
- * <p>A {@link DefaultDatabaseTester} is known to, as it returns the connection its constructor
- * received from every call, or the one its {@link org.dbunit.database.CachingConnectionProvider}
- * holds, which the provider replaces once that connection closes. A
- * {@link JdbcDatabaseTester}, a {@link DataSourceDatabaseTester} or a
- * {@link JndiDatabaseTester} is when it reports that it is reusing its connection, which it does
- * when it was built with a {@link org.dbunit.database.CachingConnectionProvider}. Any other
- * tester is not known to: it may open a new connection on every call, as a tester built without
- * a provider does, and nothing else would close the connection a lifecycle resolved from it.
- * A tester of another kind that does return one fixed connection says so with
- * {@link org.dbunit.IOperationListener#NO_OP_OPERATION_LISTENER}, the established signal that its
- * connections are managed elsewhere, which {@link org.dbunit.database.connection.ConnectionOwnership}
- * honors on its own.
+ * <p>The check goes by the tester's {@link IDatabaseTester#isReusingConnection()}. A
+ * {@link org.dbunit.DefaultDatabaseTester} always says {@code true}, and a
+ * {@link org.dbunit.JdbcDatabaseTester}, a {@link org.dbunit.DataSourceDatabaseTester} or a
+ * {@link org.dbunit.JndiDatabaseTester} does when it has a
+ * {@link org.dbunit.database.CachingConnectionProvider}. Any other tester may open a new
+ * connection on every call, as a tester without a provider does, and nothing else would close the
+ * connection a lifecycle resolved from it. A tester of another kind that does return one fixed
+ * connection says so by overriding {@link IDatabaseTester#isReusingConnection()}, or with
+ * {@link org.dbunit.IOperationListener#NO_OP_OPERATION_LISTENER}, the established signal that
+ * something else manages its connections, which
+ * {@link org.dbunit.database.connection.ConnectionOwnership} honors on its own.
  *
  * <p>The classic lifecycle of {@link AnnotatedTestExecutor} closes the connection it resolves
  * itself, which the 3.5.0 lifecycle never did, unless this check says the tester hands out a
@@ -77,25 +72,6 @@ class FixedConnectionCheck implements BooleanSupplier
     @Override
     public boolean getAsBoolean()
     {
-        if (tester instanceof DefaultDatabaseTester)
-        {
-            return true;
-        }
-        if (tester instanceof JdbcDatabaseTester)
-        {
-            final JdbcDatabaseTester jdbcTester = (JdbcDatabaseTester) tester;
-            return jdbcTester.isReusingConnection();
-        }
-        if (tester instanceof DataSourceDatabaseTester)
-        {
-            final DataSourceDatabaseTester dataSourceTester = (DataSourceDatabaseTester) tester;
-            return dataSourceTester.isReusingConnection();
-        }
-        if (tester instanceof JndiDatabaseTester)
-        {
-            final JndiDatabaseTester jndiTester = (JndiDatabaseTester) tester;
-            return jndiTester.isReusingConnection();
-        }
-        return false;
+        return tester != null && tester.isReusingConnection();
     }
 }

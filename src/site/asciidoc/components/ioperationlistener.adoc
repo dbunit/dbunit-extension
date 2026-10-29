@@ -93,11 +93,12 @@ back. The wrapper only forwards every callback to your listener, closes included
 row count baseline from the connection `onSetup()` retrieves, so capturing it opens no
 connection of its own. That connection stays your listener's to close or to keep open, so
 a non-closing listener still keeps a fixed connection alive for the next test. The extension
-closes only a connection it resolves itself, and not one that a tester known to hand out one
-fixed connection handed out, as a `DefaultDatabaseTester` does and a `JdbcDatabaseTester`,
-`DataSourceDatabaseTester` or `JndiDatabaseTester` built with a `CachingConnectionProvider`
-does, nor one of a tester whose listener is `NO_OP_OPERATION_LISTENER`; those stay open for
-their owner. With the row count check enabled it
+closes only a connection it resolves itself, and not one handed out by a tester that reports
+through `isReusingConnection()` that it hands out one fixed connection, as a
+`DefaultDatabaseTester` does and a `JdbcDatabaseTester`, `DataSourceDatabaseTester` or
+`JndiDatabaseTester` built with a `CachingConnectionProvider` does, nor one of a tester whose
+listener is `NO_OP_OPERATION_LISTENER`; those stay open for their owner. With the row count
+check enabled it
 resolves one to verify after `onTearDown()` when your listener closed the one `onSetup()`
 retrieved, as the default listener does. Wrapping the listener and putting it back rely on the
 tester reporting it through `getOperationListener()`, as `AbstractDatabaseTester` and the

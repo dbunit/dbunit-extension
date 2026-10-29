@@ -22,6 +22,7 @@ package org.dbunit.annotation.runtime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import javax.sql.DataSource;
 
@@ -151,6 +152,20 @@ class FixedConnectionCheckTest
 
         assertThat(handsOutOneFixedConnection)
                 .as("A DefaultDatabaseTester returns the same connection from every call.")
+                .isTrue();
+    }
+
+    @Test
+    void testGetAsBoolean_customTesterReportingItReusesItsConnection_returnsTrue()
+    {
+        final IDatabaseTester tester = mock(IDatabaseTester.class);
+        when(tester.isReusingConnection()).thenReturn(true);
+
+        final boolean handsOutOneFixedConnection = new FixedConnectionCheck(tester).getAsBoolean();
+
+        assertThat(handsOutOneFixedConnection)
+                .as("A tester of any kind that reports it reuses its connection hands out one"
+                        + " fixed connection.")
                 .isTrue();
     }
 

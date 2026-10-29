@@ -98,4 +98,20 @@ public class DefaultDatabaseTester extends AbstractDatabaseTester
         }
         return this.connection;
     }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Every call returns the connection that the constructor received, or the one its
+     * {@link CachingConnectionProvider} holds, which the provider replaces once that connection
+     * closes.
+     *
+     * @return {@code true}.
+     * @since 3.6.0
+     */
+    @Override
+    public boolean isReusingConnection()
+    {
+        return true;
+    }
 }

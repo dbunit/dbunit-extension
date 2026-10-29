@@ -165,19 +165,18 @@ before `onSetup()` instead. With the check enabled it also resolves one to verif
 `onTearDown()` when the listener already closed the one `onSetup()` retrieved, as the
 default listener does. It offers either connection to `connectionRetrieved()` first, so
 the listener sees one more retrieval than in 3.5.0, and closes it after the test unless the
-tester is known to hand out one fixed connection, as a `DefaultDatabaseTester` does and a
-`JdbcDatabaseTester`, a `DataSourceDatabaseTester` or a `JndiDatabaseTester` built with a
-`CachingConnectionProvider` does, or its listener is `NO_OP_OPERATION_LISTENER`. That
-connection stays open for its owner and the next test, as in 3.5.0, which resolved no
-connection of its own. Any other tester, a custom one included, may open a new connection on
-every call, and nothing else would close the one the extension resolved from it, so a custom
-tester that returns one fixed connection needs `NO_OP_OPERATION_LISTENER`: set it on the
-tester, or return it from `getOperationListener()` when the tester is not an
-`AbstractDatabaseTester`.
-A subclass of `JdbcDatabaseTester`, `DataSourceDatabaseTester` or `JndiDatabaseTester` whose
-`getConnection()` keeps one connection overrides `isReusingConnection()` to return `true`, or
-uses `NO_OP_OPERATION_LISTENER`: otherwise the extension takes it for a tester that opens a new
-connection on every call and closes the connection it resolved from it.
+tester reports through `isReusingConnection()` that it hands out one fixed connection, as a
+`DefaultDatabaseTester` does and a `JdbcDatabaseTester`, a `DataSourceDatabaseTester` or a
+`JndiDatabaseTester` built with a `CachingConnectionProvider` does, or its listener is
+`NO_OP_OPERATION_LISTENER`. That connection stays open for its owner and the next test, as in
+3.5.0, which resolved no connection of its own. Any other tester may open a new connection on
+every call, and nothing else would close the one the extension resolved from it. A tester whose
+`getConnection()` keeps one connection, a custom one or a subclass of those testers, therefore
+overrides `isReusingConnection()`, a default method of `IDatabaseTester`, to return `true`, or
+uses `NO_OP_OPERATION_LISTENER`: set it on the tester, or return it from
+`getOperationListener()` when the tester is not an `AbstractDatabaseTester`. Otherwise the
+extension takes it for a tester that opens a new connection on every call and closes the
+connection it resolved from it.
 When the tester hands a test a connection that is already closed, as
 a tester over one fixed connection does once its listener or the extension closed it, the
 extension logs a warning that names this remedy.
