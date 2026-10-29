@@ -854,7 +854,12 @@ after a `DELETE` teardown that deleted the seed rows.
 @DbUnitRowCountCheck
 class AccountRepositoryTest
 {
-    IDatabaseTester databaseTester = new JdbcDatabaseTester(...);
+    IDatabaseTester databaseTester;
+
+    AccountRepositoryTest() throws ClassNotFoundException
+    {
+        databaseTester = new JdbcDatabaseTester(...);
+    }
 
     @Test
     @DbUnitPrep("accounts-prep.xml")
