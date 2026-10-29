@@ -28,6 +28,7 @@ import java.util.Map;
 
 import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.IDataSet;
+import org.dbunit.dataset.xml.FlatXmlDataSetBuilder;
 
 /**
  * {@link DataFileLoader} that dispatches to another {@link DataFileLoader} based on the
@@ -46,7 +47,21 @@ import org.dbunit.dataset.IDataSet;
  * this loader's own replacement objects and substrings - not any set on a delegate - are
  * the ones applied, exactly once, to every file regardless of format. Because that method
  * touches no delegate state, the delegates are shared {@code static} instances rather than
- * rebuilt for each {@code FileExtensionDataFileLoader} - one per test method, otherwise.
+ * rebuilt for each {@code FileExtensionDataFileLoader} - one per test method, otherwise. A
+ * loader given a {@link FlatXmlDataSetBuilder} has a flat XML delegate of its own over it.
+ *
+ * <p>Flat XML takes a table's columns from its first row and ignores, with a warning, a column
+ * that only a later row has. To load such a column, give this loader a
+ * {@link FlatXmlDataSetBuilder} with column sensing on. {@code @DbUnitConfig(dataFileLoader)}
+ * builds a loader class with its no-argument constructor, so name a subclass that passes the
+ * builder on:
+ * <pre>{@code
+ * public class ColumnSensingDataFileLoader extends FileExtensionDataFileLoader {
+ *     public ColumnSensingDataFileLoader() {
+ *         super(new FlatXmlDataSetBuilder().setColumnSensing(true));
+ *     }
+ * }
+ * }</pre>
  *
  * @author Jeff Jensen
  * @since 3.6.0
@@ -58,9 +73,12 @@ public class FileExtensionDataFileLoader extends AbstractDataFileLoader
     private static final DataFileLoader YAML_DATA_FILE_LOADER = new YamlDataFileLoader();
     private static final DataFileLoader XLS_DATA_FILE_LOADER = new XlsDataFileLoader();
 
+    private final DataFileLoader flatXmlDataFileLoader;
+
     /** Create new instance. */
     public FileExtensionDataFileLoader()
     {
+        flatXmlDataFileLoader = FLAT_XML_DATA_FILE_LOADER;
     }
 
     /**
@@ -73,6 +91,7 @@ public class FileExtensionDataFileLoader extends AbstractDataFileLoader
     public FileExtensionDataFileLoader(Map<?, ?> ro)
     {
         super(ro);
+        flatXmlDataFileLoader = FLAT_XML_DATA_FILE_LOADER;
     }
 
     /**
@@ -88,6 +107,43 @@ public class FileExtensionDataFileLoader extends AbstractDataFileLoader
     public FileExtensionDataFileLoader(Map<?, ?> ro, Map<?, ?> rs)
     {
         super(ro, rs);
+        flatXmlDataFileLoader = FLAT_XML_DATA_FILE_LOADER;
+    }
+
+    /**
+     * Create new instance that loads the flat XML files with the given builder, for example one
+     * with column sensing on.
+     *
+     * @param flatXmlBuilder
+     *            The builder that loads the {@code .xml} files.
+     * @throws IllegalArgumentException
+     *             If the builder is {@code null}.
+     */
+    public FileExtensionDataFileLoader(final FlatXmlDataSetBuilder flatXmlBuilder)
+    {
+        flatXmlDataFileLoader = makeFlatXmlDataFileLoader(flatXmlBuilder);
+    }
+
+    /**
+     * Create new instance with replacement objects and replacement substrings that loads the
+     * flat XML files with the given builder, for example one with column sensing on.
+     *
+     * @param ro
+     *            The replacement objects for use with
+     *            {@link org.dbunit.dataset.ReplacementDataSet}.
+     * @param rs
+     *            The replacement substrings for use with
+     *            {@link org.dbunit.dataset.ReplacementDataSet}.
+     * @param flatXmlBuilder
+     *            The builder that loads the {@code .xml} files.
+     * @throws IllegalArgumentException
+     *             If the builder is {@code null}.
+     */
+    public FileExtensionDataFileLoader(final Map<?, ?> ro, final Map<?, ?> rs,
+            final FlatXmlDataSetBuilder flatXmlBuilder)
+    {
+        super(ro, rs);
+        flatXmlDataFileLoader = makeFlatXmlDataFileLoader(flatXmlBuilder);
     }
 
     /**
@@ -99,7 +155,7 @@ public class FileExtensionDataFileLoader extends AbstractDataFileLoader
         switch (extension)
         {
             case "xml":
-                return FLAT_XML_DATA_FILE_LOADER.loadDataSet(url);
+                return flatXmlDataFileLoader.loadDataSet(url);
             case "json":
                 return JSON_DATA_FILE_LOADER.loadDataSet(url);
             case "yaml":
@@ -117,6 +173,16 @@ public class FileExtensionDataFileLoader extends AbstractDataFileLoader
                         + " directly, pointed at a directory; for full (non-flat) XML, use"
                         + " FullXmlDataFileLoader directly.");
         }
+    }
+
+    private static DataFileLoader makeFlatXmlDataFileLoader(
+            final FlatXmlDataSetBuilder flatXmlBuilder)
+    {
+        if (flatXmlBuilder == null)
+        {
+            throw new IllegalArgumentException("The flat XML builder is null.");
+        }
+        return new FlatXmlDataFileLoader(flatXmlBuilder);
     }
 
     private String extensionOf(final URL url)

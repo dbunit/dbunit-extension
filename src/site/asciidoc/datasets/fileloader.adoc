@@ -48,6 +48,50 @@ objects and substrings configured on the `FileExtensionDataFileLoader` itself
 are the ones applied, exactly once, regardless of which delegate handled the
 file.
 
+[#columnsensing]
+=== Column Sensing for Flat XML
+
+Flat XML takes a table's columns from its first row and ignores, with a
+warning, a column that only a later row has (see
+link:values.html#columnsensing[Dataset Values: column sensing]). To load such
+a column, give the loader a `FlatXmlDataSetBuilder` with column sensing on; the
+other formats load as before:
+
+[source,java]
+----
+DataFileLoader loader = new FileExtensionDataFileLoader(
+        new FlatXmlDataSetBuilder().setColumnSensing(true));
+----
+
+`@DbUnitConfig(dataFileLoader)` builds a loader class with its no-argument
+constructor, so name a subclass that passes the builder on:
+
+[source,java]
+----
+public class ColumnSensingDataFileLoader extends FileExtensionDataFileLoader
+{
+    public ColumnSensingDataFileLoader()
+    {
+        super(new FlatXmlDataSetBuilder().setColumnSensing(true));
+    }
+}
+----
+
+To also load each file once for the scope, wrap the same loader in a
+`CachingDataFileLoader` subclass instead (see <<caching>>):
+
+[source,java]
+----
+public class CachingColumnSensingDataFileLoader extends CachingDataFileLoader
+{
+    public CachingColumnSensingDataFileLoader()
+    {
+        super(new FileExtensionDataFileLoader(
+                new FlatXmlDataSetBuilder().setColumnSensing(true)));
+    }
+}
+----
+
 An unsupported extension throws `IllegalArgumentException` naming it. Two
 formats are deliberately not dispatched here:
 
