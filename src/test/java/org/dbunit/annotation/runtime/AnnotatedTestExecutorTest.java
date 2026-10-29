@@ -91,6 +91,7 @@ import org.dbunit.database.rowcount.RowCountCheckOverride;
 import org.dbunit.database.rowcount.RowCountDifference;
 import org.dbunit.database.rowcount.UnexpectedRowCountException;
 import org.dbunit.dataset.Column;
+import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.DefaultDataSet;
 import org.dbunit.dataset.DefaultTable;
 import org.dbunit.dataset.IDataSet;
@@ -1762,7 +1763,38 @@ class AnnotatedTestExecutorTest
                         + " baseline, on top of the standard per-table detail.")
                 .contains("baseline is captured before @DbUnitPrep loads")
                 .contains("@DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)")
+                .doesNotContain("CLEAN_INSERT")
                 .contains("ACCOUNT");
+    }
+
+    @Test
+    void testAfterTest_rowCountCheckEnabledByTheFeatureWithPrepAndNoTeardown_exceptionNamesTheTeardownFix()
+            throws Exception
+    {
+        stubEnabledConnection("ACCOUNT");
+        when(connection.getRowCount("ACCOUNT")).thenReturn(0);
+        when(tester.getTearDownOperation()).thenReturn(DatabaseOperation.NONE);
+        final DbUnitPrep prep = WithPrep.class.getAnnotation(DbUnitPrep.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration.from(
+                WithPrep.class, null, prep, null, null, null, null);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, tester, null);
+        executor.beforeTest();
+        when(connection.getRowCount("ACCOUNT")).thenReturn(5);
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown)
+                .as("The mismatch stays an UnexpectedRowCountException.")
+                .isInstanceOf(UnexpectedRowCountException.class);
+        assertThat(thrown.getMessage())
+                .as("A check that the DatabaseConfig feature enables, as -Ddbunit.rowCountCheck"
+                        + " does for a whole suite, explains prep that is never torn down the same"
+                        + " way as one that @DbUnitRowCountCheck enables.")
+                .contains("baseline is captured before @DbUnitPrep loads")
+                .contains("@DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)")
+                .doesNotContain("CLEAN_INSERT")
+                .doesNotContain("@DbUnitRowCountCheck baseline");
     }
 
     @Test
@@ -1791,6 +1823,98 @@ class AnnotatedTestExecutorTest
         assertThat(thrown.getMessage())
                 .as("No teardown hint when a non-NONE teardown operation ran.")
                 .doesNotContain("@DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)");
+    }
+
+    @Test
+    void testAfterTest_rowCountMismatchInAPrepTableOfAnInjectedTestCaseWithItsOwnTearDown_hasNoTeardownHint()
+            throws Exception
+    {
+        // dbUnit cannot read the operation an injected test case runs, which its owner set on it
+        // and which takes precedence over the tester's, and the annotation the hint names is
+        // rejected next to one.
+        stubEnabledConnection("ACCOUNT");
+        when(connection.getRowCount("ACCOUNT")).thenReturn(0);
+        final DbUnitPrep prep = WithPrepAndRowCountCheck.class.getAnnotation(DbUnitPrep.class);
+        final DbUnitRowCountCheck rowCountCheck =
+                WithPrepAndRowCountCheck.class.getAnnotation(DbUnitRowCountCheck.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration.from(
+                WithPrepAndRowCountCheck.class, null, prep, null, null, null, rowCountCheck);
+        final DefaultPrepAndExpectedTestCase injected =
+                new DefaultPrepAndExpectedTestCase(new FlatXmlDataFileLoader(), tester);
+        injected.setTearDownOperation(new RecordingDatabaseOperation());
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, tester, injected);
+        executor.beforeTest();
+        when(connection.getRowCount("ACCOUNT")).thenReturn(5);
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown).isInstanceOf(UnexpectedRowCountException.class);
+        assertThat(thrown.getMessage())
+                .as("The tester's own teardown operation is NONE, but the injected test case runs"
+                        + " one of its own, so the hint that its prep dataset is never torn down"
+                        + " would be wrong, and it names an annotation that is rejected next to an"
+                        + " injected test case.")
+                .contains("ACCOUNT")
+                .doesNotContain("@DbUnitTearDownOperation")
+                .doesNotContain("baseline is captured before @DbUnitPrep loads");
+    }
+
+    @Test
+    void testAfterTest_rowCountMismatchOnlyInATableTheDatasetsDoNotHold_hasNoTeardownHint()
+            throws Exception
+    {
+        // The prep dataset holds ACCOUNT, torn down by nothing, but the leak is in OTHER_T: the
+        // hint would point at the wrong cause.
+        stubEnabledConnection("OTHER_T");
+        when(connection.getRowCount("OTHER_T")).thenReturn(0);
+        final DbUnitPrep prep = WithPrepAndRowCountCheck.class.getAnnotation(DbUnitPrep.class);
+        final DbUnitRowCountCheck rowCountCheck =
+                WithPrepAndRowCountCheck.class.getAnnotation(DbUnitRowCountCheck.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration.from(
+                WithPrepAndRowCountCheck.class, null, prep, null, null, null, rowCountCheck);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, tester, null);
+        executor.beforeTest();
+        when(connection.getRowCount("OTHER_T")).thenReturn(5);
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown).isInstanceOf(UnexpectedRowCountException.class);
+        assertThat(thrown.getMessage())
+                .as("The per-table detail names the leaked table, but a prep dataset that is never"
+                        + " torn down did not cause a leak in a table it does not hold, so the"
+                        + " message must not say it did.")
+                .contains("OTHER_T")
+                .doesNotContain("@DbUnitTearDownOperation")
+                .doesNotContain("baseline is captured before @DbUnitPrep loads");
+    }
+
+    @Test
+    void testAfterTest_rowCountMismatchInAPrepTableNamedInAnotherCase_keepsTheTeardownHint()
+            throws Exception
+    {
+        stubEnabledConnection("account");
+        when(connection.getRowCount("account")).thenReturn(0);
+        final DbUnitPrep prep = WithPrepAndRowCountCheck.class.getAnnotation(DbUnitPrep.class);
+        final DbUnitRowCountCheck rowCountCheck =
+                WithPrepAndRowCountCheck.class.getAnnotation(DbUnitRowCountCheck.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration.from(
+                WithPrepAndRowCountCheck.class, null, prep, null, null, null, rowCountCheck);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, tester, null);
+        executor.beforeTest();
+        when(connection.getRowCount("account")).thenReturn(5);
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown).isInstanceOf(UnexpectedRowCountException.class);
+        assertThat(thrown.getMessage())
+                .as("dbUnit finds a table in a dataset ignoring case, so the database naming the"
+                        + " table of the prep dataset ACCOUNT as account is still the prep"
+                        + " dataset's table.")
+                .contains("account")
+                .contains("@DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)");
     }
 
     @Test
@@ -4638,7 +4762,8 @@ class AnnotatedTestExecutorTest
 
     /**
      * A built test case whose {@code postTest()} reports a row count mismatch that already has a
-     * failure attached to it, as a close failure would be.
+     * failure attached to it, as a close failure would be. The mismatch is in the {@code ACCOUNT}
+     * table, which its prep dataset holds.
      */
     public static class MismatchingTestCase extends DefaultPrepAndExpectedTestCase
     {
@@ -4659,6 +4784,18 @@ class AnnotatedTestExecutorTest
         @Override
         public void preTest()
         {
+        }
+
+        @Override
+        public IDataSet getPrepDataset()
+        {
+            try
+            {
+                return new DefaultDataSet(new DefaultTable("ACCOUNT"));
+            } catch (final DataSetException e)
+            {
+                throw new IllegalStateException(e);
+            }
         }
 
         @Override

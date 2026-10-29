@@ -22,6 +22,8 @@ package org.dbunit.annotation.runtime;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.util.HashSet;
+import java.util.Set;
 
 import org.dbunit.DefaultPrepAndExpectedTestCase;
 import org.dbunit.IDatabaseTester;
@@ -29,7 +31,10 @@ import org.dbunit.PrepAndExpectedTestCase;
 import org.dbunit.PrepAndExpectedTestData;
 import org.dbunit.VerifyTableDefinition;
 import org.dbunit.database.IDatabaseConnection;
+import org.dbunit.database.rowcount.RowCountDifference;
 import org.dbunit.database.rowcount.UnexpectedRowCountException;
+import org.dbunit.dataset.DataSetException;
+import org.dbunit.dataset.IDataSet;
 import org.dbunit.operation.DatabaseOperation;
 import org.dbunit.util.fileloader.DataFileLoader;
 import org.slf4j.Logger;
@@ -266,8 +271,8 @@ class TestCaseLifecycle
      * afterward - on a failure, with any undo failure attached as suppressed rather than
      * masking the primary.
      *
-     * <p>A row count difference gets a hint when it is the classic {@code @DbUnitRowCountCheck}
-     * + {@code @DbUnitPrep} + no-teardown shape, see {@link #withHintForUnclearedPrep}.
+     * <p>A row count difference gets a hint when it is the classic row count check +
+     * {@code @DbUnitPrep} + no-teardown shape, see {@link #withHintForUnclearedPrep}.
      *
      * @param testFailed Whether the test method itself already threw.
      * @throws Exception If {@code postTest()} fails.
@@ -412,31 +417,47 @@ class TestCaseLifecycle
     }
 
     /**
-     * Returns {@code failure} with an extra hint when it is the classic
-     * {@code @DbUnitRowCountCheck} + {@code @DbUnitPrep} + no-teardown shape: the baseline is
-     * captured <em>before</em> {@code @DbUnitPrep} loads, so a prep dataset that is never torn
-     * down reads as leaked rows and fails the check - a common first surprise. Otherwise returns
-     * {@code failure} unchanged. Keyed on the teardown operation the test case actually ran
-     * ({@link DatabaseOperation#NONE}), so an explicit
-     * {@code @DbUnitTearDownOperation(NONE)} is covered too.
+     * Returns {@code failure} with an extra hint when it is the classic row count check +
+     * {@code @DbUnitPrep} + no-teardown shape: the baseline is captured <em>before</em>
+     * {@code @DbUnitPrep} loads, so a prep dataset that is never torn down reads as leaked rows
+     * and fails the check - a common first surprise. Whatever turned the check on gets the hint:
+     * {@code @DbUnitRowCountCheck}, the {@code -Ddbunit.rowCountCheck} system property that a
+     * suite-wide run sets, or {@link org.dbunit.database.DatabaseConfig#FEATURE_ROW_COUNT_CHECK}.
+     *
+     * <p>The hint is for a test case this class constructed, whose teardown operation is the
+     * declared one or else the tester's ({@link DatabaseOperation#NONE}), so an explicit
+     * {@code @DbUnitTearDownOperation(NONE)} is covered too, and only when a table of the
+     * difference is a table of the prep dataset, as the leak is then plausibly the prep rows. An
+     * injected test case gets none: it runs the operation its owner set on it, which dbUnit
+     * cannot read, and the annotation the hint names is rejected next to it. Otherwise returns
+     * {@code failure} unchanged.
      */
     private UnexpectedRowCountException withHintForUnclearedPrep(
             final UnexpectedRowCountException failure)
     {
+        if (injected)
+        {
+            return failure;
+        }
+
         final boolean prepFilesDeclared = configuration.getPrepDataFiles().length > 0;
-        if (!configuration.isRowCountCheckDeclared() || !prepFilesDeclared
-                || effectiveTearDownOperation() != DatabaseOperation.NONE)
+        if (!prepFilesDeclared || effectiveTearDownOperation() != DatabaseOperation.NONE)
+        {
+            return failure;
+        }
+
+        final boolean differsInAPrepTable = differsInAPrepTable(failure);
+        if (!differsInAPrepTable)
         {
             return failure;
         }
 
         final UnexpectedRowCountException hinted = new UnexpectedRowCountException(
                 failure.getDifferences(),
-                "The @DbUnitRowCountCheck baseline is captured before @DbUnitPrep loads, so"
-                        + " a prep dataset that is never torn down reads as leaked rows. Add"
-                        + " @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL) (or"
-                        + " CLEAN_INSERT), or list these tables in"
-                        + " @DbUnitRowCountCheck(exclude = ...).");
+                "The row count check's baseline is captured before @DbUnitPrep loads, so a"
+                        + " prep dataset that is never torn down reads as leaked rows. Add"
+                        + " @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL), or exclude these"
+                        + " tables from the check.");
         hinted.setStackTrace(failure.getStackTrace());
         for (final Throwable suppressed : failure.getSuppressed())
         {
@@ -446,8 +467,58 @@ class TestCaseLifecycle
     }
 
     /**
-     * Returns the teardown operation the test case runs: the one the annotations declared, else
-     * the tester's own; {@code null} when the annotations declare none and no tester is known.
+     * Returns whether a table of the row count difference is a table of the prep dataset the
+     * test case loaded, compared ignoring case as dbUnit finds a table in a dataset. The prep
+     * dataset is loaded by now, so this reads its table names and parses nothing. A prep dataset
+     * that cannot list its tables counts as holding none: the hint is advice, and must not hide
+     * the failure it explains.
+     */
+    private boolean differsInAPrepTable(final UnexpectedRowCountException failure)
+    {
+        final Set<String> prepTableKeys = prepTableKeys();
+        for (final RowCountDifference difference : failure.getDifferences())
+        {
+            final String differenceKey = TableNameKey.of(difference.getTableName());
+            if (prepTableKeys.contains(differenceKey))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Returns the table names of the prep dataset of {@link #testCase} in the form
+     * {@link TableNameKey} compares them by; empty when the test case reports no prep dataset or
+     * the dataset cannot list its tables.
+     */
+    private Set<String> prepTableKeys()
+    {
+        final Set<String> prepTableKeys = new HashSet<>();
+        try
+        {
+            final IDataSet prepDataset = testCase.getPrepDataset();
+            if (prepDataset == null)
+            {
+                return prepTableKeys;
+            }
+            for (final String tableName : prepDataset.getTableNames())
+            {
+                prepTableKeys.add(TableNameKey.of(tableName));
+            }
+        } catch (final DataSetException | RuntimeException e)
+        {
+            log.debug("The prep dataset could not list its tables, so a row count difference is"
+                    + " not traced to prep that is never torn down.", e);
+            prepTableKeys.clear();
+        }
+        return prepTableKeys;
+    }
+
+    /**
+     * Returns the teardown operation a test case this class constructed runs: the one the
+     * annotations declared, else the tester's own; {@code null} when the annotations declare none
+     * and no tester is known.
      */
     private DatabaseOperation effectiveTearDownOperation()
     {

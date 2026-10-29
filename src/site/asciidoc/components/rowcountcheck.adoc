@@ -115,6 +115,16 @@ value meant to turn the check on cannot quietly turn it off and let the tests it
 have failed pass. The case of `true` and `false` and the whitespace around them do not
 matter.
 
+The baseline is taken before the test's prep data is set up, so once the property turns
+the check on for a suite, an annotation-driven test that loads `@DbUnitPrep` data and
+tears nothing down fails it. When dbUnit builds the test case, and a table of the
+difference is one of the prep tables, the failure says so and names the fix, a
+`@DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)` or an exclusion. A leak in a table
+the prep data does not hold has another cause, so the failure gives no such advice then, only
+the per-table detail. Nor does a test that injects a `@DbUnitTestCase` get it: that test case
+runs the teardown operation its owner set on it, which dbUnit cannot read, and an annotation
+that declares the operation is rejected next to it.
+
 It is wired into both link:../testcases/PrepAndExpectedTestCase.html[PrepAndExpectedTestCase]
 and link:../testcases/DbUnitExtension.html[DbUnitExtension]; enabling the feature (or the
 system property) is everything a test needs to do. Both integration points share the same
