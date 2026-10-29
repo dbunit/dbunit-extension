@@ -20,7 +20,10 @@
  */
 package org.dbunit.spring;
 
+import java.lang.reflect.Modifier;
+import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BooleanSupplier;
 
 import org.dbunit.DatabaseUnitRuntimeException;
@@ -34,7 +37,12 @@ import org.dbunit.annotation.runtime.TestInstanceTesterResolver;
 import org.dbunit.annotation.runtime.TesterFields;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.annotation.MergedAnnotation;
+import org.springframework.core.annotation.MergedAnnotations;
+import org.springframework.core.annotation.MergedAnnotations.SearchStrategy;
 import org.springframework.test.context.TestContext;
+import org.springframework.test.context.TestContextAnnotationUtils;
+import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.test.context.support.AbstractTestExecutionListener;
 import org.springframework.test.context.transaction.TestTransaction;
 import org.springframework.util.ClassUtils;
@@ -60,6 +68,11 @@ import org.springframework.util.ClassUtils;
  * neither needs a tester for, nor fails, the tests that use no DbUnit. A plain, unmarked
  * {@code IDatabaseTester} field is not an opt-in, and unlike {@code DbUnitExtension} there is no
  * lifecycle-only style to fall back to for it.
+ *
+ * <p>It also leaves alone a test that JUnit Jupiter runs with {@code DbUnitExtension}, registered
+ * through {@code @DbUnitTest} or {@code @ExtendWith(DbUnitExtension.class)} on the test method,
+ * the test class, a superclass or an enclosing class, so that dbUnit runs once for it, through
+ * the extension. When the class registers this listener explicitly as well, it logs one warning.
  *
  * <h2>Resolving the tester or test case</h2>
  *
@@ -135,12 +148,22 @@ public class DbUnitTestExecutionListener extends AbstractTestExecutionListener
             + " test made and the expected dataset cannot match them. Add @Commit (or"
             + " @Rollback(false)) to the test, or leave it non-transactional.";
 
+    /**
+     * JUnit Jupiter's {@code @ExtendWith}, found by name so that this listener needs no JUnit
+     * Jupiter on the class path.
+     */
+    private static final String EXTEND_WITH = "org.junit.jupiter.api.extension.ExtendWith";
+
+    private static final String DBUNIT_EXTENSION = "org.dbunit.junit.jupiter.DbUnitExtension";
+
     private final TesterFields testerFields = new TesterFields();
     private final AnnotatedTestOptIn optIn = new AnnotatedTestOptIn(testerFields);
     private final SpringTesterResolver testerResolver = new SpringTesterResolver(testerFields,
             new TestInstanceTesterResolver(testerFields));
 
     private final BooleanSupplier testTransactionRollsBack;
+
+    private final AtomicBoolean warnedOfBothBindings = new AtomicBoolean();
 
     /** Creates the listener; Spring instantiates it through this constructor. */
     public DbUnitTestExecutionListener()
@@ -176,7 +199,8 @@ public class DbUnitTestExecutionListener extends AbstractTestExecutionListener
      * family - one with none of its configuring annotations on the method or class, and no
      * {@code @DbUnitTester}/{@code @DbUnitTestCase} field - so
      * {@link DbUnitSpringTest @DbUnitSpringTest} on a shared base class or composed annotation
-     * costs the tests that use no DbUnit nothing, not even a tester.
+     * costs the tests that use no DbUnit nothing, not even a tester. Does nothing either for a
+     * test that JUnit Jupiter runs with {@code DbUnitExtension}, which runs dbUnit for it.
      *
      * @param testContext The test context.
      * @throws Exception If resolving the tester or test case, or running the before-test steps,
@@ -188,6 +212,11 @@ public class DbUnitTestExecutionListener extends AbstractTestExecutionListener
         final AnnotationLookup lookup = new SpringAnnotationLookup(testContext);
         if (!isOptedIn(testContext, lookup))
         {
+            return;
+        }
+        if (registersDbUnitExtension(testContext))
+        {
+            leaveToDbUnitExtension(testContext.getTestClass());
             return;
         }
         final DataFileLoaderInstances dataFileLoaders = dataFileLoadersOfTheTestClass(testContext);
@@ -375,5 +404,111 @@ public class DbUnitTestExecutionListener extends AbstractTestExecutionListener
         final List<Class<?>> testClasses =
                 TestInstanceChain.classesInScope(testContext.getTestClass());
         return optIn.isOptedIn(lookup, testClasses);
+    }
+
+    /**
+     * Returns whether JUnit Jupiter registers {@code DbUnitExtension} for the test, so that the
+     * extension runs dbUnit for it: through {@code @DbUnitTest} or
+     * {@code @ExtendWith(DbUnitExtension.class)}, directly or in a composed annotation, on the
+     * test method, or on the test class, a superclass, an interface it implements or an enclosing
+     * class of a {@code @Nested} class. Every enclosing class counts, as JUnit Jupiter hands a
+     * {@code @Nested} class the extensions of the classes around it, whatever
+     * {@code @NestedTestConfiguration} says.
+     */
+    private static boolean registersDbUnitExtension(final TestContext testContext)
+    {
+        final MergedAnnotations onTestMethod =
+                MergedAnnotations.from(testContext.getTestMethod(), SearchStrategy.DIRECT);
+        if (extendsWithDbUnitExtension(onTestMethod))
+        {
+            return true;
+        }
+        Class<?> testClass = testContext.getTestClass();
+        while (testClass != null)
+        {
+            final MergedAnnotations onTestClass =
+                    MergedAnnotations.from(testClass, SearchStrategy.TYPE_HIERARCHY);
+            if (extendsWithDbUnitExtension(onTestClass))
+            {
+                return true;
+            }
+            testClass = enclosingClassOfInnerClass(testClass);
+        }
+        return false;
+    }
+
+    private static boolean extendsWithDbUnitExtension(final MergedAnnotations annotations)
+    {
+        return annotations.stream(EXTEND_WITH).anyMatch(
+                DbUnitTestExecutionListener::namesDbUnitExtension);
+    }
+
+    private static boolean namesDbUnitExtension(final MergedAnnotation<?> extendWith)
+    {
+        final Class<?>[] extensions = extendWith.getClassArray(MergedAnnotation.VALUE);
+        return Arrays.stream(extensions)
+                .anyMatch(extension -> extension.getName().equals(DBUNIT_EXTENSION));
+    }
+
+    /**
+     * Returns the class that encloses an inner class, or {@code null} for a top-level class or a
+     * static nested one, which JUnit Jupiter runs without the extensions of any enclosing class.
+     */
+    private static Class<?> enclosingClassOfInnerClass(final Class<?> testClass)
+    {
+        final boolean isInnerClass =
+                testClass.isMemberClass() && !Modifier.isStatic(testClass.getModifiers());
+        if (isInnerClass)
+        {
+            return testClass.getEnclosingClass();
+        }
+        return null;
+    }
+
+    /**
+     * Leaves a test to {@code DbUnitExtension}, and warns once, for the first test of the class,
+     * when the class also registers this listener explicitly, as it then asked for both.
+     */
+    private void leaveToDbUnitExtension(final Class<?> testClass)
+    {
+        if (!registersThisListener(testClass))
+        {
+            log.debug("{} registers DbUnitExtension, which runs dbUnit for its tests, so this"
+                    + " listener leaves them alone.", testClass.getName());
+            return;
+        }
+        if (warnedOfBothBindings.compareAndSet(false, true))
+        {
+            log.warn("{} registers both DbUnitExtension, through @DbUnitTest or"
+                    + " @ExtendWith(DbUnitExtension.class), and DbUnitTestExecutionListener,"
+                    + " through @DbUnitSpringTest or @TestExecutionListeners. DbUnitExtension runs"
+                    + " dbUnit for its tests and the listener leaves them alone, so dbUnit runs"
+                    + " once. Keep one of the two: @DbUnitSpringTest to take the tester from the"
+                    + " application context, or @DbUnitTest to have IDatabaseTester and"
+                    + " IDatabaseConnection test method parameters injected.",
+                    testClass.getName());
+        }
+    }
+
+    /**
+     * Returns whether the class names this listener in a {@code @TestExecutionListeners}
+     * declaration, such as the one {@link DbUnitSpringTest @DbUnitSpringTest} carries, on itself,
+     * a superclass or an enclosing class.
+     */
+    private static boolean registersThisListener(final Class<?> testClass)
+    {
+        final MergedAnnotations declarations = MergedAnnotations
+                .search(SearchStrategy.TYPE_HIERARCHY)
+                .withEnclosingClasses(TestContextAnnotationUtils::searchEnclosingClass)
+                .from(testClass);
+        return declarations.stream(TestExecutionListeners.class)
+                .anyMatch(DbUnitTestExecutionListener::namesThisListener);
+    }
+
+    private static boolean namesThisListener(
+            final MergedAnnotation<TestExecutionListeners> declaration)
+    {
+        final Class<?>[] listeners = declaration.getClassArray("listeners");
+        return Arrays.asList(listeners).contains(DbUnitTestExecutionListener.class);
     }
 }
