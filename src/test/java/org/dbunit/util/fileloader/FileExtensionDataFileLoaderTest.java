@@ -28,8 +28,11 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.dbunit.DatabaseUnitRuntimeException;
+import org.dbunit.dataset.Column;
+import org.dbunit.dataset.Columns;
 import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.ITable;
+import org.dbunit.dataset.xml.FlatXmlDataSetBuilder;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -211,5 +214,78 @@ class FileExtensionDataFileLoaderTest
                 .as("A second replacement pass would resolve [SECOND] to null; the loaded"
                         + " value must stay [SECOND], proving substitution ran exactly once.")
                 .isEqualTo("[SECOND]");
+    }
+
+    @Test
+    void testLoad_xmlWithAColumnOnlyALaterRowHas_takesTheColumnsOfTheFirstRow()
+            throws Exception
+    {
+        final IDataSet ds =
+                loader.load("/org/dbunit/util/fileloader/column-sensing-test.xml");
+        final Column[] columns = ds.getTable("TEST_TABLE").getTableMetaData().getColumns();
+
+        assertThat(Columns.getColumnNames(columns))
+                .as("Without a column sensing builder, flat XML takes the columns of a table"
+                        + " from its first row.")
+                .containsExactly("COL0");
+    }
+
+    @Test
+    void testLoad_columnSensingBuilder_loadsAColumnOnlyALaterRowHas() throws Exception
+    {
+        final FlatXmlDataSetBuilder builder =
+                new FlatXmlDataSetBuilder().setColumnSensing(true);
+        final FileExtensionDataFileLoader columnSensingLoader =
+                new FileExtensionDataFileLoader(builder);
+
+        final IDataSet ds = columnSensingLoader
+                .load("/org/dbunit/util/fileloader/column-sensing-test.xml");
+
+        assertThat(ds.getTable("TEST_TABLE").getValue(1, "COL1"))
+                .as("A flat XML builder with column sensing on must load the column that only"
+                        + " the second row has.")
+                .isEqualTo("[TOKEN]");
+    }
+
+    @Test
+    void testLoad_replacementObjectsAndColumnSensingBuilder_appliesBoth() throws Exception
+    {
+        final Map<String, Object> replacementObjects = new HashMap<>();
+        replacementObjects.put("[TOKEN]", "val 1");
+        final FlatXmlDataSetBuilder builder =
+                new FlatXmlDataSetBuilder().setColumnSensing(true);
+        final FileExtensionDataFileLoader columnSensingLoader =
+                new FileExtensionDataFileLoader(replacementObjects, new HashMap<>(), builder);
+
+        final IDataSet ds = columnSensingLoader
+                .load("/org/dbunit/util/fileloader/column-sensing-test.xml");
+
+        assertThat(ds.getTable("TEST_TABLE").getValue(1, "COL1"))
+                .as("The loader must sense the column of the second row and replace its"
+                        + " token.")
+                .isEqualTo("val 1");
+    }
+
+    @Test
+    void testLoad_columnSensingBuilder_stillDispatchesTheOtherFormats() throws Exception
+    {
+        final FileExtensionDataFileLoader columnSensingLoader = new FileExtensionDataFileLoader(
+                new FlatXmlDataSetBuilder().setColumnSensing(true));
+
+        final IDataSet ds = columnSensingLoader.load("/org/dbunit/util/fileloader/test.json");
+
+        assertThat(ds.getTableNames())
+                .as("The flat XML builder must not change how the other formats load.")
+                .containsExactly("TEST_TABLE");
+    }
+
+    @Test
+    void testConstructor_nullFlatXmlBuilder_throwsIllegalArgumentException()
+    {
+        assertThatThrownBy(() -> new FileExtensionDataFileLoader((FlatXmlDataSetBuilder) null))
+                .as("A null flat XML builder must be rejected when the loader is built, not"
+                        + " when it first loads a flat XML file.")
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("The flat XML builder is null.");
     }
 }

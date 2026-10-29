@@ -579,7 +579,9 @@ scope instead: all the tests of the run under JUnit Jupiter, those of one test c
 Spring. A value its constructor computes, such as a replacement of the current time, is then
 computed once for the scope, and the loader must be safe for tests that run in parallel. Use
 `CachingFileExtensionDataFileLoader` to load each file once for the scope instead of once per
-test — see link:../datasets/fileloader.html#caching[Caching Parsed Datasets].
+test — see link:../datasets/fileloader.html#caching[Caching Parsed Datasets]. For flat XML
+files whose later rows add columns, name a subclass that passes a column sensing builder on —
+see link:../datasets/fileloader.html#columnsensing[Column Sensing for Flat XML].
 
 |`databaseTesterFactory` |See <<resolution,resolution order>> tier 3.
 

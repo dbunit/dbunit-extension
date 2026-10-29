@@ -373,6 +373,10 @@ builder.setColumnSensing(true);
 IDataSet dataSet = builder.build(new File("dataset.xml"));
 ----
 
+A test that loads its files through a data file loader, as the annotations and
+`PrepAndExpectedTestCase` do, passes such a builder to the loader instead —
+see link:fileloader.html#columnsensing[Data File Loader: column sensing].
+
 link:yaml.html[YAML] and link:json.html[JSON] do not have this problem — they
 take a table's columns from the union of all its rows. link:csv.html[CSV]
 declares columns in a header row, so it is unaffected too.
