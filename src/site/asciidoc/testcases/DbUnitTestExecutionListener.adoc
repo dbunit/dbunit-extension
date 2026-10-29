@@ -126,7 +126,9 @@ supplies one) in this order, first match wins:
 . *Spring-specific, and last:* the `IDatabaseTester` bean in the test's
   `ApplicationContext` — the only one, or when there are several the one
   Spring's candidate rules single out: the one marked `@Primary`, the only one
-  not marked `@Fallback`, or the only default candidate. A test class needs no
+  not marked `@Fallback`, or the only default candidate. Several beans, of the
+  context or its parents, that the rules do not single one out of fail the test
+  with a message naming them. A test class needs no
   dbUnit-specific field at all when its test configuration already exposes
   one — for example, a `@TestConfiguration` bean wrapping the application's own
   `DataSource` the way
