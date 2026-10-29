@@ -147,6 +147,28 @@ class DefaultDatabaseTesterTest
                 .isSameAs(listener);
     }
 
+    @Test
+    void testIsReusingConnection_withRawConnectionConstructor_returnsTrue() throws Exception
+    {
+        final DefaultDatabaseTester tester = new DefaultDatabaseTester(newRealConnection());
+
+        assertThat(tester.isReusingConnection())
+                .as("A tester over one connection hands out that connection on every call.")
+                .isTrue();
+    }
+
+    @Test
+    void testIsReusingConnection_withProviderConstructor_returnsTrue()
+    {
+        final DefaultDatabaseTester tester = new DefaultDatabaseTester(
+                new CachingConnectionProvider(), this::newRealConnection);
+
+        assertThat(tester.isReusingConnection())
+                .as("A tester over a CachingConnectionProvider hands out the connection the"
+                        + " provider caches on every call.")
+                .isTrue();
+    }
+
     private IDatabaseConnection newRealConnection() throws Exception
     {
         final IDatabaseConnection connection = InMemoryDatabaseConnection.create();

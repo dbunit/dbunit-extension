@@ -28,10 +28,10 @@ import org.dbunit.operation.DatabaseOperation;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tests {@link IDatabaseTester#getOperationListener()}'s default implementation directly,
- * since every implementation shipped in this codebase (e.g. {@link AbstractDatabaseTester})
- * overrides it - only a pre-3.6.0, third-party implementation predating this method would ever
- * actually run the interface's own default body.
+ * Tests the default methods of {@link IDatabaseTester} directly, since every implementation
+ * shipped in this codebase (e.g. {@link AbstractDatabaseTester}) overrides
+ * {@link IDatabaseTester#getOperationListener()} - only a pre-3.6.0, third-party implementation
+ * predating these methods would ever actually run the interface's own default bodies.
  *
  * @since 3.6.0
  */
@@ -40,79 +40,96 @@ class IDatabaseTesterTest
     @Test
     void testGetOperationListener_implementationDoesNotOverrideIt_returnsNullFromTheDefault()
     {
-        final IDatabaseTester tester = new IDatabaseTester()
-        {
-            @Override
-            public void onSetup()
-            {
-            }
-
-            @Override
-            public void onTearDown()
-            {
-            }
-
-            @Override
-            public IDatabaseConnection getConnection()
-            {
-                return null;
-            }
-
-            @Override
-            public IDataSet getDataSet()
-            {
-                return null;
-            }
-
-            @Override
-            public void setDataSet(final IDataSet dataSet)
-            {
-            }
-
-            @Override
-            public DatabaseOperation getSetUpOperation()
-            {
-                return null;
-            }
-
-            @Override
-            public DatabaseOperation getTearDownOperation()
-            {
-                return null;
-            }
-
-            @Override
-            public void setSetUpOperation(final DatabaseOperation setUpOperation)
-            {
-            }
-
-            @Override
-            public void setTearDownOperation(final DatabaseOperation tearDownOperation)
-            {
-            }
-
-            @Override
-            public void setOperationListener(final IOperationListener operationListener)
-            {
-            }
-
-            @Override
-            @Deprecated
-            public void closeConnection(final IDatabaseConnection connection)
-            {
-            }
-
-            @Override
-            @Deprecated
-            public void setSchema(final String schema)
-            {
-            }
-        };
+        final IDatabaseTester tester = new LegacyDatabaseTester();
 
         assertThat(tester.getOperationListener())
                 .as("An IDatabaseTester implementation predating getOperationListener() - so it"
                         + " does not override it - must report no listener via the default"
                         + " method rather than failing to compile.")
                 .isNull();
+    }
+
+    @Test
+    void testIsReusingConnection_implementationDoesNotOverrideIt_returnsFalseFromTheDefault()
+    {
+        final IDatabaseTester tester = new LegacyDatabaseTester();
+
+        assertThat(tester.isReusingConnection())
+                .as("An IDatabaseTester implementation predating isReusingConnection() may open"
+                        + " a new connection on every call, so the default method must not"
+                        + " report that it reuses one.")
+                .isFalse();
+    }
+
+    /**
+     * An implementation written before 3.6.0, which overrides none of the default methods.
+     */
+    private static class LegacyDatabaseTester implements IDatabaseTester
+    {
+        @Override
+        public void onSetup()
+        {
+        }
+
+        @Override
+        public void onTearDown()
+        {
+        }
+
+        @Override
+        public IDatabaseConnection getConnection()
+        {
+            return null;
+        }
+
+        @Override
+        public IDataSet getDataSet()
+        {
+            return null;
+        }
+
+        @Override
+        public void setDataSet(final IDataSet dataSet)
+        {
+        }
+
+        @Override
+        public DatabaseOperation getSetUpOperation()
+        {
+            return null;
+        }
+
+        @Override
+        public DatabaseOperation getTearDownOperation()
+        {
+            return null;
+        }
+
+        @Override
+        public void setSetUpOperation(final DatabaseOperation setUpOperation)
+        {
+        }
+
+        @Override
+        public void setTearDownOperation(final DatabaseOperation tearDownOperation)
+        {
+        }
+
+        @Override
+        public void setOperationListener(final IOperationListener operationListener)
+        {
+        }
+
+        @Override
+        @Deprecated
+        public void closeConnection(final IDatabaseConnection connection)
+        {
+        }
+
+        @Override
+        @Deprecated
+        public void setSchema(final String schema)
+        {
+        }
     }
 }

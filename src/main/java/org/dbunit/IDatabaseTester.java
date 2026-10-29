@@ -151,4 +151,27 @@ public interface IDatabaseTester
     {
         return null;
     }
+
+    /**
+     * Returns whether {@link #getConnection()} hands out one connection again, which this tester
+     * or its owner keeps, instead of a new connection on every call that is the caller's to
+     * close. A caller that leaves a connection open for its owner to close can rely on a tester
+     * that reuses its connection; with one that opens a new connection on every call, nothing
+     * else closes the connection left open.
+     *
+     * <p>Default method for binary compatibility with implementations predating this method;
+     * they report {@code false}, as such a tester may open a new connection on every call. A
+     * tester whose {@link #getConnection()} keeps one connection overrides this to say so, as
+     * {@link DefaultDatabaseTester} does, and as {@link JdbcDatabaseTester},
+     * {@link DataSourceDatabaseTester} and {@link JndiDatabaseTester} do when they have a
+     * {@link org.dbunit.database.CachingConnectionProvider}.
+     *
+     * @return {@code true} when this tester hands out one connection again, {@code false} when
+     *         it may hand out a new one on every call.
+     * @since 3.6.0
+     */
+    default boolean isReusingConnection()
+    {
+        return false;
+    }
 }
