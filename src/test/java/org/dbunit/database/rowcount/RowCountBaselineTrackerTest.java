@@ -157,6 +157,30 @@ class RowCountBaselineTrackerTest
     }
 
     @Test
+    void testCapture_overrideExcludesAndConfiguredExcludes_excludesTheTablesOfBoth()
+            throws Exception
+    {
+        final RowCountBaselineTracker tracker = new RowCountBaselineTracker();
+        tracker.setOverride(new RowCountCheckOverride(true, new String[] {"SESSION_*"}));
+        final DatabaseConfig config = new DatabaseConfig();
+        config.setProperty(DatabaseConfig.PROPERTY_ROW_COUNT_CHECK_EXCLUDE_TABLES,
+                new String[] {"AUDIT_*"});
+        final IDatabaseConnection connection = mock(IDatabaseConnection.class);
+        when(connection.getConfig()).thenReturn(config);
+        final IDataSet dataSet = mock(IDataSet.class);
+        when(dataSet.getTableNames())
+                .thenReturn(new String[] {"ACCOUNT", "AUDIT_LOG", "SESSION_STATE"});
+        when(connection.createDataSet()).thenReturn(dataSet);
+        when(connection.getRowCount("ACCOUNT")).thenReturn(5);
+
+        tracker.capture(connection);
+
+        verify(connection).getRowCount("ACCOUNT");
+        verify(connection, never()).getRowCount("SESSION_STATE");
+        verify(connection, never()).getRowCount("AUDIT_LOG");
+    }
+
+    @Test
     void testSetOverride_callerMutatesArrayAfterward_doesNotAffectStoredExclude()
             throws Exception
     {
@@ -264,9 +288,9 @@ class RowCountBaselineTrackerTest
         assertThat(tables.getValue())
                 .as("PROPERTY_ROW_COUNTER: the real config's counter is used (so the overlay"
                         + " carried it). PROPERTY_ROW_COUNT_CHECK_EXCLUDE_TABLES: the override's"
-                        + " exclude list applies, not the real config's - OVERRIDE_EXCLUDED is"
-                        + " filtered out, REAL_CONFIG_EXCLUDED is not.")
-                .containsExactly("KEPT", "REAL_CONFIG_EXCLUDED");
+                        + " exclude list adds to the real config's, so both OVERRIDE_EXCLUDED and"
+                        + " REAL_CONFIG_EXCLUDED are filtered out.")
+                .containsExactly("KEPT");
     }
 
     @Test

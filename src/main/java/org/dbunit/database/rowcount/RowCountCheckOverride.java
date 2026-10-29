@@ -25,9 +25,10 @@ import java.util.Arrays;
 /**
  * The values a test declares for its {@link RowCountCheck}, such as those of
  * {@code @DbUnitRowCountCheck}: whether the check is enabled and which table patterns it
- * excludes. Given to a {@link RowCountBaselineTracker}, it replaces those two settings of the
- * connection's own {@link org.dbunit.database.DatabaseConfig}. The {@link RowCounter} still
- * comes from the {@code DatabaseConfig}, and the {@code dbunit.*} system properties apply as
+ * excludes. Given to a {@link RowCountBaselineTracker}, its enabled flag replaces the one of
+ * the connection's own {@link org.dbunit.database.DatabaseConfig}, and its patterns add to the
+ * ones that {@code DatabaseConfig} configures. The {@link RowCounter} still comes from the
+ * {@code DatabaseConfig}, and the {@code dbunit.*} system properties apply as
  * {@link RowCountCheckConfiguration} documents.
  *
  * <p>The exclude patterns are copied on the way in and on the way out, so an instance never
