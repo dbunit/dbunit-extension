@@ -154,7 +154,8 @@ and never replaces them:
 -Ddbunit.rowCountCheckExcludeTables=AUDIT_*,HIBERNATE_SEQUENCES
 ----
 
-or `@DbUnitRowCountCheck(exclude = {"AUDIT_*", "HIBERNATE_SEQUENCES"})` — see
+or `@DbUnitRowCountCheck(exclude = {"AUDIT_*", "HIBERNATE_SEQUENCES"})`, which
+also adds its patterns to the configured ones — see
 link:../testcases/annotations.html#rowcountcheck[DbUnit Annotations].
 
 [#failure-message]

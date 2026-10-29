@@ -842,9 +842,10 @@ guess wrong:
 * A method-level `@DbUnitRowCountCheck` overrides a class-level one *wholesale* —
   `exclude()` included, the same rule as everywhere else in this family. A method that
   wants one extra exclusion has to repeat the class-level ones; they are not merged.
-* The `-Ddbunit.rowCountCheckExcludeTables` system property *adds* its patterns to `exclude()`
-  and never replaces them, so a suite-wide list does not re-enable the check for the tables a
-  test excluded.
+* `exclude()` *adds* its patterns to the ones `DatabaseConfig.PROPERTY_ROW_COUNT_CHECK_EXCLUDE_TABLES`
+  configures, such as with a `@DbUnitProperty`, and the `-Ddbunit.rowCountCheckExcludeTables`
+  system property adds its patterns to both. None of them replaces another, so a table a
+  project excludes once stays excluded when a test turns the check on.
 * A `-Ddbunit.rowCountCheck` value other than `true`, `false` or none, such as `yes`, `on` or
   `1`, counts as `false`: it disables the check as order 1 does, for a test that declares
   `@DbUnitRowCountCheck` too, and dbUnit logs a warning that names the value. The case of

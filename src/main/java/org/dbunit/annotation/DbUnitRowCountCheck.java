@@ -56,8 +56,10 @@ import org.dbunit.database.DatabaseConfig;
  *   <li>Default {@code false}.</li>
  * </ol>
  *
- * <p>The {@code -Ddbunit.rowCountCheckExcludeTables} system property adds its patterns to
- * {@link #exclude()}; it never replaces them.
+ * <p>{@link #exclude()} adds its patterns to the ones the connection's
+ * {@link DatabaseConfig#PROPERTY_ROW_COUNT_CHECK_EXCLUDE_TABLES} configures, such as with a
+ * {@code @DbUnitProperty}, and the {@code -Ddbunit.rowCountCheckExcludeTables} system property
+ * adds its patterns to both; neither replaces them.
  *
  * <p>A method-level annotation overrides a class-level one <em>wholesale</em>, {@link #exclude()}
  * included - the same rule as every other annotation in this family except {@link DbUnitConfig},

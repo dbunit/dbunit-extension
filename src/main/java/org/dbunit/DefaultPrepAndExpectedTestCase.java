@@ -2770,9 +2770,10 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     }
 
     /**
-     * Set the enabled flag and excluded table patterns to resolve a RowCountCheck from, instead
-     * of the shared connection's DatabaseConfig - the values an annotation such as
-     * {@code @DbUnitRowCountCheck} declares.
+     * Set the enabled flag and excluded table patterns to resolve a RowCountCheck from - the
+     * values an annotation such as {@code @DbUnitRowCountCheck} declares. The enabled flag
+     * replaces the one of the shared connection's DatabaseConfig, and the patterns add to the
+     * ones it configures.
      *
      * <p>A caller reusing one instance across several tests - e.g. one held by a
      * {@code @DbUnitTestCase} static field - must set the override back to what it was, null
