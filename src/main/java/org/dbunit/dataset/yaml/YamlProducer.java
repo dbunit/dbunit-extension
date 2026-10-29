@@ -33,15 +33,22 @@ import org.dbunit.dataset.stream.IDataSetConsumer;
 import org.dbunit.dataset.stream.IDataSetProducer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
+import org.yaml.snakeyaml.constructor.Constructor;
 import org.yaml.snakeyaml.constructor.DuplicateKeyException;
 import org.yaml.snakeyaml.error.Mark;
 import org.yaml.snakeyaml.error.YAMLException;
+import org.yaml.snakeyaml.nodes.NodeId;
+import org.yaml.snakeyaml.nodes.Tag;
+import org.yaml.snakeyaml.representer.Representer;
+import org.yaml.snakeyaml.resolver.Resolver;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -50,6 +57,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 /**
  * {@link IDataSetProducer} that parses a YAML dataset document and streams
@@ -137,7 +145,160 @@ public class YamlProducer implements IDataSetProducer
         {
             LoaderOptions options = new LoaderOptions();
             options.setAllowDuplicateKeys(false);
-            _yaml = new Yaml(options);
+            DumperOptions dumperOptions = new DumperOptions();
+            _yaml = new Yaml(new Constructor(options), new Representer(dumperOptions),
+                    dumperOptions, options, new TextValueResolver());
+        }
+
+        /**
+         * Resolves the implicit type of an unquoted value as SnakeYAML does, except that it keeps
+         * the text of the document when the column's data type parses that text, or when no data
+         * type wants the number SnakeYAML would read from it. The data type then parses the text as
+         * it does for every other format.
+         *
+         * <p>
+         * Such a value is a date such as {@code 2024-03-01}, a date and time such as
+         * {@code 2024-03-01 10:15:30}, a base-60 number such as the time {@code 10:30:00}, the
+         * clock time {@code 12:30}, the ratio {@code 16:9} or {@code 1:30.5}, an integer with
+         * leading zeros such as {@code 01234}, an integer with a leading plus such as
+         * {@code +4930123456}, and a decimal number such as {@code 12.50} or {@code 1.5e3}.
+         * SnakeYAML would read the date as an instant at midnight UTC, the day before in a time
+         * zone west of UTC. It would read a base-60 number as the sum of its parts, so that
+         * {@code 10:30:00} became 37800 and {@code 12:30} became 750, an integer with leading
+         * zeros as an octal number, so that {@code 01234} became 668, an integer with a leading
+         * plus as the integer without the plus, and a number with a fraction as a double, which
+         * drops the digits past about 17 significant ones.
+         *
+         * <p>
+         * A timestamp or a number that no data type parses as text, such as
+         * {@code 2024-03-01T10:15:30Z}, {@code 0x1F}, {@code 0b101}, {@code 1_000},
+         * {@code 1_000.5} or {@code .inf}, resolves to the instant, the integer or the double
+         * SnakeYAML reads. Every other value, such as a boolean like {@code yes} or {@code off},
+         * resolves as SnakeYAML resolves it. A value with an explicit tag, such as
+         * {@code !!timestamp}, keeps the type the tag names.
+         */
+        private static class TextValueResolver extends Resolver
+        {
+            private static final Pattern ZERO_PADDED_INTEGER = Pattern.compile("[-+]?0[0-9]+");
+
+            /**
+             * {@inheritDoc}
+             * <p>
+             * Resolves a timestamp, a base-60 number, an integer or a float to a string instead
+             * when the column's data type parses the text, or when no data type wants the
+             * number SnakeYAML reads from it.
+             */
+            @Override
+            public Tag resolve(final NodeId kind, final String value, final boolean implicit)
+            {
+                final Tag tag = super.resolve(kind, value, implicit);
+                final boolean integerTag = Tag.INT.equals(tag);
+                final boolean floatTag = Tag.FLOAT.equals(tag);
+                final boolean numberTag = integerTag || floatTag;
+                final boolean timestampText =
+                        Tag.TIMESTAMP.equals(tag) && isDateOrTimestampText(value);
+                final boolean decimalText = floatTag && isDecimalText(value);
+                final boolean base60Text = numberTag && isBase60Number(value);
+                final boolean paddedIntegerText = integerTag && isZeroPaddedIntegerText(value);
+                final boolean plusSignedIntegerText = integerTag && isPlusSignedIntegerText(value);
+                if (timestampText || decimalText || base60Text || paddedIntegerText
+                        || plusSignedIntegerText)
+                {
+                    return Tag.STR;
+                }
+                return tag;
+            }
+
+            /**
+             * Returns whether the DATE and TIMESTAMP data types parse the text: as a date when it
+             * has ten characters, otherwise as a date and time, as
+             * {@link java.sql.Date#valueOf(String)} and {@link java.sql.Timestamp#valueOf(String)}
+             * read them.
+             *
+             * @param value The text of a timestamp.
+             * @return {@code true} if the data types parse the text.
+             */
+            private static boolean isDateOrTimestampText(final String value)
+            {
+                try
+                {
+                    if (value.length() == 10)
+                    {
+                        java.sql.Date.valueOf(value);
+                    } else
+                    {
+                        java.sql.Timestamp.valueOf(value);
+                    }
+                    return true;
+                } catch (final IllegalArgumentException e)
+                {
+                    return false;
+                }
+            }
+
+            /**
+             * Returns whether the numeric data types parse the text, as
+             * {@link BigDecimal#BigDecimal(String)} reads it.
+             *
+             * @param value The text of a number with a fraction.
+             * @return {@code true} if the data types parse the text.
+             */
+            private static boolean isDecimalText(final String value)
+            {
+                try
+                {
+                    new BigDecimal(value);
+                    return true;
+                } catch (final NumberFormatException e)
+                {
+                    return false;
+                }
+            }
+
+            /**
+             * Returns whether the text is a base-60 number, such as the time {@code 10:30:00}, the
+             * clock time {@code 12:30} or the ratio {@code 16:9}, which YAML 1.1 reads as the sum
+             * of its parts. Only the base-60 forms of an integer and of a number with a fraction
+             * contain a colon, so the check looks for one. No data type wants the sum, and a text
+             * column would get its digits, such as 750 for {@code 12:30}.
+             *
+             * @param value The text of an integer or of a number with a fraction.
+             * @return {@code true} if the text is a base-60 number.
+             */
+            private static boolean isBase60Number(final String value)
+            {
+                return value.indexOf(':') >= 0;
+            }
+
+            /**
+             * Returns whether the text is an integer with leading zeros, such as {@code 01234},
+             * which YAML 1.1 reads as an octal number and the integer data types read as a decimal
+             * one.
+             *
+             * @param value The text of an integer.
+             * @return {@code true} if the text has leading zeros.
+             */
+            private static boolean isZeroPaddedIntegerText(final String value)
+            {
+                return ZERO_PADDED_INTEGER.matcher(value).matches();
+            }
+
+            /**
+             * Returns whether the text is an integer with a leading plus, such as
+             * {@code +4930123456}, that the integer data types parse as text, as
+             * {@link BigDecimal#BigDecimal(String)} reads it. SnakeYAML reads the integer without
+             * its plus, so that a text column would get {@code 4930123456}. A hexadecimal, binary
+             * or digit group integer, such as {@code +0x1F}, is no decimal number, so it stays the
+             * integer SnakeYAML reads.
+             *
+             * @param value The text of an integer.
+             * @return {@code true} if the text has a leading plus and the data types parse it.
+             */
+            private static boolean isPlusSignedIntegerText(final String value)
+            {
+                final boolean plusSigned = value.startsWith("+");
+                return plusSigned && isDecimalText(value);
+            }
         }
 
         /**

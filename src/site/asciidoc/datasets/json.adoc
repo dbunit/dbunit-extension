@@ -40,6 +40,8 @@ row, do not have this limitation.
 For what happens to a field value after parsing — empty strings, binary/BLOB
 syntax, literal and relative dates, UUID literals, and booleans/numbers from
 strings — see link:values.html[Dataset Values], which applies to every format.
+Since 3.6.0 a number with a fraction is read as an exact decimal, so a value
+with more digits than a `double` holds keeps them all.
 
 Table names are always case-sensitive — unlike some other formats, there is no
 case-insensitive table lookup fallback.

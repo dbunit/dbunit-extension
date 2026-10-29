@@ -28,15 +28,20 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Field;
+import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.List;
 
 import org.dbunit.database.AmbiguousTableNameException;
 import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.ITableMetaData;
+import org.dbunit.dataset.datatype.DataType;
+import org.dbunit.dataset.datatype.TypeCastException;
 import org.dbunit.dataset.stream.IDataSetConsumer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -193,6 +198,274 @@ class YamlProducerTest
     }
 
     @Test
+    void testProduce_unquotedDateAndFraction_producesTheTextOfTheDocument() throws Exception
+    {
+        final RecordingConsumer consumer = new RecordingConsumer();
+        final YamlProducer producer = new YamlProducer(stream("EVENT:\n"
+                + "  - EVENT_DAY: 2024-03-01\n"
+                + "    AMOUNT: 12345678901234567890.123\n"
+                + "    QUANTITY: 7\n"
+                + "    ACTIVE: true\n"));
+        producer.setConsumer(consumer);
+
+        producer.produce();
+
+        assertThat(consumer.rows.get(0))
+                .as("An unquoted date and an unquoted number with a fraction reach the column"
+                        + " type as the text of the document, so it parses the date in the JVM's"
+                        + " time zone and keeps every digit; integers and booleans keep their"
+                        + " types.")
+                .containsExactly("2024-03-01", "12345678901234567890.123", 7, true);
+    }
+
+    @Test
+    void testProduce_explicitTimestampTag_producesTheTaggedType() throws Exception
+    {
+        final RecordingConsumer consumer = new RecordingConsumer();
+        final YamlProducer producer =
+                new YamlProducer(stream("EVENT:\n  - EVENT_DAY: !!timestamp 2024-03-01\n"));
+        producer.setConsumer(consumer);
+
+        producer.produce();
+
+        assertThat(consumer.rows.get(0)[0])
+                .as("A value with an explicit tag keeps the type the tag names.")
+                .isInstanceOf(java.util.Date.class);
+    }
+
+    @Test
+    void testProduce_unquotedDateAndTimeAsTheColumnTypeParsesIt_producesTheTextOfTheDocument()
+            throws Exception
+    {
+        final RecordingConsumer consumer = new RecordingConsumer();
+        final YamlProducer producer = new YamlProducer(stream("EVENT:\n"
+                + "  - STARTED: 2024-03-01 10:15:30\n"
+                + "    ENDED: 2024-03-01 10:15:30.5\n"));
+        producer.setConsumer(consumer);
+
+        producer.produce();
+
+        assertThat(consumer.rows.get(0))
+                .as("A date and time with one space between them and no time zone, as the"
+                        + " column type parses text, reaches it as the text of the document, so"
+                        + " it parses the value in the JVM's time zone.")
+                .containsExactly("2024-03-01 10:15:30", "2024-03-01 10:15:30.5");
+    }
+
+    @Test
+    void testProduce_unquotedTimestampTheColumnTypeDoesNotParse_producesTheInstantSnakeYamlReads()
+            throws Exception
+    {
+        final RecordingConsumer consumer = new RecordingConsumer();
+        final YamlProducer producer = new YamlProducer(stream("EVENT:\n"
+                + "  - IN_UTC: 2024-03-01T10:15:30Z\n"
+                + "    WITH_OFFSET: 2024-03-01t10:15:30.1-05:00\n"
+                + "    WITH_SPACED_OFFSET: 2024-03-01 10:15:30.10 -5\n"
+                + "    WITHOUT_ZONE: 2024-03-01T10:15:30\n"));
+        producer.setConsumer(consumer);
+
+        producer.produce();
+
+        final Object[] expected = {Date.from(Instant.parse("2024-03-01T10:15:30Z")),
+                Date.from(Instant.parse("2024-03-01T15:15:30.100Z")),
+                Date.from(Instant.parse("2024-03-01T15:15:30.100Z")),
+                Date.from(Instant.parse("2024-03-01T10:15:30Z"))};
+        assertThat(consumer.rows.get(0))
+                .as("A timestamp with a T or a time zone, which the column type does not parse"
+                        + " as text, reaches it as the instant SnakeYAML reads, as before 3.6.0;"
+                        + " SnakeYAML takes one without a time zone as UTC.")
+                .containsExactly(expected);
+    }
+
+    @Test
+    void testProduce_unquotedDecimalNumbers_produceTheTextOfTheDocument() throws Exception
+    {
+        final RecordingConsumer consumer = new RecordingConsumer();
+        final YamlProducer producer = new YamlProducer(stream("MEASURE:\n"
+                + "  - SIGNED: +1.5\n"
+                + "    LEADING_POINT: .5\n"
+                + "    TRAILING_POINT: 1.\n"
+                + "    EXPONENT: 1.5e3\n"));
+        producer.setConsumer(consumer);
+
+        producer.produce();
+
+        assertThat(consumer.rows.get(0))
+                .as("A decimal number, as the column type parses text, reaches it as the text"
+                        + " of the document.")
+                .containsExactly("+1.5", ".5", "1.", "1.5e3");
+    }
+
+    @Test
+    void testProduce_unquotedYamlNumberTheColumnTypeDoesNotParse_producesTheDoubleSnakeYamlReads()
+            throws Exception
+    {
+        final RecordingConsumer consumer = new RecordingConsumer();
+        final YamlProducer producer = new YamlProducer(stream("MEASURE:\n"
+                + "  - GROUPED: 1_000.5\n"
+                + "    INFINITE: .inf\n"
+                + "    NEGATIVE_INFINITE: -.Inf\n"
+                + "    NOT_A_NUMBER: .nan\n"));
+        producer.setConsumer(consumer);
+
+        producer.produce();
+
+        assertThat(consumer.rows.get(0))
+                .as("A YAML number with digit groups or not finite, which the column type does"
+                        + " not parse as text, reaches it as the double SnakeYAML reads, as"
+                        + " before 3.6.0.")
+                .containsExactly(1000.5, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY,
+                        Double.NaN);
+    }
+
+    @Test
+    void testProduce_unquotedTimeFromTenOClock_producesTheTextOfTheDocument() throws Exception
+    {
+        final RecordingConsumer consumer = new RecordingConsumer();
+        final YamlProducer producer = new YamlProducer(stream("SHIFT:\n"
+                + "  - OPENS: 09:30:00\n"
+                + "    CLOSES: 10:30:00\n"
+                + "    LAST_ORDER: 23:59:59\n"));
+        producer.setConsumer(consumer);
+
+        producer.produce();
+
+        assertThat(consumer.rows.get(0))
+                .as("A time reaches the column type as the text of the document, one from"
+                        + " 10:00:00 on included, which YAML 1.1 would read as a base-60"
+                        + " integer such as 37800.")
+                .containsExactly("09:30:00", "10:30:00", "23:59:59");
+        assertThat(DataType.TIME.typeCast(consumer.rows.get(0)[1]))
+                .as("The TIME data type parses the text.")
+                .isEqualTo(java.sql.Time.valueOf("10:30:00"));
+    }
+
+    @Test
+    void testProduce_unquotedIntegerWithLeadingZeros_producesTheTextOfTheDocument()
+            throws Exception
+    {
+        final RecordingConsumer consumer = new RecordingConsumer();
+        final YamlProducer producer = new YamlProducer(stream("ADDRESS:\n"
+                + "  - ZIP: 01234\n"
+                + "    FLOOR: 007\n"
+                + "    BALANCE: -007\n"
+                + "    COUNT: 0\n"));
+        producer.setConsumer(consumer);
+
+        producer.produce();
+
+        assertThat(consumer.rows.get(0))
+                .as("An integer with leading zeros reaches the column type as the text of the"
+                        + " document, as from every other format, instead of the octal number"
+                        + " YAML 1.1 reads, such as 668 for 01234; a plain zero is still the"
+                        + " integer.")
+                .containsExactly("01234", "007", "-007", 0);
+        assertThat(DataType.INTEGER.typeCast(consumer.rows.get(0)[0]))
+                .as("The integer data types parse the text as a decimal number.")
+                .isEqualTo(1234);
+    }
+
+    @Test
+    void testProduce_unquotedIntegerNoColumnTypeParsesAsText_producesTheIntegerSnakeYamlReads()
+            throws Exception
+    {
+        final RecordingConsumer consumer = new RecordingConsumer();
+        final YamlProducer producer = new YamlProducer(stream("NUMBERS:\n"
+                + "  - HEXADECIMAL: 0x1F\n"
+                + "    BINARY: 0b101\n"
+                + "    GROUPED: 1_000\n"
+                + "    SIGNED_HEXADECIMAL: +0x1F\n"
+                + "    SIGNED_GROUPED: +1_000\n"));
+        producer.setConsumer(consumer);
+
+        producer.produce();
+
+        assertThat(consumer.rows.get(0))
+                .as("An integer that no column type parses as text reaches it as the integer"
+                        + " SnakeYAML reads, as before, with a leading plus or without: 0x1F is"
+                        + " 31, 0b101 is 5 and 1_000 is 1000.")
+                .containsExactly(31, 5, 1000, 31, 1000);
+    }
+
+    @Test
+    void testProduce_unquotedBase60Number_producesTheTextOfTheDocument() throws Exception
+    {
+        final RecordingConsumer consumer = new RecordingConsumer();
+        final YamlProducer producer = new YamlProducer(stream("MEASURE:\n"
+                + "  - RATIO: 16:9\n"
+                + "    CLOCK_TIME: 12:30\n"
+                + "    MINUTES_AND_SECONDS: 1:30\n"
+                + "    NINE_THIRTY: 9:30\n"
+                + "    SCORE: 3:16\n"
+                + "    WITH_FRACTION: 1:30.5\n"
+                + "    NEGATIVE: -1:30\n"
+                + "    SIGNED: +12:30\n"));
+        producer.setConsumer(consumer);
+
+        producer.produce();
+
+        final Object[] row = consumer.rows.get(0);
+        assertThat(row)
+                .as("A base-60 number reaches the column type as the text of the document, as"
+                        + " from every other format, instead of the sum of its parts that YAML"
+                        + " 1.1 reads, such as 969 for 16:9 or 750 for 12:30.")
+                .containsExactly("16:9", "12:30", "1:30", "9:30", "3:16", "1:30.5", "-1:30",
+                        "+12:30");
+        assertThatThrownBy(() -> DataType.TIME.typeCast(row[1]))
+                .as("A column type that wants no base-60 number names the text that the dataset"
+                        + " holds, not a number the user never wrote.")
+                .isInstanceOf(TypeCastException.class).hasMessageContaining("<12:30>");
+    }
+
+    @Test
+    void testProduce_unquotedIntegerWithLeadingPlus_producesTheTextOfTheDocument()
+            throws Exception
+    {
+        final RecordingConsumer consumer = new RecordingConsumer();
+        final YamlProducer producer = new YamlProducer(stream("PHONE:\n"
+                + "  - NUMBER: +4930123456\n"
+                + "    COUNTRY_CODE: +49\n"
+                + "    OFFSET: +0\n"
+                + "    DELTA: -49\n"));
+        producer.setConsumer(consumer);
+
+        producer.produce();
+
+        final Object[] row = consumer.rows.get(0);
+        assertThat(row)
+                .as("An integer with a leading plus reaches the column type as the text of the"
+                        + " document, which keeps the plus a text column should get; a negative"
+                        + " integer is still the integer.")
+                .containsExactly("+4930123456", "+49", "+0", -49);
+        assertThat(DataType.BIGINT.typeCast(row[0]))
+                .as("The integer data types parse the text with its plus.")
+                .isEqualTo(BigInteger.valueOf(4930123456L));
+        assertThat(DataType.INTEGER.typeCast(row[1]))
+                .as("The integer data types parse the text with its plus.")
+                .isEqualTo(49);
+    }
+
+    @Test
+    void testProduce_unquotedYesNoOnOff_producesTheBooleansYaml11Reads() throws Exception
+    {
+        final RecordingConsumer consumer = new RecordingConsumer();
+        final YamlProducer producer = new YamlProducer(stream("FLAGS:\n"
+                + "  - AFFIRMED: yes\n"
+                + "    DENIED: NO\n"
+                + "    SWITCHED_ON: On\n"
+                + "    SWITCHED_OFF: off\n"
+                + "    MIXED_CASE: yEs\n"));
+        producer.setConsumer(consumer);
+
+        producer.produce();
+
+        assertThat(consumer.rows.get(0))
+                .as("YAML 1.1 reads yes, no, on and off, in lower case, capitalized or in upper"
+                        + " case, as booleans, so a text column needs them quoted; yEs is text.")
+                .containsExactly(true, false, true, false, "yEs");
+    }
+
+    @Test
     void testProduce_tableWithOneRow_endsTheDataSetAfterTheLastTable() throws Exception
     {
         final RecordingConsumer consumer = new RecordingConsumer();
@@ -310,6 +583,8 @@ class YamlProducerTest
     {
         private final List<String> events = new ArrayList<>();
 
+        private final List<Object[]> rows = new ArrayList<>();
+
         @Override
         public void startDataSet() throws DataSetException
         {
@@ -338,6 +613,7 @@ class YamlProducerTest
         public void row(final Object[] values) throws DataSetException
         {
             events.add("row:" + Arrays.toString(values));
+            rows.add(values);
         }
     }
 }
