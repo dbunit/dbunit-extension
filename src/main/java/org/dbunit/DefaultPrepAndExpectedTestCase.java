@@ -1000,7 +1000,10 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * See #800. A failure of the tear down operation or of the row count
      * check, an {@link Error} such as an {@link AssertionError} from the
      * tester's listener included, releases the connection the same way and
-     * propagates unchanged.
+     * propagates unchanged. Such a failure discards the row count check
+     * baseline too, so a later cleanupData() on this instance, such as the
+     * legacy tearDown(), does not verify it. Either way this test's lifecycle
+     * ends here.
      */
     @Override
     public void cleanupData() throws Exception
@@ -1036,6 +1039,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
             closeReusableConnection();
         } catch (final Throwable t)
         {
+            rowCountBaselineTracker.discardBaseline();
             log.error("cleanupData: Exception:", t);
             closeReusableConnectionSuppressing(t);
             throw t;
@@ -1045,9 +1049,9 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     /**
      * Verify the row count check baseline, if one was captured, using the connection shared
      * with the rest of this test's lifecycle. A no-op when no baseline was captured - the
-     * check is disabled, capture never ran, or {@link #postTest(boolean)} discarded it
-     * because the test steps already failed - which does not acquire a connection just to
-     * find that out.
+     * check is disabled, capture never ran, {@link #postTest(boolean)} discarded it because
+     * the test steps already failed, or an earlier {@link #cleanupData()} discarded it because
+     * its tear down failed - which does not acquire a connection just to find that out.
      *
      * @throws Exception On dbUnit errors, including {@link org.dbunit.database.rowcount.UnexpectedRowCountException}
      *             when a table's row count no longer matches the baseline.
@@ -1381,10 +1385,10 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     /**
      * Loads the given table's actual data from the database.
      *
-     * @param tableName the name of the table to load.
-     * @param connection the database connection to load the data from.
-     * @return the table's actual data.
-     * @throws Exception if loading the table fails.
+     * @param tableName The name of the table to load.
+     * @param connection The database connection to load the data from.
+     * @return The table's actual data.
+     * @throws Exception If loading the table fails.
      */
     public ITable loadTableDataFromDatabase(final String tableName,
             final IDatabaseConnection connection) throws Exception

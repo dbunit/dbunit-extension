@@ -29,6 +29,14 @@ catalog/schema comparison doesn't line up with how MySQL reports them.
 Symptom without it: a `NoSuchColumnException` for a column you can see
 exists.
 
+`MySqlMetadataHandler` passes a schema to the driver as the JDBC catalog,
+which is how MySQL Connector/J reports a database. An empty schema, as in
+`new DatabaseConnection(jdbcConnection, "")`, means the database the
+connection works in: since 3.6.0 the handler passes that database as the
+catalog, as MySQL Connector/J lists no tables at all for an empty catalog.
+A `null` schema still searches every catalog the user can see, as described
+below.
+
 For a connection not restricted to a single schema — e.g. connecting as
 `root` specifically to work across several schemas at once — use
 link:../apidocs/org/dbunit/ext/mysql/MultiSchemaMySqlMetadataHandler.html[MultiSchemaMySqlMetadataHandler]

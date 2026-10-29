@@ -55,11 +55,11 @@ public interface RowCounter
     /**
      * Counts the rows of every given table.
      *
-     * @param connection the connection to count rows through.
-     * @param tableNames the names of the tables to count; every name must appear
+     * @param connection The connection to count rows through.
+     * @param tableNames The names of the tables to count; every name must appear
      *            as a key in the returned map, and no other keys may appear.
-     * @return the row count of each requested table, keyed exactly as supplied.
-     * @throws SQLException if counting a table's rows fails.
+     * @return The row count of each requested table, keyed exactly as supplied.
+     * @throws SQLException If counting a table's rows fails.
      */
     Map<String, Integer> countRows(IDatabaseConnection connection, List<String> tableNames)
             throws SQLException;

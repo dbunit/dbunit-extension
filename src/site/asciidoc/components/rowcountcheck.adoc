@@ -42,6 +42,47 @@ It does *not* catch:
 
 Neither leaves extra or missing rows, which is the problem this check solves.
 
+[#which-tables]
+== Which Tables It Counts
+
+It counts the tables its connection lists, less the ones the exclude patterns name (see
+<<exclusions>>). A connection that names a schema lists the tables of that schema. A connection
+that names none, such as `new DatabaseConnection(connection)`, is counted through the schema it
+works in, as its metadata handler reports it with `IMetadataHandler.getCurrentSchema()`: by
+default the current schema of its JDBC connection, as `java.sql.Connection.getSchema()` reports
+it. The check then does not meet the system schemas a database such as H2 has, or the tables of
+other schemas, which it cannot count by their unqualified names. It counts each table as
+`<schema>.<table>`, writing the schema, which the database reports as it stores it, between the
+JDBC connection's identifier quote string (`DatabaseMetaData.getIdentifierQuoteString()`), so a
+schema whose stored name needs quoting, such as a mixed-case PostgreSQL schema, a MySQL database
+named `my-app` or a lower-case H2 schema, is counted. With the `escapePattern` property set, or a
+driver that reports no quote string, the schema is written as every other name is. A connection whose handler
+reports no current schema is counted as it is, listing every table it can see: give such a
+connection a schema, or exclude the tables it cannot count. A connection with
+`DatabaseConfig.FEATURE_QUALIFIED_TABLE_NAMES` on is counted as it is too, as its table names
+already carry their schema: it lists every schema it can see, by schema-qualified names.
+
+MySQL Connector/J and MariaDB Connector/J report the database a connection uses as its catalog,
+and no current schema. `MySqlMetadataHandler`, which `MySqlConnection` registers and the
+link:../databases/mariadb.html[MariaDB] page requires, reports that database as the current
+schema, so the check counts a connection that names none in its database. With the default
+handler such a connection lists the tables of every database the user can see, and on MariaDB
+some `performance_schema` system tables too, so the check fails on a table name two databases
+share, with an `AmbiguousTableNameException`, or on a table it cannot count by its unqualified
+name, with the database's error. Register `MySqlMetadataHandler` (see
+link:../databases/mysql.html[MySQL]), give the connection its database as its schema, or add
+`nullDatabaseMeansCurrent=true` (`nullCatalogMeansCurrent=true` in MySQL Connector/J 8.0.16 and
+earlier) to the JDBC URL, which limits the listing to the connection's current database.
+
+Each snapshot lists the tables anew. A dbUnit connection, an `AbstractDatabaseConnection`, keeps
+the dataset its `createDataSet()` returns from its first listing for its lifetime, so the check
+lists the tables of such a connection through its metadata instead: a table the test creates or
+drops counts as empty in the snapshot it is missing from, and a table created after an earlier
+test listed the connection is counted too. A connection that narrows its dataset by overriding
+`createDataSet()`, such as `MsSqlConnection`, which leaves out `dtproperties`, is listed in full,
+so exclude such tables with the exclude patterns. Any other `IDatabaseConnection` implementation
+is listed through its own `createDataSet()`.
+
 [#enabling]
 == Enabling It
 
@@ -70,12 +111,49 @@ configures:
 
 A bare `-Ddbunit.rowCountCheck` with no value enables it too; use `=false` to force it off.
 A test that declares `@DbUnitRowCountCheck(enabled = false)` stays exempt when the property
-force-enables the check, while `=false` disables the check for every test.
+force-enables the check, while `=false` disables the check for every test. Any other value,
+such as `yes`, `on` or `1`, is rejected rather than read as `false`: every test that dbUnit runs
+through a `DefaultPrepAndExpectedTestCase` or `DbUnitExtension` fails, when dbUnit takes its
+row count baseline, with an `IllegalArgumentException` that names the property and the
+value, whether it uses the check or declares `@DbUnitRowCountCheck(enabled = false)`, so a
+value meant to turn the check on cannot quietly turn it off and let the tests it would
+have failed pass. The case of `true` and `false` and the whitespace around them do not
+matter.
+
+The baseline is taken before the test's prep data is set up, so once the property turns
+the check on for a suite, an annotation-driven test that loads `@DbUnitPrep` data and
+tears nothing down fails it. When dbUnit builds the test case, and one of the prep tables
+holds more rows than at the baseline while the teardown operation is `NONE`, the failure says
+so and names the fix, a `@DbUnitTearDownOperation` or an exclusion. After an `INSERT` or
+`REFRESH` setup operation, which add the prep rows to the rows a table already holds, such as
+seed rows, it names `DbUnitOperation.DELETE`, because a `DELETE_ALL` teardown would delete the
+seed rows too. After any other setup operation it names `DbUnitOperation.DELETE_ALL`. A prep
+table can also hold fewer rows: the setup operation, `CLEAN_INSERT` by default, `DELETE_ALL` or
+`TRUNCATE_TABLE`, deletes every row of the prep tables before it inserts, seed rows included,
+and no teardown brings them back. The failure then names the other fix,
+`@DbUnitSetUpOperation(DbUnitOperation.INSERT)` with
+`@DbUnitTearDownOperation(DbUnitOperation.DELETE)`, which add and delete only the rows of the
+datasets, or an exclusion. A `DELETE_ALL` or `TRUNCATE_TABLE` teardown after a setup operation
+that does not empty the tables deletes those rows too; the failure then names a `DELETE`
+teardown. Both `DELETE` pieces of advice assume that the prep table is not in the expected
+dataset as well, as the teardown operation acts on the expected dataset too and `DELETE`
+removes every row it lists. A prep table that held rows at the baseline and that the expected
+dataset lists, because the test verifies it, would lose those rows to a `DELETE` teardown too,
+as the verification only passes when the expected dataset lists them. No teardown operation
+removes the prep rows and keeps the others then. The failure names an exclusion for such a
+table, and so it does when the test followed the advice and a `DELETE` teardown removed the
+rows: the table is excluded from the check, or its rows are kept out of the tables the test
+loads and verifies. A table that held no rows at the baseline keeps the `DELETE` advice. A
+difference in a table the prep data does not hold has another
+cause, so the failure gives no such advice then, only the per-table detail. Nor does a test
+that injects a `@DbUnitTestCase` get it: that test case runs the setup and teardown operations
+its owner set on it, which dbUnit cannot read, and an annotation that declares either operation
+is rejected next to it.
 
 It is wired into both link:../testcases/PrepAndExpectedTestCase.html[PrepAndExpectedTestCase]
 and link:../testcases/DbUnitExtension.html[DbUnitExtension]; enabling the feature (or the
 system property) is everything a test needs to do. Both integration points share the same
-`org.dbunit.database.rowcount.RowCountChecker`, the class that captures a baseline, verifies
+`org.dbunit.database.rowcount.RowCountBaselineTracker`, the class that captures a baseline, verifies
 it later, and lets it be discarded when a verify would be noise (e.g. the test's own steps
 already failed) — plumbing a test integration reuses, not something a test author calls
 directly. A baseline is good for one verify, whether it passes or fails, so a later test on
@@ -116,7 +194,8 @@ and never replaces them:
 -Ddbunit.rowCountCheckExcludeTables=AUDIT_*,HIBERNATE_SEQUENCES
 ----
 
-or `@DbUnitRowCountCheck(exclude = {"AUDIT_*", "HIBERNATE_SEQUENCES"})` — see
+or `@DbUnitRowCountCheck(exclude = {"AUDIT_*", "HIBERNATE_SEQUENCES"})`, which
+also adds its patterns to the configured ones — see
 link:../testcases/annotations.html#rowcountcheck[DbUnit Annotations].
 
 [#failure-message]
@@ -162,6 +241,13 @@ A `RowCounter` implementation's contract:
 * Counts must be *exact* — a vendor statistics view (e.g. PostgreSQL's
 `pg_stat_user_tables`) lags asynchronously and would produce false failures, however cheap
 it is to query.
+
+The `connection` it is handed is the one the check was asked to count or, when that connection
+names no schema and its metadata handler reports a current one, a view of it that names that
+schema, with the same JDBC connection and `DatabaseConfig`. Count through it, not through a
+connection of your own, so each table is found in the schema it was listed in. Its
+`getRowCount()` quotes the schema as described in <<which-tables>>; a counter that builds its
+own SQL from `getSchema()` has to quote that name, which is the stored name, itself.
 
 Table enumeration and exclusion filtering happen in `RowCountCheck` itself, outside the
 strategy, so an implementation's whole job is counting the list it is handed:
