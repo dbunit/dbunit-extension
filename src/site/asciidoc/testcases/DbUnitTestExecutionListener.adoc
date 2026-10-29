@@ -130,13 +130,14 @@ supplies one) in this order, first match wins:
   context or its parents, that the rules do not single one out of fail the test
   with a message naming them. A test class needs no
   dbUnit-specific field at all when its test configuration already exposes
-  one — for example, a `@TestConfiguration` bean wrapping the application's own
-  `DataSource` the way
+  one — for example, a bean of a `@Configuration` class that the test's
+  `@ContextConfiguration` lists next to the application's configuration,
+  wrapping the application's own `DataSource` the way
   link:DataSourceBasedDBTestCase.html[a DataSource-based tester] already does:
 +
 [source,java]
 ----
-@TestConfiguration
+@Configuration
 class DbUnitTestConfig
 {
     @Bean
