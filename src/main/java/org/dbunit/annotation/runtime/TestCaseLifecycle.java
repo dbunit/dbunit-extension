@@ -262,8 +262,8 @@ class TestCaseLifecycle
      * afterward - on a failure, with any undo failure attached as suppressed rather than
      * masking the primary.
      *
-     * <p>A row count difference gets a hint when it is the classic {@code @DbUnitRowCountCheck}
-     * + {@code @DbUnitPrep} + no-teardown shape, see {@link #withHintForUnclearedPrep}.
+     * <p>A row count difference gets a hint when it is the classic row count check +
+     * {@code @DbUnitPrep} + no-teardown shape, see {@link #withHintForUnclearedPrep}.
      *
      * @param testFailed Whether the test method itself already threw.
      * @throws Exception If {@code postTest()} fails.
@@ -408,31 +408,31 @@ class TestCaseLifecycle
     }
 
     /**
-     * Returns {@code failure} with an extra hint when it is the classic
-     * {@code @DbUnitRowCountCheck} + {@code @DbUnitPrep} + no-teardown shape: the baseline is
-     * captured <em>before</em> {@code @DbUnitPrep} loads, so a prep dataset that is never torn
-     * down reads as leaked rows and fails the check - a common first surprise. Otherwise returns
-     * {@code failure} unchanged. Keyed on the teardown operation the test case actually ran
-     * ({@link DatabaseOperation#NONE}), so an explicit
+     * Returns {@code failure} with an extra hint when it is the classic row count check +
+     * {@code @DbUnitPrep} + no-teardown shape: the baseline is captured <em>before</em>
+     * {@code @DbUnitPrep} loads, so a prep dataset that is never torn down reads as leaked rows
+     * and fails the check - a common first surprise. Whatever turned the check on gets the hint:
+     * {@code @DbUnitRowCountCheck}, the {@code -Ddbunit.rowCountCheck} system property that a
+     * suite-wide run sets, or {@link org.dbunit.database.DatabaseConfig#FEATURE_ROW_COUNT_CHECK}.
+     * Otherwise returns {@code failure} unchanged. Keyed on the teardown operation the test case
+     * actually ran ({@link DatabaseOperation#NONE}), so an explicit
      * {@code @DbUnitTearDownOperation(NONE)} is covered too.
      */
     private UnexpectedRowCountException withHintForUnclearedPrep(
             final UnexpectedRowCountException failure)
     {
         final boolean prepFilesDeclared = configuration.getPrepDataFiles().length > 0;
-        if (!configuration.isRowCountCheckDeclared() || !prepFilesDeclared
-                || effectiveTearDownOperation() != DatabaseOperation.NONE)
+        if (!prepFilesDeclared || effectiveTearDownOperation() != DatabaseOperation.NONE)
         {
             return failure;
         }
 
         final UnexpectedRowCountException hinted = new UnexpectedRowCountException(
                 failure.getDifferences(),
-                "The @DbUnitRowCountCheck baseline is captured before @DbUnitPrep loads, so"
-                        + " a prep dataset that is never torn down reads as leaked rows. Add"
+                "The row count check's baseline is captured before @DbUnitPrep loads, so a"
+                        + " prep dataset that is never torn down reads as leaked rows. Add"
                         + " @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL) (or"
-                        + " CLEAN_INSERT), or list these tables in"
-                        + " @DbUnitRowCountCheck(exclude = ...).");
+                        + " CLEAN_INSERT), or exclude these tables from the check.");
         hinted.setStackTrace(failure.getStackTrace());
         for (final Throwable suppressed : failure.getSuppressed())
         {

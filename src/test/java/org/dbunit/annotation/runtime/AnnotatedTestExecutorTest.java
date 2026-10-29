@@ -1766,6 +1766,35 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
+    void testAfterTest_rowCountCheckEnabledByTheFeatureWithPrepAndNoTeardown_exceptionNamesTheTeardownFix()
+            throws Exception
+    {
+        stubEnabledConnection("ACCOUNT");
+        when(connection.getRowCount("ACCOUNT")).thenReturn(0);
+        when(tester.getTearDownOperation()).thenReturn(DatabaseOperation.NONE);
+        final DbUnitPrep prep = WithPrep.class.getAnnotation(DbUnitPrep.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration.from(
+                WithPrep.class, null, prep, null, null, null, null);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, tester, null);
+        executor.beforeTest();
+        when(connection.getRowCount("ACCOUNT")).thenReturn(5);
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown)
+                .as("The mismatch stays an UnexpectedRowCountException.")
+                .isInstanceOf(UnexpectedRowCountException.class);
+        assertThat(thrown.getMessage())
+                .as("A check that the DatabaseConfig feature enables, as -Ddbunit.rowCountCheck"
+                        + " does for a whole suite, explains prep that is never torn down the same"
+                        + " way as one that @DbUnitRowCountCheck enables.")
+                .contains("baseline is captured before @DbUnitPrep loads")
+                .contains("@DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)")
+                .doesNotContain("@DbUnitRowCountCheck baseline");
+    }
+
+    @Test
     void testAfterTest_rowCountCheckWithPrepButTeardownDeletes_exceptionHasNoTeardownHint()
             throws Exception
     {
