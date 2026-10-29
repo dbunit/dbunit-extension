@@ -66,6 +66,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.Extension;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.slf4j.LoggerFactory;
 import org.springframework.test.context.support.DirtiesContextTestExecutionListener;
 import org.springframework.test.context.transaction.TransactionalTestExecutionListener;
@@ -268,6 +269,33 @@ class DbUnitTestExecutionListenerTest
         assertThat(context.hasAttribute(EXECUTOR_ATTRIBUTE))
                 .as("No executor may outlive afterTestMethod(), since the test context serves"
                         + " every later method of the class too.")
+                .isFalse();
+    }
+
+    @Test
+    void testBeforeAndAfterTestMethod_twoListenerInstancesOnOneTestContext_runLifecycleOnce()
+            throws Exception
+    {
+        final DbUnitTestExecutionListener second = new DbUnitTestExecutionListener();
+        final IDatabaseTester tester = mock(IDatabaseTester.class);
+        final FakeTestContext context = new FakeTestContext(HasTesterField.class)
+                .beginMethod(new HasTesterField(tester), "aTestMethod");
+
+        listener.beforeTestMethod(context);
+        second.beforeTestMethod(context);
+        second.afterTestMethod(context);
+        listener.afterTestMethod(context);
+
+        assertThat(RecordingTestCase.testersAtPreTest)
+                .as("Declarations that replace Spring's defaults and name the listener more than"
+                        + " once register one instance for each, and the instances share the test"
+                        + " context, so the second leaves the test to the first.")
+                .containsExactly(tester);
+        assertThat(RecordingTestCase.postTestCalls)
+                .as("The first instance to run its after-test steps finishes the one executor.")
+                .hasSize(1);
+        assertThat(context.hasAttribute(EXECUTOR_ATTRIBUTE))
+                .as("No executor outlives the method, so none leaks into the next one.")
                 .isFalse();
     }
 
@@ -513,6 +541,131 @@ class DbUnitTestExecutionListenerTest
     }
 
     @Test
+    void testBeforeTestMethod_registerExtensionFieldOfDbUnitExtension_leavesTheTestToDbUnitExtension()
+            throws Exception
+    {
+        final IDatabaseTester tester = mock(IDatabaseTester.class);
+        final FakeTestContext context = new FakeTestContext(RegistersExtensionInStaticField.class)
+                .beginMethod(new RegistersExtensionInStaticField(tester), "aTestMethod");
+
+        listener.beforeTestMethod(context);
+
+        assertThat(RecordingTestCase.testersAtPreTest)
+                .as("JUnit registers the extension a @RegisterExtension field holds, so the"
+                        + " listener leaves the test to it.")
+                .isEmpty();
+    }
+
+    @Test
+    void testBeforeTestMethod_registerExtensionFieldOfADbUnitExtensionSubclass_leavesTheTestToDbUnitExtension()
+            throws Exception
+    {
+        final IDatabaseTester tester = mock(IDatabaseTester.class);
+        final FakeTestContext context =
+                new FakeTestContext(RegistersExtensionSubclassInInstanceField.class).beginMethod(
+                        new RegistersExtensionSubclassInInstanceField(tester), "aTestMethod");
+
+        listener.beforeTestMethod(context);
+
+        assertThat(RecordingTestCase.testersAtPreTest)
+                .as("A @RegisterExtension field declared as a subclass of DbUnitExtension"
+                        + " registers it too, an instance field as well as a static one.")
+                .isEmpty();
+    }
+
+    @Test
+    void testBeforeAndAfterTestMethod_registerExtensionFieldOfAnotherExtension_runsLifecycle()
+            throws Exception
+    {
+        final IDatabaseTester tester = mock(IDatabaseTester.class);
+        final FakeTestContext context = new FakeTestContext(RegistersAnotherExtensionInField.class)
+                .beginMethod(new RegistersAnotherExtensionInField(tester), "aTestMethod");
+
+        listener.beforeTestMethod(context);
+        listener.afterTestMethod(context);
+
+        assertThat(RecordingTestCase.testersAtPreTest)
+                .as("A @RegisterExtension field of another extension does not stop the listener.")
+                .containsExactly(tester);
+    }
+
+    @Test
+    void testBeforeTestMethod_fieldExtendsWithDbUnitExtension_leavesTheTestToDbUnitExtension()
+            throws Exception
+    {
+        final IDatabaseTester tester = mock(IDatabaseTester.class);
+        final FakeTestContext context = new FakeTestContext(ExtendsWithDbUnitExtensionOnField.class)
+                .beginMethod(new ExtendsWithDbUnitExtensionOnField(tester), "aTestMethod");
+
+        listener.beforeTestMethod(context);
+
+        assertThat(RecordingTestCase.testersAtPreTest)
+                .as("JUnit registers an extension that @ExtendWith names on a field, so the"
+                        + " listener leaves the test to it.")
+                .isEmpty();
+    }
+
+    @Test
+    void testBeforeTestMethod_superclassDeclaresRegisterExtensionField_leavesTheTestToDbUnitExtension()
+            throws Exception
+    {
+        final IDatabaseTester tester = mock(IDatabaseTester.class);
+        final FakeTestContext context = new FakeTestContext(InheritsExtensionField.class)
+                .beginMethod(new InheritsExtensionField(tester), "aTestMethod");
+
+        listener.beforeTestMethod(context);
+
+        assertThat(RecordingTestCase.testersAtPreTest)
+                .as("JUnit registers an extension a field of a superclass holds, so the listener"
+                        + " leaves the test to it.")
+                .isEmpty();
+    }
+
+    @Test
+    void testBeforeTestMethod_enclosingClassDeclaresRegisterExtensionField_leavesTheNestedTestToDbUnitExtension()
+            throws Exception
+    {
+        final IDatabaseTester tester = mock(IDatabaseTester.class);
+        final EnclosingDeclaringExtensionField enclosing =
+                new EnclosingDeclaringExtensionField(tester);
+        final FakeTestContext context =
+                new FakeTestContext(EnclosingDeclaringExtensionField.Nested.class)
+                        .beginMethod(enclosing.new Nested(), "aTestMethod");
+
+        listener.beforeTestMethod(context);
+
+        assertThat(RecordingTestCase.testersAtPreTest)
+                .as("JUnit hands a @Nested class the extension a field of its enclosing class"
+                        + " registers, so the listener leaves the nested test to it.")
+                .isEmpty();
+    }
+
+    @Test
+    void testBeforeTestMethod_classRegistersExtensionFieldAndTheListener_warnsOnce()
+            throws Exception
+    {
+        final IDatabaseTester tester = mock(IDatabaseTester.class);
+        final FakeTestContext context = new FakeTestContext(ExtensionFieldAndListener.class);
+
+        final List<ILoggingEvent> warnings = warningsLoggedBy(() ->
+        {
+            listener.beforeTestMethod(
+                    context.beginMethod(new ExtensionFieldAndListener(tester), "aTestMethod"));
+            listener.afterTestMethod(context);
+        });
+
+        assertThat(warnings)
+                .as("A class that registers the extension in a field and the listener explicitly"
+                        + " gets the warning for registering both bindings.")
+                .hasSize(1);
+        assertThat(warnings.get(0).getFormattedMessage())
+                .as("The warning names the class and the field form of registering the"
+                        + " extension.")
+                .contains(ExtensionFieldAndListener.class.getName())
+                .contains("@RegisterExtension field");
+    }
+
+    @Test
     void testBeforeAndAfterTestMethod_classExtendsWithAnotherExtension_runsLifecycle()
             throws Exception
     {
@@ -554,6 +707,260 @@ class DbUnitTestExecutionListenerTest
         assertThat(RecordingTestCase.testersAtPreTest)
                 .as("The listener leaves the class to DbUnitExtension.")
                 .isEmpty();
+    }
+
+    @Test
+    void testBeforeTestMethod_olderSpringAndATestUsingDbUnitAnnotations_failsNamingTheSpringVersion()
+            throws Exception
+    {
+        final DbUnitTestExecutionListener onOlderSpring =
+                new DbUnitTestExecutionListener(() -> false, () -> false);
+        final IDatabaseTester tester = mock(IDatabaseTester.class);
+        final FakeTestContext context = new FakeTestContext(HasTesterField.class)
+                .beginMethod(new HasTesterField(tester), "aTestMethod");
+
+        assertThatThrownBy(() -> onOlderSpring.beforeTestMethod(context))
+                .as("On a Spring Framework older than the listener needs, a test that uses dbUnit"
+                        + " annotations fails with a message that names the version, rather than"
+                        + " passing without its prep or verification.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining(HasTesterField.class.getName())
+                .hasMessageContaining("Spring Framework 6.2");
+        assertThat(RecordingTestCase.testersAtPreTest)
+                .as("Nothing is set up on the older Spring Framework.")
+                .isEmpty();
+    }
+
+    @Test
+    void testBeforeTestMethod_olderSpringAndAComposedDbUnitAnnotation_failsNamingTheSpringVersion()
+            throws Exception
+    {
+        final DbUnitTestExecutionListener onOlderSpring =
+                new DbUnitTestExecutionListener(() -> false, () -> false);
+        final IDatabaseTester tester = mock(IDatabaseTester.class);
+        final FakeTestContext context = new FakeTestContext(ComposedTearDownOnly.class)
+                .beginMethod(new ComposedTearDownOnly(tester), "aTestMethod");
+
+        assertThatThrownBy(() -> onOlderSpring.beforeTestMethod(context))
+                .as("A dbUnit annotation in a composed annotation counts as using dbUnit too.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Spring Framework 6.2");
+    }
+
+    @Test
+    void testBeforeAndAfterTestMethod_olderSpringAndATestUsingNoDbUnitAnnotation_doesNothing()
+            throws Exception
+    {
+        final DbUnitTestExecutionListener onOlderSpring =
+                new DbUnitTestExecutionListener(() -> false, () -> false);
+        final FakeTestContext context = new FakeTestContext(UsesNoDbUnit.class)
+                .beginMethod(new UsesNoDbUnit(), "aTestMethod");
+
+        assertThatCode(() ->
+        {
+            onOlderSpring.beforeTestMethod(context);
+            onOlderSpring.beforeTestExecution(context);
+            onOlderSpring.afterTestExecution(context);
+            onOlderSpring.afterTestMethod(context);
+        }).as("A test that uses no dbUnit annotation runs as if the listener were not"
+                + " registered, whatever Spring Framework version is on the class path.")
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void testBeforeTestMethod_olderSpringAndAClassLeftToDbUnitExtension_doesNothing()
+            throws Exception
+    {
+        final DbUnitTestExecutionListener onOlderSpring =
+                new DbUnitTestExecutionListener(() -> false, () -> false);
+        final IDatabaseTester tester = mock(IDatabaseTester.class);
+        final FakeTestContext context = new FakeTestContext(AlsoDbUnitTest.class)
+                .beginMethod(new AlsoDbUnitTest(tester), "aTestMethod");
+
+        assertThatCode(() -> onOlderSpring.beforeTestMethod(context))
+                .as("A test that JUnit Jupiter runs with DbUnitExtension needs no listener, so an"
+                        + " older Spring Framework does not fail it.")
+                .doesNotThrowAnyException();
+        assertThat(RecordingTestCase.testersAtPreTest)
+                .as("The listener sets nothing up for it.")
+                .isEmpty();
+    }
+
+    @Test
+    void testBeforeTestMethod_olderSpringAndNestedClassUnderDbUnitTest_doesNothing()
+            throws Exception
+    {
+        final DbUnitTestExecutionListener onOlderSpring =
+                new DbUnitTestExecutionListener(() -> false, () -> false);
+        final EnclosingAnnotatedDbUnitTest enclosing = new EnclosingAnnotatedDbUnitTest();
+        final FakeTestContext context =
+                new FakeTestContext(EnclosingAnnotatedDbUnitTest.Nested.class)
+                        .beginMethod(enclosing.new Nested(), "aTestMethod");
+
+        assertThatCode(() -> onOlderSpring.beforeTestMethod(context))
+                .as("JUnit Jupiter hands a @Nested class the extension its enclosing class"
+                        + " registers with @DbUnitTest, so an older Spring Framework does not"
+                        + " fail the nested test.")
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void testBeforeTestMethod_olderSpringAndNestedClassUnderExtendWithDbUnitExtension_doesNothing()
+            throws Exception
+    {
+        final DbUnitTestExecutionListener onOlderSpring =
+                new DbUnitTestExecutionListener(() -> false, () -> false);
+        final EnclosingAnnotatedExtendWith enclosing = new EnclosingAnnotatedExtendWith();
+        final FakeTestContext context =
+                new FakeTestContext(EnclosingAnnotatedExtendWith.Nested.class)
+                        .beginMethod(enclosing.new Nested(), "aTestMethod");
+
+        assertThatCode(() -> onOlderSpring.beforeTestMethod(context))
+                .as("JUnit Jupiter hands a @Nested class the extension its enclosing class"
+                        + " registers with @ExtendWith, so an older Spring Framework does not"
+                        + " fail the nested test.")
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void testBeforeTestMethod_olderSpringAndInterfaceAnnotatedDbUnitTest_doesNothing()
+            throws Exception
+    {
+        final DbUnitTestExecutionListener onOlderSpring =
+                new DbUnitTestExecutionListener(() -> false, () -> false);
+        final FakeTestContext context = new FakeTestContext(ImplementsAnnotatedInterface.class)
+                .beginMethod(new ImplementsAnnotatedInterface(), "aTestMethod");
+
+        assertThatCode(() -> onOlderSpring.beforeTestMethod(context))
+                .as("JUnit Jupiter registers the extension an interface of the test class"
+                        + " registers, so an older Spring Framework does not fail the test.")
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void testBeforeTestMethod_olderSpringAndDbUnitTestComposedTwoLevelsDeep_doesNothing()
+            throws Exception
+    {
+        final DbUnitTestExecutionListener onOlderSpring =
+                new DbUnitTestExecutionListener(() -> false, () -> false);
+        final FakeTestContext context = new FakeTestContext(ComposesDbUnitTestTwoLevelsDeep.class)
+                .beginMethod(new ComposesDbUnitTestTwoLevelsDeep(), "aTestMethod");
+
+        assertThatCode(() -> onOlderSpring.beforeTestMethod(context))
+                .as("An @ExtendWith or @DbUnitTest composed through two annotations still"
+                        + " registers the extension, so an older Spring Framework does not fail"
+                        + " the test.")
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void testBeforeTestMethod_olderSpringAndDbUnitSpringTestComposedTwoLevelsDeep_failsNamingTheSpringVersion()
+            throws Exception
+    {
+        final DbUnitTestExecutionListener onOlderSpring =
+                new DbUnitTestExecutionListener(() -> false, () -> false);
+        final FakeTestContext context =
+                new FakeTestContext(ComposesDbUnitSpringTestTwoLevelsDeep.class)
+                        .beginMethod(new ComposesDbUnitSpringTestTwoLevelsDeep(), "aTestMethod");
+
+        assertThatThrownBy(() -> onOlderSpring.beforeTestMethod(context))
+                .as("A @DbUnitSpringTest composed through two annotations asks for the listener,"
+                        + " so an older Spring Framework fails the test rather than running it"
+                        + " without prep or verification.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining(ComposesDbUnitSpringTestTwoLevelsDeep.class.getName())
+                .hasMessageContaining("Spring Framework 6.2");
+    }
+
+    @Test
+    void testBeforeTestMethod_olderSpringAndMarkedTesterFieldOnlyOnEnclosingClass_failsNamingTheSpringVersion()
+            throws Exception
+    {
+        final DbUnitTestExecutionListener onOlderSpring =
+                new DbUnitTestExecutionListener(() -> false, () -> false);
+        final EnclosingWithOnlyAMarkedField enclosing =
+                new EnclosingWithOnlyAMarkedField(mock(IDatabaseTester.class));
+        final FakeTestContext context =
+                new FakeTestContext(EnclosingWithOnlyAMarkedField.Nested.class)
+                        .beginMethod(enclosing.new Nested(), "aTestMethod");
+
+        assertThatThrownBy(() -> onOlderSpring.beforeTestMethod(context))
+                .as("A marked tester field of the enclosing class opts the nested test in, as it"
+                        + " does on a recent Spring Framework, so an older one fails the test.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining(EnclosingWithOnlyAMarkedField.Nested.class.getName())
+                .hasMessageContaining("Spring Framework 6.2");
+    }
+
+    @Test
+    void testBeforeTestMethod_olderSpringAndRegisterExtensionFieldOfDbUnitExtension_doesNothing()
+            throws Exception
+    {
+        final DbUnitTestExecutionListener onOlderSpring =
+                new DbUnitTestExecutionListener(() -> false, () -> false);
+        final IDatabaseTester tester = mock(IDatabaseTester.class);
+        final FakeTestContext context = new FakeTestContext(RegistersExtensionInStaticField.class)
+                .beginMethod(new RegistersExtensionInStaticField(tester), "aTestMethod");
+
+        assertThatCode(() -> onOlderSpring.beforeTestMethod(context))
+                .as("A test that JUnit Jupiter runs with the extension a @RegisterExtension field"
+                        + " holds needs no listener, so an older Spring Framework does not fail"
+                        + " it.")
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void testBeforeTestMethod_olderSpringAndFieldExtendsWithDbUnitExtension_doesNothing()
+            throws Exception
+    {
+        final DbUnitTestExecutionListener onOlderSpring =
+                new DbUnitTestExecutionListener(() -> false, () -> false);
+        final IDatabaseTester tester = mock(IDatabaseTester.class);
+        final FakeTestContext context = new FakeTestContext(ExtendsWithDbUnitExtensionOnField.class)
+                .beginMethod(new ExtendsWithDbUnitExtensionOnField(tester), "aTestMethod");
+
+        assertThatCode(() -> onOlderSpring.beforeTestMethod(context))
+                .as("A test that JUnit Jupiter runs with an extension that @ExtendWith names on a"
+                        + " field needs no listener, so an older Spring Framework does not fail"
+                        + " it.")
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void testBeforeTestMethod_olderSpringAndEnclosingClassDeclaresRegisterExtensionField_doesNothing()
+            throws Exception
+    {
+        final DbUnitTestExecutionListener onOlderSpring =
+                new DbUnitTestExecutionListener(() -> false, () -> false);
+        final IDatabaseTester tester = mock(IDatabaseTester.class);
+        final EnclosingDeclaringExtensionField enclosing =
+                new EnclosingDeclaringExtensionField(tester);
+        final FakeTestContext context =
+                new FakeTestContext(EnclosingDeclaringExtensionField.Nested.class)
+                        .beginMethod(enclosing.new Nested(), "aTestMethod");
+
+        assertThatCode(() -> onOlderSpring.beforeTestMethod(context))
+                .as("A @Nested test gets the extension a field of its enclosing class registers,"
+                        + " so an older Spring Framework does not fail it.")
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void testBeforeTestMethod_olderSpringAndRegisterExtensionFieldOfAnotherExtension_failsNamingTheSpringVersion()
+            throws Exception
+    {
+        final DbUnitTestExecutionListener onOlderSpring =
+                new DbUnitTestExecutionListener(() -> false, () -> false);
+        final IDatabaseTester tester = mock(IDatabaseTester.class);
+        final FakeTestContext context = new FakeTestContext(RegistersAnotherExtensionInField.class)
+                .beginMethod(new RegistersAnotherExtensionInField(tester), "aTestMethod");
+
+        assertThatThrownBy(() -> onOlderSpring.beforeTestMethod(context))
+                .as("An extension other than DbUnitExtension runs no dbUnit for the test, so an"
+                        + " older Spring Framework still fails a test that uses dbUnit"
+                        + " annotations.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Spring Framework 6.2");
     }
 
     @Test
@@ -1450,6 +1857,159 @@ class DbUnitTestExecutionListenerTest
         }
     }
 
+    static class DbUnitExtensionSubclass extends DbUnitExtension
+    {
+    }
+
+    @DbUnitConfig(prepAndExpectedTestCase = RecordingTestCase.class)
+    static class RegistersExtensionInStaticField
+    {
+        @RegisterExtension
+        static DbUnitExtension extension = new DbUnitExtension();
+
+        @DbUnitTester
+        IDatabaseTester databaseTester;
+
+        RegistersExtensionInStaticField(final IDatabaseTester databaseTester)
+        {
+            this.databaseTester = databaseTester;
+        }
+
+        void aTestMethod()
+        {
+        }
+    }
+
+    @DbUnitConfig(prepAndExpectedTestCase = RecordingTestCase.class)
+    static class RegistersExtensionSubclassInInstanceField
+    {
+        @RegisterExtension
+        DbUnitExtensionSubclass extension = new DbUnitExtensionSubclass();
+
+        @DbUnitTester
+        IDatabaseTester databaseTester;
+
+        RegistersExtensionSubclassInInstanceField(final IDatabaseTester databaseTester)
+        {
+            this.databaseTester = databaseTester;
+        }
+
+        void aTestMethod()
+        {
+        }
+    }
+
+    @DbUnitConfig(prepAndExpectedTestCase = RecordingTestCase.class)
+    static class RegistersAnotherExtensionInField
+    {
+        @RegisterExtension
+        AnotherExtension extension = new AnotherExtension();
+
+        @DbUnitTester
+        IDatabaseTester databaseTester;
+
+        RegistersAnotherExtensionInField(final IDatabaseTester databaseTester)
+        {
+            this.databaseTester = databaseTester;
+        }
+
+        void aTestMethod()
+        {
+        }
+    }
+
+    @DbUnitConfig(prepAndExpectedTestCase = RecordingTestCase.class)
+    static class ExtendsWithDbUnitExtensionOnField
+    {
+        @ExtendWith(DbUnitExtension.class)
+        Object marker;
+
+        @DbUnitTester
+        IDatabaseTester databaseTester;
+
+        ExtendsWithDbUnitExtensionOnField(final IDatabaseTester databaseTester)
+        {
+            this.databaseTester = databaseTester;
+        }
+
+        void aTestMethod()
+        {
+        }
+    }
+
+    static class BaseDeclaringExtensionField
+    {
+        @RegisterExtension
+        static DbUnitExtension extension = new DbUnitExtension();
+    }
+
+    @DbUnitConfig(prepAndExpectedTestCase = RecordingTestCase.class)
+    static class InheritsExtensionField extends BaseDeclaringExtensionField
+    {
+        @DbUnitTester
+        IDatabaseTester databaseTester;
+
+        InheritsExtensionField(final IDatabaseTester databaseTester)
+        {
+            this.databaseTester = databaseTester;
+        }
+
+        void aTestMethod()
+        {
+        }
+    }
+
+    /**
+     * The inner class uses its enclosing instance, so {@code javac} keeps the reference to it
+     * whatever the compiler target.
+     */
+    @DbUnitConfig(prepAndExpectedTestCase = RecordingTestCase.class)
+    static class EnclosingDeclaringExtensionField
+    {
+        @RegisterExtension
+        DbUnitExtension extension = new DbUnitExtension();
+
+        @DbUnitTester
+        IDatabaseTester databaseTester;
+
+        EnclosingDeclaringExtensionField(final IDatabaseTester databaseTester)
+        {
+            this.databaseTester = databaseTester;
+        }
+
+        class Nested
+        {
+            Object enclosing()
+            {
+                return EnclosingDeclaringExtensionField.this;
+            }
+
+            void aTestMethod()
+            {
+            }
+        }
+    }
+
+    @DbUnitSpringTest
+    @DbUnitConfig(prepAndExpectedTestCase = RecordingTestCase.class)
+    static class ExtensionFieldAndListener
+    {
+        @RegisterExtension
+        static DbUnitExtension extension = new DbUnitExtension();
+
+        @DbUnitTester
+        IDatabaseTester databaseTester;
+
+        ExtensionFieldAndListener(final IDatabaseTester databaseTester)
+        {
+            this.databaseTester = databaseTester;
+        }
+
+        void aTestMethod()
+        {
+        }
+    }
+
     /**
      * A JUnit extension that is not {@code DbUnitExtension}.
      */
@@ -1474,6 +2034,13 @@ class DbUnitTestExecutionListenerTest
         }
     }
 
+    static class UsesNoDbUnit
+    {
+        void aTestMethod()
+        {
+        }
+    }
+
     @DbUnitTest
     @DbUnitSpringTest
     @DbUnitConfig(prepAndExpectedTestCase = RecordingTestCase.class)
@@ -1493,6 +2060,111 @@ class DbUnitTestExecutionListenerTest
 
         void anotherTestMethod()
         {
+        }
+    }
+
+    @DbUnitTest
+    static class EnclosingAnnotatedDbUnitTest
+    {
+        class Nested
+        {
+            @DbUnitExpected("expected.xml")
+            void aTestMethod()
+            {
+            }
+        }
+    }
+
+    @ExtendWith(DbUnitExtension.class)
+    static class EnclosingAnnotatedExtendWith
+    {
+        class Nested
+        {
+            @DbUnitExpected("expected.xml")
+            void aTestMethod()
+            {
+            }
+        }
+    }
+
+    @DbUnitTest
+    interface RegistersDbUnitExtensionForItsImplementors
+    {
+    }
+
+    static class ImplementsAnnotatedInterface implements RegistersDbUnitExtensionForItsImplementors
+    {
+        @DbUnitExpected("expected.xml")
+        void aTestMethod()
+        {
+        }
+    }
+
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.TYPE)
+    @DbUnitTest
+    @interface RegistersExtensionLevelTwo
+    {
+    }
+
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.TYPE)
+    @RegistersExtensionLevelTwo
+    @interface RegistersExtensionLevelOne
+    {
+    }
+
+    @RegistersExtensionLevelOne
+    static class ComposesDbUnitTestTwoLevelsDeep
+    {
+        @DbUnitExpected("expected.xml")
+        void aTestMethod()
+        {
+        }
+    }
+
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.TYPE)
+    @DbUnitSpringTest
+    @interface AsksForListenerLevelTwo
+    {
+    }
+
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.TYPE)
+    @AsksForListenerLevelTwo
+    @interface AsksForListenerLevelOne
+    {
+    }
+
+    @AsksForListenerLevelOne
+    static class ComposesDbUnitSpringTestTwoLevelsDeep
+    {
+        void aTestMethod()
+        {
+        }
+    }
+
+    static class EnclosingWithOnlyAMarkedField
+    {
+        @DbUnitTester
+        IDatabaseTester databaseTester;
+
+        EnclosingWithOnlyAMarkedField(final IDatabaseTester databaseTester)
+        {
+            this.databaseTester = databaseTester;
+        }
+
+        class Nested
+        {
+            Object enclosing()
+            {
+                return EnclosingWithOnlyAMarkedField.this;
+            }
+
+            void aTestMethod()
+            {
+            }
         }
     }
 

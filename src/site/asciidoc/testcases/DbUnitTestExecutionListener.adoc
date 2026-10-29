@@ -13,7 +13,10 @@ Framework instead, with JUnit 5's `SpringExtension`. See
 link:annotations.html[DbUnit Annotations] for the annotation vocabulary
 itself, which is identical either way.
 
-Register it with `@DbUnitSpringTest`:
+dbUnit registers it as one of Spring's default test execution listeners, in its
+`META-INF/spring.factories`, so a test class that keeps Spring's default
+listeners gets it with no annotation; `@DbUnitSpringTest` registers it
+explicitly:
 
 [source,java]
 ----
@@ -53,20 +56,39 @@ Spring honors only one `@TestExecutionListeners` declaration per class. If the
 class declares its own, `@DbUnitSpringTest` has no effect. If the class carries
 another annotation composed with one — Spring Batch's `@SpringBatchTest`, for
 example — Spring honors only the first it finds, going by declaration order,
-and silently drops the other's listeners. Either way the DbUnit listener can
-end up unregistered, silently, so every `@DbUnit*` annotation is ignored and the
-tests run with no prep, verification or teardown. Add the listener to that one
-declaration instead, keeping the `mergeMode`:
+and drops the other's listeners. The listener still runs either way, as one of
+the default listeners, as long as the declaration Spring honors keeps the
+defaults with `mergeMode = MERGE_WITH_DEFAULTS`, as `@SpringBatchTest` does.
+A declaration that replaces the defaults, the mode `@TestExecutionListeners`
+has unless told otherwise, drops the DbUnit listener together with Spring's
+own ones, so every `@DbUnit*` annotation is ignored and the tests run with no
+prep, verification or teardown. Give such a declaration
+`mergeMode = MERGE_WITH_DEFAULTS`, which keeps Spring's own listeners as well:
 
 [source,java]
 ----
-@TestExecutionListeners(listeners = {AuditListener.class, DbUnitTestExecutionListener.class},
+@TestExecutionListeners(listeners = AuditListener.class,
         mergeMode = MergeMode.MERGE_WITH_DEFAULTS)
 ----
 
-A subclass that declares its own `@TestExecutionListeners` is not affected, since
-its listeners are merged with those it inherits unless `inheritListeners` is
-`false`.
+Naming the listener in a declaration that replaces the defaults registers it
+too, but the declaration still drops Spring's own listeners, so `@Autowired`
+and `@Transactional` stop working for the class:
+
+[source,java]
+----
+@TestExecutionListeners(listeners = {AuditListener.class, DbUnitTestExecutionListener.class})
+----
+
+Spring drops a listener that is named twice only when it merges a declaration
+with the defaults, so `@DbUnitSpringTest` and the default registration make one
+listener. A subclass that declares its own `@TestExecutionListeners` keeps the
+listeners it inherits, since Spring merges them with its own unless
+`inheritListeners` is `false`. A base class whose declaration replaces the
+defaults and names the listener gets a second instance from a subclass that
+names it again or carries `@DbUnitSpringTest`. The instances share the test
+context, and the listener guards itself: the first instance runs dbUnit for a
+test and the second leaves it alone.
 
 [#requirements]
 == Requirements
@@ -80,7 +102,12 @@ its listeners are merged with those it inherits unless `inheritListeners` is
 Older Spring Framework versions are not supported. dbUnit builds and tests the
 listener against the Spring Framework version that the
 link:../dependencies.html[Dependencies] report of this dbUnit release lists for
-`spring-test` and `spring-context`.
+`spring-test` and `spring-context`. As the listener is one of Spring's default
+listeners, it also runs for the Spring tests of a project that uses dbUnit only
+with `DbUnitExtension`. On a Spring Framework older than 6.0 it does nothing for
+them, logging that once, and fails a test that uses a `@DbUnit*` annotation
+with a message that names the version it needs, unless JUnit Jupiter runs that
+test with `DbUnitExtension`.
 
 [#discovery]
 == Field, Bean, or Factory Discovery
@@ -333,9 +360,14 @@ container to ask.
 
 *One binding per test.* A test that JUnit Jupiter runs with `DbUnitExtension`,
 registered through `@DbUnitTest` or `@ExtendWith(DbUnitExtension.class)` on the
-test method, the test class, a superclass or an enclosing class, is left to the
+test method, the test class, a superclass or an enclosing class, or through a
+field of the test class, a superclass or an enclosing class, is left to the
 extension: the listener does nothing for it, so dbUnit sets up, verifies and
-tears down once. When the class also registers the listener, through
+tears down once. The field is a `@RegisterExtension` field declared with the type
+`DbUnitExtension` or a subclass of it, or a field annotated
+`@ExtendWith(DbUnitExtension.class)`. The listener goes by the declared type, so a
+`@RegisterExtension` field declared with a supertype such as `Extension` is not
+recognized. When the class also registers the listener, through
 `@DbUnitSpringTest` or `@TestExecutionListeners`, the listener logs one warning
 that names the class. Keep one of the two: `@DbUnitSpringTest` to take the tester
 from the application context, or `@DbUnitTest` to have `IDatabaseTester` and

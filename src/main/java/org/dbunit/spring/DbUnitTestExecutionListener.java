@@ -20,9 +20,15 @@
  */
 package org.dbunit.spring;
 
+import java.lang.annotation.Annotation;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BooleanSupplier;
 
@@ -54,10 +60,12 @@ import org.springframework.util.ClassUtils;
  * Spring's TestContext Framework instead, with JUnit 5's {@code SpringExtension}. The annotation
  * vocabulary is identical either way.
  *
- * <p>Register it with {@link DbUnitSpringTest @DbUnitSpringTest}, or directly with
- * {@code @TestExecutionListeners(listeners = DbUnitTestExecutionListener.class, mergeMode =
- * MERGE_WITH_DEFAULTS)}. The {@code mergeMode} is not optional, and {@code DbUnitSpringTest}
- * explains why, and what else stops it from registering the listener.
+ * <p>dbUnit registers it as one of Spring's default test execution listeners, in its
+ * {@code META-INF/spring.factories}, so a test class that keeps Spring's default listeners gets
+ * it with no annotation. {@link DbUnitSpringTest @DbUnitSpringTest} registers it explicitly, and
+ * explains which {@code @TestExecutionListeners} declarations drop it. On a Spring Framework
+ * older than 6.0 it does nothing, and fails a test that uses dbUnit annotations, unless JUnit
+ * Jupiter runs that test with {@code DbUnitExtension}.
  *
  * <h2>Which tests it acts on</h2>
  *
@@ -71,8 +79,11 @@ import org.springframework.util.ClassUtils;
  *
  * <p>It also leaves alone a test that JUnit Jupiter runs with {@code DbUnitExtension}, registered
  * through {@code @DbUnitTest} or {@code @ExtendWith(DbUnitExtension.class)} on the test method,
- * the test class, a superclass or an enclosing class, so that dbUnit runs once for it, through
- * the extension. When the class registers this listener explicitly as well, it logs one warning.
+ * the test class, a superclass or an enclosing class, or through a field of the test class, a
+ * superclass or an enclosing class: a {@code @RegisterExtension} field declared as
+ * {@code DbUnitExtension} or a subclass, or a field annotated
+ * {@code @ExtendWith(DbUnitExtension.class)}. Then dbUnit runs once for the test, through the
+ * extension. When the class registers this listener explicitly as well, it logs one warning.
  *
  * <h2>Resolving the tester or test case</h2>
  *
@@ -154,7 +165,29 @@ public class DbUnitTestExecutionListener extends AbstractTestExecutionListener
      */
     private static final String EXTEND_WITH = "org.junit.jupiter.api.extension.ExtendWith";
 
+    /**
+     * JUnit Jupiter's {@code @RegisterExtension}, found by name for the same reason.
+     */
+    private static final String REGISTER_EXTENSION =
+            "org.junit.jupiter.api.extension.RegisterExtension";
+
     private static final String DBUNIT_EXTENSION = "org.dbunit.junit.jupiter.DbUnitExtension";
+
+    private static final String DBUNIT_TEST = "org.dbunit.junit.jupiter.DbUnitTest";
+
+    /**
+     * JUnit Jupiter's container of repeated {@code @ExtendWith} annotations, found by name.
+     */
+    private static final String EXTENSIONS = "org.junit.jupiter.api.extension.Extensions";
+
+    private static final AtomicBoolean LOGGED_OLDER_SPRING = new AtomicBoolean();
+
+    /**
+     * The newest Spring Framework type this listener calls, {@code MergedAnnotations.Search} of
+     * Spring Framework 6.0, which the listener checks for before it calls any other.
+     */
+    private static final String NEWEST_SPRING_TYPE =
+            "org.springframework.core.annotation.MergedAnnotations$Search";
 
     private final TesterFields testerFields = new TesterFields();
     private final AnnotatedTestOptIn optIn = new AnnotatedTestOptIn(testerFields);
@@ -162,6 +195,8 @@ public class DbUnitTestExecutionListener extends AbstractTestExecutionListener
             new TestInstanceTesterResolver(testerFields));
 
     private final BooleanSupplier testTransactionRollsBack;
+
+    private final BooleanSupplier springIsRecentEnough;
 
     private final AtomicBoolean warnedOfBothBindings = new AtomicBoolean();
 
@@ -177,7 +212,20 @@ public class DbUnitTestExecutionListener extends AbstractTestExecutionListener
      */
     DbUnitTestExecutionListener(final BooleanSupplier testTransactionRollsBack)
     {
+        this(testTransactionRollsBack,
+                newSpringVersionCheck(DbUnitTestExecutionListener.class.getClassLoader()));
+    }
+
+    /**
+     * Creates the listener with its own answers to whether the current test transaction rolls
+     * back and whether the Spring Framework on the class path is recent enough for it, so a test
+     * can exercise what the listener does on an older one.
+     */
+    DbUnitTestExecutionListener(final BooleanSupplier testTransactionRollsBack,
+            final BooleanSupplier springIsRecentEnough)
+    {
         this.testTransactionRollsBack = testTransactionRollsBack;
+        this.springIsRecentEnough = springIsRecentEnough;
     }
 
     /**
@@ -202,6 +250,13 @@ public class DbUnitTestExecutionListener extends AbstractTestExecutionListener
      * costs the tests that use no DbUnit nothing, not even a tester. Does nothing either for a
      * test that JUnit Jupiter runs with {@code DbUnitExtension}, which runs dbUnit for it.
      *
+     * <p>Does nothing when the test context already holds an executor, as another instance of
+     * this listener has set the test up. A class hierarchy whose {@code @TestExecutionListeners}
+     * declarations replace Spring's default listeners registers one instance for each
+     * declaration that names this listener, and the instances share the test context. The first
+     * sets the test up, and the first to run {@link #afterTestMethod(TestContext)} finishes it,
+     * so dbUnit runs once.
+     *
      * @param testContext The test context.
      * @throws Exception If resolving the tester or test case, or running the before-test steps,
      *             fails.
@@ -209,6 +264,15 @@ public class DbUnitTestExecutionListener extends AbstractTestExecutionListener
     @Override
     public void beforeTestMethod(final TestContext testContext) throws Exception
     {
+        if (!springIsRecentEnough.getAsBoolean())
+        {
+            requireNoDbUnitOnOlderSpring(testContext);
+            return;
+        }
+        if (testContext.hasAttribute(EXECUTOR_ATTRIBUTE))
+        {
+            return;
+        }
         final AnnotationLookup lookup = new SpringAnnotationLookup(testContext);
         if (!isOptedIn(testContext, lookup))
         {
@@ -365,6 +429,17 @@ public class DbUnitTestExecutionListener extends AbstractTestExecutionListener
     }
 
     /**
+     * Returns the check for whether the Spring Framework visible from {@code classLoader} is
+     * recent enough for this listener: whether it has {@code MergedAnnotations.Search}, the
+     * newest type the listener calls, which Spring Framework 6.0 added.
+     */
+    static BooleanSupplier newSpringVersionCheck(final ClassLoader classLoader)
+    {
+        final boolean recentEnough = ClassUtils.isPresent(NEWEST_SPRING_TYPE, classLoader);
+        return () -> recentEnough;
+    }
+
+    /**
      * Returns the check for a test transaction set to roll back, or one that never finds
      * one when {@code spring-tx}, which Spring's {@code TestTransaction} needs, is not visible
      * from {@code classLoader}. Spring's {@code spring-test} does not itself require it.
@@ -399,6 +474,189 @@ public class DbUnitTestExecutionListener extends AbstractTestExecutionListener
         }
     }
 
+    /**
+     * Fails a test that uses dbUnit annotations when the Spring Framework on the class path is
+     * older than this listener needs, and otherwise logs once for the run that the listener does
+     * nothing. Spring runs this listener as one of its default listeners for every test of a
+     * project that has dbUnit on its class path, also one that runs dbUnit only with JUnit
+     * Jupiter on an older Spring Framework, so this method uses plain reflection, which every
+     * version allows, and none of the newer Spring Framework API.
+     */
+    private void requireNoDbUnitOnOlderSpring(final TestContext testContext)
+    {
+        final Class<?> testClass = testContext.getTestClass();
+        if (asksForThisListener(testClass, testContext.getTestMethod()))
+        {
+            throw new IllegalStateException(testClass.getName() + " uses dbUnit annotations,"
+                    + " but DbUnitTestExecutionListener needs Spring Framework 6.2 or later, and"
+                    + " the Spring Framework on the class path is older. Upgrade Spring"
+                    + " Framework, or let DbUnitExtension run dbUnit for the class with"
+                    + " @DbUnitTest.");
+        }
+        if (LOGGED_OLDER_SPRING.compareAndSet(false, true))
+        {
+            log.info("DbUnitTestExecutionListener needs Spring Framework 6.2 or later, and the"
+                    + " Spring Framework on the class path is older, so the listener does"
+                    + " nothing.");
+        }
+    }
+
+    /**
+     * Returns whether a test asks for this listener, as far as plain reflection tells: through
+     * {@code @DbUnitSpringTest} or an {@code org.dbunit.annotation} annotation on the test method,
+     * or on the test class, a superclass, an interface it implements or an enclosing class of an
+     * inner class, directly or in a composed annotation however deep, or through a
+     * {@code @DbUnitTester} or {@code @DbUnitTestCase} field of the test class, a superclass or
+     * an enclosing class. A test that registers {@code DbUnitExtension} in those places, or
+     * through a {@code @RegisterExtension} or {@code @ExtendWith} field, does not, as the
+     * extension runs dbUnit for it.
+     */
+    private boolean asksForThisListener(final Class<?> testClass, final Method testMethod)
+    {
+        final List<Annotation> annotations = new ArrayList<>();
+        addWithTheOnesTheyCompose(testMethod.getDeclaredAnnotations(), annotations);
+        boolean usesDbUnit = false;
+        for (final Class<?> inScope : testClassAndEnclosingClasses(testClass))
+        {
+            if (declaresDbUnitExtensionField(inScope))
+            {
+                return false;
+            }
+            addFromTypeHierarchy(inScope, annotations);
+            if (testerFields.declaresMarkedField(inScope))
+            {
+                usesDbUnit = true;
+            }
+        }
+        for (final Annotation annotation : annotations)
+        {
+            if (registersDbUnitExtensionByName(annotation))
+            {
+                return false;
+            }
+            if (isDbUnitAnnotation(annotation))
+            {
+                usesDbUnit = true;
+            }
+        }
+        return usesDbUnit;
+    }
+
+    /**
+     * Returns the test class and, for an inner class, each class enclosing it, innermost first.
+     */
+    private static List<Class<?>> testClassAndEnclosingClasses(final Class<?> testClass)
+    {
+        final List<Class<?>> classes = new ArrayList<>();
+        Class<?> current = testClass;
+        while (current != null)
+        {
+            classes.add(current);
+            current = enclosingClassOfInnerClass(current);
+        }
+        return classes;
+    }
+
+    /**
+     * Adds the annotations of the class, of the interfaces it implements and of its superclasses,
+     * each with the ones it composes.
+     */
+    private static void addFromTypeHierarchy(final Class<?> type,
+            final List<Annotation> annotations)
+    {
+        if (type == null || type == Object.class)
+        {
+            return;
+        }
+        addWithTheOnesTheyCompose(type.getDeclaredAnnotations(), annotations);
+        for (final Class<?> implemented : type.getInterfaces())
+        {
+            addFromTypeHierarchy(implemented, annotations);
+        }
+        addFromTypeHierarchy(type.getSuperclass(), annotations);
+    }
+
+    private static void addWithTheOnesTheyCompose(final Annotation[] declared,
+            final List<Annotation> annotations)
+    {
+        addWithTheOnesTheyCompose(declared, annotations, new HashSet<>());
+    }
+
+    /**
+     * Adds the annotations with the ones they compose, however deep. It enters each annotation
+     * type once, so an annotation that composes itself does not loop, and it leaves out the
+     * annotations of {@code java.lang.annotation}, as they compose nothing that matters here.
+     */
+    private static void addWithTheOnesTheyCompose(final Annotation[] declared,
+            final List<Annotation> annotations, final Set<Class<? extends Annotation>> visited)
+    {
+        for (final Annotation annotation : declared)
+        {
+            final Class<? extends Annotation> type = annotation.annotationType();
+            if (isInJavaLangAnnotation(type))
+            {
+                continue;
+            }
+            annotations.add(annotation);
+            if (visited.add(type))
+            {
+                addWithTheOnesTheyCompose(type.getDeclaredAnnotations(), annotations, visited);
+            }
+        }
+    }
+
+    private static boolean isInJavaLangAnnotation(final Class<? extends Annotation> type)
+    {
+        return type.getName().startsWith("java.lang.annotation.");
+    }
+
+    private static boolean isDbUnitAnnotation(final Annotation annotation)
+    {
+        final Class<? extends Annotation> type = annotation.annotationType();
+        final String dbUnitAnnotations = DbUnitExpected.class.getPackage().getName();
+        return type == DbUnitSpringTest.class
+                || type.getPackage().getName().equals(dbUnitAnnotations);
+    }
+
+    /**
+     * Returns whether an annotation registers {@code DbUnitExtension}, found by name: a
+     * {@code @DbUnitTest}, an {@code @ExtendWith} that names the extension, or the
+     * {@code @Extensions} container of repeated {@code @ExtendWith} annotations holding one.
+     */
+    private static boolean registersDbUnitExtensionByName(final Annotation annotation)
+    {
+        final String type = annotation.annotationType().getName();
+        if (type.equals(DBUNIT_TEST))
+        {
+            return true;
+        }
+        if (type.equals(EXTEND_WITH))
+        {
+            final Class<?>[] extensions = (Class<?>[]) valueOf(annotation);
+            return Arrays.stream(extensions)
+                    .anyMatch(extension -> extension.getName().equals(DBUNIT_EXTENSION));
+        }
+        if (type.equals(EXTENSIONS))
+        {
+            final Annotation[] repeated = (Annotation[]) valueOf(annotation);
+            return Arrays.stream(repeated)
+                    .anyMatch(DbUnitTestExecutionListener::registersDbUnitExtensionByName);
+        }
+        return false;
+    }
+
+    private static Object valueOf(final Annotation annotation)
+    {
+        try
+        {
+            final Method value = annotation.annotationType().getMethod("value");
+            return value.invoke(annotation);
+        } catch (final ReflectiveOperationException e)
+        {
+            throw new IllegalStateException("Cannot read the value of " + annotation + ".", e);
+        }
+    }
+
     private boolean isOptedIn(final TestContext testContext, final AnnotationLookup lookup)
     {
         final List<Class<?>> testClasses =
@@ -411,11 +669,13 @@ public class DbUnitTestExecutionListener extends AbstractTestExecutionListener
      * extension runs dbUnit for it: through {@code @DbUnitTest} or
      * {@code @ExtendWith(DbUnitExtension.class)}, directly or in a composed annotation, on the
      * test method, or on the test class, a superclass, an interface it implements or an enclosing
-     * class of a {@code @Nested} class. Every enclosing class counts, as JUnit Jupiter hands a
-     * {@code @Nested} class the extensions of the classes around it, whatever
-     * {@code @NestedTestConfiguration} says.
+     * class of a {@code @Nested} class, or through a field of the test class, a superclass or an
+     * enclosing class: a {@code @RegisterExtension} field declared as {@code DbUnitExtension} or
+     * a subclass, or a field annotated {@code @ExtendWith(DbUnitExtension.class)}. Every
+     * enclosing class counts, as JUnit Jupiter hands a {@code @Nested} class the extensions of
+     * the classes around it, whatever {@code @NestedTestConfiguration} says.
      */
-    private static boolean registersDbUnitExtension(final TestContext testContext)
+    private boolean registersDbUnitExtension(final TestContext testContext)
     {
         final MergedAnnotations onTestMethod =
                 MergedAnnotations.from(testContext.getTestMethod(), SearchStrategy.DIRECT);
@@ -429,6 +689,10 @@ public class DbUnitTestExecutionListener extends AbstractTestExecutionListener
             final MergedAnnotations onTestClass =
                     MergedAnnotations.from(testClass, SearchStrategy.TYPE_HIERARCHY);
             if (extendsWithDbUnitExtension(onTestClass))
+            {
+                return true;
+            }
+            if (declaresDbUnitExtensionField(testClass))
             {
                 return true;
             }
@@ -448,6 +712,56 @@ public class DbUnitTestExecutionListener extends AbstractTestExecutionListener
         final Class<?>[] extensions = extendWith.getClassArray(MergedAnnotation.VALUE);
         return Arrays.stream(extensions)
                 .anyMatch(extension -> extension.getName().equals(DBUNIT_EXTENSION));
+    }
+
+    /**
+     * Returns whether the class or a superclass declares a field through which JUnit Jupiter
+     * registers {@code DbUnitExtension}: a {@code @RegisterExtension} field declared as
+     * {@code DbUnitExtension} or a subclass, or a field annotated, directly or in a composed
+     * annotation, {@code @ExtendWith(DbUnitExtension.class)}. It does not recognize a
+     * {@code @RegisterExtension} field declared as a supertype, such as {@code Extension}, as
+     * without a test instance it knows only the declared type. Plain reflection serves every
+     * Spring Framework version, so the older-Spring check uses this too.
+     */
+    private boolean declaresDbUnitExtensionField(final Class<?> clazz)
+    {
+        final Field field = testerFields.findFirst(clazz,
+                DbUnitTestExecutionListener::registersDbUnitExtensionByField);
+        return field != null;
+    }
+
+    private static boolean registersDbUnitExtensionByField(final Field field)
+    {
+        final List<Annotation> annotations = new ArrayList<>();
+        addWithTheOnesTheyCompose(field.getDeclaredAnnotations(), annotations);
+        final boolean declaredAsDbUnitExtension = isDbUnitExtensionType(field.getType());
+        for (final Annotation annotation : annotations)
+        {
+            if (registersDbUnitExtensionByName(annotation))
+            {
+                return true;
+            }
+            final String type = annotation.annotationType().getName();
+            if (type.equals(REGISTER_EXTENSION) && declaredAsDbUnitExtension)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean isDbUnitExtensionType(final Class<?> fieldType)
+    {
+        Class<?> type = fieldType;
+        while (type != null)
+        {
+            if (type.getName().equals(DBUNIT_EXTENSION))
+            {
+                return true;
+            }
+            type = type.getSuperclass();
+        }
+        return false;
     }
 
     /**
@@ -479,13 +793,14 @@ public class DbUnitTestExecutionListener extends AbstractTestExecutionListener
         }
         if (warnedOfBothBindings.compareAndSet(false, true))
         {
-            log.warn("{} registers both DbUnitExtension, through @DbUnitTest or"
-                    + " @ExtendWith(DbUnitExtension.class), and DbUnitTestExecutionListener,"
-                    + " through @DbUnitSpringTest or @TestExecutionListeners. DbUnitExtension runs"
-                    + " dbUnit for its tests and the listener leaves them alone, so dbUnit runs"
-                    + " once. Keep one of the two: @DbUnitSpringTest to take the tester from the"
-                    + " application context, or @DbUnitTest to have IDatabaseTester and"
-                    + " IDatabaseConnection test method parameters injected.",
+            log.warn("{} registers both DbUnitExtension, through @DbUnitTest,"
+                    + " @ExtendWith(DbUnitExtension.class) or a @RegisterExtension field, and"
+                    + " DbUnitTestExecutionListener, through @DbUnitSpringTest or"
+                    + " @TestExecutionListeners. DbUnitExtension runs dbUnit for its tests and the"
+                    + " listener leaves them alone, so dbUnit runs once. Keep one of the two:"
+                    + " @DbUnitSpringTest to take the tester from the application context, or"
+                    + " @DbUnitTest to have IDatabaseTester and IDatabaseConnection test method"
+                    + " parameters injected.",
                     testClass.getName());
         }
     }
