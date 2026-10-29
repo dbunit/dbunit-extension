@@ -32,6 +32,13 @@ import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.Yaml;
 
 import java.io.Writer;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.OffsetDateTime;
+import java.time.ZonedDateTime;
+import java.time.temporal.TemporalAccessor;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -100,7 +107,7 @@ class YamlWriter
                     Object value = table.getValue(row, columnName);
                     if (value != null && value != ITable.NO_VALUE)
                     {
-                        rowMap.put(columnName, value);
+                        rowMap.put(columnName, valueToWrite(value));
                     }
                 }
                 tableRows.add(rowMap);
@@ -108,5 +115,55 @@ class YamlWriter
             result.put(tableMetaData.getTableName(), tableRows);
         }
         return result;
+    }
+
+    /**
+     * Returns a date, a time or a timestamp as the text a column type parses, the JDBC escape
+     * format of {@link java.sql.Timestamp#toString()} and its siblings: a {@code java.sql} or
+     * {@code java.time} date, time or date and time as it is, a {@code java.time} time to the
+     * second, and an instant, such as a {@link java.util.Date} or an
+     * {@link java.time.OffsetDateTime}, in the time zone of the JVM. A date then reads back as
+     * the same day, and a timestamp as the same date and time, in any time zone, as from a flat
+     * XML file; SnakeYAML would write either as an instant in UTC. Returns any other
+     * {@code java.time} value as its {@code toString()}, and any other value as it is.
+     *
+     * @param value The value of a cell; not {@code null}.
+     * @return The value to write.
+     */
+    private static Object valueToWrite(Object value)
+    {
+        if (value instanceof java.sql.Date || value instanceof java.sql.Time
+                || value instanceof java.sql.Timestamp)
+        {
+            return value.toString();
+        }
+        if (value instanceof java.util.Date)
+        {
+            long millis = ((java.util.Date) value).getTime();
+            return new java.sql.Timestamp(millis).toString();
+        }
+        if (value instanceof LocalDate)
+        {
+            return java.sql.Date.valueOf((LocalDate) value).toString();
+        }
+        if (value instanceof LocalDateTime)
+        {
+            return java.sql.Timestamp.valueOf((LocalDateTime) value).toString();
+        }
+        if (value instanceof LocalTime)
+        {
+            return java.sql.Time.valueOf((LocalTime) value).toString();
+        }
+        if (value instanceof Instant || value instanceof OffsetDateTime
+                || value instanceof ZonedDateTime)
+        {
+            Instant instant = Instant.from((TemporalAccessor) value);
+            return java.sql.Timestamp.from(instant).toString();
+        }
+        if (value instanceof TemporalAccessor)
+        {
+            return value.toString();
+        }
+        return value;
     }
 }
