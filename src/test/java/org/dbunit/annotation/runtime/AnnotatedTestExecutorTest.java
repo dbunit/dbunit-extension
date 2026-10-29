@@ -91,6 +91,7 @@ import org.dbunit.database.rowcount.RowCountCheckOverride;
 import org.dbunit.database.rowcount.RowCountDifference;
 import org.dbunit.database.rowcount.UnexpectedRowCountException;
 import org.dbunit.dataset.Column;
+import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.DefaultDataSet;
 import org.dbunit.dataset.DefaultTable;
 import org.dbunit.dataset.IDataSet;
@@ -138,6 +139,7 @@ class AnnotatedTestExecutorTest
         RecordingPrepAndExpectedTestCase.instance = null;
         RecordingPrepAndExpectedTestCase.lastTester = null;
         RecordingPrepAndExpectedTestCase.throwFromConstructor = false;
+        PrepRowCountsTestCase.expectedDataset = null;
     }
 
     // ---- setup: combining prep files, and the classic path's onSetup() ----
@@ -1762,7 +1764,38 @@ class AnnotatedTestExecutorTest
                         + " baseline, on top of the standard per-table detail.")
                 .contains("baseline is captured before @DbUnitPrep loads")
                 .contains("@DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)")
+                .doesNotContain("CLEAN_INSERT")
                 .contains("ACCOUNT");
+    }
+
+    @Test
+    void testAfterTest_rowCountCheckEnabledByTheFeatureWithPrepAndNoTeardown_exceptionNamesTheTeardownFix()
+            throws Exception
+    {
+        stubEnabledConnection("ACCOUNT");
+        when(connection.getRowCount("ACCOUNT")).thenReturn(0);
+        when(tester.getTearDownOperation()).thenReturn(DatabaseOperation.NONE);
+        final DbUnitPrep prep = WithPrep.class.getAnnotation(DbUnitPrep.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration.from(
+                WithPrep.class, null, prep, null, null, null, null);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, tester, null);
+        executor.beforeTest();
+        when(connection.getRowCount("ACCOUNT")).thenReturn(5);
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown)
+                .as("The mismatch stays an UnexpectedRowCountException.")
+                .isInstanceOf(UnexpectedRowCountException.class);
+        assertThat(thrown.getMessage())
+                .as("A check that the DatabaseConfig feature enables, as -Ddbunit.rowCountCheck"
+                        + " does for a whole suite, explains prep that is never torn down the same"
+                        + " way as one that @DbUnitRowCountCheck enables.")
+                .contains("baseline is captured before @DbUnitPrep loads")
+                .contains("@DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)")
+                .doesNotContain("CLEAN_INSERT")
+                .doesNotContain("@DbUnitRowCountCheck baseline");
     }
 
     @Test
@@ -1791,6 +1824,546 @@ class AnnotatedTestExecutorTest
         assertThat(thrown.getMessage())
                 .as("No teardown hint when a non-NONE teardown operation ran.")
                 .doesNotContain("@DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)");
+    }
+
+    @Test
+    void testAfterTest_rowCountMismatchInAPrepTableOfAnInjectedTestCaseWithItsOwnTearDown_hasNoTeardownHint()
+            throws Exception
+    {
+        // dbUnit cannot read the operation an injected test case runs, which its owner set on it
+        // and which takes precedence over the tester's, and the annotation the hint names is
+        // rejected next to one.
+        stubEnabledConnection("ACCOUNT");
+        when(connection.getRowCount("ACCOUNT")).thenReturn(0);
+        final DbUnitPrep prep = WithPrepAndRowCountCheck.class.getAnnotation(DbUnitPrep.class);
+        final DbUnitRowCountCheck rowCountCheck =
+                WithPrepAndRowCountCheck.class.getAnnotation(DbUnitRowCountCheck.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration.from(
+                WithPrepAndRowCountCheck.class, null, prep, null, null, null, rowCountCheck);
+        final DefaultPrepAndExpectedTestCase injected =
+                new DefaultPrepAndExpectedTestCase(new FlatXmlDataFileLoader(), tester);
+        injected.setTearDownOperation(new RecordingDatabaseOperation());
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, tester, injected);
+        executor.beforeTest();
+        when(connection.getRowCount("ACCOUNT")).thenReturn(5);
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown).isInstanceOf(UnexpectedRowCountException.class);
+        assertThat(thrown.getMessage())
+                .as("The tester's own teardown operation is NONE, but the injected test case runs"
+                        + " one of its own, so the hint that its prep dataset is never torn down"
+                        + " would be wrong, and it names an annotation that is rejected next to an"
+                        + " injected test case.")
+                .contains("ACCOUNT")
+                .doesNotContain("@DbUnitTearDownOperation")
+                .doesNotContain("baseline is captured before @DbUnitPrep loads");
+    }
+
+    @Test
+    void testAfterTest_rowCountMismatchOnlyInATableTheDatasetsDoNotHold_hasNoTeardownHint()
+            throws Exception
+    {
+        // The prep dataset holds ACCOUNT, torn down by nothing, but the leak is in OTHER_T: the
+        // hint would point at the wrong cause.
+        stubEnabledConnection("OTHER_T");
+        when(connection.getRowCount("OTHER_T")).thenReturn(0);
+        final DbUnitPrep prep = WithPrepAndRowCountCheck.class.getAnnotation(DbUnitPrep.class);
+        final DbUnitRowCountCheck rowCountCheck =
+                WithPrepAndRowCountCheck.class.getAnnotation(DbUnitRowCountCheck.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration.from(
+                WithPrepAndRowCountCheck.class, null, prep, null, null, null, rowCountCheck);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, tester, null);
+        executor.beforeTest();
+        when(connection.getRowCount("OTHER_T")).thenReturn(5);
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown).isInstanceOf(UnexpectedRowCountException.class);
+        assertThat(thrown.getMessage())
+                .as("The per-table detail names the leaked table, but a prep dataset that is never"
+                        + " torn down did not cause a leak in a table it does not hold, so the"
+                        + " message must not say it did.")
+                .contains("OTHER_T")
+                .doesNotContain("@DbUnitTearDownOperation")
+                .doesNotContain("baseline is captured before @DbUnitPrep loads");
+    }
+
+    @Test
+    void testAfterTest_rowCountMismatchInAPrepTableNamedInAnotherCase_keepsTheTeardownHint()
+            throws Exception
+    {
+        stubEnabledConnection("account");
+        when(connection.getRowCount("account")).thenReturn(0);
+        final DbUnitPrep prep = WithPrepAndRowCountCheck.class.getAnnotation(DbUnitPrep.class);
+        final DbUnitRowCountCheck rowCountCheck =
+                WithPrepAndRowCountCheck.class.getAnnotation(DbUnitRowCountCheck.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration.from(
+                WithPrepAndRowCountCheck.class, null, prep, null, null, null, rowCountCheck);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, tester, null);
+        executor.beforeTest();
+        when(connection.getRowCount("account")).thenReturn(5);
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown).isInstanceOf(UnexpectedRowCountException.class);
+        assertThat(thrown.getMessage())
+                .as("dbUnit finds a table in a dataset ignoring case, so the database naming the"
+                        + " table of the prep dataset ACCOUNT as account is still the prep"
+                        + " dataset's table.")
+                .contains("account")
+                .contains("@DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)");
+    }
+
+    @Test
+    void testAfterTest_rowCountDropInAPrepTableAfterADeclaredDeletingSetUp_hintsAtAnInsertSetUp()
+            throws Exception
+    {
+        PrepRowCountsTestCase.differences = Arrays.asList(new RowCountDifference("ACCOUNT", 3, 1));
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithPrepAndRowCountCheck.class, WithCleanInsertSetUp.class,
+                        BuildsPrepRowCountsTestCase.class),
+                new RecordingAbstractDatabaseTester(), null);
+        executor.beforeTest();
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown).as("The drop stays an UnexpectedRowCountException.")
+                .isInstanceOf(UnexpectedRowCountException.class);
+        assertThat(thrown.getMessage())
+                .as("CLEAN_INSERT deleted the rows the prep table held at the baseline, so the"
+                        + " hint names a setup that keeps them, and not the teardown that would"
+                        + " delete the prep rows too.")
+                .contains("ACCOUNT  3 -> 1  (-2)")
+                .contains("The setup operation, CLEAN_INSERT, deletes every row")
+                .contains("@DbUnitSetUpOperation(DbUnitOperation.INSERT)")
+                .contains("@DbUnitTearDownOperation(DbUnitOperation.DELETE)")
+                .doesNotContain("never torn down")
+                .doesNotContain("@DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)");
+    }
+
+    @Test
+    void testAfterTest_rowCountDropInAPrepTableAfterTheTestersDeletingSetUp_hintsAtAnInsertSetUp()
+            throws Exception
+    {
+        PrepRowCountsTestCase.differences = Arrays.asList(new RowCountDifference("ACCOUNT", 3, 1));
+        final RecordingAbstractDatabaseTester ownTester = new RecordingAbstractDatabaseTester();
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithPrepAndRowCountCheck.class, BuildsPrepRowCountsTestCase.class),
+                ownTester, null);
+        executor.beforeTest();
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown).isInstanceOf(UnexpectedRowCountException.class);
+        assertThat(thrown.getMessage())
+                .as("With no @DbUnitSetUpOperation the test case runs the tester's setup"
+                        + " operation, CLEAN_INSERT by default, so the hint names it.")
+                .contains("The setup operation, CLEAN_INSERT, deletes every row")
+                .doesNotContain("never torn down");
+    }
+
+    @Test
+    void testAfterTest_rowCountDropInAPrepTableAfterAnInsertSetUp_hasNoHint() throws Exception
+    {
+        PrepRowCountsTestCase.differences = Arrays.asList(new RowCountDifference("ACCOUNT", 3, 1));
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithPrepAndRowCountCheck.class, WithInsertSetUp.class,
+                        BuildsPrepRowCountsTestCase.class),
+                new RecordingAbstractDatabaseTester(), null);
+        executor.beforeTest();
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown).isInstanceOf(UnexpectedRowCountException.class);
+        assertThat(thrown.getMessage())
+                .as("An INSERT setup deletes nothing, so a lost row has another cause, and the"
+                        + " per-table advice is all the failure gives.")
+                .contains("ACCOUNT  3 -> 1  (-2)")
+                .doesNotContain("The setup operation")
+                .doesNotContain("never torn down");
+    }
+
+    @Test
+    void testAfterTest_rowCountDropInAPrepTableWithADeletingTearDown_hintsAtAnInsertSetUp()
+            throws Exception
+    {
+        PrepRowCountsTestCase.differences = Arrays.asList(new RowCountDifference("ACCOUNT", 3, 0));
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithPrepAndRowCountCheck.class, WithCleanInsertSetUp.class,
+                        WithDeleteAllTearDown.class, BuildsPrepRowCountsTestCase.class),
+                new RecordingAbstractDatabaseTester(), null);
+        executor.beforeTest();
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown).isInstanceOf(UnexpectedRowCountException.class);
+        assertThat(thrown.getMessage())
+                .as("A test that followed the old advice and tears down with DELETE_ALL still"
+                        + " lost the seed rows to its CLEAN_INSERT setup, so it gets the setup"
+                        + " hint, and no hint about prep that is never torn down.")
+                .contains("The setup operation, CLEAN_INSERT, deletes every row")
+                .doesNotContain("never torn down");
+    }
+
+    @Test
+    void testAfterTest_rowCountRiseInAPrepTableAfterADeletingSetUp_hasOnlyTheTeardownHint()
+            throws Exception
+    {
+        PrepRowCountsTestCase.differences = Arrays.asList(new RowCountDifference("ACCOUNT", 0, 1));
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithPrepAndRowCountCheck.class, WithCleanInsertSetUp.class,
+                        BuildsPrepRowCountsTestCase.class),
+                new RecordingAbstractDatabaseTester(), null);
+        executor.beforeTest();
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown).isInstanceOf(UnexpectedRowCountException.class);
+        assertThat(thrown.getMessage())
+                .as("A prep table that gained rows kept the prep rows, which a CLEAN_INSERT setup"
+                        + " does not explain, so only the teardown hint is given.")
+                .contains("never torn down")
+                .doesNotContain("The setup operation");
+    }
+
+    @Test
+    void testAfterTest_rowCountRiseInOnePrepTableAndDropInAnother_givesBothHints() throws Exception
+    {
+        PrepRowCountsTestCase.differences = Arrays.asList(new RowCountDifference("ACCOUNT", 0, 1),
+                new RowCountDifference("ORDERS", 3, 1));
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithPrepAndRowCountCheck.class, BuildsPrepRowCountsTestCase.class),
+                new RecordingAbstractDatabaseTester(), null);
+        executor.beforeTest();
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown).isInstanceOf(UnexpectedRowCountException.class);
+        assertThat(thrown.getMessage())
+                .as("ACCOUNT kept the prep rows that nothing tore down, and ORDERS lost its seed"
+                        + " rows to the CLEAN_INSERT setup, so each table's cause gets its hint.")
+                .contains("never torn down")
+                .contains("@DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)")
+                .contains("The setup operation, CLEAN_INSERT, deletes every row");
+    }
+
+    @Test
+    void testAfterTest_rowCountRiseInAPrepTableAfterAnInsertSetUp_hintsAtADeleteTearDown()
+            throws Exception
+    {
+        PrepRowCountsTestCase.differences = Arrays.asList(new RowCountDifference("ACCOUNT", 2, 3));
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithPrepAndRowCountCheck.class, WithInsertSetUp.class,
+                        BuildsPrepRowCountsTestCase.class),
+                new RecordingAbstractDatabaseTester(), null);
+        executor.beforeTest();
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown).isInstanceOf(UnexpectedRowCountException.class);
+        assertThat(thrown.getMessage())
+                .as("An INSERT setup adds the prep rows to the rows the table held, so a"
+                        + " DELETE_ALL teardown would delete those too and the hint names DELETE.")
+                .contains("never torn down")
+                .contains("@DbUnitTearDownOperation(DbUnitOperation.DELETE),")
+                .contains("before the INSERT setup")
+                .doesNotContain("@DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)");
+    }
+
+    @Test
+    void testAfterTest_rowCountRiseInAPrepTableAfterARefreshSetUp_hintsAtADeleteTearDown()
+            throws Exception
+    {
+        PrepRowCountsTestCase.differences = Arrays.asList(new RowCountDifference("ACCOUNT", 2, 3));
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithPrepAndRowCountCheck.class, WithRefreshSetUp.class,
+                        BuildsPrepRowCountsTestCase.class),
+                new RecordingAbstractDatabaseTester(), null);
+        executor.beforeTest();
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown).isInstanceOf(UnexpectedRowCountException.class);
+        assertThat(thrown.getMessage())
+                .as("A REFRESH setup adds the prep rows to the rows the table held like an INSERT"
+                        + " setup does, so the hint names DELETE.")
+                .contains("@DbUnitTearDownOperation(DbUnitOperation.DELETE),")
+                .contains("before the REFRESH setup")
+                .doesNotContain("@DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)");
+    }
+
+    @Test
+    void testAfterTest_rowCountRiseInAPrepTableAfterACleanInsertSetUp_hintsAtADeleteAllTearDown()
+            throws Exception
+    {
+        PrepRowCountsTestCase.differences = Arrays.asList(new RowCountDifference("ACCOUNT", 0, 1));
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithPrepAndRowCountCheck.class, WithCleanInsertSetUp.class,
+                        BuildsPrepRowCountsTestCase.class),
+                new RecordingAbstractDatabaseTester(), null);
+        executor.beforeTest();
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown).isInstanceOf(UnexpectedRowCountException.class);
+        assertThat(thrown.getMessage())
+                .as("A CLEAN_INSERT setup leaves only the prep rows in the table, so a DELETE_ALL"
+                        + " teardown removes just them and the hint names it.")
+                .contains("@DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)")
+                .doesNotContain("@DbUnitTearDownOperation(DbUnitOperation.DELETE),");
+    }
+
+    @Test
+    void testAfterTest_rowCountDropInAPrepTableAfterAnInsertSetUpAndADeleteAllTearDown_hintsAtADeleteTearDown()
+            throws Exception
+    {
+        PrepRowCountsTestCase.differences = Arrays.asList(new RowCountDifference("ACCOUNT", 2, 0));
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithPrepAndRowCountCheck.class, WithInsertSetUp.class,
+                        WithDeleteAllTearDown.class, BuildsPrepRowCountsTestCase.class),
+                new RecordingAbstractDatabaseTester(), null);
+        executor.beforeTest();
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown).isInstanceOf(UnexpectedRowCountException.class);
+        assertThat(thrown.getMessage())
+                .as("The DELETE_ALL teardown deleted the rows the table held at the baseline too,"
+                        + " so the hint names the teardown and the DELETE that keeps those rows.")
+                .contains("ACCOUNT  2 -> 0  (-2)")
+                .contains("The teardown operation, DELETE_ALL, deletes every row")
+                .contains("@DbUnitTearDownOperation(DbUnitOperation.DELETE),")
+                .doesNotContain("The setup operation")
+                .doesNotContain("never torn down");
+    }
+
+    @Test
+    void testAfterTest_rowCountDropInAPrepTableAfterAnInsertSetUpAndATruncateTearDown_hintsAtADeleteTearDown()
+            throws Exception
+    {
+        PrepRowCountsTestCase.differences = Arrays.asList(new RowCountDifference("ACCOUNT", 2, 0));
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithPrepAndRowCountCheck.class, WithInsertSetUp.class,
+                        WithTruncateTableTearDown.class, BuildsPrepRowCountsTestCase.class),
+                new RecordingAbstractDatabaseTester(), null);
+        executor.beforeTest();
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown).isInstanceOf(UnexpectedRowCountException.class);
+        assertThat(thrown.getMessage())
+                .as("TRUNCATE_TABLE empties the prep tables like DELETE_ALL does.")
+                .contains("The teardown operation, TRUNCATE_TABLE, deletes every row");
+    }
+
+    @Test
+    void testAfterTest_rowCountDropInAPrepTableAfterAnInsertSetUpAndADeleteTearDown_hasNoHint()
+            throws Exception
+    {
+        PrepRowCountsTestCase.differences = Arrays.asList(new RowCountDifference("ACCOUNT", 2, 1));
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithPrepAndRowCountCheck.class, WithInsertSetUp.class,
+                        WithDeleteTearDown.class, BuildsPrepRowCountsTestCase.class),
+                new RecordingAbstractDatabaseTester(), null);
+        executor.beforeTest();
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown).isInstanceOf(UnexpectedRowCountException.class);
+        assertThat(thrown.getMessage())
+                .as("A DELETE teardown removes only the rows of the datasets, so a lost row has"
+                        + " another cause and the per-table advice is all the failure gives.")
+                .contains("ACCOUNT  2 -> 1  (-1)")
+                .doesNotContain("The teardown operation")
+                .doesNotContain("The setup operation");
+    }
+
+    @Test
+    void testAfterTest_rowCountRiseInAPrepTableAfterAnInsertSetUpAndTheExpectedDatasetListsItToo_hintsAtAnExclusionNotADeleteTearDown()
+            throws Exception
+    {
+        PrepRowCountsTestCase.differences = Arrays.asList(new RowCountDifference("ACCOUNT", 1, 2));
+        PrepRowCountsTestCase.expectedDataset = expectedDatasetOf("ACCOUNT");
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithPrepAndRowCountCheck.class, WithInsertSetUp.class,
+                        BuildsPrepRowCountsTestCase.class),
+                new RecordingAbstractDatabaseTester(), null);
+        executor.beforeTest();
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown).isInstanceOf(UnexpectedRowCountException.class);
+        assertThat(thrown.getMessage())
+                .as("A DELETE teardown would delete the seed rows the expected dataset lists, so"
+                        + " the hint names an exclusion and not that teardown.")
+                .contains("never torn down")
+                .contains("The expected dataset lists ACCOUNT too")
+                .contains("acts on the expected dataset as well as on the prep dataset")
+                .contains("Exclude them from the check")
+                .doesNotContain("Add @DbUnitTearDownOperation")
+                .doesNotContain("@DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)");
+    }
+
+    @Test
+    void testAfterTest_rowCountRiseInAPrepTableAfterARefreshSetUpAndTheExpectedDatasetListsItInOtherCase_hintsAtAnExclusion()
+            throws Exception
+    {
+        PrepRowCountsTestCase.differences = Arrays.asList(new RowCountDifference("ACCOUNT", 1, 2));
+        PrepRowCountsTestCase.expectedDataset = expectedDatasetOf("account");
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithPrepAndRowCountCheck.class, WithRefreshSetUp.class,
+                        BuildsPrepRowCountsTestCase.class),
+                new RecordingAbstractDatabaseTester(), null);
+        executor.beforeTest();
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown).isInstanceOf(UnexpectedRowCountException.class);
+        assertThat(thrown.getMessage())
+                .as("The expected dataset finds a table ignoring case, as the hints do.")
+                .contains("The expected dataset lists ACCOUNT too")
+                .doesNotContain("Add @DbUnitTearDownOperation");
+    }
+
+    @Test
+    void testAfterTest_rowCountRiseInAPrepTableAfterAnInsertSetUpAndTheExpectedDatasetListsOtherTables_stillHintsAtADeleteTearDown()
+            throws Exception
+    {
+        PrepRowCountsTestCase.differences = Arrays.asList(new RowCountDifference("ACCOUNT", 1, 2));
+        PrepRowCountsTestCase.expectedDataset = expectedDatasetOf("ORDERS");
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithPrepAndRowCountCheck.class, WithInsertSetUp.class,
+                        BuildsPrepRowCountsTestCase.class),
+                new RecordingAbstractDatabaseTester(), null);
+        executor.beforeTest();
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown).isInstanceOf(UnexpectedRowCountException.class);
+        assertThat(thrown.getMessage())
+                .as("The teardown deletes only rows of the datasets, and ACCOUNT is not in the"
+                        + " expected one, so the seed rows stay and the DELETE advice holds.")
+                .contains("@DbUnitTearDownOperation(DbUnitOperation.DELETE),")
+                .contains("before the INSERT setup")
+                .doesNotContain("The expected dataset lists");
+    }
+
+    @Test
+    void testAfterTest_rowCountRiseInAPrepTableEmptyAtTheBaselineAndListedByTheExpectedDataset_stillHintsAtADeleteTearDown()
+            throws Exception
+    {
+        PrepRowCountsTestCase.differences = Arrays.asList(new RowCountDifference("ACCOUNT", 0, 1));
+        PrepRowCountsTestCase.expectedDataset = expectedDatasetOf("ACCOUNT");
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithPrepAndRowCountCheck.class, WithInsertSetUp.class,
+                        BuildsPrepRowCountsTestCase.class),
+                new RecordingAbstractDatabaseTester(), null);
+        executor.beforeTest();
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown).isInstanceOf(UnexpectedRowCountException.class);
+        assertThat(thrown.getMessage())
+                .as("A table with no rows at the baseline has no seed rows for the teardown to"
+                        + " delete, so its rows are the datasets' and DELETE removes them.")
+                .contains("@DbUnitTearDownOperation(DbUnitOperation.DELETE),")
+                .doesNotContain("The expected dataset lists");
+    }
+
+    @Test
+    void testAfterTest_rowCountRiseInTwoPrepTablesAndOnlyOneHeldRowsAtTheBaseline_hintsEachWithItsAdvice()
+            throws Exception
+    {
+        PrepRowCountsTestCase.differences = Arrays.asList(new RowCountDifference("ACCOUNT", 1, 2),
+                new RowCountDifference("ORDERS", 0, 1));
+        PrepRowCountsTestCase.expectedDataset = expectedDatasetOf("ACCOUNT", "ORDERS");
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithPrepAndRowCountCheck.class, WithInsertSetUp.class,
+                        BuildsPrepRowCountsTestCase.class),
+                new RecordingAbstractDatabaseTester(), null);
+        executor.beforeTest();
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown).isInstanceOf(UnexpectedRowCountException.class);
+        assertThat(thrown.getMessage())
+                .as("ORDERS held no rows at the baseline, so it gets the DELETE advice, and"
+                        + " ACCOUNT, which did, gets the exclusion.")
+                .contains("For ORDERS: Add @DbUnitTearDownOperation(DbUnitOperation.DELETE),")
+                .contains("or exclude ORDERS from the check.")
+                .contains("The expected dataset lists ACCOUNT too");
+    }
+
+    @Test
+    void testAfterTest_rowCountDropInAPrepTableAfterADeletingSetUpAndTheExpectedDatasetListsItToo_hintsAtAnExclusionNotAnInsertSetUp()
+            throws Exception
+    {
+        PrepRowCountsTestCase.differences = Arrays.asList(new RowCountDifference("ACCOUNT", 3, 1));
+        PrepRowCountsTestCase.expectedDataset = expectedDatasetOf("ACCOUNT");
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithPrepAndRowCountCheck.class, WithCleanInsertSetUp.class,
+                        BuildsPrepRowCountsTestCase.class),
+                new RecordingAbstractDatabaseTester(), null);
+        executor.beforeTest();
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown).isInstanceOf(UnexpectedRowCountException.class);
+        assertThat(thrown.getMessage())
+                .as("An INSERT setup keeps the seed rows, the expected dataset must then list"
+                        + " them, and the DELETE teardown deletes them, so no such advice.")
+                .contains("The setup operation, CLEAN_INSERT, deletes every row")
+                .contains("The expected dataset lists ACCOUNT too")
+                .doesNotContain("To keep such rows");
+    }
+
+    @Test
+    void testAfterTest_rowCountDropInAPrepTableAfterADeletingTearDownAndTheExpectedDatasetListsItToo_hintsAtAnExclusionNotADeleteTearDown()
+            throws Exception
+    {
+        PrepRowCountsTestCase.differences = Arrays.asList(new RowCountDifference("ACCOUNT", 3, 0));
+        PrepRowCountsTestCase.expectedDataset = expectedDatasetOf("ACCOUNT");
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithPrepAndRowCountCheck.class, WithInsertSetUp.class,
+                        WithDeleteAllTearDown.class, BuildsPrepRowCountsTestCase.class),
+                new RecordingAbstractDatabaseTester(), null);
+        executor.beforeTest();
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown).isInstanceOf(UnexpectedRowCountException.class);
+        assertThat(thrown.getMessage())
+                .as("A DELETE teardown deletes the rows the expected dataset lists as well.")
+                .contains("The teardown operation, DELETE_ALL, deletes every row")
+                .contains("The expected dataset lists ACCOUNT too")
+                .doesNotContain("To keep such rows");
+    }
+
+    @Test
+    void testAfterTest_rowCountDropInAPrepTableAfterAnInsertSetUpAndADeleteTearDownAndTheExpectedDatasetListsIt_hintsAtAnExclusion()
+            throws Exception
+    {
+        PrepRowCountsTestCase.differences = Arrays.asList(new RowCountDifference("ACCOUNT", 1, 0));
+        PrepRowCountsTestCase.expectedDataset = expectedDatasetOf("ACCOUNT");
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithPrepAndRowCountCheck.class, WithInsertSetUp.class,
+                        WithDeleteTearDown.class, BuildsPrepRowCountsTestCase.class),
+                new RecordingAbstractDatabaseTester(), null);
+        executor.beforeTest();
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown).isInstanceOf(UnexpectedRowCountException.class);
+        assertThat(thrown.getMessage())
+                .as("The DELETE teardown that the leaked-prep advice named deleted the seed row"
+                        + " the expected dataset lists, so the failure it caused explains it.")
+                .contains("The teardown operation, DELETE, deletes every row of the datasets")
+                .contains("The expected dataset lists ACCOUNT too")
+                .contains("Exclude them from the check");
     }
 
     @Test
@@ -4636,9 +5209,109 @@ class AnnotatedTestExecutorTest
     {
     }
 
+    @DbUnitConfig(prepAndExpectedTestCase = PrepRowCountsTestCase.class)
+    static class BuildsPrepRowCountsTestCase
+    {
+    }
+
+    /**
+     * A built test case whose {@code postTest()} reports the row count differences a test puts in
+     * {@link #differences}, and whose prep dataset holds the {@code ACCOUNT} and {@code ORDERS}
+     * tables. It runs no operation, so the setup and teardown operations it is given are only
+     * read.
+     */
+    public static class PrepRowCountsTestCase extends DefaultPrepAndExpectedTestCase
+    {
+        static List<RowCountDifference> differences = new ArrayList<>();
+
+        static IDataSet expectedDataset;
+
+        public PrepRowCountsTestCase(final DataFileLoader dataFileLoader,
+                final IDatabaseTester tester)
+        {
+            super(dataFileLoader, tester);
+        }
+
+        @Override
+        public void configureTest(final VerifyTableDefinition[] verifyTableDefinitions,
+                final String[] prepDataFiles, final String[] expectedDataFiles)
+        {
+        }
+
+        @Override
+        public void preTest()
+        {
+        }
+
+        @Override
+        public IDataSet getPrepDataset()
+        {
+            try
+            {
+                return new DefaultDataSet(new DefaultTable("ACCOUNT"), new DefaultTable("ORDERS"));
+            } catch (final DataSetException e)
+            {
+                throw new IllegalStateException(e);
+            }
+        }
+
+        @Override
+        public IDataSet getExpectedDataset()
+        {
+            return expectedDataset;
+        }
+
+        @Override
+        public void postTest(final boolean verifyData) throws Exception
+        {
+            throw new UnexpectedRowCountException(differences);
+        }
+    }
+
+    private static IDataSet expectedDatasetOf(final String... tableNames) throws DataSetException
+    {
+        final DefaultDataSet dataSet = new DefaultDataSet();
+        for (final String tableName : tableNames)
+        {
+            dataSet.addTable(new DefaultTable(tableName));
+        }
+        return dataSet;
+    }
+
+    @DbUnitSetUpOperation(DbUnitOperation.CLEAN_INSERT)
+    static class WithCleanInsertSetUp
+    {
+    }
+
+    @DbUnitSetUpOperation(DbUnitOperation.INSERT)
+    static class WithInsertSetUp
+    {
+    }
+
+    @DbUnitSetUpOperation(DbUnitOperation.REFRESH)
+    static class WithRefreshSetUp
+    {
+    }
+
+    @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
+    static class WithDeleteAllTearDown
+    {
+    }
+
+    @DbUnitTearDownOperation(DbUnitOperation.TRUNCATE_TABLE)
+    static class WithTruncateTableTearDown
+    {
+    }
+
+    @DbUnitTearDownOperation(DbUnitOperation.DELETE)
+    static class WithDeleteTearDown
+    {
+    }
+
     /**
      * A built test case whose {@code postTest()} reports a row count mismatch that already has a
-     * failure attached to it, as a close failure would be.
+     * failure attached to it, as a close failure would be. The mismatch is in the {@code ACCOUNT}
+     * table, which its prep dataset holds.
      */
     public static class MismatchingTestCase extends DefaultPrepAndExpectedTestCase
     {
@@ -4659,6 +5332,18 @@ class AnnotatedTestExecutorTest
         @Override
         public void preTest()
         {
+        }
+
+        @Override
+        public IDataSet getPrepDataset()
+        {
+            try
+            {
+                return new DefaultDataSet(new DefaultTable("ACCOUNT"));
+            } catch (final DataSetException e)
+            {
+                throw new IllegalStateException(e);
+            }
         }
 
         @Override
