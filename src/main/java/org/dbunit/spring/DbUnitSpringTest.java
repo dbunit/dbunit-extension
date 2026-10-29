@@ -41,14 +41,27 @@ import org.springframework.test.context.TestExecutionListeners.MergeMode;
  * listeners entirely, silently dropping dependency injection and transaction management for
  * every test class that uses it without also re-listing every default listener by hand.
  *
- * <p>Spring honors only one {@code @TestExecutionListeners} declaration per class. If the class
- * declares its own, this annotation has no effect. If it carries another annotation composed with
- * one, Spring honors only the first it finds, going by declaration order, and silently drops the
- * other's listeners. Either way the DbUnit listener can end up never registered, every
- * {@code @DbUnit*} annotation is ignored, and the tests run with no prep, verification or
- * teardown. Add {@link DbUnitTestExecutionListener} to that one declaration instead, with
- * {@code mergeMode = MERGE_WITH_DEFAULTS}. A subclass's own declaration is not affected, as its
- * listeners are merged with those it inherits.
+ * <p>dbUnit also registers the listener as one of Spring's default test execution listeners, in
+ * its {@code META-INF/spring.factories}, so a test class that keeps Spring's default listeners
+ * gets it without this annotation. Spring merges this annotation with those defaults and drops
+ * the duplicate, so Spring registers the listener once.
+ *
+ * <p>Spring honors only one {@code @TestExecutionListeners} declaration per class: the class's
+ * own, or the first it finds among the annotations composed into it, going by declaration order.
+ * When another one wins over this annotation, the listener still runs as a default listener, as
+ * long as that declaration keeps the defaults with {@code mergeMode = MERGE_WITH_DEFAULTS}. A
+ * declaration that replaces the defaults drops the listener together with Spring's own ones, and
+ * then nothing acts on any {@code @DbUnit*} annotation: give it
+ * {@code mergeMode = MERGE_WITH_DEFAULTS}, which keeps Spring's own listeners as well. Naming
+ * {@link DbUnitTestExecutionListener} in a declaration that replaces the defaults registers it
+ * too, but the declaration still drops dependency injection and transaction management. A
+ * subclass's own declaration keeps the listeners it inherits, as Spring merges them.
+ *
+ * <p>Spring drops a duplicate listener only when it merges a declaration with the defaults. A
+ * base class whose declaration replaces the defaults and names
+ * {@link DbUnitTestExecutionListener} therefore gets a second instance from a subclass that
+ * names it again or carries {@code @DbUnitSpringTest}. The instances share the test context, and
+ * the listener guards itself: the first runs dbUnit for a test and the second leaves it alone.
  *
  * <p>Also the natural carrier for a project's own composed annotation, bundling
  * {@code @DbUnitSpringTest} with shared {@code @DbUnitConfig} and lifecycle annotations, the same
