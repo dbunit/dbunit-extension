@@ -31,6 +31,7 @@ import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 
@@ -158,6 +159,23 @@ class JsonDataSetTest extends AbstractDataSetTest
         assertThat(actualDataSet.getTable("TEST_TABLE").getValue(0, col0))
                 .as("non-ASCII value round-trips through the UTF-8-encoded output stream.")
                 .isEqualTo(value);
+    }
+
+    @Test
+    void testConstructor_numberWithAFraction_keepsEveryDigit() throws Exception
+    {
+        final InputStream in = new ByteArrayInputStream(
+                "{\"EVENT\": [{\"AMOUNT\": 12345678901234567890.123, \"QUANTITY\": 7}]}"
+                        .getBytes(StandardCharsets.UTF_8));
+
+        final IDataSet dataSet = new JsonDataSet(in);
+
+        final Object[] row = {dataSet.getTable("EVENT").getValue(0, "AMOUNT"),
+                dataSet.getTable("EVENT").getValue(0, "QUANTITY")};
+        assertThat(row)
+                .as("A number with a fraction is read as an exact decimal, not rounded to a"
+                        + " double; an integer stays an integer.")
+                .containsExactly(new BigDecimal("12345678901234567890.123"), 7);
     }
 
     @Test
