@@ -355,7 +355,10 @@ public class VerifyTableDefinition
     }
 
     /**
-     * Returns the per-column value comparers.
+     * Returns the per-column value comparers. Since 3.6.0
+     * {@link DefaultPrepAndExpectedTestCase} matches each key to its column
+     * without regard to case, as it matches the column exclusion and inclusion
+     * filters, and rejects two keys that differ only in case.
      *
      * @return the per-column value comparers.
      * @since 2.6.0
