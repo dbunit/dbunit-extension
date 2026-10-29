@@ -808,7 +808,12 @@ test's own writes. `@DbUnitRowCountCheck` with `@DbUnitPrep` and no `@DbUnitTear
 @DbUnitRowCountCheck
 class AccountRepositoryTest
 {
-    IDatabaseTester databaseTester = new JdbcDatabaseTester(...);
+    IDatabaseTester databaseTester;
+
+    AccountRepositoryTest() throws ClassNotFoundException
+    {
+        databaseTester = new JdbcDatabaseTester(...);
+    }
 
     @Test
     @DbUnitPrep("accounts-prep.xml")
