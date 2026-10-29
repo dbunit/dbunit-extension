@@ -68,7 +68,11 @@ import org.dbunit.assertion.comparer.value.ValueComparer;
 public @interface DbUnitColumnComparer
 {
     /**
-     * The name of the column this comparer applies to.
+     * The name of the column this comparer applies to. It matches the column without regard to
+     * case, as the column names of {@link DbUnitVerifyTable#exclude()} and
+     * {@link DbUnitVerifyTable#include()} do, so two {@code @DbUnitColumnComparer}s of one
+     * {@link DbUnitVerifyTable} whose names differ only in case fail fast with an
+     * {@link IllegalStateException}, as two for the same column do.
      *
      * @return The column name.
      */
