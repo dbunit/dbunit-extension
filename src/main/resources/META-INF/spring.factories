@@ -1,0 +1,6 @@
+# Registers DbUnitTestExecutionListener as one of the default test execution listeners of the
+# Spring TestContext Framework, so a test class that keeps Spring's defaults gets it even when
+# another @TestExecutionListeners declaration wins over the one @DbUnitSpringTest carries. The
+# listener does nothing for a test that uses no org.dbunit.annotation annotation.
+org.springframework.test.context.TestExecutionListener=\
+org.dbunit.spring.DbUnitTestExecutionListener
