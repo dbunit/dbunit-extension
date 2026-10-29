@@ -3,9 +3,23 @@
 == Overview
 
 Dataset formats store field values as text — always for
-link:flatxml.html[Flat XML], link:xml.html[XML], link:csv.html[CSV],
-link:json.html[JSON], and link:yaml.html[YAML]; for link:excel.html[Excel],
-except where an `.xls` cell is natively a number, date, or boolean. dbUnit
+link:flatxml.html[Flat XML], link:xml.html[XML] and link:csv.html[CSV]; for
+link:excel.html[Excel], except where an `.xls` cell is natively a number, date,
+or boolean. link:json.html[JSON] and link:yaml.html[YAML] hand dbUnit an
+unquoted integer as a number and an unquoted `true` or `false` as a boolean,
+and JSON a number with a fraction as an exact decimal; a YAML date or
+timestamp that the column type parses as text, such as `2024-03-01` or
+`2024-03-01 10:15:30`, a YAML time such as `10:30:00`, an integer with leading
+zeros such as `01234`, and a YAML decimal number are handed on as their text,
+so they follow the rules below like every other format's. A YAML timestamp with
+a `T` or a time zone, such as `2024-03-01T10:15:30Z`, and a YAML number that is
+not a plain decimal, such as `0x1F`, `1:30`, `1_000.5` or `.inf`, are handed on
+as the instant, the integer or the `double` that SnakeYAML reads, which for a
+timestamp without a time zone is an instant in UTC; so is a YAML value with an
+explicit tag, such as `!!timestamp`, which keeps the type the tag names. YAML
+reads `yes`, `no`, `on` and `off`, in lower case, capitalized or in upper case, as
+booleans, so a text column gets `true` or `false` for such an unquoted value: quote
+a value that it should get as written. dbUnit
 turns each value into a typed column value with the column's
 link:../datatypes.html[DataType]: `DataType.typeCast()` parses a string using
 the SQL type dbUnit resolved for the column (from database metadata, a DTD, or

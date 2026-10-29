@@ -33,15 +33,22 @@ import org.dbunit.dataset.stream.IDataSetConsumer;
 import org.dbunit.dataset.stream.IDataSetProducer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
+import org.yaml.snakeyaml.constructor.Constructor;
 import org.yaml.snakeyaml.constructor.DuplicateKeyException;
 import org.yaml.snakeyaml.error.Mark;
 import org.yaml.snakeyaml.error.YAMLException;
+import org.yaml.snakeyaml.nodes.NodeId;
+import org.yaml.snakeyaml.nodes.Tag;
+import org.yaml.snakeyaml.representer.Representer;
+import org.yaml.snakeyaml.resolver.Resolver;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -50,6 +57,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 /**
  * {@link IDataSetProducer} that parses a YAML dataset document and streams
@@ -137,7 +145,135 @@ public class YamlProducer implements IDataSetProducer
         {
             LoaderOptions options = new LoaderOptions();
             options.setAllowDuplicateKeys(false);
-            _yaml = new Yaml(options);
+            DumperOptions dumperOptions = new DumperOptions();
+            _yaml = new Yaml(new Constructor(options), new Representer(dumperOptions),
+                    dumperOptions, options, new TextValueResolver());
+        }
+
+        /**
+         * SnakeYAML's resolver of implicit types, except that an unquoted timestamp, time, integer
+         * or number with a fraction that the column's data type parses as text stays the text of
+         * the document, which the data type then parses as in every other format: a date such as
+         * {@code 2024-03-01}, a date and time such as {@code 2024-03-01 10:15:30}, a time such as
+         * {@code 10:30:00}, an integer with leading zeros such as {@code 01234}, and a decimal
+         * number such as {@code 12.50} or {@code 1.5e3}. As a timestamp, SnakeYAML would read a
+         * date as an instant at midnight UTC, the day before in a time zone west of UTC; as an
+         * integer, it would read a time from {@code 10:00:00} on as a base-60 number, so that
+         * {@code 10:30:00} became 37800, and an integer with leading zeros as an octal number, so
+         * that {@code 01234} became 668; as a float, it would drop the digits of a number past
+         * about 17 significant ones. A timestamp or a number that no data type parses as text,
+         * such as {@code 2024-03-01T10:15:30Z}, {@code 0x1F}, {@code 1:30}, {@code 1_000.5} or
+         * {@code .inf}, resolves to the instant, the integer or the double SnakeYAML reads, and
+         * every other value, such as a boolean like {@code yes} or {@code off}, resolves as
+         * SnakeYAML resolves it. A value with an explicit tag, such as {@code !!timestamp}, keeps
+         * the type the tag names.
+         */
+        private static class TextValueResolver extends Resolver
+        {
+            private static final Pattern ZERO_PADDED_INTEGER = Pattern.compile("[-+]?0[0-9]+");
+
+            /**
+             * {@inheritDoc}
+             * <p>
+             * Resolves a timestamp, an integer or a float that the column's data type parses as
+             * text to a string instead.
+             */
+            @Override
+            public Tag resolve(final NodeId kind, final String value, final boolean implicit)
+            {
+                final Tag tag = super.resolve(kind, value, implicit);
+                final boolean timestampText =
+                        Tag.TIMESTAMP.equals(tag) && isDateOrTimestampText(value);
+                final boolean decimalText = Tag.FLOAT.equals(tag) && isDecimalText(value);
+                final boolean integerTag = Tag.INT.equals(tag);
+                final boolean timeText = integerTag && isTimeText(value);
+                final boolean paddedIntegerText = integerTag && isZeroPaddedIntegerText(value);
+                if (timestampText || decimalText || timeText || paddedIntegerText)
+                {
+                    return Tag.STR;
+                }
+                return tag;
+            }
+
+            /**
+             * Returns whether the DATE and TIMESTAMP data types parse the text: as a date when it
+             * has ten characters, otherwise as a date and time, as
+             * {@link java.sql.Date#valueOf(String)} and {@link java.sql.Timestamp#valueOf(String)}
+             * read them.
+             *
+             * @param value The text of a timestamp.
+             * @return {@code true} if the data types parse the text.
+             */
+            private static boolean isDateOrTimestampText(final String value)
+            {
+                try
+                {
+                    if (value.length() == 10)
+                    {
+                        java.sql.Date.valueOf(value);
+                    } else
+                    {
+                        java.sql.Timestamp.valueOf(value);
+                    }
+                    return true;
+                } catch (final IllegalArgumentException e)
+                {
+                    return false;
+                }
+            }
+
+            /**
+             * Returns whether the numeric data types parse the text, as
+             * {@link BigDecimal#BigDecimal(String)} reads it.
+             *
+             * @param value The text of a number with a fraction.
+             * @return {@code true} if the data types parse the text.
+             */
+            private static boolean isDecimalText(final String value)
+            {
+                try
+                {
+                    new BigDecimal(value);
+                    return true;
+                } catch (final NumberFormatException e)
+                {
+                    return false;
+                }
+            }
+
+            /**
+             * Returns whether the TIME data type parses the text, as
+             * {@link java.sql.Time#valueOf(String)} reads it. YAML 1.1 reads such a text as a
+             * base-60 integer when it starts with a digit other than zero, as a time from
+             * {@code 10:00:00} on does.
+             *
+             * @param value The text of an integer.
+             * @return {@code true} if the data type parses the text.
+             */
+            private static boolean isTimeText(final String value)
+            {
+                try
+                {
+                    java.sql.Time.valueOf(value);
+                    return true;
+                } catch (final IllegalArgumentException e)
+                {
+                    return false;
+                }
+            }
+
+            /**
+             * Returns whether the text is an integer with leading zeros, such as {@code 01234},
+             * which YAML 1.1 reads as an octal number and the integer data types read as a decimal
+             * one.
+             *
+             * @param value The text of an integer.
+             * @return {@code true} if the text has leading zeros.
+             */
+            private static boolean isZeroPaddedIntegerText(final String value)
+            {
+                return ZERO_PADDED_INTEGER.matcher(value).matches();
+            }
         }
 
         /**

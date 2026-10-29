@@ -35,6 +35,28 @@ first appears on a later row is still picked up.
 For what happens to a field value after parsing — empty strings, binary/BLOB
 syntax, literal and relative dates, UUID literals, and booleans/numbers from
 strings — see link:values.html[Dataset Values], which applies to every format.
+Since 3.6.0 an unquoted date or timestamp that the column type parses as text,
+such as `2024-03-01` or `2024-03-01 10:15:30`, an unquoted time, such as
+`10:30:00`, an unquoted integer with leading zeros, such as `01234`, and an
+unquoted decimal number, such as `12.50` or `1.5e3`, reach the column type as
+their text, which it parses in the JVM's time zone and with every digit.
+Before, SnakeYAML read such a date as an instant at midnight UTC, the day before
+in a time zone west of UTC, such a timestamp as an instant in UTC, such a time
+from `10:00:00` on as a base-60 integer, so that `10:30:00` became 37800, such
+an integer with leading zeros as an octal number, so that `01234` became 668,
+and such a number as a `double`. A timestamp or a number that the column type
+does not parse as text still reaches it as the instant, the integer or the
+`double` that SnakeYAML reads: a timestamp with a `T` or a time zone, such as
+`2024-03-01T10:15:30Z`, which SnakeYAML takes as UTC when it names no zone, an
+integer in hexadecimal, binary or with digit groups, such as `0x1F`, `0b101` or
+`1_000`, a base-60 integer that is no time, such as `1:30`, which is 90, and a
+number with digit groups, such as `1_000.5`, in base 60, or `.inf` and `.nan`.
+YAML 1.1 also reads `yes`, `no`, `on` and `off`, in lower case, capitalized or in
+upper case, as booleans, so a text column gets `true` or `false` for such an
+unquoted value, such as the country code `NO`: quote a value that a text column
+should get as written.
+`YamlDataSet.write()` writes a date, a time or a timestamp as text the column
+type parses, so a written dataset reads back unchanged.
 
 == Dependency
 

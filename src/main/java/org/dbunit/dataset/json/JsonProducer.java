@@ -46,6 +46,7 @@ import org.dbunit.dataset.stream.IDataSetProducer;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
@@ -144,6 +145,8 @@ public class JsonProducer implements IDataSetProducer
         {
             _consumer.startDataSet();
             final ObjectMapper mapper = new ObjectMapper();
+            // a number with a fraction keeps every digit, where a double rounds past about 17
+            mapper.enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS);
             try (JsonParser parser = mapper.createParser(_inputStream))
             {
                 parser.configure(JsonParser.Feature.AUTO_CLOSE_SOURCE, _autoCloseInputStream);
