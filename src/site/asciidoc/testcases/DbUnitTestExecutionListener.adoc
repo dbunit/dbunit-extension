@@ -331,6 +331,16 @@ This listener has no such second style: it acts on a test only when the test dec
 above has no JUnit 5 equivalent, since a plain JUnit 5 test has no bean
 container to ask.
 
+*One binding per test.* A test that JUnit Jupiter runs with `DbUnitExtension`,
+registered through `@DbUnitTest` or `@ExtendWith(DbUnitExtension.class)` on the
+test method, the test class, a superclass or an enclosing class, is left to the
+extension: the listener does nothing for it, so dbUnit sets up, verifies and
+tears down once. When the class also registers the listener, through
+`@DbUnitSpringTest` or `@TestExecutionListeners`, the listener logs one warning
+that names the class. Keep one of the two: `@DbUnitSpringTest` to take the tester
+from the application context, or `@DbUnitTest` to have `IDatabaseTester` and
+`IDatabaseConnection` test method parameters injected.
+
 *Different phases.* `DbUnitExtension` sets up immediately before the test
 method, after the `@BeforeEach` methods, and tears down immediately after it.
 This listener sets up before the `@BeforeEach` methods and tears down after the

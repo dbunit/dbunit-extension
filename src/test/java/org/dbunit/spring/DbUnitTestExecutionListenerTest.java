@@ -55,6 +55,8 @@ import org.dbunit.database.InMemoryDatabaseConnection;
 import org.dbunit.dataset.DefaultDataSet;
 import org.dbunit.dataset.DefaultTable;
 import org.dbunit.dataset.IDataSet;
+import org.dbunit.junit.jupiter.DbUnitExtension;
+import org.dbunit.junit.jupiter.DbUnitTest;
 import org.dbunit.operation.DatabaseOperation;
 import org.dbunit.operation.DbUnitOperation;
 import org.dbunit.util.fileloader.CachingFileExtensionDataFileLoader;
@@ -62,6 +64,8 @@ import org.dbunit.util.fileloader.DataFileLoader;
 import org.dbunit.util.fileloader.FlatXmlDataFileLoader;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.Extension;
 import org.slf4j.LoggerFactory;
 import org.springframework.test.context.support.DirtiesContextTestExecutionListener;
 import org.springframework.test.context.transaction.TransactionalTestExecutionListener;
@@ -436,6 +440,138 @@ class DbUnitTestExecutionListenerTest
         assertThat(RecordingTestCase.tearDownOperations)
                 .as("The class-level teardown operation is the test case's.")
                 .containsExactly(DatabaseOperation.DELETE_ALL);
+    }
+
+    @Test
+    void testBeforeAndAfterTestMethod_classAlsoAnnotatedDbUnitTest_leavesTheTestToDbUnitExtension()
+            throws Exception
+    {
+        final IDatabaseTester tester = mock(IDatabaseTester.class);
+        final FakeTestContext context = new FakeTestContext(AlsoDbUnitTest.class)
+                .beginMethod(new AlsoDbUnitTest(tester), "aTestMethod");
+
+        listener.beforeTestMethod(context);
+        listener.afterTestMethod(context);
+
+        assertThat(RecordingTestCase.testersAtPreTest)
+                .as("A class that registers DbUnitExtension, here through @DbUnitTest, is left to"
+                        + " the extension, so dbUnit sets it up once.")
+                .isEmpty();
+        assertThat(RecordingTestCase.postTestCalls)
+                .as("The listener cleans up nothing for a test it left to DbUnitExtension.")
+                .isEmpty();
+    }
+
+    @Test
+    void testBeforeTestMethod_superclassExtendsWithDbUnitExtension_leavesTheTestToDbUnitExtension()
+            throws Exception
+    {
+        final IDatabaseTester tester = mock(IDatabaseTester.class);
+        final FakeTestContext context = new FakeTestContext(InheritsDbUnitExtension.class)
+                .beginMethod(new InheritsDbUnitExtension(tester), "aTestMethod");
+
+        listener.beforeTestMethod(context);
+
+        assertThat(RecordingTestCase.testersAtPreTest)
+                .as("JUnit registers an extension a superclass declares, so the listener leaves"
+                        + " the test to it.")
+                .isEmpty();
+    }
+
+    @Test
+    void testBeforeTestMethod_enclosingClassExtendsWithDbUnitExtension_leavesTheNestedTestToDbUnitExtension()
+            throws Exception
+    {
+        final IDatabaseTester tester = mock(IDatabaseTester.class);
+        final EnclosingWithDbUnitExtension enclosing = new EnclosingWithDbUnitExtension(tester);
+        final FakeTestContext context =
+                new FakeTestContext(EnclosingWithDbUnitExtension.Nested.class)
+                        .beginMethod(enclosing.new Nested(), "aTestMethod");
+
+        listener.beforeTestMethod(context);
+
+        assertThat(RecordingTestCase.testersAtPreTest)
+                .as("JUnit hands a @Nested class the extensions of its enclosing class, so the"
+                        + " listener leaves the nested test to DbUnitExtension.")
+                .isEmpty();
+    }
+
+    @Test
+    void testBeforeTestMethod_testMethodExtendsWithDbUnitExtension_leavesTheTestToDbUnitExtension()
+            throws Exception
+    {
+        final IDatabaseTester tester = mock(IDatabaseTester.class);
+        final FakeTestContext context = new FakeTestContext(MethodExtendsWithDbUnitExtension.class)
+                .beginMethod(new MethodExtendsWithDbUnitExtension(tester), "aTestMethod");
+
+        listener.beforeTestMethod(context);
+
+        assertThat(RecordingTestCase.testersAtPreTest)
+                .as("JUnit registers an extension the test method declares, so the listener"
+                        + " leaves the test to it.")
+                .isEmpty();
+    }
+
+    @Test
+    void testBeforeAndAfterTestMethod_classExtendsWithAnotherExtension_runsLifecycle()
+            throws Exception
+    {
+        final IDatabaseTester tester = mock(IDatabaseTester.class);
+        final FakeTestContext context = new FakeTestContext(ExtendsWithAnotherExtension.class)
+                .beginMethod(new ExtendsWithAnotherExtension(tester), "aTestMethod");
+
+        listener.beforeTestMethod(context);
+        listener.afterTestMethod(context);
+
+        assertThat(RecordingTestCase.testersAtPreTest)
+                .as("Another JUnit extension on the class does not stop the listener.")
+                .containsExactly(tester);
+    }
+
+    @Test
+    void testBeforeTestMethod_classRegistersBothBindingsExplicitly_warnsOnce() throws Exception
+    {
+        final IDatabaseTester tester = mock(IDatabaseTester.class);
+        final FakeTestContext context = new FakeTestContext(BothBindings.class);
+
+        final List<ILoggingEvent> warnings = warningsLoggedBy(() ->
+        {
+            listener.beforeTestMethod(context.beginMethod(new BothBindings(tester), "aTestMethod"));
+            listener.afterTestMethod(context);
+            listener.beforeTestMethod(
+                    context.beginMethod(new BothBindings(tester), "anotherTestMethod"));
+            listener.afterTestMethod(context);
+        });
+
+        assertThat(warnings)
+                .as("A class that registers both bindings explicitly gets one warning, for all its"
+                        + " test methods.")
+                .hasSize(1);
+        assertThat(warnings.get(0).getFormattedMessage())
+                .as("The warning names the class and says which binding runs dbUnit.")
+                .contains(BothBindings.class.getName())
+                .contains("DbUnitExtension runs dbUnit for its tests");
+        assertThat(RecordingTestCase.testersAtPreTest)
+                .as("The listener leaves the class to DbUnitExtension.")
+                .isEmpty();
+    }
+
+    @Test
+    void testBeforeTestMethod_classLeftToDbUnitExtensionWithoutRegisteringTheListener_logsNoWarning()
+            throws Exception
+    {
+        final IDatabaseTester tester = mock(IDatabaseTester.class);
+        final FakeTestContext context = new FakeTestContext(AlsoDbUnitTest.class)
+                .beginMethod(new AlsoDbUnitTest(tester), "aTestMethod");
+
+        final List<ILoggingEvent> warnings =
+                warningsLoggedBy(() -> listener.beforeTestMethod(context));
+
+        assertThat(warnings)
+                .as("A class that never asked for the listener, which Spring runs as a default"
+                        + " listener, gets no warning when the listener leaves it to"
+                        + " DbUnitExtension.")
+                .isEmpty();
     }
 
     @Test
@@ -1230,6 +1366,132 @@ class DbUnitTestExecutionListenerTest
         }
 
         void aTestMethod()
+        {
+        }
+    }
+
+    @DbUnitTest
+    @DbUnitConfig(prepAndExpectedTestCase = RecordingTestCase.class)
+    static class AlsoDbUnitTest
+    {
+        @DbUnitTester
+        IDatabaseTester databaseTester;
+
+        AlsoDbUnitTest(final IDatabaseTester databaseTester)
+        {
+            this.databaseTester = databaseTester;
+        }
+
+        void aTestMethod()
+        {
+        }
+    }
+
+    @ExtendWith(DbUnitExtension.class)
+    static class ExtendsWithDbUnitExtensionBase
+    {
+    }
+
+    @DbUnitConfig(prepAndExpectedTestCase = RecordingTestCase.class)
+    static class InheritsDbUnitExtension extends ExtendsWithDbUnitExtensionBase
+    {
+        @DbUnitTester
+        IDatabaseTester databaseTester;
+
+        InheritsDbUnitExtension(final IDatabaseTester databaseTester)
+        {
+            this.databaseTester = databaseTester;
+        }
+
+        void aTestMethod()
+        {
+        }
+    }
+
+    @ExtendWith(DbUnitExtension.class)
+    @DbUnitConfig(prepAndExpectedTestCase = RecordingTestCase.class)
+    static class EnclosingWithDbUnitExtension
+    {
+        @DbUnitTester
+        IDatabaseTester databaseTester;
+
+        EnclosingWithDbUnitExtension(final IDatabaseTester databaseTester)
+        {
+            this.databaseTester = databaseTester;
+        }
+
+        /**
+         * Uses its enclosing instance, so {@code javac} keeps the reference to it whatever the
+         * compiler target.
+         */
+        class Nested
+        {
+            void aTestMethod()
+            {
+                assertThat(databaseTester).isNotNull();
+            }
+        }
+    }
+
+    @DbUnitConfig(prepAndExpectedTestCase = RecordingTestCase.class)
+    static class MethodExtendsWithDbUnitExtension
+    {
+        @DbUnitTester
+        IDatabaseTester databaseTester;
+
+        MethodExtendsWithDbUnitExtension(final IDatabaseTester databaseTester)
+        {
+            this.databaseTester = databaseTester;
+        }
+
+        @ExtendWith(DbUnitExtension.class)
+        void aTestMethod()
+        {
+        }
+    }
+
+    /**
+     * A JUnit extension that is not {@code DbUnitExtension}.
+     */
+    static class AnotherExtension implements Extension
+    {
+    }
+
+    @ExtendWith(AnotherExtension.class)
+    @DbUnitConfig(prepAndExpectedTestCase = RecordingTestCase.class)
+    static class ExtendsWithAnotherExtension
+    {
+        @DbUnitTester
+        IDatabaseTester databaseTester;
+
+        ExtendsWithAnotherExtension(final IDatabaseTester databaseTester)
+        {
+            this.databaseTester = databaseTester;
+        }
+
+        void aTestMethod()
+        {
+        }
+    }
+
+    @DbUnitTest
+    @DbUnitSpringTest
+    @DbUnitConfig(prepAndExpectedTestCase = RecordingTestCase.class)
+    static class BothBindings
+    {
+        @DbUnitTester
+        IDatabaseTester databaseTester;
+
+        BothBindings(final IDatabaseTester databaseTester)
+        {
+            this.databaseTester = databaseTester;
+        }
+
+        void aTestMethod()
+        {
+        }
+
+        void anotherTestMethod()
         {
         }
     }
