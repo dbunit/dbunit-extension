@@ -215,10 +215,36 @@ class SpringTesterResolverTest
                     fakeTestContext(new NoFieldsTestInstance(), applicationContext);
 
             assertThatThrownBy(() -> resolver.resolve(context, noFactoryConfiguration))
-                    .as("Several IDatabaseTester beans with none marked @Primary are ambiguous"
-                            + " and must not be resolved to either.")
+                    .as("Several IDatabaseTester beans with none marked @Primary are ambiguous,"
+                            + " and the failure names them and says how to pick one, rather than"
+                            + " saying that no bean was found.")
                     .isInstanceOf(IllegalStateException.class)
-                    .hasMessageContaining("No IDatabaseTester field or bean found");
+                    .hasMessageContaining("firstTester")
+                    .hasMessageContaining("secondTester")
+                    .hasMessageContaining("@Primary")
+                    .hasMessageNotContaining("No IDatabaseTester field or bean found");
+        }
+    }
+
+    @Test
+    void testResolve_severalTesterBeansOnlyInTheParentContext_namesThem() throws Exception
+    {
+        try (AnnotationConfigApplicationContext parent =
+                new AnnotationConfigApplicationContext(TwoTesterBeans.class);
+                AnnotationConfigApplicationContext applicationContext =
+                        new AnnotationConfigApplicationContext())
+        {
+            applicationContext.setParent(parent);
+            applicationContext.refresh();
+            final FakeTestContext context =
+                    fakeTestContext(new NoFieldsTestInstance(), applicationContext);
+
+            assertThatThrownBy(() -> resolver.resolve(context, noFactoryConfiguration))
+                    .as("The beans of a parent context are candidates too, so two of them are"
+                            + " named as ambiguous.")
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("firstTester")
+                    .hasMessageContaining("secondTester");
         }
     }
 
@@ -559,6 +585,8 @@ class SpringTesterResolverTest
         final ObjectProvider<IDatabaseTester> provider = mock(ObjectProvider.class);
         when(provider.getIfUnique()).thenReturn(tester);
         when(applicationContext.getBeanProvider(IDatabaseTester.class)).thenReturn(provider);
+        final String[] beanNames = tester == null ? new String[0] : new String[] {"tester"};
+        when(applicationContext.getBeanNamesForType(IDatabaseTester.class)).thenReturn(beanNames);
         return applicationContext;
     }
 
