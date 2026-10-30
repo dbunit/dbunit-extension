@@ -157,6 +157,8 @@ class DatabaseTestCaseIT
     {
         final DatabaseEnvironment dbEnv = DatabaseEnvironment.getInstance();
         final IDatabaseConnection conn = dbEnv.getConnection();
+        final Object originalBatchSize =
+                conn.getConfig().getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE);
 
         final DatabaseTestCase testSubject = new DatabaseTestCase()
         {
@@ -196,18 +198,25 @@ class DatabaseTestCaseIT
             }
         };
 
-        // Simulate JUnit which first of all calls the "setUp" method
-        testSubject.setUp();
+        try
+        {
+            // Simulate JUnit which first of all calls the "setUp" method
+            testSubject.setUp();
 
-        final IDatabaseConnection actualConn = testSubject.getConnection();
-        assertThat(actualConn.getConfig()
-                .getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE))
-                        .isEqualTo(Integer.valueOf(97));
+            final IDatabaseConnection actualConn = testSubject.getConnection();
+            assertThat(actualConn.getConfig()
+                    .getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE))
+                            .isEqualTo(Integer.valueOf(97));
 
-        final IDatabaseConnection actualConn2 =
-                testSubject.getDatabaseTester().getConnection();
-        assertThat(actualConn2.getConfig()
-                .getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE))
-                        .isEqualTo(Integer.valueOf(97));
+            final IDatabaseConnection actualConn2 =
+                    testSubject.getDatabaseTester().getConnection();
+            assertThat(actualConn2.getConfig()
+                    .getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE))
+                            .isEqualTo(Integer.valueOf(97));
+        } finally
+        {
+            // The environment hands this connection to every IT class that runs after this one
+            conn.getConfig().setProperty(DatabaseConfig.PROPERTY_BATCH_SIZE, originalBatchSize);
+        }
     }
 }
