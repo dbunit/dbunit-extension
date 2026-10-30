@@ -544,7 +544,7 @@ resolves against the class that carries the composed annotation.
 
 One attribute takes a class because the value it supplies is code:
 `@DbUnitConfig(databaseTesterFactory = ...)` names a `DatabaseTesterFactory`, which is
-instantiated once through its own `public` no-arg constructor and asked for the tester with
+instantiated once through its own no-arg constructor and asked for the tester with
 `getDatabaseTester()`. `IDatabaseTester` implementations have no uniform no-arg constructor
 (`JdbcDatabaseTester` needs a driver and URL, `DataSourceDatabaseTester` a `DataSource`,
 `JndiDatabaseTester` a lookup name), so the factory builds one. A missing or throwing

@@ -25,7 +25,7 @@ package org.dbunit;
  * {@code org.dbunit.annotation.DbUnitConfig#databaseTesterFactory()}.
  *
  * <p>An {@code org.dbunit.annotation} factory class: it is named on an annotation attribute by
- * {@link Class}, instantiated once through its own public no-arg constructor, and asked for its
+ * {@link Class}, instantiated once through its own no-arg constructor, and asked for its
  * one value - here {@link #getDatabaseTester()}. A factory because
  * {@link IDatabaseTester} implementations have no uniform no-arg constructor -
  * {@link JdbcDatabaseTester} needs a driver and URL, {@link DataSourceDatabaseTester} a
