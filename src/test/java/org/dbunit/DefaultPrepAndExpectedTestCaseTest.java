@@ -889,11 +889,62 @@ class DefaultPrepAndExpectedTestCaseTest
     }
 
     @Test
-    void testConfigureTest_withInvalidDatabaseConfigProperty_throwsIllegalStateException()
+    void testSetDatabaseConfigProperties_invalidBooleanValue_throwsIllegalArgumentException()
     {
         final Properties properties = new Properties();
-        properties.setProperty("datatypeFactory", "not.a.real.ClassName");
-        tc.setDatabaseConfigProperties(properties);
+        properties.setProperty("batchedStatements", "yes");
+
+        assertThatThrownBy(() -> tc.setDatabaseConfigProperties(properties))
+                .as("A value that is neither true nor false is rejected when it is set, not read"
+                        + " as false when it is applied.")
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("batchedStatements").hasMessageContaining("'yes'");
+    }
+
+    @Test
+    void testSetDatabaseConfigProperties_invalidValue_keepsThePreviousProperties()
+    {
+        tc.setDatabaseConfigProperties(batchSizeProperties("50"));
+        final Properties invalid = batchSizeProperties("abc");
+
+        assertThatThrownBy(() -> tc.setDatabaseConfigProperties(invalid))
+                .as("A value that does not suit its property is rejected.")
+                .isInstanceOf(IllegalArgumentException.class);
+
+        assertThat(tc.getDatabaseConfigProperties())
+                .as("A call that fails changes nothing, so the properties set before stay.")
+                .isEqualTo(batchSizeProperties("50"));
+    }
+
+    @Test
+    void testSetDatabaseConfigProperties_unknownOrWronglyCasedName_throwsAndKeepsThePreviousProperties()
+    {
+        tc.setDatabaseConfigProperties(batchSizeProperties("50"));
+        final Properties misspelled = new Properties();
+        misspelled.setProperty("caseSensitiveTableName", "true");
+        final Properties wronglyCased = new Properties();
+        wronglyCased.setProperty("BatchSize", "7");
+
+        assertThatThrownBy(() -> tc.setDatabaseConfigProperties(misspelled))
+                .as("A name DatabaseConfig does not know is rejected, as the annotations reject"
+                        + " it, rather than skipped when it is applied.")
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageStartingWith("'caseSensitiveTableName' is not the name of a"
+                        + " DatabaseConfig property.");
+        assertThatThrownBy(() -> tc.setDatabaseConfigProperties(wronglyCased))
+                .as("A short name matches in its own case only.")
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageStartingWith("'BatchSize' is not the name of a DatabaseConfig"
+                        + " property.");
+        assertThat(tc.getDatabaseConfigProperties())
+                .as("A call that fails changes nothing, so the properties set before stay.")
+                .isEqualTo(batchSizeProperties("50"));
+    }
+
+    @Test
+    void testConfigureTest_withUninstantiableDatabaseConfigProperty_throwsIllegalStateException()
+    {
+        tc.setDatabaseConfigProperties(uninstantiableDataTypeFactoryProperties());
 
         final Throwable thrown = catchThrowable(() -> tc.configureTest(
                 new VerifyTableDefinition[] {}, new String[] {}, new String[] {}));
@@ -996,14 +1047,14 @@ class DefaultPrepAndExpectedTestCaseTest
     }
 
     @Test
-    void testConfigureTest_withInvalidDatabaseConfigProperty_releasesTheConnectionTheTesterHandedOut()
+    void testConfigureTest_withUninstantiableDatabaseConfigProperty_releasesTheConnectionTheTesterHandedOut()
             throws Exception
     {
         final FreshConnectionDatabaseTester freshTester =
                 new FreshConnectionDatabaseTester(this::makeDatabaseConnection);
         final DefaultPrepAndExpectedTestCase freshTestCase =
                 new DefaultPrepAndExpectedTestCase(dataFileLoader, freshTester);
-        freshTestCase.setDatabaseConfigProperties(invalidDataTypeFactoryProperties());
+        freshTestCase.setDatabaseConfigProperties(uninstantiableDataTypeFactoryProperties());
 
         assertThatThrownBy(() -> freshTestCase.configureTest(new VerifyTableDefinition[] {},
                 new String[] {}, new String[] {}))
@@ -1021,14 +1072,14 @@ class DefaultPrepAndExpectedTestCaseTest
     }
 
     @Test
-    void testConfigureTest_withInvalidDatabaseConfigPropertyAndCloseConnectionAfterTestFalse_leavesTheConnectionOpen()
+    void testConfigureTest_withUninstantiableDatabaseConfigPropertyAndCloseConnectionAfterTestFalse_leavesTheConnectionOpen()
             throws Exception
     {
         final FreshConnectionDatabaseTester freshTester =
                 new FreshConnectionDatabaseTester(this::makeDatabaseConnection);
         final DefaultPrepAndExpectedTestCase keepingTestCase =
                 new DefaultPrepAndExpectedTestCase(dataFileLoader, freshTester, false);
-        keepingTestCase.setDatabaseConfigProperties(invalidDataTypeFactoryProperties());
+        keepingTestCase.setDatabaseConfigProperties(uninstantiableDataTypeFactoryProperties());
 
         assertThatThrownBy(() -> keepingTestCase.configureTest(new VerifyTableDefinition[] {},
                 new String[] {}, new String[] {}))
@@ -4079,10 +4130,10 @@ class DefaultPrepAndExpectedTestCaseTest
         return table;
     }
 
-    private static Properties invalidDataTypeFactoryProperties()
+    private static Properties uninstantiableDataTypeFactoryProperties()
     {
         final Properties properties = new Properties();
-        properties.setProperty("datatypeFactory", "not.a.real.ClassName");
+        properties.setProperty("datatypeFactory", UninstantiableDataTypeFactory.class.getName());
         return properties;
     }
 
@@ -4091,6 +4142,14 @@ class DefaultPrepAndExpectedTestCaseTest
         final Properties properties = new Properties();
         properties.setProperty("batchSize", batchSize);
         return properties;
+    }
+
+    /**
+     * A data type factory that dbUnit can load but not instantiate, so a property value naming
+     * it passes the check of the value and fails when it is applied.
+     */
+    public abstract static class UninstantiableDataTypeFactory extends DefaultDataTypeFactory
+    {
     }
 
     /** Data type factory that counts how often a property value instantiates it. */

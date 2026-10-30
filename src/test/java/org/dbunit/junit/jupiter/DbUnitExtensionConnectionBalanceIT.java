@@ -40,6 +40,7 @@ import org.dbunit.annotation.DbUnitTester;
 import org.dbunit.annotation.DbUnitVerifyTable;
 import org.dbunit.database.IDatabaseConnection;
 import org.dbunit.database.rowcount.ClearRowCountCheckSystemProperties;
+import org.dbunit.dataset.datatype.DefaultDataTypeFactory;
 import org.dbunit.operation.DbUnitOperation;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -122,7 +123,7 @@ class DbUnitExtensionConnectionBalanceIT
     }
 
     @Test
-    void testBeforeTestExecution_invalidPropertyValueWithoutExpected_closesTheTestersConnection()
+    void testBeforeTestExecution_propertyValueOfTheWrongType_failsBeforeAConnectionIsOpened()
             throws Exception
     {
         final DatabaseEnvironment environment = DatabaseEnvironment.getInstance();
@@ -132,7 +133,32 @@ class DbUnitExtensionConnectionBalanceIT
         try
         {
             EngineTestKit.engine("junit-jupiter")
-                    .selectors(selectClass(InvalidPropertyValueSample.class)).execute()
+                    .selectors(selectClass(WrongTypePropertyValueSample.class)).execute()
+                    .testEvents().assertStatistics(stats -> stats.started(1).failed(1));
+
+            assertThat(dataSource.opened())
+                    .as("A @DbUnitProperty value that does not suit the type of its property, a"
+                            + " number that is none here, fails the test before dbUnit opens a"
+                            + " connection, so there is none to leak.")
+                    .isZero();
+        } finally
+        {
+            environment.closeConnection();
+        }
+    }
+
+    @Test
+    void testBeforeTestExecution_uninstantiablePropertyValueWithoutExpected_closesTheTestersConnection()
+            throws Exception
+    {
+        final DatabaseEnvironment environment = DatabaseEnvironment.getInstance();
+        final CountingDataSource dataSource = new CountingDataSource(environment.getProfile());
+        BalanceSample.databaseTester = new DataSourceDatabaseTester(dataSource,
+                environment.getProfile().getSchema());
+        try
+        {
+            EngineTestKit.engine("junit-jupiter")
+                    .selectors(selectClass(UninstantiablePropertyValueSample.class)).execute()
                     .testEvents().assertStatistics(stats -> stats.started(1).failed(1));
 
             assertThat(dataSource.opened())
@@ -151,7 +177,7 @@ class DbUnitExtensionConnectionBalanceIT
     }
 
     @Test
-    void testBeforeTestExecution_invalidPropertyValueWithExpected_closesTheTestersConnection()
+    void testBeforeTestExecution_uninstantiablePropertyValueWithExpected_closesTheTestersConnection()
             throws Exception
     {
         final DatabaseEnvironment environment = DatabaseEnvironment.getInstance();
@@ -161,7 +187,7 @@ class DbUnitExtensionConnectionBalanceIT
         try
         {
             EngineTestKit.engine("junit-jupiter")
-                    .selectors(selectClass(InvalidPropertyValueWithExpectedSample.class))
+                    .selectors(selectClass(UninstantiablePropertyValueWithExpectedSample.class))
                     .execute().testEvents()
                     .assertStatistics(stats -> stats.started(1).failed(1));
 
@@ -338,10 +364,15 @@ class DbUnitExtensionConnectionBalanceIT
         }
     }
 
+    /** A data type factory that dbUnit can load but not instantiate. */
+    public abstract static class UninstantiableDataTypeFactory extends DefaultDataTypeFactory
+    {
+    }
+
     @ExtendWith(DbUnitExtension.class)
     @ClearRowCountCheckSystemProperties
     @DbUnitConfig(properties = @DbUnitProperty(name = "batchSize", value = "notANumber"))
-    static class InvalidPropertyValueSample extends BalanceSample
+    static class WrongTypePropertyValueSample extends BalanceSample
     {
         @Test
         @DbUnitPrep("annotation-it-prep.xml")
@@ -352,8 +383,24 @@ class DbUnitExtensionConnectionBalanceIT
 
     @ExtendWith(DbUnitExtension.class)
     @ClearRowCountCheckSystemProperties
-    @DbUnitConfig(properties = @DbUnitProperty(name = "batchSize", value = "notANumber"))
-    static class InvalidPropertyValueWithExpectedSample extends BalanceSample
+    @DbUnitConfig(properties = @DbUnitProperty(name = "datatypeFactory",
+            value = "org.dbunit.junit.jupiter.DbUnitExtensionConnectionBalanceIT"
+                    + "$UninstantiableDataTypeFactory"))
+    static class UninstantiablePropertyValueSample extends BalanceSample
+    {
+        @Test
+        @DbUnitPrep("annotation-it-prep.xml")
+        void neverRuns()
+        {
+        }
+    }
+
+    @ExtendWith(DbUnitExtension.class)
+    @ClearRowCountCheckSystemProperties
+    @DbUnitConfig(properties = @DbUnitProperty(name = "datatypeFactory",
+            value = "org.dbunit.junit.jupiter.DbUnitExtensionConnectionBalanceIT"
+                    + "$UninstantiableDataTypeFactory"))
+    static class UninstantiablePropertyValueWithExpectedSample extends BalanceSample
     {
         @Test
         @DbUnitPrep("annotation-it-prep.xml")
