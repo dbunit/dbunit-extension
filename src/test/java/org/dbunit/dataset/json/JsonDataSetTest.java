@@ -31,10 +31,12 @@ import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 
 import org.dbunit.Assertion;
+import org.dbunit.database.AmbiguousTableNameException;
 import org.dbunit.dataset.AbstractDataSetTest;
 import org.dbunit.dataset.Column;
 import org.dbunit.dataset.DataSetException;
@@ -161,6 +163,23 @@ class JsonDataSetTest extends AbstractDataSetTest
     }
 
     @Test
+    void testConstructor_numberWithAFraction_keepsEveryDigit() throws Exception
+    {
+        final InputStream in = new ByteArrayInputStream(
+                "{\"EVENT\": [{\"AMOUNT\": 12345678901234567890.123, \"QUANTITY\": 7}]}"
+                        .getBytes(StandardCharsets.UTF_8));
+
+        final IDataSet dataSet = new JsonDataSet(in);
+
+        final Object[] row = {dataSet.getTable("EVENT").getValue(0, "AMOUNT"),
+                dataSet.getTable("EVENT").getValue(0, "QUANTITY")};
+        assertThat(row)
+                .as("A number with a fraction is read as an exact decimal, not rounded to a"
+                        + " double; an integer stays an integer.")
+                .containsExactly(new BigDecimal("12345678901234567890.123"), 7);
+    }
+
+    @Test
     void testConstructor_withNonObjectJsonRoot_throwsDataSetException()
     {
         final InputStream in = new ByteArrayInputStream("[]".getBytes(StandardCharsets.UTF_8));
@@ -253,6 +272,65 @@ class JsonDataSetTest extends AbstractDataSetTest
                 .as("a row value that is not a JSON object or null must be rejected.")
                 .isInstanceOf(DataSetException.class)
                 .hasMessage("Row 0 of table 'TEST_TABLE' must be a JSON object or null, but was VALUE_NUMBER_INT");
+    }
+
+    @Test
+    void testConstructor_rowNamesOneColumnTwice_throwsDataSetExceptionNamingTheColumn()
+    {
+        final String json = "{\"ACCOUNT\": [{\"ID\": 1}],"
+                + " \"TEST_TABLE\": [{\"A\": 1}, {\"B\": 1, \"B\": 2}]}";
+        final InputStream in = new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8));
+
+        assertThatThrownBy(() -> new JsonDataSet(in))
+                .as("A column named twice in a row must be rejected, naming the table, the row"
+                        + " and the column, instead of keeping the last value.")
+                .isExactlyInstanceOf(DataSetException.class)
+                .hasMessage("Row 1 of table 'TEST_TABLE' names column 'B' more than once: a"
+                        + " column is named once in a row");
+    }
+
+    @Test
+    void testConstructor_rowNamesOneColumnTwiceInAnotherCase_throwsDataSetExceptionNamingBothSpellings()
+    {
+        final String json = "{\"TEST_TABLE\": [{\"A\": 1}, {\"ID\": 1, \"id\": 2}]}";
+        final InputStream in = new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8));
+
+        assertThatThrownBy(() -> new JsonDataSet(in))
+                .as("A column named twice in a row in two cases is one column named twice, as"
+                        + " dbUnit matches column names ignoring case, so it must be rejected"
+                        + " instead of keeping the last value.")
+                .isExactlyInstanceOf(DataSetException.class)
+                .hasMessage("Row 1 of table 'TEST_TABLE' names column 'ID' more than once, also"
+                        + " as 'id': a column is named once in a row");
+    }
+
+    @Test
+    void testConstructor_tableNamedTwice_stillThrowsAmbiguousTableNameException()
+    {
+        final String json = "{\"ACCOUNT\": [{\"ID\": 1, \"NAME\": \"a\"}], \"ACCOUNT\": []}";
+        final InputStream in = new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8));
+
+        assertThatThrownBy(() -> new JsonDataSet(in))
+                .as("A table named twice keeps its own exception, which a column named twice does"
+                        + " not replace.")
+                .isInstanceOf(AmbiguousTableNameException.class)
+                .hasMessageContaining("ACCOUNT");
+    }
+
+    @Test
+    void testConstructor_sameColumnInDifferentRowsAndNullValues_loadsEveryRow() throws Exception
+    {
+        final String json = "{\"TEST_TABLE\": [{\"A\": null, \"B\": 1}, {\"A\": 2, \"B\": null}]}";
+        final InputStream in = new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8));
+
+        final IDataSet dataSet = new JsonDataSet(in);
+
+        assertThat(dataSet.getTable("TEST_TABLE").getRowCount())
+                .as("A column that two rows each name once is no repeat.").isEqualTo(2);
+        assertThat(dataSet.getTable("TEST_TABLE").getValue(0, "B")).isEqualTo(1);
+        assertThat(dataSet.getTable("TEST_TABLE").getValue(0, "A"))
+                .as("A null value is a value, not a missing column.").isNull();
+        assertThat(dataSet.getTable("TEST_TABLE").getValue(1, "A")).isEqualTo(2);
     }
 
     @Test

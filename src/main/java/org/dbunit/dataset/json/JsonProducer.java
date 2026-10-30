@@ -26,9 +26,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -45,7 +47,7 @@ import org.dbunit.dataset.stream.IDataSetProducer;
 
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
-import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
@@ -54,6 +56,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  * <p>The expected JSON format is a top-level object whose keys are table names and whose values
  * are arrays of row objects. Each row object maps column names to cell values. Missing keys within
  * a row are treated as {@code null} for that column. Empty tables are represented by empty arrays.
+ * The producer rejects a table named twice with an {@link AmbiguousTableNameException}, and a
+ * column named twice in one row, whatever the case of its two spellings, with a
+ * {@link DataSetException}.
  *
  * <pre>
  * {
@@ -107,23 +112,6 @@ public class JsonProducer implements IDataSetProducer
         return Files.newInputStream(file.toPath());
     }
 
-    /**
-     * Holds the Jackson type token apart from {@link JsonProducer}, so that loading and
-     * initializing the producer does not itself need Jackson and its constructor can say what
-     * is missing.
-     */
-    private static final class RowType
-    {
-        private static final TypeReference<LinkedHashMap<String, Object>> INSTANCE =
-                new TypeReference<LinkedHashMap<String, Object>>()
-                {
-                };
-
-        private RowType()
-        {
-        }
-    }
-
     private JsonProducer(final InputStream inputStream, final boolean autoCloseInputStream)
     {
         RequiredLibrary.JACKSON.requireUnchecked(JsonProducer.class);
@@ -144,6 +132,8 @@ public class JsonProducer implements IDataSetProducer
         {
             _consumer.startDataSet();
             final ObjectMapper mapper = new ObjectMapper();
+            // a number with a fraction keeps every digit, where a double rounds past about 17
+            mapper.enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS);
             try (JsonParser parser = mapper.createParser(_inputStream))
             {
                 parser.configure(JsonParser.Feature.AUTO_CLOSE_SOURCE, _autoCloseInputStream);
@@ -212,7 +202,7 @@ public class JsonProducer implements IDataSetProducer
             }
             else if (rowToken == JsonToken.START_OBJECT)
             {
-                rows.add(mapper.readValue(parser, RowType.INSTANCE));
+                rows.add(readRow(tableName, rowIndex, parser, mapper));
             }
             else
             {
@@ -222,6 +212,43 @@ public class JsonProducer implements IDataSetProducer
             rowIndex++;
         }
         return rows;
+    }
+
+    /**
+     * Reads the row object the parser is at, its column names mapped to their values. Jackson
+     * would keep the last of a column named twice, so this method checks the names as it reads
+     * the row.
+     */
+    private Map<String, Object> readRow(final String tableName, final int rowIndex,
+            final JsonParser parser, final ObjectMapper mapper)
+            throws IOException, DataSetException
+    {
+        final Map<String, Object> row = new LinkedHashMap<>();
+        final Map<String, String> spellingByColumnKey = new HashMap<>();
+        while (parser.nextToken() == JsonToken.FIELD_NAME)
+        {
+            final String columnName = parser.currentName();
+            final String columnKey = columnName.toUpperCase(Locale.ENGLISH);
+            final String firstSpelling = spellingByColumnKey.putIfAbsent(columnKey, columnName);
+            if (firstSpelling != null)
+            {
+                final boolean spelledInAnotherCase = !firstSpelling.equals(columnName);
+                final String alsoAs;
+                if (spelledInAnotherCase)
+                {
+                    alsoAs = ", also as '" + columnName + "'";
+                } else
+                {
+                    alsoAs = "";
+                }
+                throw new DataSetException("Row " + rowIndex + " of table '" + tableName
+                        + "' names column '" + firstSpelling + "' more than once" + alsoAs
+                        + ": a column is named once in a row");
+            }
+            parser.nextToken();
+            row.put(columnName, mapper.readValue(parser, Object.class));
+        }
+        return row;
     }
 
     private ITableMetaData buildMetaData(final String tableName, final List<Map<String, Object>> rows)
