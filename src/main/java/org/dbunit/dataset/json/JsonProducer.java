@@ -45,7 +45,6 @@ import org.dbunit.dataset.stream.IDataSetProducer;
 
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -55,6 +54,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  * <p>The expected JSON format is a top-level object whose keys are table names and whose values
  * are arrays of row objects. Each row object maps column names to cell values. Missing keys within
  * a row are treated as {@code null} for that column. Empty tables are represented by empty arrays.
+ * The producer rejects a table named twice with an {@link AmbiguousTableNameException}, and a
+ * column named twice in one row with a {@link DataSetException}.
  *
  * <pre>
  * {
@@ -106,23 +107,6 @@ public class JsonProducer implements IDataSetProducer
     {
         RequiredLibrary.JACKSON.requireUnchecked(JsonProducer.class);
         return Files.newInputStream(file.toPath());
-    }
-
-    /**
-     * Holds the Jackson type token apart from {@link JsonProducer}, so that loading and
-     * initializing the producer does not itself need Jackson and its constructor can say what
-     * is missing.
-     */
-    private static final class RowType
-    {
-        private static final TypeReference<LinkedHashMap<String, Object>> INSTANCE =
-                new TypeReference<LinkedHashMap<String, Object>>()
-                {
-                };
-
-        private RowType()
-        {
-        }
     }
 
     private JsonProducer(final InputStream inputStream, final boolean autoCloseInputStream)
@@ -215,7 +199,7 @@ public class JsonProducer implements IDataSetProducer
             }
             else if (rowToken == JsonToken.START_OBJECT)
             {
-                rows.add(mapper.readValue(parser, RowType.INSTANCE));
+                rows.add(readRow(tableName, rowIndex, parser, mapper));
             }
             else
             {
@@ -225,6 +209,31 @@ public class JsonProducer implements IDataSetProducer
             rowIndex++;
         }
         return rows;
+    }
+
+    /**
+     * Reads the row object the parser is at, its column names mapped to their values. Jackson
+     * would keep the last of a column named twice, so this method checks the names as it reads
+     * the row.
+     */
+    private Map<String, Object> readRow(final String tableName, final int rowIndex,
+            final JsonParser parser, final ObjectMapper mapper)
+            throws IOException, DataSetException
+    {
+        final Map<String, Object> row = new LinkedHashMap<>();
+        while (parser.nextToken() == JsonToken.FIELD_NAME)
+        {
+            final String columnName = parser.currentName();
+            if (row.containsKey(columnName))
+            {
+                throw new DataSetException("Row " + rowIndex + " of table '" + tableName
+                        + "' names column '" + columnName + "' more than once: a column is"
+                        + " named once in a row");
+            }
+            parser.nextToken();
+            row.put(columnName, mapper.readValue(parser, Object.class));
+        }
+        return row;
     }
 
     private ITableMetaData buildMetaData(final String tableName, final List<Map<String, Object>> rows)
