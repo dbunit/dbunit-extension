@@ -25,10 +25,18 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.lang.ref.WeakReference;
 import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import org.dbunit.VerifyTableDefinition;
 import org.dbunit.assertion.comparer.value.ValueComparers;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
+
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 
 class VerifyTableDefinitionCatalogTest
 {
@@ -115,6 +123,78 @@ class VerifyTableDefinitionCatalogTest
                         + " indexed; a public static final field of any other type must be"
                         + " ignored the same as a non-public or non-static one.")
                 .containsExactly(MixedAccessCatalog.ACCOUNT);
+    }
+
+    @Test
+    void testRead_nonFinalPublicStaticDefinition_warnsNamingTheField()
+    {
+        final List<ILoggingEvent> warnings = warningsLoggedBy(
+                () -> new VerifyTableDefinitionCatalog(NonFinalDefinitionCatalog.class));
+
+        assertThat(warnings)
+                .as("A static VerifyTableDefinition field that is not public static final is left"
+                        + " out of the catalog, so it gets one warning.")
+                .hasSize(1);
+        assertThat(warnings.get(0).getFormattedMessage())
+                .as("The warning names the field, the catalog class and what the field must be.")
+                .contains("'CUSTOMER'").contains(NonFinalDefinitionCatalog.class.getName())
+                .contains("public static final");
+    }
+
+    @Test
+    void testRead_staticDefinitionsNotPublicOrNotFinal_warnsForEachFieldAndForNoOther()
+    {
+        final List<ILoggingEvent> warnings = warningsLoggedBy(
+                () -> new VerifyTableDefinitionCatalog(MixedAccessCatalog.class));
+
+        assertThat(warnings).extracting(ILoggingEvent::getFormattedMessage)
+                .as("The package-private and the non-final static fields each get a warning; the"
+                        + " instance field and the field of another type are no definitions, so"
+                        + " they get none.")
+                .hasSize(2)
+                .anyMatch(message -> message.contains("'PACKAGE_PRIVATE'"))
+                .anyMatch(message -> message.contains("'publicStaticNonFinal'"));
+    }
+
+    @Test
+    void testRead_catalogWithoutDefinitions_warns()
+    {
+        final List<ILoggingEvent> warnings = warningsLoggedBy(
+                () -> new VerifyTableDefinitionCatalog(SubCatalogDeclaringNothing.class));
+
+        assertThat(warnings)
+                .as("A catalog class with no definition of its own is probably a mistake, such as"
+                        + " a field that is not public static final, so it gets a warning.")
+                .hasSize(1);
+        assertThat(warnings.get(0).getFormattedMessage())
+                .contains(SubCatalogDeclaringNothing.class.getName())
+                .contains("declares no public static final VerifyTableDefinition field");
+    }
+
+    @Test
+    void testRead_publicStaticFinalDefinitions_logsNoWarning()
+    {
+        final List<ILoggingEvent> warnings = warningsLoggedBy(
+                () -> new VerifyTableDefinitionCatalog(ConstantsOnlyCatalog.class));
+
+        assertThat(warnings)
+                .as("A catalog class whose definitions are all public static final is fine.")
+                .isEmpty();
+    }
+
+    @Test
+    void testForClasses_calledTwiceForACatalogWithALeftOutField_warnsOnce()
+    {
+        final List<ILoggingEvent> warnings = warningsLoggedBy(() ->
+        {
+            VerifyTableDefinitionCatalog.forClasses(CachedNonFinalDefinitionCatalog.class);
+            VerifyTableDefinitionCatalog.forClasses(CachedNonFinalDefinitionCatalog.class);
+        });
+
+        assertThat(warnings)
+                .as("A catalog is read once for the run, so a suite that names it from many test"
+                        + " methods gets its warning once.")
+                .hasSize(1);
     }
 
     @Test
@@ -326,6 +406,27 @@ class VerifyTableDefinitionCatalogTest
                 .isSameAs(seen[0]);
     }
 
+    /**
+     * Returns the warnings the catalog logs while {@code action} runs.
+     */
+    private static List<ILoggingEvent> warningsLoggedBy(final Runnable action)
+    {
+        final Logger catalogLogger =
+                (Logger) LoggerFactory.getLogger(VerifyTableDefinitionCatalog.class);
+        final ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        catalogLogger.addAppender(appender);
+        try
+        {
+            action.run();
+        } finally
+        {
+            catalogLogger.detachAppender(appender);
+        }
+        return appender.list.stream().filter(event -> event.getLevel() == Level.WARN)
+                .collect(Collectors.toList());
+    }
+
     /** Public, so a class loader other than the test's can read its constants. */
     public static class IsolatedConstantsCatalog
     {
@@ -429,5 +530,23 @@ class VerifyTableDefinitionCatalogTest
 
     static class SubCatalogDeclaringNothing extends BaseCatalogWithConstant
     {
+    }
+
+    static class NonFinalDefinitionCatalog
+    {
+        public static final VerifyTableDefinition ACCOUNT =
+                new VerifyTableDefinition("ACCOUNT", (String[]) null);
+        @SuppressWarnings("unused")
+        public static VerifyTableDefinition CUSTOMER =
+                new VerifyTableDefinition("CUSTOMER", (String[]) null);
+    }
+
+    static class CachedNonFinalDefinitionCatalog
+    {
+        public static final VerifyTableDefinition ACCOUNT =
+                new VerifyTableDefinition("ACCOUNT", (String[]) null);
+        @SuppressWarnings("unused")
+        public static VerifyTableDefinition CUSTOMER =
+                new VerifyTableDefinition("CUSTOMER", (String[]) null);
     }
 }
