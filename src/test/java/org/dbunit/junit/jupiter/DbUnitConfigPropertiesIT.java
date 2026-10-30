@@ -171,6 +171,12 @@ class DbUnitConfigPropertiesIT
         try
         {
             final IDatabaseConnection connection = environment.getConnection();
+            final Object defaultBatchSize =
+                    new DatabaseConfig().getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE);
+            // The in-memory profiles keep this connection through closeConnection(), so an IT
+            // class that ran first may have left its own batch size on it.
+            connection.getConfig().setProperty(DatabaseConfig.PROPERTY_BATCH_SIZE,
+                    defaultBatchSize);
             KeptConnectionSample.observedBatchSizes.clear();
             final Properties batchSize = new Properties();
             batchSize.setProperty(DatabaseConfig.PROPERTY_BATCH_SIZE, "50");
@@ -179,8 +185,6 @@ class DbUnitConfigPropertiesIT
             runOnTheKeptConnection(connection, batchSize);
             runOnTheKeptConnection(connection, new Properties());
 
-            final Object defaultBatchSize =
-                    new DatabaseConfig().getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE);
             assertThat(KeptConnectionSample.observedBatchSizes)
                     .as("A test case built with no properties, then one built with batchSize=50,"
                             + " then one with none again, on one connection kept across them:"
