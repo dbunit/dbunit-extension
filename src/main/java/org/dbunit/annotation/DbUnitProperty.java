@@ -40,6 +40,11 @@ import org.dbunit.database.DatabaseConfig;
  * handed to {@link DatabaseConfig#setPropertiesByString(Properties)}, which accepts both the
  * long {@code http://www.dbunit.org/...} names and their short forms.
  *
+ * <p>The value must suit the type of the property: {@code true} or {@code false} for a flag, a
+ * whole number for a number, and the name of a class that implements the type of the property
+ * and that dbUnit can load for an object. A value that does not fails the test before it runs,
+ * naming the property and the value.
+ *
  * @author Jeff Jensen
  * @since 3.6.0
  * @see DbUnitConfig
