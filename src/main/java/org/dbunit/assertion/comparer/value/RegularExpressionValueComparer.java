@@ -1,5 +1,6 @@
 package org.dbunit.assertion.comparer.value;
 
+import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
@@ -161,7 +162,7 @@ public class RegularExpressionValueComparer extends ValueComparerTemplateBase
             return patterns.get(regex);
         } catch (final PatternSyntaxException e)
         {
-            final String message = String.format(
+            final String message = String.format(Locale.ENGLISH,
                     "Unable to compile expected value as a regular expression"
                             + " for column '%s', row %d: %s",
                     columnName, rowNum, regex);
