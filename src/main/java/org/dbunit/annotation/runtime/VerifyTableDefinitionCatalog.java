@@ -33,6 +33,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.dbunit.VerifyTableDefinition;
 import org.dbunit.annotation.DbUnitConfig;
 import org.dbunit.annotation.DbUnitExpected;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Reads one or more catalog classes named by {@link DbUnitConfig#verifyDefinitions()} and
@@ -41,10 +43,11 @@ import org.dbunit.annotation.DbUnitExpected;
  * {@link DbUnitExpected} applies them to the tables of the expected dataset.
  *
  * <p>Each catalog class's {@code public static final VerifyTableDefinition} fields are read
- * directly. The same table name appearing in two catalog classes is rejected rather than
- * silently resolved by declaration order. Table names are compared ignoring case - see
- * {@link TableNameKey} - both to reject a duplicate and to select a definition, which is
- * returned as the catalog spells its name.
+ * directly. The catalog warns of another {@code static} field of that type, which it leaves
+ * out, and of a catalog class with no such field at all. The same table name appearing in two
+ * catalog classes is rejected rather than silently resolved by declaration order. Table names
+ * are compared ignoring case - see {@link TableNameKey} - both to reject a duplicate and to
+ * select a definition, which is returned as the catalog spells its name.
  *
  * <p>Not intended for direct use by test code; this is machinery consumed by
  * {@link AnnotatedTestConfiguration}.
@@ -54,6 +57,8 @@ import org.dbunit.annotation.DbUnitExpected;
  */
 class VerifyTableDefinitionCatalog
 {
+    private static final Logger log = LoggerFactory.getLogger(VerifyTableDefinitionCatalog.class);
+
     private static final ClassValue<Map<List<Class<?>>, VerifyTableDefinitionCatalog>> CACHE =
             new ClassValue<Map<List<Class<?>>, VerifyTableDefinitionCatalog>>()
             {
@@ -158,6 +163,7 @@ class VerifyTableDefinitionCatalog
     private VerifyTableDefinition[] readDefinitions(final Class<?> catalogClass)
     {
         final List<Field> fields = new ArrayList<>();
+        final List<Field> leftOutStaticFields = new ArrayList<>();
         // getDeclaredFields(), not getFields(): a catalog class extending some unrelated
         // superclass must not silently pull in that superclass's own public static final
         // VerifyTableDefinition constants, if it happens to declare any, as part of this
@@ -165,12 +171,23 @@ class VerifyTableDefinitionCatalog
         for (final Field field : catalogClass.getDeclaredFields())
         {
             final int modifiers = field.getModifiers();
-            if (Modifier.isPublic(modifiers) && Modifier.isStatic(modifiers)
-                    && Modifier.isFinal(modifiers)
-                    && VerifyTableDefinition.class.isAssignableFrom(field.getType()))
+            final boolean definitionType =
+                    VerifyTableDefinition.class.isAssignableFrom(field.getType());
+            final boolean publicStaticFinal = Modifier.isPublic(modifiers)
+                    && Modifier.isStatic(modifiers) && Modifier.isFinal(modifiers);
+            if (definitionType && publicStaticFinal)
             {
                 fields.add(field);
+            } else if (definitionType && Modifier.isStatic(modifiers))
+            {
+                leftOutStaticFields.add(field);
             }
+        }
+        warnOfLeftOutFields(catalogClass, leftOutStaticFields);
+        if (fields.isEmpty())
+        {
+            log.warn("The catalog class {} declares no public static final VerifyTableDefinition"
+                    + " field, so it supplies no table definition.", catalogClass.getName());
         }
         // Class#getDeclaredFields() does not guarantee declaration order either; sort by name
         // so catalog order is deterministic across JVMs rather than incidentally stable on most
@@ -182,6 +199,26 @@ class VerifyTableDefinitionCatalog
             definitions.add(readConstant(catalogClass, field));
         }
         return definitions.toArray(new VerifyTableDefinition[0]);
+    }
+
+    /**
+     * Warns of each static field of the catalog class that has the type of a table definition
+     * but is not public static final, so that a slip such as a missing {@code final} does not
+     * leave a table verified with the default rules without a word. A warning, not a failure, as
+     * a catalog class may keep a helper constant on purpose.
+     */
+    private static void warnOfLeftOutFields(final Class<?> catalogClass,
+            final List<Field> leftOutFields)
+    {
+        leftOutFields.sort(Comparator.comparing(Field::getName));
+        for (final Field field : leftOutFields)
+        {
+            log.warn("The field '{}' of the catalog class {} is a static VerifyTableDefinition"
+                    + " that is not public static final, so the catalog leaves it out, and a test"
+                    + " that verifies its table gets the default rules unless another catalog"
+                    + " class defines it. Declare it public static final to include it.",
+                    field.getName(), catalogClass.getName());
+        }
     }
 
     private VerifyTableDefinition readConstant(final Class<?> catalogClass, final Field field)
