@@ -521,7 +521,10 @@ stateless, or a later test's result depends on the order the tests ran in.
 `verifyDefinitions` is an attribute of `@DbUnitConfig` only, so the catalogs are
 set once for a class or a composed annotation, and a method chooses with `verify` or
 `verifyTables`. A catalog class has its
-`public static final VerifyTableDefinition` fields read directly. The same
+`public static final VerifyTableDefinition` fields read directly. A `static` field of that
+type that is not `public` and `final`, such as `public static VerifyTableDefinition ACCOUNT`,
+is left out with a warning in the log, and so is a catalog class with no such field at all; a
+test that verifies the table of a field left out gets the default rules. The same
 table name defined in two catalog classes named together is rejected rather
 than silently resolved by declaration order. Table names are compared ignoring
 case, as dbUnit finds a table in a dataset: `verifyTables = "account"` selects

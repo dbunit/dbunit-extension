@@ -163,7 +163,9 @@ public @interface DbUnitConfig
      * catalog supplies the rules of the tables a test verifies, with {@link DbUnitExpected} or
      * its {@code verifyTables} choosing which tables those are: a table the catalog does not
      * define is verified with default rules, and a catalog table the expected dataset lacks is
-     * not verified. See {@link DbUnitExpected} for the forms.
+     * not verified. See {@link DbUnitExpected} for the forms. dbUnit warns of a static field of
+     * that type that is not public and final, which it leaves out, and of a catalog class with
+     * no such field at all.
      *
      * <p>A catalog is read once and shared by every test naming it for the whole run, its
      * {@link VerifyTableDefinition} objects included. A test must never change them, through
