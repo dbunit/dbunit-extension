@@ -95,6 +95,7 @@ import org.dbunit.dataset.DefaultDataSet;
 import org.dbunit.dataset.DefaultTable;
 import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.datatype.DataType;
+import org.dbunit.dataset.datatype.DefaultDataTypeFactory;
 import org.dbunit.operation.DatabaseOperation;
 import org.dbunit.operation.DbUnitOperation;
 import org.dbunit.util.fileloader.DataFileLoader;
@@ -3449,21 +3450,38 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
-    void testGetConnection_invalidPropertyValue_throwsIllegalStateExceptionNotRawDatabaseUnitException()
+    void testBeforeTest_dbUnitPropertyWithInvalidValue_failsBeforeTheTestRuns() throws Exception
+    {
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithBooleanPropertyYes.class), tester, null);
+
+        assertThatThrownBy(executor::beforeTest)
+                .as("A @DbUnitProperty value that does not suit the type of its property fails"
+                        + " the before-test steps, so before the test method runs, naming the"
+                        + " property and the value, instead of turning a feature off.")
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("batchedStatements").hasMessageContaining("'yes'");
+        verify(tester, never()).getConnection();
+    }
+
+    @Test
+    void testGetConnection_uninstantiablePropertyValue_throwsIllegalStateExceptionNotRawDatabaseUnitException()
             throws Exception
     {
-        final DbUnitConfig config = WithInvalidProperty.class.getAnnotation(DbUnitConfig.class);
-        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
-                .from(WithInvalidProperty.class, config, null, null, null, null, null);
+        final DbUnitConfig config =
+                WithUninstantiableDataTypeFactory.class.getAnnotation(DbUnitConfig.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration.from(
+                WithUninstantiableDataTypeFactory.class, config, null, null, null, null, null);
         when(tester.getConnection()).thenReturn(connection);
         when(connection.getConfig()).thenReturn(new DatabaseConfig());
         final AnnotatedTestExecutor executor =
                 new AnnotatedTestExecutor(configuration, tester, null);
 
         assertThatThrownBy(executor::getConnection)
-                .as("An invalid @DbUnitProperty value, applied by the test case when it acquires"
-                        + " the connection, must be reported clearly, not left as a raw"
-                        + " DatabaseUnitException surfacing from deep inside DatabaseConfig.")
+                .as("A @DbUnitProperty value dbUnit cannot instantiate, applied by the test case"
+                        + " when it acquires the connection, must be reported clearly, not left"
+                        + " as a raw DatabaseUnitException surfacing from deep inside"
+                        + " DatabaseConfig.")
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Failed to apply a databaseConfigProperties value")
                 .hasCauseInstanceOf(DatabaseUnitException.class);
@@ -4763,9 +4781,20 @@ class AnnotatedTestExecutorTest
     {
     }
 
-    @DbUnitConfig(
-            properties = @DbUnitProperty(name = "datatypeFactory", value = "not.a.real.ClassName"))
-    static class WithInvalidProperty
+    @DbUnitConfig(properties = @DbUnitProperty(name = "datatypeFactory",
+            value = "org.dbunit.annotation.runtime.AnnotatedTestExecutorTest"
+                    + "$UninstantiableDataTypeFactory"))
+    static class WithUninstantiableDataTypeFactory
+    {
+    }
+
+    @DbUnitConfig(properties = @DbUnitProperty(name = "batchedStatements", value = "yes"))
+    static class WithBooleanPropertyYes
+    {
+    }
+
+    /** A data type factory that dbUnit can load but not instantiate. */
+    public abstract static class UninstantiableDataTypeFactory extends DefaultDataTypeFactory
     {
     }
 

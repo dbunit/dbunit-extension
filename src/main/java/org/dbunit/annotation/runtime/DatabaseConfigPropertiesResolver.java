@@ -38,6 +38,9 @@ import org.dbunit.database.DatabaseConfig.ConfigProperty;
  * to the long one {@link DatabaseConfig} knows the property by, which is the form the
  * {@link Properties} returned carries.
  *
+ * <p>It leaves the values to {@link org.dbunit.database.DatabaseConfigOverrides}, which checks
+ * each against the type of its property when the test case sets the properties.
+ *
  * @author Jeff Jensen
  * @since 3.6.0
  */

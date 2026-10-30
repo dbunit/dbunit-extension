@@ -2879,21 +2879,27 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      *
      * @param databaseConfigProperties
      *            The properties to apply; null or empty applies none.
+     * @throws IllegalArgumentException
+     *             If a value does not suit the type of its property, as
+     *             {@link DatabaseConfigOverrides#DatabaseConfigOverrides(Properties)} describes.
+     *             The properties set before stay as they were then.
      * @since 3.6.0
      */
     public void setDatabaseConfigProperties(final Properties databaseConfigProperties)
     {
-        restoreDatabaseConfig();
         if (databaseConfigProperties == null)
         {
+            restoreDatabaseConfig();
             this.databaseConfigProperties = null;
             this.databaseConfigOverrides = new DatabaseConfigOverrides(new Properties());
         } else
         {
             final Properties copy = new Properties();
             copy.putAll(databaseConfigProperties);
+            final DatabaseConfigOverrides overrides = new DatabaseConfigOverrides(copy);
+            restoreDatabaseConfig();
             this.databaseConfigProperties = copy;
-            this.databaseConfigOverrides = new DatabaseConfigOverrides(copy);
+            this.databaseConfigOverrides = overrides;
         }
     }
 }

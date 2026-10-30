@@ -27,6 +27,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.util.Properties;
 
 import org.dbunit.DatabaseUnitException;
+import org.dbunit.dataset.datatype.DefaultDataTypeFactory;
 import org.junit.jupiter.api.Test;
 
 class DatabaseConfigOverridesTest
@@ -234,8 +235,9 @@ class DatabaseConfigOverridesTest
     @Test
     void testRestore_applyingFailedPartWayThrough_stillPutsBackWhatWasApplied()
     {
-        final DatabaseConfigOverrides overrides = new DatabaseConfigOverrides(
-                propertiesOf("batchSize", "50", "datatypeFactory", "not.a.real.ClassName"));
+        final DatabaseConfigOverrides overrides =
+                new DatabaseConfigOverrides(propertiesOf("batchSize", "50", "datatypeFactory",
+                        UninstantiableDataTypeFactory.class.getName()));
 
         assertThatThrownBy(() -> overrides.applyTo(config))
                 .as("An unusable value must fail the application.")
@@ -262,6 +264,99 @@ class DatabaseConfigOverridesTest
                 .isEqualTo(50);
     }
 
+    @Test
+    void testConstructor_booleanPropertyWithYes_throwsNamingThePropertyAndValue()
+    {
+        final Properties properties = propertiesOf("batchedStatements", "yes");
+
+        assertThatThrownBy(() -> new DatabaseConfigOverrides(properties))
+                .as("Boolean.valueOf() would read yes as false and turn the feature off without"
+                        + " a word, so a value that is neither true nor false is rejected.")
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("'batchedStatements'")
+                .hasMessageContaining(DatabaseConfig.FEATURE_BATCHED_STATEMENTS)
+                .hasMessageContaining("'yes'").hasMessageContaining("true or false");
+    }
+
+    @Test
+    void testConstructor_booleanPropertyInUpperCase_isAccepted() throws Exception
+    {
+        final DatabaseConfigOverrides overrides =
+                new DatabaseConfigOverrides(propertiesOf("batchedStatements", "TRUE"));
+
+        overrides.applyTo(config);
+
+        assertThat(config.getFeature(DatabaseConfig.FEATURE_BATCHED_STATEMENTS))
+                .as("True is accepted in any case, as Boolean.valueOf() reads it.").isTrue();
+    }
+
+    @Test
+    void testConstructor_integerPropertyNotANumber_throwsNamingTheProperty()
+    {
+        final Properties properties = propertiesOf("batchSize", "abc");
+
+        assertThatThrownBy(() -> new DatabaseConfigOverrides(properties))
+                .as("An integer property whose value is no integer is rejected, naming the"
+                        + " property, instead of failing later with a bare NumberFormatException.")
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("'batchSize'")
+                .hasMessageContaining(DatabaseConfig.PROPERTY_BATCH_SIZE)
+                .hasMessageContaining("'abc'").hasMessageContaining("an integer")
+                .hasCauseInstanceOf(NumberFormatException.class);
+    }
+
+    @Test
+    void testConstructor_classPropertyThatDoesNotLoad_throwsNamingTheProperty()
+    {
+        final Properties properties = propertiesOf("datatypeFactory", "not.a.real.ClassName");
+
+        assertThatThrownBy(() -> new DatabaseConfigOverrides(properties))
+                .as("A class name that cannot be loaded is rejected when the overrides are made,"
+                        + " naming the property, not when they are applied.")
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("'datatypeFactory'")
+                .hasMessageContaining(DatabaseConfig.PROPERTY_DATATYPE_FACTORY)
+                .hasMessageContaining("'not.a.real.ClassName'")
+                .hasMessageContaining("can be loaded and implements "
+                        + "org.dbunit.dataset.datatype.IDataTypeFactory")
+                .hasCauseInstanceOf(ClassNotFoundException.class);
+    }
+
+    @Test
+    void testConstructor_classPropertyOfAnotherType_throwsNamingTheProperty()
+    {
+        final Properties properties = propertiesOf("datatypeFactory", "java.lang.String");
+
+        assertThatThrownBy(() -> new DatabaseConfigOverrides(properties))
+                .as("A class that is no IDataTypeFactory is rejected, instead of failing with an"
+                        + " IllegalArgumentException that names no property when it is set.")
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("'datatypeFactory'")
+                .hasMessageContaining("'java.lang.String'")
+                .hasMessageContaining("implements org.dbunit.dataset.datatype.IDataTypeFactory");
+    }
+
+    @Test
+    void testConstructor_classPropertyThatCannotBeInstantiated_isAcceptedAndFailsWhenApplied()
+    {
+        final DatabaseConfigOverrides overrides = new DatabaseConfigOverrides(propertiesOf(
+                "datatypeFactory", UninstantiableDataTypeFactory.class.getName()));
+
+        assertThatThrownBy(() -> overrides.applyTo(config))
+                .as("The constructor checks that the class loads and has the type of the"
+                        + " property, and leaves instantiating it to when the value is applied.")
+                .isInstanceOf(DatabaseUnitException.class);
+    }
+
+    @Test
+    void testConstructor_stringProperties_acceptAnyValue()
+    {
+        assertThatCode(() -> new DatabaseConfigOverrides(
+                propertiesOf("escapePattern", "[?]", "tableType", "TABLE, VIEW")))
+                        .as("A String and a String[] property take any text.")
+                        .doesNotThrowAnyException();
+    }
+
     private static Properties propertiesOf(final String... namesAndValues)
     {
         final Properties properties = new Properties();
@@ -270,5 +365,10 @@ class DatabaseConfigOverridesTest
             properties.setProperty(namesAndValues[i], namesAndValues[i + 1]);
         }
         return properties;
+    }
+
+    /** A data type factory that dbUnit can load but not instantiate. */
+    public abstract static class UninstantiableDataTypeFactory extends DefaultDataTypeFactory
+    {
     }
 }

@@ -370,7 +370,11 @@ property name (long or short form) and string value, the same conversion
 `Boolean`, comma-separated `String[]`, and `Integer` properties directly, and any
 object-typed property (`IDataTypeFactory`, `IMetadataHandler`, etc.) whose implementation
 class has a public no-arg constructor, by instantiating it reflectively from the class
-name.
+name. Unlike `setPropertiesByString()`, it checks every value against the type of its
+property when it is set: a `Boolean` must be `true` or `false`, an `Integer` a whole number,
+and an object-typed property the name of a class that can be loaded and implements the type
+of the property. Otherwise it throws an `IllegalArgumentException` that names the property
+and the value, and leaves the values set before as they were.
 +
 [source,java]
 ----

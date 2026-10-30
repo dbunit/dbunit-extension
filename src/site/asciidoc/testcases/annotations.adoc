@@ -745,6 +745,13 @@ declaring both is rejected, since which value
 won would depend on the order a `Properties` happens to be iterated in. Every
 name is passed on in its long form.
 
+A value must suit the type of its property: `true` or `false` for a flag such as
+`caseSensitiveTableNames`, a whole number for a number such as `batchSize`, and the name of a
+class that can be loaded and implements the type of the property for an object such as
+`datatypeFactory`. A value that does not, such as `yes` or `abc`, fails the test before it runs,
+with a message that names the property and the value. It does not turn a feature off, as
+`Boolean.valueOf()` reads `yes` as `false`, or fail later without naming the property.
+
 Named members are used instead of a `String[]` of `"name=value"` pairs so
 each entry is self-documenting, IDE-completable, and cannot be broken by a
 value that itself contains `=` (an escape pattern, for instance). For
