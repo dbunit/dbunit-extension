@@ -338,7 +338,11 @@ instead of being matched by position across three arrays.
 `cleanupData()` its teardown operation over the prep and expected datasets, so the operations
 belong to the tester, which several test cases may share. `setSetUpOperation(DatabaseOperation)`
 and `setTearDownOperation(DatabaseOperation)` give one test case operations of its own instead,
-leaving the tester as it is; `null`, the default, runs the tester's again.
+leaving the tester as it is; `null`, the default, runs the tester's again. These two setters
+and the ones of the next section, `setDatabaseConfigProperties()` and
+`setRowCountCheckOverride()`, belong to `DefaultPrepAndExpectedTestCase`, not to the
+`PrepAndExpectedTestCase` interface, so declare the `testCase` field of such an example, or the
+bean it is injected from, as that class.
 
 [source,java]
 ----
@@ -382,7 +386,7 @@ Properties properties = new Properties();
 properties.setProperty("batchedStatements", "true");
 properties.setProperty("datatypeFactory", "com.example.XxxDataTypeFactory");
 
-PrepAndExpectedTestCase testCase =
+DefaultPrepAndExpectedTestCase testCase =
         new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester);
 testCase.setDatabaseConfigProperties(properties);
 ----
