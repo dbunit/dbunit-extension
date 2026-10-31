@@ -41,7 +41,7 @@ import java.util.Objects;
  * <p>
  * {@link #verifyingExpectedTables(String[], String[])} describes a scenario that
  * verifies every table of its expected data files instead of the tables given, the
- * way a bare {@code @DbUnitExpected} does, and
+ * way a {@code @DbUnitExpected} that names only its dataset does, and
  * {@link #verifyingExpectedTables(String[], String[], VerifyTableDefinition[])} gives
  * some of those tables rules of their own.
  * <p>
@@ -125,7 +125,8 @@ public class PrepAndExpectedTestData
     /**
      * Creates an instance that loads the given prep data files and verifies every table
      * of the given expected data files, each with a default
-     * {@link VerifyTableDefinition}, the way a bare {@code @DbUnitExpected} does.
+     * {@link VerifyTableDefinition}, the way a {@code @DbUnitExpected} that names only its
+     * dataset does.
      * {@link #getVerifyTableDefinitions()} is empty for it, as the tables are the expected
      * data's, known once it is loaded.
      * <p>

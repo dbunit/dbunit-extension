@@ -39,8 +39,9 @@ import org.slf4j.LoggerFactory;
 /**
  * Reads one or more catalog classes named by {@link DbUnitConfig#verifyDefinitions()} and
  * indexes their {@link VerifyTableDefinition}s by table name, for the tables a test verifies to
- * take their rules from: {@link DbUnitExpected#verifyTables()} selects from them, and a bare
- * {@link DbUnitExpected} applies them to the tables of the expected dataset.
+ * take their rules from: {@link DbUnitExpected#verifyTables()} selects from them, and a
+ * {@link DbUnitExpected} that names only its dataset applies them to the tables of the expected
+ * dataset.
  *
  * <p>Each catalog class's {@code public static final VerifyTableDefinition} fields are read
  * directly. The catalog warns of another {@code static} field of that type, which it leaves

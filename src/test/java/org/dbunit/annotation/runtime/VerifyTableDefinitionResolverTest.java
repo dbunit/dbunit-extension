@@ -103,7 +103,7 @@ class VerifyTableDefinitionResolverTest
     @Test
     void testResolveDeclared_noVerifySpecWithExpectedDataset_declaresNothingSoTablesAreDerivedLater()
     {
-        final DbUnitExpected expected = Bare.class.getAnnotation(DbUnitExpected.class);
+        final DbUnitExpected expected = DatasetOnly.class.getAnnotation(DbUnitExpected.class);
 
         assertThat(resolveDeclared(expected, new String[] {"expected.xml"}))
                 .as("With no verify spec, nothing is declared and no loader is touched yet:"
@@ -280,7 +280,8 @@ class VerifyTableDefinitionResolverTest
                 .as("A @DbUnitExpected naming no dataset and no tables has nothing to verify"
                         + " against, which must be rejected rather than silently pass.")
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("names no expected dataset");
+                .hasMessageContaining("names an empty array of expected datasets (value = {})")
+                .hasMessageContaining("verify() and verifyTables() only give");
     }
 
     @Test
@@ -294,7 +295,7 @@ class VerifyTableDefinitionResolverTest
                         + " the tables are compared to that dataset, and verifying one that is"
                         + " not in it always fails afterward with an obscure error.")
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("names no expected dataset");
+                .hasMessageContaining("names an empty array of expected datasets");
     }
 
     @Test
@@ -305,7 +306,20 @@ class VerifyTableDefinitionResolverTest
 
         assertThatThrownBy(() -> resolveDeclared(expected, new String[0]))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("names no expected dataset");
+                .hasMessageContaining("names an empty array of expected datasets");
+    }
+
+    @Test
+    void testValue_expectedDatasetAttribute_hasNoDefaultSoTheCompilerRequiresIt()
+            throws Exception
+    {
+        final Object defaultValue = DbUnitExpected.class.getMethod("value").getDefaultValue();
+
+        assertThat(defaultValue)
+                .as("A test always needs its expected dataset, so an annotation that leaves value()"
+                        + " out must fail to compile where it is written, not fail every test that"
+                        + " carries it when the tests run.")
+                .isNull();
     }
 
     @Test
@@ -394,7 +408,7 @@ class VerifyTableDefinitionResolverTest
         return resolver.resolveDeclared(new Class<?>[0], expected, expectedDataFiles);
     }
 
-    @DbUnitExpected(verify = @DbUnitVerifyTable(value = "ACCOUNT",
+    @DbUnitExpected(value = "expected.xml", verify = @DbUnitVerifyTable(value = "ACCOUNT",
             defaultComparer = IsolatedComparer.class))
     static class DeclaresIsolatedComparer
     {
@@ -405,17 +419,17 @@ class VerifyTableDefinitionResolverTest
     {
     }
 
-    @DbUnitExpected
+    @DbUnitExpected(value = {})
     private static class NoDatasetNoSpec
     {
     }
 
-    @DbUnitExpected(verifyTables = {"ACCOUNT", "LEDGER"})
+    @DbUnitExpected(value = {}, verifyTables = {"ACCOUNT", "LEDGER"})
     private static class VerifyTablesWithoutDataset
     {
     }
 
-    @DbUnitExpected(verify = @DbUnitVerifyTable("ACCOUNT"))
+    @DbUnitExpected(value = {}, verify = @DbUnitVerifyTable("ACCOUNT"))
     private static class InlineVerifyWithoutDataset
     {
     }
@@ -484,7 +498,7 @@ class VerifyTableDefinitionResolverTest
     }
 
     @DbUnitExpected("expected.xml")
-    private static class Bare
+    private static class DatasetOnly
     {
     }
 }
