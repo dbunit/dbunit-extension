@@ -74,8 +74,23 @@ public class TestInstanceTesterResolver
 {
     private static final Logger log = LoggerFactory.getLogger(TestInstanceTesterResolver.class);
 
+    private static final ClassValue<SharedFactory> FACTORIES = new ClassValue<SharedFactory>()
+    {
+        /**
+         * {@inheritDoc}
+         * <p>
+         * Creates the holder of the factory the first time a caller asks for the class, and the
+         * {@link ClassValue} keeps it from then on. The holder goes away with the factory class
+         * and its class loader.
+         */
+        @Override
+        protected SharedFactory computeValue(final Class<?> factoryClass)
+        {
+            return new SharedFactory(factoryClass.asSubclass(DatabaseTesterFactory.class));
+        }
+    };
+
     private final TesterFields testerFields;
-    private final ReflectiveInstantiation instantiation = new ReflectiveInstantiation();
 
     /**
      * Creates a resolver that finds tester fields by the given rules.
@@ -121,12 +136,17 @@ public class TestInstanceTesterResolver
     }
 
     /**
-     * Creates the tester {@link DbUnitConfig#databaseTesterFactory()} names.
+     * Creates the tester {@link DbUnitConfig#databaseTesterFactory()} names. The first test that
+     * names a factory class instantiates it, and the one instance serves every test of the run
+     * that names the class, whichever binding resolves it, so it must be thread-safe. Each call
+     * asks that instance for a tester, so a factory decides whether every test gets a new
+     * tester or all of them share one.
      *
      * @param configuration The resolved configuration.
      * @return The factory-created tester, or {@code null} when no factory is configured.
      * @throws IllegalStateException If the factory cannot be instantiated or returns
-     *             {@code null}.
+     *             {@code null}. A factory whose constructor throws leaves no instance behind, so
+     *             the next test that names it tries again.
      * @throws Exception If the factory fails creating the tester.
      */
     public IDatabaseTester fromFactory(final AnnotatedTestConfiguration configuration)
@@ -138,8 +158,8 @@ public class TestInstanceTesterResolver
         {
             return null;
         }
-        final DatabaseTesterFactory factory =
-                instantiation.instantiate(factoryClass, "DbUnitConfig.databaseTesterFactory");
+        final SharedFactory sharedFactory = FACTORIES.get(factoryClass);
+        final DatabaseTesterFactory factory = sharedFactory.instance();
         final IDatabaseTester created = factory.getDatabaseTester();
         if (created == null)
         {
@@ -402,6 +422,39 @@ public class TestInstanceTesterResolver
         {
             this.testCaseField = testCaseField;
             this.testerField = testerField;
+        }
+    }
+
+    /**
+     * Holds the one instance of a {@link DatabaseTesterFactory} class and instantiates it when
+     * the first test asks. The {@link ClassValue} can compute its value more than once when tests
+     * that run in parallel ask for the same class together, and keeps only one of the results, so
+     * the factory is not instantiated by the {@link ClassValue} itself: a factory whose
+     * constructor builds something costly, such as a pool, would build it once for each racing
+     * test and discard all but one. This holder instantiates it under a lock instead.
+     */
+    private static final class SharedFactory
+    {
+        private final Class<? extends DatabaseTesterFactory> factoryClass;
+        private DatabaseTesterFactory factory;
+
+        private SharedFactory(final Class<? extends DatabaseTesterFactory> factoryClass)
+        {
+            this.factoryClass = factoryClass;
+        }
+
+        /**
+         * Returns the factory, instantiating it first when no test has yet. A constructor that
+         * throws leaves nothing behind, so the next call tries again.
+         */
+        private synchronized DatabaseTesterFactory instance()
+        {
+            if (factory == null)
+            {
+                factory = new ReflectiveInstantiation().instantiate(factoryClass,
+                        "DbUnitConfig.databaseTesterFactory");
+            }
+            return factory;
         }
     }
 }

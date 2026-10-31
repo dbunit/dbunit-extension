@@ -120,7 +120,8 @@ supplies one) in this order, first match wins:
 . A field annotated `@DbUnitTester`, whose type implements
   `IDatabaseTester`.
 . `@DbUnitConfig(databaseTesterFactory = ...)`, reflectively instantiated
-  and asked to create a tester.
+  once for the whole run, shared by every test that names it, and asked to create a tester
+  for each test.
 . The original (3.5.0) auto-scan: exactly one non-static field assignable to
   `IDatabaseTester`.
 . *Spring-specific, and last:* the `IDatabaseTester` bean in the test's
