@@ -26,10 +26,16 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.dbunit.DatabaseTesterFactory;
@@ -379,6 +385,99 @@ class TestInstanceTesterResolverTest
                                 + " from getDatabaseTester().");
     }
 
+    @Test
+    void testFromFactory_calledForTwoTests_instantiatesTheFactoryOnce() throws Exception
+    {
+        final AnnotatedTestConfiguration configuration =
+                configurationWithFactory(WithOnceCountingFactory.class);
+
+        resolver.fromFactory(configuration);
+        resolver.fromFactory(configuration);
+
+        assertThat(OnceCountingFactory.constructions.get())
+                .as("A DatabaseTesterFactory is instantiated once, as its Javadoc says, and asked"
+                        + " for a tester for each test.")
+                .isEqualTo(1);
+        assertThat(OnceCountingFactory.testersHandedOut.get())
+                .as("Each test asks the one factory instance for its tester.")
+                .isEqualTo(2);
+    }
+
+    @Test
+    void testFromFactory_calledThroughTwoResolvers_instantiatesTheFactoryOnce() throws Exception
+    {
+        final AnnotatedTestConfiguration configuration =
+                configurationWithFactory(WithSharedCountingFactory.class);
+        final TestInstanceTesterResolver otherBindingsResolver =
+                new TestInstanceTesterResolver(new TesterFields());
+
+        resolver.fromFactory(configuration);
+        otherBindingsResolver.fromFactory(configuration);
+
+        assertThat(SharedCountingFactory.constructions.get())
+                .as("The one instance of a factory class serves every binding and resolver of the"
+                        + " run, not one resolver only.")
+                .isEqualTo(1);
+    }
+
+    @Test
+    void testFromFactory_firstUsedByTestsRunningInParallel_instantiatesTheFactoryOnce()
+            throws Exception
+    {
+        final int parallelTests = 8;
+        final AnnotatedTestConfiguration configuration =
+                configurationWithFactory(WithSlowFactory.class);
+        final CyclicBarrier startTogether = new CyclicBarrier(parallelTests);
+        final ExecutorService executor = Executors.newFixedThreadPool(parallelTests);
+        try
+        {
+            final List<Future<IDatabaseTester>> testers = new ArrayList<>();
+            for (int test = 0; test < parallelTests; test++)
+            {
+                testers.add(executor.submit(() ->
+                {
+                    startTogether.await(10, TimeUnit.SECONDS);
+                    return resolver.fromFactory(configuration);
+                }));
+            }
+            for (final Future<IDatabaseTester> tester : testers)
+            {
+                tester.get(10, TimeUnit.SECONDS);
+            }
+        } finally
+        {
+            executor.shutdownNow();
+        }
+
+        assertThat(SlowFactory.constructions.get())
+                .as("Tests that run in parallel and use a factory for the first time together share"
+                        + " its one instance, so a pool its constructor builds is built once and"
+                        + " not once per racing test.")
+                .isEqualTo(1);
+    }
+
+    @Test
+    void testFromFactory_factoryConstructorThrows_failsEveryTestThatNamesIt()
+    {
+        final AnnotatedTestConfiguration configuration =
+                configurationWithFactory(WithThrowingConstructorFactory.class);
+        final String expectedMessage = "DbUnitConfig.databaseTesterFactory class "
+                + ThrowingConstructorFactory.class.getName()
+                + " threw from its no-arg constructor.";
+
+        assertThatThrownBy(() -> resolver.fromFactory(configuration))
+                .as("A factory whose constructor throws is rejected for the first test that names"
+                        + " it.")
+                .isInstanceOf(IllegalStateException.class).hasMessage(expectedMessage);
+        assertThatThrownBy(() -> resolver.fromFactory(configuration))
+                .as("It is rejected the same way for the next test, as a constructor that threw"
+                        + " leaves no instance behind to hand out.")
+                .isInstanceOf(IllegalStateException.class).hasMessage(expectedMessage);
+        assertThat(ThrowingConstructorFactory.attempts.get())
+                .as("Each test that names the class tries to instantiate it, as nothing was kept.")
+                .isEqualTo(2);
+    }
+
     // ---- fromUnmarkedField() ----
 
     @Test
@@ -492,7 +591,12 @@ class TestInstanceTesterResolverTest
 
     private AnnotatedTestConfiguration configurationWithFactory()
     {
-        final DbUnitConfig config = WithFactory.class.getAnnotation(DbUnitConfig.class);
+        return configurationWithFactory(WithFactory.class);
+    }
+
+    private AnnotatedTestConfiguration configurationWithFactory(final Class<?> configHolder)
+    {
+        final DbUnitConfig config = configHolder.getAnnotation(DbUnitConfig.class);
         return AnnotatedTestConfiguration.from(TestInstanceTesterResolverTest.class, config,
                 null, null, null, null, null);
     }
@@ -703,6 +807,99 @@ class TestInstanceTesterResolverTest
 
     @DbUnitConfig(databaseTesterFactory = RecordingFactory.class)
     private static class WithFactory
+    {
+    }
+
+    /**
+     * A factory class of its own for each test below, as a factory instance is kept for the whole
+     * JVM, so counts shared between tests would depend on the order they run in.
+     */
+    static class OnceCountingFactory implements DatabaseTesterFactory
+    {
+        static final AtomicInteger constructions = new AtomicInteger();
+        static final AtomicInteger testersHandedOut = new AtomicInteger();
+
+        OnceCountingFactory()
+        {
+            constructions.incrementAndGet();
+        }
+
+        @Override
+        public IDatabaseTester getDatabaseTester()
+        {
+            testersHandedOut.incrementAndGet();
+            return mock(IDatabaseTester.class);
+        }
+    }
+
+    @DbUnitConfig(databaseTesterFactory = OnceCountingFactory.class)
+    private static class WithOnceCountingFactory
+    {
+    }
+
+    static class SharedCountingFactory implements DatabaseTesterFactory
+    {
+        static final AtomicInteger constructions = new AtomicInteger();
+
+        SharedCountingFactory()
+        {
+            constructions.incrementAndGet();
+        }
+
+        @Override
+        public IDatabaseTester getDatabaseTester()
+        {
+            return mock(IDatabaseTester.class);
+        }
+    }
+
+    @DbUnitConfig(databaseTesterFactory = SharedCountingFactory.class)
+    private static class WithSharedCountingFactory
+    {
+    }
+
+    /** Takes long enough to build for racing tests to meet in its constructor. */
+    static class SlowFactory implements DatabaseTesterFactory
+    {
+        static final AtomicInteger constructions = new AtomicInteger();
+
+        SlowFactory() throws InterruptedException
+        {
+            constructions.incrementAndGet();
+            Thread.sleep(100);
+        }
+
+        @Override
+        public IDatabaseTester getDatabaseTester()
+        {
+            return mock(IDatabaseTester.class);
+        }
+    }
+
+    @DbUnitConfig(databaseTesterFactory = SlowFactory.class)
+    private static class WithSlowFactory
+    {
+    }
+
+    static class ThrowingConstructorFactory implements DatabaseTesterFactory
+    {
+        static final AtomicInteger attempts = new AtomicInteger();
+
+        ThrowingConstructorFactory()
+        {
+            attempts.incrementAndGet();
+            throw new IllegalArgumentException("The factory cannot be built.");
+        }
+
+        @Override
+        public IDatabaseTester getDatabaseTester()
+        {
+            return mock(IDatabaseTester.class);
+        }
+    }
+
+    @DbUnitConfig(databaseTesterFactory = ThrowingConstructorFactory.class)
+    private static class WithThrowingConstructorFactory
     {
     }
 }
