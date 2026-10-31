@@ -119,14 +119,24 @@ reference) observes connection handling around `onSetup()`/`onTearDown()`. Set o
   connection is created or retrieved, before the operation runs. Apply
   per-connection `DatabaseConfig` customizations here (data type factory,
   feature flags, etc.).
-* `operationSetUpFinished(IDatabaseConnection)` — called after the operation of
-  `onSetup()` completes.
-* `operationTearDownFinished(IDatabaseConnection)` — called after
-  the operation of `onTearDown()` completes.
+* `operationSetUpFinished(IDatabaseConnection)` — called once the operation of
+  `onSetup()` is over, whether it completed or failed, and also when
+  `connectionRetrieved()` itself threw. It gets the connection the tester just
+  retrieved.
+* `operationTearDownFinished(IDatabaseConnection)` — called once the operation of
+  `onTearDown()` is over, whether it completed or failed, and also when
+  `connectionRetrieved()` itself threw. It gets the connection the tester just
+  retrieved.
+
+The tester calls none of the three for an operation that is `DatabaseOperation.NONE`: it
+retrieves no connection and calls no listener then. `NONE` is the default teardown
+operation, so a default `onTearDown()` calls nothing.
 
 The default listener (`DefaultOperationListener`) closes the connection in
-both `*Finished` callbacks — a fresh connection every `onSetup()`/
-`onTearDown()` call. Set
+both `*Finished` callbacks — a fresh connection for every `onSetup()`/`onTearDown()`
+call that runs an operation, also when the operation failed. A custom listener that closes
+the connection does so in these callbacks as well, so a failed operation leaves no
+connection open. Set
 `IOperationListener.NO_OP_OPERATION_LISTENER` (or a custom non-closing
 listener) when a connection needs to survive past one call — most commonly
 when pairing with a `CachingConnectionProvider`, below.
