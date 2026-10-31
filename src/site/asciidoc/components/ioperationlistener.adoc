@@ -23,6 +23,10 @@ guide] for how the 3 hooks fit into the setup/teardown lifecycle in practice.
 |`operationTearDownFinished(IDatabaseConnection connection)` |After the operation of `IDatabaseTester.onTearDown()` completes, or fails - including when `connectionRetrieved()` itself threw.
 |===
 
+The tester calls none of the three for an operation that is `DatabaseOperation.NONE`: it
+retrieves no connection and calls no listener then. `NONE` is the default teardown operation,
+so a default `onTearDown()` calls nothing.
+
 Both `*Finished` methods exist so a listener can decide whether the connection should
 be closed at that point — the two built-in implementations below make opposite choices.
 
@@ -33,8 +37,8 @@ link:../apidocs/org/dbunit/DefaultOperationListener.html[DefaultOperationListene
 default implementation used when none is explicitly set. Confirmed directly against its
 source: `connectionRetrieved()` is a no-op; both `operationSetUpFinished()` and
 `operationTearDownFinished()` close the connection. In other words, a fresh connection
-is created (or retrieved) for every single `onSetup()`/`onTearDown()` call unless a
-different listener is configured.
+is created (or retrieved) for every single `onSetup()`/`onTearDown()` call that runs an
+operation unless a different listener is configured.
 
 [#noop]
 == IOperationListener.NO_OP_OPERATION_LISTENER
