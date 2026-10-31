@@ -20,17 +20,24 @@
  */
 package org.dbunit.database.rowcount;
 
+import java.io.Serializable;
 import java.util.Objects;
 
 /**
  * Immutable record of one table's row count having changed between a
  * {@link RowCountCheck} baseline and a later comparison.
  *
+ * <p>Serializable, as the {@link UnexpectedRowCountException} that holds it is a
+ * {@link Throwable}, which test infrastructure serializes, such as a forked or remote test
+ * launcher.
+ *
  * @author dbunit
  * @since 3.6.0
  */
-public class RowCountDifference
+public class RowCountDifference implements Serializable
 {
+    private static final long serialVersionUID = 1L;
+
     private static final String ADVICE_ROWS_LEFT_BEHIND =
             "rows left behind; add the table to the expected dataset, or exclude it";
     private static final String ADVICE_ROWS_REMOVED =

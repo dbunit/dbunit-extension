@@ -22,6 +22,11 @@ package org.dbunit.database.rowcount;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+
 import org.junit.jupiter.api.Test;
 
 class RowCountDifferenceTest
@@ -68,6 +73,19 @@ class RowCountDifferenceTest
     }
 
     @Test
+    void testSerialization_roundTrip_returnsAnEqualDifference() throws Exception
+    {
+        final RowCountDifference difference = new RowCountDifference("ACCOUNT_AUDIT", 0, 3);
+
+        final Object deserialized = roundTrip(difference);
+
+        assertThat(deserialized)
+                .as("A difference survives serialization, as the exception that holds it is a"
+                        + " Throwable, which test infrastructure serializes.")
+                .isEqualTo(difference);
+    }
+
+    @Test
     void testToString_positiveDelta_namesTableBothCountsAndRowsLeftBehindAdvice()
     {
         final RowCountDifference difference = new RowCountDifference("ACCOUNT_AUDIT", 0, 3);
@@ -89,5 +107,19 @@ class RowCountDifferenceTest
                         + " with a fix pointing at the prep/expected dataset or the exclude list.")
                 .contains("COUNTRY_CODE").contains("12 -> 0").contains("(-12)")
                 .contains("rows removed that should remain");
+    }
+
+    private static Object roundTrip(final Object original) throws Exception
+    {
+        final ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        try (ObjectOutputStream out = new ObjectOutputStream(bytes))
+        {
+            out.writeObject(original);
+        }
+        try (ObjectInputStream in =
+                new ObjectInputStream(new ByteArrayInputStream(bytes.toByteArray())))
+        {
+            return in.readObject();
+        }
     }
 }
