@@ -61,7 +61,7 @@
     <!-- spring-core/spring-context/spring-test are released in lockstep, one version. It is the
          version the build tests the integration against, not the oldest one it supports: the
          site page testcases/DbUnitTestExecutionListener.adoc states that one, in Requirements. -->
-    <springFrameworkVersion>7.0.9</springFrameworkVersion>
+    <springFrameworkVersion>7.0.10</springFrameworkVersion>
     <xmlparserv2Version>23.26.3.0.0</xmlparserv2Version>
 
     <!-- Database driver versions -->
