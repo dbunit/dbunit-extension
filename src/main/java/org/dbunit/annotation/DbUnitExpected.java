@@ -41,11 +41,13 @@ import org.dbunit.VerifyTableDefinition;
  * class annotation is inherited by subclasses. Valid with no {@link DbUnitPrep} at all - the
  * database state already present is what gets verified.
  *
- * <p>An expected dataset must always be named, with {@link #value()}: the tables verified are
- * compared to it, so the forms below only choose which of its tables are compared. An
- * annotation naming none is rejected, whatever else it declares. A path shared through a
- * composed annotation should be absolute, as a relative one resolves against the class
- * carrying the composed annotation, not the class using it.
+ * <p>An expected dataset must always be named, with {@link #value()}, which has no default: the
+ * compiler rejects an annotation that leaves it out, and dbUnit rejects one that names an empty
+ * array when the test runs, whatever else it declares. dbUnit compares every table of the
+ * dataset to the database, so the forms below give each of its tables a definition rather than
+ * choose among them. A path shared through a composed annotation should be absolute, as a
+ * relative one resolves against the class carrying the composed annotation, not the class using
+ * it.
  *
  * <p>The following forms decide which rules verify each table, so the common cases stay short.
  * dbUnit compares a table only with a {@link VerifyTableDefinition}, so every table of the
@@ -105,11 +107,13 @@ import org.dbunit.VerifyTableDefinition;
 public @interface DbUnitExpected
 {
     /**
-     * Classpath resource paths for the expected dataset files to load.
+     * Classpath resource paths for the expected dataset files to load. Required: the tables to
+     * verify are compared to these datasets.
      *
-     * @return Zero or more dataset resource paths.
+     * @return One or more dataset resource paths; an explicitly empty array is rejected when the
+     *         test runs.
      */
-    String[] value() default {};
+    String[] value();
 
     /**
      * Names of the tables to verify, which have to be every table of the expected dataset, with
