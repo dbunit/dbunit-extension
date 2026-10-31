@@ -163,7 +163,7 @@ Integration tests use `DatabaseEnvironment` to bootstrap the target database fro
   - If Lombok is available, use its annotations such as @AllArgsConstructor, @NoArgsConstructor, @Getter, @Setter.
   - If not using @Slf4j, then place the Logger variable first in the class.
   - Write JavaDoc comments on all public classes and methods in src/main.
-  - In JavaDoc, use complete sentences for all descriptions, start with a capital letter and end with a period, for everything - the topic body, parameters, and return, including all annotations such as @param and @throws.
+  - In JavaDoc, do not use passive voice, use complete sentences for all descriptions, start with a capital letter and end with a period, for everything - the topic body, parameters, and return, including all annotations such as @param and @throws.
   - Tests:
     - Prefer assertJ.
     - Prefer to add ".as()" with a fail message ending with a period.
