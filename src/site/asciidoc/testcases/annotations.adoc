@@ -130,8 +130,8 @@ constructs nothing. The "the object already exists, inject it" case.
 `IDatabaseTester`.
 
 |3 |`@DbUnitConfig(databaseTesterFactory = ...)` — the named
-`DatabaseTesterFactory` is instantiated and asked for a tester
-(<<factories>>). Needed because `IDatabaseTester` implementations have no
+`DatabaseTesterFactory` is instantiated once for the run and asked for a tester
+for each test (<<factories>>). Needed because `IDatabaseTester` implementations have no
 uniform no-arg constructor (`JdbcDatabaseTester` needs a driver and URL,
 `DataSourceDatabaseTester` a `DataSource`, `JndiDatabaseTester` a lookup
 name).
@@ -574,12 +574,26 @@ resolves against the class that carries the composed annotation.
 
 One attribute takes a class because the value it supplies is code:
 `@DbUnitConfig(databaseTesterFactory = ...)` names a `DatabaseTesterFactory`, which is
-instantiated once through its own no-arg constructor and asked for the tester with
-`getDatabaseTester()`. `IDatabaseTester` implementations have no uniform no-arg constructor
+instantiated once for the whole run through its own no-arg constructor, shared by every test
+that names it, and asked for the tester with `getDatabaseTester()` for each test.
+`IDatabaseTester` implementations have no uniform no-arg constructor
 (`JdbcDatabaseTester` needs a driver and URL, `DataSourceDatabaseTester` a `DataSource`,
 `JndiDatabaseTester` a lookup name), so the factory builds one. A missing or throwing
 constructor fails fast with an `IllegalStateException` naming the attribute, and a factory
+whose constructor threw is instantiated again for the next test that names it. A factory
 returning `null` is rejected.
+
+The one instance serves tests that run in parallel, so a factory must be thread-safe. What
+must exist once, such as a pooled `DataSource`, belongs in the constructor of the factory, or
+is built on its first use, and stays in a field of the factory. As `getDatabaseTester()` runs
+for each test, the factory decides whether the tests share one tester, which it then keeps in
+a field too, or each gets a new tester over the shared `DataSource`. dbUnit never closes a
+factory or the testers it returns, so a factory that opens a resource closes it itself, for
+example from a JVM shutdown hook.
+
+Each comparer class an annotation names is instantiated once as well, and each catalog class it
+names is read once, for its `VerifyTableDefinition` constants, never instantiated, see
+<<expected>> and <<catalog>>.
 
 [#config]
 == @DbUnitConfig

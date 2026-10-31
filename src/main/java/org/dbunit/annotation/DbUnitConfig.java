@@ -109,6 +109,13 @@ public @interface DbUnitConfig
      * {@link DbUnitTestCase} field fails fast with {@link IllegalStateException}, as the injected
      * instance carries its own tester.
      *
+     * <p>The factory class is instantiated once for the whole run, and the one instance is
+     * asked for a tester for each test that names it, so the factory must be thread-safe for
+     * tests that run in parallel. A factory that must build something once, such as a pooled
+     * {@code DataSource}, builds it in its constructor or on first use and keeps it in a field.
+     * A constructor that throws leaves no instance behind, so the next test that names the
+     * class tries again. dbUnit never closes the factory or the testers it returns.
+     *
      * @return The factory class; the interface itself (the default) means "not set", falling
      *         through to the plain field auto-scan.
      */
