@@ -51,8 +51,8 @@ import org.dbunit.util.fileloader.DataFileLoader;
  * third form does by deriving one for each. A catalog only supplies each table's rules, and a
  * table it does not define gets a default definition. Declaring {@code verify()} together with
  * {@code verifyTables()}, or the same table twice, is rejected. So is a {@code @DbUnitExpected}
- * that names no expected dataset, whatever else it declares, since the tables it verifies are
- * compared to that dataset.
+ * whose {@code value()} is an empty array, whatever else it declares, since the tables it
+ * verifies are compared to that dataset.
  *
  * @author Jeff Jensen
  * @since 3.6.0
@@ -94,7 +94,7 @@ class VerifyTableDefinitionResolver
      * @param expectedDataFiles The resolved expected dataset paths.
      * @return The table definitions to verify, or empty when the annotations declare none and
      *         they are to be derived from the expected datasets.
-     * @throws IllegalStateException If no expected dataset is named, or the spec is
+     * @throws IllegalStateException If {@code value()} is an empty array, or the spec is
      *             contradictory.
      */
     Optional<VerifyTableDefinition[]> resolveDeclared(final Class<?>[] classLevelCatalogs,
@@ -102,10 +102,10 @@ class VerifyTableDefinitionResolver
     {
         if (expectedDataFiles.length == 0)
         {
-            throw new IllegalStateException("@DbUnitExpected names no expected dataset, so"
-                    + " there is nothing to verify the database against: verify(),"
-                    + " and verifyTables() name the tables of that dataset to compare."
-                    + " Name the dataset with value(), or drop"
+            throw new IllegalStateException("@DbUnitExpected names an empty array of expected"
+                    + " datasets (value = {}), so there is nothing to verify the database"
+                    + " against: verify() and verifyTables() only give the tables of that"
+                    + " dataset their rules. Name the dataset files with value(), or drop"
                     + " @DbUnitExpected for a test that verifies nothing.");
         }
         final DbUnitVerifyTable[] verify = expected.verify();

@@ -352,9 +352,10 @@ the prep dataset instead.
 `@DbUnitExpected` names the expected dataset file(s) to verify after the test.
 Valid with no `@DbUnitPrep` at all — the
 database state already present is what gets verified. The expected dataset
-must always be named, with `value`: the tables verified are
-compared to it, so the forms below only choose which of its tables are
-compared, and an annotation naming no dataset fails fast, whatever else it
+must always be named, with `value`, which is required: every table of it is compared to the
+database, so the forms below give each of its tables a definition rather than choose among
+them. An annotation that leaves `value` out does not compile, and one that
+names an empty array (`value = {}`) fails fast when the test runs, whatever else it
 declares, instead of failing at the end of the test with an obscure error.
 
 Which rules each table is verified with comes in three forms so the common cases stay short.
