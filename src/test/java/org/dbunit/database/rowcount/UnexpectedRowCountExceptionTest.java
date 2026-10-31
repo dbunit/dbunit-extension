@@ -21,7 +21,12 @@
 package org.dbunit.database.rowcount;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -93,5 +98,43 @@ class UnexpectedRowCountExceptionTest
         assertThat(exception.getDifferences())
                 .as("The two-arg constructor must keep getDifferences() working.")
                 .isEqualTo(differences);
+    }
+
+    @Test
+    void testSerialization_roundTrip_keepsTheMessageAndTheDifferences() throws Exception
+    {
+        final List<RowCountDifference> differences = Arrays.asList(
+                new RowCountDifference("ACCOUNT_AUDIT", 0, 3),
+                new RowCountDifference("COUNTRY_CODE", 12, 0));
+        final UnexpectedRowCountException exception = new UnexpectedRowCountException(
+                differences, "Add @DbUnitTearDownOperation(DELETE_ALL).");
+
+        final UnexpectedRowCountException deserialized =
+                (UnexpectedRowCountException) roundTrip(exception);
+
+        assertThat(deserialized.getMessage())
+                .as("Test infrastructure that serializes a failure, such as a forked or remote"
+                        + " test launcher, must get the message back.")
+                .isEqualTo(exception.getMessage());
+        assertThat(deserialized.getDifferences())
+                .as("The differences must survive serialization too.")
+                .isEqualTo(differences);
+        assertThatThrownBy(() -> deserialized.getDifferences().clear())
+                .as("The differences stay unmodifiable after serialization.")
+                .isInstanceOf(UnsupportedOperationException.class);
+    }
+
+    private static Object roundTrip(final Object original) throws Exception
+    {
+        final ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        try (ObjectOutputStream out = new ObjectOutputStream(bytes))
+        {
+            out.writeObject(original);
+        }
+        try (ObjectInputStream in =
+                new ObjectInputStream(new ByteArrayInputStream(bytes.toByteArray())))
+        {
+            return in.readObject();
+        }
     }
 }
