@@ -101,6 +101,9 @@ import org.dbunit.VerifyTableDefinition;
  * }
  * }</pre>
  *
+ * <p>Here {@code expected.xml} holds the {@code ACCOUNT} and {@code TRANSACTION} tables and no
+ * other, because {@link #verifyTables()} has to name every table of the expected dataset.
+ *
  * @author Jeff Jensen
  * @since 3.6.0
  * @see DbUnitPrep

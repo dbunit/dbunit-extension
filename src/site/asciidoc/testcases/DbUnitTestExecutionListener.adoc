@@ -36,6 +36,9 @@ class AccountRepositoryTest
 }
 ----
 
+Here `accounts-expected.xml` holds the `ACCOUNT` table and no other, because `verifyTables` has
+to name every table of the expected dataset.
+
 `AppTestConfig` exposes an `IDatabaseTester` bean; Spring injects it into the
 `@Autowired` field, and `@DbUnitTester` makes the listener drive that instance.
 The field is optional: without it the listener falls back to the bean itself
