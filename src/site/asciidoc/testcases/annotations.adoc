@@ -33,6 +33,9 @@ class AccountRepositoryTest
 }
 ----
 
+Here `expected.xml` holds the `ACCOUNT` table and no other, because `verifyTables` has to name
+every table of the expected dataset, see <<expected>>.
+
 *The annotations take effect only under a binding.* `DbUnitExtension` reads them, and
 `@DbUnitTest` or `@ExtendWith(DbUnitExtension.class)` registers it; under Spring,
 `DbUnitTestExecutionListener` reads them, see
@@ -435,6 +438,9 @@ rules:
 @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
 void testWithdraw_sufficientBalance_decrementsBalance() { ... }
 ----
+
+Here `expected.xml` holds the `ACCOUNT` table and no other, because `verify` has an entry for
+every table of the expected dataset.
 
 `@DbUnitColumnComparer.comparer()` and `@DbUnitVerifyTable.defaultComparer()`
 are reflectively instantiated with their no-arg constructor. That reaches

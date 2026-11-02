@@ -92,6 +92,9 @@ import org.slf4j.LoggerFactory;
  * }
  * }</pre>
  *
+ * <p>Here {@code accounts-expected.xml} holds the {@code ACCOUNT} table and no other, because
+ * {@code verifyTables} has to name every table of the expected dataset.
+ *
  * <p>A bare {@code @ExtendWith(DbUnitExtension.class)} class with one plain, unannotated
  * {@link IDatabaseTester} field keeps the 3.5.0 lifecycle: configure the tester, its dataset
  * included, in a {@code @BeforeEach} method, and the extension calls {@code onSetup()} before and
