@@ -32,6 +32,12 @@ import org.dbunit.operation.DbUnitOperation;
 /**
  * Specifies the database operation to apply after each test method.
  *
+ * <p>This annotation takes effect only on a test class that registers
+ * {@link org.dbunit.junit.jupiter.DbUnitExtension}, with {@code @DbUnitTest} or
+ * {@code @ExtendWith(DbUnitExtension.class)}, or that runs under
+ * {@link org.dbunit.spring.DbUnitTestExecutionListener}. A class that registers neither runs its
+ * tests as if the annotation were absent, with no prep, verification or teardown, and they pass.
+ *
  * <p>A method-level annotation overrides a class-level annotation; the class annotation is
  * inherited by subclasses. Unlike {@link DbUnitSetUpOperation}, teardown has no dataset
  * counterpart: the dataset already prepared - the union of the prep and expected data, when

@@ -34,6 +34,12 @@ import org.dbunit.operation.DbUnitOperation;
  * {@link DbUnitPrep} for the dataset to apply it to. It names an operation, not a dataset:
  * the files are {@link DbUnitPrep}'s.
  *
+ * <p>This annotation takes effect only on a test class that registers
+ * {@link org.dbunit.junit.jupiter.DbUnitExtension}, with {@code @DbUnitTest} or
+ * {@code @ExtendWith(DbUnitExtension.class)}, or that runs under
+ * {@link org.dbunit.spring.DbUnitTestExecutionListener}. A class that registers neither runs its
+ * tests as if the annotation were absent, with no prep, verification or teardown, and they pass.
+ *
  * <p>A method-level annotation overrides a class-level annotation on a per-test basis; the
  * class annotation is inherited by subclasses. Declaring only {@link DbUnitPrep} is the
  * common case: the test then runs the setup operation the tester has, which is
