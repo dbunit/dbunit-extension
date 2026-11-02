@@ -91,8 +91,7 @@ class RowCountDifferenceTest
         final RowCountDifference difference = new RowCountDifference("ACCOUNT_AUDIT", 0, 3);
 
         assertThat(difference.toString())
-                .as("A positive delta must be reported as rows left behind, with a fix"
-                        + " pointing at the expected dataset or the exclude list.")
+                .as("A positive delta must be reported as rows left behind, with a fix.")
                 .contains("ACCOUNT_AUDIT").contains("0 -> 3").contains("(+3)")
                 .contains("rows left behind");
     }
@@ -104,9 +103,36 @@ class RowCountDifferenceTest
 
         assertThat(difference.toString())
                 .as("A negative delta must be reported as rows removed that should remain,"
-                        + " with a fix pointing at the prep/expected dataset or the exclude list.")
+                        + " with a fix.")
                 .contains("COUNTRY_CODE").contains("12 -> 0").contains("(-12)")
                 .contains("rows removed that should remain");
+    }
+
+    @Test
+    void testToString_positiveDelta_namesTheTeardownOperationAsTheFix()
+    {
+        final RowCountDifference difference = new RowCountDifference("ACCOUNT_AUDIT", 0, 3);
+
+        assertThat(difference.toString())
+                .as("Rows are left behind unless a teardown operation that removes rows acts on a"
+                        + " dataset that lists the table, in every lifecycle, so the advice names"
+                        + " both, and the exclusion.")
+                .endsWith("rows left behind; list the table in a dataset the teardown operation"
+                        + " acts on, with a teardown operation that removes rows, or exclude the"
+                        + " table");
+    }
+
+    @Test
+    void testToString_negativeDelta_namesTheSetupAndTeardownDatasetsAsTheFix()
+    {
+        final RowCountDifference difference = new RowCountDifference("COUNTRY_CODE", 12, 0);
+
+        assertThat(difference.toString())
+                .as("Rows are removed by an operation that acts on a dataset that lists the"
+                        + " table, in every lifecycle, so the advice names the setup and the"
+                        + " teardown datasets, and the exclusion.")
+                .endsWith("rows removed that should remain; take the table out of the datasets"
+                        + " the setup and teardown operations act on, or exclude it");
     }
 
     private static Object roundTrip(final Object original) throws Exception
