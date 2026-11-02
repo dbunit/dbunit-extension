@@ -37,6 +37,12 @@ import org.dbunit.VerifyTableDefinition;
  * expected-dataset comparison for you. Leave it off, and the test method does its own
  * asserting.
  *
+ * <p>This annotation takes effect only on a test class that registers
+ * {@link org.dbunit.junit.jupiter.DbUnitExtension}, with {@code @DbUnitTest} or
+ * {@code @ExtendWith(DbUnitExtension.class)}, or that runs under
+ * {@link org.dbunit.spring.DbUnitTestExecutionListener}. A class that registers neither runs its
+ * tests as if the annotation were absent, with no prep, verification or teardown, and they pass.
+ *
  * <p>A method-level annotation overrides a class-level annotation on a per-test basis; the
  * class annotation is inherited by subclasses. Valid with no {@link DbUnitPrep} at all - the
  * database state already present is what gets verified.

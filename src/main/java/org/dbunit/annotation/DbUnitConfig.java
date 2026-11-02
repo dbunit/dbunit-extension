@@ -42,6 +42,12 @@ import org.dbunit.util.fileloader.FileExtensionDataFileLoader;
  * {@link DefaultPrepAndExpectedTestCase} subclass runs the test,
  * {@link DatabaseConfig} properties, and the shared table-definition catalog.
  *
+ * <p>This annotation takes effect only on a test class that registers
+ * {@link org.dbunit.junit.jupiter.DbUnitExtension}, with {@code @DbUnitTest} or
+ * {@code @ExtendWith(DbUnitExtension.class)}, or that runs under
+ * {@link org.dbunit.spring.DbUnitTestExecutionListener}. A class that registers neither runs its
+ * tests as if the annotation were absent, with no prep, verification or teardown, and they pass.
+ *
  * <p>For configuration shared across many test classes, compose one custom annotation
  * carrying {@code @DbUnitTest}, this annotation, and the lifecycle annotations, rather than
  * repeating them on every class:

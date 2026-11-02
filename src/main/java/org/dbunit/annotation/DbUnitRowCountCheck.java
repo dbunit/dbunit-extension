@@ -38,6 +38,12 @@ import org.dbunit.database.DatabaseConfig;
  * catches a table the test forgot to list for teardown - whose rows survive and break a later
  * test - and equally a reference table it wrongly listed, whose count went down.
  *
+ * <p>This annotation takes effect only on a test class that registers
+ * {@link org.dbunit.junit.jupiter.DbUnitExtension}, with {@code @DbUnitTest} or
+ * {@code @ExtendWith(DbUnitExtension.class)}, or that runs under
+ * {@link org.dbunit.spring.DbUnitTestExecutionListener}. A class that registers neither runs its
+ * tests as if the annotation were absent, with no prep, verification or teardown, and they pass.
+ *
  * <p>{@link #enabled()} defaults to {@code true} so that writing the bare annotation means
  * "on". It exists for the override direction: a class-level check with one method that
  * legitimately leaves rows behind - a test asserting that an audit trail persists, say -

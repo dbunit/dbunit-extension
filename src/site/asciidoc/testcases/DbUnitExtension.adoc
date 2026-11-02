@@ -83,6 +83,11 @@ field marker in place of the plain-field auto-scan described above. A dataset a 
 method gave the tester is not set up for such a test: name its file with `@DbUnitPrep`. See
 link:annotations.html[DbUnit Annotations] for the full reference.
 
+These annotations are read only where the extension is registered. A class that carries them
+without `@DbUnitTest` or `@ExtendWith(DbUnitExtension.class)`, and without Spring's
+link:DbUnitTestExecutionListener.html[DbUnitTestExecutionListener], runs its tests with no prep,
+verification or teardown, and they pass, with nothing logged.
+
 == Row Count Check
 
 The same link:../components/rowcountcheck.html[RowCountCheck] diagnostic available to
