@@ -31,6 +31,12 @@ import java.lang.annotation.Target;
  * Specifies the dataset file(s) to load and insert into the database before each test method,
  * seeding the state the test needs to run.
  *
+ * <p>This annotation takes effect only on a test class that registers
+ * {@link org.dbunit.junit.jupiter.DbUnitExtension}, with {@code @DbUnitTest} or
+ * {@code @ExtendWith(DbUnitExtension.class)}, or that runs under
+ * {@link org.dbunit.spring.DbUnitTestExecutionListener}. A class that registers neither runs its
+ * tests as if the annotation were absent, with no prep, verification or teardown, and they pass.
+ *
  * <p>A method-level annotation overrides a class-level annotation on a per-test basis; the
  * class annotation is inherited by subclasses. Pair with {@link DbUnitSetUpOperation} only when a
  * setup operation other than the tester's own is needed - see {@link DbUnitSetUpOperation} for
