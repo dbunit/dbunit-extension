@@ -223,6 +223,9 @@ class AccountRepositoryTest
 }
 ----
 
+Here `expected.xml` holds the `ACCOUNT` table and no other, because `verifyTables` has to name
+every table of the expected dataset.
+
 This covers the common, fixed-per-method case; see
 link:annotations.html[DbUnit Annotations] for the full reference, and its
 link:annotations.html#applicability[When Not to Use These Annotations]

@@ -209,6 +209,9 @@ class AccountWithdrawalTest
 }
 ----
 
+`account-expected.xml` holds the `account` table and no other, because `verifyTables` has to
+name every table of the expected dataset.
+
 `databaseTester.setTearDownOperation(DELETE_ALL)` from step 4 becomes
 `@DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)` — declared per
 method, or once per class when every method needs the same cleanup. Leaving
