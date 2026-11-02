@@ -179,20 +179,40 @@ link:../testcases/annotations.html#rowcountcheck[DbUnit Annotations].
 [source]
 ----
 Row count check failed: 2 tables differ from the pre-test baseline.
-  ACCOUNT_AUDIT  0 -> 3  (+3)  rows left behind; add the table to the expected dataset, or exclude it
-  COUNTRY_CODE  12 -> 0  (-12)  rows removed that should remain; drop the table from the prep/expected dataset, or exclude it
+  ACCOUNT_AUDIT  0 -> 3  (+3)  rows left behind; list the table in a dataset the teardown operation acts on, with a teardown operation that removes rows, or exclude the table
+  COUNTRY_CODE  12 -> 0  (-12)  rows removed that should remain; take the table out of the datasets the setup and teardown operations act on, or exclude it
 ----
 
 Each line names the table in the exact form `getTableNames()` returned it, so it can be
 pasted straight into a dataset or an exclude list, and the delta's sign tells you which fix
 applies:
 
-* *Positive* — rows were left behind. Add the table to the expected dataset (so teardown
-cleans it) — with `DefaultPrepAndExpectedTestCase`, that also means adding a matching
-`VerifyTableDefinition`, since an expected table with none fails verification on its own
-by default — or exclude it if it legitimately can't be cleaned.
-* *Negative* — rows that should remain were removed. Drop the table from the prep/expected
-dataset (so teardown never touches it), or exclude it.
+* *Positive* — rows were left behind. Teardown has to remove them, so the table has to be in a
+dataset the teardown operation acts on, and that operation has to be one that removes rows,
+such as `DELETE_ALL`. Exclude the table instead if it legitimately can't be cleaned.
+* *Negative* — rows that should remain were removed. Take the table out of the datasets the
+setup and teardown operations act on, so they never touch it, or exclude it.
+
+Which datasets the teardown acts on, and so where to list the table, depends on how the test
+runs:
+
+* *An annotation-driven test.* Teardown runs the operation `@DbUnitTearDownOperation` declares,
+or else the tester's, over the `@DbUnitPrep` and the `@DbUnitExpected` datasets together. Both
+default to `NONE`, so declare an operation that removes rows, such as
+`DbUnitOperation.DELETE_ALL`. A table that starts
+empty goes in the prep dataset with no rows. A table the test leaves rows in goes in the
+expected dataset with those rows, because the test verifies it: when the test names its tables
+with `verifyTables` or `verify`, name this one there too, since an expected table that none
+names fails verification.
+* *A test on the 3.5.0 lifecycle,* a bare `@ExtendWith(DbUnitExtension.class)` class with a
+plain tester field. It has no expected dataset: `onTearDown()` runs the tester's teardown
+operation over the tester's own dataset, and the default operation is `NONE`. List the table in
+the dataset the test gives the tester, and call
+`setTearDownOperation(DatabaseOperation.DELETE_ALL)` on the tester.
+* *`DefaultPrepAndExpectedTestCase` used directly.* It tears down like the annotation-driven
+test, over its prep and expected datasets, with the operation set on the test case or else the
+tester's, which is `NONE` by default. It needs a matching `VerifyTableDefinition` for each
+expected table too.
 
 The check reports only a test that is otherwise passing. When the test's own steps already
 failed, or `DefaultPrepAndExpectedTestCase` found the actual data differing from the expected
