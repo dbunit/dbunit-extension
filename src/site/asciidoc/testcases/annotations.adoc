@@ -33,6 +33,14 @@ class AccountRepositoryTest
 }
 ----
 
+*The annotations take effect only under a binding.* `DbUnitExtension` reads them, and
+`@DbUnitTest` or `@ExtendWith(DbUnitExtension.class)` registers it; under Spring,
+`DbUnitTestExecutionListener` reads them, see
+link:DbUnitTestExecutionListener.html[DbUnitTestExecutionListener]. A class that registers neither
+carries annotations that nothing reads: its tests run with no prep, no verification and no
+teardown, and they pass, with nothing logged. When a test that should fail passes, check first
+that its class registers `DbUnitExtension`.
+
 These annotations target the *fixed, per-method* case — one test method, one
 known dataset, one known expectation. See
 <<applicability,When Not to Use These Annotations>> below for the cases they
