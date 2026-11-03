@@ -23,11 +23,15 @@ package org.dbunit.util.fileloader;
 
 import java.io.IOException;
 import java.net.URL;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+import org.dbunit.dataset.Column;
 import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.IDataSet;
+import org.dbunit.dataset.ITableMetaData;
 import org.dbunit.dataset.xml.FlatXmlDataSetBuilder;
 
 /**
@@ -41,7 +45,13 @@ import org.dbunit.dataset.xml.FlatXmlDataSetBuilder;
  * containing {@code table-ordering.txt}), so it cannot share this loader's
  * one-file-per-path convention. Use {@link CsvDataFileLoader} directly, pointed at a
  * directory, instead. Similarly, full (non-flat) XML has no extension of its own to
- * dispatch on; use {@link FullXmlDataFileLoader} directly.
+ * dispatch on; use {@link FullXmlDataFileLoader} directly. A {@code .xml} file of the full
+ * XML shape would load as flat XML, as tables named {@code table}, {@code column},
+ * {@code row} and {@code value}, so the loader rejects it with an
+ * {@link IllegalArgumentException} that says to use {@link FullXmlDataFileLoader}. That includes
+ * a full XML file with a {@code DOCTYPE} that names the DTD {@code dataset.dtd}, or any DTD that
+ * cannot be read, as the flat XML load of such a file fails before the loader can look at what
+ * it loaded: the exception then has that failure as its cause.
  *
  * <p>The delegate loaders are used only for their {@link #loadDataSet(URL)} method, so
  * this loader's own replacement objects and substrings - not any set on a delegate - are
@@ -72,6 +82,11 @@ public class FileExtensionDataFileLoader extends AbstractDataFileLoader
     private static final DataFileLoader JSON_DATA_FILE_LOADER = new JsonDataFileLoader();
     private static final DataFileLoader YAML_DATA_FILE_LOADER = new YamlDataFileLoader();
     private static final DataFileLoader XLS_DATA_FILE_LOADER = new XlsDataFileLoader();
+
+    private static final String FULL_XML_TABLE_ELEMENT = "table";
+    private static final String FULL_XML_NAME_ATTRIBUTE = "name";
+    private static final List<String> FULL_XML_ELEMENTS_WITHOUT_ATTRIBUTES =
+            Arrays.asList("column", "row", "value", "null", "none");
 
     private final DataFileLoader flatXmlDataFileLoader;
 
@@ -148,6 +163,10 @@ public class FileExtensionDataFileLoader extends AbstractDataFileLoader
 
     /**
      * {@inheritDoc}
+     *
+     * @throws IllegalArgumentException
+     *             If the extension is not supported, or the {@code .xml} file is a full XML
+     *             dataset, which the loader would otherwise read as flat XML.
      */
     public IDataSet loadDataSet(URL url) throws DataSetException, IOException
     {
@@ -155,7 +174,7 @@ public class FileExtensionDataFileLoader extends AbstractDataFileLoader
         switch (extension)
         {
             case "xml":
-                return flatXmlDataFileLoader.loadDataSet(url);
+                return loadFlatXml(url);
             case "json":
                 return JSON_DATA_FILE_LOADER.loadDataSet(url);
             case "yaml":
@@ -173,6 +192,86 @@ public class FileExtensionDataFileLoader extends AbstractDataFileLoader
                         + " directly, pointed at a directory; for full (non-flat) XML, use"
                         + " FullXmlDataFileLoader directly.");
         }
+    }
+
+    private IDataSet loadFlatXml(final URL url) throws DataSetException, IOException
+    {
+        final IDataSet dataSet;
+        try
+        {
+            dataSet = flatXmlDataFileLoader.loadDataSet(url);
+        } catch (final DataSetException e)
+        {
+            final boolean failedOnFullXml = new FullXmlFileShape().isFullXml(url);
+            if (failedOnFullXml)
+            {
+                throw makeFullXmlRejection(url, e);
+            }
+            throw e;
+        }
+
+        final boolean fullXml = looksLikeFullXml(dataSet);
+        if (fullXml)
+        {
+            throw makeFullXmlRejection(url, null);
+        }
+        return dataSet;
+    }
+
+    private static IllegalArgumentException makeFullXmlRejection(final URL url,
+            final DataSetException cause)
+    {
+        final String message = "The file " + url + " looks like a full XML"
+                + " dataset, which FileExtensionDataFileLoader reads as flat XML, as tables"
+                + " named table, column, row and value. Load it with FullXmlDataFileLoader,"
+                + " for example @DbUnitConfig(dataFileLoader = FullXmlDataFileLoader.class).";
+        return new IllegalArgumentException(message, cause);
+    }
+
+    /**
+     * Returns whether a flat XML dataset is what the flat XML loader reads from a full XML
+     * dataset. The flat XML loader reads each element name as a table and each attribute as a
+     * column. The full XML element names are lower case, and only the {@code table} element has
+     * an attribute, {@code name}. So a full XML dataset with a column or a row reads as a table
+     * named {@code table} with the one column {@code name}, a table named {@code column} or
+     * {@code row}, or both, and maybe tables named {@code value}, {@code null} and {@code none},
+     * where every table but {@code table} has no columns. A flat XML dataset with any other table
+     * or column is no full XML dataset. A flat XML dataset of only such tables reads the same, so
+     * the loader rejects it too.
+     *
+     * @param dataSet The dataset the flat XML loader read.
+     * @return {@code true} if the dataset is what the flat XML loader reads from a full XML
+     *         dataset.
+     * @throws DataSetException If the dataset cannot tell its tables.
+     */
+    private static boolean looksLikeFullXml(final IDataSet dataSet) throws DataSetException
+    {
+        boolean tableTable = false;
+        boolean columnOrRowTable = false;
+        for (final String tableName : dataSet.getTableNames())
+        {
+            final ITableMetaData metaData = dataSet.getTableMetaData(tableName);
+            final Column[] columns = metaData.getColumns();
+            final boolean fullXmlTable;
+            if (FULL_XML_TABLE_ELEMENT.equals(tableName))
+            {
+                tableTable = true;
+                fullXmlTable = columns.length == 1
+                        && FULL_XML_NAME_ATTRIBUTE.equals(columns[0].getColumnName());
+            }
+            else
+            {
+                columnOrRowTable = columnOrRowTable || "column".equals(tableName)
+                        || "row".equals(tableName);
+                fullXmlTable = columns.length == 0
+                        && FULL_XML_ELEMENTS_WITHOUT_ATTRIBUTES.contains(tableName);
+            }
+            if (!fullXmlTable)
+            {
+                return false;
+            }
+        }
+        return tableTable && columnOrRowTable;
     }
 
     private static DataFileLoader makeFlatXmlDataFileLoader(

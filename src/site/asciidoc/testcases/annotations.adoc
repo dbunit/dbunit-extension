@@ -1055,7 +1055,9 @@ class AccountRepositoryTest
 The dataset format is inferred from the file extension by the configured
 `dataFileLoader` — see link:../datasets/fileloader.html[Data File Loader]
 for the extension table and for using a directory-based format (CSV) or
-full (non-flat) XML instead.
+full (non-flat) XML instead. An `.xml` file in the full XML format, with columns or
+rows, is rejected by the default loader, with a message that names
+`FullXmlDataFileLoader`.
 
 [#applicability]
 == When Not to Use These Annotations

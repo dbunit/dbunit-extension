@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<!DOCTYPE dataset SYSTEM "dataset.dtd">
+<dataset>
+    <table name="TEST_TABLE">
+        <column>COLUMN0</column>
+        <column>COLUMN1</column>
+        <row>
+            <value>a</value>
+            <value>b</value>
+        </row>
+    </table>
+</dataset>
