@@ -208,6 +208,9 @@ DataFileLoader loader = new FlatXmlDataFileLoader(replacementObjects);
 IDataSet ds = loader.load("/the/package/prepData.xml");
 ----
 
+A link:yaml.html[YAML] dataset has to write such a placeholder in quotes, as
+`'[NULL]'`: YAML reads an unquoted `[NULL]` as a list, which dbUnit rejects.
+
 You can also add or clear replacements after construction:
 `addReplacementObjects()`, `addReplacementSubstrings()`,
 `removeAllReplacementObjects()`, `removeAllReplacementSubstrings()`.
