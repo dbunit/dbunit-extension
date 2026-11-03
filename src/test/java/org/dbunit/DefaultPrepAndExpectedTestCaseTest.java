@@ -2660,7 +2660,7 @@ class DefaultPrepAndExpectedTestCaseTest
 
         final String[] excludeColumns = {"COL1"};
 
-        // Excluding every column leaves makeSortColumns() with nothing to
+        // Excluding every column leaves filterColumns() with nothing to
         // sort by; confirm SortedTable tolerates a zero-length sort-column
         // list (a no-op, stable sort) instead of throwing.
         assertThatCode(() -> tc.verifyData(expectedTable, actualTable,
