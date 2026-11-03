@@ -353,11 +353,13 @@ it in the file.
 == Column sensing (Flat XML)
 
 link:flatxml.html[Flat XML] deduces a table's columns from its *first* row. A
-later row with an attribute the first row lacked produces:
+later row with an attribute the first row lacked logs this warning, where the parts
+in angle brackets vary:
 
 ----
-Extra columns on line x. Those columns will be ignored. Please add the extra
-columns to line 1, or use a DTD to make sure the value of those columns are populated.
+Extra columns (<names>) on line <n> for table <table> (global line number is <g>). Those columns will be ignored.
+    Please add the extra columns to line 1, or use a DTD to make sure the value of those columns are populated or specify 'columnSensing=true' for your FlatXmlProducer.
+    See FAQ for more details.
 ----
 
 Three ways to fix it:
