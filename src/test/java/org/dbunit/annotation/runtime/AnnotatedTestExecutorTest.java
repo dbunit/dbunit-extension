@@ -2774,6 +2774,162 @@ class AnnotatedTestExecutorTest
         verify(injected).postTest(false);
     }
 
+    @ParameterizedTest
+    @MethodSource("datasetsTheTestMethodReplaced")
+    void testAfterTest_injectedTestCaseWhoseDatasetsTheTestMethodReplaced_cleansUpOnceWithoutVerifyingAndFails(
+            final boolean prepReplaced, final boolean expectedReplaced) throws Exception
+    {
+        final AnnotatedTestExecutor executor = executorOfAnInjectedTestCaseWhoseDatasets(
+                prepReplaced, expectedReplaced);
+        final DefaultPrepAndExpectedTestCase injected =
+                (DefaultPrepAndExpectedTestCase) executor.getPrepAndExpectedTestCase();
+        executor.beforeTest();
+
+        final Throwable failure = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(failure)
+                .as("A test method that configured the injected instance again, as runTest()"
+                        + " does, drove it a second time inside dbUnit's drive, so the test fails"
+                        + " and says so.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("The test method configured the @DbUnitTestCase instance of "
+                        + injected.getClass().getName() + " again")
+                .hasMessageContaining("remove @DbUnitTestCase from the field");
+        verify(injected, times(1)).postTest(false);
+        verify(injected, never()).postTest(true);
+    }
+
+    @Test
+    void testAfterTest_injectedTestCaseKeepingItsDatasets_verifiesAsBefore() throws Exception
+    {
+        final AnnotatedTestExecutor executor =
+                executorOfAnInjectedTestCaseWhoseDatasets(false, false);
+        final DefaultPrepAndExpectedTestCase injected =
+                (DefaultPrepAndExpectedTestCase) executor.getPrepAndExpectedTestCase();
+        executor.beforeTest();
+
+        executor.afterTest(false);
+
+        verify(injected, times(1)).postTest(true);
+        verify(injected, never()).postTest(false);
+    }
+
+    @Test
+    void testAfterTest_injectedTestCaseConfiguredAgainAndTheTestFailed_cleansUpOnceAndStillFails()
+            throws Exception
+    {
+        final AnnotatedTestExecutor executor =
+                executorOfAnInjectedTestCaseWhoseDatasets(true, true);
+        final DefaultPrepAndExpectedTestCase injected =
+                (DefaultPrepAndExpectedTestCase) executor.getPrepAndExpectedTestCase();
+        executor.beforeTest();
+
+        assertThatThrownBy(() -> executor.afterTest(true))
+                .as("The binding attaches this failure to the failure of the test method, so a"
+                        + " test that failed and also drove the instance twice reports both.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("The test method configured the @DbUnitTestCase instance");
+        verify(injected, times(1)).postTest(false);
+        verify(injected, never()).postTest(true);
+    }
+
+    @Test
+    void testAfterTest_injectedTestCaseConfiguredAgainAndCleanupFails_failsWithTheMisuseAndAttachesTheCleanupFailure()
+            throws Exception
+    {
+        final AnnotatedTestExecutor executor =
+                executorOfAnInjectedTestCaseWhoseDatasets(true, false);
+        final DefaultPrepAndExpectedTestCase injected =
+                (DefaultPrepAndExpectedTestCase) executor.getPrepAndExpectedTestCase();
+        final SQLException cleanupFailure = new SQLException("cleanup failed");
+        doThrow(cleanupFailure).when(injected).postTest(false);
+        executor.beforeTest();
+
+        final Throwable failure = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(failure)
+                .as("The failure that tells what to change is the one thrown, and the failure of"
+                        + " the cleanup is attached to it.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("The test method configured the @DbUnitTestCase instance");
+        assertThat(failure.getSuppressed()).containsExactly(cleanupFailure);
+    }
+
+    @Test
+    void testAfterTest_injectedHandWrittenTestCaseWithNewDatasetsForEveryCall_isNotWatched()
+            throws Exception
+    {
+        final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(WithExpected.class, null, null, null, expected, null, null);
+        final PrepAndExpectedTestCase handWritten = mock(PrepAndExpectedTestCase.class);
+        lenient().when(handWritten.getPrepDataset()).thenReturn(mock(IDataSet.class),
+                mock(IDataSet.class));
+        lenient().when(handWritten.getExpectedDataset()).thenReturn(mock(IDataSet.class),
+                mock(IDataSet.class));
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, tester, handWritten);
+        executor.beforeTest();
+
+        executor.afterTest(false);
+
+        verify(handWritten, times(1)).postTest(true);
+        verify(handWritten, never()).postTest(false);
+    }
+
+    @Test
+    void testAfterTest_injectedTestCaseWhosePreTestFailed_cleansUpWithoutLookingAtItsDatasets()
+            throws Exception
+    {
+        final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(WithExpected.class, null, null, null, expected, null, null);
+        final DefaultPrepAndExpectedTestCase injected = injectedDefaultTestCase();
+        final SQLException setUpFailure = new SQLException("set up failed");
+        doThrow(setUpFailure).when(injected).preTest();
+        lenient().when(injected.getPrepDataset()).thenReturn(mock(IDataSet.class),
+                mock(IDataSet.class));
+        lenient().when(injected.getExpectedDataset()).thenReturn(mock(IDataSet.class),
+                mock(IDataSet.class));
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, tester, injected);
+
+        assertThatThrownBy(executor::beforeTest).isSameAs(setUpFailure);
+        executor.afterTest(true);
+
+        verify(injected, never()).getPrepDataset();
+        verify(injected, never()).getExpectedDataset();
+        verify(injected, times(1)).postTest(false);
+        verify(injected, never()).postTest(true);
+    }
+
+    private static Stream<Arguments> datasetsTheTestMethodReplaced()
+    {
+        return Stream.of(Arguments.of(true, false), Arguments.of(false, true),
+                Arguments.of(true, true));
+    }
+
+    /**
+     * Returns an executor of an injected {@link DefaultPrepAndExpectedTestCase} that reports the
+     * datasets {@code configureTest()} gave it the first time, and the ones the test method gave
+     * it afterward when the arguments say so.
+     */
+    private AnnotatedTestExecutor executorOfAnInjectedTestCaseWhoseDatasets(
+            final boolean prepReplaced, final boolean expectedReplaced)
+    {
+        final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(WithExpected.class, null, null, null, expected, null, null);
+        final DefaultPrepAndExpectedTestCase injected = injectedDefaultTestCase();
+        final IDataSet prepFirst = mock(IDataSet.class);
+        final IDataSet expectedFirst = mock(IDataSet.class);
+        final IDataSet prepAfterwards = prepReplaced ? mock(IDataSet.class) : prepFirst;
+        final IDataSet expectedAfterwards = expectedReplaced ? mock(IDataSet.class) : expectedFirst;
+        when(injected.getPrepDataset()).thenReturn(prepFirst, prepAfterwards);
+        when(injected.getExpectedDataset()).thenReturn(expectedFirst, expectedAfterwards);
+        return new AnnotatedTestExecutor(configuration, tester, injected);
+    }
+
     @Test
     void testGetConnection_withInjectedTestCase_returnsItsConnectionNotTesters()
             throws Exception

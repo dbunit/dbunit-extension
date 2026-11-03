@@ -787,6 +787,20 @@ private static DefaultPrepAndExpectedTestCase newTestCase()
 }
 ----
 
+dbUnit drives the instance around every test, so the test method does not. A test method
+that drives it too, with `runTest()`, or with `configureTest()`, `preTest()` and
+`postTest()`, would run its setup, its verification and its cleanup twice, the second
+verification against a database that the first cleaned up. dbUnit notices when the test
+method configured a `DefaultPrepAndExpectedTestCase` again, as `runTest()` and
+`configureTest()` do, because the instance then holds other datasets than the ones dbUnit
+configured. It cleans up what the instance holds without verifying, and fails the test
+with an `IllegalStateException` that names the instance's class. It does not notice a
+test method that only calls the no-argument `preTest()` or `postTest()`, which leave the
+datasets as they were, nor a `PrepAndExpectedTestCase` that is not a
+`DefaultPrepAndExpectedTestCase`. A suite whose test methods drive the instance
+themselves keeps it in an unmarked field, see
+<<applicability,When Not to Use These Annotations>>.
+
 [#properties]
 === DatabaseConfig Properties
 
@@ -1081,11 +1095,15 @@ the harness wiring explicit instead of inherited from a superclass. It does not 
 the field `@DbUnitTestCase`, and it does not register `DbUnitExtension` (`@DbUnitTest`
 or `@ExtendWith(DbUnitExtension.class)`) for the class: a marked field hands the
 instance to dbUnit, which then drives it around each test as well, so the setup, the
-verification and the cleanup would run twice. With the extension registered and the
-field unmarked, a class that declares none of the annotations keeps the 3.5.0
-lifecycle instead: it needs a non-static `IDatabaseTester` field, whose `onSetup()` and
-`onTearDown()` the extension calls around each test, and without one it fails with
-"No IDatabaseTester field found". Under Spring, the listener does nothing for a class
+verification and the cleanup would run twice. dbUnit notices when a test method
+configured a marked `DefaultPrepAndExpectedTestCase` again, as `runTest()` and
+`configureTest()` do: it cleans up what the instance holds without verifying, and fails
+the test with a message that names the instance's class and says what to change. A class
+registered with `@ExtendWith(DbUnitExtension.class)` that declares none of the annotations
+and has no marked field keeps the 3.5.0 lifecycle instead: it needs a non-static
+`IDatabaseTester` field, whose `onSetup()` and `onTearDown()` the extension calls around
+each test, and without one it fails with "No IDatabaseTester field found". Under
+Spring, the listener does nothing for a class
 that does not opt in, so nothing more is needed there. A shared catalog (<<catalog>>)
 still gives the `VerifyTableDefinition` constants a first-class home that
 non-parameterized tests in the same suite can point at by name.
