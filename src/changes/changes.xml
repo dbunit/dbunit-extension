@@ -164,6 +164,9 @@
       <action dev="jeffjensen" type="fix" issue="1034" system="github" due-to="jeffjensen">
           Fix YamlDataSet.write() dropping a column that is null in every row of a table, so that the column was missing on read-back and a nullable column that was null in every row of a dataset exported to YAML was not verified when the file served as the expected dataset: YamlWriter left a null cell out of every row, and YamlProducer takes the columns of a table from the keys of its rows. The first row of a table now carries every column, with a YAML null for a null cell or a cell with no value, as JsonDataSet.write() does, and a later row still leaves such a cell out.
       </action>
+      <action dev="jeffjensen" type="fix" issue="1032" system="github" due-to="jeffjensen">
+          Fix JsonDataSet handing a JSON object or array in a cell to the column type as the toString() text of the Java map or list that Jackson builds, such as {type=click, n=1}, which is no JSON: a text column stored that text, and the PostgreSQL json and jsonb types sent it to the database, which rejected it as invalid JSON. JsonProducer now reads such a cell as its compact JSON text, such as {"type":"click","n":1}, which a text, json or jsonb column takes as it is. A column type that reads another text form, such as the PostgreSQL array literal {1,2,3}, takes a JSON string instead of a JSON array. The JSON, Dataset Values and PostgreSQL pages say so.
+      </action>
     </release>
     <release version="3.5.2" date="Sep 7, 2026" description="DefaultPrepAndExpectedTestCase connection hygiene: replace a connection the pool or database dropped between tests, and warn when handed a non-autocommit connection">
       <action dev="jeffjensen" type="fix" issue="962" system="github" due-to="jeffjensen">
