@@ -3059,10 +3059,12 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * replaces the one of the shared connection's DatabaseConfig, and the patterns add to the
      * ones it configures.
      *
-     * <p>A caller reusing one instance across several tests - e.g. one held by a
-     * {@code @DbUnitTestCase} static field - must set the override back to what it was, null
-     * for none, once a test that set one is over, so that test's override does not silently
-     * carry over onto the next one.
+     * <p>A caller reusing one instance across several tests that drive it themselves - e.g. a
+     * test case in a static field whose tests each call {@code runTest()} - must set the
+     * override back to what it was, null for none, once a test that set one is over, so that
+     * test's override does not silently carry over onto the next one. The annotation runtime
+     * puts the override back itself for an instance it drives through a
+     * {@code @DbUnitTestCase} field.
      *
      * @see #rowCountBaselineTracker
      *
