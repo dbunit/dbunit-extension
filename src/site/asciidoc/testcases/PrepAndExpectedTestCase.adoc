@@ -427,9 +427,11 @@ testCase.setRowCountCheckOverride(new RowCountCheckOverride(true, new String[] {
 +
 Pass `null` to return to resolving the check from the connection's own `DatabaseConfig`;
 `getRowCountCheckOverride()` returns what is set. This only matters when one instance is
-reused across more than one test (e.g. a JUnit 5/6 `@DbUnitTestCase` static field - see
-<<Annotation_Driven_Equivalent,Annotation-Driven Equivalent>> above) - otherwise an
-earlier test's override would silently carry over onto a later test that declares none.
+reused across more than one test that drives it itself (e.g. a test case in a static
+field whose tests each call `runTest()`) - otherwise an earlier test's override would
+silently carry over onto a later test that declares none. The annotation runtime puts the
+override back itself for an instance it drives through a `@DbUnitTestCase` field - see
+<<Annotation_Driven_Equivalent,Annotation-Driven Equivalent>> above.
 
 [#Configuration_Example_Using_Spring]
 == Configuration Example Using Spring
