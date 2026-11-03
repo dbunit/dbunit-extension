@@ -295,7 +295,10 @@ class BytesDataTypeTest extends AbstractDataTypeTest
                         + " dropping the prefix and storing whatever the"
                         + " remainder decodes to.")
                 .isThrownBy(() -> dataType.typeCast(value))
-                .withMessageContaining(value);
+                .withMessageContaining(value)
+                .withMessageContaining("unrecognized command <BOGUS>")
+                .withMessageContaining("expected [TEXT], [BASE64], [FILE] or [URL]")
+                .withMessageContaining("prefix it with [TEXT]");
     }
 
     @Test
@@ -309,7 +312,24 @@ class BytesDataTypeTest extends AbstractDataTypeTest
                 new BytesDataType("VARBINARY", Types.VARBINARY);
 
         assertThatExceptionOfType(TypeCastException.class)
-                .isThrownBy(() -> dataType.typeCast(value));
+                .as("The message names the placeholder as the unrecognized command and says"
+                        + " that it has to be replaced.")
+                .isThrownBy(() -> dataType.typeCast(value))
+                .withMessageContaining("unrecognized command <NULL>")
+                .withMessageContaining("has to be replaced");
+    }
+
+    @Test
+    void testTypeCast_lowerCaseNullPlaceholderOnBinaryColumn_namesTheCommandAsWritten()
+    {
+        final String value = "[null]";
+        final BytesDataType dataType =
+                new BytesDataType("VARBINARY", Types.VARBINARY);
+
+        assertThatExceptionOfType(TypeCastException.class)
+                .as("The message names the command in the case the file wrote it.")
+                .isThrownBy(() -> dataType.typeCast(value))
+                .withMessageContaining("unrecognized command <null>");
     }
 
     @Test
