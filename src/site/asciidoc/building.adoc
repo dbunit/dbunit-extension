@@ -72,6 +72,11 @@ integration tests. A test launched directly from an IDE runs in the machine's zo
 run configuration sets `-Duser.timezone` — see
 link:codingstandards/testconventions.html[Test Conventions].
 
+An empty `-Dtest.timezone=` runs the unit tests in the machine's zone.
+`NonUtcDefaultTimeZoneTest` then fails on purpose when that zone has a raw offset of 0 (UTC,
+and London, Dublin and Lisbon even in summer), because tests of time zone arithmetic, such as
+`TimestampDataTypeTest`, pass in such a zone but check nothing about it.
+
 == Generating the Site
 
 The CI workflow generates and publishes the site gen from the main branch.
