@@ -43,6 +43,7 @@ import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.DefaultDataSet;
 import org.dbunit.dataset.DefaultTable;
 import org.dbunit.dataset.IDataSet;
+import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.datatype.DataType;
 import org.dbunit.testutil.TestUtils;
 import org.junit.jupiter.api.Disabled;
@@ -300,6 +301,29 @@ class JsonDataSetTest extends AbstractDataSetTest
                         + " not replace.")
                 .isInstanceOf(AmbiguousTableNameException.class)
                 .hasMessageContaining("ACCOUNT");
+    }
+
+    @Test
+    void testConstructor_unquotedTrueAndFalse_readAsBooleansThatAnIntegerColumnTypeCasts()
+            throws Exception
+    {
+        final InputStream in = new ByteArrayInputStream(
+                "{\"FLAGS\": [{\"ACTIVE\": true, \"DELETED\": false}]}"
+                        .getBytes(StandardCharsets.UTF_8));
+
+        final IDataSet dataSet = new JsonDataSet(in);
+
+        final ITable table = dataSet.getTable("FLAGS");
+        final Object active = table.getValue(0, "ACTIVE");
+        final Object deleted = table.getValue(0, "DELETED");
+        assertThat(new Object[] {active, deleted})
+                .as("An unquoted JSON true or false is read as a Boolean.")
+                .containsExactly(true, false);
+        assertThat(new Object[] {DataType.INTEGER.typeCast(active),
+                DataType.INTEGER.typeCast(deleted)})
+                        .as("An integer column takes such a Boolean as 1 or 0, as it takes"
+                                + " the text true or false.")
+                        .containsExactly(1, 0);
     }
 
     @Test
