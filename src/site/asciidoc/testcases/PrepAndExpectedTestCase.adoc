@@ -466,6 +466,10 @@ public class DbUnitConfiguration
         @Override
         protected void setUpDatabaseConfig(final DatabaseConfig config)
         {
+            // call super first: it applies the values of setDatabaseConfigProperties(),
+            // which an override without it drops
+            super.setUpDatabaseConfig(config);
+
             // set properties as needed
 
             config.setProperty(DatabaseConfig.FEATURE_BATCHED_STATEMENTS, true);
@@ -506,7 +510,7 @@ public class DbUnitConfiguration
      *         dbUnit data files.
      */
     @Bean
-    public DataFileLoader dataFileLoader(final DbunitDataReplacement ddr)
+    public DataFileLoader dataFileLoader(final DbUnitDataReplacement ddr)
     {
         final Map<String, Object> replacementObjects = ddr.getReplacementObjects();
         final Map<String, Object> replacementSubstrings = ddr.getReplacementSubstrings();
@@ -644,6 +648,7 @@ public abstract class TableNames
 {
     public static final String TABLE3 = "table3";
     public static final String TABLE5 = "table5";
+    public static final String TABLE_NAME = "table_name";
 }
 ----
 
@@ -660,6 +665,7 @@ such as entities and repositories/DAOs.
 public abstract class ColumnNames
 {
     public static final String COLUMN1 = "column1";
+    public static final String COLUMN2 = "column2";
 }
 ----
 
@@ -704,7 +710,7 @@ public abstract class VerifyTableDefinitions
 {
     public static final VerifyTableDefinition TABLE3 = make(TableNames.TABLE3);
     public static final VerifyTableDefinition TABLE5 = make(TableNames.TABLE5);
-    public static final VerifyTableDefinition TABLE5_COLUMN1_GREATER = make(TableNames.TABLE5, ValueComparers.COLUMN1_GREATER);
+    public static final VerifyTableDefinition TABLE5_COLUMN1_GREATER = make(TableNames.TABLE5, AppValueComparers.COLUMN1_GREATER);
 
     private static VerifyTableDefinition make(final String tableName)
     {
@@ -774,7 +780,12 @@ public abstract class VerifyTableDefinitionFactory
 {
     public static VerifyTableDefinition tableName_update(Long... ids)
     {
-        return make(TableName.TABLE_NAME, ValueComparerMapFactory.makeTableName_updated(ids));
+        return make(TableNames.TABLE_NAME, ValueComparerMapFactory.makeTableName_updated(ids));
+    }
+
+    private static VerifyTableDefinition make(final String tableName, final Map<String, ValueComparer> columnValueComparers)
+    {
+        return new VerifyTableDefinition(tableName, null, columnValueComparers);
     }
 }
 ----
@@ -789,14 +800,14 @@ public abstract class ValueComparerMapFactory
         ValueComparer inValuesValueComparer = ValueComparers.isActualGreaterThanExpected;
         ValueComparer notInValuesValueComparer = ValueComparers.isActualEqualToExpected;
         ValueFactory<Long> valueFactory = (table, rowNum) -> {
-            Number id = (Number) table.getValue(rowNum, ColumnName.COLUMN1);
+            Number id = (Number) table.getValue(rowNum, ColumnNames.COLUMN1);
             return id.longValue();
         };
         ValueComparer conditionalSetBiValueComparer = new ConditionalSetBiValueComparer<Long>(valueFactory, values, inValuesValueComparer, notInValuesValueComparer);
 
         return new ColumnValueComparerMapBuilder()
-                .add(ColumnName.COLUMN1, ValueComparers.isActualGreaterThanOrEqualToExpected)
-                .add(ColumnName.COLUMN2, conditionalSetBiValueComparer)
+                .add(ColumnNames.COLUMN1, ValueComparers.isActualGreaterThanOrEqualToExpected)
+                .add(ColumnNames.COLUMN2, conditionalSetBiValueComparer)
                 .build();
     }
 }
