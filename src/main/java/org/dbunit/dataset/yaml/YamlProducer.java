@@ -51,6 +51,7 @@ import java.io.InputStream;
 import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -374,9 +375,12 @@ public class YamlProducer implements IDataSetProducer
      * <p>An empty or comment-only document produces an empty dataset, and a document whose root
      * is not a mapping of table names to rows is rejected, as is a document that cannot be
      * parsed, such as one with a syntax error or a second document, a key named twice, a table
-     * that is not a list of rows, a row that is not a mapping of column names to values, and a
-     * table or column name that is not a string. A row with no value is a row of nulls, as in
-     * {@link org.dbunit.dataset.json.JsonProducer}. The consumer is told the dataset ended once
+     * that is not a list of rows, a row that is not a mapping of column names to values, a
+     * table or column name that is not a string, and a cell that is a list or a mapping, which
+     * YAML builds from an unquoted value that starts with a square bracket or a curly brace,
+     * such as {@code [NULL]}, so such a value needs quotes. A row with no value is a row of
+     * nulls, as in {@link org.dbunit.dataset.json.JsonProducer}. The consumer is told the
+     * dataset ended once
      * every table is produced. A stream the producer opened itself, for a {@link File}, is
      * closed afterward, whether or not producing succeeded.
      */
@@ -418,7 +422,7 @@ public class YamlProducer implements IDataSetProducer
      * of its list.
      *
      * @throws DataSetException If the table is not a list of rows, or one of its rows is not
-     *             a row.
+     *             a row or has a cell that is a list or a mapping.
      */
     private static List<Map<String, Object>> rowsOf(String tableName, Object value)
             throws DataSetException
@@ -445,7 +449,8 @@ public class YamlProducer implements IDataSetProducer
      * Returns one row of a table, its column names mapped to their values, with no columns for
      * an entry with no value, which makes a row of nulls.
      *
-     * @throws DataSetException If the entry is not a mapping of column names to values.
+     * @throws DataSetException If the entry is not a mapping of column names to values, or one
+     *             of its values is a list or a mapping.
      */
     private static Map<String, Object> rowOf(String tableName, int rowIndex, Object entry)
             throws DataSetException
@@ -465,9 +470,34 @@ public class YamlProducer implements IDataSetProducer
         {
             String columnName = nameOf(column.getKey(),
                     "Column name in row " + rowIndex + " of table '" + tableName + "'");
-            row.put(columnName, column.getValue());
+            Object value = column.getValue();
+            requireValue(tableName, rowIndex, columnName, value);
+            row.put(columnName, value);
         }
         return row;
+    }
+
+    /**
+     * Checks that a cell holds a value. YAML builds a list from an unquoted value that starts
+     * with a square bracket, such as {@code [NULL]} or {@code [now-1d]}, and a mapping from one
+     * that starts with a curly brace, and no column type can use either.
+     *
+     * @throws DataSetException If the cell is a list or a mapping.
+     */
+    private static void requireValue(String tableName, int rowIndex, String columnName,
+            Object value) throws DataSetException
+    {
+        final boolean mapping = value instanceof Map;
+        final boolean list = value instanceof Collection;
+        if (mapping || list)
+        {
+            final String kind = mapping ? "a mapping" : "a list";
+            throw new DataSetException("Column '" + columnName + "' of row " + rowIndex
+                    + " of table '" + tableName + "' must be a value, but was " + kind + ", "
+                    + value + ": YAML reads an unquoted value that starts with '[' as a list and"
+                    + " one that starts with '{' as a mapping. Quote the value, such as '[NULL]'"
+                    + " or '[now-1d]', to give it as text.");
+        }
     }
 
     /**
