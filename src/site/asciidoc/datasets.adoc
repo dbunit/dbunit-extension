@@ -13,7 +13,8 @@ built programmatically. Its core contract:
   used by e.g. `DatabaseOperation.INSERT`/`DELETE_ALL` to respect foreign-key
   ordering.
 * `isCaseSensitiveTableNames()` — whether table name lookups are
-  case-sensitive.
+  case-sensitive: always for a JSON or YAML dataset, while the other formats
+  ignore case by default.
 
 link:apidocs/org/dbunit/dataset/ITable.html[ITable] represents one table:
 its `ITableMetaData` (columns), row count, and `getValue(row, column)` cell

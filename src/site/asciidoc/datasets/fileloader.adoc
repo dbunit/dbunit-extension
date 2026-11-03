@@ -48,6 +48,13 @@ objects and substrings configured on the `FileExtensionDataFileLoader` itself
 are the ones applied, exactly once, regardless of which delegate handled the
 file.
 
+The extension also decides how the dataset looks tables up. A `.json`, `.yaml` or
+`.yml` dataset is case-sensitive, so `getTable("account")` throws a
+`NoSuchTableException` for a table named `ACCOUNT`, where the datasets of the other
+formats find it, flat XML by default. `DefaultPrepAndExpectedTestCase` is not
+affected: it looks tables up the way the connection's
+`FEATURE_CASE_SENSITIVE_TABLE_NAMES` says, whatever the format.
+
 [#columnsensing]
 === Column Sensing for Flat XML
 
