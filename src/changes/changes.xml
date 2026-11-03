@@ -170,6 +170,9 @@
       <action dev="jeffjensen" type="fix" issue="1033" system="github" due-to="jeffjensen">
           Fix JsonDataSet.write() failing with a DataSetException, Error writing JSON dataset, for a cell that has no value (ITable.NO_VALUE), which the &lt;none/&gt; cell of an XML dataset and a row with fewer values than the table has columns produce, so that a full XML dataset could not be converted to JSON as it can be to flat XML, YAML or CSV. JsonWriter now writes such a cell as null in the first row of a table, which carries every column, and leaves it out of the later rows, as it does for a null.
       </action>
+      <action dev="jeffjensen" type="fix" issue="1033" system="github" due-to="jeffjensen">
+          Fix JsonDataSet.write(), released in 3.5.0, writing a java.sql.Date, a java.sql.Timestamp and a java.util.Date as the number of milliseconds since the epoch, which reads back as another day or another time in a JVM in another time zone, so that a JSON dataset written on one machine held other dates and times on another, and failing for a java.time date or time, which a default Jackson mapper cannot write. It now writes a date, a time and a timestamp, java.time ones included, as the JDBC escape text that YamlDataSet.write() writes, such as 2024-03-01 and 2024-03-01 10:15:30.0, which reads back the same in any time zone; a dataset written by an earlier version, with numbers, still reads for any date after January 1970. The new class org.dbunit.dataset.JdbcEscapeText holds the conversion that the JSON and YAML writers share.
+      </action>
     </release>
     <release version="3.5.2" date="Sep 7, 2026" description="DefaultPrepAndExpectedTestCase connection hygiene: replace a connection the pool or database dropped between tests, and warn when handed a non-autocommit connection">
       <action dev="jeffjensen" type="fix" issue="962" system="github" due-to="jeffjensen">
