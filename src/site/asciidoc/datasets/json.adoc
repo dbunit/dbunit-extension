@@ -27,6 +27,13 @@ null values. Writing a dataset is the mirror image: a column whose value is null
 omitted from that row's JSON object, except in the first row of a table. That row
 carries every column of the table, with a JSON `null` for a null value, so a column
 that is null in every row still appears in the output and survives a read-back.
+`JsonDataSet.write()` writes a date, a time or a timestamp as text the column type
+parses, such as `2024-03-01`, `10:15:30` or `2024-03-01 10:15:30.0`, so a written
+dataset reads back the same day and time in any time zone. Before 3.6.0 it wrote a
+date or a timestamp as a number of milliseconds since the epoch, which reads back as
+another day or time in another time zone. Such a dataset, with numbers, still reads
+for any date after January 1970, as the date and time column types accept a number of
+milliseconds that is a `long`.
 
 In contrast to link:flatxml.html[Flat XML], table metadata is deduced from
 the sum of all rows for each table, not just the first — so a column that

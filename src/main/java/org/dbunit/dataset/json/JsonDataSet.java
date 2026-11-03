@@ -48,6 +48,11 @@ import org.dbunit.dataset.RequiredLibrary;
  * column takes as it is. To give a column type its own text form, write the value as a JSON
  * string.
  *
+ * <p>The writer writes a date, a time or a timestamp as the JDBC escape text that the column
+ * types parse, such as {@code 2024-03-01}, so that a dataset reads back the same day and
+ * time in any time zone. A dataset written before 3.6.0, with the number of milliseconds
+ * since the epoch, still reads for any date after January 1970.
+ *
  * <p>Example:
  *
  * <pre>
