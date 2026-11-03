@@ -466,6 +466,29 @@ class YamlProducerTest
     }
 
     @Test
+    void testProduce_unquotedTrueAndFalse_produceBooleansThatAnIntegerColumnTypeCasts()
+            throws Exception
+    {
+        final RecordingConsumer consumer = new RecordingConsumer();
+        final YamlProducer producer = new YamlProducer(stream("FLAGS:\n"
+                + "  - ACTIVE: true\n"
+                + "    DELETED: false\n"));
+        producer.setConsumer(consumer);
+
+        producer.produce();
+
+        final Object[] row = consumer.rows.get(0);
+        assertThat(row)
+                .as("An unquoted YAML true or false is produced as a Boolean.")
+                .containsExactly(true, false);
+        assertThat(new Object[] {DataType.INTEGER.typeCast(row[0]),
+                DataType.INTEGER.typeCast(row[1])})
+                        .as("An integer column takes such a Boolean as 1 or 0, as it takes"
+                                + " the text true or false.")
+                        .containsExactly(1, 0);
+    }
+
+    @Test
     void testProduce_tableWithOneRow_endsTheDataSetAfterTheLastTable() throws Exception
     {
         final RecordingConsumer consumer = new RecordingConsumer();

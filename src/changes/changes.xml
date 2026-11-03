@@ -155,6 +155,9 @@
       <action dev="jeffjensen" type="fix" issue="1025" system="github" due-to="jeffjensen">
           Fix JsonDataSet silently keeping the last value of a column that a row names more than once, which YamlDataSet already rejects: JsonProducer now throws a DataSetException that names the table, the row and the column, and still throws an AmbiguousTableNameException for a table named twice.
       </action>
+      <action dev="jeffjensen" type="fix" issue="1031" system="github" due-to="jeffjensen">
+          Fix the integer column types, IntegerDataType for TINYINT, SMALLINT and INTEGER columns and BigIntegerDataType and LongDataType for BIGINT columns, throwing a TypeCastException for a Boolean, so an unquoted true or false of a JSON or YAML dataset, or a boolean cell of an Excel dataset, failed in such a column, where the text true of a flat XML dataset became 1 in a TINYINT, SMALLINT or INTEGER column. A Boolean now becomes 1 or 0 in every one of them, as the strings true and false do, which a BIGINT column takes now too, and as NumberDataType does for a NUMERIC or DECIMAL column.
+      </action>
     </release>
     <release version="3.5.2" date="Sep 7, 2026" description="DefaultPrepAndExpectedTestCase connection hygiene: replace a connection the pool or database dropped between tests, and warn when handed a non-autocommit connection">
       <action dev="jeffjensen" type="fix" issue="962" system="github" due-to="jeffjensen">

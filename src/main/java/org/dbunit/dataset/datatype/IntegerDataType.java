@@ -33,6 +33,11 @@ import org.slf4j.LoggerFactory;
 /**
  * {@link DataType} mapping integer SQL column types to {@link Integer}.
  *
+ * <p>A {@link Boolean}, or the text {@code true} or {@code false} in any case, becomes 1
+ * or 0. A JSON or YAML dataset hands an unquoted {@code true} or {@code false} over as a
+ * {@link Boolean}, and an Excel dataset hands a boolean cell over as one, where a flat XML
+ * dataset hands over the text.
+ *
  * @author Manuel Laflamme
  * @version $Revision$
  */
@@ -62,6 +67,12 @@ public class IntegerDataType extends AbstractDataType
         if (value instanceof Number)
         {
             return ((Number) value).intValue();
+        }
+
+        if (value instanceof Boolean)
+        {
+            final boolean flag = ((Boolean) value).booleanValue();
+            return flag ? 1 : 0;
         }
 
         // Treat "false" as 0, "true" as 1
