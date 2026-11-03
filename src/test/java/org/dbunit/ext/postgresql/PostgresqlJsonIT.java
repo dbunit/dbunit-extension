@@ -2,7 +2,9 @@ package org.dbunit.ext.postgresql;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.io.ByteArrayInputStream;
 import java.io.StringReader;
+import java.nio.charset.StandardCharsets;
 import java.sql.Statement;
 import java.sql.Types;
 import java.util.Objects;
@@ -15,6 +17,7 @@ import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.ITableMetaData;
 import org.dbunit.dataset.ReplacementDataSet;
+import org.dbunit.dataset.json.JsonDataSet;
 import org.dbunit.dataset.xml.FlatXmlDataSetBuilder;
 import org.dbunit.operation.DatabaseOperation;
 import org.junit.jupiter.api.AfterEach;
@@ -145,5 +148,30 @@ class PostgresqlJsonIT
                 .as("DATA (json) row 1 should be null.").isNull();
         assertThat(actualTable.getValue(1, "DATA_B"))
                 .as("DATA_B (jsonb) row 1 should be null.").isNull();
+    }
+
+    @Test
+    void testJsonDataSet_withObjectAndArrayCells_storesTheJsonThroughDatabase() throws Exception
+    {
+        assertThat(_connection).as("didn't get a connection.").isNotNull();
+        final DatabaseConfig config = _connection.getConfig();
+        config.setProperty(DatabaseConfig.PROPERTY_DATATYPE_FACTORY,
+                new PostgresqlDataTypeFactory());
+        final String json = "{\"JSON_TEST\": [{\"ID\": 1,"
+                + " \"DATA\": {\"type\": \"click\", \"n\": 1}, \"DATA_B\": [1, {\"x\": null}]}]}";
+        final IDataSet dataSet =
+                new JsonDataSet(new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8)));
+
+        DatabaseOperation.CLEAN_INSERT.execute(_connection, dataSet);
+
+        final ITable actualTable = _connection.createDataSet().getTable(testTable);
+        assertThat(OBJECT_MAPPER.readTree(String.valueOf(actualTable.getValue(0, "DATA"))))
+                .as("A JSON object cell reaches a json column as JSON, which the database"
+                        + " accepts and stores as the same document.")
+                .isEqualTo(OBJECT_MAPPER.readTree("{\"type\":\"click\",\"n\":1}"));
+        assertThat(OBJECT_MAPPER.readTree(String.valueOf(actualTable.getValue(0, "DATA_B"))))
+                .as("A JSON array cell reaches a jsonb column as JSON, which the database"
+                        + " accepts and stores as the same document.")
+                .isEqualTo(OBJECT_MAPPER.readTree("[1,{\"x\":null}]"));
     }
 }
