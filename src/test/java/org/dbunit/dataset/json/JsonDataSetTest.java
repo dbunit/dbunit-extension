@@ -34,6 +34,7 @@ import java.io.OutputStream;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.TimeZone;
 
 import org.dbunit.Assertion;
 import org.dbunit.database.AmbiguousTableNameException;
@@ -49,6 +50,7 @@ import org.dbunit.testutil.TestUtils;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 /**
@@ -410,6 +412,68 @@ class JsonDataSetTest extends AbstractDataSetTest
                 .as("The JSON text of an object cell is written as a JSON string, which reads"
                         + " back as the same text.")
                 .isEqualTo("{\"type\":\"click\",\"n\":1}");
+    }
+
+    @ParameterizedTest
+    @CsvSource({"Europe/Berlin,America/Chicago", "America/Chicago,Europe/Berlin",
+            "Asia/Kolkata,America/Chicago", "Pacific/Kiritimati,America/Chicago"})
+    void testWrite_dateAndTimestamp_readBackTheSameInAnotherTimeZone(final String writeZone,
+            final String readZone) throws Exception
+    {
+        final TimeZone original = TimeZone.getDefault();
+        try
+        {
+            TimeZone.setDefault(TimeZone.getTimeZone(writeZone));
+            final Column[] columns = {new Column("D", DataType.DATE),
+                    new Column("TS", DataType.TIMESTAMP), new Column("T", DataType.TIME)};
+            final DefaultTable table = new DefaultTable("EVENT", columns);
+            table.addRow(new Object[] {java.sql.Date.valueOf("2024-03-01"),
+                    java.sql.Timestamp.valueOf("2024-03-01 10:15:30"),
+                    java.sql.Time.valueOf("10:15:30")});
+            final ByteArrayOutputStream out = new ByteArrayOutputStream();
+            JsonDataSet.write(new DefaultDataSet(table), out);
+
+            TimeZone.setDefault(TimeZone.getTimeZone(readZone));
+            final ITable readBack =
+                    new JsonDataSet(new ByteArrayInputStream(out.toByteArray())).getTable("EVENT");
+
+            final Object[] row = {DataType.DATE.typeCast(readBack.getValue(0, "D")).toString(),
+                    DataType.TIMESTAMP.typeCast(readBack.getValue(0, "TS")).toString(),
+                    DataType.TIME.typeCast(readBack.getValue(0, "T")).toString()};
+            assertThat(row)
+                    .as("A dataset written in %s reads back as the same day and time in %s.",
+                            writeZone, readZone)
+                    .containsExactly("2024-03-01", "2024-03-01 10:15:30.0", "10:15:30");
+        } finally
+        {
+            TimeZone.setDefault(original);
+        }
+    }
+
+    @Test
+    void testConstructor_epochMillisForDateAndTimestampColumns_areStillReadByTheColumnTypes()
+            throws Exception
+    {
+        final TimeZone original = TimeZone.getDefault();
+        try
+        {
+            TimeZone.setDefault(TimeZone.getTimeZone("Europe/Berlin"));
+            final String json = "{\"EVENT\": [{\"D\": 1709247600000, \"TS\": 1709284530000}]}";
+
+            final ITable table = new JsonDataSet(
+                    new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8)))
+                            .getTable("EVENT");
+
+            final Object[] row = {DataType.DATE.typeCast(table.getValue(0, "D")).toString(),
+                    DataType.TIMESTAMP.typeCast(table.getValue(0, "TS")).toString()};
+            assertThat(row)
+                    .as("A dataset written before 3.6.0, with a date and a timestamp as a number"
+                            + " of milliseconds, still reads: the column types accept the number.")
+                    .containsExactly("2024-03-01", "2024-03-01 10:15:30.0");
+        } finally
+        {
+            TimeZone.setDefault(original);
+        }
     }
 
     @Test

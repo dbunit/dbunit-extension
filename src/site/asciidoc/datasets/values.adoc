@@ -241,6 +241,10 @@ A `TIMESTAMP` value may carry a numeric timezone offset suffix such as
 `2024-03-01 12:00:00.0 +0100`; see link:../databases/mssql.html[the MSSQL
 guide] for how `TIMESTAMP WITH TIME ZONE` columns are handled.
 
+The link:json.html[JSON] and link:yaml.html[YAML] datasets that dbUnit writes hold a
+date, a time and a timestamp in these formats, as text, so that they read back the same
+day and time in any time zone.
+
 === Relative dates — `[now...]`
 
 Since 2.7.0, a `DATE`, `TIME`, or `TIMESTAMP` field can be written relative to
