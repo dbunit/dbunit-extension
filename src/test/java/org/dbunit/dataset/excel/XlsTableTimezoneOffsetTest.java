@@ -14,8 +14,9 @@ import org.assertj.core.api.SoftAssertions;
 import org.assertj.core.api.junit.jupiter.SoftAssertionsExtension;
 import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.ITable;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 @ExtendWith(SoftAssertionsExtension.class)
 class XlsTableTimezoneOffsetTest
@@ -26,33 +27,41 @@ class XlsTableTimezoneOffsetTest
     private static final String FAIL_MSG =
             "row '%d' column '%s' doesn't match.";
 
-    private static final DateFormat dateFormat =
-            new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-
     private ITable table;
 
     /**
      * Simple test that loads the specified excel file and makes sure that the
-     * date is correct if the JVM's time zone is different from GMT/UTC This
-     * test only makes sense when the default time zone is NOT UTC (i.e. has an
-     * offset different from 0), otherwise the test would succeed even if the
-     * bug is still present. Thus, the precondition check makes sure that the
-     * default time zone offset is not 0 and aborts the test if it is.
-     *
-     * To change the time zone offset to something other than 0, either change
-     * your machine's system time zone setting, or use JVM parameter
-     * '-Duser.timezone="Europe/Berlin"' (or any other valid timezone ID)
+     * date is correct whatever the JVM's default time zone is. This test only
+     * makes sense when the default time zone is NOT UTC (i.e. has an offset
+     * different from 0), otherwise the test would succeed even if the bug is
+     * still present. Thus, the test sets the default time zone itself, once
+     * for a zone east of UTC, one west of it, one with a half-hour offset and
+     * the farthest one east, and restores the original afterward, so it does
+     * not depend on how the JVM was started.
      */
-    @Test
-    void testTimestampTzOffsets_withNonUtcTimezone_readsCorrectTimestampValues(final SoftAssertions softly) throws Exception
+    @ParameterizedTest
+    @ValueSource(strings = {"Europe/Berlin", "America/Chicago", "Asia/Kolkata",
+            "Pacific/Kiritimati"})
+    void testTimestampTzOffsets_withNonUtcTimezone_readsCorrectTimestampValues(final String zoneId, final SoftAssertions softly) throws Exception
     {
-        // uncomment to see available timezones
-        // System.err.println(Arrays.toString(TimeZone.getAvailableIDs()));
+        final TimeZone original = TimeZone.getDefault();
+        TimeZone.setDefault(TimeZone.getTimeZone(zoneId));
+        try
+        {
+            checkTimestampValues(zoneId, softly);
+        } finally
+        {
+            TimeZone.setDefault(original);
+        }
+    }
 
+    private void checkTimestampValues(final String zoneId, final SoftAssertions softly)
+            throws Exception
+    {
+        // An unknown zone id becomes GMT without a word, which would hide the bug.
         assertThat(TimeZone.getDefault().getRawOffset()).as(
-                "Precondition failed: default time zone must not have offset 0!"
-                        + " Use JVM parameter '-Duser.timezone=\"Europe/Berlin\"' or some other value, if you have to...")
-                .isNotZero();
+                "The zone %s must have an offset other than 0, or the test cannot show the bug.",
+                zoneId).isNotZero();
 
         final URL spreadsheetUrl = getClass().getResource(EXCEL_SPREADSHEET);
         final URI spreadsheetUri = spreadsheetUrl.toURI();
@@ -99,6 +108,10 @@ class XlsTableTimezoneOffsetTest
     private String getValueAsDate(final int row, final String column)
             throws DataSetException
     {
+        // The format takes the default time zone when it is created, so it
+        // is created for each value, after the test has set the zone.
+        final DateFormat dateFormat =
+                new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
         return dateFormat.format(table.getValue(row, column));
     }
 }

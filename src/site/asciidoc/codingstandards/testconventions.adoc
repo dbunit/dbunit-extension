@@ -125,6 +125,10 @@ choose a zone.
 `TimestampDataTypeTest`, still pass in such a zone but cannot show a bug in that arithmetic, so
 the failure tells you to choose a zone as described above.
 
+A test whose result depends on a particular zone sets that zone for itself and restores the
+original afterward, as `XlsTableTimezoneOffsetTest` does for four zones, so it does not rely
+on the zone Surefire sets.
+
 [#java-style]
 == Java Style
 
