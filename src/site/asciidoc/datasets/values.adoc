@@ -7,7 +7,8 @@ link:flatxml.html[Flat XML], link:xml.html[XML] and link:csv.html[CSV]; for
 link:excel.html[Excel], except where an `.xls` cell is natively a number, date,
 or boolean. link:json.html[JSON] and link:yaml.html[YAML] hand dbUnit an
 unquoted integer as a number and an unquoted `true` or `false` as a boolean,
-and JSON a number with a fraction as an exact decimal; a YAML date or
+and JSON a number with a fraction as an exact decimal and an object or an array as
+its compact JSON text; a YAML date or
 timestamp that the column type parses as text, such as `2024-03-01` or
 `2024-03-01 10:15:30`, a YAML time such as `10:30:00`, any other base-60 number,
 such as the clock time `12:30` or the ratio `16:9`, an integer with leading

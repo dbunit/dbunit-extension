@@ -45,6 +45,15 @@ strings — see link:values.html[Dataset Values], which applies to every format.
 Since 3.6.0 a number with a fraction is read as an exact decimal, so a value
 with more digits than a `double` holds keeps them all.
 
+Since 3.6.0 a cell that is a JSON object or array, such as
+`{"type": "click", "n": 1}`, reaches the column type as its compact JSON text,
+`{"type":"click","n":1}` for that one. A text column and a PostgreSQL `json` or `jsonb`
+column take that text as it is, and the
+link:../datacomparisons/valuecomparer.html[IsActualEqualToExpectedJsonValueComparer]
+compares it as JSON. To give a column type its own text form, such as the
+PostgreSQL array literal `{1,2,3}` of an array column, write the value as a JSON
+string instead of a JSON array.
+
 Table names are always case-sensitive — unlike some other formats, there is no
 case-insensitive table lookup fallback.
 
