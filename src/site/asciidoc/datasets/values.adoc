@@ -214,9 +214,10 @@ to the file or Base64 step.
 A value whose `[...]` prefix is not one of the four commands — `[BOGUS]...`, or
 the `[NULL]` placeholder if it reaches a binary column without a
 link:decorators.html#replacementdataset[ReplacementDataSet] — is a
-`TypeCastException` naming the unrecognized command. A value that starts with
-`[` but has no closing `]` is not command syntax and is resolved as a raw
-value, as above.
+`TypeCastException` that names the unrecognized command and the four valid ones
+and says to prefix a value to store as text with `[TEXT]`, as in
+`[TEXT][1, 2]`. A value that starts with `[` but has no closing `]` is not
+command syntax and is resolved as a raw value, as above.
 
 CLOB columns are character data and follow the string rules, not this
 section; `[TEXT|BASE64|FILE|URL]` is for binary types.
