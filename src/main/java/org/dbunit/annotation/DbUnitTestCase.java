@@ -53,11 +53,15 @@ import org.dbunit.PrepAndExpectedTestCase;
  * {@code DbUnitTestExecutionListener} calls it before them, so the loader must be there when
  * the test case is built.
  *
- * <p>The extension drives the instance around every test, so a test method must not drive it
- * as well. A test method that calls {@code runTest()}, {@code configureTest()} or
- * {@code preTest()} on it would run its setup, its verification and its cleanup twice. A test
- * class that drives its test case itself keeps it in a field without this marker, and registers
- * neither {@code DbUnitExtension} nor {@code DbUnitTestExecutionListener} for the class.
+ * <p>dbUnit drives the instance around every test, so a test method must not drive it as
+ * well. A test method that drives it too, with {@code runTest()}, or with
+ * {@code configureTest()}, {@code preTest()} and {@code postTest()}, would run its setup, its
+ * verification and its cleanup twice. For a {@link org.dbunit.DefaultPrepAndExpectedTestCase},
+ * dbUnit notices a test method that configured it again, with {@code runTest()} or
+ * {@code configureTest()}, cleans up what the instance holds without verifying and fails the
+ * test with an {@link IllegalStateException}. A test class that drives its test case itself
+ * keeps it in a field without this marker and does not register {@code DbUnitExtension}; the
+ * Spring listener does nothing for such a class.
  *
  * <p>Any other implementation of {@link PrepAndExpectedTestCase} tells the extension of no
  * tester and no connection, so a test declaring anything that needs one -
