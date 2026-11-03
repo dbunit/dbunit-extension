@@ -9,7 +9,8 @@ DbUnit is a JUnit extension for database-driven testing. It prepares a database 
 ## Build and Test Commands
 
 Unit tests (`**/*Test.java`) run with Surefire; integration tests (`**/*IT.java`) run with Failsafe.
-Tests run with `user.timezone=Europe/Berlin`.
+Unit tests run with `user.timezone=Europe/Berlin` (the `test.timezone` property of `pom.xml`);
+integration tests run in the machine's time zone.
 
 Use the Maven wrapper (`./mvnw`) for all build operations.
 
