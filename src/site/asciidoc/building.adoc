@@ -63,10 +63,13 @@ Surefire also has a skip property, `-DsurefirePluginSkip=true`, used internally 
 release profiles (tests already ran earlier in the pipeline by the time those profiles
 build); it isn't something typically used with local builds.
 
-Both Surefire and Failsafe force `-Duser.timezone=Europe/Berlin` on every test run, so
-timestamp/timezone-sensitive behavior is exercised the same way in CI regardless of the
-runner's own locale. A test launched directly from an IDE skips this unless its run
-configuration sets the same system property — see
+Surefire forces `-Duser.timezone=Europe/Berlin` for the unit tests (the `test.timezone`
+property in `pom.xml`), so timestamp/timezone-sensitive unit tests behave the same on every
+machine and in CI, whatever the runner's own time zone. Failsafe sets no time zone, so the
+integration tests run in the time zone of the machine. To use another zone, pass
+`-Dtest.timezone=<zone>` for the unit tests or `-DargLine=-Duser.timezone=<zone>` for the
+integration tests. A test launched directly from an IDE runs in the machine's zone unless its
+run configuration sets `-Duser.timezone` — see
 link:codingstandards/testconventions.html[Test Conventions].
 
 == Generating the Site
