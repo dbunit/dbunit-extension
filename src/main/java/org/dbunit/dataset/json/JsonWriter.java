@@ -35,6 +35,7 @@ import org.dbunit.dataset.RequiredLibrary;
 import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.ITableIterator;
 import org.dbunit.dataset.ITableMetaData;
+import org.dbunit.dataset.JdbcEscapeText;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -47,6 +48,11 @@ import com.fasterxml.jackson.databind.SerializationFeature;
  * the JSON output, except in the first row of a table. That row carries every column of the
  * table, with {@code null} for such a cell, so a column that is null in every row still
  * appears in the output and survives a read-back. The output is pretty-printed.
+ *
+ * <p>The writer writes a date, a time or a timestamp as the JDBC escape text that the column
+ * types parse, see {@link JdbcEscapeText}, not as the number of milliseconds since the epoch
+ * that Jackson writes by default, so that a date reads back as the same day, and a timestamp
+ * as the same date and time, in any time zone.
  *
  * @author Jeff Jensen
  */
@@ -120,7 +126,7 @@ class JsonWriter
                     }
                     else
                     {
-                        rowMap.put(columnName, value);
+                        rowMap.put(columnName, JdbcEscapeText.of(value));
                     }
                 }
                 rows.add(rowMap);

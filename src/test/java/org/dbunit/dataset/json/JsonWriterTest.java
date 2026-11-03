@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.io.StringWriter;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
 
 import org.dbunit.Assertion;
 import org.dbunit.dataset.Column;
@@ -208,6 +209,32 @@ public class JsonWriterTest
         assertThat(rows.get(1).has("COL2"))
                 .as("A cell with no value is left out of a later row, as a null is.").isFalse();
         assertThat(rows.get(1).get("COL1").asText()).as("row 1 COL1.").isEqualTo("c1r1");
+    }
+
+    @Test
+    void testWrite_dateTimeAndTimestampValues_writesThemAsJdbcEscapeText() throws Exception
+    {
+        final Column[] columns = {new Column("D", DataType.DATE),
+                new Column("TS", DataType.TIMESTAMP), new Column("T", DataType.TIME),
+                new Column("LDT", DataType.TIMESTAMP)};
+        final DefaultTable table = new DefaultTable("TEST_TABLE", columns);
+        table.addRow(new Object[] {java.sql.Date.valueOf("2024-03-01"),
+                java.sql.Timestamp.valueOf("2024-03-01 10:15:30"),
+                java.sql.Time.valueOf("10:15:30"), LocalDateTime.of(2024, 3, 1, 10, 15, 30)});
+
+        final StringWriter stringWriter = new StringWriter();
+        new JsonWriter(stringWriter).write(new DefaultDataSet(table));
+
+        final JsonNode row = new ObjectMapper().readTree(stringWriter.toString())
+                .get("TEST_TABLE").get(0);
+        final Object[] actual = {row.get("D").asText(), row.get("TS").asText(),
+                row.get("T").asText(), row.get("LDT").asText()};
+        assertThat(actual)
+                .as("A date, a timestamp, a time and a java.time date and time are written as the"
+                        + " text a column type parses, not as a number of milliseconds.")
+                .containsExactly("2024-03-01", "2024-03-01 10:15:30.0", "10:15:30",
+                        "2024-03-01 10:15:30.0");
+        assertThat(row.get("D").isTextual()).as("The date is a JSON string.").isTrue();
     }
 
     @Test
