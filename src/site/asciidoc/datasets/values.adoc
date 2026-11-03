@@ -55,7 +55,7 @@ Each format has its own way to say "this cell is null":
 |link:flatxml.html[Flat XML] |Omit the attribute. A row that does not mention `COL2` has a null `COL2`.
 |link:xml.html[XML] |An explicit `<null/>` or `<none/>` element in the row.
 |link:csv.html[CSV] |The literal token `null`, unquoted. A quoted `"null"` is the four-character string.
-|link:json.html[JSON] |Omit the key from that row's object. (Writing a dataset omits null-valued keys rather than emitting JSON `null`.)
+|link:json.html[JSON] |Omit the key from that row's object. (Writing a dataset omits a null-valued key from every row of a table but the first, which keeps all the columns of the table with a JSON `null` for a null, so a column that is null in every row survives a read-back.)
 |link:yaml.html[YAML] |Omit the key from that row's mapping.
 |link:excel.html[Excel] |An empty or absent cell.
 |===
