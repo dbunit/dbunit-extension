@@ -113,14 +113,16 @@ cleanup) on a failed run, and suppressed-exception handling are all the wrapper'
  *involved* data source (present in the map and not mapped to `NONE`), in declared order:
  `delegate.preTest(...)`. If one throws, every involved delegate set up so far - including the one
  that just failed - is rolled back via `postTest(false)` in reverse - never a bare `cleanupData()`
- - with each rollback failure attached as suppressed on the original failure, which is then
- rethrown as-is.
+ - with each rollback failure attached as suppressed on the original failure, labelled with its
+ data source name and the `cleanupData` phase, and the original failure is then rethrown as-is.
 
 |test steps
 |once
 |Run by `runTest`, or by the caller between `preTest(map)` and `postTest(boolean)`. A delegate's
  own overridden `runTestSteps()` is not invoked - the steps span every data source, so no single
- delegate's step wrapper is the right scope.
+ delegate's step wrapper is the right scope. When the steps that `runTest` runs throw, it tears
+ every involved delegate down via `postTest(false)` in reverse and rethrows the step failure
+ as-is, with each teardown failure attached as suppressed and labelled as a rollback failure is.
 
 |`postTest(verify)`
 |reverse

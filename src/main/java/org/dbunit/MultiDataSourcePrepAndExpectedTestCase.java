@@ -121,11 +121,11 @@ public class MultiDataSourcePrepAndExpectedTestCase
      * A throwable from the test steps is rethrown as-is - not wrapped - with every involved
      * delegate torn down first via {@link PrepAndExpectedTestCase#postTest(boolean)
      * postTest(false)} in reverse declared order, each teardown failure attached to the step
-     * throwable via {@link Throwable#addSuppressed(Throwable)} - except a teardown failure that
-     * is the exact same instance as the step throwable itself, which is dropped rather than
-     * attempting the self-suppression {@link Throwable#addSuppressed(Throwable)} forbids. The run
-     * is over then, as after {@link #postTest(boolean)}, so a further {@code postTest} call, such
-     * as one in a caller's {@code finally} block, has nothing to tear down.
+     * throwable via {@link Throwable#addSuppressed(Throwable)}, labelled with its data source
+     * name and the {@code cleanupData} phase - except a teardown failure that is the exact same
+     * instance as the step throwable itself, which is dropped rather than attached to itself. The
+     * run is over then, as after {@link #postTest(boolean)}, so a further {@code postTest} call,
+     * such as one in a caller's {@code finally} block, has nothing to tear down.
      *
      * @param dataByDataSourceName
      *            The prep/expected/verify data for this run, keyed by data source name; a wired
@@ -172,9 +172,9 @@ public class MultiDataSourcePrepAndExpectedTestCase
      * including the one that just failed - is rolled back, via
      * {@link PrepAndExpectedTestCase#postTest(boolean) postTest(false)}, in reverse order, never a
      * bare {@code cleanupData()} - with each rollback failure attached to the original failure via
-     * {@link Throwable#addSuppressed(Throwable)}, except a rollback failure that is the exact same
-     * instance as the original failure, which is dropped rather than attempting the
-     * self-suppression {@link Throwable#addSuppressed(Throwable)} forbids; the original failure is
+     * {@link Throwable#addSuppressed(Throwable)}, labelled with its data source name and the
+     * {@code cleanupData} phase, except a rollback failure that is the exact same instance as the
+     * original failure, which is dropped rather than attached to itself; the original failure is
      * then rethrown as-is.
      *
      * @param dataByDataSourceName
@@ -260,11 +260,14 @@ public class MultiDataSourcePrepAndExpectedTestCase
                 testCasesByDataSourceName.get(dataSourceName).postTest(false);
             } catch (final Throwable teardownFailure)
             {
-                // Throwable.addSuppressed() throws IllegalArgumentException for
-                // self-suppression; skip it rather than let that mask the real failure.
+                // The primary failure is reported already; attaching it to itself, even
+                // labelled, would make it the cause of its own suppressed failure.
                 if (teardownFailure != primaryFailure)
                 {
-                    primaryFailure.addSuppressed(teardownFailure);
+                    final MultiDataSourceAssertionError.DataSourceFailure labelled =
+                            new MultiDataSourceAssertionError.DataSourceFailure(dataSourceName,
+                                    "cleanupData", teardownFailure);
+                    primaryFailure.addSuppressed(labelled);
                 }
             }
         }
