@@ -32,9 +32,12 @@ import org.dbunit.dataset.Column;
 import org.dbunit.dataset.Columns;
 import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.ITable;
+import org.dbunit.dataset.NoSuchTableException;
 import org.dbunit.dataset.xml.FlatXmlDataSetBuilder;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * @author Jeff Jensen
@@ -88,6 +91,31 @@ class FileExtensionDataFileLoaderTest
 
         assertThat(ds.getTableNames()).as("Unexpected tables in dataset.")
                 .containsExactly("TEST_TABLE");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"test.json", "test.yaml", "test.yml"})
+    void testLoad_jsonAndYamlFiles_lookTablesUpCaseSensitively(final String fileName)
+            throws Exception
+    {
+        final IDataSet ds = loader.load("/org/dbunit/util/fileloader/" + fileName);
+
+        assertThatThrownBy(() -> ds.getTable("test_table"))
+                .as("A JSON or YAML dataset looks tables up case-sensitively, also as a loader"
+                        + " returns it, so only the name as written finds the table.")
+                .isInstanceOf(NoSuchTableException.class);
+        assertThat(ds.getTable("TEST_TABLE").getTableMetaData().getTableName())
+                .as("The name as written finds the table.").isEqualTo("TEST_TABLE");
+    }
+
+    @Test
+    void testLoad_flatXmlFile_looksTablesUpIgnoringCase() throws Exception
+    {
+        final IDataSet ds = loader.load("/org/dbunit/util/fileloader/test.xml");
+
+        assertThat(ds.getTable("test_table").getTableMetaData().getTableName())
+                .as("A flat XML dataset finds a table by its name without regard to case.")
+                .isEqualTo("TEST_TABLE");
     }
 
     @Test
