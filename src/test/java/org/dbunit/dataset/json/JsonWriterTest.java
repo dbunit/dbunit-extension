@@ -175,6 +175,42 @@ public class JsonWriterTest
     }
 
     @Test
+    void testWrite_withNoValueCells_writesNullInFirstRowAndLeavesKeyOutOfLaterRows()
+            throws Exception
+    {
+        final String col0 = "COL0";
+        final String col1 = "COL1";
+        final String col2 = "COL2";
+        final Column[] columns = new Column[] {new Column(col0, DataType.UNKNOWN),
+                new Column(col1, DataType.UNKNOWN), new Column(col2, DataType.UNKNOWN)};
+
+        final DefaultTable table = new DefaultTable("TEST_TABLE", columns);
+        table.addRow();
+        table.setValue(0, col0, "c0r0");
+        table.setValue(0, col1, ITable.NO_VALUE);
+        table.setValue(0, col2, "c2r0");
+        table.addRow();
+        table.setValue(1, col0, "c0r1");
+        table.setValue(1, col1, "c1r1");
+        table.setValue(1, col2, ITable.NO_VALUE);
+
+        final StringWriter stringWriter = new StringWriter();
+        new JsonWriter(stringWriter).write(new DefaultDataSet(table));
+
+        final ObjectMapper mapper = new ObjectMapper();
+        final JsonNode root = mapper.readTree(stringWriter.toString());
+        final JsonNode rows = root.get("TEST_TABLE");
+        assertThat(rows.get(0).has("COL1")).as("row 0 has COL1.").isTrue();
+        assertThat(rows.get(0).get("COL1").isNull())
+                .as("A cell with no value is written as null in the first row, which carries"
+                        + " every column.")
+                .isTrue();
+        assertThat(rows.get(1).has("COL2"))
+                .as("A cell with no value is left out of a later row, as a null is.").isFalse();
+        assertThat(rows.get(1).get("COL1").asText()).as("row 1 COL1.").isEqualTo("c1r1");
+    }
+
+    @Test
     void testWrite_withColumnNullInEveryRow_preservesColumnOnRoundTrip() throws Exception
     {
         final String col0 = "COL0";

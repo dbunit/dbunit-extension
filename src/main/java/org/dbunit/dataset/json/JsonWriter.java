@@ -43,10 +43,10 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 /**
  * Writes an {@link IDataSet} to a {@link Writer} in JSON format.
  *
- * <p>The writer leaves a null column value out of the JSON output, except in the first row
- * of a table. That row carries every column of the table, with {@code null} for a null
- * value, so a column that is null in every row still appears in the output and survives a
- * read-back. The output is pretty-printed.
+ * <p>The writer leaves a null cell, or a cell with no value ({@link ITable#NO_VALUE}), out of
+ * the JSON output, except in the first row of a table. That row carries every column of the
+ * table, with {@code null} for such a cell, so a column that is null in every row still
+ * appears in the output and survives a read-back. The output is pretty-printed.
  *
  * @author Jeff Jensen
  */
@@ -101,14 +101,24 @@ class JsonWriter
             final List<Map<String, Object>> rows = new ArrayList<>();
             for (int row = 0; row < table.getRowCount(); row++)
             {
+                final boolean firstRow = row == 0;
                 final Map<String, Object> rowMap = new LinkedHashMap<>();
                 for (final Column column : columns)
                 {
                     final String columnName = column.getColumnName();
                     final Object value = table.getValue(row, columnName);
-                    // Row 0 always carries every column, even if null, so a column that is
-                    // null in every row still appears in the output and survives a read-back.
-                    if (value != null || row == 0)
+                    final boolean noValue = value == null || value == ITable.NO_VALUE;
+                    if (noValue)
+                    {
+                        // The first row carries every column, even for a null or a cell with
+                        // no value, so a column that is null in every row still appears in
+                        // the output and survives a read-back.
+                        if (firstRow)
+                        {
+                            rowMap.put(columnName, null);
+                        }
+                    }
+                    else
                     {
                         rowMap.put(columnName, value);
                     }
