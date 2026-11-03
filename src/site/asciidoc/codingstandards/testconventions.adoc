@@ -120,6 +120,11 @@ IDE runs in the machine's zone unless its run configuration sets `-Duser.timezon
 link:../building.html[Building]'s Quality Gates section for the mechanics and for how to
 choose a zone.
 
+`NonUtcDefaultTimeZoneTest` fails when the unit test JVM runs in a zone whose raw offset is 0
+(UTC, and London, Dublin and Lisbon even in summer). Tests of time zone arithmetic, such as
+`TimestampDataTypeTest`, still pass in such a zone but cannot show a bug in that arithmetic, so
+the failure tells you to choose a zone as described above.
+
 [#java-style]
 == Java Style
 
