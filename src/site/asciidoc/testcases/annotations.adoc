@@ -1063,10 +1063,19 @@ link:PrepAndExpectedTestCase.html#Bundling_Test_Data[PrepAndExpectedTestData]
 overloads keep the per-row prep/expected/verify triple to a single
 `@MethodSource` column and a single method parameter.
 
-`@DbUnitTestCase` field injection still helps such suites, even without the
-lifecycle annotations: it makes the harness wiring explicit on the field
-instead of inherited from a superclass, and a shared catalog (<<catalog>>)
-gives the `VerifyTableDefinition` constants a first-class home that
+Such a suite drives its `PrepAndExpectedTestCase` itself, with `runTest()` or with
+`preTest()` and `postTest()`, so it keeps the instance in a plain field, which makes
+the harness wiring explicit instead of inherited from a superclass. It does not mark
+the field `@DbUnitTestCase`, and it does not register `DbUnitExtension` (`@DbUnitTest`
+or `@ExtendWith(DbUnitExtension.class)`) for the class: a marked field hands the
+instance to dbUnit, which then drives it around each test as well, so the setup, the
+verification and the cleanup would run twice. With the extension registered and the
+field unmarked, a class that declares none of the annotations keeps the 3.5.0
+lifecycle instead: it needs a non-static `IDatabaseTester` field, whose `onSetup()` and
+`onTearDown()` the extension calls around each test, and without one it fails with
+"No IDatabaseTester field found". Under Spring, the listener does nothing for a class
+that does not opt in, so nothing more is needed there. A shared catalog (<<catalog>>)
+still gives the `VerifyTableDefinition` constants a first-class home that
 non-parameterized tests in the same suite can point at by name.
 
 `DbUnitOperation` is also narrower than `DatabaseOperation`: it covers the eight simple
