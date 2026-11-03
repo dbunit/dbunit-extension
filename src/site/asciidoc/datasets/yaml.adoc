@@ -25,8 +25,13 @@ SECOND_TABLE:
 EMPTY_TABLE:
 ----
 
-To specify null values, just omit the corresponding column key.
+To specify null values, just omit the corresponding column key, or write `null` or `~`
+as its value.
 In the above example, missing COL0 and COL2 keys of TEST_TABLE second row represents null values.
+Writing a dataset is the mirror image: a column whose value is null is omitted from that
+row's mapping, except in the first row of a table. That row carries every column of the
+table, with a YAML `null` for a null value, so a column that is null in every row still
+appears in the output and survives a read-back.
 
 In contrast to link:flatxml.html[Flat XML], table metadata is deduced from
 the sum of all rows for each table, not just the first — so a column that
