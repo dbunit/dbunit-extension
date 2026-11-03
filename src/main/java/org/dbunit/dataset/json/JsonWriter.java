@@ -43,7 +43,10 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 /**
  * Writes an {@link IDataSet} to a {@link Writer} in JSON format.
  *
- * <p>Null column values are omitted from the JSON output. The output is pretty-printed.
+ * <p>The writer leaves a null column value out of the JSON output, except in the first row
+ * of a table. That row carries every column of the table, with {@code null} for a null
+ * value, so a column that is null in every row still appears in the output and survives a
+ * read-back. The output is pretty-printed.
  *
  * @author Jeff Jensen
  */

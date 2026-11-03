@@ -39,7 +39,9 @@ import org.dbunit.dataset.RequiredLibrary;
  *
  * <p>Contrary to the flat XML layout, columns are calculated by parsing the entire dataset, not
  * just the first row. Each table is a top-level key in the JSON object, and its value is an array
- * of row objects. Columns with {@code null} values are omitted from the JSON representation.
+ * of row objects. The writer leaves a column with a {@code null} value out of a row, except
+ * in the first row of a table, which carries every column of the table, so a column that is
+ * null in every row survives a read-back.
  *
  * <p>Example:
  *
