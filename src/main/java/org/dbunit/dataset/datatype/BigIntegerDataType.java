@@ -35,6 +35,11 @@ import org.slf4j.LoggerFactory;
 /**
  * Inserts and reads {@link BigInteger} values into/from a database.
  *
+ * <p>A {@link Boolean}, or the text {@code true} or {@code false} in any case, becomes 1
+ * or 0, as it does for the other integer types. A JSON or YAML dataset hands an unquoted
+ * {@code true} or {@code false} over as a {@link Boolean}, and an Excel dataset hands a
+ * boolean cell over as one, where a flat XML dataset hands over the text.
+ *
  * @author gommma (gommma AT users.sourceforge.net)
  * @author Last changed by: $Author$
  * @version $Revision$ $Date$
@@ -76,6 +81,26 @@ public class BigIntegerDataType extends AbstractDataType
         {
             final long l = ((Number) value).longValue();
             return new BigInteger(String.valueOf(l));
+        } else if (value instanceof Boolean)
+        {
+            final boolean flag = ((Boolean) value).booleanValue();
+            return flag ? BigInteger.ONE : BigInteger.ZERO;
+        }
+
+        // Treat "false" as 0, "true" as 1
+        if (value instanceof String)
+        {
+            final String string = (String) value;
+
+            if ("false".equalsIgnoreCase(string))
+            {
+                return BigInteger.ZERO;
+            }
+
+            if ("true".equalsIgnoreCase(string))
+            {
+                return BigInteger.ONE;
+            }
         }
 
         try

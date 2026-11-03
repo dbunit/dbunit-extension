@@ -295,9 +295,11 @@ case-insensitively. Any other value is parsed as an integer, then `0` is
 `false` and any non-zero is `true`. A value that is neither (`yes`, `y`, ...)
 is a `TypeCastException`.
 
-*Integer columns* (`TINYINT`, `SMALLINT`, `INTEGER`): also accept `true` /
-`false` (case-insensitive) as `1` / `0`, otherwise parse the value as a
-number.
+*Integer columns* (`TINYINT`, `SMALLINT`, `INTEGER`, `BIGINT`): also accept `true` /
+`false` (case-insensitive) as `1` / `0`, and so does a `Boolean`, which is what an
+unquoted `true` or `false` of a link:json.html[JSON] or link:yaml.html[YAML] dataset
+(also a YAML `yes`, `no`, `on` or `off`) and a boolean cell of an
+link:excel.html[Excel] dataset arrive as. Otherwise they parse the value as a number.
 
 *Decimal columns* (`NUMERIC`, `DECIMAL`): a `Boolean` value becomes `1` or
 `0`, but the *strings* `"true"` / `"false"` are not special here — they are a
