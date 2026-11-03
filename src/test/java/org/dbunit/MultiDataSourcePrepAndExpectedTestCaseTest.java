@@ -23,6 +23,7 @@ package org.dbunit;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.catchThrowable;
+import static org.assertj.core.api.Assertions.tuple;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -491,8 +492,10 @@ class MultiDataSourcePrepAndExpectedTestCaseTest
         assertThat(thrown).as("preTest(...) must rethrow the real setup failure itself, not a"
                 + " wrapper.").isSameAs(setupFailure);
         assertThat(thrown.getSuppressed())
-                .as("A rollback failure must be attached as suppressed on the setup failure.")
-                .containsExactly(rollbackFailure);
+                .as("A rollback failure must be attached as suppressed on the setup failure,"
+                        + " labelled with the data source it came from.")
+                .extracting(Throwable::getMessage, Throwable::getCause)
+                .containsExactly(tuple("catalog failed in cleanupData.", rollbackFailure));
     }
 
     @Test
@@ -519,6 +522,7 @@ class MultiDataSourcePrepAndExpectedTestCaseTest
                         + " failure and must be skipped rather than self-suppressed, but"
                         + " catalog's distinct rollback failure must still be attached - proving"
                         + " the self-suppression guard does not stop the rollback loop early.")
+                .extracting(Throwable::getCause)
                 .containsExactly(catalogRollbackFailure);
     }
 
@@ -577,8 +581,10 @@ class MultiDataSourcePrepAndExpectedTestCaseTest
         assertThat(thrown).isSameAs(stepFailure);
         assertThat(thrown.getSuppressed())
                 .as("Every involved data source must be torn down, with each teardown failure"
-                        + " suppressed onto the step exception.")
-                .containsExactly(catalogTeardownFailure);
+                        + " suppressed onto the step exception and labelled with the data source"
+                        + " it came from.")
+                .extracting(Throwable::getMessage, Throwable::getCause)
+                .containsExactly(tuple("catalog failed in cleanupData.", catalogTeardownFailure));
         assertThat(orders.lastPostTestVerifyData)
                 .as("Teardown after a step failure must call postTest(false) - not verify - on"
                         + " every involved data source.")
