@@ -54,6 +54,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  * <p>The expected JSON format is a top-level object whose keys are table names and whose values
  * are arrays of row objects. Each row object maps column names to cell values. Missing keys within
  * a row are treated as {@code null} for that column. Empty tables are represented by empty arrays.
+ * A cell that is a JSON object or array reaches the column type as its compact JSON text.
  * The producer rejects a table named twice with an {@link AmbiguousTableNameException}, and a
  * column named twice in one row with a {@link DataSetException}.
  *
@@ -231,9 +232,27 @@ public class JsonProducer implements IDataSetProducer
                         + " named once in a row");
             }
             parser.nextToken();
-            row.put(columnName, mapper.readValue(parser, Object.class));
+            final Object value = mapper.readValue(parser, Object.class);
+            row.put(columnName, cellOf(value, mapper));
         }
         return row;
+    }
+
+    /**
+     * Returns the value a cell hands to the column type. A JSON object or array, which Jackson
+     * reads as a {@link Map} or a {@link List}, becomes its compact JSON text, which a
+     * {@code json} or {@code jsonb} column or a text column takes as it is, where the
+     * {@code toString()} text of the {@link Map} or {@link List} is no JSON. Any other value is
+     * the Java value that Jackson read.
+     */
+    private static Object cellOf(final Object value, final ObjectMapper mapper) throws IOException
+    {
+        final boolean nested = value instanceof Map || value instanceof List;
+        if (nested)
+        {
+            return mapper.writeValueAsString(value);
+        }
+        return value;
     }
 
     private ITableMetaData buildMetaData(final String tableName, final List<Map<String, Object>> rows)

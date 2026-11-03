@@ -327,6 +327,92 @@ class JsonDataSetTest extends AbstractDataSetTest
     }
 
     @Test
+    void testConstructor_objectAndArrayCells_readAsTheirCompactJsonText() throws Exception
+    {
+        final String json = "{\"EVENT\": [{\"ID\": 1,"
+                + " \"PAYLOAD\": {\"type\": \"click\", \"n\": 1},"
+                + " \"TAGS\": [\"a\", 2, null, true],"
+                + " \"NESTED\": {\"x\": [1, {\"y\": {}}]},"
+                + " \"EMPTY_OBJECT\": {}, \"EMPTY_ARRAY\": [], \"LAST\": \"end\"}]}";
+
+        final IDataSet dataSet = new JsonDataSet(
+                new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8)));
+
+        final ITable table = dataSet.getTable("EVENT");
+        final Object[] row = {table.getValue(0, "ID"), table.getValue(0, "PAYLOAD"),
+                table.getValue(0, "TAGS"), table.getValue(0, "NESTED"),
+                table.getValue(0, "EMPTY_OBJECT"), table.getValue(0, "EMPTY_ARRAY"),
+                table.getValue(0, "LAST")};
+        assertThat(row)
+                .as("A JSON object or array in a cell reaches the column type as its compact JSON"
+                        + " text, not as the toString() text of a Java map or list, and the cell"
+                        + " after it is still read.")
+                .containsExactly(1, "{\"type\":\"click\",\"n\":1}", "[\"a\",2,null,true]",
+                        "{\"x\":[1,{\"y\":{}}]}", "{}", "[]", "end");
+    }
+
+    @Test
+    void testConstructor_numbersInsideAnObjectCell_keepEveryDigit() throws Exception
+    {
+        final String json = "{\"MONEY\": [{\"PRICE\": {\"amount\": 12.50,"
+                + " \"total\": 123456789012345678901234567890.5, \"count\": 3}}]}";
+
+        final IDataSet dataSet = new JsonDataSet(
+                new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8)));
+
+        assertThat(dataSet.getTable("MONEY").getValue(0, "PRICE"))
+                .as("A number with a fraction inside an object keeps every digit and its"
+                        + " trailing zero, as one in a cell of its own does.")
+                .isEqualTo("{\"amount\":12.50,\"total\":123456789012345678901234567890.5,"
+                        + "\"count\":3}");
+    }
+
+    @Test
+    void testConstructor_stringCellHoldingJson_staysTheString() throws Exception
+    {
+        final String json = "{\"EVENT\": [{\"PAYLOAD\": \"{\\\"type\\\": \\\"click\\\"}\"}]}";
+
+        final IDataSet dataSet = new JsonDataSet(
+                new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8)));
+
+        assertThat(dataSet.getTable("EVENT").getValue(0, "PAYLOAD"))
+                .as("A JSON string is the string, whatever it holds, so the way to give a column"
+                        + " type its own text form is a string.")
+                .isEqualTo("{\"type\": \"click\"}");
+    }
+
+    @Test
+    void testConstructor_columnNamedTwiceAroundAnObjectCell_throwsDataSetExceptionNamingTheColumn()
+    {
+        final String json = "{\"TEST_TABLE\": [{\"A\": {\"x\": 1}, \"A\": 2}]}";
+        final InputStream in = new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8));
+
+        assertThatThrownBy(() -> new JsonDataSet(in))
+                .as("A column named twice in a row is still rejected when the first value is an"
+                        + " object.")
+                .isExactlyInstanceOf(DataSetException.class)
+                .hasMessage("Row 0 of table 'TEST_TABLE' names column 'A' more than once: a"
+                        + " column is named once in a row");
+    }
+
+    @Test
+    void testWrite_objectCellReadAsJsonText_readsBackAsTheSameText() throws Exception
+    {
+        final String json = "{\"EVENT\": [{\"PAYLOAD\": {\"type\": \"click\", \"n\": 1}}]}";
+        final IDataSet dataSet = new JsonDataSet(
+                new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8)));
+        final ByteArrayOutputStream out = new ByteArrayOutputStream();
+
+        JsonDataSet.write(dataSet, out);
+        final IDataSet readBack = new JsonDataSet(new ByteArrayInputStream(out.toByteArray()));
+
+        assertThat(readBack.getTable("EVENT").getValue(0, "PAYLOAD"))
+                .as("The JSON text of an object cell is written as a JSON string, which reads"
+                        + " back as the same text.")
+                .isEqualTo("{\"type\":\"click\",\"n\":1}");
+    }
+
+    @Test
     void testConstructor_sameColumnInDifferentRowsAndNullValues_loadsEveryRow() throws Exception
     {
         final String json = "{\"TEST_TABLE\": [{\"A\": null, \"B\": 1}, {\"A\": 2, \"B\": null}]}";

@@ -108,7 +108,8 @@ above. PostgreSQL has no implicit cast between `json` and `jsonb`, so a
 bound parameter's PGobject type must match its target column exactly;
 `PostgresqlDataTypeFactory` handles this automatically by constructing a
 `JsonType` for the specific sql type name (`json` or `jsonb`) each column
-reports.
+reports. In a link:../datasets/json.html[JSON dataset], the cell of such a column
+can be a JSON object or array: it reaches `JsonType` as its compact JSON text.
 
 This class only shuttles a column's raw text between the driver and the
 dataset; it does not compare JSON values semantically. PostgreSQL
@@ -128,7 +129,11 @@ representation, such as `{1,2,3}` or `{"a","b","c"}`. PostgreSQL reports
 every array column's sql type name as its element type's own pg_catalog name
 prefixed with an underscore (for example `_int4` for an `integer[]`
 column); `PostgresqlDataTypeFactory` constructs the matching `ArrayType`
-for each column automatically.
+for each column automatically. A link:../datasets/json.html[JSON dataset] gives an
+array column its literal as a JSON string, such as the literal `{1,2,3}` in double
+quotes: a JSON array `[1,2,3]` reaches `ArrayType` as the text `[1,2,3]`, which is no
+array literal, and `ArrayType` rejects it with a `TypeCastException` when an operation
+writes it.
 
 On write, the literal text is split into its top-level elements — honoring
 double-quoted, backslash-escaped elements and the unquoted `NULL` keyword —
