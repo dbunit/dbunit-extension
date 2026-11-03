@@ -161,6 +161,70 @@ public class YmlWriterTest
     }
 
     @Test
+    void testWriteNullValue_withNullCellInEveryRow_writesNullKeyInFirstRowOnly() throws Exception
+    {
+        final String expectedOutput = "TEST_TABLE:\n" + "  - COL0: c0r0\n"
+                + "    COL1: null\n" + "  - COL0: c0r1\n";
+
+        final String col0 = "COL0";
+        final String col1 = "COL1";
+        final Column[] columns =
+                new Column[] {new Column(col0, DataType.UNKNOWN),
+                        new Column(col1, DataType.UNKNOWN)};
+
+        final DefaultTable table = new DefaultTable("TEST_TABLE", columns);
+        table.addRow();
+        table.setValue(0, col0, "c0r0");
+        table.setValue(0, col1, null);
+        table.addRow();
+        table.setValue(1, col0, "c0r1");
+        table.setValue(1, col1, null);
+
+        final StringWriter stringWriter = new StringWriter();
+        final YamlWriter yamlWriter = new YamlWriter(stringWriter);
+        yamlWriter.write(new DefaultDataSet(table));
+
+        final String actualOutput = stringWriter.toString();
+        assertThat(actualOutput)
+                .as("The first row carries every column, with null for a null cell, so that a"
+                        + " column that is null in every row survives a read-back; a later row"
+                        + " leaves the null cell out.")
+                .isEqualTo(expectedOutput);
+    }
+
+    @Test
+    void testWriteNoValueCell_withNoValueCellInFirstRow_writesNullKeyInFirstRow() throws Exception
+    {
+        final String expectedOutput = "TEST_TABLE:\n" + "  - COL0: c0r0\n"
+                + "    COL1: null\n" + "  - COL0: c0r1\n"
+                + "    COL1: c1r1\n";
+
+        final String col0 = "COL0";
+        final String col1 = "COL1";
+        final Column[] columns =
+                new Column[] {new Column(col0, DataType.UNKNOWN),
+                        new Column(col1, DataType.UNKNOWN)};
+
+        final DefaultTable table = new DefaultTable("TEST_TABLE", columns);
+        table.addRow();
+        table.setValue(0, col0, "c0r0");
+        table.setValue(0, col1, ITable.NO_VALUE);
+        table.addRow();
+        table.setValue(1, col0, "c0r1");
+        table.setValue(1, col1, "c1r1");
+
+        final StringWriter stringWriter = new StringWriter();
+        final YamlWriter yamlWriter = new YamlWriter(stringWriter);
+        yamlWriter.write(new DefaultDataSet(table));
+
+        final String actualOutput = stringWriter.toString();
+        assertThat(actualOutput)
+                .as("A cell with no value in the first row is written as null, as the first row"
+                        + " carries every column.")
+                .isEqualTo(expectedOutput);
+    }
+
+    @Test
     void testWriteFlow_withFlowStyleEnabled_writesFlowStyleOutput() throws Exception
     {
         final String expectedOutput = "{\n" + "  TABLE1: [\n" + "    {\n"

@@ -44,6 +44,13 @@ import java.util.LinkedHashMap;
 import java.util.List;
 
 /**
+ * Writes an {@link IDataSet} to a {@link Writer} in YAML format.
+ *
+ * <p>The writer leaves a null cell, or a cell with no value, out of the mapping of a row,
+ * except in the first row of a table. That row carries every column of the table, with
+ * {@code null} for such a cell, so a column that is null in every row still appears in
+ * the output and survives a read-back.
+ *
  * @author Björn Beskow
  * @version $Revision$ $Date$
  */
@@ -100,12 +107,22 @@ class YamlWriter
             ITable table = iterator.getTable();
             for (int row = 0; row < table.getRowCount(); row++)
             {
+                boolean firstRow = row == 0;
                 LinkedHashMap<String, Object> rowMap = new LinkedHashMap<>();
                 for (Column column : tableMetaData.getColumns())
                 {
                     String columnName = column.getColumnName();
                     Object value = table.getValue(row, columnName);
-                    if (value != null && value != ITable.NO_VALUE)
+                    boolean noValue = value == null || value == ITable.NO_VALUE;
+                    if (noValue)
+                    {
+                        // The first row carries every column, so that a column that is null
+                        // in every row still appears in the document and survives a read-back.
+                        if (firstRow)
+                        {
+                            rowMap.put(columnName, null);
+                        }
+                    } else
                     {
                         rowMap.put(columnName, valueToWrite(value));
                     }

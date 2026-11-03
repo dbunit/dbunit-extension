@@ -234,6 +234,30 @@ class YmlDataSetTest extends AbstractDataSetTest
     }
 
     @Test
+    void testWrite_columnNullInEveryRow_survivesWriteAndReadBack() throws Exception
+    {
+        final Column[] columns = {new Column("ID", DataType.UNKNOWN),
+                new Column("NOTE", DataType.UNKNOWN)};
+        final DefaultTable table = new DefaultTable("TEST_TABLE", columns);
+        table.addRow(new Object[] {"1", null});
+        table.addRow(new Object[] {"2", null});
+        final ByteArrayOutputStream out = new ByteArrayOutputStream();
+
+        YamlDataSet.write(new DefaultDataSet(table), out);
+        final IDataSet readBack =
+                new YamlDataSet(new ByteArrayInputStream(out.toByteArray()));
+
+        final ITable readBackTable = readBack.getTable("TEST_TABLE");
+        assertThat(readBackTable.getTableMetaData().getColumns())
+                .as("A column that is null in every row still exists after a write and a"
+                        + " read-back, as the first row carries every column.")
+                .extracting(Column::getColumnName).containsExactly("ID", "NOTE");
+        assertThat(new Object[] {readBackTable.getValue(0, "NOTE"),
+                readBackTable.getValue(1, "NOTE")})
+                        .as("The null cells are still null.").containsExactly(null, null);
+    }
+
+    @Test
     void testWrite_largeDataSetToMemoryStream_writesCompleteOutput() throws Exception
     {
         final int rowCount = 2000;

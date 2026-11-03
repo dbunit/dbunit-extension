@@ -73,6 +73,11 @@ import java.nio.charset.StandardCharsets;
  * or fails on it as a syntax error. The reader rejects a list or a mapping in a cell with a
  * {@link DataSetException} that names the table, the row and the column.
  *
+ * <p>
+ * Writing a dataset leaves a null cell out of every row of a table but the first. That row
+ * carries every column of the table, with {@code null} for a null cell, so a column that is
+ * null in every row survives a read-back.
+ *
  * @author Björn Beskow
  * @version $Revision$ $Date$
  */
