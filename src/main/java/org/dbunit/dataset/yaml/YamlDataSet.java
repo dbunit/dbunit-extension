@@ -67,6 +67,12 @@ import java.nio.charset.StandardCharsets;
  * EMPTY_TABLE: []
  * </pre>
  *
+ * <p>
+ * A value that starts with a square bracket or a curly brace needs quotes, such as
+ * {@code '[NULL]'} or {@code '[now-1d]'}: YAML reads an unquoted one as a list or a mapping,
+ * or fails on it as a syntax error. The reader rejects a list or a mapping in a cell with a
+ * {@link DataSetException} that names the table, the row and the column.
+ *
  * @author Björn Beskow
  * @version $Revision$ $Date$
  */

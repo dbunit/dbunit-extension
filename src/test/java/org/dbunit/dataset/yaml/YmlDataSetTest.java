@@ -28,6 +28,7 @@ import java.io.File;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.sql.Date;
 import java.sql.Time;
@@ -46,6 +47,7 @@ import org.dbunit.dataset.DefaultDataSet;
 import org.dbunit.dataset.DefaultTable;
 import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.ITable;
+import org.dbunit.dataset.ReplacementDataSet;
 import org.dbunit.dataset.datatype.DataType;
 import org.dbunit.testutil.TestUtils;
 import org.junit.jupiter.api.Disabled;
@@ -212,6 +214,23 @@ class YmlDataSetTest extends AbstractDataSetTest
                         + " column type parses, so the column type reads back the same value.")
                 .containsExactly(Date.valueOf(eventDay), Timestamp.valueOf(startsAt),
                         Time.valueOf(starts), Timestamp.from(recordedAt));
+    }
+
+    @Test
+    void testConstructor_quotedNullPlaceholder_becomesNullThroughAReplacementDataSet()
+            throws Exception
+    {
+        final String document = "TEST_TABLE:\n  - ID: 1\n    NOTE: '[NULL]'\n";
+        final ReplacementDataSet replaced = new ReplacementDataSet(new YamlDataSet(
+                new ByteArrayInputStream(document.getBytes(StandardCharsets.UTF_8))));
+        replaced.addReplacementObject("[NULL]", null);
+
+        final Object note = replaced.getTable("TEST_TABLE").getValue(0, "NOTE");
+
+        assertThat(note)
+                .as("A quoted '[NULL]' is the text that a ReplacementDataSet replaces with"
+                        + " null, which an unquoted [NULL] is not: YAML reads that as a list.")
+                .isNull();
     }
 
     @Test
