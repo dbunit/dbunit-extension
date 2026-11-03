@@ -127,9 +127,11 @@ cleanup) on a failed run, and suppressed-exception handling are all the wrapper'
 |`postTest(verify)`
 |reverse
 |`delegate.postTest(verify)` for each involved delegate, in reverse declared order, even after an
- earlier one in that order fails - so every data source is verified and cleaned up, and every
- mismatch reported, instead of stopping at the first. Every collected failure is aggregated into
- one link:../apidocs/org/dbunit/MultiDataSourceAssertionError.html[MultiDataSourceAssertionError].
+ earlier one in that order fails - so every data source is verified and cleaned up, and each data
+ source that fails is reported, instead of stopping at the first one. With the default failure
+ handler, the verification of a data source stops at its first mismatch, so that mismatch is what
+ the data source reports. Every collected failure is aggregated into one
+ link:../apidocs/org/dbunit/MultiDataSourceAssertionError.html[MultiDataSourceAssertionError].
  The run is over once this is called, and once `runTest` has torn it down after failing test
  steps, so a further call, such as one in a caller's `finally` block, tears nothing down again.
 |===
@@ -140,7 +142,9 @@ failure becomes its cause, so a single failing data source still surfaces its re
 link:../apidocs/org/dbunit/assertion/DbComparisonFailure.html[DbComparisonFailure] one
 `Caused by:` hop down, and the rest are attached as suppressed, each labelled with its data source
 name and phase, e.g. `"2 data sources failed in postTest: orders (verifyData), inventory
-(cleanupData)"`.
+(postTest)"`. The phase is `verifyData` for an `AssertionError`, such as a `DbComparisonFailure`,
+and `postTest` for any other failure, such as a row count difference or a failed cleanup. A
+`postTest(false)` call verifies nothing, so every failure it reports has the phase `cleanupData`.
 
 === A `@ParameterizedTest` suite
 
