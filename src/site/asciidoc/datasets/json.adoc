@@ -23,8 +23,10 @@ JSON dataset document sample:
 
 To specify null values, just omit the corresponding column key.
 In the above example, the missing COL0 and COL2 keys of TEST_TABLE's second row represent
-null values. Writing a dataset is the mirror image: any column whose value is null is
-omitted from that row's JSON object rather than written as a JSON `null`.
+null values. Writing a dataset is the mirror image: a column whose value is null is
+omitted from that row's JSON object, except in the first row of a table. That row
+carries every column of the table, with a JSON `null` for a null value, so a column
+that is null in every row still appears in the output and survives a read-back.
 
 In contrast to link:flatxml.html[Flat XML], table metadata is deduced from
 the sum of all rows for each table, not just the first — so a column that
