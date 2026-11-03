@@ -167,6 +167,9 @@
       <action dev="jeffjensen" type="fix" issue="1032" system="github" due-to="jeffjensen">
           Fix JsonDataSet handing a JSON object or array in a cell to the column type as the toString() text of the Java map or list that Jackson builds, such as {type=click, n=1}, which is no JSON: a text column stored that text, and the PostgreSQL json and jsonb types sent it to the database, which rejected it as invalid JSON. JsonProducer now reads such a cell as its compact JSON text, such as {"type":"click","n":1}, which a text, json or jsonb column takes as it is. A column type that reads another text form, such as the PostgreSQL array literal {1,2,3}, takes a JSON string instead of a JSON array. The JSON, Dataset Values and PostgreSQL pages say so.
       </action>
+      <action dev="jeffjensen" type="fix" issue="1033" system="github" due-to="jeffjensen">
+          Fix JsonDataSet.write() failing with a DataSetException, Error writing JSON dataset, for a cell that has no value (ITable.NO_VALUE), which the &lt;none/&gt; cell of an XML dataset and a row with fewer values than the table has columns produce, so that a full XML dataset could not be converted to JSON as it can be to flat XML, YAML or CSV. JsonWriter now writes such a cell as null in the first row of a table, which carries every column, and leaves it out of the later rows, as it does for a null.
+      </action>
     </release>
     <release version="3.5.2" date="Sep 7, 2026" description="DefaultPrepAndExpectedTestCase connection hygiene: replace a connection the pool or database dropped between tests, and warn when handed a non-autocommit connection">
       <action dev="jeffjensen" type="fix" issue="962" system="github" due-to="jeffjensen">
