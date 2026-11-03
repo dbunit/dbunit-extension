@@ -75,6 +75,15 @@ import org.slf4j.LoggerFactory;
  * class never touches it; {@code @DbUnitRowCountCheck} reaches it as an override through
  * {@link TestCaseConfigurer}.
  *
+ * <p>An injected {@link DefaultPrepAndExpectedTestCase} is driven by this class and by nothing
+ * else. A test method that configures it again, with {@code runTest()} or
+ * {@code configureTest()}, would run the setup, the verification and the cleanup a second
+ * time on the datasets of its own call, against a database that call already cleaned, so
+ * {@link #after(boolean)} cleans up without verifying and fails the test instead. It notices
+ * by the two datasets, which every {@code configureTest()} replaces and which
+ * {@link #before()} remembers once it has set the test case up, so a test method that never
+ * ran, because a step of {@code before()} failed, is never blamed.
+ *
  * @author Jeff Jensen
  * @since 3.6.0
  */
@@ -111,6 +120,9 @@ class TestCaseLifecycle
 
     private PrepAndExpectedTestCase testCase;
     private boolean configured;
+    private IDataSet prepDatasetOfTheTest;
+    private IDataSet expectedDatasetOfTheTest;
+    private boolean datasetsRemembered;
     private TestCaseRestoration testCaseRestoration;
 
     /**
@@ -266,6 +278,7 @@ class TestCaseLifecycle
             warnIfDeclaredOperationsHaveNothingToActOn();
         }
         testCase.preTest();
+        rememberTheDatasetsOfTheInjectedTestCase();
     }
 
     /**
@@ -304,7 +317,13 @@ class TestCaseLifecycle
      * down or the setup operation deleted the rows the table held, see
      * {@link #withHintForUnclearedPrep}.
      *
+     * <p>An injected {@link DefaultPrepAndExpectedTestCase} that the test method configured
+     * again is cleaned up without verifying, and the test fails: see
+     * {@link #failIfTheTestMethodConfiguredTheInjectedTestCaseAgain()}.
+     *
      * @param testFailed Whether the test method itself already threw.
+     * @throws IllegalStateException If the test method configured an injected
+     *             {@link DefaultPrepAndExpectedTestCase} again.
      * @throws Exception If {@code postTest()} fails.
      */
     void after(final boolean testFailed) throws Exception
@@ -313,6 +332,7 @@ class TestCaseLifecycle
         {
             if (configured)
             {
+                failIfTheTestMethodConfiguredTheInjectedTestCaseAgain();
                 testCase.postTest(!testFailed);
             }
         } catch (final UnexpectedRowCountException rowCountFailure)
@@ -326,6 +346,83 @@ class TestCaseLifecycle
             throw primaryFailure;
         }
         undoConfiguration();
+    }
+
+    /**
+     * Remembers the prep and the expected dataset that {@code configureTest()} gave an injected
+     * {@link DefaultPrepAndExpectedTestCase}, which returns the very objects it keeps, so
+     * {@link #failIfTheTestMethodConfiguredTheInjectedTestCaseAgain()} can tell whether the test
+     * method configured it again. Called when {@link #before()} has set the test case up, as the
+     * test method does not run otherwise, and a step that failed may have reset the datasets.
+     * Another test case, such as a hand-written one, may build a new dataset for every call, so
+     * it is not watched; nor is one this class constructed, which nothing but this class can
+     * reach.
+     */
+    private void rememberTheDatasetsOfTheInjectedTestCase()
+    {
+        if (!watchesTheDatasetsOfTheTestCase())
+        {
+            return;
+        }
+
+        prepDatasetOfTheTest = testCase.getPrepDataset();
+        expectedDatasetOfTheTest = testCase.getExpectedDataset();
+        datasetsRemembered = true;
+    }
+
+    /**
+     * Cleans up without verifying, and fails, when the test method configured the injected test
+     * case again. {@code runTest()} and {@code configureTest()} replace both datasets of the
+     * instance, so a dataset that is no longer the one {@link #before()} saw means the test
+     * method drove the instance itself, after this class had set it up for the test. Its own
+     * lifecycle then ran inside this one: verifying now would compare a database it already
+     * cleaned up with the expectations of its call, and fail with a difference that is no fault
+     * of the code under test. The cleanup runs once, so a test method that called
+     * {@code configureTest()} and {@code preTest()} but not {@code postTest()} does not leave its
+     * prep rows behind; a failure of it is attached to the one thrown.
+     *
+     * <p>A no-op unless {@link #before()} remembered the datasets.
+     *
+     * @throws IllegalStateException If the test method configured the test case again.
+     */
+    private void failIfTheTestMethodConfiguredTheInjectedTestCaseAgain()
+    {
+        if (!datasetsRemembered)
+        {
+            return;
+        }
+
+        final boolean prepDatasetReplaced = testCase.getPrepDataset() != prepDatasetOfTheTest;
+        final boolean expectedDatasetReplaced =
+                testCase.getExpectedDataset() != expectedDatasetOfTheTest;
+        if (!prepDatasetReplaced && !expectedDatasetReplaced)
+        {
+            return;
+        }
+
+        final IllegalStateException misuse = new IllegalStateException(
+                "The test method configured the @DbUnitTestCase instance of "
+                        + testCase.getClass().getName() + " again, as runTest() and"
+                        + " configureTest() do, after dbUnit had configured and set it up for"
+                        + " this test, so two lifecycles would drive the instance. dbUnit"
+                        + " cleaned up without verifying. Let dbUnit or the test"
+                        + " method drive the instance, not both: remove @DbUnitTestCase from the"
+                        + " field, and DbUnitExtension or DbUnitTestExecutionListener from the"
+                        + " class, for a test method that drives it itself, or leave the calls"
+                        + " out of a test that the annotations drive.");
+        try
+        {
+            testCase.postTest(false);
+        } catch (final Throwable cleanupFailure)
+        {
+            misuse.addSuppressed(cleanupFailure);
+        }
+        throw misuse;
+    }
+
+    private boolean watchesTheDatasetsOfTheTestCase()
+    {
+        return injected && testCase instanceof DefaultPrepAndExpectedTestCase;
     }
 
     private void undoConfigurationSuppressing(final Throwable primaryFailure)
