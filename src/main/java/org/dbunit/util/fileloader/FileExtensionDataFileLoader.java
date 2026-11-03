@@ -26,8 +26,10 @@ import java.net.URL;
 import java.util.Locale;
 import java.util.Map;
 
+import org.dbunit.dataset.Column;
 import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.IDataSet;
+import org.dbunit.dataset.ITableMetaData;
 import org.dbunit.dataset.xml.FlatXmlDataSetBuilder;
 
 /**
@@ -41,7 +43,10 @@ import org.dbunit.dataset.xml.FlatXmlDataSetBuilder;
  * containing {@code table-ordering.txt}), so it cannot share this loader's
  * one-file-per-path convention. Use {@link CsvDataFileLoader} directly, pointed at a
  * directory, instead. Similarly, full (non-flat) XML has no extension of its own to
- * dispatch on; use {@link FullXmlDataFileLoader} directly.
+ * dispatch on; use {@link FullXmlDataFileLoader} directly. A {@code .xml} file of the full
+ * XML shape would load as flat XML, as tables named {@code table}, {@code column},
+ * {@code row} and {@code value}, so the loader rejects it with an
+ * {@link IllegalArgumentException} that says to use {@link FullXmlDataFileLoader}.
  *
  * <p>The delegate loaders are used only for their {@link #loadDataSet(URL)} method, so
  * this loader's own replacement objects and substrings - not any set on a delegate - are
@@ -148,6 +153,10 @@ public class FileExtensionDataFileLoader extends AbstractDataFileLoader
 
     /**
      * {@inheritDoc}
+     *
+     * @throws IllegalArgumentException
+     *             If the extension is not supported, or the {@code .xml} file is a full XML
+     *             dataset, which the loader would otherwise read as flat XML.
      */
     public IDataSet loadDataSet(URL url) throws DataSetException, IOException
     {
@@ -155,7 +164,7 @@ public class FileExtensionDataFileLoader extends AbstractDataFileLoader
         switch (extension)
         {
             case "xml":
-                return flatXmlDataFileLoader.loadDataSet(url);
+                return loadFlatXml(url);
             case "json":
                 return JSON_DATA_FILE_LOADER.loadDataSet(url);
             case "yaml":
@@ -173,6 +182,61 @@ public class FileExtensionDataFileLoader extends AbstractDataFileLoader
                         + " directly, pointed at a directory; for full (non-flat) XML, use"
                         + " FullXmlDataFileLoader directly.");
         }
+    }
+
+    private IDataSet loadFlatXml(final URL url) throws DataSetException, IOException
+    {
+        final IDataSet dataSet = flatXmlDataFileLoader.loadDataSet(url);
+        final boolean fullXml = looksLikeFullXml(dataSet);
+        if (fullXml)
+        {
+            throw new IllegalArgumentException("The file " + url + " looks like a full XML"
+                    + " dataset, which FileExtensionDataFileLoader reads as flat XML, as tables"
+                    + " named table, column, row and value. Load it with FullXmlDataFileLoader,"
+                    + " for example @DbUnitConfig(dataFileLoader = FullXmlDataFileLoader.class).");
+        }
+        return dataSet;
+    }
+
+    /**
+     * Returns whether the tables of a flat XML dataset are the elements of a full XML dataset:
+     * a table named {@code table}, in any case, that has a {@code name} column, together with a
+     * table named {@code column} or {@code row}.
+     *
+     * @param dataSet The dataset the flat XML loader read.
+     * @return {@code true} if the dataset has the shape of a full XML dataset.
+     * @throws DataSetException If the dataset cannot tell its tables.
+     */
+    private static boolean looksLikeFullXml(final IDataSet dataSet) throws DataSetException
+    {
+        boolean tableWithName = false;
+        boolean columnOrRow = false;
+        for (final String tableName : dataSet.getTableNames())
+        {
+            if ("table".equalsIgnoreCase(tableName))
+            {
+                final ITableMetaData metaData = dataSet.getTableMetaData(tableName);
+                tableWithName = tableWithName || hasColumnNamed(metaData, "name");
+            }
+            else if ("column".equalsIgnoreCase(tableName) || "row".equalsIgnoreCase(tableName))
+            {
+                columnOrRow = true;
+            }
+        }
+        return tableWithName && columnOrRow;
+    }
+
+    private static boolean hasColumnNamed(final ITableMetaData metaData, final String columnName)
+            throws DataSetException
+    {
+        for (final Column column : metaData.getColumns())
+        {
+            if (columnName.equalsIgnoreCase(column.getColumnName()))
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static DataFileLoader makeFlatXmlDataFileLoader(

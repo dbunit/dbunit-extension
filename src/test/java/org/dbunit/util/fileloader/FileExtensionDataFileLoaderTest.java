@@ -190,6 +190,50 @@ class FileExtensionDataFileLoaderTest
     }
 
     @Test
+    void testLoad_fullXmlFile_throwsIllegalArgumentExceptionNamingTheFileAndTheFullXmlLoader()
+    {
+        assertThatThrownBy(() -> loader.load("/xml/xmlTableTest.xml"))
+                .as("A full XML file would load as tables named table, column, row and value, so"
+                        + " it must be rejected, naming the file and the loader that reads it.")
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("xmlTableTest.xml")
+                .hasMessageContaining("looks like a full XML dataset")
+                .hasMessageContaining("FullXmlDataFileLoader");
+    }
+
+    @Test
+    void testLoad_flatXmlWithTableNamedTableButNoColumnOrRowTable_stillLoads() throws Exception
+    {
+        final IDataSet ds = loader.load("/org/dbunit/util/fileloader/table-named-table.xml");
+
+        assertThat(ds.getTableNames())
+                .as("A flat XML dataset with a table named TABLE that has a NAME column is no"
+                        + " full XML dataset without a table named column or row.")
+                .containsExactly("TABLE");
+    }
+
+    @Test
+    void testLoad_flatXmlWithColumnAndRowTablesButNoTableTable_stillLoads() throws Exception
+    {
+        final IDataSet ds = loader.load("/org/dbunit/util/fileloader/column-and-row-tables.xml");
+
+        assertThat(ds.getTableNames())
+                .as("A flat XML dataset with tables named COLUMN and ROW is no full XML dataset"
+                        + " without a table named table that has a name column.")
+                .containsExactly("COLUMN", "ROW");
+    }
+
+    @Test
+    void testLoad_flatXmlOfTheFullXmlShapeInUpperCase_isRejectedAsFullXml()
+    {
+        assertThatThrownBy(
+                () -> loader.load("/org/dbunit/util/fileloader/upper-case-full-shape.xml"))
+                .as("The table names are compared without regard to case.")
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("looks like a full XML dataset");
+    }
+
+    @Test
     void testLoad_noExtensionAtAll_throwsWithSupportedExtensionsHint()
     {
         assertThatThrownBy(() -> loader

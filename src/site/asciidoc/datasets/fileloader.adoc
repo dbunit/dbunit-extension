@@ -107,7 +107,12 @@ formats are deliberately not dispatched here:
   loader's one-file-per-path convention. Use `CsvDataFileLoader` directly,
   pointed at a directory.
 * *Full (non-flat) XML* — `.xml` maps to flat XML, the overwhelmingly common
-  case. Use `FullXmlDataFileLoader` directly for the full XML format.
+  case. Use `FullXmlDataFileLoader` directly for the full XML format. A full XML file
+  with columns or rows that reaches this loader would load as flat XML, as tables
+  named `table`, `column`, `row` and `value`, so it is rejected with an
+  `IllegalArgumentException` that names the file and says to use
+  `FullXmlDataFileLoader`, for example with
+  `@DbUnitConfig(dataFileLoader = FullXmlDataFileLoader.class)`.
 
 Each extends
 link:../apidocs/org/dbunit/util/fileloader/AbstractDataFileLoader.html[AbstractDataFileLoader],
