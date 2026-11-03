@@ -158,6 +158,9 @@
       <action dev="jeffjensen" type="fix" issue="1031" system="github" due-to="jeffjensen">
           Fix IntegerDataType, BigIntegerDataType and LongDataType throwing a TypeCastException for a Boolean, so an unquoted true or false of a JSON or YAML dataset, or a boolean cell of an Excel dataset, failed in a TINYINT, SMALLINT, INTEGER or BIGINT column, where the text true of a flat XML dataset became 1 in a TINYINT, SMALLINT or INTEGER column. A Boolean now becomes 1 or 0 in every one of them, as the text true or false does, which a BIGINT column takes now too, and as NumberDataType does for a NUMERIC or DECIMAL column.
       </action>
+      <action dev="jeffjensen" type="fix" issue="1032" system="github" due-to="jeffjensen">
+          Fix YamlDataSet reading an unquoted [NULL], [now-1d] or {a: 1} as the list or the mapping that YAML builds from it, which no column type can use: a ReplacementDataSet could not match the list, so the placeholder [NULL] became the text [null] in a text column, and a date column failed with a message that showed the value as the user wrote it. YamlProducer now throws a DataSetException that names the table, the row and the column and says to quote the value, as '[NULL]'. The YAML and Dataset Values pages say to quote such a value.
+      </action>
     </release>
     <release version="3.5.2" date="Sep 7, 2026" description="DefaultPrepAndExpectedTestCase connection hygiene: replace a connection the pool or database dropped between tests, and warn when handed a non-autocommit connection">
       <action dev="jeffjensen" type="fix" issue="962" system="github" due-to="jeffjensen">

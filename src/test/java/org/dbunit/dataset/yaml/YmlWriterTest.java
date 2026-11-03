@@ -23,9 +23,12 @@ package org.dbunit.dataset.yaml;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.io.ByteArrayInputStream;
 import java.io.StringWriter;
+import java.nio.charset.StandardCharsets;
 
 import org.dbunit.dataset.Column;
+import org.dbunit.dataset.DataSetBuilder;
 import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.DefaultDataSet;
 import org.dbunit.dataset.DefaultTable;
@@ -33,6 +36,8 @@ import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.datatype.DataType;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * @author Björn Beskow
@@ -174,6 +179,33 @@ public class YmlWriterTest
 
         final String actualOutput = stringWriter.toString();
         assertThat(actualOutput).as("output").isEqualTo(expectedOutput);
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void testWrite_valuesStartingWithABracketOrBrace_readBackAsTheSameText(final boolean flowStyle)
+            throws Exception
+    {
+        final IDataSet dataSet = new DataSetBuilder().table("PLACEHOLDER")
+                .columns("NULL_PLACEHOLDER", "RELATIVE_DATE", "BINARY", "LIST_LIKE", "MAPPING_LIKE")
+                .row("[NULL]", "[now-1d]", "[TEXT]hello", "[1, 2]", "{a: 1}").build();
+        final StringWriter stringWriter = new StringWriter();
+        final YamlWriter yamlWriter = new YamlWriter(stringWriter, flowStyle);
+
+        yamlWriter.write(dataSet);
+        final IDataSet readBack = new YamlDataSet(new ByteArrayInputStream(
+                stringWriter.toString().getBytes(StandardCharsets.UTF_8)));
+
+        final ITable table = readBack.getTable("PLACEHOLDER");
+        final Object[] row = {table.getValue(0, "NULL_PLACEHOLDER"),
+                table.getValue(0, "RELATIVE_DATE"), table.getValue(0, "BINARY"),
+                table.getValue(0, "LIST_LIKE"), table.getValue(0, "MAPPING_LIKE")};
+        assertThat(row)
+                .as("The writer quotes a value that starts with a square bracket or a curly"
+                        + " brace, in the block and in the flow style, so that the reader, which"
+                        + " rejects the list or the mapping that YAML builds from an unquoted one,"
+                        + " reads back the same text.")
+                .containsExactly("[NULL]", "[now-1d]", "[TEXT]hello", "[1, 2]", "{a: 1}");
     }
 
     public static IDataSet getEmptyTableDataSet() throws DataSetException

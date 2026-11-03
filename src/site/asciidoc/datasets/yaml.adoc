@@ -35,6 +35,13 @@ first appears on a later row is still picked up.
 For what happens to a field value after parsing — empty strings, binary/BLOB
 syntax, literal and relative dates, UUID literals, and booleans/numbers from
 strings — see link:values.html[Dataset Values], which applies to every format.
+
+YAML reads an unquoted value that starts with `[` as a list and one that starts
+with `{` as a mapping, so quote such a value to give it as text, as `'[NULL]'`,
+`'[now-1d]'` or `'[TEXT]hello'`. A cell that is a list or a mapping is rejected
+with a `DataSetException` that names the table, the row and the column, and an
+unquoted `[TEXT]hello` is a syntax error that fails the whole file.
+
 Since 3.6.0 an unquoted date or timestamp that the column type parses as text,
 such as `2024-03-01` or `2024-03-01 10:15:30`, an unquoted base-60 number, such
 as the time `10:30:00`, the clock time `12:30`, the ratio `16:9` or `1:30.5`, an

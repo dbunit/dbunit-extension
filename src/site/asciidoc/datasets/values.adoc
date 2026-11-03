@@ -36,7 +36,8 @@ prefix as an instruction rather than literal content
 (`DataType.isExtendedSyntax()` — value starts with `[`). This is how
 `[TEXT|BASE64|FILE|URL]` loads binary data and how `[now...]` produces a
 relative date. String columns never do this — a leading `[` is stored
-verbatim.
+verbatim. In a link:yaml.html[YAML] dataset, write a value that starts with `[`
+in quotes, as `'[now-1d]'`: YAML reads an unquoted one as the start of a list.
 
 The link:decorators.html#replacementdataset[ReplacementDataSet] decorator is a
 separate mechanism: it swaps placeholder objects and substrings *before*
@@ -85,6 +86,9 @@ silently. See link:decorators.html#replacementdataset[ReplacementDataSet] for
 the full mechanics and link:fileloader.html[Data File Loader] for loaders that
 apply replacements automatically.
 
+In a link:yaml.html[YAML] dataset, write the placeholder in quotes, as
+`'[NULL]'`: YAML reads an unquoted `[NULL]` as a list, which dbUnit rejects.
+
 [#empty]
 == Empty string vs. missing
 
@@ -118,7 +122,9 @@ become bytes:
 ----
 
 The command word is matched case-insensitively. Everything after the closing
-`]` is the payload.
+`]` is the payload. In a link:yaml.html[YAML] dataset, write the whole value in
+quotes, as `'[TEXT]hello'`: YAML reads an unquoted one as a list followed by
+text, which is a syntax error.
 
 === TEXT
 
@@ -266,6 +272,9 @@ Examples:
 An input that starts with `[` but is not a valid `[now...]` expression is a
 `TypeCastException` — there is no way to store a literal leading `[` in a
 date/time column (see <<literal-bracket,Literal leading bracket>>).
+
+In a link:yaml.html[YAML] dataset, write the expression in quotes, as
+`'[now-1d]'`: YAML reads an unquoted `[now-1d]` as a list, which dbUnit rejects.
 
 [#uuid]
 == UUIDs in binary columns

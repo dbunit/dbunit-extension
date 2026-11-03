@@ -45,6 +45,7 @@ import org.dbunit.dataset.datatype.TypeCastException;
 import org.dbunit.dataset.stream.IDataSetConsumer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.yaml.snakeyaml.error.YAMLException;
 
@@ -151,7 +152,69 @@ class YamlProducerTest
     }
 
     @ParameterizedTest
+    @ValueSource(strings = {"[NULL]", "[now]", "[now-1d]", "[1, 2]", "[]", "{a: 1}", "{}"})
+    void testProduce_unquotedListOrMappingCell_throwsDataSetExceptionSayingToQuoteIt(
+            final String cell)
+    {
+        final YamlProducer producer =
+                new YamlProducer(stream("TEST_TABLE:\n  - ID: 1\n  - NOTE: " + cell + "\n"));
+        producer.setConsumer(new RecordingConsumer());
+
+        assertThatThrownBy(producer::produce)
+                .as("A cell that YAML reads as a list or a mapping, such as an unquoted [NULL] or"
+                        + " [now-1d], must be reported with its table, row and column and with"
+                        + " the advice to quote it, not handed on to a column type that cannot"
+                        + " use it.")
+                .isInstanceOf(DataSetException.class)
+                .hasMessageContaining("Column 'NOTE' of row 1 of table 'TEST_TABLE'")
+                .hasMessageContaining("Quote the value");
+    }
+
+    @ParameterizedTest
+    @CsvSource(delimiter = '|', value = {
+            "[NULL]|a list, [null]",
+            "{a: 1}|a mapping, {a=1}"})
+    void testProduce_unquotedPlaceholderOrMapping_throwsDataSetExceptionShowingWhatYamlBuilt(
+            final String cell, final String built)
+    {
+        final YamlProducer producer =
+                new YamlProducer(stream("TEST_TABLE:\n  - NOTE: " + cell + "\n"));
+        producer.setConsumer(new RecordingConsumer());
+
+        assertThatThrownBy(producer::produce)
+                .as("The message names the cell, shows the list or the mapping that YAML built,"
+                        + " says why, and gives the quoted spelling.")
+                .isInstanceOf(DataSetException.class)
+                .hasMessage("Column 'NOTE' of row 0 of table 'TEST_TABLE' must be a value, but"
+                        + " was " + built + ": YAML reads an unquoted value that starts with"
+                        + " '[' as a list and one that starts with '{' as a mapping. Quote the"
+                        + " value, such as '[NULL]' or '[now-1d]', to give it as text.");
+    }
+
+    @Test
+    void testProduce_quotedBracketAndBraceValues_produceTheTextOfTheDocument() throws Exception
+    {
+        final RecordingConsumer consumer = new RecordingConsumer();
+        final YamlProducer producer = new YamlProducer(stream("TEST_TABLE:\n"
+                + "  - NULL_PLACEHOLDER: '[NULL]'\n"
+                + "    RELATIVE_DATE: '[now-1d]'\n"
+                + "    BINARY: '[TEXT]hello'\n"
+                + "    MAPPING_LIKE: '{a: 1}'\n"));
+        producer.setConsumer(consumer);
+
+        producer.produce();
+
+        assertThat(consumer.rows.get(0))
+                .as("A quoted value that starts with a square bracket or a curly brace reaches"
+                        + " the column type as the text of the document, for the column type or"
+                        + " a ReplacementDataSet to read.")
+                .containsExactly("[NULL]", "[now-1d]", "[TEXT]hello", "{a: 1}");
+    }
+
+    @ParameterizedTest
     @ValueSource(strings = {"TEST_TABLE:\n  - COLUMN0: [row0\n",
+            "TEST_TABLE:\n  - COLUMN0: [TEXT]hello\n",
+            "TEST_TABLE:\n  - COLUMN0: [BASE64]aGVsbG8=\n",
             "TEST_TABLE:\n  - COLUMN0: row0\n---\nSECOND_TABLE:\n  - COLUMN0: row1\n"})
     void testProduce_malformedDocument_throwsDataSetExceptionNamingTheProblem(
             final String document)
