@@ -30,6 +30,7 @@ import java.util.Map;
 import org.dbunit.DatabaseUnitRuntimeException;
 import org.dbunit.dataset.Column;
 import org.dbunit.dataset.Columns;
+import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.NoSuchTableException;
@@ -187,6 +188,150 @@ class FileExtensionDataFileLoaderTest
                         .isInstanceOf(DatabaseUnitRuntimeException.class)
                         .hasMessageContaining("malformed.xml")
                         .isNotInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void testLoad_fullXmlFile_throwsIllegalArgumentExceptionNamingTheFileAndTheFullXmlLoader()
+    {
+        assertThatThrownBy(() -> loader.load("/xml/xmlTableTest.xml"))
+                .as("A full XML file would load as tables named table, column, row and value, so"
+                        + " it must be rejected, naming the file and the loader that reads it.")
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("xmlTableTest.xml")
+                .hasMessageContaining("looks like a full XML dataset")
+                .hasMessageContaining("FullXmlDataFileLoader");
+    }
+
+    @Test
+    void testLoad_fullXmlFileWithColumnsButNoRows_throwsIllegalArgumentException()
+    {
+        assertThatThrownBy(
+                () -> loader.load("/org/dbunit/util/fileloader/full-xml-columns-only.xml"))
+                .as("A full XML file with columns but no rows would load as tables named table"
+                        + " and column, so it must be rejected.")
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("looks like a full XML dataset");
+    }
+
+    @Test
+    void testLoad_fullXmlFileWithDoctypeNamingTheFullXmlDtd_throwsIllegalArgumentExceptionWithTheFlatLoadFailureAsCause()
+    {
+        assertThatThrownBy(
+                () -> loader.load("/org/dbunit/util/fileloader/doctype/full-xml-doctype.xml"))
+                .as("A full XML file with the DOCTYPE of the site's sample must be rejected as"
+                        + " any full XML file is, not fail with the flat XML load's"
+                        + " NoSuchTableException for its first column element.")
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("full-xml-doctype.xml")
+                .hasMessageContaining("looks like a full XML dataset")
+                .hasMessageContaining("FullXmlDataFileLoader")
+                .hasCauseInstanceOf(NoSuchTableException.class);
+    }
+
+    @Test
+    void testLoad_fullXmlFileWithDoctypeNamingAMissingDtd_throwsIllegalArgumentException()
+    {
+        assertThatThrownBy(() -> loader
+                .load("/org/dbunit/util/fileloader/doctype/full-xml-doctype-missing-dtd.xml"))
+                .as("A full XML file whose DTD cannot be read must be rejected as a full XML"
+                        + " file, as the DTD plays no part in telling it is one.")
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("looks like a full XML dataset")
+                .hasMessageContaining("FullXmlDataFileLoader")
+                .hasCauseInstanceOf(DataSetException.class);
+    }
+
+    @Test
+    void testLoad_flatXmlWithDtdOfItsOwn_stillLoads() throws Exception
+    {
+        final IDataSet ds =
+                loader.load("/org/dbunit/util/fileloader/doctype/flat-xml-doctype.xml");
+
+        assertThat(ds.getTableNames()).as("A flat XML file with a DTD of its own still loads.")
+                .containsExactly("A");
+    }
+
+    @Test
+    void testLoad_flatXmlWhoseDtdLacksOneOfItsTables_stillFailsWithTheFlatLoadFailure()
+    {
+        assertThatThrownBy(() -> loader
+                .load("/org/dbunit/util/fileloader/doctype/flat-xml-doctype-dtd-lacks-table.xml"))
+                .as("A flat XML file that its DTD does not describe is no full XML file, so its"
+                        + " flat XML load failure is thrown as it was.")
+                .isInstanceOf(DatabaseUnitRuntimeException.class)
+                .isNotInstanceOf(IllegalArgumentException.class)
+                .hasCauseInstanceOf(NoSuchTableException.class);
+    }
+
+    @Test
+    void testLoad_flatXmlWithTableNamedTableButNoColumnOrRowTable_stillLoads() throws Exception
+    {
+        final IDataSet ds = loader.load("/org/dbunit/util/fileloader/table-named-table.xml");
+
+        assertThat(ds.getTableNames())
+                .as("A flat XML dataset with a table named table that has a name column is no"
+                        + " full XML dataset without a table named column or row.")
+                .containsExactly("table");
+    }
+
+    @Test
+    void testLoad_flatXmlWithColumnAndRowTablesButNoTableTable_stillLoads() throws Exception
+    {
+        final IDataSet ds = loader.load("/org/dbunit/util/fileloader/column-and-row-tables.xml");
+
+        assertThat(ds.getTableNames())
+                .as("A flat XML dataset with tables named column and row is no full XML dataset"
+                        + " without a table named table.")
+                .containsExactly("column", "row");
+    }
+
+    @Test
+    void testLoad_flatXmlWithTableTableAndAColumnTableThatHasAColumn_stillLoads()
+            throws Exception
+    {
+        final IDataSet ds =
+                loader.load("/org/dbunit/util/fileloader/column-table-with-a-column.xml");
+
+        assertThat(ds.getTableNames())
+                .as("A full XML column element has no attributes, so a flat XML dataset whose"
+                        + " table named column has a column is no full XML dataset.")
+                .containsExactly("table", "column");
+    }
+
+    @Test
+    void testLoad_flatXmlWithTableTableThatHasAColumnBesideName_stillLoads() throws Exception
+    {
+        final IDataSet ds =
+                loader.load("/org/dbunit/util/fileloader/table-table-with-another-column.xml");
+
+        assertThat(ds.getTableNames())
+                .as("A full XML table element has only the name attribute, so a flat XML dataset"
+                        + " whose table named table has another column is no full XML dataset.")
+                .containsExactly("table", "row");
+    }
+
+    @Test
+    void testLoad_flatXmlWithAnotherTableBesideTheFullXmlTables_stillLoads() throws Exception
+    {
+        final IDataSet ds =
+                loader.load("/org/dbunit/util/fileloader/full-shape-and-another-table.xml");
+
+        assertThat(ds.getTableNames())
+                .as("A full XML dataset loads as flat XML only as tables named after its"
+                        + " elements, so a flat XML dataset with another table is no full XML"
+                        + " dataset.")
+                .containsExactly("table", "row", "TEST_TABLE");
+    }
+
+    @Test
+    void testLoad_flatXmlOfTheFullXmlShapeInUpperCase_stillLoads() throws Exception
+    {
+        final IDataSet ds = loader.load("/org/dbunit/util/fileloader/upper-case-full-shape.xml");
+
+        assertThat(ds.getTableNames())
+                .as("The full XML loader reads lower case element names only, so a flat XML"
+                        + " dataset with tables named TABLE and ROW is no full XML dataset.")
+                .containsExactly("TABLE", "ROW");
     }
 
     @Test
