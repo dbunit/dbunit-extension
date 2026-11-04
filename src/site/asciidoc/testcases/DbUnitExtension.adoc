@@ -197,8 +197,11 @@ call its `getConnection()` for the JDBC connection.
 A `@BeforeEach` parameter resolves before this extension's own setup runs —
 JUnit Jupiter always calls `@BeforeEach` methods first — so it sees the
 tester/connection exactly as they exist before that setup: the `@DbUnitPrep`
-dataset, if any, is not loaded onto it yet, though `@DbUnitProperty` values and the
-other `@DbUnitConfig` settings are already in force on it. Ask for the parameter on the
+dataset, if any, is not loaded onto it yet. The `@DbUnitProperty` values and the
+other `@DbUnitConfig` settings are already in force on an injected `IDatabaseConnection`.
+An injected `IDatabaseTester` is the tester as its owner built it: a connection taken from it
+with `getConnection()` has none of these values, and on a tester that opens a connection per
+call, such as `JdbcDatabaseTester`, it is yours to close. Ask for the parameter on the
 `@Test` method instead when the test needs the already-prepped state. The same timing lets a
 `@BeforeEach` method give an injected `@DbUnitTestCase` the data file loader it lacks, also a
 method that takes the connection: resolving the connection needs no loader, and the extension
