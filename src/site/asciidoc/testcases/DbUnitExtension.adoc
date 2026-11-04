@@ -88,6 +88,11 @@ without `@DbUnitTest` or `@ExtendWith(DbUnitExtension.class)`, and without Sprin
 link:DbUnitTestExecutionListener.html[DbUnitTestExecutionListener], runs its tests with no prep,
 verification or teardown, and they pass, with nothing logged.
 
+A `@TestFactory` method counts as one test to JUnit's callbacks, so the extension sets it up before
+its first dynamic test and verifies it after its last: its dynamic tests share one dataset, and a
+failed dynamic test does not skip the verification, which can fail the factory too. Use a `@ParameterizedTest`
+for a setup per case - see link:annotations.html#testfactory[A @TestFactory Method Is One Test].
+
 == Row Count Check
 
 The same link:../components/rowcountcheck.html[RowCountCheck] diagnostic available to
