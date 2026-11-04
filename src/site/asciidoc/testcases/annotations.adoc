@@ -349,13 +349,33 @@ the next, and a `@BeforeEach` operation, being re-set every method, is read as i
 same holds for `@DbUnitProperty`
 values on a connection that outlives the test, such as a fixed connection handed
 to the tester, one a `CachingConnectionProvider` caches, or one its tester's listener leaves
-open: they are put back when the test ends — see <<properties>>.
+open: they are put back when the test ends — see <<properties>>. A `@TestFactory` method is the
+one exception to a setup per method: see <<testfactory>>.
 
 `@DbUnitTearDownOperation` is the counterpart of `@DbUnitSetUpOperation`, defaulting to
 `DbUnitOperation.NONE`. It has no data annotation of its own: the dataset
 already prepared (prep, plus expected when there is one) is what the
 operation runs against. To tear down an extra table, list it — empty — in
 the prep dataset instead.
+
+[#testfactory]
+=== A @TestFactory Method Is One Test
+
+JUnit Jupiter runs the `@BeforeEach` and `@AfterEach` methods and their extension callbacks once
+for a `@TestFactory` method, not for each dynamic test it returns. So dbUnit sets a `@TestFactory`
+method up before its first dynamic test and verifies it after its last:
+
+* `@DbUnitPrep` loads its data once, and every dynamic test sees what the earlier ones left behind.
+* `@DbUnitExpected` compares the database once, with the state the last dynamic test left.
+* The row count check brackets the whole factory in the same way, and so does the
+link:DbUnitTestExecutionListener.html[DbUnitTestExecutionListener] under Spring.
+* Unlike a failed `@Test` method, a failed dynamic test does not skip the verification, because
+the factory method itself did not fail. The verification still runs and can fail the factory
+with a `DbComparisonFailure` on top of the failed dynamic test.
+
+For a setup and a verification per case, use a `@ParameterizedTest` or a `@RepeatedTest`: each
+of their invocations has its own lifecycle callbacks, so dbUnit applies the annotations to each
+one.
 
 [#expected]
 == @DbUnitExpected, @DbUnitVerifyTable, @DbUnitColumnComparer
