@@ -67,6 +67,9 @@ import org.slf4j.LoggerFactory;
  * <p>Public so a binding outside {@code org.dbunit.annotation.runtime} - such as
  * {@code DbUnitExtension} or a Spring {@code TestExecutionListener} - can reach it too.
  *
+ * <p>This type is internal to dbUnit's bindings; it is public only for use across
+ * dbUnit's packages and may change in a minor release.
+ *
  * @author Jeff Jensen
  * @since 3.6.0
  */
@@ -352,6 +355,9 @@ public class TestInstanceTesterResolver
 
     /**
      * The resolved tester, and the test case when a {@code @DbUnitTestCase} field supplied one.
+     *
+     * <p>This type is internal to dbUnit's bindings; it is public only for use across
+     * dbUnit's packages and may change in a minor release.
      */
     public static class Resolution
     {

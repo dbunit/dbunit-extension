@@ -53,6 +53,9 @@ import org.slf4j.LoggerFactory;
  * (re)acquired. The tester is checked before the ownership is asked anything, so a tester that
  * is not a {@link JdbcDatabaseTester} sees no extra calls.
  *
+ * <p>This type is internal to dbUnit's bindings; it is public only for use across
+ * dbUnit's packages and may change in a minor release.
+ *
  * @author Jeff Jensen
  * @since 3.6.0
  */

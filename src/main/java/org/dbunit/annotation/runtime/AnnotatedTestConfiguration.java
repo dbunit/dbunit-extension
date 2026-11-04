@@ -51,6 +51,9 @@ import org.dbunit.util.fileloader.FileExtensionDataFileLoader;
  * class-level - a binding's job, since only it knows how to search for them), rather than a
  * framework's test context.
  *
+ * <p>This type is internal to dbUnit's bindings; it is public only for use across
+ * dbUnit's packages and may change in a minor release.
+ *
  * @author Jeff Jensen
  * @since 3.6.0
  */

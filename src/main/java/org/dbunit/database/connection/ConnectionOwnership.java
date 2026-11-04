@@ -65,6 +65,9 @@ import org.dbunit.IOperationListener;
  * executor's borrowed connection and {@link org.dbunit.DefaultPrepAndExpectedTestCase}'s
  * are the same object, and whichever releases first closes it.
  *
+ * <p>This type is internal to dbUnit's bindings; it is public only for use across
+ * dbUnit's packages and may change in a minor release.
+ *
  * @author Jeff Jensen
  * @since 3.6.0
  */
