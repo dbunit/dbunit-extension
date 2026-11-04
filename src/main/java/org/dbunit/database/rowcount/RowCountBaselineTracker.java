@@ -28,6 +28,8 @@ import java.util.List;
 import org.dbunit.DatabaseUnitException;
 import org.dbunit.database.DatabaseConfig;
 import org.dbunit.database.IDatabaseConnection;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Holds a {@link RowCountCheck} baseline across one caller's test lifecycle: lazily
@@ -49,7 +51,8 @@ import org.dbunit.database.IDatabaseConnection;
  * {@link RowCountCheck} from the current {@link #setOverride(RowCountCheckOverride)}/
  * connection-config state rather than reusing whatever an earlier test resolved, unless
  * {@link #setRowCountCheck(RowCountCheck)} pinned one in place explicitly - that one is
- * used as-is for every later test too, until changed. A caller sharing one instance across
+ * used as-is for every later test too, until changed or set to {@code null}, and it wins over
+ * any override. A caller sharing one instance across
  * tests must set the override back to what it was, {@code null} for none, once a test that
  * set one is over, so that override does not silently carry over onto the next test.
  *
@@ -58,8 +61,12 @@ import org.dbunit.database.IDatabaseConnection;
  */
 public class RowCountBaselineTracker
 {
+    private static final Logger logger =
+            LoggerFactory.getLogger(RowCountBaselineTracker.class);
+
     private RowCountCheck rowCountCheck;
     private boolean rowCountCheckSetExplicitly;
+    private boolean ignoredOverrideWarned;
     private RowCountSnapshot baseline;
     private RowCountCheckOverride override;
 
@@ -82,6 +89,9 @@ public class RowCountBaselineTracker
         if (!rowCountCheckSetExplicitly)
         {
             rowCountCheck = null;
+        } else
+        {
+            warnOnceThatOverrideIsIgnored();
         }
         baseline = resolve(connection).capture(connection);
     }
@@ -138,6 +148,18 @@ public class RowCountBaselineTracker
     public boolean hasBaseline()
     {
         return baseline != null;
+    }
+
+    private void warnOnceThatOverrideIsIgnored()
+    {
+        if (override == null || ignoredOverrideWarned)
+        {
+            return;
+        }
+        ignoredOverrideWarned = true;
+        logger.warn("A RowCountCheck was set with setRowCountCheck(), so it is used as-is and"
+                + " the row count check override (for example from @DbUnitRowCountCheck) has"
+                + " no effect. Set the check to null to resolve it from the override again.");
     }
 
     private RowCountCheck resolve(final IDatabaseConnection connection)
@@ -201,14 +223,20 @@ public class RowCountBaselineTracker
 
     /**
      * Sets the {@link RowCountCheck} to use, overriding the one otherwise lazily built from
-     * a connection's DatabaseConfig on first use.
+     * a connection's DatabaseConfig on first use. A check set this way wins over any
+     * {@linkplain #setOverride(RowCountCheckOverride) override}, such as the one a
+     * {@code @DbUnitRowCountCheck} annotation declares: the check is used as-is for every
+     * later test, and the first capture that finds an override set logs a warning that it
+     * has no effect.
      *
-     * @param rowCountCheck The row count check to use.
+     * @param rowCountCheck The row count check to use as-is, or {@code null} to resolve it
+     *            from the override and the connection's DatabaseConfig again.
      */
     public void setRowCountCheck(final RowCountCheck rowCountCheck)
     {
         this.rowCountCheck = rowCountCheck;
-        this.rowCountCheckSetExplicitly = true;
+        this.rowCountCheckSetExplicitly = rowCountCheck != null;
+        this.ignoredOverrideWarned = false;
     }
 
     /**
