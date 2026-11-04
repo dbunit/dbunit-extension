@@ -42,6 +42,9 @@ import org.dbunit.util.fileloader.DataFileLoader;
  * <p>Not intended for direct use by test code; machinery consumed by a binding such as
  * {@code DbUnitExtension} or a Spring {@code TestExecutionListener}.
  *
+ * <p>This type is internal to dbUnit's bindings; it is public only for use across
+ * dbUnit's packages and may change in a minor release.
+ *
  * @author Jeff Jensen
  * @since 3.6.0
  */

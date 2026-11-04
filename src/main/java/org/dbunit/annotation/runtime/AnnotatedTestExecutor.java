@@ -76,6 +76,9 @@ import org.slf4j.LoggerFactory;
  * connection the tester hands out already closed, as it hands out one fixed connection once
  * something closed it, is warned about, see {@link ClosedConnectionHandedOutWarning}.
  *
+ * <p>This type is internal to dbUnit's bindings; it is public only for use across
+ * dbUnit's packages and may change in a minor release.
+ *
  * @author Jeff Jensen
  * @since 3.6.0
  */
