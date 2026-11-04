@@ -179,6 +179,9 @@
       <action dev="jeffjensen" type="fix" issue="1036" system="github" due-to="jeffjensen">
           Fix JsonDataSet.write() and YamlDataSet.write() throwing an UnsupportedOperationException for a streaming or forward-only dataset, such as a StreamingDataSet over a flat XML file or a database export through ForwardOnlyResultSetTableFactory, which FlatXmlDataSet.write() can write. The writers now read the rows of a table until the table reports that there are no more, and put the rows of a table name that occurs more than once in the dataset under that one name instead of letting the later occurrence replace the earlier. The JSON and YAML pages say that the writers hold the whole document in memory.
       </action>
+      <action dev="jeffjensen" type="fix" issue="1037" system="github" due-to="jeffjensen">
+          Fix XlsTable filling an unsynchronized HashMap of DecimalFormat instances and sharing each one among threads, although a caching data file loader hands one XlsDataSet to all the tests of its scope, including tests that run in parallel. The cache is now a ConcurrentHashMap and a format is used under its own lock. The File Loader page and the CachingDataFileLoader Javadoc now say that a caching loader shares its datasets among the tests, so they must only be read, and that an Excel dataset is not safe to read from several threads, as Apache POI does not support that.
+      </action>
     </release>
     <release version="3.5.2" date="Sep 7, 2026" description="DefaultPrepAndExpectedTestCase connection hygiene: replace a connection the pool or database dropped between tests, and warn when handed a non-autocommit connection">
       <action dev="jeffjensen" type="fix" issue="962" system="github" due-to="jeffjensen">
