@@ -285,9 +285,12 @@ public interface RowCounter
 ----
 
 An illustrative sketch, *not* production-ready — batching every table into one query per
-round trip instead of one round trip per table. It embeds table names directly into both a
-`FROM` identifier and a string literal; a real implementation has to correctly quote and
-escape both for every supported vendor before this is safe to use as-is:
+round trip instead of one round trip per table. It qualifies each table name with the
+connection's schema and escape pattern through `QualifiedTableName`, as `QueryPerTableRowCounter`
+does, so a table is counted in the schema it was listed in. It still embeds the name directly
+into a string literal, and the escape pattern only quotes an identifier the way the connection
+is configured to; a real implementation has to correctly escape the literal for every supported
+vendor before this is safe to use as-is:
 
 [source,java]
 ----
@@ -303,9 +306,18 @@ public class UnionAllRowCounter implements RowCounter
             return rowCounts;
         }
 
-        String sql = tableNames.stream()
-                .map(name -> "SELECT '" + name + "' AS t, COUNT(*) AS c FROM " + name)
-                .collect(Collectors.joining(" UNION ALL "));
+        String schema = connection.getSchema();
+        String escapePattern = (String) connection.getConfig()
+                .getProperty(DatabaseConfig.PROPERTY_ESCAPE_PATTERN);
+
+        List<String> selects = new ArrayList<>();
+        for (String name : tableNames)
+        {
+            QualifiedTableName qualifiedName = new QualifiedTableName(name, schema, escapePattern);
+            selects.add("SELECT '" + name + "' AS t, COUNT(*) AS c FROM "
+                    + qualifiedName.getQualifiedName());
+        }
+        String sql = String.join(" UNION ALL ", selects);
 
         try (Statement statement = connection.getConnection().createStatement();
                 ResultSet resultSet = statement.executeQuery(sql))
