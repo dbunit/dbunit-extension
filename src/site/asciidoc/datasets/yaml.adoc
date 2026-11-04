@@ -42,6 +42,13 @@ column names are matched ignoring case: a later row that spells a column in anot
 spelling of its first appearance, and does not add a second column. A column named twice in
 one row, in the same case or in two, such as `ID` and `id`, throws a `DataSetException`.
 
+Table names are always case-sensitive — unlike some other formats, there is no
+case-insensitive table lookup fallback. A test that loads a YAML dataset through a
+link:fileloader.html[data file loader] and calls `getTable()` on it itself uses the
+name as written: `getTable("account")` does not find a table named `ACCOUNT`.
+`DefaultPrepAndExpectedTestCase` is not affected, as it looks tables up the way the
+connection's `FEATURE_CASE_SENSITIVE_TABLE_NAMES` says, whatever the format.
+
 For what happens to a field value after parsing — empty strings, binary/BLOB
 syntax, literal and relative dates, UUID literals, and booleans/numbers from
 strings — see link:values.html[Dataset Values], which applies to every format.

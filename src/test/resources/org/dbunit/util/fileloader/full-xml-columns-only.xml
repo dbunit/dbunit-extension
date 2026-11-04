@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<dataset>
+    <table name="TEST_TABLE">
+        <column>COLUMN0</column>
+        <column>COLUMN1</column>
+    </table>
+</dataset>

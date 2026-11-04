@@ -50,7 +50,7 @@ public class JsonDataFileLoader extends AbstractDataFileLoader
      *            The replacement objects for use with
      *            {@link org.dbunit.dataset.ReplacementDataSet}.
      */
-    public JsonDataFileLoader(Map ro)
+    public JsonDataFileLoader(Map<?, ?> ro)
     {
         super(ro);
     }
@@ -65,7 +65,7 @@ public class JsonDataFileLoader extends AbstractDataFileLoader
      *            The replacement substrings for use with
      *            {@link org.dbunit.dataset.ReplacementDataSet}.
      */
-    public JsonDataFileLoader(Map ro, Map rs)
+    public JsonDataFileLoader(Map<?, ?> ro, Map<?, ?> rs)
     {
         super(ro, rs);
     }

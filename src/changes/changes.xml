@@ -21,6 +21,9 @@
           Run the row count check around every DefaultPrepAndExpectedTestCase test: the baseline is captured before setupData() and verified after the teardown operation. It is discarded once verified, passed or failed, when the test steps or the teardown already failed, so a failed test does not also report a row count difference, and when the test case's database tester is replaced, so a test case reused across tests never verifies against the counts of an earlier test.
       </action>
       <action dev="jeffjensen" type="add" issue="753" system="github" due-to="jeffjensen">
+          Add JsonDataFileLoader and YamlDataFileLoader to org.dbunit.util.fileloader, filling the gap where the JSON and YAML dataset formats had no matching DataFileLoader, and FileExtensionDataFileLoader, which loads a flat XML, JSON, YAML or Excel file by its extension and takes a FlatXmlDataSetBuilder for its flat XML files, such as one with column sensing on. It rejects an .xml file of the full XML shape, which it would read as tables named table, column, row and value, with an IllegalArgumentException that says to use FullXmlDataFileLoader.
+      </action>
+      <action dev="jeffjensen" type="add" issue="753" system="github" due-to="jeffjensen">
           Add IDatabaseTester.getOperationListener(), so listener wiring wraps the tester's existing IOperationListener instead of discarding it. AbstractDatabaseTester always reports one, never null; a tester that does not override this default method reports none, and its listener is kept exactly as configured.
       </action>
       <action dev="jeffjensen" type="add" issue="753" system="github" due-to="jeffjensen">
