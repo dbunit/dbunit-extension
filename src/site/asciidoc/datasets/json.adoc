@@ -35,6 +35,12 @@ another day or time in another time zone. Such a dataset, with numbers, still re
 for any date after January 1970, as the date and time column types accept a number of
 milliseconds that is a `long`.
 
+`JsonDataSet.write()` can write a streaming dataset, such as a `StreamingDataSet` over a flat XML
+file, or a database export through `ForwardOnlyResultSetTableFactory`. It does not stream
+the output, though: it holds the whole document in memory before it writes. When a table
+appears more than once in the dataset, as in a streaming flat XML file that interleaves its
+tables, the rows of every occurrence go under the one table name, in order.
+
 In contrast to link:flatxml.html[Flat XML], table metadata is deduced from
 the sum of all rows for each table, not just the first — so a column that
 first appears on a later row is still picked up.

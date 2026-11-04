@@ -31,6 +31,7 @@ import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.StringReader;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -45,6 +46,9 @@ import org.dbunit.dataset.DefaultDataSet;
 import org.dbunit.dataset.DefaultTable;
 import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.ITable;
+import org.dbunit.dataset.stream.StreamingDataSet;
+import org.dbunit.dataset.xml.FlatXmlProducer;
+import org.xml.sax.InputSource;
 import org.dbunit.dataset.datatype.DataType;
 import org.dbunit.testutil.TestUtils;
 import org.junit.jupiter.api.Disabled;
@@ -109,6 +113,28 @@ class JsonDataSetTest extends AbstractDataSetTest
             throws Exception
     {
         // Not applicable, JSON is always case-sensitive
+    }
+
+    @Test
+    void testWrite_streamingDataSetWithInterleavedTable_writesEveryRow() throws Exception
+    {
+        final String xml = "<dataset><A x=\"1\"/><B y=\"1\"/><A x=\"2\"/></dataset>";
+        final IDataSet source = new StreamingDataSet(
+                new FlatXmlProducer(new InputSource(new StringReader(xml))));
+        final ByteArrayOutputStream out = new ByteArrayOutputStream();
+
+        JsonDataSet.write(source, out);
+
+        final IDataSet actual = new JsonDataSet(new ByteArrayInputStream(out.toByteArray()));
+        final ITable tableA = actual.getTable("A");
+        assertThat(actual.getTableNames()).as("The table names must be A and B.")
+                .containsExactly("A", "B");
+        assertThat(tableA.getRowCount()).as("Both rows of A must be written.").isEqualTo(2);
+        assertThat(String.valueOf(tableA.getValue(0, "x"))).as("The first A row.")
+                .isEqualTo("1");
+        assertThat(String.valueOf(tableA.getValue(1, "x"))).as("The second A row.")
+                .isEqualTo("2");
+        assertThat(actual.getTable("B").getRowCount()).as("The row of B.").isEqualTo(1);
     }
 
     @Test

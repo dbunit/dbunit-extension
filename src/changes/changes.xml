@@ -176,6 +176,9 @@
       <action dev="jeffjensen" type="fix" issue="1035" system="github" due-to="jeffjensen">
           Fix a RowCountCheck set with setRowCountCheck() silently overriding @DbUnitRowCountCheck and setRowCountCheckOverride(), and setRowCountCheck(null) pinning whatever check the next capture resolved, including its enabled flag, for every later test. Passing null now returns to resolving the check from the override and the connection's DatabaseConfig, and the first capture that finds a pinned check together with an override logs a warning that the override has no effect. The Javadoc of both setters and of @DbUnitRowCountCheck, the Row Count Check, PrepAndExpectedTestCase and Annotations pages state that a pinned check wins.
       </action>
+      <action dev="jeffjensen" type="fix" issue="1036" system="github" due-to="jeffjensen">
+          Fix JsonDataSet.write() and YamlDataSet.write() throwing an UnsupportedOperationException for a streaming or forward-only dataset, such as a StreamingDataSet over a flat XML file or a database export through ForwardOnlyResultSetTableFactory, which FlatXmlDataSet.write() can write. The writers now read the rows of a table until the table reports that there are no more, and put the rows of a table name that occurs more than once in the dataset under that one name instead of letting the later occurrence replace the earlier. The JSON and YAML pages say that the writers hold the whole document in memory.
+      </action>
     </release>
     <release version="3.5.2" date="Sep 7, 2026" description="DefaultPrepAndExpectedTestCase connection hygiene: replace a connection the pool or database dropped between tests, and warn when handed a non-autocommit connection">
       <action dev="jeffjensen" type="fix" issue="962" system="github" due-to="jeffjensen">

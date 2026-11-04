@@ -35,6 +35,7 @@ import org.dbunit.dataset.RequiredLibrary;
 import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.ITableIterator;
 import org.dbunit.dataset.ITableMetaData;
+import org.dbunit.dataset.RowOutOfBoundsException;
 import org.dbunit.dataset.JdbcEscapeText;
 
 import com.fasterxml.jackson.core.JsonGenerator;
@@ -104,35 +105,61 @@ class JsonWriter
             final ITableMetaData metaData = iterator.getTableMetaData();
             final ITable table = iterator.getTable();
             final Column[] columns = metaData.getColumns();
-            final List<Map<String, Object>> rows = new ArrayList<>();
-            for (int row = 0; row < table.getRowCount(); row++)
+            final List<Map<String, Object>> rows =
+                    result.computeIfAbsent(metaData.getTableName(), name -> new ArrayList<>());
+            if (columns.length == 0)
             {
-                final boolean firstRow = row == 0;
-                final Map<String, Object> rowMap = new LinkedHashMap<>();
-                for (final Column column : columns)
+                continue;
+            }
+            final int rowCount = rowCountOf(table);
+            try
+            {
+                for (int row = 0; row < rowCount; row++)
                 {
-                    final String columnName = column.getColumnName();
-                    final Object value = table.getValue(row, columnName);
-                    final boolean noValue = value == null || value == ITable.NO_VALUE;
-                    if (noValue)
+                    final boolean firstRow = rows.isEmpty();
+                    final Map<String, Object> rowMap = new LinkedHashMap<>();
+                    for (final Column column : columns)
                     {
-                        // The first row carries every column, even for a null or a cell with
-                        // no value, so a column that is null in every row still appears in
-                        // the output and survives a read-back.
-                        if (firstRow)
+                        final String columnName = column.getColumnName();
+                        final Object value = table.getValue(row, columnName);
+                        final boolean noValue = value == null || value == ITable.NO_VALUE;
+                        if (noValue)
                         {
-                            rowMap.put(columnName, null);
+                            // The first row carries every column, even for a null or a cell with
+                            // no value, so a column that is null in every row still appears in
+                            // the output and survives a read-back.
+                            if (firstRow)
+                            {
+                                rowMap.put(columnName, null);
+                            }
+                        }
+                        else
+                        {
+                            rowMap.put(columnName, JdbcEscapeText.of(value));
                         }
                     }
-                    else
-                    {
-                        rowMap.put(columnName, JdbcEscapeText.of(value));
-                    }
+                    rows.add(rowMap);
                 }
-                rows.add(rowMap);
+            } catch (final RowOutOfBoundsException e)
+            {
+                // The rows of the table are exhausted, as a streaming table reports it.
             }
-            result.put(metaData.getTableName(), rows);
         }
         return result;
+    }
+
+    /**
+     * Returns the row count of the table, or an unbounded count for a table that cannot tell it,
+     * such as a streaming table, whose rows end with a {@link RowOutOfBoundsException}.
+     */
+    private static int rowCountOf(final ITable table)
+    {
+        try
+        {
+            return table.getRowCount();
+        } catch (final UnsupportedOperationException e)
+        {
+            return Integer.MAX_VALUE;
+        }
     }
 }
