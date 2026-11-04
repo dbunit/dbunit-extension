@@ -25,9 +25,9 @@ import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.util.ArrayList;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
@@ -67,10 +67,11 @@ class XlsTable extends AbstractTable
     /**
      * Cache of {@link DecimalFormat} instances keyed by format string, avoiding
      * reconstructing one on every numeric cell read.
-     * {@code DecimalFormat} is not thread-safe; this cache is per-table-instance state,
-     * consistent with the rest of {@link XlsTable}.
+     * A caching data file loader shares one table among tests that run in parallel, so the
+     * cache is concurrent, and a format is used under its own lock, as {@code DecimalFormat}
+     * is not thread-safe.
      */
-    private final Map<String, DecimalFormat> decimalFormatCache = new HashMap<String, DecimalFormat>();
+    private final Map<String, DecimalFormat> decimalFormatCache = new ConcurrentHashMap<>();
 
 
     public XlsTable(String sheetName, Sheet sheet) throws DataSetException
@@ -276,12 +277,11 @@ class XlsTable extends AbstractTable
         {
             if(!formatString.equals("General") && !formatString.equals("@")) {
                 logger.debug("formatString={}", formatString);
-                DecimalFormat nf = decimalFormatCache.get(formatString);
-                if(nf == null) {
-                    nf = new DecimalFormat(formatString, symbols);
-                    decimalFormatCache.put(formatString, nf);
+                DecimalFormat nf = decimalFormatCache.computeIfAbsent(formatString,
+                        key -> new DecimalFormat(key, symbols));
+                synchronized (nf) {
+                    resultString = nf.format(cellValue);
                 }
-                resultString = nf.format(cellValue);
             }
         }
         
