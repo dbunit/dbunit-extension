@@ -252,6 +252,11 @@ package: the path then names a file next to that class. An annotation found
 through a composed annotation counts as declared by the class carrying the
 composed annotation.
 
+A `@TestFactory` method is one test to the listener, as it is to `DbUnitExtension`: Spring calls
+the listener once for the factory, not for each dynamic test, so it sets the method up before the
+first dynamic test and verifies it after the last. See
+link:annotations.html#testfactory[A @TestFactory Method Is One Test].
+
 == Row Count Check
 
 The same link:../components/rowcountcheck.html[RowCountCheck] diagnostic
