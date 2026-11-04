@@ -168,10 +168,11 @@ class FileExtensionDataFileLoaderTest
     {
         assertThatThrownBy(() -> loader
                 .load("/org/dbunit/util/fileloader/test.unsupported"))
-                        .as("Unsupported extension must throw naming it and"
-                                + " listing the supported ones.")
+                        .as("Unsupported extension must throw naming the file and"
+                                + " its extension and listing the supported ones.")
                         .isInstanceOf(IllegalArgumentException.class)
-                        .hasMessageContaining(".unsupported")
+                        .hasMessageContaining("fileloader/test.unsupported")
+                        .hasMessageContaining("unsupported dataset file extension: .unsupported")
                         .hasMessageContaining("Supported extensions");
     }
 
@@ -242,6 +243,7 @@ class FileExtensionDataFileLoaderTest
                                 + " unsupported extension, not throw a different, confusing"
                                 + " error.")
                         .isInstanceOf(IllegalArgumentException.class)
+                        .hasMessageContaining("fileloader/testnoextension")
                         .hasMessageContaining("Supported extensions")
                         .as("The no-extension case must read as \"extension: (none)\", not the"
                                 + " confusing \"extension: .\" a bare, empty extension would"

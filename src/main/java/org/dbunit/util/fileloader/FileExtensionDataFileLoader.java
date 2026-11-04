@@ -176,7 +176,8 @@ public class FileExtensionDataFileLoader extends AbstractDataFileLoader
             default:
                 final String extensionDescription =
                         extension.isEmpty() ? "(none)" : "." + extension;
-                throw new IllegalArgumentException("Unsupported dataset file extension: "
+                throw new IllegalArgumentException("The file " + url
+                        + " has an unsupported dataset file extension: "
                         + extensionDescription + ". Supported extensions: .xml (flat XML),"
                         + " .json, .yaml, .yml, .xls, .xlsx. For .csv, use CsvDataFileLoader"
                         + " directly, pointed at a directory; for full (non-flat) XML, use"
