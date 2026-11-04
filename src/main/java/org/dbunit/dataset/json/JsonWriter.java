@@ -24,9 +24,13 @@ package org.dbunit.dataset.json;
 import java.io.IOException;
 import java.io.Writer;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 import org.dbunit.dataset.Column;
 import org.dbunit.dataset.DataSetException;
@@ -35,6 +39,7 @@ import org.dbunit.dataset.RequiredLibrary;
 import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.ITableIterator;
 import org.dbunit.dataset.ITableMetaData;
+import org.dbunit.dataset.RowOutOfBoundsException;
 import org.dbunit.dataset.JdbcEscapeText;
 
 import com.fasterxml.jackson.core.JsonGenerator;
@@ -45,9 +50,10 @@ import com.fasterxml.jackson.databind.SerializationFeature;
  * Writes an {@link IDataSet} to a {@link Writer} in JSON format.
  *
  * <p>The writer leaves a null cell, or a cell with no value ({@link ITable#NO_VALUE}), out of
- * the JSON output, except in the first row of a table. That row carries every column of the
- * table, with {@code null} for such a cell, so a column that is null in every row still
- * appears in the output and survives a read-back. The output is pretty-printed.
+ * the JSON output, except in the first row that has the column, for each table name. That row
+ * carries the column with {@code null} for such a cell, so a column that is null in every row
+ * still appears in the output and survives a read-back, also when the table name occurs more
+ * than once in the dataset. The output is pretty-printed.
  *
  * <p>The writer writes a date, a time or a timestamp as the JDBC escape text that the column
  * types parse, see {@link JdbcEscapeText}, not as the number of milliseconds since the epoch
@@ -98,41 +104,90 @@ class JsonWriter
             throws DataSetException
     {
         final Map<String, List<Map<String, Object>>> result = new LinkedHashMap<>();
+        final Map<String, Set<String>> writtenColumnsByTable = new HashMap<>();
         final ITableIterator iterator = dataSet.iterator();
         while (iterator.next())
         {
             final ITableMetaData metaData = iterator.getTableMetaData();
             final ITable table = iterator.getTable();
             final Column[] columns = metaData.getColumns();
-            final List<Map<String, Object>> rows = new ArrayList<>();
-            for (int row = 0; row < table.getRowCount(); row++)
+            final List<Map<String, Object>> rows =
+                    result.computeIfAbsent(metaData.getTableName(), name -> new ArrayList<>());
+            final Set<String> writtenColumns = writtenColumnsByTable
+                    .computeIfAbsent(metaData.getTableName(), name -> new HashSet<>());
+            if (columns.length == 0)
             {
-                final boolean firstRow = row == 0;
-                final Map<String, Object> rowMap = new LinkedHashMap<>();
-                for (final Column column : columns)
+                addEmptyRows(rows, table);
+                continue;
+            }
+            final int rowCount = rowCountOf(table);
+            try
+            {
+                for (int row = 0; row < rowCount; row++)
                 {
-                    final String columnName = column.getColumnName();
-                    final Object value = table.getValue(row, columnName);
-                    final boolean noValue = value == null || value == ITable.NO_VALUE;
-                    if (noValue)
+                    final Map<String, Object> rowMap = new LinkedHashMap<>();
+                    for (final Column column : columns)
                     {
-                        // The first row carries every column, even for a null or a cell with
-                        // no value, so a column that is null in every row still appears in
-                        // the output and survives a read-back.
-                        if (firstRow)
+                        final String columnName = column.getColumnName();
+                        final Object value = table.getValue(row, columnName);
+                        final boolean noValue = value == null || value == ITable.NO_VALUE;
+                        final String columnKey = columnName.toUpperCase(Locale.ENGLISH);
+                        final boolean firstWriteOfColumn = writtenColumns.add(columnKey);
+                        if (noValue)
                         {
-                            rowMap.put(columnName, null);
+                            // The first row that has the column carries it, even for a null or a
+                            // cell with no value, so a column that is null in every row still
+                            // appears in the output and survives a read-back.
+                            if (firstWriteOfColumn)
+                            {
+                                rowMap.put(columnName, null);
+                            }
+                        }
+                        else
+                        {
+                            rowMap.put(columnName, JdbcEscapeText.of(value));
                         }
                     }
-                    else
-                    {
-                        rowMap.put(columnName, JdbcEscapeText.of(value));
-                    }
+                    rows.add(rowMap);
                 }
-                rows.add(rowMap);
+            } catch (final RowOutOfBoundsException e)
+            {
+                // The rows of the table are exhausted, as a streaming table reports it.
             }
-            result.put(metaData.getTableName(), rows);
         }
         return result;
+    }
+
+    /**
+     * Adds an empty row for each row of a table with no columns, so the row count survives a
+     * read-back. A table that cannot tell its row count, such as a streaming table, gets no row,
+     * as its rows cannot be counted without a column to read.
+     */
+    private static void addEmptyRows(final List<Map<String, Object>> rows, final ITable table)
+    {
+        final int rowCount = rowCountOf(table);
+        final boolean countKnown = rowCount != Integer.MAX_VALUE;
+        if (countKnown)
+        {
+            for (int row = 0; row < rowCount; row++)
+            {
+                rows.add(new LinkedHashMap<>());
+            }
+        }
+    }
+
+    /**
+     * Returns the row count of the table, or an unbounded count for a table that cannot tell it,
+     * such as a streaming table, whose rows end with a {@link RowOutOfBoundsException}.
+     */
+    private static int rowCountOf(final ITable table)
+    {
+        try
+        {
+            return table.getRowCount();
+        } catch (final UnsupportedOperationException e)
+        {
+            return Integer.MAX_VALUE;
+        }
     }
 }

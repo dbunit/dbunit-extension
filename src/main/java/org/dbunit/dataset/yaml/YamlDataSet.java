@@ -74,9 +74,9 @@ import java.nio.charset.StandardCharsets;
  * {@link DataSetException} that names the table, the row and the column.
  *
  * <p>
- * Writing a dataset leaves a null cell out of every row of a table but the first. That row
- * carries every column of the table, with {@code null} for a null cell, so a column that is
- * null in every row survives a read-back.
+ * Writing a dataset leaves a null cell out of a row, except in the first row that has the
+ * column, for each table name. That row carries the column, with {@code null} for a null
+ * cell, so a column that is null in every row survives a read-back.
  *
  * @author Björn Beskow
  * @version $Revision$ $Date$

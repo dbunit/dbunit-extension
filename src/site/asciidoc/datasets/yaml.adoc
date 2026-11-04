@@ -29,9 +29,10 @@ To specify null values, just omit the corresponding column key, or write `null` 
 as its value.
 In the above example, missing COL0 and COL2 keys of TEST_TABLE second row represents null values.
 Writing a dataset is the mirror image: a column whose value is null is omitted from that
-row's mapping, except in the first row of a table. That row carries every column of the
-table, with a YAML `null` for a null value, so a column that is null in every row still
-appears in the output and survives a read-back.
+row's mapping, except in the first row that has the column, for each table name. That row
+carries the column with a YAML `null` for a null value, so a column that is null in every
+row still appears in the output and survives a read-back, also when the table name appears
+more than once in the dataset.
 
 In contrast to link:flatxml.html[Flat XML], table metadata is deduced from
 the sum of all rows for each table, not just the first — so a column that
@@ -79,6 +80,12 @@ unquoted value, such as the country code `NO`: quote a value that a text column
 should get as written, such as that code, `0x1F`, `0b101` or `1_000`.
 `YamlDataSet.write()` writes a date, a time or a timestamp as text the column
 type parses, so a written dataset reads back unchanged.
+
+`YamlDataSet.write()` can write a streaming dataset, such as a `StreamingDataSet` over a flat XML
+file, or a database export through `ForwardOnlyResultSetTableFactory`. It does not stream
+the output, though: it holds the whole document in memory before it writes. When a table
+appears more than once in the dataset, as in a streaming flat XML file that interleaves its
+tables, the rows of every occurrence go under the one table name, in order.
 
 == Dependency
 
