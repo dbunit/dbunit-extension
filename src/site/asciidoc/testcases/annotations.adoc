@@ -1054,6 +1054,18 @@ rows, is rejected by the default loader, with a message that names
 `FullXmlDataFileLoader`.
 
 [#applicability]
+[#internal-types]
+== Types Internal to the Bindings
+
+The annotations in `org.dbunit.annotation` and the programmatic API of
+link:PrepAndExpectedTestCase.html[PrepAndExpectedTestCase] are the supported surface. The
+classes behind the JUnit Jupiter and Spring bindings are public only because the packages of
+dbUnit call each other: the types of `org.dbunit.annotation.runtime`, `TestScopedConnection`,
+`ConnectionOwnership` and the connection warnings of `org.dbunit.database.connection`, and
+`RowCountBaselineTracker`. They are internal to dbUnit's bindings, are not part of its
+compatibility promise, and may change in a minor release. Their Javadoc says so. Do not use
+them from a test or from your own binding.
+
 == When Not to Use These Annotations
 
 We cannot write every dbUnit test with annotations.

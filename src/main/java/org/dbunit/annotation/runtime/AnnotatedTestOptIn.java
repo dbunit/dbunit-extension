@@ -51,6 +51,9 @@ import org.dbunit.annotation.DbUnitTester;
  * <p>Public so a binding outside {@code org.dbunit.annotation.runtime} - such as
  * {@code DbUnitExtension} or a Spring {@code TestExecutionListener} - can reach it too.
  *
+ * <p>This type is internal to dbUnit's bindings; it is public only for use across
+ * dbUnit's packages and may change in a minor release.
+ *
  * @author Jeff Jensen
  * @since 3.6.0
  */
