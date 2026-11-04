@@ -285,4 +285,22 @@ public class YmlWriterTest
         return new DefaultDataSet(table1, table2);
     }
 
+
+    @Test
+    void testWrite_withRowsInTableWithNoColumns_preservesRowCountOnRoundTrip() throws Exception
+    {
+        final DefaultTable table = new DefaultTable("NO_COLUMNS");
+        table.addRow();
+        table.addRow();
+
+        final StringWriter stringWriter = new StringWriter();
+        new YamlWriter(stringWriter).write(new DefaultDataSet(table));
+
+        final IDataSet readBack = new YamlDataSet(new ByteArrayInputStream(
+                stringWriter.toString().getBytes(StandardCharsets.UTF_8)));
+        final ITable actualTable = readBack.getTable("NO_COLUMNS");
+
+        assertThat(actualTable.getRowCount()).as("Rows of a table with no columns survive the round-trip.")
+                .isEqualTo(2);
+    }
 }

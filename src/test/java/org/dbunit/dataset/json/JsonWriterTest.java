@@ -293,4 +293,22 @@ public class JsonWriterTest
             closed = true;
         }
     }
+
+    @Test
+    void testWrite_withRowsInTableWithNoColumns_preservesRowCountOnRoundTrip() throws Exception
+    {
+        final DefaultTable table = new DefaultTable("NO_COLUMNS");
+        table.addRow();
+        table.addRow();
+
+        final StringWriter stringWriter = new StringWriter();
+        new JsonWriter(stringWriter).write(new DefaultDataSet(table));
+
+        final IDataSet actualDataSet = new JsonDataSet(
+                new ByteArrayInputStream(stringWriter.toString().getBytes(StandardCharsets.UTF_8)));
+        final ITable actualTable = actualDataSet.getTable("NO_COLUMNS");
+
+        assertThat(actualTable.getRowCount()).as("Rows of a table with no columns survive the round-trip.")
+                .isEqualTo(2);
+    }
 }

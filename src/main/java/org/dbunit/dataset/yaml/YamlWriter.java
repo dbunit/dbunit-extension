@@ -28,6 +28,7 @@ import org.dbunit.dataset.RequiredLibrary;
 import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.ITableIterator;
 import org.dbunit.dataset.ITableMetaData;
+import org.dbunit.dataset.RowOutOfBoundsException;
 import org.dbunit.dataset.JdbcEscapeText;
 import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.Yaml;
@@ -102,34 +103,80 @@ class YamlWriter
         while (iterator.next())
         {
             ITableMetaData tableMetaData = iterator.getTableMetaData();
-            List<LinkedHashMap<String, Object>> tableRows = new ArrayList<>();
+            List<LinkedHashMap<String, Object>> tableRows =
+                    result.computeIfAbsent(tableMetaData.getTableName(), name -> new ArrayList<>());
             ITable table = iterator.getTable();
-            for (int row = 0; row < table.getRowCount(); row++)
+            Column[] columns = tableMetaData.getColumns();
+            if (columns.length == 0)
             {
-                boolean firstRow = row == 0;
-                LinkedHashMap<String, Object> rowMap = new LinkedHashMap<>();
-                for (Column column : tableMetaData.getColumns())
-                {
-                    String columnName = column.getColumnName();
-                    Object value = table.getValue(row, columnName);
-                    boolean noValue = value == null || value == ITable.NO_VALUE;
-                    if (noValue)
-                    {
-                        // The first row carries every column, so that a column that is null
-                        // in every row still appears in the document and survives a read-back.
-                        if (firstRow)
-                        {
-                            rowMap.put(columnName, null);
-                        }
-                    } else
-                    {
-                        rowMap.put(columnName, JdbcEscapeText.of(value));
-                    }
-                }
-                tableRows.add(rowMap);
+                addEmptyRows(tableRows, table);
+                continue;
             }
-            result.put(tableMetaData.getTableName(), tableRows);
+            int rowCount = rowCountOf(table);
+            try
+            {
+                for (int row = 0; row < rowCount; row++)
+                {
+                    boolean firstRow = tableRows.isEmpty();
+                    LinkedHashMap<String, Object> rowMap = new LinkedHashMap<>();
+                    for (Column column : columns)
+                    {
+                        String columnName = column.getColumnName();
+                        Object value = table.getValue(row, columnName);
+                        boolean noValue = value == null || value == ITable.NO_VALUE;
+                        if (noValue)
+                        {
+                            // The first row carries every column, so that a column that is null
+                            // in every row still appears in the document and survives a read-back.
+                            if (firstRow)
+                            {
+                                rowMap.put(columnName, null);
+                            }
+                        } else
+                        {
+                            rowMap.put(columnName, JdbcEscapeText.of(value));
+                        }
+                    }
+                    tableRows.add(rowMap);
+                }
+            } catch (RowOutOfBoundsException e)
+            {
+                // The rows of the table are exhausted, as a streaming table reports it.
+            }
         }
         return result;
+    }
+
+    /**
+     * Adds an empty row for each row of a table with no columns, so the row count survives a
+     * read-back. A table that cannot tell its row count, such as a streaming table, gets no row,
+     * as its rows cannot be counted without a column to read.
+     */
+    private static void addEmptyRows(List<LinkedHashMap<String, Object>> rows, ITable table)
+    {
+        int rowCount = rowCountOf(table);
+        boolean countKnown = rowCount != Integer.MAX_VALUE;
+        if (countKnown)
+        {
+            for (int row = 0; row < rowCount; row++)
+            {
+                rows.add(new LinkedHashMap<>());
+            }
+        }
+    }
+
+    /**
+     * Returns the row count of the table, or an unbounded count for a table that cannot tell it,
+     * such as a streaming table, whose rows end with a {@link RowOutOfBoundsException}.
+     */
+    private static int rowCountOf(ITable table)
+    {
+        try
+        {
+            return table.getRowCount();
+        } catch (UnsupportedOperationException e)
+        {
+            return Integer.MAX_VALUE;
+        }
     }
 }
