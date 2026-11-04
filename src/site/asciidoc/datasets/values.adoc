@@ -316,9 +316,10 @@ unquoted `true` or `false` of a link:json.html[JSON] or link:yaml.html[YAML] dat
 (also a YAML `yes`, `no`, `on` or `off`) and a boolean cell of an
 link:excel.html[Excel] dataset arrive as. Otherwise they parse the value as a number.
 
-*Decimal columns* (`NUMERIC`, `DECIMAL`): a `Boolean` value becomes `1` or
-`0`, but the *strings* `"true"` / `"false"` are not special here — they are a
-`TypeCastException`. Everything else goes through `new BigDecimal(value)`.
+*Decimal columns* (`NUMERIC`, `DECIMAL`): accept `true` / `false` (case-insensitive) as
+`1` / `0` too, and so does a `Boolean`, as the integer columns do. That lets a flat XML,
+CSV or Excel text `true` or `false` fill the `NUMBER(1)` boolean column of Oracle, which is
+a `NUMERIC` column. Everything else goes through `new BigDecimal(value)`.
 
 In link:csv.html[CSV], a numeric field with a trailing space before the comma
 is read as a string, not a number.
