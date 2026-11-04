@@ -79,6 +79,9 @@ import org.slf4j.LoggerFactory;
  * not judge sees no calls beyond its listener report, and one whose connection it does not
  * judge sees none.
  *
+ * <p>This type is internal to dbUnit's bindings; it is public only for use across
+ * dbUnit's packages and may change in a minor release.
+ *
  * @author Jeff Jensen
  * @since 3.6.0
  */

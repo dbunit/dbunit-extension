@@ -56,6 +56,9 @@ import org.slf4j.LoggerFactory;
  * tests must set the override back to what it was, {@code null} for none, once a test that
  * set one is over, so that override does not silently carry over onto the next test.
  *
+ * <p>This type is internal to dbUnit's bindings; it is public only for use across
+ * dbUnit's packages and may change in a minor release.
+ *
  * @author Jeff Jensen
  * @since 3.6.0
  */
