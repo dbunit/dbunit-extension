@@ -493,6 +493,13 @@ between calls and depends on no mutable external state.
 An empty `include()` (the default) includes every column, as a `null` or empty include
 array does for a `VerifyTableDefinition`; an annotation cannot express `null`.
 
+`sortOnFilteredColumnsOnly = true` sorts the expected and actual rows by only the compared columns,
+the ones that survive `exclude` and `include`, instead of sorting the actual rows by every column
+of the table. Set it on a table whose omitted columns, such as a generated id, would otherwise
+decide the order of rows that tie on the compared ones. It defaults to `false`, and a failed
+verification that would have passed with it set says so; see
+link:../components/verifytabledefinition.html#sortmode[Sort Mode].
+
 The column names in `exclude`, `include` and `@DbUnitColumnComparer(column)` all match the
 expected dataset's columns without regard to case, so `column = "balance"` compares a `BALANCE`
 column. Two `@DbUnitColumnComparer` entries in one `@DbUnitVerifyTable` whose names differ only
