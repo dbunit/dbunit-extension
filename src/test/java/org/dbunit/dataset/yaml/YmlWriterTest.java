@@ -27,6 +27,7 @@ import java.io.ByteArrayInputStream;
 import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 
+import org.dbunit.dataset.AbstractDataSet;
 import org.dbunit.dataset.Column;
 import org.dbunit.dataset.DataSetBuilder;
 import org.dbunit.dataset.DataSetException;
@@ -34,6 +35,8 @@ import org.dbunit.dataset.DefaultDataSet;
 import org.dbunit.dataset.DefaultTable;
 import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.ITable;
+import org.dbunit.dataset.ITableIterator;
+import org.dbunit.dataset.DefaultTableIterator;
 import org.dbunit.dataset.datatype.DataType;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -285,4 +288,81 @@ public class YmlWriterTest
         return new DefaultDataSet(table1, table2);
     }
 
+
+    @Test
+    void testWrite_withRowsInTableWithNoColumns_preservesRowCountOnRoundTrip() throws Exception
+    {
+        final DefaultTable table = new DefaultTable("NO_COLUMNS");
+        table.addRow();
+        table.addRow();
+
+        final StringWriter stringWriter = new StringWriter();
+        new YamlWriter(stringWriter).write(new DefaultDataSet(table));
+
+        final IDataSet readBack = new YamlDataSet(new ByteArrayInputStream(
+                stringWriter.toString().getBytes(StandardCharsets.UTF_8)));
+        final ITable actualTable = readBack.getTable("NO_COLUMNS");
+
+        assertThat(actualTable.getRowCount()).as("Rows of a table with no columns survive the round-trip.")
+                .isEqualTo(2);
+    }
+
+    @Test
+    void testWrite_tableNameTwiceAndAColumnOnlyItsLaterOccurrenceHoldsNull_keepsTheColumnOnReadBack()
+            throws Exception
+    {
+        final DefaultTable first = new DefaultTable("T1", new Column[] {new Column("ID", DataType.UNKNOWN)});
+        first.addRow();
+        first.setValue(0, "ID", "1");
+        final DefaultTable second = new DefaultTable("T1",
+                new Column[] {new Column("ID", DataType.UNKNOWN), new Column("V", DataType.UNKNOWN)});
+        second.addRow();
+        second.setValue(0, "ID", "2");
+        second.setValue(0, "V", null);
+        final IDataSet source = dataSetYieldingInOrder(first, second);
+
+        final StringWriter written = new StringWriter();
+        new YamlWriter(written).write(source);
+        final IDataSet actual = new YamlDataSet(new ByteArrayInputStream(written.toString().getBytes(StandardCharsets.UTF_8)));
+        final ITable actualTable = actual.getTable("T1");
+
+        assertThat(actualTable.getTableMetaData().getColumns()).as("The columns of T1.")
+                .extracting(Column::getColumnName).containsExactly("ID", "V");
+        assertThat(actualTable.getRowCount()).as("Both rows of T1.").isEqualTo(2);
+        assertThat(actualTable.getValue(0, "V")).as("V of row 0.").isNull();
+        assertThat(actualTable.getValue(1, "V")).as("V of row 1.").isNull();
+    }
+
+    @Test
+    void testWrite_tableNameTwiceWithAZeroColumnOccurrenceFirst_writesTheNullsOfTheFirstRowWithColumns()
+            throws Exception
+    {
+        final DefaultTable noColumns = new DefaultTable("T1");
+        noColumns.addRow();
+        final DefaultTable withColumns = new DefaultTable("T1",
+                new Column[] {new Column("ID", DataType.UNKNOWN), new Column("V", DataType.UNKNOWN)});
+        withColumns.addRow();
+        withColumns.setValue(0, "ID", "2");
+        withColumns.setValue(0, "V", null);
+        final IDataSet source = dataSetYieldingInOrder(noColumns, withColumns);
+
+        final StringWriter written = new StringWriter();
+        new YamlWriter(written).write(source);
+        final String text = written.toString();
+
+        assertThat(text).as("The written YAML must carry V, null, for the first row with columns.")
+                .contains("V");
+    }
+
+    private static IDataSet dataSetYieldingInOrder(final ITable... tables) throws DataSetException
+    {
+        return new AbstractDataSet()
+        {
+            @Override
+            protected ITableIterator createIterator(final boolean reversed) throws DataSetException
+            {
+                return new DefaultTableIterator(tables, reversed);
+            }
+        };
+    }
 }
