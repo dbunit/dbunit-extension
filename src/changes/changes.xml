@@ -182,6 +182,9 @@
       <action dev="jeffjensen" type="fix" issue="1037" system="github" due-to="jeffjensen">
           Fix XlsTable filling an unsynchronized HashMap of DecimalFormat instances and sharing each one among threads, although a caching data file loader hands one XlsDataSet to all the tests of its scope, including tests that run in parallel. The cache is now a ConcurrentHashMap and a format is used under its own lock. The File Loader page and the CachingDataFileLoader Javadoc now say that a caching loader shares its datasets among the tests, so they must only be read, and that an Excel dataset is not safe to read from several threads, as Apache POI does not support that.
       </action>
+      <action dev="jeffjensen" type="fix" issue="1038" system="github" due-to="jeffjensen">
+          Fix the text true or false, in any case, failing to type cast for a NUMERIC or DECIMAL column, although an INTEGER, BIGINT and the other integer columns read it as 1 or 0, so that active="true" in a flat XML, CSV or Excel dataset failed on the NUMBER(1) boolean column of Oracle. NumberDataType now reads the text as 1 or 0, as it already did a Boolean from a JSON or YAML dataset. The Dataset Values page says so.
+      </action>
     </release>
     <release version="3.5.2" date="Sep 7, 2026" description="DefaultPrepAndExpectedTestCase connection hygiene: replace a connection the pool or database dropped between tests, and warn when handed a non-autocommit connection">
       <action dev="jeffjensen" type="fix" issue="962" system="github" due-to="jeffjensen">
