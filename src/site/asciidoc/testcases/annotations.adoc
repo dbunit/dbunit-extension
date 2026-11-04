@@ -901,6 +901,12 @@ lists, so for a prep table that held seed rows and that the test verifies with
 prep rows and keeps the seed rows: the failure names an exclusion for that table, and also
 after a `DELETE` teardown that deleted the seed rows.
 
+A `RowCountCheck` that the owner of a test case set with `setRowCountCheck()` wins over this
+annotation, which then has no effect: dbUnit logs a warning once. This applies to an injected
+`@DbUnitTestCase` whose owner called it, and to a class named in
+`@DbUnitConfig(prepAndExpectedTestCase)` that calls it in its constructor. Pass `null` to let
+the annotation decide again.
+
 [source,java]
 ----
 @DbUnitTest

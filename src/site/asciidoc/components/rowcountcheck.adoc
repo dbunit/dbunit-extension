@@ -346,6 +346,11 @@ one enlisted in a Spring-managed test transaction; prep and teardown writes on a
 autocommit-off connection are never committed regardless, and the annotation-driven lifecycle
 rolls them back before it closes the connection, which on Oracle replaces the commit that
 closing it performs (see link:../connections.html[Connections]).
+* *A check set with `setRowCountCheck()` wins over `@DbUnitRowCountCheck`.* A
+`DefaultPrepAndExpectedTestCase` whose owner called `setRowCountCheck(RowCountCheck)` uses that
+check as-is for every test, so the annotation's `enabled` and `exclude` have no effect on it;
+dbUnit logs a warning once when it finds both. Call `setRowCountCheck(null)` to let the
+annotation decide again.
 * *Setting the feature on the wrong connection is silently ignored.* `JdbcDatabaseTester`
 and `DataSourceDatabaseTester` open a new connection - and therefore a fresh, default
 `DatabaseConfig` - on every `getConnection()` call unless given a

@@ -81,6 +81,12 @@ import org.dbunit.database.DatabaseConfig;
  * {@link PrepAndExpectedTestCase} is rejected with {@link IllegalStateException} instead, since
  * a silent no-op here would otherwise leave the check never running for this test at all.
  *
+ * <p>A {@link org.dbunit.database.rowcount.RowCountCheck} that the test case's owner set with
+ * {@link DefaultPrepAndExpectedTestCase#setRowCountCheck(org.dbunit.database.rowcount.RowCountCheck)},
+ * such as in the constructor of a {@code DbUnitConfig(prepAndExpectedTestCase)} class, wins over
+ * this annotation: the annotation then has no effect, and dbUnit logs a warning once. Set that check
+ * to {@code null} to let this annotation decide again.
+ *
  * @author Jeff Jensen
  * @since 3.6.0
  */
