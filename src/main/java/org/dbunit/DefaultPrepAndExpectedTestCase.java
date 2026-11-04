@@ -3026,12 +3026,17 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
 
     /**
      * Set the RowCountCheck, overriding the one otherwise lazily built from the shared
-     * connection's DatabaseConfig.
+     * connection's DatabaseConfig. A check set here wins over any override set with
+     * {@link #setRowCountCheckOverride(RowCountCheckOverride)}, including the one a
+     * {@code @DbUnitRowCountCheck} annotation declares: the check is used as-is for every
+     * later test, and the first test that finds an override set logs a warning that it has
+     * no effect.
      *
      * @see #rowCountBaselineTracker
      *
      * @param rowCountCheck
-     *            The RowCountCheck to use.
+     *            The RowCountCheck to use as-is, or null to resolve it from the override and
+     *            the shared connection's DatabaseConfig again.
      * @since 3.6.0
      */
     public void setRowCountCheck(final RowCountCheck rowCountCheck)
@@ -3057,7 +3062,8 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * Set the enabled flag and excluded table patterns to resolve a RowCountCheck from - the
      * values an annotation such as {@code @DbUnitRowCountCheck} declares. The enabled flag
      * replaces the one of the shared connection's DatabaseConfig, and the patterns add to the
-     * ones it configures.
+     * ones it configures. A RowCountCheck set with {@link #setRowCountCheck(RowCountCheck)}
+     * wins over this override.
      *
      * <p>A caller reusing one instance across several tests that drive it themselves - e.g. a
      * test case in a static field whose tests each call {@code runTest()} - must set the

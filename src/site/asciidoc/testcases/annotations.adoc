@@ -889,6 +889,12 @@ test's own writes. `@DbUnitRowCountCheck` with `@DbUnitPrep` and no `@DbUnitTear
 `NONE` default) therefore *fails*: the prep rows are still there. Pair it with
 `@DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)`, as the example below does.
 
+A `RowCountCheck` that the owner of a test case set with `setRowCountCheck()` wins over this
+annotation, which then has no effect: dbUnit logs a warning once. This applies to an injected
+`@DbUnitTestCase` whose owner called it, and to a class named in
+`@DbUnitConfig(prepAndExpectedTestCase)` that calls it in its constructor. Pass `null` to let
+the annotation decide again.
+
 [source,java]
 ----
 @DbUnitTest

@@ -41,6 +41,12 @@ import org.dbunit.database.IDatabaseConnection;
 import org.dbunit.dataset.IDataSet;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.slf4j.LoggerFactory;
+
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 
 @ClearRowCountCheckSystemProperties
 class RowCountBaselineTrackerTest
@@ -388,6 +394,70 @@ class RowCountBaselineTrackerTest
                 .as("A RowCountCheck supplied via setRowCountCheck() must still be used as-is"
                         + " on a second capture(), never rebuilt.")
                 .isSameAs(mockRowCountCheck);
+    }
+
+    @Test
+    void testSetRowCountCheck_null_resolvesFromConfigurationAgainOnNextCapture()
+            throws Exception
+    {
+        final RowCountBaselineTracker tracker = new RowCountBaselineTracker();
+        tracker.setRowCountCheck(null);
+        tracker.setOverride(new RowCountCheckOverride(false, new String[0]));
+        final IDatabaseConnection connection1 = mock(IDatabaseConnection.class);
+        when(connection1.getConfig()).thenReturn(new DatabaseConfig());
+        tracker.capture(connection1);
+        tracker.setOverride(new RowCountCheckOverride(true, new String[0]));
+        final IDatabaseConnection connection2 = mock(IDatabaseConnection.class);
+        when(connection2.getConfig()).thenReturn(new DatabaseConfig());
+        final IDataSet dataSet2 = mock(IDataSet.class);
+        when(dataSet2.getTableNames()).thenReturn(new String[] {"ACCOUNT"});
+        when(connection2.createDataSet()).thenReturn(dataSet2);
+        when(connection2.getRowCount("ACCOUNT")).thenReturn(5);
+
+        tracker.capture(connection2);
+
+        assertThat(tracker.hasBaseline())
+                .as("A null check must not pin the first capture's disabled check.")
+                .isTrue();
+    }
+
+    @Test
+    void testCapture_pinnedCheckAndOverride_warnsThatOverrideIsIgnored()
+            throws Exception
+    {
+        final Logger logger = (Logger) LoggerFactory.getLogger(RowCountBaselineTracker.class);
+        final ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+        try
+        {
+            final RowCountBaselineTracker tracker = new RowCountBaselineTracker();
+            final RowCountCheck mockRowCountCheck = mock(RowCountCheck.class);
+            tracker.setRowCountCheck(mockRowCountCheck);
+            tracker.setOverride(new RowCountCheckOverride(false, new String[0]));
+            final IDatabaseConnection connection = mock(IDatabaseConnection.class);
+
+            tracker.capture(connection);
+            tracker.capture(connection);
+
+            final List<ILoggingEvent> warnings = new java.util.ArrayList<>();
+            for (final ILoggingEvent event : appender.list)
+            {
+                if (event.getLevel() == Level.WARN)
+                {
+                    warnings.add(event);
+                }
+            }
+            assertThat(warnings)
+                    .as("One warning, not one per capture, must say the override is ignored.")
+                    .hasSize(1);
+            assertThat(warnings.get(0).getFormattedMessage())
+                    .as("The warning must name setRowCountCheck() as the reason.")
+                    .contains("setRowCountCheck()");
+        } finally
+        {
+            logger.detachAppender(appender);
+        }
     }
 
     @Test

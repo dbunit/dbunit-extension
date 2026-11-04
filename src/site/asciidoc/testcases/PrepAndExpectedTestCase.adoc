@@ -433,6 +433,12 @@ silently carry over onto a later test that declares none. The annotation runtime
 override back itself for an instance it drives through a `@DbUnitTestCase` field - see
 <<Annotation_Driven_Equivalent,Annotation-Driven Equivalent>> above.
 
+`setRowCountCheck(RowCountCheck)`:: Uses the given check as-is for every later test, in place
+of one resolved from the `DatabaseConfig`. A check set this way wins over any override, so a
+`@DbUnitRowCountCheck` on a test of this instance has no effect, and dbUnit logs a warning
+once when it finds one. Pass `null` to resolve the check from the override and the
+connection's `DatabaseConfig` again.
+
 [#Configuration_Example_Using_Spring]
 == Configuration Example Using Spring
 
