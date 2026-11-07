@@ -38,6 +38,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.Arrays;
 
 import org.dbunit.Assertion;
 import org.dbunit.dataset.AbstractDataSetTest;
@@ -305,6 +306,37 @@ class YmlDataSetTest extends AbstractDataSetTest
                 .as("All rows should be present in the in-memory stream after write() returns.")
                 .isEqualTo(rowCount);
         Assertion.assertEquals(expectedDataSet, actualDataSet);
+    }
+
+    @Test
+    void testWrite_documentPastSnakeYamlsDefaultCodePointLimit_readsBackEveryRow()
+            throws Exception
+    {
+        final int rowCount = 1000;
+        final char[] wideChars = new char[4000];
+        Arrays.fill(wideChars, 'x');
+        final String wideValue = new String(wideChars);
+        final DataSetBuilder.TableBuilder builder =
+                new DataSetBuilder().table("WIDE_ROWS").columns("ID", "NAME");
+        for (int i = 0; i < rowCount; i++)
+        {
+            builder.row(i, wideValue);
+        }
+        final IDataSet expectedDataSet = builder.build();
+        final ByteArrayOutputStream out = new ByteArrayOutputStream();
+        YamlDataSet.write(expectedDataSet, out);
+        final int snakeYamlDefaultCodePointLimit = 3 * 1024 * 1024;
+
+        final IDataSet actualDataSet =
+                new YamlDataSet(new ByteArrayInputStream(out.toByteArray()));
+
+        assertThat(out.size())
+                .as("The document must be longer than the limit SnakeYAML sets by default.")
+                .isGreaterThan(snakeYamlDefaultCodePointLimit);
+        assertThat(actualDataSet.getTable("WIDE_ROWS").getRowCount())
+                .as("A document that YamlDataSet.write() wrote must be readable, whatever its"
+                        + " size.")
+                .isEqualTo(rowCount);
     }
 
     @Test

@@ -261,6 +261,33 @@ class YamlProducerTest
     }
 
     @Test
+    void testProduce_documentPastSnakeYamlsDefaultCodePointLimit_readsEveryRow() throws Exception
+    {
+        final int rowCount = 200_000;
+        final StringBuilder document = new StringBuilder("TEST_TABLE:\n");
+        for (int i = 0; i < rowCount; i++)
+        {
+            document.append("  - COLUMN0: row").append(i).append('\n');
+        }
+        final int snakeYamlDefaultCodePointLimit = 3 * 1024 * 1024;
+        final RecordingConsumer consumer = new RecordingConsumer();
+        final YamlProducer producer = new YamlProducer(stream(document.toString()));
+        producer.setConsumer(consumer);
+
+        producer.produce();
+
+        final long producedRows =
+                consumer.events.stream().filter(event -> event.startsWith("row:")).count();
+        assertThat(document.length())
+                .as("The document must be longer than the limit SnakeYAML sets by default.")
+                .isGreaterThan(snakeYamlDefaultCodePointLimit);
+        assertThat(producedRows)
+                .as("A dataset is a fixture of the test's own project, so a document of any size"
+                        + " is read, as JsonProducer reads one.")
+                .isEqualTo(rowCount);
+    }
+
+    @Test
     void testProduce_unquotedDateAndFraction_producesTheTextOfTheDocument() throws Exception
     {
         final RecordingConsumer consumer = new RecordingConsumer();
