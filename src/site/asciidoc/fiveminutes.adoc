@@ -142,7 +142,7 @@ class AccountWithdrawalTest
 ----
 
 The `IDatabaseTester` composing the test case supplies the setup/teardown
-operations: it defaults to `CLEAN_INSERT` (truncate + insert) for setup and
+operations: it defaults to `CLEAN_INSERT` (delete all + insert) for setup and
 `NONE` for teardown, so the explicit `setTearDownOperation(DELETE_ALL)` above
 is what makes cleanup actually happen. Both are configurable, see
 link:testcases/IDatabaseTester.html[IDatabaseTester] and

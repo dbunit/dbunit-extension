@@ -61,7 +61,7 @@ build-with-all-DBs.ps1 or build-with-all-DBs.sh
 - Decorator-based: `CachedDataSet`, `FilteredDataSet`, `CompositeDataSet`, `SortedDataSet`, `ReplacementDataSet`
 - Live: `DatabaseDataSet` (from `IDatabaseConnection`), `QueryDataSet`
 
-**`DatabaseOperation`** — abstract base for database mutations. Static constants: `INSERT`, `UPDATE`, `DELETE`, `DELETE_ALL`, `TRUNCATE_TABLE`, `REFRESH` (upsert), `CLEAN_INSERT` (truncate + insert). Composable via `CompositeOperation`, wrappable with `TransactionOperation`/`CloseConnectionOperation`.
+**`DatabaseOperation`** — abstract base for database mutations. Static constants: `INSERT`, `UPDATE`, `DELETE`, `DELETE_ALL`, `TRUNCATE_TABLE`, `REFRESH` (upsert), `CLEAN_INSERT` (delete all + insert). Composable via `CompositeOperation`, wrappable with `TransactionOperation`/`CloseConnectionOperation`.
 
 **`IDatabaseTester`** — the preferred composition-based test helper (use this over extending `DBTestCase`). Manages setup/teardown lifecycle. Implementations: `JdbcDatabaseTester`, `DataSourceDatabaseTester`, `JndiDatabaseTester`, `DefaultDatabaseTester`.
 
