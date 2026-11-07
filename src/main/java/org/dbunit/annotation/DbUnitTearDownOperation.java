@@ -44,6 +44,11 @@ import org.dbunit.operation.DbUnitOperation;
  * {@link DbUnitExpected} is present - is what the operation runs against. Declaring an extra
  * table to tear down is done by listing it, empty, in the prep dataset instead.
  *
+ * <p>The teardown operation runs over the rows of both datasets, so one that inserts, such as
+ * {@code CLEAN_INSERT}, {@code INSERT} or {@code REFRESH}, leaves those rows in the table when the
+ * test ends, and {@code CLEAN_INSERT} and {@code INSERT} fail on a duplicate key when the two
+ * datasets share a row. Use {@code DELETE_ALL} or {@code DELETE} to clean up.
+ *
  * <p>This operation is the teardown operation of the
  * {@link org.dbunit.DefaultPrepAndExpectedTestCase} that runs the test, for that test only; the
  * tester is not written and keeps its own. A {@link DbUnitTestCase} field injecting an
