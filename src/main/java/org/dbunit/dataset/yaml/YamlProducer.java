@@ -146,9 +146,28 @@ public class YamlProducer implements IDataSetProducer
         {
             LoaderOptions options = new LoaderOptions();
             options.setAllowDuplicateKeys(false);
+            removeCodePointLimit(options);
             DumperOptions dumperOptions = new DumperOptions();
             _yaml = new Yaml(new Constructor(options), new Representer(dumperOptions),
                     dumperOptions, options, new TextValueResolver());
+        }
+
+        /**
+         * Lifts the limit on the size of a document, which SnakeYAML sets to 3,145,728 code
+         * points to protect a service from hostile input. A dataset is a fixture of the test's
+         * own project, and a document {@link YamlDataSet#write} wrote must be readable. A
+         * SnakeYAML older than 1.32, such as 1.30, has no such limit and no method to set it.
+         */
+        private static void removeCodePointLimit(final LoaderOptions options)
+        {
+            try
+            {
+                options.setCodePointLimit(Integer.MAX_VALUE);
+            }
+            catch (final NoSuchMethodError e)
+            {
+                // SnakeYAML before 1.32: there is no limit to lift.
+            }
         }
 
         /**

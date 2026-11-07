@@ -188,6 +188,9 @@
       <action dev="jeffjensen" type="update" system="github" due-to="jeffjensen">
           State that the types behind the JUnit Jupiter and Spring bindings are internal to dbUnit and may change in a minor release: the public classes of org.dbunit.annotation.runtime, TestScopedConnection, ConnectionOwnership and the connection warnings of org.dbunit.database.connection, and RowCountBaselineTracker. They are public only for use across dbUnit's packages. Their Javadoc and the Annotations page say so.
       </action>
+      <action dev="jeffjensen" type="fix" issue="1041" system="github" due-to="jeffjensen">
+          Fix YamlDataSet failing to read a YAML document longer than 3,145,728 code points, SnakeYAML's default limit, including a document that YamlDataSet.write() wrote: an export of about 120,000 small rows could not be read back, where JsonDataSet reads any size. YamlProducer now lifts the limit, as a dataset is a fixture of the test's own project. SnakeYAML's limit of 50 aliases for a list or a mapping stays.
+      </action>
     </release>
     <release version="3.5.2" date="Sep 7, 2026" description="DefaultPrepAndExpectedTestCase connection hygiene: replace a connection the pool or database dropped between tests, and warn when handed a non-autocommit connection">
       <action dev="jeffjensen" type="fix" issue="962" system="github" due-to="jeffjensen">
