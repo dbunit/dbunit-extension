@@ -77,8 +77,13 @@ like `DataSourceDatabaseTester`.
 
 [source,java]
 ----
-private final IDatabaseTester databaseTester =
-        new JdbcDatabaseTester("org.h2.Driver", "jdbc:h2:mem:example;DB_CLOSE_DELAY=-1");
+private final IDatabaseTester databaseTester;
+
+AccountRepositoryTest() throws ClassNotFoundException
+{
+    databaseTester =
+            new JdbcDatabaseTester("org.h2.Driver", "jdbc:h2:mem:example;DB_CLOSE_DELAY=-1");
+}
 
 @BeforeEach
 void setUp() throws Exception
@@ -187,9 +192,13 @@ class AccountRepositoryTest
 {
     private static final String DBUNIT_DATA_DIR = "/dbunit/account/";
 
-    private final IDatabaseTester databaseTester =
-            new JdbcDatabaseTester("org.h2.Driver",
-                    "jdbc:h2:mem:accountRepositoryTest;DB_CLOSE_DELAY=-1");
+    private final IDatabaseTester databaseTester;
+
+    AccountRepositoryTest() throws ClassNotFoundException
+    {
+        databaseTester = new JdbcDatabaseTester("org.h2.Driver",
+                "jdbc:h2:mem:accountRepositoryTest;DB_CLOSE_DELAY=-1");
+    }
 
     @BeforeEach
     void setUp() throws Exception
