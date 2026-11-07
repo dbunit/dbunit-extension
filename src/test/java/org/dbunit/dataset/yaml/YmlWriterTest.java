@@ -22,10 +22,14 @@
 package org.dbunit.dataset.yaml;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.ByteArrayInputStream;
 import java.io.StringWriter;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.UUID;
 
 import org.dbunit.dataset.Column;
 import org.dbunit.dataset.DataSetBuilder;
@@ -270,6 +274,55 @@ public class YmlWriterTest
                         + " rejects the list or the mapping that YAML builds from an unquoted one,"
                         + " reads back the same text.")
                 .containsExactly("[NULL]", "[now-1d]", "[TEXT]hello", "[1, 2]", "{a: 1}");
+    }
+
+    @Test
+    void testWrite_valuesOfOtherTypes_writeTheirTextAndReadBackAsTheText() throws Exception
+    {
+        final UUID uuid = UUID.fromString("55a54008-ad1b-4c7a-8d4c-0a3c8f2b1e11");
+        final IDataSet dataSet = new DataSetBuilder().table("OTHER_TYPES")
+                .columns("UUID_VALUE", "URI_VALUE", "ENUM_VALUE", "BUILDER_VALUE")
+                .row(uuid, URI.create("http://x"), Thread.State.NEW, new StringBuilder("sb"))
+                .build();
+        final StringWriter stringWriter = new StringWriter();
+        final YamlWriter yamlWriter = new YamlWriter(stringWriter);
+
+        yamlWriter.write(dataSet);
+        final IDataSet readBack = new YamlDataSet(new ByteArrayInputStream(
+                stringWriter.toString().getBytes(StandardCharsets.UTF_8)));
+
+        final ITable table = readBack.getTable("OTHER_TYPES");
+        final Object[] row = {table.getValue(0, "UUID_VALUE"), table.getValue(0, "URI_VALUE"),
+                table.getValue(0, "ENUM_VALUE"), table.getValue(0, "BUILDER_VALUE")};
+        assertThat(stringWriter.toString())
+                .as("The writer writes no global tag, which the reader refuses.")
+                .doesNotContain("!!");
+        assertThat(row)
+                .as("The writer writes a value of another type as its text, instead of a global"
+                        + " tag, or an empty mapping that loses the value.")
+                .containsExactly(uuid.toString(), "http://x", "NEW", "sb");
+    }
+
+    @Test
+    void testWrite_arrayAndListValues_writeASequenceTheReaderRejects() throws Exception
+    {
+        final IDataSet dataSet = new DataSetBuilder().table("SEQUENCES")
+                .columns("ARRAY_VALUE", "LIST_VALUE")
+                .row(new Object[] {1, 2}, Arrays.asList("a", "b")).build();
+        final StringWriter stringWriter = new StringWriter();
+        final YamlWriter yamlWriter = new YamlWriter(stringWriter);
+
+        yamlWriter.write(dataSet);
+
+        assertThat(stringWriter.toString())
+                .as("An array and a list are written as YAML sequences, and not as the text of"
+                        + " the array object.")
+                .doesNotContain("[Ljava").doesNotContain("@");
+        assertThatThrownBy(() -> new YamlDataSet(new ByteArrayInputStream(
+                stringWriter.toString().getBytes(StandardCharsets.UTF_8))))
+                        .as("The reader rejects a sequence in a cell, as for a document that"
+                                + " holds one.")
+                        .isInstanceOf(DataSetException.class);
     }
 
     public static IDataSet getEmptyTableDataSet() throws DataSetException

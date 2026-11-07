@@ -35,8 +35,10 @@ import org.yaml.snakeyaml.Yaml;
 
 import java.io.Writer;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Writes an {@link IDataSet} to a {@link Writer} in YAML format.
@@ -49,7 +51,8 @@ import java.util.List;
  * <p>The writer writes a date, a time or a timestamp as the JDBC escape text that the column
  * types parse, see {@link JdbcEscapeText}, where SnakeYAML would write an instant in UTC, so
  * that a date reads back as the same day, and a timestamp as the same date and time, in any
- * time zone.
+ * time zone. It writes a value of any type other than a string, a number, a boolean, an array, a
+ * collection or a map, such as a {@link java.util.UUID}, as its {@code toString()} text.
  *
  * @author Björn Beskow
  * @version $Revision$ $Date$
@@ -133,7 +136,7 @@ class YamlWriter
                             }
                         } else
                         {
-                            rowMap.put(columnName, JdbcEscapeText.of(value));
+                            rowMap.put(columnName, yamlValueOf(value));
                         }
                     }
                     tableRows.add(rowMap);
@@ -144,6 +147,27 @@ class YamlWriter
             }
         }
         return result;
+    }
+
+    /**
+     * Returns the value as SnakeYAML writes it as a plain value: a string, a number, a boolean, a
+     * byte array as they are, and any other value, such as a {@link java.util.UUID}, as its
+     * {@code toString()} text. SnakeYAML writes the other value with a global tag, which the
+     * reader refuses, or as an empty mapping, which loses the value. An array, a collection or
+     * a map stays as it is, as YAML has a sequence and a mapping for it, which the reader rejects
+     * in a cell with a message that names the table, the row and the column, where the text of
+     * the array object would read back without a word.
+     */
+    private static Object yamlValueOf(Object value)
+    {
+        Object escaped = JdbcEscapeText.of(value);
+        if (escaped instanceof String || escaped instanceof Number || escaped instanceof Boolean
+                || escaped instanceof Collection || escaped instanceof Map
+                || escaped.getClass().isArray())
+        {
+            return escaped;
+        }
+        return escaped.toString();
     }
 
     /**
