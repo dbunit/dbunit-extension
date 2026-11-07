@@ -74,8 +74,13 @@ link:IDatabaseTester.html[`IDatabaseTester`] composition instead — with
 
 [source,java]
 ----
-private final IDatabaseTester databaseTester =
-        new JdbcDatabaseTester("org.h2.Driver", "jdbc:h2:mem:accountTest;DB_CLOSE_DELAY=-1");
+private final IDatabaseTester databaseTester;
+
+AccountTest() throws ClassNotFoundException
+{
+    databaseTester =
+            new JdbcDatabaseTester("org.h2.Driver", "jdbc:h2:mem:accountTest;DB_CLOSE_DELAY=-1");
+}
 ----
 
 See link:IDatabaseTester.html[the IDatabaseTester guide] for the full
