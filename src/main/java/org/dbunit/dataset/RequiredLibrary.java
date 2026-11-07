@@ -45,6 +45,15 @@ public class RequiredLibrary
     public static final RequiredLibrary SNAKEYAML = new RequiredLibrary("YAML", "SnakeYAML",
             "org.yaml.snakeyaml.Yaml", "org.yaml:snakeyaml");
 
+    /**
+     * Apache POI, needed to read and write Excel datasets. Reading an {@code .xlsx} file needs
+     * {@code poi-ooxml} as well; the probe is a class of {@code poi}, which {@code poi-ooxml}
+     * depends on.
+     */
+    public static final RequiredLibrary POI = new RequiredLibrary("Excel", "Apache POI",
+            "org.apache.poi.ss.usermodel.WorkbookFactory",
+            "org.apache.poi:poi (and org.apache.poi:poi-ooxml for an .xlsx file)");
+
     private final String feature;
     private final String libraryName;
     private final String probeClassName;
@@ -76,8 +85,8 @@ public class RequiredLibrary
         } catch (final ClassNotFoundException | NoClassDefFoundError e)
         {
             throw new DataSetException(feature + " support needs " + libraryName + ", which is"
-                    + " not on the classpath. Add " + coordinates + " (an optional dependency"
-                    + " of dbUnit) to the classpath.", e);
+                    + " not on the classpath. Add " + coordinates + " to the classpath. "
+                    + libraryName + " is an optional dependency of dbUnit.", e);
         }
     }
 
