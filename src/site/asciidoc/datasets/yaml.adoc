@@ -86,6 +86,12 @@ the output, though: it holds the whole document in memory before it writes. When
 appears more than once in the dataset, as in a streaming flat XML file that interleaves its
 tables, the rows of every occurrence go under the one table name, in order.
 
+A YAML document is read whatever its size, as a JSON document is. dbUnit lifts the limit of
+3,145,728 code points that SnakeYAML sets on a document by default, because a
+dataset is a fixture of the test's own project, and a document that `YamlDataSet.write()` wrote,
+such as the export of about 120,000 small rows, would otherwise not read back. SnakeYAML's limit of
+50 aliases for a list or a mapping stays, as an alias is unusual in a dataset.
+
 == Dependency
 
 dbUnit depends on https://bitbucket.org/snakeyaml/snakeyaml[SnakeYAML] to read/write YAML
