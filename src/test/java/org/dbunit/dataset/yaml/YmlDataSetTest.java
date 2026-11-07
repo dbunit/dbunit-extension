@@ -39,6 +39,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Arrays;
+import java.util.UUID;
 
 import org.dbunit.Assertion;
 import org.dbunit.dataset.AbstractDataSetTest;
@@ -337,6 +338,23 @@ class YmlDataSetTest extends AbstractDataSetTest
                 .as("A document that YamlDataSet.write() wrote must be readable, whatever its"
                         + " size.")
                 .isEqualTo(rowCount);
+    }
+
+    @Test
+    void testWrite_uuidValue_readsBackAsItsText() throws Exception
+    {
+        final UUID uuid = UUID.fromString("55a54008-ad1b-4c7a-8d4c-0a3c8f2b1e11");
+        final IDataSet dataSet = new DataSetBuilder().table("UUID_TABLE").columns("ID")
+                .row(uuid).build();
+        final ByteArrayOutputStream out = new ByteArrayOutputStream();
+
+        YamlDataSet.write(dataSet, out);
+        final IDataSet readBack = new YamlDataSet(new ByteArrayInputStream(out.toByteArray()));
+
+        assertThat(readBack.getTable("UUID_TABLE").getValue(0, "ID"))
+                .as("A UUID that a dataset built in code holds is written as its text, which the"
+                        + " reader reads, and not as a global tag the reader refuses.")
+                .isEqualTo(uuid.toString());
     }
 
     @Test
