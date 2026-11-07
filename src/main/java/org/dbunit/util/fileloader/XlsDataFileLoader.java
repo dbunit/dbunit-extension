@@ -28,6 +28,7 @@ import java.util.Map;
 
 import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.IDataSet;
+import org.dbunit.dataset.RequiredLibrary;
 import org.dbunit.dataset.excel.XlsDataSet;
 
 /**
@@ -74,9 +75,13 @@ public class XlsDataFileLoader extends AbstractDataFileLoader {
 
     /**
      * {@inheritDoc}
+     *
+     * @throws DataSetException
+     *             If the document cannot be parsed, or Apache POI is not on the classpath.
      */
     public IDataSet loadDataSet(URL url) throws DataSetException,
             IOException {
+        RequiredLibrary.POI.require(XlsDataFileLoader.class);
         try (InputStream in = url.openStream())
         {
             return new XlsDataSet(in);
