@@ -331,6 +331,11 @@ injected `@DbUnitTestCase` is the exception: it runs with its tester's operation
 them and takes its datasets from the files the test names, so neither operation annotation
 replaces them, and declaring either next to it is rejected - see <<injected-testcase-config>>.
 
+*A teardown operation that inserts.* The teardown operation runs over the rows of both datasets,
+so one that inserts, such as `CLEAN_INSERT`, `INSERT` or `REFRESH`, leaves those rows in the table
+when the test ends, and `CLEAN_INSERT` and `INSERT` fail on a duplicate key when the two datasets
+share a row. Use `DELETE_ALL` or `DELETE` to clean up.
+
 *Migrating a `@BeforeEach` dataset.* A 3.5.0-style test that gives the tester its dataset with
 `setDataSet()` in a `@BeforeEach` method keeps working while it uses none of these annotations:
 the extension then runs the tester's own `onSetup()` and `onTearDown()`, dataset included, as
