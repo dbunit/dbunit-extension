@@ -208,6 +208,13 @@ Row count check failed: 2 tables differ from the pre-test baseline.
   COUNTRY_CODE  12 -> 0  (-12)  rows removed that should remain; take the table out of the datasets the setup and teardown operations act on, or exclude it
 ----
 
+The failure is an `UnexpectedRowCountException`, which a build tool reports as a test error, not a
+test failure, because it points at the test's setup or teardown and not at a wrong result.
+Under link:../testcases/MultiDataSourcePrepAndExpectedTestCase.html[MultiDataSourcePrepAndExpectedTestCase]
+it is reported inside the `MultiDataSourceAssertionError` that names its data source, which a build
+tool reports as a test failure: as its cause when its data source is the first failing one in
+declared order, and otherwise as the cause of a suppressed entry labelled with the data source.
+
 Each line names the table in the exact form `getTableNames()` returned it, so it can be
 pasted straight into a dataset or an exclude list, and the delta's sign tells you which fix
 applies:
