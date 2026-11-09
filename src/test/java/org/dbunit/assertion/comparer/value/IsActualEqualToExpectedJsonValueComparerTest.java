@@ -3,6 +3,8 @@ package org.dbunit.assertion.comparer.value;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
+import java.util.Arrays;
+
 import org.dbunit.DatabaseUnitException;
 import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.datatype.DataType;
@@ -155,6 +157,46 @@ class IsActualEqualToExpectedJsonValueComparerTest
         assertThat(actual)
                 .as("JSON missing a key present in the other should not have been equal.")
                 .isFalse();
+    }
+
+    @Test
+    void testIsExpected_StringValuePastJacksonsDefaultLimit_True()
+            throws DatabaseUnitException
+    {
+        final Object expectedValue = jsonWithStringValueOfLength(20_000_001, 'x');
+        final Object actualValue = jsonWithStringValueOfLength(20_000_001, 'x');
+
+        final boolean actual = sut.isExpected(expectedTable, actualTable,
+                rowNum, columnName, dataType, expectedValue, actualValue);
+
+        assertThat(actual)
+                .as("JSON with a string value of 20,000,001 characters, one more than the limit"
+                        + " that Jackson 2.15 and later set by default, should have been equal"
+                        + " to the same JSON.")
+                .isTrue();
+    }
+
+    @Test
+    void testIsExpected_DifferentStringValuesPastJacksonsDefaultLimit_False()
+            throws DatabaseUnitException
+    {
+        final Object expectedValue = jsonWithStringValueOfLength(20_000_001, 'x');
+        final Object actualValue = jsonWithStringValueOfLength(20_000_001, 'y');
+
+        final boolean actual = sut.isExpected(expectedTable, actualTable,
+                rowNum, columnName, dataType, expectedValue, actualValue);
+
+        assertThat(actual)
+                .as("JSON with a different string value of more than 20,000,000 characters should"
+                        + " not have been equal.")
+                .isFalse();
+    }
+
+    private static String jsonWithStringValueOfLength(final int length, final char character)
+    {
+        final char[] characters = new char[length];
+        Arrays.fill(characters, character);
+        return "{\"a\":\"" + new String(characters) + "\"}";
     }
 
     @Test
