@@ -80,7 +80,9 @@ insignificant whitespace, both of which a database may rewrite when it stores a 
 and needs the optional `jackson-databind` dependency also used by
 link:../apidocs/org/dbunit/dataset/json/JsonDataSet.html[JsonDataSet]. Without it on the
 classpath, creating the comparer fails with a `DatabaseUnitRuntimeException` that names the
-dependency to add.
+dependency to add. The comparer parses a JSON value whatever the length of its strings, as
+`JsonDataSet` reads one: it lifts the limit of 20,000,000 characters that Jackson 2.15 and later
+set on a string.
 
 It is easy to add your own implementations of the
 link:../apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html[ValueComparer]

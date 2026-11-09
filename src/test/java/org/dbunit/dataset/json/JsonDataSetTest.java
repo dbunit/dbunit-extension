@@ -35,6 +35,8 @@ import java.io.StringReader;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.Arrays;
+import java.util.Base64;
 import java.util.TimeZone;
 
 import org.dbunit.Assertion;
@@ -64,6 +66,8 @@ import org.junit.jupiter.params.provider.ValueSource;
  */
 class JsonDataSetTest extends AbstractDataSetTest
 {
+    private static final int JACKSON_DEFAULT_MAX_STRING_LENGTH = 20_000_000;
+
     @Override
     protected IDataSet createDataSet() throws Exception
     {
@@ -438,6 +442,57 @@ class JsonDataSetTest extends AbstractDataSetTest
                 .as("The JSON text of an object cell is written as a JSON string, which reads"
                         + " back as the same text.")
                 .isEqualTo("{\"type\":\"click\",\"n\":1}");
+    }
+
+    @Test
+    void testWrite_stringValuePastJacksonsDefaultLimit_readsBackTheSameString() throws Exception
+    {
+        final String text = stringOfLength(JACKSON_DEFAULT_MAX_STRING_LENGTH + 1);
+        final DefaultTable table = new DefaultTable("BIG_TEXT",
+                new Column[] {new Column("TEXT", DataType.CLOB)});
+        table.addRow(new Object[] {text});
+        final ByteArrayOutputStream out = new ByteArrayOutputStream();
+        JsonDataSet.write(new DefaultDataSet(table), out);
+
+        final IDataSet readBack = new JsonDataSet(new ByteArrayInputStream(out.toByteArray()));
+
+        final Object value = readBack.getTable("BIG_TEXT").getValue(0, "TEXT");
+        assertThat(text.equals(value))
+                .as("A string value of 20,000,001 characters, one more than the limit that"
+                        + " Jackson 2.15 and later set by default, reads back as the same string.")
+                .isTrue();
+    }
+
+    @Test
+    void testWrite_blobOfAbout15MegabytesPastJacksonsDefaultLimit_readsBackItsBase64Text()
+            throws Exception
+    {
+        final byte[] bytes = new byte[15_000_003];
+        for (int i = 0; i < bytes.length; i++)
+        {
+            bytes[i] = (byte) i;
+        }
+        final DefaultTable table = new DefaultTable("BIG_BLOB",
+                new Column[] {new Column("DATA", DataType.BLOB)});
+        table.addRow(new Object[] {bytes});
+        final ByteArrayOutputStream out = new ByteArrayOutputStream();
+        JsonDataSet.write(new DefaultDataSet(table), out);
+
+        final IDataSet readBack = new JsonDataSet(new ByteArrayInputStream(out.toByteArray()));
+
+        final String expectedBase64 = Base64.getEncoder().encodeToString(bytes);
+        final Object value = readBack.getTable("BIG_BLOB").getValue(0, "DATA");
+        assertThat(expectedBase64.equals(value))
+                .as("The Base64 text of a BLOB of about 15 MB, which is more than 20,000,000"
+                        + " characters long, reads back as the same text.")
+                .isTrue();
+    }
+
+    private static String stringOfLength(final int length)
+    {
+        final char[] characters = new char[length];
+        Arrays.fill(characters, 'x');
+        return new String(characters);
     }
 
     @ParameterizedTest

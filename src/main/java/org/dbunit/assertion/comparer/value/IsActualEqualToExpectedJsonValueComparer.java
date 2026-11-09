@@ -9,6 +9,8 @@ import org.dbunit.dataset.datatype.DataType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.StreamReadConstraints;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -27,6 +29,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  * treats JSON object member order as insignificant while still treating JSON
  * array element order as significant, matching JSON's own equality
  * semantics. Special case: if both values are null, they match.
+ *
+ * <p>The comparer parses a JSON value whatever the length of its strings, as
+ * {@link org.dbunit.dataset.json.JsonDataSet} does: it lifts the limit of
+ * 20,000,000 characters that Jackson 2.15 and later set on a string value.
  *
  * <p>Requires the optional {@code jackson-databind} dependency (the same one
  * used by {@link org.dbunit.dataset.json.JsonDataSet}) on the classpath.
@@ -61,10 +67,51 @@ public class IsActualEqualToExpectedJsonValueComparer
      */
     private static final class SharedMapper
     {
-        private static final ObjectMapper INSTANCE = new ObjectMapper();
+        private static final ObjectMapper INSTANCE = newMapper();
 
         private SharedMapper()
         {
+        }
+
+        /**
+         * Creates the mapper that reads both values, which reads a string value of any length.
+         * It lifts the limit of 20,000,000 characters that Jackson 2.15 and later set on a
+         * string value to protect a service from hostile input, so that a large JSON column
+         * value compares as the dataset reader reads it. A Jackson older than 2.15 has no such
+         * limit and no class to set it.
+         */
+        private static ObjectMapper newMapper()
+        {
+            try
+            {
+                return StringLengthLimit.newMapperWithoutIt();
+            }
+            catch (final NoClassDefFoundError | NoSuchMethodError e)
+            {
+                // Jackson before 2.15: there is no limit to lift.
+                return new ObjectMapper();
+            }
+        }
+    }
+
+    /**
+     * The only code in this comparer that uses the classes of Jackson 2.15 and later that limit
+     * a string value, kept in a class of its own so that an older Jackson, which has none of
+     * them, fails here, where {@link SharedMapper} falls back to the default mapper.
+     */
+    private static final class StringLengthLimit
+    {
+        private StringLengthLimit()
+        {
+        }
+
+        static ObjectMapper newMapperWithoutIt()
+        {
+            final StreamReadConstraints.Builder constraintsBuilder = StreamReadConstraints.builder();
+            constraintsBuilder.maxStringLength(Integer.MAX_VALUE);
+            final StreamReadConstraints constraints = constraintsBuilder.build();
+            final JsonFactory factory = JsonFactory.builder().streamReadConstraints(constraints).build();
+            return new ObjectMapper(factory);
         }
     }
 

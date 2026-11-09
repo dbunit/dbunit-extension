@@ -95,6 +95,12 @@ Write a dataset:
 JsonDataSet.write(dataSet, new FileOutputStream("dataset.json"));
 ----
 
+A JSON document is read whatever the length of its values: dbUnit lifts the limit of
+20,000,000 characters that Jackson 2.15 and later set on a string, such as the Base64 text of a
+large BLOB that `JsonDataSet.write()` wrote, because a dataset is a fixture of the test's own
+project. Jackson's other limits, 1,000 levels of nesting and 1,000 digits in a number, stay, as a
+dataset does not reach them. A Jackson older than 2.15 sets none of these limits.
+
 == Dependency
 
 dbUnit depends on https://github.com/FasterXML/jackson[Jackson] to read/write JSON
