@@ -53,6 +53,11 @@ import org.dbunit.dataset.RequiredLibrary;
  * time in any time zone. A dataset written before 3.6.0, with the number of milliseconds
  * since the epoch, still reads for any date after January 1970.
  *
+ * <p>The writer writes a value of any other type than a string, a number, a boolean, an array, a
+ * collection or a map, such as the driver's object for a column type that dbUnit does not
+ * recognize in a query table, as its {@code toString()} text. Jackson would write it as a JSON
+ * object of its properties.
+ *
  * <p>The reader reads a string value of any length, such as the Base64 text of a large BLOB that
  * the writer wrote. It lifts the limit of 20,000,000 characters that Jackson 2.15 and later set
  * on a string value.
