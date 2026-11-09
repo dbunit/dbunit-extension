@@ -54,6 +54,12 @@ import java.util.Map;
  * time zone. It writes a value of any type other than a string, a number, a boolean, an array, a
  * collection or a map, such as a {@link java.util.UUID}, as its {@code toString()} text.
  *
+ * <p>The writer writes text that holds a control character, such as a form feed, a NUL or an
+ * escape character, as a double-quoted value with YAML escapes, so that it reads back as the
+ * same text. SnakeYAML's default would write such text as a {@code !!binary} value, which the
+ * reader returns as bytes, and a text column would store the Base64 text of the value. A byte
+ * array, a BLOB value, is not text, and the writer still writes it as {@code !!binary}.
+ *
  * @author Björn Beskow
  * @version $Revision$ $Date$
  */
@@ -85,6 +91,9 @@ class YamlWriter
     {
         LinkedHashMap<String, List<LinkedHashMap<String, Object>>> dataSetAsMap = dataSetAsMap(dataSet);
         DumperOptions options = new DumperOptions();
+        // Text must stay text on read-back: the default style writes a string with a control
+        // character as !!binary, which the reader returns as bytes.
+        options.setNonPrintableStyle(DumperOptions.NonPrintableStyle.ESCAPE);
         if (_useFlowStyle)
         {
             options.setDefaultFlowStyle(DumperOptions.FlowStyle.FLOW);

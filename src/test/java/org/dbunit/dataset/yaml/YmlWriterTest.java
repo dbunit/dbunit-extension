@@ -325,6 +325,79 @@ public class YmlWriterTest
                         .isInstanceOf(DataSetException.class);
     }
 
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void testWrite_textWithAControlCharacter_readsBackAsTheSameText(final boolean flowStyle)
+            throws Exception
+    {
+        final String formFeed = "form\fFeed";
+        final String nul = "nul\u0000x";
+        final String escape = "esc\u001B[0m";
+        final String delete = "del\u007Fx";
+        final String c1Control = "c1\u0090dcs";
+        final IDataSet dataSet = new DataSetBuilder().table("CONTROL_CHARACTERS")
+                .columns("FORM_FEED", "NUL", "ESCAPE", "DELETE", "C1_CONTROL")
+                .row(formFeed, nul, escape, delete, c1Control).build();
+        final StringWriter stringWriter = new StringWriter();
+        final YamlWriter yamlWriter = new YamlWriter(stringWriter, flowStyle);
+
+        yamlWriter.write(dataSet);
+        final IDataSet readBack = new YamlDataSet(new ByteArrayInputStream(
+                stringWriter.toString().getBytes(StandardCharsets.UTF_8)));
+
+        final ITable table = readBack.getTable("CONTROL_CHARACTERS");
+        final Object[] row = {table.getValue(0, "FORM_FEED"), table.getValue(0, "NUL"),
+                table.getValue(0, "ESCAPE"), table.getValue(0, "DELETE"),
+                table.getValue(0, "C1_CONTROL")};
+        assertThat(stringWriter.toString())
+                .as("The writer writes text with a control character as a quoted value with YAML"
+                        + " escapes, not as a !!binary value.")
+                .doesNotContain("!!binary");
+        assertThat(row)
+                .as("The text with a control character reads back as the same text, in the block"
+                        + " and in the flow style, where a !!binary value would read back as bytes.")
+                .containsExactly(formFeed, nul, escape, delete, c1Control);
+    }
+
+    @Test
+    void testWrite_textWithTabLineFeedAndCarriageReturn_readsBackAsTheSameText() throws Exception
+    {
+        final String text = "tab\tnl\ncr\r";
+        final IDataSet dataSet = new DataSetBuilder().table("WHITESPACE").columns("TEXT")
+                .row(text).build();
+        final StringWriter stringWriter = new StringWriter();
+        final YamlWriter yamlWriter = new YamlWriter(stringWriter);
+
+        yamlWriter.write(dataSet);
+        final IDataSet readBack = new YamlDataSet(new ByteArrayInputStream(
+                stringWriter.toString().getBytes(StandardCharsets.UTF_8)));
+
+        assertThat(readBack.getTable("WHITESPACE").getValue(0, "TEXT"))
+                .as("The tab, the line feed and the carriage return are printable to YAML, and"
+                        + " the text with them reads back as the same text.")
+                .isEqualTo(text);
+    }
+
+    @Test
+    void testWrite_byteArrayValue_stillWritesBinaryThatReadsBackAsTheBytes() throws Exception
+    {
+        final byte[] bytes = {0, 1, 2, 12, 27, 127};
+        final IDataSet dataSet = new DataSetBuilder().table("BLOBS").columns("BLOB_VALUE")
+                .row((Object) bytes).build();
+        final StringWriter stringWriter = new StringWriter();
+        final YamlWriter yamlWriter = new YamlWriter(stringWriter);
+
+        yamlWriter.write(dataSet);
+        final IDataSet readBack = new YamlDataSet(new ByteArrayInputStream(
+                stringWriter.toString().getBytes(StandardCharsets.UTF_8)));
+
+        assertThat(stringWriter.toString())
+                .as("A byte array is not text, so the writer writes it as a !!binary value.")
+                .contains("!!binary");
+        assertThat(readBack.getTable("BLOBS").getValue(0, "BLOB_VALUE"))
+                .as("The !!binary value reads back as the same bytes.").isEqualTo(bytes);
+    }
+
     public static IDataSet getEmptyTableDataSet() throws DataSetException
     {
         final String col0 = "COL0";

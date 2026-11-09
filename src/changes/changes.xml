@@ -194,6 +194,9 @@
       <action dev="jeffjensen" type="fix" issue="1042" system="github" due-to="jeffjensen">
           Fix YamlDataSet.write() writing a cell value of a type other than a string, number, boolean or byte array, such as a UUID, with a global tag that YamlDataSet rejects when it reads the document, and a URI or a StringBuilder as an empty mapping that loses the value. YamlWriter now writes such a value as its toString() text. An array, a collection or a map is still written as a sequence or a mapping, which the reader rejects naming the table, the row and the column.
       </action>
+      <action dev="jeffjensen" type="fix" issue="1043" system="github" due-to="jeffjensen">
+          Fix YamlDataSet.write() writing a text value that holds a control character, such as a form feed, a NUL or an escape character, as a !!binary value, which YamlDataSet reads back as a byte array, so a text column got the Base64 text of the value in place of the value without an error. YamlWriter now writes such text as a quoted value with YAML escapes, which reads back as the same text. A file written before keeps its !!binary values; write it again.
+      </action>
     </release>
     <release version="3.5.2" date="Sep 7, 2026" description="DefaultPrepAndExpectedTestCase connection hygiene: replace a connection the pool or database dropped between tests, and warn when handed a non-autocommit connection">
       <action dev="jeffjensen" type="fix" issue="962" system="github" due-to="jeffjensen">

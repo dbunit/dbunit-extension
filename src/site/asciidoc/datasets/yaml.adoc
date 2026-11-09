@@ -81,6 +81,10 @@ should get as written, such as that code, `0x1F`, `0b101` or `1_000`.
 type parses, so a written dataset reads back unchanged. It writes a value of any
 other type than a string, a number, a boolean, an array, a collection or a map as its
 `toString()` text, such as the text of a `UUID` that a dataset built in code holds.
+It writes text that holds a control character, such as a form feed or an escape
+character, as a quoted value with YAML escapes, so it reads back as the same text.
+A file written before 3.6.0 holds such text as a `!!binary` value, which a text column
+reads as Base64 text: write it again.
 
 `YamlDataSet.write()` can write a streaming dataset, such as a `StreamingDataSet` over a flat XML
 file, or a database export through `ForwardOnlyResultSetTableFactory`. It does not stream
