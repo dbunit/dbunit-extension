@@ -28,8 +28,13 @@ import java.io.FilterWriter;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.io.Writer;
+import java.math.BigDecimal;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.UUID;
 
 import org.dbunit.Assertion;
 import org.dbunit.dataset.Column;
@@ -235,6 +240,162 @@ public class JsonWriterTest
                 .containsExactly("2024-03-01", "2024-03-01 10:15:30.0", "10:15:30",
                         "2024-03-01 10:15:30.0");
         assertThat(row.get("D").isTextual()).as("The date is a JSON string.").isTrue();
+    }
+
+    @Test
+    void testWrite_beanValue_writesItsToStringTextThatReadsBackAsTheText() throws Exception
+    {
+        final DefaultTable table = new DefaultTable("TEST_TABLE",
+                new Column[] {new Column("BEAN", DataType.UNKNOWN)});
+        table.addRow(new Object[] {new Bean("n1")});
+
+        final String json = writeToJson(new DefaultDataSet(table));
+
+        final JsonNode cell = new ObjectMapper().readTree(json).get("TEST_TABLE").get(0).get("BEAN");
+        assertThat(cell.isTextual())
+                .as("A value that Jackson would write as an object of its properties is written as"
+                        + " a JSON string.")
+                .isTrue();
+        assertThat(readBack(json).getTable("TEST_TABLE").getValue(0, "BEAN"))
+                .as("The value reads back as its toString() text, not as the JSON text of an"
+                        + " object of its properties.")
+                .isEqualTo("Bean(n1)");
+    }
+
+    @Test
+    void testWrite_objectWithoutProperties_writesItsToStringTextInsteadOfFailing() throws Exception
+    {
+        final DefaultTable table = new DefaultTable("TEST_TABLE",
+                new Column[] {new Column("EMPTY", DataType.UNKNOWN)});
+        table.addRow(new Object[] {new Empty()});
+
+        final String json = writeToJson(new DefaultDataSet(table));
+
+        assertThat(readBack(json).getTable("TEST_TABLE").getValue(0, "EMPTY"))
+                .as("A value with no properties, which Jackson refuses to write, is written as its"
+                        + " toString() text.")
+                .isEqualTo("empty");
+    }
+
+    @Test
+    void testWrite_uuidUriEnumAndStringBuilderValues_writeTheirText() throws Exception
+    {
+        final UUID uuid = UUID.fromString("55a54008-ad1b-4c7a-8d4c-0a3c8f2b1e11");
+        final DefaultTable table = new DefaultTable("TEST_TABLE",
+                new Column[] {new Column("UUID_VALUE", DataType.UNKNOWN),
+                        new Column("URI_VALUE", DataType.UNKNOWN),
+                        new Column("ENUM_VALUE", DataType.UNKNOWN),
+                        new Column("BUILDER_VALUE", DataType.UNKNOWN)});
+        table.addRow(new Object[] {uuid, URI.create("http://x"), Thread.State.NEW,
+                new StringBuilder("sb")});
+
+        final ITable readBack = readBack(writeToJson(new DefaultDataSet(table))).getTable("TEST_TABLE");
+
+        final Object[] row = {readBack.getValue(0, "UUID_VALUE"), readBack.getValue(0, "URI_VALUE"),
+                readBack.getValue(0, "ENUM_VALUE"), readBack.getValue(0, "BUILDER_VALUE")};
+        assertThat(row)
+                .as("A UUID, a URI, an enum value and a StringBuilder are written as their text,"
+                        + " as the YAML writer writes them.")
+                .containsExactly(uuid.toString(), "http://x", "NEW", "sb");
+    }
+
+    @Test
+    void testWrite_numberBooleanAndByteArrayValues_stayAsTheirJsonTypes() throws Exception
+    {
+        final DefaultTable table = new DefaultTable("TEST_TABLE",
+                new Column[] {new Column("INT_VALUE", DataType.UNKNOWN),
+                        new Column("DECIMAL_VALUE", DataType.UNKNOWN),
+                        new Column("BOOLEAN_VALUE", DataType.UNKNOWN),
+                        new Column("BYTES_VALUE", DataType.UNKNOWN)});
+        table.addRow(new Object[] {7, new BigDecimal("1.50"), Boolean.TRUE, new byte[] {1, 2, 3}});
+
+        final String json = writeToJson(new DefaultDataSet(table));
+
+        final JsonNode row = new ObjectMapper().readTree(json).get("TEST_TABLE").get(0);
+        final Object[] actual = {row.get("INT_VALUE").isNumber(), row.get("DECIMAL_VALUE").isNumber(),
+                row.get("BOOLEAN_VALUE").isBoolean(), row.get("BYTES_VALUE").asText()};
+        assertThat(actual)
+                .as("A number and a boolean stay a JSON number and boolean, and a byte array stays"
+                        + " the Base64 text that Jackson writes for it.")
+                .containsExactly(true, true, true, "AQID");
+    }
+
+    @Test
+    void testWrite_arrayCollectionAndMapValues_stayJsonStructuresThatReadBackAsJsonText()
+            throws Exception
+    {
+        final DefaultTable table = new DefaultTable("TEST_TABLE",
+                new Column[] {new Column("ARRAY_VALUE", DataType.UNKNOWN),
+                        new Column("LIST_VALUE", DataType.UNKNOWN),
+                        new Column("MAP_VALUE", DataType.UNKNOWN)});
+        table.addRow(new Object[] {new Object[] {1, 2}, Arrays.asList("a", "b"),
+                Collections.singletonMap("k", "v")});
+
+        final String json = writeToJson(new DefaultDataSet(table));
+
+        final JsonNode row = new ObjectMapper().readTree(json).get("TEST_TABLE").get(0);
+        final Object[] structure = {row.get("ARRAY_VALUE").isArray(), row.get("LIST_VALUE").isArray(),
+                row.get("MAP_VALUE").isObject()};
+        assertThat(structure)
+                .as("An array, a collection and a map stay a JSON array and a JSON object, which"
+                        + " a json or jsonb column wants.")
+                .containsExactly(true, true, true);
+        final ITable readBack = readBack(json).getTable("TEST_TABLE");
+        final Object[] text = {readBack.getValue(0, "ARRAY_VALUE"), readBack.getValue(0, "LIST_VALUE"),
+                readBack.getValue(0, "MAP_VALUE")};
+        assertThat(text)
+                .as("The reader hands a JSON array or object to the column type as its compact"
+                        + " JSON text.")
+                .containsExactly("[1,2]", "[\"a\",\"b\"]", "{\"k\":\"v\"}");
+    }
+
+    private static String writeToJson(final IDataSet dataSet) throws DataSetException
+    {
+        final StringWriter stringWriter = new StringWriter();
+        new JsonWriter(stringWriter).write(dataSet);
+        return stringWriter.toString();
+    }
+
+    private static IDataSet readBack(final String json) throws DataSetException
+    {
+        return new JsonDataSet(new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8)));
+    }
+
+    /**
+     * A value that Jackson writes as an object of its getter properties, as the driver's object
+     * for a column type that dbUnit does not recognize in a query table.
+     */
+    public static final class Bean
+    {
+        private final String _name;
+
+        Bean(final String name)
+        {
+            this._name = name;
+        }
+
+        public String getName()
+        {
+            return _name;
+        }
+
+        @Override
+        public String toString()
+        {
+            return "Bean(" + _name + ")";
+        }
+    }
+
+    /**
+     * A value with no properties, which Jackson refuses to write as an object.
+     */
+    public static final class Empty
+    {
+        @Override
+        public String toString()
+        {
+            return "empty";
+        }
     }
 
     @Test

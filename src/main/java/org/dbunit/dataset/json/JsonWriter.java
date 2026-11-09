@@ -24,6 +24,7 @@ package org.dbunit.dataset.json;
 import java.io.IOException;
 import java.io.Writer;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -54,6 +55,11 @@ import com.fasterxml.jackson.databind.SerializationFeature;
  * types parse, see {@link JdbcEscapeText}, not as the number of milliseconds since the epoch
  * that Jackson writes by default, so that a date reads back as the same day, and a timestamp
  * as the same date and time, in any time zone.
+ *
+ * <p>The writer writes a value of any type other than a string, a number, a boolean, an array, a
+ * collection or a map, such as the driver's object for a column of a type that dbUnit does not
+ * recognize in a query table, as its {@code toString()} text, as the YAML writer does. Jackson
+ * would write it as a JSON object of its properties, or fail for a value without properties.
  *
  * @author Jeff Jensen
  */
@@ -136,7 +142,7 @@ class JsonWriter
                         }
                         else
                         {
-                            rowMap.put(columnName, JdbcEscapeText.of(value));
+                            rowMap.put(columnName, jsonValueOf(value));
                         }
                     }
                     rows.add(rowMap);
@@ -165,6 +171,27 @@ class JsonWriter
                 rows.add(new LinkedHashMap<>());
             }
         }
+    }
+
+    /**
+     * Returns the value as Jackson writes it as a plain value: a string, a number, a boolean, a
+     * byte array as they are, and any other value, such as the driver's object for a column of a
+     * type that dbUnit does not recognize in a query table, as its {@code toString()} text.
+     * Jackson would write the other value as a JSON object of its properties, which reads back
+     * as the JSON text of that object and not as the value, or fail for a value without
+     * properties. An array, a collection or a map stays as it is, as JSON has an array and an
+     * object for it, which a {@code json} or {@code jsonb} column wants.
+     */
+    private static Object jsonValueOf(final Object value)
+    {
+        final Object escaped = JdbcEscapeText.of(value);
+        if (escaped instanceof String || escaped instanceof Number || escaped instanceof Boolean
+                || escaped instanceof Collection || escaped instanceof Map
+                || escaped.getClass().isArray())
+        {
+            return escaped;
+        }
+        return escaped.toString();
     }
 
     /**
