@@ -55,11 +55,11 @@ Each format has its own way to say "this cell is null":
 |Format |Null representation
 
 |link:flatxml.html[Flat XML] |Omit the attribute. A row that does not mention `COL2` has a null `COL2`.
-|link:xml.html[XML] |An explicit `<null/>` or `<none/>` element in the row.
-|link:csv.html[CSV] |The literal token `null`, unquoted. A quoted `"null"` is the four-character string.
+|link:xml.html[XML] |An explicit `<null/>` element in the row. A `<none/>` element, or a value missing at the end of a row, is no value instead: an `INSERT`, `CLEAN_INSERT` included, leaves the column out, so it gets the column's default, while an `UPDATE` sets it to null. An expected `<none/>` compares as a null.
+|link:csv.html[CSV] |The literal token `null`, quoted or not: the reader drops the quotes before it compares, so a CSV dataset cannot hold the text `null`. To store that text, write a placeholder of your own and replace it with a link:decorators.html#replacementdataset[ReplacementDataSet].
 |link:json.html[JSON] |Omit the key from that row's object. (Writing a dataset omits a null-valued key from every row of a table but the first, which keeps all the columns of the table with a JSON `null` for a null, so a column that is null in every row survives a read-back.)
 |link:yaml.html[YAML] |Omit the key from that row's mapping, or write `null` or `~`. (Writing a dataset omits a null-valued key from every row of a table but the first, which keeps all the columns of the table with a YAML `null` for a null, so a column that is null in every row survives a read-back.)
-|link:excel.html[Excel] |An empty or absent cell.
+|link:excel.html[Excel] |A blank or absent cell. A text cell that holds an empty string is the empty string.
 |===
 
 Each format page states its own convention in its own words; the table above
