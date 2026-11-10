@@ -41,12 +41,15 @@ import org.dbunit.annotation.runtime.AnnotatedTestExecutor;
 import org.dbunit.annotation.runtime.AnnotatedTestOptIn;
 import org.dbunit.annotation.runtime.AnnotationLookup;
 import org.dbunit.annotation.runtime.DataFileLoaderInstances;
+import org.dbunit.annotation.runtime.LifecycleMethodAnnotationCheck;
 import org.dbunit.annotation.runtime.TestInstanceTesterResolver;
 import org.dbunit.annotation.runtime.TesterFields;
 import org.dbunit.database.IDatabaseConnection;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.AfterTestExecutionCallback;
+import org.junit.jupiter.api.extension.BeforeAllCallback;
+import org.junit.jupiter.api.extension.BeforeEachCallback;
 import org.junit.jupiter.api.extension.BeforeTestExecutionCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.ParameterContext;
@@ -135,8 +138,9 @@ import org.slf4j.LoggerFactory;
  * @see DbUnitRowCountCheck
  * @see DbUnitTest
  */
-public class DbUnitExtension implements BeforeTestExecutionCallback,
-        AfterTestExecutionCallback, AfterEachCallback, ParameterResolver
+public class DbUnitExtension implements BeforeAllCallback, BeforeEachCallback,
+        BeforeTestExecutionCallback, AfterTestExecutionCallback, AfterEachCallback,
+        ParameterResolver
 {
     private static final Logger log = LoggerFactory.getLogger(DbUnitExtension.class);
 
@@ -148,6 +152,10 @@ public class DbUnitExtension implements BeforeTestExecutionCallback,
 
     private static final String DATA_FILE_LOADERS_KEY = "dataFileLoaders";
 
+    private final LifecycleMethodAnnotationCheck lifecycleMethodCheck =
+            new LifecycleMethodAnnotationCheck(JupiterLifecycleMethods::of,
+                    (method, annotationType) -> AnnotationSupport.isAnnotated(method,
+                            annotationType));
     private final TesterFields testerFields = new TesterFields();
     private final AnnotatedTestOptIn optIn = new AnnotatedTestOptIn(testerFields);
     private final TesterResolver testerResolver =
@@ -156,6 +164,42 @@ public class DbUnitExtension implements BeforeTestExecutionCallback,
     /** Creates the extension. */
     public DbUnitExtension()
     {
+    }
+
+    /**
+     * Rejects a method-level dbUnit annotation on a lifecycle method of the test class or of a
+     * class enclosing it, before JUnit Jupiter runs the {@code @BeforeAll} methods. An annotated
+     * {@code @BeforeAll} method usually fails for lack of the data its annotation was meant to
+     * load, and the failure would hide the message that names the annotation. JUnit calls this
+     * for an extension registered on the test class, and not for one registered on a test method
+     * only, which {@link #beforeEach(ExtensionContext)} covers.
+     *
+     * @param context The extension context for the test class.
+     * @throws IllegalStateException If a lifecycle method carries a method-level dbUnit
+     *             annotation.
+     */
+    @Override
+    public void beforeAll(final ExtensionContext context)
+    {
+        requireNoDbUnitAnnotationOnLifecycleMethods(context);
+    }
+
+    /**
+     * Rejects a method-level dbUnit annotation on a lifecycle method of the test class or of a
+     * class enclosing it, before JUnit Jupiter runs the {@code @BeforeEach} methods. A
+     * {@code @DbUnitPrep} is put on a {@code @BeforeEach} method because that method needs the
+     * data, so without the data the method fails, JUnit then skips
+     * {@link #beforeTestExecution(ExtensionContext)}, and the test would fail with the method's
+     * own error and never with the message that names the annotation.
+     *
+     * @param context The extension context for the test method.
+     * @throws IllegalStateException If a lifecycle method carries a method-level dbUnit
+     *             annotation.
+     */
+    @Override
+    public void beforeEach(final ExtensionContext context)
+    {
+        requireNoDbUnitAnnotationOnLifecycleMethods(context);
     }
 
     /**
@@ -376,6 +420,7 @@ public class DbUnitExtension implements BeforeTestExecutionCallback,
         AnnotatedTestExecutor executor = store.get(EXECUTOR_KEY, AnnotatedTestExecutor.class);
         if (executor == null)
         {
+            requireNoDbUnitAnnotationOnLifecycleMethods(context);
             final AnnotatedTestConfiguration configuration = resolveConfiguration(context);
             final TestInstanceTesterResolver.Resolution resolution =
                     testerResolver.resolve(context, configuration);
@@ -384,6 +429,19 @@ public class DbUnitExtension implements BeforeTestExecutionCallback,
             store.put(EXECUTOR_KEY, executor);
         }
         return executor;
+    }
+
+    /**
+     * Rejects a method-level dbUnit annotation on a lifecycle method of the test class or of a
+     * class enclosing it, as nothing reads it there. The check keeps its result for a class, so
+     * the repeated calls of a test are free.
+     */
+    private void requireNoDbUnitAnnotationOnLifecycleMethods(final ExtensionContext context)
+    {
+        for (final Class<?> classInScope : testClassesInScope(context))
+        {
+            lifecycleMethodCheck.requireNoneOn(classInScope);
+        }
     }
 
     // ---- annotation resolution ----

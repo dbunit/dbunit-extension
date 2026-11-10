@@ -47,6 +47,7 @@ import org.dbunit.IOperationListener;
 import org.dbunit.VerifyTableDefinition;
 import org.dbunit.annotation.DbUnitConfig;
 import org.dbunit.annotation.DbUnitExpected;
+import org.dbunit.annotation.DbUnitPrep;
 import org.dbunit.annotation.DbUnitTearDownOperation;
 import org.dbunit.annotation.DbUnitTestCase;
 import org.dbunit.annotation.DbUnitTester;
@@ -63,6 +64,8 @@ import org.dbunit.operation.DbUnitOperation;
 import org.dbunit.util.fileloader.CachingFileExtensionDataFileLoader;
 import org.dbunit.util.fileloader.DataFileLoader;
 import org.dbunit.util.fileloader.FlatXmlDataFileLoader;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -70,6 +73,7 @@ import org.junit.jupiter.api.extension.Extension;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.slf4j.LoggerFactory;
 import org.springframework.test.context.support.DirtiesContextTestExecutionListener;
+import org.springframework.test.context.transaction.BeforeTransaction;
 import org.springframework.test.context.transaction.TransactionalTestExecutionListener;
 
 import ch.qos.logback.classic.Level;
@@ -429,6 +433,154 @@ class DbUnitTestExecutionListenerTest
 
         assertThat(RecordingTestCase.tearDownOperations)
                 .as("The method-level teardown operation replaces the class-level one.")
+                .containsExactly(DatabaseOperation.TRUNCATE_TABLE);
+    }
+
+    @Test
+    void testBeforeTestMethod_expectedOnAnAfterEachMethod_throwsNamingTheMethod()
+            throws Exception
+    {
+        final FakeTestContext context = new FakeTestContext(HasExpectedOnAfterEach.class)
+                .beginMethod(new HasExpectedOnAfterEach(mock(IDatabaseTester.class)),
+                        "aTestMethod");
+
+        assertThatThrownBy(() -> listener.beforeTestMethod(context))
+                .as("An annotation nothing reads must be rejected, not left to let a failing test"
+                        + " pass.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("@DbUnitExpected")
+                .hasMessageContaining(HasExpectedOnAfterEach.class.getName() + "#verifyAfter()")
+                .hasMessageContaining("test method");
+    }
+
+    @Test
+    void testBeforeTestMethod_prepOnABeforeEachMethodOfASuperclass_throwsNamingTheMethod()
+            throws Exception
+    {
+        final FakeTestContext context = new FakeTestContext(ExtendsPrepOnBeforeEach.class)
+                .beginMethod(new ExtendsPrepOnBeforeEach(mock(IDatabaseTester.class)),
+                        "aTestMethod");
+
+        assertThatThrownBy(() -> listener.beforeTestMethod(context))
+                .as("A lifecycle method the class inherits runs for its tests too.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("@DbUnitPrep")
+                .hasMessageContaining(PrepOnBeforeEach.class.getName() + "#loadBefore()");
+    }
+
+    @Test
+    void testBeforeTestMethod_prepOnABeforeEachMethodOfAnEnclosingClass_throwsNamingTheMethod()
+            throws Exception
+    {
+        final PrepOnBeforeEach enclosing = new PrepOnBeforeEach(mock(IDatabaseTester.class));
+        final PrepOnBeforeEach.Nested nested = enclosing.new Nested();
+        final FakeTestContext context = new FakeTestContext(PrepOnBeforeEach.Nested.class)
+                .beginMethod(nested, "aTestMethod");
+
+        assertThatThrownBy(() -> listener.beforeTestMethod(context))
+                .as("A @Nested test runs the lifecycle methods of its enclosing classes.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining(PrepOnBeforeEach.class.getName() + "#loadBefore()");
+    }
+
+    @Test
+    void testBeforeTestMethod_expectedOnABeforeEachMethodOfASuperclassOverriddenByABeforeEach_throwsNamingTheSuperclassMethod()
+            throws Exception
+    {
+        final FakeTestContext context = new FakeTestContext(OverridesWithBeforeEach.class)
+                .beginMethod(new OverridesWithBeforeEach(), "aTestMethod");
+
+        assertThatThrownBy(() -> listener.beforeTestMethod(context))
+                .as("The annotation on the overridden method is as unread as one on a method"
+                        + " JUnit runs, and the message names the method that carries it, not"
+                        + " the overriding method.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("@DbUnitExpected")
+                .hasMessageContaining(SuperWithExpectedOnBeforeEach.class.getName() + "#verify()");
+    }
+
+    @Test
+    void testBeforeTestMethod_expectedOnABeforeEachMethodOfASuperclassOverriddenByAPlainMethod_throwsNamingTheSuperclassMethod()
+            throws Exception
+    {
+        final FakeTestContext context = new FakeTestContext(OverridesWithoutAnnotation.class)
+                .beginMethod(new OverridesWithoutAnnotation(), "aTestMethod");
+
+        assertThatThrownBy(() -> listener.beforeTestMethod(context))
+                .as("JUnit runs no verify() at all then, which does not make the annotation"
+                        + " read, and the message names the method that carries it.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("@DbUnitExpected")
+                .hasMessageContaining(SuperWithExpectedOnBeforeEach.class.getName() + "#verify()");
+    }
+
+    @Test
+    void testBeforeTestMethod_prepOnABeforeTransactionMethod_throwsNamingTheMethod()
+            throws Exception
+    {
+        final FakeTestContext context = new FakeTestContext(PrepOnBeforeTransaction.class)
+                .beginMethod(new PrepOnBeforeTransaction(), "aTestMethod");
+
+        assertThatThrownBy(() -> listener.beforeTestMethod(context))
+                .as("Spring runs a @BeforeTransaction method around the test, and nothing reads"
+                        + " a dbUnit annotation on it.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("@DbUnitPrep")
+                .hasMessageContaining(PrepOnBeforeTransaction.class.getName()
+                        + "#loadBeforeTransaction()");
+    }
+
+    @Test
+    void testBeforeTestClass_prepOnABeforeAllMethod_throwsNamingTheMethod()
+    {
+        final FakeTestContext context = new FakeTestContext(PrepOnBeforeAll.class);
+
+        assertThatThrownBy(() -> listener.beforeTestClass(context))
+                .as("The check must run before the @BeforeAll methods, which an annotation"
+                        + " nothing reads leaves without their data.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("@DbUnitPrep")
+                .hasMessageContaining(PrepOnBeforeAll.class.getName() + "#loadBefore()");
+    }
+
+    @Test
+    void testBeforeTestClass_noDbUnitAnnotationOnALifecycleMethod_doesNothing()
+    {
+        final FakeTestContext context = new FakeTestContext(HasPlainBeforeAll.class);
+
+        assertThatCode(() -> listener.beforeTestClass(context))
+                .as("A lifecycle method without a dbUnit annotation is fine.")
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void testBeforeTestClass_olderSpring_doesNothing()
+    {
+        final DbUnitTestExecutionListener onOlderSpring =
+                new DbUnitTestExecutionListener(() -> false, () -> false);
+        final FakeTestContext context = new FakeTestContext(PrepOnBeforeAll.class);
+
+        assertThatCode(() -> onOlderSpring.beforeTestClass(context))
+                .as("On a Spring Framework older than the listener needs, beforeTestMethod() fails"
+                        + " a test that uses dbUnit annotations with the reason, and the check"
+                        + " does not call what that Spring lacks.")
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void testBeforeTestMethod_tearDownOnTheTestMethodAndAPlainAfterEach_runsTheLifecycle()
+            throws Exception
+    {
+        final FakeTestContext context = new FakeTestContext(HasTearDownAndPlainAfterEach.class)
+                .beginMethod(new HasTearDownAndPlainAfterEach(mock(IDatabaseTester.class)),
+                        "aTestMethod");
+
+        listener.beforeTestMethod(context);
+        listener.afterTestMethod(context);
+
+        assertThat(RecordingTestCase.tearDownOperations)
+                .as("The control: the annotation on the test method, with a plain lifecycle"
+                        + " method beside it, runs as before.")
                 .containsExactly(DatabaseOperation.TRUNCATE_TABLE);
     }
 
@@ -1707,6 +1859,151 @@ class DbUnitTestExecutionListenerTest
         }
 
         @DbUnitExpected("expected.xml")
+        void aTestMethod()
+        {
+        }
+    }
+
+    @DbUnitConfig(prepAndExpectedTestCase = RecordingTestCase.class)
+    static class HasExpectedOnAfterEach
+    {
+        @DbUnitTester
+        IDatabaseTester databaseTester;
+
+        HasExpectedOnAfterEach(final IDatabaseTester databaseTester)
+        {
+            this.databaseTester = databaseTester;
+        }
+
+        @AfterEach
+        @DbUnitExpected("expected.xml")
+        void verifyAfter()
+        {
+        }
+
+        void aTestMethod()
+        {
+        }
+    }
+
+    static class PrepOnBeforeAll
+    {
+        @BeforeAll
+        @DbUnitPrep("prep.xml")
+        static void loadBefore()
+        {
+        }
+    }
+
+    static class HasPlainBeforeAll
+    {
+        @BeforeAll
+        static void setUpClass()
+        {
+        }
+    }
+
+    static class SuperWithExpectedOnBeforeEach
+    {
+        @BeforeEach
+        @DbUnitExpected("expected.xml")
+        void verify()
+        {
+        }
+    }
+
+    static class OverridesWithBeforeEach extends SuperWithExpectedOnBeforeEach
+    {
+        @Override
+        @BeforeEach
+        void verify()
+        {
+        }
+
+        void aTestMethod()
+        {
+        }
+    }
+
+    static class OverridesWithoutAnnotation extends SuperWithExpectedOnBeforeEach
+    {
+        @Override
+        void verify()
+        {
+        }
+
+        void aTestMethod()
+        {
+        }
+    }
+
+    static class PrepOnBeforeTransaction
+    {
+        @BeforeTransaction
+        @DbUnitPrep("prep.xml")
+        void loadBeforeTransaction()
+        {
+        }
+
+        void aTestMethod()
+        {
+        }
+    }
+
+    @DbUnitConfig(prepAndExpectedTestCase = RecordingTestCase.class)
+    static class HasTearDownAndPlainAfterEach
+    {
+        @DbUnitTester
+        IDatabaseTester databaseTester;
+
+        HasTearDownAndPlainAfterEach(final IDatabaseTester databaseTester)
+        {
+            this.databaseTester = databaseTester;
+        }
+
+        @AfterEach
+        void plainAfter()
+        {
+        }
+
+        @DbUnitTearDownOperation(DbUnitOperation.TRUNCATE_TABLE)
+        void aTestMethod()
+        {
+        }
+    }
+
+    @DbUnitConfig(prepAndExpectedTestCase = RecordingTestCase.class)
+    static class PrepOnBeforeEach
+    {
+        @DbUnitTester
+        IDatabaseTester databaseTester;
+
+        PrepOnBeforeEach(final IDatabaseTester databaseTester)
+        {
+            this.databaseTester = databaseTester;
+        }
+
+        @BeforeEach
+        @DbUnitPrep("prep.xml")
+        void loadBefore()
+        {
+        }
+
+        class Nested
+        {
+            void aTestMethod()
+            {
+            }
+        }
+    }
+
+    static class ExtendsPrepOnBeforeEach extends PrepOnBeforeEach
+    {
+        ExtendsPrepOnBeforeEach(final IDatabaseTester databaseTester)
+        {
+            super(databaseTester);
+        }
+
         void aTestMethod()
         {
         }

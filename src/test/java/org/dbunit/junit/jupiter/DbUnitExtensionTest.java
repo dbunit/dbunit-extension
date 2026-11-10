@@ -42,12 +42,17 @@ import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.dbunit.IDatabaseTester;
 import org.dbunit.PrepAndExpectedTestCase;
 import org.dbunit.annotation.DbUnitConfig;
+import org.dbunit.annotation.DbUnitExpected;
+import org.dbunit.annotation.DbUnitPrep;
 import org.dbunit.annotation.DbUnitTester;
 import org.dbunit.annotation.runtime.AnnotatedTestExecutor;
 import org.dbunit.annotation.runtime.DataFileLoaderInstances;
 import org.dbunit.database.DatabaseConfig;
 import org.dbunit.database.IDatabaseConnection;
 import org.dbunit.operation.DatabaseOperation;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -98,6 +103,115 @@ class DbUnitExtensionTest
                 .as("No resolvable tester must be rejected with a clear message.")
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("No IDatabaseTester field found");
+    }
+
+    // ---- beforeTestExecution: a dbUnit annotation on a lifecycle method ----
+
+    @Test
+    void testBeforeTestExecution_expectedOnAnAfterEachMethod_throwsNamingTheMethod()
+    {
+        givenTestClassOnly(HasExpectedOnAfterEach.class);
+
+        assertThatThrownBy(callBeforeTestExecution())
+                .as("An annotation nothing reads must be rejected, not left to let a failing test"
+                        + " pass.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("@DbUnitExpected")
+                .hasMessageContaining(HasExpectedOnAfterEach.class.getName() + "#verifyAfter()")
+                .hasMessageContaining("test method");
+    }
+
+    @Test
+    void testBeforeTestExecution_prepOnABeforeEachMethodOfASuperclass_throwsNamingTheMethod()
+    {
+        givenTestClassOnly(ExtendsPrepOnBeforeEach.class);
+
+        assertThatThrownBy(callBeforeTestExecution())
+                .as("A lifecycle method the class inherits runs for its tests too.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("@DbUnitPrep")
+                .hasMessageContaining(PrepOnBeforeEach.class.getName() + "#loadBefore()");
+    }
+
+    @Test
+    void testBeforeTestExecution_prepOnABeforeEachMethodOfAnEnclosingClass_throwsNamingTheMethod()
+    {
+        final ExtensionContext parent = mock(ExtensionContext.class);
+        doReturn(Optional.of(PrepOnBeforeEach.class)).when(parent).getTestClass();
+        final ExtensionContext.Store store = mock(ExtensionContext.Store.class);
+        when(context.getStore(any(ExtensionContext.Namespace.class))).thenReturn(store);
+        doReturn(NestedInPrepOnBeforeEach.class).when(context).getRequiredTestClass();
+        when(context.getParent()).thenReturn(Optional.of(parent));
+
+        assertThatThrownBy(callBeforeTestExecution())
+                .as("A @Nested test runs the lifecycle methods of its enclosing classes.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining(PrepOnBeforeEach.class.getName() + "#loadBefore()");
+    }
+
+    // ---- beforeEach and beforeAll: a dbUnit annotation on a lifecycle method ----
+    // They run before the user's @BeforeEach and @BeforeAll methods, which an annotated one makes
+    // fail for lack of its data. DbUnitExtensionLifecycleMethodCheckTest proves the order.
+
+    @Test
+    void testBeforeEach_prepOnABeforeEachMethod_throwsNamingTheMethod()
+    {
+        givenTestClass(PrepOnBeforeEach.class);
+
+        assertThatThrownBy(() -> extension.beforeEach(context))
+                .as("The check must run before the @BeforeEach methods, which an annotation"
+                        + " nothing reads leaves without their data.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("@DbUnitPrep")
+                .hasMessageContaining(PrepOnBeforeEach.class.getName() + "#loadBefore()");
+    }
+
+    @Test
+    void testBeforeEach_noDbUnitAnnotationOnALifecycleMethod_doesNotThrow()
+    {
+        givenTestClass(HasPlainBeforeEach.class);
+
+        assertThatCode(() -> extension.beforeEach(context))
+                .as("A lifecycle method without a dbUnit annotation is fine.")
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void testBeforeAll_prepOnABeforeAllMethod_throwsNamingTheMethod()
+    {
+        givenTestClass(PrepOnBeforeAll.class);
+
+        assertThatThrownBy(() -> extension.beforeAll(context))
+                .as("The check must run before the @BeforeAll methods.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("@DbUnitPrep")
+                .hasMessageContaining(PrepOnBeforeAll.class.getName() + "#loadBefore()");
+    }
+
+    @Test
+    void testBeforeEach_superclassBeforeEachOverriddenByABeforeEach_throwsNamingTheSuperclassMethod()
+    {
+        givenTestClass(OverridesWithBeforeEach.class);
+
+        assertThatThrownBy(() -> extension.beforeEach(context))
+                .as("The annotation on the overridden method is as unread as one on a method"
+                        + " JUnit runs, and the message names the method that carries it.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("@DbUnitExpected")
+                .hasMessageContaining(SuperWithExpectedOnBeforeEach.class.getName() + "#verify()");
+    }
+
+    @Test
+    void testBeforeEach_superclassBeforeEachOverriddenByAPlainMethod_throwsNamingTheSuperclassMethod()
+    {
+        givenTestClass(OverridesWithoutAnnotation.class);
+
+        assertThatThrownBy(() -> extension.beforeEach(context))
+                .as("JUnit runs no verify() at all then, which is no reason to let the unread"
+                        + " annotation pass.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("@DbUnitExpected")
+                .hasMessageContaining(SuperWithExpectedOnBeforeEach.class.getName() + "#verify()");
     }
 
     // ---- afterTestExecution: exception propagation ----
@@ -397,6 +511,18 @@ class DbUnitExtensionTest
         lenient().when(context.getTestInstances()).thenReturn(Optional.of(instances));
     }
 
+    private void givenTestClassOnly(final Class<?> testClass)
+    {
+        final ExtensionContext.Store store = mock(ExtensionContext.Store.class);
+        when(context.getStore(any(ExtensionContext.Namespace.class))).thenReturn(store);
+        doReturn(testClass).when(context).getRequiredTestClass();
+    }
+
+    private void givenTestClass(final Class<?> testClass)
+    {
+        doReturn(testClass).when(context).getRequiredTestClass();
+    }
+
     private ThrowingCallable callBeforeTestExecution()
     {
         return () -> extension.beforeTestExecution(context);
@@ -426,6 +552,85 @@ class DbUnitExtensionTest
         {
             this.marked = marked;
             this.alsoPresentButUnmarkedIsIgnoredBecauseMarkedWins = unmarked;
+        }
+    }
+
+    static class HasExpectedOnAfterEach
+    {
+        @AfterEach
+        @DbUnitExpected("expected.xml")
+        void verifyAfter()
+        {
+        }
+
+        void aTestMethod()
+        {
+        }
+    }
+
+    static class PrepOnBeforeEach
+    {
+        @BeforeEach
+        @DbUnitPrep("prep.xml")
+        void loadBefore()
+        {
+        }
+    }
+
+    static class PrepOnBeforeAll
+    {
+        @BeforeAll
+        @DbUnitPrep("prep.xml")
+        static void loadBefore()
+        {
+        }
+    }
+
+    static class HasPlainBeforeEach
+    {
+        @BeforeEach
+        void setUp()
+        {
+        }
+    }
+
+    static class SuperWithExpectedOnBeforeEach
+    {
+        @BeforeEach
+        @DbUnitExpected("expected.xml")
+        void verify()
+        {
+        }
+    }
+
+    static class OverridesWithBeforeEach extends SuperWithExpectedOnBeforeEach
+    {
+        @Override
+        @BeforeEach
+        void verify()
+        {
+        }
+    }
+
+    static class OverridesWithoutAnnotation extends SuperWithExpectedOnBeforeEach
+    {
+        @Override
+        void verify()
+        {
+        }
+    }
+
+    static class ExtendsPrepOnBeforeEach extends PrepOnBeforeEach
+    {
+        void aTestMethod()
+        {
+        }
+    }
+
+    class NestedInPrepOnBeforeEach
+    {
+        void aTestMethod()
+        {
         }
     }
 
