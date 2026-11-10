@@ -44,6 +44,16 @@ import org.dbunit.database.DatabaseConfig;
  * {@link org.dbunit.spring.DbUnitTestExecutionListener}. A class that registers neither runs its
  * tests as if the annotation were absent, with no prep, verification or teardown, and they pass.
  *
+ * <p>Place it on the test method or on the test class. A method-level annotation counts on the
+ * test method only: on a {@code @BeforeEach}, {@code @AfterEach}, {@code @BeforeAll} or
+ * {@code @AfterAll} method, or on a {@code @BeforeParameterizedClassInvocation} or
+ * {@code @AfterParameterizedClassInvocation} method of a {@code @ParameterizedClass}, nothing
+ * reads it, so the binding fails the test, or the class when the extension or listener is
+ * registered on it, with an {@link IllegalStateException} that names the method. That holds for a
+ * lifecycle method that a subclass overrides, and under Spring for a {@code @BeforeTransaction}
+ * or {@code @AfterTransaction} method. On any other method, such as a helper, nothing reads it
+ * and nothing says so.
+ *
  * <p>{@link #enabled()} defaults to {@code true} so that writing the bare annotation means
  * "on". It exists for the override direction: a class-level check with one method that
  * legitimately leaves rows behind - a test asserting that an audit trail persists, say -

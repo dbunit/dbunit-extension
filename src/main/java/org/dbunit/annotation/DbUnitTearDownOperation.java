@@ -38,6 +38,16 @@ import org.dbunit.operation.DbUnitOperation;
  * {@link org.dbunit.spring.DbUnitTestExecutionListener}. A class that registers neither runs its
  * tests as if the annotation were absent, with no prep, verification or teardown, and they pass.
  *
+ * <p>Place it on the test method or on the test class. A method-level annotation counts on the
+ * test method only: on a {@code @BeforeEach}, {@code @AfterEach}, {@code @BeforeAll} or
+ * {@code @AfterAll} method, or on a {@code @BeforeParameterizedClassInvocation} or
+ * {@code @AfterParameterizedClassInvocation} method of a {@code @ParameterizedClass}, nothing
+ * reads it, so the binding fails the test, or the class when the extension or listener is
+ * registered on it, with an {@link IllegalStateException} that names the method. That holds for a
+ * lifecycle method that a subclass overrides, and under Spring for a {@code @BeforeTransaction}
+ * or {@code @AfterTransaction} method. On any other method, such as a helper, nothing reads it
+ * and nothing says so.
+ *
  * <p>A method-level annotation overrides a class-level annotation; the class annotation is
  * inherited by subclasses. Unlike {@link DbUnitSetUpOperation}, teardown has no dataset
  * counterpart: the dataset already prepared - the union of the prep and expected data, when

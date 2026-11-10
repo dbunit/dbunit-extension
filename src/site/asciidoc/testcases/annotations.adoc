@@ -44,6 +44,28 @@ carries annotations that nothing reads: its tests run with no prep, no verificat
 teardown, and they pass, with nothing logged. When a test that should fail passes, check first
 that its class registers `DbUnitExtension`.
 
+*A method-level annotation counts on the test method only.* `@DbUnitPrep`,
+`@DbUnitSetUpOperation`, `@DbUnitExpected`, `@DbUnitTearDownOperation` and
+`@DbUnitRowCountCheck` compile on any method, but both bindings read them on the test method and
+on the test class and the classes around it, nowhere else. On a `@BeforeEach`, `@AfterEach`,
+`@BeforeAll` or `@AfterAll` method, on a `@BeforeParameterizedClassInvocation` or
+`@AfterParameterizedClassInvocation` method of a JUnit `@ParameterizedClass`, or under Spring a
+`@BeforeTransaction` or `@AfterTransaction` method, in the test class, a superclass, an interface default method or an
+enclosing class, the binding rejects it with an `IllegalStateException` that names the method and
+the annotation, because the alternative is silent: a `@DbUnitPrep` there loads no data, and a
+`@DbUnitExpected` verifies nothing, so a test that should fail passes. Move the annotation to
+the test method, or to the class to apply it to every test. On any other method, such as a
+helper, nothing reads it and nothing says so.
+
+The binding rejects it before JUnit runs the `@BeforeAll` and `@BeforeEach` methods, because a
+method that carries the annotation usually needs the data it was meant to load and fails
+without it, and that failure would hide the message. Registered on the test class, or under
+Spring, `DbUnitExtension` and the listener fail the class before its first test, so none of its
+tests runs; registered on a test method or a field, `DbUnitExtension` fails each test it serves.
+A method counts where it is declared: an annotation on a superclass lifecycle method that a
+subclass overrides is rejected too, whether or not the override is a lifecycle method itself,
+and the message names the method that carries the annotation.
+
 These annotations target the *fixed, per-method* case — one test method, one
 known dataset, one known expectation. See
 <<applicability,When Not to Use These Annotations>> below for the cases they

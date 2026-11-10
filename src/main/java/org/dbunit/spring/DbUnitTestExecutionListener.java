@@ -39,6 +39,7 @@ import org.dbunit.annotation.runtime.AnnotatedTestExecutor;
 import org.dbunit.annotation.runtime.AnnotatedTestOptIn;
 import org.dbunit.annotation.runtime.AnnotationLookup;
 import org.dbunit.annotation.runtime.DataFileLoaderInstances;
+import org.dbunit.annotation.runtime.LifecycleMethodAnnotationCheck;
 import org.dbunit.annotation.runtime.TestInstanceTesterResolver;
 import org.dbunit.annotation.runtime.TesterFields;
 import org.slf4j.Logger;
@@ -189,6 +190,9 @@ public class DbUnitTestExecutionListener extends AbstractTestExecutionListener
     private static final String NEWEST_SPRING_TYPE =
             "org.springframework.core.annotation.MergedAnnotations$Search";
 
+    private final LifecycleMethodAnnotationCheck lifecycleMethodCheck =
+            new LifecycleMethodAnnotationCheck(SpringLifecycleMethods::of,
+                    SpringLifecycleMethods::declares);
     private final TesterFields testerFields = new TesterFields();
     private final AnnotatedTestOptIn optIn = new AnnotatedTestOptIn(testerFields);
     private final SpringTesterResolver testerResolver = new SpringTesterResolver(testerFields,
@@ -226,6 +230,30 @@ public class DbUnitTestExecutionListener extends AbstractTestExecutionListener
     {
         this.testTransactionRollsBack = testTransactionRollsBack;
         this.springIsRecentEnough = springIsRecentEnough;
+    }
+
+    /**
+     * Rejects a method-level dbUnit annotation on a lifecycle method of the test class or of a
+     * class enclosing it, in Spring's before-test-class phase, which JUnit Jupiter's
+     * {@code SpringExtension} runs ahead of the {@code @BeforeAll} methods. An annotated
+     * {@code @BeforeAll} method usually fails for lack of the data its annotation was meant to
+     * load, and the failure would hide the message that names the annotation.
+     * {@link #beforeTestMethod(TestContext)} rejects the same mistake ahead of the
+     * {@code @BeforeEach} methods. Does nothing on a Spring Framework older than the listener
+     * supports, where {@link #beforeTestMethod(TestContext)} fails the test with the reason.
+     *
+     * @param testContext The test context.
+     * @throws IllegalStateException If a lifecycle method carries a method-level dbUnit
+     *             annotation.
+     */
+    @Override
+    public void beforeTestClass(final TestContext testContext)
+    {
+        if (!springIsRecentEnough.getAsBoolean())
+        {
+            return;
+        }
+        requireNoDbUnitAnnotationOnLifecycleMethods(testContext.getTestClass());
     }
 
     /**
@@ -273,6 +301,7 @@ public class DbUnitTestExecutionListener extends AbstractTestExecutionListener
         {
             return;
         }
+        requireNoDbUnitAnnotationOnLifecycleMethods(testContext.getTestClass());
         final AnnotationLookup lookup = new SpringAnnotationLookup(testContext);
         if (!isOptedIn(testContext, lookup))
         {
@@ -292,6 +321,29 @@ public class DbUnitTestExecutionListener extends AbstractTestExecutionListener
                 new AnnotatedTestExecutor(configuration, resolution, true);
         testContext.setAttribute(EXECUTOR_ATTRIBUTE, executor);
         executor.beforeTest();
+    }
+
+    /**
+     * Rejects a method-level dbUnit annotation on a lifecycle method of the test class or of a
+     * class enclosing it, as nothing reads it there. A {@code @Nested} class is an inner class,
+     * and JUnit runs the lifecycle methods of the classes enclosing it too.
+     */
+    private void requireNoDbUnitAnnotationOnLifecycleMethods(final Class<?> testClass)
+    {
+        Class<?> classInScope = testClass;
+        while (classInScope != null)
+        {
+            lifecycleMethodCheck.requireNoneOn(classInScope);
+            final boolean isInnerClass = classInScope.isMemberClass()
+                    && !Modifier.isStatic(classInScope.getModifiers());
+            if (isInnerClass)
+            {
+                classInScope = classInScope.getEnclosingClass();
+            } else
+            {
+                classInScope = null;
+            }
+        }
     }
 
     /**
