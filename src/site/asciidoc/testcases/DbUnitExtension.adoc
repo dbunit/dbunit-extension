@@ -88,6 +88,15 @@ without `@DbUnitTest` or `@ExtendWith(DbUnitExtension.class)`, and without Sprin
 link:DbUnitTestExecutionListener.html[DbUnitTestExecutionListener], runs its tests with no prep,
 verification or teardown, and they pass, with nothing logged.
 
+The method-level annotations count on the test method only. The extension fails a test whose
+class, superclass, interface or enclosing class has one on a `@BeforeEach`, `@AfterEach`,
+`@BeforeAll`, `@AfterAll`, `@BeforeParameterizedClassInvocation` or
+`@AfterParameterizedClassInvocation` method, with an `IllegalStateException` that names the
+method, as nothing would read it there, also when a subclass overrides the method; see
+link:annotations.html[DbUnit Annotations]. The extension fails before the user's `@BeforeAll` and
+`@BeforeEach` methods run: it fails a class it is registered on before its first test, and each
+test it serves when it is registered on a test method or a field.
+
 A `@TestFactory` method counts as one test to JUnit's callbacks, so the extension sets it up before
 its first dynamic test and verifies it after its last: its dynamic tests share one dataset, and a
 failed dynamic test does not skip the verification, which can fail the factory too. Use a `@ParameterizedTest`
