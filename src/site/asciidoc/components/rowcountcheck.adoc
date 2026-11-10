@@ -384,9 +384,9 @@ closing it performs (see link:../connections.html[Connections]).
 check as-is for every test, so the annotation's `enabled` and `exclude` have no effect on it;
 dbUnit logs a warning once when it finds both. Call `setRowCountCheck(null)` to let the
 annotation decide again.
-* *Setting the feature on the wrong connection is silently ignored.* `JdbcDatabaseTester`
-and `DataSourceDatabaseTester` open a new connection - and therefore a fresh, default
-`DatabaseConfig` - on every `getConnection()` call unless given a
+* *Setting the feature on the wrong connection is silently ignored.* A `JdbcDatabaseTester`,
+and a `DataSourceDatabaseTester` built without a `DatabaseConfig`, open a new connection - and
+therefore a fresh, default `DatabaseConfig` - on every `getConnection()` call unless given a
 `CachingConnectionProvider`. Calling `connection.getConfig().setFeature(...)` (as in
 <<enabling,Enabling It>>) on a connection fetched some other way than through the test
 case's own lifecycle configures a `DatabaseConfig` instance the check never sees. With
@@ -394,7 +394,10 @@ link:../testcases/PrepAndExpectedTestCase.html[PrepAndExpectedTestCase], set the
 in a `setUpDatabaseConfig(DatabaseConfig)` override instead (calling
 `super.setUpDatabaseConfig(config)` too) - that hook runs on the exact connection the
 test case's whole lifecycle reuses, regardless of whether the underlying tester's
-`getConnection()` is idempotent.
+`getConnection()` is idempotent. A `DataSourceDatabaseTester` built with a `DatabaseConfig`, its
+four-argument constructor, applies that config's property and feature values to every
+connection it creates, so set `FEATURE_ROW_COUNT_CHECK` on the config it is given and no
+override is needed.
 * *A tester built for each test cannot be verified with its default listener on a plain
 extension class.* A bare `@ExtendWith(DbUnitExtension.class)` class verifies on the connection
 `onSetup()` retrieved or, when the tester's listener closed that one, on one the extension asks
