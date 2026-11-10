@@ -107,6 +107,107 @@ class RowCountCheckTest
     }
 
     @Test
+    void testCapture_counterThrowsSQLException_namesTheWaysOutAndKeepsTheCause() throws Exception
+    {
+        final RowCounter rowCounter = mock(RowCounter.class);
+        final SQLException driverFailure = new SQLException("Table not found", "42S02", 42103);
+        when(rowCounter.countRows(any(), any())).thenThrow(driverFailure);
+        final RowCountCheck check = new RowCountCheck(
+                new RowCountCheckConfiguration(enabledDatabaseConfig(rowCounter)));
+        final IDatabaseConnection connection = connectionWithTables("ACCOUNT");
+
+        assertThatThrownBy(() -> check.capture(connection))
+                .as("A table that cannot be counted must name the exclusion and escapePattern,"
+                        + " and keep the driver's error as the cause.")
+                .isInstanceOf(SQLException.class)
+                .hasMessageContaining("exclude it from the check")
+                .hasMessageContaining("escapePattern")
+                .hasCause(driverFailure)
+                .satisfies(e -> {
+                    final SQLException thrown = (SQLException) e;
+                    assertThat(thrown.getSQLState())
+                            .as("The SQL state of the cause is kept.").isEqualTo("42S02");
+                    assertThat(thrown.getErrorCode())
+                            .as("The error code of the cause is kept.").isEqualTo(42103);
+                });
+    }
+
+    @Test
+    void testCapture_counterFailureNamesTheTable_messageStatesTheTableName() throws Exception
+    {
+        final RowCounter rowCounter = mock(RowCounter.class);
+        final SQLException counterFailure = new SQLException(
+                "The rows of table ACCOUNT_AUDIT could not be counted.", "42S02", 42103);
+        when(rowCounter.countRows(any(), any())).thenThrow(counterFailure);
+        final RowCountCheck check = new RowCountCheck(
+                new RowCountCheckConfiguration(enabledDatabaseConfig(rowCounter)));
+        final IDatabaseConnection connection = connectionWithTables("ACCOUNT", "ACCOUNT_AUDIT");
+
+        assertThatThrownBy(() -> check.capture(connection))
+                .as("The failure the user sees must state the table the counter named, once"
+                        + " and without a doubled period.")
+                .isInstanceOf(SQLException.class)
+                .hasMessageStartingWith("The row count check could not count the rows of a table"
+                        + " it listed: The rows of table ACCOUNT_AUDIT could not be counted. If")
+                .hasMessageContaining("exclude it from the check");
+    }
+
+    @Test
+    void testVerify_counterFailureNamesTheTable_messageStatesTheTableName() throws Exception
+    {
+        final RowCounter rowCounter = mock(RowCounter.class);
+        final SQLException counterFailure = new SQLException(
+                "The rows of table ACCOUNT_AUDIT could not be counted");
+        when(rowCounter.countRows(any(), any())).thenThrow(counterFailure);
+        final RowCountCheck check = new RowCountCheck(
+                new RowCountCheckConfiguration(enabledDatabaseConfig(rowCounter)));
+        final IDatabaseConnection connection = connectionWithTables("ACCOUNT", "ACCOUNT_AUDIT");
+        final RowCountSnapshot baseline = new RowCountSnapshot(mapOf("ACCOUNT", 5));
+
+        assertThatThrownBy(() -> check.verify(baseline, connection))
+                .as("The verification counts the same way, so it states the same table.")
+                .isInstanceOf(SQLException.class)
+                .hasMessageContaining("ACCOUNT_AUDIT could not be counted. If the name");
+    }
+
+    @Test
+    void testCapture_counterFailureHasNoMessage_messageStillNamesTheWaysOut() throws Exception
+    {
+        final RowCounter rowCounter = mock(RowCounter.class);
+        when(rowCounter.countRows(any(), any())).thenThrow(new SQLException());
+        final RowCountCheck check = new RowCountCheck(
+                new RowCountCheckConfiguration(enabledDatabaseConfig(rowCounter)));
+        final IDatabaseConnection connection = connectionWithTables("ACCOUNT");
+
+        assertThatThrownBy(() -> check.capture(connection))
+                .as("A counter failure without a message must not put null in the message.")
+                .isInstanceOf(SQLException.class)
+                .hasMessageStartingWith("The row count check could not count the rows of a table"
+                        + " it listed. If the name")
+                .hasMessageNotContaining("null")
+                .hasMessageContaining("exclude it from the check");
+    }
+
+    @Test
+    void testVerify_counterThrowsSQLException_namesTheWaysOutAndKeepsTheCause() throws Exception
+    {
+        final RowCounter rowCounter = mock(RowCounter.class);
+        final SQLException driverFailure = new SQLException("Table not found", "42S02", 42103);
+        when(rowCounter.countRows(any(), any())).thenThrow(driverFailure);
+        final RowCountCheck check = new RowCountCheck(
+                new RowCountCheckConfiguration(enabledDatabaseConfig(rowCounter)));
+        final IDatabaseConnection connection = connectionWithTables("ACCOUNT");
+        final RowCountSnapshot baseline = new RowCountSnapshot(mapOf("ACCOUNT", 5));
+
+        assertThatThrownBy(() -> check.verify(baseline, connection))
+                .as("The verification counts the same way, so it names the same ways out.")
+                .isInstanceOf(SQLException.class)
+                .hasMessageContaining("exclude it from the check")
+                .hasMessageContaining("escapePattern")
+                .hasCause(driverFailure);
+    }
+
+    @Test
     void testVerify_countsChanged_throwsUnexpectedRowCountExceptionNamingEveryTable()
             throws Exception
     {
