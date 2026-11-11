@@ -84,6 +84,19 @@ dependency to add. The comparer parses a JSON value whatever the length of its s
 `JsonDataSet` reads one: it lifts the limit of 20,000,000 characters that Jackson 2.15 and later
 set on a string.
 
+Two values are equal when their documents are the same, as JSON defines it:
+
+* Whitespace between the tokens and the order of an object's members do not matter, while the
+order of an array's elements does.
+* A member with the value `null` differs from a missing member.
+* A number is compared exactly, with every digit it has: `1.5` and `1.50` are the same number,
+two fractions that differ only past what a `double` holds differ, and a whole number differs
+from a number with a fraction, so `1` and `1.0` are not equal.
+* A value must be one JSON document. Content after the first value, such as `{"a":1} xyz` or a
+second document, fails the comparison with a `DatabaseUnitException` that names the column and
+the row, as any other invalid value does. Jackson 2.9 and later can check for it; an older
+Jackson ignores the content.
+
 It is easy to add your own implementations of the
 link:../apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html[ValueComparer]
 interface,

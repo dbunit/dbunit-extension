@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.StreamReadConstraints;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -29,6 +30,20 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  * treats JSON object member order as insignificant while still treating JSON
  * array element order as significant, matching JSON's own equality
  * semantics. Special case: if both values are null, they match.
+ *
+ * <p>Two values are equal when their documents are the same, as JSON defines it:
+ * <ul>
+ * <li>Whitespace between the tokens and the order of the members of an object do not matter.
+ * <li>The order of the elements of an array does matter.
+ * <li>A member with the value {@code null} differs from a missing member.
+ * <li>The comparer compares a number exactly, with every digit it has, and a whole number differs
+ * from a number with a fraction: {@code 1} and {@code 1.0} differ, while {@code 1.5} and
+ * {@code 1.50} do not.
+ * <li>A value must hold one JSON document. Anything after the first value, such as
+ * {@code {"a":1} xyz} or a second document, makes the value invalid, and the comparison fails
+ * with a {@link DatabaseUnitException} that names the column and the row. Jackson 2.9 and later
+ * can check for it; an older Jackson cannot, and ignores the content.
+ * </ul>
  *
  * <p>The comparer parses a JSON value whatever the length of its strings, as
  * {@link org.dbunit.dataset.json.JsonDataSet} does: it lifts the limit of
@@ -74,13 +89,25 @@ public class IsActualEqualToExpectedJsonValueComparer
         }
 
         /**
-         * Creates the mapper that reads both values, which reads a string value of any length.
-         * It lifts the limit of 20,000,000 characters that Jackson 2.15 and later set on a
-         * string value to protect a service from hostile input, so that a large JSON column
-         * value compares as the dataset reader reads it. A Jackson older than 2.15 has no such
-         * limit and no class to set it.
+         * Creates the mapper that reads both values. It reads a string value of any length, as
+         * a number with a fraction as an exact decimal, so that digits past what a
+         * {@code double} holds still count, and it fails on content after the value.
          */
         private static ObjectMapper newMapper()
+        {
+            final ObjectMapper mapper = newMapperWithoutStringLengthLimit();
+            mapper.enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS);
+            rejectContentAfterTheValue(mapper);
+            return mapper;
+        }
+
+        /**
+         * Creates the mapper without the limit of 20,000,000 characters that Jackson 2.15 and
+         * later set on a string value to protect a service from hostile input, so that a large
+         * JSON column value compares as the dataset reader reads it. A Jackson older than 2.15
+         * has no such limit and no class to set it.
+         */
+        private static ObjectMapper newMapperWithoutStringLengthLimit()
         {
             try
             {
@@ -90,6 +117,22 @@ public class IsActualEqualToExpectedJsonValueComparer
             {
                 // Jackson before 2.15: there is no limit to lift.
                 return new ObjectMapper();
+            }
+        }
+
+        /**
+         * Makes the mapper fail on content after the first value, which Jackson ignores by
+         * default. A Jackson older than 2.9 has no such feature, and ignores it.
+         */
+        private static void rejectContentAfterTheValue(final ObjectMapper mapper)
+        {
+            try
+            {
+                mapper.enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
+            }
+            catch (final NoSuchFieldError e)
+            {
+                // Jackson before 2.9: the feature does not exist.
             }
         }
     }

@@ -203,6 +203,9 @@
       <action dev="jeffjensen" type="fix" issue="1045" system="github" due-to="jeffjensen">
           Fix JsonDataSet.write() writing a cell value that Jackson serializes as a bean, such as the driver's object for a column of a type that dbUnit does not recognize in a query table, an H2 INTERVAL for one, as a JSON object of its properties, which reads back as that JSON text and not as the value, and failing on a value with no properties. JsonWriter now writes such a value as its toString() text, as YamlWriter does. A document written before keeps such a value as a JSON object; write it again.
       </action>
+      <action dev="jeffjensen" type="fix" issue="1046" system="github" due-to="jeffjensen">
+          Fix IsActualEqualToExpectedJsonValueComparer comparing as equal an actual or expected value that has content after its first JSON value, such as {"a":1} xyz or a second document, to the value before it, and comparing a number with a fraction as a double, so values that differ past about 17 significant digits compared as equal. The comparer now fails with a DatabaseUnitException for such content, as for any invalid value, and compares a number exactly, and the Value Comparers page says what counts as equal.
+      </action>
     </release>
     <release version="3.5.2" date="Sep 7, 2026" description="DefaultPrepAndExpectedTestCase connection hygiene: replace a connection the pool or database dropped between tests, and warn when handed a non-autocommit connection">
       <action dev="jeffjensen" type="fix" issue="962" system="github" due-to="jeffjensen">
