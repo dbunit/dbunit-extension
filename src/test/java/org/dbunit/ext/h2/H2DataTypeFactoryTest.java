@@ -55,4 +55,24 @@ class H2DataTypeFactoryTest extends AbstractDataTypeFactoryTest
         assertThat(actual).as("type").isSameAs(expected);
     }
 
+    @Test
+    void testCreateJsonDataType_withOtherSqlType_returnsH2JsonType() throws Exception
+    {
+        final int sqlType = Types.OTHER;
+        final String sqlTypeName = "JSON";
+
+        final DataType actual = createFactory().createDataType(sqlType, sqlTypeName);
+
+        assertThat(actual).as("The H2 JSON type name maps to the H2 JSON data type.")
+                .isInstanceOf(H2JsonType.class);
+    }
+
+    @Test
+    void testCreateUuidDataType_withOtherSqlType_returnsNvarcharType() throws Exception
+    {
+        final DataType actual = createFactory().createDataType(Types.OTHER, "UUID");
+
+        assertThat(actual).as("type").isSameAs(DataType.NVARCHAR);
+    }
+
 }
