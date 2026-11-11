@@ -83,8 +83,9 @@ is set, so a table whose stored name needs quoting cannot be counted. Flyway's
 `flyway_schema_history` on H2 is one: Flyway creates it with a quoted lower-case name, the check
 asks for `FLYWAY_SCHEMA_HISTORY`, and the database says it does not find the table, for every
 test the check covers, although no dataset names it. The failure is an `SQLException` that
-gives the counter's own message, which names the table when the counter does, names the
-exclusion and `escapePattern` as the ways out, and has the counter's failure as its cause.
+gives the counter's own message, which names the table and the database's reason, as the
+shipped counter's does, names the exclusion and `escapePattern` as the ways out, and has the
+counter's failure as its cause, which has the database's error as its own cause.
 Exclude the table; that changes nothing else. Setting
 `escapePattern` to `"?"` on H2 counts it too, but quotes every table and column name dbUnit
 writes into SQL, so every dataset must then name its tables as the database stores them.
@@ -283,6 +284,11 @@ A `RowCounter` implementation's contract:
 * Counts must be *exact* — a vendor statistics view (e.g. PostgreSQL's
 `pg_stat_user_tables`) lags asynchronously and would produce false failures, however cheap
 it is to query.
+* A failure to count a table must be an `SQLException` whose message *names the table*, or the
+tables that one query counted, with the database's exception as its cause. `RowCountCheck` gives
+that message to the user, and a driver's own message may not name the table, as Oracle's
+`ORA-00942: table or view does not exist` for a missing table. `QueryPerTableRowCounter` does
+this, and the failure then reads "The rows of table ACCOUNT_AUDIT could not be counted: ...".
 
 The `connection` it is handed is the one the check was asked to count or, when that connection
 names no schema and its metadata handler reports a current one, a view of it that names that
@@ -343,6 +349,13 @@ public class UnionAllRowCounter implements RowCounter
             {
                 rowCounts.put(resultSet.getString("t"), resultSet.getInt("c"));
             }
+        }
+        catch (SQLException e)
+        {
+            // One query counts every table, so the failure can name only the tables, not one.
+            throw new SQLException("The rows of the tables " + tableNames
+                    + " could not be counted: " + e.getMessage(), e.getSQLState(),
+                    e.getErrorCode(), e);
         }
         return rowCounts;
     }
