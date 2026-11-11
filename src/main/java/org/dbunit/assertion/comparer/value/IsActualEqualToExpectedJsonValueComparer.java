@@ -1,6 +1,7 @@
 package org.dbunit.assertion.comparer.value;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
 import org.dbunit.DatabaseUnitException;
 import org.dbunit.dataset.ITable;
@@ -44,6 +45,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  * with a {@link DatabaseUnitException} that names the column and the row. Jackson 2.9 and later
  * can check for it; an older Jackson cannot, and ignores the content.
  * </ul>
+ *
+ * <p>A value that a driver hands over as bytes, such as an H2 {@code JSON} column read without
+ * {@link org.dbunit.ext.h2.H2DataTypeFactory}, is read as UTF-8 text, the encoding that RFC 8259
+ * gives JSON exchanged between systems.
  *
  * <p>The comparer parses a JSON value whatever the length of its strings, as
  * {@link org.dbunit.dataset.json.JsonDataSet} does: it lifts the limit of
@@ -210,10 +215,19 @@ public class IsActualEqualToExpectedJsonValueComparer
         return actualNode.equals(expectedNode);
     }
 
+    private static String textOf(final Object value) throws DatabaseUnitException
+    {
+        if (value instanceof byte[])
+        {
+            return new String((byte[]) value, StandardCharsets.UTF_8);
+        }
+        return DataType.asString(value);
+    }
+
     private JsonNode parseJson(final int rowNum, final String columnName,
             final String label, final Object value) throws DatabaseUnitException
     {
-        final String json = DataType.asString(value);
+        final String json = textOf(value);
 
         final JsonNode node;
         try

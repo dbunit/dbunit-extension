@@ -3,6 +3,7 @@ package org.dbunit.assertion.comparer.value;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
 import org.dbunit.DatabaseUnitException;
@@ -72,6 +73,47 @@ class IsActualEqualToExpectedJsonValueComparerTest
 
         assertThat(actual).as("Identical JSON text should have been equal.")
                 .isTrue();
+    }
+
+    @Test
+    void testIsExpected_ActualIsUtf8BytesOfTheSameDocument_True() throws DatabaseUnitException
+    {
+        final byte[] actualValue = "{\"a\":1,\"b\":2}".getBytes(StandardCharsets.UTF_8);
+
+        final boolean actual = compare("{\"a\":1,\"b\":2}", actualValue);
+
+        assertThat(actual).as("A byte[] value is the UTF-8 text of the document.").isTrue();
+    }
+
+    @Test
+    void testIsExpected_ActualIsUtf8BytesOfAReorderedDocument_True() throws DatabaseUnitException
+    {
+        final byte[] actualValue = "{\"a\":1,\"b\":2}".getBytes(StandardCharsets.UTF_8);
+
+        final boolean actual = compare("{\"b\": 2, \"a\": 1}", actualValue);
+
+        assertThat(actual).as("A byte[] value compares as the document, whatever its member order.")
+                .isTrue();
+    }
+
+    @Test
+    void testIsExpected_ActualIsUtf8BytesOfADifferentDocument_False() throws DatabaseUnitException
+    {
+        final byte[] actualValue = "{\"a\":1}".getBytes(StandardCharsets.UTF_8);
+
+        final boolean actual = compare("{\"a\":2}", actualValue);
+
+        assertThat(actual).as("A byte[] value of another document differs.").isFalse();
+    }
+
+    @Test
+    void testIsExpected_ActualIsUtf8BytesWithNonAsciiText_True() throws DatabaseUnitException
+    {
+        final byte[] actualValue = "{\"a\":\"\u00e4\u20ac\"}".getBytes(StandardCharsets.UTF_8);
+
+        final boolean actual = compare("{\"a\":\"\u00e4\u20ac\"}", actualValue);
+
+        assertThat(actual).as("The bytes are decoded as UTF-8.").isTrue();
     }
 
     @Test
