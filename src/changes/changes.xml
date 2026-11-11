@@ -206,6 +206,9 @@
       <action dev="jeffjensen" type="fix" issue="1046" system="github" due-to="jeffjensen">
           Fix IsActualEqualToExpectedJsonValueComparer comparing as equal an actual or expected value that has content after its first JSON value, such as {"a":1} xyz or a second document, to the value before it, and comparing a number with a fraction as a double, so values that differ past about 17 significant digits compared as equal. The comparer now fails with a DatabaseUnitException for such content, as for any invalid value, and compares a number exactly, and the Value Comparers page says what counts as equal.
       </action>
+      <action dev="jeffjensen" type="fix" issue="1047" system="github" due-to="jeffjensen">
+          Fix IsActualEqualToExpectedJsonValueComparer failing for a value that the database driver hands over as bytes, such as an H2 JSON column, whose Base64 text it parsed as JSON; it now reads the bytes as UTF-8 text.
+      </action>
     </release>
     <release version="3.5.2" date="Sep 7, 2026" description="DefaultPrepAndExpectedTestCase connection hygiene: replace a connection the pool or database dropped between tests, and warn when handed a non-autocommit connection">
       <action dev="jeffjensen" type="fix" issue="962" system="github" due-to="jeffjensen">
