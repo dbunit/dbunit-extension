@@ -171,6 +171,27 @@ class RowCountCheckTest
     }
 
     @Test
+    void testCapture_defaultCounterFailsOnATable_messageStatesTheTableNameAndTheDatabasesReason()
+            throws Exception
+    {
+        final IDatabaseConnection connection = connectionWithTables("ACCOUNT", "ACCOUNT_AUDIT");
+        when(connection.getRowCount("ACCOUNT")).thenReturn(5);
+        when(connection.getRowCount("ACCOUNT_AUDIT")).thenThrow(
+                new SQLException("ORA-00942: table or view does not exist", "42000", 942));
+        final RowCountCheck check =
+                new RowCountCheck(new RowCountCheckConfiguration(enabledDatabaseConfig()));
+
+        assertThatThrownBy(() -> check.capture(connection))
+                .as("The failure the user sees must state the table, as the database's message"
+                        + " may not, and the database's reason.")
+                .isInstanceOf(SQLException.class)
+                .hasMessageContaining("The rows of table ACCOUNT_AUDIT could not be counted:"
+                        + " ORA-00942: table or view does not exist. If the name of a table"
+                        + " needs quoting")
+                .hasMessageContaining("exclude it from the check");
+    }
+
+    @Test
     void testCapture_counterFailureHasNoMessage_messageStillNamesTheWaysOut() throws Exception
     {
         final RowCounter rowCounter = mock(RowCounter.class);

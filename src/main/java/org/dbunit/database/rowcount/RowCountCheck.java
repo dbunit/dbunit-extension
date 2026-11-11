@@ -68,7 +68,8 @@ import org.slf4j.LoggerFactory;
  * {@code escapePattern} property of the connection is set. A table whose name needs quoting, such
  * as Flyway's {@code flyway_schema_history} on H2, cannot be counted that way, and the failure
  * names the exclusion and the property as the ways out. The failure also carries the message of
- * the counter's failure, which names the table when the {@link RowCounter} does.
+ * the counter's failure, which names the table when the {@link RowCounter} does: the default
+ * {@link QueryPerTableRowCounter} always does.
  *
  * @author dbunit
  * @since 3.6.0
