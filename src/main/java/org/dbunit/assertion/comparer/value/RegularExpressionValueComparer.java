@@ -8,6 +8,7 @@ import java.util.regex.PatternSyntaxException;
 import org.dbunit.DatabaseUnitException;
 import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.datatype.DataType;
+import org.dbunit.dataset.datatype.TypeCastException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -21,6 +22,17 @@ import org.slf4j.LoggerFactory;
  * converted to a {@link String}, is the input tested against it. This mirrors
  * how {@link IsActualContainingExpectedStringValueComparer} treats the expected
  * value as the substring to look for.
+ *
+ * <p>
+ * The actual value is matched as the text dbUnit makes of the value the table
+ * holds, which for a column of another type than text is the text of the Java
+ * value, not the text the database shows for it. A {@link java.sql.Timestamp}
+ * ends in its fraction, so <code>2026-01-02 10:00:00</code> is
+ * <code>2026-01-02 10:00:00.0</code>; a {@link java.math.BigDecimal} keeps the
+ * scale of its column, so <code>12.5</code> in a <code>DECIMAL(10,2)</code>
+ * column is <code>12.50</code>; a binary value is its Base64 text. A pattern
+ * that ignores this does not match, and the comparer's part of the failure
+ * message, <code>Actual value='...'</code>, shows the text that was matched.
  *
  * <p>
  * The comparison succeeds only when the pattern matches the <em>entire</em>
@@ -167,6 +179,34 @@ public class RegularExpressionValueComparer extends ValueComparerTemplateBase
                             + " for column '%s', row %d: %s",
                     columnName, rowNum, regex);
             throw new DatabaseUnitException(message, e);
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     * <p>
+     * Shows the actual value as the text the regular expression was matched
+     * against, so a binary value reads as its Base64 text and not as its identity.
+     * An actual value that cannot be converted to a string shows as
+     * {@link String#valueOf(Object)} gives it.
+     */
+    @Override
+    protected String makeFailMessage(final Object expectedValue,
+            final Object actualValue)
+    {
+        final String matchedText = toMatchedText(actualValue);
+        return super.makeFailMessage(expectedValue, matchedText);
+    }
+
+    private String toMatchedText(final Object actualValue)
+    {
+        try
+        {
+            return DataType.asString(actualValue);
+        } catch (final TypeCastException e)
+        {
+            log.debug("toMatchedText: cannot convert the actual value to a string", e);
+            return String.valueOf(actualValue);
         }
     }
 
