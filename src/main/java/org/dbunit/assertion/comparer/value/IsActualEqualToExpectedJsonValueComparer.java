@@ -23,7 +23,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  * text.
  *
  * <p>Databases that store native JSON (for example MySQL {@code JSON},
- * PostgreSQL {@code json}/{@code jsonb}, or H2 {@code JSON}) commonly
+ * PostgreSQL {@code json}/{@code jsonb}, or H2 {@code JSON}, the last with
+ * {@link org.dbunit.ext.h2.H2DataTypeFactory}, which recognizes the column) commonly
  * reformat the text on storage: insignificant whitespace is stripped and
  * object keys may be reordered. A plain string or
  * {@link DataType#compare(Object, Object)} comparison then fails even when
@@ -46,8 +47,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  * can check for it; an older Jackson cannot, and ignores the content.
  * </ul>
  *
- * <p>A value that a driver hands over as bytes, such as an H2 {@code JSON} column read without
- * {@link org.dbunit.ext.h2.H2DataTypeFactory}, is read as UTF-8 text, the encoding that RFC 8259
+ * <p>A value that a driver hands over as bytes, such as an H2 {@code JSON} column of a query
+ * table read without {@link org.dbunit.ext.h2.H2DataTypeFactory}, is read as UTF-8 text, the encoding that RFC 8259
  * gives JSON exchanged between systems.
  *
  * <p>The comparer parses a JSON value whatever the length of its strings, as

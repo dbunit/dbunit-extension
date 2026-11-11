@@ -7,7 +7,8 @@
 == IDataTypeFactory
 
 link:../apidocs/org/dbunit/ext/h2/H2DataTypeFactory.html[H2DataTypeFactory]
-maps H2's `BOOLEAN` to `DataType.BOOLEAN` and `UUID` to `DataType.NVARCHAR`,
+maps H2's `BOOLEAN` to `DataType.BOOLEAN`, `UUID` to `DataType.NVARCHAR` and `JSON` to
+link:../apidocs/org/dbunit/ext/h2/H2JsonType.html[H2JsonType],
 delegating everything else to `DefaultDataTypeFactory`. Register it via
 `DatabaseConfig.PROPERTY_DATATYPE_FACTORY` — see
 link:../properties.html#typefactory[Properties] and
@@ -39,7 +40,15 @@ IDatabaseConnection connection = new H2Connection(jdbcConnection, schema);
 
 == Vendor-Specific Types
 
-None beyond the `BOOLEAN`/`UUID` mapping above.
+`JSON`: `H2JsonType` reads the value as the text of the JSON document and writes it as the
+UTF-8 bytes of the text, as H2 returns a `JSON` value from `ResultSet.getObject()` as `byte[]`
+and stores a value bound with `setString()` as a JSON string, not as the document. A flat XML
+dataset or any other text value therefore loads as the document, and a text that is not valid
+JSON fails at the insert with H2's own error. Without `H2DataTypeFactory`, dbUnit does not
+recognize a `JSON` column and leaves it out of the database dataset with a warning. H2 may rewrite
+the text of a stored document, so verify the column with
+link:../apidocs/org/dbunit/assertion/comparer/value/IsActualEqualToExpectedJsonValueComparer.html[IsActualEqualToExpectedJsonValueComparer],
+see link:../datacomparisons/valuecomparer.html[Value Comparers].
 
 == Known Quirks
 

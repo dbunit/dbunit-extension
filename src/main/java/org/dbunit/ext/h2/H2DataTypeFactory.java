@@ -30,7 +30,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Specialized factory that recognizes H2 data types.
+ * Specialized factory that recognizes H2 data types: {@code BOOLEAN} as
+ * {@link DataType#BOOLEAN}, {@code UUID} as {@link DataType#NVARCHAR} and {@code JSON} as
+ * {@link H2JsonType}.
  *
  * @author Felipe Leme
  * @author Last changed by: $Author$
@@ -71,6 +73,9 @@ public class H2DataTypeFactory extends DefaultDataTypeFactory
         } else if ("UUID".equals(sqlTypeName))
         {
             return DataType.NVARCHAR;
+        } else if ("JSON".equals(sqlTypeName))
+        {
+            return new H2JsonType();
         }
 
         return super.createDataType(sqlType, sqlTypeName);
