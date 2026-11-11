@@ -21,6 +21,13 @@ class IsActualEqualToExpectedJsonValueComparerTest
     private final String columnName = "MY_JSON_COLUMN";
     private final DataType dataType = DataType.LONGVARCHAR;
 
+    private boolean compare(final Object expectedValue, final Object actualValue)
+            throws DatabaseUnitException
+    {
+        return sut.isExpected(expectedTable, actualTable, rowNum, columnName, dataType,
+                expectedValue, actualValue);
+    }
+
     @Test
     void testIsExpected_AllNull_True() throws DatabaseUnitException
     {
@@ -289,6 +296,127 @@ class IsActualEqualToExpectedJsonValueComparerTest
                 .isThrownBy(() -> sut.isExpected(expectedTable, actualTable,
                         rowNum, columnName, dataType, expectedValue,
                         actualValue));
+    }
+
+    @Test
+    void testIsExpected_actualHasTextAfterTheValue_throwsNamingTheColumnAndRow()
+    {
+        assertThatExceptionOfType(DatabaseUnitException.class)
+                .as("Text after the first JSON value is not a valid value, and the comparer must"
+                        + " not stop reading at the first value and call it equal.")
+                .isThrownBy(() -> compare("{\"a\":1}", "{\"a\":1} xyz"))
+                .withMessageContaining("actual")
+                .withMessageContaining(columnName)
+                .withMessageContaining(String.valueOf(rowNum))
+                .withMessageContaining("{\"a\":1} xyz");
+    }
+
+    @Test
+    void testIsExpected_actualHasTwoDocuments_throwsNamingTheColumnAndRow()
+    {
+        assertThatExceptionOfType(DatabaseUnitException.class)
+                .as("A second document after the first is content after the value.")
+                .isThrownBy(() -> compare("{\"a\":1}", "{\"a\":1}{\"a\":2}"))
+                .withMessageContaining("actual")
+                .withMessageContaining(columnName);
+    }
+
+    @Test
+    void testIsExpected_actualArrayHasAnotherArrayAfterIt_throwsNamingTheColumnAndRow()
+    {
+        assertThatExceptionOfType(DatabaseUnitException.class)
+                .as("A second array after the first is content after the value.")
+                .isThrownBy(() -> compare("[1]", "[1] [2]"))
+                .withMessageContaining("actual")
+                .withMessageContaining(columnName);
+    }
+
+    @Test
+    void testIsExpected_expectedHasTextAfterTheValue_throwsNamingTheColumnAndRow()
+    {
+        assertThatExceptionOfType(DatabaseUnitException.class)
+                .as("The expected value goes through the same reader as the actual one.")
+                .isThrownBy(() -> compare("{\"a\":1} xyz", "{\"a\":1}"))
+                .withMessageContaining("expected")
+                .withMessageContaining(columnName);
+    }
+
+    @Test
+    void testIsExpected_actualHasWhitespaceAfterTheValue_true() throws DatabaseUnitException
+    {
+        final boolean actual = compare("{\"a\":1}", "{\"a\":1}  \r\n");
+
+        assertThat(actual).as("Whitespace after the value is no content.").isTrue();
+    }
+
+    @Test
+    void testIsExpected_actualValueIsCutOff_throwsNamingTheColumnAndRow()
+    {
+        assertThatExceptionOfType(DatabaseUnitException.class)
+                .as("A value that ends inside a document is not valid JSON.")
+                .isThrownBy(() -> compare("{\"a\":[1,2]}", "{\"a\":[1,2]"))
+                .withMessageContaining("actual")
+                .withMessageContaining(columnName);
+    }
+
+    @Test
+    void testIsExpected_numbersDifferPastWhatADoubleHolds_false() throws DatabaseUnitException
+    {
+        final boolean actual = compare("{\"n\":0.1}", "{\"n\":0.10000000000000000001}");
+
+        assertThat(actual)
+                .as("A number is compared exactly, and not as a double that drops the digits"
+                        + " past about 17 significant ones.")
+                .isFalse();
+    }
+
+    @Test
+    void testIsExpected_fractionsDifferInTheLastDigitOfMany_false() throws DatabaseUnitException
+    {
+        final boolean actual =
+                compare("{\"n\":1.00000000000000001}", "{\"n\":1.00000000000000002}");
+
+        assertThat(actual).as("Every digit of a number counts.").isFalse();
+    }
+
+    @Test
+    void testIsExpected_sameFractionWithTrailingZero_true() throws DatabaseUnitException
+    {
+        final boolean actual = compare("{\"n\":1.5}", "{\"n\":1.50}");
+
+        assertThat(actual)
+                .as("A database may write 1.5 as 1.50, and the two are the same number.")
+                .isTrue();
+    }
+
+    @Test
+    void testIsExpected_zeroWrittenWithDifferentScale_true() throws DatabaseUnitException
+    {
+        final boolean actual = compare("[0.0]", "[0.00]");
+
+        assertThat(actual).as("0.0 and 0.00 are the same number.").isTrue();
+    }
+
+    @Test
+    void testIsExpected_wholeNumberAgainstNumberWithFraction_false() throws DatabaseUnitException
+    {
+        final boolean actual = compare("{\"n\":1}", "{\"n\":1.0}");
+
+        assertThat(actual)
+                .as("A whole number is not the same as a number with a fraction, as the text"
+                        + " of the two differs, and the documentation says so.")
+                .isFalse();
+    }
+
+    @Test
+    void testIsExpected_nullMemberAgainstMissingMember_false() throws DatabaseUnitException
+    {
+        final boolean actual = compare("{\"a\":null}", "{}");
+
+        assertThat(actual)
+                .as("A member with the value null is not the same as a missing member, and the"
+                        + " documentation says so.")
+                .isFalse();
     }
 
     @Test
