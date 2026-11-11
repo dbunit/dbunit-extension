@@ -79,7 +79,8 @@ because it eagerly instantiates every instance it declares, and doing so there w
 an optional dependency onto every user of that class instead of only those who need it;
 construct these directly instead. For example,
 link:../apidocs/org/dbunit/assertion/comparer/value/IsActualEqualToExpectedJsonValueComparer.html[IsActualEqualToExpectedJsonValueComparer]
-compares JSON/JSONB column values (e.g. MySQL `JSON`, PostgreSQL `json`/`jsonb`, H2 `JSON`)
+compares JSON/JSONB column values (e.g. MySQL `JSON`, PostgreSQL `json`/`jsonb`, H2 `JSON`, the
+last with `H2DataTypeFactory`, which recognizes the column)
 by their parsed document structure instead of raw text - ignoring object member order and
 insignificant whitespace, both of which a database may rewrite when it stores a JSON value -
 and needs the optional `jackson-databind` dependency also used by

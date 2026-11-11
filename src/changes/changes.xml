@@ -209,6 +209,9 @@
       <action dev="jeffjensen" type="fix" issue="1047" system="github" due-to="jeffjensen">
           Fix IsActualEqualToExpectedJsonValueComparer failing for a value that the database driver hands over as bytes, such as an H2 JSON column, whose Base64 text it parsed as JSON; it now reads the bytes as UTF-8 text.
       </action>
+      <action dev="jeffjensen" type="fix" issue="1047" system="github" due-to="jeffjensen">
+          Fix H2DataTypeFactory not recognizing the H2 JSON type, so DatabaseDataSet left a JSON column out of the database dataset with a warning and a dataset could neither load nor verify it; the new H2JsonType reads the value as the text of the document and writes it as the UTF-8 bytes of the text, which H2 stores as the document.
+      </action>
     </release>
     <release version="3.5.2" date="Sep 7, 2026" description="DefaultPrepAndExpectedTestCase connection hygiene: replace a connection the pool or database dropped between tests, and warn when handed a non-autocommit connection">
       <action dev="jeffjensen" type="fix" issue="962" system="github" due-to="jeffjensen">
