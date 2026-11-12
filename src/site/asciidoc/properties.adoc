@@ -85,6 +85,11 @@ _Note:_ this feature was not compatible with the <<escapepattern,escape pattern>
 |http://www.dbunit.org/features/rowCountCheck
 |false
 |Compare every table's row count before and after each test, failing the test when a count moved — see link:components/rowcountcheck.html[RowCountCheck] for what it catches and how to read a failure. Writes no data of its own, but on an autocommit-off connection it ends its read transaction with a rollback, which discards uncommitted work - see the link:components/rowcountcheck.html#caveats[caveats]. The `dbunit.rowCountCheck` system property overrides this feature in *either* direction when present (e.g. `-Ddbunit.rowCountCheck=true`; a bare `-Ddbunit.rowCountCheck` also enables it), so it can force-enable in CI or force-disable locally regardless of what the code configures. A test that declares `@DbUnitRowCountCheck(enabled = false)` stays exempt when the property force-enables the check.
+
+|anchor:failonunknownverifycolumnname[]`FEATURE_FAIL_ON_UNKNOWN_VERIFY_COLUMN_NAME`
+|http://www.dbunit.org/features/failOnUnknownVerifyColumnName
+|true
+|Fail the verification of a table when a column name to include, or the column name of a column comparer, of a link:components/verifytabledefinition.html[VerifyTableDefinition] or `@DbUnitVerifyTable` matches no column of the table, or when a column comparer names a column that the include or exclude names leave out, as a misspelled name would otherwise leave the column out of the comparison unnoticed and the comparer would not be used. Set it to `false` to log a warning for each such name or comparer instead and verify the table as it would be without it. For a test that uses annotations, `@DbUnitConfig(properties = @DbUnitProperty(name = "failOnUnknownVerifyColumnName", value = "false"))` sets it on the test class, see link:testcases/annotations.html[Annotations].
 |===
 
 == Properties

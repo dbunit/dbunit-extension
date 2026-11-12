@@ -518,7 +518,16 @@ it, in whatever order the tests run, so a custom comparer must be stateless: it 
 between calls and depends on no mutable external state.
 
 An empty `include()` (the default) includes every column, as a `null` or empty include
-array does for a `VerifyTableDefinition`; an annotation cannot express `null`.
+array does for a `VerifyTableDefinition`; an annotation cannot express `null`. Each name in
+`include()` must match a column of the table, without regard to case and with the
+wildcards `*` and `?`. Since 3.6.0 a name that matches no column, such as the typo `NMAE` for
+`NAME`, fails the verification and names the table and its columns; before, the typo left the
+column out of the comparison, and a table whose only include name was misspelled passed
+whatever its values were. The columns of the table are those the comparison reads, so a column of
+a type the data type factory does not know counts, and so does a column the test step adds. To log a warning for such a name instead of failing, set the
+link:../properties.html#failonunknownverifycolumnname[`FEATURE_FAIL_ON_UNKNOWN_VERIFY_COLUMN_NAME`] feature to `false`, for example
+with `@DbUnitConfig(properties = @DbUnitProperty(name = "failOnUnknownVerifyColumnName", value = "false"))`
+on the test class.
 
 `sortOnFilteredColumnsOnly = true` sorts the expected and actual rows by only the compared columns,
 the ones that survive `exclude` and `include`, instead of sorting the actual rows by every column
@@ -528,9 +537,13 @@ verification that would have passed with it set says so; see
 link:../components/verifytabledefinition.html#sortmode[Sort Mode].
 
 The column names in `exclude`, `include` and `@DbUnitColumnComparer(column)` all match the
-expected dataset's columns without regard to case, so `column = "balance"` compares a `BALANCE`
+table's columns without regard to case, so `column = "balance"` compares a `BALANCE`
 column. Two `@DbUnitColumnComparer` entries in one `@DbUnitVerifyTable` whose names differ only
-in case name the same column and fail fast, as two for the same column do.
+in case name the same column and fail fast, as two for the same column do. A
+`@DbUnitColumnComparer(column)` that names no column of the table fails the
+verification too, as its comparer would not be used, and so does one whose column the `include`
+or `exclude` names leave out, for example `exclude = "name"` with a comparer for `NAME`, or an
+`include` that omits it. Both log a warning instead when that feature is `false`.
 
 [#catalog]
 == The Shared VerifyTableDefinition Catalog

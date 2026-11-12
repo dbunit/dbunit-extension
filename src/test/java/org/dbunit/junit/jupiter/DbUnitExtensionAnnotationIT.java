@@ -22,6 +22,9 @@ package org.dbunit.junit.jupiter;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.platform.engine.discovery.DiscoverySelectors.selectClass;
+import static org.junit.platform.testkit.engine.EventConditions.finishedWithFailure;
+import static org.junit.platform.testkit.engine.TestExecutionResultConditions.instanceOf;
+import static org.junit.platform.testkit.engine.TestExecutionResultConditions.message;
 
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -32,6 +35,7 @@ import java.util.Map;
 
 import org.dbunit.DatabaseEnvironment;
 import org.dbunit.DatabaseProfile;
+import org.dbunit.DatabaseUnitException;
 import org.dbunit.DefaultDatabaseTester;
 import org.dbunit.DefaultPrepAndExpectedTestCase;
 import org.dbunit.IDatabaseTester;
@@ -40,6 +44,7 @@ import org.dbunit.JdbcDatabaseTester;
 import org.dbunit.PrepAndExpectedTestCase;
 import org.dbunit.VerifyTableDefinition;
 import org.dbunit.annotation.DbUnitConfig;
+import org.dbunit.annotation.DbUnitProperty;
 import org.dbunit.annotation.DbUnitExpected;
 import org.dbunit.annotation.DbUnitPrep;
 import org.dbunit.annotation.DbUnitSetUpOperation;
@@ -89,6 +94,51 @@ class DbUnitExtensionAnnotationIT
             EngineTestKit.engine("junit-jupiter")
                     .selectors(selectClass(CatalogRulesSample.class)).execute().testEvents()
                     .assertStatistics(stats -> stats.started(1).succeeded(1));
+        } finally
+        {
+            deleteAllRowsQuietly(environment, TEST_TABLE);
+            environment.closeConnection();
+        }
+    }
+
+    @Test
+    void testAfterTestExecution_includeNamesNoColumn_failsTheTest() throws Exception
+    {
+        final DatabaseEnvironment environment = DatabaseEnvironment.getInstance();
+        try
+        {
+            final IDatabaseConnection connection = environment.getConnection();
+            MisspelledIncludeSample.databaseTester = new DefaultDatabaseTester(connection);
+            MisspelledIncludeSample.databaseTester
+                    .setOperationListener(IOperationListener.NO_OP_OPERATION_LISTENER);
+
+            EngineTestKit.engine("junit-jupiter")
+                    .selectors(selectClass(MisspelledIncludeSample.class)).execute().testEvents()
+                    .assertThatEvents().haveExactly(1, finishedWithFailure(
+                            instanceOf(DatabaseUnitException.class),
+                            message(text -> text.contains("'COLUMN_1' to include for table"))));
+        } finally
+        {
+            deleteAllRowsQuietly(environment, TEST_TABLE);
+            environment.closeConnection();
+        }
+    }
+
+    @Test
+    void testAfterTestExecution_includeNamesNoColumnAndFailFeatureFalse_passesTheTest()
+            throws Exception
+    {
+        final DatabaseEnvironment environment = DatabaseEnvironment.getInstance();
+        try
+        {
+            final IDatabaseConnection connection = environment.getConnection();
+            WarnedMisspelledIncludeSample.databaseTester = new DefaultDatabaseTester(connection);
+            WarnedMisspelledIncludeSample.databaseTester
+                    .setOperationListener(IOperationListener.NO_OP_OPERATION_LISTENER);
+
+            EngineTestKit.engine("junit-jupiter")
+                    .selectors(selectClass(WarnedMisspelledIncludeSample.class)).execute()
+                    .testEvents().assertStatistics(stats -> stats.started(1).succeeded(1));
         } finally
         {
             deleteAllRowsQuietly(environment, TEST_TABLE);
@@ -509,6 +559,51 @@ class DbUnitExtensionAnnotationIT
             {
                 statement.execute("UPDATE " + TEST_TABLE
                         + " SET COLUMN1 = 'not in the expected file' WHERE COLUMN0 = 'row0'");
+            }
+        }
+    }
+
+    @ExtendWith(DbUnitExtension.class)
+    static class MisspelledIncludeSample
+    {
+        @DbUnitTester
+        static IDatabaseTester databaseTester;
+
+        @Test
+        @DbUnitPrep("annotation-it-prep.xml")
+        @DbUnitExpected(value = "annotation-it-expected.xml",
+                verify = @DbUnitVerifyTable(value = TEST_TABLE, include = {"COLUMN0", "COLUMN_1"}))
+        @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
+        void testWithdraw_misspelledInclude_failsTheVerification() throws Exception
+        {
+            try (Statement statement =
+                    databaseTester.getConnection().getConnection().createStatement())
+            {
+                statement.execute(
+                        "UPDATE " + TEST_TABLE + " SET COLUMN1 = 'after' WHERE COLUMN0 = 'row0'");
+            }
+        }
+    }
+
+    @ExtendWith(DbUnitExtension.class)
+    @DbUnitConfig(properties = @DbUnitProperty(name = "failOnUnknownVerifyColumnName", value = "false"))
+    static class WarnedMisspelledIncludeSample
+    {
+        @DbUnitTester
+        static IDatabaseTester databaseTester;
+
+        @Test
+        @DbUnitPrep("annotation-it-prep.xml")
+        @DbUnitExpected(value = "annotation-it-expected.xml",
+                verify = @DbUnitVerifyTable(value = TEST_TABLE, include = {"COLUMN0", "COLUMN_1"}))
+        @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
+        void testWithdraw_misspelledIncludeAndFeatureFalse_passesTheVerification() throws Exception
+        {
+            try (Statement statement =
+                    databaseTester.getConnection().getConnection().createStatement())
+            {
+                statement.execute(
+                        "UPDATE " + TEST_TABLE + " SET COLUMN1 = 'after' WHERE COLUMN0 = 'row0'");
             }
         }
     }

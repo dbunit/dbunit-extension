@@ -69,7 +69,12 @@ column inclusion/exclusion filters are applied to both the actual and expected t
 for you via
 link:../apidocs/org/dbunit/dataset/filter/DefaultColumnFilter.html[DefaultColumnFilter]
 — see link:../filters.html[Filters] for the underlying mechanism you'd otherwise wire up
-by hand.
+by hand. Since 3.6.0 a column name to include, or the column name of a column comparer,
+that matches no column of the table fails the verification instead of leaving
+that column out of the comparison, and so does a column comparer for a column that the include
+or exclude names leave out, as the comparer would not be used, unless the
+link:../properties.html#failonunknownverifycolumnname[`FEATURE_FAIL_ON_UNKNOWN_VERIFY_COLUMN_NAME`] feature is `false`, which logs a
+warning instead.
 
 ValueComparer dispatch:: A
 link:../apidocs/org/dbunit/VerifyTableDefinition.html[VerifyTableDefinition]'s

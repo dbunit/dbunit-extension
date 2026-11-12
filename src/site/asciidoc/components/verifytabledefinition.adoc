@@ -21,9 +21,9 @@ per table you want verified after a test runs.
 
 |`tableName` (`getTableName()`) |The table's name — the only required piece of state; every constructor rejects a `null` table with `IllegalArgumentException`.
 |`columnExclusionFilters` (`getColumnExclusionFilters()`) |Columns to leave out of the comparison; `null`/empty means exclude none.
-|`columnInclusionFilters` (`getColumnInclusionFilters()`) |Columns to restrict the comparison to; `null` or empty means include all.
+|`columnInclusionFilters` (`getColumnInclusionFilters()`) |Columns to restrict the comparison to; `null` or empty means include all. Each name must match a column of the table (without regard to case, with the wildcards `*` and `?`); since 3.6.0 a name that matches no column, such as a misspelling, fails the verification, unless the link:../properties.html#failonunknownverifycolumnname[`FEATURE_FAIL_ON_UNKNOWN_VERIFY_COLUMN_NAME`] feature is `false`, which logs a warning instead.
 |`defaultValueComparer` (`getDefaultValueComparer()`, since 2.6.0) |The `ValueComparer` used for any column not present in `columnValueComparers`. `null` defaults to equality comparison.
-|`columnValueComparers` (`getColumnValueComparers()`, since 2.6.0) |A `Map<String, ValueComparer>` of per-column comparers, keyed by column name. Since 3.6.0 `DefaultPrepAndExpectedTestCase` matches a key to its column without regard to case, as it matches the exclusion and inclusion filters, and rejects two keys that differ only in case with `IllegalArgumentException`.
+|`columnValueComparers` (`getColumnValueComparers()`, since 2.6.0) |A `Map<String, ValueComparer>` of per-column comparers, keyed by column name. Since 3.6.0 `DefaultPrepAndExpectedTestCase` matches a key to its column without regard to case, as it matches the exclusion and inclusion filters, and rejects two keys that differ only in case with `IllegalArgumentException`. A key that names no column of the table fails the verification, unless the link:../properties.html#failonunknownverifycolumnname[`FEATURE_FAIL_ON_UNKNOWN_VERIFY_COLUMN_NAME`] feature is `false`, which logs a warning instead, so a map shared by several definitions must hold only columns that every one of their tables has. A key whose column the include or exclusion filters leave out, matched as the comparison matches them, fails the verification the same way, as its comparer would not be used. A key that is `null` names no column and is left out. The columns of the table are those the comparison reads: a column of a type the data type factory does not know counts, and so does a column the test step adds.
 |`sortOnFilteredColumnsOnly` (`isSortOnFilteredColumnsOnly()`/`setSortOnFilteredColumnsOnly()`, since 3.5.0) |Whether comparison sorts both tables by only this table's filtered columns instead of all of the actual table's native columns, and, since 3.6.0, also selects only those columns from the database. Default `false`. See <<sortmode,Sort Mode>> below.
 |===
 
@@ -59,6 +59,13 @@ table and column. This is a fail-fast check at construction time, not at compari
 time, so a misconfigured `VerifyTableDefinition` breaks loudly wherever it's built
 (commonly a static field or factory method) rather than surfacing later as a confusing
 assertion failure.
+
+The check matches an excluded name to a comparer's key exactly, as the constructor does not know the
+table's columns, so `columnExclusionFilters` of `name` or `N*` with a comparer for `NAME` passes it.
+Since 3.6.0 the verification of the table fails for such a comparer, as its column is left out of
+the comparison and the comparer would not be used, unless the
+link:../properties.html#failonunknownverifycolumnname[`FEATURE_FAIL_ON_UNKNOWN_VERIFY_COLUMN_NAME`]
+feature is `false`, which logs a warning instead.
 
 `getVerifyTableDefinitionVerifier()`/`setVerifyTableDefinitionVerifier()` expose the
 verifier instance for reuse (e.g. calling `.verify(...)` again manually) or replacement
