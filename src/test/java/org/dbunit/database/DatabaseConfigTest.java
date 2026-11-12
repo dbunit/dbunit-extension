@@ -179,6 +179,33 @@ class DatabaseConfigTest
     }
 
     @Test
+    void testGetFeature_failOnUnknownVerifyColumnNameDefault_isTrue() throws Exception
+    {
+        final DatabaseConfig config = new DatabaseConfig();
+
+        assertThat(config.getFeature(DatabaseConfig.FEATURE_FAIL_ON_UNKNOWN_VERIFY_COLUMN_NAME))
+                .as("FEATURE_FAIL_ON_UNKNOWN_VERIFY_COLUMN_NAME must default to true, so a column name"
+                        + " that matches no column fails the verification unless the feature is"
+                        + " set to false.")
+                .isTrue();
+    }
+
+    @Test
+    void testSetPropertiesByString_failOnUnknownVerifyColumnNameShortName_setsTheFeature()
+            throws Exception
+    {
+        final DatabaseConfig config = new DatabaseConfig();
+        final java.util.Properties properties = new java.util.Properties();
+        properties.setProperty("failOnUnknownVerifyColumnName", "false");
+
+        config.setPropertiesByString(properties);
+
+        assertThat(config.getFeature(DatabaseConfig.FEATURE_FAIL_ON_UNKNOWN_VERIFY_COLUMN_NAME))
+                .as("The short name must set the feature, as @DbUnitProperty gives it.")
+                .isFalse();
+    }
+
+    @Test
     void testCopyPropertiesInto_withNullablePropertyAtDefault_overwritesTargetWithNull()
             throws Exception
     {

@@ -1513,6 +1513,22 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     /**
      * Verifies a single table's actual data against its expected data.
      *
+     * <p>
+     * Since 3.6.0 the verification fails when a column name to include, or the
+     * column name of a column comparer, matches no column of the table, as such
+     * a misspelled name would otherwise leave the column out of the comparison
+     * or on the default comparer unnoticed, and when a column comparer names a
+     * column that the include or exclude column names leave out, as the
+     * comparer would then not be used. The columns of the table are those the
+     * comparison reads, so a column of a type the data type factory does not
+     * know counts, and so does a column added since the connection first read
+     * the table. When a subclass overrides
+     * {@link #loadTableDataFromDatabase(String, IDatabaseConnection)}, they are
+     * the columns of the table it loads. Setting
+     * {@link DatabaseConfig#FEATURE_FAIL_ON_UNKNOWN_VERIFY_COLUMN_NAME} to
+     * false logs a warning for such a name or comparer instead of failing. The
+     * check is skipped when the table's columns cannot be read.
+     *
      * @param connection the database connection to load the actual data from.
      * @param verifyTableDefinition the table definition to verify.
      * @throws Exception if verifying the table fails.
@@ -1534,16 +1550,32 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
         final boolean sortOnFilteredColumnsOnly =
                 verifyTableDefinition.isSortOnFilteredColumnsOnly();
 
+        final boolean hasColumnNamesToCheck =
+                hasColumnNamesToCheck(includeColumns, columnValueComparers);
+
         final ITable expectedTable = loadTableDataFromDataSet(tableName);
         final ITable actualTable;
         if (sortOnFilteredColumnsOnly
                 && !isLoadTableDataFromDatabaseOverridden())
         {
+            if (hasColumnNamesToCheck)
+            {
+                final Column[] tableColumns =
+                        new FreshTableColumns(connection).read(tableName);
+                checkColumnNames(connection, tableName, tableColumns,
+                        excludeColumns, includeColumns, columnValueComparers);
+            }
             actualTable = loadComparedColumnsFromDatabase(tableName,
                     connection, excludeColumns, includeColumns);
         } else
         {
             actualTable = loadTableDataFromDatabase(tableName, connection);
+            if (hasColumnNamesToCheck)
+            {
+                checkColumnNames(connection, tableName,
+                        columnsOf(actualTable), excludeColumns,
+                        includeColumns, columnValueComparers);
+            }
         }
 
         if (sortOnFilteredColumnsOnly)
@@ -1556,6 +1588,65 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
             verifyData(expectedTable, actualTable, excludeColumns,
                     includeColumns, defaultValueComparer,
                     columnValueComparers);
+        }
+    }
+
+    private boolean hasColumnNamesToCheck(final String[] includeColumns,
+            final Map<String, ValueComparer> columnValueComparers)
+    {
+        final boolean hasIncludeColumns =
+                includeColumns != null && includeColumns.length > 0;
+        final boolean hasColumnComparers =
+                columnValueComparers != null && !columnValueComparers.isEmpty();
+        return hasIncludeColumns || hasColumnComparers;
+    }
+
+    /**
+     * Fails when a column name to include, or the column name of a column
+     * comparer, matches no column of the table, or when a column comparer names
+     * a column that the include or exclude column names leave out. Logs a
+     * warning for it instead when
+     * {@link DatabaseConfig#FEATURE_FAIL_ON_UNKNOWN_VERIFY_COLUMN_NAME} is
+     * false. The check is skipped when the table's columns are null, as they
+     * could not be read.
+     */
+    private void checkColumnNames(final IDatabaseConnection connection,
+            final String tableName, final Column[] tableColumns,
+            final String[] excludeColumns, final String[] includeColumns,
+            final Map<String, ValueComparer> columnValueComparers)
+            throws DatabaseUnitException
+    {
+        if (tableColumns == null)
+        {
+            return;
+        }
+
+        final boolean failOnUnknownColumnName =
+                connection.getConfig().getFeature(
+                        DatabaseConfig.FEATURE_FAIL_ON_UNKNOWN_VERIFY_COLUMN_NAME);
+        final VerifyColumnNamesCheck check = new VerifyColumnNamesCheck(
+                tableName, tableColumns, failOnUnknownColumnName);
+        check.checkIncludeColumns(includeColumns);
+        check.checkColumnValueComparers(columnValueComparers, excludeColumns,
+                includeColumns);
+    }
+
+    private Column[] columnsOf(final ITable table)
+    {
+        if (table == null)
+        {
+            return null;
+        }
+        final ITableMetaData tableMetaData = table.getTableMetaData();
+        try
+        {
+            return tableMetaData.getColumns();
+        } catch (final DataSetException e)
+        {
+            log.debug("columnsOf: Cannot determine the columns of table {},"
+                    + " not checking its column names",
+                    tableMetaData.getTableName(), e);
+            return null;
         }
     }
 

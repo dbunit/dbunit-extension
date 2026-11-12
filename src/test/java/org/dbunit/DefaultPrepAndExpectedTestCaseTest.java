@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 import org.dbunit.assertion.DbComparisonFailure;
 import org.dbunit.assertion.DbUnitAssertBase;
@@ -3035,6 +3036,328 @@ class DefaultPrepAndExpectedTestCaseTest
                 .as("verifyData() must verify the actual table read from"
                         + " the connection.")
                 .doesNotThrowAnyException();
+    }
+
+    private DefaultTable makeIdAndNameTable(final String name)
+            throws Exception
+    {
+        final Column[] columns = {new Column("ID", DataType.INTEGER),
+                new Column("NAME", DataType.VARCHAR)};
+        final DefaultTable table = new DefaultTable("TEST_TABLE", columns);
+        table.addRow(new Object[] {1, name});
+        return table;
+    }
+
+    private void verifyWithIncludeColumns(final DefaultTable expected,
+            final DefaultTable actual, final boolean sortOnFilteredColumnsOnly,
+            final String... includeColumns) throws Exception
+    {
+        final MockDatabaseConnection connection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        connection.setupDataSet(actual);
+        tc.setExpectedDs(new DefaultDataSet(expected));
+        tc.setVerifyTableDefs(new VerifyTableDefinition[] {
+                new VerifyTableDefinition("TEST_TABLE", new String[] {},
+                        includeColumns, null, null, sortOnFilteredColumnsOnly)});
+
+        tc.verifyData();
+    }
+
+    @Test
+    void testVerifyData_includeColumnMatchesNoColumn_failsNamingTheColumnAndTheTable()
+            throws Exception
+    {
+        final DefaultTable expected = makeIdAndNameTable("a");
+        final DefaultTable actual = makeIdAndNameTable("zzz");
+
+        assertThatThrownBy(() -> verifyWithIncludeColumns(expected, actual,
+                false, "NMAE"))
+                        .as("A misspelled include name must fail instead of verifying no column.")
+                        .isInstanceOf(DatabaseUnitException.class)
+                        .hasMessage("The column name 'NMAE' to include for table TEST_TABLE"
+                                + " matches no column of the table, whose columns are ID, NAME,"
+                                + " so the table would be verified without it. Correct the name"
+                                + " in the VerifyTableDefinition or @DbUnitVerifyTable, or set the"
+                                + " feature http://www.dbunit.org/features/failOnUnknownVerifyColumnName"
+                                + " to false to log a warning instead of failing.");
+    }
+
+    @Test
+    void testVerifyData_includeColumnMatchesNoColumnAndFeatureTrue_fails()
+            throws Exception
+    {
+        final DefaultTable expected = makeIdAndNameTable("a");
+        final DefaultTable actual = makeIdAndNameTable("zzz");
+        setFailOnUnknownVerifyColumnName(true);
+
+        assertThatThrownBy(() -> verifyWithIncludeColumns(expected, actual, false, "NMAE"))
+                .as("A misspelled include name must fail when the feature is set to true.")
+                .isInstanceOf(DatabaseUnitException.class)
+                .hasMessageContaining("'NMAE'");
+    }
+
+    @Test
+    void testVerifyData_includeColumnMatchesNoColumnAndFeatureFalse_warnsAndVerifiesWithoutIt()
+            throws Exception
+    {
+        final DefaultTable expected = makeIdAndNameTable("a");
+        final DefaultTable actual = makeIdAndNameTable("zzz");
+        setFailOnUnknownVerifyColumnName(false);
+        final ListAppender<ILoggingEvent> appender =
+                startCapturingLogOf(VerifyColumnNamesCheck.class);
+        try
+        {
+            assertThatCode(() -> verifyWithIncludeColumns(expected, actual,
+                    false, "NMAE"))
+                            .as("A misspelled include name must not fail when the feature is set"
+                                    + " to false.")
+                            .doesNotThrowAnyException();
+
+            assertThat(warnMessagesOf(appender))
+                    .as("The misspelled include name must be logged as one warning.")
+                    .containsExactly("The column name 'NMAE' to include for table TEST_TABLE"
+                            + " matches no column of the table, whose columns are ID, NAME,"
+                            + " so the table would be verified without it. Correct the name"
+                            + " in the VerifyTableDefinition or @DbUnitVerifyTable.");
+        } finally
+        {
+            stopCapturingLogOf(VerifyColumnNamesCheck.class, appender);
+        }
+    }
+
+    @Test
+    void testVerifyData_oneOfTwoIncludeColumnsMatchesNoColumnAndFeatureFalse_warnsAndComparesTheOther()
+            throws Exception
+    {
+        final DefaultTable expected = makeIdAndNameTable("a");
+        final DefaultTable actual = makeIdAndNameTable("zzz");
+        setFailOnUnknownVerifyColumnName(false);
+        final ListAppender<ILoggingEvent> appender =
+                startCapturingLogOf(VerifyColumnNamesCheck.class);
+        try
+        {
+            assertThatThrownBy(() -> verifyWithIncludeColumns(expected, actual, false, "NAME",
+                    "NMAE"))
+                            .as("The valid include name is still compared when the feature is"
+                                    + " set to false.")
+                            .isInstanceOf(AssertionError.class)
+                            .isNotInstanceOf(DatabaseUnitException.class);
+
+            assertThat(warnMessagesOf(appender))
+                    .as("Only the misspelled include name must be logged as a warning.")
+                    .hasSize(1).allMatch(message -> message.contains("'NMAE'"));
+        } finally
+        {
+            stopCapturingLogOf(VerifyColumnNamesCheck.class, appender);
+        }
+    }
+
+    @Test
+    void testVerifyData_oneOfTwoIncludeColumnsMatchesNoColumn_fails()
+            throws Exception
+    {
+        final DefaultTable expected = makeIdAndNameTable("a");
+        final DefaultTable actual = makeIdAndNameTable("zzz");
+
+        assertThatThrownBy(() -> verifyWithIncludeColumns(expected, actual, false, "ID", "NMAE"))
+                .as("One misspelled include name among valid ones must fail.")
+                .isInstanceOf(DatabaseUnitException.class)
+                .hasMessageContaining("'NMAE'");
+    }
+
+    @Test
+    void testVerifyData_includeColumnIsWildcardMatchingAColumn_stillComparesThatColumn()
+            throws Exception
+    {
+        final DefaultTable expected = makeIdAndNameTable("a");
+        final DefaultTable actual = makeIdAndNameTable("zzz");
+
+        assertThatThrownBy(() -> verifyWithIncludeColumns(expected, actual, false, "N*E"))
+                .as("A wildcard that matches a column passes the check and the column is compared.")
+                .isInstanceOf(AssertionError.class)
+                .isNotInstanceOf(DatabaseUnitException.class);
+    }
+
+    @Test
+    void testVerifyData_includeColumnInOtherCase_passesTheCheck()
+            throws Exception
+    {
+        final DefaultTable table = makeIdAndNameTable("a");
+
+        assertThatCode(() -> verifyWithIncludeColumns(table, table, false, "name"))
+                .as("An include name matches a column without regard to case.")
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void testVerifyData_includeColumnWithEmptyExpectedTable_passes()
+            throws Exception
+    {
+        final DefaultTable expected = new DefaultTable("TEST_TABLE", new Column[0]);
+        final DefaultTable actual = new DefaultTable("TEST_TABLE",
+                new Column[] {new Column("ID", DataType.INTEGER),
+                        new Column("NAME", DataType.VARCHAR)});
+
+        assertThatCode(() -> verifyWithIncludeColumns(expected, actual, false, "NAME"))
+                .as("A name that matches a column of the database table passes although the"
+                        + " expected table lists no column.")
+                .doesNotThrowAnyException();
+    }
+
+    private void verifyWithColumnComparer(final DefaultTable table,
+            final String columnName) throws Exception
+    {
+        final MockDatabaseConnection connection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        connection.setupDataSet(table);
+        tc.setExpectedDs(new DefaultDataSet(table));
+        final Map<String, ValueComparer> comparers = new java.util.HashMap<>();
+        comparers.put(columnName, new RegularExpressionValueComparer());
+        tc.setVerifyTableDefs(new VerifyTableDefinition[] {
+                new VerifyTableDefinition("TEST_TABLE", new String[] {}, new String[] {}, null,
+                        comparers, false)});
+
+        tc.verifyData();
+    }
+
+    private void setFailOnUnknownVerifyColumnName(final boolean fail) throws Exception
+    {
+        final DatabaseConfig config = databaseTester.getConnection().getConfig();
+        config.setFeature(DatabaseConfig.FEATURE_FAIL_ON_UNKNOWN_VERIFY_COLUMN_NAME, fail);
+    }
+
+    private static List<String> warnMessagesOf(final ListAppender<ILoggingEvent> appender)
+    {
+        return appender.list.stream().filter(event -> event.getLevel() == Level.WARN)
+                .map(ILoggingEvent::getFormattedMessage).collect(Collectors.toList());
+    }
+
+    @Test
+    void testVerifyData_columnComparerMatchesNoColumn_failsNamingTheColumnAndTheTable()
+            throws Exception
+    {
+        final DefaultTable table = makeIdAndNameTable("a");
+
+        assertThatThrownBy(() -> verifyWithColumnComparer(table, "NMAE"))
+                .as("A misspelled column comparer name must fail instead of leaving the column"
+                        + " on the default comparer.")
+                .isInstanceOf(DatabaseUnitException.class)
+                .hasMessage("The column name 'NMAE' of a column comparer for table TEST_TABLE"
+                        + " matches no column of the table, whose columns are ID, NAME, so the"
+                        + " comparer would not be used. Correct the name in the"
+                        + " VerifyTableDefinition or @DbUnitColumnComparer, or set the feature"
+                        + " http://www.dbunit.org/features/failOnUnknownVerifyColumnName to false"
+                        + " to log a warning instead of failing.");
+    }
+
+    @Test
+    void testVerifyData_columnComparerMatchesNoColumnAndFeatureTrue_fails()
+            throws Exception
+    {
+        final DefaultTable table = makeIdAndNameTable("a");
+        setFailOnUnknownVerifyColumnName(true);
+
+        assertThatThrownBy(() -> verifyWithColumnComparer(table, "NMAE"))
+                .as("A misspelled column comparer name must fail when the feature is set to"
+                        + " true.")
+                .isInstanceOf(DatabaseUnitException.class)
+                .hasMessageContaining("'NMAE'");
+    }
+
+    @Test
+    void testVerifyData_columnComparerMatchesNoColumnAndFeatureFalse_warnsAndVerifies()
+            throws Exception
+    {
+        final DefaultTable table = makeIdAndNameTable("a");
+        setFailOnUnknownVerifyColumnName(false);
+        final ListAppender<ILoggingEvent> appender =
+                startCapturingLogOf(VerifyColumnNamesCheck.class);
+        try
+        {
+            assertThatCode(() -> verifyWithColumnComparer(table, "NMAE"))
+                    .as("A misspelled column comparer name must not fail when the feature is"
+                            + " set to false.")
+                    .doesNotThrowAnyException();
+
+            assertThat(warnMessagesOf(appender))
+                    .as("The misspelled column comparer name must be logged as one warning.")
+                    .containsExactly("The column name 'NMAE' of a column comparer for table"
+                            + " TEST_TABLE matches no column of the table, whose columns are"
+                            + " ID, NAME, so the comparer would not be used. Correct the name"
+                            + " in the VerifyTableDefinition or @DbUnitColumnComparer.");
+        } finally
+        {
+            stopCapturingLogOf(VerifyColumnNamesCheck.class, appender);
+        }
+    }
+
+    @Test
+    void testVerifyData_loadTableDataFromDatabaseOverriddenToLoadMoreColumns_checksIncludeColumnsAgainstTheLoadedTable()
+            throws Exception
+    {
+        final DefaultTable viewTable = makeIdNameAndViewOnlyTable();
+
+        final DefaultPrepAndExpectedTestCase overriding =
+                makeLoadingTestCase(viewTable, viewTable, "VIEW_ONLY");
+
+        assertThatCode(() -> overriding.verifyData())
+                .as("A subclass that loads the actual table itself may load columns the table"
+                        + " lacks, and an include name of one of them names a column of the"
+                        + " table it loads.")
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void testVerifyData_loadTableDataFromDatabaseOverridden_failsForAnIncludeNameTheLoadedTableLacks()
+            throws Exception
+    {
+        final DefaultTable table = makeIdAndNameTable("a");
+        final DefaultTable viewTable = makeIdNameAndViewOnlyTable();
+
+        final DefaultPrepAndExpectedTestCase overriding =
+                makeLoadingTestCase(table, viewTable, "NMAE");
+
+        assertThatThrownBy(() -> overriding.verifyData())
+                .as("The columns of the table the subclass loads are the columns the include"
+                        + " names are checked against.")
+                .isInstanceOf(DatabaseUnitException.class)
+                .hasMessageContaining("The column name 'NMAE' to include for table TEST_TABLE"
+                        + " matches no column of the table, whose columns are ID, NAME,"
+                        + " VIEW_ONLY,");
+    }
+
+    private DefaultTable makeIdNameAndViewOnlyTable() throws Exception
+    {
+        final Column[] columns = {new Column("ID", DataType.INTEGER),
+                new Column("NAME", DataType.VARCHAR),
+                new Column("VIEW_ONLY", DataType.VARCHAR)};
+        final DefaultTable viewTable = new DefaultTable("TEST_TABLE", columns);
+        viewTable.addRow(new Object[] {1, "a", "v"});
+        return viewTable;
+    }
+
+    private DefaultPrepAndExpectedTestCase makeLoadingTestCase(final DefaultTable table,
+            final DefaultTable loadedTable, final String includeColumn) throws Exception
+    {
+        final DefaultPrepAndExpectedTestCase overriding =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester)
+                {
+                    @Override
+                    public ITable loadTableDataFromDatabase(final String tableName,
+                            final IDatabaseConnection connection)
+                            throws DataSetException
+                    {
+                        return loadedTable;
+                    }
+                };
+        overriding.setExpectedDs(new DefaultDataSet(table));
+        overriding.setVerifyTableDefs(new VerifyTableDefinition[] {
+                new VerifyTableDefinition("TEST_TABLE", new String[] {},
+                        new String[] {includeColumn})});
+        final MockDatabaseConnection connection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        connection.setupDataSet(table);
+        return overriding;
     }
 
     @Test
