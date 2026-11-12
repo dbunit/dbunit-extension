@@ -26,6 +26,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 import org.dbunit.assertion.comparer.value.ValueComparer;
+import org.dbunit.database.DatabaseConfig;
 
 /**
  * Binds one column to the {@link ValueComparer} used to compare its values, nested inside
@@ -72,7 +73,12 @@ public @interface DbUnitColumnComparer
      * case, as the column names of {@link DbUnitVerifyTable#exclude()} and
      * {@link DbUnitVerifyTable#include()} do, so two {@code @DbUnitColumnComparer}s of one
      * {@link DbUnitVerifyTable} whose names differ only in case fail fast with an
-     * {@link IllegalStateException}, as two for the same column do.
+     * {@link IllegalStateException}, as two for the same column do. A name that matches no
+     * column of the table fails the verification, as the comparer would not be used, and so does
+     * a name of a column that the {@link DbUnitVerifyTable#include()} or
+     * {@link DbUnitVerifyTable#exclude()} names leave out of the comparison.
+     * Setting {@link DatabaseConfig#FEATURE_FAIL_ON_UNKNOWN_VERIFY_COLUMN_NAME} to false logs a warning
+     * instead.
      *
      * @return The column name.
      */

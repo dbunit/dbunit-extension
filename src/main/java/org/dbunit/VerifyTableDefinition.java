@@ -26,6 +26,7 @@ import java.util.Map;
 import org.dbunit.assertion.comparer.value.ValueComparer;
 import org.dbunit.assertion.comparer.value.verifier.DefaultVerifyTableDefinitionVerifier;
 import org.dbunit.assertion.comparer.value.verifier.VerifyTableDefinitionVerifier;
+import org.dbunit.database.DatabaseConfig;
 
 /**
  * Defines a database table to verify (assert on data), specifying include and
@@ -180,7 +181,13 @@ public class VerifyTableDefinition
      *            actual comparisons; null or empty array to exclude no columns.
      * @param includeColumns
      *            The columns in the table to include in expected vs actual
-     *            comparisons; null or empty array to include all columns.
+     *            comparisons; null or empty array to include all columns. Each
+     *            name must match a column of the table, without regard to case
+     *            and with the wildcards {@code *} and {@code ?}; a name that
+     *            matches no column fails the verification, and so does a column
+     *            comparer for a column that the include names leave out, unless
+     *            {@link DatabaseConfig#FEATURE_FAIL_ON_UNKNOWN_VERIFY_COLUMN_NAME}
+     *            is false, which logs a warning instead.
      */
     public VerifyTableDefinition(final String table,
             final String[] excludeColumns, final String[] includeColumns)
@@ -200,7 +207,13 @@ public class VerifyTableDefinition
      *            actual comparisons; null or empty array to exclude no columns.
      * @param includeColumns
      *            The columns in the table to include in expected vs actual
-     *            comparisons; null or empty array to include all columns.
+     *            comparisons; null or empty array to include all columns. Each
+     *            name must match a column of the table, without regard to case
+     *            and with the wildcards {@code *} and {@code ?}; a name that
+     *            matches no column fails the verification, and so does a column
+     *            comparer for a column that the include names leave out, unless
+     *            {@link DatabaseConfig#FEATURE_FAIL_ON_UNKNOWN_VERIFY_COLUMN_NAME}
+     *            is false, which logs a warning instead.
      * @param defaultValueComparer
      *            {@link ValueComparer} to use with column value comparisons
      *            when the column name for the table is not in the
@@ -274,7 +287,13 @@ public class VerifyTableDefinition
      *            actual comparisons; null or empty array to exclude no columns.
      * @param includeColumns
      *            The columns in the table to include in expected vs actual
-     *            comparisons; null or empty array to include all columns.
+     *            comparisons; null or empty array to include all columns. Each
+     *            name must match a column of the table, without regard to case
+     *            and with the wildcards {@code *} and {@code ?}; a name that
+     *            matches no column fails the verification, and so does a column
+     *            comparer for a column that the include names leave out, unless
+     *            {@link DatabaseConfig#FEATURE_FAIL_ON_UNKNOWN_VERIFY_COLUMN_NAME}
+     *            is false, which logs a warning instead.
      * @param defaultValueComparer
      *            {@link ValueComparer} to use with column value comparisons
      *            when the column name for the table is not in the
@@ -358,7 +377,12 @@ public class VerifyTableDefinition
      * Returns the per-column value comparers. Since 3.6.0
      * {@link DefaultPrepAndExpectedTestCase} matches each key to its column
      * without regard to case, as it matches the column exclusion and inclusion
-     * filters, and rejects two keys that differ only in case.
+     * filters, and rejects two keys that differ only in case. It also fails the
+     * verification for a key that names no column of the table, and for a key
+     * whose column the exclusion or inclusion filters leave out, matched as the
+     * comparison matches them, as the comparer would not be used; the
+     * construction of this definition only checks that no excluded name is
+     * also a key of exactly the same name.
      *
      * @return the per-column value comparers.
      * @since 2.6.0
