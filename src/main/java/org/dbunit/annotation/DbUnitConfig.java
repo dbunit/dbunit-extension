@@ -29,12 +29,9 @@ import java.lang.annotation.Target;
 
 import org.dbunit.DatabaseTesterFactory;
 import org.dbunit.DefaultPrepAndExpectedTestCase;
-import org.dbunit.IOperationListener;
-import org.dbunit.PrepAndExpectedTestCase;
 import org.dbunit.VerifyTableDefinition;
 import org.dbunit.assertion.FailureHandler;
 import org.dbunit.database.DatabaseConfig;
-import org.dbunit.database.DatabaseConfigPropertiesProvider;
 import org.dbunit.util.fileloader.DataFileLoader;
 import org.dbunit.util.fileloader.FileExtensionDataFileLoader;
 
@@ -42,8 +39,14 @@ import org.dbunit.util.fileloader.FileExtensionDataFileLoader;
  * Class-level wiring for annotation-driven dbUnit test configuration: which
  * {@link DataFileLoader} loads dataset files, how to obtain a tester via
  * {@link DatabaseTesterFactory} when no field supplies one, which
- * {@link PrepAndExpectedTestCase} implementation drives the prep/expected path,
+ * {@link DefaultPrepAndExpectedTestCase} subclass runs the test,
  * {@link DatabaseConfig} properties, and the shared table-definition catalog.
+ *
+ * <p>This annotation takes effect only on a test class that registers
+ * {@link org.dbunit.junit.jupiter.DbUnitExtension}, with {@code @DbUnitTest} or
+ * {@code @ExtendWith(DbUnitExtension.class)}, or that runs under
+ * {@link org.dbunit.spring.DbUnitTestExecutionListener}. A class that registers neither runs its
+ * tests as if the annotation were absent, with no prep, verification or teardown, and they pass.
  *
  * <p>For configuration shared across many test classes, compose one custom annotation
  * carrying {@code @DbUnitTest}, this annotation, and the lifecycle annotations, rather than
@@ -54,15 +57,24 @@ import org.dbunit.util.fileloader.FileExtensionDataFileLoader;
  * @Inherited
  * @DbUnitTest
  * @DbUnitConfig(dataFileLoader = FlatXmlDataFileLoader.class)
- * @DbUnitSetup(operation = DbUnitOperation.REFRESH)
+ * @DbUnitSetUpOperation(DbUnitOperation.REFRESH)
  * public @interface AppDatabaseTest {}
  * }</pre>
+ *
+ * <p>Several declarations can be in scope of one test: on its class, its superclasses, the
+ * annotations composed into them, and the enclosing classes of a nested test class. They merge
+ * attribute by attribute. For each attribute the nearest declaration that sets it wins, so a
+ * subclass declaring only {@link #failureHandler()} keeps the {@link #dataFileLoader()} and the
+ * {@link #properties()} of its base class. An attribute counts as set when it differs from its
+ * default. A nearer declaration therefore overrides an inherited value by naming the one it
+ * wants, but cannot clear it. The nearest declaration that sets {@link #verifyDefinitions()}
+ * supplies the whole array, never combined with a farther one's. The {@link #properties()}
+ * merge by property name instead: a nearer declaration overrides a property of a farther one by
+ * naming it, in its long or its short form, and keeps the others.
  *
  * @author Jeff Jensen
  * @since 3.6.0
  * @see DbUnitProperty
- * @see DatabaseConfigPropertiesProvider
- * @see org.dbunit.VerifyTableDefinitionsProvider
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
@@ -75,29 +87,40 @@ public @interface DbUnitConfig
      * {@link DbUnitExpected} dataset file, reflectively instantiated with its no-arg
      * constructor.
      *
-     * <p>On the prep/expected path ({@link DbUnitExpected} declared), a freshly-constructed
-     * {@link #prepAndExpectedTestCase()} always receives this value through its constructor,
-     * regardless of implementation. A {@link DbUnitTestCase} field injecting an already-built
-     * instance also receives it, when this names a non-default loader or the instance has none
-     * of its own, and only when its type overrides
-     * {@link PrepAndExpectedTestCase#setDataFileLoader(DataFileLoader)} -
-     * {@link DefaultPrepAndExpectedTestCase} does; naming a non-default loader here for a
-     * different injected implementation fails fast with {@link IllegalStateException} instead
-     * of silently loading with whatever loader that instance was already constructed with.
+     * <p>A freshly-constructed {@link #prepAndExpectedTestCase()} always receives this value
+     * through its constructor. A {@link DbUnitTestCase} field injecting an already-built test
+     * case is used as it was built, with its own loader: naming a non-default loader here next
+     * to one fails fast with {@link IllegalStateException}.
      *
-     * <p>A new loader is constructed for each test, so
-     * {@link org.dbunit.util.fileloader.CachingFileExtensionDataFileLoader}, which shares what
-     * it parsed among all instances of its class, parses each file once per run instead of once
-     * per test.
+     * <p>A loader class that is made to be shared, a
+     * {@link org.dbunit.util.fileloader.CachingDataFileLoader} or a subclass of it, such as
+     * {@link org.dbunit.util.fileloader.CachingFileExtensionDataFileLoader}, which holds the
+     * datasets it loaded, is built once and shared by the tests of its scope: all the tests of
+     * the run under JUnit Jupiter, those of one test class under Spring. So each file is loaded
+     * once for the scope instead of once per test, a value the constructor computes, such as a
+     * replacement of the current time, is computed once for the scope, and the loader must be
+     * safe for tests that run in parallel. A loader of any other class, the default included, is
+     * built for each test, so a test case that changes the loader it is given, such as by adding
+     * replacement objects, changes no other test's.
      *
-     * @return The loader class; defaults to {@link FileExtensionDataFileLoader}.
+     * @return The loader class; the interface itself (the default) means "not set", and
+     *         {@link FileExtensionDataFileLoader} is used.
      */
-    Class<? extends DataFileLoader> dataFileLoader() default FileExtensionDataFileLoader.class;
+    Class<? extends DataFileLoader> dataFileLoader() default DataFileLoader.class;
 
     /**
      * A {@link DatabaseTesterFactory} implementation to reflectively instantiate (with its
      * no-arg constructor) and ask to create the {@code IDatabaseTester} to use, when neither a
-     * {@link DbUnitTestCase} nor a {@link DbUnitTester} field is declared.
+     * {@link DbUnitTestCase} nor a {@link DbUnitTester} field is declared. Naming one next to a
+     * {@link DbUnitTestCase} field fails fast with {@link IllegalStateException}, as the injected
+     * instance carries its own tester.
+     *
+     * <p>The factory class is instantiated once for the whole run, and the one instance is
+     * asked for a tester for each test that names it, so the factory must be thread-safe for
+     * tests that run in parallel. A factory that must build something once, such as a pooled
+     * {@code DataSource}, builds it in its constructor or on first use and keeps it in a field.
+     * A constructor that throws leaves no instance behind, so the next test that names the
+     * class tries again. dbUnit never closes the factory or the testers it returns.
      *
      * @return The factory class; the interface itself (the default) means "not set", falling
      *         through to the plain field auto-scan.
@@ -105,77 +128,64 @@ public @interface DbUnitConfig
     Class<? extends DatabaseTesterFactory> databaseTesterFactory() default DatabaseTesterFactory.class;
 
     /**
-     * The {@link PrepAndExpectedTestCase} implementation to reflectively instantiate for the
-     * prep/expected path when no {@link DbUnitTestCase} field supplies one already, via a
-     * constructor accepting {@code (DataFileLoader, IDatabaseTester, boolean)} - the same
-     * shape {@link DefaultPrepAndExpectedTestCase} itself has.
-     *
-     * <p>In practice a {@link DefaultPrepAndExpectedTestCase} subclass, overriding a hook such
-     * as {@code setUpDatabaseConfig()}. A from-scratch {@link PrepAndExpectedTestCase} would
-     * have to reimplement dataset loading, comparison, and cleanup, and override the six
-     * {@code @DbUnitConfig}-driven setters ({@code setDataFileLoader}, {@code setFailureHandler},
-     * {@code setDatabaseConfigProperties}, {@code setCloseConnectionAfterTest},
-     * {@code setRowCountCheckOverride}, {@code clearRowCountCheckOverride}) - one that does not
-     * fails fast at test time, naming the missing setter. Overriding the matching getters
-     * ({@code getDataFileLoader}, {@code getFailureHandler}, {@code getDatabaseConfigProperties},
-     * {@code isCloseConnectionAfterTest}) as well lets the extension put the instance's own
-     * values back after each test; without a getter, a declared value stays on the instance
-     * and the extension does not fill in a loader it cannot tell is missing.
+     * The {@link DefaultPrepAndExpectedTestCase} subclass to reflectively instantiate to run the
+     * test when no {@link DbUnitTestCase} field supplies one already, via a
+     * constructor accepting {@code (DataFileLoader, IDatabaseTester)} - the same shape
+     * {@link DefaultPrepAndExpectedTestCase} itself has - for example one overriding a
+     * hook such as {@code setUpDatabaseConfig()}. Naming one next to a {@link DbUnitTestCase}
+     * field, which supplies the test case, fails fast with {@link IllegalStateException}.
      *
      * @return The test case class; defaults to {@link DefaultPrepAndExpectedTestCase}.
      */
-    Class<? extends PrepAndExpectedTestCase> prepAndExpectedTestCase() default DefaultPrepAndExpectedTestCase.class;
+    Class<? extends DefaultPrepAndExpectedTestCase> prepAndExpectedTestCase() default DefaultPrepAndExpectedTestCase.class;
 
     /**
      * Inline {@link DatabaseConfig} property name/value pairs to apply.
      *
-     * <p>Mutually exclusive with {@link #propertiesProvider()}; setting both is rejected.
+     * <p>Applied by the {@link DefaultPrepAndExpectedTestCase} that runs the test to its
+     * connection, the one it sets up, verifies and cleans up on. A connection the test method
+     * retrieves from the tester itself does not get them. A {@link DbUnitTestCase} field
+     * injecting an already-built test case is used as it was built, so declaring these next to
+     * one fails fast with {@link IllegalStateException}: set them where it is built, with
+     * {@link DefaultPrepAndExpectedTestCase#setDatabaseConfigProperties(java.util.Properties)}.
      *
-     * <p>On the prep/expected path ({@link DbUnitExpected} declared), only takes effect on a
-     * {@link #prepAndExpectedTestCase()} whose type overrides
-     * {@link PrepAndExpectedTestCase#setDatabaseConfigProperties(java.util.Properties)} -
-     * {@link DefaultPrepAndExpectedTestCase} does. A {@link DbUnitTestCase} field injecting a
-     * different implementation fails fast with {@link IllegalStateException} instead, since
-     * that path has no other route to the connection at all. On the setup/teardown path (no
-     * {@link DbUnitExpected}), this restriction does not apply - every value always reaches
-     * the tester's connection.
-     *
-     * <p><strong>On the prep/expected path, a {@link DefaultPrepAndExpectedTestCase} subclass
+     * <p><strong>A {@link DefaultPrepAndExpectedTestCase} subclass
      * that overrides {@code setUpDatabaseConfig(DatabaseConfig)} must call
      * {@code super.setUpDatabaseConfig(config)}</strong> - the pre-3.6.0 way to configure a
      * {@link DatabaseConfig} - or these values are silently dropped: they are applied through
      * that same {@code setUpDatabaseConfig()} hook. The extension logs a warning when it sees
-     * such an override together with {@code properties()}/{@code propertiesProvider()}, since
-     * it cannot tell from reflection alone whether the {@code super} call is present.
+     * such an override together with {@code properties()}, since it cannot tell from
+     * reflection alone whether the {@code super} call is present.
      *
      * <p>The values last for the test: when it ends, each is put back to the value it replaced,
      * so a connection that outlives the test - a fixed connection, one cached by a
-     * {@code CachingConnectionProvider}, or one kept with {@link #closeConnectionAfterTest()}
-     * false - carries none of them into whatever uses it next.
+     * {@code CachingConnectionProvider}, or one the tester's listener leaves open - carries
+     * none of them into whatever uses it next.
+     *
+     * <p>Declarations in scope merge by property name: a nearer declaration overrides a property
+     * of a farther one by naming it, in its long or its short form, and the other properties of
+     * the farther one still apply. A declaration that names one property twice fails the test.
      *
      * @return The properties; empty (the default) applies none.
      */
     DbUnitProperty[] properties() default {};
 
     /**
-     * A {@link DatabaseConfigPropertiesProvider} implementation to reflectively instantiate
-     * (with its no-arg constructor) and ask for the {@link DatabaseConfig} properties to
-     * apply, for properties shared across several test classes.
+     * One or more catalog classes to read shared {@link VerifyTableDefinition} constants from:
+     * plain classes exposing {@code public static final VerifyTableDefinition} fields. The
+     * catalog supplies the rules of the tables a test verifies, which are the tables of its
+     * expected dataset: a table the catalog does not
+     * define is verified with default rules, and a catalog table the expected dataset lacks is
+     * not verified. See {@link DbUnitExpected} for the forms. dbUnit warns of a static field of
+     * that type that is not public and final, which it leaves out, and of a catalog class with
+     * no such field at all.
      *
-     * <p>Mutually exclusive with {@link #properties()}; setting both is rejected.
-     *
-     * <p>Subject to the same restriction on the prep/expected path that {@link #properties()}
-     * documents.
-     *
-     * @return The provider class; the interface itself (the default) means "not set".
-     */
-    Class<? extends DatabaseConfigPropertiesProvider> propertiesProvider() default DatabaseConfigPropertiesProvider.class;
-
-    /**
-     * One or more catalog classes to read shared {@link VerifyTableDefinition} constants from,
-     * as the class-level default for every method's {@link DbUnitExpected#verifyDefinitions()}.
-     * See {@link DbUnitExpected} for how the two resolve independently and what "catalog"
-     * means.
+     * <p>A catalog is read once and shared by every test naming it for the whole run, its
+     * {@link VerifyTableDefinition} objects included. A test must never change them, through
+     * their setters such as {@code setSortOnFilteredColumnsOnly()} or
+     * {@code setVerifyTableDefinitionVerifier()} included, and a
+     * {@link org.dbunit.assertion.comparer.value.ValueComparer} or verifier inside one must be
+     * stateless; otherwise the result of a later test depends on the order the tests ran in.
      *
      * @return The catalog classes; empty (the default) means "not set".
      */
@@ -183,8 +193,8 @@ public @interface DbUnitConfig
 
     /**
      * A classpath directory prefix applied to every {@link DbUnitPrep} and
-     * {@link DbUnitExpected} path that neither starts with {@code /} nor is otherwise
-     * absolute, ahead of the default of the package of the class declaring the annotation.
+     * {@link DbUnitExpected} path that does not start with {@code /}, ahead of the default of
+     * the package of the class declaring the annotation.
      *
      * @return The base directory; empty (the default) means "not set".
      */
@@ -194,76 +204,14 @@ public @interface DbUnitConfig
      * The {@link FailureHandler} to hand verification failures to, in place of dbUnit's own
      * default.
      *
-     * <p>Only takes effect on a {@link #prepAndExpectedTestCase()} whose type overrides
-     * {@link PrepAndExpectedTestCase#setFailureHandler(FailureHandler)} -
-     * {@link DefaultPrepAndExpectedTestCase} does. A {@link DbUnitTestCase} field injecting a
-     * different implementation fails fast with {@link IllegalStateException} instead, naming
-     * the implementation and this attribute, since a silent no-op here would otherwise leave
-     * the configured handler applied nowhere.
+     * <p>Applied by the {@link DefaultPrepAndExpectedTestCase} dbUnit constructs. A
+     * {@link DbUnitTestCase} field injecting an already-built test case is used as it was
+     * built, so declaring this next to one fails fast with {@link IllegalStateException},
+     * naming the implementation and this attribute: set the handler where the instance is
+     * built.
      *
      * @return The failure handler class, reflectively instantiated with its no-arg
      *         constructor; the interface itself (the default) means "not set".
      */
     Class<? extends FailureHandler> failureHandler() default FailureHandler.class;
-
-    /**
-     * Whether the connection this executor resolves - for the prep/expected path, the row count
-     * check, or parameter injection - is closed after each test.
-     *
-     * <p>Set to {@code false} when the {@code IDatabaseTester} shares a
-     * {@code CachingConnectionProvider} across test methods, so this test does not close a
-     * connection other tests still expect to reuse. The connection is also left open,
-     * regardless of this attribute, when the tester's {@link IOperationListener} is
-     * {@link IOperationListener#NO_OP_OPERATION_LISTENER} - the established, pre-existing
-     * signal that a tester's connection is managed elsewhere - so a connection already
-     * protected that way needs no explicit {@code false} here.
-     *
-     * <p>On the prep/expected path, a freshly constructed {@link #prepAndExpectedTestCase()} -
-     * no {@link DbUnitTestCase} field supplies one already - always receives this value through
-     * its {@code (DataFileLoader, IDatabaseTester, boolean)} constructor, regardless of
-     * implementation. A {@link DbUnitTestCase} field injecting an already-built instance
-     * receives it too when this is {@code false} - the default {@code true} leaves a value the
-     * instance was built with alone - but only when its type overrides
-     * {@link PrepAndExpectedTestCase#setCloseConnectionAfterTest(boolean)} -
-     * {@link DefaultPrepAndExpectedTestCase} does; setting this to {@code false} for a
-     * different injected implementation logs a warning rather than failing fast, since -
-     * unlike the other {@code @DbUnitTestCase}-injected setters here - this executor's own
-     * connection (for the row count check or parameter injection) still honors the value
-     * regardless; only that test case's own connection handling might not. That connection is
-     * also left open when the injected instance itself reports
-     * {@link PrepAndExpectedTestCase#isCloseConnectionAfterTest()} as {@code false}, even when
-     * this attribute is left at its default.
-     *
-     * <p>Leaving the connection open, by this attribute or the no-op listener, requires a tester
-     * that hands out the same connection on repeated calls, as one over a
-     * {@code CachingConnectionProvider} or over one fixed connection does. With a tester that
-     * hands out a new connection each time, such as a {@code JdbcDatabaseTester} without a
-     * {@code CachingConnectionProvider} or a {@code DataSourceDatabaseTester} over a connection
-     * pool, nothing closes the connection left open, so each test leaves one open, except that
-     * an injected test case reused across tests keeps one. On the prep/expected path, a step
-     * that fails also makes the test case forget its connection so that the next step acquires
-     * another, and the forgotten one stays open with nothing referencing it. A warning is
-     * logged when the tester is a {@code JdbcDatabaseTester} without a
-     * {@code CachingConnectionProvider}.
-     *
-     * @return True to close the connection after each test; defaults to true.
-     */
-    boolean closeConnectionAfterTest() default true;
-
-    /**
-     * Whether the JUnit binding resolves a bare {@link java.sql.Connection} parameter on this
-     * test. Default {@code true}.
-     *
-     * <p>Set to {@code false} when another extension on the same test - Spring's
-     * {@code SpringExtension}, Testcontainers, a JPA or JDBC test harness - also resolves
-     * {@code java.sql.Connection}: JUnit Jupiter rejects two {@code ParameterResolver}s
-     * competing for one parameter with "discovered multiple competing ParameterResolvers", and
-     * dbUnit yields the common {@code Connection} type rather than force the other extension
-     * to. The dbUnit-specific {@link org.dbunit.database.IDatabaseConnection} parameter is still
-     * resolved regardless - no other framework claims that type - so inject that and call its
-     * {@code getConnection()} for the JDBC connection.
-     *
-     * @return True to resolve a {@code java.sql.Connection} parameter; defaults to true.
-     */
-    boolean injectConnectionParameter() default true;
 }

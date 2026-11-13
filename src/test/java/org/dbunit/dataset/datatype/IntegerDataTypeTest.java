@@ -172,6 +172,20 @@ class IntegerDataTypeTest extends AbstractDataTypeTest
         }
     }
 
+    @Test
+    void testTypeCastBool_withBooleanValue_returnsIntegerZeroOrOne() throws Exception
+    {
+        for (final DataType type : TYPES)
+        {
+            assertThat(type.typeCast(Boolean.FALSE))
+                    .as("A Boolean false is typecast to 0 by " + type + ".")
+                    .isEqualTo(0);
+            assertThat(type.typeCast(Boolean.TRUE))
+                    .as("A Boolean true is typecast to 1 by " + type + ".")
+                    .isEqualTo(1);
+        }
+    }
+
     @Override
     @Test
     public void testTypeCastInvalid_withIncompatibleInput_throwsTypeCastException() throws Exception

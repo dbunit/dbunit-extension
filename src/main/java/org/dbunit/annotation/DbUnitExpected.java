@@ -29,39 +29,69 @@ import java.lang.annotation.Target;
 
 import org.dbunit.PrepAndExpectedTestCase;
 import org.dbunit.VerifyTableDefinition;
-import org.dbunit.util.fileloader.DataSetPathsProvider;
 
 /**
  * Specifies the expected dataset file(s) to verify actual database state against after each
  * test method, and (optionally) which tables and rules to verify with. Presence of this
- * annotation is what switches the test from the setup/teardown path onto the
- * {@link PrepAndExpectedTestCase} prep/expected path - which runs dbUnit's expected-dataset
- * comparison for you. Leave it off, and the test method does its own asserting.
+ * annotation is what has the {@link PrepAndExpectedTestCase} that runs the test run dbUnit's
+ * expected-dataset comparison for you. Leave it off, and the test method does its own
+ * asserting.
+ *
+ * <p>This annotation takes effect only on a test class that registers
+ * {@link org.dbunit.junit.jupiter.DbUnitExtension}, with {@code @DbUnitTest} or
+ * {@code @ExtendWith(DbUnitExtension.class)}, or that runs under
+ * {@link org.dbunit.spring.DbUnitTestExecutionListener}. A class that registers neither runs its
+ * tests as if the annotation were absent, with no prep, verification or teardown, and they pass.
+ *
+ * <p>Place it on the test method or on the test class. A method-level annotation counts on the
+ * test method only: on a {@code @BeforeEach}, {@code @AfterEach}, {@code @BeforeAll} or
+ * {@code @AfterAll} method, or on a {@code @BeforeParameterizedClassInvocation} or
+ * {@code @AfterParameterizedClassInvocation} method of a {@code @ParameterizedClass}, nothing
+ * reads it, so the binding fails the test, or the class when the extension or listener is
+ * registered on it, with an {@link IllegalStateException} that names the method. That holds for a
+ * lifecycle method that a subclass overrides, and under Spring for a {@code @BeforeTransaction}
+ * or {@code @AfterTransaction} method. On any other method, such as a helper, nothing reads it
+ * and nothing says so.
  *
  * <p>A method-level annotation overrides a class-level annotation on a per-test basis; the
  * class annotation is inherited by subclasses. Valid with no {@link DbUnitPrep} at all - the
  * database state already present is what gets verified.
  *
- * <p>An expected dataset must always be named, with {@link #value()} or {@link #provider()}:
- * the tables verified are compared to it, so the forms below only choose which of its tables
- * are compared. An annotation naming none is rejected, whatever else it declares.
+ * <p>An expected dataset must always be named, with {@link #value()}, which has no default: the
+ * compiler rejects an annotation that leaves it out, and dbUnit rejects one that names an empty
+ * array when the test runs, whatever else it declares. dbUnit compares every table of the
+ * dataset to the database, so the forms below give each of its tables a definition rather than
+ * choose among them. A path shared through a composed annotation should be absolute, as a
+ * relative one resolves against the class carrying the composed annotation, not the class using
+ * it.
  *
- * <p>Which tables to verify, and with what rules, resolves through the following forms so the
- * common cases stay short - highest-priority form first:
+ * <p>The following forms decide which rules verify each table, so the common cases stay short.
+ * dbUnit compares a table only with a {@link VerifyTableDefinition}, so every table of the
+ * expected dataset needs one: {@link #verify()} and {@link #verifyTables()} have to name all of
+ * them, and a class-level {@link DbUnitConfig#verifyDefinitions() catalog} only supplies each
+ * table's rules:
  * <ol>
- *   <li>{@link #verify()} together with {@link #verifyDefinitions()} or {@link #verifyTables()}
- *   - rejected as ambiguous.</li>
- *   <li>{@link #verifyDefinitions()}, else - when this method declares neither it nor
- *   {@link #verify()} - {@link DbUnitConfig#verifyDefinitions()} as the class-level default -
- *   every definition in whichever named catalog class(es) is in play, narrowed to
- *   {@link #verifyTables()} when that is also given.</li>
- *   <li>{@link #verify()} - full per-table rules, inline.</li>
- *   <li>{@link #verifyTables()}, with no catalog in play (neither this method's own
- *   {@link #verifyDefinitions()} nor a class-level {@link DbUnitConfig#verifyDefinitions()}) -
- *   a default {@link VerifyTableDefinition} per named table.</li>
- *   <li>None of the above - a default {@link VerifyTableDefinition} per table in the expected
- *   dataset.</li>
+ *   <li>{@link #verify()} - full per-table rules, inline, for every table of the expected
+ *   dataset. Rejected together with {@link #verifyTables()}.</li>
+ *   <li>{@link #verifyTables()} - every table of the expected dataset, each with its definition
+ *   from the catalog when the catalog defines it and a default {@link VerifyTableDefinition}
+ *   when not.</li>
+ *   <li>None of the above - every table in the expected dataset, with the catalog's definition
+ *   for the tables it defines and a default {@link VerifyTableDefinition} for the others. A
+ *   catalog table the expected dataset lacks is not verified.</li>
  * </ol>
+ *
+ * <p>The test fails when the expected dataset holds a table that {@link #verify()} or
+ * {@link #verifyTables()} does not name, because dbUnit cannot compare a table without a
+ * definition and would otherwise let an expected table go unchecked. A name that the expected
+ * dataset does not hold fails as well, with
+ * {@code Problem obtaining table 'OTHER' from expected dataset}. So the expected dataset holds
+ * only the tables the test verifies. A table that only the teardown operation cleans goes in the
+ * {@link DbUnitPrep} dataset instead, with no rows when it starts empty. A test class that
+ * verifies fewer tables than the expected dataset holds on purpose declares
+ * {@code @DbUnitProperty(name = "allowVerifytabledefinitionExpectedtableCountMismatch",
+ * value = "true")} in the {@link DbUnitConfig#properties()} of its class, which applies to every
+ * test of the class and leaves the tables without a definition unverified.
  *
  * <p>Example:
  * <pre>{@code
@@ -81,11 +111,13 @@ import org.dbunit.util.fileloader.DataSetPathsProvider;
  * }
  * }</pre>
  *
+ * <p>Here {@code expected.xml} holds the {@code ACCOUNT} and {@code TRANSACTION} tables and no
+ * other, because {@link #verifyTables()} has to name every table of the expected dataset.
+ *
  * @author Jeff Jensen
  * @since 3.6.0
  * @see DbUnitPrep
  * @see DbUnitVerifyTable
- * @see org.dbunit.VerifyTableDefinitionsProvider
  */
 @Target({ElementType.TYPE, ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)
@@ -94,51 +126,29 @@ import org.dbunit.util.fileloader.DataSetPathsProvider;
 public @interface DbUnitExpected
 {
     /**
-     * Classpath resource paths for the expected dataset files to load.
+     * Classpath resource paths for the expected dataset files to load. Required: the tables to
+     * verify are compared to these datasets.
      *
-     * <p>Mutually exclusive with {@link #provider()}; setting both is rejected.
-     *
-     * @return Zero or more dataset resource paths.
+     * @return One or more dataset resource paths; an explicitly empty array is rejected when the
+     *         test runs.
      */
-    String[] value() default {};
+    String[] value();
 
     /**
-     * A {@link DataSetPathsProvider} implementation to reflectively instantiate and ask for
-     * the expected dataset paths, for a path list shared across several test classes.
+     * Names of the tables to verify, which have to be every table of the expected dataset, with
+     * the rules of the class-level {@link DbUnitConfig#verifyDefinitions() catalog} for a table
+     * it defines and default rules for the others.
      *
-     * <p>Mutually exclusive with {@link #value()}; setting both is rejected. The provider
-     * returning {@code null} or an empty array is rejected too - it is wired to supply paths,
-     * so supplying none is a misconfiguration.
-     *
-     * @return The provider class; the interface itself (the default) means "not set".
-     */
-    Class<? extends DataSetPathsProvider> provider() default DataSetPathsProvider.class;
-
-    /**
-     * Names of the tables to verify, using default verification rules - or, when
-     * {@link #verifyDefinitions()} is also set, the subset of that catalog's tables to select.
-     *
-     * @return The table names; empty (the default) means "every table", the exact meaning
-     *         depending on which other members are set - see the class Javadoc.
+     * @return The table names, all the tables of the expected dataset; empty (the default)
+     *         derives one definition for every table of the expected dataset.
      */
     String[] verifyTables() default {};
 
     /**
-     * Full per-table verification rules, inline.
+     * Full per-table verification rules, inline, one for every table of the expected dataset.
      *
-     * @return The table definitions; empty (the default) defers to {@link #verifyTables()} or
-     *         {@link #verifyDefinitions()}.
+     * @return The table definitions; empty (the default) defers to {@link #verifyTables()} or,
+     *         with that empty too, to every table of the expected dataset.
      */
     DbUnitVerifyTable[] verify() default {};
-
-    /**
-     * One or more catalog classes to read shared {@link VerifyTableDefinition}
-     * constants from - either a {@link org.dbunit.VerifyTableDefinitionsProvider}
-     * implementation, or a plain class exposing {@code public static final
-     * VerifyTableDefinition} fields. Overrides
-     * {@link DbUnitConfig#verifyDefinitions()} when both are set.
-     *
-     * @return The catalog classes; empty (the default) means "not set".
-     */
-    Class<?>[] verifyDefinitions() default {};
 }

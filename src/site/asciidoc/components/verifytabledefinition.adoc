@@ -21,10 +21,10 @@ per table you want verified after a test runs.
 
 |`tableName` (`getTableName()`) |The table's name — the only required piece of state; every constructor rejects a `null` table with `IllegalArgumentException`.
 |`columnExclusionFilters` (`getColumnExclusionFilters()`) |Columns to leave out of the comparison; `null`/empty means exclude none.
-|`columnInclusionFilters` (`getColumnInclusionFilters()`) |Columns to restrict the comparison to; `null` or empty means include all.
+|`columnInclusionFilters` (`getColumnInclusionFilters()`) |Columns to restrict the comparison to; `null` or empty means include all. Each name must match a column of the table (without regard to case, with the wildcards `*` and `?`); since 3.6.0 a name that matches no column, such as a misspelling, fails the verification, unless the link:../properties.html#failonunknownverifycolumnname[`FEATURE_FAIL_ON_UNKNOWN_VERIFY_COLUMN_NAME`] feature is `false`, which logs a warning instead.
 |`defaultValueComparer` (`getDefaultValueComparer()`, since 2.6.0) |The `ValueComparer` used for any column not present in `columnValueComparers`. `null` defaults to equality comparison.
-|`columnValueComparers` (`getColumnValueComparers()`, since 2.6.0) |A `Map<String, ValueComparer>` of per-column comparers, keyed by column name.
-|`sortOnFilteredColumnsOnly` (`isSortOnFilteredColumnsOnly()`/`setSortOnFilteredColumnsOnly()`, since 3.5.0) |Whether comparison sorts both tables by only this table's filtered columns instead of all of the actual table's native columns, and, since 3.6.0, also selects only those columns from the database. Default `false`. See <<sortmode,Sort Mode>> below.
+|`columnValueComparers` (`getColumnValueComparers()`, since 2.6.0) |A `Map<String, ValueComparer>` of per-column comparers, keyed by column name. Since 3.6.0 `DefaultPrepAndExpectedTestCase` matches a key to its column without regard to case, as it matches the exclusion and inclusion filters, and rejects two keys that differ only in case with `IllegalArgumentException`. A key that names no column of the table fails the verification, unless the link:../properties.html#failonunknownverifycolumnname[`FEATURE_FAIL_ON_UNKNOWN_VERIFY_COLUMN_NAME`] feature is `false`, which logs a warning instead, so a map shared by several definitions must hold only columns that every one of their tables has. A key whose column the include or exclusion filters leave out, matched as the comparison matches them, fails the verification the same way, as its comparer would not be used. A key that is `null` names no column and is left out. The columns of the table are those the comparison reads: a column of a type the data type factory does not know counts, and so does a column the test step adds.
+|`sortOnFilteredColumnsOnly` (`isSortOnFilteredColumnsOnly()`/`setSortOnFilteredColumnsOnly()`, since 3.5.0) |Whether comparison sorts both tables by only this table's filtered columns instead of all of the actual table's native columns, and, since 3.6.0, also selects only those columns from the database when a filter leaves a column out. Default `false`. See <<sortmode,Sort Mode>> below.
 |===
 
 [#constructors]
@@ -59,6 +59,13 @@ table and column. This is a fail-fast check at construction time, not at compari
 time, so a misconfigured `VerifyTableDefinition` breaks loudly wherever it's built
 (commonly a static field or factory method) rather than surfacing later as a confusing
 assertion failure.
+
+The check matches an excluded name to a comparer's key exactly, as the constructor does not know the
+table's columns, so `columnExclusionFilters` of `name` or `N*` with a comparer for `NAME` passes it.
+Since 3.6.0 the verification of the table fails for such a comparer, as its column is left out of
+the comparison and the comparer would not be used, unless the
+link:../properties.html#failonunknownverifycolumnname[`FEATURE_FAIL_ON_UNKNOWN_VERIFY_COLUMN_NAME`]
+feature is `false`, which logs a warning instead.
 
 `getVerifyTableDefinitionVerifier()`/`setVerifyTableDefinitionVerifier()` expose the
 verifier instance for reuse (e.g. calling `.verify(...)` again manually) or replacement
@@ -135,14 +142,34 @@ database: the actual table is loaded selecting only the columns that survive the
 an excluded column, often a large one such as a BLOB or CLOB, is not fetched. A column that
 only the include filter drops is not fetched either, so the additional row info of a failure
 message, which in the default mode lists such a column to help identify the mismatching row,
-then lists only the compared columns. The columns come
-from the connection's database metadata, the way a
-link:../apidocs/org/dbunit/database/DatabaseDataSet.html[DatabaseDataSet] gets them. When they cannot be determined,
-or every column is filtered out, every column is selected as before. A subclass of
+then lists only the compared columns. The columns are those of the
+table as the comparison reads them, read with a select that returns no row, so a column of a
+type the data type factory does not know is selected, and so is a column the test step added,
+which the connection's cached
+link:../apidocs/org/dbunit/database/DatabaseDataSet.html[DatabaseDataSet] does not list. With no
+link:../properties.html#escapepattern[escape pattern] set, each selected column name is written
+between the database's identifier quote string, as the database stores it, so a column named as a
+reserved word, such as `VALUE`, or in mixed case, such as `mixedCase`, is selected as it is stored.
+With an escape pattern set, the pattern escapes the names as it does everywhere else. When no column
+is filtered out, selecting them by name would save nothing, so every column is selected as the default
+mode does, with no quoting involved. Every column is selected too when the columns cannot be read or
+every column is filtered out. A subclass of
 `DefaultPrepAndExpectedTestCase` that overrides
 `loadTableDataFromDatabase(String, IDatabaseConnection)`, for example to add a `WHERE` clause,
 keeps deciding what is loaded. The default `false` still selects every column, because each
 one is a sort key there.
+
+Whichever mode sorts, since 3.6.0 a column that has a comparer of its own in
+`columnValueComparers` is the last column of the sort key of both tables. Its expected value
+is often not the actual value - a pattern for `RegularExpressionValueComparer`, a tolerance
+for a timestamp comparer - so ordering the rows by it first would line each expected row up
+against the wrong actual row, for example when every expected row holds the same pattern for a
+generated id and the actual rows are ordered by their real ids. Ordered last, the column only
+orders rows that tie on every other column: give such rows the same pattern, or tell them
+apart by another column. Rows that tie and hold different patterns in a column whose type
+cannot compare a pattern, such as a numeric id, fail the verification with a
+`DatabaseUnitException` that names the table and the column; in a text column the patterns
+compare as text. A table that names no comparer sorts as before.
 
 [#usage]
 == Usage Examples

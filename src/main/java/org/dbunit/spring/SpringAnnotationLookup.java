@@ -22,6 +22,8 @@ package org.dbunit.spring;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.dbunit.annotation.runtime.AnnotationLookup;
 import org.springframework.core.annotation.MergedAnnotation;
@@ -65,6 +67,12 @@ class SpringAnnotationLookup implements AnnotationLookup
         this.testMethod = testContext.getTestMethod();
     }
 
+    /**
+     * {@inheritDoc}
+     * <p>
+     * Searches the test method first, then the test class as {@link TestContextAnnotationUtils}
+     * does, and returns the first annotation it finds, as Spring synthesizes it.
+     */
     @Override
     public <A extends Annotation> A find(final Class<A> annotationType)
     {
@@ -76,6 +84,31 @@ class SpringAnnotationLookup implements AnnotationLookup
         return null;
     }
 
+    /**
+     * {@inheritDoc}
+     * <p>
+     * Lists those on the test method first, then those Spring finds on the test class, through
+     * its type hierarchy and the enclosing classes of a nested test class.
+     */
+    @Override
+    public <A extends Annotation> List<A> findAll(final Class<A> annotationType)
+    {
+        final List<A> found = new ArrayList<>();
+        MergedAnnotations.from(testMethod, SearchStrategy.DIRECT).stream(annotationType)
+                .forEach(onMethod -> found.add(onMethod.synthesize()));
+        MergedAnnotations.search(SearchStrategy.TYPE_HIERARCHY)
+                .withEnclosingClasses(TestContextAnnotationUtils::searchEnclosingClass)
+                .from(testClass).stream(annotationType)
+                .forEach(onClass -> found.add(onClass.synthesize()));
+        return found;
+    }
+
+    /**
+     * {@inheritDoc}
+     * <p>
+     * Reads it from the source of the merged annotation that {@link #find(Class)} returns: the
+     * class that declares the method, or the class that carries the annotation.
+     */
     @Override
     public Class<?> findDeclaringClass(final Class<? extends Annotation> annotationType)
     {

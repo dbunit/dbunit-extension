@@ -34,8 +34,8 @@ import org.dbunit.annotation.DbUnitConfig;
 import org.dbunit.annotation.DbUnitExpected;
 import org.dbunit.annotation.DbUnitPrep;
 import org.dbunit.annotation.DbUnitRowCountCheck;
-import org.dbunit.annotation.DbUnitSetup;
-import org.dbunit.annotation.DbUnitTearDown;
+import org.dbunit.annotation.DbUnitSetUpOperation;
+import org.dbunit.annotation.DbUnitTearDownOperation;
 import org.dbunit.annotation.DbUnitTestCase;
 import org.dbunit.annotation.DbUnitTester;
 import org.junit.jupiter.api.Test;
@@ -44,10 +44,12 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 class AnnotatedTestOptInTest
 {
+    private final AnnotatedTestOptIn optIn = new AnnotatedTestOptIn(new TesterFields());
+
     static Stream<Class<? extends Annotation>> configuringAnnotations()
     {
-        return Stream.of(DbUnitConfig.class, DbUnitPrep.class, DbUnitSetup.class,
-                DbUnitExpected.class, DbUnitTearDown.class, DbUnitRowCountCheck.class);
+        return Stream.of(DbUnitConfig.class, DbUnitPrep.class, DbUnitSetUpOperation.class,
+                DbUnitExpected.class, DbUnitTearDownOperation.class, DbUnitRowCountCheck.class);
     }
 
     @ParameterizedTest
@@ -57,7 +59,7 @@ class AnnotatedTestOptInTest
     {
         final AnnotationLookup lookup = findingOnly(annotationType);
 
-        assertThat(AnnotatedTestOptIn.isOptedIn(lookup, classes(NoMarkerFields.class)))
+        assertThat(optIn.isOptedIn(lookup, classes(NoMarkerFields.class)))
                 .as("%s on the test opts it into the annotation family.",
                         annotationType.getSimpleName())
                 .isTrue();
@@ -66,7 +68,7 @@ class AnnotatedTestOptInTest
     @Test
     void testIsOptedIn_nothingFoundAndNoMarkerField_returnsFalse()
     {
-        assertThat(AnnotatedTestOptIn.isOptedIn(findsNothing(), classes(NoMarkerFields.class)))
+        assertThat(optIn.isOptedIn(findsNothing(), classes(NoMarkerFields.class)))
                 .as("A test with no configuring annotation and no marker field is not opted in.")
                 .isFalse();
     }
@@ -74,7 +76,7 @@ class AnnotatedTestOptInTest
     @Test
     void testIsOptedIn_unmarkedTesterFieldOnly_returnsFalse()
     {
-        assertThat(AnnotatedTestOptIn.isOptedIn(findsNothing(), classes(UnmarkedTesterField.class)))
+        assertThat(optIn.isOptedIn(findsNothing(), classes(UnmarkedTesterField.class)))
                 .as("A plain, unmarked IDatabaseTester field is the 3.5.0 lifecycle-only style"
                         + " and is not an opt-in.")
                 .isFalse();
@@ -83,21 +85,21 @@ class AnnotatedTestOptInTest
     @Test
     void testIsOptedIn_dbUnitTesterField_returnsTrue()
     {
-        assertThat(AnnotatedTestOptIn.isOptedIn(findsNothing(), classes(MarkedTesterField.class)))
+        assertThat(optIn.isOptedIn(findsNothing(), classes(MarkedTesterField.class)))
                 .as("A @DbUnitTester field opts the test in.").isTrue();
     }
 
     @Test
     void testIsOptedIn_dbUnitTestCaseField_returnsTrue()
     {
-        assertThat(AnnotatedTestOptIn.isOptedIn(findsNothing(), classes(MarkedTestCaseField.class)))
+        assertThat(optIn.isOptedIn(findsNothing(), classes(MarkedTestCaseField.class)))
                 .as("A @DbUnitTestCase field opts the test in.").isTrue();
     }
 
     @Test
     void testIsOptedIn_markedFieldOnSuperclass_returnsTrue()
     {
-        assertThat(AnnotatedTestOptIn.isOptedIn(findsNothing(),
+        assertThat(optIn.isOptedIn(findsNothing(),
                 classes(SubclassOfMarkedTesterField.class)))
                         .as("A marker field inherited from a superclass opts the test in.")
                         .isTrue();
@@ -106,7 +108,7 @@ class AnnotatedTestOptInTest
     @Test
     void testIsOptedIn_markedFieldOnlyOnEnclosingClass_returnsTrue()
     {
-        assertThat(AnnotatedTestOptIn.isOptedIn(findsNothing(),
+        assertThat(optIn.isOptedIn(findsNothing(),
                 classes(NoMarkerFields.class, MarkedTesterField.class)))
                         .as("A marker field on an enclosing class opts a @Nested test in.")
                         .isTrue();
@@ -130,9 +132,9 @@ class AnnotatedTestOptInTest
 
     @DbUnitConfig
     @DbUnitPrep("prep.xml")
-    @DbUnitSetup
+    @DbUnitSetUpOperation
     @DbUnitExpected("expected.xml")
-    @DbUnitTearDown
+    @DbUnitTearDownOperation
     @DbUnitRowCountCheck
     static class AllConfiguringAnnotations
     {

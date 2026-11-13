@@ -14,18 +14,26 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 import org.dbunit.assertion.DbComparisonFailure;
 import org.dbunit.assertion.DbUnitAssertBase;
 import org.dbunit.assertion.DiffCollectingFailureHandler;
+import org.dbunit.assertion.comparer.value.RegularExpressionValueComparer;
 import org.dbunit.assertion.comparer.value.ValueComparer;
+import org.dbunit.assertion.comparer.value.ValueComparers;
+import org.dbunit.assertion.comparer.value.builder.ColumnValueComparerMapBuilder;
 import org.dbunit.database.CachingConnectionProvider;
 import org.dbunit.database.DatabaseConfig;
+import org.dbunit.database.DatabaseDataSourceConnection;
 import org.dbunit.database.IDatabaseConnection;
 import org.dbunit.database.MockDatabaseConnection;
+import org.dbunit.database.connection.ClosedConnectionHandedOutWarning;
+import org.dbunit.database.connection.ClosedFixedConnectionWarning;
 import org.dbunit.database.connection.LeftOpenConnectionWarning;
 import org.dbunit.database.rowcount.ClearRowCountCheckSystemProperties;
 import org.dbunit.database.rowcount.RowCountCheck;
+import org.dbunit.database.rowcount.RowCountCheckOverride;
 import org.dbunit.database.rowcount.RowCountDifference;
 import org.dbunit.database.rowcount.RowCountSnapshot;
 import org.dbunit.database.rowcount.UnexpectedRowCountException;
@@ -41,9 +49,11 @@ import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.datatype.DataType;
 import org.dbunit.dataset.datatype.DefaultDataTypeFactory;
+import org.dbunit.dataset.datatype.TypeCastException;
 import org.dbunit.operation.DatabaseOperation;
 import org.dbunit.util.fileloader.DataFileLoader;
 import org.dbunit.util.fileloader.FlatXmlDataFileLoader;
+import org.h2.jdbcx.JdbcDataSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -105,6 +115,444 @@ class DefaultPrepAndExpectedTestCaseTest
 
         final IDataSet expExpDs = dataFileLoader.load(EXP_DATA_FILE_NAME);
         Assertion.assertEquals(expExpDs, tc.getExpectedDataset());
+    }
+
+    @Test
+    void testConfigureTest_everyExpectedTableBundle_verifiesEachTableOfTheExpectedDataset()
+            throws Exception
+    {
+        final String[] expectedTableNames =
+                dataFileLoader.load(EXP_DATA_FILE_NAME).getTableNames();
+
+        tc.configureTest(PrepAndExpectedTestData.verifyingExpectedTables(
+                new String[] {PREP_DATA_FILE_NAME}, new String[] {EXP_DATA_FILE_NAME}));
+
+        assertThat(tc.getVerifyTableDefs()).extracting(VerifyTableDefinition::getTableName)
+                .as("One default definition per table of the expected dataset it loaded.")
+                .containsExactly(expectedTableNames);
+        Assertion.assertEquals(dataFileLoader.load(PREP_DATA_FILE_NAME), tc.getPrepDataset());
+        Assertion.assertEquals(dataFileLoader.load(EXP_DATA_FILE_NAME),
+                tc.getExpectedDataset());
+    }
+
+    @Test
+    void testConfigureTest_everyExpectedTableBundleWithRules_usesThemForTheTablesTheyDefine()
+            throws Exception
+    {
+        final String[] expectedTableNames =
+                dataFileLoader.load(EXP_DATA_FILE_NAME).getTableNames();
+        final VerifyTableDefinition rules = new VerifyTableDefinition(
+                expectedTableNames[0].toLowerCase(), new String[] {"IGNORED"});
+        final VerifyTableDefinition forATableTheDatasetLacks =
+                new VerifyTableDefinition("NOT_IN_THE_EXPECTED_DATASET", (String[]) null);
+
+        tc.configureTest(PrepAndExpectedTestData.verifyingExpectedTables(
+                new String[] {PREP_DATA_FILE_NAME}, new String[] {EXP_DATA_FILE_NAME},
+                new VerifyTableDefinition[] {rules, forATableTheDatasetLacks}));
+
+        assertThat(tc.getVerifyTableDefs()).extracting(VerifyTableDefinition::getTableName)
+                .as("The expected dataset decides which tables are verified.")
+                .doesNotContain("NOT_IN_THE_EXPECTED_DATASET")
+                .hasSize(expectedTableNames.length);
+        assertThat(tc.getVerifyTableDefs())
+                .as("A table the rules define, found ignoring case, is verified with them.")
+                .contains(rules)
+                .doesNotContain(forATableTheDatasetLacks);
+    }
+
+    @Test
+    void testConfigureTest_everyExpectedTableBundleWithRulesAndSubclassOverridingConfigureTest_passesTheRulesToIt()
+            throws Exception
+    {
+        final List<VerifyTableDefinition[]> given = new ArrayList<>();
+        final DefaultPrepAndExpectedTestCase subclass =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester)
+                {
+                    @Override
+                    public void configureTest(final VerifyTableDefinition[] verifyTables,
+                            final String[] prepDataFiles, final String[] expectedDataFiles)
+                            throws Exception
+                    {
+                        given.add(verifyTables);
+                        super.configureTest(verifyTables, prepDataFiles, expectedDataFiles);
+                    }
+                };
+        final String[] expectedTableNames =
+                dataFileLoader.load(EXP_DATA_FILE_NAME).getTableNames();
+        final VerifyTableDefinition rules =
+                new VerifyTableDefinition(expectedTableNames[0], new String[] {"IGNORED"});
+
+        subclass.configureTest(PrepAndExpectedTestData.verifyingExpectedTables(
+                new String[] {PREP_DATA_FILE_NAME}, new String[] {EXP_DATA_FILE_NAME},
+                new VerifyTableDefinition[] {rules}));
+
+        assertThat(given).as("The override is called once.").hasSize(1);
+        assertThat(given.get(0)).as("It gets the rules for the table they define.")
+                .contains(rules);
+        assertThat(given.get(0)).extracting(VerifyTableDefinition::getTableName)
+                .containsExactly(expectedTableNames);
+    }
+
+    @Test
+    void testConfigureTest_everyExpectedTableBundleAndSubclassOverridingConfigureTest_passesTheDerivedDefinitionsToIt()
+            throws Exception
+    {
+        final List<VerifyTableDefinition[]> given = new ArrayList<>();
+        final DefaultPrepAndExpectedTestCase subclass =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester)
+                {
+                    @Override
+                    public void configureTest(final VerifyTableDefinition[] verifyTables,
+                            final String[] prepDataFiles, final String[] expectedDataFiles)
+                            throws Exception
+                    {
+                        given.add(verifyTables);
+                        super.configureTest(verifyTables, prepDataFiles, expectedDataFiles);
+                    }
+                };
+
+        subclass.configureTest(PrepAndExpectedTestData.verifyingExpectedTables(
+                new String[] {PREP_DATA_FILE_NAME}, new String[] {EXP_DATA_FILE_NAME}));
+
+        assertThat(given).as("The override is called once.").hasSize(1);
+        assertThat(given.get(0)).extracting(VerifyTableDefinition::getTableName)
+                .as("A subclass that overrides configureTest() may expect the definitions it is"
+                        + " given, so it gets one per table of the expected dataset.")
+                .containsExactly(dataFileLoader.load(EXP_DATA_FILE_NAME).getTableNames());
+        assertThat(subclass.getVerifyTableDefs()).as("They are the ones configured.")
+                .containsExactly(given.get(0));
+    }
+
+    @Test
+    void testConfigureTest_everyExpectedTableBundleAndSubclassKeepingConfigureTest_verifiesEachTableOfTheExpectedDataset()
+            throws Exception
+    {
+        final DefaultPrepAndExpectedTestCase subclass =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester)
+                {
+                };
+
+        subclass.configureTest(PrepAndExpectedTestData.verifyingExpectedTables(
+                new String[] {PREP_DATA_FILE_NAME}, new String[] {EXP_DATA_FILE_NAME}));
+
+        assertThat(subclass.getVerifyTableDefs())
+                .as("A subclass that keeps this class's configureTest(), for example one that"
+                        + " only overrides compareData(), verifies each table too.")
+                .hasSize(subclass.getExpectedDataset().getTableNames().length);
+    }
+
+    @Test
+    void testConfigureTest_everyExpectedTableBundleAndExpectedFileMissing_releasesTheConnectionItAcquired()
+            throws Exception
+    {
+        assertThatThrownBy(() -> tc.configureTest(PrepAndExpectedTestData.verifyingExpectedTables(
+                new String[] {PREP_DATA_FILE_NAME}, new String[] {MISSING_DATA_FILE_NAME})))
+                        .as("A missing expected data file must fail the configuration.")
+                        .isInstanceOf(DatabaseUnitRuntimeException.class);
+
+        final MockDatabaseConnection connection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        connection.setExpectedCloseCalls(1);
+        connection.verify();
+    }
+
+    @Test
+    void testConfigureTest_subclassOverridingConfigureTestAndExpectedFileMissing_failsWithoutAcquiringAConnection()
+            throws Exception
+    {
+        final DefaultPrepAndExpectedTestCase subclass =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester)
+                {
+                    @Override
+                    public void configureTest(final VerifyTableDefinition[] verifyTables,
+                            final String[] prepDataFiles, final String[] expectedDataFiles)
+                            throws Exception
+                    {
+                        super.configureTest(verifyTables, prepDataFiles, expectedDataFiles);
+                    }
+                };
+
+        assertThatThrownBy(() -> subclass.configureTest(
+                PrepAndExpectedTestData.verifyingExpectedTables(
+                        new String[] {PREP_DATA_FILE_NAME},
+                        new String[] {MISSING_DATA_FILE_NAME})))
+                                .as("Deriving the definitions for the override must fail on a"
+                                        + " missing expected data file too.")
+                                .isInstanceOf(DatabaseUnitRuntimeException.class);
+
+        final MockDatabaseConnection connection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        connection.setExpectedCloseCalls(0);
+        connection.verify();
+    }
+
+    @Test
+    void testPreTest_everyExpectedTableBundle_configuresEveryTableThenSetsUpTheDatabase()
+            throws Exception
+    {
+        final RecordingDatabaseOperation setUpOperation = new RecordingDatabaseOperation();
+        databaseTester.setSetUpOperation(setUpOperation);
+
+        tc.preTest(PrepAndExpectedTestData.verifyingExpectedTables(
+                new String[] {PREP_DATA_FILE_NAME}, new String[] {EXP_DATA_FILE_NAME}));
+
+        assertThat(tc.getVerifyTableDefs()).extracting(VerifyTableDefinition::getTableName)
+                .as("preTest() with the bundle must configure every expected table.")
+                .containsExactly(dataFileLoader.load(EXP_DATA_FILE_NAME).getTableNames());
+        assertThat(setUpOperation.getExecutedTableNames())
+                .as("preTest() with the bundle must set up the prep data.")
+                .containsExactly(
+                        Arrays.asList(dataFileLoader.load(PREP_DATA_FILE_NAME).getTableNames()));
+    }
+
+    @Test
+    void testRunTest_everyExpectedTableBundle_configuresEveryTableBeforeTheTestSteps()
+            throws Exception
+    {
+        final List<Integer> verifiedTableCounts = new ArrayList<>();
+        databaseTester.setSetUpOperation(new RecordingDatabaseOperation());
+        final DefaultPrepAndExpectedTestCase recording =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester)
+                {
+                    @Override
+                    public void verifyData() throws Exception
+                    {
+                        verifiedTableCounts.add(getVerifyTableDefs().length);
+                    }
+                };
+
+        final Object result = recording.runTest(PrepAndExpectedTestData.verifyingExpectedTables(
+                new String[] {PREP_DATA_FILE_NAME}, new String[] {EXP_DATA_FILE_NAME}),
+                () -> "steps ran");
+
+        assertThat(result).as("The steps' result is returned.").isEqualTo("steps ran");
+        assertThat(verifiedTableCounts)
+                .as("verifyData() runs once, after every expected table was configured.")
+                .containsExactly(dataFileLoader.load(EXP_DATA_FILE_NAME).getTableNames().length);
+    }
+
+    @Test
+    void testConfigureTest_subclassOverridingConfigureTestAndExpectedFileMissing_emptiesTheDataOfTheEarlierRun()
+            throws Exception
+    {
+        final DefaultPrepAndExpectedTestCase subclass =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester)
+                {
+                    @Override
+                    public void configureTest(final VerifyTableDefinition[] verifyTables,
+                            final String[] prepDataFiles, final String[] expectedDataFiles)
+                            throws Exception
+                    {
+                        super.configureTest(verifyTables, prepDataFiles, expectedDataFiles);
+                    }
+                };
+        subclass.configureTest(PrepAndExpectedTestData.verifyingExpectedTables(
+                new String[] {PREP_DATA_FILE_NAME}, new String[] {EXP_DATA_FILE_NAME}));
+
+        assertThatThrownBy(() -> subclass.configureTest(
+                PrepAndExpectedTestData.verifyingExpectedTables(new String[0],
+                        new String[] {MISSING_DATA_FILE_NAME})))
+                                .as("Deriving the definitions for the override must fail on a"
+                                        + " missing expected data file.")
+                                .isInstanceOf(DatabaseUnitRuntimeException.class);
+
+        assertThat(subclass.getPrepDataset().getTableNames())
+                .as("A configureTest() that fails leaves no prep data of an earlier test behind"
+                        + " for the cleanupData() that follows, whether or not a subclass"
+                        + " overrides configureTest().")
+                .isEmpty();
+        assertThat(subclass.getExpectedDataset().getTableNames())
+                .as("Nor expected data.").isEmpty();
+        assertThat(subclass.getVerifyTableDefs()).as("Nor verify table definitions.")
+                .isEmpty();
+    }
+
+    @Test
+    void testRunTest_everyExpectedTableBundleWithMissingFileAfterAnEarlierRunOfASubclassOverridingConfigureTest_tearsDownNothingOfTheEarlierRun()
+            throws Exception
+    {
+        final RecordingDatabaseOperation tearDownOperation = new RecordingDatabaseOperation();
+        databaseTester.setSetUpOperation(new RecordingDatabaseOperation());
+        databaseTester.setTearDownOperation(tearDownOperation);
+        final DefaultPrepAndExpectedTestCase reused =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester)
+                {
+                    @Override
+                    public void configureTest(final VerifyTableDefinition[] verifyTables,
+                            final String[] prepDataFiles, final String[] expectedDataFiles)
+                            throws Exception
+                    {
+                        super.configureTest(verifyTables, prepDataFiles, expectedDataFiles);
+                    }
+
+                    @Override
+                    public void verifyData() throws Exception
+                    {
+                    }
+                };
+        reused.runTest(PrepAndExpectedTestData.verifyingExpectedTables(
+                new String[] {PREP_DATA_FILE_NAME}, new String[] {EXP_DATA_FILE_NAME}),
+                () -> "first run");
+
+        assertThatThrownBy(() -> reused.runTest(
+                PrepAndExpectedTestData.verifyingExpectedTables(new String[0],
+                        new String[] {MISSING_DATA_FILE_NAME}),
+                () -> "second run"))
+                        .as("A missing expected data file fails the second run.")
+                        .isInstanceOf(DatabaseUnitRuntimeException.class);
+
+        final List<List<String>> tornDown = tearDownOperation.getExecutedTableNames();
+        assertThat(tornDown).as("Each run cleans up.").hasSize(2);
+        assertThat(tornDown.get(1))
+                .as("The failed run names no table, so it tears down none, and not the tables of"
+                        + " the earlier run, which something else may have filled with rows"
+                        + " since.")
+                .isEmpty();
+    }
+
+    @Test
+    void testPreTest_everyExpectedTableBundleAndSubclassOverridingPreTest_callsTheOverrideWithTheDerivedDefinitions()
+            throws Exception
+    {
+        databaseTester.setSetUpOperation(new RecordingDatabaseOperation());
+        final List<VerifyTableDefinition[]> given = new ArrayList<>();
+        final DefaultPrepAndExpectedTestCase subclass =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester)
+                {
+                    @Override
+                    public void preTest(final VerifyTableDefinition[] tables,
+                            final String[] prepDataFiles, final String[] expectedDataFiles)
+                            throws Exception
+                    {
+                        given.add(tables);
+                        super.preTest(tables, prepDataFiles, expectedDataFiles);
+                    }
+                };
+
+        subclass.preTest(PrepAndExpectedTestData.verifyingExpectedTables(
+                new String[] {PREP_DATA_FILE_NAME}, new String[] {EXP_DATA_FILE_NAME}));
+
+        assertThat(given)
+                .as("A subclass that overrides preTest() with the three arrays is called for a"
+                        + " bundle that verifies every expected table too, once, as for any other"
+                        + " bundle.")
+                .hasSize(1);
+        assertThat(given.get(0)).extracting(VerifyTableDefinition::getTableName)
+                .as("It gets one definition per table of the expected dataset, which it may"
+                        + " expect, as an override of configureTest() does.")
+                .containsExactly(dataFileLoader.load(EXP_DATA_FILE_NAME).getTableNames());
+        assertThat(subclass.getVerifyTableDefs()).as("They are the ones configured.")
+                .containsExactly(given.get(0));
+    }
+
+    @Test
+    void testPreTest_everyExpectedTableBundleWithMissingFileAndSubclassOverridingPreTest_emptiesTheDataOfTheEarlierRun()
+            throws Exception
+    {
+        databaseTester.setSetUpOperation(new RecordingDatabaseOperation());
+        final DefaultPrepAndExpectedTestCase subclass =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester)
+                {
+                    @Override
+                    public void preTest(final VerifyTableDefinition[] tables,
+                            final String[] prepDataFiles, final String[] expectedDataFiles)
+                            throws Exception
+                    {
+                        super.preTest(tables, prepDataFiles, expectedDataFiles);
+                    }
+                };
+        subclass.configureTest(PrepAndExpectedTestData.verifyingExpectedTables(
+                new String[] {PREP_DATA_FILE_NAME}, new String[] {EXP_DATA_FILE_NAME}));
+
+        assertThatThrownBy(() -> subclass.preTest(
+                PrepAndExpectedTestData.verifyingExpectedTables(new String[0],
+                        new String[] {MISSING_DATA_FILE_NAME})))
+                                .as("Deriving the definitions for the override must fail on a"
+                                        + " missing expected data file.")
+                                .isInstanceOf(DatabaseUnitRuntimeException.class);
+
+        assertThat(subclass.getPrepDataset().getTableNames())
+                .as("A preTest() that fails before it can configure leaves no prep data of an"
+                        + " earlier test behind for the cleanupData() that follows.")
+                .isEmpty();
+        assertThat(subclass.getExpectedDataset().getTableNames())
+                .as("Nor expected data.").isEmpty();
+    }
+
+    @Test
+    void testRunTest_everyExpectedTableBundleAndSubclassOverridingRunTest_callsTheOverrideWithTheDerivedDefinitions()
+            throws Exception
+    {
+        databaseTester.setSetUpOperation(new RecordingDatabaseOperation());
+        final List<VerifyTableDefinition[]> given = new ArrayList<>();
+        final DefaultPrepAndExpectedTestCase subclass =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester)
+                {
+                    @Override
+                    public Object runTest(final VerifyTableDefinition[] verifyTables,
+                            final String[] prepDataFiles, final String[] expectedDataFiles,
+                            final PrepAndExpectedTestCaseSteps testSteps) throws Exception
+                    {
+                        given.add(verifyTables);
+                        return super.runTest(verifyTables, prepDataFiles, expectedDataFiles,
+                                testSteps);
+                    }
+
+                    @Override
+                    public void verifyData() throws Exception
+                    {
+                    }
+                };
+
+        final Object result = subclass.runTest(PrepAndExpectedTestData.verifyingExpectedTables(
+                new String[] {PREP_DATA_FILE_NAME}, new String[] {EXP_DATA_FILE_NAME}),
+                () -> "steps ran");
+
+        assertThat(result).as("The steps' result is returned.").isEqualTo("steps ran");
+        assertThat(given)
+                .as("A subclass that overrides runTest() with the three arrays and the steps,"
+                        + " for example to wrap the steps or to log, is called for a bundle that"
+                        + " verifies every expected table too, once, as for any other bundle.")
+                .hasSize(1);
+        assertThat(given.get(0)).extracting(VerifyTableDefinition::getTableName)
+                .as("It gets one definition per table of the expected dataset.")
+                .containsExactly(dataFileLoader.load(EXP_DATA_FILE_NAME).getTableNames());
+    }
+
+    @Test
+    void testRunTest_everyExpectedTableBundleWithMissingFileAndSubclassOverridingRunTest_emptiesTheDataOfTheEarlierRun()
+            throws Exception
+    {
+        databaseTester.setSetUpOperation(new RecordingDatabaseOperation());
+        final DefaultPrepAndExpectedTestCase subclass =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester)
+                {
+                    @Override
+                    public Object runTest(final VerifyTableDefinition[] verifyTables,
+                            final String[] prepDataFiles, final String[] expectedDataFiles,
+                            final PrepAndExpectedTestCaseSteps testSteps) throws Exception
+                    {
+                        return super.runTest(verifyTables, prepDataFiles, expectedDataFiles,
+                                testSteps);
+                    }
+                };
+        subclass.configureTest(PrepAndExpectedTestData.verifyingExpectedTables(
+                new String[] {PREP_DATA_FILE_NAME}, new String[] {EXP_DATA_FILE_NAME}));
+
+        assertThatThrownBy(() -> subclass.runTest(
+                PrepAndExpectedTestData.verifyingExpectedTables(new String[0],
+                        new String[] {MISSING_DATA_FILE_NAME}),
+                () -> "steps ran"))
+                        .as("Deriving the definitions for the override must fail on a missing"
+                                + " expected data file.")
+                        .isInstanceOf(DatabaseUnitRuntimeException.class);
+
+        assertThat(subclass.getPrepDataset().getTableNames())
+                .as("A runTest() that fails before it can configure leaves no prep data of an"
+                        + " earlier test behind for the cleanupData() that follows.")
+                .isEmpty();
+        assertThat(subclass.getExpectedDataset().getTableNames())
+                .as("Nor expected data.").isEmpty();
     }
 
     @Test
@@ -442,11 +890,62 @@ class DefaultPrepAndExpectedTestCaseTest
     }
 
     @Test
-    void testConfigureTest_withInvalidDatabaseConfigProperty_throwsIllegalStateException()
+    void testSetDatabaseConfigProperties_invalidBooleanValue_throwsIllegalArgumentException()
     {
         final Properties properties = new Properties();
-        properties.setProperty("datatypeFactory", "not.a.real.ClassName");
-        tc.setDatabaseConfigProperties(properties);
+        properties.setProperty("batchedStatements", "yes");
+
+        assertThatThrownBy(() -> tc.setDatabaseConfigProperties(properties))
+                .as("A value that is neither true nor false is rejected when it is set, not read"
+                        + " as false when it is applied.")
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("batchedStatements").hasMessageContaining("'yes'");
+    }
+
+    @Test
+    void testSetDatabaseConfigProperties_invalidValue_keepsThePreviousProperties()
+    {
+        tc.setDatabaseConfigProperties(batchSizeProperties("50"));
+        final Properties invalid = batchSizeProperties("abc");
+
+        assertThatThrownBy(() -> tc.setDatabaseConfigProperties(invalid))
+                .as("A value that does not suit its property is rejected.")
+                .isInstanceOf(IllegalArgumentException.class);
+
+        assertThat(tc.getDatabaseConfigProperties())
+                .as("A call that fails changes nothing, so the properties set before stay.")
+                .isEqualTo(batchSizeProperties("50"));
+    }
+
+    @Test
+    void testSetDatabaseConfigProperties_unknownOrWronglyCasedName_throwsAndKeepsThePreviousProperties()
+    {
+        tc.setDatabaseConfigProperties(batchSizeProperties("50"));
+        final Properties misspelled = new Properties();
+        misspelled.setProperty("caseSensitiveTableName", "true");
+        final Properties wronglyCased = new Properties();
+        wronglyCased.setProperty("BatchSize", "7");
+
+        assertThatThrownBy(() -> tc.setDatabaseConfigProperties(misspelled))
+                .as("A name DatabaseConfig does not know is rejected, as the annotations reject"
+                        + " it, rather than skipped when it is applied.")
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageStartingWith("'caseSensitiveTableName' is not the name of a"
+                        + " DatabaseConfig property.");
+        assertThatThrownBy(() -> tc.setDatabaseConfigProperties(wronglyCased))
+                .as("A short name matches in its own case only.")
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageStartingWith("'BatchSize' is not the name of a DatabaseConfig"
+                        + " property.");
+        assertThat(tc.getDatabaseConfigProperties())
+                .as("A call that fails changes nothing, so the properties set before stay.")
+                .isEqualTo(batchSizeProperties("50"));
+    }
+
+    @Test
+    void testConfigureTest_withUninstantiableDatabaseConfigProperty_throwsIllegalStateException()
+    {
+        tc.setDatabaseConfigProperties(uninstantiableDataTypeFactoryProperties());
 
         final Throwable thrown = catchThrowable(() -> tc.configureTest(
                 new VerifyTableDefinition[] {}, new String[] {}, new String[] {}));
@@ -549,14 +1048,14 @@ class DefaultPrepAndExpectedTestCaseTest
     }
 
     @Test
-    void testConfigureTest_withInvalidDatabaseConfigProperty_releasesTheConnectionTheTesterHandedOut()
+    void testConfigureTest_withUninstantiableDatabaseConfigProperty_releasesTheConnectionTheTesterHandedOut()
             throws Exception
     {
         final FreshConnectionDatabaseTester freshTester =
                 new FreshConnectionDatabaseTester(this::makeDatabaseConnection);
         final DefaultPrepAndExpectedTestCase freshTestCase =
                 new DefaultPrepAndExpectedTestCase(dataFileLoader, freshTester);
-        freshTestCase.setDatabaseConfigProperties(invalidDataTypeFactoryProperties());
+        freshTestCase.setDatabaseConfigProperties(uninstantiableDataTypeFactoryProperties());
 
         assertThatThrownBy(() -> freshTestCase.configureTest(new VerifyTableDefinition[] {},
                 new String[] {}, new String[] {}))
@@ -574,14 +1073,14 @@ class DefaultPrepAndExpectedTestCaseTest
     }
 
     @Test
-    void testConfigureTest_withInvalidDatabaseConfigPropertyAndCloseConnectionAfterTestFalse_leavesTheConnectionOpen()
+    void testConfigureTest_withUninstantiableDatabaseConfigPropertyAndCloseConnectionAfterTestFalse_leavesTheConnectionOpen()
             throws Exception
     {
         final FreshConnectionDatabaseTester freshTester =
                 new FreshConnectionDatabaseTester(this::makeDatabaseConnection);
         final DefaultPrepAndExpectedTestCase keepingTestCase =
                 new DefaultPrepAndExpectedTestCase(dataFileLoader, freshTester, false);
-        keepingTestCase.setDatabaseConfigProperties(invalidDataTypeFactoryProperties());
+        keepingTestCase.setDatabaseConfigProperties(uninstantiableDataTypeFactoryProperties());
 
         assertThatThrownBy(() -> keepingTestCase.configureTest(new VerifyTableDefinition[] {},
                 new String[] {}, new String[] {}))
@@ -710,6 +1209,37 @@ class DefaultPrepAndExpectedTestCaseTest
     }
 
     @Test
+    void testRunTest_whenTestStepsAndCleanupThrowTheSameFailure_throwsItUnchanged()
+            throws Exception
+    {
+        final RuntimeException sharedFailure = new RuntimeException("one failure for both");
+        final DefaultPrepAndExpectedTestCase throwingTc =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester)
+                {
+                    @Override
+                    public void cleanupData() throws Exception
+                    {
+                        throw sharedFailure;
+                    }
+                };
+        final PrepAndExpectedTestCaseSteps steps = () -> {
+            throw sharedFailure;
+        };
+
+        final Throwable thrown = catchThrowable(() -> throwingTc.runTest(
+                new VerifyTableDefinition[] {}, new String[] {}, new String[] {}, steps));
+
+        assertThat(thrown)
+                .as("A failure that both the test steps and the clean up throw must be thrown as"
+                        + " it is, not replaced by the IllegalArgumentException that adding a"
+                        + " throwable to its own suppressed ones throws.")
+                .isSameAs(sharedFailure);
+        assertThat(thrown.getSuppressed())
+                .as("A failure is not suppressed by itself.")
+                .isEmpty();
+    }
+
+    @Test
     void testPostTest_withVerifyDataDefaultTrue_verifiesDataAndClosesConnectionOnce()
             throws Exception
     {
@@ -823,6 +1353,39 @@ class DefaultPrepAndExpectedTestCaseTest
     }
 
     @Test
+    void testPostTest_whenVerifyAndCleanupThrowTheSameFailure_throwsItUnchanged()
+            throws Exception
+    {
+        final RuntimeException sharedFailure = new RuntimeException("one failure for both");
+        final DefaultPrepAndExpectedTestCase throwingTc =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester)
+                {
+                    @Override
+                    public void verifyData() throws Exception
+                    {
+                        throw sharedFailure;
+                    }
+
+                    @Override
+                    public void cleanupData() throws Exception
+                    {
+                        throw sharedFailure;
+                    }
+                };
+
+        final Throwable thrown = catchThrowable(() -> throwingTc.postTest(true));
+
+        assertThat(thrown)
+                .as("A failure that both the verification and the clean up throw must be thrown"
+                        + " as it is, not replaced by the IllegalArgumentException that adding a"
+                        + " throwable to its own suppressed ones throws.")
+                .isSameAs(sharedFailure);
+        assertThat(thrown.getSuppressed())
+                .as("A failure is not suppressed by itself.")
+                .isEmpty();
+    }
+
+    @Test
     void testPostTest_whenVerifyFailsAndCleanupSucceeds_throwsVerifyFailureUnchanged()
             throws Exception
     {
@@ -919,7 +1482,8 @@ class DefaultPrepAndExpectedTestCaseTest
 
         final MockDatabaseConnection connection =
                 (MockDatabaseConnection) databaseTester.getConnection();
-        Mockito.verify(testersListener).connectionRetrieved(connection);
+        // once when the shared connection was acquired and once before the operation
+        Mockito.verify(testersListener, Mockito.times(2)).connectionRetrieved(connection);
         Mockito.verify(testersListener, Mockito.never())
                 .operationSetUpFinished(Mockito.any(IDatabaseConnection.class));
         // the listener may configure the connection, but this instance owns closing it
@@ -940,35 +1504,311 @@ class DefaultPrepAndExpectedTestCaseTest
 
         final MockDatabaseConnection connection =
                 (MockDatabaseConnection) databaseTester.getConnection();
-        Mockito.verify(testersListener).connectionRetrieved(connection);
+        // once when the shared connection was acquired and once before the operation
+        Mockito.verify(testersListener, Mockito.times(2)).connectionRetrieved(connection);
         Mockito.verify(testersListener, Mockito.never())
                 .operationTearDownFinished(Mockito.any(IDatabaseConnection.class));
     }
 
     @Test
-    void testSetupData_databaseTesterListenerIsWrappedByASubclassOfConnectionPreserving_tellsOnlyTheWrappedListener()
+    void testSetupData_setUpOperationIsNone_tellsNeitherListenerAboutAConnection()
             throws Exception
     {
-        // the annotation runtime installs a ConnectionPreservingOperationListener subclass on the
-        // tester, which would apply the @DbUnitProperty values and capture the row count baseline
-        // again if it were told about the connection; only the caller's listener beneath it is
-        final IOperationListener callersListener = Mockito.mock(IOperationListener.class);
-        final IOperationListener wrapperListener = Mockito.mock(IOperationListener.class);
-        databaseTester.setOperationListener(
-                new ConnectionPreservingOperationListener(callersListener)
+        final IOperationListener testersListener = Mockito.mock(IOperationListener.class);
+        final IOperationListener ownListener = Mockito.mock(IOperationListener.class);
+        databaseTester.setOperationListener(testersListener);
+        databaseTester.setSetUpOperation(DatabaseOperation.NONE);
+        final DefaultPrepAndExpectedTestCase noneTestCase = makeTestCaseWithListener(ownListener);
+
+        noneTestCase.setupData();
+
+        Mockito.verifyNoInteractions(testersListener, ownListener);
+    }
+
+    @Test
+    void testCleanupData_tearDownOperationIsNone_tellsTheTestersListenerOnlyWhenAcquiringTheConnection()
+            throws Exception
+    {
+        final IOperationListener testersListener = Mockito.mock(IOperationListener.class);
+        final IOperationListener ownListener = Mockito.mock(IOperationListener.class);
+        databaseTester.setOperationListener(testersListener);
+        databaseTester.setTearDownOperation(DatabaseOperation.NONE);
+        final DefaultPrepAndExpectedTestCase noneTestCase = makeTestCaseWithListener(ownListener);
+
+        noneTestCase.cleanupData();
+
+        final MockDatabaseConnection connection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        // cleanupData() acquires the shared connection to read the case sensitivity, which tells
+        // the tester's listener once; the NONE operation retrieves nothing, so it tells no one
+        Mockito.verify(testersListener).connectionRetrieved(connection);
+        Mockito.verifyNoMoreInteractions(testersListener);
+        Mockito.verifyNoInteractions(ownListener);
+    }
+
+    @Test
+    void testSetupData_subclassOverridesGetDataSet_runsTheOperationOnThatDataSet()
+            throws Exception
+    {
+        final ConnectionRecordingOperation setUpOperation = new ConnectionRecordingOperation();
+        databaseTester.setSetUpOperation(setUpOperation);
+        final DefaultPrepAndExpectedTestCase overriding =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester)
                 {
                     @Override
-                    public void connectionRetrieved(final IDatabaseConnection connection)
+                    public IDataSet getDataSet() throws Exception
                     {
-                        wrapperListener.connectionRetrieved(connection);
-                        super.connectionRetrieved(connection);
+                        return new DefaultDataSet(new DefaultTable("OVERRIDDEN_TABLE"));
                     }
-                });
+                };
+
+        overriding.setupData();
+
+        assertThat(setUpOperation.getTableNames())
+                .as("setupData() has always run the set up operation on getDataSet(), which a"
+                        + " subclass may override.")
+                .containsExactly(Arrays.asList("OVERRIDDEN_TABLE"));
+    }
+
+    @Test
+    void testSetupData_subclassOverridesGetSetUpOperation_runsThatOperationNotTheTesters()
+            throws Exception
+    {
+        final RecordingDatabaseOperation testersOperation = new RecordingDatabaseOperation();
+        final RecordingDatabaseOperation overridingOperation = new RecordingDatabaseOperation();
+        databaseTester.setSetUpOperation(testersOperation);
+        final DefaultPrepAndExpectedTestCase overriding =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester)
+                {
+                    @Override
+                    protected DatabaseOperation getSetUpOperation() throws Exception
+                    {
+                        return overridingOperation;
+                    }
+                };
+        overriding.setPrepDs(new DefaultDataSet(new DefaultTable("PREP_ONLY_TABLE")));
+
+        overriding.setupData();
+
+        assertThat(overridingOperation.getExecutedTableNames())
+                .as("The protected getSetUpOperation() has always been the subclass's way to"
+                        + " choose the operation.")
+                .containsExactly(Arrays.asList("PREP_ONLY_TABLE"));
+        assertThat(testersOperation.getExecutedTableNames())
+                .as("The tester's own operation must not run beside the overriding one.")
+                .isEmpty();
+    }
+
+    @Test
+    void testCleanupData_subclassOverridesGetTearDownOperation_runsThatOperationNotTheTesters()
+            throws Exception
+    {
+        final RecordingDatabaseOperation testersOperation = new RecordingDatabaseOperation();
+        final RecordingDatabaseOperation overridingOperation = new RecordingDatabaseOperation();
+        databaseTester.setTearDownOperation(testersOperation);
+        final DefaultPrepAndExpectedTestCase overriding =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester)
+                {
+                    @Override
+                    protected DatabaseOperation getTearDownOperation() throws Exception
+                    {
+                        return overridingOperation;
+                    }
+                };
+        overriding.setPrepDs(new DefaultDataSet(new DefaultTable("PREP_ONLY_TABLE")));
+        overriding.setExpectedDs(new DefaultDataSet(new DefaultTable("EXPECTED_ONLY_TABLE")));
+
+        overriding.cleanupData();
+
+        assertThat(overridingOperation.getExecutedTableNames())
+                .as("The protected getTearDownOperation() has always been the subclass's way to"
+                        + " choose the operation, and it runs over the prep and expected tables.")
+                .containsExactly(Arrays.asList("PREP_ONLY_TABLE", "EXPECTED_ONLY_TABLE"));
+        assertThat(testersOperation.getExecutedTableNames())
+                .as("The tester's own operation must not run beside the overriding one.")
+                .isEmpty();
+    }
+
+    @Test
+    void testSetupData_setUpOperationSet_runsItNotTheTestersAndLeavesTheTesterAlone()
+            throws Exception
+    {
+        final RecordingDatabaseOperation testersOperation = new RecordingDatabaseOperation();
+        final RecordingDatabaseOperation ownOperation = new RecordingDatabaseOperation();
+        databaseTester.setSetUpOperation(testersOperation);
+        tc.setPrepDs(new DefaultDataSet(new DefaultTable("PREP_ONLY_TABLE")));
+        tc.setSetUpOperation(ownOperation);
 
         tc.setupData();
 
-        Mockito.verify(callersListener).connectionRetrieved(Mockito.any(IDatabaseConnection.class));
-        Mockito.verifyNoInteractions(wrapperListener);
+        assertThat(ownOperation.getExecutedTableNames())
+                .as("An operation set on the test case runs on the prep dataset.")
+                .containsExactly(Arrays.asList("PREP_ONLY_TABLE"));
+        assertThat(testersOperation.getExecutedTableNames())
+                .as("The tester's own operation does not run beside it.").isEmpty();
+        assertThat(databaseTester.getSetUpOperation())
+                .as("Setting the test case's operation writes nothing to the tester, which"
+                        + " other test cases may share.")
+                .isSameAs(testersOperation);
+    }
+
+    @Test
+    void testSetupData_setUpOperationSetBackToNull_runsTheTestersOperationAgain()
+            throws Exception
+    {
+        final RecordingDatabaseOperation testersOperation = new RecordingDatabaseOperation();
+        final RecordingDatabaseOperation ownOperation = new RecordingDatabaseOperation();
+        databaseTester.setSetUpOperation(testersOperation);
+        tc.setPrepDs(new DefaultDataSet(new DefaultTable("PREP_ONLY_TABLE")));
+        tc.setSetUpOperation(ownOperation);
+        tc.setSetUpOperation(null);
+
+        tc.setupData();
+
+        assertThat(testersOperation.getExecutedTableNames())
+                .as("Null returns to the tester's own operation.")
+                .containsExactly(Arrays.asList("PREP_ONLY_TABLE"));
+        assertThat(ownOperation.getExecutedTableNames())
+                .as("The operation that was set and then cleared does not run.").isEmpty();
+    }
+
+    @Test
+    void testSetupData_setUpOperationSetAndSubclassOverridesGetSetUpOperation_runsTheOverride()
+            throws Exception
+    {
+        final RecordingDatabaseOperation ownOperation = new RecordingDatabaseOperation();
+        final RecordingDatabaseOperation overridingOperation = new RecordingDatabaseOperation();
+        final DefaultPrepAndExpectedTestCase overriding =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester)
+                {
+                    @Override
+                    protected DatabaseOperation getSetUpOperation() throws Exception
+                    {
+                        return overridingOperation;
+                    }
+                };
+        overriding.setPrepDs(new DefaultDataSet(new DefaultTable("PREP_ONLY_TABLE")));
+        overriding.setSetUpOperation(ownOperation);
+
+        overriding.setupData();
+
+        assertThat(overridingOperation.getExecutedTableNames())
+                .as("A subclass that overrides getSetUpOperation() decides for itself.")
+                .containsExactly(Arrays.asList("PREP_ONLY_TABLE"));
+        assertThat(ownOperation.getExecutedTableNames()).isEmpty();
+    }
+
+    @Test
+    void testCleanupData_tearDownOperationSet_runsItNotTheTestersAndLeavesTheTesterAlone()
+            throws Exception
+    {
+        final RecordingDatabaseOperation testersOperation = new RecordingDatabaseOperation();
+        final RecordingDatabaseOperation ownOperation = new RecordingDatabaseOperation();
+        databaseTester.setTearDownOperation(testersOperation);
+        tc.setPrepDs(new DefaultDataSet(new DefaultTable("PREP_ONLY_TABLE")));
+        tc.setExpectedDs(new DefaultDataSet(new DefaultTable("EXPECTED_ONLY_TABLE")));
+        tc.setTearDownOperation(ownOperation);
+
+        tc.cleanupData();
+
+        assertThat(ownOperation.getExecutedTableNames())
+                .as("An operation set on the test case runs over the prep and expected tables.")
+                .containsExactly(Arrays.asList("PREP_ONLY_TABLE", "EXPECTED_ONLY_TABLE"));
+        assertThat(testersOperation.getExecutedTableNames())
+                .as("The tester's own operation does not run beside it.").isEmpty();
+        assertThat(databaseTester.getTearDownOperation())
+                .as("Setting the test case's operation writes nothing to the tester, which"
+                        + " other test cases may share.")
+                .isSameAs(testersOperation);
+    }
+
+    @Test
+    void testCleanupData_tearDownOperationSetBackToNull_runsTheTestersOperationAgain()
+            throws Exception
+    {
+        final RecordingDatabaseOperation testersOperation = new RecordingDatabaseOperation();
+        final RecordingDatabaseOperation ownOperation = new RecordingDatabaseOperation();
+        databaseTester.setTearDownOperation(testersOperation);
+        tc.setPrepDs(new DefaultDataSet(new DefaultTable("PREP_ONLY_TABLE")));
+        tc.setTearDownOperation(ownOperation);
+        tc.setTearDownOperation(null);
+
+        tc.cleanupData();
+
+        assertThat(testersOperation.getExecutedTableNames())
+                .as("Null returns to the tester's own operation.")
+                .containsExactly(Arrays.asList("PREP_ONLY_TABLE"));
+        assertThat(ownOperation.getExecutedTableNames())
+                .as("The operation that was set and then cleared does not run.").isEmpty();
+    }
+
+    @Test
+    void testSetupData_operationRuns_receivesTheSharedConnectionTheTestersListenerWasTold()
+            throws Exception
+    {
+        final ConnectionRecordingOperation setUpOperation = new ConnectionRecordingOperation();
+        final IOperationListener testersListener = Mockito.mock(IOperationListener.class);
+        databaseTester.setOperationListener(testersListener);
+        databaseTester.setSetUpOperation(setUpOperation);
+
+        tc.setupData();
+
+        final IDatabaseConnection shared = tc.getReusableConnection();
+        assertThat(setUpOperation.getConnections())
+                .as("The set up operation must run on the connection shared with the rest of"
+                        + " the test's lifecycle, not on one of its own.")
+                .containsExactly(shared);
+        Mockito.verify(testersListener, Mockito.atLeastOnce()).connectionRetrieved(shared);
+    }
+
+    @Test
+    void testSetupData_testersListenerThrowsOnConnectionRetrieved_propagatesItAndRunsNoOperation()
+            throws Exception
+    {
+        final IllegalStateException listenerFailure = new IllegalStateException("listener failed");
+        final IOperationListener failingListener = Mockito.mock(IOperationListener.class);
+        Mockito.doThrow(listenerFailure).when(failingListener)
+                .connectionRetrieved(Mockito.any(IDatabaseConnection.class));
+        final ConnectionRecordingOperation setUpOperation = new ConnectionRecordingOperation();
+        databaseTester.setOperationListener(failingListener);
+        databaseTester.setSetUpOperation(setUpOperation);
+
+        assertThat(catchThrowable(() -> tc.setupData()))
+                .as("A failure of the listener the caller's tester carries must propagate"
+                        + " unchanged.")
+                .isSameAs(listenerFailure);
+
+        assertThat(setUpOperation.getTableNames())
+                .as("The operation must not run on a connection the listener failed on.")
+                .isEmpty();
+        Mockito.verify(failingListener, Mockito.never())
+                .operationSetUpFinished(Mockito.any(IDatabaseConnection.class));
+    }
+
+    @Test
+    void testSetupData_operationThrows_propagatesItAndNeverFinishesTheOperation()
+            throws Exception
+    {
+        final DatabaseUnitException operationFailure =
+                new DatabaseUnitException("operation failed");
+        final IOperationListener testersListener = Mockito.mock(IOperationListener.class);
+        databaseTester.setOperationListener(testersListener);
+        databaseTester.setSetUpOperation(new DatabaseOperation()
+        {
+            @Override
+            public void execute(final IDatabaseConnection connection, final IDataSet dataSet)
+                    throws DatabaseUnitException
+            {
+                throw operationFailure;
+            }
+        });
+
+        assertThat(catchThrowable(() -> tc.setupData()))
+                .as("A failure of the operation must propagate unchanged.")
+                .isSameAs(operationFailure);
+
+        Mockito.verify(testersListener, Mockito.never())
+                .operationSetUpFinished(Mockito.any(IDatabaseConnection.class));
     }
 
     @Test
@@ -1014,8 +1854,80 @@ class DefaultPrepAndExpectedTestCaseTest
         ownListenerTestCase.setupData();
 
         final InOrder inOrder = Mockito.inOrder(testersListener, ownListener);
-        inOrder.verify(testersListener).connectionRetrieved(Mockito.any(IDatabaseConnection.class));
+        inOrder.verify(testersListener, Mockito.atLeastOnce())
+                .connectionRetrieved(Mockito.any(IDatabaseConnection.class));
         inOrder.verify(ownListener).connectionRetrieved(Mockito.any(IDatabaseConnection.class));
+    }
+
+    @Test
+    void testPostTest_testersListenerEnablesTheRowCountCheck_failsWhenARowIsLeftBehind()
+            throws Exception
+    {
+        final MockDatabaseConnection connectionGainingARow = makeConnectionWhoseTableGainsARow();
+        final IDatabaseTester ownTester = new DefaultDatabaseTester(connectionGainingARow);
+        ownTester.setOperationListener(new RowCountCheckEnablingListener());
+        final DefaultPrepAndExpectedTestCase testCase =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, ownTester);
+        testCase.preTest();
+
+        final Throwable thrown = catchThrowable(() -> testCase.postTest());
+
+        assertThat(thrown)
+                .as("A row left behind must fail the test when the tester's own listener enables"
+                        + " the row count check on the connection it is told about, as it does"
+                        + " when the tester drives onSetup() and onTearDown() itself.")
+                .isInstanceOf(UnexpectedRowCountException.class);
+    }
+
+    @Test
+    void testPreTest_testersListenerHasItsOwnListener_toldBeforeTheTableListIsFirstRead()
+            throws Exception
+    {
+        final List<String> events = new ArrayList<>();
+        final MockDatabaseConnection connectionGainingARow = makeConnectionWhoseTableGainsARow();
+        Mockito.lenient().doAnswer(invocation ->
+        {
+            events.add("createDataSet");
+            return invocation.callRealMethod();
+        }).when(connectionGainingARow).createDataSet();
+        final IOperationListener testersListener = Mockito.mock(IOperationListener.class);
+        Mockito.doAnswer(invocation ->
+        {
+            events.add("connectionRetrieved");
+            return null;
+        }).when(testersListener).connectionRetrieved(Mockito.any(IDatabaseConnection.class));
+        final IDatabaseTester ownTester = new DefaultDatabaseTester(connectionGainingARow);
+        ownTester.setOperationListener(testersListener);
+        final DefaultPrepAndExpectedTestCase testCase =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, ownTester);
+        testCase.setRowCountCheckOverride(new RowCountCheckOverride(true, new String[0]));
+
+        testCase.preTest();
+
+        assertThat(events).first()
+                .as("The first read of the connection's tables builds the metadata the connection"
+                        + " keeps, from the configuration in force at that moment, so the"
+                        + " listener that may configure it must have been told before.")
+                .isEqualTo("connectionRetrieved");
+    }
+
+    @Test
+    void testVerifyData_setUpAndTearDownOperationsAreNone_tellsTheTestersListenerAboutTheConnection()
+            throws Exception
+    {
+        final IOperationListener testersListener = Mockito.mock(IOperationListener.class);
+        databaseTester.setOperationListener(testersListener);
+        databaseTester.setSetUpOperation(DatabaseOperation.NONE);
+        databaseTester.setTearDownOperation(DatabaseOperation.NONE);
+
+        tc.verifyData();
+
+        final MockDatabaseConnection connection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        Mockito.verify(testersListener).connectionRetrieved(connection);
+        // verifyData() leaves the connection open for cleanupData(), which never runs here
+        connection.setExpectedCloseCalls(0);
+        connection.verify();
     }
 
     @Test
@@ -1120,6 +2032,203 @@ class DefaultPrepAndExpectedTestCaseTest
         {
             stopCapturingLogOf(DefaultPrepAndExpectedTestCase.class, appender);
         }
+    }
+
+    @Test
+    void testVerifyData_patternComparerOnALeadingGeneratedIdAndIdsOutOfDataOrder_alignsTheRowsByTheOtherColumns()
+            throws Exception
+    {
+        final ITable actualTable = makeLeadingIdActualTable();
+        final ITable expectedTable = makeLeadingIdExpectedTable("[0-9]+", "[0-9]+");
+        final Map<String, ValueComparer> comparers = new ColumnValueComparerMapBuilder()
+                .add("ID", new RegularExpressionValueComparer()).build();
+
+        assertThatCode(() -> tc.verifyData(expectedTable, actualTable, new String[0],
+                new String[0], null, comparers, false))
+                        .as("The expected rows hold the same pattern in the ID column, so the"
+                                + " rows must be lined up by the columns whose values are exact,"
+                                + " not by the generated ids.")
+                        .doesNotThrowAnyException();
+    }
+
+    @Test
+    void testVerifyData_patternComparerOnALeadingGeneratedIdWhenSortingOnFilteredColumnsOnly_alignsTheRowsByTheOtherColumns()
+            throws Exception
+    {
+        final ITable actualTable = makeLeadingIdActualTable();
+        final ITable expectedTable = makeLeadingIdExpectedTable("[0-9]+", "[0-9]+");
+        final Map<String, ValueComparer> comparers = new ColumnValueComparerMapBuilder()
+                .add("ID", new RegularExpressionValueComparer()).build();
+
+        assertThatCode(() -> tc.verifyData(expectedTable, actualTable, new String[0],
+                new String[0], null, comparers, true))
+                        .as("Sorting on the filtered columns only keeps the column that has a"
+                                + " comparer of its own last in the sort key too.")
+                        .doesNotThrowAnyException();
+    }
+
+    @Test
+    void testVerifyData_differentPatternsInANumericIdColumn_sortsWithoutTypingThePatterns()
+            throws Exception
+    {
+        final ITable actualTable = makeLeadingIdActualTable();
+        final ITable expectedTable = makeLeadingIdExpectedTable("8[0-9]*", "7[0-9]*");
+        final Map<String, ValueComparer> comparers = new ColumnValueComparerMapBuilder()
+                .add("ID", new RegularExpressionValueComparer()).build();
+
+        assertThatCode(() -> tc.verifyData(expectedTable, actualTable, new String[0],
+                new String[0], null, comparers, false))
+                        .as("Rows that differ in the other columns are ordered before the ID"
+                                + " column is reached, so its patterns are never compared as"
+                                + " numbers.")
+                        .doesNotThrowAnyException();
+    }
+
+    @Test
+    void testVerifyData_rowsTyingOnTheOtherColumnsWithDifferentPatternsInANumericId_throwsNamingTheTableAndTheColumn()
+            throws Exception
+    {
+        final ITable actualTable = makeTiedNamesActualTable();
+        final ITable expectedTable = makeTiedNamesExpectedTable("1|2", "[12]");
+        final Map<String, ValueComparer> comparers = new ColumnValueComparerMapBuilder()
+                .add("ID", new RegularExpressionValueComparer()).build();
+
+        final Throwable thrown = catchThrowable(() -> tc.verifyData(expectedTable, actualTable,
+                new String[0], new String[0], null, comparers, false));
+
+        assertThat(thrown)
+                .as("Expected rows that tie on NAME are ordered by their ID patterns, which a"
+                        + " numeric column cannot compare, so the sort fails and says which table"
+                        + " and column to look at, instead of with a bare TypeCastException.")
+                .isInstanceOf(DatabaseUnitException.class)
+                .isNotInstanceOf(TypeCastException.class)
+                .hasMessageContaining("table ACCOUNT")
+                .hasMessageContaining("have a value comparer (ID)")
+                .hasMessageContaining("Give the rows that tie the same value in those columns")
+                .hasCauseInstanceOf(TypeCastException.class);
+    }
+
+    @Test
+    void testVerifyData_rowsTyingOnTheOtherColumnsWithTheSamePatternInANumericId_passes()
+            throws Exception
+    {
+        final ITable actualTable = makeTiedNamesActualTable();
+        final ITable expectedTable = makeTiedNamesExpectedTable("[12]", "[12]");
+        final Map<String, ValueComparer> comparers = new ColumnValueComparerMapBuilder()
+                .add("ID", new RegularExpressionValueComparer()).build();
+
+        assertThatCode(() -> tc.verifyData(expectedTable, actualTable, new String[0],
+                new String[0], null, comparers, false))
+                        .as("Equal patterns compare equal without being typed, so rows that tie"
+                                + " on the other columns and hold the same pattern pass.")
+                        .doesNotThrowAnyException();
+    }
+
+    @Test
+    void testVerifyData_everyColumnHasAComparerAndThePatternsDiffer_throwsNamingTheTable()
+            throws Exception
+    {
+        final DefaultTable actualTable = new DefaultTable("ACCOUNT",
+                new Column[] {new Column("ID", DataType.BIGINT)});
+        actualTable.addRow(new Object[] {1L});
+        actualTable.addRow(new Object[] {2L});
+        final DefaultTable expectedTable = new DefaultTable("ACCOUNT",
+                new Column[] {new Column("ID", DataType.UNKNOWN)});
+        expectedTable.addRow(new Object[] {"1|2"});
+        expectedTable.addRow(new Object[] {"[12]"});
+        final Map<String, ValueComparer> comparers = new ColumnValueComparerMapBuilder()
+                .add("ID", new RegularExpressionValueComparer()).build();
+
+        final Throwable thrown = catchThrowable(() -> tc.verifyData(expectedTable, actualTable,
+                new String[0], new String[0], null, comparers, false));
+
+        assertThat(thrown)
+                .as("With no other column to order the rows, the patterns decide, and the sort"
+                        + " fails with the message that names the table and the column.")
+                .isInstanceOf(DatabaseUnitException.class)
+                .hasMessageContaining("table ACCOUNT")
+                .hasMessageContaining("have a value comparer (ID)");
+    }
+
+    @Test
+    void testVerifyData_unparseableValueInAColumnWithoutAComparer_throwsTheTypeCastExceptionAsBefore()
+            throws Exception
+    {
+        final DefaultTable actualTable = new DefaultTable("ACCOUNT",
+                new Column[] {new Column("ID", DataType.BIGINT),
+                        new Column("QTY", DataType.BIGINT)});
+        actualTable.addRow(new Object[] {1L, 5L});
+        actualTable.addRow(new Object[] {2L, 6L});
+        final DefaultTable expectedTable = new DefaultTable("ACCOUNT",
+                new Column[] {new Column("ID", DataType.UNKNOWN),
+                        new Column("QTY", DataType.UNKNOWN)});
+        expectedTable.addRow(new Object[] {"[0-9]+", "abc"});
+        expectedTable.addRow(new Object[] {"[0-9]+", "def"});
+        final Map<String, ValueComparer> comparers = new ColumnValueComparerMapBuilder()
+                .add("ID", new RegularExpressionValueComparer()).build();
+
+        final Throwable thrown = catchThrowable(() -> tc.verifyData(expectedTable, actualTable,
+                new String[0], new String[0], null, comparers, false));
+
+        assertThat(thrown)
+                .as("QTY has no comparer and holds text no number type can parse, so the failure"
+                        + " is not the pattern column's and must not be blamed on it.")
+                .isInstanceOf(TypeCastException.class);
+    }
+
+    @Test
+    void testVerifyData_comparerOfAnotherColumnAndIdsOutOfDataOrder_stillSortsByTheLeadingColumn()
+            throws Exception
+    {
+        final ITable actualTable = makeLeadingIdActualTable();
+        final ITable expectedTable = makeLeadingIdExpectedTable("7", "8");
+        final Map<String, ValueComparer> comparers = new ColumnValueComparerMapBuilder()
+                .add("NAME", ValueComparers.isActualEqualToExpected).build();
+
+        final Throwable thrown = catchThrowable(() -> tc.verifyData(expectedTable, actualTable,
+                new String[0], new String[0], null, comparers, false));
+
+        assertThat(thrown)
+                .as("A comparer on NAME moves NAME last, so both tables sort by ID: the actual"
+                        + " rows are 7/b and 8/a, which are not the expected 7/a and 8/b.")
+                .isInstanceOf(DbComparisonFailure.class);
+    }
+
+    @Test
+    void testVerifyData_comparerKeyedInAnotherCaseThanItsColumn_comparesTheColumnWithIt()
+            throws Exception
+    {
+        final ITable actualTable = makeLeadingIdActualTable();
+        final ITable expectedTable = makeLeadingIdExpectedTable("[0-9]+", "[0-9]+");
+        final Map<String, ValueComparer> comparers = new ColumnValueComparerMapBuilder()
+                .add("id", new RegularExpressionValueComparer()).build();
+
+        assertThatCode(() -> tc.verifyData(expectedTable, actualTable, new String[0],
+                new String[0], null, comparers, false))
+                        .as("A comparer keyed id must compare the ID column, as the column names"
+                                + " of the exclude and include filters match without regard"
+                                + " to case.")
+                        .doesNotThrowAnyException();
+    }
+
+    @Test
+    void testVerifyData_comparersKeyedByNamesDifferingOnlyInCase_throwsIllegalArgumentException()
+            throws Exception
+    {
+        final ITable actualTable = makeLeadingIdActualTable();
+        final ITable expectedTable = makeLeadingIdExpectedTable("[0-9]+", "[0-9]+");
+        final Map<String, ValueComparer> comparers = new ColumnValueComparerMapBuilder()
+                .add("ID", new RegularExpressionValueComparer())
+                .add("id", ValueComparers.isActualEqualToExpected).build();
+
+        assertThatThrownBy(() -> tc.verifyData(expectedTable, actualTable, new String[0],
+                new String[0], null, comparers, false))
+                        .as("Two comparers keyed by names that differ only in case name one"
+                                + " column, so they must be rejected instead of one silently"
+                                + " winning.")
+                        .isInstanceOf(IllegalArgumentException.class)
+                        .hasMessageContaining("'ID'")
+                        .hasMessageContaining("'id'");
     }
 
     @Test
@@ -1552,7 +2661,7 @@ class DefaultPrepAndExpectedTestCaseTest
 
         final String[] excludeColumns = {"COL1"};
 
-        // Excluding every column leaves makeSortColumns() with nothing to
+        // Excluding every column leaves filterColumns() with nothing to
         // sort by; confirm SortedTable tolerates a zero-length sort-column
         // list (a no-op, stable sort) instead of throwing.
         assertThatCode(() -> tc.verifyData(expectedTable, actualTable,
@@ -1708,21 +2817,6 @@ class DefaultPrepAndExpectedTestCaseTest
         // The tester, not the test case, is what a caller configures with the NO_OP listener to
         // say its connection is managed elsewhere; the test case must honor that signal too.
         databaseTester.setOperationListener(IOperationListener.NO_OP_OPERATION_LISTENER);
-
-        tc.cleanupData();
-
-        final MockDatabaseConnection connection =
-                (MockDatabaseConnection) databaseTester.getConnection();
-        connection.setExpectedCloseCalls(0);
-        connection.verify();
-    }
-
-    @Test
-    void testCleanupData_databaseTesterListenerWrapsNoOp_leavesTheSharedConnectionOpen()
-            throws Exception
-    {
-        databaseTester.setOperationListener(new ConnectionPreservingOperationListener(
-                IOperationListener.NO_OP_OPERATION_LISTENER));
 
         tc.cleanupData();
 
@@ -1944,6 +3038,328 @@ class DefaultPrepAndExpectedTestCaseTest
                 .doesNotThrowAnyException();
     }
 
+    private DefaultTable makeIdAndNameTable(final String name)
+            throws Exception
+    {
+        final Column[] columns = {new Column("ID", DataType.INTEGER),
+                new Column("NAME", DataType.VARCHAR)};
+        final DefaultTable table = new DefaultTable("TEST_TABLE", columns);
+        table.addRow(new Object[] {1, name});
+        return table;
+    }
+
+    private void verifyWithIncludeColumns(final DefaultTable expected,
+            final DefaultTable actual, final boolean sortOnFilteredColumnsOnly,
+            final String... includeColumns) throws Exception
+    {
+        final MockDatabaseConnection connection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        connection.setupDataSet(actual);
+        tc.setExpectedDs(new DefaultDataSet(expected));
+        tc.setVerifyTableDefs(new VerifyTableDefinition[] {
+                new VerifyTableDefinition("TEST_TABLE", new String[] {},
+                        includeColumns, null, null, sortOnFilteredColumnsOnly)});
+
+        tc.verifyData();
+    }
+
+    @Test
+    void testVerifyData_includeColumnMatchesNoColumn_failsNamingTheColumnAndTheTable()
+            throws Exception
+    {
+        final DefaultTable expected = makeIdAndNameTable("a");
+        final DefaultTable actual = makeIdAndNameTable("zzz");
+
+        assertThatThrownBy(() -> verifyWithIncludeColumns(expected, actual,
+                false, "NMAE"))
+                        .as("A misspelled include name must fail instead of verifying no column.")
+                        .isInstanceOf(DatabaseUnitException.class)
+                        .hasMessage("The column name 'NMAE' to include for table TEST_TABLE"
+                                + " matches no column of the table, whose columns are ID, NAME,"
+                                + " so the table would be verified without it. Correct the name"
+                                + " in the VerifyTableDefinition or @DbUnitVerifyTable, or set the"
+                                + " feature http://www.dbunit.org/features/failOnUnknownVerifyColumnName"
+                                + " to false to log a warning instead of failing.");
+    }
+
+    @Test
+    void testVerifyData_includeColumnMatchesNoColumnAndFeatureTrue_fails()
+            throws Exception
+    {
+        final DefaultTable expected = makeIdAndNameTable("a");
+        final DefaultTable actual = makeIdAndNameTable("zzz");
+        setFailOnUnknownVerifyColumnName(true);
+
+        assertThatThrownBy(() -> verifyWithIncludeColumns(expected, actual, false, "NMAE"))
+                .as("A misspelled include name must fail when the feature is set to true.")
+                .isInstanceOf(DatabaseUnitException.class)
+                .hasMessageContaining("'NMAE'");
+    }
+
+    @Test
+    void testVerifyData_includeColumnMatchesNoColumnAndFeatureFalse_warnsAndVerifiesWithoutIt()
+            throws Exception
+    {
+        final DefaultTable expected = makeIdAndNameTable("a");
+        final DefaultTable actual = makeIdAndNameTable("zzz");
+        setFailOnUnknownVerifyColumnName(false);
+        final ListAppender<ILoggingEvent> appender =
+                startCapturingLogOf(VerifyColumnNamesCheck.class);
+        try
+        {
+            assertThatCode(() -> verifyWithIncludeColumns(expected, actual,
+                    false, "NMAE"))
+                            .as("A misspelled include name must not fail when the feature is set"
+                                    + " to false.")
+                            .doesNotThrowAnyException();
+
+            assertThat(warnMessagesOf(appender))
+                    .as("The misspelled include name must be logged as one warning.")
+                    .containsExactly("The column name 'NMAE' to include for table TEST_TABLE"
+                            + " matches no column of the table, whose columns are ID, NAME,"
+                            + " so the table would be verified without it. Correct the name"
+                            + " in the VerifyTableDefinition or @DbUnitVerifyTable.");
+        } finally
+        {
+            stopCapturingLogOf(VerifyColumnNamesCheck.class, appender);
+        }
+    }
+
+    @Test
+    void testVerifyData_oneOfTwoIncludeColumnsMatchesNoColumnAndFeatureFalse_warnsAndComparesTheOther()
+            throws Exception
+    {
+        final DefaultTable expected = makeIdAndNameTable("a");
+        final DefaultTable actual = makeIdAndNameTable("zzz");
+        setFailOnUnknownVerifyColumnName(false);
+        final ListAppender<ILoggingEvent> appender =
+                startCapturingLogOf(VerifyColumnNamesCheck.class);
+        try
+        {
+            assertThatThrownBy(() -> verifyWithIncludeColumns(expected, actual, false, "NAME",
+                    "NMAE"))
+                            .as("The valid include name is still compared when the feature is"
+                                    + " set to false.")
+                            .isInstanceOf(AssertionError.class)
+                            .isNotInstanceOf(DatabaseUnitException.class);
+
+            assertThat(warnMessagesOf(appender))
+                    .as("Only the misspelled include name must be logged as a warning.")
+                    .hasSize(1).allMatch(message -> message.contains("'NMAE'"));
+        } finally
+        {
+            stopCapturingLogOf(VerifyColumnNamesCheck.class, appender);
+        }
+    }
+
+    @Test
+    void testVerifyData_oneOfTwoIncludeColumnsMatchesNoColumn_fails()
+            throws Exception
+    {
+        final DefaultTable expected = makeIdAndNameTable("a");
+        final DefaultTable actual = makeIdAndNameTable("zzz");
+
+        assertThatThrownBy(() -> verifyWithIncludeColumns(expected, actual, false, "ID", "NMAE"))
+                .as("One misspelled include name among valid ones must fail.")
+                .isInstanceOf(DatabaseUnitException.class)
+                .hasMessageContaining("'NMAE'");
+    }
+
+    @Test
+    void testVerifyData_includeColumnIsWildcardMatchingAColumn_stillComparesThatColumn()
+            throws Exception
+    {
+        final DefaultTable expected = makeIdAndNameTable("a");
+        final DefaultTable actual = makeIdAndNameTable("zzz");
+
+        assertThatThrownBy(() -> verifyWithIncludeColumns(expected, actual, false, "N*E"))
+                .as("A wildcard that matches a column passes the check and the column is compared.")
+                .isInstanceOf(AssertionError.class)
+                .isNotInstanceOf(DatabaseUnitException.class);
+    }
+
+    @Test
+    void testVerifyData_includeColumnInOtherCase_passesTheCheck()
+            throws Exception
+    {
+        final DefaultTable table = makeIdAndNameTable("a");
+
+        assertThatCode(() -> verifyWithIncludeColumns(table, table, false, "name"))
+                .as("An include name matches a column without regard to case.")
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void testVerifyData_includeColumnWithEmptyExpectedTable_passes()
+            throws Exception
+    {
+        final DefaultTable expected = new DefaultTable("TEST_TABLE", new Column[0]);
+        final DefaultTable actual = new DefaultTable("TEST_TABLE",
+                new Column[] {new Column("ID", DataType.INTEGER),
+                        new Column("NAME", DataType.VARCHAR)});
+
+        assertThatCode(() -> verifyWithIncludeColumns(expected, actual, false, "NAME"))
+                .as("A name that matches a column of the database table passes although the"
+                        + " expected table lists no column.")
+                .doesNotThrowAnyException();
+    }
+
+    private void verifyWithColumnComparer(final DefaultTable table,
+            final String columnName) throws Exception
+    {
+        final MockDatabaseConnection connection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        connection.setupDataSet(table);
+        tc.setExpectedDs(new DefaultDataSet(table));
+        final Map<String, ValueComparer> comparers = new java.util.HashMap<>();
+        comparers.put(columnName, new RegularExpressionValueComparer());
+        tc.setVerifyTableDefs(new VerifyTableDefinition[] {
+                new VerifyTableDefinition("TEST_TABLE", new String[] {}, new String[] {}, null,
+                        comparers, false)});
+
+        tc.verifyData();
+    }
+
+    private void setFailOnUnknownVerifyColumnName(final boolean fail) throws Exception
+    {
+        final DatabaseConfig config = databaseTester.getConnection().getConfig();
+        config.setFeature(DatabaseConfig.FEATURE_FAIL_ON_UNKNOWN_VERIFY_COLUMN_NAME, fail);
+    }
+
+    private static List<String> warnMessagesOf(final ListAppender<ILoggingEvent> appender)
+    {
+        return appender.list.stream().filter(event -> event.getLevel() == Level.WARN)
+                .map(ILoggingEvent::getFormattedMessage).collect(Collectors.toList());
+    }
+
+    @Test
+    void testVerifyData_columnComparerMatchesNoColumn_failsNamingTheColumnAndTheTable()
+            throws Exception
+    {
+        final DefaultTable table = makeIdAndNameTable("a");
+
+        assertThatThrownBy(() -> verifyWithColumnComparer(table, "NMAE"))
+                .as("A misspelled column comparer name must fail instead of leaving the column"
+                        + " on the default comparer.")
+                .isInstanceOf(DatabaseUnitException.class)
+                .hasMessage("The column name 'NMAE' of a column comparer for table TEST_TABLE"
+                        + " matches no column of the table, whose columns are ID, NAME, so the"
+                        + " comparer would not be used. Correct the name in the"
+                        + " VerifyTableDefinition or @DbUnitColumnComparer, or set the feature"
+                        + " http://www.dbunit.org/features/failOnUnknownVerifyColumnName to false"
+                        + " to log a warning instead of failing.");
+    }
+
+    @Test
+    void testVerifyData_columnComparerMatchesNoColumnAndFeatureTrue_fails()
+            throws Exception
+    {
+        final DefaultTable table = makeIdAndNameTable("a");
+        setFailOnUnknownVerifyColumnName(true);
+
+        assertThatThrownBy(() -> verifyWithColumnComparer(table, "NMAE"))
+                .as("A misspelled column comparer name must fail when the feature is set to"
+                        + " true.")
+                .isInstanceOf(DatabaseUnitException.class)
+                .hasMessageContaining("'NMAE'");
+    }
+
+    @Test
+    void testVerifyData_columnComparerMatchesNoColumnAndFeatureFalse_warnsAndVerifies()
+            throws Exception
+    {
+        final DefaultTable table = makeIdAndNameTable("a");
+        setFailOnUnknownVerifyColumnName(false);
+        final ListAppender<ILoggingEvent> appender =
+                startCapturingLogOf(VerifyColumnNamesCheck.class);
+        try
+        {
+            assertThatCode(() -> verifyWithColumnComparer(table, "NMAE"))
+                    .as("A misspelled column comparer name must not fail when the feature is"
+                            + " set to false.")
+                    .doesNotThrowAnyException();
+
+            assertThat(warnMessagesOf(appender))
+                    .as("The misspelled column comparer name must be logged as one warning.")
+                    .containsExactly("The column name 'NMAE' of a column comparer for table"
+                            + " TEST_TABLE matches no column of the table, whose columns are"
+                            + " ID, NAME, so the comparer would not be used. Correct the name"
+                            + " in the VerifyTableDefinition or @DbUnitColumnComparer.");
+        } finally
+        {
+            stopCapturingLogOf(VerifyColumnNamesCheck.class, appender);
+        }
+    }
+
+    @Test
+    void testVerifyData_loadTableDataFromDatabaseOverriddenToLoadMoreColumns_checksIncludeColumnsAgainstTheLoadedTable()
+            throws Exception
+    {
+        final DefaultTable viewTable = makeIdNameAndViewOnlyTable();
+
+        final DefaultPrepAndExpectedTestCase overriding =
+                makeLoadingTestCase(viewTable, viewTable, "VIEW_ONLY");
+
+        assertThatCode(() -> overriding.verifyData())
+                .as("A subclass that loads the actual table itself may load columns the table"
+                        + " lacks, and an include name of one of them names a column of the"
+                        + " table it loads.")
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void testVerifyData_loadTableDataFromDatabaseOverridden_failsForAnIncludeNameTheLoadedTableLacks()
+            throws Exception
+    {
+        final DefaultTable table = makeIdAndNameTable("a");
+        final DefaultTable viewTable = makeIdNameAndViewOnlyTable();
+
+        final DefaultPrepAndExpectedTestCase overriding =
+                makeLoadingTestCase(table, viewTable, "NMAE");
+
+        assertThatThrownBy(() -> overriding.verifyData())
+                .as("The columns of the table the subclass loads are the columns the include"
+                        + " names are checked against.")
+                .isInstanceOf(DatabaseUnitException.class)
+                .hasMessageContaining("The column name 'NMAE' to include for table TEST_TABLE"
+                        + " matches no column of the table, whose columns are ID, NAME,"
+                        + " VIEW_ONLY,");
+    }
+
+    private DefaultTable makeIdNameAndViewOnlyTable() throws Exception
+    {
+        final Column[] columns = {new Column("ID", DataType.INTEGER),
+                new Column("NAME", DataType.VARCHAR),
+                new Column("VIEW_ONLY", DataType.VARCHAR)};
+        final DefaultTable viewTable = new DefaultTable("TEST_TABLE", columns);
+        viewTable.addRow(new Object[] {1, "a", "v"});
+        return viewTable;
+    }
+
+    private DefaultPrepAndExpectedTestCase makeLoadingTestCase(final DefaultTable table,
+            final DefaultTable loadedTable, final String includeColumn) throws Exception
+    {
+        final DefaultPrepAndExpectedTestCase overriding =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester)
+                {
+                    @Override
+                    public ITable loadTableDataFromDatabase(final String tableName,
+                            final IDatabaseConnection connection)
+                            throws DataSetException
+                    {
+                        return loadedTable;
+                    }
+                };
+        overriding.setExpectedDs(new DefaultDataSet(table));
+        overriding.setVerifyTableDefs(new VerifyTableDefinition[] {
+                new VerifyTableDefinition("TEST_TABLE", new String[] {},
+                        new String[] {includeColumn})});
+        final MockDatabaseConnection connection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        connection.setupDataSet(table);
+        return overriding;
+    }
+
     @Test
     void testRunTest_withNonDefaultTearDown_reusesOneConnectionAcrossLifecycle()
             throws Exception
@@ -2139,6 +3555,283 @@ class DefaultPrepAndExpectedTestCaseTest
     }
 
     @Test
+    void testGetReusableConnection_defaultDatabaseTesterUsedForOneTest_logsNoClosedFixedConnectionWarning()
+            throws Exception
+    {
+        final ListAppender<ILoggingEvent> appender =
+                startCapturingLogOf(ClosedFixedConnectionWarning.class);
+        try
+        {
+            tc.configureTest(new VerifyTableDefinition[] {}, new String[] {}, new String[] {});
+            tc.preTest();
+            tc.postTest();
+
+            assertThat(appender.list).filteredOn(event -> event.getLevel() == Level.WARN)
+                    .as("A tester built for one test is right to have its connection closed, so"
+                            + " nothing is warned about until a second test uses the tester.")
+                    .isEmpty();
+        } finally
+        {
+            stopCapturingLogOf(ClosedFixedConnectionWarning.class, appender);
+        }
+    }
+
+    @Test
+    void testRunTest_defaultDatabaseTesterAndConfigureTestFails_logsNoClosedFixedConnectionWarning()
+            throws Exception
+    {
+        final ListAppender<ILoggingEvent> appender =
+                startCapturingLogOf(ClosedFixedConnectionWarning.class);
+        try
+        {
+            final Throwable thrown = catchThrowable(() -> tc.runTest(
+                    new VerifyTableDefinition[] {}, new String[] {MISSING_DATA_FILE_NAME},
+                    new String[] {}, () -> null));
+
+            assertThat(thrown).as("The missing prep file fails the test.").isNotNull();
+            assertThat(appender.list).filteredOn(event -> event.getLevel() == Level.WARN)
+                    .as("The clean up after the failed configureTest() acquires the connection"
+                            + " again within the same test, which is not a second test using the"
+                            + " tester.")
+                    .isEmpty();
+        } finally
+        {
+            stopCapturingLogOf(ClosedFixedConnectionWarning.class, appender);
+        }
+    }
+
+    @Test
+    void testGetReusableConnection_sameTestCaseServingSeveralTestsWithTheSameTester_logsExactlyOneWarning()
+            throws Exception
+    {
+        final ListAppender<ILoggingEvent> appender =
+                startCapturingLogOf(ClosedFixedConnectionWarning.class);
+        try
+        {
+            for (int test = 0; test < 3; test++)
+            {
+                tc.configureTest(new VerifyTableDefinition[] {}, new String[] {},
+                        new String[] {});
+                tc.preTest();
+                tc.postTest();
+            }
+
+            assertThat(appender.list).filteredOn(event -> event.getLevel() == Level.WARN)
+                    .as("A test case reused across tests, such as one in a static field, serves"
+                            + " each test with the same tester, so its second test is the"
+                            + " tester's second use and is warned about once.")
+                    .hasSize(1);
+        } finally
+        {
+            stopCapturingLogOf(ClosedFixedConnectionWarning.class, appender);
+        }
+    }
+
+    @Test
+    void testGetReusableConnection_defaultDatabaseTesterServingSeveralTests_logsExactlyOneWarning()
+            throws Exception
+    {
+        final DefaultPrepAndExpectedTestCase secondTc =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester);
+        final DefaultPrepAndExpectedTestCase thirdTc =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester);
+        final ListAppender<ILoggingEvent> appender =
+                startCapturingLogOf(ClosedFixedConnectionWarning.class);
+        try
+        {
+            for (final DefaultPrepAndExpectedTestCase testCase : Arrays.asList(tc, secondTc,
+                    thirdTc))
+            {
+                testCase.configureTest(new VerifyTableDefinition[] {}, new String[] {},
+                        new String[] {});
+                testCase.preTest();
+                testCase.postTest();
+            }
+
+            assertThat(appender.list).filteredOn(event -> event.getLevel() == Level.WARN)
+                    .as("A DefaultDatabaseTester hands out the connection it holds again and"
+                            + " cleanupData() closes it with the default closeConnectionAfterTest,"
+                            + " so the tester must be warned about exactly once, when the second"
+                            + " test uses it: not for the first test, not once per test case and"
+                            + " not once per getReusableConnection() call.")
+                    .hasSize(1);
+        } finally
+        {
+            stopCapturingLogOf(ClosedFixedConnectionWarning.class, appender);
+        }
+    }
+
+    @Test
+    void testGetReusableConnection_defaultDatabaseTesterOverDataSourceConnectionServingSeveralTests_logsNoClosedFixedConnectionWarning()
+            throws Exception
+    {
+        final JdbcDataSource dataSource = new JdbcDataSource();
+        dataSource.setURL("jdbc:h2:mem:closed_fixed_data_source_connection");
+        final IDatabaseTester dataSourceTester =
+                new DefaultDatabaseTester(new DatabaseDataSourceConnection(dataSource));
+        final ListAppender<ILoggingEvent> appender =
+                startCapturingLogOf(ClosedFixedConnectionWarning.class);
+        try
+        {
+            for (int test = 0; test < 3; test++)
+            {
+                final DefaultPrepAndExpectedTestCase testCase =
+                        new DefaultPrepAndExpectedTestCase(dataFileLoader, dataSourceTester);
+                testCase.configureTest(new VerifyTableDefinition[] {}, new String[] {},
+                        new String[] {});
+                testCase.preTest();
+                testCase.postTest();
+            }
+
+            assertThat(appender.list).filteredOn(event -> event.getLevel() == Level.WARN)
+                    .as("A DefaultDatabaseTester over a DatabaseDataSourceConnection has its"
+                            + " connection closed after each test and checks out another for the"
+                            + " next one, so closing it is right and no test finds it closed.")
+                    .isEmpty();
+        } finally
+        {
+            stopCapturingLogOf(ClosedFixedConnectionWarning.class, appender);
+        }
+    }
+
+    @Test
+    void testGetReusableConnection_defaultDatabaseTesterWithNoOpListener_logsNoClosedFixedConnectionWarning()
+            throws Exception
+    {
+        databaseTester.setOperationListener(IOperationListener.NO_OP_OPERATION_LISTENER);
+        final ListAppender<ILoggingEvent> appender =
+                startCapturingLogOf(ClosedFixedConnectionWarning.class);
+        try
+        {
+            tc.configureTest(new VerifyTableDefinition[] {}, new String[] {}, new String[] {});
+            tc.preTest();
+            tc.postTest();
+
+            assertThat(appender.list)
+                    .as("The no-op listener leaves the connection open, so nothing the next test"
+                            + " needs is closed.")
+                    .isEmpty();
+        } finally
+        {
+            stopCapturingLogOf(ClosedFixedConnectionWarning.class, appender);
+        }
+    }
+
+    @Test
+    void testGetReusableConnection_defaultDatabaseTesterAndCloseAfterTestFalse_logsNoClosedFixedConnectionWarning()
+            throws Exception
+    {
+        tc.setCloseConnectionAfterTest(false);
+        final ListAppender<ILoggingEvent> appender =
+                startCapturingLogOf(ClosedFixedConnectionWarning.class);
+        try
+        {
+            tc.configureTest(new VerifyTableDefinition[] {}, new String[] {}, new String[] {});
+            tc.preTest();
+            tc.postTest();
+
+            assertThat(appender.list)
+                    .as("closeConnectionAfterTest false leaves the connection open for its owner,"
+                            + " so nothing the next test needs is closed.")
+                    .isEmpty();
+        } finally
+        {
+            stopCapturingLogOf(ClosedFixedConnectionWarning.class, appender);
+        }
+    }
+
+    @Test
+    void testGetReusableConnection_customTesterHandsOutItsFixedConnectionClosed_warnsOnce()
+            throws Exception
+    {
+        final IDatabaseConnection fixedConnection = databaseTester.getConnection();
+        tc.setDatabaseTester(new AbstractDatabaseTester()
+        {
+            @Override
+            public IDatabaseConnection getConnection()
+            {
+                return fixedConnection;
+            }
+        });
+        Mockito.when(mockConnection.isClosed()).thenReturn(true);
+        final ListAppender<ILoggingEvent> appender =
+                startCapturingLogOf(ClosedConnectionHandedOutWarning.class);
+        try
+        {
+            tc.getReusableConnection();
+
+            assertThat(appender.list).filteredOn(event -> event.getLevel() == Level.WARN)
+                    .as("A tester that hands the test case a connection that is already closed is"
+                            + " warned about, whatever kind of tester it is.")
+                    .hasSize(1);
+        } finally
+        {
+            stopCapturingLogOf(ClosedConnectionHandedOutWarning.class, appender);
+        }
+    }
+
+    @Test
+    void testGetReusableConnection_customTesterHandsOutItsFixedConnectionOpen_doesNotWarn()
+            throws Exception
+    {
+        final IDatabaseConnection fixedConnection = databaseTester.getConnection();
+        tc.setDatabaseTester(new AbstractDatabaseTester()
+        {
+            @Override
+            public IDatabaseConnection getConnection()
+            {
+                return fixedConnection;
+            }
+        });
+        final ListAppender<ILoggingEvent> appender =
+                startCapturingLogOf(ClosedConnectionHandedOutWarning.class);
+        try
+        {
+            tc.getReusableConnection();
+
+            assertThat(appender.list)
+                    .as("A connection that is open is nothing to warn about.")
+                    .isEmpty();
+        } finally
+        {
+            stopCapturingLogOf(ClosedConnectionHandedOutWarning.class, appender);
+        }
+    }
+
+    @Test
+    void testConfigureTest_reusedTestCaseWhoseFailedConfigureTestClosedTheFixedConnection_warnsInTheNextTest()
+            throws Exception
+    {
+        final ListAppender<ILoggingEvent> appender =
+                startCapturingLogOf(ClosedConnectionHandedOutWarning.class);
+        try
+        {
+            final Throwable firstFailure = catchThrowable(() -> tc.configureTest(
+                    new VerifyTableDefinition[] {}, new String[] {MISSING_DATA_FILE_NAME},
+                    new String[] {}));
+            // the clean up of the failed configureTest() closed the fixed connection, and no
+            // cleanupData() ended the lifecycle, as when the annotation runtime drives the test
+            Mockito.when(mockConnection.isClosed()).thenReturn(true);
+
+            assertThat(firstFailure).as("The missing prep file fails the first test.")
+                    .isNotNull();
+            assertThat(appender.list).filteredOn(event -> event.getLevel() == Level.WARN)
+                    .as("The first test is handed the connection open.").isEmpty();
+
+            tc.configureTest(new VerifyTableDefinition[] {}, new String[] {}, new String[] {});
+
+            assertThat(appender.list).filteredOn(event -> event.getLevel() == Level.WARN)
+                    .as("The test that is handed the connection the earlier test closed is told"
+                            + " so, whether or not the earlier lifecycle ended with"
+                            + " cleanupData().")
+                    .hasSize(1);
+        } finally
+        {
+            stopCapturingLogOf(ClosedConnectionHandedOutWarning.class, appender);
+        }
+    }
+
+    @Test
     void testGetReusableConnection_testDoubleWithNullJdbcConnection_doesNotThrow()
             throws Exception
     {
@@ -2228,7 +3921,7 @@ class DefaultPrepAndExpectedTestCaseTest
         // here - winning instead.
         databaseTester.getConnection().getConfig()
                 .setFeature(DatabaseConfig.FEATURE_ROW_COUNT_CHECK, true);
-        tc.setRowCountCheckOverride(false, new String[0]);
+        tc.setRowCountCheckOverride(new RowCountCheckOverride(false, new String[0]));
 
         tc.preTest();
         tc.cleanupData();
@@ -2238,6 +3931,30 @@ class DefaultPrepAndExpectedTestCaseTest
                         + " proving the override path was actually exercised rather than"
                         + " skipped outright.")
                 .isNotNull();
+    }
+
+    @Test
+    void testGetRowCountCheckOverride_noneSet_returnsNull()
+    {
+        assertThat(tc.getRowCountCheckOverride())
+                .as("A new test case resolves the check from the connection's DatabaseConfig.")
+                .isNull();
+    }
+
+    @Test
+    void testGetRowCountCheckOverride_afterSetAndAfterSetToNull_returnsWhatWasSet()
+    {
+        final RowCountCheckOverride override =
+                new RowCountCheckOverride(true, new String[] {"AUDIT_LOG"});
+
+        tc.setRowCountCheckOverride(override);
+        assertThat(tc.getRowCountCheckOverride()).as("The override set is the one returned.")
+                .isEqualTo(override);
+
+        tc.setRowCountCheckOverride(null);
+        assertThat(tc.getRowCountCheckOverride())
+                .as("Setting null returns to resolving from the connection's DatabaseConfig.")
+                .isNull();
     }
 
     @Test
@@ -2268,6 +3985,27 @@ class DefaultPrepAndExpectedTestCaseTest
 
         Mockito.verify(mockRowCountCheck, Mockito.never())
                 .verify(Mockito.any(), Mockito.any());
+    }
+
+    @Test
+    void testPreTest_baselineCaptureFailsWithAnError_releasesTheConnectionItAcquired()
+            throws Exception
+    {
+        final RowCountCheck mockRowCountCheck = Mockito.mock(RowCountCheck.class);
+        Mockito.when(mockRowCountCheck.capture(Mockito.any()))
+                .thenThrow(new AssertionError("capture boom"));
+        tc.setRowCountCheck(mockRowCountCheck);
+
+        assertThatThrownBy(tc::preTest)
+                .as("The capture failure propagates unchanged.")
+                .isInstanceOf(AssertionError.class).hasMessage("capture boom");
+
+        final MockDatabaseConnection connection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        // the baseline capture acquired the shared connection, and preTest() failed before
+        // setupData(), so no cleanupData() follows to release it
+        connection.setExpectedCloseCalls(1);
+        connection.verify();
     }
 
     @Test
@@ -2341,6 +4079,168 @@ class DefaultPrepAndExpectedTestCaseTest
         // though the row count check, not the tear down operation, is what failed (#939)
         connection.setExpectedCloseCalls(1);
         connection.verify();
+    }
+
+    @Test
+    void testCleanupData_testersListenerThrowsAnErrorOnConnectionRetrieved_propagatesItAndClosesTheConnection()
+            throws Exception
+    {
+        // an Error, as opposed to an Exception, such as the AssertionError a listener asserting
+        // on the connection it is handed throws
+        final AssertionError listenerFailure = new AssertionError("listener assertion");
+        final IOperationListener failingListener = Mockito.mock(IOperationListener.class);
+        Mockito.doThrow(listenerFailure).when(failingListener)
+                .connectionRetrieved(Mockito.any(IDatabaseConnection.class));
+        databaseTester.setTearDownOperation(DatabaseOperation.DELETE_ALL);
+        databaseTester.setOperationListener(failingListener);
+
+        assertThat(catchThrowable(() -> tc.cleanupData()))
+                .as("An Error thrown while tearing down must propagate unchanged.")
+                .isSameAs(listenerFailure);
+
+        final MockDatabaseConnection connection =
+                (MockDatabaseConnection) databaseTester.getConnection();
+        // the shared connection must be released for an Error as it is for an Exception
+        connection.setExpectedCloseCalls(1);
+        connection.verify();
+    }
+
+    @Test
+    void testCleanupData_tearDownAndCloseThrowTheSameFailure_throwsItUnchanged() throws Exception
+    {
+        final RuntimeException sharedFailure = new RuntimeException("one failure for both");
+        final IDatabaseConnection brokenConnection = Mockito.mock(IDatabaseConnection.class);
+        final Connection brokenJdbcConnection = Mockito.mock(Connection.class);
+        Mockito.when(brokenConnection.getConnection()).thenReturn(brokenJdbcConnection);
+        Mockito.when(brokenConnection.getConfig()).thenReturn(new DatabaseConfig());
+        Mockito.lenient().when(brokenJdbcConnection.getAutoCommit()).thenReturn(true);
+        Mockito.doThrow(sharedFailure).when(brokenConnection).close();
+        final IDatabaseTester brokenTester = new DefaultDatabaseTester(brokenConnection);
+        brokenTester.setTearDownOperation(new DatabaseOperation()
+        {
+            @Override
+            public void execute(final IDatabaseConnection connection, final IDataSet dataSet)
+            {
+                throw sharedFailure;
+            }
+        });
+        final DefaultPrepAndExpectedTestCase brokenTc =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, brokenTester);
+
+        final Throwable thrown = catchThrowable(() -> brokenTc.cleanupData());
+
+        assertThat(thrown)
+                .as("A failure that both the tear down operation and closing the connection throw"
+                        + " must be thrown as it is, not replaced by the IllegalArgumentException"
+                        + " that adding a throwable to its own suppressed ones throws.")
+                .isSameAs(sharedFailure);
+        assertThat(thrown.getSuppressed())
+                .as("A failure is not suppressed by itself.")
+                .isEmpty();
+    }
+
+    @Test
+    void testCleanupData_afterPostTestAlreadyVerifiedTheBaseline_doesNotVerifyTheSpentBaselineAgain()
+            throws Exception
+    {
+        final RowCountCheck mockRowCountCheck = Mockito.mock(RowCountCheck.class);
+        final RowCountSnapshot baseline =
+                new RowCountSnapshot(Collections.singletonMap("ACCOUNT", 5));
+        Mockito.when(mockRowCountCheck.capture(Mockito.any())).thenReturn(baseline);
+        final UnexpectedRowCountException staleBaselineFailure = new UnexpectedRowCountException(
+                Collections.singletonList(new RowCountDifference("ACCOUNT", 5, 8)));
+        Mockito.doNothing().doThrow(staleBaselineFailure).when(mockRowCountCheck)
+                .verify(Mockito.any(), Mockito.any());
+        tc.setRowCountCheck(mockRowCountCheck);
+        tc.preTest();
+        tc.postTest();
+        tc.setupData();
+
+        assertThatCode(() -> tc.cleanupData())
+                .as("A lifecycle that never captured a baseline of its own - the legacy setUp()"
+                        + " and tearDown() hooks, or setupData() and cleanupData() called by"
+                        + " hand - must not verify the previous test's spent baseline against"
+                        + " its own row counts.")
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void testCleanupData_testerReplacedAfterTheBaselineWasCaptured_doesNotVerifyTheOldTestersBaseline()
+            throws Exception
+    {
+        final RowCountCheck mockRowCountCheck = Mockito.mock(RowCountCheck.class);
+        final RowCountSnapshot baseline =
+                new RowCountSnapshot(Collections.singletonMap("ACCOUNT", 5));
+        Mockito.when(mockRowCountCheck.capture(Mockito.any())).thenReturn(baseline);
+        final UnexpectedRowCountException otherDatabaseFailure = new UnexpectedRowCountException(
+                Collections.singletonList(new RowCountDifference("ACCOUNT", 5, 8)));
+        Mockito.lenient().doThrow(otherDatabaseFailure).when(mockRowCountCheck)
+                .verify(Mockito.any(), Mockito.any());
+        tc.setRowCountCheck(mockRowCountCheck);
+        tc.preTest();
+        tc.setDatabaseTester(new DefaultDatabaseTester(makeDatabaseConnection()));
+
+        assertThatCode(() -> tc.cleanupData())
+                .as("A baseline captured from the replaced tester's database says nothing about"
+                        + " the new tester's, so cleanupData() must not verify it there.")
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void testCleanupData_tearDownFails_doesNotVerifyTheBaselineInALaterCleanupData()
+            throws Exception
+    {
+        final RowCountCheck mockRowCountCheck = Mockito.mock(RowCountCheck.class);
+        final RowCountSnapshot baseline =
+                new RowCountSnapshot(Collections.singletonMap("ACCOUNT", 5));
+        Mockito.when(mockRowCountCheck.capture(Mockito.any())).thenReturn(baseline);
+        tc.setRowCountCheck(mockRowCountCheck);
+        tc.preTest();
+        databaseTester.setTearDownOperation(new FailingDatabaseOperation());
+        assertThatThrownBy(() -> tc.cleanupData())
+                .as("The tear down failure must surface.")
+                .isInstanceOf(DatabaseUnitException.class);
+        databaseTester.setTearDownOperation(DatabaseOperation.NONE);
+
+        tc.cleanupData();
+
+        Mockito.verify(mockRowCountCheck, Mockito.never())
+                .verify(Mockito.any(), Mockito.any());
+    }
+
+    @Test
+    void testCleanupData_tearDownFailsAndCloseThrowsAnError_keepsTheTearDownFailureAndRestoresValues()
+            throws Exception
+    {
+        final AssertionError closeError = new AssertionError("close asserted");
+        final DatabaseConfig connectionConfig = new DatabaseConfig();
+        final IDatabaseConnection brokenConnection = Mockito.mock(IDatabaseConnection.class);
+        final Connection brokenJdbcConnection = Mockito.mock(Connection.class);
+        Mockito.when(brokenConnection.getConnection()).thenReturn(brokenJdbcConnection);
+        Mockito.when(brokenConnection.getConfig()).thenReturn(connectionConfig);
+        Mockito.lenient().when(brokenJdbcConnection.getAutoCommit()).thenReturn(true);
+        Mockito.doThrow(closeError).when(brokenConnection).close();
+        final IDatabaseTester brokenTester = new DefaultDatabaseTester(brokenConnection);
+        brokenTester.setTearDownOperation(new FailingDatabaseOperation());
+        final DefaultPrepAndExpectedTestCase brokenTc =
+                new DefaultPrepAndExpectedTestCase(dataFileLoader, brokenTester);
+        brokenTc.setDatabaseConfigProperties(batchSizeProperties("50"));
+        brokenTc.configureTest(new VerifyTableDefinition[] {}, new String[] {},
+                new String[] {});
+
+        final Throwable thrown = catchThrowable(() -> brokenTc.cleanupData());
+
+        assertThat(thrown)
+                .as("The tear down failure must stay the failure that surfaces, not be replaced"
+                        + " by the Error from closing the connection.")
+                .isInstanceOf(DatabaseUnitException.class);
+        assertThat(thrown.getSuppressed())
+                .as("The Error from closing the connection must ride along, not replace it.")
+                .containsExactly(closeError);
+        assertThat(connectionConfig.getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE))
+                .as("An Error from closing the connection must not skip putting back the"
+                        + " property values the test replaced.")
+                .isEqualTo(new DatabaseConfig().getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE));
     }
 
     @Test
@@ -2460,6 +4360,61 @@ class DefaultPrepAndExpectedTestCaseTest
         return table;
     }
 
+    /**
+     * An actual table of a database-generated {@code ID} column that leads and a {@code NAME}
+     * column, whose generated ids are in the opposite order to the names.
+     */
+    private static DefaultTable makeLeadingIdActualTable() throws DataSetException
+    {
+        final Column[] columns = {new Column("ID", DataType.BIGINT),
+                new Column("NAME", DataType.VARCHAR)};
+        final DefaultTable table = new DefaultTable("ACCOUNT", columns);
+        table.addRow(new Object[] {7L, "b"});
+        table.addRow(new Object[] {8L, "a"});
+        return table;
+    }
+
+    /**
+     * An expected table of the columns of {@link #makeLeadingIdActualTable()} that holds a
+     * pattern in its {@code ID} column, as a dataset file does, and whose columns are untyped.
+     */
+    private static DefaultTable makeLeadingIdExpectedTable(final String firstIdPattern,
+            final String secondIdPattern) throws DataSetException
+    {
+        final Column[] columns = {new Column("ID", DataType.UNKNOWN),
+                new Column("NAME", DataType.UNKNOWN)};
+        final DefaultTable table = new DefaultTable("ACCOUNT", columns);
+        table.addRow(new Object[] {firstIdPattern, "a"});
+        table.addRow(new Object[] {secondIdPattern, "b"});
+        return table;
+    }
+
+    /** An actual table of two rows that tie on {@code NAME}, whose {@code ID}s are numbers. */
+    private static DefaultTable makeTiedNamesActualTable() throws DataSetException
+    {
+        final Column[] columns = {new Column("ID", DataType.BIGINT),
+                new Column("NAME", DataType.VARCHAR)};
+        final DefaultTable table = new DefaultTable("ACCOUNT", columns);
+        table.addRow(new Object[] {1L, "a"});
+        table.addRow(new Object[] {2L, "a"});
+        return table;
+    }
+
+    /**
+     * An expected table of the columns of {@link #makeTiedNamesActualTable()} that holds a
+     * pattern in its {@code ID} column, as a dataset file does, and whose columns are untyped.
+     */
+    private static DefaultTable makeTiedNamesExpectedTable(final String firstIdPattern,
+            final String secondIdPattern) throws DataSetException
+    {
+        final Column[] columns = {new Column("ID", DataType.UNKNOWN),
+                new Column("NAME", DataType.UNKNOWN)};
+        final DefaultTable table = new DefaultTable("ACCOUNT", columns);
+        table.addRow(new Object[] {firstIdPattern, "a"});
+        table.addRow(new Object[] {secondIdPattern, "a"});
+        return table;
+    }
+
     private static DefaultTable makeCol1Table(final String firstCol1, final String secondCol1)
             throws DataSetException
     {
@@ -2498,10 +4453,10 @@ class DefaultPrepAndExpectedTestCaseTest
         return table;
     }
 
-    private static Properties invalidDataTypeFactoryProperties()
+    private static Properties uninstantiableDataTypeFactoryProperties()
     {
         final Properties properties = new Properties();
-        properties.setProperty("datatypeFactory", "not.a.real.ClassName");
+        properties.setProperty("datatypeFactory", UninstantiableDataTypeFactory.class.getName());
         return properties;
     }
 
@@ -2510,6 +4465,14 @@ class DefaultPrepAndExpectedTestCaseTest
         final Properties properties = new Properties();
         properties.setProperty("batchSize", batchSize);
         return properties;
+    }
+
+    /**
+     * A data type factory that dbUnit can load but not instantiate, so a property value naming
+     * it passes the check of the value and fails when it is applied.
+     */
+    public abstract static class UninstantiableDataTypeFactory extends DefaultDataTypeFactory
+    {
     }
 
     /** Data type factory that counts how often a property value instantiates it. */
@@ -2622,6 +4585,89 @@ class DefaultPrepAndExpectedTestCaseTest
         public void operationTearDownFinished(final IDatabaseConnection connection)
         {
             // nothing to do
+        }
+    }
+
+    /** Enables the row count check on every connection it is told about, as a user listener may. */
+    private static final class RowCountCheckEnablingListener implements IOperationListener
+    {
+        @Override
+        public void connectionRetrieved(final IDatabaseConnection connection)
+        {
+            connection.getConfig().setFeature(DatabaseConfig.FEATURE_ROW_COUNT_CHECK, true);
+        }
+
+        @Override
+        public void operationSetUpFinished(final IDatabaseConnection connection)
+        {
+            // nothing to do
+        }
+
+        @Override
+        public void operationTearDownFinished(final IDatabaseConnection connection)
+        {
+            // nothing to do
+        }
+    }
+
+    /**
+     * A spy of the mock connection whose dataset lists the table LEAKY, and which counts no rows
+     * in it the first time it is asked and one row every time after, as when a test leaves a
+     * row behind.
+     */
+    private MockDatabaseConnection makeConnectionWhoseTableGainsARow() throws Exception
+    {
+        final MockDatabaseConnection spied =
+                Mockito.spy((MockDatabaseConnection) makeDatabaseConnection());
+        spied.setupDataSet(new DefaultTable("LEAKY"));
+        Mockito.lenient().doReturn(0).doReturn(1).when(spied).getRowCount("LEAKY");
+        return spied;
+    }
+
+    private static DefaultPrepAndExpectedTestCase makeTestCaseWithListener(
+            final IOperationListener ownListener, final DataFileLoader loader,
+            final IDatabaseTester tester)
+    {
+        return new DefaultPrepAndExpectedTestCase(loader, tester)
+        {
+            @Override
+            protected IOperationListener getOperationListener()
+            {
+                return ownListener;
+            }
+        };
+    }
+
+    private DefaultPrepAndExpectedTestCase makeTestCaseWithListener(
+            final IOperationListener ownListener)
+    {
+        return makeTestCaseWithListener(ownListener, dataFileLoader, databaseTester);
+    }
+
+    /**
+     * Records the connections and the tables of the datasets an operation runs on.
+     */
+    private static final class ConnectionRecordingOperation extends DatabaseOperation
+    {
+        private final List<IDatabaseConnection> connections = new ArrayList<>();
+        private final List<List<String>> tableNames = new ArrayList<>();
+
+        @Override
+        public void execute(final IDatabaseConnection connection, final IDataSet dataSet)
+                throws DatabaseUnitException
+        {
+            connections.add(connection);
+            tableNames.add(Arrays.asList(dataSet.getTableNames()));
+        }
+
+        private List<IDatabaseConnection> getConnections()
+        {
+            return connections;
+        }
+
+        private List<List<String>> getTableNames()
+        {
+            return tableNames;
         }
     }
 

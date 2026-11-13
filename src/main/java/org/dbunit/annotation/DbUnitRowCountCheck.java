@@ -38,6 +38,22 @@ import org.dbunit.database.DatabaseConfig;
  * catches a table the test forgot to list for teardown - whose rows survive and break a later
  * test - and equally a reference table it wrongly listed, whose count went down.
  *
+ * <p>This annotation takes effect only on a test class that registers
+ * {@link org.dbunit.junit.jupiter.DbUnitExtension}, with {@code @DbUnitTest} or
+ * {@code @ExtendWith(DbUnitExtension.class)}, or that runs under
+ * {@link org.dbunit.spring.DbUnitTestExecutionListener}. A class that registers neither runs its
+ * tests as if the annotation were absent, with no prep, verification or teardown, and they pass.
+ *
+ * <p>Place it on the test method or on the test class. A method-level annotation counts on the
+ * test method only: on a {@code @BeforeEach}, {@code @AfterEach}, {@code @BeforeAll} or
+ * {@code @AfterAll} method, or on a {@code @BeforeParameterizedClassInvocation} or
+ * {@code @AfterParameterizedClassInvocation} method of a {@code @ParameterizedClass}, nothing
+ * reads it, so the binding fails the test, or the class when the extension or listener is
+ * registered on it, with an {@link IllegalStateException} that names the method. That holds for a
+ * lifecycle method that a subclass overrides, and under Spring for a {@code @BeforeTransaction}
+ * or {@code @AfterTransaction} method. On any other method, such as a helper, nothing reads it
+ * and nothing says so.
+ *
  * <p>{@link #enabled()} defaults to {@code true} so that writing the bare annotation means
  * "on". It exists for the override direction: a class-level check with one method that
  * legitimately leaves rows behind - a test asserting that an audit trail persists, say -
@@ -46,28 +62,40 @@ import org.dbunit.database.DatabaseConfig;
  *
  * <p>Precedence, highest first:
  * <ol>
- *   <li>The {@code -Ddbunit.rowCountCheck} system property, when present - wins outright, in
- *   both directions, so it can force-enable across a CI run and force-disable locally without
- *   editing code.</li>
- *   <li>This annotation - method level, else class level.</li>
+ *   <li>The {@code -Ddbunit.rowCountCheck=false} system property - force-disables the check
+ *   locally without editing code. Any value other than {@code true}, {@code false} or none, such
+ *   as {@code yes}, is rejected with an {@link IllegalArgumentException} that names the property
+ *   and the value, rather than read as {@code false} and turn the check off.</li>
+ *   <li>This annotation - method level, else class level. An {@code enabled = false} stays an
+ *   opt-out when a CI run force-enables the check.</li>
+ *   <li>The {@code -Ddbunit.rowCountCheck} system property, set to {@code true} or present with
+ *   no value - force-enables the check across a CI run for every test that declares nothing.</li>
  *   <li>{@link DatabaseConfig#FEATURE_ROW_COUNT_CHECK}.</li>
  *   <li>Default {@code false}.</li>
  * </ol>
  *
+ * <p>{@link #exclude()} adds its patterns to the ones the connection's
+ * {@link DatabaseConfig#PROPERTY_ROW_COUNT_CHECK_EXCLUDE_TABLES} configures, such as with a
+ * {@code @DbUnitProperty}, and the {@code -Ddbunit.rowCountCheckExcludeTables} system property
+ * adds its patterns to both; neither replaces them.
+ *
  * <p>A method-level annotation overrides a class-level one <em>wholesale</em>, {@link #exclude()}
- * included - the same rule as every other annotation in this family. A method that wants one
+ * included - the same rule as every other annotation in this family except {@link DbUnitConfig},
+ * which merges attribute by attribute. A method that wants one
  * extra exclusion beyond the class-level ones has to repeat them; this is deliberate, since
  * merging would make "why is this table still excluded?" answerable only by reading two
  * declarations.
  *
- * <p>On the prep/expected path ({@link DbUnitExpected} declared), this annotation only
- * overrides the resolved check when the test case resolves to a
- * {@link DefaultPrepAndExpectedTestCase} - the only {@link PrepAndExpectedTestCase}
- * implementation exposing a setter for it; a {@link DbUnitTestCase} field injecting a
- * different implementation fails fast with {@link IllegalStateException} instead, since a
- * silent no-op here would otherwise leave the check never running for this test at all. On
- * the setup/teardown path (no {@link DbUnitExpected}), this restriction does not apply - the
- * check runs directly against the connection regardless of test case type.
+ * <p>This annotation overrides the check the {@link DefaultPrepAndExpectedTestCase} that runs the
+ * test resolves from its connection. A {@link DbUnitTestCase} field injecting any other
+ * {@link PrepAndExpectedTestCase} is rejected with {@link IllegalStateException} instead, since
+ * a silent no-op here would otherwise leave the check never running for this test at all.
+ *
+ * <p>A {@link org.dbunit.database.rowcount.RowCountCheck} that the test case's owner set with
+ * {@link DefaultPrepAndExpectedTestCase#setRowCountCheck(org.dbunit.database.rowcount.RowCountCheck)},
+ * such as in the constructor of a {@code DbUnitConfig(prepAndExpectedTestCase)} class, wins over
+ * this annotation: the annotation then has no effect, and dbUnit logs a warning once. Set that check
+ * to {@code null} to let this annotation decide again.
  *
  * @author Jeff Jensen
  * @since 3.6.0

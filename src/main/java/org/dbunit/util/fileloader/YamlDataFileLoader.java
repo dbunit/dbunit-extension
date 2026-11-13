@@ -50,7 +50,7 @@ public class YamlDataFileLoader extends AbstractDataFileLoader
      *            The replacement objects for use with
      *            {@link org.dbunit.dataset.ReplacementDataSet}.
      */
-    public YamlDataFileLoader(Map ro)
+    public YamlDataFileLoader(Map<?, ?> ro)
     {
         super(ro);
     }
@@ -65,7 +65,7 @@ public class YamlDataFileLoader extends AbstractDataFileLoader
      *            The replacement substrings for use with
      *            {@link org.dbunit.dataset.ReplacementDataSet}.
      */
-    public YamlDataFileLoader(Map ro, Map rs)
+    public YamlDataFileLoader(Map<?, ?> ro, Map<?, ?> rs)
     {
         super(ro, rs);
     }

@@ -26,10 +26,12 @@ delegate.
 
 Two things vary on two different schedules:
 
-Wiring (fixed for the instance's life):: the `{name -> PrepAndExpectedTestCase}` (or
-`{name -> IDatabaseTester}`) map, assembled with the constructors,
-`from(String, PrepAndExpectedTestCase)`, the `forTesters(...)` factories, and `add`/`addAll` -
-each returning the instance so calls chain - then frozen on the first `preTest`/`runTest` call.
+Wiring (fixed when the instance is created):: the `{name -> PrepAndExpectedTestCase}` map,
+assembled with `builder()` - `add`, `addAll`, `dataFileLoader` and `closeConnectionAfterTest`, in
+any order, then `build()` - or with the `Map` constructor. `addAll` and the `Map` constructor take
+test cases. A tester is wired with `add(name, tester)`, which wraps it in a
+`DefaultPrepAndExpectedTestCase` that uses the builder's loader, a `FileExtensionDataFileLoader`
+unless one is set, and its `closeConnectionAfterTest`, `true` unless set otherwise.
 
 Data (varies per test method, per `@ParameterizedTest` row):: the
 `{name -> PrepAndExpectedTestData}` map passed to `preTest(map)`/`runTest(map, steps)`. A wired
@@ -75,10 +77,11 @@ private MultiDataSourcePrepAndExpectedTestCase testCase;
 @BeforeEach
 void setUp()
 {
-    final Map<String, IDatabaseTester> testers = new LinkedHashMap<>();
-    testers.put("orders", makeTester(ordersDataSource));
-    testers.put("inventory", makeTester(inventoryDataSource));
-    testCase = MultiDataSourcePrepAndExpectedTestCase.forTesters(loader, testers);
+    testCase = MultiDataSourcePrepAndExpectedTestCase.builder()
+            .dataFileLoader(loader)
+            .add("orders", makeTester(ordersDataSource))
+            .add("inventory", makeTester(inventoryDataSource))
+            .build();
 }
 
 @Test
@@ -110,21 +113,27 @@ cleanup) on a failed run, and suppressed-exception handling are all the wrapper'
  *involved* data source (present in the map and not mapped to `NONE`), in declared order:
  `delegate.preTest(...)`. If one throws, every involved delegate set up so far - including the one
  that just failed - is rolled back via `postTest(false)` in reverse - never a bare `cleanupData()`
- - with each rollback failure attached as suppressed on the original failure, which is then
- rethrown as-is.
+ - with each rollback failure attached as suppressed on the original failure, labelled with its
+ data source name and the `cleanupData` phase, and the original failure is then rethrown as-is.
 
 |test steps
 |once
 |Run by `runTest`, or by the caller between `preTest(map)` and `postTest(boolean)`. A delegate's
  own overridden `runTestSteps()` is not invoked - the steps span every data source, so no single
- delegate's step wrapper is the right scope.
+ delegate's step wrapper is the right scope. When the steps that `runTest` runs throw, it tears
+ every involved delegate down via `postTest(false)` in reverse and rethrows the step failure
+ as-is, with each teardown failure attached as suppressed and labelled as a rollback failure is.
 
 |`postTest(verify)`
 |reverse
 |`delegate.postTest(verify)` for each involved delegate, in reverse declared order, even after an
- earlier one in that order fails - so every data source is verified and cleaned up, and every
- mismatch reported, instead of stopping at the first. Every collected failure is aggregated into
- one link:../apidocs/org/dbunit/MultiDataSourceAssertionError.html[MultiDataSourceAssertionError].
+ earlier one in that order fails - so every data source is verified and cleaned up, and each data
+ source that fails is reported, instead of stopping at the first one. With the default failure
+ handler, the verification of a data source stops at its first mismatch, so that mismatch is what
+ the data source reports. Every collected failure is aggregated into one
+ link:../apidocs/org/dbunit/MultiDataSourceAssertionError.html[MultiDataSourceAssertionError].
+ The run is over once this is called, and once `runTest` has torn it down after failing test
+ steps, so a further call, such as one in a caller's `finally` block, tears nothing down again.
 |===
 
 `MultiDataSourceAssertionError` extends `AssertionError` (not a checked exception, and not
@@ -133,7 +142,9 @@ failure becomes its cause, so a single failing data source still surfaces its re
 link:../apidocs/org/dbunit/assertion/DbComparisonFailure.html[DbComparisonFailure] one
 `Caused by:` hop down, and the rest are attached as suppressed, each labelled with its data source
 name and phase, e.g. `"2 data sources failed in postTest: orders (verifyData), inventory
-(cleanupData)"`.
+(postTest)"`. The phase is `verifyData` for an `AssertionError`, such as a `DbComparisonFailure`,
+and `postTest` for any other failure, such as a row count difference or a failed cleanup. A
+`postTest(false)` call verifies nothing, so every failure it reports has the phase `cleanupData`.
 
 === A `@ParameterizedTest` suite
 
@@ -193,9 +204,10 @@ public class PrimarySecondaryDbTester
             @Qualifier("primaryTestCase") PrepAndExpectedTestCase primaryTestCase,
             @Qualifier("secondaryTestCase") PrepAndExpectedTestCase secondaryTestCase)
     {
-        testCase = MultiDataSourcePrepAndExpectedTestCase
-                .from("primary", primaryTestCase)
-                .add("secondary", secondaryTestCase);
+        testCase = MultiDataSourcePrepAndExpectedTestCase.builder()
+                .add("primary", primaryTestCase)
+                .add("secondary", secondaryTestCase)
+                .build();
     }
 
     public Object runTest(PrepAndExpectedTestData primary, PrepAndExpectedTestData secondary,

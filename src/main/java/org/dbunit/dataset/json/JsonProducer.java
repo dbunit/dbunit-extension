@@ -43,9 +43,11 @@ import org.dbunit.dataset.stream.DefaultConsumer;
 import org.dbunit.dataset.stream.IDataSetConsumer;
 import org.dbunit.dataset.stream.IDataSetProducer;
 
+import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
-import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.core.StreamReadConstraints;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
@@ -54,6 +56,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  * <p>The expected JSON format is a top-level object whose keys are table names and whose values
  * are arrays of row objects. Each row object maps column names to cell values. Missing keys within
  * a row are treated as {@code null} for that column. Empty tables are represented by empty arrays.
+ * A cell that is a JSON object or array reaches the column type as its compact JSON text.
+ * The producer rejects a table named twice with an {@link AmbiguousTableNameException}, and a
+ * column named twice in one row with a {@link DataSetException}.
+ *
+ * <p>The producer reads a string value of any length, such as the Base64 text of a large BLOB
+ * that {@link JsonDataSet#write} wrote. It lifts the limit of 20,000,000 characters that
+ * Jackson 2.15 and later set on a string value, and leaves the other limits of Jackson as they
+ * are, as a dataset does not reach them.
  *
  * <pre>
  * {
@@ -107,23 +117,6 @@ public class JsonProducer implements IDataSetProducer
         return Files.newInputStream(file.toPath());
     }
 
-    /**
-     * Holds the Jackson type token apart from {@link JsonProducer}, so that loading and
-     * initializing the producer does not itself need Jackson and its constructor can say what
-     * is missing.
-     */
-    private static final class RowType
-    {
-        private static final TypeReference<LinkedHashMap<String, Object>> INSTANCE =
-                new TypeReference<LinkedHashMap<String, Object>>()
-                {
-                };
-
-        private RowType()
-        {
-        }
-    }
-
     private JsonProducer(final InputStream inputStream, final boolean autoCloseInputStream)
     {
         RequiredLibrary.JACKSON.requireUnchecked(JsonProducer.class);
@@ -143,7 +136,9 @@ public class JsonProducer implements IDataSetProducer
         try
         {
             _consumer.startDataSet();
-            final ObjectMapper mapper = new ObjectMapper();
+            final ObjectMapper mapper = newMapper();
+            // a number with a fraction keeps every digit, where a double rounds past about 17
+            mapper.enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS);
             try (JsonParser parser = mapper.createParser(_inputStream))
             {
                 parser.configure(JsonParser.Feature.AUTO_CLOSE_SOURCE, _autoCloseInputStream);
@@ -158,6 +153,48 @@ public class JsonProducer implements IDataSetProducer
         catch (final IOException e)
         {
             throw new DataSetException("Error reading JSON dataset", e);
+        }
+    }
+
+    /**
+     * Creates the mapper that reads the document, which reads a string value of any length. It
+     * lifts the limit of 20,000,000 characters that Jackson 2.15 and later set on a string
+     * value to protect a service from hostile input. A dataset is a fixture of the test's own
+     * project, and a document {@link JsonDataSet#write} wrote must be readable, such as one
+     * that holds the Base64 text of a BLOB of about 15 MB. A Jackson older than 2.15 has no
+     * such limit and no class to set it.
+     */
+    private static ObjectMapper newMapper()
+    {
+        try
+        {
+            return StringLengthLimit.newMapperWithoutIt();
+        }
+        catch (final NoClassDefFoundError | NoSuchMethodError e)
+        {
+            // Jackson before 2.15: there is no limit to lift.
+            return new ObjectMapper();
+        }
+    }
+
+    /**
+     * The only code in this producer that uses the classes of Jackson 2.15 and later that limit
+     * a string value, kept in a class of its own so that an older Jackson, which has none of
+     * them, fails here, where {@link #newMapper()} falls back to the default mapper.
+     */
+    private static final class StringLengthLimit
+    {
+        private StringLengthLimit()
+        {
+        }
+
+        static ObjectMapper newMapperWithoutIt()
+        {
+            final StreamReadConstraints.Builder constraintsBuilder = StreamReadConstraints.builder();
+            constraintsBuilder.maxStringLength(Integer.MAX_VALUE);
+            final StreamReadConstraints constraints = constraintsBuilder.build();
+            final JsonFactory factory = JsonFactory.builder().streamReadConstraints(constraints).build();
+            return new ObjectMapper(factory);
         }
     }
 
@@ -212,7 +249,7 @@ public class JsonProducer implements IDataSetProducer
             }
             else if (rowToken == JsonToken.START_OBJECT)
             {
-                rows.add(mapper.readValue(parser, RowType.INSTANCE));
+                rows.add(readRow(tableName, rowIndex, parser, mapper));
             }
             else
             {
@@ -222,6 +259,49 @@ public class JsonProducer implements IDataSetProducer
             rowIndex++;
         }
         return rows;
+    }
+
+    /**
+     * Reads the row object the parser is at, its column names mapped to their values. Jackson
+     * would keep the last of a column named twice, so this method checks the names as it reads
+     * the row.
+     */
+    private Map<String, Object> readRow(final String tableName, final int rowIndex,
+            final JsonParser parser, final ObjectMapper mapper)
+            throws IOException, DataSetException
+    {
+        final Map<String, Object> row = new LinkedHashMap<>();
+        while (parser.nextToken() == JsonToken.FIELD_NAME)
+        {
+            final String columnName = parser.currentName();
+            if (row.containsKey(columnName))
+            {
+                throw new DataSetException("Row " + rowIndex + " of table '" + tableName
+                        + "' names column '" + columnName + "' more than once: a column is"
+                        + " named once in a row");
+            }
+            parser.nextToken();
+            final Object value = mapper.readValue(parser, Object.class);
+            row.put(columnName, cellOf(value, mapper));
+        }
+        return row;
+    }
+
+    /**
+     * Returns the value a cell hands to the column type. A JSON object or array, which Jackson
+     * reads as a {@link Map} or a {@link List}, becomes its compact JSON text, which a
+     * {@code json} or {@code jsonb} column or a text column takes as it is, where the
+     * {@code toString()} text of the {@link Map} or {@link List} is no JSON. Any other value is
+     * the Java value that Jackson read.
+     */
+    private static Object cellOf(final Object value, final ObjectMapper mapper) throws IOException
+    {
+        final boolean nested = value instanceof Map || value instanceof List;
+        if (nested)
+        {
+            return mapper.writeValueAsString(value);
+        }
+        return value;
     }
 
     private ITableMetaData buildMetaData(final String tableName, final List<Map<String, Object>> rows)

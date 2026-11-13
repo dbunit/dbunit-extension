@@ -33,6 +33,15 @@ import org.dbunit.database.IDatabaseConnection;
 /**
  * DatabaseTester that uses a {@link DataSource} to create connections.
  *
+ * <p>dbUnit closes the connection it takes from this tester by default. The default
+ * {@link IOperationListener} closes it after {@link #onSetup()} and {@link #onTearDown()}, and a
+ * test case closes the connection it shares across a test when the test ends. A listener that
+ * does not close, such as {@link IOperationListener#NO_OP_OPERATION_LISTENER}, keeps a
+ * connection open. A {@link CachingConnectionProvider} does not change that: it only replaces
+ * the cached connection after something closes it. A data source that hands out one shared
+ * connection must therefore suppress {@code close()}, or the tester must use a listener that
+ * does not close.
+ *
  * @author Andres Almiray (aalmiray@users.sourceforge.net)
  * @author Felipe Leme (dbunit@felipeal.net)
  * @author Last changed by: $Author$
@@ -122,6 +131,23 @@ public class DataSourceDatabaseTester extends AbstractDatabaseTester
         this.dataSource = dataSource;
         this.connectionProvider = connectionProvider;
         this.databaseConfig = databaseConfig;
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>A tester built with a {@link CachingConnectionProvider} hands out the connection the
+     * provider caches; one built without asks the {@link DataSource} for a connection on every
+     * call. A subclass that overrides {@link #getConnection()} to reuse a connection overrides
+     * this method to say so.
+     *
+     * @return {@code true} when this tester was built with a {@link CachingConnectionProvider}.
+     * @since 3.6.0
+     */
+    @Override
+    public boolean isReusingConnection()
+    {
+        return connectionProvider != null;
     }
 
     public IDatabaseConnection getConnection() throws Exception

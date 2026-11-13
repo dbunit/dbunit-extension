@@ -1,0 +1,698 @@
+/*
+ *
+ * The DbUnit Database Testing Framework
+ * Copyright (C)2002-2026, DbUnit.org
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *
+ */
+package org.dbunit.database.rowcount;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
+
+import java.util.Collections;
+import java.util.List;
+
+import org.dbunit.database.DatabaseConfig;
+import org.dbunit.database.IDatabaseConnection;
+import org.dbunit.dataset.IDataSet;
+import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.slf4j.LoggerFactory;
+
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
+
+@ClearRowCountCheckSystemProperties
+class RowCountBaselineTrackerTest
+{
+    @Test
+    void testGetRowCountCheck_beforeAnyUse_returnsNull()
+    {
+        final RowCountBaselineTracker tracker = new RowCountBaselineTracker();
+
+        assertThat(tracker.getRowCountCheck())
+                .as("No RowCountCheck must be resolved before capture()/verify() ever run.")
+                .isNull();
+    }
+
+    @Test
+    void testGetOverride_beforeAnyUse_returnsNull()
+    {
+        final RowCountBaselineTracker tracker = new RowCountBaselineTracker();
+
+        assertThat(tracker.getOverride())
+                .as("A new tracker resolves from the connection's DatabaseConfig, so it holds"
+                        + " no override.")
+                .isNull();
+    }
+
+    @Test
+    void testGetOverride_afterSetOverride_returnsTheOverrideSet()
+    {
+        final RowCountBaselineTracker tracker = new RowCountBaselineTracker();
+        final RowCountCheckOverride override =
+                new RowCountCheckOverride(true, new String[] {"AUDIT_LOG"});
+
+        tracker.setOverride(override);
+
+        assertThat(tracker.getOverride()).as("The override set is the one returned.")
+                .isSameAs(override);
+    }
+
+    @Test
+    void testSetOverride_beforeCapture_doesNotEagerlyResolveARowCountCheck()
+    {
+        final RowCountBaselineTracker tracker = new RowCountBaselineTracker();
+
+        tracker.setOverride(new RowCountCheckOverride(true, new String[] {"IGNORED_TABLE"}));
+
+        assertThat(tracker.getRowCountCheck())
+                .as("setOverride() must only store the override values; resolving a"
+                        + " RowCountCheck from them happens lazily, the same as the plain"
+                        + " default-from-config path.")
+                .isNull();
+    }
+
+    @Test
+    void testCapture_enabledOverrideTrue_enablesCheckRegardlessOfConnectionConfig()
+            throws Exception
+    {
+        final RowCountBaselineTracker tracker = new RowCountBaselineTracker();
+        tracker.setOverride(new RowCountCheckOverride(true, new String[0]));
+        final DatabaseConfig config = new DatabaseConfig();
+        config.setFeature(DatabaseConfig.FEATURE_ROW_COUNT_CHECK, false);
+        final IDatabaseConnection connection = mock(IDatabaseConnection.class);
+        when(connection.getConfig()).thenReturn(config);
+        final IDataSet dataSet = mock(IDataSet.class);
+        when(dataSet.getTableNames()).thenReturn(new String[] {"ACCOUNT"});
+        when(connection.createDataSet()).thenReturn(dataSet);
+        when(connection.getRowCount("ACCOUNT")).thenReturn(5);
+
+        tracker.capture(connection);
+
+        assertThat(tracker.hasBaseline())
+                .as("An enabled override must enable the check even though the"
+                        + " connection's own FEATURE_ROW_COUNT_CHECK is false.")
+                .isTrue();
+    }
+
+    @Test
+    void testCapture_enabledOverrideFalse_disablesCheckRegardlessOfConnectionConfig()
+            throws Exception
+    {
+        final RowCountBaselineTracker tracker = new RowCountBaselineTracker();
+        tracker.setOverride(new RowCountCheckOverride(false, new String[0]));
+        final DatabaseConfig config = new DatabaseConfig();
+        config.setFeature(DatabaseConfig.FEATURE_ROW_COUNT_CHECK, true);
+        final IDatabaseConnection connection = mock(IDatabaseConnection.class);
+        when(connection.getConfig()).thenReturn(config);
+
+        tracker.capture(connection);
+
+        assertThat(tracker.hasBaseline())
+                .as("A disabled override must disable the check even though the"
+                        + " connection's own FEATURE_ROW_COUNT_CHECK is true.")
+                .isFalse();
+        verify(connection, never()).createDataSet();
+    }
+
+    @Test
+    void testCapture_enabledOverrideWithExcludePatterns_excludesMatchingTables()
+            throws Exception
+    {
+        final RowCountBaselineTracker tracker = new RowCountBaselineTracker();
+        tracker.setOverride(new RowCountCheckOverride(true, new String[] {"IGNORED_TABLE"}));
+        final DatabaseConfig config = new DatabaseConfig();
+        final IDatabaseConnection connection = mock(IDatabaseConnection.class);
+        when(connection.getConfig()).thenReturn(config);
+        final IDataSet dataSet = mock(IDataSet.class);
+        when(dataSet.getTableNames()).thenReturn(new String[] {"ACCOUNT", "IGNORED_TABLE"});
+        when(connection.createDataSet()).thenReturn(dataSet);
+        when(connection.getRowCount("ACCOUNT")).thenReturn(5);
+
+        tracker.capture(connection);
+
+        verify(connection).getRowCount("ACCOUNT");
+        verify(connection, never()).getRowCount("IGNORED_TABLE");
+    }
+
+    @Test
+    void testCapture_overrideExcludesAndConfiguredExcludes_excludesTheTablesOfBoth()
+            throws Exception
+    {
+        final RowCountBaselineTracker tracker = new RowCountBaselineTracker();
+        tracker.setOverride(new RowCountCheckOverride(true, new String[] {"SESSION_*"}));
+        final DatabaseConfig config = new DatabaseConfig();
+        config.setProperty(DatabaseConfig.PROPERTY_ROW_COUNT_CHECK_EXCLUDE_TABLES,
+                new String[] {"AUDIT_*"});
+        final IDatabaseConnection connection = mock(IDatabaseConnection.class);
+        when(connection.getConfig()).thenReturn(config);
+        final IDataSet dataSet = mock(IDataSet.class);
+        when(dataSet.getTableNames())
+                .thenReturn(new String[] {"ACCOUNT", "AUDIT_LOG", "SESSION_STATE"});
+        when(connection.createDataSet()).thenReturn(dataSet);
+        when(connection.getRowCount("ACCOUNT")).thenReturn(5);
+
+        tracker.capture(connection);
+
+        verify(connection).getRowCount("ACCOUNT");
+        verify(connection, never()).getRowCount("SESSION_STATE");
+        verify(connection, never()).getRowCount("AUDIT_LOG");
+    }
+
+    @Test
+    void testSetOverride_callerMutatesArrayAfterward_doesNotAffectStoredExclude()
+            throws Exception
+    {
+        final RowCountBaselineTracker tracker = new RowCountBaselineTracker();
+        final String[] exclude = {"IGNORED_TABLE"};
+        tracker.setOverride(new RowCountCheckOverride(true, exclude));
+        exclude[0] = "ACCOUNT";
+        final DatabaseConfig config = new DatabaseConfig();
+        final IDatabaseConnection connection = mock(IDatabaseConnection.class);
+        when(connection.getConfig()).thenReturn(config);
+        final IDataSet dataSet = mock(IDataSet.class);
+        when(dataSet.getTableNames()).thenReturn(new String[] {"ACCOUNT", "IGNORED_TABLE"});
+        when(connection.createDataSet()).thenReturn(dataSet);
+        when(connection.getRowCount("ACCOUNT")).thenReturn(5);
+        when(connection.getRowCount("IGNORED_TABLE")).thenReturn(5);
+
+        tracker.capture(connection);
+
+        // The override must copy the caller's array, so mutating it afterward - here,
+        // turning "IGNORED_TABLE" into "ACCOUNT" - must not retroactively change which table
+        // this tracker excludes: IGNORED_TABLE, frozen at call time, not ACCOUNT.
+        verify(connection).getRowCount("ACCOUNT");
+        verify(connection, never()).getRowCount("IGNORED_TABLE");
+    }
+
+    @Test
+    void testSetOverride_nullExclude_treatedAsEmpty() throws Exception
+    {
+        final RowCountBaselineTracker tracker = new RowCountBaselineTracker();
+        tracker.setOverride(new RowCountCheckOverride(true, null));
+        final DatabaseConfig config = new DatabaseConfig();
+        final IDatabaseConnection connection = mock(IDatabaseConnection.class);
+        when(connection.getConfig()).thenReturn(config);
+        final IDataSet dataSet = mock(IDataSet.class);
+        when(dataSet.getTableNames()).thenReturn(new String[] {"ACCOUNT"});
+        when(connection.createDataSet()).thenReturn(dataSet);
+        when(connection.getRowCount("ACCOUNT")).thenReturn(5);
+
+        assertThatCode(() -> tracker.capture(connection))
+                .as("A null exclude array must be treated as empty (excludes nothing), not"
+                        + " throw a NullPointerException.")
+                .doesNotThrowAnyException();
+        verify(connection).getRowCount("ACCOUNT");
+    }
+
+    @Test
+    void testCapture_enabledOverrideSet_carriesOverConnectionsConfiguredRowCounter()
+            throws Exception
+    {
+        final RowCountBaselineTracker tracker = new RowCountBaselineTracker();
+        tracker.setOverride(new RowCountCheckOverride(true, new String[0]));
+        final RowCounter customRowCounter = mock(RowCounter.class);
+        when(customRowCounter.countRows(any(), any())).thenReturn(Collections.emptyMap());
+        final DatabaseConfig config = new DatabaseConfig();
+        config.setProperty(DatabaseConfig.PROPERTY_ROW_COUNTER, customRowCounter);
+        final IDatabaseConnection connection = mock(IDatabaseConnection.class);
+        when(connection.getConfig()).thenReturn(config);
+        final IDataSet dataSet = mock(IDataSet.class);
+        when(dataSet.getTableNames()).thenReturn(new String[] {"ACCOUNT"});
+        when(connection.createDataSet()).thenReturn(dataSet);
+
+        tracker.capture(connection);
+
+        verify(customRowCounter).countRows(eq(connection), any());
+        assertThat(tracker.hasBaseline())
+                .as("The override must still carry over the connection's own"
+                        + " PROPERTY_ROW_COUNTER, the same as resolving directly from its"
+                        + " DatabaseConfig would.")
+                .isTrue();
+    }
+
+    @Test
+    void testCapture_enabledOverrideSet_appliesEnabledAndExcludeOverrideAndCarriesConnectionRowCounter()
+            throws Exception
+    {
+        // With an override set, the tracker's resolveConfiguration() passes the override's
+        // enabled flag and exclude patterns to RowCountCheckConfiguration, and carries the
+        // connection config's own PROPERTY_ROW_COUNTER over unchanged. This asserts all three
+        // at once, with a distinctive non-default value for each.
+        final RowCountBaselineTracker tracker = new RowCountBaselineTracker();
+        tracker.setOverride(new RowCountCheckOverride(true, new String[] {"OVERRIDE_EXCLUDED"}));
+        final RowCounter realConfigRowCounter = mock(RowCounter.class);
+        when(realConfigRowCounter.countRows(any(), any())).thenReturn(Collections.emptyMap());
+        final DatabaseConfig realConfig = new DatabaseConfig();
+        realConfig.setFeature(DatabaseConfig.FEATURE_ROW_COUNT_CHECK, false);
+        realConfig.setProperty(DatabaseConfig.PROPERTY_ROW_COUNT_CHECK_EXCLUDE_TABLES,
+                new String[] {"REAL_CONFIG_EXCLUDED"});
+        realConfig.setProperty(DatabaseConfig.PROPERTY_ROW_COUNTER, realConfigRowCounter);
+        final IDatabaseConnection connection = mock(IDatabaseConnection.class);
+        when(connection.getConfig()).thenReturn(realConfig);
+        final IDataSet dataSet = mock(IDataSet.class);
+        when(dataSet.getTableNames())
+                .thenReturn(new String[] {"KEPT", "OVERRIDE_EXCLUDED", "REAL_CONFIG_EXCLUDED"});
+        when(connection.createDataSet()).thenReturn(dataSet);
+
+        tracker.capture(connection);
+
+        assertThat(tracker.hasBaseline())
+                .as("FEATURE_ROW_COUNT_CHECK: the override's true must win over the real"
+                        + " config's false.")
+                .isTrue();
+        @SuppressWarnings("unchecked")
+        final ArgumentCaptor<List<String>> tables = ArgumentCaptor.forClass(List.class);
+        verify(realConfigRowCounter).countRows(eq(connection), tables.capture());
+        assertThat(tables.getValue())
+                .as("PROPERTY_ROW_COUNTER: the real config's counter is used (so the overlay"
+                        + " carried it). PROPERTY_ROW_COUNT_CHECK_EXCLUDE_TABLES: the override's"
+                        + " exclude list adds to the real config's, so both OVERRIDE_EXCLUDED and"
+                        + " REAL_CONFIG_EXCLUDED are filtered out.")
+                .containsExactly("KEPT");
+    }
+
+    @Test
+    void testCapture_reusedAcrossTwoTestsWithDifferentOverride_secondOverrideWins()
+            throws Exception
+    {
+        // Simulates one RowCountBaselineTracker instance reused across two tests - e.g. a
+        // DefaultPrepAndExpectedTestCase shared through a @DbUnitTestCase static field -
+        // where the first test enables the check and the second explicitly disables it.
+        final RowCountBaselineTracker tracker = new RowCountBaselineTracker();
+
+        tracker.setOverride(new RowCountCheckOverride(true, new String[0]));
+        final DatabaseConfig config1 = new DatabaseConfig();
+        final IDatabaseConnection connection1 = mock(IDatabaseConnection.class);
+        when(connection1.getConfig()).thenReturn(config1);
+        final IDataSet dataSet1 = mock(IDataSet.class);
+        when(dataSet1.getTableNames()).thenReturn(new String[] {"ACCOUNT"});
+        when(connection1.createDataSet()).thenReturn(dataSet1);
+        when(connection1.getRowCount("ACCOUNT")).thenReturn(5);
+        tracker.capture(connection1);
+        assertThat(tracker.hasBaseline()).as("First test's check was enabled.").isTrue();
+        tracker.verify(connection1);
+        tracker.discardBaseline();
+
+        tracker.setOverride(new RowCountCheckOverride(false, new String[0]));
+        final IDatabaseConnection connection2 = mock(IDatabaseConnection.class);
+        when(connection2.getConfig()).thenReturn(new DatabaseConfig());
+        tracker.capture(connection2);
+
+        assertThat(tracker.hasBaseline())
+                .as("The second test's disabled override must take effect - the"
+                        + " RowCountCheck resolved (and cached) for the first test must not be"
+                        + " reused as-is for the second.")
+                .isFalse();
+        verify(connection2, never()).createDataSet();
+    }
+
+    @Test
+    void testCapture_reusedAcrossTwoTestsSecondClearsOverride_fallsBackToConnectionConfig()
+            throws Exception
+    {
+        // Simulates a testCase reused across two tests where only the first declares
+        // @DbUnitRowCountCheck; the second must not silently inherit that override.
+        final RowCountBaselineTracker tracker = new RowCountBaselineTracker();
+
+        tracker.setOverride(new RowCountCheckOverride(false, new String[0]));
+        final IDatabaseConnection connection1 = mock(IDatabaseConnection.class);
+        when(connection1.getConfig()).thenReturn(new DatabaseConfig());
+        tracker.capture(connection1);
+        assertThat(tracker.hasBaseline())
+                .as("The first test's disabled override must capture no baseline.")
+                .isFalse();
+
+        tracker.setOverride(null);
+        final DatabaseConfig config2 = new DatabaseConfig();
+        config2.setFeature(DatabaseConfig.FEATURE_ROW_COUNT_CHECK, true);
+        final IDatabaseConnection connection2 = mock(IDatabaseConnection.class);
+        when(connection2.getConfig()).thenReturn(config2);
+        final IDataSet dataSet2 = mock(IDataSet.class);
+        when(dataSet2.getTableNames()).thenReturn(new String[] {"ACCOUNT"});
+        when(connection2.createDataSet()).thenReturn(dataSet2);
+        when(connection2.getRowCount("ACCOUNT")).thenReturn(5);
+
+        tracker.capture(connection2);
+
+        assertThat(tracker.hasBaseline())
+                .as("Setting the override back to null must return to resolving from the"
+                        + " connection's own DatabaseConfig (enabled here), not keep the first"
+                        + " test's disabled override.")
+                .isTrue();
+    }
+
+    @Test
+    void testCapture_rowCountCheckSetExplicitly_reusedAcrossTwoCapturesWithoutRebuilding()
+            throws Exception
+    {
+        // setRowCountCheck() is a manual pin, unlike setOverride() - it must survive
+        // reuse across tests exactly like databaseTester/dataFileLoader fields do, until
+        // changed by another setRowCountCheck() call.
+        final RowCountBaselineTracker tracker = new RowCountBaselineTracker();
+        final RowCountCheck mockRowCountCheck = mock(RowCountCheck.class);
+        tracker.setRowCountCheck(mockRowCountCheck);
+        final IDatabaseConnection connection1 = mock(IDatabaseConnection.class);
+        final RowCountSnapshot snapshot1 = new RowCountSnapshot(Collections.emptyMap());
+        when(mockRowCountCheck.capture(connection1)).thenReturn(snapshot1);
+
+        tracker.capture(connection1);
+        final IDatabaseConnection connection2 = mock(IDatabaseConnection.class);
+        final RowCountSnapshot snapshot2 = new RowCountSnapshot(Collections.emptyMap());
+        when(mockRowCountCheck.capture(connection2)).thenReturn(snapshot2);
+
+        tracker.capture(connection2);
+
+        assertThat(tracker.getRowCountCheck())
+                .as("A RowCountCheck supplied via setRowCountCheck() must still be used as-is"
+                        + " on a second capture(), never rebuilt.")
+                .isSameAs(mockRowCountCheck);
+    }
+
+    @Test
+    void testSetRowCountCheck_null_resolvesFromConfigurationAgainOnNextCapture()
+            throws Exception
+    {
+        final RowCountBaselineTracker tracker = new RowCountBaselineTracker();
+        tracker.setRowCountCheck(null);
+        tracker.setOverride(new RowCountCheckOverride(false, new String[0]));
+        final IDatabaseConnection connection1 = mock(IDatabaseConnection.class);
+        when(connection1.getConfig()).thenReturn(new DatabaseConfig());
+        tracker.capture(connection1);
+        tracker.setOverride(new RowCountCheckOverride(true, new String[0]));
+        final IDatabaseConnection connection2 = mock(IDatabaseConnection.class);
+        when(connection2.getConfig()).thenReturn(new DatabaseConfig());
+        final IDataSet dataSet2 = mock(IDataSet.class);
+        when(dataSet2.getTableNames()).thenReturn(new String[] {"ACCOUNT"});
+        when(connection2.createDataSet()).thenReturn(dataSet2);
+        when(connection2.getRowCount("ACCOUNT")).thenReturn(5);
+
+        tracker.capture(connection2);
+
+        assertThat(tracker.hasBaseline())
+                .as("A null check must not pin the first capture's disabled check.")
+                .isTrue();
+    }
+
+    @Test
+    void testCapture_pinnedCheckAndOverride_warnsThatOverrideIsIgnored()
+            throws Exception
+    {
+        final Logger logger = (Logger) LoggerFactory.getLogger(RowCountBaselineTracker.class);
+        final ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+        try
+        {
+            final RowCountBaselineTracker tracker = new RowCountBaselineTracker();
+            final RowCountCheck mockRowCountCheck = mock(RowCountCheck.class);
+            tracker.setRowCountCheck(mockRowCountCheck);
+            tracker.setOverride(new RowCountCheckOverride(false, new String[0]));
+            final IDatabaseConnection connection = mock(IDatabaseConnection.class);
+
+            tracker.capture(connection);
+            tracker.capture(connection);
+
+            final List<ILoggingEvent> warnings = new java.util.ArrayList<>();
+            for (final ILoggingEvent event : appender.list)
+            {
+                if (event.getLevel() == Level.WARN)
+                {
+                    warnings.add(event);
+                }
+            }
+            assertThat(warnings)
+                    .as("One warning, not one per capture, must say the override is ignored.")
+                    .hasSize(1);
+            assertThat(warnings.get(0).getFormattedMessage())
+                    .as("The warning must name setRowCountCheck() as the reason.")
+                    .contains("setRowCountCheck()");
+        } finally
+        {
+            logger.detachAppender(appender);
+        }
+    }
+
+    @Test
+    void testCapture_noRowCountCheckSet_lazilyResolvesOneFromConnectionConfig()
+            throws Exception
+    {
+        final RowCountBaselineTracker tracker = new RowCountBaselineTracker();
+        final IDatabaseConnection connection = mock(IDatabaseConnection.class);
+        when(connection.getConfig()).thenReturn(new DatabaseConfig());
+
+        tracker.capture(connection);
+
+        assertThat(tracker.getRowCountCheck())
+                .as("capture() must lazily build a RowCountCheck from the connection's"
+                        + " DatabaseConfig when none was set.")
+                .isNotNull();
+    }
+
+    @Test
+    void testCapture_rowCountCheckAlreadySet_reusesItWithoutQueryingConnectionConfig()
+            throws Exception
+    {
+        final RowCountBaselineTracker tracker = new RowCountBaselineTracker();
+        final RowCountCheck mockRowCountCheck = mock(RowCountCheck.class);
+        tracker.setRowCountCheck(mockRowCountCheck);
+        final IDatabaseConnection connection = mock(IDatabaseConnection.class);
+        final RowCountSnapshot snapshot = new RowCountSnapshot(Collections.emptyMap());
+        when(mockRowCountCheck.capture(connection)).thenReturn(snapshot);
+
+        tracker.capture(connection);
+
+        verify(connection, never()).getConfig();
+        assertThat(tracker.getRowCountCheck())
+                .as("A RowCountCheck supplied via setRowCountCheck() must be used as-is,"
+                        + " never rebuilt.")
+                .isSameAs(mockRowCountCheck);
+    }
+
+    @Test
+    void testVerify_noBaselineCaptured_doesNotQueryTheConnection() throws Exception
+    {
+        final RowCountBaselineTracker tracker = new RowCountBaselineTracker();
+        final IDatabaseConnection connection = mock(IDatabaseConnection.class);
+
+        assertThatCode(() -> tracker.verify(connection))
+                .as("No captured baseline means nothing to compare; verify() must skip"
+                        + " silently rather than fail.")
+                .doesNotThrowAnyException();
+        verifyNoInteractions(connection);
+    }
+
+    @Test
+    void testVerify_baselineCaptured_delegatesToTheResolvedRowCountCheck() throws Exception
+    {
+        final RowCountBaselineTracker tracker = new RowCountBaselineTracker();
+        final RowCountCheck mockRowCountCheck = mock(RowCountCheck.class);
+        tracker.setRowCountCheck(mockRowCountCheck);
+        final IDatabaseConnection connection = mock(IDatabaseConnection.class);
+        final RowCountSnapshot snapshot =
+                new RowCountSnapshot(Collections.singletonMap("ACCOUNT", 5));
+        when(mockRowCountCheck.capture(connection)).thenReturn(snapshot);
+        tracker.capture(connection);
+
+        tracker.verify(connection);
+
+        verify(mockRowCountCheck).verify(snapshot, connection);
+    }
+
+    @Test
+    void testVerify_rowCountCheckThrows_propagates() throws Exception
+    {
+        final RowCountBaselineTracker tracker = new RowCountBaselineTracker();
+        final RowCountCheck mockRowCountCheck = mock(RowCountCheck.class);
+        tracker.setRowCountCheck(mockRowCountCheck);
+        final IDatabaseConnection connection = mock(IDatabaseConnection.class);
+        final RowCountSnapshot snapshot =
+                new RowCountSnapshot(Collections.singletonMap("ACCOUNT", 5));
+        when(mockRowCountCheck.capture(connection)).thenReturn(snapshot);
+        tracker.capture(connection);
+        final UnexpectedRowCountException failure = new UnexpectedRowCountException(
+                Collections.singletonList(new RowCountDifference("ACCOUNT", 5, 8)));
+        doThrow(failure).when(mockRowCountCheck).verify(snapshot, connection);
+
+        assertThatThrownBy(() -> tracker.verify(connection))
+                .as("A row count difference detected during verify() must propagate as-is.")
+                .isSameAs(failure);
+    }
+
+    @Test
+    void testVerify_baselineCapturedAndVerifyPasses_discardsTheSpentBaseline() throws Exception
+    {
+        final RowCountBaselineTracker tracker = new RowCountBaselineTracker();
+        final RowCountCheck mockRowCountCheck = mock(RowCountCheck.class);
+        tracker.setRowCountCheck(mockRowCountCheck);
+        final IDatabaseConnection connection = mock(IDatabaseConnection.class);
+        final RowCountSnapshot snapshot =
+                new RowCountSnapshot(Collections.singletonMap("ACCOUNT", 5));
+        when(mockRowCountCheck.capture(connection)).thenReturn(snapshot);
+        tracker.capture(connection);
+
+        tracker.verify(connection);
+        tracker.verify(connection);
+
+        assertThat(tracker.hasBaseline())
+                .as("A verified baseline is spent: a later lifecycle that never captures one of"
+                        + " its own must not verify against it.")
+                .isFalse();
+        verify(mockRowCountCheck, times(1)).verify(snapshot, connection);
+    }
+
+    @Test
+    void testVerify_baselineCapturedAndRowCountCheckThrows_discardsTheSpentBaseline()
+            throws Exception
+    {
+        final RowCountBaselineTracker tracker = new RowCountBaselineTracker();
+        final RowCountCheck mockRowCountCheck = mock(RowCountCheck.class);
+        tracker.setRowCountCheck(mockRowCountCheck);
+        final IDatabaseConnection connection = mock(IDatabaseConnection.class);
+        final RowCountSnapshot snapshot =
+                new RowCountSnapshot(Collections.singletonMap("ACCOUNT", 5));
+        when(mockRowCountCheck.capture(connection)).thenReturn(snapshot);
+        tracker.capture(connection);
+        final UnexpectedRowCountException failure = new UnexpectedRowCountException(
+                Collections.singletonList(new RowCountDifference("ACCOUNT", 5, 8)));
+        doThrow(failure).when(mockRowCountCheck).verify(snapshot, connection);
+
+        assertThatThrownBy(() -> tracker.verify(connection))
+                .as("The difference verify() found is still reported.")
+                .isSameAs(failure);
+
+        assertThat(tracker.hasBaseline())
+                .as("A baseline that failed its verify is spent too: reporting the difference"
+                        + " once is enough, and a later lifecycle must not report it again.")
+                .isFalse();
+    }
+
+    @Test
+    void testDiscardBaseline_afterCapture_verifyBecomesNoOp() throws Exception
+    {
+        final RowCountBaselineTracker tracker = new RowCountBaselineTracker();
+        final RowCountCheck mockRowCountCheck = mock(RowCountCheck.class);
+        tracker.setRowCountCheck(mockRowCountCheck);
+        final IDatabaseConnection connection = mock(IDatabaseConnection.class);
+        final RowCountSnapshot snapshot =
+                new RowCountSnapshot(Collections.singletonMap("ACCOUNT", 5));
+        when(mockRowCountCheck.capture(connection)).thenReturn(snapshot);
+        tracker.capture(connection);
+
+        tracker.discardBaseline();
+        tracker.verify(connection);
+
+        verify(mockRowCountCheck, never()).verify(any(), any());
+    }
+
+    @Test
+    void testCaptureThenVerify_enabledConfigOnConnection_bothReuseTheSameResolvedRowCountCheck() throws Exception
+    {
+        final RowCountBaselineTracker tracker = new RowCountBaselineTracker();
+        final DatabaseConfig config = new DatabaseConfig();
+        config.setFeature(DatabaseConfig.FEATURE_ROW_COUNT_CHECK, true);
+        final IDataSet dataSet = mock(IDataSet.class);
+        when(dataSet.getTableNames()).thenReturn(new String[0]);
+        final IDatabaseConnection connection = mock(IDatabaseConnection.class);
+        when(connection.getConfig()).thenReturn(config);
+        when(connection.createDataSet()).thenReturn(dataSet);
+
+        tracker.capture(connection);
+        final RowCountCheck resolvedDuringCapture = tracker.getRowCountCheck();
+        tracker.verify(connection);
+
+        verify(connection, times(1)).getConfig();
+        assertThat(tracker.getRowCountCheck())
+                .as("verify() must reuse the same RowCountCheck capture() resolved, not"
+                        + " build a second one.")
+                .isSameAs(resolvedDuringCapture);
+    }
+
+    @Test
+    void testHasBaseline_beforeAnyUse_returnsFalse()
+    {
+        final RowCountBaselineTracker tracker = new RowCountBaselineTracker();
+
+        assertThat(tracker.hasBaseline())
+                .as("No baseline has been captured yet.").isFalse();
+    }
+
+    @Test
+    void testHasBaseline_afterCapture_returnsTrue() throws Exception
+    {
+        final RowCountBaselineTracker tracker = new RowCountBaselineTracker();
+        final RowCountCheck mockRowCountCheck = mock(RowCountCheck.class);
+        tracker.setRowCountCheck(mockRowCountCheck);
+        final IDatabaseConnection connection = mock(IDatabaseConnection.class);
+        final RowCountSnapshot snapshot =
+                new RowCountSnapshot(Collections.singletonMap("ACCOUNT", 5));
+        when(mockRowCountCheck.capture(connection)).thenReturn(snapshot);
+
+        tracker.capture(connection);
+
+        assertThat(tracker.hasBaseline())
+                .as("A caller must be able to tell a baseline was captured without needing a"
+                        + " connection just to ask.")
+                .isTrue();
+    }
+
+    @Test
+    void testHasBaseline_captureResolvesDisabled_returnsFalse() throws Exception
+    {
+        final RowCountBaselineTracker tracker = new RowCountBaselineTracker();
+        final IDatabaseConnection connection = mock(IDatabaseConnection.class);
+        when(connection.getConfig()).thenReturn(new DatabaseConfig());
+
+        tracker.capture(connection);
+
+        assertThat(tracker.hasBaseline())
+                .as("A disabled check captures no baseline, so a caller can skip acquiring a"
+                        + " connection for verify() entirely.")
+                .isFalse();
+    }
+
+    @Test
+    void testHasBaseline_afterDiscardBaseline_returnsFalse() throws Exception
+    {
+        final RowCountBaselineTracker tracker = new RowCountBaselineTracker();
+        final RowCountCheck mockRowCountCheck = mock(RowCountCheck.class);
+        tracker.setRowCountCheck(mockRowCountCheck);
+        final IDatabaseConnection connection = mock(IDatabaseConnection.class);
+        final RowCountSnapshot snapshot =
+                new RowCountSnapshot(Collections.singletonMap("ACCOUNT", 5));
+        when(mockRowCountCheck.capture(connection)).thenReturn(snapshot);
+        tracker.capture(connection);
+
+        tracker.discardBaseline();
+
+        assertThat(tracker.hasBaseline())
+                .as("A discarded baseline must no longer be reported as held.").isFalse();
+    }
+}

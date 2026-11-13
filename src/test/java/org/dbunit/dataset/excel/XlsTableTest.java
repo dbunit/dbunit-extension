@@ -25,6 +25,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
+import java.util.Calendar;
+import java.util.GregorianCalendar;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.TimeZone;
 
 import org.apache.poi.ss.usermodel.Cell;
@@ -32,6 +41,7 @@ import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.dbunit.dataset.AbstractTableTest;
 import org.dbunit.dataset.Column;
@@ -126,23 +136,19 @@ public class XlsTableTest extends AbstractTableTest
         // So actual time values in this case will be UTC time in the system
         // default timezone.
         // Expected time values also should be UTC time in the system default
-        // timezone.
-        final long tzOffset = TimeZone.getDefault().getRawOffset();
+        // timezone. Each is computed for its own date: the offset of a timezone
+        // on a date can differ from the offset it has today, which
+        // TimeZone#getRawOffset() returns.
         final Object[] expected = {
-                // new Date(0-tzOffset),
-                // new Date(0-tzOffset + (10*ONE_HOUR_IN_MILLIS +
-                // 45*ONE_MINUTE_IN_MILLIS)),
-                // new Date(0-tzOffset + (13*ONE_HOUR_IN_MILLIS +
-                // 30*ONE_MINUTE_IN_MILLIS + 55*ONE_SECOND_IN_MILLIS) ),
                 // Long.valueOf(25569),// Dates stored as Long numbers
                 // Long.valueOf(25569447916666668L),
                 // Long.valueOf(563136574074074L),
-                Long.valueOf(0 - tzOffset), // Dates stored as Long numbers
-                Long.valueOf(38700000 - tzOffset),
-                Long.valueOf(-2209026545000L - tzOffset),
+                Long.valueOf(instantAtWallClock(0)), // Dates stored as Long numbers
+                Long.valueOf(instantAtWallClock(38700000)),
+                Long.valueOf(instantAtWallClock(-2209026545000L)),
                 new BigDecimal("10000.00"), new BigDecimal("-200"),
                 new BigDecimal("12345.123456789000"),
-                Long.valueOf(1233398764000L - tzOffset),
+                Long.valueOf(instantAtWallClock(1233398764000L)),
                 Long.valueOf(1233332866000L) // The last column is a
                                              // dbunit-date-formatted column in
                                              // the excel sheet
@@ -162,6 +168,26 @@ public class XlsTableTest extends AbstractTableTest
             assertThat(actual).as("value " + i + " (" + typesResult + ")")
                     .isEqualTo(expected[i]);
         }
+    }
+
+    /**
+     * Returns the instant at which the clock of the default timezone shows the
+     * date and time that the given millis show in UTC, as Apache POI reads a
+     * date cell.
+     */
+    private static long instantAtWallClock(final long wallClockMillisAsUtc)
+    {
+        final Calendar wallClock =
+                new GregorianCalendar(TimeZone.getTimeZone("UTC"));
+        wallClock.setTimeInMillis(wallClockMillisAsUtc);
+        final Calendar local = new GregorianCalendar(TimeZone.getDefault());
+        local.clear();
+        local.set(wallClock.get(Calendar.YEAR), wallClock.get(Calendar.MONTH),
+                wallClock.get(Calendar.DAY_OF_MONTH),
+                wallClock.get(Calendar.HOUR_OF_DAY),
+                wallClock.get(Calendar.MINUTE), wallClock.get(Calendar.SECOND));
+        local.set(Calendar.MILLISECOND, wallClock.get(Calendar.MILLISECOND));
+        return local.getTimeInMillis();
     }
 
     @Test
@@ -240,6 +266,69 @@ public class XlsTableTest extends AbstractTableTest
         assertThat(table.getValue(1, "COLUMN0"))
                 .as("A row after the gap must still be read correctly.")
                 .isEqualTo("row1value");
+    }
+
+    @Test
+    void testGetValue_concurrentFirstReadsOfNumericCells_returnsTheSingleThreadedValues()
+            throws Exception
+    {
+        final DecimalFormatSymbols symbols = new DecimalFormatSymbols();
+        final int formatCount = 30;
+        final Workbook workbook = new HSSFWorkbook();
+        final Sheet sheet = workbook.createSheet("NUMERIC_SHEET");
+        sheet.createRow(0).createCell(0).setCellValue("AMOUNT");
+        final String[] formats = new String[formatCount];
+        for (int i = 0; i < formatCount; i++)
+        {
+            formats[i] = "0." + repeated('0', i % 6 + 1) + repeated('#', i / 6);
+            final CellStyle style = workbook.createCellStyle();
+            style.setDataFormat(workbook.createDataFormat().getFormat(formats[i]));
+            final Cell cell = sheet.createRow(i + 1).createCell(0);
+            cell.setCellValue(i + 0.123456);
+            cell.setCellStyle(style);
+        }
+        final XlsTable table = new XlsTable("NUMERIC_SHEET", sheet);
+        final int threadCount = 8;
+        final CyclicBarrier startTogether = new CyclicBarrier(threadCount);
+        final ExecutorService executor = Executors.newFixedThreadPool(threadCount);
+        try
+        {
+            final List<Future<List<Object>>> futures = new ArrayList<>();
+            for (int t = 0; t < threadCount; t++)
+            {
+                final Callable<List<Object>> reader = () -> {
+                    startTogether.await();
+                    final List<Object> values = new ArrayList<>();
+                    for (int i = 0; i < formatCount; i++)
+                    {
+                        values.add(table.getValue(i, "AMOUNT"));
+                    }
+                    return values;
+                };
+                futures.add(executor.submit(reader));
+            }
+
+            final List<Object> expected = new ArrayList<>();
+            for (int i = 0; i < formatCount; i++)
+            {
+                expected.add(new BigDecimal(
+                        new DecimalFormat(formats[i], symbols).format(i + 0.123456)));
+            }
+            for (final Future<List<Object>> future : futures)
+            {
+                assertThat(future.get())
+                        .as("Every thread must read the values of a single-threaded read.")
+                        .isEqualTo(expected);
+            }
+        } finally
+        {
+            executor.shutdownNow();
+        }
+    }
+
+    private static String repeated(final char character, final int count)
+    {
+        return new String(new char[count]).replace(' ', character);
     }
 
     @Test

@@ -32,6 +32,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import javax.sql.DataSource;
 
@@ -42,7 +43,7 @@ import org.dbunit.IDatabaseTester;
 import org.dbunit.IOperationListener;
 import org.dbunit.annotation.DbUnitExpected;
 import org.dbunit.annotation.DbUnitPrep;
-import org.dbunit.annotation.DbUnitTearDown;
+import org.dbunit.annotation.DbUnitTearDownOperation;
 import org.dbunit.annotation.DbUnitVerifyTable;
 import org.dbunit.assertion.DbComparisonFailure;
 import org.dbunit.database.IDatabaseConnection;
@@ -53,6 +54,7 @@ import org.junit.platform.engine.TestExecutionResult;
 import org.junit.platform.testkit.engine.EngineTestKit;
 import org.junit.platform.testkit.engine.Event;
 import org.junit.platform.testkit.engine.Events;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -66,6 +68,11 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 
 /**
  * Real-database integration test of {@link DbUnitTestExecutionListener} around Spring's
@@ -106,12 +113,18 @@ class DbUnitTestExecutionListenerTransactionalIT
                     .as("DbUnit's prep must run, and commit, before the test-managed transaction"
                             + " opens - so the test sees the prepped row - and its teardown"
                             + " after the transaction has completed.")
-                    .containsExactly("DbUnit step, test transaction active: false",
+                    .containsExactly(
+                            // the test case acquires its connection, and so tells the listener
+                            "DbUnit step, test transaction active: false",
+                            // the set up operation
+                            "DbUnit step, test transaction active: false",
                             "test body, prepped row visible in the test transaction: true",
                             "test transaction completed",
+                            // the tear down operation
                             "DbUnit step, test transaction active: false");
             assertThat(TestTableRows.count(environment.getConnection(), TEST_TABLE))
-                    .as("@DbUnitTearDown(DELETE_ALL) must have cleaned up the prepped row.")
+                    .as("@DbUnitTearDownOperation(DELETE_ALL) must have cleaned up the prepped"
+                            + " row.")
                     .isZero();
         } finally
         {
@@ -125,6 +138,7 @@ class DbUnitTestExecutionListenerTransactionalIT
             throws Exception
     {
         final DatabaseEnvironment environment = DatabaseEnvironment.getInstance();
+        final ListAppender<ILoggingEvent> listenerLog = captureListenerLog();
         try
         {
             EngineTestKit.engine("junit-jupiter").selectors(selectClass(CommitSample.class))
@@ -132,11 +146,15 @@ class DbUnitTestExecutionListenerTransactionalIT
                     .assertStatistics(stats -> stats.started(1).succeeded(1));
 
             assertThat(TestTableRows.count(environment.getConnection(), TEST_TABLE))
-                    .as("@DbUnitTearDown(DELETE_ALL) must have cleaned up after the"
+                    .as("@DbUnitTearDownOperation(DELETE_ALL) must have cleaned up after the"
                             + " verification.")
                     .isZero();
+            assertThat(warningsOf(listenerLog))
+                    .as("A test that commits its transaction has nothing to be warned about.")
+                    .isEmpty();
         } finally
         {
+            releaseListenerLog(listenerLog);
             TestTableRows.deleteAllQuietly(environment, TEST_TABLE);
             environment.closeConnection();
         }
@@ -147,6 +165,7 @@ class DbUnitTestExecutionListenerTransactionalIT
             throws Exception
     {
         final DatabaseEnvironment environment = DatabaseEnvironment.getInstance();
+        final ListAppender<ILoggingEvent> listenerLog = captureListenerLog();
         try
         {
             final Events testEvents = EngineTestKit.engine("junit-jupiter")
@@ -162,16 +181,50 @@ class DbUnitTestExecutionListenerTransactionalIT
                     .as("The failure must be the @DbUnitExpected comparison finding the"
                             + " rolled-back value, not a failure of the test body itself.")
                     .isInstanceOf(DbComparisonFailure.class);
+            assertThat(reported.getSuppressed())
+                    .as("The failure must say the transaction rolled back and how to keep its"
+                            + " changes.")
+                    .anySatisfy(hint -> assertThat(hint.getMessage()).contains("rolled back")
+                            .contains("@Commit").contains("@Rollback(false)"));
+            assertThat(warningsOf(listenerLog))
+                    .as("The listener must warn once, before the test runs, that the"
+                            + " verification will not see the test's changes.")
+                    .singleElement()
+                    .satisfies(warning -> assertThat(warning.getFormattedMessage())
+                            .contains("RollbackSample.")
+                            .contains("@Commit"));
 
             assertThat(TestTableRows.count(environment.getConnection(), TEST_TABLE))
-                    .as("@DbUnitTearDown(DELETE_ALL) must still have cleaned up after the"
+                    .as("@DbUnitTearDownOperation(DELETE_ALL) must still have cleaned up after the"
                             + " failed verification.")
                     .isZero();
         } finally
         {
+            releaseListenerLog(listenerLog);
             TestTableRows.deleteAllQuietly(environment, TEST_TABLE);
             environment.closeConnection();
         }
+    }
+
+    private static ListAppender<ILoggingEvent> captureListenerLog()
+    {
+        final ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        ((Logger) LoggerFactory.getLogger(DbUnitTestExecutionListener.class))
+                .addAppender(appender);
+        return appender;
+    }
+
+    private static void releaseListenerLog(final ListAppender<ILoggingEvent> appender)
+    {
+        ((Logger) LoggerFactory.getLogger(DbUnitTestExecutionListener.class))
+                .detachAppender(appender);
+    }
+
+    private static List<ILoggingEvent> warningsOf(final ListAppender<ILoggingEvent> appender)
+    {
+        return appender.list.stream().filter(event -> event.getLevel() == Level.WARN)
+                .collect(Collectors.toList());
     }
 
     @Configuration
@@ -239,7 +292,7 @@ class DbUnitTestExecutionListenerTransactionalIT
         @Test
         @Transactional
         @DbUnitPrep(ItDataSets.PREP)
-        @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+        @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
         void testTransactionalTest_prepCommittedBeforeTransaction_rowVisibleInTransaction()
                 throws Exception
         {
@@ -281,7 +334,7 @@ class DbUnitTestExecutionListenerTransactionalIT
         @DbUnitExpected(value = ItDataSets.EXPECTED,
                 verify = @DbUnitVerifyTable(value = TEST_TABLE,
                         include = {"COLUMN0", "COLUMN1"}))
-        @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+        @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
         void testTransactionalCommit_updatesPreppedRow_changeCommittedForVerification()
                 throws Exception
         {
@@ -303,7 +356,7 @@ class DbUnitTestExecutionListenerTransactionalIT
         @DbUnitExpected(value = ItDataSets.EXPECTED,
                 verify = @DbUnitVerifyTable(value = TEST_TABLE,
                         include = {"COLUMN0", "COLUMN1"}))
-        @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+        @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
         void testTransactionalRollback_updatesPreppedRow_changeRolledBackBeforeVerification()
                 throws Exception
         {

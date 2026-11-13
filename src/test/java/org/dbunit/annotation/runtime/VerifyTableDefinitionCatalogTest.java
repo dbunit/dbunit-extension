@@ -25,11 +25,18 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.lang.ref.WeakReference;
 import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import org.dbunit.VerifyTableDefinition;
-import org.dbunit.VerifyTableDefinitionsProvider;
 import org.dbunit.assertion.comparer.value.ValueComparers;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
+
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 
 class VerifyTableDefinitionCatalogTest
 {
@@ -119,6 +126,78 @@ class VerifyTableDefinitionCatalogTest
     }
 
     @Test
+    void testRead_nonFinalPublicStaticDefinition_warnsNamingTheField()
+    {
+        final List<ILoggingEvent> warnings = warningsLoggedBy(
+                () -> new VerifyTableDefinitionCatalog(NonFinalDefinitionCatalog.class));
+
+        assertThat(warnings)
+                .as("A static VerifyTableDefinition field that is not public static final is left"
+                        + " out of the catalog, so it gets one warning.")
+                .hasSize(1);
+        assertThat(warnings.get(0).getFormattedMessage())
+                .as("The warning names the field, the catalog class and what the field must be.")
+                .contains("'CUSTOMER'").contains(NonFinalDefinitionCatalog.class.getName())
+                .contains("public static final");
+    }
+
+    @Test
+    void testRead_staticDefinitionsNotPublicOrNotFinal_warnsForEachFieldAndForNoOther()
+    {
+        final List<ILoggingEvent> warnings = warningsLoggedBy(
+                () -> new VerifyTableDefinitionCatalog(MixedAccessCatalog.class));
+
+        assertThat(warnings).extracting(ILoggingEvent::getFormattedMessage)
+                .as("The package-private and the non-final static fields each get a warning; the"
+                        + " instance field and the field of another type are no definitions, so"
+                        + " they get none.")
+                .hasSize(2)
+                .anyMatch(message -> message.contains("'PACKAGE_PRIVATE'"))
+                .anyMatch(message -> message.contains("'publicStaticNonFinal'"));
+    }
+
+    @Test
+    void testRead_catalogWithoutDefinitions_warns()
+    {
+        final List<ILoggingEvent> warnings = warningsLoggedBy(
+                () -> new VerifyTableDefinitionCatalog(SubCatalogDeclaringNothing.class));
+
+        assertThat(warnings)
+                .as("A catalog class with no definition of its own is probably a mistake, such as"
+                        + " a field that is not public static final, so it gets a warning.")
+                .hasSize(1);
+        assertThat(warnings.get(0).getFormattedMessage())
+                .contains(SubCatalogDeclaringNothing.class.getName())
+                .contains("declares no public static final VerifyTableDefinition field");
+    }
+
+    @Test
+    void testRead_publicStaticFinalDefinitions_logsNoWarning()
+    {
+        final List<ILoggingEvent> warnings = warningsLoggedBy(
+                () -> new VerifyTableDefinitionCatalog(ConstantsOnlyCatalog.class));
+
+        assertThat(warnings)
+                .as("A catalog class whose definitions are all public static final is fine.")
+                .isEmpty();
+    }
+
+    @Test
+    void testForClasses_calledTwiceForACatalogWithALeftOutField_warnsOnce()
+    {
+        final List<ILoggingEvent> warnings = warningsLoggedBy(() ->
+        {
+            VerifyTableDefinitionCatalog.forClasses(CachedNonFinalDefinitionCatalog.class);
+            VerifyTableDefinitionCatalog.forClasses(CachedNonFinalDefinitionCatalog.class);
+        });
+
+        assertThat(warnings)
+                .as("A catalog is read once for the run, so a suite that names it from many test"
+                        + " methods gets its warning once.")
+                .hasSize(1);
+    }
+
+    @Test
     void testRead_catalogClassExtendsAnotherDeclaringConstants_inheritedConstantsAreNotIncluded()
     {
         final VerifyTableDefinitionCatalog catalog =
@@ -151,29 +230,6 @@ class VerifyTableDefinitionCatalogTest
                         + " require to be public.")
                 .extracting(VerifyTableDefinition::getTableName)
                 .containsExactly("ACCOUNT");
-    }
-
-    @Test
-    void testRead_classImplementingProvider_usesProviderInsteadOfConstants()
-    {
-        final VerifyTableDefinitionCatalog catalog =
-                new VerifyTableDefinitionCatalog(ProviderCatalog.class);
-
-        assertThat(catalog.select()).as("A VerifyTableDefinitionsProvider must be used"
-                + " instead of reading the class's constant fields.")
-                .extracting(VerifyTableDefinition::getTableName)
-                .containsExactly("FROM_PROVIDER");
-    }
-
-    @Test
-    void testRead_providerReturnsNull_throwsIllegalStateException()
-    {
-        assertThatThrownBy(() -> new VerifyTableDefinitionCatalog(NullReturningProviderCatalog.class))
-                .as("A VerifyTableDefinitionsProvider returning null must be rejected with a"
-                        + " clear message, not a raw NullPointerException.")
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining(VerifyTableDefinitionsProvider.class.getSimpleName())
-                .hasMessageContaining(NullReturningProviderCatalog.class.getName());
     }
 
     @Test
@@ -239,6 +295,59 @@ class VerifyTableDefinitionCatalogTest
     }
 
     @Test
+    void testRead_sameTableNameInDifferentCaseInTwoCatalogs_throwsNamingBothCatalogs()
+    {
+        assertThatThrownBy(() -> new VerifyTableDefinitionCatalog(CatalogA.class,
+                CatalogLowerCaseAccount.class))
+                        .as("dbUnit compares table names ignoring case unless told otherwise, so"
+                                + " 'ACCOUNT' and 'account' are the same table, which must be"
+                                + " rejected rather than resolved by declaration order.")
+                        .isInstanceOf(IllegalStateException.class)
+                        .hasMessageContaining(CatalogA.class.getName())
+                        .hasMessageContaining(CatalogLowerCaseAccount.class.getName())
+                        .hasMessageContaining("account");
+    }
+
+    @Test
+    void testRead_sameTableNameInDifferentCaseTwiceInOneCatalog_throwsMessageNamingThatCatalogOnce()
+    {
+        assertThatThrownBy(
+                () -> new VerifyTableDefinitionCatalog(DifferentCaseDuplicateCatalog.class))
+                        .as("Two fields naming the same table in different case within one"
+                                + " catalog class must be rejected.")
+                        .isInstanceOf(IllegalStateException.class)
+                        .hasMessageContaining("defined more than once in")
+                        .hasMessageContaining(DifferentCaseDuplicateCatalog.class.getName());
+    }
+
+    @Test
+    void testSelect_nameInDifferentCaseThanTheDefinition_returnsTheDefinition()
+    {
+        final VerifyTableDefinitionCatalog catalog =
+                new VerifyTableDefinitionCatalog(CatalogA.class, CatalogB.class);
+
+        assertThat(catalog.select("account", "Customer"))
+                .as("A table is selected by its name ignoring case, as dbUnit finds a table in a"
+                        + " dataset, and the catalog's own definition is returned.")
+                .containsExactly(CatalogA.ACCOUNT, CatalogB.CUSTOMER);
+    }
+
+    @Test
+    void testSelect_nameAbsentFromCatalog_returnsADefaultDefinitionForIt()
+    {
+        final VerifyTableDefinitionCatalog catalog = new VerifyTableDefinitionCatalog(
+                ConstantsOnlyCatalog.class);
+
+        final VerifyTableDefinition[] selected = catalog.select("NOT_IN_CATALOG");
+
+        assertThat(selected).as("A table the catalog does not define is verified with default"
+                + " rules, as without a catalog.").hasSize(1);
+        assertThat(selected[0].getTableName()).isEqualTo("NOT_IN_CATALOG");
+        assertThat(selected[0].getColumnExclusionFilters())
+                .as("A default definition excludes nothing.").isNull();
+    }
+
+    @Test
     void testSelect_namedTablesPresentInCatalog_returnsThoseDefinitions()
     {
         final VerifyTableDefinitionCatalog catalog =
@@ -258,22 +367,6 @@ class VerifyTableDefinitionCatalogTest
         assertThat(catalog.select())
                 .as("No names given must return every definition in the catalog.")
                 .containsExactlyInAnyOrder(CatalogA.ACCOUNT, CatalogB.CUSTOMER);
-    }
-
-    @Test
-    void testSelect_nameAbsentFromCatalog_throwsListingCatalogClassAndAvailableNames()
-    {
-        final VerifyTableDefinitionCatalog catalog = new VerifyTableDefinitionCatalog(
-                ConstantsOnlyCatalog.class);
-
-        assertThatThrownBy(() -> catalog.select("NOT_IN_CATALOG"))
-                .as("An unknown table name must throw, naming the catalog and the"
-                        + " available table names.")
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("NOT_IN_CATALOG")
-                .hasMessageContaining(ConstantsOnlyCatalog.class.getName())
-                .hasMessageContaining("ACCOUNT")
-                .hasMessageContaining("CUSTOMER");
     }
 
     @Test
@@ -311,6 +404,27 @@ class VerifyTableDefinitionCatalogTest
         assertThat(seen[1])
                 .as("A combination already read is reused by every thread, as before.")
                 .isSameAs(seen[0]);
+    }
+
+    /**
+     * Returns the warnings the catalog logs while {@code action} runs.
+     */
+    private static List<ILoggingEvent> warningsLoggedBy(final Runnable action)
+    {
+        final Logger catalogLogger =
+                (Logger) LoggerFactory.getLogger(VerifyTableDefinitionCatalog.class);
+        final ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        catalogLogger.addAppender(appender);
+        try
+        {
+            action.run();
+        } finally
+        {
+            catalogLogger.detachAppender(appender);
+        }
+        return appender.list.stream().filter(event -> event.getLevel() == Level.WARN)
+                .collect(Collectors.toList());
     }
 
     /** Public, so a class loader other than the test's can read its constants. */
@@ -355,32 +469,9 @@ class VerifyTableDefinitionCatalogTest
         public static final String WRONG_TYPE = "not a VerifyTableDefinition";
     }
 
-    static class ProviderCatalog implements VerifyTableDefinitionsProvider
-    {
-        @SuppressWarnings("unused")
-        public static final VerifyTableDefinition IGNORED_CONSTANT =
-                new VerifyTableDefinition("IGNORED", (String[]) null);
-
-        @Override
-        public VerifyTableDefinition[] getVerifyTableDefinitions()
-        {
-            return new VerifyTableDefinition[] {
-                    new VerifyTableDefinition("FROM_PROVIDER", (String[]) null)};
-        }
-    }
-
     static class NullConstantCatalog
     {
         public static final VerifyTableDefinition ACCOUNT = null;
-    }
-
-    static class NullReturningProviderCatalog implements VerifyTableDefinitionsProvider
-    {
-        @Override
-        public VerifyTableDefinition[] getVerifyTableDefinitions()
-        {
-            return null;
-        }
     }
 
     static class ComparerCatalog
@@ -408,6 +499,20 @@ class VerifyTableDefinitionCatalogTest
                 new VerifyTableDefinition("CUSTOMER", (String[]) null);
     }
 
+    static class CatalogLowerCaseAccount
+    {
+        public static final VerifyTableDefinition ACCOUNT =
+                new VerifyTableDefinition("account", (String[]) null);
+    }
+
+    static class DifferentCaseDuplicateCatalog
+    {
+        public static final VerifyTableDefinition ACCOUNT_1 =
+                new VerifyTableDefinition("ACCOUNT", (String[]) null);
+        public static final VerifyTableDefinition ACCOUNT_2 =
+                new VerifyTableDefinition("account", (String[]) null);
+    }
+
     static class SameClassDuplicateCatalog
     {
         public static final VerifyTableDefinition ACCOUNT_1 =
@@ -425,5 +530,23 @@ class VerifyTableDefinitionCatalogTest
 
     static class SubCatalogDeclaringNothing extends BaseCatalogWithConstant
     {
+    }
+
+    static class NonFinalDefinitionCatalog
+    {
+        public static final VerifyTableDefinition ACCOUNT =
+                new VerifyTableDefinition("ACCOUNT", (String[]) null);
+        @SuppressWarnings("unused")
+        public static VerifyTableDefinition CUSTOMER =
+                new VerifyTableDefinition("CUSTOMER", (String[]) null);
+    }
+
+    static class CachedNonFinalDefinitionCatalog
+    {
+        public static final VerifyTableDefinition ACCOUNT =
+                new VerifyTableDefinition("ACCOUNT", (String[]) null);
+        @SuppressWarnings("unused")
+        public static VerifyTableDefinition CUSTOMER =
+                new VerifyTableDefinition("CUSTOMER", (String[]) null);
     }
 }

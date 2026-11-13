@@ -21,16 +21,20 @@
 package org.dbunit.annotation.runtime;
 
 import java.lang.annotation.Annotation;
+import java.util.List;
 
 /**
  * A binding's way of finding the {@code org.dbunit.annotation} annotation that applies to the
  * test it is running, and the class that declares it: the one search strategy that differs
  * between test frameworks, since each has its own rules for meta-annotations, inheritance and
  * enclosing classes. Everything else that turns annotations into a configuration is shared - see
- * {@link AnnotatedTestConfiguration#from(Class, AnnotationLookup)}.
+ * {@link AnnotatedTestConfiguration#from(AnnotationLookup)}.
  *
  * <p>Public so a binding outside {@code org.dbunit.annotation.runtime} - such as
  * {@code DbUnitExtension} or a Spring {@code TestExecutionListener} - can implement it.
+ *
+ * <p>This type is internal to dbUnit's bindings; it is public only for use across
+ * dbUnit's packages and may change in a minor release.
  *
  * @author Jeff Jensen
  * @since 3.6.0
@@ -47,6 +51,19 @@ public interface AnnotationLookup
      * @return The annotation, or {@code null} when the test has none.
      */
     <A extends Annotation> A find(Class<A> annotationType);
+
+    /**
+     * Finds every annotation of {@code annotationType} that applies to the test, nearest first:
+     * those on the test method, then those on the test class, its interfaces and its
+     * superclasses, then those of the enclosing classes of a nested test class, the closest
+     * first. An annotation reached through a composed annotation counts like one declared
+     * directly. The first of them is the one {@link #find(Class)} returns.
+     *
+     * @param <A> The annotation type.
+     * @param annotationType The annotation to look for.
+     * @return The annotations, nearest first; empty when the test has none.
+     */
+    <A extends Annotation> List<A> findAll(Class<A> annotationType);
 
     /**
      * Finds the class that declares the annotation {@link #find(Class)} returns for

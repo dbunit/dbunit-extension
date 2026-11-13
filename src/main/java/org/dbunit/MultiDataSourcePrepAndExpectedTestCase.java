@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.dbunit.util.fileloader.DataFileLoader;
+import org.dbunit.util.fileloader.FileExtensionDataFileLoader;
 
 /**
  * Preps and verifies tables across multiple {@link org.dbunit.database.IDatabaseConnection}s
@@ -46,15 +47,21 @@ import org.dbunit.util.fileloader.DataFileLoader;
  * sources - and it drives each delegate only through that interface's own public
  * {@code preTest}/{@code postTest} methods, never a reimplemented verify or cleanup.
  * <p>
- * The data source name to {@link PrepAndExpectedTestCase} wiring is fixed for this instance's
- * life: assemble it with the constructors, {@link #from(String, PrepAndExpectedTestCase)}, the
- * {@code forTesters(...)} factories, and {@link #add(String, PrepAndExpectedTestCase)} /
- * {@link #add(String, IDatabaseTester)} / {@link #addAll(Map)}, all of which return this instance
- * so they chain; the wiring is then frozen on the first {@link #preTest(Map)} /
- * {@link #runTest(Map, PrepAndExpectedTestCaseSteps)} call, and a further {@code add} throws
- * {@link IllegalStateException}. The {@code {dataSourceName -> PrepAndExpectedTestData}} map each
- * test run passes to {@link #preTest(Map)} / {@link #runTest(Map, PrepAndExpectedTestCaseSteps)}
- * varies per call; a wired data source absent from that map, or mapped to the exact
+ * The data source name to {@link PrepAndExpectedTestCase} wiring is complete and fixed when the
+ * instance is created, with {@link #builder()} or the
+ * {@link #MultiDataSourcePrepAndExpectedTestCase(Map) Map constructor}:
+ *
+ * <pre>
+ * MultiDataSourcePrepAndExpectedTestCase.builder()
+ *         .dataFileLoader(loader)
+ *         .add("orders", ordersTester)
+ *         .add("audit", auditTestCase)
+ *         .build();
+ * </pre>
+ *
+ * The {@code {dataSourceName -> PrepAndExpectedTestData}} map each test run passes to
+ * {@link #preTest(Map)} / {@link #runTest(Map, PrepAndExpectedTestCaseSteps)} varies per call; a
+ * wired data source absent from that map, or mapped to the exact
  * {@link PrepAndExpectedTestData#NONE} instance, sits that run out entirely - its connection is
  * never opened.
  * <p>
@@ -68,266 +75,43 @@ import org.dbunit.util.fileloader.DataFileLoader;
  */
 public class MultiDataSourcePrepAndExpectedTestCase
 {
-    private final Map<String, PrepAndExpectedTestCase> testCasesByDataSourceName =
-            new LinkedHashMap<>();
-
-    private final DataFileLoader dataFileLoader;
-
-    private final boolean closeConnectionAfterTest;
-
-    private final boolean testerConstructionAllowed;
-
-    private boolean frozen;
+    private final Map<String, PrepAndExpectedTestCase> testCasesByDataSourceName;
 
     private Set<String> involvedDataSourceNames = Collections.emptySet();
 
     /**
-     * Creates an empty instance for the delegate currency: assemble it with
-     * {@link #add(String, PrepAndExpectedTestCase)} / {@link #addAll(Map)}.
-     */
-    public MultiDataSourcePrepAndExpectedTestCase()
-    {
-        this(null, true, false);
-    }
-
-    /**
-     * Creates an instance seeded with the given delegates, in the given map's iteration order.
+     * Creates an instance wired to the given delegates, in the given map's iteration order. Use
+     * {@link #builder()} to wire testers, or to set the loader and the connection policy of the
+     * test cases that wrap them.
      *
      * @param testCasesByDataSourceName
-     *            The delegates to seed this instance with, keyed by data source name; not
-     *            {@code null}, and not containing a {@code null} or blank key or a {@code null}
-     *            value. Defensively copied; mutating this map afterward does not affect this
+     *            The delegates to wire, keyed by data source name; not {@code null} or empty,
+     *            and not containing a {@code null} or blank key or a {@code null} value.
+     *            Defensively copied; mutating this map afterward does not affect this
      *            instance.
      * @throws IllegalArgumentException
-     *             If testCasesByDataSourceName is {@code null}, or contains a {@code null} or
-     *             blank key, or a {@code null} value.
+     *             If testCasesByDataSourceName is {@code null} or empty, or contains a
+     *             {@code null} or blank key, or a {@code null} value.
      */
     public MultiDataSourcePrepAndExpectedTestCase(
             final Map<String, ? extends PrepAndExpectedTestCase> testCasesByDataSourceName)
     {
-        this();
-        addAll(testCasesByDataSourceName);
+        this(builder().addAll(testCasesByDataSourceName));
     }
 
-    private MultiDataSourcePrepAndExpectedTestCase(final DataFileLoader dataFileLoader,
-            final boolean closeConnectionAfterTest, final boolean testerConstructionAllowed)
+    private MultiDataSourcePrepAndExpectedTestCase(final Builder builder)
     {
-        this.dataFileLoader = dataFileLoader;
-        this.closeConnectionAfterTest = closeConnectionAfterTest;
-        this.testerConstructionAllowed = testerConstructionAllowed;
+        this.testCasesByDataSourceName = Collections.unmodifiableMap(builder.wire());
     }
 
     /**
-     * Creates an instance seeded with one data source, for the delegate currency.
+     * Creates a builder, the way to wire testers and delegates in any order.
      *
-     * @param dataSourceName
-     *            The data source name; not {@code null} or blank.
-     * @param testCase
-     *            The delegate for that data source; not {@code null}.
-     * @return The new instance, so further {@code add}/{@code addAll} calls can chain off it.
-     * @throws IllegalArgumentException
-     *             If dataSourceName is {@code null} or blank, or if testCase is {@code null}.
+     * @return A new, empty builder.
      */
-    public static MultiDataSourcePrepAndExpectedTestCase from(final String dataSourceName,
-            final PrepAndExpectedTestCase testCase)
+    public static Builder builder()
     {
-        return new MultiDataSourcePrepAndExpectedTestCase().add(dataSourceName, testCase);
-    }
-
-    /**
-     * Creates an empty instance for the tester currency - {@link #add(String, IDatabaseTester)}
-     * wraps each tester in a {@link DefaultPrepAndExpectedTestCase} sharing the given loader, with
-     * {@code closeConnectionAfterTest} true.
-     *
-     * @param dataFileLoader
-     *            The loader every {@link #add(String, IDatabaseTester)}-wrapped delegate shares.
-     * @return The new instance.
-     */
-    public static MultiDataSourcePrepAndExpectedTestCase forTesters(
-            final DataFileLoader dataFileLoader)
-    {
-        return forTesters(dataFileLoader, true);
-    }
-
-    /**
-     * Creates an empty instance for the tester currency, as {@link #forTesters(DataFileLoader)}
-     * does, with the given {@code closeConnectionAfterTest} applied to every
-     * {@link #add(String, IDatabaseTester)}-wrapped delegate.
-     *
-     * @param dataFileLoader
-     *            The loader every {@link #add(String, IDatabaseTester)}-wrapped delegate shares.
-     * @param closeConnectionAfterTest
-     *            Whether each {@link #add(String, IDatabaseTester)}-wrapped delegate closes its
-     *            connection after each test; false to reuse each delegate's connection across
-     *            {@code @ParameterizedTest} rows, as for a lone {@link DefaultPrepAndExpectedTestCase}.
-     * @return The new instance.
-     */
-    public static MultiDataSourcePrepAndExpectedTestCase forTesters(
-            final DataFileLoader dataFileLoader, final boolean closeConnectionAfterTest)
-    {
-        return new MultiDataSourcePrepAndExpectedTestCase(dataFileLoader,
-                closeConnectionAfterTest, true);
-    }
-
-    /**
-     * Creates an instance for the tester currency, seeded with the given testers - as
-     * {@link #forTesters(DataFileLoader)} does, then {@link #add(String, IDatabaseTester)} for
-     * each entry, in the given map's iteration order.
-     *
-     * @param dataFileLoader
-     *            The loader every wrapped delegate shares.
-     * @param testersByDataSourceName
-     *            The testers to seed this instance with, keyed by data source name; not
-     *            {@code null}.
-     * @return The new instance.
-     * @throws IllegalArgumentException
-     *             If testersByDataSourceName is {@code null}, or contains a {@code null} or
-     *             blank key, or a {@code null} value.
-     */
-    public static MultiDataSourcePrepAndExpectedTestCase forTesters(
-            final DataFileLoader dataFileLoader,
-            final Map<String, ? extends IDatabaseTester> testersByDataSourceName)
-    {
-        return forTesters(dataFileLoader, testersByDataSourceName, true);
-    }
-
-    /**
-     * Creates an instance for the tester currency, seeded with the given testers, as
-     * {@link #forTesters(DataFileLoader, Map)} does, with the given
-     * {@code closeConnectionAfterTest} applied to every wrapped delegate.
-     *
-     * @param dataFileLoader
-     *            The loader every wrapped delegate shares.
-     * @param testersByDataSourceName
-     *            The testers to seed this instance with, keyed by data source name; not
-     *            {@code null}.
-     * @param closeConnectionAfterTest
-     *            Whether each wrapped delegate closes its connection after each test.
-     * @return The new instance.
-     * @throws IllegalArgumentException
-     *             If testersByDataSourceName is {@code null}, or contains a {@code null} or
-     *             blank key, or a {@code null} value.
-     */
-    public static MultiDataSourcePrepAndExpectedTestCase forTesters(
-            final DataFileLoader dataFileLoader,
-            final Map<String, ? extends IDatabaseTester> testersByDataSourceName,
-            final boolean closeConnectionAfterTest)
-    {
-        if (testersByDataSourceName == null)
-        {
-            throw new IllegalArgumentException("testersByDataSourceName must not be null.");
-        }
-
-        final MultiDataSourcePrepAndExpectedTestCase instance =
-                forTesters(dataFileLoader, closeConnectionAfterTest);
-        for (final Map.Entry<String, ? extends IDatabaseTester> entry : testersByDataSourceName
-                .entrySet())
-        {
-            instance.add(entry.getKey(), entry.getValue());
-        }
-        return instance;
-    }
-
-    /**
-     * Wires one data source to the given delegate.
-     *
-     * @param dataSourceName
-     *            The data source name; not {@code null} or blank, and not already wired.
-     * @param testCase
-     *            The delegate for that data source; not {@code null}.
-     * @return This instance, so calls can chain.
-     * @throws IllegalArgumentException
-     *             If dataSourceName is {@code null}, blank, or already wired, or if testCase is
-     *             {@code null}.
-     * @throws IllegalStateException
-     *             If the wiring is already frozen by an earlier {@link #preTest(Map)} /
-     *             {@link #runTest(Map, PrepAndExpectedTestCaseSteps)} call.
-     */
-    public MultiDataSourcePrepAndExpectedTestCase add(final String dataSourceName,
-            final PrepAndExpectedTestCase testCase)
-    {
-        checkNotFrozen();
-        if (dataSourceName == null || dataSourceName.trim().isEmpty())
-        {
-            throw new IllegalArgumentException("dataSourceName must not be null or blank.");
-        }
-        if (testCase == null)
-        {
-            throw new IllegalArgumentException("testCase must not be null.");
-        }
-        if (testCasesByDataSourceName.containsKey(dataSourceName))
-        {
-            throw new IllegalArgumentException(
-                    "A data source named '" + dataSourceName + "' is already wired.");
-        }
-
-        testCasesByDataSourceName.put(dataSourceName, testCase);
-        return this;
-    }
-
-    /**
-     * Wires one data source to a new {@link DefaultPrepAndExpectedTestCase} bound to the given
-     * tester, sharing this instance's loader and {@code closeConnectionAfterTest}.
-     *
-     * @param dataSourceName
-     *            The data source name; not {@code null} or blank, and not already wired.
-     * @param tester
-     *            The tester for that data source; not {@code null}.
-     * @return This instance, so calls can chain.
-     * @throws IllegalArgumentException
-     *             If dataSourceName is {@code null}, blank, or already wired, or if tester is
-     *             {@code null}.
-     * @throws IllegalStateException
-     *             If this instance was not created via one of the {@code forTesters(...)}
-     *             factories, or if the wiring is already frozen.
-     */
-    public MultiDataSourcePrepAndExpectedTestCase add(final String dataSourceName,
-            final IDatabaseTester tester)
-    {
-        checkNotFrozen();
-        if (!testerConstructionAllowed)
-        {
-            throw new IllegalStateException("add(String, IDatabaseTester) requires an instance"
-                    + " created via one of the forTesters(...) factories.");
-        }
-        if (tester == null)
-        {
-            throw new IllegalArgumentException("tester must not be null.");
-        }
-
-        return add(dataSourceName,
-                new DefaultPrepAndExpectedTestCase(dataFileLoader, tester,
-                        closeConnectionAfterTest));
-    }
-
-    /**
-     * Wires every entry of the given map, in its iteration order.
-     *
-     * @param testCasesByDataSourceName
-     *            The delegates to add, keyed by data source name; not {@code null}.
-     * @return This instance, so calls can chain.
-     * @throws IllegalArgumentException
-     *             If testCasesByDataSourceName is {@code null}, or contains a {@code null} or
-     *             blank key, an already-wired key, or a {@code null} value.
-     * @throws IllegalStateException
-     *             If the wiring is already frozen by an earlier {@link #preTest(Map)} /
-     *             {@link #runTest(Map, PrepAndExpectedTestCaseSteps)} call.
-     */
-    public MultiDataSourcePrepAndExpectedTestCase addAll(
-            final Map<String, ? extends PrepAndExpectedTestCase> testCasesByDataSourceName)
-    {
-        checkNotFrozen();
-        if (testCasesByDataSourceName == null)
-        {
-            throw new IllegalArgumentException("testCasesByDataSourceName must not be null.");
-        }
-
-        for (final Map.Entry<String, ? extends PrepAndExpectedTestCase> entry
-                : testCasesByDataSourceName.entrySet())
-        {
-            add(entry.getKey(), entry.getValue());
-        }
-        return this;
+        return new Builder();
     }
 
     /**
@@ -337,9 +121,11 @@ public class MultiDataSourcePrepAndExpectedTestCase
      * A throwable from the test steps is rethrown as-is - not wrapped - with every involved
      * delegate torn down first via {@link PrepAndExpectedTestCase#postTest(boolean)
      * postTest(false)} in reverse declared order, each teardown failure attached to the step
-     * throwable via {@link Throwable#addSuppressed(Throwable)} - except a teardown failure that
-     * is the exact same instance as the step throwable itself, which is dropped rather than
-     * attempting the self-suppression {@link Throwable#addSuppressed(Throwable)} forbids.
+     * throwable via {@link Throwable#addSuppressed(Throwable)}, labelled with its data source
+     * name and the {@code cleanupData} phase - except a teardown failure that is the exact same
+     * instance as the step throwable itself, which is dropped rather than attached to itself. The
+     * run is over then, as after {@link #postTest(boolean)}, so a further {@code postTest} call,
+     * such as one in a caller's {@code finally} block, has nothing to tear down.
      *
      * @param dataByDataSourceName
      *            The prep/expected/verify data for this run, keyed by data source name; a wired
@@ -363,7 +149,9 @@ public class MultiDataSourcePrepAndExpectedTestCase
             result = testSteps.run();
         } catch (final Throwable stepFailure)
         {
-            tearDownSuppressing(reverseInvolvedOrder(), stepFailure);
+            final List<String> teardownOrder = reverseInvolvedOrder();
+            involvedDataSourceNames = Collections.emptySet();
+            tearDownSuppressing(teardownOrder, stepFailure);
             throw stepFailure;
         }
 
@@ -384,16 +172,14 @@ public class MultiDataSourcePrepAndExpectedTestCase
      * including the one that just failed - is rolled back, via
      * {@link PrepAndExpectedTestCase#postTest(boolean) postTest(false)}, in reverse order, never a
      * bare {@code cleanupData()} - with each rollback failure attached to the original failure via
-     * {@link Throwable#addSuppressed(Throwable)}, except a rollback failure that is the exact same
-     * instance as the original failure, which is dropped rather than attempting the
-     * self-suppression {@link Throwable#addSuppressed(Throwable)} forbids; the original failure is
+     * {@link Throwable#addSuppressed(Throwable)}, labelled with its data source name and the
+     * {@code cleanupData} phase, except a rollback failure that is the exact same instance as the
+     * original failure, which is dropped rather than attached to itself; the original failure is
      * then rethrown as-is.
      *
      * @param dataByDataSourceName
      *            The prep/expected/verify data for this run, keyed by data source name; not
      *            {@code null}, and containing no key this instance has no delegate wired for.
-     * @throws IllegalStateException
-     *             If no data source is wired yet.
      * @throws IllegalArgumentException
      *             If dataByDataSourceName is {@code null}, contains an unknown data source name,
      *             or maps a wired data source name to {@code null}.
@@ -403,11 +189,6 @@ public class MultiDataSourcePrepAndExpectedTestCase
     public void preTest(final Map<String, PrepAndExpectedTestData> dataByDataSourceName)
             throws Exception
     {
-        if (testCasesByDataSourceName.isEmpty())
-        {
-            throw new IllegalStateException(
-                    "No data source is wired; call add(...) before preTest(...).");
-        }
         if (dataByDataSourceName == null)
         {
             throw new IllegalArgumentException("dataByDataSourceName must not be null.");
@@ -440,7 +221,6 @@ public class MultiDataSourcePrepAndExpectedTestCase
             }
         }
 
-        frozen = true;
         involvedDataSourceNames = Collections.emptySet();
         final List<String> setUpSoFar = new ArrayList<>();
         for (final String dataSourceName : involved)
@@ -449,8 +229,7 @@ public class MultiDataSourcePrepAndExpectedTestCase
             final PrepAndExpectedTestCase testCase = testCasesByDataSourceName.get(dataSourceName);
             try
             {
-                testCase.preTest(data.getVerifyTableDefinitions(), data.getPrepDataFiles(),
-                        data.getExpectedDataFiles());
+                testCase.preTest(data);
             } catch (final Throwable setupFailure)
             {
                 setUpSoFar.add(dataSourceName);
@@ -481,11 +260,14 @@ public class MultiDataSourcePrepAndExpectedTestCase
                 testCasesByDataSourceName.get(dataSourceName).postTest(false);
             } catch (final Throwable teardownFailure)
             {
-                // Throwable.addSuppressed() throws IllegalArgumentException for
-                // self-suppression; skip it rather than let that mask the real failure.
+                // The primary failure is reported already; attaching it to itself, even
+                // labelled, would make it the cause of its own suppressed failure.
                 if (teardownFailure != primaryFailure)
                 {
-                    primaryFailure.addSuppressed(teardownFailure);
+                    final MultiDataSourceAssertionError.DataSourceFailure labelled =
+                            new MultiDataSourceAssertionError.DataSourceFailure(dataSourceName,
+                                    "cleanupData", teardownFailure);
+                    primaryFailure.addSuppressed(labelled);
                 }
             }
         }
@@ -563,16 +345,6 @@ public class MultiDataSourcePrepAndExpectedTestCase
         return reverseOrder;
     }
 
-    private void checkNotFrozen()
-    {
-        if (frozen)
-        {
-            throw new IllegalStateException(
-                    "The data source wiring is frozen after the first preTest(...)/runTest(...)"
-                            + " call; assemble it fully before running a test.");
-        }
-    }
-
     /**
      * Returns the wired data source names, in declared order.
      *
@@ -602,5 +374,220 @@ public class MultiDataSourcePrepAndExpectedTestCase
                     "No data source named '" + dataSourceName + "' is wired.");
         }
         return testCase;
+    }
+
+    /**
+     * Wires the data sources of a {@link MultiDataSourcePrepAndExpectedTestCase}, in the order
+     * they are added, and builds it. Each data source gets either a delegate of its own or a
+     * tester, which {@link #build()} wraps in a {@link DefaultPrepAndExpectedTestCase} that uses
+     * the loader and the connection policy of this builder, whichever order they were set in.
+     *
+     * <p>Not thread-safe. An instance it builds is not changed by anything done to the builder
+     * afterward.
+     *
+     * @author Jeff Jensen
+     * @since 3.6.0
+     */
+    public static class Builder
+    {
+        private final Map<String, Wiring> wiringByDataSourceName = new LinkedHashMap<>();
+
+        private DataFileLoader dataFileLoader;
+
+        private boolean closeConnectionAfterTest = true;
+
+        private Builder()
+        {
+        }
+
+        /**
+         * Sets the loader that every test case wrapping a tester added to this builder uses.
+         *
+         * @param dataFileLoader
+         *            The loader; {@code null}, the default, chooses a
+         *            {@link FileExtensionDataFileLoader}, which picks the format from the file
+         *            extension.
+         * @return This builder, so calls can chain.
+         */
+        public Builder dataFileLoader(final DataFileLoader dataFileLoader)
+        {
+            this.dataFileLoader = dataFileLoader;
+            return this;
+        }
+
+        /**
+         * Sets whether every test case wrapping a tester added to this builder closes its
+         * connection after each test.
+         *
+         * @param closeConnectionAfterTest
+         *            {@code true}, the default, to close each connection after each test;
+         *            {@code false} to reuse it across {@code @ParameterizedTest} rows, as for a
+         *            lone {@link DefaultPrepAndExpectedTestCase}.
+         * @return This builder, so calls can chain.
+         */
+        public Builder closeConnectionAfterTest(final boolean closeConnectionAfterTest)
+        {
+            this.closeConnectionAfterTest = closeConnectionAfterTest;
+            return this;
+        }
+
+        /**
+         * Wires one data source to the given delegate.
+         *
+         * @param dataSourceName
+         *            The data source name; not {@code null} or blank, and not already wired.
+         * @param testCase
+         *            The delegate for that data source; not {@code null}.
+         * @return This builder, so calls can chain.
+         * @throws IllegalArgumentException
+         *             If dataSourceName is {@code null}, blank, or already wired, or if testCase
+         *             is {@code null}.
+         */
+        public Builder add(final String dataSourceName, final PrepAndExpectedTestCase testCase)
+        {
+            requireDataSourceName(dataSourceName);
+            if (testCase == null)
+            {
+                throw new IllegalArgumentException("testCase must not be null.");
+            }
+            return register(dataSourceName, new Wiring(testCase, null));
+        }
+
+        /**
+         * Wires one data source to the given tester, which {@link #build()} wraps in a new
+         * {@link DefaultPrepAndExpectedTestCase} that uses this builder's loader and connection
+         * policy.
+         *
+         * @param dataSourceName
+         *            The data source name; not {@code null} or blank, and not already wired.
+         * @param tester
+         *            The tester for that data source; not {@code null}.
+         * @return This builder, so calls can chain.
+         * @throws IllegalArgumentException
+         *             If dataSourceName is {@code null}, blank, or already wired, or if tester
+         *             is {@code null}.
+         */
+        public Builder add(final String dataSourceName, final IDatabaseTester tester)
+        {
+            requireDataSourceName(dataSourceName);
+            if (tester == null)
+            {
+                throw new IllegalArgumentException("tester must not be null.");
+            }
+            return register(dataSourceName, new Wiring(null, tester));
+        }
+
+        /**
+         * Wires every entry of the given map to its delegate, in the map's iteration order.
+         *
+         * @param testCasesByDataSourceName
+         *            The delegates to wire, keyed by data source name; not {@code null}.
+         * @return This builder, so calls can chain.
+         * @throws IllegalArgumentException
+         *             If testCasesByDataSourceName is {@code null}, or contains a {@code null},
+         *             blank or already wired key, or a {@code null} value.
+         */
+        public Builder addAll(
+                final Map<String, ? extends PrepAndExpectedTestCase> testCasesByDataSourceName)
+        {
+            if (testCasesByDataSourceName == null)
+            {
+                throw new IllegalArgumentException("testCasesByDataSourceName must not be null.");
+            }
+
+            for (final Map.Entry<String, ? extends PrepAndExpectedTestCase> entry
+                    : testCasesByDataSourceName.entrySet())
+            {
+                add(entry.getKey(), entry.getValue());
+            }
+            return this;
+        }
+
+        /**
+         * Builds an instance wired to the data sources added so far. Each call builds a new
+         * instance, with new test cases wrapping the testers.
+         *
+         * @return The new instance.
+         * @throws IllegalArgumentException
+         *             If no data source was added.
+         */
+        public MultiDataSourcePrepAndExpectedTestCase build()
+        {
+            return new MultiDataSourcePrepAndExpectedTestCase(this);
+        }
+
+        private Map<String, PrepAndExpectedTestCase> wire()
+        {
+            if (wiringByDataSourceName.isEmpty())
+            {
+                throw new IllegalArgumentException("At least one data source is required.");
+            }
+
+            final DataFileLoader loader = resolveDataFileLoader();
+            final Map<String, PrepAndExpectedTestCase> wired = new LinkedHashMap<>();
+            for (final Map.Entry<String, Wiring> entry : wiringByDataSourceName.entrySet())
+            {
+                final Wiring wiring = entry.getValue();
+                wired.put(entry.getKey(), wiring.create(loader, closeConnectionAfterTest));
+            }
+            return wired;
+        }
+
+        private DataFileLoader resolveDataFileLoader()
+        {
+            if (dataFileLoader == null)
+            {
+                return new FileExtensionDataFileLoader();
+            }
+            return dataFileLoader;
+        }
+
+        private void requireDataSourceName(final String dataSourceName)
+        {
+            if (dataSourceName == null || dataSourceName.trim().isEmpty())
+            {
+                throw new IllegalArgumentException("dataSourceName must not be null or blank.");
+            }
+        }
+
+        private Builder register(final String dataSourceName, final Wiring wiring)
+        {
+            if (wiringByDataSourceName.containsKey(dataSourceName))
+            {
+                throw new IllegalArgumentException(
+                        "A data source named '" + dataSourceName + "' is already wired.");
+            }
+
+            wiringByDataSourceName.put(dataSourceName, wiring);
+            return this;
+        }
+    }
+
+    /**
+     * What one data source was given: a delegate of its own, or a tester that is wrapped in a
+     * test case when the instance is built.
+     */
+    private static class Wiring
+    {
+        private final PrepAndExpectedTestCase testCase;
+
+        private final IDatabaseTester tester;
+
+        private Wiring(final PrepAndExpectedTestCase testCase, final IDatabaseTester tester)
+        {
+            this.testCase = testCase;
+            this.tester = tester;
+        }
+
+        private PrepAndExpectedTestCase create(final DataFileLoader loader,
+                final boolean closeConnectionAfterTest)
+        {
+            if (testCase == null)
+            {
+                return new DefaultPrepAndExpectedTestCase(loader, tester,
+                        closeConnectionAfterTest);
+            }
+            return testCase;
+        }
     }
 }

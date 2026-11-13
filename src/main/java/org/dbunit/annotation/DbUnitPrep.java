@@ -27,29 +27,45 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-import org.dbunit.util.fileloader.DataSetPathsProvider;
-
 /**
  * Specifies the dataset file(s) to load and insert into the database before each test method,
  * seeding the state the test needs to run.
  *
- * <p>A method-level annotation overrides a class-level annotation on a per-test basis; the
- * class annotation is inherited by subclasses. Pair with {@link DbUnitSetup} only when a
- * setup operation other than the default
- * {@link org.dbunit.operation.DbUnitOperation#CLEAN_INSERT} is needed - see
- * {@link DbUnitSetup} for why the two are separate annotations.
+ * <p>This annotation takes effect only on a test class that registers
+ * {@link org.dbunit.junit.jupiter.DbUnitExtension}, with {@code @DbUnitTest} or
+ * {@code @ExtendWith(DbUnitExtension.class)}, or that runs under
+ * {@link org.dbunit.spring.DbUnitTestExecutionListener}. A class that registers neither runs its
+ * tests as if the annotation were absent, with no prep, verification or teardown, and they pass.
  *
- * <p>Declaring this without {@link DbUnitSetup} means that default
- * {@link org.dbunit.operation.DbUnitOperation#CLEAN_INSERT} for the test, even on a tester
- * already preset to another setup operation such as {@code REFRESH}, which would otherwise
- * not delete the rows already there; the tester's own operation is restored afterward.
- * Declare {@link DbUnitSetup} with that operation to keep it.
+ * <p>Place it on the test method or on the test class. A method-level annotation counts on the
+ * test method only: on a {@code @BeforeEach}, {@code @AfterEach}, {@code @BeforeAll} or
+ * {@code @AfterAll} method, or on a {@code @BeforeParameterizedClassInvocation} or
+ * {@code @AfterParameterizedClassInvocation} method of a {@code @ParameterizedClass}, nothing
+ * reads it, so the binding fails the test, or the class when the extension or listener is
+ * registered on it, with an {@link IllegalStateException} that names the method. That holds for a
+ * lifecycle method that a subclass overrides, and under Spring for a {@code @BeforeTransaction}
+ * or {@code @AfterTransaction} method. On any other method, such as a helper, nothing reads it
+ * and nothing says so.
+ *
+ * <p>A method-level annotation overrides a class-level annotation on a per-test basis; the
+ * class annotation is inherited by subclasses. Pair with {@link DbUnitSetUpOperation} only when a
+ * setup operation other than the tester's own is needed - see {@link DbUnitSetUpOperation} for
+ * why the two are separate annotations.
+ *
+ * <p>Declaring this without {@link DbUnitSetUpOperation} names only the dataset: the test runs
+ * the setup operation the tester has. That is
+ * {@link org.dbunit.operation.DbUnitOperation#CLEAN_INSERT} for dbUnit's built-in testers unless
+ * the test set another, such as {@code REFRESH}, or one {@code DbUnitOperation} has no constant
+ * for, such as MSSQL's {@code InsertIdentityOperation.CLEAN_INSERT} or a
+ * {@code TransactionOperation}. Declare {@link DbUnitSetUpOperation} to replace it for the test.
  *
  * <p>Each path is resolved to an absolute classpath resource: a path already starting with
  * {@code /} is used as-is; otherwise it is resolved relative to the package of the class
  * declaring this annotation - the base class, for an inherited one - or to
  * {@code DbUnitConfig#dataSetBaseDir()} when that is set. The file format is inferred from
  * the extension by the configured {@code DataFileLoader} - see {@link DbUnitConfig#dataFileLoader()}.
+ * A path shared through a composed annotation should be absolute, as a relative one resolves
+ * against the class carrying the composed annotation, not the class using it.
  *
  * <p>Example:
  * <pre>{@code
@@ -69,9 +85,8 @@ import org.dbunit.util.fileloader.DataSetPathsProvider;
  *
  * @author Jeff Jensen
  * @since 3.6.0
- * @see DbUnitSetup
+ * @see DbUnitSetUpOperation
  * @see DbUnitExpected
- * @see DataSetPathsProvider
  */
 @Target({ElementType.TYPE, ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)
@@ -82,22 +97,7 @@ public @interface DbUnitPrep
     /**
      * Classpath resource paths for the prep dataset files to load.
      *
-     * <p>Mutually exclusive with {@link #provider()}; setting both is rejected.
-     *
      * @return Zero or more dataset resource paths.
      */
     String[] value() default {};
-
-    /**
-     * A {@link DataSetPathsProvider} implementation to reflectively instantiate and ask for
-     * the prep dataset paths, for a path list shared across several test classes.
-     *
-     * <p>Mutually exclusive with {@link #value()}; setting both is rejected. The provider
-     * returning {@code null} or an empty array is rejected too - it is wired to supply paths,
-     * so supplying none is a misconfiguration; drop {@code @DbUnitPrep} for a test that needs
-     * no dataset.
-     *
-     * @return The provider class; the interface itself (the default) means "not set".
-     */
-    Class<? extends DataSetPathsProvider> provider() default DataSetPathsProvider.class;
 }

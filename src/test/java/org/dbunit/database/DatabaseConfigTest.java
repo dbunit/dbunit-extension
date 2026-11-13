@@ -31,6 +31,8 @@ import org.dbunit.dataset.datatype.DataType;
 import org.dbunit.dataset.datatype.DataTypeException;
 import org.dbunit.dataset.datatype.IDataTypeFactory;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * @author gommma (gommma AT users.sourceforge.net)
@@ -177,6 +179,33 @@ class DatabaseConfigTest
     }
 
     @Test
+    void testGetFeature_failOnUnknownVerifyColumnNameDefault_isTrue() throws Exception
+    {
+        final DatabaseConfig config = new DatabaseConfig();
+
+        assertThat(config.getFeature(DatabaseConfig.FEATURE_FAIL_ON_UNKNOWN_VERIFY_COLUMN_NAME))
+                .as("FEATURE_FAIL_ON_UNKNOWN_VERIFY_COLUMN_NAME must default to true, so a column name"
+                        + " that matches no column fails the verification unless the feature is"
+                        + " set to false.")
+                .isTrue();
+    }
+
+    @Test
+    void testSetPropertiesByString_failOnUnknownVerifyColumnNameShortName_setsTheFeature()
+            throws Exception
+    {
+        final DatabaseConfig config = new DatabaseConfig();
+        final java.util.Properties properties = new java.util.Properties();
+        properties.setProperty("failOnUnknownVerifyColumnName", "false");
+
+        config.setPropertiesByString(properties);
+
+        assertThat(config.getFeature(DatabaseConfig.FEATURE_FAIL_ON_UNKNOWN_VERIFY_COLUMN_NAME))
+                .as("The short name must set the feature, as @DbUnitProperty gives it.")
+                .isFalse();
+    }
+
+    @Test
     void testCopyPropertiesInto_withNullablePropertyAtDefault_overwritesTargetWithNull()
             throws Exception
     {
@@ -258,6 +287,44 @@ class DatabaseConfigTest
     }
 
     @Test
+    void testFindByShortName_severalWholeLastParts_returnsTheProperty()
+    {
+        final DatabaseConfig.ConfigProperty property =
+                DatabaseConfig.findByShortName("mssql/identityColumnFilter");
+
+        assertThat(property.getProperty())
+                .as("Several whole last parts of a property's name match it.")
+                .isEqualTo(DatabaseConfig.PROPERTY_IDENTITY_COLUMN_FILTER);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"Size", "Names", "TableNames", "e"})
+    void testFindByShortName_onlyTheEndOfAPart_returnsNull(final String partialName)
+    {
+        assertThat(DatabaseConfig.findByShortName(partialName))
+                .as("The end of a part of a property's name, such as 'Size' of 'batchSize', is"
+                        + " not a short name, and must not resolve to the first property that"
+                        + " happens to end with it.")
+                .isNull();
+    }
+
+    @Test
+    void testSetPropertiesByString_onlyTheEndOfAShortName_leavesThatPropertyUnchanged()
+            throws Exception
+    {
+        final DatabaseConfig config = new DatabaseConfig();
+        final Object batchSizeBefore = config.getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE);
+        final Properties stringProperties = new Properties();
+        stringProperties.setProperty("Size", "7");
+
+        config.setPropertiesByString(stringProperties);
+
+        assertThat(config.getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE))
+                .as("'Size' is not the short name batchSize, so it must not set batchSize.")
+                .isEqualTo(batchSizeBefore);
+    }
+
+    @Test
     void testFindByName_rowCounter_returnsRowCounterConfigProperty() throws Exception
     {
         final DatabaseConfig.ConfigProperty property =
@@ -284,6 +351,28 @@ class DatabaseConfigTest
                         + " must be reflectively instantiated, the same as any other"
                         + " object-valued property.")
                 .isInstanceOf(QueryPerTableRowCounter.class);
+    }
+
+    @Test
+    void testFindByNameOrShortName_longAndShortName_resolveToTheSameProperty()
+    {
+        final DatabaseConfig.ConfigProperty byLongName =
+                DatabaseConfig.findByNameOrShortName(DatabaseConfig.PROPERTY_BATCH_SIZE);
+        final DatabaseConfig.ConfigProperty byShortName =
+                DatabaseConfig.findByNameOrShortName("batchSize");
+
+        assertThat(byShortName)
+                .as("The long name and the short name resolve to the same property.")
+                .isSameAs(byLongName);
+        assertThat(byLongName.getProperty()).isEqualTo(DatabaseConfig.PROPERTY_BATCH_SIZE);
+    }
+
+    @Test
+    void testFindByNameOrShortName_unknownName_returnsNull()
+    {
+        assertThat(DatabaseConfig.findByNameOrShortName("notAProperty"))
+                .as("A name that is neither a long nor a short name resolves to nothing.")
+                .isNull();
     }
 
 }

@@ -31,6 +31,7 @@ import java.sql.Statement;
 import org.dbunit.DatabaseEnvironment;
 import org.dbunit.DatabaseProfile;
 import org.dbunit.DefaultDatabaseTester;
+import org.dbunit.DefaultOperationListener;
 import org.dbunit.IDatabaseTester;
 import org.dbunit.JdbcDatabaseTester;
 import org.dbunit.database.DatabaseConnection;
@@ -73,7 +74,8 @@ class DbUnitExtensionClassicPathIT
             assertThat(rowCount(verifyConnection, TEST_TABLE))
                     .as("The @BeforeEach method's databaseTester.setTearDownOperation(DELETE_ALL)"
                             + " must survive to onTearDown() - the classic path must not reset the"
-                            + " tester's teardown operation to NONE when no @DbUnitTearDown is"
+                            + " tester's teardown operation to NONE when no"
+                            + " @DbUnitTearDownOperation is"
                             + " declared.")
                     .isZero();
         } finally
@@ -107,6 +109,38 @@ class DbUnitExtensionClassicPathIT
                             + " connection before onSetup(): onSetup()'s CLEAN_INSERT then runs"
                             + " against a closed connection and seeds nothing.")
                     .isEqualTo(1);
+        } finally
+        {
+            closeQuietly(fixedConnection);
+            deleteAllRowsQuietly(environment);
+            environment.closeConnection();
+        }
+    }
+
+    @Test
+    void testClassicPath_fixedConnectionKeptOpenByCustomListener_servesEveryTest()
+            throws Exception
+    {
+        final DatabaseEnvironment environment = DatabaseEnvironment.getInstance();
+        final DatabaseProfile profile = environment.getProfile();
+        deleteAllRowsQuietly(environment);
+
+        final Connection fixedConnection = DriverManager.getConnection(
+                profile.getConnectionUrl(), profile.getUser(), profile.getPassword());
+        KeptOpenFixedConnectionSample.databaseConnection =
+                new DatabaseConnection(fixedConnection, profile.getSchema());
+        try
+        {
+            EngineTestKit.engine("junit-jupiter")
+                    .selectors(selectClass(KeptOpenFixedConnectionSample.class)).execute()
+                    .testEvents()
+                    .assertStatistics(stats -> stats.started(2).succeeded(2));
+
+            assertThat(fixedConnection.isClosed())
+                    .as("The classic path must leave the connection onSetup() retrieved to the"
+                            + " tester's listener, which keeps this fixed connection open for"
+                            + " the next test, as the 3.5.0 lifecycle did.")
+                    .isFalse();
         } finally
         {
             closeQuietly(fixedConnection);
@@ -221,6 +255,57 @@ class DbUnitExtensionClassicPathIT
         {
             // The seeded row is asserted through a separate connection in the enclosing test -
             // this fixed connection is closed by the enclosing test's cleanup.
+        }
+    }
+
+    // A DefaultDatabaseTester over one fixed connection, with a custom listener that never
+    // closes it: the documented alternative to NO_OP_OPERATION_LISTENER for a connection that
+    // must survive past one onSetup(). Both tests seed through onSetup() on that connection.
+
+    @ExtendWith(DbUnitExtension.class)
+    static class KeptOpenFixedConnectionSample
+    {
+        static IDatabaseConnection databaseConnection;
+
+        final IDatabaseTester databaseTester;
+
+        KeptOpenFixedConnectionSample()
+        {
+            databaseTester = new DefaultDatabaseTester(databaseConnection);
+            databaseTester.setOperationListener(new DefaultOperationListener()
+            {
+                @Override
+                public void operationSetUpFinished(final IDatabaseConnection connection)
+                {
+                    // kept open for the next test
+                }
+
+                @Override
+                public void operationTearDownFinished(final IDatabaseConnection connection)
+                {
+                    // kept open for the next test
+                }
+            });
+        }
+
+        @BeforeEach
+        void configureTester() throws Exception
+        {
+            databaseTester.setDataSet(new FlatXmlDataSetBuilder()
+                    .build(getClass().getResource("annotation-it-prep.xml")));
+            databaseTester.setTearDownOperation(DatabaseOperation.DELETE_ALL);
+        }
+
+        @Test
+        void testFirst()
+        {
+            // onSetup() seeding on the fixed connection without failing is the assertion
+        }
+
+        @Test
+        void testSecond()
+        {
+            // runs against the same fixed connection, which the first test must leave open
         }
     }
 }

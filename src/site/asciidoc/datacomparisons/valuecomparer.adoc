@@ -55,9 +55,23 @@ link:../apidocs/org/dbunit/assertion/comparer/value/RegularExpressionValueCompar
 link:../apidocs/org/dbunit/assertion/comparer/value/ValueComparers.html#regularExpressionValueComparer[ValueComparers.regularExpressionValueComparer])
 takes the expected dataset value as a regular expression and passes when it
 matches the actual value in its entirety, the same rule as
-`java.lang.String.matches`. To match only part of the value, wrap the pattern in
+`java.lang.String.matches`. The pattern is matched against the actual value's text as dbUnit
+gives it. For a column of another type than text that is the text of the Java value, not the
+text the database shows: a timestamp ends in its fraction (`2026-01-02 10:00:00.0`), a decimal
+keeps the scale of its column (`12.50` in a `DECIMAL(10,2)` column), and a binary value is its
+Base64 text. A pattern that ignores this does not match, and the comparer's part of the failure
+message, `Actual value='...'`, shows the text that was matched. To match only part of the value, wrap the pattern in
 `.*` on both ends, e.g. `.*[0-9]{4}.*`; a `.` does not cross a line terminator,
-so prefix the pattern with `(?s)` when the actual value may contain a newline.
+so prefix the pattern with `(?s)` when the actual value may contain a newline. When
+`DefaultPrepAndExpectedTestCase` or `@DbUnitExpected` verifies a table, the rows are lined up
+before they are compared, and the columns that have a comparer of their own, such as this one
+on a generated id, are the last columns they are sorted by, in their original order. Rows that
+tie on every other column and hold different patterns in a numeric column fail with a message
+that says so - see
+link:../components/verifytabledefinition.html#sortmode[Sort Mode].
+`Assertion.assertWithValueComparer` and the other assert methods compare the rows in the order
+the two tables give them, so when that order is not fixed, sort both tables, for example with
+link:../apidocs/org/dbunit/dataset/SortedTable.html[SortedTable].
 
 Some implementations are deliberately left off
 link:../apidocs/org/dbunit/assertion/comparer/value/ValueComparers.html[ValueComparers]
@@ -65,13 +79,29 @@ because it eagerly instantiates every instance it declares, and doing so there w
 an optional dependency onto every user of that class instead of only those who need it;
 construct these directly instead. For example,
 link:../apidocs/org/dbunit/assertion/comparer/value/IsActualEqualToExpectedJsonValueComparer.html[IsActualEqualToExpectedJsonValueComparer]
-compares JSON/JSONB column values (e.g. MySQL `JSON`, PostgreSQL `json`/`jsonb`, H2 `JSON`)
+compares JSON/JSONB column values (e.g. MySQL `JSON`, PostgreSQL `json`/`jsonb`, H2 `JSON`, the
+last with `H2DataTypeFactory`, which recognizes the column)
 by their parsed document structure instead of raw text - ignoring object member order and
 insignificant whitespace, both of which a database may rewrite when it stores a JSON value -
 and needs the optional `jackson-databind` dependency also used by
 link:../apidocs/org/dbunit/dataset/json/JsonDataSet.html[JsonDataSet]. Without it on the
 classpath, creating the comparer fails with a `DatabaseUnitRuntimeException` that names the
-dependency to add.
+dependency to add. The comparer parses a JSON value whatever the length of its strings, as
+`JsonDataSet` reads one: it lifts the limit of 20,000,000 characters that Jackson 2.15 and later
+set on a string.
+
+Two values are equal when their documents are the same, as JSON defines it:
+
+* Whitespace between the tokens and the order of an object's members do not matter, while the
+order of an array's elements does.
+* A member with the value `null` differs from a missing member.
+* A number is compared exactly, with every digit it has: `1.5` and `1.50` are the same number,
+two fractions that differ only past what a `double` holds differ, and a whole number differs
+from a number with a fraction, so `1` and `1.0` are not equal.
+* A value must be one JSON document. Content after the first value, such as `{"a":1} xyz` or a
+second document, fails the comparison with a `DatabaseUnitException` that names the column and
+the row, as any other invalid value does. Jackson 2.9 and later can check for it; an older
+Jackson ignores the content.
 
 It is easy to add your own implementations of the
 link:../apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html[ValueComparer]

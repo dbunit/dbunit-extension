@@ -23,8 +23,31 @@ JSON dataset document sample:
 
 To specify null values, just omit the corresponding column key.
 In the above example, the missing COL0 and COL2 keys of TEST_TABLE's second row represent
-null values. Writing a dataset is the mirror image: any column whose value is null is
-omitted from that row's JSON object rather than written as a JSON `null`.
+null values. Writing a dataset is the mirror image: a column whose value is null is
+omitted from that row's JSON object, except in the first row of a table. That row
+carries every column of the table, with a JSON `null` for a null value, so a column
+that is null in every row still appears in the output and survives a read-back.
+`JsonDataSet.write()` writes a date, a time or a timestamp as text the column type
+parses, such as `2024-03-01`, `10:15:30` or `2024-03-01 10:15:30.0`, so a written
+dataset reads back the same day and time in any time zone. Before 3.6.0 it wrote a
+date or a timestamp as a number of milliseconds since the epoch, which reads back as
+another day or time in another time zone. Such a dataset, with numbers, still reads
+for any date after January 1970, as the date and time column types accept a number of
+milliseconds that is a `long`.
+Since 3.6.0 `JsonDataSet.write()` writes a value of any other type than a string, a number, a
+boolean, an array, a collection or a map as its `toString()` text, such as the object that a
+JDBC driver hands over for a column type that dbUnit does not recognize in a query table, like an
+H2 `INTERVAL`. Before, Jackson wrote such a value as a JSON object of its properties, which reads
+back as the JSON text of that object and not as the value, and the write failed for a value
+without properties. A document written before 3.6.0 holds such a value as a JSON object: write
+it again. An array, a collection or a map stays a JSON array or object, which a `json` or `jsonb`
+column takes, as described below.
+
+`JsonDataSet.write()` can write a streaming dataset, such as a `StreamingDataSet` over a flat XML
+file, or a database export through `ForwardOnlyResultSetTableFactory`. It does not stream
+the output, though: it holds the whole document in memory before it writes. When a table
+appears more than once in the dataset, as in a streaming flat XML file that interleaves its
+tables, the rows of every occurrence go under the one table name, in order.
 
 In contrast to link:flatxml.html[Flat XML], table metadata is deduced from
 the sum of all rows for each table, not just the first — so a column that
@@ -40,12 +63,31 @@ row, do not have this limitation.
 For what happens to a field value after parsing — empty strings, binary/BLOB
 syntax, literal and relative dates, UUID literals, and booleans/numbers from
 strings — see link:values.html[Dataset Values], which applies to every format.
+Since 3.6.0 a number with a fraction is read as an exact decimal, so a value
+with more digits than a `double` holds keeps them all.
+
+Since 3.6.0 a cell that is a JSON object or array, such as
+`{"type": "click", "n": 1}`, reaches the column type as its compact JSON text,
+`{"type":"click","n":1}` for that one. A text column and a PostgreSQL `json` or `jsonb`
+column take that text as it is, and the
+link:../datacomparisons/valuecomparer.html[IsActualEqualToExpectedJsonValueComparer]
+compares it as JSON. To give a column type its own text form, such as the
+PostgreSQL array literal `{1,2,3}` of an array column, write the value as a JSON
+string instead of a JSON array.
 
 Table names are always case-sensitive — unlike some other formats, there is no
 case-insensitive table lookup fallback.
 
 A table name repeated as a second top-level key throws `AmbiguousTableNameException`
-while the document is being read.
+while the document is being read. A column named twice in one row throws a
+`DataSetException` that names the table, the row and the column; link:yaml.html[YAML]
+reports the same mistake with the column and its line and column in the document.
+
+The empty dataset is `{}`. An empty file, or one with only whitespace, is rejected with a
+`DataSetException`, as is any comment (`//`, `/* */` or `#`), because JSON has neither an empty
+document nor comments. A file that a failed export left empty therefore fails the test instead
+of running it without its data. In contrast to link:yaml.html[YAML], where an empty document, or
+one with only comments, is an empty dataset, the JSON reader stays strict.
 
 Load a dataset:
 
@@ -60,6 +102,12 @@ Write a dataset:
 ----
 JsonDataSet.write(dataSet, new FileOutputStream("dataset.json"));
 ----
+
+A JSON document is read whatever the length of its values: dbUnit lifts the limit of
+20,000,000 characters that Jackson 2.15 and later set on a string, such as the Base64 text of a
+large BLOB that `JsonDataSet.write()` wrote, because a dataset is a fixture of the test's own
+project. Jackson's other limits, 1,000 levels of nesting and 1,000 digits in a number, stay, as a
+dataset does not reach them. A Jackson older than 2.15 sets none of these limits.
 
 == Dependency
 

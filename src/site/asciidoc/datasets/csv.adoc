@@ -12,7 +12,8 @@ one CSV file per table.
 * Numeric CSV data file fields must not have trailing spaces before the
   comma-separator, as it will be interpreted as a String instead of a
   number.
-* Specify null values as `null` without quotes.
+* Specify null values as `null`. Quoted or not, `null` is read as a null, so a CSV
+  dataset cannot hold the text `null`.
 
 link:values.html[Dataset Values] covers the format-independent rules for
 converting a parsed field value to its column type — empty strings, binary/BLOB

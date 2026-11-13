@@ -20,6 +20,7 @@
  */
 package org.dbunit.ext.mysql;
 
+import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -32,6 +33,11 @@ import org.slf4j.LoggerFactory;
 /**
  * Special metadata handler for MySQL.<br/>
  * Was introduced to fix "[ 2545095 ] Mysql FEATURE_QUALIFIED_TABLE_NAMES column SQLHelper.matches".
+ * <p>
+ * MySQL has no schema distinct from its database, which MySQL Connector/J and MariaDB Connector/J
+ * report as the catalog, so this handler passes a schema to the driver as the catalog. An empty
+ * schema means the database the connection works in: MySQL Connector/J lists nothing for an
+ * empty catalog, where MariaDB Connector/J lists the tables of the current database.
  * 
  * @author gommma (gommma AT users.sourceforge.net)
  * @author Last changed by: $Author$
@@ -50,7 +56,7 @@ public class MySqlMetadataHandler implements IMetadataHandler {
         // Note that MySQL uses the catalogName instead of the schemaName, so
         // pass in the given schema name as catalog name (first argument).
         ResultSet resultSet = databaseMetaData.getColumns(
-                schemaName, null, tableName, "%");
+                catalogOf(databaseMetaData, schemaName), null, tableName, "%");
         return resultSet;
     }
     
@@ -102,10 +108,48 @@ public class MySqlMetadataHandler implements IMetadataHandler {
         return schemaName;
     }
 
+    /**
+     * Returns the database the connection works in, its JDBC catalog. MySQL Connector/J and
+     * MariaDB Connector/J report that database as the catalog and no current schema by default,
+     * and this handler passes a schema to the driver as the catalog, so the database is the
+     * current schema in this handler's terms.
+     *
+     * @param connection The JDBC connection to read the current database of.
+     * @return The current database, or {@code null} if the connection works in none.
+     * @throws SQLException If reading the catalog fails.
+     * @since 3.6.0
+     */
+    @Override
+    public String getCurrentSchema(Connection connection) throws SQLException
+    {
+        return connection.getCatalog();
+    }
+
+    /**
+     * Returns the catalog to pass to the driver for a schema: the schema itself, or for an empty
+     * schema the database the connection works in, as MySQL Connector/J lists nothing for an
+     * empty catalog.
+     *
+     * @param metaData The metadata of the connection.
+     * @param schemaName The schema, or {@code null} to search every catalog.
+     * @return The catalog to pass to the driver.
+     * @throws SQLException If reading the catalog of the connection fails.
+     */
+    private static String catalogOf(final DatabaseMetaData metaData, final String schemaName)
+            throws SQLException
+    {
+        if (schemaName != null && schemaName.isEmpty())
+        {
+            final Connection connection = metaData.getConnection();
+            return connection.getCatalog();
+        }
+        return schemaName;
+    }
+
     public boolean tableExists(DatabaseMetaData metaData, String schema, String tableName) 
     throws SQLException 
     {
-        ResultSet tableRs = metaData.getTables(schema, null, tableName, null);
+        ResultSet tableRs = metaData.getTables(catalogOf(metaData, schema), null, tableName, null);
         try 
         {
             return tableRs.next();
@@ -123,7 +167,7 @@ public class MySqlMetadataHandler implements IMetadataHandler {
             logger.trace("tableExists(metaData={}, schemaName={}, tableType={}) - start", 
                     new Object[] {metaData, schemaName, tableType} );
 
-        return metaData.getTables(schemaName, null, "%", tableType);
+        return metaData.getTables(catalogOf(metaData, schemaName), null, "%", tableType);
     }
 
     public ResultSet getPrimaryKeys(DatabaseMetaData metaData, String schemaName, String tableName)
@@ -134,7 +178,7 @@ public class MySqlMetadataHandler implements IMetadataHandler {
                     new Object[] {metaData, schemaName, tableName} );
 
         ResultSet resultSet = metaData.getPrimaryKeys(
-                schemaName, null, tableName);
+                catalogOf(metaData, schemaName), null, tableName);
         return resultSet;
     }
 

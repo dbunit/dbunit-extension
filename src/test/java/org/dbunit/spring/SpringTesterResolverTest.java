@@ -22,7 +22,9 @@ package org.dbunit.spring;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -35,6 +37,7 @@ import org.dbunit.annotation.DbUnitTestCase;
 import org.dbunit.annotation.DbUnitTester;
 import org.dbunit.annotation.runtime.AnnotatedTestConfiguration;
 import org.dbunit.annotation.runtime.TestInstanceTesterResolver;
+import org.dbunit.annotation.runtime.TesterFields;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
@@ -54,7 +57,9 @@ import org.springframework.test.context.ContextHierarchy;
  */
 class SpringTesterResolverTest
 {
-    private final SpringTesterResolver resolver = new SpringTesterResolver();
+    private final TesterFields testerFields = new TesterFields();
+    private final SpringTesterResolver resolver =
+            new SpringTesterResolver(testerFields, new TestInstanceTesterResolver(testerFields));
     private final AnnotatedTestConfiguration noFactoryConfiguration = AnnotatedTestConfiguration
             .from(SpringTesterResolverTest.class, null, null, null, null, null, null);
 
@@ -98,27 +103,21 @@ class SpringTesterResolverTest
     }
 
     @Test
-    void testResolve_dbUnitTestCaseWithoutTesterAndApplicationContextBean_usesBeanAsItsTester()
+    void testResolve_dbUnitTestCaseWithoutTesterAndApplicationContextBean_failsSayingToGiveItATester()
             throws Exception
     {
         final IDatabaseTester beanTester = mock(IDatabaseTester.class);
         final DefaultPrepAndExpectedTestCase testCase = mock(DefaultPrepAndExpectedTestCase.class);
-        // A raw mock does not store what setDatabaseTester() is given, so stub the getter to
-        // report what a real override round-trips: nothing at first, then the tester set.
-        when(testCase.getDatabaseTester()).thenReturn(null, beanTester);
         final FakeTestContext context = fakeTestContext(new HasTestCaseField(testCase),
                 applicationContextWithTester(beanTester));
 
-        final TestInstanceTesterResolver.Resolution resolution =
-                resolver.resolve(context, noFactoryConfiguration);
-
-        assertThat(resolution.getTester())
-                .as("A @DbUnitTestCase field whose test case has no tester gets the one the"
-                        + " Spring tiers find - here the ApplicationContext bean.")
-                .isSameAs(beanTester);
-        assertThat(resolution.getTestCase()).as("The injected test case must be returned.")
-                .isSameAs(testCase);
-        verify(testCase).setDatabaseTester(beanTester);
+        assertThatThrownBy(() -> resolver.resolve(context, noFactoryConfiguration))
+                .as("A @DbUnitTestCase field's test case is used as it was built, so one with no"
+                        + " tester is not given the ApplicationContext bean.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("has no IDatabaseTester")
+                .hasMessageContaining("give it a tester where it is built");
+        verify(testCase, never()).setDatabaseTester(any());
     }
 
     @Test
@@ -216,10 +215,36 @@ class SpringTesterResolverTest
                     fakeTestContext(new NoFieldsTestInstance(), applicationContext);
 
             assertThatThrownBy(() -> resolver.resolve(context, noFactoryConfiguration))
-                    .as("Several IDatabaseTester beans with none marked @Primary are ambiguous"
-                            + " and must not be resolved to either.")
+                    .as("Several IDatabaseTester beans with none marked @Primary are ambiguous,"
+                            + " and the failure names them and says how to pick one, rather than"
+                            + " saying that no bean was found.")
                     .isInstanceOf(IllegalStateException.class)
-                    .hasMessageContaining("No IDatabaseTester field or bean found");
+                    .hasMessageContaining("firstTester")
+                    .hasMessageContaining("secondTester")
+                    .hasMessageContaining("@Primary")
+                    .hasMessageNotContaining("No IDatabaseTester field or bean found");
+        }
+    }
+
+    @Test
+    void testResolve_severalTesterBeansOnlyInTheParentContext_namesThem() throws Exception
+    {
+        try (AnnotationConfigApplicationContext parent =
+                new AnnotationConfigApplicationContext(TwoTesterBeans.class);
+                AnnotationConfigApplicationContext applicationContext =
+                        new AnnotationConfigApplicationContext())
+        {
+            applicationContext.setParent(parent);
+            applicationContext.refresh();
+            final FakeTestContext context =
+                    fakeTestContext(new NoFieldsTestInstance(), applicationContext);
+
+            assertThatThrownBy(() -> resolver.resolve(context, noFactoryConfiguration))
+                    .as("The beans of a parent context are candidates too, so two of them are"
+                            + " named as ambiguous.")
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("firstTester")
+                    .hasMessageContaining("secondTester");
         }
     }
 
@@ -560,6 +585,8 @@ class SpringTesterResolverTest
         final ObjectProvider<IDatabaseTester> provider = mock(ObjectProvider.class);
         when(provider.getIfUnique()).thenReturn(tester);
         when(applicationContext.getBeanProvider(IDatabaseTester.class)).thenReturn(provider);
+        final String[] beanNames = tester == null ? new String[0] : new String[] {"tester"};
+        when(applicationContext.getBeanNamesForType(IDatabaseTester.class)).thenReturn(beanNames);
         return applicationContext;
     }
 

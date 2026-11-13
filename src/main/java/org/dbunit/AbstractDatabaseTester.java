@@ -71,7 +71,7 @@ public abstract class AbstractDatabaseTester extends SimpleAssert implements IDa
     private String schema;
     private DatabaseOperation setUpOperation = DatabaseOperation.CLEAN_INSERT;
     private DatabaseOperation tearDownOperation = DatabaseOperation.NONE;
-    private IOperationListener operationListener;
+    private IOperationListener operationListener = new DefaultOperationListener();
 
     /**
      * Creates a tester with no schema.
@@ -189,16 +189,18 @@ public abstract class AbstractDatabaseTester extends SimpleAssert implements IDa
      * Executes a DatabaseOperation with a IDatabaseConnection supplied by
      * {@link #getConnection()} and the test dataset.
      *
-     * <p>{@code org.dbunit.annotation.runtime.AnnotatedTestExecutor} depends on this method's
-     * exact behavior when {@code operation != DatabaseOperation.NONE}: it always calls
-     * {@link #getConnection()} and notifies {@code operationListener.connectionRetrieved()}
-     * before running the operation, which lets that executor capture its row count check
-     * baseline from the same connection instead of eagerly resolving a second one of its own
-     * just to find out whether the check is even enabled. A change here that breaks this -
-     * skipping the listener notification, or resolving a connection some other way - only
-     * degrades that optimization back to its always-safe eager fallback (a tested safety net
-     * there catches a wrong prediction), not a correctness break, but is still worth knowing
-     * about before making it.
+     * <p>The classic lifecycle of {@code org.dbunit.annotation.runtime.AnnotatedTestExecutor},
+     * which a test that opts into no annotation keeps, depends on this method's exact behavior
+     * when {@code operation != DatabaseOperation.NONE}: it always calls {@link #getConnection()}
+     * and notifies {@code operationListener.connectionRetrieved()} before it reads the dataset
+     * with {@link #getDataSet()} and runs the operation. That lets the executor capture its row
+     * count check baseline from the same connection instead of eagerly resolving a second one of
+     * its own just to find out whether the check is even enabled. A change here that breaks this
+     * - skipping the listener notification, resolving a connection some other way, or reading
+     * the dataset first - only degrades the baseline back to its always-safe eager fallback (a
+     * tested safety net there catches a wrong prediction), not a correctness break, but is
+     * still worth knowing about before making it. {@code AbstractDatabaseTesterTest} pins the
+     * order.
      */
     private void executeOperation(DatabaseOperation operation, OperationType type) throws Exception
     {
@@ -206,13 +208,6 @@ public abstract class AbstractDatabaseTester extends SimpleAssert implements IDa
 
         if (operation != DatabaseOperation.NONE)
         {
-            // Ensure that the operationListener is set
-            if (operationListener == null)
-            {
-                logger.debug("OperationListener is null and will be defaulted.");
-                operationListener = new DefaultOperationListener();
-            }
-
             IDatabaseConnection connection = getConnection();
 
             try
@@ -239,16 +234,30 @@ public abstract class AbstractDatabaseTester extends SimpleAssert implements IDa
         }
     }
 
+    /**
+     * Sets the listener notified of connection-retrieval and setup/tear-down events.
+     *
+     * @param operationListener
+     *            The listener to use; {@code null} sets a new {@link DefaultOperationListener},
+     *            the listener a tester uses when none is set.
+     */
     public void setOperationListener(IOperationListener operationListener)
     {
         logger.debug("setOperationListener(operationListener={}) - start", operationListener);
-        this.operationListener = operationListener;
+        if (operationListener == null)
+        {
+            this.operationListener = new DefaultOperationListener();
+        } else
+        {
+            this.operationListener = operationListener;
+        }
     }
 
     /**
      * Returns the listener notified of connection-retrieval and setup/tear-down events.
      *
-     * @return The current {@link IOperationListener}, or {@code null} if none is set.
+     * @return The current {@link IOperationListener}; a {@link DefaultOperationListener} when
+     *         none was set. Never {@code null}.
      * @since 3.6.0
      */
     public IOperationListener getOperationListener()

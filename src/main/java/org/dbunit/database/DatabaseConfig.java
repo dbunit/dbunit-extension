@@ -35,6 +35,7 @@ import org.dbunit.database.statement.PreparedStatementFactory;
 import org.dbunit.dataset.datatype.DefaultDataTypeFactory;
 import org.dbunit.dataset.datatype.IDataTypeFactory;
 import org.dbunit.dataset.filter.IColumnFilter;
+import org.dbunit.util.CommaSeparatedValues;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -134,6 +135,14 @@ public class DatabaseConfig
      */
     public static final String FEATURE_ROW_COUNT_CHECK =
             "http://www.dbunit.org/features/rowCountCheck";
+    /**
+     * Name of the feature controlling whether verifying a table fails when a column name to
+     * include, or the column name of a column comparer, matches no column of the database
+     * table. When enabled, the default, the verification fails; when disabled, it logs a
+     * warning for each such name instead.
+     */
+    public static final String FEATURE_FAIL_ON_UNKNOWN_VERIFY_COLUMN_NAME =
+            "http://www.dbunit.org/features/failOnUnknownVerifyColumnName";
 
     /**
      * A list of all properties as {@link ConfigProperty} objects.
@@ -162,6 +171,7 @@ public class DatabaseConfig
         new ConfigProperty(PROPERTY_ROW_COUNT_CHECK_EXCLUDE_TABLES, String[].class, false),
         new ConfigProperty(PROPERTY_ROW_COUNTER, RowCounter.class, false),
         new ConfigProperty(FEATURE_ROW_COUNT_CHECK, Boolean.class, false),
+        new ConfigProperty(FEATURE_FAIL_ON_UNKNOWN_VERIFY_COLUMN_NAME, Boolean.class, false),
     };
 
     /**
@@ -177,7 +187,8 @@ public class DatabaseConfig
         FEATURE_ALLOW_EMPTY_FIELDS,
         FEATURE_SORT_ALL_COLUMNS_WHEN_NO_PRIMARY_KEY,
         FEATURE_SKIP_CYCLE_CHECK,
-        FEATURE_ROW_COUNT_CHECK
+        FEATURE_ROW_COUNT_CHECK,
+        FEATURE_FAIL_ON_UNKNOWN_VERIFY_COLUMN_NAME
     };
     
     private static final DefaultDataTypeFactory DEFAULT_DATA_TYPE_FACTORY =
@@ -214,6 +225,7 @@ public class DatabaseConfig
         setFeature(FEATURE_SORT_ALL_COLUMNS_WHEN_NO_PRIMARY_KEY, false);
         setFeature(FEATURE_SKIP_CYCLE_CHECK, false);
         setFeature(FEATURE_ROW_COUNT_CHECK, false);
+        setFeature(FEATURE_FAIL_ON_UNKNOWN_VERIFY_COLUMN_NAME, true);
 
         setProperty(PROPERTY_STATEMENT_FACTORY, PREPARED_STATEMENT_FACTORY);
         setProperty(PROPERTY_RESULTSET_TABLE_FACTORY, RESULT_SET_TABLE_FACTORY);
@@ -418,13 +430,7 @@ public class DatabaseConfig
             String propKey = (String)entry.getKey();
             String propValue = (String)entry.getValue();
 
-            ConfigProperty dbunitProp = DatabaseConfig.findByName(propKey);
-            if(dbunitProp == null)
-            {
-                logger.debug("Did not find long name property {} - trying short name...", entry);
-                dbunitProp = DatabaseConfig.findByShortName(propKey);
-            }
-
+            ConfigProperty dbunitProp = DatabaseConfig.findByNameOrShortName(propKey);
             if(dbunitProp == null)
             {
                 logger.info("Could not set property '{}' - not found in the list of known properties.", entry);
@@ -461,11 +467,7 @@ public class DatabaseConfig
         }
         else if(targetClass == String[].class)
         {
-            String[] result = propValue.split(",");
-            for (int i = 0; i < result.length; i++) {
-                result[i] = result[i].trim();
-            }
-            return result;
+            return CommaSeparatedValues.split(propValue);
         }
         else if(targetClass == Integer.class)
         {
@@ -524,14 +526,17 @@ public class DatabaseConfig
      * Searches the {@link ConfigProperty} object for the property with the given name
      * @param propShortName The property short name for which the enumerated object should be resolved.
      * Example: the short name of {@value #PROPERTY_FETCH_SIZE} is <code>fetchSize</code> which is the
-     * last part of the fully qualified URL.
+     * last part of the fully qualified URL. Several whole last parts, such as
+     * <code>mssql/identityColumnFilter</code>, also match, but the end of a part alone, such as
+     * <code>Size</code>, matches no property.
      * @return The property object or <code>null</code> if it was not found.
      */
-    public static final ConfigProperty findByShortName(String propShortName) 
+    public static final ConfigProperty findByShortName(String propShortName)
     {
+        final String lastParts = "/" + propShortName;
         for (int i = 0; i < DatabaseConfig.ALL_PROPERTIES.length; i++) {
             String fullProperty = DatabaseConfig.ALL_PROPERTIES[i].getProperty();
-            if(fullProperty.endsWith(propShortName))
+            if(fullProperty.endsWith(lastParts))
             {
                 return DatabaseConfig.ALL_PROPERTIES[i];
             }
@@ -540,6 +545,27 @@ public class DatabaseConfig
         logger.info("The property ending with '" + propShortName + "' was not found. " +
                 "Please notify a dbunit developer to add the property to the " + DatabaseConfig.class);
         return null;
+    }
+
+    /**
+     * Searches the {@link ConfigProperty} object for the property with the given name, in its
+     * long form or a short form - see {@link #findByName(String)} and
+     * {@link #findByShortName(String)} - the way {@link #setPropertiesByString(Properties)}
+     * resolves each name it is given.
+     *
+     * @param name The long or short name of the property.
+     * @return The property object, or {@code null} if no property has that name.
+     * @since 3.6.0
+     */
+    public static ConfigProperty findByNameOrShortName(final String name)
+    {
+        final ConfigProperty byName = findByName(name);
+        if (byName != null)
+        {
+            return byName;
+        }
+        logger.debug("Did not find long name property {} - trying short name...", name);
+        return findByShortName(name);
     }
 
     public String toString()

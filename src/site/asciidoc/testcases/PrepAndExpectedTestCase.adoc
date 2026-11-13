@@ -55,7 +55,8 @@ their filtered columns, a suppressed exception on the failure, and a logged warn
 that setting.
 
 Column type/case reconciliation:: The expected table sorts by the actual database
-table's column definitions, in the database's column order and with its data types,
+table's column definitions, in the database's column order, with the columns that have a
+value comparer last, and with its data types,
 whatever the expected dataset declares: `UNKNOWN` data types (common for a
 `FlatXmlDataSet` with no DTD), or data types and a column order of its own. Columns are
 matched case-insensitively (`Locale.ENGLISH`, so a Turkish default locale can't break
@@ -68,7 +69,12 @@ column inclusion/exclusion filters are applied to both the actual and expected t
 for you via
 link:../apidocs/org/dbunit/dataset/filter/DefaultColumnFilter.html[DefaultColumnFilter]
 — see link:../filters.html[Filters] for the underlying mechanism you'd otherwise wire up
-by hand.
+by hand. Since 3.6.0 a column name to include, or the column name of a column comparer,
+that matches no column of the table fails the verification instead of leaving
+that column out of the comparison, and so does a column comparer for a column that the include
+or exclude names leave out, as the comparer would not be used, unless the
+link:../properties.html#failonunknownverifycolumnname[`FEATURE_FAIL_ON_UNKNOWN_VERIFY_COLUMN_NAME`] feature is `false`, which logs a
+warning instead.
 
 ValueComparer dispatch:: A
 link:../apidocs/org/dbunit/VerifyTableDefinition.html[VerifyTableDefinition]'s
@@ -106,8 +112,9 @@ whichever test happens to run next. It is off by default; turn it on with
 verifying a suite's teardown correctness, and see
 link:../components/rowcountcheck.html[the RowCountCheck page] for what it catches, how
 to exclude legitimately-changing tables, and how to read a failure. On a
-`DefaultPrepAndExpectedTestCase` instance, `setRowCountCheckOverride(enabled, exclude)`
-sets both directly instead - see
+`DefaultPrepAndExpectedTestCase` instance, `setRowCountCheckOverride(RowCountCheckOverride)`
+sets the enabled flag in place of `FEATURE_ROW_COUNT_CHECK` and adds its excluded table
+patterns to the ones `PROPERTY_ROW_COUNT_CHECK_EXCLUDE_TABLES` configures - see
 <<Configuring_Without_Subclassing,Configuring DatabaseConfig Without Subclassing>> below.
 
 == Usage
@@ -160,8 +167,9 @@ public void setDbunitTestDependencies()
 ----
 +
 Each `configureTest()` loads and parses the prep and expected files again. When a suite
-shares the same classpath files, set a `CachingFileExtensionDataFileLoader` as the data
-file loader to parse each file once per run instead — see
+shares the same classpath files, set a `CachingFileExtensionDataFileLoader`, or another loader
+wrapped in a `CachingDataFileLoader`, as the data file loader and share the instance among the
+test cases, to load each file once instead — see
 link:../datasets/fileloader.html#caching[Caching Parsed Datasets].
 
 === Run Tests
@@ -212,13 +220,16 @@ class AccountRepositoryTest
     @Test
     @DbUnitPrep("/dbunit/accounts/prep.xml")
     @DbUnitExpected(value = "/dbunit/accounts/expected.xml", verifyTables = "ACCOUNT")
-    @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+    @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
     void testWithdraw_sufficientBalance_decrementsBalance()
     {
         // code under test
     }
 }
 ----
+
+Here `expected.xml` holds the `ACCOUNT` table and no other, because `verifyTables` has to name
+every table of the expected dataset.
 
 This covers the common, fixed-per-method case; see
 link:annotations.html[DbUnit Annotations] for the full reference, and its
@@ -249,6 +260,23 @@ Two shortcuts cover the common partial cases:
 loads nothing — replacing a separate empty constant per array type — and
 `PrepAndExpectedTestData.prepOnly(String...)` builds one that loads prep data
 with no verification.
+`PrepAndExpectedTestData.verifyingExpectedTables(String[], String[])` builds one that
+verifies every table of its expected data files, each with a default
+`VerifyTableDefinition`, as a `@DbUnitExpected` that names only its dataset does, so the tables
+need not be listed; the overload taking a `VerifyTableDefinition[]` as its third argument gives the
+tables those define, matched by name ignoring case, their own rules and leaves the others on
+the default ones. `DefaultPrepAndExpectedTestCase` honors it, parsing each expected
+file once; any other implementation of `PrepAndExpectedTestCase` rejects it with an
+`UnsupportedOperationException`, as it would otherwise verify nothing. A subclass of
+`DefaultPrepAndExpectedTestCase` that overrides the `configureTest()`, `preTest()` or
+`runTest()` taking the three arrays is called for such a bundle too, as it is for any other:
+it gets one `VerifyTableDefinition` per table of the expected data files, which
+`DefaultPrepAndExpectedTestCase` derives by reading those files first, so each is parsed twice
+for it. When reading them fails, the test case holds no data of an earlier test afterward, as
+after any failed `configureTest()`.
+Both factories reject a call that names no expected data file with an
+`IllegalArgumentException`, as a `@DbUnitExpected` without a dataset is rejected; use
+`prepOnly(String...)` for a scenario that verifies nothing.
 
 === Before
 
@@ -319,6 +347,28 @@ Six constants collapse to one, three method parameters to one, and three columns
 per `@MethodSource` row to one. Each scenario's three facts now sit together
 instead of being matched by position across three arrays.
 
+[#Operations_Of_Its_Own]
+== Setup and Teardown Operations of Its Own
+
+`setupData()` runs the setup operation of the `IDatabaseTester` on the prep dataset and
+`cleanupData()` its teardown operation over the prep and expected datasets, so the operations
+belong to the tester, which several test cases may share. `setSetUpOperation(DatabaseOperation)`
+and `setTearDownOperation(DatabaseOperation)` give one test case operations of its own instead,
+leaving the tester as it is; `null`, the default, runs the tester's again. These two setters
+and the ones of the next section, `setDatabaseConfigProperties()` and
+`setRowCountCheckOverride()`, belong to `DefaultPrepAndExpectedTestCase`, not to the
+`PrepAndExpectedTestCase` interface, so declare the `testCase` field of such an example, or the
+bean it is injected from, as that class.
+
+[source,java]
+----
+testCase.setSetUpOperation(DatabaseOperation.REFRESH);
+testCase.setTearDownOperation(DatabaseOperation.DELETE_ALL);
+----
+
+A subclass that overrides `getSetUpOperation()` or `getTearDownOperation()` decides for itself
+and ignores them.
+
 [#Configuring_Without_Subclassing]
 == Configuring DatabaseConfig Without Subclassing
 
@@ -340,7 +390,16 @@ property name (long or short form) and string value, the same conversion
 `Boolean`, comma-separated `String[]`, and `Integer` properties directly, and any
 object-typed property (`IDataTypeFactory`, `IMetadataHandler`, etc.) whose implementation
 class has a public no-arg constructor, by instantiating it reflectively from the class
-name.
+name. Unlike `setPropertiesByString()`, which skips a name it does not know with an INFO log, it
+checks every name and value when they are set. The name must be the long
+(`http://www.dbunit.org/...`) or the short form of a `DatabaseConfig` property, in the same case.
+Giving the long and the short form of one property is rejected as well, as the value that won
+would depend on the iteration order of the names.
+The value must suit the type of its property: a `Boolean` must be `true` or `false`, an
+`Integer` a whole number, and an object-typed property the name of a class that can be loaded
+and implements the type of the property. Otherwise it throws an `IllegalArgumentException` that
+names the property, and the value when the value does not suit it, and leaves the values set
+before as they were.
 +
 [source,java]
 ----
@@ -348,7 +407,7 @@ Properties properties = new Properties();
 properties.setProperty("batchedStatements", "true");
 properties.setProperty("datatypeFactory", "com.example.XxxDataTypeFactory");
 
-PrepAndExpectedTestCase testCase =
+DefaultPrepAndExpectedTestCase testCase =
         new DefaultPrepAndExpectedTestCase(dataFileLoader, databaseTester);
 testCase.setDatabaseConfigProperties(properties);
 ----
@@ -360,22 +419,30 @@ no-op listener) carries none of them into whatever uses it next. Calling
 `setUpDatabaseConfig()` override, by contrast, changes the `DatabaseConfig` for good, as it
 always has.
 
-`setRowCountCheckOverride(boolean, String[])` / `clearRowCountCheckOverride()`:: Enables
-or disables link:../components/rowcountcheck.html[RowCountCheck] and sets its excluded
-table patterns directly, instead of setting
-`FEATURE_ROW_COUNT_CHECK`/`PROPERTY_ROW_COUNT_CHECK_EXCLUDE_TABLES` via
-`setUpDatabaseConfig()`.
+`setRowCountCheckOverride(RowCountCheckOverride)`:: Enables
+or disables link:../components/rowcountcheck.html[RowCountCheck] in place of
+`FEATURE_ROW_COUNT_CHECK`, and adds its excluded table patterns to the ones
+`PROPERTY_ROW_COUNT_CHECK_EXCLUDE_TABLES` configures, so neither needs a
+`setUpDatabaseConfig()` override.
 +
 [source,java]
 ----
-testCase.setRowCountCheckOverride(true, new String[] {"AUDIT_LOG"});
+testCase.setRowCountCheckOverride(new RowCountCheckOverride(true, new String[] {"AUDIT_LOG"}));
 ----
 +
-Call `clearRowCountCheckOverride()` to return to resolving the check from the
-connection's own `DatabaseConfig`. This only matters when one instance is reused across
-more than one test (e.g. a JUnit 5/6 `@DbUnitTestCase` static field - see
-<<Annotation_Driven_Equivalent,Annotation-Driven Equivalent>> above) - otherwise an
-earlier test's override would silently carry over onto a later test that declares none.
+Pass `null` to return to resolving the check from the connection's own `DatabaseConfig`;
+`getRowCountCheckOverride()` returns what is set. This only matters when one instance is
+reused across more than one test that drives it itself (e.g. a test case in a static
+field whose tests each call `runTest()`) - otherwise an earlier test's override would
+silently carry over onto a later test that declares none. The annotation runtime puts the
+override back itself for an instance it drives through a `@DbUnitTestCase` field - see
+<<Annotation_Driven_Equivalent,Annotation-Driven Equivalent>> above.
+
+`setRowCountCheck(RowCountCheck)`:: Uses the given check as-is for every later test, in place
+of one resolved from the `DatabaseConfig`. A check set this way wins over any override, so a
+`@DbUnitRowCountCheck` on a test of this instance has no effect, and dbUnit logs a warning
+once when it finds one. Pass `null` to resolve the check from the override and the
+connection's `DatabaseConfig` again.
 
 [#Configuration_Example_Using_Spring]
 == Configuration Example Using Spring
@@ -410,6 +477,10 @@ public class DbUnitConfiguration
         @Override
         protected void setUpDatabaseConfig(final DatabaseConfig config)
         {
+            // call super first: it applies the values of setDatabaseConfigProperties(),
+            // which an override without it drops
+            super.setUpDatabaseConfig(config);
+
             // set properties as needed
 
             config.setProperty(DatabaseConfig.FEATURE_BATCHED_STATEMENTS, true);
@@ -450,7 +521,7 @@ public class DbUnitConfiguration
      *         dbUnit data files.
      */
     @Bean
-    public DataFileLoader dataFileLoader(final DbunitDataReplacement ddr)
+    public DataFileLoader dataFileLoader(final DbUnitDataReplacement ddr)
     {
         final Map<String, Object> replacementObjects = ddr.getReplacementObjects();
         final Map<String, Object> replacementSubstrings = ddr.getReplacementSubstrings();
@@ -588,6 +659,7 @@ public abstract class TableNames
 {
     public static final String TABLE3 = "table3";
     public static final String TABLE5 = "table5";
+    public static final String TABLE_NAME = "table_name";
 }
 ----
 
@@ -604,6 +676,7 @@ such as entities and repositories/DAOs.
 public abstract class ColumnNames
 {
     public static final String COLUMN1 = "column1";
+    public static final String COLUMN2 = "column2";
 }
 ----
 
@@ -648,7 +721,7 @@ public abstract class VerifyTableDefinitions
 {
     public static final VerifyTableDefinition TABLE3 = make(TableNames.TABLE3);
     public static final VerifyTableDefinition TABLE5 = make(TableNames.TABLE5);
-    public static final VerifyTableDefinition TABLE5_COLUMN1_GREATER = make(TableNames.TABLE5, ValueComparers.COLUMN1_GREATER);
+    public static final VerifyTableDefinition TABLE5_COLUMN1_GREATER = make(TableNames.TABLE5, AppValueComparers.COLUMN1_GREATER);
 
     private static VerifyTableDefinition make(final String tableName)
     {
@@ -718,7 +791,12 @@ public abstract class VerifyTableDefinitionFactory
 {
     public static VerifyTableDefinition tableName_update(Long... ids)
     {
-        return make(TableName.TABLE_NAME, ValueComparerMapFactory.makeTableName_updated(ids));
+        return make(TableNames.TABLE_NAME, ValueComparerMapFactory.makeTableName_updated(ids));
+    }
+
+    private static VerifyTableDefinition make(final String tableName, final Map<String, ValueComparer> columnValueComparers)
+    {
+        return new VerifyTableDefinition(tableName, null, columnValueComparers);
     }
 }
 ----
@@ -733,14 +811,14 @@ public abstract class ValueComparerMapFactory
         ValueComparer inValuesValueComparer = ValueComparers.isActualGreaterThanExpected;
         ValueComparer notInValuesValueComparer = ValueComparers.isActualEqualToExpected;
         ValueFactory<Long> valueFactory = (table, rowNum) -> {
-            Number id = (Number) table.getValue(rowNum, ColumnName.COLUMN1);
+            Number id = (Number) table.getValue(rowNum, ColumnNames.COLUMN1);
             return id.longValue();
         };
         ValueComparer conditionalSetBiValueComparer = new ConditionalSetBiValueComparer<Long>(valueFactory, values, inValuesValueComparer, notInValuesValueComparer);
 
         return new ColumnValueComparerMapBuilder()
-                .add(ColumnName.COLUMN1, ValueComparers.isActualGreaterThanOrEqualToExpected)
-                .add(ColumnName.COLUMN2, conditionalSetBiValueComparer)
+                .add(ColumnNames.COLUMN1, ValueComparers.isActualGreaterThanOrEqualToExpected)
+                .add(ColumnNames.COLUMN2, conditionalSetBiValueComparer)
                 .build();
     }
 }

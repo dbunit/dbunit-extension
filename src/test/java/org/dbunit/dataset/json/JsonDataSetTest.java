@@ -31,20 +31,33 @@ import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.StringReader;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.Arrays;
+import java.util.Base64;
+import java.util.TimeZone;
 
 import org.dbunit.Assertion;
+import org.dbunit.database.AmbiguousTableNameException;
 import org.dbunit.dataset.AbstractDataSetTest;
 import org.dbunit.dataset.Column;
 import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.DefaultDataSet;
 import org.dbunit.dataset.DefaultTable;
 import org.dbunit.dataset.IDataSet;
+import org.dbunit.dataset.ITable;
+import org.dbunit.dataset.stream.StreamingDataSet;
+import org.dbunit.dataset.xml.FlatXmlProducer;
+import org.xml.sax.InputSource;
 import org.dbunit.dataset.datatype.DataType;
 import org.dbunit.testutil.TestUtils;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * Tests for {@link JsonDataSet}.
@@ -53,6 +66,8 @@ import org.junit.jupiter.api.Test;
  */
 class JsonDataSetTest extends AbstractDataSetTest
 {
+    private static final int JACKSON_DEFAULT_MAX_STRING_LENGTH = 20_000_000;
+
     @Override
     protected IDataSet createDataSet() throws Exception
     {
@@ -102,6 +117,28 @@ class JsonDataSetTest extends AbstractDataSetTest
             throws Exception
     {
         // Not applicable, JSON is always case-sensitive
+    }
+
+    @Test
+    void testWrite_streamingDataSetWithInterleavedTable_writesEveryRow() throws Exception
+    {
+        final String xml = "<dataset><A x=\"1\"/><B y=\"1\"/><A x=\"2\"/></dataset>";
+        final IDataSet source = new StreamingDataSet(
+                new FlatXmlProducer(new InputSource(new StringReader(xml))));
+        final ByteArrayOutputStream out = new ByteArrayOutputStream();
+
+        JsonDataSet.write(source, out);
+
+        final IDataSet actual = new JsonDataSet(new ByteArrayInputStream(out.toByteArray()));
+        final ITable tableA = actual.getTable("A");
+        assertThat(actual.getTableNames()).as("The table names must be A and B.")
+                .containsExactly("A", "B");
+        assertThat(tableA.getRowCount()).as("Both rows of A must be written.").isEqualTo(2);
+        assertThat(String.valueOf(tableA.getValue(0, "x"))).as("The first A row.")
+                .isEqualTo("1");
+        assertThat(String.valueOf(tableA.getValue(1, "x"))).as("The second A row.")
+                .isEqualTo("2");
+        assertThat(actual.getTable("B").getRowCount()).as("The row of B.").isEqualTo(1);
     }
 
     @Test
@@ -159,6 +196,23 @@ class JsonDataSetTest extends AbstractDataSetTest
     }
 
     @Test
+    void testConstructor_numberWithAFraction_keepsEveryDigit() throws Exception
+    {
+        final InputStream in = new ByteArrayInputStream(
+                "{\"EVENT\": [{\"AMOUNT\": 12345678901234567890.123, \"QUANTITY\": 7}]}"
+                        .getBytes(StandardCharsets.UTF_8));
+
+        final IDataSet dataSet = new JsonDataSet(in);
+
+        final Object[] row = {dataSet.getTable("EVENT").getValue(0, "AMOUNT"),
+                dataSet.getTable("EVENT").getValue(0, "QUANTITY")};
+        assertThat(row)
+                .as("A number with a fraction is read as an exact decimal, not rounded to a"
+                        + " double; an integer stays an integer.")
+                .containsExactly(new BigDecimal("12345678901234567890.123"), 7);
+    }
+
+    @Test
     void testConstructor_withNonObjectJsonRoot_throwsDataSetException()
     {
         final InputStream in = new ByteArrayInputStream("[]".getBytes(StandardCharsets.UTF_8));
@@ -204,6 +258,44 @@ class JsonDataSetTest extends AbstractDataSetTest
     }
 
     @Test
+    void testConstructor_withEmptyObject_returnsDataSetWithNoTables() throws Exception
+    {
+        final InputStream in = new ByteArrayInputStream("{}".getBytes(StandardCharsets.UTF_8));
+
+        final IDataSet dataSet = new JsonDataSet(in);
+
+        assertThat(dataSet.getTableNames())
+                .as("an empty JSON object is the empty dataset, which has no tables.").isEmpty();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"", " \n\t "})
+    void testConstructor_withoutContent_throwsDataSetException(final String json)
+    {
+        final InputStream in = new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8));
+
+        assertThatThrownBy(() -> new JsonDataSet(in))
+                .as("a document with no content must be rejected, so that a truncated file is"
+                        + " not read as an empty dataset.")
+                .isInstanceOf(DataSetException.class)
+                .hasMessage("JSON dataset must be a JSON object at the root level");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"// comment\n{}", "/* comment */ {}", "# comment\n{}",
+            "{\"TEST_TABLE\": [] // comment\n}"})
+    void testConstructor_withComment_throwsDataSetException(final String json)
+    {
+        final InputStream in = new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8));
+
+        assertThatThrownBy(() -> new JsonDataSet(in))
+                .as("a comment must be rejected, even beside valid content, as JSON has none.")
+                .isInstanceOf(DataSetException.class)
+                .hasMessage("Error reading JSON dataset")
+                .hasCauseInstanceOf(IOException.class);
+    }
+
+    @Test
     void testConstructor_withNonObjectRowValue_throwsDataSetException()
     {
         final InputStream in =
@@ -213,6 +305,272 @@ class JsonDataSetTest extends AbstractDataSetTest
                 .as("a row value that is not a JSON object or null must be rejected.")
                 .isInstanceOf(DataSetException.class)
                 .hasMessage("Row 0 of table 'TEST_TABLE' must be a JSON object or null, but was VALUE_NUMBER_INT");
+    }
+
+    @Test
+    void testConstructor_rowNamesOneColumnTwice_throwsDataSetExceptionNamingTheColumn()
+    {
+        final String json = "{\"ACCOUNT\": [{\"ID\": 1}],"
+                + " \"TEST_TABLE\": [{\"A\": 1}, {\"B\": 1, \"B\": 2}]}";
+        final InputStream in = new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8));
+
+        assertThatThrownBy(() -> new JsonDataSet(in))
+                .as("A column named twice in a row must be rejected, naming the table, the row"
+                        + " and the column, instead of keeping the last value.")
+                .isExactlyInstanceOf(DataSetException.class)
+                .hasMessage("Row 1 of table 'TEST_TABLE' names column 'B' more than once: a"
+                        + " column is named once in a row");
+    }
+
+    @Test
+    void testConstructor_tableNamedTwice_stillThrowsAmbiguousTableNameException()
+    {
+        final String json = "{\"ACCOUNT\": [{\"ID\": 1, \"NAME\": \"a\"}], \"ACCOUNT\": []}";
+        final InputStream in = new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8));
+
+        assertThatThrownBy(() -> new JsonDataSet(in))
+                .as("A table named twice keeps its own exception, which a column named twice does"
+                        + " not replace.")
+                .isInstanceOf(AmbiguousTableNameException.class)
+                .hasMessageContaining("ACCOUNT");
+    }
+
+    @Test
+    void testConstructor_unquotedTrueAndFalse_readAsBooleansThatAnIntegerColumnTypeCasts()
+            throws Exception
+    {
+        final InputStream in = new ByteArrayInputStream(
+                "{\"FLAGS\": [{\"ACTIVE\": true, \"DELETED\": false}]}"
+                        .getBytes(StandardCharsets.UTF_8));
+
+        final IDataSet dataSet = new JsonDataSet(in);
+
+        final ITable table = dataSet.getTable("FLAGS");
+        final Object active = table.getValue(0, "ACTIVE");
+        final Object deleted = table.getValue(0, "DELETED");
+        assertThat(new Object[] {active, deleted})
+                .as("An unquoted JSON true or false is read as a Boolean.")
+                .containsExactly(true, false);
+        assertThat(new Object[] {DataType.INTEGER.typeCast(active),
+                DataType.INTEGER.typeCast(deleted)})
+                        .as("An integer column takes such a Boolean as 1 or 0, as it takes"
+                                + " the text true or false.")
+                        .containsExactly(1, 0);
+    }
+
+    @Test
+    void testConstructor_objectAndArrayCells_readAsTheirCompactJsonText() throws Exception
+    {
+        final String json = "{\"EVENT\": [{\"ID\": 1,"
+                + " \"PAYLOAD\": {\"type\": \"click\", \"n\": 1},"
+                + " \"TAGS\": [\"a\", 2, null, true],"
+                + " \"NESTED\": {\"x\": [1, {\"y\": {}}]},"
+                + " \"EMPTY_OBJECT\": {}, \"EMPTY_ARRAY\": [], \"LAST\": \"end\"}]}";
+
+        final IDataSet dataSet = new JsonDataSet(
+                new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8)));
+
+        final ITable table = dataSet.getTable("EVENT");
+        final Object[] row = {table.getValue(0, "ID"), table.getValue(0, "PAYLOAD"),
+                table.getValue(0, "TAGS"), table.getValue(0, "NESTED"),
+                table.getValue(0, "EMPTY_OBJECT"), table.getValue(0, "EMPTY_ARRAY"),
+                table.getValue(0, "LAST")};
+        assertThat(row)
+                .as("A JSON object or array in a cell reaches the column type as its compact JSON"
+                        + " text, not as the toString() text of a Java map or list, and the cell"
+                        + " after it is still read.")
+                .containsExactly(1, "{\"type\":\"click\",\"n\":1}", "[\"a\",2,null,true]",
+                        "{\"x\":[1,{\"y\":{}}]}", "{}", "[]", "end");
+    }
+
+    @Test
+    void testConstructor_numbersInsideAnObjectCell_keepEveryDigit() throws Exception
+    {
+        final String json = "{\"MONEY\": [{\"PRICE\": {\"amount\": 12.50,"
+                + " \"total\": 123456789012345678901234567890.5, \"count\": 3}}]}";
+
+        final IDataSet dataSet = new JsonDataSet(
+                new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8)));
+
+        assertThat(dataSet.getTable("MONEY").getValue(0, "PRICE"))
+                .as("A number with a fraction inside an object keeps every digit and its"
+                        + " trailing zero, as one in a cell of its own does.")
+                .isEqualTo("{\"amount\":12.50,\"total\":123456789012345678901234567890.5,"
+                        + "\"count\":3}");
+    }
+
+    @Test
+    void testConstructor_stringCellHoldingJson_staysTheString() throws Exception
+    {
+        final String json = "{\"EVENT\": [{\"PAYLOAD\": \"{\\\"type\\\": \\\"click\\\"}\"}]}";
+
+        final IDataSet dataSet = new JsonDataSet(
+                new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8)));
+
+        assertThat(dataSet.getTable("EVENT").getValue(0, "PAYLOAD"))
+                .as("A JSON string is the string, whatever it holds, so the way to give a column"
+                        + " type its own text form is a string.")
+                .isEqualTo("{\"type\": \"click\"}");
+    }
+
+    @Test
+    void testConstructor_columnNamedTwiceAroundAnObjectCell_throwsDataSetExceptionNamingTheColumn()
+    {
+        final String json = "{\"TEST_TABLE\": [{\"A\": {\"x\": 1}, \"A\": 2}]}";
+        final InputStream in = new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8));
+
+        assertThatThrownBy(() -> new JsonDataSet(in))
+                .as("A column named twice in a row is still rejected when the first value is an"
+                        + " object.")
+                .isExactlyInstanceOf(DataSetException.class)
+                .hasMessage("Row 0 of table 'TEST_TABLE' names column 'A' more than once: a"
+                        + " column is named once in a row");
+    }
+
+    @Test
+    void testWrite_objectCellReadAsJsonText_readsBackAsTheSameText() throws Exception
+    {
+        final String json = "{\"EVENT\": [{\"PAYLOAD\": {\"type\": \"click\", \"n\": 1}}]}";
+        final IDataSet dataSet = new JsonDataSet(
+                new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8)));
+        final ByteArrayOutputStream out = new ByteArrayOutputStream();
+
+        JsonDataSet.write(dataSet, out);
+        final IDataSet readBack = new JsonDataSet(new ByteArrayInputStream(out.toByteArray()));
+
+        assertThat(readBack.getTable("EVENT").getValue(0, "PAYLOAD"))
+                .as("The JSON text of an object cell is written as a JSON string, which reads"
+                        + " back as the same text.")
+                .isEqualTo("{\"type\":\"click\",\"n\":1}");
+    }
+
+    @Test
+    void testWrite_stringValuePastJacksonsDefaultLimit_readsBackTheSameString() throws Exception
+    {
+        final String text = stringOfLength(JACKSON_DEFAULT_MAX_STRING_LENGTH + 1);
+        final DefaultTable table = new DefaultTable("BIG_TEXT",
+                new Column[] {new Column("TEXT", DataType.CLOB)});
+        table.addRow(new Object[] {text});
+        final ByteArrayOutputStream out = new ByteArrayOutputStream();
+        JsonDataSet.write(new DefaultDataSet(table), out);
+
+        final IDataSet readBack = new JsonDataSet(new ByteArrayInputStream(out.toByteArray()));
+
+        final Object value = readBack.getTable("BIG_TEXT").getValue(0, "TEXT");
+        assertThat(text.equals(value))
+                .as("A string value of 20,000,001 characters, one more than the limit that"
+                        + " Jackson 2.15 and later set by default, reads back as the same string.")
+                .isTrue();
+    }
+
+    @Test
+    void testWrite_blobOfAbout15MegabytesPastJacksonsDefaultLimit_readsBackItsBase64Text()
+            throws Exception
+    {
+        final byte[] bytes = new byte[15_000_003];
+        for (int i = 0; i < bytes.length; i++)
+        {
+            bytes[i] = (byte) i;
+        }
+        final DefaultTable table = new DefaultTable("BIG_BLOB",
+                new Column[] {new Column("DATA", DataType.BLOB)});
+        table.addRow(new Object[] {bytes});
+        final ByteArrayOutputStream out = new ByteArrayOutputStream();
+        JsonDataSet.write(new DefaultDataSet(table), out);
+
+        final IDataSet readBack = new JsonDataSet(new ByteArrayInputStream(out.toByteArray()));
+
+        final String expectedBase64 = Base64.getEncoder().encodeToString(bytes);
+        final Object value = readBack.getTable("BIG_BLOB").getValue(0, "DATA");
+        assertThat(expectedBase64.equals(value))
+                .as("The Base64 text of a BLOB of about 15 MB, which is more than 20,000,000"
+                        + " characters long, reads back as the same text.")
+                .isTrue();
+    }
+
+    private static String stringOfLength(final int length)
+    {
+        final char[] characters = new char[length];
+        Arrays.fill(characters, 'x');
+        return new String(characters);
+    }
+
+    @ParameterizedTest
+    @CsvSource({"Europe/Berlin,America/Chicago", "America/Chicago,Europe/Berlin",
+            "Asia/Kolkata,America/Chicago", "Pacific/Kiritimati,America/Chicago"})
+    void testWrite_dateAndTimestamp_readBackTheSameInAnotherTimeZone(final String writeZone,
+            final String readZone) throws Exception
+    {
+        final TimeZone original = TimeZone.getDefault();
+        try
+        {
+            TimeZone.setDefault(TimeZone.getTimeZone(writeZone));
+            final Column[] columns = {new Column("D", DataType.DATE),
+                    new Column("TS", DataType.TIMESTAMP), new Column("T", DataType.TIME)};
+            final DefaultTable table = new DefaultTable("EVENT", columns);
+            table.addRow(new Object[] {java.sql.Date.valueOf("2024-03-01"),
+                    java.sql.Timestamp.valueOf("2024-03-01 10:15:30"),
+                    java.sql.Time.valueOf("10:15:30")});
+            final ByteArrayOutputStream out = new ByteArrayOutputStream();
+            JsonDataSet.write(new DefaultDataSet(table), out);
+
+            TimeZone.setDefault(TimeZone.getTimeZone(readZone));
+            final ITable readBack =
+                    new JsonDataSet(new ByteArrayInputStream(out.toByteArray())).getTable("EVENT");
+
+            final Object[] row = {DataType.DATE.typeCast(readBack.getValue(0, "D")).toString(),
+                    DataType.TIMESTAMP.typeCast(readBack.getValue(0, "TS")).toString(),
+                    DataType.TIME.typeCast(readBack.getValue(0, "T")).toString()};
+            assertThat(row)
+                    .as("A dataset written in %s reads back as the same day and time in %s.",
+                            writeZone, readZone)
+                    .containsExactly("2024-03-01", "2024-03-01 10:15:30.0", "10:15:30");
+        } finally
+        {
+            TimeZone.setDefault(original);
+        }
+    }
+
+    @Test
+    void testConstructor_epochMillisForDateAndTimestampColumns_areStillReadByTheColumnTypes()
+            throws Exception
+    {
+        final TimeZone original = TimeZone.getDefault();
+        try
+        {
+            TimeZone.setDefault(TimeZone.getTimeZone("Europe/Berlin"));
+            final String json = "{\"EVENT\": [{\"D\": 1709247600000, \"TS\": 1709284530000}]}";
+
+            final ITable table = new JsonDataSet(
+                    new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8)))
+                            .getTable("EVENT");
+
+            final Object[] row = {DataType.DATE.typeCast(table.getValue(0, "D")).toString(),
+                    DataType.TIMESTAMP.typeCast(table.getValue(0, "TS")).toString()};
+            assertThat(row)
+                    .as("A dataset written before 3.6.0, with a date and a timestamp as a number"
+                            + " of milliseconds, still reads: the column types accept the number.")
+                    .containsExactly("2024-03-01", "2024-03-01 10:15:30.0");
+        } finally
+        {
+            TimeZone.setDefault(original);
+        }
+    }
+
+    @Test
+    void testConstructor_sameColumnInDifferentRowsAndNullValues_loadsEveryRow() throws Exception
+    {
+        final String json = "{\"TEST_TABLE\": [{\"A\": null, \"B\": 1}, {\"A\": 2, \"B\": null}]}";
+        final InputStream in = new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8));
+
+        final IDataSet dataSet = new JsonDataSet(in);
+
+        assertThat(dataSet.getTable("TEST_TABLE").getRowCount())
+                .as("A column that two rows each name once is no repeat.").isEqualTo(2);
+        assertThat(dataSet.getTable("TEST_TABLE").getValue(0, "B")).isEqualTo(1);
+        assertThat(dataSet.getTable("TEST_TABLE").getValue(0, "A"))
+                .as("A null value is a value, not a missing column.").isNull();
+        assertThat(dataSet.getTable("TEST_TABLE").getValue(1, "A")).isEqualTo(2);
     }
 
     @Test

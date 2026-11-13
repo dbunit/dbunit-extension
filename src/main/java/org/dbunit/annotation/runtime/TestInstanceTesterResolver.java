@@ -22,11 +22,11 @@ package org.dbunit.annotation.runtime;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
 import java.util.List;
 import java.util.concurrent.Callable;
 
 import org.dbunit.DatabaseTesterFactory;
+import org.dbunit.DefaultPrepAndExpectedTestCase;
 import org.dbunit.IDatabaseTester;
 import org.dbunit.PrepAndExpectedTestCase;
 import org.dbunit.annotation.DbUnitConfig;
@@ -67,6 +67,9 @@ import org.slf4j.LoggerFactory;
  * <p>Public so a binding outside {@code org.dbunit.annotation.runtime} - such as
  * {@code DbUnitExtension} or a Spring {@code TestExecutionListener} - can reach it too.
  *
+ * <p>This type is internal to dbUnit's bindings; it is public only for use across
+ * dbUnit's packages and may change in a minor release.
+ *
  * @author Jeff Jensen
  * @since 3.6.0
  */
@@ -74,30 +77,57 @@ public class TestInstanceTesterResolver
 {
     private static final Logger log = LoggerFactory.getLogger(TestInstanceTesterResolver.class);
 
-    private TestInstanceTesterResolver()
+    private static final ClassValue<SharedFactory> FACTORIES = new ClassValue<SharedFactory>()
     {
+        /**
+         * {@inheritDoc}
+         * <p>
+         * Creates the holder of the factory the first time a caller asks for the class, and the
+         * {@link ClassValue} keeps it from then on. The holder goes away with the factory class
+         * and its class loader.
+         */
+        @Override
+        protected SharedFactory computeValue(final Class<?> factoryClass)
+        {
+            return new SharedFactory(factoryClass.asSubclass(DatabaseTesterFactory.class));
+        }
+    };
+
+    private final TesterFields testerFields;
+
+    /**
+     * Creates a resolver that finds tester fields by the given rules.
+     *
+     * @param testerFields The rules for which fields are tester fields; share the instance with
+     *            whatever else of the binding applies them.
+     */
+    public TestInstanceTesterResolver(final TesterFields testerFields)
+    {
+        this.testerFields = testerFields;
     }
 
     /**
      * Resolves the tester and test case from the marked fields of {@code instances}, falling
-     * back to {@code unmarkedTester} when no instance declares a marked field - and for the
-     * tester a {@code @DbUnitTestCase} field's test case does not carry itself.
+     * back to {@code unmarkedTester} when no instance declares a marked field. A
+     * {@code @DbUnitTestCase} field supplies its test case and that test case's own tester: it is
+     * used as its owner built it.
      *
      * @param instances The test instances in scope, innermost first.
-     * @param unmarkedTester Supplies the tester when no {@code @DbUnitTester} field does; must
-     *            throw rather than return {@code null} when it finds none.
+     * @param unmarkedTester Supplies the tester when no marked field does; must throw rather
+     *            than return {@code null} when it finds none.
      * @return The resolved tester, and the test case when a {@code @DbUnitTestCase} field
      *         supplied one.
-     * @throws IllegalStateException If a marked field is ambiguous, null, or of the wrong type.
+     * @throws IllegalStateException If a marked field is ambiguous, null, or of the wrong type,
+     *             or a {@link DefaultPrepAndExpectedTestCase} it holds has no tester.
      * @throws Exception If {@code unmarkedTester} fails.
      */
-    public static Resolution resolve(final List<Object> instances,
+    public Resolution resolve(final List<Object> instances,
             final Callable<IDatabaseTester> unmarkedTester) throws Exception
     {
         final MarkedFields marked = findMarkedFields(instances);
         if (marked.testCaseField != null)
         {
-            return resolveFromTestCaseField(marked.testCaseField, unmarkedTester);
+            return resolveFromTestCaseField(marked.testCaseField);
         }
         if (marked.testerField != null)
         {
@@ -109,15 +139,20 @@ public class TestInstanceTesterResolver
     }
 
     /**
-     * Creates the tester {@link DbUnitConfig#databaseTesterFactory()} names.
+     * Creates the tester {@link DbUnitConfig#databaseTesterFactory()} names. The first test that
+     * names a factory class instantiates it, and the one instance serves every test of the run
+     * that names the class, whichever binding resolves it, so it must be thread-safe. Each call
+     * asks that instance for a tester, so a factory decides whether every test gets a new
+     * tester or all of them share one.
      *
      * @param configuration The resolved configuration.
      * @return The factory-created tester, or {@code null} when no factory is configured.
      * @throws IllegalStateException If the factory cannot be instantiated or returns
-     *             {@code null}.
+     *             {@code null}. A factory whose constructor throws leaves no instance behind, so
+     *             the next test that names it tries again.
      * @throws Exception If the factory fails creating the tester.
      */
-    public static IDatabaseTester fromFactory(final AnnotatedTestConfiguration configuration)
+    public IDatabaseTester fromFactory(final AnnotatedTestConfiguration configuration)
             throws Exception
     {
         final Class<? extends DatabaseTesterFactory> factoryClass =
@@ -126,13 +161,16 @@ public class TestInstanceTesterResolver
         {
             return null;
         }
-        final DatabaseTesterFactory factory =
-                ReflectiveInstantiation.instantiate(factoryClass,
-                        "DbUnitConfig.databaseTesterFactory");
+        final SharedFactory sharedFactory = FACTORIES.get(factoryClass);
+        final DatabaseTesterFactory factory = sharedFactory.instance();
         final IDatabaseTester created = factory.getDatabaseTester();
-        return ProvidedAttribute.requireProvided(created,
-                DatabaseTesterFactory.class.getSimpleName(), factoryClass,
-                "DbUnitConfig.databaseTesterFactory", "getDatabaseTester");
+        if (created == null)
+        {
+            throw new IllegalStateException("DatabaseTesterFactory " + factoryClass.getName()
+                    + ", named by DbUnitConfig.databaseTesterFactory, returned null from"
+                    + " getDatabaseTester().");
+        }
+        return created;
     }
 
     /**
@@ -148,7 +186,7 @@ public class TestInstanceTesterResolver
      *             found holds {@code null}.
      * @throws IllegalAccessException If the field cannot be read.
      */
-    public static IDatabaseTester fromUnmarkedField(final List<Object> instances)
+    public IDatabaseTester fromUnmarkedField(final List<Object> instances)
             throws IllegalAccessException
     {
         for (final Object instance : instances)
@@ -167,8 +205,8 @@ public class TestInstanceTesterResolver
         return null;
     }
 
-    private static Resolution resolveFromTestCaseField(final FieldMatch testCaseField,
-            final Callable<IDatabaseTester> unmarkedTester) throws Exception
+    private Resolution resolveFromTestCaseField(final FieldMatch testCaseField)
+            throws Exception
     {
         final Object value = testCaseField.value();
         if (value == null)
@@ -185,16 +223,24 @@ public class TestInstanceTesterResolver
                     + value.getClass().getName() + ") does not implement PrepAndExpectedTestCase.");
         }
         final PrepAndExpectedTestCase testCase = (PrepAndExpectedTestCase) value;
-        // testCase does not override getDatabaseTester()/setDatabaseTester(), or does and was
-        // simply built without a tester yet (e.g. the no-arg-tester constructor form) - the
-        // fallback resolves the same tester a bare @DbUnitTestCase-less test would use, rather
-        // than leaving the resolution's tester null.
-        final IDatabaseTester tester = InjectedTestCaseTesterBinding.resolveTester(testCase,
-                fieldDescription, unmarkedTester);
+        if (!(testCase instanceof DefaultPrepAndExpectedTestCase))
+        {
+            // driven as it is: it tells dbUnit of no tester
+            return new Resolution(null, testCase);
+        }
+        final DefaultPrepAndExpectedTestCase defaultTestCase =
+                (DefaultPrepAndExpectedTestCase) testCase;
+        final IDatabaseTester tester = defaultTestCase.getDatabaseTester();
+        if (tester == null)
+        {
+            throw new IllegalStateException(fieldDescription + " is annotated @DbUnitTestCase, but"
+                    + " its DefaultPrepAndExpectedTestCase has no IDatabaseTester. dbUnit uses the"
+                    + " instance as its owner built it: give it a tester where it is built.");
+        }
         return new Resolution(tester, testCase);
     }
 
-    private static IDatabaseTester readTesterField(final FieldMatch testerField)
+    private IDatabaseTester readTesterField(final FieldMatch testerField)
             throws IllegalAccessException
     {
         final Object value = testerField.value();
@@ -224,7 +270,7 @@ public class TestInstanceTesterResolver
      * @throws IllegalStateException If one instance declares both markers, or more than one
      *             field for the same marker within one instance's class hierarchy.
      */
-    private static MarkedFields findMarkedFields(final List<Object> instances)
+    private MarkedFields findMarkedFields(final List<Object> instances)
     {
         for (final Object instance : instances)
         {
@@ -249,58 +295,50 @@ public class TestInstanceTesterResolver
      *
      * @throws IllegalStateException If more than one such field is found.
      */
-    private static FieldMatch findMarkedField(final Object instance,
+    private FieldMatch findMarkedField(final Object instance,
             final Class<? extends Annotation> marker)
     {
-        Field match = null;
-        Class<?> clazz = instance.getClass();
-        while (clazz != null && clazz != Object.class)
+        final List<Field> matches = testerFields.findAll(instance.getClass(),
+                field -> field.isAnnotationPresent(marker));
+        if (matches.size() > 1)
         {
-            for (final Field field : clazz.getDeclaredFields())
-            {
-                if (field.isAnnotationPresent(marker))
-                {
-                    if (match != null)
-                    {
-                        throw new IllegalStateException("Multiple @" + marker.getSimpleName()
-                                + " fields found in " + instance.getClass().getName() + ".");
-                    }
-                    match = field;
-                }
-            }
-            clazz = clazz.getSuperclass();
+            final Field first = matches.get(0);
+            final Field second = matches.get(1);
+            throw new IllegalStateException("Multiple @" + marker.getSimpleName()
+                    + " fields found in " + instance.getClass().getName() + ": '"
+                    + first.getDeclaringClass().getSimpleName() + "." + first.getName()
+                    + "' and '" + second.getDeclaringClass().getSimpleName() + "."
+                    + second.getName() + "'. Mark only one field @" + marker.getSimpleName()
+                    + ".");
         }
-        if (match == null)
+        if (matches.isEmpty())
         {
             return null;
         }
+        final Field match = matches.get(0);
         match.setAccessible(true);
         return new FieldMatch(match, instance);
     }
 
-    private static Field findUnmarkedTesterField(final Class<?> clazz, final Object instance)
+    private Field findUnmarkedTesterField(final Class<?> clazz, final Object instance)
     {
-        Field match = null;
-        for (final Field field : clazz.getDeclaredFields())
+        final List<Field> matches = testerFields.declaredBy(clazz, testerFields::isUnmarkedTester);
+        if (matches.size() > 1)
         {
-            if (!Modifier.isStatic(field.getModifiers())
-                    && IDatabaseTester.class.isAssignableFrom(field.getType()))
-            {
-                if (match != null)
-                {
-                    throw new IllegalStateException("Multiple IDatabaseTester fields found in "
-                            + clazz.getName() + ": '" + match.getName() + "' and '"
-                            + field.getName() + "'. Declare exactly one non-static field whose"
-                            + " type implements IDatabaseTester in "
-                            + instance.getClass().getName() + ".");
-                }
-                match = field;
-            }
+            throw new IllegalStateException("Multiple IDatabaseTester fields found in "
+                    + clazz.getName() + ": '" + matches.get(0).getName() + "' and '"
+                    + matches.get(1).getName() + "'. Declare exactly one non-static field whose"
+                    + " type implements IDatabaseTester in " + instance.getClass().getName()
+                    + ".");
         }
-        return match;
+        if (matches.isEmpty())
+        {
+            return null;
+        }
+        return matches.get(0);
     }
 
-    private static IDatabaseTester readUnmarkedTesterField(final Field field,
+    private IDatabaseTester readUnmarkedTesterField(final Field field,
             final Object instance) throws IllegalAccessException
     {
         field.setAccessible(true);
@@ -317,6 +355,9 @@ public class TestInstanceTesterResolver
 
     /**
      * The resolved tester, and the test case when a {@code @DbUnitTestCase} field supplied one.
+     *
+     * <p>This type is internal to dbUnit's bindings; it is public only for use across
+     * dbUnit's packages and may change in a minor release.
      */
     public static class Resolution
     {
@@ -332,7 +373,8 @@ public class TestInstanceTesterResolver
         /**
          * Returns the tester to drive.
          *
-         * @return The resolved tester.
+         * @return The resolved tester; {@code null} for a {@code @DbUnitTestCase} that is not a
+         *         {@link DefaultPrepAndExpectedTestCase}, which tells dbUnit of none.
          */
         public IDatabaseTester getTester()
         {
@@ -386,6 +428,39 @@ public class TestInstanceTesterResolver
         {
             this.testCaseField = testCaseField;
             this.testerField = testerField;
+        }
+    }
+
+    /**
+     * Holds the one instance of a {@link DatabaseTesterFactory} class and instantiates it when
+     * the first test asks. The {@link ClassValue} can compute its value more than once when tests
+     * that run in parallel ask for the same class together, and keeps only one of the results, so
+     * the factory is not instantiated by the {@link ClassValue} itself: a factory whose
+     * constructor builds something costly, such as a pool, would build it once for each racing
+     * test and discard all but one. This holder instantiates it under a lock instead.
+     */
+    private static final class SharedFactory
+    {
+        private final Class<? extends DatabaseTesterFactory> factoryClass;
+        private DatabaseTesterFactory factory;
+
+        private SharedFactory(final Class<? extends DatabaseTesterFactory> factoryClass)
+        {
+            this.factoryClass = factoryClass;
+        }
+
+        /**
+         * Returns the factory, instantiating it first when no test has yet. A constructor that
+         * throws leaves nothing behind, so the next call tries again.
+         */
+        private synchronized DatabaseTesterFactory instance()
+        {
+            if (factory == null)
+            {
+                factory = new ReflectiveInstantiation().instantiate(factoryClass,
+                        "DbUnitConfig.databaseTesterFactory");
+            }
+            return factory;
         }
     }
 }

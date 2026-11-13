@@ -10,7 +10,8 @@ contain the data.
 IDataSet dataSet = new XlsDataSet(new File("dataset.xls"));
 ----
 
-An empty or absent cell is read as a null value. Because every column is
+A blank or absent cell is read as a null value; a text cell that holds an empty
+string is read as the empty string. Because every column is
 declared in the header row, a later row with a blank cell keeps the column —
 Excel has no "extra columns" problem. For how a cell value becomes a typed
 column value — binary/BLOB syntax, literal and relative dates, UUID literals,
@@ -28,6 +29,19 @@ pull it in. Add it yourself to use this format:
 <dependency>
   <groupId>org.apache.poi</groupId>
   <artifactId>poi</artifactId>
-  <version>5.2.5</version>
+  <version>5.5.1</version>
+</dependency>
+<dependency>
+  <groupId>org.apache.poi</groupId>
+  <artifactId>poi-ooxml</artifactId>
+  <version>5.5.1</version>
 </dependency>
 ----
+
+`poi` reads and writes the legacy `.xls` format. `poi-ooxml` is for the newer `.xlsx` format,
+which `FileExtensionDataFileLoader` and `XlsDataFileLoader` also read, so leave it out only when
+every Excel file is an `.xls`.
+
+Without `poi` on the classpath, creating an `XlsDataSet`, writing one, or loading a `.xls` or
+`.xlsx` file through a data file loader fails with a `DataSetException` that names the
+dependencies to add. Datasets in other formats are unaffected.

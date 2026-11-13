@@ -45,7 +45,7 @@ import org.dbunit.util.fileloader.DataFileLoader;
  * @author Jeff Jensen
  * @since 3.6.0
  */
-public class DataSetResourcePathResolver
+class DataSetResourcePathResolver
 {
     /**
      * Resolves {@code path} to an absolute classpath resource path.
@@ -57,9 +57,7 @@ public class DataSetResourcePathResolver
      * @param dataSetBaseDir The configured base directory, or {@code null}/empty when not
      *            set.
      * @return The absolute classpath resource path.
-     * @throws IllegalStateException If {@code path} is {@code null} - e.g. a
-     *             {@code DataSetPathsProvider} returning an array containing a {@code null}
-     *             element.
+     * @throws IllegalStateException If {@code path} is {@code null}.
      */
     public String resolve(final String path, final Class<?> testClass,
             final String dataSetBaseDir)

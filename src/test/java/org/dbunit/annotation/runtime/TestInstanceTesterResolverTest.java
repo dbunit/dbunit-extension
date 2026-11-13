@@ -26,10 +26,16 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.dbunit.DatabaseTesterFactory;
@@ -44,6 +50,9 @@ import org.junit.jupiter.api.Test;
 
 class TestInstanceTesterResolverTest
 {
+    private final TestInstanceTesterResolver resolver =
+            new TestInstanceTesterResolver(new TesterFields());
+
     private static final Callable<IDatabaseTester> NO_UNMARKED_TESTER = () ->
     {
         throw new IllegalStateException("No unmarked tester.");
@@ -65,12 +74,12 @@ class TestInstanceTesterResolverTest
     void testResolve_dbUnitTestCaseField_usesInjectedTestCase() throws Exception
     {
         final IDatabaseTester tester = mock(IDatabaseTester.class);
-        final PrepAndExpectedTestCase testCase = mock(PrepAndExpectedTestCase.class);
-        when(testCase.getDatabaseTester()).thenReturn(tester);
+        final PrepAndExpectedTestCase testCase = mock(DefaultPrepAndExpectedTestCase.class);
+        when(((DefaultPrepAndExpectedTestCase) testCase).getDatabaseTester()).thenReturn(tester);
         final HasTestCaseField instance = new HasTestCaseField(testCase);
 
         final TestInstanceTesterResolver.Resolution resolution =
-                TestInstanceTesterResolver.resolve(instances(instance), NO_UNMARKED_TESTER);
+                resolver.resolve(instances(instance), NO_UNMARKED_TESTER);
 
         assertThat(resolution.getTester()).as("The test case's own tester must be used.")
                 .isSameAs(tester);
@@ -83,8 +92,7 @@ class TestInstanceTesterResolverTest
     {
         final IDatabaseTester tester = mock(IDatabaseTester.class);
 
-        final TestInstanceTesterResolver.Resolution resolution = TestInstanceTesterResolver
-                .resolve(instances(new HasTesterField(tester)), NO_UNMARKED_TESTER);
+        final TestInstanceTesterResolver.Resolution resolution = resolver.resolve(instances(new HasTesterField(tester)), NO_UNMARKED_TESTER);
 
         assertThat(resolution.getTester()).as("The marked field's tester must be used.")
                 .isSameAs(tester);
@@ -96,8 +104,7 @@ class TestInstanceTesterResolverTest
     {
         final IDatabaseTester tester = mock(IDatabaseTester.class);
 
-        final TestInstanceTesterResolver.Resolution resolution = TestInstanceTesterResolver
-                .resolve(instances(new NoFieldsInstance()), () -> tester);
+        final TestInstanceTesterResolver.Resolution resolution = resolver.resolve(instances(new NoFieldsInstance()), () -> tester);
 
         assertThat(resolution.getTester())
                 .as("With no marked field, the binding's own tester source must be used.")
@@ -115,7 +122,7 @@ class TestInstanceTesterResolverTest
             return mock(IDatabaseTester.class);
         };
 
-        TestInstanceTesterResolver.resolve(
+        resolver.resolve(
                 instances(new HasTesterField(mock(IDatabaseTester.class))), countingSupplier);
 
         assertThat(timesAsked.get())
@@ -130,7 +137,7 @@ class TestInstanceTesterResolverTest
                 mock(IDatabaseTester.class));
 
         assertThatThrownBy(
-                () -> TestInstanceTesterResolver.resolve(instances(instance), NO_UNMARKED_TESTER))
+                () -> resolver.resolve(instances(instance), NO_UNMARKED_TESTER))
                         .as("Declaring both @DbUnitTestCase and @DbUnitTester must be rejected.")
                         .isInstanceOf(IllegalStateException.class)
                         .hasMessageContaining("DbUnitTestCase")
@@ -144,8 +151,7 @@ class TestInstanceTesterResolverTest
         final SubclassOfMarkedTesterSuperclass instance =
                 new SubclassOfMarkedTesterSuperclass(tester);
 
-        final TestInstanceTesterResolver.Resolution resolution = TestInstanceTesterResolver
-                .resolve(instances(instance), NO_UNMARKED_TESTER);
+        final TestInstanceTesterResolver.Resolution resolution = resolver.resolve(instances(instance), NO_UNMARKED_TESTER);
 
         assertThat(resolution.getTester())
                 .as("A marked field declared only on a superclass must be found through a"
@@ -158,8 +164,7 @@ class TestInstanceTesterResolverTest
     {
         HasStaticMarkedTesterField.tester = mock(IDatabaseTester.class);
 
-        final TestInstanceTesterResolver.Resolution resolution = TestInstanceTesterResolver
-                .resolve(instances(new HasStaticMarkedTesterField()), NO_UNMARKED_TESTER);
+        final TestInstanceTesterResolver.Resolution resolution = resolver.resolve(instances(new HasStaticMarkedTesterField()), NO_UNMARKED_TESTER);
 
         assertThat(resolution.getTester())
                 .as("Unlike the plain field auto-scan, a marked field may be static.")
@@ -167,44 +172,38 @@ class TestInstanceTesterResolverTest
     }
 
     @Test
-    void testResolve_dbUnitTestCaseFieldWithoutTester_wiresUnmarkedTesterOntoTestCase()
+    void testResolve_dbUnitTestCaseFieldThatIsNotADefaultTestCase_reportsNoTester()
             throws Exception
     {
         final IDatabaseTester fallback = mock(IDatabaseTester.class);
-        final DefaultPrepAndExpectedTestCase testCase = mock(DefaultPrepAndExpectedTestCase.class);
-        // A raw mock does not store what setDatabaseTester() is given, so stub the getter to
-        // report what a real override round-trips: nothing at first, then the tester set.
-        when(testCase.getDatabaseTester()).thenReturn(null, fallback);
+        final PrepAndExpectedTestCase selfManaged = mock(PrepAndExpectedTestCase.class);
 
-        final TestInstanceTesterResolver.Resolution resolution = TestInstanceTesterResolver
-                .resolve(instances(new HasTestCaseField(testCase)), () -> fallback);
+        final TestInstanceTesterResolver.Resolution resolution = resolver.resolve(instances(new HasTestCaseField(selfManaged)), () -> fallback);
 
         assertThat(resolution.getTester())
-                .as("A test case built without a tester resolves the binding's own tester.")
-                .isSameAs(fallback);
-        assertThat(resolution.getTestCase()).as("The injected test case must be returned.")
-                .isSameAs(testCase);
-        verify(testCase).setDatabaseTester(fallback);
+                .as("A test case that is not a DefaultPrepAndExpectedTestCase tells dbUnit of no"
+                        + " tester, and is not given the fallback one.")
+                .isNull();
+        assertThat(resolution.getTestCase()).isSameAs(selfManaged);
     }
 
     @Test
-    void testResolve_dbUnitTestCaseFieldWhoseTesterDoesNotRoundTrip_throwsIllegalStateException()
+    void testResolve_dbUnitTestCaseFieldWithoutTester_throwsNamingTheFieldAndTheFix()
     {
+        final IDatabaseTester fallback = mock(IDatabaseTester.class);
         final DefaultPrepAndExpectedTestCase testCase = mock(DefaultPrepAndExpectedTestCase.class);
         final HasTestCaseField instance = new HasTestCaseField(testCase);
 
-        assertThatThrownBy(() -> TestInstanceTesterResolver.resolve(instances(instance),
-                () -> mock(IDatabaseTester.class)))
-                        .as("A test case whose type overrides setDatabaseTester() but does not"
-                                + " report the tester it was just given must be rejected, naming"
-                                + " the field, not left to run operations on a tester it never"
-                                + " uses.")
+        assertThatThrownBy(() -> resolver.resolve(instances(instance),
+                () -> fallback))
+                        .as("An injected test case is used as its owner built it, so one with no"
+                                + " tester is rejected rather than given the one the fallback"
+                                + " would find.")
                         .isInstanceOf(IllegalStateException.class)
                         .hasMessageContaining("'testCase'")
                         .hasMessageContaining(HasTestCaseField.class.getName())
-                        .hasMessageContaining(DefaultPrepAndExpectedTestCase.class.getName())
-                        .hasMessageContaining("setDatabaseTester")
-                        .hasMessageContaining("getDatabaseTester");
+                        .hasMessageContaining("has no IDatabaseTester")
+                        .hasMessageContaining("where it is built");
     }
 
     @Test
@@ -214,13 +213,16 @@ class TestInstanceTesterResolverTest
                 mock(IDatabaseTester.class), mock(IDatabaseTester.class));
 
         assertThatThrownBy(
-                () -> TestInstanceTesterResolver.resolve(instances(instance), NO_UNMARKED_TESTER))
+                () -> resolver.resolve(instances(instance), NO_UNMARKED_TESTER))
                         .as("Two @DbUnitTester fields declared directly on the same class are"
                                 + " ambiguous and must be rejected, not silently resolved to"
                                 + " whichever reflection happens to return first.")
                         .isInstanceOf(IllegalStateException.class)
                         .hasMessageContaining("Multiple @DbUnitTester fields found in")
-                        .hasMessageContaining(HasTwoMarkedTesterFields.class.getName());
+                        .hasMessageContaining(HasTwoMarkedTesterFields.class.getName())
+                        .hasMessageContaining("'HasTwoMarkedTesterFields.tester' and"
+                                + " 'HasTwoMarkedTesterFields.anotherTester'")
+                        .hasMessageEndingWith("Mark only one field @DbUnitTester.");
     }
 
     @Test
@@ -230,21 +232,22 @@ class TestInstanceTesterResolverTest
                 mock(IDatabaseTester.class), mock(IDatabaseTester.class));
 
         assertThatThrownBy(
-                () -> TestInstanceTesterResolver.resolve(instances(instance), NO_UNMARKED_TESTER))
+                () -> resolver.resolve(instances(instance), NO_UNMARKED_TESTER))
                         .as("A @DbUnitTester field on a superclass and another declared directly"
                                 + " on the subclass are ambiguous within the same instance's"
                                 + " class hierarchy and must be rejected, not silently resolved"
                                 + " to the subclass's.")
                         .isInstanceOf(IllegalStateException.class)
                         .hasMessageContaining("Multiple @DbUnitTester fields found in")
-                        .hasMessageContaining(SubclassWithOwnMarkedTesterField.class.getName());
+                        .hasMessageContaining(SubclassWithOwnMarkedTesterField.class.getName())
+                        .hasMessageContaining("'SubclassWithOwnMarkedTesterField.subclassTester'")
+                        .hasMessageContaining("'MarkedTesterFieldSuperclass.tester'");
     }
 
     @Test
     void testResolve_dbUnitTesterFieldIsNull_throwsIllegalStateException()
     {
-        assertThatThrownBy(() -> TestInstanceTesterResolver
-                .resolve(instances(new HasNullTesterField()), NO_UNMARKED_TESTER))
+        assertThatThrownBy(() -> resolver.resolve(instances(new HasNullTesterField()), NO_UNMARKED_TESTER))
                         .as("A null @DbUnitTester field must be rejected with a clear message,"
                                 + " not a bare NullPointerException.")
                         .isInstanceOf(IllegalStateException.class)
@@ -259,7 +262,7 @@ class TestInstanceTesterResolverTest
         final HasWrongTypeTesterField instance = new HasWrongTypeTesterField("not a tester");
 
         assertThatThrownBy(
-                () -> TestInstanceTesterResolver.resolve(instances(instance), NO_UNMARKED_TESTER))
+                () -> resolver.resolve(instances(instance), NO_UNMARKED_TESTER))
                         .as("A @DbUnitTester field whose value does not implement"
                                 + " IDatabaseTester must be rejected with a clear message, not a"
                                 + " raw ClassCastException.")
@@ -273,8 +276,7 @@ class TestInstanceTesterResolverTest
     @Test
     void testResolve_dbUnitTestCaseFieldIsNull_throwsIllegalStateException()
     {
-        assertThatThrownBy(() -> TestInstanceTesterResolver
-                .resolve(instances(new HasNullTestCaseField()), NO_UNMARKED_TESTER))
+        assertThatThrownBy(() -> resolver.resolve(instances(new HasNullTestCaseField()), NO_UNMARKED_TESTER))
                         .as("A null @DbUnitTestCase field must be rejected with a clear message,"
                                 + " not a bare NullPointerException.")
                         .isInstanceOf(IllegalStateException.class)
@@ -289,7 +291,7 @@ class TestInstanceTesterResolverTest
         final HasWrongTypeTestCaseField instance = new HasWrongTypeTestCaseField("not a test case");
 
         assertThatThrownBy(
-                () -> TestInstanceTesterResolver.resolve(instances(instance), NO_UNMARKED_TESTER))
+                () -> resolver.resolve(instances(instance), NO_UNMARKED_TESTER))
                         .as("A @DbUnitTestCase field whose value does not implement"
                                 + " PrepAndExpectedTestCase must be rejected with a clear message,"
                                 + " not a raw ClassCastException.")
@@ -307,8 +309,7 @@ class TestInstanceTesterResolverTest
     {
         final IDatabaseTester outerTester = mock(IDatabaseTester.class);
 
-        final TestInstanceTesterResolver.Resolution resolution = TestInstanceTesterResolver
-                .resolve(instances(new NoFieldsInstance(), new HasTesterField(outerTester)),
+        final TestInstanceTesterResolver.Resolution resolution = resolver.resolve(instances(new NoFieldsInstance(), new HasTesterField(outerTester)),
                         NO_UNMARKED_TESTER);
 
         assertThat(resolution.getTester())
@@ -323,8 +324,7 @@ class TestInstanceTesterResolverTest
         final IDatabaseTester innerTester = mock(IDatabaseTester.class);
         final IDatabaseTester outerTester = mock(IDatabaseTester.class);
 
-        final TestInstanceTesterResolver.Resolution resolution = TestInstanceTesterResolver
-                .resolve(instances(new HasTesterField(innerTester),
+        final TestInstanceTesterResolver.Resolution resolution = resolver.resolve(instances(new HasTesterField(innerTester),
                         new HasTesterField(outerTester)), NO_UNMARKED_TESTER);
 
         assertThat(resolution.getTester())
@@ -340,8 +340,7 @@ class TestInstanceTesterResolverTest
         final IDatabaseTester innerTester = mock(IDatabaseTester.class);
         final PrepAndExpectedTestCase outerTestCase = mock(PrepAndExpectedTestCase.class);
 
-        final TestInstanceTesterResolver.Resolution resolution = TestInstanceTesterResolver
-                .resolve(instances(new HasTesterField(innerTester),
+        final TestInstanceTesterResolver.Resolution resolution = resolver.resolve(instances(new HasTesterField(innerTester),
                         new HasTestCaseField(outerTestCase)), NO_UNMARKED_TESTER);
 
         assertThat(resolution.getTester()).as("The inner @DbUnitTester field must win.")
@@ -357,7 +356,7 @@ class TestInstanceTesterResolverTest
     @Test
     void testFromFactory_noFactoryConfigured_returnsNull() throws Exception
     {
-        assertThat(TestInstanceTesterResolver.fromFactory(noFactoryConfiguration))
+        assertThat(resolver.fromFactory(noFactoryConfiguration))
                 .as("Without @DbUnitConfig(databaseTesterFactory), there is no factory tester.")
                 .isNull();
     }
@@ -367,7 +366,7 @@ class TestInstanceTesterResolverTest
     {
         RecordingFactory.next = mock(IDatabaseTester.class);
 
-        assertThat(TestInstanceTesterResolver.fromFactory(configurationWithFactory()))
+        assertThat(resolver.fromFactory(configurationWithFactory()))
                 .as("The factory-created tester must be returned.")
                 .isSameAs(RecordingFactory.next);
     }
@@ -378,11 +377,105 @@ class TestInstanceTesterResolverTest
         RecordingFactory.next = null;
 
         assertThatThrownBy(
-                () -> TestInstanceTesterResolver.fromFactory(configurationWithFactory()))
+                () -> resolver.fromFactory(configurationWithFactory()))
                         .as("A factory returning null must be rejected with a clear message.")
                         .isInstanceOf(IllegalStateException.class)
-                        .hasMessageContaining(RecordingFactory.class.getName())
-                        .hasMessageContaining("getDatabaseTester");
+                        .hasMessage("DatabaseTesterFactory " + RecordingFactory.class.getName()
+                                + ", named by DbUnitConfig.databaseTesterFactory, returned null"
+                                + " from getDatabaseTester().");
+    }
+
+    @Test
+    void testFromFactory_calledForTwoTests_instantiatesTheFactoryOnce() throws Exception
+    {
+        final AnnotatedTestConfiguration configuration =
+                configurationWithFactory(WithOnceCountingFactory.class);
+
+        resolver.fromFactory(configuration);
+        resolver.fromFactory(configuration);
+
+        assertThat(OnceCountingFactory.constructions.get())
+                .as("A DatabaseTesterFactory is instantiated once, as its Javadoc says, and asked"
+                        + " for a tester for each test.")
+                .isEqualTo(1);
+        assertThat(OnceCountingFactory.testersHandedOut.get())
+                .as("Each test asks the one factory instance for its tester.")
+                .isEqualTo(2);
+    }
+
+    @Test
+    void testFromFactory_calledThroughTwoResolvers_instantiatesTheFactoryOnce() throws Exception
+    {
+        final AnnotatedTestConfiguration configuration =
+                configurationWithFactory(WithSharedCountingFactory.class);
+        final TestInstanceTesterResolver otherBindingsResolver =
+                new TestInstanceTesterResolver(new TesterFields());
+
+        resolver.fromFactory(configuration);
+        otherBindingsResolver.fromFactory(configuration);
+
+        assertThat(SharedCountingFactory.constructions.get())
+                .as("The one instance of a factory class serves every binding and resolver of the"
+                        + " run, not one resolver only.")
+                .isEqualTo(1);
+    }
+
+    @Test
+    void testFromFactory_firstUsedByTestsRunningInParallel_instantiatesTheFactoryOnce()
+            throws Exception
+    {
+        final int parallelTests = 8;
+        final AnnotatedTestConfiguration configuration =
+                configurationWithFactory(WithSlowFactory.class);
+        final CyclicBarrier startTogether = new CyclicBarrier(parallelTests);
+        final ExecutorService executor = Executors.newFixedThreadPool(parallelTests);
+        try
+        {
+            final List<Future<IDatabaseTester>> testers = new ArrayList<>();
+            for (int test = 0; test < parallelTests; test++)
+            {
+                testers.add(executor.submit(() ->
+                {
+                    startTogether.await(10, TimeUnit.SECONDS);
+                    return resolver.fromFactory(configuration);
+                }));
+            }
+            for (final Future<IDatabaseTester> tester : testers)
+            {
+                tester.get(10, TimeUnit.SECONDS);
+            }
+        } finally
+        {
+            executor.shutdownNow();
+        }
+
+        assertThat(SlowFactory.constructions.get())
+                .as("Tests that run in parallel and use a factory for the first time together share"
+                        + " its one instance, so a pool its constructor builds is built once and"
+                        + " not once per racing test.")
+                .isEqualTo(1);
+    }
+
+    @Test
+    void testFromFactory_factoryConstructorThrows_failsEveryTestThatNamesIt()
+    {
+        final AnnotatedTestConfiguration configuration =
+                configurationWithFactory(WithThrowingConstructorFactory.class);
+        final String expectedMessage = "DbUnitConfig.databaseTesterFactory class "
+                + ThrowingConstructorFactory.class.getName()
+                + " threw from its no-arg constructor.";
+
+        assertThatThrownBy(() -> resolver.fromFactory(configuration))
+                .as("A factory whose constructor throws is rejected for the first test that names"
+                        + " it.")
+                .isInstanceOf(IllegalStateException.class).hasMessage(expectedMessage);
+        assertThatThrownBy(() -> resolver.fromFactory(configuration))
+                .as("It is rejected the same way for the next test, as a constructor that threw"
+                        + " leaves no instance behind to hand out.")
+                .isInstanceOf(IllegalStateException.class).hasMessage(expectedMessage);
+        assertThat(ThrowingConstructorFactory.attempts.get())
+                .as("Each test that names the class tries to instantiate it, as nothing was kept.")
+                .isEqualTo(2);
     }
 
     // ---- fromUnmarkedField() ----
@@ -392,16 +485,14 @@ class TestInstanceTesterResolverTest
     {
         final IDatabaseTester tester = mock(IDatabaseTester.class);
 
-        assertThat(TestInstanceTesterResolver
-                .fromUnmarkedField(instances(new HasUnmarkedTesterField(tester))))
+        assertThat(resolver.fromUnmarkedField(instances(new HasUnmarkedTesterField(tester))))
                         .as("The unmarked field's tester must be returned.").isSameAs(tester);
     }
 
     @Test
     void testFromUnmarkedField_noTesterField_returnsNull() throws Exception
     {
-        assertThat(TestInstanceTesterResolver
-                .fromUnmarkedField(instances(new NoFieldsInstance())))
+        assertThat(resolver.fromUnmarkedField(instances(new NoFieldsInstance())))
                         .as("With no tester field anywhere, the caller must be told so with null"
                                 + " so it can try its own tiers.")
                         .isNull();
@@ -413,7 +504,7 @@ class TestInstanceTesterResolverTest
         final HasTwoUnmarkedTesterFields instance = new HasTwoUnmarkedTesterFields(
                 mock(IDatabaseTester.class), mock(IDatabaseTester.class));
 
-        assertThatThrownBy(() -> TestInstanceTesterResolver.fromUnmarkedField(instances(instance)))
+        assertThatThrownBy(() -> resolver.fromUnmarkedField(instances(instance)))
                 .as("Two unmarked IDatabaseTester fields declared directly on the same class are"
                         + " ambiguous and must be rejected, not silently resolved to whichever"
                         + " reflection happens to return first.")
@@ -428,8 +519,7 @@ class TestInstanceTesterResolverTest
         HasStaticUnmarkedTesterField.tester = mock(IDatabaseTester.class);
         try
         {
-            assertThat(TestInstanceTesterResolver
-                    .fromUnmarkedField(instances(new HasStaticUnmarkedTesterField())))
+            assertThat(resolver.fromUnmarkedField(instances(new HasStaticUnmarkedTesterField())))
                             .as("The plain field auto-scan (unlike the marked-field lookup) must"
                                     + " skip static fields, so a static-only IDatabaseTester"
                                     + " field is not found at all.")
@@ -443,8 +533,7 @@ class TestInstanceTesterResolverTest
     @Test
     void testFromUnmarkedField_testerFieldIsNull_throwsIllegalStateException()
     {
-        assertThatThrownBy(() -> TestInstanceTesterResolver
-                .fromUnmarkedField(instances(new HasUnmarkedTesterField(null))))
+        assertThatThrownBy(() -> resolver.fromUnmarkedField(instances(new HasUnmarkedTesterField(null))))
                         .as("A null, unmarked IDatabaseTester field must be rejected with a clear"
                                 + " message, not a bare NullPointerException.")
                         .isInstanceOf(IllegalStateException.class)
@@ -458,8 +547,7 @@ class TestInstanceTesterResolverTest
     {
         final IDatabaseTester tester = mock(IDatabaseTester.class);
 
-        assertThat(TestInstanceTesterResolver
-                .fromUnmarkedField(instances(new SubclassWithNoOwnTesterField(tester))))
+        assertThat(resolver.fromUnmarkedField(instances(new SubclassWithNoOwnTesterField(tester))))
                         .as("A tester field declared only on the superclass must be found"
                                 + " through a subclass instance.")
                         .isSameAs(tester);
@@ -470,8 +558,7 @@ class TestInstanceTesterResolverTest
     {
         final IDatabaseTester tester = mock(IDatabaseTester.class);
 
-        assertThat(TestInstanceTesterResolver
-                .fromUnmarkedField(instances(new GrandchildWithNoOwnTesterField(tester))))
+        assertThat(resolver.fromUnmarkedField(instances(new GrandchildWithNoOwnTesterField(tester))))
                         .as("The class hierarchy is walked all the way up, not just one level.")
                         .isSameAs(tester);
     }
@@ -483,7 +570,7 @@ class TestInstanceTesterResolverTest
         final IDatabaseTester superclassTester = mock(IDatabaseTester.class);
         final IDatabaseTester subclassTester = mock(IDatabaseTester.class);
 
-        assertThat(TestInstanceTesterResolver.fromUnmarkedField(instances(
+        assertThat(resolver.fromUnmarkedField(instances(
                 new SubclassWithOwnUnmarkedTesterField(superclassTester, subclassTester))))
                         .as("The 3.5.0 auto-scan lets the nearest declaring class win, unlike"
                                 + " the marked-field lookup.")
@@ -495,7 +582,7 @@ class TestInstanceTesterResolverTest
     {
         final IDatabaseTester outerTester = mock(IDatabaseTester.class);
 
-        assertThat(TestInstanceTesterResolver.fromUnmarkedField(
+        assertThat(resolver.fromUnmarkedField(
                 instances(new NoFieldsInstance(), new HasUnmarkedTesterField(outerTester))))
                         .as("An instance without a tester field must fall back to an enclosing"
                                 + " instance's.")
@@ -504,7 +591,12 @@ class TestInstanceTesterResolverTest
 
     private AnnotatedTestConfiguration configurationWithFactory()
     {
-        final DbUnitConfig config = WithFactory.class.getAnnotation(DbUnitConfig.class);
+        return configurationWithFactory(WithFactory.class);
+    }
+
+    private AnnotatedTestConfiguration configurationWithFactory(final Class<?> configHolder)
+    {
+        final DbUnitConfig config = configHolder.getAnnotation(DbUnitConfig.class);
         return AnnotatedTestConfiguration.from(TestInstanceTesterResolverTest.class, config,
                 null, null, null, null, null);
     }
@@ -715,6 +807,99 @@ class TestInstanceTesterResolverTest
 
     @DbUnitConfig(databaseTesterFactory = RecordingFactory.class)
     private static class WithFactory
+    {
+    }
+
+    /**
+     * A factory class of its own for each test below, as a factory instance is kept for the whole
+     * JVM, so counts shared between tests would depend on the order they run in.
+     */
+    static class OnceCountingFactory implements DatabaseTesterFactory
+    {
+        static final AtomicInteger constructions = new AtomicInteger();
+        static final AtomicInteger testersHandedOut = new AtomicInteger();
+
+        OnceCountingFactory()
+        {
+            constructions.incrementAndGet();
+        }
+
+        @Override
+        public IDatabaseTester getDatabaseTester()
+        {
+            testersHandedOut.incrementAndGet();
+            return mock(IDatabaseTester.class);
+        }
+    }
+
+    @DbUnitConfig(databaseTesterFactory = OnceCountingFactory.class)
+    private static class WithOnceCountingFactory
+    {
+    }
+
+    static class SharedCountingFactory implements DatabaseTesterFactory
+    {
+        static final AtomicInteger constructions = new AtomicInteger();
+
+        SharedCountingFactory()
+        {
+            constructions.incrementAndGet();
+        }
+
+        @Override
+        public IDatabaseTester getDatabaseTester()
+        {
+            return mock(IDatabaseTester.class);
+        }
+    }
+
+    @DbUnitConfig(databaseTesterFactory = SharedCountingFactory.class)
+    private static class WithSharedCountingFactory
+    {
+    }
+
+    /** Takes long enough to build for racing tests to meet in its constructor. */
+    static class SlowFactory implements DatabaseTesterFactory
+    {
+        static final AtomicInteger constructions = new AtomicInteger();
+
+        SlowFactory() throws InterruptedException
+        {
+            constructions.incrementAndGet();
+            Thread.sleep(100);
+        }
+
+        @Override
+        public IDatabaseTester getDatabaseTester()
+        {
+            return mock(IDatabaseTester.class);
+        }
+    }
+
+    @DbUnitConfig(databaseTesterFactory = SlowFactory.class)
+    private static class WithSlowFactory
+    {
+    }
+
+    static class ThrowingConstructorFactory implements DatabaseTesterFactory
+    {
+        static final AtomicInteger attempts = new AtomicInteger();
+
+        ThrowingConstructorFactory()
+        {
+            attempts.incrementAndGet();
+            throw new IllegalArgumentException("The factory cannot be built.");
+        }
+
+        @Override
+        public IDatabaseTester getDatabaseTester()
+        {
+            return mock(IDatabaseTester.class);
+        }
+    }
+
+    @DbUnitConfig(databaseTesterFactory = ThrowingConstructorFactory.class)
+    private static class WithThrowingConstructorFactory
     {
     }
 }

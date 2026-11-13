@@ -109,6 +109,28 @@ public class LongDataTypeTest extends AbstractDataTypeTest
         assertThat(THIS_TYPE.typeCast(ITable.NO_VALUE)).as("typecast").isNull();
     }
 
+    @Test
+    void testTypeCastBool_withBoolStringValue_returnsLongZeroOrOne() throws Exception
+    {
+        assertThat(THIS_TYPE.typeCast("false"))
+                .as("The text false is typecast to 0.").isEqualTo(0L);
+        assertThat(THIS_TYPE.typeCast("FALSE"))
+                .as("The text FALSE is typecast to 0.").isEqualTo(0L);
+        assertThat(THIS_TYPE.typeCast("true"))
+                .as("The text true is typecast to 1.").isEqualTo(1L);
+        assertThat(THIS_TYPE.typeCast("TRUE"))
+                .as("The text TRUE is typecast to 1.").isEqualTo(1L);
+    }
+
+    @Test
+    void testTypeCastBool_withBooleanValue_returnsLongZeroOrOne() throws Exception
+    {
+        assertThat(THIS_TYPE.typeCast(Boolean.FALSE))
+                .as("A Boolean false is typecast to 0.").isEqualTo(0L);
+        assertThat(THIS_TYPE.typeCast(Boolean.TRUE))
+                .as("A Boolean true is typecast to 1.").isEqualTo(1L);
+    }
+
     @Override
     @Test
     public void testTypeCastInvalid_withIncompatibleInput_throwsTypeCastException() throws Exception

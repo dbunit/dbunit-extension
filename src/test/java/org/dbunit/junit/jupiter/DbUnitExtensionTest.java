@@ -24,6 +24,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
@@ -41,9 +42,17 @@ import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.dbunit.IDatabaseTester;
 import org.dbunit.PrepAndExpectedTestCase;
 import org.dbunit.annotation.DbUnitConfig;
+import org.dbunit.annotation.DbUnitExpected;
+import org.dbunit.annotation.DbUnitPrep;
 import org.dbunit.annotation.DbUnitTester;
 import org.dbunit.annotation.runtime.AnnotatedTestExecutor;
+import org.dbunit.annotation.runtime.DataFileLoaderInstances;
+import org.dbunit.database.DatabaseConfig;
 import org.dbunit.database.IDatabaseConnection;
+import org.dbunit.operation.DatabaseOperation;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -71,14 +80,18 @@ class DbUnitExtensionTest
     {
         final IDatabaseTester marked = mock(IDatabaseTester.class);
         final IDatabaseTester unmarked = mock(IDatabaseTester.class);
+        final IDatabaseConnection markedConnection = mock(IDatabaseConnection.class);
+        when(markedConnection.getConfig()).thenReturn(new DatabaseConfig());
+        when(marked.getConnection()).thenReturn(markedConnection);
+        when(marked.getSetUpOperation()).thenReturn(DatabaseOperation.NONE);
         final HasMarkedTesterAndPlainTester testInstance =
                 new HasMarkedTesterAndPlainTester(marked, unmarked);
         givenTestInstance(testInstance, HasMarkedTesterAndPlainTester.class);
 
         extension.beforeTestExecution(context);
 
-        verify(marked).onSetup();
-        verify(unmarked, never()).onSetup();
+        verify(marked, atLeastOnce()).getConnection();
+        verify(unmarked, never()).getConnection();
     }
 
     @Test
@@ -90,6 +103,115 @@ class DbUnitExtensionTest
                 .as("No resolvable tester must be rejected with a clear message.")
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("No IDatabaseTester field found");
+    }
+
+    // ---- beforeTestExecution: a dbUnit annotation on a lifecycle method ----
+
+    @Test
+    void testBeforeTestExecution_expectedOnAnAfterEachMethod_throwsNamingTheMethod()
+    {
+        givenTestClassOnly(HasExpectedOnAfterEach.class);
+
+        assertThatThrownBy(callBeforeTestExecution())
+                .as("An annotation nothing reads must be rejected, not left to let a failing test"
+                        + " pass.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("@DbUnitExpected")
+                .hasMessageContaining(HasExpectedOnAfterEach.class.getName() + "#verifyAfter()")
+                .hasMessageContaining("test method");
+    }
+
+    @Test
+    void testBeforeTestExecution_prepOnABeforeEachMethodOfASuperclass_throwsNamingTheMethod()
+    {
+        givenTestClassOnly(ExtendsPrepOnBeforeEach.class);
+
+        assertThatThrownBy(callBeforeTestExecution())
+                .as("A lifecycle method the class inherits runs for its tests too.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("@DbUnitPrep")
+                .hasMessageContaining(PrepOnBeforeEach.class.getName() + "#loadBefore()");
+    }
+
+    @Test
+    void testBeforeTestExecution_prepOnABeforeEachMethodOfAnEnclosingClass_throwsNamingTheMethod()
+    {
+        final ExtensionContext parent = mock(ExtensionContext.class);
+        doReturn(Optional.of(PrepOnBeforeEach.class)).when(parent).getTestClass();
+        final ExtensionContext.Store store = mock(ExtensionContext.Store.class);
+        when(context.getStore(any(ExtensionContext.Namespace.class))).thenReturn(store);
+        doReturn(NestedInPrepOnBeforeEach.class).when(context).getRequiredTestClass();
+        when(context.getParent()).thenReturn(Optional.of(parent));
+
+        assertThatThrownBy(callBeforeTestExecution())
+                .as("A @Nested test runs the lifecycle methods of its enclosing classes.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining(PrepOnBeforeEach.class.getName() + "#loadBefore()");
+    }
+
+    // ---- beforeEach and beforeAll: a dbUnit annotation on a lifecycle method ----
+    // They run before the user's @BeforeEach and @BeforeAll methods, which an annotated one makes
+    // fail for lack of its data. DbUnitExtensionLifecycleMethodCheckTest proves the order.
+
+    @Test
+    void testBeforeEach_prepOnABeforeEachMethod_throwsNamingTheMethod()
+    {
+        givenTestClass(PrepOnBeforeEach.class);
+
+        assertThatThrownBy(() -> extension.beforeEach(context))
+                .as("The check must run before the @BeforeEach methods, which an annotation"
+                        + " nothing reads leaves without their data.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("@DbUnitPrep")
+                .hasMessageContaining(PrepOnBeforeEach.class.getName() + "#loadBefore()");
+    }
+
+    @Test
+    void testBeforeEach_noDbUnitAnnotationOnALifecycleMethod_doesNotThrow()
+    {
+        givenTestClass(HasPlainBeforeEach.class);
+
+        assertThatCode(() -> extension.beforeEach(context))
+                .as("A lifecycle method without a dbUnit annotation is fine.")
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void testBeforeAll_prepOnABeforeAllMethod_throwsNamingTheMethod()
+    {
+        givenTestClass(PrepOnBeforeAll.class);
+
+        assertThatThrownBy(() -> extension.beforeAll(context))
+                .as("The check must run before the @BeforeAll methods.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("@DbUnitPrep")
+                .hasMessageContaining(PrepOnBeforeAll.class.getName() + "#loadBefore()");
+    }
+
+    @Test
+    void testBeforeEach_superclassBeforeEachOverriddenByABeforeEach_throwsNamingTheSuperclassMethod()
+    {
+        givenTestClass(OverridesWithBeforeEach.class);
+
+        assertThatThrownBy(() -> extension.beforeEach(context))
+                .as("The annotation on the overridden method is as unread as one on a method"
+                        + " JUnit runs, and the message names the method that carries it.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("@DbUnitExpected")
+                .hasMessageContaining(SuperWithExpectedOnBeforeEach.class.getName() + "#verify()");
+    }
+
+    @Test
+    void testBeforeEach_superclassBeforeEachOverriddenByAPlainMethod_throwsNamingTheSuperclassMethod()
+    {
+        givenTestClass(OverridesWithoutAnnotation.class);
+
+        assertThatThrownBy(() -> extension.beforeEach(context))
+                .as("JUnit runs no verify() at all then, which is no reason to let the unread"
+                        + " annotation pass.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("@DbUnitExpected")
+                .hasMessageContaining(SuperWithExpectedOnBeforeEach.class.getName() + "#verify()");
     }
 
     // ---- afterTestExecution: exception propagation ----
@@ -175,9 +297,8 @@ class DbUnitExtensionTest
     void testSupportsParameter_supportedTypes_returnsTrue() throws Exception
     {
         doReturn(AnnotationDrivenHost.class).when(context).getRequiredTestClass();
-        when(context.getEnclosingTestClasses()).thenReturn(Collections.emptyList());
         for (final Class<?> methodParam : new Class<?>[] {IDatabaseTester.class,
-                PrepAndExpectedTestCase.class, IDatabaseConnection.class, Connection.class})
+                IDatabaseConnection.class})
         {
             final Method method = ParameterHost.class
                     .getDeclaredMethod("with" + methodParam.getSimpleName(), methodParam);
@@ -194,43 +315,24 @@ class DbUnitExtensionTest
     }
 
     @Test
-    void testSupportsParameter_bareConnectionWithInjectConnectionParameterFalse_returnsFalse()
-            throws Exception
+    void testSupportsParameter_connectionAndTestCaseTypes_returnsFalse() throws Exception
     {
-        // @DbUnitConfig(injectConnectionParameter = false) yields java.sql.Connection to a
-        // co-registered resolver (Spring, Testcontainers, ...) so JUnit does not fail with
-        // "discovered multiple competing ParameterResolvers".
-        doReturn(NoConnectionInjectionHost.class).when(context).getRequiredTestClass();
-        when(context.getEnclosingTestClasses()).thenReturn(Collections.emptyList());
-        final Method method = ParameterHost.class
-                .getDeclaredMethod("withConnection", Connection.class);
-        final ParameterContext parameterContext = mock(ParameterContext.class);
-        when(parameterContext.getParameter()).thenReturn(method.getParameters()[0]);
-        when(context.getTestMethod()).thenReturn(Optional.of(method));
+        // java.sql.Connection is left to Spring's SpringExtension, Testcontainers or a JPA
+        // harness, so JUnit does not fail with "discovered multiple competing
+        // ParameterResolvers"; the test case is reached through its @DbUnitTestCase field.
+        for (final Class<?> methodParam : new Class<?>[] {PrepAndExpectedTestCase.class,
+                Connection.class})
+        {
+            final Method method = ParameterHost.class
+                    .getDeclaredMethod("with" + methodParam.getSimpleName(), methodParam);
+            final ParameterContext parameterContext = mock(ParameterContext.class);
+            when(parameterContext.getParameter()).thenReturn(method.getParameters()[0]);
 
-        assertThat(extension.supportsParameter(parameterContext, context))
-                .as("A bare java.sql.Connection parameter must not be claimed when"
-                        + " @DbUnitConfig(injectConnectionParameter = false).")
-                .isFalse();
-    }
-
-    @Test
-    void testSupportsParameter_iDatabaseConnectionWithInjectConnectionParameterFalse_stillReturnsTrue()
-            throws Exception
-    {
-        doReturn(NoConnectionInjectionHost.class).when(context).getRequiredTestClass();
-        when(context.getEnclosingTestClasses()).thenReturn(Collections.emptyList());
-        final Method method = ParameterHost.class
-                .getDeclaredMethod("withIDatabaseConnection", IDatabaseConnection.class);
-        final ParameterContext parameterContext = mock(ParameterContext.class);
-        when(parameterContext.getParameter()).thenReturn(method.getParameters()[0]);
-        when(parameterContext.getDeclaringExecutable()).thenReturn(method);
-        when(context.getTestMethod()).thenReturn(Optional.of(method));
-
-        assertThat(extension.supportsParameter(parameterContext, context))
-                .as("injectConnectionParameter = false must drop only the bare Connection"
-                        + " claim; the dbUnit-specific IDatabaseConnection is still resolved.")
-                .isTrue();
+            assertThat(extension.supportsParameter(parameterContext, context))
+                    .as(methodParam.getName() + " must not be a parameter this extension"
+                            + " claims, annotation-driven test or not.")
+                    .isFalse();
+        }
     }
 
     @Test
@@ -239,12 +341,11 @@ class DbUnitExtensionTest
     {
         // A bare @ExtendWith(DbUnitExtension.class) class with only a plain, unannotated
         // IDatabaseTester field - the 3.5.0 lifecycle-only style - must not have its parameters
-        // claimed, so another extension resolving a Connection on the same test stays
+        // claimed, so another extension resolving one of these types on the same test stays
         // unambiguous.
         doReturn(HasTwoUnmarkedTesterFields.class).when(context).getRequiredTestClass();
-        when(context.getEnclosingTestClasses()).thenReturn(Collections.emptyList());
         final Method method = ParameterHost.class
-                .getDeclaredMethod("withConnection", Connection.class);
+                .getDeclaredMethod("withIDatabaseConnection", IDatabaseConnection.class);
         final ParameterContext parameterContext = mock(ParameterContext.class);
         when(parameterContext.getParameter()).thenReturn(method.getParameters()[0]);
         when(parameterContext.getDeclaringExecutable()).thenReturn(method);
@@ -261,7 +362,6 @@ class DbUnitExtensionTest
     void testSupportsParameter_markerFieldButNoAnnotation_returnsTrue() throws Exception
     {
         doReturn(HasTester.class).when(context).getRequiredTestClass();
-        when(context.getEnclosingTestClasses()).thenReturn(Collections.emptyList());
         final Method method = ParameterHost.class
                 .getDeclaredMethod("withIDatabaseTester", IDatabaseTester.class);
         final ParameterContext parameterContext = mock(ParameterContext.class);
@@ -312,25 +412,22 @@ class DbUnitExtensionTest
     }
 
     @Test
-    void testResolveParameter_connectionType_returnsUnderlyingJdbcConnection() throws Exception
+    void testResolveParameter_iDatabaseConnectionType_returnsTestersConnection() throws Exception
     {
         final IDatabaseTester tester = mock(IDatabaseTester.class);
         final IDatabaseConnection databaseConnection = mock(IDatabaseConnection.class);
-        final Connection jdbcConnection = mock(Connection.class);
         when(tester.getConnection()).thenReturn(databaseConnection);
-        when(databaseConnection.getConnection()).thenReturn(jdbcConnection);
         givenTestInstance(new HasTester(tester), HasTester.class);
-        final Method method =
-                ParameterHost.class.getDeclaredMethod("withConnection", Connection.class);
+        final Method method = ParameterHost.class
+                .getDeclaredMethod("withIDatabaseConnection", IDatabaseConnection.class);
         final ParameterContext parameterContext = mock(ParameterContext.class);
         when(parameterContext.getParameter()).thenReturn(method.getParameters()[0]);
 
         final Object resolved = extension.resolveParameter(parameterContext, context);
 
         assertThat(resolved)
-                .as("A Connection parameter must resolve to the IDatabaseConnection's"
-                        + " underlying JDBC Connection, not the IDatabaseConnection itself.")
-                .isSameAs(jdbcConnection);
+                .as("An IDatabaseConnection parameter must resolve to the tester's connection.")
+                .isSameAs(databaseConnection);
     }
 
     @Test
@@ -355,7 +452,7 @@ class DbUnitExtensionTest
     }
 
     @Test
-    void testResolveParameter_connectionTypeAndTesterConnectionIsNull_throwsClearParameterResolutionException()
+    void testResolveParameter_iDatabaseConnectionTypeAndTesterConnectionIsNull_throwsClearParameterResolutionException()
             throws Exception
     {
         final IDatabaseTester tester = mock(IDatabaseTester.class);
@@ -368,32 +465,12 @@ class DbUnitExtensionTest
 
         assertThatThrownBy(() -> extension.resolveParameter(parameterContext, context))
                 .as("IDatabaseTester#getConnection() returning null must be reported clearly"
-                        + " when injecting an IDatabaseConnection/Connection parameter, not"
+                        + " when injecting an IDatabaseConnection parameter, not"
                         + " left as a bare NullPointerException from calling getConnection()"
                         + " on the result.")
                 .isInstanceOf(ParameterResolutionException.class)
                 .cause().isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("getConnection()").hasMessageContaining("null");
-    }
-
-    @Test
-    void testResolveParameter_prepAndExpectedTestCaseTypeWithNoTestCaseField_throwsClearParameterResolutionException()
-            throws Exception
-    {
-        final IDatabaseTester tester = mock(IDatabaseTester.class);
-        givenTestInstance(new HasTester(tester), HasTester.class);
-        final Method method = ParameterHost.class.getDeclaredMethod(
-                "withPrepAndExpectedTestCase", PrepAndExpectedTestCase.class);
-        final ParameterContext parameterContext = mock(ParameterContext.class);
-        when(parameterContext.getParameter()).thenReturn(method.getParameters()[0]);
-
-        assertThatThrownBy(() -> extension.resolveParameter(parameterContext, context))
-                .as("A PrepAndExpectedTestCase parameter with no @DbUnitTestCase field to"
-                        + " supply a single instance must be rejected with a clear message"
-                        + " instead of an opaque failure.")
-                .isInstanceOf(ParameterResolutionException.class)
-                .cause().isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("@DbUnitTestCase");
     }
 
     @Test
@@ -421,6 +498,10 @@ class DbUnitExtensionTest
         // first, where this stub is never consulted.
         lenient().when(context.getStore(any(ExtensionContext.Namespace.class)))
                 .thenReturn(store);
+        // the data file loaders of the run live in the store of the root context
+        lenient().when(context.getRoot()).thenReturn(context);
+        lenient().when(store.getOrComputeIfAbsent(any(), any(), any()))
+                .thenReturn(new DataFileLoaderInstances());
         doReturn(testClass).when(context).getRequiredTestClass();
         final TestInstances instances = mock(TestInstances.class);
         when(instances.getAllInstances()).thenReturn(Collections.singletonList(testInstance));
@@ -428,6 +509,18 @@ class DbUnitExtensionTest
         // lenient: only resolveParameter() consults this; beforeTestExecution()-based tests
         // never reach it.
         lenient().when(context.getTestInstances()).thenReturn(Optional.of(instances));
+    }
+
+    private void givenTestClassOnly(final Class<?> testClass)
+    {
+        final ExtensionContext.Store store = mock(ExtensionContext.Store.class);
+        when(context.getStore(any(ExtensionContext.Namespace.class))).thenReturn(store);
+        doReturn(testClass).when(context).getRequiredTestClass();
+    }
+
+    private void givenTestClass(final Class<?> testClass)
+    {
+        doReturn(testClass).when(context).getRequiredTestClass();
     }
 
     private ThrowingCallable callBeforeTestExecution()
@@ -462,6 +555,85 @@ class DbUnitExtensionTest
         }
     }
 
+    static class HasExpectedOnAfterEach
+    {
+        @AfterEach
+        @DbUnitExpected("expected.xml")
+        void verifyAfter()
+        {
+        }
+
+        void aTestMethod()
+        {
+        }
+    }
+
+    static class PrepOnBeforeEach
+    {
+        @BeforeEach
+        @DbUnitPrep("prep.xml")
+        void loadBefore()
+        {
+        }
+    }
+
+    static class PrepOnBeforeAll
+    {
+        @BeforeAll
+        @DbUnitPrep("prep.xml")
+        static void loadBefore()
+        {
+        }
+    }
+
+    static class HasPlainBeforeEach
+    {
+        @BeforeEach
+        void setUp()
+        {
+        }
+    }
+
+    static class SuperWithExpectedOnBeforeEach
+    {
+        @BeforeEach
+        @DbUnitExpected("expected.xml")
+        void verify()
+        {
+        }
+    }
+
+    static class OverridesWithBeforeEach extends SuperWithExpectedOnBeforeEach
+    {
+        @Override
+        @BeforeEach
+        void verify()
+        {
+        }
+    }
+
+    static class OverridesWithoutAnnotation extends SuperWithExpectedOnBeforeEach
+    {
+        @Override
+        void verify()
+        {
+        }
+    }
+
+    static class ExtendsPrepOnBeforeEach extends PrepOnBeforeEach
+    {
+        void aTestMethod()
+        {
+        }
+    }
+
+    class NestedInPrepOnBeforeEach
+    {
+        void aTestMethod()
+        {
+        }
+    }
+
     static class HasTwoUnmarkedTesterFields
     {
         IDatabaseTester first;
@@ -490,12 +662,6 @@ class DbUnitExtensionTest
     /** A test class carrying a @DbUnit* annotation, so its parameters are injectable. */
     @DbUnitConfig
     static class AnnotationDrivenHost
-    {
-    }
-
-    /** Annotation-driven, but opts its bare java.sql.Connection parameter back out. */
-    @DbUnitConfig(injectConnectionParameter = false)
-    static class NoConnectionInjectionHost
     {
     }
 }

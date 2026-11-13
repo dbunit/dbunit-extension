@@ -21,7 +21,6 @@
 package org.dbunit.spring;
 
 import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
 import java.util.List;
 import java.util.function.Predicate;
 
@@ -29,9 +28,11 @@ import org.dbunit.IDatabaseTester;
 import org.dbunit.annotation.DbUnitTestCase;
 import org.dbunit.annotation.DbUnitTester;
 import org.dbunit.annotation.runtime.AnnotatedTestConfiguration;
+import org.dbunit.annotation.runtime.TesterFields;
 import org.dbunit.annotation.runtime.TestInstanceTesterResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.BeanFactoryUtils;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.ApplicationContext;
 import org.springframework.test.context.ContextConfiguration;
@@ -65,6 +66,24 @@ class SpringTesterResolver
 {
     private static final Logger log = LoggerFactory.getLogger(SpringTesterResolver.class);
 
+    private final TesterFields testerFields;
+    private final TestInstanceTesterResolver instanceResolver;
+
+    /**
+     * Creates a resolver that applies the field rules of the given instances.
+     *
+     * @param testerFields The rules for which fields are tester fields, for the checks of an
+     *            enclosing instance that cannot be reached.
+     * @param instanceResolver The binding-neutral resolver this one supplies the test
+     *            instances to.
+     */
+    SpringTesterResolver(final TesterFields testerFields,
+            final TestInstanceTesterResolver instanceResolver)
+    {
+        this.testerFields = testerFields;
+        this.instanceResolver = instanceResolver;
+    }
+
     /**
      * Resolves the tester and test case for the current test.
      *
@@ -84,9 +103,9 @@ class SpringTesterResolver
         final List<Object> instances = chain.getInnermostFirst();
         if (!anyDeclaresMarkedField(instances))
         {
-            rejectUnreachableFields(chain, testClass, this::isMarked);
+            rejectUnreachableFields(chain, testClass, testerFields::isMarked);
         }
-        return TestInstanceTesterResolver.resolve(instances,
+        return instanceResolver.resolve(instances,
                 () -> findTester(instances, chain, testContext, configuration));
     }
 
@@ -95,25 +114,25 @@ class SpringTesterResolver
             throws Exception
     {
         final IDatabaseTester factoryTester =
-                TestInstanceTesterResolver.fromFactory(configuration);
+                instanceResolver.fromFactory(configuration);
         if (factoryTester != null)
         {
             return factoryTester;
         }
 
-        final IDatabaseTester fieldTester = TestInstanceTesterResolver.fromUnmarkedField(instances);
+        final IDatabaseTester fieldTester = instanceResolver.fromUnmarkedField(instances);
         if (fieldTester != null)
         {
             return fieldTester;
         }
 
         final Class<?> testClass = testContext.getTestClass();
-        rejectUnreachableFields(chain, testClass, this::isUnmarkedTester);
+        rejectUnreachableFields(chain, testClass, testerFields::isUnmarkedTester);
 
         final ApplicationContext applicationContext = findApplicationContext(testContext);
         if (applicationContext != null)
         {
-            final IDatabaseTester beanTester = findTesterBean(applicationContext);
+            final IDatabaseTester beanTester = findTesterBean(applicationContext, testClass);
             if (beanTester != null)
             {
                 return beanTester;
@@ -146,7 +165,15 @@ class SpringTesterResolver
                 || TestContextAnnotationUtils.hasAnnotation(testClass, ContextHierarchy.class);
     }
 
-    private IDatabaseTester findTesterBean(final ApplicationContext applicationContext)
+    /**
+     * Returns the {@code IDatabaseTester} bean Spring's candidate rules single out, or
+     * {@code null} when the context, its ancestors included, holds none.
+     *
+     * @throws IllegalStateException If it holds several and the rules single out none, naming
+     *             the beans.
+     */
+    private IDatabaseTester findTesterBean(final ApplicationContext applicationContext,
+            final Class<?> testClass)
     {
         final ObjectProvider<IDatabaseTester> beans =
                 applicationContext.getBeanProvider(IDatabaseTester.class);
@@ -155,8 +182,26 @@ class SpringTesterResolver
         {
             log.debug("Resolved IDatabaseTester bean of type '{}' from the ApplicationContext",
                     tester.getClass().getName());
+            return tester;
         }
-        return tester;
+        final String[] candidates = BeanFactoryUtils
+                .beanNamesForTypeIncludingAncestors(applicationContext, IDatabaseTester.class);
+        if (candidates.length > 1)
+        {
+            throw new IllegalStateException(severalTestersMessage(testClass, candidates));
+        }
+        return null;
+    }
+
+    private String severalTestersMessage(final Class<?> testClass, final String[] candidates)
+    {
+        final String beanNames = String.join(", ", candidates);
+        return "The ApplicationContext of " + testClass.getName() + " holds several"
+                + " IDatabaseTester beans, " + beanNames + ", and none is the one to use: mark"
+                + " one @Primary, or declare a @DbUnitTester field holding the one to use, for"
+                + " example @Autowired @Qualifier(\"" + candidates[0] + "\") @DbUnitTester"
+                + " IDatabaseTester databaseTester, or configure @DbUnitConfig(databaseTesterFactory"
+                + " = ...).";
     }
 
     private String noTesterMessage(final Class<?> testClass, final boolean contextConsulted)
@@ -186,7 +231,8 @@ class SpringTesterResolver
     {
         for (final Object instance : instances)
         {
-            final Field field = findField(instance.getClass(), this::isMarked);
+            final Field field =
+                    testerFields.findFirst(instance.getClass(), testerFields::isMarked);
             if (field != null)
             {
                 return true;
@@ -205,7 +251,7 @@ class SpringTesterResolver
     {
         for (final Class<?> enclosingClass : chain.getUnreachableEnclosingClasses())
         {
-            final Field field = findField(enclosingClass, matches);
+            final Field field = testerFields.findFirst(enclosingClass, matches);
             if (field != null)
             {
                 throw new IllegalStateException("The enclosing class " + enclosingClass.getName()
@@ -221,38 +267,4 @@ class SpringTesterResolver
         }
     }
 
-    /**
-     * Finds the first field anywhere in {@code clazz}'s hierarchy that {@code matches} accepts,
-     * most-derived class first.
-     */
-    private Field findField(final Class<?> clazz, final Predicate<Field> matches)
-    {
-        Class<?> current = clazz;
-        while (current != null && current != Object.class)
-        {
-            for (final Field field : current.getDeclaredFields())
-            {
-                if (matches.test(field))
-                {
-                    return field;
-                }
-            }
-            current = current.getSuperclass();
-        }
-        return null;
-    }
-
-    /** Whether the field is marked {@link DbUnitTester} or {@link DbUnitTestCase}. */
-    private boolean isMarked(final Field field)
-    {
-        return field.isAnnotationPresent(DbUnitTester.class)
-                || field.isAnnotationPresent(DbUnitTestCase.class);
-    }
-
-    /** Whether the field is one the 3.5.0 auto-scan uses: non-static and an IDatabaseTester. */
-    private boolean isUnmarkedTester(final Field field)
-    {
-        return !Modifier.isStatic(field.getModifiers())
-                && IDatabaseTester.class.isAssignableFrom(field.getType());
-    }
 }

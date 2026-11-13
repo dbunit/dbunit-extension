@@ -26,55 +26,77 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
+import java.lang.annotation.Annotation;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Deque;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
+import java.util.stream.Stream;
 
 import org.dbunit.AbstractDatabaseTester;
+import org.dbunit.DatabaseUnitException;
 import org.dbunit.DatabaseUnitRuntimeException;
-import org.dbunit.ConnectionPreservingOperationListener;
 import org.dbunit.DefaultDatabaseTester;
+import org.dbunit.DefaultOperationListener;
 import org.dbunit.DefaultPrepAndExpectedTestCase;
 import org.dbunit.IDatabaseTester;
 import org.dbunit.IOperationListener;
 import org.dbunit.JdbcDatabaseTester;
 import org.dbunit.PrepAndExpectedTestCase;
+import org.dbunit.PrepAndExpectedTestData;
 import org.dbunit.VerifyTableDefinition;
 import org.dbunit.annotation.DbUnitConfig;
 import org.dbunit.annotation.DbUnitExpected;
 import org.dbunit.annotation.DbUnitPrep;
 import org.dbunit.annotation.DbUnitProperty;
 import org.dbunit.annotation.DbUnitRowCountCheck;
-import org.dbunit.annotation.DbUnitSetup;
-import org.dbunit.annotation.DbUnitTearDown;
-import org.dbunit.assertion.DefaultFailureHandler;
+import org.dbunit.annotation.DbUnitSetUpOperation;
+import org.dbunit.annotation.DbUnitTearDownOperation;
+import org.dbunit.annotation.DbUnitTestCase;
 import org.dbunit.assertion.DiffCollectingFailureHandler;
-import org.dbunit.assertion.FailureHandler;
 import org.dbunit.database.CachingConnectionProvider;
 import org.dbunit.database.DatabaseConfig;
 import org.dbunit.database.IDatabaseConnection;
 import org.dbunit.database.InMemoryDatabaseConnection;
+import org.dbunit.database.connection.ClosedConnectionHandedOutWarning;
+import org.dbunit.database.connection.ClosedFixedConnectionWarning;
 import org.dbunit.database.connection.LeftOpenConnectionWarning;
 import org.dbunit.database.rowcount.ClearRowCountCheckSystemProperties;
 import org.dbunit.database.rowcount.RowCountCheck;
 import org.dbunit.database.rowcount.RowCountCheckConfiguration;
+import org.dbunit.database.rowcount.RowCountCheckOverride;
+import org.dbunit.database.rowcount.RowCountDifference;
 import org.dbunit.database.rowcount.UnexpectedRowCountException;
+import org.dbunit.dataset.Column;
+import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.DefaultDataSet;
+import org.dbunit.dataset.DefaultTable;
 import org.dbunit.dataset.IDataSet;
+import org.dbunit.dataset.datatype.DataType;
+import org.dbunit.dataset.datatype.DefaultDataTypeFactory;
 import org.dbunit.operation.DatabaseOperation;
 import org.dbunit.operation.DbUnitOperation;
 import org.dbunit.util.fileloader.DataFileLoader;
@@ -82,7 +104,11 @@ import org.dbunit.util.fileloader.FlatXmlDataFileLoader;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.slf4j.LoggerFactory;
@@ -97,7 +123,7 @@ import ch.qos.logback.core.read.ListAppender;
 class AnnotatedTestExecutorTest
 {
     @Mock
-    IDatabaseTester tester;
+    ListenerReportingTester tester;
 
     @Mock
     IDatabaseConnection connection;
@@ -108,55 +134,34 @@ class AnnotatedTestExecutorTest
     @BeforeEach
     void resetRecordingPrepAndExpectedTestCase()
     {
+        lenient().when(tester.getOperationListener()).thenReturn(new DefaultOperationListener());
+        lenient().when(tester.getSetUpOperation()).thenReturn(DatabaseOperation.NONE);
+        lenient().when(tester.getTearDownOperation()).thenReturn(DatabaseOperation.NONE);
         RecordingPrepAndExpectedTestCase.instance = null;
         RecordingPrepAndExpectedTestCase.lastTester = null;
-        RecordingPrepAndExpectedTestCase.lastCloseConnectionAfterTest = false;
         RecordingPrepAndExpectedTestCase.throwFromConstructor = false;
+        PrepRowCountsTestCase.expectedDataset = null;
     }
 
-    // ---- setup/teardown path: setup ----
-
-    @Test
-    void testBeforeTest_setupTeardownPathWithPrepFiles_setsDataSetAndOperationThenOnSetup()
-            throws Exception
-    {
-        stubDisabledConnection();
-        final DbUnitPrep prep = WithPrep.class.getAnnotation(DbUnitPrep.class);
-        final AnnotatedTestConfiguration configuration =
-                AnnotatedTestConfiguration.from(WithPrep.class, null, prep, null, null, null,
-                        null);
-        final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, null);
-
-        executor.beforeTest();
-
-        verify(tester).setDataSet(any(IDataSet.class));
-        verify(tester).setSetUpOperation(DatabaseOperation.CLEAN_INSERT);
-        verify(tester).onSetup();
-    }
+    // ---- setup: combining prep files, and the classic path's onSetup() ----
 
     @Test
     void testBeforeTest_multiplePrepFilesAndCaseSensitiveTableNames_doesNotMergeDifferentlyCasedTables()
             throws Exception
     {
-        when(tester.getConnection()).thenReturn(connection);
+        final RecordingAbstractDatabaseTester ownTester = testerWithConnection();
+        ownTester.setSetUpOperation(DatabaseOperation.NONE);
         final DatabaseConfig databaseConfig = new DatabaseConfig();
         databaseConfig.setFeature(DatabaseConfig.FEATURE_CASE_SENSITIVE_TABLE_NAMES, true);
-        when(connection.getConfig()).thenReturn(databaseConfig);
-        stubOpenJdbcConnection();
-        final DbUnitPrep prep =
-                WithTwoDifferentlyCasedPrepFiles.class.getAnnotation(DbUnitPrep.class);
-        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
-                .from(WithTwoDifferentlyCasedPrepFiles.class, null, prep, null, null, null,
-                        null);
-        final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, null);
+        lenient().when(connection.getConfig()).thenReturn(databaseConfig);
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithTwoDifferentlyCasedPrepFiles.class), ownTester, null);
 
         executor.beforeTest();
 
-        final ArgumentCaptor<IDataSet> captor = ArgumentCaptor.forClass(IDataSet.class);
-        verify(tester).setDataSet(captor.capture());
-        assertThat(captor.getValue().getTableNames())
+        final DefaultPrepAndExpectedTestCase testCase =
+                (DefaultPrepAndExpectedTestCase) executor.getPrepAndExpectedTestCase();
+        assertThat(testCase.getPrepDataset().getTableNames())
                 .as("Combining multiple @DbUnitPrep files must honor the connection's"
                         + " FEATURE_CASE_SENSITIVE_TABLE_NAMES, the same feature"
                         + " DefaultPrepAndExpectedTestCase resolves for its own multi-file"
@@ -166,83 +171,46 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
-    void testBeforeTest_multiplePrepFilesAndTesterConnectionNull_combinesCaseInsensitively()
+    void testBeforeTest_multiplePrepFilesAndCaseInsensitiveTableNames_mergesDifferentlyCasedTables()
             throws Exception
     {
-        // A tester with no connection to ask (e.g. a test double) cannot report
-        // FEATURE_CASE_SENSITIVE_TABLE_NAMES, so multi-file combining falls back to
-        // case-insensitive - 'ACCOUNT' and 'account' merge into one table - without an NPE.
-        when(tester.getConnection()).thenReturn(null);
-        final DbUnitPrep prep =
-                WithTwoDifferentlyCasedPrepFiles.class.getAnnotation(DbUnitPrep.class);
-        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
-                .from(WithTwoDifferentlyCasedPrepFiles.class, null, prep, null, null, null,
-                        null);
-        final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, null);
+        final RecordingAbstractDatabaseTester ownTester = testerWithConnection();
+        ownTester.setSetUpOperation(DatabaseOperation.NONE);
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithTwoDifferentlyCasedPrepFiles.class), ownTester, null);
 
         executor.beforeTest();
 
-        final ArgumentCaptor<IDataSet> captor = ArgumentCaptor.forClass(IDataSet.class);
-        verify(tester).setDataSet(captor.capture());
-        assertThat(captor.getValue().getTableNames())
-                .as("With no connection to read the feature from, the two files combine"
-                        + " case-insensitively into one table.")
+        final DefaultPrepAndExpectedTestCase testCase =
+                (DefaultPrepAndExpectedTestCase) executor.getPrepAndExpectedTestCase();
+        assertThat(testCase.getPrepDataset().getTableNames())
+                .as("With the connection's default case-insensitive table names, the two files"
+                        + " combine into one table.")
                 .hasSize(1);
     }
 
     @Test
-    void testAfterTest_setupTeardownPathBeforeTestNeverRan_doesNotThrow() throws Exception
+    void testAfterTest_classicPathBeforeTestNeverRan_doesNotThrow() throws Exception
     {
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
         final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, null);
+                new AnnotatedTestExecutor(configuration, tester, null, false);
 
         assertThatCode(() -> executor.afterTest(true))
-                .as("afterTest() with no preceding beforeTest() - so no tester-state snapshot"
-                        + " was taken - must be a no-op, not an NPE restoring a null snapshot.")
+                .as("afterTest() with no preceding beforeTest() must be a no-op.")
                 .doesNotThrowAnyException();
         verify(tester, never()).onTearDown();
     }
 
     @Test
-    void testBeforeTest_prepDeclaredWithoutSetupAndTesterPresetToRefresh_appliesCleanInsertThenRestoresIt()
-            throws Exception
-    {
-        // @DbUnitPrep alone means CLEAN_INSERT, so it replaces a different operation the tester
-        // already carried, for the duration of the test only. A caller who wants to keep that
-        // operation declares @DbUnitSetup alongside it.
-        final RecordingAbstractDatabaseTester presetTester = new RecordingAbstractDatabaseTester();
-        presetTester.setSetUpOperation(DatabaseOperation.REFRESH);
-        final DbUnitPrep prep = WithPrep.class.getAnnotation(DbUnitPrep.class);
-        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
-                AnnotatedTestConfiguration.from(WithPrep.class, null, prep, null, null, null,
-                        null),
-                presetTester, null);
-
-        executor.beforeTest();
-
-        assertThat(presetTester.setUpOperationsRun)
-                .as("@DbUnitPrep without @DbUnitSetup runs the default CLEAN_INSERT, not the"
-                        + " operation the tester was preset to.")
-                .containsExactly(DatabaseOperation.CLEAN_INSERT);
-
-        executor.afterTest(false);
-
-        assertThat(presetTester.getSetUpOperation())
-                .as("The tester's own operation is restored once the test is over.")
-                .isEqualTo(DatabaseOperation.REFRESH);
-    }
-
-    @Test
-    void testBeforeTest_setupTeardownPathNoPrepFiles_onlyCallsOnSetup() throws Exception
+    void testBeforeTest_classicPath_onlyCallsOnSetupAndWritesNothing() throws Exception
     {
         stubDisabledConnection();
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
         final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, null);
+                new AnnotatedTestExecutor(configuration, tester, null, false);
 
         executor.beforeTest();
 
@@ -251,38 +219,20 @@ class AnnotatedTestExecutorTest
         verify(tester).onSetup();
     }
 
-    // ---- setup/teardown path: teardown ----
+    // ---- teardown: the classic path's onTearDown(), and a failing postTest() ----
 
     @Test
-    void testAfterTest_tearDownDeclared_setsOperationThenOnTearDown() throws Exception
-    {
-        final DbUnitTearDown tearDown =
-                WithTearDown.class.getAnnotation(DbUnitTearDown.class);
-        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
-                .from(WithTearDown.class, null, null, null, null, tearDown, null);
-        final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, null);
-
-        executor.beforeTest();
-        executor.afterTest(false);
-
-        verify(tester).setTearDownOperation(DatabaseOperation.DELETE_ALL);
-        verify(tester).onTearDown();
-    }
-
-    @Test
-    void testAfterTest_tearDownNotDeclared_runsWithAndRestoresTheBeforeEachSetTeardownOperation()
+    void testAfterTest_classicPathTearDownOperationSetBeforeEach_runsItAndLeavesTheTesterAlone()
             throws Exception
     {
-        // A @DbUnitTearDown-less method must run onTearDown() with the operation a @BeforeEach
-        // method set (not a forced NONE - issue 945), then restore it so a shared tester is
-        // left exactly as it was found.
+        // A zero-annotation method must run onTearDown() with the operation a @BeforeEach method
+        // set (not a forced NONE - issue 945), and leave the tester exactly as it was found.
         final RecordingAbstractDatabaseTester sharedTester = new RecordingAbstractDatabaseTester();
         sharedTester.setTearDownOperation(DatabaseOperation.DELETE_ALL);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
         final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, sharedTester, null);
+                new AnnotatedTestExecutor(configuration, sharedTester, null, false);
 
         executor.beforeTest();
         executor.afterTest(false);
@@ -296,224 +246,730 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
-    void testAfterTest_setupTeardownPathOnTearDownThrowsAndRestoreAlsoThrows_reportsTearDownWithRestoreSuppressed()
-            throws Exception
+    void testAfterTest_classicPathOnTearDownThrows_isReportedUnchanged() throws Exception
     {
         stubDisabledConnection();
-        final IDataSet incoming = mock(IDataSet.class);
-        when(tester.getDataSet()).thenReturn(incoming);
         final RuntimeException tearDownFailure = new RuntimeException("onTearDown failed");
         doThrow(tearDownFailure).when(tester).onTearDown();
-        final RuntimeException restoreFailure = new RuntimeException("restore failed");
-        doThrow(restoreFailure).when(tester).setDataSet(incoming);
-        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
-                .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
-        final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, null);
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithNothing.class), tester, null, false);
         executor.beforeTest();
 
         final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
 
-        assertThat(thrown)
-                .as("The onTearDown() failure is the primary; a failure restoring the tester's"
-                        + " incoming state must not replace it.")
+        assertThat(thrown).as("The onTearDown() failure is what the test reports.")
                 .isSameAs(tearDownFailure);
-        assertThat(thrown.getSuppressed())
-                .as("The restore failure is still visible, attached as suppressed.")
-                .contains(restoreFailure);
     }
 
     @Test
-    void testAfterTest_expectedPathPostTestThrowsAndRestoreAlsoThrows_reportsPostTestWithRestoreSuppressed()
+    void testAfterTest_postTestThrowsAndUndoingTheConfigurationAlsoThrows_reportsPostTestWithUndoSuppressed()
             throws Exception
     {
-        final IDataSet incoming = mock(IDataSet.class);
-        when(tester.getDataSet()).thenReturn(incoming);
-        final RuntimeException restoreFailure = new RuntimeException("restore failed");
-        doThrow(restoreFailure).when(tester).setDataSet(incoming);
-        final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
-        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
-                .from(WithExpected.class, null, null, null, expected, null, null);
-        final PrepAndExpectedTestCase injected = mock(PrepAndExpectedTestCase.class);
-        final RuntimeException postTestFailure = new RuntimeException("postTest failed");
-        doThrow(postTestFailure).when(injected).postTest(true);
-        final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, injected);
+        when(tester.getConnection()).thenReturn(connection);
+        stubOpenJdbcConnection();
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithThrowingPostTestAndUndoTestCase.class), tester, null);
         executor.beforeTest();
 
         final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
 
-        assertThat(thrown)
-                .as("The postTest() failure is the primary on the prep/expected path too.")
-                .isSameAs(postTestFailure);
+        assertThat(thrown).as("The postTest() failure is the primary.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("postTest failed on purpose.");
         assertThat(thrown.getSuppressed())
-                .as("The restore failure is attached as suppressed.")
-                .contains(restoreFailure);
+                .as("A failure undoing what the configurer applied rides along, not replacing"
+                        + " it.")
+                .hasSize(1);
     }
 
-    @Test
-    void testAfterTest_sharedTesterAcrossMethods_aPrepExpectedMethodsOperationsDoNotBleedOntoABareMethod()
-            throws Exception
+    // ---- one annotation lifecycle: every annotation-driven test runs through a test case ----
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("annotationDrivenShapes")
+    void testBeforeAndAfterTest_annotationDrivenShape_neverWritesTheTester(final String shape,
+            final Class<?> annotatedClass) throws Exception
     {
-        // A prep/expected method and a bare setup/teardown method share one tester. The
-        // prep/expected path always applies both operations; without restoring them, the bare
-        // method that follows would inherit the prep/expected method's CLEAN_INSERT / NONE
-        // instead of the tester's own baseline. E5 makes the prep/expected path restore too.
-        final RecordingAbstractDatabaseTester sharedTester = new RecordingAbstractDatabaseTester();
-        sharedTester.setSetUpOperation(DatabaseOperation.REFRESH);
-        sharedTester.setTearDownOperation(DatabaseOperation.DELETE_ALL);
-        final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
-        final DefaultPrepAndExpectedTestCase injectedTestCase =
-                mock(DefaultPrepAndExpectedTestCase.class);
+        final RecordingAbstractDatabaseTester ownTester = new RecordingAbstractDatabaseTester();
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(annotatedClass, BuildsRecordingTestCase.class), ownTester, null);
 
-        final AnnotatedTestExecutor prepExpectedMethod = new AnnotatedTestExecutor(
-                AnnotatedTestConfiguration.from(WithExpected.class, null, null, null, expected,
-                        null, null),
-                sharedTester, injectedTestCase);
-        prepExpectedMethod.beforeTest();
-        prepExpectedMethod.afterTest(false);
-
-        assertThat(sharedTester.getSetUpOperation())
-                .as("The prep/expected method's applied CLEAN_INSERT is undone after it.")
-                .isEqualTo(DatabaseOperation.REFRESH);
-        assertThat(sharedTester.getTearDownOperation())
-                .as("The prep/expected method's applied NONE is undone after it.")
-                .isEqualTo(DatabaseOperation.DELETE_ALL);
-
-        final AnnotatedTestExecutor bareMethod = new AnnotatedTestExecutor(
-                AnnotatedTestConfiguration.from(AnnotatedTestExecutorTest.class, null, null,
-                        null, null, null, null),
-                sharedTester, null);
-        bareMethod.beforeTest();
-        bareMethod.afterTest(false);
-
-        assertThat(sharedTester.tearDownOperationsRun)
-                .as("The bare method ran the tester's own DELETE_ALL baseline, not the"
-                        + " prep/expected method's leftover NONE.")
-                .containsExactly(DatabaseOperation.DELETE_ALL);
-    }
-
-    @Test
-    void testAfterTest_sharedTesterAcrossMethods_anEarlierMethodsTearDownOperationDoesNotBleedOver()
-            throws Exception
-    {
-        // Two methods share one tester (a static @DbUnitTester field, or @TestInstance(PER_CLASS)).
-        // Method A declares @DbUnitTearDown(DELETE_ALL); method B declares none. B must run
-        // onTearDown() with the tester's baseline NONE, not A's leftover DELETE_ALL.
-        final RecordingAbstractDatabaseTester sharedTester = new RecordingAbstractDatabaseTester();
-        final DbUnitTearDown tearDown = WithTearDown.class.getAnnotation(DbUnitTearDown.class);
-
-        final AnnotatedTestExecutor methodA = new AnnotatedTestExecutor(
-                AnnotatedTestConfiguration.from(WithTearDown.class, null, null, null, null,
-                        tearDown, null),
-                sharedTester, null);
-        methodA.beforeTest();
-        methodA.afterTest(false);
-
-        assertThat(sharedTester.getTearDownOperation())
-                .as("Method A's @DbUnitTearDown is undone after A, not left on the shared tester.")
-                .isEqualTo(DatabaseOperation.NONE);
-
-        final AnnotatedTestExecutor methodB = new AnnotatedTestExecutor(
-                AnnotatedTestConfiguration.from(AnnotatedTestExecutorTest.class, null, null, null,
-                        null, null, null),
-                sharedTester, null);
-        methodB.beforeTest();
-        methodB.afterTest(false);
-
-        assertThat(sharedTester.tearDownOperationsRun)
-                .as("A ran DELETE_ALL (its own annotation); B ran NONE (the tester baseline),"
-                        + " not A's leftover DELETE_ALL.")
-                .containsExactly(DatabaseOperation.DELETE_ALL, DatabaseOperation.NONE);
-    }
-
-    @Test
-    void testAfterTest_tearDownNonNoneWithNoPrepAndNoDataset_warnsBeforeOnTearDown()
-            throws Exception
-    {
-        // The teardown side of warnIfNonNoneOperationHasNoDataset(): a non-NONE
-        // @DbUnitTearDown operation with no @DbUnitPrep files and no dataset on the tester
-        // would run against a null dataset - a built-in tester NPEs deep inside the operation
-        // with no hint - so warn, naming the fixes, rather than fail silently.
-        final DbUnitTearDown tearDown = WithTearDown.class.getAnnotation(DbUnitTearDown.class);
-        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
-                .from(WithTearDown.class, null, null, null, null, tearDown, null);
-        final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, null);
         executor.beforeTest();
-        final Logger lifecycleLogger =
-                (Logger) LoggerFactory.getLogger(SetupTeardownLifecycle.class);
-        final ListAppender<ILoggingEvent> appender = new ListAppender<>();
-        appender.start();
-        lifecycleLogger.addAppender(appender);
+        executor.afterTest(false);
+
+        assertThat(ownTester.writes)
+                .as("An annotation-driven test with %s only reads the tester: its dataset, its"
+                        + " operations and its listener stay as they are, so a tester shared by a"
+                        + " static field, a Spring singleton or parallel tests carries nothing"
+                        + " from one test to another.", shape)
+                .isEmpty();
+    }
+
+    static Stream<Arguments> annotationDrivenShapes()
+    {
+        return Stream.of(Arguments.of("no annotation but a marker field", WithNothing.class),
+                Arguments.of("@DbUnitPrep alone", WithPrep.class),
+                Arguments.of("@DbUnitSetUpOperation alone", WithSetupNoPrep.class),
+                Arguments.of("@DbUnitTearDownOperation alone", WithTearDown.class),
+                Arguments.of("@DbUnitExpected alone", WithExpected.class),
+                Arguments.of("@DbUnitRowCountCheck alone", WithBareRowCountCheck.class),
+                Arguments.of("@DbUnitConfig properties alone", WithProperties.class),
+                Arguments.of("every annotation", WithEveryAnnotation.class));
+    }
+
+    @Test
+    void testBeforeTest_annotationDrivenPrepOnly_runsTheTestersOperationOnThePrepDataSetNotItsOnSetup()
+            throws Exception
+    {
+        final RecordingDatabaseOperation testersOperation = new RecordingDatabaseOperation();
+        final RecordingAbstractDatabaseTester ownTester = testerWithConnection();
+        ownTester.setSetUpOperation(testersOperation);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configurationOf(WithPrep.class), ownTester, null);
+
+        executor.beforeTest();
+
+        assertThat(testersOperation.getExecutedTableNames())
+                .as("The test case runs the operation the tester has on the prep dataset.")
+                .containsExactly(Arrays.asList("ACCOUNT"));
+        assertThat(ownTester.setUpOperationsRun)
+                .as("The tester's own onSetup() is not how an annotation-driven test sets up.")
+                .isEmpty();
+        executor.afterTest(false);
+    }
+
+    @Test
+    void testBeforeTest_annotationDrivenSetupDeclared_runsTheDeclaredOperationAndLeavesTheTesterItsOwn()
+            throws Exception
+    {
+        final RecordingDatabaseOperation testersOperation = new RecordingDatabaseOperation();
+        final RecordingAbstractDatabaseTester ownTester = testerWithConnection();
+        ownTester.setSetUpOperation(testersOperation);
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithPrep.class, WithSetupNoPrep.class), ownTester, null);
+
+        executor.beforeTest();
+
+        assertThat(testersOperation.getExecutedTableNames())
+                .as("The declared NONE replaces the tester's operation for this test.").isEmpty();
+        assertThat(ownTester.getSetUpOperation())
+                .as("The tester keeps the operation it has: the declared one is the test case's.")
+                .isSameAs(testersOperation);
+        executor.afterTest(false);
+    }
+
+    @Test
+    void testBeforeAndAfterTest_annotationDrivenTesterOverridesOnSetup_neverCallsOnSetupOrOnTearDown()
+            throws Exception
+    {
+        final RecordingAbstractDatabaseTester ownTester = testerWithConnection();
+        ownTester.setSetUpOperation(DatabaseOperation.NONE);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configurationOf(WithNothing.class), ownTester, null);
+
+        executor.beforeTest();
+        executor.afterTest(false);
+
+        assertThat(ownTester.setUpOperationsRun)
+                .as("A tester's onSetup() override does not run on an annotation-driven test.")
+                .isEmpty();
+        assertThat(ownTester.tearDownOperationsRun)
+                .as("A tester's onTearDown() override does not run on an annotation-driven"
+                        + " test.")
+                .isEmpty();
+    }
+
+    @Test
+    void testBeforeAndAfterTest_classicPathTesterOverridesOnSetup_callsOnSetupAndOnTearDown()
+            throws Exception
+    {
+        final RecordingAbstractDatabaseTester ownTester = testerWithConnection();
+        ownTester.setSetUpOperation(DatabaseOperation.NONE);
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithNothing.class), ownTester, null, false);
+
+        executor.beforeTest();
+        executor.afterTest(false);
+
+        assertThat(ownTester.setUpOperationsRun)
+                .as("A zero-annotation test keeps the 3.5.0 lifecycle: the tester's onSetup().")
+                .containsExactly(DatabaseOperation.NONE);
+        assertThat(ownTester.tearDownOperationsRun)
+                .as("A zero-annotation test keeps the 3.5.0 lifecycle: the tester's"
+                        + " onTearDown().")
+                .containsExactly(DatabaseOperation.NONE);
+    }
+
+    @Test
+    void testBeforeTest_noPrepFilesAndTesterHoldsADataSet_setsUpNothing() throws Exception
+    {
+        final RecordingDatabaseOperation testersOperation = new RecordingDatabaseOperation();
+        final RecordingAbstractDatabaseTester ownTester = testerWithConnection();
+        ownTester.setSetUpOperation(testersOperation);
+        ownTester.setDataSet(new DefaultDataSet(new DefaultTable("TESTERS_TABLE")));
+        ownTester.writes.clear();
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configurationOf(WithNothing.class), ownTester, null);
+
+        executor.beforeTest();
+
+        assertThat(testersOperation.getExecutedTableNames())
+                .as("With no @DbUnitPrep files the setup operation runs over no tables: the"
+                        + " dataset a tester holds, such as one a @BeforeEach method gave it, is"
+                        + " never read.")
+                .containsExactly(Collections.emptyList());
+        assertThat(ownTester.writes).as("Nothing is written to the tester.").isEmpty();
+        executor.afterTest(false);
+    }
+
+    @Test
+    void testBeforeTest_noPrepFilesAndExpectedAndTesterHoldsADataSet_leavesThePrepEmpty()
+            throws Exception
+    {
+        final RecordingAbstractDatabaseTester ownTester = new RecordingAbstractDatabaseTester();
+        ownTester.setDataSet(new DefaultDataSet(new DefaultTable("TESTERS_TABLE")));
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithExpected.class, BuildsRecordingTestCase.class), ownTester,
+                null);
+
+        executor.beforeTest();
+
+        assertThat(RecordingPrepAndExpectedTestCase.instance.getPrepDataset().getTableNames())
+                .as("Adding @DbUnitExpected does not change what is set up: with no @DbUnitPrep"
+                        + " files nothing is, whatever dataset the tester holds.")
+                .isEmpty();
+    }
+
+    @Test
+    void testBeforeTest_noPrepFilesAndTesterHoldsADataSet_warnsOnceThatItIsIgnored()
+            throws Exception
+    {
+        final RecordingAbstractDatabaseTester ownTester = new RecordingAbstractDatabaseTester();
+        ownTester.setDataSet(new DefaultDataSet(new DefaultTable("TESTERS_TABLE")));
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithNothing.class, BuildsRecordingTestCase.class), ownTester,
+                null);
+        final ListAppender<ILoggingEvent> appender = startCapturingLogOf(TestCaseLifecycle.class);
         try
         {
-            executor.afterTest(false);
+            executor.beforeTest();
 
             assertThat(appender.list)
                     .filteredOn(event -> event.getLevel() == Level.WARN)
-                    .as("@DbUnitTearDown(operation = DELETE_ALL) with no @DbUnitPrep and no"
-                            + " dataset on the tester must warn before onTearDown() - not fail"
-                            + " silently or NPE with no hint - mirroring the setup-side"
-                            + " warning.")
-                    .hasSize(1)
-                    .allSatisfy(event -> assertThat(event.getFormattedMessage())
-                            .contains("@DbUnitTearDown").contains("onTearDown()")
-                            .contains("NONE"));
+                    .as("A dataset the tester holds that dbUnit ignores, such as one a"
+                            + " @BeforeEach method gave it before 3.6.0, must be said.")
+                    .singleElement()
+                    .satisfies(event -> assertThat(event.getFormattedMessage())
+                            .contains("ignores").contains("@DbUnitPrep"));
         } finally
         {
-            lifecycleLogger.detachAppender(appender);
+            stopCapturingLogOf(TestCaseLifecycle.class, appender);
         }
     }
 
     @Test
-    void testAfterTest_bareTearDownNoneWithNoDataset_doesNotWarn() throws Exception
+    void testBeforeTest_noPrepFilesAndTesterHoldsNoDataSet_doesNotWarn() throws Exception
     {
-        final DbUnitTearDown tearDown =
-                WithBareTearDown.class.getAnnotation(DbUnitTearDown.class);
-        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
-                .from(WithBareTearDown.class, null, null, null, null, tearDown, null);
-        final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, null);
-        executor.beforeTest();
-        final Logger lifecycleLogger =
-                (Logger) LoggerFactory.getLogger(SetupTeardownLifecycle.class);
-        final ListAppender<ILoggingEvent> appender = new ListAppender<>();
-        appender.start();
-        lifecycleLogger.addAppender(appender);
+        final RecordingAbstractDatabaseTester ownTester = new RecordingAbstractDatabaseTester();
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithNothing.class, BuildsRecordingTestCase.class), ownTester,
+                null);
+        final ListAppender<ILoggingEvent> appender = startCapturingLogOf(TestCaseLifecycle.class);
         try
         {
-            executor.afterTest(false);
+            executor.beforeTest();
 
-            assertThat(appender.list)
-                    .filteredOn(event -> event.getLevel() == Level.WARN)
-                    .as("A bare @DbUnitTearDown resolves to NONE, which needs no dataset, so"
-                            + " this must not warn.")
+            assertThat(appender.list).filteredOn(event -> event.getLevel() == Level.WARN)
+                    .as("A tester that holds no dataset has nothing that is ignored.")
                     .isEmpty();
         } finally
         {
-            lifecycleLogger.detachAppender(appender);
+            stopCapturingLogOf(TestCaseLifecycle.class, appender);
         }
     }
 
     @Test
-    void testAfterTest_beforeTestThrewBeforeOnSetup_doesNotRunOnTearDown() throws Exception
+    void testBeforeTest_prepFilesAndTesterHoldsADataSet_doesNotWarn() throws Exception
     {
-        // beforeTest() fails before onSetup() runs - here, resolving the row count baseline
-        // connection throws. afterTest() must not then call onTearDown(): it would act on state
-        // onSetup() never established (a declared teardown operation against a null dataset,
-        // say) and throw a second exception masking the real failure. Mirrors afterExpectedTest()'s
-        // guard on the prep/expected path.
-        when(tester.getConnection()).thenThrow(new SQLException("cannot connect"));
-        final DbUnitTearDown tearDown = WithTearDown.class.getAnnotation(DbUnitTearDown.class);
-        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
-                .from(WithTearDown.class, null, null, null, null, tearDown, null);
+        final RecordingAbstractDatabaseTester ownTester = new RecordingAbstractDatabaseTester();
+        ownTester.setDataSet(new DefaultDataSet(new DefaultTable("TESTERS_TABLE")));
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithPrep.class, BuildsRecordingTestCase.class), ownTester, null);
+        final ListAppender<ILoggingEvent> appender = startCapturingLogOf(TestCaseLifecycle.class);
+        try
+        {
+            executor.beforeTest();
+
+            assertThat(appender.list).filteredOn(event -> event.getLevel() == Level.WARN)
+                    .as("A test that names its @DbUnitPrep files chose its dataset, so the one a"
+                            + " shared tester happens to hold is not worth a warning.")
+                    .isEmpty();
+        } finally
+        {
+            stopCapturingLogOf(TestCaseLifecycle.class, appender);
+        }
+    }
+
+    @Test
+    void testBeforeTest_prepFilesDeclared_doesNotAskTheTesterForItsDataSet() throws Exception
+    {
+        final DataSetCountingTester ownTester = new DataSetCountingTester();
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithPrep.class, BuildsRecordingTestCase.class), ownTester, null);
+
+        executor.beforeTest();
+
+        assertThat(ownTester.dataSetReads)
+                .as("A test that names its @DbUnitPrep files has no ignored dataset to warn of,"
+                        + " so the tester is not asked for a dataset whose answer is thrown"
+                        + " away.")
+                .hasValue(0);
+    }
+
+    @Test
+    void testBeforeTest_noPrepFiles_asksTheTesterForItsDataSetOnce() throws Exception
+    {
+        final DataSetCountingTester ownTester = new DataSetCountingTester();
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithNothing.class, BuildsRecordingTestCase.class), ownTester,
+                null);
+
+        executor.beforeTest();
+
+        assertThat(ownTester.dataSetReads)
+                .as("A test that names no @DbUnitPrep files is the one the warning is for, so"
+                        + " the tester is asked once whether it holds a dataset.")
+                .hasValue(1);
+    }
+
+    private static class DataSetCountingTester extends RecordingAbstractDatabaseTester
+    {
+        private final AtomicInteger dataSetReads = new AtomicInteger();
+
+        @Override
+        public IDataSet getDataSet()
+        {
+            dataSetReads.incrementAndGet();
+            return super.getDataSet();
+        }
+    }
+
+    @Test
+    void testBeforeTest_annotationDrivenTesterWhoseDataSetThrows_runsTheTestAndClosesItsConnection()
+            throws Exception
+    {
+        final RecordingAbstractDatabaseTester ownTester = new RecordingAbstractDatabaseTester()
+        {
+            @Override
+            public IDataSet getDataSet()
+            {
+                throw new IllegalStateException("The tester's dataset cannot be built.");
+            }
+        };
+        ownTester.connection = connection;
+        ownTester.setSetUpOperation(DatabaseOperation.NONE);
+        lenient().when(connection.getConfig()).thenReturn(new DatabaseConfig());
+        stubOpenJdbcConnection();
         final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, null);
+                new AnnotatedTestExecutor(configurationOf(WithNothing.class), ownTester, null);
+
+        final Throwable beforeFailure = catchThrowable(executor::beforeTest);
+        executor.afterTest(beforeFailure != null);
+
+        assertThat(beforeFailure)
+                .as("The dataset an annotation-driven test ignores is read only to warn of it, so"
+                        + " a tester that cannot build it must not fail the test.")
+                .isNull();
+        verify(connection, times(1)).close();
+    }
+
+    @Test
+    void testBeforeTest_annotationDrivenTesterWhoseDataSetThrowsAnError_afterTestClosesItsConnection()
+            throws Exception
+    {
+        final NoClassDefFoundError missingDependency =
+                new NoClassDefFoundError("org/yaml/snakeyaml/Yaml");
+        final RecordingAbstractDatabaseTester ownTester = new RecordingAbstractDatabaseTester()
+        {
+            @Override
+            public IDataSet getDataSet()
+            {
+                throw missingDependency;
+            }
+        };
+        ownTester.connection = connection;
+        ownTester.setSetUpOperation(DatabaseOperation.NONE);
+        lenient().when(connection.getConfig()).thenReturn(new DatabaseConfig());
+        stubOpenJdbcConnection();
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configurationOf(WithNothing.class), ownTester, null);
+
+        final Throwable beforeFailure = catchThrowable(executor::beforeTest);
+        executor.afterTest(true);
+
+        assertThat(beforeFailure)
+                .as("An Error is not one the warning's probe swallows, so it fails the test"
+                        + " as it is.")
+                .isSameAs(missingDependency);
+        verify(connection, times(1)).close();
+    }
+
+    @Test
+    void testBeforeTest_prepFilesAndTesterHoldsADataSet_preparesThePrepFiles() throws Exception
+    {
+        final RecordingDatabaseOperation testersOperation = new RecordingDatabaseOperation();
+        final RecordingAbstractDatabaseTester ownTester = testerWithConnection();
+        ownTester.setSetUpOperation(testersOperation);
+        ownTester.setDataSet(new DefaultDataSet(new DefaultTable("TESTERS_TABLE")));
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configurationOf(WithPrep.class), ownTester, null);
+
+        executor.beforeTest();
+
+        assertThat(testersOperation.getExecutedTableNames())
+                .as("@DbUnitPrep files, when declared, are the dataset to set up.")
+                .containsExactly(Arrays.asList("ACCOUNT"));
+        executor.afterTest(false);
+    }
+
+    @Test
+    void testBeforeTest_injectedTestCaseNoPrepFilesAndTesterHoldsADataSet_leavesThePrepEmpty()
+            throws Exception
+    {
+        final RecordingAbstractDatabaseTester ownTester = new RecordingAbstractDatabaseTester();
+        ownTester.setDataSet(new DefaultDataSet(new DefaultTable("TESTERS_TABLE")));
+        final RecordingPrepAndExpectedTestCase injected =
+                new RecordingPrepAndExpectedTestCase(new FlatXmlDataFileLoader(), ownTester);
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithNothing.class), ownTester, injected);
+
+        executor.beforeTest();
+
+        assertThat(injected.getPrepDataset().getTableNames())
+                .as("An injected test case is used as its owner built it: its datasets are the"
+                        + " test's @DbUnitPrep files, not what a tester holds.")
+                .isEmpty();
+    }
+
+    @Test
+    void testBeforeTest_noPrepFilesAndTesterHoldsNoDataSet_keepsTheTestCasesOwnEmptyPrep()
+            throws Exception
+    {
+        final RecordingAbstractDatabaseTester ownTester = new RecordingAbstractDatabaseTester();
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithNothing.class, BuildsRecordingTestCase.class), ownTester,
+                null);
+
+        executor.beforeTest();
+
+        assertThat(RecordingPrepAndExpectedTestCase.instance.getPrepDataset().getTableNames())
+                .as("A tester with no dataset leaves the test case an empty one, not a null.")
+                .isEmpty();
+    }
+
+    @Test
+    void testGetConnection_annotationDrivenWithoutExpected_isTheTestCasesReusableConnection()
+            throws Exception
+    {
+        final RecordingAbstractDatabaseTester ownTester = testerWithConnection();
+        ownTester.setSetUpOperation(DatabaseOperation.NONE);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configurationOf(WithPrep.class), ownTester, null);
+        executor.beforeTest();
+
+        final IDatabaseConnection injected = executor.getConnection();
+
+        final DefaultPrepAndExpectedTestCase testCase =
+                (DefaultPrepAndExpectedTestCase) executor.getPrepAndExpectedTestCase();
+        assertThat(injected)
+                .as("The IDatabaseConnection parameter is the connection the test case sets up"
+                        + " and cleans up on, with or without @DbUnitExpected.")
+                .isSameAs(testCase.getReusableConnection()).isSameAs(connection);
+        executor.afterTest(false);
+    }
+
+    // ---- warnings and hints of the lifecycle ----
+
+    @Test
+    void testBeforeTest_bareSetupDeclaredAndNothingToActOn_warnsOnceNamingTheFixes()
+            throws Exception
+    {
+        final RecordingAbstractDatabaseTester ownTester = new RecordingAbstractDatabaseTester();
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithBareSetupNoPrep.class, BuildsRecordingTestCase.class),
+                ownTester, null);
+        final ListAppender<ILoggingEvent> appender = startCapturingLogOf(TestCaseLifecycle.class);
+        try
+        {
+            executor.beforeTest();
+
+            assertThat(appender.list)
+                    .filteredOn(event -> event.getLevel() == Level.WARN)
+                    .as("A bare @DbUnitSetUpOperation resolves to CLEAN_INSERT, which needs a"
+                            + " dataset: with no @DbUnitPrep files and none on the tester it has"
+                            + " nothing to act on, which is more likely a mistake than a wish.")
+                    .singleElement()
+                    .satisfies(event -> assertThat(event.getFormattedMessage())
+                            .contains("@DbUnitSetUpOperation").contains("@DbUnitPrep")
+                            .contains("NONE"));
+        } finally
+        {
+            stopCapturingLogOf(TestCaseLifecycle.class, appender);
+        }
+    }
+
+    @Test
+    void testBeforeTest_setupNoneDeclaredAndNothingToActOn_doesNotWarn() throws Exception
+    {
+        final RecordingAbstractDatabaseTester ownTester = new RecordingAbstractDatabaseTester();
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithSetupNoPrep.class, BuildsRecordingTestCase.class), ownTester,
+                null);
+        final ListAppender<ILoggingEvent> appender = startCapturingLogOf(TestCaseLifecycle.class);
+        try
+        {
+            executor.beforeTest();
+
+            assertThat(appender.list).filteredOn(event -> event.getLevel() == Level.WARN)
+                    .as("@DbUnitSetUpOperation(NONE) needs no dataset: it is the documented way"
+                            + " to suppress the tester's own.")
+                    .isEmpty();
+        } finally
+        {
+            stopCapturingLogOf(TestCaseLifecycle.class, appender);
+        }
+    }
+
+    @Test
+    void testBeforeTest_setupDeclaredAndTesterHoldsADataSet_warnsThatItIsIgnoredAndNothingIsToActOn()
+            throws Exception
+    {
+        final RecordingAbstractDatabaseTester ownTester = new RecordingAbstractDatabaseTester();
+        ownTester.setDataSet(new DefaultDataSet(new DefaultTable("TESTERS_TABLE")));
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithBareSetupNoPrep.class, BuildsRecordingTestCase.class),
+                ownTester, null);
+        final ListAppender<ILoggingEvent> appender = startCapturingLogOf(TestCaseLifecycle.class);
+        try
+        {
+            executor.beforeTest();
+
+            assertThat(appender.list)
+                    .filteredOn(event -> event.getLevel() == Level.WARN)
+                    .as("The dataset the tester holds is not what the operation acts on, so both"
+                            + " the dataset that is ignored and the operation with nothing to act"
+                            + " on are said.")
+                    .extracting(ILoggingEvent::getFormattedMessage)
+                    .hasSize(2)
+                    .anySatisfy(message -> assertThat(message).contains("ignores"))
+                    .anySatisfy(message -> assertThat(message)
+                            .contains("@DbUnitSetUpOperation").contains("nothing"));
+        } finally
+        {
+            stopCapturingLogOf(TestCaseLifecycle.class, appender);
+        }
+    }
+
+    @Test
+    void testBeforeTest_tearDownDeclaredAndNothingToActOn_warnsOnceNamingTheFixes()
+            throws Exception
+    {
+        final RecordingAbstractDatabaseTester ownTester = new RecordingAbstractDatabaseTester();
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithTearDown.class, BuildsRecordingTestCase.class), ownTester,
+                null);
+        final ListAppender<ILoggingEvent> appender = startCapturingLogOf(TestCaseLifecycle.class);
+        try
+        {
+            executor.beforeTest();
+
+            assertThat(appender.list)
+                    .filteredOn(event -> event.getLevel() == Level.WARN)
+                    .as("A teardown operation other than NONE with no @DbUnitPrep or"
+                            + " @DbUnitExpected files and no dataset on the tester has nothing to"
+                            + " act on.")
+                    .singleElement()
+                    .satisfies(event -> assertThat(event.getFormattedMessage())
+                            .contains("@DbUnitTearDownOperation").contains("@DbUnitExpected")
+                            .contains("NONE"));
+        } finally
+        {
+            stopCapturingLogOf(TestCaseLifecycle.class, appender);
+        }
+    }
+
+    @Test
+    void testBeforeTest_tearDownDeclaredAndExpectedFilesDeclared_doesNotWarn() throws Exception
+    {
+        final RecordingAbstractDatabaseTester ownTester = new RecordingAbstractDatabaseTester();
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithTearDown.class, WithExpected.class,
+                        BuildsRecordingTestCase.class),
+                ownTester, null);
+        final ListAppender<ILoggingEvent> appender = startCapturingLogOf(TestCaseLifecycle.class);
+        try
+        {
+            executor.beforeTest();
+
+            assertThat(appender.list).filteredOn(event -> event.getLevel() == Level.WARN)
+                    .as("The teardown operation also runs over the expected datasets, so it has"
+                            + " something to act on.")
+                    .isEmpty();
+        } finally
+        {
+            stopCapturingLogOf(TestCaseLifecycle.class, appender);
+        }
+    }
+
+    @Test
+    void testAfterTest_rowCountMismatchWithPrepAndNoTeardownAndOtherFailuresAttached_hintsAndKeepsThem()
+            throws Exception
+    {
+        final RecordingAbstractDatabaseTester ownTester = new RecordingAbstractDatabaseTester();
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithPrepAndRowCountCheck.class, BuildsMismatchingTestCase.class),
+                ownTester, null);
+        executor.beforeTest();
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown).as("The mismatch stays an UnexpectedRowCountException.")
+                .isInstanceOf(UnexpectedRowCountException.class)
+                .hasMessageContaining("baseline is captured before @DbUnitPrep loads")
+                .hasMessageContaining("@DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)")
+                .hasMessageContaining("ACCOUNT");
+        assertThat(thrown.getSuppressed())
+                .as("What was attached to the mismatch, such as a failure closing the connection,"
+                        + " still rides along on the exception that carries the hint.")
+                .extracting(Throwable::getMessage).containsExactly("close failed");
+        assertThat(thrown.getStackTrace())
+                .as("The stack trace is that of the mismatch, not of the place that added the"
+                        + " hint.")
+                .startsWith(MismatchingTestCase.thrown.getStackTrace()[0]);
+    }
+
+    @Test
+    void testAfterTest_rowCountMismatchWithPrepAndATeardownDeclared_isReportedUnchanged()
+            throws Exception
+    {
+        final RecordingAbstractDatabaseTester ownTester = new RecordingAbstractDatabaseTester();
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithPrepAndRowCountCheck.class, WithTearDown.class,
+                        BuildsMismatchingTestCase.class),
+                ownTester, null);
+        executor.beforeTest();
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown)
+                .as("A teardown operation was declared, so the mismatch is not misattributed to"
+                        + " prep that was never torn down.")
+                .isSameAs(MismatchingTestCase.thrown);
+    }
+
+    // ---- annotation-driven: operations are applied only when declared ----
+
+    @Test
+    void testBeforeTest_injectedTestCaseAndPrepFiles_leavesTheTestersOperationsAlone()
+            throws Exception
+    {
+        // An injected test case is used as its owner built it, so @DbUnitPrep files do not turn
+        // the setup operation of its tester into CLEAN_INSERT, as they do for one dbUnit builds.
+        final RecordingAbstractDatabaseTester ownTester = new RecordingAbstractDatabaseTester();
+        ownTester.setSetUpOperation(DatabaseOperation.REFRESH);
+        ownTester.setTearDownOperation(DatabaseOperation.DELETE_ALL);
+        final DbUnitPrep prep = WithPrep.class.getAnnotation(DbUnitPrep.class);
+        final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                AnnotatedTestConfiguration.from(WithExpected.class, null, prep, null, expected,
+                        null, null),
+                ownTester, injectedDefaultTestCase());
+
+        executor.beforeTest();
+
+        assertThat(ownTester.getSetUpOperation())
+                .as("The setup operation its owner gave the tester stays, files or not.")
+                .isEqualTo(DatabaseOperation.REFRESH);
+        assertThat(ownTester.getTearDownOperation())
+                .as("The teardown operation its owner gave the tester stays.")
+                .isEqualTo(DatabaseOperation.DELETE_ALL);
+    }
+
+    @Test
+    void testBeforeTest_expectedAlone_keepsTheTestersOwnOperations()
+            throws Exception
+    {
+        // A @BeforeEach method may set operations DbUnitOperation cannot express, such as a
+        // CompositeOperation or a TransactionOperation; with no annotation declaring one,
+        // the test case must run the tester's own.
+        final RecordingAbstractDatabaseTester ownTester = new RecordingAbstractDatabaseTester();
+        ownTester.setSetUpOperation(DatabaseOperation.REFRESH);
+        ownTester.setTearDownOperation(DatabaseOperation.DELETE_ALL);
+        final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                AnnotatedTestConfiguration.from(WithExpected.class, null, null, null, expected,
+                        null, null),
+                ownTester, injectedDefaultTestCase());
+
+        executor.beforeTest();
+
+        assertThat(ownTester.getSetUpOperation())
+                .as("With no @DbUnitPrep and no @DbUnitSetUpOperation, the setup operation the"
+                        + " tester"
+                        + " already has must stay.")
+                .isEqualTo(DatabaseOperation.REFRESH);
+        assertThat(ownTester.getTearDownOperation())
+                .as("With no @DbUnitTearDownOperation, the teardown operation the tester already"
+                        + " has,"
+                        + " such as one a @BeforeEach method set, must stay.")
+                .isEqualTo(DatabaseOperation.DELETE_ALL);
+    }
+
+    @Test
+    void testBeforeTest_prepFilesWithoutSetup_keepsTheTestersSetupOperation()
+            throws Exception
+    {
+        final RecordingAbstractDatabaseTester ownTester = new RecordingAbstractDatabaseTester();
+        ownTester.setSetUpOperation(DatabaseOperation.REFRESH);
+        ownTester.setTearDownOperation(DatabaseOperation.DELETE_ALL);
+        final DbUnitPrep prep = WithPrep.class.getAnnotation(DbUnitPrep.class);
+        final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
+        final DbUnitConfig recording =
+                WithRecordingTestCase.class.getAnnotation(DbUnitConfig.class);
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                AnnotatedTestConfiguration.from(WithRecordingTestCase.class, recording, prep,
+                        null, expected, null, null),
+                ownTester, null);
+
+        executor.beforeTest();
+
+        assertThat(ownTester.getSetUpOperation())
+                .as("@DbUnitPrep without @DbUnitSetUpOperation names only the dataset, so the"
+                        + " operation the tester already has stays.")
+                .isEqualTo(DatabaseOperation.REFRESH);
+        assertThat(ownTester.getTearDownOperation())
+                .as("The teardown operation, which no @DbUnitTearDownOperation declared, must"
+                        + " stay.")
+                .isEqualTo(DatabaseOperation.DELETE_ALL);
+    }
+
+    @Test
+    void testAfterTest_classicPathBeforeTestThrewBeforeOnSetup_doesNotRunOnTearDown()
+            throws Exception
+    {
+        // beforeTest() fails before onSetup() runs - here, resolving the connection for the row
+        // count check baseline throws. afterTest() must not then call onTearDown(): it would act
+        // on state onSetup() never established and throw a second exception masking the real
+        // failure. TestCaseLifecycle has the same guard for an annotation-driven test.
+        when(tester.getConnection()).thenThrow(new SQLException("cannot connect"));
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, tester, null, false);
 
         assertThatThrownBy(executor::beforeTest).isInstanceOf(SQLException.class);
         executor.afterTest(true);
 
+        verify(tester, never()).onSetup();
         verify(tester, never()).onTearDown();
     }
 
@@ -528,7 +984,7 @@ class AnnotatedTestExecutorTest
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
         final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, null);
+                new AnnotatedTestExecutor(configuration, tester, null, false);
 
         executor.beforeTest();
 
@@ -544,7 +1000,7 @@ class AnnotatedTestExecutorTest
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
         final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, null);
+                new AnnotatedTestExecutor(configuration, tester, null, false);
 
         executor.beforeTest();
 
@@ -559,7 +1015,7 @@ class AnnotatedTestExecutorTest
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
         final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, null);
+                new AnnotatedTestExecutor(configuration, tester, null, false);
         executor.beforeTest();
 
         executor.afterTest(true);
@@ -576,7 +1032,7 @@ class AnnotatedTestExecutorTest
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
         final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, null);
+                new AnnotatedTestExecutor(configuration, tester, null, false);
         executor.beforeTest();
 
         executor.afterTest(false);
@@ -587,7 +1043,7 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
-    void testAfterTest_expectedPathPostTestThrowsError_stillClosesConnectionAndPreservesErrorType()
+    void testAfterTest_postTestThrowsError_stillClosesConnectionAndPreservesErrorType()
             throws Exception
     {
         // A comparison mismatch fails via DbComparisonFailure, an Error subclass, not an
@@ -597,8 +1053,8 @@ class AnnotatedTestExecutorTest
         final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(WithExpected.class, null, null, null, expected, null, null);
-        final PrepAndExpectedTestCase mockTestCase = mock(PrepAndExpectedTestCase.class);
-        when(mockTestCase.isCloseConnectionAfterTest()).thenReturn(true);
+        final DefaultPrepAndExpectedTestCase mockTestCase = injectedDefaultTestCase();
+        when(mockTestCase.isConnectionLeftOpen()).thenReturn(false);
         when(mockTestCase.getReusableConnection()).thenReturn(connection);
         final AssertionError verificationFailure = new AssertionError("expected mismatch");
         doThrow(verificationFailure).when(mockTestCase).postTest(true);
@@ -625,12 +1081,13 @@ class AnnotatedTestExecutorTest
     void testAfterTest_verifyThrowsAndClosingConnectionAlsoThrows_reportsVerifyFailureWithCloseFailureSuppressed()
             throws Exception
     {
-        stubEnabledConnection("ACCOUNT");
+        final JdbcDatabaseTester jdbcTester = jdbcTesterOpeningANewConnectionOnEachCall();
+        stubCountingConnection(true, "ACCOUNT");
         when(connection.getRowCount("ACCOUNT")).thenReturn(5);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
         final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, null);
+                new AnnotatedTestExecutor(configuration, jdbcTester, null, false);
         executor.beforeTest();
         when(connection.getRowCount("ACCOUNT")).thenReturn(6);
         final SQLException closeFailure = new SQLException("connection lost");
@@ -651,7 +1108,36 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
-    void testBeforeTest_realTesterWithFixedConnection_neverClosesConnectionDuringOnSetup()
+    void testAfterTest_verifyThrowsAndCloseThrowsAnError_reportsVerifyFailureWithTheErrorSuppressed()
+            throws Exception
+    {
+        final JdbcDatabaseTester jdbcTester = jdbcTesterOpeningANewConnectionOnEachCall();
+        stubCountingConnection(true, "ACCOUNT");
+        when(connection.getRowCount("ACCOUNT")).thenReturn(5);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, jdbcTester, null, false);
+        executor.beforeTest();
+        when(connection.getRowCount("ACCOUNT")).thenReturn(6);
+        final AssertionError closeError = new AssertionError("close asserted");
+        doThrow(closeError).when(connection).close();
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown)
+                .as("The row count mismatch must stay the primary failure when closing the"
+                        + " connection fails with an Error, which a catch of Exception alone"
+                        + " lets replace it.")
+                .isInstanceOf(UnexpectedRowCountException.class);
+        assertThat(thrown.getSuppressed())
+                .as("The Error from closing the connection must still be visible, attached as"
+                        + " suppressed onto the primary failure.")
+                .containsExactly(closeError);
+    }
+
+    @Test
+    void testBeforeTest_classicPathRealTesterWithFixedConnection_neverClosesConnectionDuringOnSetup()
             throws Exception
     {
         // DefaultDatabaseTester(connection) returns this same connection from every
@@ -671,7 +1157,7 @@ class AnnotatedTestExecutorTest
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
         final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, fixedConnectionTester, null);
+                new AnnotatedTestExecutor(configuration, fixedConnectionTester, null, false);
 
         executor.beforeTest();
 
@@ -679,42 +1165,15 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
-    void testConstructor_installedListenerNotifiedAboutTheMemoizedConnection_doesNotCloseIt()
+    void testConstructor_classicPathInstalledListenerNotifiedAboutAConnection_stillClosesIt()
             throws Exception
     {
-        // Simulates what AbstractDatabaseTester.executeOperation() triggers internally during a
-        // real onSetup(), for a tester with no listener of its own - so it would otherwise
-        // default to a plain, closing DefaultOperationListener - and a non-NONE setup
-        // operation: without this executor's protection, the connection already memoized here
-        // for the row count check / parameter injection would be closed the instant setup
-        // finished, long before afterTest() ever runs.
-        stubEnabledConnection("ACCOUNT");
-        when(connection.getRowCount("ACCOUNT")).thenReturn(5);
+        // The executor's listener shields no connection: a tester that hands out a fresh
+        // connection per call (e.g. a plain JdbcDatabaseTester) has that connection closed by its
+        // own listener, as in the 3.5.0 lifecycle.
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
-        final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, null);
-        final ArgumentCaptor<IOperationListener> captor =
-                ArgumentCaptor.forClass(IOperationListener.class);
-        verify(tester).setOperationListener(captor.capture());
-        executor.beforeTest();
-
-        captor.getValue().operationSetUpFinished(connection);
-
-        verify(connection, never()).close();
-    }
-
-    @Test
-    void testConstructor_installedListenerNotifiedAboutADifferentConnection_stillClosesIt()
-            throws Exception
-    {
-        // Guards the fix above against becoming a blanket suppression: a tester that hands out
-        // a fresh connection per call (e.g. a plain JdbcDatabaseTester) must still have that
-        // connection closed normally - only this executor's own memoized connection (never
-        // resolved in this test) is protected.
-        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
-                .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
-        new AnnotatedTestExecutor(configuration, tester, null);
+        new AnnotatedTestExecutor(configuration, tester, null, false);
         final ArgumentCaptor<IOperationListener> captor =
                 ArgumentCaptor.forClass(IOperationListener.class);
         verify(tester).setOperationListener(captor.capture());
@@ -726,42 +1185,14 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
-    void testConstructor_installedListenerNotifiedAboutTheMemoizedConnectionViaTearDown_doesNotCloseIt()
+    void testConstructor_classicPathInstalledListenerNotifiedAboutAConnectionViaTearDown_stillClosesIt()
             throws Exception
     {
         // The teardown-side twin of
-        // testConstructor_installedListenerNotifiedAboutTheMemoizedConnection_doesNotCloseIt:
-        // a tester's onTearDown() notifies the same listener, and it must protect this
-        // executor's memoized connection there too, so afterTest()'s own close is the only one
-        // that ever touches it.
-        stubEnabledConnection("ACCOUNT");
-        when(connection.getRowCount("ACCOUNT")).thenReturn(5);
+        // testConstructor_classicPathInstalledListenerNotifiedAboutAConnection_stillClosesIt.
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
-        final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, null);
-        final ArgumentCaptor<IOperationListener> captor =
-                ArgumentCaptor.forClass(IOperationListener.class);
-        verify(tester).setOperationListener(captor.capture());
-        executor.beforeTest();
-
-        captor.getValue().operationTearDownFinished(connection);
-
-        verify(connection, never()).close();
-    }
-
-    @Test
-    void testConstructor_installedListenerNotifiedAboutADifferentConnectionViaTearDown_stillClosesIt()
-            throws Exception
-    {
-        // The teardown-side twin of
-        // testConstructor_installedListenerNotifiedAboutADifferentConnection_stillClosesIt:
-        // a tester that hands out a fresh connection per call must still have that one closed
-        // on teardown - only this executor's own memoized connection (never resolved here) is
-        // protected.
-        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
-                .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
-        new AnnotatedTestExecutor(configuration, tester, null);
+        new AnnotatedTestExecutor(configuration, tester, null, false);
         final ArgumentCaptor<IOperationListener> captor =
                 ArgumentCaptor.forClass(IOperationListener.class);
         verify(tester).setOperationListener(captor.capture());
@@ -773,11 +1204,11 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
-    void testConstructor_baselineCaptureInsideTheListenerCallbackFails_wrapsItInADatabaseUnitRuntimeException()
+    void testConstructor_classicPathBaselineCaptureInsideTheListenerCallbackFails_wrapsItInADatabaseUnitRuntimeException()
             throws Exception
     {
         // captureRowCountBaselineOnFirstConnectionRetrieved() runs from
-        // ExecutorOperationListener.connectionRetrieved(), which declares no checked exception,
+        // ClassicOperationListener.connectionRetrieved(), which declares no checked exception,
         // so a DatabaseUnitException/SQLException from the baseline capture there must surface
         // as an unchecked DatabaseUnitRuntimeException rather than be swallowed.
         final DatabaseConfig databaseConfig = new DatabaseConfig();
@@ -787,7 +1218,7 @@ class AnnotatedTestExecutorTest
                 .thenThrow(new SQLException("connection lost mid-capture"));
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
-        new AnnotatedTestExecutor(configuration, tester, null);
+        new AnnotatedTestExecutor(configuration, tester, null, false);
         final ArgumentCaptor<IOperationListener> captor =
                 ArgumentCaptor.forClass(IOperationListener.class);
         verify(tester).setOperationListener(captor.capture());
@@ -806,7 +1237,7 @@ class AnnotatedTestExecutorTest
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
         final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, null);
+                new AnnotatedTestExecutor(configuration, tester, null, false);
 
         assertThatCode(() -> executor.beforeTest())
                 .as("A tester with no connection to inspect (e.g. a test double) must be"
@@ -822,7 +1253,7 @@ class AnnotatedTestExecutorTest
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
         final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, null);
+                new AnnotatedTestExecutor(configuration, tester, null, false);
         executor.beforeTest();
 
         executor.afterTest(false);
@@ -831,14 +1262,16 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
-    void testAfterTest_connectionResolved_closesItByDefault() throws Exception
+    void testAfterTest_rowCountCheckEnabledAndTesterOpensANewConnectionOnEachCall_closesTheResolvedConnection()
+            throws Exception
     {
-        stubEnabledConnection("ACCOUNT");
+        final JdbcDatabaseTester jdbcTester = jdbcTesterOpeningANewConnectionOnEachCall();
+        stubCountingConnection(true, "ACCOUNT");
         when(connection.getRowCount("ACCOUNT")).thenReturn(5);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
         final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, null);
+                new AnnotatedTestExecutor(configuration, jdbcTester, null, false);
         executor.beforeTest();
 
         executor.afterTest(false);
@@ -862,8 +1295,8 @@ class AnnotatedTestExecutorTest
         final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(WithExpected.class, null, null, null, expected, null, null);
-        final DefaultPrepAndExpectedTestCase injected = mock(DefaultPrepAndExpectedTestCase.class);
-        when(injected.isCloseConnectionAfterTest()).thenReturn(true);
+        final DefaultPrepAndExpectedTestCase injected = injectedDefaultTestCase();
+        when(injected.isConnectionLeftOpen()).thenReturn(false);
         when(injected.getReusableConnection()).thenReturn(connection);
         final AnnotatedTestExecutor executor =
                 new AnnotatedTestExecutor(configuration, tester, injected);
@@ -876,34 +1309,14 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
-    void testAfterTest_closeConnectionAfterTestFalse_leavesConnectionOpen() throws Exception
-    {
-        stubEnabledConnection("ACCOUNT");
-        when(connection.getRowCount("ACCOUNT")).thenReturn(5);
-        final DbUnitConfig config =
-                WithCloseConnectionAfterTestFalse.class.getAnnotation(DbUnitConfig.class);
-        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
-                .from(WithCloseConnectionAfterTestFalse.class, config, null, null, null, null,
-                        null);
-        final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, null);
-        executor.beforeTest();
-
-        executor.afterTest(false);
-
-        verify(connection, never()).close();
-    }
-
-    @Test
     void testReleaseIfAfterTestDidNotRun_connectionResolvedButAfterTestNeverRan_closesIt()
             throws Exception
     {
-        when(tester.getConnection()).thenReturn(connection);
-        stubOpenJdbcConnection();
+        final JdbcDatabaseTester jdbcTester = jdbcTesterOpeningANewConnectionOnEachCall();
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
         final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, null);
+                new AnnotatedTestExecutor(configuration, jdbcTester, null, false);
         // Resolved the way a @BeforeEach parameter resolves it, before beforeTest() would run.
         executor.getConnection();
 
@@ -916,12 +1329,13 @@ class AnnotatedTestExecutorTest
     void testReleaseIfAfterTestDidNotRun_afterTestAlreadyRan_doesNotCloseAgain()
             throws Exception
     {
-        stubEnabledConnection("ACCOUNT");
+        final JdbcDatabaseTester jdbcTester = jdbcTesterOpeningANewConnectionOnEachCall();
+        stubCountingConnection(true, "ACCOUNT");
         when(connection.getRowCount("ACCOUNT")).thenReturn(5);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
         final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, null);
+                new AnnotatedTestExecutor(configuration, jdbcTester, null, false);
         executor.beforeTest();
         executor.afterTest(false);
         // A connection resolved after afterTest(), as a binding's late parameter resolution
@@ -940,7 +1354,7 @@ class AnnotatedTestExecutorTest
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
         final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, null);
+                new AnnotatedTestExecutor(configuration, tester, null, false);
 
         executor.releaseIfAfterTestDidNotRun();
 
@@ -948,7 +1362,7 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
-    void testAfterTest_listenerIsNoOp_leavesConnectionOpenEvenByDefault() throws Exception
+    void testAfterTest_listenerIsNoOp_leavesConnectionOpen() throws Exception
     {
         when(tester.getOperationListener())
                 .thenReturn(IOperationListener.NO_OP_OPERATION_LISTENER);
@@ -957,7 +1371,7 @@ class AnnotatedTestExecutorTest
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
         final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, null);
+                new AnnotatedTestExecutor(configuration, tester, null, false);
         executor.beforeTest();
 
         executor.afterTest(false);
@@ -966,16 +1380,13 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
-    void testAfterTest_listenerIsNoOpWrappedByPropertyListener_leavesConnectionOpen()
+    void testAfterTest_classicPathListenerIsNoOpWrappedByTheExecutor_leavesConnectionOpen()
             throws Exception
     {
         when(tester.getOperationListener())
                 .thenReturn(IOperationListener.NO_OP_OPERATION_LISTENER);
-        final DbUnitConfig config = WithProperties.class.getAnnotation(DbUnitConfig.class);
-        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
-                .from(WithProperties.class, config, null, null, null, null, null);
-        final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, null);
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithNothing.class), tester, null, false);
         final ArgumentCaptor<IOperationListener> installedListener =
                 ArgumentCaptor.forClass(IOperationListener.class);
         verify(tester).setOperationListener(installedListener.capture());
@@ -990,15 +1401,15 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
-    void testBeforeTest_setupTeardownPathConnectionAutoCommitOff_warnsOnce() throws Exception
+    void testBeforeTest_annotationDrivenConnectionAutoCommitOff_warnsOnce() throws Exception
     {
-        // Issue #965 on the setup/teardown path: this executor's prep and teardown operations
-        // run through the tester with no transaction, so on an autocommit-off connection their
-        // writes are never committed - the same warning DefaultPrepAndExpectedTestCase already
-        // gives the prep/expected path.
+        // Issue #965: the test case runs the prep and teardown operations with no transaction,
+        // so on an autocommit-off connection their writes are never committed. It warns about
+        // that with or without @DbUnitExpected.
         stubDisabledConnection();
         when(jdbcConnection.getAutoCommit()).thenReturn(false);
-        final DbUnitSetup setup = WithSetupNoPrep.class.getAnnotation(DbUnitSetup.class);
+        final DbUnitSetUpOperation setup =
+                WithSetupNoPrep.class.getAnnotation(DbUnitSetUpOperation.class);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(WithSetupNoPrep.class, null, null, setup, null, null, null);
         final AnnotatedTestExecutor executor =
@@ -1016,7 +1427,7 @@ class AnnotatedTestExecutorTest
             assertThat(appender.list)
                     .filteredOn(event -> event.getLevel() == Level.WARN
                             && event.getFormattedMessage().contains("autocommit disabled"))
-                    .as("A setup/teardown-path test whose connection has autocommit off must be"
+                    .as("An annotation-driven test whose connection has autocommit off must be"
                             + " warned exactly once.")
                     .hasSize(1);
         } finally
@@ -1059,19 +1470,16 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
-    void testBeforeTest_setupTeardownPathCloseAfterTestFalseAndTesterOpensNewConnectionOnEachCall_warnsOnce()
+    void testBeforeTest_annotationDrivenNoOpListenerAndTesterOpensNewConnectionOnEachCall_warnsOnce()
             throws Exception
     {
-        // The connection is left open for a real owner, but a tester that opens a new
-        // connection on every call has none, so every test would leave one open.
-        final JdbcDatabaseTester jdbcTester = jdbcTesterReturningTheConnection(null);
-        final DbUnitConfig config = WithCloseConnectionAfterTestFalseAndSetupNoPrep.class
-                .getAnnotation(DbUnitConfig.class);
-        final DbUnitSetup setup = WithCloseConnectionAfterTestFalseAndSetupNoPrep.class
-                .getAnnotation(DbUnitSetup.class);
-        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration.from(
-                WithCloseConnectionAfterTestFalseAndSetupNoPrep.class, config, null, setup, null,
-                null, null);
+        // The no-op listener leaves the connection open for a real owner, but a tester that
+        // opens a new connection on every call has none, so every test would leave one open.
+        final JdbcDatabaseTester jdbcTester = jdbcTesterLeavingItsConnectionOpen(null);
+        final DbUnitSetUpOperation setup =
+                WithSetupNoPrep.class.getAnnotation(DbUnitSetUpOperation.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(WithSetupNoPrep.class, null, null, setup, null, null, null);
         final AnnotatedTestExecutor executor =
                 new AnnotatedTestExecutor(configuration, jdbcTester, null);
         final ListAppender<ILoggingEvent> appender =
@@ -1082,7 +1490,7 @@ class AnnotatedTestExecutorTest
             executor.afterTest(false);
 
             assertThat(appender.list).filteredOn(event -> event.getLevel() == Level.WARN)
-                    .as("A setup/teardown-path test that leaves its connection open with a"
+                    .as("An annotation-driven test that leaves its connection open with a"
                             + " tester that opens a new one on every call must be warned"
                             + " exactly once.")
                     .hasSize(1);
@@ -1093,11 +1501,12 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
-    void testBeforeTest_setupTeardownPathCloseAfterTestDefaultAndTesterOpensNewConnectionOnEachCall_doesNotWarn()
+    void testBeforeTest_annotationDrivenCloseAfterTestDefaultAndTesterOpensNewConnectionOnEachCall_doesNotWarn()
             throws Exception
     {
         final JdbcDatabaseTester jdbcTester = jdbcTesterReturningTheConnection(null);
-        final DbUnitSetup setup = WithSetupNoPrep.class.getAnnotation(DbUnitSetup.class);
+        final DbUnitSetUpOperation setup =
+                WithSetupNoPrep.class.getAnnotation(DbUnitSetUpOperation.class);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(WithSetupNoPrep.class, null, null, setup, null, null, null);
         final AnnotatedTestExecutor executor =
@@ -1110,8 +1519,10 @@ class AnnotatedTestExecutorTest
             executor.afterTest(false);
 
             assertThat(appender.list)
-                    .as("With the default closeConnectionAfterTest the executor closes the"
-                            + " connection, so nothing is left open to warn about.")
+                    .as("The test case the runtime builds keeps closeConnectionAfterTest true"
+                            + " and the tester's listener is not the no-op one, so the connection"
+                            + " is closed when the test ends and nothing is left open to warn"
+                            + " about.")
                     .isEmpty();
         } finally
         {
@@ -1120,18 +1531,15 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
-    void testBeforeTest_setupTeardownPathCloseAfterTestFalseAndTesterReusesItsConnection_doesNotWarn()
+    void testBeforeTest_annotationDrivenNoOpListenerAndTesterReusesItsConnection_doesNotWarn()
             throws Exception
     {
         final JdbcDatabaseTester jdbcTester =
-                jdbcTesterReturningTheConnection(new CachingConnectionProvider());
-        final DbUnitConfig config = WithCloseConnectionAfterTestFalseAndSetupNoPrep.class
-                .getAnnotation(DbUnitConfig.class);
-        final DbUnitSetup setup = WithCloseConnectionAfterTestFalseAndSetupNoPrep.class
-                .getAnnotation(DbUnitSetup.class);
-        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration.from(
-                WithCloseConnectionAfterTestFalseAndSetupNoPrep.class, config, null, setup, null,
-                null, null);
+                jdbcTesterLeavingItsConnectionOpen(new CachingConnectionProvider());
+        final DbUnitSetUpOperation setup =
+                WithSetupNoPrep.class.getAnnotation(DbUnitSetUpOperation.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(WithSetupNoPrep.class, null, null, setup, null, null, null);
         final AnnotatedTestExecutor executor =
                 new AnnotatedTestExecutor(configuration, jdbcTester, null);
         final ListAppender<ILoggingEvent> appender =
@@ -1152,38 +1560,174 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
-    void testConnectionRetrieved_setupTeardownPathTesterRetrievesConnectionAndCloseAfterTestFalse_warnsOnce()
+    void testBeforeTest_annotationDrivenFixedConnectionTesterAndAnotherListenerThanTheNoOpOne_warnsOnceWhenASecondTestClosesTheConnection()
             throws Exception
     {
-        // On this path the tester's own onSetup() usually retrieves the connection, and the
-        // listener this executor installs is how it learns of it: the executor adopts that
-        // connection rather than acquiring one, so this is the other place the warning is made.
-        final JdbcDatabaseTester jdbcTester = jdbcTesterReturningTheConnection(null);
-        final DbUnitConfig config = WithCloseConnectionAfterTestFalseAndSetupNoPrep.class
-                .getAnnotation(DbUnitConfig.class);
-        final DbUnitSetup setup = WithCloseConnectionAfterTestFalseAndSetupNoPrep.class
-                .getAnnotation(DbUnitSetup.class);
-        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration.from(
-                WithCloseConnectionAfterTestFalseAndSetupNoPrep.class, config, null, setup, null,
-                null, null);
-        new AnnotatedTestExecutor(configuration, jdbcTester, null);
-        final ArgumentCaptor<IOperationListener> installedListener =
-                ArgumentCaptor.forClass(IOperationListener.class);
-        verify(jdbcTester).setOperationListener(installedListener.capture());
+        // The listener only configures connections and closes nothing, but it is not the no-op
+        // one, so the test case closes the one fixed connection the tester hands out again.
+        when(connection.getConfig()).thenReturn(new DatabaseConfig());
+        stubOpenJdbcConnection();
+        final IDatabaseTester fixedConnectionTester = new DefaultDatabaseTester(connection);
+        fixedConnectionTester.setSetUpOperation(DatabaseOperation.NONE);
+        fixedConnectionTester.setOperationListener(mock(IOperationListener.class));
+        final DbUnitSetUpOperation setup =
+                WithSetupNoPrep.class.getAnnotation(DbUnitSetUpOperation.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(WithSetupNoPrep.class, null, null, setup, null, null, null);
+        final AnnotatedTestExecutor firstTest =
+                new AnnotatedTestExecutor(configuration, fixedConnectionTester, null);
+        final AnnotatedTestExecutor secondTest =
+                new AnnotatedTestExecutor(configuration, fixedConnectionTester, null);
+        final AnnotatedTestExecutor thirdTest =
+                new AnnotatedTestExecutor(configuration, fixedConnectionTester, null);
         final ListAppender<ILoggingEvent> appender =
-                startCapturingLogOf(LeftOpenConnectionWarning.class);
+                startCapturingLogOf(ClosedFixedConnectionWarning.class);
         try
         {
-            installedListener.getValue().connectionRetrieved(connection);
-            installedListener.getValue().connectionRetrieved(connection);
+            firstTest.beforeTest();
+            firstTest.afterTest(false);
 
             assertThat(appender.list).filteredOn(event -> event.getLevel() == Level.WARN)
-                    .as("A connection the tester retrieves on its own and the listener hands to"
-                            + " this executor must be warned about too, exactly once.")
+                    .as("A tester built for one test is right to have its connection closed, so"
+                            + " the first test warns about nothing.")
+                    .isEmpty();
+
+            secondTest.beforeTest();
+            secondTest.afterTest(false);
+            thirdTest.beforeTest();
+            thirdTest.afterTest(false);
+
+            assertThat(appender.list).filteredOn(event -> event.getLevel() == Level.WARN)
+                    .as("A tester over one fixed connection that serves a second test, whose"
+                            + " connection the first one closed, must be warned about exactly"
+                            + " once, not once per test.")
+                    .hasSize(1);
+            verify(connection, times(3)).close();
+        } finally
+        {
+            stopCapturingLogOf(ClosedFixedConnectionWarning.class, appender);
+        }
+    }
+
+    @Test
+    void testBeforeTest_annotationDrivenFixedConnectionTesterWithNoOpListener_doesNotWarn()
+            throws Exception
+    {
+        when(connection.getConfig()).thenReturn(new DatabaseConfig());
+        stubOpenJdbcConnection();
+        final IDatabaseTester fixedConnectionTester = new DefaultDatabaseTester(connection);
+        fixedConnectionTester.setSetUpOperation(DatabaseOperation.NONE);
+        fixedConnectionTester.setOperationListener(IOperationListener.NO_OP_OPERATION_LISTENER);
+        final DbUnitSetUpOperation setup =
+                WithSetupNoPrep.class.getAnnotation(DbUnitSetUpOperation.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(WithSetupNoPrep.class, null, null, setup, null, null, null);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, fixedConnectionTester, null);
+        final ListAppender<ILoggingEvent> appender =
+                startCapturingLogOf(ClosedFixedConnectionWarning.class);
+        try
+        {
+            executor.beforeTest();
+            executor.afterTest(false);
+
+            assertThat(appender.list)
+                    .as("The documented way to keep the connection of a tester over one fixed"
+                            + " connection open is the no-op listener, which must not warn.")
+                    .isEmpty();
+            verify(connection, never()).close();
+        } finally
+        {
+            stopCapturingLogOf(ClosedFixedConnectionWarning.class, appender);
+        }
+    }
+
+    @Test
+    void testBeforeTest_annotationDrivenTesterReportsNoListener_warnsOnceWhenASecondTestClosesTheConnection()
+            throws Exception
+    {
+        when(connection.getConfig()).thenReturn(new DatabaseConfig());
+        stubOpenJdbcConnection();
+        final TesterNotReportingItsListener legacyTester =
+                new TesterNotReportingItsListener(() -> connection);
+        legacyTester.setSetUpOperation(DatabaseOperation.NONE);
+        final DbUnitSetUpOperation setup =
+                WithSetupNoPrep.class.getAnnotation(DbUnitSetUpOperation.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(WithSetupNoPrep.class, null, null, setup, null, null, null);
+        final AnnotatedTestExecutor firstTest =
+                new AnnotatedTestExecutor(configuration, legacyTester, null);
+        final AnnotatedTestExecutor secondTest =
+                new AnnotatedTestExecutor(configuration, legacyTester, null);
+        final ListAppender<ILoggingEvent> appender =
+                startCapturingLogOf(ClosedFixedConnectionWarning.class);
+        try
+        {
+            firstTest.beforeTest();
+            firstTest.afterTest(false);
+
+            assertThat(appender.list).filteredOn(event -> event.getLevel() == Level.WARN)
+                    .as("The first test of a tester warns about nothing.")
+                    .isEmpty();
+
+            secondTest.beforeTest();
+            secondTest.afterTest(false);
+
+            assertThat(appender.list).filteredOn(event -> event.getLevel() == Level.WARN)
+                    .as("A tester that cannot report its listener gives no way to say it keeps"
+                            + " its connection open, so closing the connection for a second test"
+                            + " must be warned about once.")
                     .hasSize(1);
         } finally
         {
-            stopCapturingLogOf(LeftOpenConnectionWarning.class, appender);
+            stopCapturingLogOf(ClosedFixedConnectionWarning.class, appender);
+        }
+    }
+
+    @Test
+    void testBeforeTest_annotationDrivenCustomTesterOverOneFixedConnection_warnsWhenASecondTestIsHandedItClosed()
+            throws Exception
+    {
+        // The test case closes the connection it shares when a test ends, as the listener of
+        // the tester is not the no-op one, so a custom tester over one fixed connection hands it
+        // out closed to the next test, whatever kind of tester it is.
+        final IDatabaseConnection fixedConnection = InMemoryDatabaseConnection.create();
+        final RecordingAbstractDatabaseTester customTester = new RecordingAbstractDatabaseTester();
+        customTester.connection = fixedConnection;
+        final DbUnitSetUpOperation setup =
+                WithSetupNoPrep.class.getAnnotation(DbUnitSetUpOperation.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(WithSetupNoPrep.class, null, null, setup, null, null, null);
+        final ListAppender<ILoggingEvent> appender =
+                startCapturingLogOf(ClosedConnectionHandedOutWarning.class);
+        try
+        {
+            final AnnotatedTestExecutor firstTest =
+                    new AnnotatedTestExecutor(configuration, customTester, null);
+            firstTest.beforeTest();
+            firstTest.afterTest(false);
+
+            assertThat(appender.list).filteredOn(event -> event.getLevel() == Level.WARN)
+                    .as("The first test is handed the connection open, so it warns about"
+                            + " nothing.")
+                    .isEmpty();
+            assertThat(isClosed(fixedConnection))
+                    .as("The test case closes the connection it shares when the test ends.")
+                    .isTrue();
+
+            final AnnotatedTestExecutor secondTest =
+                    new AnnotatedTestExecutor(configuration, customTester, null);
+            secondTest.beforeTest();
+            secondTest.afterTest(false);
+
+            assertThat(appender.list).filteredOn(event -> event.getLevel() == Level.WARN)
+                    .as("The second test is handed the connection closed, which must be warned"
+                            + " about once.")
+                    .hasSize(1);
+        } finally
+        {
+            stopCapturingLogOf(ClosedConnectionHandedOutWarning.class, appender);
+            fixedConnection.close();
         }
     }
 
@@ -1195,8 +1739,8 @@ class AnnotatedTestExecutorTest
     {
         // The classic first surprise: the baseline is captured before @DbUnitPrep loads, so a
         // prep dataset that is never torn down reads as leaked rows and fails the check. The
-        // exception must name the fix - @DbUnitTearDown(DELETE_ALL) or an exclude - not just
-        // the per-table delta.
+        // exception must name the fix - @DbUnitTearDownOperation(DELETE_ALL) or an exclude - not
+        // just the per-table delta.
         stubEnabledConnection("ACCOUNT");
         when(connection.getRowCount("ACCOUNT")).thenReturn(0);
         when(tester.getTearDownOperation()).thenReturn(DatabaseOperation.NONE);
@@ -1220,20 +1764,51 @@ class AnnotatedTestExecutorTest
                 .as("The message must name the teardown fix and explain the before-prep"
                         + " baseline, on top of the standard per-table detail.")
                 .contains("baseline is captured before @DbUnitPrep loads")
-                .contains("@DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)")
+                .contains("@DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)")
+                .doesNotContain("CLEAN_INSERT")
                 .contains("ACCOUNT");
+    }
+
+    @Test
+    void testAfterTest_rowCountCheckEnabledByTheFeatureWithPrepAndNoTeardown_exceptionNamesTheTeardownFix()
+            throws Exception
+    {
+        stubEnabledConnection("ACCOUNT");
+        when(connection.getRowCount("ACCOUNT")).thenReturn(0);
+        when(tester.getTearDownOperation()).thenReturn(DatabaseOperation.NONE);
+        final DbUnitPrep prep = WithPrep.class.getAnnotation(DbUnitPrep.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration.from(
+                WithPrep.class, null, prep, null, null, null, null);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, tester, null);
+        executor.beforeTest();
+        when(connection.getRowCount("ACCOUNT")).thenReturn(5);
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown)
+                .as("The mismatch stays an UnexpectedRowCountException.")
+                .isInstanceOf(UnexpectedRowCountException.class);
+        assertThat(thrown.getMessage())
+                .as("A check that the DatabaseConfig feature enables, as -Ddbunit.rowCountCheck"
+                        + " does for a whole suite, explains prep that is never torn down the same"
+                        + " way as one that @DbUnitRowCountCheck enables.")
+                .contains("baseline is captured before @DbUnitPrep loads")
+                .contains("@DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)")
+                .doesNotContain("CLEAN_INSERT")
+                .doesNotContain("@DbUnitRowCountCheck baseline");
     }
 
     @Test
     void testAfterTest_rowCountCheckWithPrepButTeardownDeletes_exceptionHasNoTeardownHint()
             throws Exception
     {
-        // The hint is gated on the teardown operation that actually ran being NONE: with
-        // DELETE_ALL declared, an unrelated count mismatch must not be misattributed to
+        // The hint is gated on the teardown operation that actually ran being NONE: with a real
+        // teardown operation, an unrelated count mismatch must not be misattributed to
         // un-torn-down prep.
         stubEnabledConnection("ACCOUNT");
         when(connection.getRowCount("ACCOUNT")).thenReturn(0);
-        when(tester.getTearDownOperation()).thenReturn(DatabaseOperation.DELETE_ALL);
+        when(tester.getTearDownOperation()).thenReturn(new RecordingDatabaseOperation());
         final DbUnitPrep prep = WithPrepAndRowCountCheck.class.getAnnotation(DbUnitPrep.class);
         final DbUnitRowCountCheck rowCountCheck =
                 WithPrepAndRowCountCheck.class.getAnnotation(DbUnitRowCountCheck.class);
@@ -1249,7 +1824,547 @@ class AnnotatedTestExecutorTest
         assertThat(thrown).isInstanceOf(UnexpectedRowCountException.class);
         assertThat(thrown.getMessage())
                 .as("No teardown hint when a non-NONE teardown operation ran.")
-                .doesNotContain("@DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)");
+                .doesNotContain("@DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)");
+    }
+
+    @Test
+    void testAfterTest_rowCountMismatchInAPrepTableOfAnInjectedTestCaseWithItsOwnTearDown_hasNoTeardownHint()
+            throws Exception
+    {
+        // dbUnit cannot read the operation an injected test case runs, which its owner set on it
+        // and which takes precedence over the tester's, and the annotation the hint names is
+        // rejected next to one.
+        stubEnabledConnection("ACCOUNT");
+        when(connection.getRowCount("ACCOUNT")).thenReturn(0);
+        final DbUnitPrep prep = WithPrepAndRowCountCheck.class.getAnnotation(DbUnitPrep.class);
+        final DbUnitRowCountCheck rowCountCheck =
+                WithPrepAndRowCountCheck.class.getAnnotation(DbUnitRowCountCheck.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration.from(
+                WithPrepAndRowCountCheck.class, null, prep, null, null, null, rowCountCheck);
+        final DefaultPrepAndExpectedTestCase injected =
+                new DefaultPrepAndExpectedTestCase(new FlatXmlDataFileLoader(), tester);
+        injected.setTearDownOperation(new RecordingDatabaseOperation());
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, tester, injected);
+        executor.beforeTest();
+        when(connection.getRowCount("ACCOUNT")).thenReturn(5);
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown).isInstanceOf(UnexpectedRowCountException.class);
+        assertThat(thrown.getMessage())
+                .as("The tester's own teardown operation is NONE, but the injected test case runs"
+                        + " one of its own, so the hint that its prep dataset is never torn down"
+                        + " would be wrong, and it names an annotation that is rejected next to an"
+                        + " injected test case.")
+                .contains("ACCOUNT")
+                .doesNotContain("@DbUnitTearDownOperation")
+                .doesNotContain("baseline is captured before @DbUnitPrep loads");
+    }
+
+    @Test
+    void testAfterTest_rowCountMismatchOnlyInATableTheDatasetsDoNotHold_hasNoTeardownHint()
+            throws Exception
+    {
+        // The prep dataset holds ACCOUNT, torn down by nothing, but the leak is in OTHER_T: the
+        // hint would point at the wrong cause.
+        stubEnabledConnection("OTHER_T");
+        when(connection.getRowCount("OTHER_T")).thenReturn(0);
+        final DbUnitPrep prep = WithPrepAndRowCountCheck.class.getAnnotation(DbUnitPrep.class);
+        final DbUnitRowCountCheck rowCountCheck =
+                WithPrepAndRowCountCheck.class.getAnnotation(DbUnitRowCountCheck.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration.from(
+                WithPrepAndRowCountCheck.class, null, prep, null, null, null, rowCountCheck);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, tester, null);
+        executor.beforeTest();
+        when(connection.getRowCount("OTHER_T")).thenReturn(5);
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown).isInstanceOf(UnexpectedRowCountException.class);
+        assertThat(thrown.getMessage())
+                .as("The per-table detail names the leaked table, but a prep dataset that is never"
+                        + " torn down did not cause a leak in a table it does not hold, so the"
+                        + " message must not say it did.")
+                .contains("OTHER_T")
+                .doesNotContain("@DbUnitTearDownOperation")
+                .doesNotContain("baseline is captured before @DbUnitPrep loads");
+    }
+
+    @Test
+    void testAfterTest_rowCountMismatchInAPrepTableNamedInAnotherCase_keepsTheTeardownHint()
+            throws Exception
+    {
+        stubEnabledConnection("account");
+        when(connection.getRowCount("account")).thenReturn(0);
+        final DbUnitPrep prep = WithPrepAndRowCountCheck.class.getAnnotation(DbUnitPrep.class);
+        final DbUnitRowCountCheck rowCountCheck =
+                WithPrepAndRowCountCheck.class.getAnnotation(DbUnitRowCountCheck.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration.from(
+                WithPrepAndRowCountCheck.class, null, prep, null, null, null, rowCountCheck);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, tester, null);
+        executor.beforeTest();
+        when(connection.getRowCount("account")).thenReturn(5);
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown).isInstanceOf(UnexpectedRowCountException.class);
+        assertThat(thrown.getMessage())
+                .as("dbUnit finds a table in a dataset ignoring case, so the database naming the"
+                        + " table of the prep dataset ACCOUNT as account is still the prep"
+                        + " dataset's table.")
+                .contains("account")
+                .contains("@DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)");
+    }
+
+    @Test
+    void testAfterTest_rowCountDropInAPrepTableAfterADeclaredDeletingSetUp_hintsAtAnInsertSetUp()
+            throws Exception
+    {
+        PrepRowCountsTestCase.differences = Arrays.asList(new RowCountDifference("ACCOUNT", 3, 1));
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithPrepAndRowCountCheck.class, WithCleanInsertSetUp.class,
+                        BuildsPrepRowCountsTestCase.class),
+                new RecordingAbstractDatabaseTester(), null);
+        executor.beforeTest();
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown).as("The drop stays an UnexpectedRowCountException.")
+                .isInstanceOf(UnexpectedRowCountException.class);
+        assertThat(thrown.getMessage())
+                .as("CLEAN_INSERT deleted the rows the prep table held at the baseline, so the"
+                        + " hint names a setup that keeps them, and not the teardown that would"
+                        + " delete the prep rows too.")
+                .contains("ACCOUNT  3 -> 1  (-2)")
+                .contains("The setup operation, CLEAN_INSERT, deletes every row")
+                .contains("@DbUnitSetUpOperation(DbUnitOperation.INSERT)")
+                .contains("@DbUnitTearDownOperation(DbUnitOperation.DELETE)")
+                .doesNotContain("never torn down")
+                .doesNotContain("@DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)");
+    }
+
+    @Test
+    void testAfterTest_rowCountDropInAPrepTableAfterTheTestersDeletingSetUp_hintsAtAnInsertSetUp()
+            throws Exception
+    {
+        PrepRowCountsTestCase.differences = Arrays.asList(new RowCountDifference("ACCOUNT", 3, 1));
+        final RecordingAbstractDatabaseTester ownTester = new RecordingAbstractDatabaseTester();
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithPrepAndRowCountCheck.class, BuildsPrepRowCountsTestCase.class),
+                ownTester, null);
+        executor.beforeTest();
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown).isInstanceOf(UnexpectedRowCountException.class);
+        assertThat(thrown.getMessage())
+                .as("With no @DbUnitSetUpOperation the test case runs the tester's setup"
+                        + " operation, CLEAN_INSERT by default, so the hint names it.")
+                .contains("The setup operation, CLEAN_INSERT, deletes every row")
+                .doesNotContain("never torn down");
+    }
+
+    @Test
+    void testAfterTest_rowCountDropInAPrepTableAfterAnInsertSetUp_hasNoHint() throws Exception
+    {
+        PrepRowCountsTestCase.differences = Arrays.asList(new RowCountDifference("ACCOUNT", 3, 1));
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithPrepAndRowCountCheck.class, WithInsertSetUp.class,
+                        BuildsPrepRowCountsTestCase.class),
+                new RecordingAbstractDatabaseTester(), null);
+        executor.beforeTest();
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown).isInstanceOf(UnexpectedRowCountException.class);
+        assertThat(thrown.getMessage())
+                .as("An INSERT setup deletes nothing, so a lost row has another cause, and the"
+                        + " per-table advice is all the failure gives.")
+                .contains("ACCOUNT  3 -> 1  (-2)")
+                .doesNotContain("The setup operation")
+                .doesNotContain("never torn down");
+    }
+
+    @Test
+    void testAfterTest_rowCountDropInAPrepTableWithADeletingTearDown_hintsAtAnInsertSetUp()
+            throws Exception
+    {
+        PrepRowCountsTestCase.differences = Arrays.asList(new RowCountDifference("ACCOUNT", 3, 0));
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithPrepAndRowCountCheck.class, WithCleanInsertSetUp.class,
+                        WithDeleteAllTearDown.class, BuildsPrepRowCountsTestCase.class),
+                new RecordingAbstractDatabaseTester(), null);
+        executor.beforeTest();
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown).isInstanceOf(UnexpectedRowCountException.class);
+        assertThat(thrown.getMessage())
+                .as("A test that followed the old advice and tears down with DELETE_ALL still"
+                        + " lost the seed rows to its CLEAN_INSERT setup, so it gets the setup"
+                        + " hint, and no hint about prep that is never torn down.")
+                .contains("The setup operation, CLEAN_INSERT, deletes every row")
+                .doesNotContain("never torn down");
+    }
+
+    @Test
+    void testAfterTest_rowCountRiseInAPrepTableAfterADeletingSetUp_hasOnlyTheTeardownHint()
+            throws Exception
+    {
+        PrepRowCountsTestCase.differences = Arrays.asList(new RowCountDifference("ACCOUNT", 0, 1));
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithPrepAndRowCountCheck.class, WithCleanInsertSetUp.class,
+                        BuildsPrepRowCountsTestCase.class),
+                new RecordingAbstractDatabaseTester(), null);
+        executor.beforeTest();
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown).isInstanceOf(UnexpectedRowCountException.class);
+        assertThat(thrown.getMessage())
+                .as("A prep table that gained rows kept the prep rows, which a CLEAN_INSERT setup"
+                        + " does not explain, so only the teardown hint is given.")
+                .contains("never torn down")
+                .doesNotContain("The setup operation");
+    }
+
+    @Test
+    void testAfterTest_rowCountRiseInOnePrepTableAndDropInAnother_givesBothHints() throws Exception
+    {
+        PrepRowCountsTestCase.differences = Arrays.asList(new RowCountDifference("ACCOUNT", 0, 1),
+                new RowCountDifference("ORDERS", 3, 1));
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithPrepAndRowCountCheck.class, BuildsPrepRowCountsTestCase.class),
+                new RecordingAbstractDatabaseTester(), null);
+        executor.beforeTest();
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown).isInstanceOf(UnexpectedRowCountException.class);
+        assertThat(thrown.getMessage())
+                .as("ACCOUNT kept the prep rows that nothing tore down, and ORDERS lost its seed"
+                        + " rows to the CLEAN_INSERT setup, so each table's cause gets its hint.")
+                .contains("never torn down")
+                .contains("@DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)")
+                .contains("The setup operation, CLEAN_INSERT, deletes every row");
+    }
+
+    @Test
+    void testAfterTest_rowCountRiseInAPrepTableAfterAnInsertSetUp_hintsAtADeleteTearDown()
+            throws Exception
+    {
+        PrepRowCountsTestCase.differences = Arrays.asList(new RowCountDifference("ACCOUNT", 2, 3));
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithPrepAndRowCountCheck.class, WithInsertSetUp.class,
+                        BuildsPrepRowCountsTestCase.class),
+                new RecordingAbstractDatabaseTester(), null);
+        executor.beforeTest();
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown).isInstanceOf(UnexpectedRowCountException.class);
+        assertThat(thrown.getMessage())
+                .as("An INSERT setup adds the prep rows to the rows the table held, so a"
+                        + " DELETE_ALL teardown would delete those too and the hint names DELETE.")
+                .contains("never torn down")
+                .contains("@DbUnitTearDownOperation(DbUnitOperation.DELETE),")
+                .contains("before the INSERT setup")
+                .doesNotContain("@DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)");
+    }
+
+    @Test
+    void testAfterTest_rowCountRiseInAPrepTableAfterARefreshSetUp_hintsAtADeleteTearDown()
+            throws Exception
+    {
+        PrepRowCountsTestCase.differences = Arrays.asList(new RowCountDifference("ACCOUNT", 2, 3));
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithPrepAndRowCountCheck.class, WithRefreshSetUp.class,
+                        BuildsPrepRowCountsTestCase.class),
+                new RecordingAbstractDatabaseTester(), null);
+        executor.beforeTest();
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown).isInstanceOf(UnexpectedRowCountException.class);
+        assertThat(thrown.getMessage())
+                .as("A REFRESH setup adds the prep rows to the rows the table held like an INSERT"
+                        + " setup does, so the hint names DELETE.")
+                .contains("@DbUnitTearDownOperation(DbUnitOperation.DELETE),")
+                .contains("before the REFRESH setup")
+                .doesNotContain("@DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)");
+    }
+
+    @Test
+    void testAfterTest_rowCountRiseInAPrepTableAfterACleanInsertSetUp_hintsAtADeleteAllTearDown()
+            throws Exception
+    {
+        PrepRowCountsTestCase.differences = Arrays.asList(new RowCountDifference("ACCOUNT", 0, 1));
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithPrepAndRowCountCheck.class, WithCleanInsertSetUp.class,
+                        BuildsPrepRowCountsTestCase.class),
+                new RecordingAbstractDatabaseTester(), null);
+        executor.beforeTest();
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown).isInstanceOf(UnexpectedRowCountException.class);
+        assertThat(thrown.getMessage())
+                .as("A CLEAN_INSERT setup leaves only the prep rows in the table, so a DELETE_ALL"
+                        + " teardown removes just them and the hint names it.")
+                .contains("@DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)")
+                .doesNotContain("@DbUnitTearDownOperation(DbUnitOperation.DELETE),");
+    }
+
+    @Test
+    void testAfterTest_rowCountDropInAPrepTableAfterAnInsertSetUpAndADeleteAllTearDown_hintsAtADeleteTearDown()
+            throws Exception
+    {
+        PrepRowCountsTestCase.differences = Arrays.asList(new RowCountDifference("ACCOUNT", 2, 0));
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithPrepAndRowCountCheck.class, WithInsertSetUp.class,
+                        WithDeleteAllTearDown.class, BuildsPrepRowCountsTestCase.class),
+                new RecordingAbstractDatabaseTester(), null);
+        executor.beforeTest();
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown).isInstanceOf(UnexpectedRowCountException.class);
+        assertThat(thrown.getMessage())
+                .as("The DELETE_ALL teardown deleted the rows the table held at the baseline too,"
+                        + " so the hint names the teardown and the DELETE that keeps those rows.")
+                .contains("ACCOUNT  2 -> 0  (-2)")
+                .contains("The teardown operation, DELETE_ALL, deletes every row")
+                .contains("@DbUnitTearDownOperation(DbUnitOperation.DELETE),")
+                .doesNotContain("The setup operation")
+                .doesNotContain("never torn down");
+    }
+
+    @Test
+    void testAfterTest_rowCountDropInAPrepTableAfterAnInsertSetUpAndATruncateTearDown_hintsAtADeleteTearDown()
+            throws Exception
+    {
+        PrepRowCountsTestCase.differences = Arrays.asList(new RowCountDifference("ACCOUNT", 2, 0));
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithPrepAndRowCountCheck.class, WithInsertSetUp.class,
+                        WithTruncateTableTearDown.class, BuildsPrepRowCountsTestCase.class),
+                new RecordingAbstractDatabaseTester(), null);
+        executor.beforeTest();
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown).isInstanceOf(UnexpectedRowCountException.class);
+        assertThat(thrown.getMessage())
+                .as("TRUNCATE_TABLE empties the prep tables like DELETE_ALL does.")
+                .contains("The teardown operation, TRUNCATE_TABLE, deletes every row");
+    }
+
+    @Test
+    void testAfterTest_rowCountDropInAPrepTableAfterAnInsertSetUpAndADeleteTearDown_hasNoHint()
+            throws Exception
+    {
+        PrepRowCountsTestCase.differences = Arrays.asList(new RowCountDifference("ACCOUNT", 2, 1));
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithPrepAndRowCountCheck.class, WithInsertSetUp.class,
+                        WithDeleteTearDown.class, BuildsPrepRowCountsTestCase.class),
+                new RecordingAbstractDatabaseTester(), null);
+        executor.beforeTest();
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown).isInstanceOf(UnexpectedRowCountException.class);
+        assertThat(thrown.getMessage())
+                .as("A DELETE teardown removes only the rows of the datasets, so a lost row has"
+                        + " another cause and the per-table advice is all the failure gives.")
+                .contains("ACCOUNT  2 -> 1  (-1)")
+                .doesNotContain("The teardown operation")
+                .doesNotContain("The setup operation");
+    }
+
+    @Test
+    void testAfterTest_rowCountRiseInAPrepTableAfterAnInsertSetUpAndTheExpectedDatasetListsItToo_hintsAtAnExclusionNotADeleteTearDown()
+            throws Exception
+    {
+        PrepRowCountsTestCase.differences = Arrays.asList(new RowCountDifference("ACCOUNT", 1, 2));
+        PrepRowCountsTestCase.expectedDataset = expectedDatasetOf("ACCOUNT");
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithPrepAndRowCountCheck.class, WithInsertSetUp.class,
+                        BuildsPrepRowCountsTestCase.class),
+                new RecordingAbstractDatabaseTester(), null);
+        executor.beforeTest();
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown).isInstanceOf(UnexpectedRowCountException.class);
+        assertThat(thrown.getMessage())
+                .as("A DELETE teardown would delete the seed rows the expected dataset lists, so"
+                        + " the hint names an exclusion and not that teardown.")
+                .contains("never torn down")
+                .contains("The expected dataset lists ACCOUNT too")
+                .contains("acts on the expected dataset as well as on the prep dataset")
+                .contains("Exclude them from the check")
+                .doesNotContain("Add @DbUnitTearDownOperation")
+                .doesNotContain("@DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)");
+    }
+
+    @Test
+    void testAfterTest_rowCountRiseInAPrepTableAfterARefreshSetUpAndTheExpectedDatasetListsItInOtherCase_hintsAtAnExclusion()
+            throws Exception
+    {
+        PrepRowCountsTestCase.differences = Arrays.asList(new RowCountDifference("ACCOUNT", 1, 2));
+        PrepRowCountsTestCase.expectedDataset = expectedDatasetOf("account");
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithPrepAndRowCountCheck.class, WithRefreshSetUp.class,
+                        BuildsPrepRowCountsTestCase.class),
+                new RecordingAbstractDatabaseTester(), null);
+        executor.beforeTest();
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown).isInstanceOf(UnexpectedRowCountException.class);
+        assertThat(thrown.getMessage())
+                .as("The expected dataset finds a table ignoring case, as the hints do.")
+                .contains("The expected dataset lists ACCOUNT too")
+                .doesNotContain("Add @DbUnitTearDownOperation");
+    }
+
+    @Test
+    void testAfterTest_rowCountRiseInAPrepTableAfterAnInsertSetUpAndTheExpectedDatasetListsOtherTables_stillHintsAtADeleteTearDown()
+            throws Exception
+    {
+        PrepRowCountsTestCase.differences = Arrays.asList(new RowCountDifference("ACCOUNT", 1, 2));
+        PrepRowCountsTestCase.expectedDataset = expectedDatasetOf("ORDERS");
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithPrepAndRowCountCheck.class, WithInsertSetUp.class,
+                        BuildsPrepRowCountsTestCase.class),
+                new RecordingAbstractDatabaseTester(), null);
+        executor.beforeTest();
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown).isInstanceOf(UnexpectedRowCountException.class);
+        assertThat(thrown.getMessage())
+                .as("The teardown deletes only rows of the datasets, and ACCOUNT is not in the"
+                        + " expected one, so the seed rows stay and the DELETE advice holds.")
+                .contains("@DbUnitTearDownOperation(DbUnitOperation.DELETE),")
+                .contains("before the INSERT setup")
+                .doesNotContain("The expected dataset lists");
+    }
+
+    @Test
+    void testAfterTest_rowCountRiseInAPrepTableEmptyAtTheBaselineAndListedByTheExpectedDataset_stillHintsAtADeleteTearDown()
+            throws Exception
+    {
+        PrepRowCountsTestCase.differences = Arrays.asList(new RowCountDifference("ACCOUNT", 0, 1));
+        PrepRowCountsTestCase.expectedDataset = expectedDatasetOf("ACCOUNT");
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithPrepAndRowCountCheck.class, WithInsertSetUp.class,
+                        BuildsPrepRowCountsTestCase.class),
+                new RecordingAbstractDatabaseTester(), null);
+        executor.beforeTest();
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown).isInstanceOf(UnexpectedRowCountException.class);
+        assertThat(thrown.getMessage())
+                .as("A table with no rows at the baseline has no seed rows for the teardown to"
+                        + " delete, so its rows are the datasets' and DELETE removes them.")
+                .contains("@DbUnitTearDownOperation(DbUnitOperation.DELETE),")
+                .doesNotContain("The expected dataset lists");
+    }
+
+    @Test
+    void testAfterTest_rowCountRiseInTwoPrepTablesAndOnlyOneHeldRowsAtTheBaseline_hintsEachWithItsAdvice()
+            throws Exception
+    {
+        PrepRowCountsTestCase.differences = Arrays.asList(new RowCountDifference("ACCOUNT", 1, 2),
+                new RowCountDifference("ORDERS", 0, 1));
+        PrepRowCountsTestCase.expectedDataset = expectedDatasetOf("ACCOUNT", "ORDERS");
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithPrepAndRowCountCheck.class, WithInsertSetUp.class,
+                        BuildsPrepRowCountsTestCase.class),
+                new RecordingAbstractDatabaseTester(), null);
+        executor.beforeTest();
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown).isInstanceOf(UnexpectedRowCountException.class);
+        assertThat(thrown.getMessage())
+                .as("ORDERS held no rows at the baseline, so it gets the DELETE advice, and"
+                        + " ACCOUNT, which did, gets the exclusion.")
+                .contains("For ORDERS: Add @DbUnitTearDownOperation(DbUnitOperation.DELETE),")
+                .contains("or exclude ORDERS from the check.")
+                .contains("The expected dataset lists ACCOUNT too");
+    }
+
+    @Test
+    void testAfterTest_rowCountDropInAPrepTableAfterADeletingSetUpAndTheExpectedDatasetListsItToo_hintsAtAnExclusionNotAnInsertSetUp()
+            throws Exception
+    {
+        PrepRowCountsTestCase.differences = Arrays.asList(new RowCountDifference("ACCOUNT", 3, 1));
+        PrepRowCountsTestCase.expectedDataset = expectedDatasetOf("ACCOUNT");
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithPrepAndRowCountCheck.class, WithCleanInsertSetUp.class,
+                        BuildsPrepRowCountsTestCase.class),
+                new RecordingAbstractDatabaseTester(), null);
+        executor.beforeTest();
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown).isInstanceOf(UnexpectedRowCountException.class);
+        assertThat(thrown.getMessage())
+                .as("An INSERT setup keeps the seed rows, the expected dataset must then list"
+                        + " them, and the DELETE teardown deletes them, so no such advice.")
+                .contains("The setup operation, CLEAN_INSERT, deletes every row")
+                .contains("The expected dataset lists ACCOUNT too")
+                .doesNotContain("To keep such rows");
+    }
+
+    @Test
+    void testAfterTest_rowCountDropInAPrepTableAfterADeletingTearDownAndTheExpectedDatasetListsItToo_hintsAtAnExclusionNotADeleteTearDown()
+            throws Exception
+    {
+        PrepRowCountsTestCase.differences = Arrays.asList(new RowCountDifference("ACCOUNT", 3, 0));
+        PrepRowCountsTestCase.expectedDataset = expectedDatasetOf("ACCOUNT");
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithPrepAndRowCountCheck.class, WithInsertSetUp.class,
+                        WithDeleteAllTearDown.class, BuildsPrepRowCountsTestCase.class),
+                new RecordingAbstractDatabaseTester(), null);
+        executor.beforeTest();
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown).isInstanceOf(UnexpectedRowCountException.class);
+        assertThat(thrown.getMessage())
+                .as("A DELETE teardown deletes the rows the expected dataset lists as well.")
+                .contains("The teardown operation, DELETE_ALL, deletes every row")
+                .contains("The expected dataset lists ACCOUNT too")
+                .doesNotContain("To keep such rows");
+    }
+
+    @Test
+    void testAfterTest_rowCountDropInAPrepTableAfterAnInsertSetUpAndADeleteTearDownAndTheExpectedDatasetListsIt_hintsAtAnExclusion()
+            throws Exception
+    {
+        PrepRowCountsTestCase.differences = Arrays.asList(new RowCountDifference("ACCOUNT", 1, 0));
+        PrepRowCountsTestCase.expectedDataset = expectedDatasetOf("ACCOUNT");
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithPrepAndRowCountCheck.class, WithInsertSetUp.class,
+                        WithDeleteTearDown.class, BuildsPrepRowCountsTestCase.class),
+                new RecordingAbstractDatabaseTester(), null);
+        executor.beforeTest();
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown).isInstanceOf(UnexpectedRowCountException.class);
+        assertThat(thrown.getMessage())
+                .as("The DELETE teardown that the leaked-prep advice named deleted the seed row"
+                        + " the expected dataset lists, so the failure it caused explains it.")
+                .contains("The teardown operation, DELETE, deletes every row of the datasets")
+                .contains("The expected dataset lists ACCOUNT too")
+                .contains("Exclude them from the check");
     }
 
     @Test
@@ -1279,11 +2394,92 @@ class AnnotatedTestExecutorTest
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
         final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, null);
+                new AnnotatedTestExecutor(configuration, tester, null, false);
 
         executor.beforeTest();
 
         verify(connection).createDataSet();
+    }
+
+    @Test
+    void testBeforeTest_systemPropertyWithUnrecognizedValueAnnotationDriven_failsNamingTheProperty()
+            throws Exception
+    {
+        System.setProperty(RowCountCheckConfiguration.DBUNIT_ROW_COUNT_CHECK, "yes");
+        stubDisabledConnection();
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, tester, null);
+
+        assertThatThrownBy(executor::beforeTest)
+                .as("A value that would turn the check off for the whole run fails the test, so a"
+                        + " CI run meant to turn the check on cannot pass without counting a"
+                        + " table.")
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("dbunit.rowCountCheck")
+                .hasMessageContaining("'yes'");
+    }
+
+    @Test
+    void testBeforeTest_systemPropertyWithUnrecognizedValueClassic_failsNamingTheProperty()
+            throws Exception
+    {
+        System.setProperty(RowCountCheckConfiguration.DBUNIT_ROW_COUNT_CHECK, "yes");
+        stubDisabledConnection();
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, tester, null, false);
+
+        assertThatThrownBy(executor::beforeTest)
+                .as("The 3.5.0 lifecycle takes the baseline of the check too, so it rejects the"
+                        + " value as the annotation-driven one does.")
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("dbunit.rowCountCheck")
+                .hasMessageContaining("'yes'");
+    }
+
+    @Test
+    void testBeforeTest_systemPropertyTrueAndAnnotationDisabled_leavesCheckDisabled()
+            throws Exception
+    {
+        // A CI run forces the check on; a method that legitimately leaves rows behind opts out
+        // with @DbUnitRowCountCheck(enabled = false), which must stay an opt-out there.
+        System.setProperty(RowCountCheckConfiguration.DBUNIT_ROW_COUNT_CHECK, "true");
+        stubDisabledConnection();
+        final DbUnitRowCountCheck rowCountCheck =
+                WithDisabledRowCountCheck.class.getAnnotation(DbUnitRowCountCheck.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration.from(
+                AnnotatedTestExecutorTest.class, null, null, null, null, null, rowCountCheck);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, tester, null);
+
+        executor.beforeTest();
+
+        verify(connection, never()).createDataSet();
+    }
+
+    @Test
+    void testBeforeTest_excludeSystemPropertyAndAnnotationExclude_excludesBothTables()
+            throws Exception
+    {
+        System.setProperty(RowCountCheckConfiguration.DBUNIT_ROW_COUNT_CHECK_EXCLUDE_TABLES,
+                "SYSTEM_PROPERTY_TABLE");
+        stubConnection(false, "ACCOUNT", "IGNORED_TABLE", "SYSTEM_PROPERTY_TABLE");
+        when(connection.getRowCount("ACCOUNT")).thenReturn(5);
+        final DbUnitRowCountCheck rowCountCheck =
+                WithExcludedTable.class.getAnnotation(DbUnitRowCountCheck.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration.from(
+                AnnotatedTestExecutorTest.class, null, null, null, null, null, rowCountCheck);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, tester, null);
+
+        executor.beforeTest();
+
+        verify(connection, never()).getRowCount("IGNORED_TABLE");
+        verify(connection, never()).getRowCount("SYSTEM_PROPERTY_TABLE");
+        verify(connection).getRowCount("ACCOUNT");
     }
 
     @Test
@@ -1322,10 +2518,10 @@ class AnnotatedTestExecutorTest
         verify(connection).getRowCount("ACCOUNT");
     }
 
-    // ---- expected (prep/expected) path ----
+    // ---- annotation-driven: the test case the executor drives ----
 
     @Test
-    void testBeforeTest_expectedPathWithInjectedTestCase_usesInjectedInstance()
+    void testBeforeTest_withInjectedTestCase_usesInjectedInstance()
             throws Exception
     {
         final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
@@ -1353,7 +2549,7 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
-    void testBeforeTest_expectedPathWithoutInjectedTestCase_constructsConfiguredClass()
+    void testBeforeTest_withoutInjectedTestCase_constructsConfiguredClass()
             throws Exception
     {
         final DbUnitConfig config = WithRecordingTestCase.class.getAnnotation(DbUnitConfig.class);
@@ -1369,8 +2565,9 @@ class AnnotatedTestExecutorTest
         assertThat(RecordingPrepAndExpectedTestCase.lastTester)
                 .as("The configured class must be constructed with this executor's tester.")
                 .isSameAs(tester);
-        assertThat(RecordingPrepAndExpectedTestCase.lastCloseConnectionAfterTest)
-                .as("closeConnectionAfterTest must be forwarded from the configuration.")
+        assertThat(RecordingPrepAndExpectedTestCase.instance.isCloseConnectionAfterTest())
+                .as("A test case the runtime builds closes its connection after the test; the"
+                        + " tester's listener is where that is changed.")
                 .isTrue();
         assertThat(RecordingPrepAndExpectedTestCase.instance.preTestCalled)
                 .as("beforeTest() must invoke preTest() on the constructed test case.")
@@ -1419,17 +2616,16 @@ class AnnotatedTestExecutorTest
 
         assertThatThrownBy(executor::beforeTest)
                 .as("DbUnitConfig.prepAndExpectedTestCase naming a class with no"
-                        + " (DataFileLoader, IDatabaseTester, boolean) constructor must be"
+                        + " (DataFileLoader, IDatabaseTester) constructor must be"
                         + " rejected with a clear message naming the class, not a raw"
                         + " NoSuchMethodException.")
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining(NoMatchingConstructorTestCase.class.getName())
-                .hasMessageContaining("no (DataFileLoader, IDatabaseTester, boolean)"
-                        + " constructor");
+                .hasMessageContaining("no (DataFileLoader, IDatabaseTester) constructor");
     }
 
     @Test
-    void testAfterTest_expectedPathBeforeTestNeverRan_doesNotThrow() throws Exception
+    void testAfterTest_annotationDrivenBeforeTestNeverRan_doesNotThrow() throws Exception
     {
         final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
@@ -1446,18 +2642,26 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
-    void testAfterTest_expectedPathBeforeTestFailsAfterInjectingTestCaseButBeforeConfigureTest_postTestNotCalled()
+    void testAfterTest_beforeTestFailsAfterInjectingTestCaseButBeforeConfigureTest_postTestNotCalled()
             throws Exception
     {
-        final DbUnitConfig config =
-                WithFailureHandlerAndExpected.class.getAnnotation(DbUnitConfig.class);
         final DbUnitExpected expected =
-                WithFailureHandlerAndExpected.class.getAnnotation(DbUnitExpected.class);
-        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
-                .from(WithFailureHandlerAndExpected.class, config, null, null, expected, null,
-                        null);
+                WithExpectedAndRowCountCheck.class.getAnnotation(DbUnitExpected.class);
+        final DbUnitRowCountCheck rowCountCheck =
+                WithExpectedAndRowCountCheck.class.getAnnotation(DbUnitRowCountCheck.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration.from(
+                WithExpectedAndRowCountCheck.class, null, null, null, expected, null,
+                rowCountCheck);
         final RecordingPrepAndExpectedTestCase reusedTestCase =
-                new RecordingPrepAndExpectedTestCase(mock(DataFileLoader.class), tester, true);
+                new RecordingPrepAndExpectedTestCase(mock(DataFileLoader.class), tester)
+                {
+                    @Override
+                    public void setRowCountCheckOverride(final RowCountCheckOverride override)
+                    {
+                        throw new IllegalStateException(
+                                "This instance rejects a row count check override.");
+                    }
+                };
         final AnnotatedTestExecutor executor =
                 new AnnotatedTestExecutor(configuration, tester, reusedTestCase);
         assertThatThrownBy(executor::beforeTest).isInstanceOf(IllegalStateException.class);
@@ -1466,30 +2670,33 @@ class AnnotatedTestExecutorTest
 
         assertThat(reusedTestCase.postTestCalled)
                 .as("postTest() must not run against a test case whose configureTest() never"
-                        + " completed this test - here, applyFailureHandler() failed fast"
-                        + " first. A test case reused across several tests (e.g. a"
+                        + " completed this test - here, applying the row count check override"
+                        + " failed fast first. A test case reused across several tests (e.g. a"
                         + " @DbUnitTestCase static field) would otherwise run cleanup against"
                         + " an earlier test's stale prep/expected state instead of nothing.")
                 .isFalse();
     }
 
     @Test
-    void testAfterTest_expectedPathInjectedTestCaseFailsBeforeConfigureTest_leavesItsCachedConnectionOpen()
+    void testAfterTest_injectedTestCaseFailsBeforeConfigureTest_closesTheConnectionLikeAfterAnyOtherFailure()
             throws Exception
     {
-        // A3: an injected @DbUnitTestCase instance caching getReusableConnection() across test
-        // methods (a static field, or any field under @TestInstance(PER_CLASS)) must NOT have
-        // that connection closed when beforeExpectedTest() fails fast before configureTest() -
-        // a @BeforeEach parameter resolved it, postTest()/cleanupData() never runs to close it
-        // the instance's own way, and closing it here would strand the instance holding a
-        // closed connection for the next test method.
+        // The connection a @BeforeEach parameter resolved is the executor's to release when
+        // beforeTest() fails fast before configureTest(), as postTest()/cleanupData() never runs
+        // to close it. An injected instance is used as it was built: it gets no special case, the
+        // connection is released under the same ownership rules as for any other failure.
         final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(WithExpected.class, null, null, null, expected, null, null);
-        doThrow(new IllegalStateException("Set up failed on purpose.")).doNothing().when(tester)
-                .setSetUpOperation(any());
         final CachingConnectionPrepAndExpectedTestCase injected =
-                new CachingConnectionPrepAndExpectedTestCase(connection);
+                new CachingConnectionPrepAndExpectedTestCase(connection, tester)
+                {
+                    @Override
+                    public void configureTest(final PrepAndExpectedTestData testData)
+                    {
+                        throw new IllegalStateException("Configuring the test failed on purpose.");
+                    }
+                };
         final AnnotatedTestExecutor executor =
                 new AnnotatedTestExecutor(configuration, tester, injected);
         executor.getConnection();
@@ -1499,7 +2706,7 @@ class AnnotatedTestExecutorTest
                 .isInstanceOf(IllegalStateException.class);
         executor.afterTest(true);
 
-        verify(connection, never()).close();
+        verify(connection).close();
         assertThat(injected.configureTestCalled)
                 .as("configureTest() must not have run.")
                 .isFalse();
@@ -1515,14 +2722,15 @@ class AnnotatedTestExecutorTest
         // rather than leaked.
         when(tester.getConnection()).thenReturn(connection);
         stubOpenJdbcConnection();
-        final DbUnitConfig config = WithConstructedCachingTestCase.class
+        final DbUnitConfig config = WithFailingToTakeItsOperationTestCase.class
                 .getAnnotation(DbUnitConfig.class);
-        final DbUnitExpected expected = WithConstructedCachingTestCase.class
+        final DbUnitSetUpOperation setup =
+                WithSetupNoPrep.class.getAnnotation(DbUnitSetUpOperation.class);
+        final DbUnitExpected expected = WithFailingToTakeItsOperationTestCase.class
                 .getAnnotation(DbUnitExpected.class);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration.from(
-                WithConstructedCachingTestCase.class, config, null, null, expected, null, null);
-        doThrow(new IllegalStateException("Set up failed on purpose.")).doNothing().when(tester)
-                .setSetUpOperation(any());
+                WithFailingToTakeItsOperationTestCase.class, config, null, setup, expected, null,
+                null);
         final AnnotatedTestExecutor executor =
                 new AnnotatedTestExecutor(configuration, tester, null);
         executor.getConnection();
@@ -1535,12 +2743,12 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
-    void testAfterTest_expectedPathTestPassed_postTestCalledWithTrue() throws Exception
+    void testAfterTest_annotationDrivenTestPassed_postTestCalledWithTrue() throws Exception
     {
         final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(WithExpected.class, null, null, null, expected, null, null);
-        final PrepAndExpectedTestCase injected = mock(PrepAndExpectedTestCase.class);
+        final DefaultPrepAndExpectedTestCase injected = injectedDefaultTestCase();
         final AnnotatedTestExecutor executor =
                 new AnnotatedTestExecutor(configuration, tester, injected);
         executor.beforeTest();
@@ -1551,12 +2759,12 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
-    void testAfterTest_expectedPathTestFailed_postTestCalledWithFalse() throws Exception
+    void testAfterTest_annotationDrivenTestFailed_postTestCalledWithFalse() throws Exception
     {
         final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(WithExpected.class, null, null, null, expected, null, null);
-        final PrepAndExpectedTestCase injected = mock(PrepAndExpectedTestCase.class);
+        final DefaultPrepAndExpectedTestCase injected = injectedDefaultTestCase();
         final AnnotatedTestExecutor executor =
                 new AnnotatedTestExecutor(configuration, tester, injected);
         executor.beforeTest();
@@ -1566,14 +2774,170 @@ class AnnotatedTestExecutorTest
         verify(injected).postTest(false);
     }
 
+    @ParameterizedTest
+    @MethodSource("datasetsTheTestMethodReplaced")
+    void testAfterTest_injectedTestCaseWhoseDatasetsTheTestMethodReplaced_cleansUpOnceWithoutVerifyingAndFails(
+            final boolean prepReplaced, final boolean expectedReplaced) throws Exception
+    {
+        final AnnotatedTestExecutor executor = executorOfAnInjectedTestCaseWhoseDatasets(
+                prepReplaced, expectedReplaced);
+        final DefaultPrepAndExpectedTestCase injected =
+                (DefaultPrepAndExpectedTestCase) executor.getPrepAndExpectedTestCase();
+        executor.beforeTest();
+
+        final Throwable failure = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(failure)
+                .as("A test method that configured the injected instance again, as runTest()"
+                        + " does, drove it a second time inside dbUnit's drive, so the test fails"
+                        + " and says so.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("The test method configured the @DbUnitTestCase instance of "
+                        + injected.getClass().getName() + " again")
+                .hasMessageContaining("remove @DbUnitTestCase from the field");
+        verify(injected, times(1)).postTest(false);
+        verify(injected, never()).postTest(true);
+    }
+
     @Test
-    void testGetConnection_expectedPathWithInjectedTestCase_returnsItsConnectionNotTesters()
+    void testAfterTest_injectedTestCaseKeepingItsDatasets_verifiesAsBefore() throws Exception
+    {
+        final AnnotatedTestExecutor executor =
+                executorOfAnInjectedTestCaseWhoseDatasets(false, false);
+        final DefaultPrepAndExpectedTestCase injected =
+                (DefaultPrepAndExpectedTestCase) executor.getPrepAndExpectedTestCase();
+        executor.beforeTest();
+
+        executor.afterTest(false);
+
+        verify(injected, times(1)).postTest(true);
+        verify(injected, never()).postTest(false);
+    }
+
+    @Test
+    void testAfterTest_injectedTestCaseConfiguredAgainAndTheTestFailed_cleansUpOnceAndStillFails()
+            throws Exception
+    {
+        final AnnotatedTestExecutor executor =
+                executorOfAnInjectedTestCaseWhoseDatasets(true, true);
+        final DefaultPrepAndExpectedTestCase injected =
+                (DefaultPrepAndExpectedTestCase) executor.getPrepAndExpectedTestCase();
+        executor.beforeTest();
+
+        assertThatThrownBy(() -> executor.afterTest(true))
+                .as("The binding attaches this failure to the failure of the test method, so a"
+                        + " test that failed and also drove the instance twice reports both.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("The test method configured the @DbUnitTestCase instance");
+        verify(injected, times(1)).postTest(false);
+        verify(injected, never()).postTest(true);
+    }
+
+    @Test
+    void testAfterTest_injectedTestCaseConfiguredAgainAndCleanupFails_failsWithTheMisuseAndAttachesTheCleanupFailure()
+            throws Exception
+    {
+        final AnnotatedTestExecutor executor =
+                executorOfAnInjectedTestCaseWhoseDatasets(true, false);
+        final DefaultPrepAndExpectedTestCase injected =
+                (DefaultPrepAndExpectedTestCase) executor.getPrepAndExpectedTestCase();
+        final SQLException cleanupFailure = new SQLException("cleanup failed");
+        doThrow(cleanupFailure).when(injected).postTest(false);
+        executor.beforeTest();
+
+        final Throwable failure = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(failure)
+                .as("The failure that tells what to change is the one thrown, and the failure of"
+                        + " the cleanup is attached to it.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("The test method configured the @DbUnitTestCase instance");
+        assertThat(failure.getSuppressed()).containsExactly(cleanupFailure);
+    }
+
+    @Test
+    void testAfterTest_injectedHandWrittenTestCaseWithNewDatasetsForEveryCall_isNotWatched()
             throws Exception
     {
         final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(WithExpected.class, null, null, null, expected, null, null);
-        final PrepAndExpectedTestCase injected = mock(PrepAndExpectedTestCase.class);
+        final PrepAndExpectedTestCase handWritten = mock(PrepAndExpectedTestCase.class);
+        lenient().when(handWritten.getPrepDataset()).thenReturn(mock(IDataSet.class),
+                mock(IDataSet.class));
+        lenient().when(handWritten.getExpectedDataset()).thenReturn(mock(IDataSet.class),
+                mock(IDataSet.class));
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, tester, handWritten);
+        executor.beforeTest();
+
+        executor.afterTest(false);
+
+        verify(handWritten, times(1)).postTest(true);
+        verify(handWritten, never()).postTest(false);
+    }
+
+    @Test
+    void testAfterTest_injectedTestCaseWhosePreTestFailed_cleansUpWithoutLookingAtItsDatasets()
+            throws Exception
+    {
+        final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(WithExpected.class, null, null, null, expected, null, null);
+        final DefaultPrepAndExpectedTestCase injected = injectedDefaultTestCase();
+        final SQLException setUpFailure = new SQLException("set up failed");
+        doThrow(setUpFailure).when(injected).preTest();
+        lenient().when(injected.getPrepDataset()).thenReturn(mock(IDataSet.class),
+                mock(IDataSet.class));
+        lenient().when(injected.getExpectedDataset()).thenReturn(mock(IDataSet.class),
+                mock(IDataSet.class));
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, tester, injected);
+
+        assertThatThrownBy(executor::beforeTest).isSameAs(setUpFailure);
+        executor.afterTest(true);
+
+        verify(injected, never()).getPrepDataset();
+        verify(injected, never()).getExpectedDataset();
+        verify(injected, times(1)).postTest(false);
+        verify(injected, never()).postTest(true);
+    }
+
+    private static Stream<Arguments> datasetsTheTestMethodReplaced()
+    {
+        return Stream.of(Arguments.of(true, false), Arguments.of(false, true),
+                Arguments.of(true, true));
+    }
+
+    /**
+     * Returns an executor of an injected {@link DefaultPrepAndExpectedTestCase} that reports the
+     * datasets {@code configureTest()} gave it the first time, and the ones the test method gave
+     * it afterward when the arguments say so.
+     */
+    private AnnotatedTestExecutor executorOfAnInjectedTestCaseWhoseDatasets(
+            final boolean prepReplaced, final boolean expectedReplaced)
+    {
+        final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(WithExpected.class, null, null, null, expected, null, null);
+        final DefaultPrepAndExpectedTestCase injected = injectedDefaultTestCase();
+        final IDataSet prepFirst = mock(IDataSet.class);
+        final IDataSet expectedFirst = mock(IDataSet.class);
+        final IDataSet prepAfterwards = prepReplaced ? mock(IDataSet.class) : prepFirst;
+        final IDataSet expectedAfterwards = expectedReplaced ? mock(IDataSet.class) : expectedFirst;
+        when(injected.getPrepDataset()).thenReturn(prepFirst, prepAfterwards);
+        when(injected.getExpectedDataset()).thenReturn(expectedFirst, expectedAfterwards);
+        return new AnnotatedTestExecutor(configuration, tester, injected);
+    }
+
+    @Test
+    void testGetConnection_withInjectedTestCase_returnsItsConnectionNotTesters()
+            throws Exception
+    {
+        final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(WithExpected.class, null, null, null, expected, null, null);
+        final DefaultPrepAndExpectedTestCase injected = injectedDefaultTestCase();
         final IDatabaseConnection testCaseConnection = mock(IDatabaseConnection.class);
         when(injected.getReusableConnection()).thenReturn(testCaseConnection);
         final AnnotatedTestExecutor executor =
@@ -1582,7 +2946,7 @@ class AnnotatedTestExecutorTest
         final IDatabaseConnection resolved = executor.getConnection();
 
         assertThat(resolved)
-                .as("On the expected path, getConnection() must return the injected test"
+                .as("On an annotated test, getConnection() must return the injected test"
                         + " case's own connection instead of resolving a second, independent"
                         + " one from the tester directly - otherwise a Connection/"
                         + "IDatabaseConnection parameter injection would not see the same"
@@ -1592,21 +2956,160 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
-    void testBeforeTest_expectedPathNoVerifySpecAndInjectedTestCaseWithItsOwnLoader_derivesTablesThroughThatLoader()
+    void testBeforeTest_noVerifySpecAndInjectedDefaultTestCase_asksItToVerifyEveryExpectedTable()
             throws Exception
     {
+        final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(WithExpected.class, null, null, null, expected, null, null);
+        final DefaultPrepAndExpectedTestCase injected = injectedDefaultTestCase();
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, tester, injected);
+
+        executor.beforeTest();
+
+        final ArgumentCaptor<PrepAndExpectedTestData> testData =
+                ArgumentCaptor.forClass(PrepAndExpectedTestData.class);
+        verify(injected).configureTest(testData.capture());
+        assertThat(testData.getValue())
+                .as("With no verify spec, the Default test case takes the tables to verify from"
+                        + " the expected dataset it loads itself, with its own loader, which is"
+                        + " also the one that later loads it for the comparison.")
+                .isEqualTo(PrepAndExpectedTestData.verifyingExpectedTables(new String[0],
+                        configuration.getExpectedDataFiles()));
+    }
+
+    @Test
+    void testBeforeTest_classLevelCatalogAndInjectedDefaultTestCase_handsItTheCatalogsRules()
+            throws Exception
+    {
+        final DbUnitConfig config = WithCatalogAndExpected.class.getAnnotation(DbUnitConfig.class);
         final DbUnitExpected expected =
-                WithOnlyTheInjectedLoaderReadableExpected.class.getAnnotation(DbUnitExpected.class);
-        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration.from(
-                WithOnlyTheInjectedLoaderReadableExpected.class, null, null, null, expected, null,
-                null);
-        final IDataSet dataSet = mock(IDataSet.class);
-        when(dataSet.getTableNames()).thenReturn(new String[] {"ACCOUNT"});
-        final DataFileLoader ownLoader = mock(DataFileLoader.class);
-        when(ownLoader.load("/org/dbunit/annotation/runtime/only-the-injected-loader-reads.custom"))
-                .thenReturn(dataSet);
-        final DefaultPrepAndExpectedTestCase injected = mock(DefaultPrepAndExpectedTestCase.class);
-        when(injected.getDataFileLoader()).thenReturn(ownLoader);
+                WithCatalogAndExpected.class.getAnnotation(DbUnitExpected.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(WithCatalogAndExpected.class, config, null, null, expected, null, null);
+        final DefaultPrepAndExpectedTestCase injected = injectedDefaultTestCase();
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, tester, injected);
+
+        executor.beforeTest();
+
+        final ArgumentCaptor<PrepAndExpectedTestData> testData =
+                ArgumentCaptor.forClass(PrepAndExpectedTestData.class);
+        verify(injected).configureTest(testData.capture());
+        assertThat(testData.getValue())
+                .as("The Default test case still takes the tables from the expected dataset it"
+                        + " loads, with the class-level catalog's definitions as the rules of the"
+                        + " tables they define, so the dataset is parsed once.")
+                .isEqualTo(PrepAndExpectedTestData.verifyingExpectedTables(new String[0],
+                        configuration.getExpectedDataFiles(),
+                        new VerifyTableDefinition[] {RulesCatalog.ACCOUNT}));
+    }
+
+    @Test
+    void testBeforeTest_injectedDefaultGivenItsLoaderAfterConstruction_accepts()
+            throws Exception
+    {
+        // A @BeforeEach method of the test class runs after the executor is created and before
+        // beforeTest(), and may still set the loader of the test case it injects.
+        final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(WithExpected.class, null, null, null, expected, null, null);
+        final DefaultPrepAndExpectedTestCase injected =
+                spy(new DefaultPrepAndExpectedTestCase(null, tester));
+        doNothing().when(injected).configureTest(any(PrepAndExpectedTestData.class));
+        doNothing().when(injected).preTest();
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, tester, injected);
+        injected.setDataFileLoader(new FlatXmlDataFileLoader());
+
+        executor.beforeTest();
+
+        verify(injected).preTest();
+    }
+
+    @Test
+    void testBeforeTest_injectedDefaultWithoutALoader_failsSayingWhereToGiveIt()
+            throws Exception
+    {
+        final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(WithExpected.class, null, null, null, expected, null, null);
+        final DefaultPrepAndExpectedTestCase injected =
+                new DefaultPrepAndExpectedTestCase(null, tester);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, tester, injected);
+
+        assertThatThrownBy(executor::beforeTest)
+                .as("dbUnit gives an injected test case no loader, so one built without it fails"
+                        + " before any step runs, saying so and where to give it one for each"
+                        + " binding.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("has no DataFileLoader")
+                .hasMessageContaining("give it one where it is built")
+                .hasMessageContaining("Under DbUnitExtension a @BeforeEach method may set it too")
+                .hasMessageContaining("DbUnitTestExecutionListener sets the test up before the"
+                        + " @BeforeEach methods run");
+    }
+
+    @Test
+    void testGetConnection_injectedDefaultWithoutALoader_returnsTheConnectionAndBeforeTestStillFails()
+            throws Exception
+    {
+        // A @BeforeEach method with an IDatabaseConnection parameter runs before beforeTest(),
+        // and may be the method that sets the loader.
+        stubDisabledConnection();
+        final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(WithExpected.class, null, null, null, expected, null, null);
+        final DefaultPrepAndExpectedTestCase injected =
+                new DefaultPrepAndExpectedTestCase(null, tester);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, tester, injected);
+
+        final IDatabaseConnection resolved = executor.getConnection();
+
+        assertThat(resolved)
+                .as("A connection needs no loader, so resolving one for the parameter of a"
+                        + " @BeforeEach method, which may be the method that sets the loader,"
+                        + " must not ask for one.")
+                .isSameAs(connection);
+        assertThatThrownBy(executor::beforeTest)
+                .as("The loader is asked for when dbUnit calls configureTest(), which needs it.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("has no DataFileLoader");
+    }
+
+    @Test
+    void testBeforeTest_injectedDefaultGivenItsLoaderAfterTheConnectionWasResolved_accepts()
+            throws Exception
+    {
+        stubDisabledConnection();
+        final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(WithExpected.class, null, null, null, expected, null, null);
+        final DefaultPrepAndExpectedTestCase injected =
+                spy(new DefaultPrepAndExpectedTestCase(null, tester));
+        doNothing().when(injected).configureTest(any(PrepAndExpectedTestData.class));
+        doNothing().when(injected).preTest();
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, tester, injected);
+        executor.getConnection();
+        injected.setDataFileLoader(new FlatXmlDataFileLoader());
+
+        executor.beforeTest();
+
+        verify(injected).preTest();
+    }
+
+    @Test
+    void testBeforeTest_noVerifySpecAndInjectedOtherTestCase_derivesTablesThroughTheConfiguredLoader()
+            throws Exception
+    {
+        final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(WithExpected.class, null, null, null, expected, null, null);
+        final PrepAndExpectedTestCase injected = mock(PrepAndExpectedTestCase.class);
         final AnnotatedTestExecutor executor =
                 new AnnotatedTestExecutor(configuration, tester, injected);
 
@@ -1617,21 +3120,71 @@ class AnnotatedTestExecutorTest
         verify(injected).configureTest(definitions.capture(), any(String[].class),
                 any(String[].class));
         assertThat(definitions.getValue()).extracting(VerifyTableDefinition::getTableName)
-                .as("With no verify spec, the tables to verify come from the expected dataset"
-                        + " as the injected test case's own loader reads it, the same loader"
-                        + " that will later load it for the comparison.")
-                .containsExactly("ACCOUNT");
+                .as("A test case that cannot take the tables from the dataset it loads is given"
+                        + " the tables of the expected dataset as the configured loader reads"
+                        + " it.")
+                .containsExactly("ACCOUNT", "CUSTOMER");
     }
 
     @Test
-    void testAfterTest_expectedPathInjectedTestCaseKeepsItsConnectionOpen_leavesTheResolvedConnectionOpen()
+    void testBeforeAndAfterTest_injectedOtherTestCaseWithoutTester_drivesOnlyItsLifecycle()
             throws Exception
     {
         final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(WithExpected.class, null, null, null, expected, null, null);
         final PrepAndExpectedTestCase injected = mock(PrepAndExpectedTestCase.class);
-        when(injected.isCloseConnectionAfterTest()).thenReturn(false);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, (IDatabaseTester) null, injected);
+
+        executor.beforeTest();
+        executor.afterTest(false);
+        executor.releaseIfAfterTestDidNotRun();
+
+        final InOrder inOrder = inOrder(injected);
+        inOrder.verify(injected).configureTest(any(VerifyTableDefinition[].class),
+                any(String[].class), any(String[].class));
+        inOrder.verify(injected).preTest();
+        inOrder.verify(injected).postTest(true);
+        verifyNoMoreInteractions(injected);
+        assertThat(executor.getTester())
+                .as("A test case that tells dbUnit of no tester leaves the executor without one.")
+                .isNull();
+        assertThatThrownBy(executor::getConnection)
+                .as("Nor can it hand out a connection.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("no connection");
+    }
+
+    @Test
+    void testConstructor_injectedOtherTestCaseAndDeclarationItCannotBeGiven_throws()
+    {
+        final DbUnitExpected expected = WithExpectedAndRowCountCheck.class
+                .getAnnotation(DbUnitExpected.class);
+        final DbUnitRowCountCheck rowCountCheck = WithExpectedAndRowCountCheck.class
+                .getAnnotation(DbUnitRowCountCheck.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration.from(
+                WithExpectedAndRowCountCheck.class, null, null, null, expected, null,
+                rowCountCheck);
+        final PrepAndExpectedTestCase injected = mock(PrepAndExpectedTestCase.class);
+
+        assertThatThrownBy(() -> new AnnotatedTestExecutor(configuration, (IDatabaseTester) null,
+                injected))
+                        .as("The executor must refuse, before any database work, what the"
+                                + " injected test case cannot be given.")
+                        .isInstanceOf(IllegalStateException.class)
+                        .hasMessageContaining("@DbUnitRowCountCheck");
+    }
+
+    @Test
+    void testAfterTest_injectedTestCaseKeepsItsConnectionOpen_leavesTheResolvedConnectionOpen()
+            throws Exception
+    {
+        final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(WithExpected.class, null, null, null, expected, null, null);
+        final DefaultPrepAndExpectedTestCase injected = injectedDefaultTestCase();
+        when(injected.isConnectionLeftOpen()).thenReturn(true);
         when(injected.getReusableConnection()).thenReturn(connection);
         final AnnotatedTestExecutor executor =
                 new AnnotatedTestExecutor(configuration, tester, injected);
@@ -1644,14 +3197,14 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
-    void testAfterTest_expectedPathInjectedTestCaseClosesItsConnection_closesTheResolvedConnection()
+    void testAfterTest_injectedTestCaseClosesItsConnection_closesTheResolvedConnection()
             throws Exception
     {
         final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(WithExpected.class, null, null, null, expected, null, null);
-        final PrepAndExpectedTestCase injected = mock(PrepAndExpectedTestCase.class);
-        when(injected.isCloseConnectionAfterTest()).thenReturn(true);
+        final DefaultPrepAndExpectedTestCase injected = injectedDefaultTestCase();
+        when(injected.isConnectionLeftOpen()).thenReturn(false);
         when(injected.getReusableConnection()).thenReturn(connection);
         when(connection.getConnection()).thenReturn(jdbcConnection);
         final AnnotatedTestExecutor executor =
@@ -1665,43 +3218,39 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
-    void testConstructor_expectedPathListenerNotifiedDirectly_getConnectionStillReturnsTestCasesConnection()
+    void testAfterTest_injectedTestCaseKeepsItsConnectionOpenThroughItsOwnNoOpListener_leavesTheResolvedConnectionOpen()
             throws Exception
     {
-        // Simulates a PrepAndExpectedTestCase implementation that - unlike
-        // DefaultPrepAndExpectedTestCase - calls tester.onSetup()/onTearDown() directly instead
-        // of driving its own internally-built tester with its own, separate listener; that
-        // would notify this executor's installed listener with a connection from
-        // tester.getConnection() directly, a different object than getReusableConnection()
-        // returns.
-        final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
+        // The test case leaves the connection open for its real owner through the no-op
+        // listener it reports itself, which its own cleanupData() honors, so the executor that
+        // resolved the same connection for a test method parameter must not close it afterwards.
+        when(connection.getConfig()).thenReturn(new DatabaseConfig());
+        stubOpenJdbcConnection();
+        final IDatabaseTester realTester = new DefaultDatabaseTester(connection);
+        realTester.setSetUpOperation(DatabaseOperation.NONE);
+        final DefaultPrepAndExpectedTestCase injected =
+                new DefaultPrepAndExpectedTestCase(new FlatXmlDataFileLoader(), realTester)
+                {
+                    @Override
+                    protected IOperationListener getOperationListener()
+                    {
+                        return IOperationListener.NO_OP_OPERATION_LISTENER;
+                    }
+                };
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
-                .from(WithExpected.class, null, null, null, expected, null, null);
-        final PrepAndExpectedTestCase injected = mock(PrepAndExpectedTestCase.class);
-        final IDatabaseConnection testCaseConnection = mock(IDatabaseConnection.class);
-        when(injected.getReusableConnection()).thenReturn(testCaseConnection);
+                .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
         final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, injected);
-        final ArgumentCaptor<IOperationListener> installedListener =
-                ArgumentCaptor.forClass(IOperationListener.class);
-        verify(tester).setOperationListener(installedListener.capture());
+                new AnnotatedTestExecutor(configuration, realTester, injected);
+        executor.getConnection();
+        executor.beforeTest();
 
-        installedListener.getValue().connectionRetrieved(connection);
-        final IDatabaseConnection resolved = executor.getConnection();
+        executor.afterTest(false);
 
-        assertThat(resolved)
-                .as("Even when this executor's own listener is notified directly on the"
-                        + " expected path, getConnection() must still return the injected test"
-                        + " case's own connection, not the one the listener saw - otherwise a"
-                        + " parameter injection would silently receive a different physical"
-                        + " connection than the test case's own steps use, for any"
-                        + " PrepAndExpectedTestCase implementation that triggers the listener"
-                        + " this way.")
-                .isSameAs(testCaseConnection);
+        verify(connection, never()).close();
     }
 
     @Test
-    void testGetConnection_expectedPathNoInjectedTestCase_constructsOneAndReusesItsConnection()
+    void testGetConnection_noInjectedTestCase_constructsOneAndReusesItsConnection()
             throws Exception
     {
         final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
@@ -1714,7 +3263,7 @@ class AnnotatedTestExecutorTest
         final IDatabaseConnection resolved = executor.getConnection();
 
         assertThat(executor.getPrepAndExpectedTestCase())
-                .as("getConnection() on the expected path must construct prepAndExpectedTestCase"
+                .as("getConnection() on an annotated test must construct prepAndExpectedTestCase"
                         + " eagerly - e.g. for an early @BeforeEach parameter - rather than"
                         + " leaving nothing to delegate the connection to.")
                 .isNotNull();
@@ -1728,7 +3277,7 @@ class AnnotatedTestExecutorTest
     // ---- @DbUnitProperty listener installation ----
 
     @Test
-    void testConstructor_propertiesConfigured_installsOperationListener()
+    void testConstructor_annotationDrivenWithProperties_installsNothingOnTheTester()
     {
         final DbUnitConfig config = WithProperties.class.getAnnotation(DbUnitConfig.class);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
@@ -1736,72 +3285,576 @@ class AnnotatedTestExecutorTest
 
         new AnnotatedTestExecutor(configuration, tester, null);
 
-        verify(tester).setOperationListener(any());
+        verify(tester, never()).setOperationListener(any());
     }
 
+    // ---- a tester that cannot report its listener ----
+
     @Test
-    void testConstructor_noPropertiesConfigured_stillInstallsOperationListenerToProtectMemoizedConnection()
+    void testConstructor_testerDoesNotOverrideGetOperationListener_neverReplacesItsListener()
     {
+        final TesterNotReportingItsListener legacyTester =
+                new TesterNotReportingItsListener(() -> connection);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
 
-        new AnnotatedTestExecutor(configuration, tester, null);
+        new AnnotatedTestExecutor(configuration, legacyTester, null);
 
-        verify(tester).setOperationListener(any());
+        assertThat(legacyTester.listenersSet)
+                .as("A tester that does not override IDatabaseTester.getOperationListener()"
+                        + " cannot report the listener it carries, so the executor can neither"
+                        + " wrap it nor put it back, and must not replace it.")
+                .isEmpty();
     }
 
     @Test
-    void testConstructor_propertiesConfiguredWithExistingListener_wrapsExistingListenerAsDelegate()
+    void testBeforeTest_testerDoesNotOverrideGetOperationListenerAndCarriesNoOpListener_neverClosesWhatOnSetupRetrieves()
             throws Exception
     {
-        final DbUnitConfig config = WithProperties.class.getAnnotation(DbUnitConfig.class);
+        // A tester that hands out a connection per call and carries the no-op listener, the
+        // signal that its connections are managed elsewhere. Had the executor replaced that
+        // listener with a closing one, the connection onSetup() retrieves - a different one than
+        // the executor resolved for itself, so not shielded by identity - would be closed.
+        when(connection.getConfig()).thenReturn(new DatabaseConfig());
+        stubOpenJdbcConnection();
+        final IDatabaseConnection retrievedByOnSetup = mock(IDatabaseConnection.class);
+        final Deque<IDatabaseConnection> handedOut =
+                new ArrayDeque<>(Arrays.asList(connection, retrievedByOnSetup));
+        final TesterNotReportingItsListener legacyTester =
+                new TesterNotReportingItsListener(handedOut::remove);
+        legacyTester.setOperationListener(IOperationListener.NO_OP_OPERATION_LISTENER);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
-                .from(WithProperties.class, config, null, null, null, null, null);
-        when(tester.getOperationListener())
-                .thenReturn(IOperationListener.NO_OP_OPERATION_LISTENER);
+                .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, legacyTester, null, false);
 
-        new AnnotatedTestExecutor(configuration, tester, null);
+        executor.beforeTest();
 
-        final ArgumentCaptor<IOperationListener> installedListener =
-                ArgumentCaptor.forClass(IOperationListener.class);
-        verify(tester).setOperationListener(installedListener.capture());
-        installedListener.getValue().operationSetUpFinished(connection);
-        verify(connection, never()).close();
+        assertThat(legacyTester.onSetupCalls)
+                .as("onSetup() still runs on a tester that cannot report its listener.")
+                .isEqualTo(1);
+        verify(retrievedByOnSetup, never()).close();
+    }
+
+    @Test
+    void testBeforeAndAfterTest_testerDoesNotOverrideGetOperationListenerAndOnSetupAddsARow_capturesBaselineBeforeOnSetupAndDetectsTheLeak()
+            throws Exception
+    {
+        final DatabaseConfig enabled = new DatabaseConfig();
+        enabled.setFeature(DatabaseConfig.FEATURE_ROW_COUNT_CHECK, true);
+        when(connection.getConfig()).thenReturn(enabled);
+        final IDataSet dataSet = mock(IDataSet.class);
+        when(dataSet.getTableNames()).thenReturn(new String[] {"ACCOUNT"});
+        when(connection.createDataSet()).thenReturn(dataSet);
+        stubOpenJdbcConnection();
+        final AtomicInteger accountRows = new AtomicInteger(5);
+        when(connection.getRowCount("ACCOUNT")).thenAnswer(invocation -> accountRows.get());
+        final TesterNotReportingItsListener legacyTester =
+                new TesterNotReportingItsListener(() -> connection);
+        legacyTester.onSetupAction = () -> accountRows.set(6);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, legacyTester, null, false);
+
+        executor.beforeTest();
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown)
+                .as("With no listener to piggyback on, the baseline is captured eagerly before"
+                        + " onSetup() (ACCOUNT = 5), so the row onSetup() left behind"
+                        + " (ACCOUNT = 6) is caught as a leak rather than folded into the"
+                        + " baseline.")
+                .isInstanceOf(UnexpectedRowCountException.class);
+        assertThat(legacyTester.onTearDownCalls)
+                .as("onTearDown() still runs on a tester that cannot report its listener.")
+                .isEqualTo(1);
     }
 
     // ---- classic path (annotationDriven = false): the 3.5.0 lifecycle, preserved ----
 
     @Test
-    void testConstructor_classicPath_doesNotInstallOperationListener()
+    void testConstructor_classicPathTesterReportsItsListener_wrapsItForTheTest()
     {
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
 
         new AnnotatedTestExecutor(configuration, tester, null, false);
 
-        verify(tester, never()).setOperationListener(any());
+        verify(tester).setOperationListener(any(ClassicOperationListener.class));
     }
 
     @Test
-    void testConstructor_classicPathTesterCarriesCustomListener_leavesItInPlace()
+    void testConstructor_classicPathTesterCannotReportItsListener_leavesItInPlace()
     {
-        // The zero-annotation @ExtendWith(DbUnitExtension.class) style must not replace a custom
-        // IOperationListener the test author configured on the tester - a from-scratch
-        // IDatabaseTester predating IDatabaseTester#getOperationListener() would otherwise have
-        // its real listener silently swapped for a fresh DefaultOperationListener the executor
-        // cannot even see to wrap.
+        // A from-scratch IDatabaseTester predating IDatabaseTester#getOperationListener() has a
+        // listener this executor cannot read, so wrapping it would discard it for good.
+        final TesterNotReportingItsListener legacyTester =
+                new TesterNotReportingItsListener(() -> connection);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
+
+        new AnnotatedTestExecutor(configuration, legacyTester, null, false);
+
+        assertThat(legacyTester.listenersSet)
+                .as("The classic path must not replace a listener it cannot read and put back.")
+                .isEmpty();
+    }
+
+    @Test
+    void testAfterTest_classicPathTesterCarriesCustomListener_forwardedEverythingAndPutBack()
+            throws Exception
+    {
+        // The zero-annotation @ExtendWith(DbUnitExtension.class) style must keep a custom
+        // IOperationListener the test author configured on the tester. It is wrapped for the
+        // test only to take the row count baseline from the connection onSetup() retrieves, so
+        // every callback still reaches it, closing included - none of the connections it
+        // handles is shielded, as in the 3.5.0 lifecycle - and it is put back afterward.
+        when(connection.getConfig()).thenReturn(new DatabaseConfig());
+        stubOpenJdbcConnection();
         final IOperationListener custom = mock(IOperationListener.class);
         final IDatabaseTester realTester = new DefaultDatabaseTester(connection);
         realTester.setOperationListener(custom);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, realTester, null, false);
+        final IOperationListener duringTest = realTester.getOperationListener();
 
-        new AnnotatedTestExecutor(configuration, realTester, null, false);
+        duringTest.connectionRetrieved(connection);
+        duringTest.operationSetUpFinished(connection);
+        duringTest.operationTearDownFinished(connection);
+        executor.afterTest(false);
 
+        verify(custom).connectionRetrieved(connection);
+        verify(custom).operationSetUpFinished(connection);
+        verify(custom).operationTearDownFinished(connection);
         assertThat(realTester.getOperationListener())
-                .as("The classic path must leave the tester's own IOperationListener exactly as"
-                        + " configured, neither wrapping nor replacing it.")
+                .as("The classic path must put the tester's own IOperationListener back once the"
+                        + " test is over.")
                 .isSameAs(custom);
+    }
+
+    @Test
+    void testAfterTest_classicPathTesterIgnoresTheExecutorsListener_takesTheBaselineBeforeOnSetup()
+            throws Exception
+    {
+        // A tester whose setOperationListener() ignores the listener the executor installs never
+        // hands the executor the connection onSetup() retrieves, so the baseline must be taken
+        // before onSetup() inserts the prep row, or the teardown that deletes it reads as a row
+        // count difference. The tester keeps the no-op listener, so the fixed in-memory
+        // connection stays open across the steps.
+        final IDatabaseConnection database = InMemoryDatabaseConnection.create("PUBLIC");
+        try
+        {
+            try (Statement statement = database.getConnection().createStatement())
+            {
+                statement.execute("CREATE TABLE ACCOUNT (ID INT PRIMARY KEY)");
+            }
+            database.getConfig().setFeature(DatabaseConfig.FEATURE_ROW_COUNT_CHECK, true);
+            final DefaultTable account = new DefaultTable("ACCOUNT",
+                    new Column[] {new Column("ID", DataType.INTEGER)});
+            account.addRow(new Object[] {1});
+            final DefaultDatabaseTester listenerIgnoringTester = new DefaultDatabaseTester(database)
+            {
+                {
+                    super.setOperationListener(IOperationListener.NO_OP_OPERATION_LISTENER);
+                }
+
+                @Override
+                public void setOperationListener(final IOperationListener operationListener)
+                {
+                    // deliberately ignores the executor's listener
+                }
+            };
+            listenerIgnoringTester.setDataSet(new DefaultDataSet(account));
+            listenerIgnoringTester.setTearDownOperation(DatabaseOperation.DELETE_ALL);
+            final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                    .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
+            final AnnotatedTestExecutor executor =
+                    new AnnotatedTestExecutor(configuration, listenerIgnoringTester, null, false);
+
+            executor.beforeTest();
+            final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+            assertThat(thrown)
+                    .as("A test that deletes the row its prep inserted leaves every count as it"
+                            + " found it, so the row count check must pass.")
+                    .isNull();
+        } finally
+        {
+            database.close();
+        }
+    }
+
+    @Test
+    void testAfterTest_classicPathListenerKeepsOnSetupConnectionOpen_leavesItOpen()
+            throws Exception
+    {
+        // A fixed-connection tester whose listener keeps the connection open for later tests:
+        // the connection onSetup() retrieved is the listener's to close, as in the 3.5.0
+        // lifecycle, so the executor that took it over for the row count baseline must not.
+        when(connection.getConfig()).thenReturn(new DatabaseConfig());
+        stubOpenJdbcConnection();
+        final IOperationListener keepsConnectionsOpen = mock(IOperationListener.class);
+        final IDatabaseTester realTester = new DefaultDatabaseTester(connection);
+        realTester.setOperationListener(keepsConnectionsOpen);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, realTester, null, false);
+        final IOperationListener duringTest = realTester.getOperationListener();
+        duringTest.connectionRetrieved(connection);
+        duringTest.operationSetUpFinished(connection);
+
+        executor.afterTest(false);
+
+        verify(connection, never()).close();
+    }
+
+    @Test
+    void testAfterTest_classicPathFixedConnectionTesterWithNoneSetUp_leavesTheResolvedConnectionOpen()
+            throws Exception
+    {
+        // A DefaultDatabaseTester hands out one fixed connection, and a listener that only
+        // configures connections keeps it open without being the no-op one. The NONE setup
+        // operation leaves onSetup() with no connection to take the baseline from, so the
+        // executor resolves the connection itself. It is the connection the next test needs, and
+        // the 3.5.0 extension, which resolved none, never closed it.
+        when(connection.getConfig()).thenReturn(new DatabaseConfig());
+        stubOpenJdbcConnection();
+        final IDatabaseTester fixedConnectionTester = new DefaultDatabaseTester(connection);
+        fixedConnectionTester.setSetUpOperation(DatabaseOperation.NONE);
+        fixedConnectionTester.setOperationListener(mock(IOperationListener.class));
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, fixedConnectionTester, null, false);
+        executor.beforeTest();
+
+        executor.afterTest(false);
+
+        verify(connection, never()).close();
+    }
+
+    @Test
+    void testAfterTest_classicPathFixedConnectionSharedByTwoTests_secondTestFindsItOpen()
+            throws Exception
+    {
+        // The failure end to end on a real database: the first test closed the one connection
+        // its tester hands out again to the second, which then had no open connection to count
+        // the rows through.
+        final IDatabaseConnection database = InMemoryDatabaseConnection.create("PUBLIC");
+        try
+        {
+            try (Statement statement = database.getConnection().createStatement())
+            {
+                statement.execute("CREATE TABLE ACCOUNT (ID INT PRIMARY KEY)");
+            }
+            database.getConfig().setFeature(DatabaseConfig.FEATURE_ROW_COUNT_CHECK, true);
+            final IDatabaseTester sharedTester = new DefaultDatabaseTester(database);
+            sharedTester.setSetUpOperation(DatabaseOperation.NONE);
+            sharedTester.setOperationListener(mock(IOperationListener.class));
+            final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                    .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
+            final AnnotatedTestExecutor firstTest =
+                    new AnnotatedTestExecutor(configuration, sharedTester, null, false);
+            firstTest.beforeTest();
+            firstTest.afterTest(false);
+            final AnnotatedTestExecutor secondTest =
+                    new AnnotatedTestExecutor(configuration, sharedTester, null, false);
+
+            final Throwable thrown = catchThrowable(() ->
+            {
+                secondTest.beforeTest();
+                secondTest.afterTest(false);
+            });
+
+            assertThat(thrown)
+                    .as("The second test must run on the connection the first one left open.")
+                    .isNull();
+            assertThat(database.getConnection().isClosed())
+                    .as("The fixed connection must still be open after both tests.")
+                    .isFalse();
+        } finally
+        {
+            database.close();
+        }
+    }
+
+    @Test
+    void testAfterTest_classicPathTesterReportsNoListenerAndNoneSetUp_closesTheResolvedConnection()
+            throws Exception
+    {
+        // A from-scratch IDatabaseTester predating getOperationListener() reports no listener
+        // and is not known to hand out one fixed connection. Like most testers it may open a new
+        // connection on every call, and nothing else closes the one the executor resolved. One
+        // that returns a fixed connection from every call says so with the no-op listener.
+        when(connection.getConfig()).thenReturn(new DatabaseConfig());
+        stubOpenJdbcConnection();
+        final TesterNotReportingItsListener legacyTester =
+                new TesterNotReportingItsListener(() -> connection);
+        legacyTester.setSetUpOperation(DatabaseOperation.NONE);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, legacyTester, null, false);
+        executor.beforeTest();
+
+        executor.afterTest(false);
+
+        verify(connection).close();
+    }
+
+    @Test
+    void testBeforeTest_classicPathTesterReportsNoListenerOverOneFixedConnection_warnsWhenTheNextTestIsHandedItClosed()
+            throws Exception
+    {
+        // The executor closes the connection it resolved from a tester not known to hand out
+        // one fixed connection, so a legacy tester that does hands it out closed to the next
+        // test.
+        final IDatabaseConnection fixedConnection = InMemoryDatabaseConnection.create();
+        final TesterNotReportingItsListener legacyTester =
+                new TesterNotReportingItsListener(() -> fixedConnection);
+        legacyTester.setSetUpOperation(DatabaseOperation.NONE);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
+        final ListAppender<ILoggingEvent> appender =
+                startCapturingLogOf(ClosedConnectionHandedOutWarning.class);
+        try
+        {
+            final AnnotatedTestExecutor firstTest =
+                    new AnnotatedTestExecutor(configuration, legacyTester, null, false);
+            firstTest.beforeTest();
+            firstTest.afterTest(false);
+
+            assertThat(appender.list).filteredOn(event -> event.getLevel() == Level.WARN)
+                    .as("The first test is handed the connection open, so it warns about"
+                            + " nothing.")
+                    .isEmpty();
+            assertThat(isClosed(fixedConnection))
+                    .as("The executor closes the connection it resolved from a tester not known"
+                            + " to hand out one fixed connection.")
+                    .isTrue();
+
+            final AnnotatedTestExecutor secondTest =
+                    new AnnotatedTestExecutor(configuration, legacyTester, null, false);
+            secondTest.beforeTest();
+            secondTest.afterTest(false);
+
+            assertThat(appender.list).filteredOn(event -> event.getLevel() == Level.WARN)
+                    .as("The second test is handed the connection closed, which must be warned"
+                            + " about once.")
+                    .hasSize(1);
+        } finally
+        {
+            stopCapturingLogOf(ClosedConnectionHandedOutWarning.class, appender);
+            fixedConnection.close();
+        }
+    }
+
+    @Test
+    void testBeforeTest_classicPathFixedConnectionTheListenerOfTheTesterClosed_warnsWhenTheNextTestIsHandedItClosed()
+            throws Exception
+    {
+        // The default listener closes the connection after each setup operation, as in 3.5.0,
+        // so a DefaultDatabaseTester without the no-op listener hands its one fixed connection
+        // out closed to the onSetup() of the next test.
+        final IDatabaseConnection fixedConnection = InMemoryDatabaseConnection.create();
+        final IDatabaseTester sharedTester = new DefaultDatabaseTester(fixedConnection);
+        sharedTester.setDataSet(new DefaultDataSet());
+        sharedTester.setSetUpOperation(new RecordingDatabaseOperation());
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
+        final ListAppender<ILoggingEvent> appender =
+                startCapturingLogOf(ClosedConnectionHandedOutWarning.class);
+        try
+        {
+            final AnnotatedTestExecutor firstTest =
+                    new AnnotatedTestExecutor(configuration, sharedTester, null, false);
+            firstTest.beforeTest();
+            firstTest.afterTest(false);
+
+            assertThat(appender.list).filteredOn(event -> event.getLevel() == Level.WARN)
+                    .as("The onSetup() of the first test is handed the connection open, so it"
+                            + " warns about nothing.")
+                    .isEmpty();
+
+            final AnnotatedTestExecutor secondTest =
+                    new AnnotatedTestExecutor(configuration, sharedTester, null, false);
+            secondTest.beforeTest();
+            secondTest.afterTest(false);
+
+            assertThat(appender.list).filteredOn(event -> event.getLevel() == Level.WARN)
+                    .as("The onSetup() of the second test is handed the connection the listener"
+                            + " closed in the first, which must be warned about once.")
+                    .hasSize(1);
+        } finally
+        {
+            stopCapturingLogOf(ClosedConnectionHandedOutWarning.class, appender);
+            fixedConnection.close();
+        }
+    }
+
+    @Test
+    void testAfterTest_classicPathCustomTesterOpeningANewConnectionOnEachCallAndNoneSetUp_closesTheResolvedConnection()
+            throws Exception
+    {
+        // The NONE setup operation leaves onSetup() with no connection to take the row count
+        // baseline from, so the executor resolves one itself, with the check off as well as on.
+        final TesterOpeningANewConnectionOnEachCall customTester =
+                new TesterOpeningANewConnectionOnEachCall(false);
+        customTester.setSetUpOperation(DatabaseOperation.NONE);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, customTester, null, false);
+        executor.beforeTest();
+
+        executor.afterTest(false);
+
+        assertThat(customTester.handedOut)
+                .as("The NONE setup operation makes the executor resolve one connection itself.")
+                .hasSize(1);
+        assertThat(isClosed(customTester.handedOut.get(0)))
+                .as("Nothing but the executor holds the connection a tester that opens a new one"
+                        + " on every call handed it, so the executor must close it.")
+                .isTrue();
+    }
+
+    @Test
+    void testAfterTest_classicPathCustomTesterOverridingOnSetup_closesTheConnectionTheExecutorResolved()
+            throws Exception
+    {
+        // A tester that overrides onSetup() may not retrieve a connection the way the
+        // AbstractDatabaseTester one does, so the executor resolves one before onSetup(); the
+        // default listener closes the connection onSetup() retrieves.
+        final TesterOpeningANewConnectionOnEachCall customTester =
+                new TesterOpeningANewConnectionOnEachCall(false)
+                {
+                    @Override
+                    public void onSetup() throws Exception
+                    {
+                        super.onSetup();
+                    }
+                };
+        customTester.setDataSet(new DefaultDataSet());
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, customTester, null, false);
+        executor.beforeTest();
+
+        executor.afterTest(false);
+
+        assertThat(customTester.handedOut)
+                .as("One connection for the executor and one for onSetup().")
+                .hasSize(2);
+        assertThat(closedStatesOf(customTester.handedOut))
+                .as("The executor closes the connection it resolved, and the default listener the"
+                        + " one onSetup() retrieved, so none is left open.")
+                .containsOnly(true);
+    }
+
+    @Test
+    void testAfterTest_classicPathCustomTesterWithRowCountCheckOn_closesTheConnectionResolvedToVerify()
+            throws Exception
+    {
+        // The default listener closes the connection onSetup() retrieved, so the executor
+        // resolves another to verify the baseline after onTearDown().
+        final TesterOpeningANewConnectionOnEachCall customTester =
+                new TesterOpeningANewConnectionOnEachCall(true);
+        customTester.setDataSet(new DefaultDataSet());
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, customTester, null, false);
+        executor.beforeTest();
+
+        executor.afterTest(false);
+
+        assertThat(customTester.handedOut)
+                .as("One connection for onSetup() and one the executor resolved to verify.")
+                .hasSize(2);
+        assertThat(closedStatesOf(customTester.handedOut))
+                .as("No connection is left open, the one resolved to verify included.")
+                .containsOnly(true);
+    }
+
+    @Test
+    void testAfterTest_classicPathCustomTesterOverOneFixedConnectionWithNoOpListener_leavesTheResolvedConnectionOpen()
+            throws Exception
+    {
+        // The no-op listener is the signal that a tester's connection is managed elsewhere, for a
+        // tester of any kind.
+        final IDatabaseConnection fixedConnection = InMemoryDatabaseConnection.create();
+        try
+        {
+            final AbstractDatabaseTester customTester = new AbstractDatabaseTester()
+            {
+                @Override
+                public IDatabaseConnection getConnection()
+                {
+                    return fixedConnection;
+                }
+            };
+            customTester.setSetUpOperation(DatabaseOperation.NONE);
+            customTester.setOperationListener(IOperationListener.NO_OP_OPERATION_LISTENER);
+            final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                    .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
+            final AnnotatedTestExecutor executor =
+                    new AnnotatedTestExecutor(configuration, customTester, null, false);
+            executor.beforeTest();
+
+            executor.afterTest(false);
+
+            assertThat(isClosed(fixedConnection))
+                    .as("The no-op listener says the connection is managed elsewhere, so the"
+                            + " executor must leave it open for the next test.")
+                    .isFalse();
+        } finally
+        {
+            fixedConnection.close();
+        }
+    }
+
+    @Test
+    void testAfterTest_classicPathJdbcTesterReusesItsConnection_leavesTheResolvedConnectionOpen()
+            throws Exception
+    {
+        // The CachingConnectionProvider of the tester holds the connection it hands out again on
+        // the next call, so closing it after every test only makes the next test open another.
+        final JdbcDatabaseTester jdbcTester =
+                jdbcTesterReturningTheConnection(new CachingConnectionProvider());
+        jdbcTester.setSetUpOperation(DatabaseOperation.NONE);
+        jdbcTester.setTearDownOperation(DatabaseOperation.NONE);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, jdbcTester, null, false);
+        executor.beforeTest();
+
+        executor.afterTest(false);
+
+        verify(connection, never()).close();
+    }
+
+    @Test
+    void testAfterTest_classicPathJdbcTesterOpensANewConnectionOnEachCall_closesTheResolvedConnection()
+            throws Exception
+    {
+        // The tester hands out a connection nothing else holds, so the one the executor resolved
+        // for the baseline is closed with the test, or each test leaves one open.
+        final JdbcDatabaseTester jdbcTester = jdbcTesterOpeningANewConnectionOnEachCall();
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, jdbcTester, null, false);
+        executor.beforeTest();
+
+        executor.afterTest(false);
+
+        verify(connection).close();
     }
 
     @Test
@@ -1813,30 +3866,30 @@ class AnnotatedTestExecutorTest
         // onSetup() to free a bounded pool - which ran onSetup() against a closed connection.
         // The classic path now holds that connection until afterTest(), honoring the 3.5.0
         // contract that the extension never closes a tester's connection early.
-        stubDisabledConnection();
+        final JdbcDatabaseTester jdbcTester = jdbcTesterOpeningANewConnectionOnEachCall();
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
         final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, null, false);
+                new AnnotatedTestExecutor(configuration, jdbcTester, null, false);
 
         executor.beforeTest();
 
         verify(connection, never()).close();
-        verify(tester).onSetup();
+        verify(jdbcTester).onSetup();
 
         executor.afterTest(false);
         verify(connection).close();
     }
 
     @Test
-    void testBeforeTest_classicPathRealAbstractDatabaseTester_capturesBaselineEagerlyNotViaPiggyback()
+    void testBeforeAndAfterTest_classicPathRealAbstractDatabaseTester_opensOnlyTheConnectionsTheTesterOpens()
             throws Exception
     {
-        // canPiggybackRowCountBaseline() is gated on annotationDriven: with no listener
-        // installed there is nothing to piggyback on, so the classic path always resolves its
-        // own connection for the baseline and lets onSetup() resolve its own - the same
-        // two-connection shape DbUnitExtension had before this executor existed, not the
-        // annotation paths' piggybacked one.
+        // With the row count check off, as it is by default, the baseline has nothing to count,
+        // so the classic path takes it from the connection onSetup() retrieves instead of
+        // resolving one of its own: a plain JdbcDatabaseTester then opens the two connections
+        // the 3.5.0 lifecycle did, one for onSetup() and one for onTearDown(), and never one
+        // more, which a bounded pool sized for that lifecycle needs.
         final AtomicInteger getConnectionCalls = new AtomicInteger();
         final AbstractDatabaseTester realTester = new AbstractDatabaseTester()
         {
@@ -1848,22 +3901,23 @@ class AnnotatedTestExecutorTest
             }
         };
         realTester.setDataSet(new DefaultDataSet());
+        realTester.setTearDownOperation(DatabaseOperation.DELETE_ALL);
+        final IOperationListener testersOwnListener = realTester.getOperationListener();
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
         final AnnotatedTestExecutor executor =
                 new AnnotatedTestExecutor(configuration, realTester, null, false);
-        assertThat(realTester.getOperationListener())
-                .as("The classic path must not install an operation listener at construction.")
-                .isNull();
 
         executor.beforeTest();
         executor.afterTest(false);
 
         assertThat(getConnectionCalls.get())
-                .as("The classic path resolves its own connection for the baseline and lets"
-                        + " onSetup() resolve its own - two, matching the 3.5.0 lifecycle, not"
-                        + " the annotation paths' single piggybacked one.")
+                .as("The classic path must open only the connections onSetup() and onTearDown()"
+                        + " retrieve, as the 3.5.0 lifecycle did.")
                 .isEqualTo(2);
+        assertThat(realTester.getOperationListener())
+                .as("The listener the tester carried must be put back after the test.")
+                .isSameAs(testersOwnListener);
     }
 
     @Test
@@ -1924,6 +3978,38 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
+    void testAfterTest_annotationDrivenListenerEnablesTheCheckInConnectionRetrieved_stillDetectsALeak()
+            throws Exception
+    {
+        // The annotation-driven twin of the classic path test above: the test case built around
+        // the tester takes the baseline, so the tester's listener must have enabled the check on
+        // the connection the test case acquires before the baseline reads that connection's
+        // config.
+        when(connection.getConfig()).thenReturn(new DatabaseConfig());
+        stubOpenJdbcConnection();
+        final IDataSet dataSet = mock(IDataSet.class);
+        when(dataSet.getTableNames()).thenReturn(new String[] {"ACCOUNT"});
+        when(connection.createDataSet()).thenReturn(dataSet);
+        when(connection.getRowCount("ACCOUNT")).thenReturn(5);
+        final IDatabaseTester realTester = new DefaultDatabaseTester(connection);
+        realTester.setSetUpOperation(DatabaseOperation.NONE);
+        realTester.setOperationListener(new RowCountCheckEnablingListener());
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, realTester, null, true);
+        executor.beforeTest();
+        when(connection.getRowCount("ACCOUNT")).thenReturn(6);
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown)
+                .as("A leaked row must fail an annotation-driven test whose tester's listener"
+                        + " enables the row count check on the connection it is handed.")
+                .isInstanceOf(UnexpectedRowCountException.class);
+    }
+
+    @Test
     void testAfterTest_testerSharedAcrossMethods_putsTheTestersOwnListenerBack() throws Exception
     {
         // A tester shared across methods (a static @DbUnitTester field) must not keep the last
@@ -1938,7 +4024,7 @@ class AnnotatedTestExecutorTest
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
         final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, realTester, null);
+                new AnnotatedTestExecutor(configuration, realTester, null, false);
         executor.beforeTest();
 
         executor.afterTest(false);
@@ -1958,7 +4044,7 @@ class AnnotatedTestExecutorTest
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
         final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, realTester, null);
+                new AnnotatedTestExecutor(configuration, realTester, null, false);
 
         executor.releaseIfAfterTestDidNotRun();
 
@@ -1979,7 +4065,7 @@ class AnnotatedTestExecutorTest
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
         final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, realTester, null);
+                new AnnotatedTestExecutor(configuration, realTester, null, false);
         executor.beforeTest();
         final IOperationListener installedByTheTest = mock(IOperationListener.class);
         realTester.setOperationListener(installedByTheTest);
@@ -1990,25 +4076,6 @@ class AnnotatedTestExecutorTest
                 .as("A listener the test itself installed after the executor did is the test's"
                         + " to keep, not the executor's to overwrite.")
                 .isSameAs(installedByTheTest);
-    }
-
-    @Test
-    void testConstructor_testerCarriesAUserBlanketShield_keepsItUnderTheExecutorsListener()
-    {
-        // A caller who wraps a listener in a blanket ConnectionPreservingOperationListener owns
-        // every connection the tester hands out; the executor adding its own scoped shield on
-        // top must not discard that blanket and let the wrapped listener close the others.
-        final IOperationListener userListener = mock(IOperationListener.class);
-        final IDatabaseTester realTester = new DefaultDatabaseTester(connection);
-        realTester.setOperationListener(new ConnectionPreservingOperationListener(userListener));
-        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
-                .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
-        new AnnotatedTestExecutor(configuration, realTester, null);
-        final IDatabaseConnection otherConnection = mock(IDatabaseConnection.class);
-
-        realTester.getOperationListener().operationSetUpFinished(otherConnection);
-
-        verify(userListener, never()).operationSetUpFinished(otherConnection);
     }
 
     /** Enables the row count check on every connection it is handed, as a user listener may. */
@@ -2032,18 +4099,18 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
-    void testGetConnection_expectedPath_doesNotOfferTheConnectionToTheTestersListener()
+    void testGetConnection_annotationDriven_doesNotOfferTheConnectionToTheTestersListener()
             throws Exception
     {
-        // The prep/expected path's connection is the test case's own and never goes through the
-        // tester's listener, so the tester's listener is not told about it.
+        // An annotated test's connection is the test case's own, which tells the tester's
+        // listener itself when it runs an operation, so the executor does not offer it too.
         final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(WithExpected.class, null, null, null, expected, null, null);
         final IOperationListener testersListener = mock(IOperationListener.class);
         final IDatabaseTester realTester = new DefaultDatabaseTester(connection);
         realTester.setOperationListener(testersListener);
-        final PrepAndExpectedTestCase injected = mock(PrepAndExpectedTestCase.class);
+        final DefaultPrepAndExpectedTestCase injected = injectedDefaultTestCase();
         when(injected.getReusableConnection()).thenReturn(connection);
         final AnnotatedTestExecutor executor =
                 new AnnotatedTestExecutor(configuration, realTester, injected);
@@ -2054,7 +4121,7 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
-    void testGetConnection_setupTeardownPathAnnotationDriven_offersTheConnectionOnceToTheTestersOwnListener()
+    void testGetConnection_classicPath_offersTheConnectionOnceToTheTestersOwnListener()
             throws Exception
     {
         // The tester's own listener, not the executor's wrapper of it: the wrapper would also
@@ -2069,7 +4136,7 @@ class AnnotatedTestExecutorTest
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
         final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, realTester, null);
+                new AnnotatedTestExecutor(configuration, realTester, null, false);
 
         executor.getConnection();
 
@@ -2077,10 +4144,10 @@ class AnnotatedTestExecutorTest
         verify(connection, never()).createDataSet();
     }
 
-    // ---- ExecutorOperationListener: delegate ordering ----
+    // ---- ClassicOperationListener: delegate ordering ----
 
     @Test
-    void testConnectionRetrieved_delegateConfiguresDatabaseConfig_rowCountCheckSeesTheChange()
+    void testConnectionRetrieved_classicPathDelegateConfiguresDatabaseConfig_rowCountCheckSeesTheChange()
             throws Exception
     {
         // The tester's own, pre-existing IOperationListener is the documented place to
@@ -2114,7 +4181,7 @@ class AnnotatedTestExecutorTest
         when(tester.getOperationListener()).thenReturn(delegateListener);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
-        new AnnotatedTestExecutor(configuration, tester, null);
+        new AnnotatedTestExecutor(configuration, tester, null, false);
         final ArgumentCaptor<IOperationListener> installedListener =
                 ArgumentCaptor.forClass(IOperationListener.class);
         verify(tester).setOperationListener(installedListener.capture());
@@ -2142,9 +4209,9 @@ class AnnotatedTestExecutorTest
         executor.getConnection();
 
         assertThat(realConfig.getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE))
-                .as("@DbUnitProperty values must be applied as soon as the connection is"
-                        + " resolved - e.g. before the row count check captures its baseline -"
-                        + " not only later, whenever onSetup()/onTearDown() happens to run.")
+                .as("@DbUnitProperty values must be on the connection as soon as it is"
+                        + " resolved, so its first use - an IDatabaseConnection parameter, the"
+                        + " row count check baseline or the setup operation - already sees them.")
                 .isEqualTo(50);
     }
 
@@ -2154,8 +4221,8 @@ class AnnotatedTestExecutorTest
     {
         final DbUnitConfig config =
                 WithPropertiesAndSetupNone.class.getAnnotation(DbUnitConfig.class);
-        final DbUnitSetup setup =
-                WithPropertiesAndSetupNone.class.getAnnotation(DbUnitSetup.class);
+        final DbUnitSetUpOperation setup =
+                WithPropertiesAndSetupNone.class.getAnnotation(DbUnitSetUpOperation.class);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(WithPropertiesAndSetupNone.class, config, null, setup, null, null, null);
         final DatabaseConfig realConfig = new DatabaseConfig();
@@ -2169,69 +4236,62 @@ class AnnotatedTestExecutorTest
         assertThat(realConfig.getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE))
                 .as("@DbUnitProperty values must reach the connection even when both the setup"
                         + " and teardown operations resolve to NONE - a connection is always"
-                        + " resolved once per setup/teardown-path test for the row count check baseline,"
-                        + " regardless of the configured operations, so there is no"
-                        + " configuration under which properties silently fail to apply.")
+                        + " resolved once per annotation-driven test, whatever the configured"
+                        + " operations, so there is no configuration under which properties"
+                        + " silently fail to apply.")
                 .isEqualTo(50);
     }
 
     @Test
-    void testBeforeTest_propertiesConfiguredWithNoneSetupAndTesterConnectionNull_doesNotThrow()
-            throws Exception
+    void testBeforeTest_dbUnitPropertyWithInvalidValue_failsBeforeTheTestRuns() throws Exception
     {
-        final DbUnitConfig config =
-                WithPropertiesAndSetupNone.class.getAnnotation(DbUnitConfig.class);
-        final DbUnitSetup setup =
-                WithPropertiesAndSetupNone.class.getAnnotation(DbUnitSetup.class);
-        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
-                .from(WithPropertiesAndSetupNone.class, config, null, setup, null, null, null);
-        when(tester.getConnection()).thenReturn(null);
-        final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, null);
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithBooleanPropertyYes.class), tester, null);
 
-        assertThatCode(() ->
-        {
-            executor.beforeTest();
-            executor.afterTest(false);
-        }).as("@DbUnitProperty values, a NONE setup operation, and a tester with no connection"
-                + " (a test double) together must be tolerated - the properties reach nothing,"
-                + " without a NullPointerException.")
-                .doesNotThrowAnyException();
-        verify(tester).onSetup();
+        assertThatThrownBy(executor::beforeTest)
+                .as("A @DbUnitProperty value that does not suit the type of its property fails"
+                        + " the before-test steps, so before the test method runs, naming the"
+                        + " property and the value, instead of turning a feature off.")
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("batchedStatements").hasMessageContaining("'yes'");
+        verify(tester, never()).getConnection();
     }
 
     @Test
-    void testGetConnection_invalidPropertyValue_throwsIllegalStateExceptionNotRawDatabaseUnitException()
+    void testGetConnection_uninstantiablePropertyValue_throwsIllegalStateExceptionNotRawDatabaseUnitException()
             throws Exception
     {
-        final DbUnitConfig config = WithInvalidProperty.class.getAnnotation(DbUnitConfig.class);
-        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
-                .from(WithInvalidProperty.class, config, null, null, null, null, null);
+        final DbUnitConfig config =
+                WithUninstantiableDataTypeFactory.class.getAnnotation(DbUnitConfig.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration.from(
+                WithUninstantiableDataTypeFactory.class, config, null, null, null, null, null);
         when(tester.getConnection()).thenReturn(connection);
         when(connection.getConfig()).thenReturn(new DatabaseConfig());
         final AnnotatedTestExecutor executor =
                 new AnnotatedTestExecutor(configuration, tester, null);
 
         assertThatThrownBy(executor::getConnection)
-                .as("An invalid @DbUnitProperty value applied on the setup/teardown path - via"
-                        + " getConnection()/the installed listener, not"
-                        + " DefaultPrepAndExpectedTestCase's own setUpDatabaseConfig() - must"
-                        + " be reported clearly, not left as a raw DatabaseUnitException"
-                        + " surfacing from deep inside DatabaseConfig.")
+                .as("A @DbUnitProperty value dbUnit cannot instantiate, applied by the test case"
+                        + " when it acquires the connection, must be reported clearly, not left"
+                        + " as a raw DatabaseUnitException surfacing from deep inside"
+                        + " DatabaseConfig.")
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("@DbUnitProperty");
+                .hasMessageContaining("Failed to apply a databaseConfigProperties value")
+                .hasCauseInstanceOf(DatabaseUnitException.class);
     }
 
     @Test
     void testAfterTest_keptConnectionWithProperties_putsReplacedValuesBack() throws Exception
     {
         final DbUnitConfig config =
-                WithPropertiesOnKeptConnection.class.getAnnotation(DbUnitConfig.class);
+                WithProperties.class.getAnnotation(DbUnitConfig.class);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
-                .from(WithPropertiesOnKeptConnection.class, config, null, null, null, null, null);
+                .from(WithProperties.class, config, null, null, null, null, null);
         final DatabaseConfig realConfig = new DatabaseConfig();
         when(tester.getConnection()).thenReturn(connection);
         when(connection.getConfig()).thenReturn(realConfig);
+        when(tester.getOperationListener())
+                .thenReturn(IOperationListener.NO_OP_OPERATION_LISTENER);
         final AnnotatedTestExecutor executor =
                 new AnnotatedTestExecutor(configuration, tester, null);
         executor.beforeTest();
@@ -2247,59 +4307,18 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
-    void testAfterTest_testersListenerSetTheSamePropertyFirst_putsBackTheListenersValue()
-            throws Exception
-    {
-        final DbUnitConfig config =
-                WithPropertiesOnKeptConnection.class.getAnnotation(DbUnitConfig.class);
-        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
-                .from(WithPropertiesOnKeptConnection.class, config, null, null, null, null, null);
-        final DatabaseConfig realConfig = new DatabaseConfig();
-        when(tester.getConnection()).thenReturn(connection);
-        when(connection.getConfig()).thenReturn(realConfig);
-        final IOperationListener testersListener = new IOperationListener()
-        {
-            @Override
-            public void connectionRetrieved(final IDatabaseConnection retrieved)
-            {
-                retrieved.getConfig().setProperty(DatabaseConfig.PROPERTY_BATCH_SIZE, 10);
-            }
-
-            @Override
-            public void operationSetUpFinished(final IDatabaseConnection retrieved)
-            {
-            }
-
-            @Override
-            public void operationTearDownFinished(final IDatabaseConnection retrieved)
-            {
-            }
-        };
-        when(tester.getOperationListener()).thenReturn(testersListener);
-        final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, null);
-        executor.beforeTest();
-
-        executor.afterTest(false);
-
-        assertThat(realConfig.getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE))
-                .as("The tester's own listener is the documented place to configure a"
-                        + " connection, so what it set - not dbUnit's default - is what the"
-                        + " @DbUnitProperty value replaced and what must be put back.")
-                .isEqualTo(10);
-    }
-
-    @Test
     void testReleaseIfAfterTestDidNotRun_keptConnectionWithPropertiesResolved_putsReplacedValuesBack()
             throws Exception
     {
         final DbUnitConfig config =
-                WithPropertiesOnKeptConnection.class.getAnnotation(DbUnitConfig.class);
+                WithProperties.class.getAnnotation(DbUnitConfig.class);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
-                .from(WithPropertiesOnKeptConnection.class, config, null, null, null, null, null);
+                .from(WithProperties.class, config, null, null, null, null, null);
         final DatabaseConfig realConfig = new DatabaseConfig();
         when(tester.getConnection()).thenReturn(connection);
         when(connection.getConfig()).thenReturn(realConfig);
+        when(tester.getOperationListener())
+                .thenReturn(IOperationListener.NO_OP_OPERATION_LISTENER);
         final AnnotatedTestExecutor executor =
                 new AnnotatedTestExecutor(configuration, tester, null);
         executor.getConnection();
@@ -2314,27 +4333,25 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
-    void testGetConnection_expectedPathWithProperties_leavesApplyingAndRestoringToTheTestCase()
+    void testGetConnection_withProperties_leavesApplyingAndRestoringToTheTestCase()
             throws Exception
     {
         final DbUnitConfig config =
-                WithPropertiesAndExpected.class.getAnnotation(DbUnitConfig.class);
+                WithPropertiesAndCachingTestCase.class.getAnnotation(DbUnitConfig.class);
         final DbUnitExpected expected =
-                WithPropertiesAndExpected.class.getAnnotation(DbUnitExpected.class);
-        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
-                .from(WithPropertiesAndExpected.class, config, null, null, expected, null, null);
+                WithPropertiesAndCachingTestCase.class.getAnnotation(DbUnitExpected.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration.from(
+                WithPropertiesAndCachingTestCase.class, config, null, null, expected, null, null);
         final DatabaseConfig realConfig = new DatabaseConfig();
         lenient().when(connection.getConfig()).thenReturn(realConfig);
-        final DefaultPrepAndExpectedTestCase mockTestCase =
-                mock(DefaultPrepAndExpectedTestCase.class);
-        when(mockTestCase.getReusableConnection()).thenReturn(connection);
+        when(tester.getConnection()).thenReturn(connection);
         final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, mockTestCase);
+                new AnnotatedTestExecutor(configuration, tester, null);
 
         executor.getConnection();
 
         assertThat(realConfig.getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE))
-                .as("On the prep/expected path the test case applies the values to the"
+                .as("On an annotated test the test case applies the values to the"
                         + " connection it owns and puts them back when it finishes; the executor"
                         + " applying them as well would record the test case's values as the"
                         + " ones to restore and leave them on the connection.")
@@ -2342,38 +4359,7 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
-    void testAfterTest_testersListenerWrappedMidTest_finishedExecutorsListenerAppliesNothingLater()
-            throws Exception
-    {
-        final DbUnitConfig config =
-                WithPropertiesOnKeptConnection.class.getAnnotation(DbUnitConfig.class);
-        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
-                .from(WithPropertiesOnKeptConnection.class, config, null, null, null, null, null);
-        final DatabaseConfig realConfig = new DatabaseConfig();
-        when(tester.getConnection()).thenReturn(connection);
-        when(connection.getConfig()).thenReturn(realConfig);
-        final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, null);
-        final ArgumentCaptor<IOperationListener> installed =
-                ArgumentCaptor.forClass(IOperationListener.class);
-        verify(tester).setOperationListener(installed.capture());
-        final IOperationListener wrapper =
-                new ConnectionPreservingOperationListener(installed.getValue());
-        when(tester.getOperationListener()).thenReturn(wrapper);
-        executor.beforeTest();
-        executor.afterTest(false);
-
-        wrapper.connectionRetrieved(connection);
-
-        assertThat(realConfig.getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE))
-                .as("A test that wrapped the tester's listener keeps the finished executor's"
-                        + " listener in the chain; it must not apply that test's values to the"
-                        + " next test's connection, where nothing would put them back.")
-                .isEqualTo(new DatabaseConfig().getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE));
-    }
-
-    @Test
-    void testGetConnection_expectedPathBeforeBeforeTest_connectionAlreadyHasTheAnnotationProperties()
+    void testGetConnection_beforeBeforeTest_connectionAlreadyHasTheAnnotationProperties()
             throws Exception
     {
         final DbUnitConfig config =
@@ -2386,10 +4372,8 @@ class AnnotatedTestExecutorTest
         when(tester.getConnection()).thenReturn(connection);
         when(connection.getConfig()).thenReturn(realConfig);
         stubOpenJdbcConnection();
-        final DefaultPrepAndExpectedTestCase testCase =
-                new DefaultPrepAndExpectedTestCase(new FlatXmlDataFileLoader(), tester);
         final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, testCase);
+                new AnnotatedTestExecutor(configuration, tester, null);
 
         executor.getConnection();
 
@@ -2400,7 +4384,7 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
-    void testReleaseIfAfterTestDidNotRun_expectedPathTestCaseWithOwnPropertiesAndEarlyConnection_putsReplacedValuesBack()
+    void testReleaseIfAfterTestDidNotRun_testCaseWithOwnPropertiesAndEarlyConnection_putsReplacedValuesBack()
             throws Exception
     {
         final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
@@ -2459,117 +4443,150 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
-    void testAfterTest_restoringTesterStateFails_stillUndoesTheTestCaseConfiguration()
+    void testReleaseIfAfterTestDidNotRun_releaseAndUndoThrowTheSameFailure_throwsItUnchanged()
             throws Exception
     {
+        final RuntimeException sharedFailure = new RuntimeException("one failure for both");
         final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(WithExpected.class, null, null, null, expected, null, null);
-        // A DefaultPrepAndExpectedTestCase mock, so the properties accessors count as overridden.
-        final DefaultPrepAndExpectedTestCase injected = mock(DefaultPrepAndExpectedTestCase.class);
-        doNothing().doThrow(new IllegalStateException("Restore failed on purpose.")).when(tester)
-                .setSetUpOperation(any());
+        when(tester.getConnection()).thenReturn(connection);
+        when(connection.getConfig()).thenReturn(new DatabaseConfig());
+        stubOpenJdbcConnection();
+        doThrow(sharedFailure).when(connection).close();
+        final DefaultPrepAndExpectedTestCase testCase =
+                new DefaultPrepAndExpectedTestCase(new FlatXmlDataFileLoader(), tester)
+                {
+                    @Override
+                    public void setDatabaseConfigProperties(final Properties properties)
+                    {
+                        throw sharedFailure;
+                    }
+                };
         final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, injected);
-        executor.beforeTest();
+                new AnnotatedTestExecutor(configuration, tester, testCase);
+        executor.getConnection();
 
-        assertThatThrownBy(() -> executor.afterTest(false))
-                .as("The tester state restore failure must surface.")
-                .isInstanceOf(IllegalStateException.class);
+        final Throwable thrown = catchThrowable(executor::releaseIfAfterTestDidNotRun);
 
-        verify(injected).setDatabaseConfigProperties(null);
+        assertThat(thrown)
+                .as("A failure that both closing the connection and undoing the configuration"
+                        + " throw must be thrown as it is, not replaced by the"
+                        + " IllegalArgumentException that adding a throwable to its own"
+                        + " suppressed ones throws.")
+                .isSameAs(sharedFailure);
+        assertThat(thrown.getSuppressed())
+                .as("A failure is not suppressed by itself.")
+                .isEmpty();
     }
 
     @Test
-    void testConstructor_secondExecutorSharesTesterAlreadyWrappingProperties_appliesPropertiesOnlyOnce()
+    void testReleaseIfAfterTestDidNotRun_closeThrowsAnError_stillPutsTheListenerBackAndThrowsIt()
+            throws Exception
+    {
+        final JdbcDatabaseTester jdbcTester = jdbcTesterOpeningANewConnectionOnEachCall();
+        final IOperationListener testersOwn = jdbcTester.getOperationListener();
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, jdbcTester, null, false);
+        executor.getConnection();
+        final AssertionError closeError = new AssertionError("close asserted");
+        doThrow(closeError).when(connection).close();
+
+        final Throwable thrown = catchThrowable(executor::releaseIfAfterTestDidNotRun);
+
+        assertThat(thrown)
+                .as("The Error from closing the connection is the failure that surfaces, as the"
+                        + " same instance.")
+                .isSameAs(closeError);
+        assertThat(jdbcTester.getOperationListener())
+                .as("An Error from closing the connection must not skip putting back the"
+                        + " listener the tester carried into the test.")
+                .isSameAs(testersOwn);
+    }
+
+    @Test
+    void testReleaseIfAfterTestDidNotRun_annotationDrivenCloseThrowsAnError_stillPutsValuesBack()
             throws Exception
     {
         final DbUnitConfig config = WithProperties.class.getAnnotation(DbUnitConfig.class);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(WithProperties.class, config, null, null, null, null, null);
-        final DatabaseConfig realConfig = spy(new DatabaseConfig());
+        final DatabaseConfig realConfig = new DatabaseConfig();
         when(connection.getConfig()).thenReturn(realConfig);
-        final IOperationListener originalListener = mock(IOperationListener.class);
-        when(tester.getOperationListener()).thenReturn(originalListener);
-        final ArgumentCaptor<IOperationListener> listenerCaptor =
-                ArgumentCaptor.forClass(IOperationListener.class);
+        stubOpenJdbcConnection();
+        final AssertionError closeError = new AssertionError("close asserted");
+        doThrow(closeError).when(connection).close();
+        final IDatabaseTester realTester = new DefaultDatabaseTester(connection);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, realTester, null);
+        executor.getConnection();
 
-        new AnnotatedTestExecutor(configuration, tester, null);
-        verify(tester).setOperationListener(listenerCaptor.capture());
-        when(tester.getOperationListener()).thenReturn(listenerCaptor.getValue());
+        final Throwable thrown = catchThrowable(executor::releaseIfAfterTestDidNotRun);
 
-        new AnnotatedTestExecutor(configuration, tester, null);
-        verify(tester, times(2)).setOperationListener(listenerCaptor.capture());
-
-        listenerCaptor.getValue().connectionRetrieved(connection);
-
-        // The second executor's wrapper must delegate straight through to the tester's
-        // original listener instead of nesting on top of the first executor's wrapper, so a
-        // shared tester does not grow one listener layer - and one redundant property
-        // application - per test.
-        verify(realConfig, times(1)).setPropertiesByString(any());
-        verify(originalListener).connectionRetrieved(connection);
+        assertThat(thrown)
+                .as("The Error from closing the connection is the failure that surfaces, as the"
+                        + " same instance.")
+                .isSameAs(closeError);
+        assertThat(realConfig.getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE))
+                .as("An Error from closing the connection must not skip putting back the"
+                        + " @DbUnitProperty values of the test.")
+                .isEqualTo(new DatabaseConfig().getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE));
     }
 
     @Test
-    void testBeforeTest_expectedPathWithProperties_appliesPropertiesToInjectedTestCase()
+    void testAfterTest_classicPathTearDownAndCloseThrowTheSameFailure_throwsItUnchanged()
+            throws Exception
+    {
+        final RuntimeException sharedFailure = new RuntimeException("one failure for both");
+        stubDisabledConnection();
+        doThrow(sharedFailure).when(tester).onTearDown();
+        doThrow(sharedFailure).when(connection).close();
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
+        final AnnotatedTestExecutor executor =
+                new AnnotatedTestExecutor(configuration, tester, null, false);
+        executor.beforeTest();
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown)
+                .as("A failure that both onTearDown() and closing the connection throw must be"
+                        + " thrown as it is, not replaced by the IllegalArgumentException that"
+                        + " adding a throwable to its own suppressed ones throws.")
+                .isSameAs(sharedFailure);
+        assertThat(thrown.getSuppressed())
+                .as("A failure is not suppressed by itself.")
+                .isEmpty();
+    }
+
+    @Test
+    void testBeforeTest_withProperties_appliesPropertiesToTheBuiltTestCase()
             throws Exception
     {
         final DbUnitConfig config =
-                WithPropertiesAndExpected.class.getAnnotation(DbUnitConfig.class);
+                WithPropertiesAndRecordingTestCase.class.getAnnotation(DbUnitConfig.class);
         final DbUnitExpected expected =
-                WithPropertiesAndExpected.class.getAnnotation(DbUnitExpected.class);
-        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
-                .from(WithPropertiesAndExpected.class, config, null, null, expected, null, null);
-        // A DefaultPrepAndExpectedTestCase mock, not a bare interface mock: Mockito's default
-        // answer calls the interface's own no-op default methods (setDatabaseConfigProperties()
-        // among them) rather than overriding them, so a bare PrepAndExpectedTestCase mock is
-        // indistinguishable from a genuinely non-overriding implementation - see
-        // applyDatabaseConfigProperties()'s IllegalStateException tests below for that case.
-        final DefaultPrepAndExpectedTestCase mockTestCase =
-                mock(DefaultPrepAndExpectedTestCase.class);
+                WithPropertiesAndRecordingTestCase.class.getAnnotation(DbUnitExpected.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration.from(
+                WithPropertiesAndRecordingTestCase.class, config, null, null, expected, null,
+                null);
         final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, mockTestCase);
+                new AnnotatedTestExecutor(configuration, tester, null);
 
         executor.beforeTest();
 
-        final ArgumentCaptor<Properties> captor = ArgumentCaptor.forClass(Properties.class);
-        verify(mockTestCase).setDatabaseConfigProperties(captor.capture());
-        assertThat(captor.getValue().getProperty("batchSize"))
-                .as("@DbUnitProperty values must reach the prep/expected path's injected"
-                        + " PrepAndExpectedTestCase - the setup/teardown path's"
-                        + " installOperationListener() is never triggered by"
-                        + " setupData()/verifyData()/cleanupData().")
+        final Properties applied = RecordingPrepAndExpectedTestCase.instance
+                .getDatabaseConfigProperties();
+        assertThat(applied.getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE))
+                .as("@DbUnitProperty values must reach the PrepAndExpectedTestCase itself, as"
+                        + " the executor installs no listener on the tester to apply them.")
                 .isEqualTo("50");
     }
 
     @Test
-    void testBeforeTest_expectedPathPropertiesConfiguredAndTestCaseDoesNotOverrideSetter_throwsIllegalStateException()
-            throws Exception
-    {
-        final DbUnitConfig config =
-                WithPropertiesAndExpected.class.getAnnotation(DbUnitConfig.class);
-        final DbUnitExpected expected =
-                WithPropertiesAndExpected.class.getAnnotation(DbUnitExpected.class);
-        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
-                .from(WithPropertiesAndExpected.class, config, null, null, expected, null, null);
-        final PrepAndExpectedTestCase nonOverridingTestCase =
-                new RecordingPrepAndExpectedTestCase(mock(DataFileLoader.class), tester, true);
-        final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, nonOverridingTestCase);
-
-        assertThatThrownBy(executor::beforeTest)
-                .as("@DbUnitProperty values the injected test case cannot apply must fail"
-                        + " loudly, since the prep/expected path has no other route to the"
-                        + " connection at all - a silent no-op here would leave them applied"
-                        + " nowhere.")
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("@DbUnitProperty")
-                .hasMessageContaining(RecordingPrepAndExpectedTestCase.class.getName());
-    }
-
-    @Test
-    void testBeforeTest_expectedPathSubclassOverridesSetUpDatabaseConfig_warnsPropertiesMayNotApply()
+    void testBeforeTest_subclassOverridesSetUpDatabaseConfig_warnsPropertiesMayNotApply()
             throws Exception
     {
         // A DefaultPrepAndExpectedTestCase subclass overriding setUpDatabaseConfig() - the
@@ -2577,17 +4594,16 @@ class AnnotatedTestExecutorTest
         // override calls super.setUpDatabaseConfig(config), since that hook is where they are
         // applied. Reflection cannot see whether super is called, so warn rather than fail.
         final DbUnitConfig config =
-                WithPropertiesAndExpected.class.getAnnotation(DbUnitConfig.class);
+                WithPropertiesAndOverridingTestCase.class.getAnnotation(DbUnitConfig.class);
         final DbUnitExpected expected =
-                WithPropertiesAndExpected.class.getAnnotation(DbUnitExpected.class);
+                WithPropertiesAndOverridingTestCase.class.getAnnotation(DbUnitExpected.class);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration.from(
-                WithPropertiesAndExpected.class, config, null, null, expected, null, null);
-        final PrepAndExpectedTestCase overriding =
-                new OverridesSetUpDatabaseConfigTestCase(tester);
+                WithPropertiesAndOverridingTestCase.class, config, null, null, expected, null,
+                null);
         final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, overriding);
+                new AnnotatedTestExecutor(configuration, tester, null);
         final Logger configurerLogger =
-                (Logger) LoggerFactory.getLogger(InjectedTestCaseConfigurer.class);
+                (Logger) LoggerFactory.getLogger(TestCaseConfigurer.class);
         final ListAppender<ILoggingEvent> appender = new ListAppender<>();
         appender.start();
         configurerLogger.addAppender(appender);
@@ -2610,22 +4626,22 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
-    void testBeforeTest_expectedPathDefaultTestCaseWithProperties_doesNotWarnAboutSetUpDatabaseConfig()
+    void testBeforeTest_defaultTestCaseWithProperties_doesNotWarnAboutSetUpDatabaseConfig()
             throws Exception
     {
         // A plain DefaultPrepAndExpectedTestCase (no setUpDatabaseConfig override) applies
         // @DbUnitProperty values through its own setUpDatabaseConfig - no trap, no warning.
         final DbUnitConfig config =
-                WithPropertiesAndExpected.class.getAnnotation(DbUnitConfig.class);
+                WithPropertiesAndRecordingTestCase.class.getAnnotation(DbUnitConfig.class);
         final DbUnitExpected expected =
-                WithPropertiesAndExpected.class.getAnnotation(DbUnitExpected.class);
+                WithPropertiesAndRecordingTestCase.class.getAnnotation(DbUnitExpected.class);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration.from(
-                WithPropertiesAndExpected.class, config, null, null, expected, null, null);
-        final DefaultPrepAndExpectedTestCase plain = mock(DefaultPrepAndExpectedTestCase.class);
+                WithPropertiesAndRecordingTestCase.class, config, null, null, expected, null,
+                null);
         final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, plain);
+                new AnnotatedTestExecutor(configuration, tester, null);
         final Logger configurerLogger =
-                (Logger) LoggerFactory.getLogger(InjectedTestCaseConfigurer.class);
+                (Logger) LoggerFactory.getLogger(TestCaseConfigurer.class);
         final ListAppender<ILoggingEvent> appender = new ListAppender<>();
         appender.start();
         configurerLogger.addAppender(appender);
@@ -2645,63 +4661,35 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
-    void testBeforeTest_expectedPathNoPropertiesAndTestCaseDoesNotOverrideSetter_doesNotThrow()
-            throws Exception
-    {
-        final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
-        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
-                .from(WithExpected.class, null, null, null, expected, null, null);
-        final PrepAndExpectedTestCase nonOverridingTestCase =
-                new RecordingPrepAndExpectedTestCase(mock(DataFileLoader.class), tester, true);
-        final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, nonOverridingTestCase);
-
-        assertThatCode(executor::beforeTest)
-                .as("No @DbUnitProperty values configured means nothing for a non-overriding"
-                        + " test case to fail to apply.")
-                .doesNotThrowAnyException();
-    }
-
-    @Test
-    void testBeforeTest_expectedPathWithFailureHandler_appliesToInjectedTestCase()
+    void testBeforeTest_withFailureHandler_appliesToTheBuiltTestCase()
             throws Exception
     {
         final DbUnitConfig config =
-                WithFailureHandlerAndExpected.class.getAnnotation(DbUnitConfig.class);
+                WithFailureHandlerAndRecordingTestCase.class.getAnnotation(DbUnitConfig.class);
         final DbUnitExpected expected =
-                WithFailureHandlerAndExpected.class.getAnnotation(DbUnitExpected.class);
+                WithFailureHandlerAndRecordingTestCase.class.getAnnotation(DbUnitExpected.class);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration.from(
-                WithFailureHandlerAndExpected.class, config, null, null, expected, null, null);
-        // A DefaultPrepAndExpectedTestCase mock, not a bare interface mock: Mockito's default
-        // answer calls the interface's own no-op default methods (setFailureHandler() among
-        // them) rather than overriding them, so a bare PrepAndExpectedTestCase mock is
-        // indistinguishable from a genuinely non-overriding implementation - see
-        // applyFailureHandler()'s IllegalStateException tests below for that case.
-        final DefaultPrepAndExpectedTestCase mockTestCase =
-                mock(DefaultPrepAndExpectedTestCase.class);
+                WithFailureHandlerAndRecordingTestCase.class, config, null, null, expected, null,
+                null);
         final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, mockTestCase);
+                new AnnotatedTestExecutor(configuration, tester, null);
 
         executor.beforeTest();
 
-        final ArgumentCaptor<FailureHandler> captor =
-                ArgumentCaptor.forClass(FailureHandler.class);
-        verify(mockTestCase).setFailureHandler(captor.capture());
-        assertThat(captor.getValue())
-                .as("@DbUnitConfig.failureHandler() must be applied to the prep/expected"
-                        + " path's injected PrepAndExpectedTestCase.")
+        assertThat(RecordingPrepAndExpectedTestCase.instance.getFailureHandler())
+                .as("@DbUnitConfig.failureHandler() must be applied to the built"
+                        + " PrepAndExpectedTestCase.")
                 .isInstanceOf(DiffCollectingFailureHandler.class);
     }
 
     @Test
-    void testBeforeTest_expectedPathNoFailureHandler_leavesTheInstancesOwnHandlerAlone()
+    void testBeforeTest_noFailureHandler_leavesTheInstancesOwnHandlerAlone()
             throws Exception
     {
         final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(WithExpected.class, null, null, null, expected, null, null);
-        final PrepAndExpectedTestCase mockTestCase =
-                mock(PrepAndExpectedTestCase.class);
+        final DefaultPrepAndExpectedTestCase mockTestCase = injectedDefaultTestCase();
         final AnnotatedTestExecutor executor =
                 new AnnotatedTestExecutor(configuration, tester, mockTestCase);
 
@@ -2714,50 +4702,7 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
-    void testBeforeTest_expectedPathFailureHandlerConfiguredAndTestCaseDoesNotOverrideSetter_throwsIllegalStateException()
-            throws Exception
-    {
-        final DbUnitConfig config =
-                WithFailureHandlerAndExpected.class.getAnnotation(DbUnitConfig.class);
-        final DbUnitExpected expected =
-                WithFailureHandlerAndExpected.class.getAnnotation(DbUnitExpected.class);
-        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
-                .from(WithFailureHandlerAndExpected.class, config, null, null, expected, null,
-                        null);
-        final PrepAndExpectedTestCase nonOverridingTestCase =
-                new RecordingPrepAndExpectedTestCase(mock(DataFileLoader.class), tester, true);
-        final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, nonOverridingTestCase);
-
-        assertThatThrownBy(executor::beforeTest)
-                .as("A DbUnitConfig.failureHandler() the injected DbUnitTestCase cannot apply"
-                        + " must fail loudly, since it would otherwise silently keep dbUnit's"
-                        + " own default handler instead.")
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("failureHandler")
-                .hasMessageContaining(RecordingPrepAndExpectedTestCase.class.getName());
-    }
-
-    @Test
-    void testBeforeTest_expectedPathNoFailureHandlerAndTestCaseDoesNotOverrideSetter_doesNotThrow()
-            throws Exception
-    {
-        final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
-        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
-                .from(WithExpected.class, null, null, null, expected, null, null);
-        final PrepAndExpectedTestCase nonOverridingTestCase =
-                new RecordingPrepAndExpectedTestCase(mock(DataFileLoader.class), tester, true);
-        final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, nonOverridingTestCase);
-
-        assertThatCode(executor::beforeTest)
-                .as("No DbUnitConfig.failureHandler() configured means there is nothing for a"
-                        + " non-overriding test case to fail to apply, so this must not throw.")
-                .doesNotThrowAnyException();
-    }
-
-    @Test
-    void testBeforeTest_expectedPathWithRowCountCheck_appliesOverrideToInjectedTestCase()
+    void testBeforeTest_withRowCountCheck_appliesOverrideToInjectedTestCase()
             throws Exception
     {
         final DbUnitExpected expected =
@@ -2773,18 +4718,18 @@ class AnnotatedTestExecutorTest
         // PrepAndExpectedTestCase mock is indistinguishable from a genuinely non-overriding
         // implementation - see applyRowCountCheckOverride()'s IllegalStateException test below
         // for that case.
-        final DefaultPrepAndExpectedTestCase mockTestCase =
-                mock(DefaultPrepAndExpectedTestCase.class);
+        final DefaultPrepAndExpectedTestCase mockTestCase = injectedDefaultTestCase();
         final AnnotatedTestExecutor executor =
                 new AnnotatedTestExecutor(configuration, tester, mockTestCase);
 
         executor.beforeTest();
 
-        verify(mockTestCase).setRowCountCheckOverride(true, new String[0]);
+        verify(mockTestCase)
+                .setRowCountCheckOverride(new RowCountCheckOverride(true, new String[0]));
     }
 
     @Test
-    void testBeforeTest_expectedPathRowCountCheckAndTesterConnectionNull_stillAppliesOverrideWithoutResolvingConnection()
+    void testBeforeTest_rowCountCheckAndTesterConnectionNull_stillAppliesOverrideWithoutResolvingConnection()
             throws Exception
     {
         final DbUnitExpected expected =
@@ -2794,8 +4739,7 @@ class AnnotatedTestExecutorTest
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration.from(
                 WithExpectedAndRowCountCheck.class, null, null, null, expected, null,
                 rowCountCheck);
-        final DefaultPrepAndExpectedTestCase mockTestCase =
-                mock(DefaultPrepAndExpectedTestCase.class);
+        final DefaultPrepAndExpectedTestCase mockTestCase = injectedDefaultTestCase();
         final AnnotatedTestExecutor executor =
                 new AnnotatedTestExecutor(configuration, tester, mockTestCase);
 
@@ -2805,62 +4749,35 @@ class AnnotatedTestExecutorTest
         // with no real connection) if ever called; the override must still apply, proving it
         // needs no connection of this executor's own to build - the wasted-connection bug this
         // pass-through exists to fix.
-        verify(mockTestCase).setRowCountCheckOverride(true, new String[0]);
+        verify(mockTestCase)
+                .setRowCountCheckOverride(new RowCountCheckOverride(true, new String[0]));
         verify(tester, never()).getConnection();
     }
 
     @Test
-    void testBeforeTest_expectedPathRowCountCheckDeclaredAndTestCaseDoesNotOverrideSetter_throwsIllegalStateException()
-            throws Exception
-    {
-        final DbUnitExpected expected =
-                WithExpectedAndRowCountCheck.class.getAnnotation(DbUnitExpected.class);
-        final DbUnitRowCountCheck rowCountCheck =
-                WithExpectedAndRowCountCheck.class.getAnnotation(DbUnitRowCountCheck.class);
-        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration.from(
-                WithExpectedAndRowCountCheck.class, null, null, null, expected, null,
-                rowCountCheck);
-        final PrepAndExpectedTestCase nonOverridingTestCase =
-                new RecordingPrepAndExpectedTestCase(mock(DataFileLoader.class), tester, true);
-        final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, nonOverridingTestCase);
-
-        assertThatThrownBy(executor::beforeTest)
-                .as("@DbUnitRowCountCheck declared on a test case that cannot apply the"
-                        + " override must fail loudly, since the check would otherwise"
-                        + " silently never run for this test at all.")
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("DbUnitRowCountCheck")
-                .hasMessageContaining(RecordingPrepAndExpectedTestCase.class.getName());
-    }
-
-    @Test
-    void testBeforeTest_expectedPathNoRowCountCheck_neverTouchesTheOverride()
+    void testBeforeTest_noRowCountCheck_neverTouchesTheOverride()
             throws Exception
     {
         final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(WithExpected.class, null, null, null, expected, null, null);
-        final PrepAndExpectedTestCase mockTestCase =
-                mock(PrepAndExpectedTestCase.class);
+        final DefaultPrepAndExpectedTestCase mockTestCase = injectedDefaultTestCase();
         final AnnotatedTestExecutor executor =
                 new AnnotatedTestExecutor(configuration, tester, mockTestCase);
 
         executor.beforeTest();
 
-        verify(mockTestCase, never()).setRowCountCheckOverride(anyBoolean(), any());
-        verify(mockTestCase, never()).clearRowCountCheckOverride();
+        verify(mockTestCase, never()).setRowCountCheckOverride(any());
     }
 
     @Test
-    void testBeforeTest_expectedPathNoProperties_leavesTheInstancesOwnPropertiesAlone()
+    void testBeforeTest_noProperties_leavesTheInstancesOwnPropertiesAlone()
             throws Exception
     {
         final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(WithExpected.class, null, null, null, expected, null, null);
-        final PrepAndExpectedTestCase mockTestCase =
-                mock(PrepAndExpectedTestCase.class);
+        final DefaultPrepAndExpectedTestCase mockTestCase = injectedDefaultTestCase();
         final AnnotatedTestExecutor executor =
                 new AnnotatedTestExecutor(configuration, tester, mockTestCase);
 
@@ -2870,56 +4787,49 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
-    void testAfterTest_expectedPathDeclaredFailureHandlerOnSharedInstance_restoresTheInstancesOwn()
+    void testAfterTest_rowCountCheckOnSharedInstance_clearsTheOverrideForTheNextMethod()
             throws Exception
     {
-        final DbUnitConfig config =
-                WithFailureHandlerAndExpected.class.getAnnotation(DbUnitConfig.class);
         final DbUnitExpected expected =
-                WithFailureHandlerAndExpected.class.getAnnotation(DbUnitExpected.class);
-        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
-                .from(WithFailureHandlerAndExpected.class, config, null, null, expected, null,
-                        null);
+                WithExpectedAndRowCountCheck.class.getAnnotation(DbUnitExpected.class);
+        final DbUnitRowCountCheck rowCountCheck =
+                WithExpectedAndRowCountCheck.class.getAnnotation(DbUnitRowCountCheck.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration.from(
+                WithExpectedAndRowCountCheck.class, null, null, null, expected, null,
+                rowCountCheck);
         final DefaultPrepAndExpectedTestCase shared = spy(
                 new DefaultPrepAndExpectedTestCase(new FlatXmlDataFileLoader(), tester, true));
-        final FailureHandler ownHandler = new DefaultFailureHandler();
-        shared.setFailureHandler(ownHandler);
-        doNothing().when(shared).configureTest(any(), any(), any());
+        doNothing().when(shared).configureTest(any(PrepAndExpectedTestData.class));
         doNothing().when(shared).preTest();
         doNothing().when(shared).postTest(anyBoolean());
         final AnnotatedTestExecutor executor =
                 new AnnotatedTestExecutor(configuration, tester, shared);
-
         executor.beforeTest();
-
-        assertThat(shared.getFailureHandler())
-                .as("The declared handler is in effect for the test.")
-                .isInstanceOf(DiffCollectingFailureHandler.class);
+        assertThat(shared.getRowCountCheckOverride())
+                .as("The declared check must be the override while the test runs.")
+                .isEqualTo(new RowCountCheckOverride(true, new String[0]));
 
         executor.afterTest(false);
 
-        assertThat(shared.getFailureHandler())
-                .as("A shared instance gets its own handler back, so the next method does not"
-                        + " inherit this method's.")
-                .isSameAs(ownHandler);
+        assertThat(shared.getRowCountCheckOverride())
+                .as("The shared instance must carry no override into the next method.")
+                .isNull();
     }
 
     @Test
-    void testAfterTest_expectedPathPostTestFailsOnSharedInstance_stillRestoresTheInstancesOwn()
+    void testAfterTest_postTestFailsOnSharedInstance_stillClearsTheRowCountCheckOverride()
             throws Exception
     {
-        final DbUnitConfig config =
-                WithFailureHandlerAndExpected.class.getAnnotation(DbUnitConfig.class);
         final DbUnitExpected expected =
-                WithFailureHandlerAndExpected.class.getAnnotation(DbUnitExpected.class);
-        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
-                .from(WithFailureHandlerAndExpected.class, config, null, null, expected, null,
-                        null);
+                WithExpectedAndRowCountCheck.class.getAnnotation(DbUnitExpected.class);
+        final DbUnitRowCountCheck rowCountCheck =
+                WithExpectedAndRowCountCheck.class.getAnnotation(DbUnitRowCountCheck.class);
+        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration.from(
+                WithExpectedAndRowCountCheck.class, null, null, null, expected, null,
+                rowCountCheck);
         final DefaultPrepAndExpectedTestCase shared = spy(
                 new DefaultPrepAndExpectedTestCase(new FlatXmlDataFileLoader(), tester, true));
-        final FailureHandler ownHandler = new DefaultFailureHandler();
-        shared.setFailureHandler(ownHandler);
-        doNothing().when(shared).configureTest(any(), any(), any());
+        doNothing().when(shared).configureTest(any(PrepAndExpectedTestData.class));
         doNothing().when(shared).preTest();
         doThrow(new AssertionError("verify boom")).when(shared).postTest(anyBoolean());
         final AnnotatedTestExecutor executor =
@@ -2928,260 +4838,9 @@ class AnnotatedTestExecutorTest
 
         assertThatThrownBy(() -> executor.afterTest(false)).isInstanceOf(AssertionError.class);
 
-        assertThat(shared.getFailureHandler())
-                .as("The instance's own handler is restored even when postTest() failed.")
-                .isSameAs(ownHandler);
-    }
-
-    @Test
-    void testBeforeTest_expectedPathInjectedTestCaseWithDataFileLoader_appliesToInjectedInstance()
-            throws Exception
-    {
-        final DbUnitConfig config =
-                WithDataFileLoaderAndExpected.class.getAnnotation(DbUnitConfig.class);
-        final DbUnitExpected expected =
-                WithDataFileLoaderAndExpected.class.getAnnotation(DbUnitExpected.class);
-        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration.from(
-                WithDataFileLoaderAndExpected.class, config, null, null, expected, null, null);
-        // A DefaultPrepAndExpectedTestCase mock, not a bare interface mock: Mockito's default
-        // answer calls the interface's own no-op default methods (setDataFileLoader() among
-        // them) rather than overriding them, so a bare PrepAndExpectedTestCase mock is
-        // indistinguishable from a genuinely non-overriding implementation - see
-        // applyDataFileLoader()'s IllegalStateException test below for that case.
-        final DefaultPrepAndExpectedTestCase mockTestCase =
-                mock(DefaultPrepAndExpectedTestCase.class);
-        final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, mockTestCase);
-
-        executor.beforeTest();
-
-        // A @DbUnitTestCase-injected PrepAndExpectedTestCase must receive
-        // @DbUnitConfig.dataFileLoader() the same way a freshly-constructed instance already
-        // receives it through its constructor - otherwise a @DbUnitTestCase field built with
-        // the no-arg constructor fails every test with "dataFileLoader is null".
-        verify(mockTestCase).setDataFileLoader(any(FlatXmlDataFileLoader.class));
-    }
-
-    @Test
-    void testBeforeTest_expectedPathDataFileLoaderConfiguredAndTestCaseDoesNotOverrideSetter_throwsIllegalStateException()
-            throws Exception
-    {
-        final DbUnitConfig config =
-                WithDataFileLoaderAndExpected.class.getAnnotation(DbUnitConfig.class);
-        final DbUnitExpected expected =
-                WithDataFileLoaderAndExpected.class.getAnnotation(DbUnitExpected.class);
-        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
-                .from(WithDataFileLoaderAndExpected.class, config, null, null, expected, null,
-                        null);
-        final PrepAndExpectedTestCase nonOverridingTestCase =
-                new RecordingPrepAndExpectedTestCase(mock(DataFileLoader.class), tester, true);
-        final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, nonOverridingTestCase);
-
-        assertThatThrownBy(executor::beforeTest)
-                .as("A DbUnitConfig.dataFileLoader() the injected test case cannot apply must"
-                        + " fail loudly instead of silently loading with whatever loader it"
-                        + " was already constructed with.")
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("dataFileLoader")
-                .hasMessageContaining(RecordingPrepAndExpectedTestCase.class.getName());
-    }
-
-    @Test
-    void testBeforeTest_expectedPathDefaultDataFileLoaderAndTestCaseDoesNotOverrideSetter_doesNotThrow()
-            throws Exception
-    {
-        final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
-        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
-                .from(WithExpected.class, null, null, null, expected, null, null);
-        final PrepAndExpectedTestCase nonOverridingTestCase =
-                new RecordingPrepAndExpectedTestCase(mock(DataFileLoader.class), tester, true);
-        final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, nonOverridingTestCase);
-
-        assertThatCode(executor::beforeTest)
-                .as("The default DbUnitConfig.dataFileLoader() means nothing for a"
-                        + " non-overriding test case to fail to apply.")
-                .doesNotThrowAnyException();
-    }
-
-    @Test
-    void testBeforeTest_expectedPathInjectedTestCaseWithCloseConnectionAfterTestFalse_appliesToInjectedInstance()
-            throws Exception
-    {
-        final DbUnitConfig config = WithCloseConnectionAfterTestFalseAndExpected.class
-                .getAnnotation(DbUnitConfig.class);
-        final DbUnitExpected expected = WithCloseConnectionAfterTestFalseAndExpected.class
-                .getAnnotation(DbUnitExpected.class);
-        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration.from(
-                WithCloseConnectionAfterTestFalseAndExpected.class, config, null, null, expected,
-                null, null);
-        final PrepAndExpectedTestCase mockTestCase =
-                mock(PrepAndExpectedTestCase.class);
-        final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, mockTestCase);
-
-        executor.beforeTest();
-
-        // A @DbUnitTestCase-injected PrepAndExpectedTestCase must receive
-        // @DbUnitConfig.closeConnectionAfterTest() the same way a freshly-constructed instance
-        // already receives it through its constructor - otherwise a shared
-        // CachingConnectionProvider connection gets closed out from under other tests.
-        verify(mockTestCase).setCloseConnectionAfterTest(false);
-    }
-
-    @Test
-    void testBeforeTest_closeConnectionAfterTestFalseAndTestCaseDoesNotOverrideSetter_logsWarning()
-            throws Exception
-    {
-        final DbUnitConfig config = WithCloseConnectionAfterTestFalseAndExpected.class
-                .getAnnotation(DbUnitConfig.class);
-        final DbUnitExpected expected = WithCloseConnectionAfterTestFalseAndExpected.class
-                .getAnnotation(DbUnitExpected.class);
-        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration.from(
-                WithCloseConnectionAfterTestFalseAndExpected.class, config, null, null, expected,
-                null, null);
-        final PrepAndExpectedTestCase nonOverridingTestCase =
-                new RecordingPrepAndExpectedTestCase(mock(DataFileLoader.class), tester, true);
-        final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, nonOverridingTestCase);
-        final Logger configurerLogger =
-                (Logger) LoggerFactory.getLogger(InjectedTestCaseConfigurer.class);
-        final ListAppender<ILoggingEvent> appender = new ListAppender<>();
-        appender.start();
-        configurerLogger.addAppender(appender);
-        try
-        {
-            // Unlike the other @DbUnitConfig-driven setters, this executor's own connection
-            // still honors closeConnectionAfterTest regardless, so this must not throw - only
-            // warn - even though the injected test case cannot apply it to its own connection.
-            executor.beforeTest();
-
-            assertThat(appender.list)
-                    .as("A DbUnitConfig.closeConnectionAfterTest() the injected test case"
-                            + " cannot apply must log a warning naming it, since a shared"
-                            + " connection could otherwise be closed out from under other"
-                            + " tests with no diagnostic at all.")
-                    .hasSize(1);
-            assertThat(appender.list.get(0).getLevel())
-                    .as("Must log at WARN, not throw - see the test's leading comment.")
-                    .isEqualTo(Level.WARN);
-            assertThat(appender.list.get(0).getFormattedMessage())
-                    .contains(RecordingPrepAndExpectedTestCase.class.getName());
-        } finally
-        {
-            configurerLogger.detachAppender(appender);
-        }
-    }
-
-    @Test
-    void testBeforeTest_closeConnectionAfterTestDefaultAndTestCaseDoesNotOverrideSetter_doesNotLogWarning()
-            throws Exception
-    {
-        final DbUnitExpected expected = WithExpected.class.getAnnotation(DbUnitExpected.class);
-        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
-                .from(WithExpected.class, null, null, null, expected, null, null);
-        final PrepAndExpectedTestCase nonOverridingTestCase =
-                new RecordingPrepAndExpectedTestCase(mock(DataFileLoader.class), tester, true);
-        final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, nonOverridingTestCase);
-        final Logger configurerLogger =
-                (Logger) LoggerFactory.getLogger(InjectedTestCaseConfigurer.class);
-        final ListAppender<ILoggingEvent> appender = new ListAppender<>();
-        appender.start();
-        configurerLogger.addAppender(appender);
-        try
-        {
-            executor.beforeTest();
-
-            assertThat(appender.list)
-                    .as("The default DbUnitConfig.closeConnectionAfterTest() (true) means"
-                            + " nothing for a non-overriding test case to fail to apply, so"
-                            + " this must not warn.")
-                    .isEmpty();
-        } finally
-        {
-            configurerLogger.detachAppender(appender);
-        }
-    }
-
-    @Test
-    void testBeforeTest_setupDeclaredWithoutPrepFiles_appliesOperationWithoutChangingDataSet()
-            throws Exception
-    {
-        stubDisabledConnection();
-        final DbUnitSetup setup = WithSetupNoPrep.class.getAnnotation(DbUnitSetup.class);
-        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
-                .from(WithSetupNoPrep.class, null, null, setup, null, null, null);
-        final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, null);
-
-        executor.beforeTest();
-
-        verify(tester, never()).setDataSet(any());
-        verify(tester).setSetUpOperation(DatabaseOperation.NONE);
-        verify(tester).onSetup();
-    }
-
-    @Test
-    void testBeforeTest_bareSetupNoPrepAndTesterHasNoDataset_warnsBeforeOnSetup()
-            throws Exception
-    {
-        final DbUnitSetup setup = WithBareSetupNoPrep.class.getAnnotation(DbUnitSetup.class);
-        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
-                .from(WithBareSetupNoPrep.class, null, null, setup, null, null, null);
-        final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, null);
-        final Logger lifecycleLogger =
-                (Logger) LoggerFactory.getLogger(SetupTeardownLifecycle.class);
-        final ListAppender<ILoggingEvent> appender = new ListAppender<>();
-        appender.start();
-        lifecycleLogger.addAppender(appender);
-        try
-        {
-            executor.beforeTest();
-
-            assertThat(appender.list)
-                    .filteredOn(event -> event.getLevel() == Level.WARN)
-                    .as("A bare @DbUnitSetup (resolves to CLEAN_INSERT) with no @DbUnitPrep and"
-                            + " no dataset on the tester must warn - a built-in tester will fail"
-                            + " in onSetup() - not fail silently or throw (a custom tester or"
-                            + " test double may legitimately source its dataset elsewhere).")
-                    .hasSize(1)
-                    .allSatisfy(event -> assertThat(event.getFormattedMessage())
-                            .contains("@DbUnitSetup").contains("NONE"));
-        } finally
-        {
-            lifecycleLogger.detachAppender(appender);
-        }
-    }
-
-    @Test
-    void testBeforeTest_setupNoneNoPrepAndTesterHasNoDataset_doesNotWarn() throws Exception
-    {
-        final DbUnitSetup setup = WithSetupNoPrep.class.getAnnotation(DbUnitSetup.class);
-        final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
-                .from(WithSetupNoPrep.class, null, null, setup, null, null, null);
-        final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, tester, null);
-        final Logger lifecycleLogger =
-                (Logger) LoggerFactory.getLogger(SetupTeardownLifecycle.class);
-        final ListAppender<ILoggingEvent> appender = new ListAppender<>();
-        appender.start();
-        lifecycleLogger.addAppender(appender);
-        try
-        {
-            executor.beforeTest();
-
-            assertThat(appender.list)
-                    .filteredOn(event -> event.getLevel() == Level.WARN)
-                    .as("@DbUnitSetup(operation = NONE) with no dataset is the documented"
-                            + " suppress-the-tester's-dataset case and must not warn.")
-                    .isEmpty();
-        } finally
-        {
-            lifecycleLogger.detachAppender(appender);
-        }
+        assertThat(shared.getRowCountCheckOverride())
+                .as("A failed postTest() must still leave the shared instance with no override.")
+                .isNull();
     }
 
     // ---- row count check baseline: piggybacking on onSetup()'s own connection ----
@@ -3191,8 +4850,8 @@ class AnnotatedTestExecutorTest
             throws Exception
     {
         // A mocked IDatabaseTester (as almost every other test in this file uses) never
-        // exercises this path at all: canPiggybackRowCountBaseline() only predicts a piggyback
-        // for a real AbstractDatabaseTester, and a plain Mockito mock of the IDatabaseTester
+        // exercises this path at all: ClassicRowCountCheck.canPiggybackBaselineOn() trusts
+        // only a real AbstractDatabaseTester, and a plain Mockito mock of the IDatabaseTester
         // interface is never an instanceof it. Only a real subclass - and a real connection,
         // since onSetup() actually runs CLEAN_INSERT against it - can prove the optimization
         // itself: that no @DbUnitRowCountCheck declared, plus AbstractDatabaseTester's own
@@ -3212,7 +4871,7 @@ class AnnotatedTestExecutorTest
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
         final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, realTester, null);
+                new AnnotatedTestExecutor(configuration, realTester, null, false);
 
         executor.beforeTest();
         executor.afterTest(false);
@@ -3228,18 +4887,16 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
-    void testBeforeAndAfterTest_multiplePrepFilesOnPiggybackEligibleTester_stillResolvesExactlyOneConnection()
+    void testBeforeAndAfterTest_annotationDrivenMultiplePrepFiles_resolvesExactlyOneConnection()
             throws Exception
     {
         // Combining two @DbUnitPrep files reads the connection's
-        // FEATURE_CASE_SENSITIVE_TABLE_NAMES - but on a real AbstractDatabaseTester whose own
-        // onSetup() retrieves a connection the row count baseline can piggyback on, resolving
-        // one here just for that feature would rule the piggyback out and cost a fresh-connection
-        // tester (a plain JdbcDatabaseTester) a second physical connection every test. So the
-        // multi-file combine yields to the piggyback: it combines case-insensitively - here
-        // merging prep.xml's ACCOUNT and prep-lowercase.xml's account into one table, so
-        // CLEAN_INSERT against the single pre-created ACCOUNT table succeeds - and exactly one
-        // connection is resolved.
+        // FEATURE_CASE_SENSITIVE_TABLE_NAMES. The test case reads it from the one connection it
+        // keeps for the whole test, so combining costs no connection of its own, which a
+        // fresh-connection tester (a plain JdbcDatabaseTester) would pay with a second physical
+        // connection every test. Case sensitivity is off here, so prep.xml's ACCOUNT and
+        // prep-lowercase.xml's account merge into one table and CLEAN_INSERT against the single
+        // pre-created ACCOUNT table succeeds.
         final IDatabaseConnection sharedConnection = InMemoryDatabaseConnection.create("PUBLIC");
         try
         {
@@ -3267,9 +4924,9 @@ class AnnotatedTestExecutorTest
             executor.afterTest(false);
 
             assertThat(getConnectionCalls.get())
-                    .as("A multi-file @DbUnitPrep combine must not resolve a second connection"
-                            + " just to read FEATURE_CASE_SENSITIVE_TABLE_NAMES when onSetup() is"
-                            + " about to retrieve one the row count baseline can piggyback on.")
+                    .as("Combining several @DbUnitPrep files must read the case sensitivity"
+                            + " from the connection the test case keeps for the test, not resolve"
+                            + " a second one.")
                     .isEqualTo(1);
         } finally
         {
@@ -3278,43 +4935,162 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
-    void testBeforeTest_piggybackTrustedButTesterSwallowsTheListener_safetyNetCapturesBaselineAfterOnSetup()
+    void testBeforeAndAfterTest_annotationDrivenMultiplePrepFilesCaseSensitive_keepsTheTablesApartOnOneConnection()
             throws Exception
     {
-        // canPiggybackBaselineOn() trusts a real AbstractDatabaseTester that does not override
-        // onSetup() - but this one swallows setOperationListener(), so the executor's wrapper is
-        // never installed and onSetup()'s executeOperation() notifies a fresh DefaultOperationListener
-        // instead. The prediction was wrong; the after-onSetup() safety net must still leave a
-        // baseline captured rather than silently skip the check.
-        final AbstractDatabaseTester listenerSwallowingTester = new AbstractDatabaseTester()
+        // With case sensitive table names on, combining the two @DbUnitPrep files keeps
+        // prep.xml's ACCOUNT and prep-lowercase.xml's account as two tables, and the setup
+        // operation runs on that dataset - with exactly one connection, the one the test case
+        // keeps for the whole test.
+        final IDatabaseConnection sharedConnection = InMemoryDatabaseConnection.create("PUBLIC");
+        try
         {
-            @Override
-            public void setOperationListener(final IOperationListener operationListener)
+            sharedConnection.getConfig()
+                    .setFeature(DatabaseConfig.FEATURE_CASE_SENSITIVE_TABLE_NAMES, true);
+            final AtomicReference<IDataSet> datasetOperatedOn = new AtomicReference<>();
+            final DatabaseOperation recordingOperation = new DatabaseOperation()
             {
-                // deliberately drops the executor's wrapper
-            }
+                @Override
+                public void execute(final IDatabaseConnection connection, final IDataSet dataSet)
+                {
+                    datasetOperatedOn.set(dataSet);
+                }
+            };
+            final AtomicInteger getConnectionCalls = new AtomicInteger();
+            final AbstractDatabaseTester realTester = new AbstractDatabaseTester()
+            {
+                @Override
+                public IDatabaseConnection getConnection()
+                {
+                    getConnectionCalls.incrementAndGet();
+                    return sharedConnection;
+                }
 
+                @Override
+                public DatabaseOperation getSetUpOperation()
+                {
+                    return recordingOperation;
+                }
+            };
+            final DbUnitPrep prep =
+                    WithTwoDifferentlyCasedPrepFiles.class.getAnnotation(DbUnitPrep.class);
+            final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration.from(
+                    WithTwoDifferentlyCasedPrepFiles.class, null, prep, null, null, null, null);
+            final AnnotatedTestExecutor executor =
+                    new AnnotatedTestExecutor(configuration, realTester, null);
+
+            executor.beforeTest();
+            executor.afterTest(false);
+
+            assertThat(datasetOperatedOn.get().getTableNames())
+                    .as("With case sensitive table names on, the setup operation must run on a"
+                            + " dataset that keeps the two differently cased tables apart.")
+                    .containsExactlyInAnyOrder("ACCOUNT", "account");
+            assertThat(getConnectionCalls.get())
+                    .as("Reading the case sensitivity must not resolve a second connection.")
+                    .isEqualTo(1);
+        } finally
+        {
+            sharedConnection.close();
+        }
+    }
+
+    @Test
+    void testAfterTest_classicPathTrustedPiggybackNeverFires_safetyNetBaselineCatchesALeakedRow()
+            throws Exception
+    {
+        // ClassicRowCountCheck.canPiggybackBaselineOn() trusts a real AbstractDatabaseTester
+        // that keeps the executor's listener, does not override onSetup() and has a setup
+        // operation other than NONE. This tester breaks that contract: its setup operation is
+        // CLEAN_INSERT when the executor asks and NONE once onSetup() runs, so onSetup()
+        // retrieves no connection and the piggyback never fires. The safety net after onSetup()
+        // must still capture a baseline, or the row the test leaves behind goes unnoticed.
+        final IDatabaseConnection database = InMemoryDatabaseConnection.create("PUBLIC");
+        try
+        {
+            try (Statement statement = database.getConnection().createStatement())
+            {
+                statement.execute("CREATE TABLE ACCOUNT (ID INT PRIMARY KEY)");
+            }
+            database.getConfig().setFeature(DatabaseConfig.FEATURE_ROW_COUNT_CHECK, true);
+            final AtomicInteger setUpOperationCalls = new AtomicInteger();
+            final AbstractDatabaseTester contractBreakingTester = new AbstractDatabaseTester()
+            {
+                @Override
+                public IDatabaseConnection getConnection()
+                {
+                    return database;
+                }
+
+                @Override
+                public DatabaseOperation getSetUpOperation()
+                {
+                    return setUpOperationCalls.getAndIncrement() == 0
+                            ? DatabaseOperation.CLEAN_INSERT
+                            : DatabaseOperation.NONE;
+                }
+            };
+            contractBreakingTester
+                    .setOperationListener(IOperationListener.NO_OP_OPERATION_LISTENER);
+            contractBreakingTester.setDataSet(new DefaultDataSet());
+            final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                    .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
+            final AnnotatedTestExecutor executor =
+                    new AnnotatedTestExecutor(configuration, contractBreakingTester, null, false);
+
+            executor.beforeTest();
+            try (Statement statement = database.getConnection().createStatement())
+            {
+                statement.execute("INSERT INTO ACCOUNT VALUES (1)");
+            }
+            final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+            assertThat(thrown)
+                    .as("The safety net captured a baseline after onSetup(), so the row the test"
+                            + " left in ACCOUNT is caught as a leak.")
+                    .isInstanceOf(UnexpectedRowCountException.class);
+        } finally
+        {
+            database.close();
+        }
+    }
+
+    @Test
+    void testBeforeTest_noVerifySpec_parsesEachExpectedFileOnceAndVerifiesItsTables()
+            throws Exception
+    {
+        CountingFlatXmlDataFileLoader.loadedPaths.clear();
+        final AbstractDatabaseTester realTester = new AbstractDatabaseTester()
+        {
             @Override
             public IDatabaseConnection getConnection() throws Exception
             {
                 return InMemoryDatabaseConnection.create("PUBLIC");
             }
         };
-        listenerSwallowingTester.setDataSet(new DefaultDataSet());
-        final DbUnitRowCountCheck rowCountCheck =
-                WithBareRowCountCheck.class.getAnnotation(DbUnitRowCountCheck.class);
+        final DbUnitConfig config =
+                WithCountingLoaderAndExpected.class.getAnnotation(DbUnitConfig.class);
+        final DbUnitExpected expected =
+                WithCountingLoaderAndExpected.class.getAnnotation(DbUnitExpected.class);
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration.from(
-                AnnotatedTestExecutorTest.class, null, null, null, null, null, rowCountCheck);
+                WithCountingLoaderAndExpected.class, config, null, null, expected, null, null);
         final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, listenerSwallowingTester, null);
+                new AnnotatedTestExecutor(configuration, realTester, null);
 
-        assertThatCode(() ->
-        {
-            executor.beforeTest();
-            executor.afterTest(false);
-        }).as("The safety net captures the baseline from a connection of its own after"
-                + " onSetup(), and the empty dataset means the verify still passes.")
-                .doesNotThrowAnyException();
+        executor.beforeTest();
+
+        assertThat(CountingFlatXmlDataFileLoader.loadedPaths)
+                .as("With no verify spec declared, the tables to verify come from the expected"
+                        + " dataset the test case loads anyway, so a file is parsed once per"
+                        + " test, not once to list its tables and again to compare.")
+                .hasSize(1);
+        final DefaultPrepAndExpectedTestCase testCase =
+                (DefaultPrepAndExpectedTestCase) executor.getPrepAndExpectedTestCase();
+        assertThat(testCase.getVerifyTableDefs())
+                .as("One default definition is still derived per table of the expected dataset.")
+                .extracting(VerifyTableDefinition::getTableName)
+                .containsExactly("ACCOUNT", "CUSTOMER");
+        executor.afterTest(true);
     }
 
     @Test
@@ -3372,10 +5148,11 @@ class AnnotatedTestExecutorTest
     {
         // A subclass that overrides onSetup() is not guaranteed to route through
         // executeOperation() and notify the listener, and might apply the setup operation some
-        // other way. canPiggybackRowCountBaseline() must decline it, so the baseline is captured
-        // eagerly BEFORE onSetup() - a baseline captured afterward (as the after-the-fact safety
-        // net would) already includes the rows onSetup() inserts, hiding the very leak the check
-        // exists to catch. Here onSetup() bumps ACCOUNT 5 -> 6; the baseline must read 5.
+        // other way. ClassicRowCountCheck.canPiggybackBaselineOn() must decline it, so the
+        // baseline is captured eagerly BEFORE onSetup() - a baseline captured afterward (as the
+        // after-the-fact safety net would) already includes the rows onSetup() inserts, hiding
+        // the very leak the check exists to catch. Here onSetup() bumps ACCOUNT 5 -> 6; the
+        // baseline must read 5.
         final AtomicInteger accountRows = new AtomicInteger(5);
         stubEnabledConnection("ACCOUNT");
         when(connection.getRowCount("ACCOUNT")).thenAnswer(invocation -> accountRows.get());
@@ -3397,7 +5174,7 @@ class AnnotatedTestExecutorTest
         final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
                 .from(AnnotatedTestExecutorTest.class, null, null, null, null, null, null);
         final AnnotatedTestExecutor executor =
-                new AnnotatedTestExecutor(configuration, overridingTester, null);
+                new AnnotatedTestExecutor(configuration, overridingTester, null, false);
 
         executor.beforeTest();
         final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
@@ -3422,9 +5199,56 @@ class AnnotatedTestExecutorTest
         final JdbcDatabaseTester jdbcTester = spy(new JdbcDatabaseTester("org.h2.Driver",
                 "jdbc:h2:mem:left_open_connection_executor", null, null, null, provider));
         lenient().doReturn(connection).when(jdbcTester).getConnection();
-        when(connection.getConfig()).thenReturn(new DatabaseConfig());
+        // lenient(): a caller that only resolves and releases the connection never reads its
+        // configuration, which strict stubbing would flag as an unused stubbing.
+        lenient().when(connection.getConfig()).thenReturn(new DatabaseConfig());
         stubOpenJdbcConnection();
         return jdbcTester;
+    }
+
+    /**
+     * A {@link #jdbcTesterReturningTheConnection(CachingConnectionProvider)} whose listener is
+     * the no-op one, the signal that its connections are managed elsewhere, as it is before the
+     * executor under test wraps it.
+     */
+    private JdbcDatabaseTester jdbcTesterLeavingItsConnectionOpen(
+            final CachingConnectionProvider provider) throws Exception
+    {
+        final JdbcDatabaseTester jdbcTester = jdbcTesterReturningTheConnection(provider);
+        jdbcTester.setOperationListener(IOperationListener.NO_OP_OPERATION_LISTENER);
+        clearInvocations(jdbcTester);
+        return jdbcTester;
+    }
+
+    /**
+     * A {@link #jdbcTesterReturningTheConnection(CachingConnectionProvider)} without a provider,
+     * so it opens a new connection on every call, that runs no database operation, so only the
+     * executor under test decides what happens to the connection it resolves from it.
+     */
+    private JdbcDatabaseTester jdbcTesterOpeningANewConnectionOnEachCall() throws Exception
+    {
+        final JdbcDatabaseTester jdbcTester = jdbcTesterReturningTheConnection(null);
+        jdbcTester.setSetUpOperation(DatabaseOperation.NONE);
+        jdbcTester.setTearDownOperation(DatabaseOperation.NONE);
+        return jdbcTester;
+    }
+
+    private static boolean isClosed(final IDatabaseConnection databaseConnection)
+            throws SQLException
+    {
+        final Connection jdbcConnection = databaseConnection.getConnection();
+        return jdbcConnection.isClosed();
+    }
+
+    private static List<Boolean> closedStatesOf(final List<IDatabaseConnection> connections)
+            throws SQLException
+    {
+        final List<Boolean> closedStates = new ArrayList<>();
+        for (final IDatabaseConnection databaseConnection : connections)
+        {
+            closedStates.add(isClosed(databaseConnection));
+        }
+        return closedStates;
     }
 
     private static ListAppender<ILoggingEvent> startCapturingLogOf(final Class<?> loggedClass)
@@ -3466,6 +5290,16 @@ class AnnotatedTestExecutorTest
             throws Exception
     {
         when(tester.getConnection()).thenReturn(connection);
+        stubCountingConnection(rowCountCheckFeature, tableNames);
+    }
+
+    /**
+     * Stubs {@link #connection} as {@link #stubConnection(boolean, String...)} does, for a test
+     * whose own tester hands it out instead of the {@link #tester} mock.
+     */
+    private void stubCountingConnection(final boolean rowCountCheckFeature,
+            final String... tableNames) throws Exception
+    {
         final DatabaseConfig databaseConfig = new DatabaseConfig();
         databaseConfig.setFeature(DatabaseConfig.FEATURE_ROW_COUNT_CHECK, rowCountCheckFeature);
         when(connection.getConfig()).thenReturn(databaseConfig);
@@ -3490,7 +5324,239 @@ class AnnotatedTestExecutorTest
         lenient().when(jdbcConnection.isClosed()).thenReturn(false);
     }
 
+    /**
+     * A {@link DefaultPrepAndExpectedTestCase} mock as its owner builds one for injection: with
+     * the loader dbUnit needs of it to read the test's files, as dbUnit gives an injected instance
+     * none.
+     */
+    private DefaultPrepAndExpectedTestCase injectedDefaultTestCase()
+    {
+        final DefaultPrepAndExpectedTestCase testCase = mock(DefaultPrepAndExpectedTestCase.class);
+        lenient().when(testCase.getDataFileLoader()).thenReturn(mock(DataFileLoader.class));
+        return testCase;
+    }
+
+    /**
+     * A {@link RecordingAbstractDatabaseTester} that hands out the {@link #connection} mock, which
+     * reports a default {@link DatabaseConfig} and an open JDBC connection.
+     */
+    private RecordingAbstractDatabaseTester testerWithConnection() throws Exception
+    {
+        final RecordingAbstractDatabaseTester ownTester = new RecordingAbstractDatabaseTester();
+        ownTester.connection = connection;
+        lenient().when(connection.getConfig()).thenReturn(new DatabaseConfig());
+        stubOpenJdbcConnection();
+        return ownTester;
+    }
+
+    /**
+     * Resolves the configuration of a test that declares what {@code annotatedClasses} declare,
+     * the first class declaring an annotation type naming the one that counts.
+     */
+    private static AnnotatedTestConfiguration configurationOf(
+            final Class<?>... annotatedClasses)
+    {
+        FakeAnnotationLookup lookup = new FakeAnnotationLookup(AnnotatedTestExecutorTest.class);
+        for (final Class<?> annotatedClass : annotatedClasses)
+        {
+            for (final Annotation annotation : annotatedClass.getDeclaredAnnotations())
+            {
+                lookup = lookup.finding(annotation, annotatedClass);
+            }
+        }
+        return AnnotatedTestConfiguration.from(lookup);
+    }
+
     // ---- fixtures ----
+
+    static class WithNothing
+    {
+    }
+
+    @DbUnitConfig(prepAndExpectedTestCase = RecordingPrepAndExpectedTestCase.class)
+    static class BuildsRecordingTestCase
+    {
+    }
+
+    @DbUnitConfig(prepAndExpectedTestCase = MismatchingTestCase.class)
+    static class BuildsMismatchingTestCase
+    {
+    }
+
+    @DbUnitConfig(prepAndExpectedTestCase = PrepRowCountsTestCase.class)
+    static class BuildsPrepRowCountsTestCase
+    {
+    }
+
+    /**
+     * A built test case whose {@code postTest()} reports the row count differences a test puts in
+     * {@link #differences}, and whose prep dataset holds the {@code ACCOUNT} and {@code ORDERS}
+     * tables. It runs no operation, so the setup and teardown operations it is given are only
+     * read.
+     */
+    public static class PrepRowCountsTestCase extends DefaultPrepAndExpectedTestCase
+    {
+        static List<RowCountDifference> differences = new ArrayList<>();
+
+        static IDataSet expectedDataset;
+
+        public PrepRowCountsTestCase(final DataFileLoader dataFileLoader,
+                final IDatabaseTester tester)
+        {
+            super(dataFileLoader, tester);
+        }
+
+        @Override
+        public void configureTest(final VerifyTableDefinition[] verifyTableDefinitions,
+                final String[] prepDataFiles, final String[] expectedDataFiles)
+        {
+        }
+
+        @Override
+        public void preTest()
+        {
+        }
+
+        @Override
+        public IDataSet getPrepDataset()
+        {
+            try
+            {
+                return new DefaultDataSet(new DefaultTable("ACCOUNT"), new DefaultTable("ORDERS"));
+            } catch (final DataSetException e)
+            {
+                throw new IllegalStateException(e);
+            }
+        }
+
+        @Override
+        public IDataSet getExpectedDataset()
+        {
+            return expectedDataset;
+        }
+
+        @Override
+        public void postTest(final boolean verifyData) throws Exception
+        {
+            throw new UnexpectedRowCountException(differences);
+        }
+    }
+
+    private static IDataSet expectedDatasetOf(final String... tableNames) throws DataSetException
+    {
+        final DefaultDataSet dataSet = new DefaultDataSet();
+        for (final String tableName : tableNames)
+        {
+            dataSet.addTable(new DefaultTable(tableName));
+        }
+        return dataSet;
+    }
+
+    @DbUnitSetUpOperation(DbUnitOperation.CLEAN_INSERT)
+    static class WithCleanInsertSetUp
+    {
+    }
+
+    @DbUnitSetUpOperation(DbUnitOperation.INSERT)
+    static class WithInsertSetUp
+    {
+    }
+
+    @DbUnitSetUpOperation(DbUnitOperation.REFRESH)
+    static class WithRefreshSetUp
+    {
+    }
+
+    @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
+    static class WithDeleteAllTearDown
+    {
+    }
+
+    @DbUnitTearDownOperation(DbUnitOperation.TRUNCATE_TABLE)
+    static class WithTruncateTableTearDown
+    {
+    }
+
+    @DbUnitTearDownOperation(DbUnitOperation.DELETE)
+    static class WithDeleteTearDown
+    {
+    }
+
+    /**
+     * A built test case whose {@code postTest()} reports a row count mismatch that already has a
+     * failure attached to it, as a close failure would be. The mismatch is in the {@code ACCOUNT}
+     * table, which its prep dataset holds.
+     */
+    public static class MismatchingTestCase extends DefaultPrepAndExpectedTestCase
+    {
+        static UnexpectedRowCountException thrown;
+
+        public MismatchingTestCase(final DataFileLoader dataFileLoader,
+                final IDatabaseTester tester)
+        {
+            super(dataFileLoader, tester);
+        }
+
+        @Override
+        public void configureTest(final VerifyTableDefinition[] verifyTableDefinitions,
+                final String[] prepDataFiles, final String[] expectedDataFiles)
+        {
+        }
+
+        @Override
+        public void preTest()
+        {
+        }
+
+        @Override
+        public IDataSet getPrepDataset()
+        {
+            try
+            {
+                return new DefaultDataSet(new DefaultTable("ACCOUNT"));
+            } catch (final DataSetException e)
+            {
+                throw new IllegalStateException(e);
+            }
+        }
+
+        @Override
+        public void postTest(final boolean verifyData) throws Exception
+        {
+            thrown = new UnexpectedRowCountException(
+                    Arrays.asList(new RowCountDifference("ACCOUNT", 0, 5)));
+            thrown.addSuppressed(new IllegalStateException("close failed"));
+            throw thrown;
+        }
+    }
+
+    @DbUnitConfig(properties = @DbUnitProperty(name = "batchSize", value = "50"))
+    @DbUnitPrep("prep.xml")
+    @DbUnitSetUpOperation(DbUnitOperation.REFRESH)
+    @DbUnitExpected("expected.xml")
+    @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
+    @DbUnitRowCountCheck(exclude = "IGNORED_TABLE")
+    static class WithEveryAnnotation
+    {
+    }
+
+    /** Records the tables of every dataset it is run on and touches no database. */
+    private static final class RecordingDatabaseOperation extends DatabaseOperation
+    {
+        private final List<List<String>> executedTableNames = new ArrayList<>();
+
+        @Override
+        public void execute(final IDatabaseConnection connection, final IDataSet dataSet)
+                throws DatabaseUnitException
+        {
+            executedTableNames.add(Arrays.asList(dataSet.getTableNames()));
+        }
+
+        private List<List<String>> getExecutedTableNames()
+        {
+            return executedTableNames;
+        }
+    }
 
     @DbUnitPrep("prep.xml")
     static class WithPrep
@@ -3502,45 +5568,28 @@ class AnnotatedTestExecutorTest
     {
     }
 
-    @DbUnitConfig(closeConnectionAfterTest = false)
-    static class WithCloseConnectionAfterTestFalse
-    {
-    }
-
-    @DbUnitConfig(closeConnectionAfterTest = false)
-    @DbUnitExpected("expected.xml")
-    static class WithCloseConnectionAfterTestFalseAndExpected
-    {
-    }
-
-    @DbUnitConfig(closeConnectionAfterTest = false)
-    @DbUnitSetup(operation = DbUnitOperation.NONE)
-    static class WithCloseConnectionAfterTestFalseAndSetupNoPrep
-    {
-    }
-
     @DbUnitConfig(dataFileLoader = FlatXmlDataFileLoader.class)
     @DbUnitExpected("expected.xml")
     static class WithDataFileLoaderAndExpected
     {
     }
 
-    @DbUnitSetup(operation = DbUnitOperation.NONE)
+    @DbUnitSetUpOperation(DbUnitOperation.NONE)
     static class WithSetupNoPrep
     {
     }
 
-    @DbUnitSetup
+    @DbUnitSetUpOperation
     static class WithBareSetupNoPrep
     {
     }
 
-    @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+    @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
     static class WithTearDown
     {
     }
 
-    @DbUnitTearDown
+    @DbUnitTearDownOperation
     static class WithBareTearDown
     {
     }
@@ -3561,9 +5610,27 @@ class AnnotatedTestExecutorTest
     {
     }
 
+    @DbUnitRowCountCheck(enabled = false)
+    static class WithDisabledRowCountCheck
+    {
+    }
+
     @DbUnitExpected("expected.xml")
     static class WithExpected
     {
+    }
+
+    @DbUnitConfig(verifyDefinitions = RulesCatalog.class)
+    @DbUnitExpected("expected.xml")
+    static class WithCatalogAndExpected
+    {
+    }
+
+    /** Public, so the resolver can read its constants whatever package the test runs in. */
+    public static class RulesCatalog
+    {
+        public static final VerifyTableDefinition ACCOUNT =
+                new VerifyTableDefinition("ACCOUNT", new String[] {"UPDATED_AT"});
     }
 
     @DbUnitExpected("only-the-injected-loader-reads.custom")
@@ -3583,6 +5650,25 @@ class AnnotatedTestExecutorTest
     {
     }
 
+    @DbUnitConfig(dataFileLoader = CountingFlatXmlDataFileLoader.class)
+    @DbUnitExpected("expected.xml")
+    static class WithCountingLoaderAndExpected
+    {
+    }
+
+    /** Records every path it is asked to load, to prove how often a file is parsed. */
+    public static class CountingFlatXmlDataFileLoader extends FlatXmlDataFileLoader
+    {
+        static final List<String> loadedPaths = new ArrayList<>();
+
+        @Override
+        public IDataSet load(final String filename)
+        {
+            loadedPaths.add(filename);
+            return super.load(filename);
+        }
+    }
+
     @DbUnitConfig(prepAndExpectedTestCase = RecordingPrepAndExpectedTestCase.class)
     @DbUnitExpected("expected.xml")
     static class WithRecordingTestCase
@@ -3600,20 +5686,25 @@ class AnnotatedTestExecutorTest
     {
     }
 
-    @DbUnitConfig(closeConnectionAfterTest = false,
-            properties = @DbUnitProperty(name = "batchSize", value = "50"))
-    static class WithPropertiesOnKeptConnection
+    @DbUnitConfig(properties = @DbUnitProperty(name = "datatypeFactory",
+            value = "org.dbunit.annotation.runtime.AnnotatedTestExecutorTest"
+                    + "$UninstantiableDataTypeFactory"))
+    static class WithUninstantiableDataTypeFactory
     {
     }
 
-    @DbUnitConfig(
-            properties = @DbUnitProperty(name = "datatypeFactory", value = "not.a.real.ClassName"))
-    static class WithInvalidProperty
+    @DbUnitConfig(properties = @DbUnitProperty(name = "batchedStatements", value = "yes"))
+    static class WithBooleanPropertyYes
+    {
+    }
+
+    /** A data type factory that dbUnit can load but not instantiate. */
+    public abstract static class UninstantiableDataTypeFactory extends DefaultDataTypeFactory
     {
     }
 
     @DbUnitConfig(properties = @DbUnitProperty(name = "batchSize", value = "50"))
-    @DbUnitSetup(operation = DbUnitOperation.NONE)
+    @DbUnitSetUpOperation(DbUnitOperation.NONE)
     static class WithPropertiesAndSetupNone
     {
     }
@@ -3622,6 +5713,28 @@ class AnnotatedTestExecutorTest
     @DbUnitExpected("expected.xml")
     static class WithPropertiesAndExpected
     {
+    }
+
+    @DbUnitConfig(prepAndExpectedTestCase = ThrowingPostTestAndUndoTestCase.class)
+    @DbUnitExpected("expected.xml")
+    static class WithThrowingPostTestAndUndoTestCase
+    {
+    }
+
+    /** A {@link ThrowingUndoTestCase} whose {@code postTest()} fails as well. */
+    public static class ThrowingPostTestAndUndoTestCase extends ThrowingUndoTestCase
+    {
+        public ThrowingPostTestAndUndoTestCase(final DataFileLoader dataFileLoader,
+                final IDatabaseTester tester) throws Exception
+        {
+            super(dataFileLoader, tester);
+        }
+
+        @Override
+        public void postTest(final boolean verifyData)
+        {
+            throw new IllegalStateException("postTest failed on purpose.");
+        }
     }
 
     @DbUnitConfig(prepAndExpectedTestCase = ThrowingUndoTestCase.class)
@@ -3637,10 +5750,9 @@ class AnnotatedTestExecutorTest
     public static class ThrowingUndoTestCase extends CachingConnectionPrepAndExpectedTestCase
     {
         public ThrowingUndoTestCase(final DataFileLoader dataFileLoader,
-                final IDatabaseTester tester, final boolean closeConnectionAfterTest)
-                throws Exception
+                final IDatabaseTester tester) throws Exception
         {
-            super(dataFileLoader, tester, closeConnectionAfterTest);
+            super(dataFileLoader, tester);
         }
 
         @Override
@@ -3662,9 +5774,54 @@ class AnnotatedTestExecutorTest
     {
     }
 
-    @DbUnitConfig(failureHandler = DiffCollectingFailureHandler.class)
+    @DbUnitConfig(prepAndExpectedTestCase = FailingToTakeItsOperationTestCase.class)
     @DbUnitExpected("expected.xml")
-    static class WithFailureHandlerAndExpected
+    static class WithFailingToTakeItsOperationTestCase
+    {
+    }
+
+    /** A constructible test case that fails when it is given its setup operation. */
+    public static class FailingToTakeItsOperationTestCase
+            extends CachingConnectionPrepAndExpectedTestCase
+    {
+        public FailingToTakeItsOperationTestCase(final DataFileLoader dataFileLoader,
+                final IDatabaseTester tester) throws Exception
+        {
+            super(dataFileLoader, tester);
+        }
+
+        @Override
+        public void setSetUpOperation(final DatabaseOperation setUpOperation)
+        {
+            throw new IllegalStateException("Set up failed on purpose.");
+        }
+    }
+
+    @DbUnitConfig(prepAndExpectedTestCase = RecordingPrepAndExpectedTestCase.class,
+            failureHandler = DiffCollectingFailureHandler.class)
+    @DbUnitExpected("expected.xml")
+    static class WithFailureHandlerAndRecordingTestCase
+    {
+    }
+
+    @DbUnitConfig(prepAndExpectedTestCase = RecordingPrepAndExpectedTestCase.class,
+            properties = @DbUnitProperty(name = "batchSize", value = "50"))
+    @DbUnitExpected("expected.xml")
+    static class WithPropertiesAndRecordingTestCase
+    {
+    }
+
+    @DbUnitConfig(prepAndExpectedTestCase = CachingConnectionPrepAndExpectedTestCase.class,
+            properties = @DbUnitProperty(name = "batchSize", value = "50"))
+    @DbUnitExpected("expected.xml")
+    static class WithPropertiesAndCachingTestCase
+    {
+    }
+
+    @DbUnitConfig(prepAndExpectedTestCase = OverridesSetUpDatabaseConfigTestCase.class,
+            properties = @DbUnitProperty(name = "batchSize", value = "50"))
+    @DbUnitExpected("expected.xml")
+    static class WithPropertiesAndOverridingTestCase
     {
     }
 
@@ -3676,9 +5833,10 @@ class AnnotatedTestExecutorTest
      */
     public static class OverridesSetUpDatabaseConfigTestCase extends DefaultPrepAndExpectedTestCase
     {
-        OverridesSetUpDatabaseConfigTestCase(final IDatabaseTester tester)
+        public OverridesSetUpDatabaseConfigTestCase(final DataFileLoader dataFileLoader,
+                final IDatabaseTester tester)
         {
-            super(new FlatXmlDataFileLoader(), tester, true);
+            super(dataFileLoader, tester);
         }
 
         @Override
@@ -3705,30 +5863,39 @@ class AnnotatedTestExecutorTest
     }
 
     /**
-     * Records the constructor arguments and lifecycle calls it received, standing in for
+     * Records the constructor arguments and lifecycle calls it received, standing in for a real
      * {@link org.dbunit.DefaultPrepAndExpectedTestCase} so these tests do not need a real
      * database connection.
      */
-    public static class RecordingPrepAndExpectedTestCase implements PrepAndExpectedTestCase
+    public static class RecordingPrepAndExpectedTestCase extends DefaultPrepAndExpectedTestCase
     {
         static RecordingPrepAndExpectedTestCase instance;
         static IDatabaseTester lastTester;
-        static boolean lastCloseConnectionAfterTest;
         static boolean throwFromConstructor;
 
         boolean preTestCalled;
         boolean postTestCalled;
 
-        public RecordingPrepAndExpectedTestCase(final DataFileLoader dataFileLoader,
-                final IDatabaseTester tester, final boolean closeConnectionAfterTest)
+        DatabaseOperation setUpOperationInEffect() throws Exception
         {
+            return getSetUpOperation();
+        }
+
+        DatabaseOperation tearDownOperationInEffect() throws Exception
+        {
+            return getTearDownOperation();
+        }
+
+        public RecordingPrepAndExpectedTestCase(final DataFileLoader dataFileLoader,
+                final IDatabaseTester tester)
+        {
+            super(dataFileLoader, tester);
             if (throwFromConstructor)
             {
                 throw new RuntimeException("simulated constructor failure");
             }
             instance = this;
             lastTester = tester;
-            lastCloseConnectionAfterTest = closeConnectionAfterTest;
         }
 
         @Override
@@ -3744,128 +5911,27 @@ class AnnotatedTestExecutorTest
         }
 
         @Override
-        public void preTest(final VerifyTableDefinition[] verifyTables,
-                final String[] prepDataFiles, final String[] expectedDataFiles)
-                throws Exception
-        {
-            configureTest(verifyTables, prepDataFiles, expectedDataFiles);
-            preTest();
-        }
-
-        @Override
-        public Object runTest(final VerifyTableDefinition[] verifyTables,
-                final String[] prepDataFiles, final String[] expectedDataFiles,
-                final org.dbunit.PrepAndExpectedTestCaseSteps testSteps) throws Exception
-        {
-            return null;
-        }
-
-        @Override
-        public void postTest()
-        {
-        }
-
-        @Override
         public void postTest(final boolean verifyData)
         {
             postTestCalled = true;
         }
-
-        @Override
-        public void verifyData()
-        {
-        }
-
-        @Override
-        public void cleanupData()
-        {
-        }
-
-        @Override
-        public IDataSet getPrepDataset()
-        {
-            return null;
-        }
-
-        @Override
-        public IDataSet getExpectedDataset()
-        {
-            return null;
-        }
     }
 
     /**
-     * A {@link PrepAndExpectedTestCase} with only a no-arg constructor, lacking the
-     * {@code (DataFileLoader, IDatabaseTester, boolean)} constructor shape that
+     * A {@link DefaultPrepAndExpectedTestCase} with only a no-arg constructor, lacking the
+     * {@code (DataFileLoader, IDatabaseTester)} constructor shape that
      * {@link AnnotatedTestExecutor} requires when it constructs the configured class.
      */
-    public static class NoMatchingConstructorTestCase implements PrepAndExpectedTestCase
+    public static class NoMatchingConstructorTestCase extends DefaultPrepAndExpectedTestCase
     {
-        @Override
-        public void configureTest(final VerifyTableDefinition[] verifyTableDefinitions,
-                final String[] prepDataFiles, final String[] expectedDataFiles)
-        {
-        }
-
-        @Override
-        public void preTest()
-        {
-        }
-
-        @Override
-        public void preTest(final VerifyTableDefinition[] verifyTables,
-                final String[] prepDataFiles, final String[] expectedDataFiles)
-        {
-        }
-
-        @Override
-        public Object runTest(final VerifyTableDefinition[] verifyTables,
-                final String[] prepDataFiles, final String[] expectedDataFiles,
-                final org.dbunit.PrepAndExpectedTestCaseSteps testSteps)
-        {
-            return null;
-        }
-
-        @Override
-        public void postTest()
-        {
-        }
-
-        @Override
-        public void postTest(final boolean verifyData)
-        {
-        }
-
-        @Override
-        public void verifyData()
-        {
-        }
-
-        @Override
-        public void cleanupData()
-        {
-        }
-
-        @Override
-        public IDataSet getPrepDataset()
-        {
-            return null;
-        }
-
-        @Override
-        public IDataSet getExpectedDataset()
-        {
-            return null;
-        }
     }
 
     /**
-     * A {@link PrepAndExpectedTestCase} that caches its {@code getReusableConnection()} result
-     * the way a real one reused across test methods would, and overrides no {@code @DbUnitConfig}
-     * setter - so a configured {@code @DbUnitProperty} makes {@code beforeExpectedTest()} fail
-     * fast before {@code configureTest()}. Two constructors: one for direct injection in a test,
-     * one {@code (DataFileLoader, IDatabaseTester, boolean)} so {@code AnnotatedTestExecutor}
-     * can construct it from {@code @DbUnitConfig.prepAndExpectedTestCase}.
+     * A {@link DefaultPrepAndExpectedTestCase} that caches its {@code getReusableConnection()}
+     * result the way a real one reused across test methods would. Two constructors: one for
+     * direct injection in a test, one {@code (DataFileLoader, IDatabaseTester)} so
+     * {@code AnnotatedTestExecutor} can construct it from
+     * {@code @DbUnitConfig.prepAndExpectedTestCase}.
      */
     public static class CachingConnectionPrepAndExpectedTestCase
             extends RecordingPrepAndExpectedTestCase
@@ -3873,17 +5939,17 @@ class AnnotatedTestExecutorTest
         private final IDatabaseConnection cached;
         boolean configureTestCalled;
 
-        CachingConnectionPrepAndExpectedTestCase(final IDatabaseConnection cached)
+        CachingConnectionPrepAndExpectedTestCase(final IDatabaseConnection cached,
+                final IDatabaseTester tester)
         {
-            super(new FlatXmlDataFileLoader(), null, true);
+            super(new FlatXmlDataFileLoader(), tester);
             this.cached = cached;
         }
 
         CachingConnectionPrepAndExpectedTestCase(final DataFileLoader dataFileLoader,
-                final IDatabaseTester tester, final boolean closeConnectionAfterTest)
-                throws Exception
+                final IDatabaseTester tester) throws Exception
         {
-            super(dataFileLoader, tester, closeConnectionAfterTest);
+            super(dataFileLoader, tester);
             this.cached = tester.getConnection();
         }
 
@@ -3902,6 +5968,176 @@ class AnnotatedTestExecutorTest
     }
 
     /**
+     * A custom tester as a user writes one by extending {@link AbstractDatabaseTester}: it opens
+     * a new connection to a database of its own on every call and holds none, so nothing but the
+     * code that takes a connection from it can close that connection. Records every connection
+     * it hands out.
+     */
+    static class TesterOpeningANewConnectionOnEachCall extends AbstractDatabaseTester
+    {
+        final List<IDatabaseConnection> handedOut = new ArrayList<>();
+
+        private final boolean rowCountCheckEnabled;
+
+        TesterOpeningANewConnectionOnEachCall(final boolean rowCountCheckEnabled)
+        {
+            this.rowCountCheckEnabled = rowCountCheckEnabled;
+        }
+
+        @Override
+        public IDatabaseConnection getConnection() throws Exception
+        {
+            final IDatabaseConnection opened = InMemoryDatabaseConnection.create();
+            final DatabaseConfig config = opened.getConfig();
+            config.setFeature(DatabaseConfig.FEATURE_ROW_COUNT_CHECK, rowCountCheckEnabled);
+            handedOut.add(opened);
+            return opened;
+        }
+    }
+
+    /**
+     * An {@link IDatabaseTester} type that overrides {@code getOperationListener()}, as
+     * {@link AbstractDatabaseTester} does, so a mock of it stands in for a tester that reports
+     * the listener it carries. A mock of {@link IDatabaseTester} itself does not: Mockito leaves
+     * the interface's default method where it is, so the mock's type does not override it.
+     */
+    abstract static class ListenerReportingTester implements IDatabaseTester
+    {
+        @Override
+        public abstract IOperationListener getOperationListener();
+    }
+
+    /**
+     * An {@link IDatabaseTester} written before {@code getOperationListener()} existed: it
+     * stores the listener it is given and notifies it the way
+     * {@link AbstractDatabaseTester#onSetup()} and {@code onTearDown()} do for an operation that
+     * is not {@code NONE}, but, not overriding {@code getOperationListener()}, reports none.
+     * Records every listener it is given, and runs no database operation.
+     */
+    static class TesterNotReportingItsListener implements IDatabaseTester
+    {
+        final List<IOperationListener> listenersSet = new ArrayList<>();
+        Runnable onSetupAction = () ->
+        {
+        };
+        int onSetupCalls;
+        int onTearDownCalls;
+
+        private final Supplier<IDatabaseConnection> connections;
+        private IOperationListener listener;
+        private IDataSet dataSet;
+        private DatabaseOperation setUpOperation = DatabaseOperation.CLEAN_INSERT;
+        private DatabaseOperation tearDownOperation = DatabaseOperation.NONE;
+
+        TesterNotReportingItsListener(final Supplier<IDatabaseConnection> connections)
+        {
+            this.connections = connections;
+        }
+
+        @Override
+        public void closeConnection(final IDatabaseConnection connection) throws Exception
+        {
+            connection.close();
+        }
+
+        @Override
+        public IDatabaseConnection getConnection()
+        {
+            return connections.get();
+        }
+
+        @Override
+        public IDataSet getDataSet()
+        {
+            return dataSet;
+        }
+
+        @Override
+        public DatabaseOperation getSetUpOperation()
+        {
+            return setUpOperation;
+        }
+
+        @Override
+        public DatabaseOperation getTearDownOperation()
+        {
+            return tearDownOperation;
+        }
+
+        @Override
+        public void setDataSet(final IDataSet dataSet)
+        {
+            this.dataSet = dataSet;
+        }
+
+        @Override
+        public void setSchema(final String schema)
+        {
+        }
+
+        @Override
+        public void setSetUpOperation(final DatabaseOperation setUpOperation)
+        {
+            this.setUpOperation = setUpOperation;
+        }
+
+        @Override
+        public void setTearDownOperation(final DatabaseOperation tearDownOperation)
+        {
+            this.tearDownOperation = tearDownOperation;
+        }
+
+        @Override
+        public void onSetup() throws Exception
+        {
+            onSetupCalls++;
+            onSetupAction.run();
+            runOperationNotifications(setUpOperation, true);
+        }
+
+        @Override
+        public void onTearDown() throws Exception
+        {
+            onTearDownCalls++;
+            runOperationNotifications(tearDownOperation, false);
+        }
+
+        @Override
+        public void setOperationListener(final IOperationListener operationListener)
+        {
+            listenersSet.add(operationListener);
+            listener = operationListener;
+        }
+
+        private void runOperationNotifications(final DatabaseOperation operation,
+                final boolean setUp) throws Exception
+        {
+            if (operation == DatabaseOperation.NONE)
+            {
+                return;
+            }
+            if (listener == null)
+            {
+                listener = new DefaultOperationListener();
+            }
+            final IDatabaseConnection retrieved = getConnection();
+            try
+            {
+                listener.connectionRetrieved(retrieved);
+            } finally
+            {
+                if (setUp)
+                {
+                    listener.operationSetUpFinished(retrieved);
+                } else
+                {
+                    listener.operationTearDownFinished(retrieved);
+                }
+            }
+        }
+    }
+
+    /**
      * A real {@link AbstractDatabaseTester} (so its dataset / operation state is genuine) whose
      * {@code onSetup()}/{@code onTearDown()} touch no database - {@code onTearDown()} just
      * records the teardown operation in effect at the moment it ran. Used to prove
@@ -3912,10 +6148,44 @@ class AnnotatedTestExecutorTest
         final List<DatabaseOperation> setUpOperationsRun = new ArrayList<>();
         final List<DatabaseOperation> tearDownOperationsRun = new ArrayList<>();
 
+        /** The name of every setter called on this tester, in order. */
+        final List<String> writes = new ArrayList<>();
+
+        /** The connection to hand out; none unless a test gives one. */
+        IDatabaseConnection connection;
+
         @Override
         public IDatabaseConnection getConnection()
         {
-            return null;
+            return connection;
+        }
+
+        @Override
+        public void setDataSet(final IDataSet dataSet)
+        {
+            writes.add("setDataSet");
+            super.setDataSet(dataSet);
+        }
+
+        @Override
+        public void setSetUpOperation(final DatabaseOperation setUpOperation)
+        {
+            writes.add("setSetUpOperation");
+            super.setSetUpOperation(setUpOperation);
+        }
+
+        @Override
+        public void setTearDownOperation(final DatabaseOperation tearDownOperation)
+        {
+            writes.add("setTearDownOperation");
+            super.setTearDownOperation(tearDownOperation);
+        }
+
+        @Override
+        public void setOperationListener(final IOperationListener operationListener)
+        {
+            writes.add("setOperationListener");
+            super.setOperationListener(operationListener);
         }
 
         @Override

@@ -23,7 +23,6 @@ package org.dbunit.database.connection;
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
-import org.dbunit.ConnectionPreservingOperationListener;
 import org.dbunit.IOperationListener;
 
 /**
@@ -32,46 +31,42 @@ import org.dbunit.IOperationListener;
  * {@link TestScopedConnection} consults its {@code ConnectionOwnership} in
  * {@link TestScopedConnection#release()}.
  *
- * <p>Three inputs, each read fresh at release time since the tester's listener and the
- * borrowing lifecycle's own state can both still change after this is constructed:
+ * <p>Two inputs, each read fresh at release time since the tester's listener and the
+ * test case's flag can both still change after this is constructed:
  *
  * <ol>
- * <li><b>{@code closeConnectionAfterTest}</b> - the {@code @DbUnitConfig} flag, {@code true} by
+ * <li><b>{@code closeConnectionAfterTest}</b> - the flag of the test case that holds the
+ * connection, such as {@link org.dbunit.DefaultPrepAndExpectedTestCase}'s, {@code true} by
  * default. {@code false} means a real owner exists elsewhere - a
  * {@link org.dbunit.database.CachingConnectionProvider}, an externally-supplied fixed
- * connection - and it, not this lifecycle, closes the connection.</li>
+ * connection - and it, not this lifecycle, closes the connection. A lifecycle with no test case
+ * supplies instead whether the connection is one it may close, such as the classic lifecycle of
+ * {@code AnnotatedTestExecutor} for a connection it resolved itself.</li>
  * <li><b>{@code testerListener}</b> - the tester's {@link IOperationListener}. When it is
- * (directly, or wrapped by a {@link ConnectionPreservingOperationListener})
  * {@link IOperationListener#NO_OP_OPERATION_LISTENER}, that is the established, pre-existing
  * signal that the connection is managed elsewhere and must not be closed.</li>
- * <li><b>{@code borrowingLifecycleRan}</b> - whether the borrowing lifecycle actually reached
- * the point of owning the connection. On the setup/teardown path a connection was actually
- * acquired; on the prep/expected path with an injected {@code @DbUnitTestCase}, its
- * {@code configureTest()} completed. When it did not - the injected instance threw before
- * {@code configureTest()}, so its own {@code postTest()}/{@code cleanupData()} never ran to
- * close the connection its way - closing here would strand that reused instance holding a
- * closed connection.</li>
  * </ol>
  *
  * <p>Truth table - "close" only when every input allows it:
  *
  * <pre>
- * closeConnectionAfterTest | listener unwraps to NO_OP | borrowing lifecycle ran | -&gt; decision
- * ------------------------- | ------------------------ | ----------------------- | -----------
- *          false            |            -             |            -            |    SKIP
- *          true             |           true           |            -            |    SKIP
- *          true             |          false           |          false          |    SKIP
- *          true             |          false           |          true           |    CLOSE
+ * closeConnectionAfterTest | listener is the no-op one | -&gt; decision
+ * ------------------------- | ------------------------- | -----------
+ *          false            |             -             |    SKIP
+ *          true             |            true           |    SKIP
+ *          true             |           false           |    CLOSE
  * </pre>
  *
- * <p>{@link #isLeftOpenByConfiguration()} answers the narrower question of the first two
- * rows, for a caller that needs to know the configuration leaves the connection to another
- * owner whatever the borrowing lifecycle did.
+ * <p>{@link #isLeftOpenByConfiguration()} answers whether either input leaves the connection
+ * to another owner, for a caller that needs to know.
  *
  * <p>{@link TestScopedConnection#release()} additionally skips a connection that is already
- * closed - an idempotency guard, not part of this decision: on the {@code @DbUnitExpected}
- * path the executor's borrowed connection and {@link org.dbunit.DefaultPrepAndExpectedTestCase}'s
+ * closed - an idempotency guard, not part of this decision: for an annotation-driven test the
+ * executor's borrowed connection and {@link org.dbunit.DefaultPrepAndExpectedTestCase}'s
  * are the same object, and whichever releases first closes it.
+ *
+ * <p>This type is internal to dbUnit's bindings; it is public only for use across
+ * dbUnit's packages and may change in a minor release.
  *
  * @author Jeff Jensen
  * @since 3.6.0
@@ -80,54 +75,46 @@ public class ConnectionOwnership
 {
     private final BooleanSupplier closeConnectionAfterTest;
     private final Supplier<IOperationListener> testerListener;
-    private final BooleanSupplier borrowingLifecycleRan;
 
     /**
-     * Creates an ownership decision from its three inputs, each a supplier read fresh every
+     * Creates an ownership decision from its two inputs, each a supplier read fresh every
      * time {@link #mayClose()} or {@link #isLeftOpenByConfiguration()} is called.
      *
-     * @param closeConnectionAfterTest Supplies the {@code @DbUnitConfig} flag.
+     * @param closeConnectionAfterTest Supplies the test case's flag, or where the lifecycle has
+     *            no test case flag to ask, whether the connection is one it may close.
      * @param testerListener Supplies the tester's current {@link IOperationListener}; may
-     *            supply {@code null}, treated as "not the no-op listener".
-     * @param borrowingLifecycleRan Supplies whether the borrowing lifecycle reached the point
-     *            of owning the connection.
+     *            supply {@code null}, treated as a listener that is not the no-op one.
      */
     public ConnectionOwnership(final BooleanSupplier closeConnectionAfterTest,
-            final Supplier<IOperationListener> testerListener,
-            final BooleanSupplier borrowingLifecycleRan)
+            final Supplier<IOperationListener> testerListener)
     {
         this.closeConnectionAfterTest = closeConnectionAfterTest;
         this.testerListener = testerListener;
-        this.borrowingLifecycleRan = borrowingLifecycleRan;
     }
 
     /**
      * Returns whether the borrowing lifecycle may close the connection it borrowed.
      *
-     * @return {@code true} only when the {@code closeConnectionAfterTest} flag is set, the
-     *         lifecycle actually ran, and the tester's listener does not unwrap to the no-op
-     *         listener.
+     * @return {@code true} only when the {@code closeConnectionAfterTest} flag is set and the
+     *         tester's listener is not the no-op one.
      */
     public boolean mayClose()
     {
-        return closeConnectionAfterTest.getAsBoolean() && borrowingLifecycleRan.getAsBoolean()
-                && !ConnectionPreservingOperationListener.unwrapsToNoOp(testerListener.get());
+        return closeConnectionAfterTest.getAsBoolean()
+                && testerListener.get() != IOperationListener.NO_OP_OPERATION_LISTENER;
     }
 
     /**
      * Returns whether the configuration leaves the connection open for another owner to
      * close: the {@code closeConnectionAfterTest} flag is {@code false}, or the tester's
-     * listener is (or wraps) {@link IOperationListener#NO_OP_OPERATION_LISTENER}. That is the
-     * first two rows of the truth table. {@link #mayClose()} also refuses when the borrowing
-     * lifecycle did not run, which is not the configuration's doing, so that input does not
-     * count here.
+     * listener is {@link IOperationListener#NO_OP_OPERATION_LISTENER}. That is the SKIP rows of
+     * the truth table.
      *
-     * @return {@code true} when the flag is not set or the tester's listener is the no-op
-     *         listener.
+     * @return {@code true} when the flag is not set or the tester's listener is the no-op one.
      */
     public boolean isLeftOpenByConfiguration()
     {
         return !closeConnectionAfterTest.getAsBoolean()
-                || ConnectionPreservingOperationListener.unwrapsToNoOp(testerListener.get());
+                || testerListener.get() == IOperationListener.NO_OP_OPERATION_LISTENER;
     }
 }

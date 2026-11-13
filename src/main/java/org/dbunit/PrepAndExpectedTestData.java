@@ -39,6 +39,12 @@ import java.util.Objects;
  * per-scenario "empty" constants a suite would otherwise declare into the shared
  * {@link #NONE}.
  * <p>
+ * {@link #verifyingExpectedTables(String[], String[])} describes a scenario that
+ * verifies every table of its expected data files instead of the tables given, the
+ * way a {@code @DbUnitExpected} that names only its dataset does, and
+ * {@link #verifyingExpectedTables(String[], String[], VerifyTableDefinition[])} gives
+ * some of those tables rules of their own.
+ * <p>
  * An instance carries no mutable state of its own: the constructor copies each
  * array in, every getter copies its array out, and a {@code null} array is
  * normalized to an empty one. The {@link VerifyTableDefinition} elements are
@@ -65,6 +71,8 @@ public class PrepAndExpectedTestData
     public static final PrepAndExpectedTestData NONE = new PrepAndExpectedTestData(
             NO_VERIFY_TABLE_DEFINITIONS, NO_DATA_FILES, NO_DATA_FILES);
 
+    private final boolean verifyingEveryExpectedTable;
+
     private final VerifyTableDefinition[] verifyTableDefinitions;
 
     private final String[] prepDataFiles;
@@ -87,6 +95,14 @@ public class PrepAndExpectedTestData
             final VerifyTableDefinition[] verifyTableDefinitions,
             final String[] prepDataFiles, final String[] expectedDataFiles)
     {
+        this(false, verifyTableDefinitions, prepDataFiles, expectedDataFiles);
+    }
+
+    private PrepAndExpectedTestData(final boolean verifyingEveryExpectedTable,
+            final VerifyTableDefinition[] verifyTableDefinitions,
+            final String[] prepDataFiles, final String[] expectedDataFiles)
+    {
+        this.verifyingEveryExpectedTable = verifyingEveryExpectedTable;
         this.verifyTableDefinitions = copyOrEmpty(verifyTableDefinitions);
         this.prepDataFiles = copyOrEmpty(prepDataFiles);
         this.expectedDataFiles = copyOrEmpty(expectedDataFiles);
@@ -106,6 +122,80 @@ public class PrepAndExpectedTestData
                 prepDataFiles, NO_DATA_FILES);
     }
 
+    /**
+     * Creates an instance that loads the given prep data files and verifies every table
+     * of the given expected data files, each with a default
+     * {@link VerifyTableDefinition}, the way a {@code @DbUnitExpected} that names only its
+     * dataset does.
+     * {@link #getVerifyTableDefinitions()} is empty for it, as the tables are the expected
+     * data's, known once it is loaded.
+     * <p>
+     * Only a {@link PrepAndExpectedTestCase} that reads the expected data itself can honor
+     * this, as {@link DefaultPrepAndExpectedTestCase} does; any other rejects it with an
+     * {@link UnsupportedOperationException}, as it would otherwise verify nothing. A subclass
+     * of {@link DefaultPrepAndExpectedTestCase} that overrides the array
+     * {@code configureTest()}, {@code preTest()} or {@code runTest()} is called for this bundle
+     * too, with one definition per table of the expected data files, which dbUnit derives by
+     * loading those files first.
+     *
+     * @param prepDataFiles The prep data files (as classpath resources) to load and insert
+     *            as seed data; {@code null} or empty loads none.
+     * @param expectedDataFiles The expected data files (as classpath resources) whose every
+     *            table is verified after the test runs.
+     * @return The instance.
+     * @throws IllegalArgumentException If {@code expectedDataFiles} is {@code null} or empty, as
+     *             the scenario would verify nothing. Use {@link #prepOnly(String...)} for a
+     *             scenario that verifies nothing.
+     * @since 3.6.0
+     */
+    public static PrepAndExpectedTestData verifyingExpectedTables(
+            final String[] prepDataFiles, final String[] expectedDataFiles)
+    {
+        return verifyingExpectedTables(prepDataFiles, expectedDataFiles,
+                NO_VERIFY_TABLE_DEFINITIONS);
+    }
+
+    /**
+     * Creates an instance that loads the given prep data files and verifies every table
+     * of the given expected data files: a table that {@code definitions} defines with that
+     * {@link VerifyTableDefinition}, matched by table name ignoring case, the others with a
+     * default one. A definition for a table the expected data files lack is not used.
+     * {@link #getVerifyTableDefinitions()} returns {@code definitions} for it.
+     * <p>
+     * Only a {@link PrepAndExpectedTestCase} that reads the expected data itself can honor
+     * this, as {@link DefaultPrepAndExpectedTestCase} does; any other rejects it with an
+     * {@link UnsupportedOperationException}, as it would otherwise verify nothing. A subclass
+     * of {@link DefaultPrepAndExpectedTestCase} that overrides the array
+     * {@code configureTest()}, {@code preTest()} or {@code runTest()} is called for this bundle
+     * too, with one definition per table of the expected data files, which dbUnit derives by
+     * loading those files first.
+     *
+     * @param prepDataFiles The prep data files (as classpath resources) to load and insert
+     *            as seed data; {@code null} or empty loads none.
+     * @param expectedDataFiles The expected data files (as classpath resources) whose every
+     *            table is verified after the test runs.
+     * @param definitions The rules of the tables that have any, such as the shared constants
+     *            of a suite; {@code null} or empty gives every table the default rules.
+     * @return The instance.
+     * @throws IllegalArgumentException If {@code expectedDataFiles} is {@code null} or empty, as
+     *             the scenario would verify nothing. Use {@link #prepOnly(String...)} for a
+     *             scenario that verifies nothing.
+     * @since 3.6.0
+     */
+    public static PrepAndExpectedTestData verifyingExpectedTables(
+            final String[] prepDataFiles, final String[] expectedDataFiles,
+            final VerifyTableDefinition[] definitions)
+    {
+        if (expectedDataFiles == null || expectedDataFiles.length == 0)
+        {
+            throw new IllegalArgumentException("verifyingExpectedTables() is given no expected"
+                    + " data file, so it would verify nothing: name the expected data files, or"
+                    + " use prepOnly() for a scenario that verifies nothing.");
+        }
+        return new PrepAndExpectedTestData(true, definitions, prepDataFiles,
+                expectedDataFiles);
+    }
+
     private static VerifyTableDefinition[] copyOrEmpty(
             final VerifyTableDefinition[] source)
     {
@@ -120,10 +210,46 @@ public class PrepAndExpectedTestData
     /**
      * Returns the table definitions to verify after the test runs.
      *
-     * @return A copy of the verify table definitions; empty if none.
+     * @return A copy of the verify table definitions; empty if none. When
+     *         {@link #isVerifyingEveryExpectedTable()}, the rules of the tables that have any.
      */
     public VerifyTableDefinition[] getVerifyTableDefinitions()
     {
+        return verifyTableDefinitions.clone();
+    }
+
+    /**
+     * Returns whether this verifies every table of the expected data files, each with a
+     * default {@link VerifyTableDefinition} unless {@link #getVerifyTableDefinitions()} defines
+     * it, instead of only the tables {@link #getVerifyTableDefinitions()} names.
+     *
+     * @return {@code true} when created by {@link #verifyingExpectedTables(String[], String[])}
+     *         or {@link #verifyingExpectedTables(String[], String[], VerifyTableDefinition[])}.
+     * @since 3.6.0
+     */
+    public boolean isVerifyingEveryExpectedTable()
+    {
+        return verifyingEveryExpectedTable;
+    }
+
+    /**
+     * Returns the table definitions an implementation that cannot derive them from the
+     * expected data passes on, as the default methods of {@link PrepAndExpectedTestCase} do.
+     *
+     * @param testCase The implementation about to receive them, named in the failure.
+     * @return A copy of the verify table definitions.
+     * @throws UnsupportedOperationException If this verifies every expected table, which that
+     *             implementation would silently not do.
+     */
+    VerifyTableDefinition[] getVerifyTableDefinitionsFor(final PrepAndExpectedTestCase testCase)
+    {
+        if (verifyingEveryExpectedTable)
+        {
+            throw new UnsupportedOperationException(testCase.getClass().getName()
+                    + " cannot verify every table of the expected data files, which would"
+                    + " verify nothing: pass the VerifyTableDefinitions of the tables to"
+                    + " verify instead of PrepAndExpectedTestData.verifyingExpectedTables().");
+        }
         return verifyTableDefinitions.clone();
     }
 
@@ -169,7 +295,8 @@ public class PrepAndExpectedTestData
             return false;
         }
         final PrepAndExpectedTestData other = (PrepAndExpectedTestData) o;
-        return Arrays.equals(verifyTableDefinitions,
+        return verifyingEveryExpectedTable == other.verifyingEveryExpectedTable
+                && Arrays.equals(verifyTableDefinitions,
                 other.verifyTableDefinitions)
                 && Arrays.equals(prepDataFiles, other.prepDataFiles)
                 && Arrays.equals(expectedDataFiles, other.expectedDataFiles);
@@ -181,7 +308,8 @@ public class PrepAndExpectedTestData
     @Override
     public int hashCode()
     {
-        return Objects.hash(Arrays.hashCode(verifyTableDefinitions),
+        return Objects.hash(verifyingEveryExpectedTable,
+                Arrays.hashCode(verifyTableDefinitions),
                 Arrays.hashCode(prepDataFiles),
                 Arrays.hashCode(expectedDataFiles));
     }
@@ -192,7 +320,8 @@ public class PrepAndExpectedTestData
     @Override
     public String toString()
     {
-        return "PrepAndExpectedTestData[verifyTableDefinitions="
+        return "PrepAndExpectedTestData[verifyingEveryExpectedTable="
+                + verifyingEveryExpectedTable + ", verifyTableDefinitions="
                 + Arrays.toString(verifyTableDefinitions) + ", prepDataFiles="
                 + Arrays.toString(prepDataFiles) + ", expectedDataFiles="
                 + Arrays.toString(expectedDataFiles) + "]";

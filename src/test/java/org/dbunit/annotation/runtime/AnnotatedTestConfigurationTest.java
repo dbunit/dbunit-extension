@@ -34,32 +34,37 @@ import org.dbunit.annotation.DbUnitExpected;
 import org.dbunit.annotation.DbUnitPrep;
 import org.dbunit.annotation.DbUnitProperty;
 import org.dbunit.annotation.DbUnitRowCountCheck;
-import org.dbunit.annotation.DbUnitSetup;
-import org.dbunit.annotation.DbUnitTearDown;
+import org.dbunit.annotation.DbUnitSetUpOperation;
+import org.dbunit.annotation.DbUnitTearDownOperation;
 import org.dbunit.annotation.DbUnitVerifyTable;
+import org.dbunit.assertion.DefaultFailureHandler;
 import org.dbunit.assertion.DiffCollectingFailureHandler;
 import org.dbunit.assertion.comparer.value.IsActualGreaterThanExpectedValueComparer;
 import org.dbunit.assertion.comparer.value.IsActualWithinToleranceOfExpectedTimestampValueComparer;
 import org.dbunit.assertion.comparer.value.ValueComparer;
-import org.dbunit.database.DatabaseConfigPropertiesProvider;
+import org.dbunit.database.DatabaseConfig;
 import org.dbunit.dataset.DefaultDataSet;
 import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.datatype.DataType;
 import org.dbunit.operation.DatabaseOperation;
 import org.dbunit.operation.DbUnitOperation;
-import org.dbunit.util.fileloader.DataSetPathsProvider;
+import org.dbunit.util.fileloader.CachingFileExtensionDataFileLoader;
+import org.dbunit.util.fileloader.FileExtensionDataFileLoader;
+import org.dbunit.util.fileloader.FlatXmlDataFileLoader;
+import org.dbunit.util.fileloader.FullXmlDataFileLoader;
 import org.junit.jupiter.api.Test;
 
 import java.util.Properties;
 
 class AnnotatedTestConfigurationTest
 {
-    // ---- @DbUnitPrep / @DbUnitSetup ----
+    // ---- @DbUnitPrep / @DbUnitSetUpOperation ----
 
     @Test
     void testFrom_classLevelSetupAndMethodLevelPrep_keepsClassLevelOperation() throws Exception
     {
-        final DbUnitSetup setup = ClassLevelSetup.class.getAnnotation(DbUnitSetup.class);
+        final DbUnitSetUpOperation setup =
+                ClassLevelSetup.class.getAnnotation(DbUnitSetUpOperation.class);
         final DbUnitPrep prep = method(ClassLevelSetup.class, "method")
                 .getAnnotation(DbUnitPrep.class);
 
@@ -77,104 +82,14 @@ class AnnotatedTestConfigurationTest
     @Test
     void testFrom_setupWithoutPrep_producesNoDataSet()
     {
-        final DbUnitSetup setup = SetupOnly.class.getAnnotation(DbUnitSetup.class);
+        final DbUnitSetUpOperation setup =
+                SetupOnly.class.getAnnotation(DbUnitSetUpOperation.class);
 
         final AnnotatedTestConfiguration config = AnnotatedTestConfiguration
                 .from(SetupOnly.class, null, null, setup, null, null, null);
 
         assertThat(config.getPrepDataFiles())
-                .as("@DbUnitSetup with no @DbUnitPrep must produce no dataset.").isEmpty();
-    }
-
-    @Test
-    void testFrom_inlineValueAndProviderBothSet_throwsIllegalStateException()
-    {
-        final DbUnitPrep prep = BothValueAndProvider.class.getAnnotation(DbUnitPrep.class);
-
-        assertThatThrownBy(() -> AnnotatedTestConfiguration
-                .from(BothValueAndProvider.class, null, prep, null, null, null, null))
-                        .as("Setting both value() and provider() must be rejected.")
-                        .isInstanceOf(IllegalStateException.class)
-                        .hasMessageContaining("DbUnitPrep");
-    }
-
-    @Test
-    void testFrom_providerConstructorThrows_reportsConstructorFailureNotMissingConstructor()
-    {
-        final DbUnitPrep prep =
-                WithThrowingConstructorProvider.class.getAnnotation(DbUnitPrep.class);
-
-        assertThatThrownBy(() -> AnnotatedTestConfiguration
-                .from(WithThrowingConstructorProvider.class, null, prep, null, null, null,
-                        null))
-                        .as("A provider whose no-arg constructor throws must report that"
-                                + " failure, not be misreported as having no accessible no-arg"
-                                + " constructor.")
-                        .isInstanceOf(IllegalStateException.class)
-                        .hasMessageNotContaining("no accessible no-arg constructor")
-                        .hasCauseInstanceOf(RuntimeException.class)
-                        .hasRootCauseMessage("boom");
-    }
-
-    @Test
-    void testFrom_providerWithoutNoArgConstructor_throwsIllegalStateException()
-    {
-        final DbUnitPrep prep = WithBadProvider.class.getAnnotation(DbUnitPrep.class);
-
-        assertThatThrownBy(() -> AnnotatedTestConfiguration
-                .from(WithBadProvider.class, null, prep, null, null, null, null))
-                        .as("A provider class with no accessible no-arg constructor must be"
-                                + " rejected.")
-                        .isInstanceOf(IllegalStateException.class)
-                        .hasMessageContaining(NoNoArgProvider.class.getName());
-    }
-
-    @Test
-    void testFrom_dataSetPathsProviderReturnsNull_throwsIllegalStateException()
-    {
-        final DbUnitPrep prep = WithNullReturningProvider.class.getAnnotation(DbUnitPrep.class);
-
-        assertThatThrownBy(() -> AnnotatedTestConfiguration
-                .from(WithNullReturningProvider.class, null, prep, null, null, null, null))
-                        .as("A DataSetPathsProvider returning null must be rejected with a"
-                                + " clear message, not a raw NullPointerException.")
-                        .isInstanceOf(IllegalStateException.class)
-                        .hasMessageContaining(DataSetPathsProvider.class.getSimpleName())
-                        .hasMessageContaining(NullReturningProvider.class.getName())
-                        .hasMessageContaining("DbUnitPrep.provider");
-    }
-
-    @Test
-    void testFrom_dataSetPathsProviderReturnsEmptyForPrep_throwsIllegalStateException()
-    {
-        final DbUnitPrep prep =
-                WithEmptyReturningPrepProvider.class.getAnnotation(DbUnitPrep.class);
-
-        assertThatThrownBy(() -> AnnotatedTestConfiguration
-                .from(WithEmptyReturningPrepProvider.class, null, prep, null, null, null, null))
-                        .as("A @DbUnitPrep.provider() returning no paths is a misconfiguration -"
-                                + " the provider was wired to supply them - and must be rejected,"
-                                + " not silently treated as no prep dataset.")
-                        .isInstanceOf(IllegalStateException.class)
-                        .hasMessageContaining(EmptyReturningProvider.class.getName())
-                        .hasMessageContaining("DbUnitPrep.provider")
-                        .hasMessageContaining("returned nothing");
-    }
-
-    @Test
-    void testFrom_dataSetPathsProviderReturnsEmptyForExpected_throwsIllegalStateException()
-    {
-        final DbUnitExpected expected =
-                WithEmptyReturningExpectedProvider.class.getAnnotation(DbUnitExpected.class);
-
-        assertThatThrownBy(() -> AnnotatedTestConfiguration.from(
-                WithEmptyReturningExpectedProvider.class, null, null, null, expected, null, null))
-                        .as("A @DbUnitExpected.provider() returning no paths must be rejected the"
-                                + " same as the @DbUnitPrep side.")
-                        .isInstanceOf(IllegalStateException.class)
-                        .hasMessageContaining(EmptyReturningProvider.class.getName())
-                        .hasMessageContaining("DbUnitExpected.provider")
-                        .hasMessageContaining("returned nothing");
+                .as("@DbUnitSetUpOperation with no @DbUnitPrep must produce no dataset.").isEmpty();
     }
 
     @Test
@@ -191,19 +106,20 @@ class AnnotatedTestConfigurationTest
                 .containsExactly("/dbunit/accounts/prep.xml");
     }
 
-    // ---- from(Class, AnnotationLookup) ----
+    // ---- from(AnnotationLookup) ----
 
     @Test
     void testFrom_lookupSuppliesAnnotations_buildsConfigurationFromThem() throws Exception
     {
-        final DbUnitSetup setup = ClassLevelSetup.class.getAnnotation(DbUnitSetup.class);
+        final DbUnitSetUpOperation setup =
+                ClassLevelSetup.class.getAnnotation(DbUnitSetUpOperation.class);
         final DbUnitPrep prep = method(ClassLevelSetup.class, "method")
                 .getAnnotation(DbUnitPrep.class);
         final AnnotationLookup lookup =
                 new FakeAnnotationLookup(ClassLevelSetup.class).finding(setup).finding(prep);
 
         final AnnotatedTestConfiguration config =
-                AnnotatedTestConfiguration.from(ClassLevelSetup.class, lookup);
+                AnnotatedTestConfiguration.from(lookup);
 
         assertThat(config.getSetUpOperation())
                 .as("The class-level operation the lookup found must be used.")
@@ -218,14 +134,157 @@ class AnnotatedTestConfigurationTest
     {
         final FakeAnnotationLookup lookup = new FakeAnnotationLookup(SetupOnly.class);
 
-        AnnotatedTestConfiguration.from(SetupOnly.class, lookup);
+        AnnotatedTestConfiguration.from(lookup);
 
         assertThat(lookup.getAskedFor())
                 .as("Every annotation that configures a test must be looked up, so a binding"
                         + " cannot forget one.")
                 .containsExactlyInAnyOrder(DbUnitConfig.class, DbUnitPrep.class,
-                        DbUnitSetup.class, DbUnitExpected.class, DbUnitTearDown.class,
-                        DbUnitRowCountCheck.class);
+                        DbUnitSetUpOperation.class, DbUnitExpected.class,
+                        DbUnitTearDownOperation.class, DbUnitRowCountCheck.class);
+    }
+
+    @Test
+    void testFrom_lookupFindsSeveralDbUnitConfigs_mergesThemAttributeByAttribute()
+    {
+        final DbUnitConfig near = SetsOnlyTheHandlerConfig.class.getAnnotation(DbUnitConfig.class);
+        final DbUnitConfig far =
+                SetsLoaderAndPropertiesConfig.class.getAnnotation(DbUnitConfig.class);
+        final AnnotationLookup lookup = new FakeAnnotationLookup(SetsOnlyTheHandlerConfig.class)
+                .finding(near).finding(far);
+
+        final AnnotatedTestConfiguration config =
+                AnnotatedTestConfiguration.from(lookup);
+
+        assertThat(config.getFailureHandler()).as("The nearer declaration's attribute applies.")
+                .isInstanceOf(DiffCollectingFailureHandler.class);
+        assertThat(config.getDataFileLoader())
+                .as("An attribute the nearer declaration leaves unset comes from the farther one.")
+                .isInstanceOf(FlatXmlDataFileLoader.class);
+        assertThat(config.isDataFileLoaderDeclared()).as("The loader is declared.").isTrue();
+        assertThat(config.getDatabaseConfigProperties())
+                .containsEntry(DatabaseConfig.PROPERTY_BATCH_SIZE, "50");
+    }
+
+    @Test
+    void testFrom_nearerDeclarationSetsTheSameAttribute_nearerWins()
+    {
+        final DbUnitConfig near = SetsOtherLoaderConfig.class.getAnnotation(DbUnitConfig.class);
+        final DbUnitConfig far =
+                SetsLoaderAndPropertiesConfig.class.getAnnotation(DbUnitConfig.class);
+        final AnnotationLookup lookup =
+                new FakeAnnotationLookup(SetsOtherLoaderConfig.class).finding(near).finding(far);
+
+        final AnnotatedTestConfiguration config =
+                AnnotatedTestConfiguration.from(lookup);
+
+        assertThat(config.getDataFileLoader()).as("The nearer declaration's loader wins.")
+                .isInstanceOf(FullXmlDataFileLoader.class);
+    }
+
+    @Test
+    void testFrom_noDataFileLoaderDeclared_usesFileExtensionLoaderAndReportsItUndeclared()
+    {
+        final AnnotatedTestConfiguration config = AnnotatedTestConfiguration
+                .from(SetupOnly.class, null, null, null, null, null, null);
+
+        assertThat(config.getDataFileLoader())
+                .as("Without a declaration the loader dispatches by file extension.")
+                .isInstanceOf(FileExtensionDataFileLoader.class);
+        assertThat(config.isDataFileLoaderDeclared()).as("No declaration names it.").isFalse();
+    }
+
+    @Test
+    void testFrom_sharedLoaderInstances_twoConfigurationsNamingTheSameCachingLoaderClassShareIt()
+    {
+        final DbUnitConfig config =
+                SetsCachingLoaderConfig.class.getAnnotation(DbUnitConfig.class);
+        final AnnotationLookup lookup = new FakeAnnotationLookup(SetupOnly.class).finding(config);
+        final DataFileLoaderInstances instances = new DataFileLoaderInstances();
+
+        final AnnotatedTestConfiguration first =
+                AnnotatedTestConfiguration.from(lookup, instances);
+        final AnnotatedTestConfiguration second =
+                AnnotatedTestConfiguration.from(lookup, instances);
+
+        assertThat(second.getDataFileLoader())
+                .as("The tests of a scope share the one loader of a caching class they name.")
+                .isSameAs(first.getDataFileLoader())
+                .isExactlyInstanceOf(CachingFileExtensionDataFileLoader.class);
+    }
+
+    @Test
+    void testFrom_sharedLoaderInstances_twoConfigurationsNamingTheSamePlainLoaderClassEachBuildItsOwn()
+    {
+        final DbUnitConfig config =
+                SetsLoaderAndPropertiesConfig.class.getAnnotation(DbUnitConfig.class);
+        final AnnotationLookup lookup = new FakeAnnotationLookup(SetupOnly.class).finding(config);
+        final DataFileLoaderInstances instances = new DataFileLoaderInstances();
+
+        final AnnotatedTestConfiguration first =
+                AnnotatedTestConfiguration.from(lookup, instances);
+        final AnnotatedTestConfiguration second =
+                AnnotatedTestConfiguration.from(lookup, instances);
+
+        assertThat(second.getDataFileLoader())
+                .as("A loader that does not cache is built for every test, so a test case that"
+                        + " changes its replacement objects changes no other test's loader.")
+                .isNotSameAs(first.getDataFileLoader())
+                .isExactlyInstanceOf(FlatXmlDataFileLoader.class);
+    }
+
+    @Test
+    void testFrom_sharedLoaderInstances_noLoaderDeclared_eachBuildsTheDefaultFileExtensionLoaderOfItsOwn()
+    {
+        final AnnotationLookup lookup = new FakeAnnotationLookup(SetupOnly.class);
+        final DataFileLoaderInstances instances = new DataFileLoaderInstances();
+
+        final AnnotatedTestConfiguration first =
+                AnnotatedTestConfiguration.from(lookup, instances);
+        final AnnotatedTestConfiguration second =
+                AnnotatedTestConfiguration.from(lookup, instances);
+
+        assertThat(second.getDataFileLoader())
+                .as("The default loader does not cache, so every test builds its own.")
+                .isNotSameAs(first.getDataFileLoader())
+                .isExactlyInstanceOf(FileExtensionDataFileLoader.class);
+        assertThat(second.isDataFileLoaderDeclared()).as("No declaration names it.").isFalse();
+    }
+
+    @Test
+    void testFrom_sharedLoaderInstances_differentLoaderClasses_doNotShareALoader()
+    {
+        final DbUnitConfig flatXml =
+                SetsLoaderAndPropertiesConfig.class.getAnnotation(DbUnitConfig.class);
+        final DbUnitConfig fullXml = SetsOtherLoaderConfig.class.getAnnotation(DbUnitConfig.class);
+        final DataFileLoaderInstances instances = new DataFileLoaderInstances();
+
+        final AnnotatedTestConfiguration first = AnnotatedTestConfiguration
+                .from(new FakeAnnotationLookup(SetupOnly.class).finding(flatXml), instances);
+        final AnnotatedTestConfiguration second = AnnotatedTestConfiguration
+                .from(new FakeAnnotationLookup(SetupOnly.class).finding(fullXml), instances);
+
+        assertThat(first.getDataFileLoader()).as("Each loader class has a loader of its own.")
+                .isExactlyInstanceOf(FlatXmlDataFileLoader.class);
+        assertThat(second.getDataFileLoader()).as("Each loader class has a loader of its own.")
+                .isExactlyInstanceOf(FullXmlDataFileLoader.class);
+    }
+
+    @Test
+    void testFrom_withoutLoaderInstances_eachConfigurationBuildsALoaderOfItsOwn()
+    {
+        final DbUnitConfig config =
+                SetsLoaderAndPropertiesConfig.class.getAnnotation(DbUnitConfig.class);
+        final AnnotationLookup lookup = new FakeAnnotationLookup(SetupOnly.class).finding(config);
+
+        final AnnotatedTestConfiguration first =
+                AnnotatedTestConfiguration.from(lookup);
+        final AnnotatedTestConfiguration second =
+                AnnotatedTestConfiguration.from(lookup);
+
+        assertThat(second.getDataFileLoader())
+                .as("Nothing is shared unless the caller hands in the instances to share.")
+                .isNotSameAs(first.getDataFileLoader());
     }
 
     @Test
@@ -234,13 +293,13 @@ class AnnotatedTestConfigurationTest
         final AnnotationLookup lookup = new FakeAnnotationLookup(SetupOnly.class);
 
         final AnnotatedTestConfiguration config =
-                AnnotatedTestConfiguration.from(SetupOnly.class, lookup);
+                AnnotatedTestConfiguration.from(lookup);
 
         assertThat(config.getSetUpOperation())
                 .as("With no annotation found, the setup operation defaults to CLEAN_INSERT.")
                 .isEqualTo(DatabaseOperation.CLEAN_INSERT);
-        assertThat(config.isExpected()).as("With no @DbUnitExpected found, the test is not on"
-                + " the prep/expected path.").isFalse();
+        assertThat(config.getExpectedDataFiles())
+                .as("With no @DbUnitExpected found, no expected file is named.").isEmpty();
     }
 
     @Test
@@ -257,7 +316,7 @@ class AnnotatedTestConfigurationTest
                         .finding(expected, DefaultDataSet.class);
 
         final AnnotatedTestConfiguration config =
-                AnnotatedTestConfiguration.from(AnnotatedTestConfigurationTest.class, lookup);
+                AnnotatedTestConfiguration.from(lookup);
 
         assertThat(config.getPrepDataFiles())
                 .as("The prep path is relative to the class the lookup reports as declaring"
@@ -269,19 +328,19 @@ class AnnotatedTestConfigurationTest
                 .containsExactly("/org/dbunit/dataset/expected.xml");
     }
 
-    // ---- @DbUnitTearDown ----
+    // ---- @DbUnitTearDownOperation ----
 
     @Test
     void testFrom_tearDownDeclared_reportsDeclaredAndResolvesOperation()
     {
-        final DbUnitTearDown tearDown =
-                WithTearDown.class.getAnnotation(DbUnitTearDown.class);
+        final DbUnitTearDownOperation tearDown =
+                WithTearDown.class.getAnnotation(DbUnitTearDownOperation.class);
 
         final AnnotatedTestConfiguration config = AnnotatedTestConfiguration
                 .from(WithTearDown.class, null, null, null, null, tearDown, null);
 
         assertThat(config.isTearDownDeclared())
-                .as("@DbUnitTearDown presence must be reported.").isTrue();
+                .as("@DbUnitTearDownOperation presence must be reported.").isTrue();
         assertThat(config.getTearDownOperation())
                 .as("The declared teardown operation must resolve to DELETE_ALL.")
                 .isEqualTo(DatabaseOperation.DELETE_ALL);
@@ -294,7 +353,7 @@ class AnnotatedTestConfigurationTest
                 .from(AnnotatedTestConfigurationTest.class, null, null, null, null, null, null);
 
         assertThat(config.isTearDownDeclared())
-                .as("No @DbUnitTearDown must be reported as not declared, so a binding"
+                .as("No @DbUnitTearDownOperation must be reported as not declared, so a binding"
                         + " leaves the tester's own teardown operation untouched.")
                 .isFalse();
     }
@@ -462,6 +521,22 @@ class AnnotatedTestConfigurationTest
     }
 
     @Test
+    void testFrom_columnComparersForNamesDifferingOnlyInCase_throwsIllegalStateException()
+    {
+        final DbUnitExpected expected =
+                WithColumnComparersDifferingOnlyInCase.class.getAnnotation(DbUnitExpected.class);
+
+        assertThatThrownBy(() -> AnnotatedTestConfiguration.from(
+                WithColumnComparersDifferingOnlyInCase.class, null, null, null, expected, null,
+                null))
+                        .as("A column name matches its column without regard to case, so two"
+                                + " @DbUnitColumnComparer entries for BALANCE and balance name"
+                                + " one column and must be rejected.")
+                        .isInstanceOf(IllegalStateException.class)
+                        .hasMessageContaining("'balance'");
+    }
+
+    @Test
     void testFrom_duplicateVerifyTableForSameTable_throwsIllegalStateException()
     {
         final DbUnitExpected expected =
@@ -488,6 +563,9 @@ class AnnotatedTestConfigurationTest
                                 + " failure, not be misreported as having no accessible no-arg"
                                 + " constructor.")
                         .isInstanceOf(IllegalStateException.class)
+                        .hasMessageStartingWith("DbUnitVerifyTable.defaultComparer names a"
+                                + " ValueComparer that dbUnit cannot instantiate.")
+                        .hasMessageContaining("threw from its no-arg constructor")
                         .hasMessageNotContaining("no accessible no-arg constructor")
                         .hasCauseInstanceOf(RuntimeException.class)
                         .hasRootCauseMessage("boom");
@@ -502,12 +580,34 @@ class AnnotatedTestConfigurationTest
         assertThatThrownBy(() -> AnnotatedTestConfiguration
                 .from(WithBadComparer.class, null, null, null, expected, null, null))
                         .as("A ValueComparer with no accessible no-arg constructor must be"
-                                + " rejected, pointing at a catalog as the fix.")
+                                + " rejected, naming both ways out: a catalog class, and a"
+                                + " subclass with a no-arg constructor.")
                         .isInstanceOf(IllegalStateException.class)
-                        .hasMessageContaining(
-                                IsActualWithinToleranceOfExpectedTimestampValueComparer.class
-                                        .getName())
-                        .hasMessageContaining("catalog");
+                        .hasMessageStartingWith("DbUnitVerifyTable.defaultComparer names a"
+                                + " ValueComparer that dbUnit cannot instantiate.")
+                        .hasMessageContaining("ValueComparer class "
+                                + IsActualWithinToleranceOfExpectedTimestampValueComparer.class
+                                        .getName()
+                                + " has no accessible no-arg constructor")
+                        .hasMessageContaining("catalog class")
+                        .hasMessageContaining("subclass with a public no-arg constructor");
+    }
+
+    @Test
+    void testFrom_toleranceComparerSubclassWithNoArgConstructor_usesItAsTheColumnComparer()
+    {
+        final DbUnitExpected expected =
+                WithToleranceComparerSubclass.class.getAnnotation(DbUnitExpected.class);
+
+        final AnnotatedTestConfiguration config = AnnotatedTestConfiguration.from(
+                WithToleranceComparerSubclass.class, null, null, null, expected, null, null);
+
+        assertThat(config.getVerifyTableDefinitions()[0].getColumnValueComparers())
+                .as("A subclass of a configured comparer that fixes its constructor arguments"
+                        + " must be usable inline, without a catalog class.")
+                .hasSize(1)
+                .hasEntrySatisfying("POSTED_TS", comparer -> assertThat(comparer)
+                        .isInstanceOf(WithinOneMinuteNewer.class));
     }
 
     @Test
@@ -558,20 +658,6 @@ class AnnotatedTestConfigurationTest
     }
 
     @Test
-    void testFrom_verifyAndVerifyDefinitionsBothSet_throwsIllegalStateException()
-    {
-        final DbUnitExpected expected =
-                WithVerifyAndVerifyDefinitions.class.getAnnotation(DbUnitExpected.class);
-
-        assertThatThrownBy(() -> AnnotatedTestConfiguration
-                .from(WithVerifyAndVerifyDefinitions.class, null, null, null, expected, null,
-                        null))
-                        .as("verify() together with verifyDefinitions() must be rejected as"
-                                + " ambiguous.")
-                        .isInstanceOf(IllegalStateException.class);
-    }
-
-    @Test
     void testFrom_verifyAndVerifyTablesBothSet_throwsIllegalStateException()
     {
         final DbUnitExpected expected =
@@ -586,19 +672,45 @@ class AnnotatedTestConfigurationTest
     }
 
     @Test
-    void testFrom_verifyDefinitionsNarrowedByVerifyTables_selectsNamedTablesFromCatalog()
+    void testFrom_classLevelCatalogMissingATableOfTheExpectedDataset_derivedTableGetsDefaultRules()
+            throws Exception
     {
-        final DbUnitExpected expected =
-                WithCatalogNarrowedByVerifyTables.class.getAnnotation(DbUnitExpected.class);
+        final DbUnitConfig config = AccountOnlyCatalog.class.getAnnotation(DbUnitConfig.class);
+        final DbUnitExpected expected = method(AccountOnlyCatalog.class, "method")
+                .getAnnotation(DbUnitExpected.class);
 
-        final AnnotatedTestConfiguration config = AnnotatedTestConfiguration.from(
-                WithCatalogNarrowedByVerifyTables.class, null, null, null, expected, null,
-                null);
+        final AnnotatedTestConfiguration resolved = AnnotatedTestConfiguration
+                .from(AccountOnlyCatalog.class, config, null, null, expected, null, null);
 
-        assertThat(config.getVerifyTableDefinitions())
-                .as("verifyDefinitions narrowed by verifyTables must select just those"
-                        + " tables from the catalog.")
-                .containsExactly(Catalog.CUSTOMER);
+        final VerifyTableDefinition[] definitions = resolved.getVerifyTableDefinitions();
+        assertThat(definitions).extracting(VerifyTableDefinition::getTableName)
+                .as("The expected dataset decides which tables are verified.")
+                .containsExactlyInAnyOrder("ACCOUNT", "CUSTOMER");
+        assertThat(definitions).as("The catalog's own definition is used for the table it"
+                + " defines.").contains(Catalog.ACCOUNT);
+    }
+
+    @Test
+    void testFrom_classLevelCatalogDefinesATableTheExpectedDatasetLacks_doesNotVerifyIt()
+            throws Exception
+    {
+        final DbUnitConfig config = AuditCatalog.class.getAnnotation(DbUnitConfig.class);
+        final DbUnitExpected expected = method(AuditCatalog.class, "method")
+                .getAnnotation(DbUnitExpected.class);
+
+        final AnnotatedTestConfiguration resolved = AnnotatedTestConfiguration
+                .from(AuditCatalog.class, config, null, null, expected, null, null);
+
+        assertThat(resolved.getVerifyTableDefinitions())
+                .extracting(VerifyTableDefinition::getTableName)
+                .as("A catalog table the expected dataset lacks must not fail the test: the"
+                        + " catalog supplies rules, the dataset decides the tables.")
+                .containsExactlyInAnyOrder("ACCOUNT", "CUSTOMER");
+        assertThat(resolved.derivesVerifyTableDefinitions())
+                .as("The tables still come from the expected dataset.").isTrue();
+        assertThat(resolved.getCatalogDefinitions())
+                .as("The catalog's definitions are the rules those tables are verified with.")
+                .contains(Catalog.ACCOUNT, Catalog.CUSTOMER);
     }
 
     @Test
@@ -679,9 +791,10 @@ class AnnotatedTestConfigurationTest
 
         final Properties properties = resolved.getDatabaseConfigProperties();
         assertThat(properties)
-                .as("Every @DbUnitProperty entry must be collected.")
-                .containsEntry("caseSensitiveTableNames", "true")
-                .containsEntry("batchSize", "50");
+                .as("Every @DbUnitProperty entry must be collected, under the long name"
+                        + " DatabaseConfig knows the property by.")
+                .containsEntry(DatabaseConfig.FEATURE_CASE_SENSITIVE_TABLE_NAMES, "true")
+                .containsEntry(DatabaseConfig.PROPERTY_BATCH_SIZE, "50");
     }
 
     @Test
@@ -717,51 +830,6 @@ class AnnotatedTestConfigurationTest
     }
 
     @Test
-    void testFrom_propertiesProviderSet_usesProviderProperties()
-    {
-        final DbUnitConfig config =
-                WithPropertiesProvider.class.getAnnotation(DbUnitConfig.class);
-
-        final AnnotatedTestConfiguration resolved = AnnotatedTestConfiguration
-                .from(WithPropertiesProvider.class, config, null, null, null, null, null);
-
-        assertThat(resolved.getDatabaseConfigProperties())
-                .as("A properties provider must supply the DatabaseConfig properties.")
-                .containsEntry("fetchSize", "25");
-    }
-
-    @Test
-    void testFrom_propertiesProviderReturnsNull_throwsIllegalStateException()
-    {
-        final DbUnitConfig config =
-                WithNullReturningPropertiesProvider.class.getAnnotation(DbUnitConfig.class);
-
-        assertThatThrownBy(() -> AnnotatedTestConfiguration
-                .from(WithNullReturningPropertiesProvider.class, config, null, null, null, null,
-                        null))
-                        .as("A DatabaseConfigPropertiesProvider returning null must be rejected"
-                                + " with a clear message, not a raw NullPointerException.")
-                        .isInstanceOf(IllegalStateException.class)
-                        .hasMessageContaining(DatabaseConfigPropertiesProvider.class
-                                .getSimpleName())
-                        .hasMessageContaining(NullReturningPropertiesProvider.class.getName())
-                        .hasMessageContaining("DbUnitConfig.propertiesProvider");
-    }
-
-    @Test
-    void testFrom_propertiesAndPropertiesProviderBothSet_throwsIllegalStateException()
-    {
-        final DbUnitConfig config =
-                WithPropertiesAndProvider.class.getAnnotation(DbUnitConfig.class);
-
-        assertThatThrownBy(() -> AnnotatedTestConfiguration
-                .from(WithPropertiesAndProvider.class, config, null, null, null, null, null))
-                        .as("Setting both properties() and propertiesProvider() must be"
-                                + " rejected.")
-                        .isInstanceOf(IllegalStateException.class);
-    }
-
-    @Test
     void testFrom_unknownPropertyName_throwsIllegalStateExceptionNamingIt()
     {
         final DbUnitConfig config =
@@ -775,23 +843,6 @@ class AnnotatedTestConfigurationTest
                         .isInstanceOf(IllegalStateException.class)
                         .hasMessageContaining("batchsize")
                         .hasMessageContaining("@DbUnitConfig.properties()");
-    }
-
-    @Test
-    void testFrom_propertiesProviderSuppliesUnknownName_throwsIllegalStateException()
-    {
-        final DbUnitConfig config = WithUnknownNamePropertiesProvider.class
-                .getAnnotation(DbUnitConfig.class);
-
-        assertThatThrownBy(() -> AnnotatedTestConfiguration.from(
-                WithUnknownNamePropertiesProvider.class, config, null, null, null, null, null))
-                        .as("An unknown property name from a DatabaseConfigPropertiesProvider"
-                                + " must be rejected the same way an inline @DbUnitProperty"
-                                + " one is.")
-                        .isInstanceOf(IllegalStateException.class)
-                        .hasMessageContaining("notAProperty")
-                        .hasMessageContaining(
-                                UnknownNamePropertiesProvider.class.getName());
     }
 
     @Test
@@ -810,6 +861,20 @@ class AnnotatedTestConfigurationTest
     }
 
     @Test
+    void testFrom_failureHandlerWithoutNoArgConstructor_throwsIllegalStateException()
+    {
+        final DbUnitConfig config = WithBadFailureHandler.class.getAnnotation(DbUnitConfig.class);
+
+        assertThatThrownBy(() -> AnnotatedTestConfiguration
+                .from(WithBadFailureHandler.class, config, null, null, null, null, null))
+                        .as("A class an attribute names with no accessible no-arg constructor"
+                                + " must be rejected, naming the attribute.")
+                        .isInstanceOf(IllegalStateException.class)
+                        .hasMessageContaining("DbUnitConfig.failureHandler")
+                        .hasMessageContaining(NoNoArgFailureHandler.class.getName());
+    }
+
+    @Test
     void testFrom_noConfig_usesSensibleDefaults()
     {
         final AnnotatedTestConfiguration config = AnnotatedTestConfiguration
@@ -819,8 +884,6 @@ class AnnotatedTestConfigurationTest
                 .as("No @DbUnitConfig must leave the tester factory unset.").isNull();
         assertThat(config.getFailureHandler())
                 .as("No @DbUnitConfig must leave the failure handler unset.").isNull();
-        assertThat(config.isCloseConnectionAfterTest())
-                .as("closeConnectionAfterTest must default to true.").isTrue();
         assertThat(config.getPrepAndExpectedTestCaseClass())
                 .as("The default PrepAndExpectedTestCase implementation must be"
                         + " DefaultPrepAndExpectedTestCase.")
@@ -843,9 +906,9 @@ class AnnotatedTestConfigurationTest
         // Classes of three different packages stand in for a base class declaring each
         // annotation; the nested fixtures here share this test's own package, so they could not
         // tell the three apart.
-        final AnnotatedTestConfiguration config = AnnotatedTestConfiguration.from(
-                AnnotatedTestConfigurationTest.class, DefaultDatabaseTester.class,
-                DefaultDataSet.class, null, prep, null, expected, null, null);
+        final AnnotatedTestConfiguration config = AnnotatedTestConfiguration
+                .from(DefaultDatabaseTester.class, DefaultDataSet.class, null, prep, null, expected,
+                        null, null);
 
         assertThat(config.getPrepDataFiles())
                 .as("The prep path is relative to the class declaring @DbUnitPrep.")
@@ -866,7 +929,7 @@ class AnnotatedTestConfigurationTest
     {
     }
 
-    @DbUnitSetup(operation = DbUnitOperation.REFRESH)
+    @DbUnitSetUpOperation(DbUnitOperation.REFRESH)
     static class ClassLevelSetup
     {
         @DbUnitPrep("method.xml")
@@ -875,93 +938,42 @@ class AnnotatedTestConfigurationTest
         }
     }
 
-    @DbUnitSetup(operation = DbUnitOperation.REFRESH)
+    @DbUnitSetUpOperation(DbUnitOperation.REFRESH)
     static class SetupOnly
     {
     }
 
-    @DbUnitPrep(value = "a.xml", provider = SomeProvider.class)
-    static class BothValueAndProvider
+    @DbUnitConfig(failureHandler = NoNoArgFailureHandler.class)
+    static class WithBadFailureHandler
     {
     }
 
-    static class SomeProvider implements DataSetPathsProvider
+    static class NoNoArgFailureHandler extends DefaultFailureHandler
     {
-        @Override
-        public String[] getDataSetPaths()
-        {
-            return new String[] {"b.xml"};
-        }
-    }
-
-    @DbUnitPrep(provider = NoNoArgProvider.class)
-    static class WithBadProvider
-    {
-    }
-
-    static class NoNoArgProvider implements DataSetPathsProvider
-    {
-        NoNoArgProvider(final String unused)
+        NoNoArgFailureHandler(final String unused)
         {
         }
-
-        @Override
-        public String[] getDataSetPaths()
-        {
-            return new String[0];
-        }
     }
 
-    @DbUnitPrep(provider = NullReturningProvider.class)
-    static class WithNullReturningProvider
+    @DbUnitConfig(failureHandler = DiffCollectingFailureHandler.class)
+    static class SetsOnlyTheHandlerConfig
     {
     }
 
-    static class NullReturningProvider implements DataSetPathsProvider
-    {
-        @Override
-        public String[] getDataSetPaths()
-        {
-            return null;
-        }
-    }
-
-    @DbUnitPrep(provider = EmptyReturningProvider.class)
-    static class WithEmptyReturningPrepProvider
+    @DbUnitConfig(dataFileLoader = FlatXmlDataFileLoader.class,
+            properties = @DbUnitProperty(name = "batchSize", value = "50"))
+    static class SetsLoaderAndPropertiesConfig
     {
     }
 
-    @DbUnitExpected(provider = EmptyReturningProvider.class)
-    static class WithEmptyReturningExpectedProvider
+    @DbUnitConfig(dataFileLoader = FullXmlDataFileLoader.class)
+    static class SetsOtherLoaderConfig
     {
     }
 
-    static class EmptyReturningProvider implements DataSetPathsProvider
+    @DbUnitConfig(dataFileLoader = CachingFileExtensionDataFileLoader.class)
+    static class SetsCachingLoaderConfig
     {
-        @Override
-        public String[] getDataSetPaths()
-        {
-            return new String[0];
-        }
-    }
-
-    @DbUnitPrep(provider = ThrowingConstructorProvider.class)
-    static class WithThrowingConstructorProvider
-    {
-    }
-
-    static class ThrowingConstructorProvider implements DataSetPathsProvider
-    {
-        ThrowingConstructorProvider()
-        {
-            throw new RuntimeException("boom");
-        }
-
-        @Override
-        public String[] getDataSetPaths()
-        {
-            return new String[0];
-        }
     }
 
     @DbUnitConfig(failureHandler = DiffCollectingFailureHandler.class)
@@ -975,7 +987,7 @@ class AnnotatedTestConfigurationTest
     {
     }
 
-    @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+    @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
     static class WithTearDown
     {
     }
@@ -1028,12 +1040,40 @@ class AnnotatedTestConfigurationTest
 
     @DbUnitExpected(value = "expected.xml",
             verify = @DbUnitVerifyTable(value = "ACCOUNT",
+                    columnComparers = @DbUnitColumnComparer(column = "POSTED_TS",
+                            comparer = WithinOneMinuteNewer.class)))
+    static class WithToleranceComparerSubclass
+    {
+    }
+
+    public static class WithinOneMinuteNewer
+            extends IsActualWithinToleranceOfExpectedTimestampValueComparer
+    {
+        public WithinOneMinuteNewer()
+        {
+            super(0, 60_000);
+        }
+    }
+
+    @DbUnitExpected(value = "expected.xml",
+            verify = @DbUnitVerifyTable(value = "ACCOUNT",
                     columnComparers = {
                             @DbUnitColumnComparer(column = "BALANCE",
                                     comparer = IsActualGreaterThanExpectedValueComparer.class),
                             @DbUnitColumnComparer(column = "BALANCE",
                                     comparer = IsActualGreaterThanExpectedValueComparer.class)}))
     static class WithDuplicateColumnComparer
+    {
+    }
+
+    @DbUnitExpected(value = "expected.xml",
+            verify = @DbUnitVerifyTable(value = "ACCOUNT",
+                    columnComparers = {
+                            @DbUnitColumnComparer(column = "BALANCE",
+                                    comparer = IsActualGreaterThanExpectedValueComparer.class),
+                            @DbUnitColumnComparer(column = "balance",
+                                    comparer = IsActualGreaterThanExpectedValueComparer.class)}))
+    static class WithColumnComparersDifferingOnlyInCase
     {
     }
 
@@ -1089,21 +1129,38 @@ class AnnotatedTestConfigurationTest
     }
 
     @DbUnitExpected(value = "expected.xml",
-            verify = @DbUnitVerifyTable("ACCOUNT"), verifyDefinitions = Catalog.class)
-    static class WithVerifyAndVerifyDefinitions
-    {
-    }
-
-    @DbUnitExpected(value = "expected.xml",
             verify = @DbUnitVerifyTable("ACCOUNT"), verifyTables = "ACCOUNT")
     static class WithVerifyAndVerifyTables
     {
     }
 
-    @DbUnitExpected(value = "expected.xml", verifyDefinitions = Catalog.class,
-            verifyTables = "CUSTOMER")
-    static class WithCatalogNarrowedByVerifyTables
+    @DbUnitConfig(verifyDefinitions = AccountOnly.class)
+    static class AccountOnlyCatalog
     {
+        @DbUnitExpected("expected.xml")
+        void method()
+        {
+        }
+    }
+
+    static class AccountOnly
+    {
+        public static final VerifyTableDefinition ACCOUNT = Catalog.ACCOUNT;
+    }
+
+    @DbUnitConfig(verifyDefinitions = {Catalog.class, AuditOnly.class})
+    static class AuditCatalog
+    {
+        @DbUnitExpected("expected.xml")
+        void method()
+        {
+        }
+    }
+
+    static class AuditOnly
+    {
+        public static final VerifyTableDefinition AUDIT =
+                new VerifyTableDefinition("AUDIT", (String[]) null);
     }
 
     @DbUnitConfig(verifyDefinitions = Catalog.class)
@@ -1155,60 +1212,9 @@ class AnnotatedTestConfigurationTest
     {
     }
 
-    @DbUnitConfig(propertiesProvider = SomePropertiesProvider.class)
-    static class WithPropertiesProvider
-    {
-    }
-
-    static class SomePropertiesProvider implements DatabaseConfigPropertiesProvider
-    {
-        @Override
-        public Properties getDatabaseConfigProperties()
-        {
-            final Properties properties = new Properties();
-            properties.setProperty("fetchSize", "25");
-            return properties;
-        }
-    }
-
-    @DbUnitConfig(propertiesProvider = NullReturningPropertiesProvider.class)
-    static class WithNullReturningPropertiesProvider
-    {
-    }
-
-    static class NullReturningPropertiesProvider implements DatabaseConfigPropertiesProvider
-    {
-        @Override
-        public Properties getDatabaseConfigProperties()
-        {
-            return null;
-        }
-    }
-
-    @DbUnitConfig(properties = @DbUnitProperty(name = "batchSize", value = "50"),
-            propertiesProvider = SomePropertiesProvider.class)
-    static class WithPropertiesAndProvider
-    {
-    }
-
     @DbUnitConfig(properties = @DbUnitProperty(name = "batchsize", value = "50"))
     static class WithUnknownPropertyName
     {
     }
 
-    @DbUnitConfig(propertiesProvider = UnknownNamePropertiesProvider.class)
-    static class WithUnknownNamePropertiesProvider
-    {
-    }
-
-    static class UnknownNamePropertiesProvider implements DatabaseConfigPropertiesProvider
-    {
-        @Override
-        public Properties getDatabaseConfigProperties()
-        {
-            final Properties properties = new Properties();
-            properties.setProperty("notAProperty", "x");
-            return properties;
-        }
-    }
 }

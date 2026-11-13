@@ -33,6 +33,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.List;
@@ -87,6 +88,9 @@ public class DbUnitTaskIT
 
     private File outputDir;
 
+    private final List<IDatabaseConnection> openedConnections =
+            new ArrayList<>();
+
     @BeforeAll
     public static void initializeDbEnvironment() throws Exception {
         // This line ensure test database is initialized
@@ -109,6 +113,16 @@ public class DbUnitTaskIT
     {
         outputDir = rule.getProject().getBaseDir().toPath().resolve(OUTPUT_DIR).toFile();
         FileHelper.deleteDirectory(outputDir);
+    }
+
+    @AfterEach
+    public void closeOpenedConnections() throws Exception
+    {
+        for (final IDatabaseConnection connection : openedConnections)
+        {
+            connection.close();
+        }
+        openedConnections.clear();
     }
 
     @Test
@@ -274,6 +288,7 @@ public class DbUnitTaskIT
         final Export export = (Export) getFirstStepFromTarget(targetName);
         final DbUnitTask task = getFirstTargetTask(targetName);
         final IDatabaseConnection connection = task.createConnection();
+        closeAfterTest(connection);
         final IDataSet dataSetToBeExported =
                 export.getExportDataSet(connection);
         assertThat(connection.getConfig()
@@ -358,6 +373,7 @@ public class DbUnitTaskIT
         // Test if the correct dataset is created for ordered export
         final DbUnitTask task = getFirstTargetTask(targetName);
         final IDatabaseConnection connection = task.createConnection();
+        closeAfterTest(connection);
         final IDataSet dataSetToBeExported =
                 export.getExportDataSet(connection);
         // Ordered export should use the filtered dataset
@@ -515,6 +531,7 @@ public class DbUnitTaskIT
         final DbUnitTask task = getFirstTargetTask(targetName);
 
         final IDatabaseConnection connection = task.createConnection();
+        closeAfterTest(connection);
         final IDataTypeFactory factory =
                 (IDataTypeFactory) connection.getConfig()
                 .getProperty(DatabaseConfig.PROPERTY_DATATYPE_FACTORY);
@@ -530,6 +547,7 @@ public class DbUnitTaskIT
         final DbUnitTask task = getFirstTargetTask(targetName);
 
         final IDatabaseConnection connection = task.createConnection();
+        closeAfterTest(connection);
         final String actualPattern = (String) connection.getConfig()
                 .getProperty(DatabaseConfig.PROPERTY_ESCAPE_PATTERN);
 
@@ -544,6 +562,7 @@ public class DbUnitTaskIT
         final DbUnitTask task = getFirstTargetTask(targetName);
 
         final IDatabaseConnection connection = task.createConnection();
+        closeAfterTest(connection);
 
         final DatabaseConfig config = connection.getConfig();
 
@@ -607,7 +626,9 @@ public class DbUnitTaskIT
         final IDatabaseTester dbTest =
                 DatabaseEnvironment.getInstance().getDatabaseTester();
         rule.executeTarget(targetName);
-        final IDataSet ds = dbTest.getConnection().createDataSet();
+        final IDatabaseConnection connection = dbTest.getConnection();
+        closeAfterTest(connection);
+        final IDataSet ds = connection.createDataSet();
         final ITable table = ds.getTable("PK_TABLE");
         assertThat(table.getValue(0, "NORMAL0")).isNull();
         assertThat(table.getValue(1, "NORMAL0")).isEqualTo("row 1");
@@ -620,7 +641,9 @@ public class DbUnitTaskIT
         final IDatabaseTester dbTest =
                 DatabaseEnvironment.getInstance().getDatabaseTester();
         rule.executeTarget(targetName);
-        final IDataSet ds = dbTest.getConnection().createDataSet();
+        final IDatabaseConnection connection = dbTest.getConnection();
+        closeAfterTest(connection);
+        final IDataSet ds = connection.createDataSet();
         final ITable table = ds.getTable("PK_TABLE");
         assertEquals("row 0", table.getValue(0, "NORMAL0"));
         assertEquals("row 1", table.getValue(1, "NORMAL0"));
@@ -633,7 +656,9 @@ public class DbUnitTaskIT
         final IDatabaseTester dbTest =
                 DatabaseEnvironment.getInstance().getDatabaseTester();
         rule.executeTarget(targetName);
-        final IDataSet ds = dbTest.getConnection().createDataSet();
+        final IDatabaseConnection connection = dbTest.getConnection();
+        closeAfterTest(connection);
+        final IDataSet ds = connection.createDataSet();
         final ITable table = ds.getTable("PK_TABLE");
         assertNull(table.getValue(0, "NORMAL0"));
         assertEquals("row 1", table.getValue(1, "NORMAL0"));
@@ -732,7 +757,10 @@ public class DbUnitTaskIT
                     task.getSteps().forEach(s -> {
                         try
                         {
-                            ((DbUnitTaskStep)s).execute(((DbUnitTask) elm).createConnection());
+                            final IDatabaseConnection connection =
+                                    ((DbUnitTask) elm).createConnection();
+                            closeAfterTest(connection);
+                            ((DbUnitTaskStep)s).execute(connection);
                         } catch (DatabaseUnitException | SQLException e)
                         {
                             log.error("getFirstTargetTask: Error creating connection", e);
@@ -743,6 +771,20 @@ public class DbUnitTaskIT
         }
 
         return task;
+    }
+
+    /**
+     * Remembers a connection that the test opened, so that this class closes it
+     * after the test. Both <code>DbUnitTask.createConnection()</code> and the
+     * tester's <code>getConnection()</code> open a new connection on every
+     * call, and nothing else closes that connection.
+     *
+     * @param connection
+     *            The connection that the test opened.
+     */
+    private void closeAfterTest(final IDatabaseConnection connection)
+    {
+        openedConnections.add(connection);
     }
 
     /**

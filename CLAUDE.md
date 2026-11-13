@@ -9,7 +9,8 @@ DbUnit is a JUnit extension for database-driven testing. It prepares a database 
 ## Build and Test Commands
 
 Unit tests (`**/*Test.java`) run with Surefire; integration tests (`**/*IT.java`) run with Failsafe.
-Tests run with `user.timezone=Europe/Berlin`.
+Unit tests run with `user.timezone=Europe/Berlin` (the `test.timezone` property of `pom.xml`);
+integration tests run in the machine's time zone.
 
 Use the Maven wrapper (`./mvnw`) for all build operations.
 
@@ -60,7 +61,7 @@ build-with-all-DBs.ps1 or build-with-all-DBs.sh
 - Decorator-based: `CachedDataSet`, `FilteredDataSet`, `CompositeDataSet`, `SortedDataSet`, `ReplacementDataSet`
 - Live: `DatabaseDataSet` (from `IDatabaseConnection`), `QueryDataSet`
 
-**`DatabaseOperation`** — abstract base for database mutations. Static constants: `INSERT`, `UPDATE`, `DELETE`, `DELETE_ALL`, `TRUNCATE_TABLE`, `REFRESH` (upsert), `CLEAN_INSERT` (truncate + insert). Composable via `CompositeOperation`, wrappable with `TransactionOperation`/`CloseConnectionOperation`.
+**`DatabaseOperation`** — abstract base for database mutations. Static constants: `INSERT`, `UPDATE`, `DELETE`, `DELETE_ALL`, `TRUNCATE_TABLE`, `REFRESH` (upsert), `CLEAN_INSERT` (delete all + insert). Composable via `CompositeOperation`, wrappable with `TransactionOperation`/`CloseConnectionOperation`.
 
 **`IDatabaseTester`** — the preferred composition-based test helper (use this over extending `DBTestCase`). Manages setup/teardown lifecycle. Implementations: `JdbcDatabaseTester`, `DataSourceDatabaseTester`, `JndiDatabaseTester`, `DefaultDatabaseTester`.
 
@@ -145,17 +146,27 @@ Integration tests use `DatabaseEnvironment` to bootstrap the target database fro
   - When renaming files, always use `git mv` instead of `git delete` followed by `git add`.
 
 - Commit Messages:
-  - Adhere strictly to de facto standard Git commit message formatting.
-  - Use Conventional Commits format.
-  - **Commit Types:** `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `build:`, `ci:`, `perf:`
-  - **Scopes:** any of the database names, `annotations`, `assertion`, `pom`, `log`, `docker`, `database`, `dataset`, `junit`, `metadata`, `resultset`, `scripts`, `site`, `statement`, `search`, `util`, `ant`, `operation`, `spring`
-  - Capitalize the first word after the type and scope.
-  - You may suggest additional CC commit types and scopes when encountering situations where the changes do not fit into the approved lists above.
-  - Reference GitHub issues in the commit footer with `Refs: <issue-number>` (e.g. `Refs: 123`).  Do not use a # before the number.
-  - Do not put the issue number in the message topic.
-  - Use * for bullets, not -.
-  - Do not refer to files that are not committed.
-  - Commit messages must only describe the final code state within that specific commit. Never include references to intermediate fixes, internal feedback loops, or temporary issues introduced and resolved during development (e.g., do not write "fixed typo" or "fixed issue X from review" if the original mistake is not part of the permanent git history).
+  - Adhere strictly to de facto standard Git commit message formatting: a subject line, one blank line, the body, one blank line, then the footer.  Line wrapping is the rule most often missed.
+  - Subject line:
+    - Use Conventional Commits format: `type(scope): Description`.  The scope is optional.
+    - Keep the whole line, including the `type(scope): ` prefix, to 72 characters or fewer.  Aim for 50 or fewer when the meaning stays clear.  A `fixup! `, `amend! ` or `squash! ` prefix that git generates does not count.
+    - Capitalize the first word after the colon, use the imperative mood ("Add", not "Added" or "Adds"), and do not end the line with a period.
+    - Do not put the issue number in the subject line.
+    - **Commit Types:** `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `build:`, `ci:`, `perf:`
+    - **Scopes:** the database names `db2`, `h2`, `hsqldb`, `mariadb`, `mckoi`, `mssql`, `mysql`, `netezza`, `oracle`, `postgresql`, and `ai`, `annotations`, `assertion`, `pom`, `log`, `docker`, `database`, `dataset`, `junit`, `metadata`, `resultset`, `scripts`, `site`, `statement`, `search`, `util`, `ant`, `operation`, `spring`
+    - When no listed type or scope fits, use the closest one and suggest the addition in the reply.
+    - Mark a breaking change with `!` immediately before the colon (e.g. `feat(dataset)!: Remove the deprecated constructor`) and add a `BREAKING-CHANGE:` footer.  A change is breaking when it can break users of the last release; a change to unreleased code is not.
+  - Body:
+    - Explain *what* changed and *why*, rather than *how*.  An optional short paragraph before the bullets can give the why.
+    - Write one bullet per change with `*`, never `-`.  Start each bullet with an imperative verb, end it with a period, and leave no blank lines between bullets.
+    - Wrap every line at 72 characters or fewer.  Indent each wrapped bullet line by two spaces so it lines up with the bullet text.
+    - Use plain text: no Markdown other than the `*` bullets (no backticks, bold, headings, links or code fences) and no conversational filler such as "This commit ...".
+    - Commit messages must only describe the final code state within that specific commit. Never include references to intermediate fixes, internal feedback loops, or temporary issues introduced and resolved during development (e.g., do not write "fixed typo" or "fixed issue X from review" if the original mistake is not part of the permanent git history).
+    - Do not refer to files that are not committed.
+  - Footer:
+    - Put every footer line in one block with no blank lines inside it, set off from the body by one blank line.  Otherwise git stops recognizing them as trailers.
+    - Order the lines `BREAKING-CHANGE: <description>`, `Refs: <issue-number>`, then any attribution trailers, copied exactly as the environment gives them.  Wrap a line longer than 72 characters and indent its continuation by two spaces.
+    - Reference each GitHub issue on its own line as `Refs: <issue-number>` (e.g. `Refs: 123`) with no `#`, because `.gitbugtraq` links `Refs: \d+`.  Omit the line when there is no issue.
 
 - Java:
   - Use Eclipse code formatter settings file `java-codestyle-formatter.xml` when modifying or creating files (in dbUnit)
@@ -163,7 +174,7 @@ Integration tests use `DatabaseEnvironment` to bootstrap the target database fro
   - If Lombok is available, use its annotations such as @AllArgsConstructor, @NoArgsConstructor, @Getter, @Setter.
   - If not using @Slf4j, then place the Logger variable first in the class.
   - Write JavaDoc comments on all public classes and methods in src/main.
-  - In JavaDoc, use complete sentences for all descriptions, start with a capital letter and end with a period, for everything - the topic body, parameters, and return, including all annotations such as @param and @throws.
+  - In JavaDoc, do not use passive voice, use complete sentences for all descriptions, start with a capital letter and end with a period, for everything - the topic body, parameters, and return, including all annotations such as @param and @throws.
   - Tests:
     - Prefer assertJ.
     - Prefer to add ".as()" with a fail message ending with a period.

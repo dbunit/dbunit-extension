@@ -3,9 +3,26 @@
 == Overview
 
 Dataset formats store field values as text — always for
-link:flatxml.html[Flat XML], link:xml.html[XML], link:csv.html[CSV],
-link:json.html[JSON], and link:yaml.html[YAML]; for link:excel.html[Excel],
-except where an `.xls` cell is natively a number, date, or boolean. dbUnit
+link:flatxml.html[Flat XML], link:xml.html[XML] and link:csv.html[CSV]; for
+link:excel.html[Excel], except where an `.xls` cell is natively a number, date,
+or boolean. link:json.html[JSON] and link:yaml.html[YAML] hand dbUnit an
+unquoted integer as a number and an unquoted `true` or `false` as a boolean,
+and JSON a number with a fraction as an exact decimal and an object or an array as
+its compact JSON text; a YAML date or
+timestamp that the column type parses as text, such as `2024-03-01` or
+`2024-03-01 10:15:30`, a YAML time such as `10:30:00`, any other base-60 number,
+such as the clock time `12:30` or the ratio `16:9`, an integer with leading
+zeros such as `01234` or a leading plus such as `+4930123456`, and a YAML
+decimal number are handed on as their text, so they follow the rules below like
+every other format's. A YAML timestamp with a `T` or a time zone, such as
+`2024-03-01T10:15:30Z`, and a YAML number that is not a plain decimal, such as
+`0x1F`, `1_000.5` or `.inf`, are handed on as the instant, the integer or the
+`double` that SnakeYAML reads, which for a timestamp without a time zone is an
+instant in UTC; so is a YAML value with an explicit tag, such as `!!timestamp`,
+which keeps the type the tag names. YAML reads `yes`, `no`, `on` and `off`, in
+lower case, capitalized or in upper case, as booleans, so a text column gets
+`true` or `false` for such an unquoted value: quote a value that it should get as
+written, such as the country code `NO`, `0x1F`, `0b101` or `1_000`. dbUnit
 turns each value into a typed column value with the column's
 link:../datatypes.html[DataType]: `DataType.typeCast()` parses a string using
 the SQL type dbUnit resolved for the column (from database metadata, a DTD, or
@@ -20,7 +37,8 @@ prefix as an instruction rather than literal content
 (`DataType.isExtendedSyntax()` — value starts with `[`). This is how
 `[TEXT|BASE64|FILE|URL]` loads binary data and how `[now...]` produces a
 relative date. String columns never do this — a leading `[` is stored
-verbatim.
+verbatim. In a link:yaml.html[YAML] dataset, write a value that starts with `[`
+in quotes, as `'[now-1d]'`: YAML reads an unquoted one as the start of a list.
 
 The link:decorators.html#replacementdataset[ReplacementDataSet] decorator is a
 separate mechanism: it swaps placeholder objects and substrings *before*
@@ -37,11 +55,11 @@ Each format has its own way to say "this cell is null":
 |Format |Null representation
 
 |link:flatxml.html[Flat XML] |Omit the attribute. A row that does not mention `COL2` has a null `COL2`.
-|link:xml.html[XML] |An explicit `<null/>` or `<none/>` element in the row.
-|link:csv.html[CSV] |The literal token `null`, unquoted. A quoted `"null"` is the four-character string.
-|link:json.html[JSON] |Omit the key from that row's object. (Writing a dataset omits null-valued keys rather than emitting JSON `null`.)
-|link:yaml.html[YAML] |Omit the key from that row's mapping.
-|link:excel.html[Excel] |An empty or absent cell.
+|link:xml.html[XML] |An explicit `<null/>` element in the row. A `<none/>` element, or a value missing at the end of a row, is no value instead: an `INSERT`, `CLEAN_INSERT` included, leaves the column out, so it gets the column's default, while an `UPDATE` sets it to null. An expected `<none/>` compares as a null.
+|link:csv.html[CSV] |The literal token `null`, quoted or not: the reader drops the quotes before it compares, so a CSV dataset cannot hold the text `null`. To store that text, write a placeholder of your own and replace it with a link:decorators.html#replacementdataset[ReplacementDataSet].
+|link:json.html[JSON] |Omit the key from that row's object. (Writing a dataset omits a null-valued key from every row of a table but the first, which keeps all the columns of the table with a JSON `null` for a null, so a column that is null in every row survives a read-back.)
+|link:yaml.html[YAML] |Omit the key from that row's mapping, or write `null` or `~`. (Writing a dataset omits a null-valued key from every row of a table but the first, which keeps all the columns of the table with a YAML `null` for a null, so a column that is null in every row survives a read-back.)
+|link:excel.html[Excel] |A blank or absent cell. A text cell that holds an empty string is the empty string.
 |===
 
 Each format page states its own convention in its own words; the table above
@@ -68,6 +86,9 @@ fail fast if a placeholder is left unreplaced instead of passing it through
 silently. See link:decorators.html#replacementdataset[ReplacementDataSet] for
 the full mechanics and link:fileloader.html[Data File Loader] for loaders that
 apply replacements automatically.
+
+In a link:yaml.html[YAML] dataset, write the placeholder in quotes, as
+`'[NULL]'`: YAML reads an unquoted `[NULL]` as a list, which dbUnit rejects.
 
 [#empty]
 == Empty string vs. missing
@@ -102,7 +123,9 @@ become bytes:
 ----
 
 The command word is matched case-insensitively. Everything after the closing
-`]` is the payload.
+`]` is the payload. In a link:yaml.html[YAML] dataset, write the whole value in
+quotes, as `'[TEXT]hello'`: YAML reads an unquoted one as a list followed by
+text, which is a syntax error.
 
 === TEXT
 
@@ -191,9 +214,10 @@ to the file or Base64 step.
 A value whose `[...]` prefix is not one of the four commands — `[BOGUS]...`, or
 the `[NULL]` placeholder if it reaches a binary column without a
 link:decorators.html#replacementdataset[ReplacementDataSet] — is a
-`TypeCastException` naming the unrecognized command. A value that starts with
-`[` but has no closing `]` is not command syntax and is resolved as a raw
-value, as above.
+`TypeCastException` that names the unrecognized command and the four valid ones
+and says to prefix a value to store as text with `[TEXT]`, as in
+`[TEXT][1, 2]`. A value that starts with `[` but has no closing `]` is not
+command syntax and is resolved as a raw value, as above.
 
 CLOB columns are character data and follow the string rules, not this
 section; `[TEXT|BASE64|FILE|URL]` is for binary types.
@@ -217,6 +241,10 @@ dbUnit uses the JDBC escape formats:
 A `TIMESTAMP` value may carry a numeric timezone offset suffix such as
 `2024-03-01 12:00:00.0 +0100`; see link:../databases/mssql.html[the MSSQL
 guide] for how `TIMESTAMP WITH TIME ZONE` columns are handled.
+
+The link:json.html[JSON] and link:yaml.html[YAML] datasets that dbUnit writes hold a
+date, a time and a timestamp in these formats, as text, so that they read back the same
+day and time in any time zone.
 
 === Relative dates — `[now...]`
 
@@ -251,6 +279,9 @@ An input that starts with `[` but is not a valid `[now...]` expression is a
 `TypeCastException` — there is no way to store a literal leading `[` in a
 date/time column (see <<literal-bracket,Literal leading bracket>>).
 
+In a link:yaml.html[YAML] dataset, write the expression in quotes, as
+`'[now-1d]'`: YAML reads an unquoted `[now-1d]` as a list, which dbUnit rejects.
+
 [#uuid]
 == UUIDs in binary columns
 
@@ -279,13 +310,16 @@ case-insensitively. Any other value is parsed as an integer, then `0` is
 `false` and any non-zero is `true`. A value that is neither (`yes`, `y`, ...)
 is a `TypeCastException`.
 
-*Integer columns* (`TINYINT`, `SMALLINT`, `INTEGER`): also accept `true` /
-`false` (case-insensitive) as `1` / `0`, otherwise parse the value as a
-number.
+*Integer columns* (`TINYINT`, `SMALLINT`, `INTEGER`, `BIGINT`): also accept `true` /
+`false` (case-insensitive) as `1` / `0`, and so does a `Boolean`, which is what an
+unquoted `true` or `false` of a link:json.html[JSON] or link:yaml.html[YAML] dataset
+(also a YAML `yes`, `no`, `on` or `off`) and a boolean cell of an
+link:excel.html[Excel] dataset arrive as. Otherwise they parse the value as a number.
 
-*Decimal columns* (`NUMERIC`, `DECIMAL`): a `Boolean` value becomes `1` or
-`0`, but the *strings* `"true"` / `"false"` are not special here — they are a
-`TypeCastException`. Everything else goes through `new BigDecimal(value)`.
+*Decimal columns* (`NUMERIC`, `DECIMAL`): accept `true` / `false` (case-insensitive) as
+`1` / `0` too, and so does a `Boolean`, as the integer columns do. That lets a flat XML,
+CSV or Excel text `true` or `false` fill the `NUMBER(1)` boolean column of Oracle, which is
+a `NUMERIC` column. Everything else goes through `new BigDecimal(value)`.
 
 In link:csv.html[CSV], a numeric field with a trailing space before the comma
 is read as a string, not a number.
@@ -337,11 +371,13 @@ it in the file.
 == Column sensing (Flat XML)
 
 link:flatxml.html[Flat XML] deduces a table's columns from its *first* row. A
-later row with an attribute the first row lacked produces:
+later row with an attribute the first row lacked logs this warning, where the parts
+in angle brackets vary:
 
 ----
-Extra columns on line x. Those columns will be ignored. Please add the extra
-columns to line 1, or use a DTD to make sure the value of those columns are populated.
+Extra columns (<names>) on line <n> for table <table> (global line number is <g>). Those columns will be ignored.
+    Please add the extra columns to line 1, or use a DTD to make sure the value of those columns are populated or specify 'columnSensing=true' for your FlatXmlProducer.
+    See FAQ for more details.
 ----
 
 Three ways to fix it:
@@ -358,6 +394,10 @@ FlatXmlDataSetBuilder builder = new FlatXmlDataSetBuilder();
 builder.setColumnSensing(true);
 IDataSet dataSet = builder.build(new File("dataset.xml"));
 ----
+
+A test that loads its files through a data file loader, as the annotations and
+`PrepAndExpectedTestCase` do, passes such a builder to the loader instead —
+see link:fileloader.html#columnsensing[Data File Loader: column sensing].
 
 link:yaml.html[YAML] and link:json.html[JSON] do not have this problem — they
 take a table's columns from the union of all its rows. link:csv.html[CSV]

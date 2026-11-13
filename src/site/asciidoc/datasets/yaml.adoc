@@ -4,6 +4,11 @@ link:../apidocs/org/dbunit/dataset/yaml/YamlDataSet.html[YamlDataSet]
 reads and writes YAML dataset documents.
 Each toplevel key corresponds to a table, where the value is a list of rows.
 Each row is a sequence of key:value pairs, where the key corresponds to the table column.
+An empty document, or one with only comments, is an empty dataset; a document whose root is
+not a mapping of table names to rows is rejected with a `DataSetException`, as is a table that
+is not a list of rows, a row that is not a mapping of column names to values, and a table or
+column name YAML reads as a number or a boolean, such as `123` or `on`: quote such a name. A
+list entry with no value is a row of nulls.
 
 YAML dataset document sample:
 
@@ -20,16 +25,78 @@ SECOND_TABLE:
 EMPTY_TABLE:
 ----
 
-To specify null values, just omit the corresponding column key.
+To specify null values, just omit the corresponding column key, or write `null` or `~`
+as its value.
 In the above example, missing COL0 and COL2 keys of TEST_TABLE second row represents null values.
+Writing a dataset is the mirror image: a column whose value is null is omitted from that
+row's mapping, except in the first row of a table. That row carries every column of the
+table, with a YAML `null` for a null value, so a column that is null in every row still
+appears in the output and survives a read-back.
 
 In contrast to link:flatxml.html[Flat XML], table metadata is deduced from
 the sum of all rows for each table, not just the first — so a column that
 first appears on a later row is still picked up.
 
+Table names are always case-sensitive — unlike some other formats, there is no
+case-insensitive table lookup fallback. A test that loads a YAML dataset through a
+link:fileloader.html[data file loader] and calls `getTable()` on it itself uses the
+name as written: `getTable("account")` does not find a table named `ACCOUNT`.
+`DefaultPrepAndExpectedTestCase` is not affected, as it looks tables up the way the
+connection's `FEATURE_CASE_SENSITIVE_TABLE_NAMES` says, whatever the format.
+
 For what happens to a field value after parsing — empty strings, binary/BLOB
 syntax, literal and relative dates, UUID literals, and booleans/numbers from
 strings — see link:values.html[Dataset Values], which applies to every format.
+
+YAML reads an unquoted value that starts with `[` as a list and one that starts
+with `{` as a mapping, so quote such a value to give it as text, as `'[NULL]'`,
+`'[now-1d]'` or `'[TEXT]hello'`. A cell that is a list or a mapping is rejected
+with a `DataSetException` that names the table, the row and the column, and an
+unquoted `[TEXT]hello` is a syntax error that fails the whole file.
+
+Since 3.6.0 an unquoted date or timestamp that the column type parses as text,
+such as `2024-03-01` or `2024-03-01 10:15:30`, an unquoted base-60 number, such
+as the time `10:30:00`, the clock time `12:30`, the ratio `16:9` or `1:30.5`, an
+unquoted integer with leading zeros, such as `01234`, an unquoted integer with a
+leading plus, such as `+4930123456`, and an unquoted decimal number, such as
+`12.50` or `1.5e3`, reach the column type as their text, which it parses in the
+JVM's time zone and with every digit.
+Before, SnakeYAML read such a date as an instant at midnight UTC, the day before
+in a time zone west of UTC, such a timestamp as an instant in UTC, such a
+base-60 number as the sum of its parts, so that `10:30:00` became 37800 and
+`16:9` became 969, such an integer with leading zeros as an octal number, so
+that `01234` became 668, such an integer with a leading plus as the integer
+without the plus, and such a number as a `double`. A timestamp or a number that
+the column type does not parse as text still reaches it as the instant, the
+integer or the `double` that SnakeYAML reads: a timestamp with a `T` or a time
+zone, such as `2024-03-01T10:15:30Z`, which SnakeYAML takes as UTC when it names
+no zone, an integer in hexadecimal, binary or with digit groups, such as `0x1F`,
+`0b101` or `1_000`, and a number with digit groups, such as `1_000.5`, or `.inf`
+and `.nan`.
+YAML 1.1 also reads `yes`, `no`, `on` and `off`, in lower case, capitalized or in
+upper case, as booleans, so a text column gets `true` or `false` for such an
+unquoted value, such as the country code `NO`: quote a value that a text column
+should get as written, such as that code, `0x1F`, `0b101` or `1_000`.
+`YamlDataSet.write()` writes a date, a time or a timestamp as text the column
+type parses, so a written dataset reads back unchanged. It writes a value of any
+other type than a string, a number, a boolean, an array, a collection or a map as its
+`toString()` text, such as the text of a `UUID` that a dataset built in code holds.
+It writes text that holds a control character, such as a form feed or an escape
+character, as a quoted value with YAML escapes, so it reads back as the same text.
+A file written before 3.6.0 holds such text as a `!!binary` value, which a text column
+reads as Base64 text: write it again.
+
+`YamlDataSet.write()` can write a streaming dataset, such as a `StreamingDataSet` over a flat XML
+file, or a database export through `ForwardOnlyResultSetTableFactory`. It does not stream
+the output, though: it holds the whole document in memory before it writes. When a table
+appears more than once in the dataset, as in a streaming flat XML file that interleaves its
+tables, the rows of every occurrence go under the one table name, in order.
+
+A YAML document is read whatever its size, as a JSON document is. dbUnit lifts the limit of
+3,145,728 code points that SnakeYAML sets on a document by default, because a
+dataset is a fixture of the test's own project, and a document that `YamlDataSet.write()` wrote,
+such as the export of about 120,000 small rows, would otherwise not read back. SnakeYAML's limit of
+50 aliases for a list or a mapping stays, as an alias is unusual in a dataset.
 
 == Dependency
 

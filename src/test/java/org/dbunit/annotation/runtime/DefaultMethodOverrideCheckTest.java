@@ -21,51 +21,17 @@
 package org.dbunit.annotation.runtime;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.jupiter.api.Test;
 
 class DefaultMethodOverrideCheckTest
 {
-    @Test
-    void testOverridesDefaultMethod_typeOverridesIt_returnsTrue()
-    {
-        final boolean result = DefaultMethodOverrideCheck.overridesDefaultMethod(
-                Overriding.class, WithDefaultMethod.class, "greet");
-
-        assertThat(result).as("A type declaring its own greet() overrides the default.")
-                .isTrue();
-    }
-
-    @Test
-    void testOverridesDefaultMethod_typeDoesNotOverrideIt_returnsFalse()
-    {
-        final boolean result = DefaultMethodOverrideCheck.overridesDefaultMethod(
-                NotOverriding.class, WithDefaultMethod.class, "greet");
-
-        assertThat(result)
-                .as("A type inheriting the interface's own default body does not override it.")
-                .isFalse();
-    }
-
-    @Test
-    void testOverridesDefaultMethod_methodDoesNotExistAtAll_throwsIllegalStateException()
-    {
-        assertThatThrownBy(() -> DefaultMethodOverrideCheck.overridesDefaultMethod(
-                NotOverriding.class, WithDefaultMethod.class, "noSuchMethod"))
-                        .as("A method name the interface does not actually declare must be"
-                                + " rejected with a clear message, not a raw"
-                                + " NoSuchMethodException - this should be unreachable for a"
-                                + " method that is really declared on declaringInterface.")
-                        .isInstanceOf(IllegalStateException.class)
-                        .hasMessageContaining(WithDefaultMethod.class.getName())
-                        .hasMessageContaining("noSuchMethod");
-    }
+    private final DefaultMethodOverrideCheck check = new DefaultMethodOverrideCheck();
 
     @Test
     void testDeclaresBelow_startTypeItselfDeclaresIt_returnsTrue()
     {
-        final boolean result = DefaultMethodOverrideCheck.declaresBelow(Redeclaring.class,
+        final boolean result = check.declaresBelow(Redeclaring.class,
                 Base.class, "hook");
 
         assertThat(result).as("The start type declaring its own hook() counts.").isTrue();
@@ -74,7 +40,7 @@ class DefaultMethodOverrideCheckTest
     @Test
     void testDeclaresBelow_anIntermediateClassDeclaresIt_returnsTrue()
     {
-        final boolean result = DefaultMethodOverrideCheck.declaresBelow(
+        final boolean result = check.declaresBelow(
                 InheritsRedeclaration.class, Base.class, "hook");
 
         assertThat(result)
@@ -87,7 +53,7 @@ class DefaultMethodOverrideCheckTest
     @Test
     void testDeclaresBelow_onlyTheCeilingDeclaresIt_returnsFalse()
     {
-        final boolean result = DefaultMethodOverrideCheck.declaresBelow(InheritsFromBase.class,
+        final boolean result = check.declaresBelow(InheritsFromBase.class,
                 Base.class, "hook");
 
         assertThat(result)
@@ -100,33 +66,12 @@ class DefaultMethodOverrideCheckTest
     @Test
     void testDeclaresBelow_parameterTypesDoNotMatch_returnsFalse()
     {
-        final boolean result = DefaultMethodOverrideCheck.declaresBelow(Redeclaring.class,
+        final boolean result = check.declaresBelow(Redeclaring.class,
                 Base.class, "hook", String.class);
 
         assertThat(result)
                 .as("A redeclaration with a different signature is not the method asked about.")
                 .isFalse();
-    }
-
-    interface WithDefaultMethod
-    {
-        default String greet()
-        {
-            return "default";
-        }
-    }
-
-    static class NotOverriding implements WithDefaultMethod
-    {
-    }
-
-    static class Overriding implements WithDefaultMethod
-    {
-        @Override
-        public String greet()
-        {
-            return "overridden";
-        }
     }
 
     static class Base

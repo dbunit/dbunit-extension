@@ -26,11 +26,15 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.lang.ref.WeakReference;
+import java.util.Optional;
 
 import org.dbunit.VerifyTableDefinition;
+import org.dbunit.annotation.DbUnitColumnComparer;
 import org.dbunit.annotation.DbUnitExpected;
 import org.dbunit.annotation.DbUnitVerifyTable;
+import org.dbunit.assertion.comparer.value.IsActualWithinToleranceOfExpectedTimestampValueComparer;
 import org.dbunit.assertion.comparer.value.NeverFailsValueComparer;
+import org.dbunit.assertion.comparer.value.ValueComparerTemplateBase;
 import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.IDataSet;
 import org.dbunit.util.fileloader.DataFileLoader;
@@ -47,7 +51,7 @@ class VerifyTableDefinitionResolverTest
                 WithVerifyTables.class.getAnnotation(DbUnitExpected.class);
 
         final VerifyTableDefinition[] definitions =
-                resolver.resolveDeclared(null, expected, new String[] {"expected.xml"}).get();
+                resolveDeclared(expected, new String[] {"expected.xml"}).get();
 
         assertThat(definitions).extracting(VerifyTableDefinition::getTableName)
                 .containsExactly("ACCOUNT", "LEDGER");
@@ -59,7 +63,7 @@ class VerifyTableDefinitionResolverTest
         final DbUnitExpected expected =
                 WithDuplicateVerifyTables.class.getAnnotation(DbUnitExpected.class);
 
-        assertThatThrownBy(() -> resolver.resolveDeclared(null, expected,
+        assertThatThrownBy(() -> resolveDeclared(expected,
                 new String[] {"expected.xml"}))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("more than one")
@@ -67,11 +71,41 @@ class VerifyTableDefinitionResolverTest
     }
 
     @Test
+    void testResolveDeclared_verifyTablesDifferingOnlyInCase_throws()
+    {
+        final DbUnitExpected expected =
+                WithDifferentCaseDuplicateVerifyTables.class.getAnnotation(DbUnitExpected.class);
+
+        assertThatThrownBy(() -> resolveDeclared(expected,
+                new String[] {"expected.xml"}))
+                        .as("'ACCOUNT' and 'account' name the same table, as dbUnit compares"
+                                + " table names ignoring case unless told otherwise.")
+                        .isInstanceOf(IllegalStateException.class)
+                        .hasMessageContaining("more than one")
+                        .hasMessageContaining("account");
+    }
+
+    @Test
+    void testResolveDeclared_inlineVerifyEntriesDifferingOnlyInCase_throws()
+    {
+        final DbUnitExpected expected =
+                WithDifferentCaseInlineVerify.class.getAnnotation(DbUnitExpected.class);
+
+        assertThatThrownBy(() -> resolveDeclared(expected,
+                new String[] {"expected.xml"}))
+                        .as("Two @DbUnitVerifyTable entries naming one table in different case"
+                                + " verify it twice.")
+                        .isInstanceOf(IllegalStateException.class)
+                        .hasMessageContaining("more than one")
+                        .hasMessageContaining("account");
+    }
+
+    @Test
     void testResolveDeclared_noVerifySpecWithExpectedDataset_declaresNothingSoTablesAreDerivedLater()
     {
-        final DbUnitExpected expected = Bare.class.getAnnotation(DbUnitExpected.class);
+        final DbUnitExpected expected = DatasetOnly.class.getAnnotation(DbUnitExpected.class);
 
-        assertThat(resolver.resolveDeclared(null, expected, new String[] {"expected.xml"}))
+        assertThat(resolveDeclared(expected, new String[] {"expected.xml"}))
                 .as("With no verify spec, nothing is declared and no loader is touched yet:"
                         + " the tables are derived later, with the loader that will compare"
                         + " them.")
@@ -88,10 +122,62 @@ class VerifyTableDefinitionResolverTest
         when(loader.load("expected.xml")).thenReturn(dataSet);
 
         final VerifyTableDefinition[] definitions =
-                resolver.deriveFromExpectedDatasets(loader, new String[] {"expected.xml"});
+                resolver.deriveFromExpectedDatasets(loader, new String[] {"expected.xml"},
+                        new VerifyTableDefinition[0]);
 
         assertThat(definitions).extracting(VerifyTableDefinition::getTableName)
                 .containsExactly("ACCOUNT", "LEDGER");
+    }
+
+    @Test
+    void testDeriveFromExpectedDatasets_catalogDefinesSomeTables_usesItsDefinitionsAndDefaultsForTheRest()
+            throws Exception
+    {
+        final DataFileLoader loader = loaderOfTables("ACCOUNT", "LEDGER");
+        final VerifyTableDefinition ledgerRules = new VerifyTableDefinition("LEDGER",
+                new String[] {"UPDATED_AT"});
+
+        final VerifyTableDefinition[] definitions = resolver.deriveFromExpectedDatasets(loader,
+                new String[] {"expected.xml"}, new VerifyTableDefinition[] {ledgerRules});
+
+        assertThat(definitions).extracting(VerifyTableDefinition::getTableName)
+                .containsExactly("ACCOUNT", "LEDGER");
+        assertThat(definitions[1])
+                .as("A table the catalog defines is verified with the catalog's own definition.")
+                .isSameAs(ledgerRules);
+        assertThat(definitions[0].getColumnExclusionFilters())
+                .as("A table it does not define is verified with the default rules.").isNull();
+    }
+
+    @Test
+    void testDeriveFromExpectedDatasets_catalogDefinesATableTheDatasetLacks_doesNotVerifyIt()
+            throws Exception
+    {
+        final DataFileLoader loader = loaderOfTables("ACCOUNT");
+        final VerifyTableDefinition audit = new VerifyTableDefinition("AUDIT", (String[]) null);
+
+        final VerifyTableDefinition[] definitions = resolver.deriveFromExpectedDatasets(loader,
+                new String[] {"expected.xml"}, new VerifyTableDefinition[] {audit});
+
+        assertThat(definitions).extracting(VerifyTableDefinition::getTableName)
+                .as("The expected dataset decides which tables are verified, the catalog only"
+                        + " supplies rules.")
+                .containsExactly("ACCOUNT");
+    }
+
+    @Test
+    void testDeriveFromExpectedDatasets_catalogSpellsTheTableNameInAnotherCase_usesItsDefinition()
+            throws Exception
+    {
+        final DataFileLoader loader = loaderOfTables("account");
+        final VerifyTableDefinition upperCase =
+                new VerifyTableDefinition("ACCOUNT", (String[]) null);
+
+        final VerifyTableDefinition[] definitions = resolver.deriveFromExpectedDatasets(loader,
+                new String[] {"expected.xml"}, new VerifyTableDefinition[] {upperCase});
+
+        assertThat(definitions).as("Tables are matched ignoring case, as dbUnit finds a table in"
+                + " a dataset.").containsExactly(upperCase);
     }
 
     @Test
@@ -104,10 +190,85 @@ class VerifyTableDefinitionResolverTest
         when(loader.load("expected.xml")).thenReturn(dataSet);
 
         assertThatThrownBy(() -> resolver.deriveFromExpectedDatasets(loader,
-                new String[] {"expected.xml"}))
+                new String[] {"expected.xml"}, new VerifyTableDefinition[0]))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("expected.xml")
                 .hasCauseInstanceOf(DataSetException.class);
+    }
+
+    @Test
+    void testResolveDeclared_verifyTablesNamedInDifferentCaseThanTheCatalog_selectsTheCatalogsDefinition()
+    {
+        final DbUnitExpected expected =
+                WithLowerCaseTable.class.getAnnotation(DbUnitExpected.class);
+
+        final VerifyTableDefinition[] definitions = resolver.resolveDeclared(
+                new Class<?>[] {UpperCaseAccountCatalog.class}, expected,
+                new String[] {"expected.xml"}).get();
+
+        assertThat(definitions)
+                .as("verifyTables selects from the catalog ignoring case, the way dbUnit finds a"
+                        + " table in a dataset.")
+                .containsExactly(UpperCaseAccountCatalog.ACCOUNT);
+    }
+
+    @Test
+    void testResolveDeclared_verifyTablesNamesATableTheCatalogLacks_getsADefaultDefinition()
+    {
+        final DbUnitExpected expected =
+                WithVerifyTables.class.getAnnotation(DbUnitExpected.class);
+
+        final VerifyTableDefinition[] definitions = resolver.resolveDeclared(
+                new Class<?>[] {UpperCaseAccountCatalog.class}, expected,
+                new String[] {"expected.xml"}).get();
+
+        assertThat(definitions).extracting(VerifyTableDefinition::getTableName)
+                .containsExactly("ACCOUNT", "LEDGER");
+        assertThat(definitions[0]).as("The table the catalog defines keeps its definition.")
+                .isSameAs(UpperCaseAccountCatalog.ACCOUNT);
+    }
+
+    @Test
+    void testResolveDeclared_inlineVerifyAndCatalog_inlineVerifyWins()
+    {
+        final DbUnitExpected expected =
+                InlineAccount.class.getAnnotation(DbUnitExpected.class);
+
+        final VerifyTableDefinition[] definitions = resolver.resolveDeclared(
+                new Class<?>[] {UpperCaseAccountCatalog.class}, expected,
+                new String[] {"expected.xml"}).get();
+
+        assertThat(definitions).hasSize(1);
+        assertThat(definitions[0]).as("The inline rules are the test's own, not the catalog's.")
+                .isNotSameAs(UpperCaseAccountCatalog.ACCOUNT);
+    }
+
+    @Test
+    void testResolveDeclared_verifyAndVerifyTablesBothSet_throws()
+    {
+        final DbUnitExpected expected =
+                InlineAndVerifyTables.class.getAnnotation(DbUnitExpected.class);
+
+        assertThatThrownBy(() -> resolveDeclared(expected, new String[] {"expected.xml"}))
+                .as("verify() declares the rules of its tables, so verifyTables() beside it is"
+                        + " ambiguous.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("@DbUnitExpected sets both verify() and verifyTables(); set only"
+                        + " one. verify() declares the rules of its tables, verifyTables() takes"
+                        + " them from a catalog.");
+    }
+
+    @Test
+    void testCatalogDefinitions_catalogClasses_returnsEveryDefinitionTheyHold()
+    {
+        assertThat(resolver.catalogDefinitions(new Class<?>[] {UpperCaseAccountCatalog.class}))
+                .containsExactly(UpperCaseAccountCatalog.ACCOUNT);
+    }
+
+    @Test
+    void testCatalogDefinitions_noCatalogClass_returnsNone()
+    {
+        assertThat(resolver.catalogDefinitions(new Class<?>[0])).isEmpty();
     }
 
     @Test
@@ -115,11 +276,12 @@ class VerifyTableDefinitionResolverTest
     {
         final DbUnitExpected expected = NoDatasetNoSpec.class.getAnnotation(DbUnitExpected.class);
 
-        assertThatThrownBy(() -> resolver.resolveDeclared(null, expected, new String[0]))
+        assertThatThrownBy(() -> resolveDeclared(expected, new String[0]))
                 .as("A @DbUnitExpected naming no dataset and no tables has nothing to verify"
                         + " against, which must be rejected rather than silently pass.")
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("names no expected dataset");
+                .hasMessageContaining("names an empty array of expected datasets (value = {})")
+                .hasMessageContaining("verify() and verifyTables() only give");
     }
 
     @Test
@@ -128,12 +290,12 @@ class VerifyTableDefinitionResolverTest
         final DbUnitExpected expected =
                 VerifyTablesWithoutDataset.class.getAnnotation(DbUnitExpected.class);
 
-        assertThatThrownBy(() -> resolver.resolveDeclared(null, expected, new String[0]))
+        assertThatThrownBy(() -> resolveDeclared(expected, new String[0]))
                 .as("Naming tables to verify does not make a missing expected dataset valid:"
                         + " the tables are compared to that dataset, and verifying one that is"
                         + " not in it always fails afterward with an obscure error.")
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("names no expected dataset");
+                .hasMessageContaining("names an empty array of expected datasets");
     }
 
     @Test
@@ -142,9 +304,22 @@ class VerifyTableDefinitionResolverTest
         final DbUnitExpected expected =
                 InlineVerifyWithoutDataset.class.getAnnotation(DbUnitExpected.class);
 
-        assertThatThrownBy(() -> resolver.resolveDeclared(null, expected, new String[0]))
+        assertThatThrownBy(() -> resolveDeclared(expected, new String[0]))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("names no expected dataset");
+                .hasMessageContaining("names an empty array of expected datasets");
+    }
+
+    @Test
+    void testValue_expectedDatasetAttribute_hasNoDefaultSoTheCompilerRequiresIt()
+            throws Exception
+    {
+        final Object defaultValue = DbUnitExpected.class.getMethod("value").getDefaultValue();
+
+        assertThat(defaultValue)
+                .as("A test always needs its expected dataset, so an annotation that leaves value()"
+                        + " out must fail to compile where it is written, not fail every test that"
+                        + " carries it when the tests run.")
+                .isNull();
     }
 
     @Test
@@ -157,7 +332,7 @@ class VerifyTableDefinitionResolverTest
         Class<?> declaring = loader.loadClass(DeclaresIsolatedComparer.class.getName());
         DbUnitExpected expected = declaring.getAnnotation(DbUnitExpected.class);
 
-        resolver.resolveDeclared(null, expected, new String[] {"expected.xml"});
+        resolveDeclared(expected, new String[] {"expected.xml"});
         loader = null;
         declaring = null;
         expected = null;
@@ -168,7 +343,72 @@ class VerifyTableDefinitionResolverTest
                 .isTrue();
     }
 
-    @DbUnitExpected(verify = @DbUnitVerifyTable(value = "ACCOUNT",
+    @Test
+    void testResolveDeclared_defaultComparerWithoutNoArgConstructor_namesTheDefaultComparerAttribute()
+    {
+        final DbUnitExpected expected = DeclaresDefaultComparerWithoutNoArgConstructor.class
+                .getAnnotation(DbUnitExpected.class);
+
+        assertThatThrownBy(() -> resolveDeclared(expected, new String[] {"expected.xml"}))
+                .as("A comparer class that defaultComparer names must be reported under that"
+                        + " attribute, with the advice for a configured comparer.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageStartingWith("DbUnitVerifyTable.defaultComparer names a ValueComparer"
+                        + " that dbUnit cannot instantiate. ValueComparer class "
+                        + IsActualWithinToleranceOfExpectedTimestampValueComparer.class.getName()
+                        + " has no accessible no-arg constructor.")
+                .hasMessageContaining("catalog class")
+                .hasCauseInstanceOf(NoSuchMethodException.class);
+    }
+
+    @Test
+    void testResolveDeclared_columnComparerWithoutNoArgConstructor_namesTheColumnComparerAttribute()
+    {
+        final DbUnitExpected expected = DeclaresColumnComparerWithoutNoArgConstructor.class
+                .getAnnotation(DbUnitExpected.class);
+
+        assertThatThrownBy(() -> resolveDeclared(expected, new String[] {"expected.xml"}))
+                .as("A comparer class that a @DbUnitColumnComparer names must be reported under"
+                        + " that attribute.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageStartingWith("DbUnitColumnComparer.comparer names a ValueComparer"
+                        + " that dbUnit cannot instantiate.");
+    }
+
+    @Test
+    void testResolveDeclared_abstractComparer_saysItIsAbstractWithoutTheConstructorAdvice()
+    {
+        final DbUnitExpected expected =
+                DeclaresAbstractComparer.class.getAnnotation(DbUnitExpected.class);
+
+        assertThatThrownBy(() -> resolveDeclared(expected, new String[] {"expected.xml"}))
+                .as("An abstract comparer class has a no-arg constructor, so the message must"
+                        + " say that it is abstract, not that it is a configured instance"
+                        + " built with constructor arguments.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("DbUnitVerifyTable.defaultComparer names a ValueComparer that dbUnit"
+                        + " cannot instantiate. ValueComparer class "
+                        + ValueComparerTemplateBase.class.getName() + " is abstract. Name a"
+                        + " concrete subclass that has a no-arg constructor.");
+    }
+
+    private static DataFileLoader loaderOfTables(final String... tableNames) throws Exception
+    {
+        final DataFileLoader loader = mock(DataFileLoader.class);
+        final IDataSet dataSet = mock(IDataSet.class);
+        when(dataSet.getTableNames()).thenReturn(tableNames);
+        when(loader.load("expected.xml")).thenReturn(dataSet);
+        return loader;
+    }
+
+    /** Resolves what the annotations spell out, with no class-level catalog declared. */
+    private Optional<VerifyTableDefinition[]> resolveDeclared(final DbUnitExpected expected,
+            final String[] expectedDataFiles)
+    {
+        return resolver.resolveDeclared(new Class<?>[0], expected, expectedDataFiles);
+    }
+
+    @DbUnitExpected(value = "expected.xml", verify = @DbUnitVerifyTable(value = "ACCOUNT",
             defaultComparer = IsolatedComparer.class))
     static class DeclaresIsolatedComparer
     {
@@ -179,17 +419,17 @@ class VerifyTableDefinitionResolverTest
     {
     }
 
-    @DbUnitExpected
+    @DbUnitExpected(value = {})
     private static class NoDatasetNoSpec
     {
     }
 
-    @DbUnitExpected(verifyTables = {"ACCOUNT", "LEDGER"})
+    @DbUnitExpected(value = {}, verifyTables = {"ACCOUNT", "LEDGER"})
     private static class VerifyTablesWithoutDataset
     {
     }
 
-    @DbUnitExpected(verify = @DbUnitVerifyTable("ACCOUNT"))
+    @DbUnitExpected(value = {}, verify = @DbUnitVerifyTable("ACCOUNT"))
     private static class InlineVerifyWithoutDataset
     {
     }
@@ -204,8 +444,61 @@ class VerifyTableDefinitionResolverTest
     {
     }
 
+    @DbUnitExpected(value = "expected.xml", verifyTables = {"ACCOUNT", "account"})
+    private static class WithDifferentCaseDuplicateVerifyTables
+    {
+    }
+
+    @DbUnitExpected(value = "expected.xml",
+            verify = {@DbUnitVerifyTable("ACCOUNT"), @DbUnitVerifyTable("account")})
+    private static class WithDifferentCaseInlineVerify
+    {
+    }
+
+    @DbUnitExpected(value = "expected.xml", verifyTables = "account")
+    private static class WithLowerCaseTable
+    {
+    }
+
+    @DbUnitExpected(value = "expected.xml", verify = @DbUnitVerifyTable("ACCOUNT"))
+    private static class InlineAccount
+    {
+    }
+
+    @DbUnitExpected(value = "expected.xml", verify = @DbUnitVerifyTable("ACCOUNT"),
+            verifyTables = "ACCOUNT")
+    private static class InlineAndVerifyTables
+    {
+    }
+
+    /** Public, so the resolver can read its constants whatever package the test runs in. */
+    public static class UpperCaseAccountCatalog
+    {
+        public static final VerifyTableDefinition ACCOUNT =
+                new VerifyTableDefinition("ACCOUNT", (String[]) null);
+    }
+
+    @DbUnitExpected(value = "expected.xml", verify = @DbUnitVerifyTable(value = "ACCOUNT",
+            defaultComparer = IsActualWithinToleranceOfExpectedTimestampValueComparer.class))
+    private static class DeclaresDefaultComparerWithoutNoArgConstructor
+    {
+    }
+
+    @DbUnitExpected(value = "expected.xml", verify = @DbUnitVerifyTable(value = "ACCOUNT",
+            columnComparers = @DbUnitColumnComparer(column = "CREATED",
+                    comparer = IsActualWithinToleranceOfExpectedTimestampValueComparer.class)))
+    private static class DeclaresColumnComparerWithoutNoArgConstructor
+    {
+    }
+
+    @DbUnitExpected(value = "expected.xml", verify = @DbUnitVerifyTable(value = "ACCOUNT",
+            defaultComparer = ValueComparerTemplateBase.class))
+    private static class DeclaresAbstractComparer
+    {
+    }
+
     @DbUnitExpected("expected.xml")
-    private static class Bare
+    private static class DatasetOnly
     {
     }
 }

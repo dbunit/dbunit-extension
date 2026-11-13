@@ -142,7 +142,7 @@ class AccountWithdrawalTest
 ----
 
 The `IDatabaseTester` composing the test case supplies the setup/teardown
-operations: it defaults to `CLEAN_INSERT` (truncate + insert) for setup and
+operations: it defaults to `CLEAN_INSERT` (delete all + insert) for setup and
 `NONE` for teardown, so the explicit `setTearDownOperation(DELETE_ALL)` above
 is what makes cleanup actually happen. Both are configurable, see
 link:testcases/IDatabaseTester.html[IDatabaseTester] and
@@ -197,7 +197,7 @@ class AccountWithdrawalTest
     @Test
     @DbUnitPrep(ACCOUNT_PREP)
     @DbUnitExpected(value = ACCOUNT_EXPECTED, verifyTables = "account")
-    @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
+    @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
     void testWithdraw_sufficientBalance_decrementsBalance() throws Exception
     {
         try (Connection connection = DriverManager.getConnection(CONNECTION_URL);
@@ -209,8 +209,11 @@ class AccountWithdrawalTest
 }
 ----
 
+`account-expected.xml` holds the `account` table and no other, because `verifyTables` has to
+name every table of the expected dataset.
+
 `databaseTester.setTearDownOperation(DELETE_ALL)` from step 4 becomes
-`@DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)` — declared per
+`@DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)` — declared per
 method, or once per class when every method needs the same cleanup. Leaving
 it off entirely means no teardown runs at all (`NONE` is the actual
 default), not some baseline cleanup "for free" — declare it whenever a test
