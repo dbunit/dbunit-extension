@@ -20,6 +20,7 @@
  */
 package org.dbunit;
 
+import java.sql.DatabaseMetaData;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -40,6 +41,7 @@ import org.dbunit.database.DatabaseConfig;
 import org.dbunit.database.DatabaseConfigOverrides;
 import org.dbunit.database.IDatabaseConnection;
 import org.dbunit.database.IResultSetTableFactory;
+import org.dbunit.database.QuotedColumnsTableMetaData;
 import org.dbunit.database.connection.AutoCommitOffWarning;
 import org.dbunit.database.connection.ClosedConnectionHandedOutWarning;
 import org.dbunit.database.connection.ClosedFixedConnectionWarning;
@@ -1718,9 +1720,14 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * comparison reads them, so one of a type the data type factory does not
      * know is selected, and so is one added since the connection first read
      * the table, and the table is made by the connection's configured
-     * {@link DatabaseConfig#PROPERTY_RESULTSET_TABLE_FACTORY}. When the
-     * table's columns could not be read, or all of them are filtered out,
-     * which would leave nothing to select, it loads every column as
+     * {@link DatabaseConfig#PROPERTY_RESULTSET_TABLE_FACTORY}. With no
+     * {@link DatabaseConfig#PROPERTY_ESCAPE_PATTERN escape pattern} set, the
+     * selected column names are written between the database's identifier quote
+     * string, so that a column named as a reserved word or in mixed case is
+     * selected as the database stores it. When the table's columns could not be
+     * read, when none of them is filtered out, so that selecting them by name
+     * saves nothing, or when all of them are filtered out, which would leave
+     * nothing to select, it loads every column as
      * {@link #loadTableDataFromDatabase(String, IDatabaseConnection)} does.
      *
      * @param tableName
@@ -1759,7 +1766,9 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
             final IResultSetTableFactory tableFactory =
                     (IResultSetTableFactory) connection.getConfig().getProperty(
                             DatabaseConfig.PROPERTY_RESULTSET_TABLE_FACTORY);
-            return tableFactory.createTable(comparedMetaData, connection);
+            final ITableMetaData selectMetaData =
+                    quoteColumnNamesUnlessEscaped(comparedMetaData, connection);
+            return tableFactory.createTable(selectMetaData, connection);
         } catch (final Exception e)
         {
             final String msg = methodName + ": Problem obtaining table '"
@@ -1787,7 +1796,8 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      *            all.
      * @return The metadata of just those columns, with those of the table's
      *         primary key that are among them, or null when the table's
-     *         columns could not be read or no column is left.
+     *         columns could not be read, no column is filtered out, or no
+     *         column is left.
      */
     private ITableMetaData findComparedColumns(final String tableName,
             final IDatabaseConnection connection, final Column[] tableColumns,
@@ -1808,10 +1818,70 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
                     + " compared, selecting every column", tableName);
             return null;
         }
+        if (comparedColumns.length == tableColumns.length)
+        {
+            log.debug("findComparedColumns: No column of table {} is"
+                    + " filtered out, selecting every column", tableName);
+            return null;
+        }
         final Column[] comparedPrimaryKeys = findComparedPrimaryKeys(tableName,
                 connection, comparedColumns);
         return new DefaultTableMetaData(tableName, comparedColumns,
                 comparedPrimaryKeys);
+    }
+
+    /**
+     * Wraps the metadata so that the select of its columns writes each column
+     * name between the database's identifier quote string, which the names, as
+     * the database's own metadata gave them, need to be read as stored. With an
+     * escape pattern set, or when the driver cannot quote, the metadata is
+     * returned as it is, and the escape pattern or the plain name applies.
+     */
+    private ITableMetaData quoteColumnNamesUnlessEscaped(
+            final ITableMetaData metaData, final IDatabaseConnection connection)
+    {
+        final String escapePattern = (String) connection.getConfig()
+                .getProperty(DatabaseConfig.PROPERTY_ESCAPE_PATTERN);
+        if (escapePattern != null)
+        {
+            return metaData;
+        }
+
+        final String quoteString = findIdentifierQuoteString(connection);
+        if (quoteString == null)
+        {
+            return metaData;
+        }
+        return new QuotedColumnsTableMetaData(metaData, quoteString);
+    }
+
+    /**
+     * Finds the string the database quotes identifiers with.
+     *
+     * @return The quote string, or null when the driver cannot quote or does
+     *         not tell.
+     */
+    private String findIdentifierQuoteString(
+            final IDatabaseConnection connection)
+    {
+        try
+        {
+            final DatabaseMetaData databaseMetaData =
+                    connection.getConnection().getMetaData();
+            final String quoteString =
+                    databaseMetaData.getIdentifierQuoteString();
+            if (quoteString == null || quoteString.trim().isEmpty())
+            {
+                return null;
+            }
+            return quoteString.trim();
+        } catch (final SQLException e)
+        {
+            log.debug("findIdentifierQuoteString: Cannot determine the quote"
+                    + " string of the database, selecting the column names as"
+                    + " they are", e);
+            return null;
+        }
     }
 
     /**
