@@ -6,7 +6,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.StringReader;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -14,11 +18,17 @@ import java.util.stream.Collectors;
 
 import org.dbunit.assertion.comparer.value.ValueComparer;
 import org.dbunit.assertion.comparer.value.ValueComparers;
+import org.dbunit.database.CachedResultSetTableFactory;
 import org.dbunit.database.DatabaseConfig;
 import org.dbunit.database.IDatabaseConnection;
+import org.dbunit.database.IResultSetTable;
+import org.dbunit.database.IResultSetTableFactory;
 import org.dbunit.database.InMemoryDatabaseConnection;
+import org.dbunit.dataset.Column;
+import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.ITable;
+import org.dbunit.dataset.ITableMetaData;
 import org.dbunit.dataset.datatype.DataType;
 import org.dbunit.dataset.xml.FlatXmlDataSetBuilder;
 import org.dbunit.util.fileloader.FlatXmlDataFileLoader;
@@ -85,7 +95,7 @@ class DefaultPrepAndExpectedTestCaseFreshColumnsTest
     }
 
     @ParameterizedTest
-    @ValueSource(booleans = {false})
+    @ValueSource(booleans = {false, true})
     void testVerifyData_includeOfColumnOfUnknownType_passesAndComparesTheColumn(
             final boolean sortOnFilteredColumnsOnly) throws Exception
     {
@@ -116,7 +126,7 @@ class DefaultPrepAndExpectedTestCaseFreshColumnsTest
     }
 
     @ParameterizedTest
-    @ValueSource(booleans = {false})
+    @ValueSource(booleans = {false, true})
     void testVerifyData_columnComparerOfColumnOfUnknownType_isUsed(
             final boolean sortOnFilteredColumnsOnly) throws Exception
     {
@@ -132,8 +142,27 @@ class DefaultPrepAndExpectedTestCaseFreshColumnsTest
                         .doesNotThrowAnyException();
     }
 
+    @Test
+    void testVerifyData_sortOnFilteredColumnsOnlyOnTableWithPrimaryKey_projectionKeepsTheKeyForTheOrder()
+            throws Exception
+    {
+        final RecordingKeysResultSetTableFactory recording =
+                new RecordingKeysResultSetTableFactory();
+        connection.getConfig().setProperty(
+                DatabaseConfig.PROPERTY_RESULTSET_TABLE_FACTORY, recording);
+        final VerifyTableDefinition definition = definition("U",
+                new String[] {"G"}, new String[] {}, null, true);
+
+        verify(PREP_U, EXPECTED_U_TWO_ROWS_IN_REVERSE, definition, INSERT_U_TWO_ROWS);
+
+        assertThat(recording.getRequestedPrimaryKeyNames())
+                .as("The select of the compared columns must be ordered by the table's primary"
+                        + " key as the select of the whole table is.")
+                .containsExactly(Arrays.asList("ID"));
+    }
+
     @ParameterizedTest
-    @ValueSource(booleans = {false})
+    @ValueSource(booleans = {false, true})
     void testVerifyData_includeOfColumnTheStepAdds_passesAndComparesTheColumn(
             final boolean sortOnFilteredColumnsOnly) throws Exception
     {
@@ -149,7 +178,7 @@ class DefaultPrepAndExpectedTestCaseFreshColumnsTest
     }
 
     @ParameterizedTest
-    @ValueSource(booleans = {false})
+    @ValueSource(booleans = {false, true})
     void testVerifyData_columnComparerOfColumnTheStepAdds_isUsed(
             final boolean sortOnFilteredColumnsOnly) throws Exception
     {
@@ -338,6 +367,45 @@ class DefaultPrepAndExpectedTestCaseFreshColumnsTest
     private static IDataSet dataSet(final String xml) throws Exception
     {
         return new FlatXmlDataSetBuilder().build(new StringReader(xml));
+    }
+
+    private static final class RecordingKeysResultSetTableFactory implements IResultSetTableFactory
+    {
+        private final IResultSetTableFactory delegate = new CachedResultSetTableFactory();
+        private final List<List<String>> requestedPrimaryKeyNames = new ArrayList<>();
+
+        List<List<String>> getRequestedPrimaryKeyNames()
+        {
+            return requestedPrimaryKeyNames;
+        }
+
+        @Override
+        public IResultSetTable createTable(final String tableName, final String selectStatement,
+                final IDatabaseConnection connection) throws SQLException, DataSetException
+        {
+            return delegate.createTable(tableName, selectStatement, connection);
+        }
+
+        @Override
+        public IResultSetTable createTable(final ITableMetaData metaData,
+                final IDatabaseConnection connection) throws SQLException, DataSetException
+        {
+            final List<String> primaryKeyNames = new ArrayList<>();
+            for (final Column primaryKey : metaData.getPrimaryKeys())
+            {
+                primaryKeyNames.add(primaryKey.getColumnName());
+            }
+            requestedPrimaryKeyNames.add(primaryKeyNames);
+            return delegate.createTable(metaData, connection);
+        }
+
+        @Override
+        public IResultSetTable createTable(final String tableName,
+                final PreparedStatement preparedStatement, final IDatabaseConnection connection)
+                throws SQLException, DataSetException
+        {
+            return delegate.createTable(tableName, preparedStatement, connection);
+        }
     }
 
     private static class AlwaysFailingComparer implements ValueComparer
