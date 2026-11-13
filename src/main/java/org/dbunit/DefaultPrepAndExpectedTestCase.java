@@ -55,6 +55,7 @@ import org.dbunit.dataset.Columns;
 import org.dbunit.dataset.CompositeDataSet;
 import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.DefaultDataSet;
+import org.dbunit.dataset.DefaultTableMetaData;
 import org.dbunit.dataset.FilteredTableMetaData;
 import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.ITable;
@@ -1558,15 +1559,15 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
         if (sortOnFilteredColumnsOnly
                 && !isLoadTableDataFromDatabaseOverridden())
         {
+            final Column[] tableColumns =
+                    new FreshTableColumns(connection).read(tableName);
             if (hasColumnNamesToCheck)
             {
-                final Column[] tableColumns =
-                        new FreshTableColumns(connection).read(tableName);
                 checkColumnNames(connection, tableName, tableColumns,
                         excludeColumns, includeColumns, columnValueComparers);
             }
             actualTable = loadComparedColumnsFromDatabase(tableName,
-                    connection, excludeColumns, includeColumns);
+                    connection, tableColumns, excludeColumns, includeColumns);
         } else
         {
             actualTable = loadTableDataFromDatabase(tableName, connection);
@@ -1713,19 +1714,21 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * the columns that survive the exclude and include column filters, which
      * are the only ones that play a part when sorting only on the filtered
      * columns and comparing. An excluded column, often a large one such as a
-     * BLOB or CLOB, is not fetched. The columns come from the connection's
-     * cached {@link org.dbunit.database.DatabaseDataSet}, which the set up
-     * operation has already initialized, and the table is made by the
-     * connection's configured
+     * BLOB or CLOB, is not fetched. The columns are those of the table as the
+     * comparison reads them, so one of a type the data type factory does not
+     * know is selected, and so is one added since the connection first read
+     * the table, and the table is made by the connection's configured
      * {@link DatabaseConfig#PROPERTY_RESULTSET_TABLE_FACTORY}. When the
-     * table's columns cannot be determined that way, or all of them are
-     * filtered out, which would leave nothing to select, it loads every column
-     * as {@link #loadTableDataFromDatabase(String, IDatabaseConnection)} does.
+     * table's columns could not be read, or all of them are filtered out,
+     * which would leave nothing to select, it loads every column as
+     * {@link #loadTableDataFromDatabase(String, IDatabaseConnection)} does.
      *
      * @param tableName
      *            The name of the table to load.
      * @param connection
      *            The database connection to load the data from.
+     * @param tableColumns
+     *            The columns of the table, or null when they could not be read.
      * @param excludeColumns
      *            The column names to exclude; null or empty to exclude none.
      * @param includeColumns
@@ -1736,13 +1739,14 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      *             If loading the table fails.
      */
     private ITable loadComparedColumnsFromDatabase(final String tableName,
-            final IDatabaseConnection connection, final String[] excludeColumns,
-            final String[] includeColumns) throws Exception
+            final IDatabaseConnection connection, final Column[] tableColumns,
+            final String[] excludeColumns, final String[] includeColumns)
+            throws Exception
     {
         final String methodName = "loadComparedColumnsFromDatabase";
 
         final ITableMetaData comparedMetaData = findComparedColumns(tableName,
-                connection, excludeColumns, includeColumns);
+                connection, tableColumns, excludeColumns, includeColumns);
         if (comparedMetaData == null)
         {
             return loadTableDataFromDatabase(tableName, connection);
@@ -1772,45 +1776,87 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * @param tableName
      *            The name of the table.
      * @param connection
-     *            The database connection whose dataset describes the table.
+     *            The database connection whose dataset knows the table's
+     *            primary key, when it has read the table.
+     * @param tableColumns
+     *            The columns of the table, or null when they could not be read.
      * @param excludeColumns
      *            The column names to exclude; null or empty to exclude none.
      * @param includeColumns
      *            The column names to only include; null or empty to include
      *            all.
-     * @return The metadata of just those columns, or null when it cannot be
-     *         determined from the connection's dataset or no column is left.
+     * @return The metadata of just those columns, with those of the table's
+     *         primary key that are among them, or null when the table's
+     *         columns could not be read or no column is left.
      */
     private ITableMetaData findComparedColumns(final String tableName,
-            final IDatabaseConnection connection, final String[] excludeColumns,
-            final String[] includeColumns)
+            final IDatabaseConnection connection, final Column[] tableColumns,
+            final String[] excludeColumns, final String[] includeColumns)
     {
+        if (tableColumns == null)
+        {
+            log.debug("findComparedColumns: Cannot determine the columns of"
+                    + " table {}, selecting every column", tableName);
+            return null;
+        }
+
+        final Column[] comparedColumns = filterColumns(tableColumns,
+                excludeColumns, includeColumns, tableName);
+        if (comparedColumns.length == 0)
+        {
+            log.debug("findComparedColumns: No column of table {} is"
+                    + " compared, selecting every column", tableName);
+            return null;
+        }
+        final Column[] comparedPrimaryKeys = findComparedPrimaryKeys(tableName,
+                connection, comparedColumns);
+        return new DefaultTableMetaData(tableName, comparedColumns,
+                comparedPrimaryKeys);
+    }
+
+    /**
+     * Finds the columns of the table's primary key that are among the compared
+     * columns, in the order of the key, so that the select of the compared
+     * columns is ordered by the key as it is for the whole table. The key comes
+     * from the connection's cached {@link org.dbunit.database.DatabaseDataSet}
+     * when it has read the table; a key column that the dataset does not list
+     * among the compared columns is left out, and with no key known the select
+     * has no order.
+     */
+    private Column[] findComparedPrimaryKeys(final String tableName,
+            final IDatabaseConnection connection, final Column[] comparedColumns)
+    {
+        final List<Column> comparedPrimaryKeys = new ArrayList<>();
         try
         {
             final IDataSet databaseDataSet = connection.createDataSet();
             if (databaseDataSet == null)
             {
-                return null;
+                return new Column[0];
             }
 
             final ITableMetaData databaseMetaData =
                     databaseDataSet.getTableMetaData(tableName);
-            final ITableMetaData comparedMetaData = new FilteredTableMetaData(
-                    databaseMetaData,
-                    makeColumnFilter(excludeColumns, includeColumns));
-            if (comparedMetaData.getColumns().length == 0)
+            for (final Column primaryKey : databaseMetaData.getPrimaryKeys())
             {
-                log.debug("findComparedColumns: No column of table {} is"
-                        + " compared, selecting every column", tableName);
-                return null;
+                final String primaryKeyName = primaryKey.getColumnName();
+                for (final Column comparedColumn : comparedColumns)
+                {
+                    if (comparedColumn.getColumnName()
+                            .equalsIgnoreCase(primaryKeyName))
+                    {
+                        comparedPrimaryKeys.add(comparedColumn);
+                    }
+                }
             }
-            return comparedMetaData;
         } catch (final SQLException | DataSetException e)
         {
-            log.debug("findComparedColumns: Cannot determine the columns of"
-                    + " table {}, selecting every column", tableName, e);
-            return null;
+            log.debug("findComparedPrimaryKeys: Cannot determine the primary"
+                    + " key of table {}, selecting without an order", tableName,
+                    e);
+            return new Column[0];
         }
+        return comparedPrimaryKeys.toArray(new Column[0]);
     }
 
     /**
