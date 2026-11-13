@@ -24,7 +24,7 @@ per table you want verified after a test runs.
 |`columnInclusionFilters` (`getColumnInclusionFilters()`) |Columns to restrict the comparison to; `null` or empty means include all. Each name must match a column of the table (without regard to case, with the wildcards `*` and `?`); since 3.6.0 a name that matches no column, such as a misspelling, fails the verification, unless the link:../properties.html#failonunknownverifycolumnname[`FEATURE_FAIL_ON_UNKNOWN_VERIFY_COLUMN_NAME`] feature is `false`, which logs a warning instead.
 |`defaultValueComparer` (`getDefaultValueComparer()`, since 2.6.0) |The `ValueComparer` used for any column not present in `columnValueComparers`. `null` defaults to equality comparison.
 |`columnValueComparers` (`getColumnValueComparers()`, since 2.6.0) |A `Map<String, ValueComparer>` of per-column comparers, keyed by column name. Since 3.6.0 `DefaultPrepAndExpectedTestCase` matches a key to its column without regard to case, as it matches the exclusion and inclusion filters, and rejects two keys that differ only in case with `IllegalArgumentException`. A key that names no column of the table fails the verification, unless the link:../properties.html#failonunknownverifycolumnname[`FEATURE_FAIL_ON_UNKNOWN_VERIFY_COLUMN_NAME`] feature is `false`, which logs a warning instead, so a map shared by several definitions must hold only columns that every one of their tables has. A key whose column the include or exclusion filters leave out, matched as the comparison matches them, fails the verification the same way, as its comparer would not be used. A key that is `null` names no column and is left out. The columns of the table are those the comparison reads: a column of a type the data type factory does not know counts, and so does a column the test step adds.
-|`sortOnFilteredColumnsOnly` (`isSortOnFilteredColumnsOnly()`/`setSortOnFilteredColumnsOnly()`, since 3.5.0) |Whether comparison sorts both tables by only this table's filtered columns instead of all of the actual table's native columns, and, since 3.6.0, also selects only those columns from the database. Default `false`. See <<sortmode,Sort Mode>> below.
+|`sortOnFilteredColumnsOnly` (`isSortOnFilteredColumnsOnly()`/`setSortOnFilteredColumnsOnly()`, since 3.5.0) |Whether comparison sorts both tables by only this table's filtered columns instead of all of the actual table's native columns, and, since 3.6.0, also selects only those columns from the database when a filter leaves a column out. Default `false`. See <<sortmode,Sort Mode>> below.
 |===
 
 [#constructors]
@@ -146,8 +146,14 @@ then lists only the compared columns. The columns are those of the
 table as the comparison reads them, read with a select that returns no row, so a column of a
 type the data type factory does not know is selected, and so is a column the test step added,
 which the connection's cached
-link:../apidocs/org/dbunit/database/DatabaseDataSet.html[DatabaseDataSet] does not list. When they cannot be read,
-or every column is filtered out, every column is selected as before. A subclass of
+link:../apidocs/org/dbunit/database/DatabaseDataSet.html[DatabaseDataSet] does not list. With no
+link:../properties.html#escapepattern[escape pattern] set, each selected column name is written
+between the database's identifier quote string, as the database stores it, so a column named as a
+reserved word, such as `VALUE`, or in mixed case, such as `mixedCase`, is selected as it is stored.
+With an escape pattern set, the pattern escapes the names as it does everywhere else. When no column
+is filtered out, selecting them by name would save nothing, so every column is selected as the default
+mode does, with no quoting involved. Every column is selected too when the columns cannot be read or
+every column is filtered out. A subclass of
 `DefaultPrepAndExpectedTestCase` that overrides
 `loadTableDataFromDatabase(String, IDatabaseConnection)`, for example to add a `WHERE` clause,
 keeps deciding what is loaded. The default `false` still selects every column, because each

@@ -15,6 +15,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.dbunit.assertion.comparer.value.ValueComparer;
 import org.dbunit.assertion.comparer.value.ValueComparers;
@@ -36,6 +37,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import ch.qos.logback.classic.Level;
@@ -82,6 +85,10 @@ class DefaultPrepAndExpectedTestCaseFreshColumnsTest
                     "CREATE TABLE U (ID INT PRIMARY KEY, IV INTERVAL DAY, G GEOMETRY)");
             statement.execute("CREATE TABLE S (ID INT PRIMARY KEY)");
             statement.execute("CREATE TABLE T (ID INT PRIMARY KEY, NAME VARCHAR(20))");
+            statement.execute(
+                    "CREATE TABLE Q1 (ID INT PRIMARY KEY, \"VALUE\" INT, OTHER VARCHAR(10))");
+            statement.execute("CREATE TABLE Q2 (ID INT PRIMARY KEY,"
+                    + " \"mixedCase\" VARCHAR(10), OTHER VARCHAR(10))");
         }
         final IDatabaseTester databaseTester = new DefaultDatabaseTester(connection);
         testCase = new DefaultPrepAndExpectedTestCase(new FlatXmlDataFileLoader(),
@@ -334,6 +341,110 @@ class DefaultPrepAndExpectedTestCaseFreshColumnsTest
                 .as("The comparer of a column that is compared is used, in any case.")
                 .isInstanceOf(AssertionError.class)
                 .hasMessageContaining("ALWAYS_FAILS");
+    }
+
+    static Stream<Arguments> quotedColumnTables()
+    {
+        return Stream.of(
+                Arguments.of("Q1", "VALUE",
+                        "INSERT INTO Q1 (ID, \"VALUE\", OTHER) VALUES (1, 7, 'a')",
+                        "INSERT INTO Q1 (ID, \"VALUE\", OTHER) VALUES (1, 8, 'a')",
+                        "<dataset><Q1 ID='1' VALUE='7' OTHER='a'/></dataset>"),
+                Arguments.of("Q2", "mixedCase",
+                        "INSERT INTO Q2 (ID, \"mixedCase\", OTHER) VALUES (1, 'x', 'a')",
+                        "INSERT INTO Q2 (ID, \"mixedCase\", OTHER) VALUES (1, 'y', 'a')",
+                        "<dataset><Q2 ID='1' mixedCase='x' OTHER='a'/></dataset>"));
+    }
+
+    @ParameterizedTest
+    @MethodSource("quotedColumnTables")
+    void testVerifyData_sortOnFilteredColumnsOnlyWithNoFilterOnQuotedColumn_passesSelectingEveryColumn(
+            final String tableName, final String columnName, final String insertSql,
+            final String changedInsertSql, final String expectedXml) throws Exception
+    {
+        final RecordingKeysResultSetTableFactory recording =
+                new RecordingKeysResultSetTableFactory();
+        connection.getConfig().setProperty(
+                DatabaseConfig.PROPERTY_RESULTSET_TABLE_FACTORY, recording);
+        final VerifyTableDefinition definition =
+                definition(tableName, new String[] {}, new String[] {}, null, true);
+
+        verify("<dataset><" + tableName + "/></dataset>", expectedXml, definition, insertSql);
+
+        assertThat(recording.getRequestedPrimaryKeyNames())
+                .as("Nothing is filtered out, so naming the columns would save nothing and must"
+                        + " not be done: every column is selected as the default mode does.")
+                .isEmpty();
+    }
+
+    @ParameterizedTest
+    @MethodSource("quotedColumnTables")
+    void testVerifyData_sortOnFilteredColumnsOnlyWithNoFilterOnQuotedColumnWithChangedValue_fails(
+            final String tableName, final String columnName, final String insertSql,
+            final String changedInsertSql, final String expectedXml) throws Exception
+    {
+        final VerifyTableDefinition definition =
+                definition(tableName, new String[] {}, new String[] {}, null, true);
+
+        assertThatThrownBy(() -> verify("<dataset><" + tableName + "/></dataset>", expectedXml,
+                definition, changedInsertSql))
+                        .as("The quoted column is compared, so its changed value fails.")
+                        .isInstanceOf(AssertionError.class)
+                        .hasMessageContaining(columnName);
+    }
+
+    @ParameterizedTest
+    @MethodSource("quotedColumnTables")
+    void testVerifyData_sortOnFilteredColumnsOnlyWithExcludeOnQuotedColumn_passesSelectingTheQuotedColumn(
+            final String tableName, final String columnName, final String insertSql,
+            final String changedInsertSql, final String expectedXml) throws Exception
+    {
+        final RecordingKeysResultSetTableFactory recording =
+                new RecordingKeysResultSetTableFactory();
+        connection.getConfig().setProperty(
+                DatabaseConfig.PROPERTY_RESULTSET_TABLE_FACTORY, recording);
+        final VerifyTableDefinition definition = definition(tableName,
+                new String[] {"OTHER"}, new String[] {}, null, true);
+
+        verify("<dataset><" + tableName + "/></dataset>", expectedXml, definition, insertSql);
+
+        assertThat(recording.getRequestedPrimaryKeyNames())
+                .as("A column is filtered out, so the compared columns are selected by name,"
+                        + " the reserved word or mixed case one quoted as stored.")
+                .containsExactly(Arrays.asList("ID"));
+    }
+
+    @ParameterizedTest
+    @MethodSource("quotedColumnTables")
+    void testVerifyData_sortOnFilteredColumnsOnlyWithExcludeOnQuotedColumnWithChangedValue_fails(
+            final String tableName, final String columnName, final String insertSql,
+            final String changedInsertSql, final String expectedXml) throws Exception
+    {
+        final VerifyTableDefinition definition = definition(tableName,
+                new String[] {"OTHER"}, new String[] {}, null, true);
+
+        assertThatThrownBy(() -> verify("<dataset><" + tableName + "/></dataset>", expectedXml,
+                definition, changedInsertSql))
+                        .as("The quoted column is selected and compared, so its changed value"
+                                + " fails.")
+                        .isInstanceOf(AssertionError.class)
+                        .hasMessageContaining(columnName);
+    }
+
+    @ParameterizedTest
+    @MethodSource("quotedColumnTables")
+    void testVerifyData_sortOnFilteredColumnsOnlyWithExcludeAndEscapePattern_passesWithThePattern(
+            final String tableName, final String columnName, final String insertSql,
+            final String changedInsertSql, final String expectedXml) throws Exception
+    {
+        connection.getConfig().setProperty(DatabaseConfig.PROPERTY_ESCAPE_PATTERN, "\"?\"");
+        final VerifyTableDefinition definition = definition(tableName,
+                new String[] {"OTHER"}, new String[] {}, null, true);
+
+        assertThatCode(() -> verify("<dataset><" + tableName + "/></dataset>", expectedXml,
+                definition, insertSql))
+                        .as("The escape pattern escapes the column names as it always has.")
+                        .doesNotThrowAnyException();
     }
 
     private static VerifyTableDefinition definition(final String tableName,

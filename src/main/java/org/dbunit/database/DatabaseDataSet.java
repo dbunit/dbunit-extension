@@ -158,8 +158,8 @@ public class DatabaseDataSet extends AbstractDataSet
             {
                 sqlBuffer.append(", ");
             }
-            String columnName = new QualifiedTableName(
-                    columns[i].getColumnName(), null, escapePattern).getQualifiedName();
+            String columnName = writeColumnName(metaData,
+                    columns[i].getColumnName(), escapePattern);
             sqlBuffer.append(columnName);
         }
 
@@ -179,11 +179,31 @@ public class DatabaseDataSet extends AbstractDataSet
             {
                 sqlBuffer.append(", ");
             }
-            sqlBuffer.append(new QualifiedTableName(sortColumns[i].getColumnName(), null, escapePattern).getQualifiedName());
+            sqlBuffer.append(writeColumnName(metaData,
+                    sortColumns[i].getColumnName(), escapePattern));
 
         }
 
         return sqlBuffer.toString();
+    }
+
+    /**
+     * Writes a column name for a select statement: escaped with the escape pattern when one is
+     * set, else quoted when the metadata is {@link QuotedColumnsTableMetaData}, else as it is.
+     *
+     * @param metaData The metadata of the table the select statement is for.
+     * @param columnName The column name.
+     * @param escapePattern The escape pattern, or null for none.
+     * @return The column name as it is written into the select statement.
+     */
+    private static String writeColumnName(ITableMetaData metaData, String columnName,
+            String escapePattern)
+    {
+        if (escapePattern == null && metaData instanceof QuotedColumnsTableMetaData)
+        {
+            return ((QuotedColumnsTableMetaData) metaData).quote(columnName);
+        }
+        return new QualifiedTableName(columnName, null, escapePattern).getQualifiedName();
     }
 
     /**
