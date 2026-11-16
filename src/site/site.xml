@@ -19,6 +19,15 @@
     <version>2.1.0</version>
   </skin>
 
+  <custom>
+    <fluidoSkin>
+      <googleSearch>
+        <sitesearch>dbunit.github.io/dbunit-extension</sitesearch>
+      </googleSearch>
+      <sourceLineNumbersEnabled>true</sourceLineNumbersEnabled>
+    </fluidoSkin>
+  </custom>
+
   <body>
     <head>
       <![CDATA[
@@ -179,6 +188,7 @@
     </menu>
 
     <menu name="References">
+      <item name="Sitemap"              href="/sitemap.html" />
       <item name="Resources"            href="/resources.html"/>
       <item name="Maven 1.x Plugin"     href="http://maven-plugins.sourceforge.net/maven-dbunit-plugin/index.html"/>
       <item name="Maven 2.x/3.x Plugin" href="../dbunit-maven-plugin/index.html"/>

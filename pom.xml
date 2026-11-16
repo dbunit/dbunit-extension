@@ -1018,6 +1018,7 @@
           <artifactId>maven-site-plugin</artifactId>
           <version>${sitePluginVersion}</version>
           <configuration>
+            <generateSitemap>true</generateSitemap>
             <relativizeSiteLinks>false</relativizeSiteLinks>
           </configuration>
           <dependencies>
