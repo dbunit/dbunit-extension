@@ -51,11 +51,12 @@ guaranteed (e.g. Hibernate batch inserts), set
 link:../components/verifytabledefinition.html#sortmode[VerifyTableDefinition.sortOnFilteredColumnsOnly]
 to `true` so both tables sort by only their filtered columns instead.
 
-Column type/case reconciliation:: If the expected dataset's columns come back with an
-`UNKNOWN` data type (common for a `FlatXmlDataSet` with no DTD), the expected table's
-column definitions are derived from the actual database table's columns instead —
+Column type/case reconciliation:: The expected table sorts by the actual database
+table's column definitions, in the database's column order and with its data types,
+whatever the expected dataset declares: `UNKNOWN` data types (common for a
+`FlatXmlDataSet` with no DTD), or data types and a column order of its own. Columns are
 matched case-insensitively (`Locale.ENGLISH`, so a Turkish default locale can't break
-matching) — so your expected data file's column name casing doesn't need to exactly
+matching), so your expected data file's column name casing doesn't need to exactly
 match the database's, and you don't need to hand-declare column types.
 
 Column include/exclude filtering:: A
