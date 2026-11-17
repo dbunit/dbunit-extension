@@ -265,4 +265,17 @@ public class IsActualEqualToExpectedJsonValueComparer
     {
         return "not JSON-equal to";
     }
+
+    /**
+     * Returns false: the expected JSON can differ from the actual
+     * text in its spacing and in the order of its object keys and still
+     * match, so its text cannot order the rows.
+     *
+     * @return False.
+     */
+    @Override
+    public boolean isSortableByExpectedValue()
+    {
+        return false;
+    }
 }

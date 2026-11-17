@@ -20,38 +20,53 @@
  */
 package org.dbunit;
 
+import java.sql.DatabaseMetaData;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
-import java.util.concurrent.Callable;
+import java.util.TreeMap;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import org.dbunit.assertion.DefaultFailureHandler;
+import org.dbunit.assertion.DiffCollectingFailureHandler;
 import org.dbunit.assertion.FailureHandler;
 import org.dbunit.assertion.comparer.value.ValueComparer;
 import org.dbunit.database.DatabaseConfig;
+import org.dbunit.database.DatabaseConfigOverrides;
 import org.dbunit.database.IDatabaseConnection;
 import org.dbunit.database.IResultSetTableFactory;
+import org.dbunit.database.QuotedColumnsTableMetaData;
 import org.dbunit.database.connection.AutoCommitOffWarning;
+import org.dbunit.database.connection.ClosedConnectionHandedOutWarning;
+import org.dbunit.database.connection.ClosedFixedConnectionWarning;
 import org.dbunit.database.connection.ConnectionOwnership;
+import org.dbunit.database.connection.LeftOpenConnectionWarning;
 import org.dbunit.database.connection.TestScopedConnection;
+import org.dbunit.database.rowcount.RowCountBaselineTracker;
 import org.dbunit.database.rowcount.RowCountCheck;
-import org.dbunit.database.rowcount.RowCountChecker;
+import org.dbunit.database.rowcount.RowCountCheckOverride;
 import org.dbunit.dataset.Column;
 import org.dbunit.dataset.ColumnFilterTable;
 import org.dbunit.dataset.Columns;
 import org.dbunit.dataset.CompositeDataSet;
 import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.DefaultDataSet;
+import org.dbunit.dataset.DefaultTableMetaData;
 import org.dbunit.dataset.FilteredTableMetaData;
 import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.ITableMetaData;
 import org.dbunit.dataset.SortedTable;
+import org.dbunit.dataset.datatype.TypeCastException;
 import org.dbunit.dataset.filter.DefaultColumnFilter;
 import org.dbunit.operation.DatabaseOperation;
 import org.dbunit.util.TableFormatter;
@@ -77,8 +92,7 @@ import org.slf4j.LoggerFactory;
  * cleanupData() does not close a connection other tests still expect to
  * reuse; the provider's owner is then responsible for closing it once,
  * itself, when the whole run finishes. Leaving the connection open, which a
- * no-op listener or a blanket {@link ConnectionPreservingOperationListener} on
- * the databaseTester does too, requires a databaseTester
+ * no-op listener on the databaseTester does too, requires a databaseTester
  * that hands out the same connection on repeated calls, as one over a
  * CachingConnectionProvider or over one fixed connection does. With one that
  * hands out a new connection each time, such as a
@@ -91,19 +105,38 @@ import org.slf4j.LoggerFactory;
  * This class logs a warning when it detects a {@link JdbcDatabaseTester}
  * without a CachingConnectionProvider in that situation.
  * <p>
- * The databaseTester's own {@link IOperationListener} is told about the
- * connection each of setupData()'s and cleanupData()'s operations retrieves,
- * through {@link IOperationListener#connectionRetrieved}, so a listener that
- * configures every connection runs here as it does when the tester drives
- * onSetup() and onTearDown() itself. It is never told the operations finished,
- * as this class decides when the shared connection closes.
+ * Closing the connection is as much a mistake for a databaseTester that hands
+ * out the same connection again. A {@link DefaultDatabaseTester} over one fixed
+ * connection has no way to replace it once closed, so every later test that
+ * uses the databaseTester finds it closed, and a databaseTester that reports no
+ * operation listener cannot say that it keeps its connection open for another
+ * owner. This class logs a warning when it is about to close the connection of
+ * either for a second test, as a databaseTester built for one test is right to
+ * have its connection closed. The no-op listener on the databaseTester or
+ * {@link #setCloseConnectionAfterTest(boolean)} set to false prevents it. A
+ * {@link org.dbunit.database.DatabaseDataSourceConnection} is not a fixed
+ * connection in this sense: closing it closes its JDBC connection, which a
+ * pooling DataSource takes back into its pool, and its next getConnection()
+ * checks out another, so a databaseTester over one keeps the default listener,
+ * closes its connection after each test, and gets no warning.
+ * <p>
+ * This class tells the databaseTester's own {@link IOperationListener} about
+ * the shared connection through {@link IOperationListener#connectionRetrieved}
+ * when it acquires the connection, before the row count check baseline or any
+ * other step reads the connection's configuration, and again before each of
+ * setupData()'s and cleanupData()'s operations. A listener that configures
+ * every connection therefore runs here as it does when the tester drives
+ * onSetup() and onTearDown() itself. The listener never hears that an operation
+ * finished, as this class decides when the shared connection closes.
  * <p>
  * The connection must be in autocommit mode. The setup and teardown
  * operations run here (CLEAN_INSERT, DELETE_ALL, ...) do not manage a
  * transaction of their own, and {@link org.dbunit.operation.TransactionOperation}
  * refuses a connection whose autocommit is already off, so on a
- * non-autocommit connection the prep and teardown writes are never
- * committed: invisible to any other connection, and - with
+ * non-autocommit connection dbUnit does not commit the prep and teardown
+ * writes, and it ends no transaction it did not begin: they are invisible
+ * to any other connection until the connection's owner ends the transaction,
+ * and - with
  * {@link #setCloseConnectionAfterTest(boolean)} false - held as locks on a
  * connection the database's idle-in-transaction timeout may terminate
  * mid-run. This class logs a warning when it detects such a connection.
@@ -113,7 +146,20 @@ import org.slf4j.LoggerFactory;
  * on the first mismatch found. Set {@link #setFailureHandler(FailureHandler)}
  * to, for example, a {@link org.dbunit.assertion.DiffCollectingFailureHandler}
  * to collect every {@link org.dbunit.assertion.Difference} instead; that is
- * not the default since most tests want to keep failing fast.
+ * not the default since most tests want to keep failing fast. A collecting
+ * handler does not fail {@code verifyData()}: whoever calls it reads the
+ * handler's list afterwards. The annotation runtime ({@code DbUnitExtension},
+ * {@code DbUnitTestExecutionListener}), which drives an instance it builds or
+ * one injected with {@code @DbUnitTestCase}, does so: it fails the test with
+ * the collected differences after {@code postTest()}.
+ * <p>
+ * Not thread-safe. An instance holds the state of one test at a time: its
+ * datasets, verify table definitions, shared connection and row count
+ * baseline. Use one instance per concurrently running test, for example a
+ * Spring prototype bean, or turn off parallel execution for tests that share
+ * an instance, such as one in a static {@code @DbUnitTestCase} field.
+ * Otherwise concurrent tests overwrite each other's datasets and close each
+ * other's connection.
  *
  * @see "org.dbunit.DefaultPrepAndExpectedTestCaseDiIT, a composition-based (DI) usage example in the test sources"
  * @see "org.dbunit.DefaultPrepAndExpectedTestCaseExtIT, an inheritance-based usage example in the test sources"
@@ -147,71 +193,122 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      */
     private boolean closeConnectionAfterTest = true;
 
+    /**
+     * The operation setupData() runs, instead of the databaseTester's own; null, the default,
+     * runs the databaseTester's.
+     *
+     * @since 3.6.0
+     */
+    private DatabaseOperation setUpOperation;
+
+    /**
+     * The operation cleanupData() runs, instead of the databaseTester's own; null, the default,
+     * runs the databaseTester's.
+     *
+     * @since 3.6.0
+     */
+    private DatabaseOperation tearDownOperation;
+
     // per test data
     private IDataSet prepDataSet = new DefaultDataSet();
     private IDataSet expectedDataSet = new DefaultDataSet();
     private VerifyTableDefinition[] verifyTableDefs = {};
 
     /**
+     * Decides whether this instance may close the connection it shares across a test's
+     * lifecycle. It reads {@link #closeConnectionAfterTest} and {@link #getOwnershipListener()}
+     * each time it is asked, as both can still change after construction.
+     *
+     * @since 3.6.0
+     */
+    private final ConnectionOwnership connectionOwnership = new ConnectionOwnership(
+            () -> closeConnectionAfterTest, this::getOwnershipListener);
+
+    /**
+     * Warns, once the databaseTester serves a second test, that the connection it may hand out
+     * again is going to be closed. Told when each lifecycle of this instance ends, at the end of
+     * {@link #cleanupData()}, so that an instance reused across tests counts each test once,
+     * except one whose lifecycle ended without it, see {@link ClosedFixedConnectionWarning}.
+     *
+     * @since 3.6.0
+     */
+    private final ClosedFixedConnectionWarning closedFixedConnectionWarning =
+            new ClosedFixedConnectionWarning(connectionOwnership, () -> databaseTester);
+
+    /**
      * Connection shared by setupData()/verifyData()/cleanupData() for one
      * test's lifecycle instead of each acquiring (and often closing) its own:
-     * acquired lazily on first use from {@link #getConnection()}, closed once
+     * acquired lazily on first use from the databaseTester, through
+     * {@link #getReusableConnection()}, closed once
      * by cleanupData() unless {@link #closeConnectionAfterTest} is false or
-     * the tester's or this instance's operation listener leaves every
-     * connection open, as the no-op listener and a blanket
-     * {@link ConnectionPreservingOperationListener} do, and re-acquired if the
-     * pool or server closed it between reused test
+     * the tester's or this instance's operation listener is the no-op one,
+     * and re-acquired if the pool or server closed it between reused test
      * methods.
      *
-     * @since 3.4.0
+     * @since 3.6.0
      */
-    private IDatabaseConnection connection;
+    private final TestScopedConnection reusableConnectionHolder = newReusableConnectionHolder();
 
     /**
      * Builds {@link #reusableConnectionHolder}. Its {@link ConnectionOwnership}
      * reads {@link #closeConnectionAfterTest} and {@link #getOwnershipListener()}
-     * fresh at release time; its third input - whether the borrowing lifecycle
-     * ran - is always {@code true} here, since this class only ever releases the
-     * connection from its own cleanupData(), which runs only after setupData()
-     * already acquired it. Since 3.6.0 a listener that is
-     * (or wraps) {@link IOperationListener#NO_OP_OPERATION_LISTENER}, or has a
-     * blanket {@link ConnectionPreservingOperationListener} layer, keeps
+     * fresh at release time. Since 3.6.0 a listener that is
+     * {@link IOperationListener#NO_OP_OPERATION_LISTENER} keeps
      * cleanupData() from closing the connection even when
      * {@link #closeConnectionAfterTest} is true - the established signal that the
      * connection is owned elsewhere, now honored on this path too and not only
      * by the annotation runtime. On each connection it acquires, it logs the warnings of
-     * {@link AutoCommitOffWarning} and {@link LeftOpenConnectionWarning}, the latter reading the
-     * databaseTester when it runs, as the databaseTester can change between tests.
+     * {@link AutoCommitOffWarning}, {@link ClosedConnectionHandedOutWarning},
+     * {@link LeftOpenConnectionWarning} and {@link ClosedFixedConnectionWarning}, the last three
+     * reading the databaseTester when they run, as the databaseTester can change between tests.
      *
-     * @since 3.5.2
+     * @return The holder.
      */
     private TestScopedConnection newReusableConnectionHolder()
     {
-        final ConnectionOwnership ownership = new ConnectionOwnership(
-                () -> closeConnectionAfterTest, this::getOwnershipListener, () -> true);
-        return new TestScopedConnection(this::acquireSharedConnection, ownership,
-                new AutoCommitOffWarning());
+        final ClosedConnectionHandedOutWarning closedConnectionHandedOutWarning =
+                new ClosedConnectionHandedOutWarning(() -> databaseTester);
+        final LeftOpenConnectionWarning leftOpenConnectionWarning =
+                new LeftOpenConnectionWarning(connectionOwnership, () -> databaseTester);
+        final Consumer<IDatabaseConnection> warnings =
+                new AutoCommitOffWarning(() -> databaseTester)
+                .andThen(closedConnectionHandedOutWarning).andThen(leftOpenConnectionWarning)
+                .andThen(closedFixedConnectionWarning);
+        return new TestScopedConnection(this::acquireSharedConnection, connectionOwnership,
+                warnings);
     }
 
     /**
      * Acquires the connection {@link #reusableConnectionHolder} shares: the databaseTester's
-     * connection with {@link #setUpDatabaseConfig(DatabaseConfig)} applied to it, as
-     * {@link #getConnection()} does. That method cannot release a connection whose configuration
-     * fails to apply, for example because a {@code databaseConfigProperties} value is invalid, so
-     * one the databaseTester hands out afresh on each call would be referenced by nothing and
-     * leak. This releases it, honoring who owns it, before the failure propagates.
+     * connection, which this method tells the databaseTester's own listener about first, as the
+     * tester does when it drives onSetup() itself, and then applies
+     * {@link #setUpDatabaseConfig(DatabaseConfig)} to, as {@link #getConnection()} does, so this
+     * instance's values win over what the listener sets. Every step that reads the connection's
+     * configuration, among them the case sensitivity {@link #configureTest} resolves and the row
+     * count check baseline, gets the connection through here, so the listener has run before any
+     * of them. {@link #getConnection()} cannot release a connection whose configuration fails to
+     * apply, for example because a {@code databaseConfigProperties} value is invalid, so one the
+     * databaseTester hands out afresh on each call would be referenced by nothing and leak. This
+     * releases it, honoring who owns it, before the failure propagates, whether the listener or
+     * the configuration failed.
      *
      * @return The connection, configured.
-     * @throws Exception If the databaseTester cannot supply a connection, or applying the
-     *             configuration fails.
+     * @throws Exception If the databaseTester cannot supply a connection, its listener fails, or
+     *             applying the configuration fails.
      */
     private IDatabaseConnection acquireSharedConnection() throws Exception
     {
         requireDatabaseTester();
 
         final IDatabaseConnection connection = databaseTester.getConnection();
+        if (connection == null)
+        {
+            throw new IllegalStateException("databaseTester.getConnection() returned null; a test"
+                    + " lifecycle needs a connection to run its operations on.");
+        }
         try
         {
+            tellTestersListenerAboutConnection(connection);
             setUpDatabaseConfig(connection.getConfig());
         } catch (final Throwable t)
         {
@@ -224,15 +321,14 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
 
     /**
      * Returns the listener {@link ConnectionOwnership} consults to decide whether this
-     * instance may close the shared connection. A listener that leaves every connection open -
-     * the no-op listener, or a blanket {@link ConnectionPreservingOperationListener} - is the
-     * signal that a connection is managed elsewhere, and a caller sets it on whichever it
-     * controls: the tester it hands this instance, or - for a subclass - this instance's own
-     * {@link #getOperationListener()}. Either one being such a listener therefore wins;
+     * instance may close the shared connection. The no-op listener is the signal that a
+     * connection is managed elsewhere, and a caller sets it on whichever it controls: the
+     * tester it hands this instance, or - for a subclass - this instance's own
+     * {@link #getOperationListener()}. Either one being the no-op listener therefore wins;
      * otherwise this instance's own listener is returned.
      *
-     * @return The listener that signals the connection is managed elsewhere, if either does;
-     *         otherwise this instance's own listener.
+     * @return The no-op listener, if either listener is it; otherwise this instance's own
+     *         listener.
      */
     private IOperationListener getOwnershipListener()
     {
@@ -243,7 +339,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
         }
 
         final IOperationListener testerListener = databaseTester.getOperationListener();
-        if (ConnectionPreservingOperationListener.leavesEveryConnectionOpen(testerListener))
+        if (testerListener == IOperationListener.NO_OP_OPERATION_LISTENER)
         {
             return testerListener;
         }
@@ -266,7 +362,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      *
      * @since 3.6.0
      */
-    private final RowCountChecker rowCountChecker = new RowCountChecker();
+    private final RowCountBaselineTracker rowCountBaselineTracker = new RowCountBaselineTracker();
 
     private ExpectedDataSetAndVerifyTableDefinitionVerifier expectedDataSetAndVerifyTableDefinitionVerifier =
             new DefaultExpectedDataSetAndVerifyTableDefinitionVerifier();
@@ -281,11 +377,34 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * first mismatch. Set this, for example to a
      * {@link org.dbunit.assertion.DiffCollectingFailureHandler}, only when a
      * test needs to collect every {@link org.dbunit.assertion.Difference}
-     * instead.
+     * instead. Such a handler does not throw, so the caller of
+     * verifyData() has to read its collected differences; the annotation
+     * runtime does and fails the test with them.
      *
      * @since 3.5.0
      */
     private FailureHandler failureHandler;
+
+    /**
+     * DatabaseConfig property name/value pairs applied to the connection shared by
+     * setupData(), verifyData() and cleanupData(), when {@link #getReusableConnection()}
+     * acquires it and again on a connection kept from an earlier test - see
+     * {@link #setUpDatabaseConfig(DatabaseConfig)}. Null (the default) applies none.
+     *
+     * @since 3.6.0
+     */
+    private Properties databaseConfigProperties;
+
+    /**
+     * Applies {@link #databaseConfigProperties} to a connection's {@link DatabaseConfig} and
+     * puts back what they replaced when this test's lifecycle ends, so a connection kept past
+     * the test - {@link #closeConnectionAfterTest} false, or the no-op listener - carries none
+     * of this test's values into whatever uses it next.
+     *
+     * @since 3.6.0
+     */
+    private DatabaseConfigOverrides databaseConfigOverrides =
+            new DatabaseConfigOverrides(new Properties());
 
     final TableFormatter tableFormatter = new TableFormatter();
 
@@ -392,29 +511,56 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     /**
      * {@inheritDoc}
      * <p>
-     * Calls {@link #configureTest(VerifyTableDefinition[], String[], String[])}, then sets one
-     * default definition per table of the expected dataset it loaded, so each expected data
-     * file is parsed once. A subclass that overrides that {@code configureTest} may expect the
-     * definitions it is given, so it reports {@code false}, and the caller derives the
-     * definitions itself as for any other implementation. Fails and cleans up as
-     * {@code configureTest} does.
+     * Honors {@link PrepAndExpectedTestData#verifyingExpectedTables(String[], String[])}: one
+     * {@link VerifyTableDefinition} per table of the expected dataset this loads, the one the
+     * bundle defines for the table when it does and a default one otherwise, so each expected
+     * data file is parsed once. A subclass that overrides
+     * {@link #configureTest(VerifyTableDefinition[], String[], String[])} may expect the
+     * definitions it is given, so for it they are derived by loading the expected data files
+     * first, and passed on. {@link #preTest(PrepAndExpectedTestData)} and
+     * {@link #runTest(PrepAndExpectedTestData, PrepAndExpectedTestCaseSteps)} do the same for a
+     * subclass that overrides the array {@code preTest} or {@code runTest}. Fails and cleans up
+     * as {@code configureTest} does, also when loading the expected data files for such a
+     * subclass fails.
      */
     @Override
-    public boolean configureTestVerifyingEveryExpectedTable(final String[] prepDataFiles,
-            final String[] expectedDataFiles) throws Exception
+    public void configureTest(final PrepAndExpectedTestData testData) throws Exception
     {
-        if (isOverriddenBySubclass("configureTest", VerifyTableDefinition[].class,
-                String[].class, String[].class))
+        if (testData.isVerifyingEveryExpectedTable())
         {
-            return false;
+            configureVerifyingEveryExpectedTable(testData.getPrepDataFiles(),
+                    testData.getExpectedDataFiles(), testData.getVerifyTableDefinitions());
+        } else
+        {
+            PrepAndExpectedTestCase.super.configureTest(testData);
+        }
+    }
+
+    /**
+     * Configures the test to verify every table of the expected data files, each with its
+     * definition from {@code definitions} when that has one and a default one otherwise.
+     */
+    private void configureVerifyingEveryExpectedTable(final String[] prepDataFiles,
+            final String[] expectedDataFiles, final VerifyTableDefinition[] definitions)
+            throws Exception
+    {
+        if (isArrayConfigureTestOverridden())
+        {
+            configuringTest(() ->
+            {
+                final VerifyTableDefinition[] derived =
+                        deriveVerifyTableDefinitions(expectedDataFiles, definitions);
+                configureTest(derived, prepDataFiles, expectedDataFiles);
+            });
+            return;
         }
 
         configuringTest(() ->
         {
             configureTest(new VerifyTableDefinition[0], prepDataFiles, expectedDataFiles);
-            this.verifyTableDefs = makeDefaultVerifyTableDefinitions(expectedDataSet);
+            this.verifyTableDefs =
+                    makeVerifyTableDefinitions(expectedDataSet.getTableNames(), definitions);
         });
-        return true;
     }
 
     /**
@@ -463,9 +609,11 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     /**
      * Runs a lifecycle step, and when it fails, an {@link Error} included, releases the shared
      * connection if the step is what acquired it, attaching a close failure to the step's
-     * failure: no cleanupData() follows a step that failed before setupData(), so nothing else
-     * would release it. A connection already acquired before the step, for example by injecting
-     * it into a test method parameter, is left open for the caller.
+     * failure: a caller that runs no postTest() after a step that failed before setupData(), as
+     * the annotation runtime does when configureTest() fails, would have nothing else release it,
+     * while runTest() runs postTest(false), and so cleanupData(), after any failed step. A
+     * connection already acquired before the step, for example by injecting it into a test
+     * method parameter, is left open for the caller.
      */
     private void releasingIfAcquiredOnFailure(final LifecycleStep step) throws Exception
     {
@@ -493,20 +641,70 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     }
 
     /**
-     * Makes one default {@link VerifyTableDefinition} per table of the dataset, for
-     * {@link #configureTestVerifyingEveryExpectedTable(String[], String[])}.
+     * Makes one {@link VerifyTableDefinition} per table of the expected data files, read with
+     * the dataFileLoader, in first-seen order. Reads the files only to list their tables, for a
+     * subclass that expects the definitions
+     * {@link #configureTest(VerifyTableDefinition[], String[], String[])} is given.
      */
-    private VerifyTableDefinition[] makeDefaultVerifyTableDefinitions(
-            final IDataSet dataSet) throws DataSetException
+    private VerifyTableDefinition[] deriveVerifyTableDefinitions(
+            final String[] expectedDataFiles, final VerifyTableDefinition[] definitions)
+            throws DataSetException
     {
-        final String[] tableNames = dataSet.getTableNames();
-        final VerifyTableDefinition[] definitions =
-                new VerifyTableDefinition[tableNames.length];
+        final Set<String> tableNames = new LinkedHashSet<>();
+        for (final String path : expectedDataFiles)
+        {
+            tableNames.addAll(Arrays.asList(dataFileLoader.load(path).getTableNames()));
+        }
+        return makeVerifyTableDefinitions(tableNames.toArray(new String[0]), definitions);
+    }
+
+    /**
+     * Derives the definitions of a bundle that verifies every expected table, for a subclass
+     * that overrides the array {@code preTest} or {@code runTest} and so expects them, as it
+     * does for an overridden array {@code configureTest}. Empties the per-test data when loading
+     * the expected data files fails, as {@link #configuringTest(LifecycleStep)} does, so the
+     * {@code cleanupData()} that follows cleans nothing left over from an earlier test.
+     */
+    private VerifyTableDefinition[] deriveVerifyTableDefinitions(
+            final PrepAndExpectedTestData testData) throws DataSetException
+    {
+        try
+        {
+            return deriveVerifyTableDefinitions(testData.getExpectedDataFiles(),
+                    testData.getVerifyTableDefinitions());
+        } catch (final Throwable t)
+        {
+            clearPerTestData();
+            throw t;
+        }
+    }
+
+    /**
+     * Makes one {@link VerifyTableDefinition} per table: the one {@code definitions} holds for
+     * the table, matched by name ignoring case, and a default one for the others.
+     */
+    private VerifyTableDefinition[] makeVerifyTableDefinitions(final String[] tableNames,
+            final VerifyTableDefinition[] definitions)
+    {
+        final VerifyTableDefinition[] made = new VerifyTableDefinition[tableNames.length];
         for (int i = 0; i < tableNames.length; i++)
         {
-            definitions[i] = new VerifyTableDefinition(tableNames[i], (String[]) null);
+            made[i] = definitionFor(tableNames[i], definitions);
         }
-        return definitions;
+        return made;
+    }
+
+    private static VerifyTableDefinition definitionFor(final String tableName,
+            final VerifyTableDefinition[] definitions)
+    {
+        for (final VerifyTableDefinition definition : definitions)
+        {
+            if (definition.getTableName().equalsIgnoreCase(tableName))
+            {
+                return definition;
+            }
+        }
+        return new VerifyTableDefinition(tableName, (String[]) null);
     }
 
     /**
@@ -592,105 +790,67 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * acquiring it on first use instead of a fresh connection at each step.
      * <p>
      * When {@link #closeConnectionAfterTest} is false this connection is kept
-     * across test methods (see {@link #closeReusableConnection()}), where the
-     * connection pool or the database server can close it between tests - a
-     * pool max-lifetime or reap, a bounced application context, a
+     * across test methods, where the connection pool can close it between
+     * tests, as can a bounced application context or a
      * {@link org.dbunit.database.CachingConnectionProvider#close()}. A closed
-     * one is discarded here before it is handed back, so the next call
-     * re-acquires from databaseTester - letting a
+     * one is discarded before it is handed back, so the next call re-acquires
+     * from databaseTester - letting a
      * {@link org.dbunit.database.CachingConnectionProvider} behind it supply a
      * live replacement - rather than this instance reusing a connection every
-     * later lifecycle step would only fail on. With
-     * {@link #closeConnectionAfterTest} left at its default the connection is
-     * closed and forgotten after each test anyway, so it is not re-checked
-     * here.
+     * later lifecycle step would only fail on. Whether it is closed is what
+     * {@link java.sql.Connection#isClosed()} reports: a {@code close()} call, and
+     * possibly a failure the driver has already noticed. A connection the server
+     * dropped before anything noticed reads open, so this method hands it back
+     * and the next use of it fails.
+     * <p>
+     * This method is for the annotation runtime in {@code org.dbunit.annotation.runtime}, which
+     * calls it to share this connection with the parameters it injects. It is public because that
+     * runtime lives in another package. Test code should not rely on it.
      *
      * @return The shared connection.
      * @throws Exception On dbUnit errors.
-     * @since 3.4.0
+     * @since 3.6.0
      */
-    private IDatabaseConnection getReusableConnection() throws Exception
+    public IDatabaseConnection getReusableConnection() throws Exception
     {
-        if (connection != null && !closeConnectionAfterTest
-                && isReusableConnectionClosed())
-        {
-            connection = null;
-        }
-        if (connection == null)
-        {
-            connection = getConnection();
-            warnIfConnectionAutoCommitDisabled();
-        }
+        final IDatabaseConnection connection = reusableConnectionHolder.getConnection();
+        applyDatabaseConfigPropertiesToKeptConnection(connection);
         return connection;
     }
 
     /**
-     * Logs a warning, at most once per instance, when {@link #connection} is not
-     * in autocommit mode: the setup and teardown operations run here do not
-     * manage a transaction, and {@link org.dbunit.operation.TransactionOperation}
-     * refuses an already-non-autocommit connection, so their writes are never
-     * committed - see the class Javadoc.
+     * Applies {@link #databaseConfigProperties} to a connection kept from an earlier test, whose
+     * values {@link #restoreDatabaseConfig()} put back at the end of it. A newly acquired
+     * connection already has them, from {@link #setUpDatabaseConfig(DatabaseConfig)}; a kept one
+     * is handed back without that running again, and the first reads of its
+     * {@link DatabaseConfig} - the case sensitivity {@link #configureTest} resolves, the row
+     * count check baseline - come before {@link #setupData()} retrieves it through the listener.
+     *
+     * @param connection The connection about to be handed out; may be null.
      */
-    private void warnIfConnectionAutoCommitDisabled()
+    private void applyDatabaseConfigPropertiesToKeptConnection(
+            final IDatabaseConnection connection)
     {
-        if (connectionAutoCommitWarned)
+        if (connection == null || databaseConfigOverrides.isEmpty())
         {
-            return;
-        }
-        try
-        {
-            final Connection jdbcConnection = connection.getConnection();
-            if (jdbcConnection == null || jdbcConnection.getAutoCommit())
-            {
-                return;
-            }
-        } catch (final SQLException e)
-        {
-            log.debug("warnIfConnectionAutoCommitDisabled: could not read the"
-                    + " connection's autocommit state", e);
             return;
         }
 
-        connectionAutoCommitWarned = true;
-        log.warn("The connection DefaultPrepAndExpectedTestCase is using has autocommit"
-                + " disabled. Its setup/teardown operations (CLEAN_INSERT, DELETE_ALL, ...)"
-                + " do not manage a transaction, and TransactionOperation refuses a"
-                + " non-autocommit connection, so the prep and teardown writes are never"
-                + " committed - invisible to other connections, and (with"
-                + " closeConnectionAfterTest=false) held as locks on a connection the"
-                + " database's idle-in-transaction timeout may terminate mid-run. Give this"
-                + " class a connection with autocommit enabled.");
+        final DatabaseConfig config = connection.getConfig();
+        if (databaseConfigOverrides.hasAppliedTo(config))
+        {
+            return;
+        }
+        setUpDatabaseConfig(config);
     }
 
     /**
-     * Returns whether the connection currently cached in {@link #connection} has
-     * been closed - by the connection pool, the database server, or a
-     * {@link org.dbunit.database.CachingConnectionProvider} behind
-     * {@code databaseTester} - since this instance last used it. A connection
-     * that throws while being asked is treated as closed. Uses only the local
-     * {@link Connection#isClosed()} flag, not a round-tripping
-     * {@link Connection#isValid(int)}: cheap, side-effect free, and enough to
-     * catch a connection closed between test methods before the next one's
-     * first statement. A server-side disconnect the driver has not noticed yet
-     * instead surfaces once, when a lifecycle step runs a statement against it;
-     * {@link #closeReusableConnectionSuppressing(Throwable)} then forgets the
-     * connection so the following test re-acquires regardless.
-     *
-     * @return True when the cached connection is known to be closed or unusable.
-     * @since 3.5.2
+     * Puts back the {@link DatabaseConfig} values {@link #databaseConfigProperties} replaced, at
+     * the end of this test's lifecycle or when the properties change.
      */
-    private boolean isReusableConnectionClosed()
+    private void restoreDatabaseConfig()
     {
-        try
-        {
-            final Connection jdbcConnection = connection.getConnection();
-            return jdbcConnection == null || jdbcConnection.isClosed();
-        } catch (final SQLException e)
-        {
-            log.debug("isReusableConnectionClosed: treating the cached connection"
-                    + " as closed after it failed to report its state", e);
-            return true;
-        }
+        databaseConfigOverrides.restore();
     }
 
     /**
@@ -706,42 +866,28 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * the pool or server has since closed is dropped and re-acquired on the
      * next {@link #getReusableConnection()}.
      *
-     * @throws SQLException On close errors.
+     * @throws Exception On close errors.
      * @since 3.4.0
      */
-    private void closeReusableConnection() throws SQLException
+    private void closeReusableConnection() throws Exception
     {
-        if (connection == null)
-        {
-            return;
-        }
-
-        if (!closeConnectionAfterTest)
-        {
-            // Keep the field set so this instance's own lifecycle keeps
-            // reusing the same connection even without a
-            // CachingConnectionProvider backing databaseTester.
-            return;
-        }
-
         try
         {
-            connection.close();
+            reusableConnectionHolder.release();
         } finally
         {
-            connection = null;
+            restoreDatabaseConfig();
         }
     }
 
     /**
-     * Close the reusable connection, attaching any close failure to the
-     * given primary throwable via
-     * {@link Throwable#addSuppressed(Throwable)} rather than letting it
-     * replace and hide the primary. Mirrors the exception safety of
-     * {@link #runTest} and {@code DatabaseTestCase.tearDown(Throwable)}.
+     * Close the reusable connection, attaching any close failure to the given
+     * primary throwable via {@link Throwable#addSuppressed(Throwable)} rather
+     * than letting it replace and hide the primary. Mirrors the exception
+     * safety of {@link #runTest} and {@code DatabaseTestCase.tearDown(Throwable)}.
      * <p>
-     * Only ever called from a lifecycle step that has already failed, so it
-     * also forgets the shared connection even when {@link #closeConnectionAfterTest}
+     * Only ever called from a lifecycle step that has already failed, so it also
+     * forgets the shared connection even when {@link #closeConnectionAfterTest}
      * is false and {@link #closeReusableConnection()} therefore left it open: a
      * step that just threw may have broken it, so the next
      * {@link #getReusableConnection()} re-acquires rather than reusing it. Any
@@ -755,82 +901,124 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      */
     private void closeReusableConnectionSuppressing(final Throwable primary)
     {
-        try
-        {
-            closeReusableConnection();
-        } catch (final SQLException closeFailure)
-        {
-            primary.addSuppressed(closeFailure);
-        }
-        connection = null;
+        reusableConnectionHolder.releaseSuppressing(primary);
+        restoreDatabaseConfig();
     }
 
     /**
-     * Make a {@link ReusableConnectionDatabaseTester} configured with the
-     * given dataset and databaseTester's setUpOperation and
-     * tearDownOperation, for setupData() or cleanupData() to run
-     * {@link IDatabaseTester#onSetup()} or {@link IDatabaseTester#onTearDown()}
-     * on, respectively. Setting both operations regardless of which one the
-     * caller uses is safe: {@link AbstractDatabaseTester#onSetup()} only
-     * reads setUpOperation and {@link AbstractDatabaseTester#onTearDown()}
-     * only reads tearDownOperation, so the other is simply never consulted.
+     * Runs a set up or tear down operation on the shared connection
+     * {@link #getReusableConnection()} hands out, after telling the listeners about it with
+     * {@link #tellListenersAboutConnection(IDatabaseConnection)}. A NONE operation retrieves no
+     * connection and tells no listener, as when a databaseTester runs it; the databaseTester's
+     * own listener has heard about the shared connection anyway, when it was acquired. No
+     * listener is ever told the operation finished, as this instance, not a listener, decides
+     * when the shared connection closes.
      *
+     * @param operation
+     *            The operation to run.
      * @param dataSet
-     *            The dataset to run the operation against.
-     * @return The configured tester.
-     * @throws Exception On dbUnit errors.
-     * @since 3.4.0
+     *            The dataset to run it against.
+     * @throws Exception
+     *             On dbUnit errors.
+     * @since 3.6.0
      */
-    private IDatabaseTester makeReusableConnectionDatabaseTester(
-            final IDataSet dataSet) throws Exception
+    private void runOperation(final DatabaseOperation operation, final IDataSet dataSet)
+            throws Exception
     {
-        final IDatabaseTester reusableTester =
-                new ReusableConnectionDatabaseTester(
-                        this::getReusableConnection);
-        reusableTester.setSetUpOperation(getSetUpOperation());
-        reusableTester.setTearDownOperation(getTearDownOperation());
-        reusableTester.setDataSet(dataSet);
-        reusableTester.setOperationListener(
-                makeConnectionPreservingOperationListener());
-        return reusableTester;
+        if (operation == DatabaseOperation.NONE)
+        {
+            return;
+        }
+
+        final IDatabaseConnection connection = getReusableConnection();
+        tellListenersAboutConnection(connection);
+        operation.execute(connection, dataSet);
     }
 
     /**
-     * Make an {@link IOperationListener} that forwards
-     * {@link IOperationListener#connectionRetrieved(IDatabaseConnection)} to
-     * {@link #getOperationListener()} - so a user-defined listener still runs
-     * its connection-configuration logic - but never forwards
-     * operationSetUpFinished/operationTearDownFinished, whose only documented
-     * purpose is closing the connection. This instance, not the listener,
-     * owns the shared connection's lifecycle (see
-     * {@link #getReusableConnection()}/{@link #closeReusableConnection()}),
-     * so those two notifications must stay no-ops here regardless of which
-     * listener is configured.
+     * Tells the listeners about a connection a set up or tear down operation is about to run
+     * on. When the databaseTester has a listener of its own, a caller's way to configure every
+     * connection, it is told first, as it is when the tester drives onSetup()/onTearDown()
+     * itself, and this instance's own listener, which applies
+     * {@link #setUpDatabaseConfig(DatabaseConfig)}, second, so the values this instance applies
+     * win. As that call does nothing for a connection the values are already applied to, they
+     * are applied again directly after the databaseTester's listener, which may have changed
+     * any of them. The databaseTester's listener heard about the connection when it was
+     * acquired too, see {@link #tellTestersListenerAboutConnection(IDatabaseConnection)}, and
+     * hears about it again here, as the tester's own listener does at each operation the tester
+     * runs. A databaseTester listener that is this instance's own, or the no-op listener, is
+     * not told again.
      *
-     * @return The listener to use for the reusable-connection tester.
-     * @since 3.4.0
+     * @param connection
+     *            The connection the operation runs on.
      */
-    private IOperationListener makeConnectionPreservingOperationListener()
+    private void tellListenersAboutConnection(final IDatabaseConnection connection)
     {
-        final IOperationListener configuredListener = getOperationListener();
-        return new IOperationListener()
+        final IOperationListener testersListener = getTestersListenerToTell();
+        if (testersListener != null)
         {
-            @Override
-            public void connectionRetrieved(
-                    final IDatabaseConnection connection)
-            {
-                configuredListener.connectionRetrieved(connection);
-            }
+            testersListener.connectionRetrieved(connection);
+            applyDatabaseConfigProperties(connection.getConfig());
+        }
+        getOperationListener().connectionRetrieved(connection);
+    }
 
-            @Override
-            public void operationSetUpFinished(
-                    final IDatabaseConnection connection)
-            {
-                // no-op: see makeConnectionPreservingOperationListener()
-            }
+    /**
+     * Tells the databaseTester's own listener about the connection this instance has just
+     * acquired, before any step reads its configuration. Does nothing when
+     * {@link #getTestersListenerToTell()} finds no listener to tell.
+     *
+     * @param connection
+     *            The connection just acquired from the databaseTester.
+     */
+    private void tellTestersListenerAboutConnection(final IDatabaseConnection connection)
+    {
+        final IOperationListener testersListener = getTestersListenerToTell();
+        if (testersListener != null)
+        {
+            testersListener.connectionRetrieved(connection);
+        }
+    }
 
-        return ConnectionPreservingOperationListener
-                .unwrap(databaseTester.getOperationListener());
+    /**
+     * Returns the databaseTester's own listener when this instance tells it about a
+     * connection, and null when it does not: the databaseTester has none, the listener is this
+     * instance's own, which is told on its own, or it is the no-op listener, which does
+     * nothing.
+     *
+     * @return The listener to tell, or null if there is none.
+     */
+    private IOperationListener getTestersListenerToTell()
+    {
+        final IOperationListener testersListener = getTestersOwnListener();
+        if (testersListener == null || testersListener == getOperationListener()
+                || testersListener == IOperationListener.NO_OP_OPERATION_LISTENER)
+        {
+            return null;
+        }
+        return testersListener;
+    }
+
+    /**
+     * Returns the databaseTester's own listener. The plain {@link DefaultOperationListener}
+     * every {@link AbstractDatabaseTester} starts with counts as none, as it does nothing when a
+     * connection is retrieved; a subclass of it does not.
+     *
+     * @return The databaseTester's own listener, or null if it has none.
+     */
+    private IOperationListener getTestersOwnListener()
+    {
+        if (databaseTester == null)
+        {
+            return null;
+        }
+
+        final IOperationListener testersListener = databaseTester.getOperationListener();
+        if (testersListener != null && testersListener.getClass() == DefaultOperationListener.class)
+        {
+            return null;
+        }
+        return testersListener;
     }
 
     /**
@@ -855,18 +1043,8 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      */
     private void captureRowCountBaseline() throws Exception
     {
-        final boolean acquiredConnectionHere = connection == null;
-        try
-        {
-            rowCountChecker.capture(getReusableConnection());
-        } catch (final Exception e)
-        {
-            if (acquiredConnectionHere)
-            {
-                closeReusableConnectionSuppressing(e);
-            }
-            throw e;
-        }
+        releasingIfAcquiredOnFailure(
+                () -> rowCountBaselineTracker.capture(getReusableConnection()));
     }
 
     /**
@@ -883,17 +1061,103 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
 
     /**
      * {@inheritDoc}
+     * <p>
+     * A bundle that verifies every expected table configures the test as
+     * {@link #configureTest(PrepAndExpectedTestData)} does, then sets up the database. A
+     * subclass that overrides {@link #preTest(VerifyTableDefinition[], String[], String[])} is
+     * called instead, as it is for any other bundle, with the definitions derived by loading the
+     * expected data files first.
+     */
+    @Override
+    public void preTest(final PrepAndExpectedTestData testData) throws Exception
+    {
+        if (testData.isVerifyingEveryExpectedTable())
+        {
+            preTestVerifyingEveryExpectedTable(testData);
+        } else
+        {
+            PrepAndExpectedTestCase.super.preTest(testData);
+        }
+    }
+
+    /**
+     * Sets up the test for a bundle that verifies every expected table: through the array
+     * {@code preTest} when a subclass overrides it, as for any other bundle, else by
+     * configuring the test from the bundle and setting up the database.
+     */
+    private void preTestVerifyingEveryExpectedTable(final PrepAndExpectedTestData testData)
+            throws Exception
+    {
+        if (isArrayPreTestOverridden())
+        {
+            final VerifyTableDefinition[] derived = deriveVerifyTableDefinitions(testData);
+            preTest(derived, testData.getPrepDataFiles(), testData.getExpectedDataFiles());
+            return;
+        }
+
+        configureTest(testData);
+        preTest();
+    }
+
+    /**
+     * {@inheritDoc}
      */
     @Override
     public Object runTest(final VerifyTableDefinition[] verifyTables,
             final String[] prepDataFiles, final String[] expectedDataFiles,
             final PrepAndExpectedTestCaseSteps testSteps) throws Exception
     {
+        return runPreparedTest(() -> preTest(verifyTables, prepDataFiles, expectedDataFiles),
+                testSteps);
+    }
+
+    /**
+     * {@inheritDoc}
+     * <p>
+     * A bundle that verifies every expected table prepares the test as
+     * {@link #preTest(PrepAndExpectedTestData)} does. A subclass that overrides
+     * {@link #runTest(VerifyTableDefinition[], String[], String[], PrepAndExpectedTestCaseSteps)}
+     * is called instead, as it is for any other bundle, with the definitions derived by loading
+     * the expected data files first. When loading them fails, nothing has run yet, and the
+     * per-test data is emptied.
+     */
+    @Override
+    public Object runTest(final PrepAndExpectedTestData testData,
+            final PrepAndExpectedTestCaseSteps testSteps) throws Exception
+    {
+        if (testData.isVerifyingEveryExpectedTable())
+        {
+            return runTestVerifyingEveryExpectedTable(testData, testSteps);
+        }
+        return PrepAndExpectedTestCase.super.runTest(testData, testSteps);
+    }
+
+    /**
+     * Runs the test for a bundle that verifies every expected table: through the array
+     * {@code runTest} when a subclass overrides it, as for any other bundle, else by preparing
+     * the test from the bundle and running the steps.
+     */
+    private Object runTestVerifyingEveryExpectedTable(final PrepAndExpectedTestData testData,
+            final PrepAndExpectedTestCaseSteps testSteps) throws Exception
+    {
+        if (isArrayRunTestOverridden())
+        {
+            final VerifyTableDefinition[] derived = deriveVerifyTableDefinitions(testData);
+            return runTest(derived, testData.getPrepDataFiles(), testData.getExpectedDataFiles(),
+                    testSteps);
+        }
+
+        return runPreparedTest(() -> preTest(testData), testSteps);
+    }
+
+    private Object runPreparedTest(final LifecycleStep preTestStep,
+            final PrepAndExpectedTestCaseSteps testSteps) throws Exception
+    {
         final Object result;
 
         try
         {
-            preTest(verifyTables, prepDataFiles, expectedDataFiles);
+            preTestStep.run();
             log.info("runTest: running test steps");
             result = runTestSteps(testSteps);
         } catch (final Throwable e)
@@ -952,10 +1216,14 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * When {@code verifyData} is false - the test steps already failed - discards any
      * captured row count check baseline, so cleanupData() skips that check too: the database
      * is in an unknown state, so a count difference would be noise around the real failure,
-     * not a finding worth its own report. A verification failure discards it the same way,
-     * so cleanupData() does not throw a row count difference in its place: the comparison
-     * failure names what differs and is the one to fix first, while a cleanup failure still
-     * shadows it as before.
+     * not a finding worth its own report. A verification failure that is thrown discards it
+     * the same way, so cleanupData() does not throw a row count difference in its place: the
+     * comparison failure names what differs and is the one to fix first, while a cleanup
+     * failure still shadows it as before. A {@link DiffCollectingFailureHandler} throws
+     * nothing for a value that differs, so the baseline stays and cleanupData() still throws a
+     * row count difference; the differences stay in the handler for the caller to read, and
+     * the annotation-driven lifecycle fails the test with them and attaches the row count
+     * difference as a suppressed exception.
      */
     @Override
     public void postTest(final boolean verifyData) throws Exception
@@ -968,12 +1236,12 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
                 verifyData();
             } else
             {
-                rowCountChecker.discardBaseline();
+                rowCountBaselineTracker.discardBaseline();
             }
         } catch (final Throwable t)
         {
             verifyFailure = t;
-            rowCountChecker.discardBaseline();
+            rowCountBaselineTracker.discardBaseline();
             throw t;
         } finally
         {
@@ -1017,6 +1285,21 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
         requireDatabaseTester();
         try
         {
+            cleanUpAndRelease();
+        } finally
+        {
+            closedFixedConnectionWarning.lifecycleEnded();
+        }
+    }
+
+    /**
+     * Runs the tear down operation and the row count check, and releases the shared connection,
+     * also when either fails.
+     */
+    private void cleanUpAndRelease() throws Exception
+    {
+        try
+        {
             final boolean isCaseSensitiveTableNames;
             if (cachedIsCaseSensitiveTableNames == null)
             {
@@ -1037,9 +1320,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
             log.info("cleanupData: about to clean up {} tables={}", count,
                     tableNames);
 
-            final IDatabaseTester reusableTester =
-                    makeReusableConnectionDatabaseTester(dataset);
-            reusableTester.onTearDown();
+            runOperation(getTearDownOperation(), dataset);
             log.debug("cleanupData: Clean up done");
             verifyRowCountUnchanged();
             closeReusableConnection();
@@ -1065,10 +1346,25 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      */
     private void verifyRowCountUnchanged() throws Exception
     {
-        if (rowCountChecker.hasBaseline())
+        if (rowCountBaselineTracker.hasBaseline())
         {
-            rowCountChecker.verify(getReusableConnection());
+            rowCountBaselineTracker.verify(getReusableConnection());
         }
+    }
+
+    /**
+     * Legacy JUnit-3-era set-up hook. Not invoked automatically under JUnit 5;
+     * kept for subclasses that drive the lifecycle manually. Runs
+     * {@link #setupData()} on the connection shared with the rest of this
+     * test's lifecycle, leaving the databaseTester's dataset and operation
+     * listener as the caller set them. Takes no row count check baseline, as
+     * only {@link #preTest} takes one, so a test driven through this method
+     * and {@link #tearDown()} alone is not checked by the row count check.
+     */
+    @Override
+    protected void setUp() throws Exception
+    {
+        setupData();
     }
 
     /**
@@ -1078,7 +1374,8 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * and releases the shared connection. Calling it after a full
      * {@link #runTest} or {@link #postTest} cycle cleans up a second time, as
      * both already ran cleanupData(), without verifying the row count check
-     * baseline again, which that cleanupData() already used.
+     * baseline again, which that cleanupData() already used. Without a
+     * baseline, which {@link #setUp()} does not take, it verifies no row count.
      */
     @Override
     protected void tearDown() throws Exception
@@ -1139,9 +1436,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
 
         try
         {
-            final IDatabaseTester reusableTester =
-                    makeReusableConnectionDatabaseTester(getDataSet());
-            reusableTester.onSetup();
+            runOperation(getSetUpOperation(), getDataSet());
         } catch (final Exception e)
         {
             log.error("setupData: Exception with setting up data:", e);
@@ -1162,16 +1457,35 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
         }
     }
 
+    /**
+     * {@inheritDoc} Returns the operation set with {@link #setSetUpOperation(DatabaseOperation)},
+     * or the databaseTester's own when none is set.
+     */
     @Override
     protected DatabaseOperation getSetUpOperation() throws Exception
     {
+        if (setUpOperation != null)
+        {
+            return setUpOperation;
+        }
+
         requireDatabaseTester();
         return databaseTester.getSetUpOperation();
     }
 
+    /**
+     * {@inheritDoc} Returns the operation set with
+     * {@link #setTearDownOperation(DatabaseOperation)}, or the databaseTester's own when none is
+     * set.
+     */
     @Override
     protected DatabaseOperation getTearDownOperation() throws Exception
     {
+        if (tearDownOperation != null)
+        {
+            return tearDownOperation;
+        }
+
         requireDatabaseTester();
         return databaseTester.getTearDownOperation();
     }
@@ -1267,11 +1581,24 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
         if (sortOnFilteredColumnsOnly
                 && !isLoadTableDataFromDatabaseOverridden())
         {
+            final Column[] tableColumns =
+                    new FreshTableColumns(connection).read(tableName);
+            if (hasColumnNamesToCheck)
+            {
+                checkColumnNames(connection, tableName, tableColumns,
+                        excludeColumns, includeColumns, columnValueComparers);
+            }
             actualTable = loadComparedColumnsFromDatabase(tableName,
-                    connection, excludeColumns, includeColumns);
+                    connection, tableColumns, excludeColumns, includeColumns);
         } else
         {
             actualTable = loadTableDataFromDatabase(tableName, connection);
+            if (hasColumnNamesToCheck)
+            {
+                checkColumnNames(connection, tableName,
+                        columnsOf(actualTable), excludeColumns,
+                        includeColumns, columnValueComparers);
+            }
         }
 
         if (sortOnFilteredColumnsOnly)
@@ -1409,19 +1736,26 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * the columns that survive the exclude and include column filters, which
      * are the only ones that play a part when sorting only on the filtered
      * columns and comparing. An excluded column, often a large one such as a
-     * BLOB or CLOB, is not fetched. The columns come from the connection's
-     * cached {@link org.dbunit.database.DatabaseDataSet}, which the set up
-     * operation has already initialized, and the table is made by the
-     * connection's configured
-     * {@link DatabaseConfig#PROPERTY_RESULTSET_TABLE_FACTORY}. When the
-     * table's columns cannot be determined that way, or all of them are
-     * filtered out, which would leave nothing to select, it loads every column
-     * as {@link #loadTableDataFromDatabase(String, IDatabaseConnection)} does.
+     * BLOB or CLOB, is not fetched. The columns are those of the table as the
+     * comparison reads them, so one of a type the data type factory does not
+     * know is selected, and so is one added since the connection first read
+     * the table, and the table is made by the connection's configured
+     * {@link DatabaseConfig#PROPERTY_RESULTSET_TABLE_FACTORY}. With no
+     * {@link DatabaseConfig#PROPERTY_ESCAPE_PATTERN escape pattern} set, the
+     * selected column names are written between the database's identifier quote
+     * string, so that a column named as a reserved word or in mixed case is
+     * selected as the database stores it. When the table's columns could not be
+     * read, when none of them is filtered out, so that selecting them by name
+     * saves nothing, or when all of them are filtered out, which would leave
+     * nothing to select, it loads every column as
+     * {@link #loadTableDataFromDatabase(String, IDatabaseConnection)} does.
      *
      * @param tableName
      *            The name of the table to load.
      * @param connection
      *            The database connection to load the data from.
+     * @param tableColumns
+     *            The columns of the table, or null when they could not be read.
      * @param excludeColumns
      *            The column names to exclude; null or empty to exclude none.
      * @param includeColumns
@@ -1432,13 +1766,14 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      *             If loading the table fails.
      */
     private ITable loadComparedColumnsFromDatabase(final String tableName,
-            final IDatabaseConnection connection, final String[] excludeColumns,
-            final String[] includeColumns) throws Exception
+            final IDatabaseConnection connection, final Column[] tableColumns,
+            final String[] excludeColumns, final String[] includeColumns)
+            throws Exception
     {
         final String methodName = "loadComparedColumnsFromDatabase";
 
         final ITableMetaData comparedMetaData = findComparedColumns(tableName,
-                connection, excludeColumns, includeColumns);
+                connection, tableColumns, excludeColumns, includeColumns);
         if (comparedMetaData == null)
         {
             return loadTableDataFromDatabase(tableName, connection);
@@ -1451,7 +1786,9 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
             final IResultSetTableFactory tableFactory =
                     (IResultSetTableFactory) connection.getConfig().getProperty(
                             DatabaseConfig.PROPERTY_RESULTSET_TABLE_FACTORY);
-            return tableFactory.createTable(comparedMetaData, connection);
+            final ITableMetaData selectMetaData =
+                    quoteColumnNamesUnlessEscaped(comparedMetaData, connection);
+            return tableFactory.createTable(selectMetaData, connection);
         } catch (final Exception e)
         {
             final String msg = methodName + ": Problem obtaining table '"
@@ -1468,45 +1805,148 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * @param tableName
      *            The name of the table.
      * @param connection
-     *            The database connection whose dataset describes the table.
+     *            The database connection whose dataset knows the table's
+     *            primary key, when it has read the table.
+     * @param tableColumns
+     *            The columns of the table, or null when they could not be read.
      * @param excludeColumns
      *            The column names to exclude; null or empty to exclude none.
      * @param includeColumns
      *            The column names to only include; null or empty to include
      *            all.
-     * @return The metadata of just those columns, or null when it cannot be
-     *         determined from the connection's dataset or no column is left.
+     * @return The metadata of just those columns, with those of the table's
+     *         primary key that are among them, or null when the table's
+     *         columns could not be read, no column is filtered out, or no
+     *         column is left.
      */
     private ITableMetaData findComparedColumns(final String tableName,
-            final IDatabaseConnection connection, final String[] excludeColumns,
-            final String[] includeColumns)
+            final IDatabaseConnection connection, final Column[] tableColumns,
+            final String[] excludeColumns, final String[] includeColumns)
     {
+        if (tableColumns == null)
+        {
+            log.debug("findComparedColumns: Cannot determine the columns of"
+                    + " table {}, selecting every column", tableName);
+            return null;
+        }
+
+        final Column[] comparedColumns = filterColumns(tableColumns,
+                excludeColumns, includeColumns, tableName);
+        if (comparedColumns.length == 0)
+        {
+            log.debug("findComparedColumns: No column of table {} is"
+                    + " compared, selecting every column", tableName);
+            return null;
+        }
+        if (comparedColumns.length == tableColumns.length)
+        {
+            log.debug("findComparedColumns: No column of table {} is"
+                    + " filtered out, selecting every column", tableName);
+            return null;
+        }
+        final Column[] comparedPrimaryKeys = findComparedPrimaryKeys(tableName,
+                connection, comparedColumns);
+        return new DefaultTableMetaData(tableName, comparedColumns,
+                comparedPrimaryKeys);
+    }
+
+    /**
+     * Wraps the metadata so that the select of its columns writes each column
+     * name between the database's identifier quote string, which the names, as
+     * the database's own metadata gave them, need to be read as stored. With an
+     * escape pattern set, or when the driver cannot quote, the metadata is
+     * returned as it is, and the escape pattern or the plain name applies.
+     */
+    private ITableMetaData quoteColumnNamesUnlessEscaped(
+            final ITableMetaData metaData, final IDatabaseConnection connection)
+    {
+        final String escapePattern = (String) connection.getConfig()
+                .getProperty(DatabaseConfig.PROPERTY_ESCAPE_PATTERN);
+        if (escapePattern != null)
+        {
+            return metaData;
+        }
+
+        final String quoteString = findIdentifierQuoteString(connection);
+        if (quoteString == null)
+        {
+            return metaData;
+        }
+        return new QuotedColumnsTableMetaData(metaData, quoteString);
+    }
+
+    /**
+     * Finds the string the database quotes identifiers with.
+     *
+     * @return The quote string, or null when the driver cannot quote or does
+     *         not tell.
+     */
+    private String findIdentifierQuoteString(
+            final IDatabaseConnection connection)
+    {
+        try
+        {
+            final DatabaseMetaData databaseMetaData =
+                    connection.getConnection().getMetaData();
+            final String quoteString =
+                    databaseMetaData.getIdentifierQuoteString();
+            if (quoteString == null || quoteString.trim().isEmpty())
+            {
+                return null;
+            }
+            return quoteString.trim();
+        } catch (final SQLException e)
+        {
+            log.debug("findIdentifierQuoteString: Cannot determine the quote"
+                    + " string of the database, selecting the column names as"
+                    + " they are", e);
+            return null;
+        }
+    }
+
+    /**
+     * Finds the columns of the table's primary key that are among the compared
+     * columns, in the order of the key, so that the select of the compared
+     * columns is ordered by the key as it is for the whole table. The key comes
+     * from the connection's cached {@link org.dbunit.database.DatabaseDataSet}
+     * when it has read the table; a key column that the dataset does not list
+     * among the compared columns is left out, and with no key known the select
+     * has no order.
+     */
+    private Column[] findComparedPrimaryKeys(final String tableName,
+            final IDatabaseConnection connection, final Column[] comparedColumns)
+    {
+        final List<Column> comparedPrimaryKeys = new ArrayList<>();
         try
         {
             final IDataSet databaseDataSet = connection.createDataSet();
             if (databaseDataSet == null)
             {
-                return null;
+                return new Column[0];
             }
 
             final ITableMetaData databaseMetaData =
                     databaseDataSet.getTableMetaData(tableName);
-            final ITableMetaData comparedMetaData = new FilteredTableMetaData(
-                    databaseMetaData,
-                    makeColumnFilter(excludeColumns, includeColumns));
-            if (comparedMetaData.getColumns().length == 0)
+            for (final Column primaryKey : databaseMetaData.getPrimaryKeys())
             {
-                log.debug("findComparedColumns: No column of table {} is"
-                        + " compared, selecting every column", tableName);
-                return null;
+                final String primaryKeyName = primaryKey.getColumnName();
+                for (final Column comparedColumn : comparedColumns)
+                {
+                    if (comparedColumn.getColumnName()
+                            .equalsIgnoreCase(primaryKeyName))
+                    {
+                        comparedPrimaryKeys.add(comparedColumn);
+                    }
+                }
             }
-            return comparedMetaData;
         } catch (final SQLException | DataSetException e)
         {
-            log.debug("findComparedColumns: Cannot determine the columns of"
-                    + " table {}, selecting every column", tableName, e);
-            return null;
+            log.debug("findComparedPrimaryKeys: Cannot determine the primary"
+                    + " key of table {}, selecting without an order", tableName,
+                    e);
+            return new Column[0];
         }
+        return comparedPrimaryKeys.toArray(new Column[0]);
     }
 
     /**
@@ -1519,11 +1959,67 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      */
     private boolean isLoadTableDataFromDatabaseOverridden()
     {
+        return isOverriddenBySubclass("loadTableDataFromDatabase", String.class,
+                IDatabaseConnection.class);
+    }
+
+    /**
+     * Returns whether a subclass overrides
+     * {@link #configureTest(VerifyTableDefinition[], String[], String[])}, in which case a
+     * bundle that verifies every expected table passes it the definitions it expects.
+     *
+     * @return True if a subclass overrides it.
+     */
+    private boolean isArrayConfigureTestOverridden()
+    {
+        return isOverriddenBySubclass("configureTest", VerifyTableDefinition[].class,
+                String[].class, String[].class);
+    }
+
+    /**
+     * Returns whether a subclass overrides
+     * {@link #preTest(VerifyTableDefinition[], String[], String[])}, in which case a bundle that
+     * verifies every expected table passes it the definitions it expects.
+     *
+     * @return True if a subclass overrides it.
+     */
+    private boolean isArrayPreTestOverridden()
+    {
+        return isOverriddenBySubclass("preTest", VerifyTableDefinition[].class, String[].class,
+                String[].class);
+    }
+
+    /**
+     * Returns whether a subclass overrides
+     * {@link #runTest(VerifyTableDefinition[], String[], String[], PrepAndExpectedTestCaseSteps)},
+     * in which case a bundle that verifies every expected table passes it the definitions it
+     * expects.
+     *
+     * @return True if a subclass overrides it.
+     */
+    private boolean isArrayRunTestOverridden()
+    {
+        return isOverriddenBySubclass("runTest", VerifyTableDefinition[].class, String[].class,
+                String[].class, PrepAndExpectedTestCaseSteps.class);
+    }
+
+    /**
+     * Returns whether a subclass overrides the public method of this class with the given name
+     * and parameter types, in which case it, not this class, decides what that method does.
+     *
+     * @param methodName
+     *            The name of the method.
+     * @param parameterTypes
+     *            The parameter types of the method.
+     * @return True if a subclass overrides it.
+     */
+    private boolean isOverriddenBySubclass(final String methodName,
+            final Class<?>... parameterTypes)
+    {
         try
         {
-            final Class<?> declaringClass = getClass().getMethod(
-                    "loadTableDataFromDatabase", String.class,
-                    IDatabaseConnection.class).getDeclaringClass();
+            final Class<?> declaringClass =
+                    getClass().getMethod(methodName, parameterTypes).getDeclaringClass();
             return declaringClass != DefaultPrepAndExpectedTestCase.class;
         } catch (final NoSuchMethodException e)
         {
@@ -1557,7 +2053,10 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      *            columns. Key is column name, value is the
      *            {@link ValueComparer}. Can be <code>null</code> and will
      *            default to defaultValueComparer for all columns in all tables.
+     *            Since 3.6.0 a key matches its column without regard to case.
      * @throws DatabaseUnitException if the tables' row counts, columns, or data do not match.
+     * @throws IllegalArgumentException if two keys of columnValueComparers
+     *             differ only in case, as they name the same column.
      * @see #verifyData(ITable, ITable, String[], String[], ValueComparer, Map, boolean)
      *      to also control whether sorting considers only the filtered
      *      columns; this overload always sorts by all native columns.
@@ -1576,6 +2075,15 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     /**
      * For the specified expected and actual tables (and excluding and including
      * the specified columns), verify the actual data is as expected.
+     *
+     * <p>Since 3.6.0 the columns whose comparer in columnValueComparers cannot
+     * order the rows by its expected values, as
+     * {@link ValueComparer#isSortableByExpectedValue()} says, come last in the
+     * sort key. Expected rows that tie on every other column are ordered
+     * by their values in those columns, which the type of a column may not be able to
+     * compare, a pattern in a numeric column for example. The verification then fails
+     * with a {@link DatabaseUnitException} that names the table and the columns, with
+     * the {@link TypeCastException} as its cause.
      *
      * @param expectedTable
      *            The expected table to compare the actual table to.
@@ -1599,6 +2107,19 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      *            columns. Key is column name, value is the
      *            {@link ValueComparer}. Can be <code>null</code> and will
      *            default to defaultValueComparer for all columns in all tables.
+     *            Since 3.6.0 the columns whose comparer here cannot order the
+     *            rows by its expected values come last in the sort key of both
+     *            tables, so a comparer that matches a pattern, on a generated
+     *            id for example, does not line the rows up against the wrong
+     *            counterparts. A column compared by order or by a tolerance,
+     *            such as a sequence of generated ids compared with "greater
+     *            than or equal to", keeps its place. When a comparison
+     *            fails while such a column kept its place, and passes with
+     *            every column that has a comparer here sorted last, the
+     *            failure carries a suppressed exception that names those
+     *            columns. Also
+     *            since 3.6.0 a key matches its column without regard to case,
+     *            as the column names of excludeColumns and includeColumns do.
      * @param sortOnFilteredColumnsOnly
      *            True to sort the expected and actual tables by only the
      *            columns that survive excludeColumns/includeColumns, instead
@@ -1608,8 +2129,15 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      *            table, so the two sort by different columns, a failed
      *            comparison that passes when sorted by only the filtered
      *            columns carries a suppressed exception naming this as the
-     *            remedy.
+     *            remedy. A failure handler that collects the differences,
+     *            such as {@link DiffCollectingFailureHandler}, throws nothing
+     *            to carry it, so the remedy is logged as a warning and added
+     *            to the handler, which attaches it to the failure it creates
+     *            for the collected differences, as is the hint of the columns
+     *            of columnValueComparers.
      * @throws DatabaseUnitException if the tables' row counts, columns, or data do not match.
+     * @throws IllegalArgumentException if two keys of columnValueComparers
+     *             differ only in case, as they name the same column.
      * @since 3.5.0
      */
     protected void verifyData(final ITable expectedTable,
@@ -1621,6 +2149,9 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
             throws DatabaseUnitException
     {
         final String methodName = "verifyData";
+
+        final Map<String, ValueComparer> caseInsensitiveComparers =
+                withColumnNamesIgnoringCase(columnValueComparers);
 
         final ITableMetaData actualTableMetaData =
                 actualTable.getTableMetaData();
@@ -1650,13 +2181,20 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
             expectedSortColumns = expectedTableColumns;
         }
 
+        final Column[] expectedSortKey = moveColumnsThatCannotOrderTheRowsLast(
+                expectedSortColumns, caseInsensitiveComparers);
+        final Column[] actualSortKey = moveColumnsThatCannotOrderTheRowsLast(
+                actualSortColumns, caseInsensitiveComparers);
+
         final SortedTable expectedSortedTable =
-                sortByColumns(expectedTable, expectedSortColumns, true);
+                sortByColumns(expectedTable, expectedSortKey, true);
+        sortToReportComparerColumnsThatCannotOrderTheRows(tableName, expectedTable,
+                expectedSortedTable, expectedSortKey, caseInsensitiveComparers);
         log.trace("{}: Sorted expected table={}", methodName,
                 expectedSortedTable);
 
         final SortedTable actualSortedTable =
-                sortByColumns(actualTable, actualSortColumns, false);
+                sortByColumns(actualTable, actualSortKey, false);
         log.trace("{}: Sorted actual table={}", methodName, actualSortedTable);
 
         // Filter out the columns from the expected and actual results
@@ -1682,33 +2220,227 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
 
         logSortedTables(expectedSortedTable, actualSortedTable);
 
+        final Supplier<DatabaseUnitRuntimeException> findSortHint = () -> {
+            final boolean passesWhenSortedOnFilteredColumnsOnly = sortKeysDiffer
+                    && passesWhenSortedOnFilteredColumnsOnly(expectedTable,
+                            actualTable, excludeColumns, includeColumns,
+                            defaultValueComparer, caseInsensitiveComparers);
+            if (passesWhenSortedOnFilteredColumnsOnly)
+            {
+                return makeSortHint(tableName, actualTableColumns.length,
+                        expectedTableColumns.length);
+            }
+
+            final SortKeys sortKeys = new SortKeys(expectedSortColumns,
+                    actualSortColumns, expectedSortKey, actualSortKey);
+            return findHintWhenComparerColumnsLastPass(tableName, expectedTable,
+                    actualTable, sortKeys, excludeColumns, includeColumns,
+                    defaultValueComparer, caseInsensitiveComparers);
+        };
+
+        final DiffCollectingFailureHandler collectingHandler =
+                collectingHandlerOrNull();
+        final int collectedBefore = countCollectedDifferences(collectingHandler);
         log.debug("{}: Comparing expected table to actual table", methodName);
         try
         {
             compareData(expectedFilteredTable, actualFilteredTable,
                     additionalColumnInfo, defaultValueComparer,
-                    columnValueComparers);
+                    caseInsensitiveComparers);
         } catch (final AssertionError e)
         {
-            if (sortKeysDiffer)
+            final DatabaseUnitRuntimeException hint = findSortHint.get();
+            if (hint != null)
             {
-                final boolean passesWhenSortedOnFilteredColumnsOnly =
-                        passesWhenSortedOnFilteredColumnsOnly(expectedTable,
-                                actualTable, excludeColumns, includeColumns,
-                                defaultValueComparer, columnValueComparers);
-                if (passesWhenSortedOnFilteredColumnsOnly)
-                {
-                    final DatabaseUnitRuntimeException hint = makeSortHint(
-                            tableName, actualTableColumns.length,
-                            expectedTableColumns.length);
-                    e.addSuppressed(hint);
-                    // also logged: a build that trims stack traces, for
-                    // example Surefire with trimStackTrace, drops suppressed
-                    log.warn(hint.getMessage());
-                }
+                addHint(e, hint);
             }
             throw e;
         }
+
+        final boolean differencesWereCollected =
+                countCollectedDifferences(collectingHandler) > collectedBefore;
+        if (differencesWereCollected)
+        {
+            final DatabaseUnitRuntimeException hint = findSortHint.get();
+            if (hint != null)
+            {
+                collectingHandler.addHint(hint);
+                log.warn(hint.getMessage());
+            }
+        }
+    }
+
+    /**
+     * Returns the failure handler when it collects the differences instead of
+     * throwing, as such a comparison does not fail, so the hint about the sort
+     * has no failure to be attached to here: it goes to the handler, which
+     * attaches it to the failure that it creates.
+     *
+     * @return The collecting failure handler, or null when there is none.
+     */
+    private DiffCollectingFailureHandler collectingHandlerOrNull()
+    {
+        if (failureHandler instanceof DiffCollectingFailureHandler)
+        {
+            return (DiffCollectingFailureHandler) failureHandler;
+        }
+        return null;
+    }
+
+    private static int countCollectedDifferences(
+            final DiffCollectingFailureHandler collectingHandler)
+    {
+        if (collectingHandler == null)
+        {
+            return 0;
+        }
+        return collectingHandler.getDiffList().size();
+    }
+
+    /**
+     * Attaches the hint to the failure as a suppressed exception and logs it as
+     * a warning, as a build that trims stack traces, for example Surefire with
+     * trimStackTrace, drops suppressed exceptions.
+     *
+     * @param failure
+     *            The failed comparison.
+     * @param hint
+     *            The hint.
+     */
+    private void addHint(final AssertionError failure,
+            final DatabaseUnitRuntimeException hint)
+    {
+        failure.addSuppressed(hint);
+        log.warn(hint.getMessage());
+    }
+
+    /**
+     * The columns that the expected and the actual table were sorted by,
+     * before and after the columns whose comparer cannot order the rows were
+     * moved last.
+     */
+    private static class SortKeys
+    {
+        private final Column[] expectedSortColumns;
+        private final Column[] actualSortColumns;
+        private final Column[] expectedSortKey;
+        private final Column[] actualSortKey;
+
+        SortKeys(final Column[] expectedSortColumns,
+                final Column[] actualSortColumns, final Column[] expectedSortKey,
+                final Column[] actualSortKey)
+        {
+            this.expectedSortColumns = expectedSortColumns;
+            this.actualSortColumns = actualSortColumns;
+            this.expectedSortKey = expectedSortKey;
+            this.actualSortKey = actualSortKey;
+        }
+    }
+
+    /**
+     * Finds the hint for a failed comparison when a column that has a value
+     * comparer kept its place in the sort, as its comparer can order the rows
+     * by its expected values, and the comparison passes when every column that
+     * has a comparer is sorted after the others. The expected values of such a
+     * column then do not order the rows as the actual values do, for example
+     * when every expected row holds the same bound for a generated id. Nothing
+     * is compared again when no such column kept its place, as the sort would
+     * not change.
+     *
+     * @param tableName
+     *            The name of the table, for the hint.
+     * @param expectedTable
+     *            The expected table.
+     * @param actualTable
+     *            The actual table.
+     * @param sortKeys
+     *            The columns the tables were sorted by.
+     * @param excludeColumns
+     *            The column names to exclude from comparison.
+     * @param includeColumns
+     *            The column names to only include in comparison.
+     * @param defaultValueComparer
+     *            The value comparer for columns without one in
+     *            columnValueComparers; can be null.
+     * @param columnValueComparers
+     *            The value comparers for specific columns; can be null.
+     * @return The hint, or null when the comparison does not pass with the
+     *         comparer columns sorted last.
+     */
+    private DatabaseUnitRuntimeException findHintWhenComparerColumnsLastPass(
+            final String tableName,
+            final ITable expectedTable, final ITable actualTable,
+            final SortKeys sortKeys, final String[] excludeColumns,
+            final String[] includeColumns,
+            final ValueComparer defaultValueComparer,
+            final Map<String, ValueComparer> columnValueComparers)
+    {
+        if (columnValueComparers == null || columnValueComparers.isEmpty())
+        {
+            return null;
+        }
+
+        final Predicate<Column> hasAComparer = column -> columnValueComparers
+                .containsKey(column.getColumnName());
+        final Column[] expectedComparersLastKey =
+                moveColumnsLast(sortKeys.expectedSortColumns, hasAComparer);
+        final Column[] actualComparersLastKey =
+                moveColumnsLast(sortKeys.actualSortColumns, hasAComparer);
+        final boolean expectedSortChanges = !Arrays
+                .equals(expectedComparersLastKey, sortKeys.expectedSortKey);
+        final boolean actualSortChanges =
+                !Arrays.equals(actualComparersLastKey, sortKeys.actualSortKey);
+        if (!expectedSortChanges && !actualSortChanges)
+        {
+            return null;
+        }
+
+        final boolean passes = passesWhenSortedBy(expectedTable, actualTable,
+                expectedComparersLastKey, actualComparersLastKey,
+                excludeColumns, includeColumns, defaultValueComparer,
+                columnValueComparers);
+        if (passes)
+        {
+            final String columnNames = Arrays
+                    .stream(sortKeys.expectedSortColumns).filter(hasAComparer)
+                    .filter(column -> !cannotOrderTheRows(column,
+                            columnValueComparers))
+                    .map(Column::getColumnName)
+                    .collect(Collectors.joining(", "));
+            return makeComparerColumnsLastHint(tableName, columnNames);
+        }
+        return null;
+    }
+
+    /**
+     * Makes the hint for a failed comparison that passes when every column
+     * that has a value comparer is sorted after the others.
+     *
+     * @param tableName
+     *            The name of the table that failed the comparison.
+     * @param columnNames
+     *            The names of the columns whose comparer kept them in their
+     *            place in the sort.
+     * @return The hint, to attach to the failure as suppressed.
+     */
+    private DatabaseUnitRuntimeException makeComparerColumnsLastHint(
+            final String tableName, final String columnNames)
+    {
+        final String message = "verifyData: The comparison of table '"
+                + tableName + "' failed, but it passes when the columns that"
+                + " have a value comparer are sorted after the other columns."
+                + " The value comparers of " + columnNames + " can order"
+                + " the rows by their expected values, so these columns kept"
+                + " their place in the sort, but here their expected values do"
+                + " not put the expected rows in the order of the actual rows,"
+                + " for example when every expected row holds the same bound"
+                + " for a generated id. Give the expected rows values in those"
+                + " columns that are in the order of the actual values, such as"
+                + " the ids 1, 2 and 3 for a greater than or equal to comparer,"
+                + " or compare such a column with a ValueComparer whose"
+                + " isSortableByExpectedValue() returns false, such as a"
+                + " subclass of its comparer that overrides it.";
+        return new DatabaseUnitRuntimeException(message);
     }
 
     /**
@@ -1738,16 +2470,242 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     }
 
     /**
+     * Sorts the expected table now when its sort key holds a column whose value comparer cannot
+     * order the rows, to tell a failure that those columns cause from any other. A table sorts
+     * when its first value is read, and expected rows that tie on every other column are ordered
+     * by those columns, last in the key, by the values of the expected dataset. A pattern in a
+     * numeric column is a value that the data type of the column cannot compare,
+     * so the sort fails with a {@link TypeCastException} that names neither the table nor the
+     * column. The failure is translated only when the sort passes without the comparer
+     * columns, so one that a value of another column causes stays as it is.
+     *
+     * @param tableName
+     *            The name of the table, for the message.
+     * @param expectedTable
+     *            The expected table.
+     * @param expectedSortedTable
+     *            The expected table sorted by the sort key.
+     * @param sortKey
+     *            The sort key of the expected table, with the columns whose comparer cannot
+     *            order the rows last, as
+     *            {@link #moveColumnsThatCannotOrderTheRowsLast(Column[], Map)} returns it.
+     * @param columnValueComparers
+     *            The value comparers of the columns that have one, keyed without regard to
+     *            case; can be null.
+     * @throws DatabaseUnitException
+     *             If the comparer columns make the sort fail.
+     */
+    private void sortToReportComparerColumnsThatCannotOrderTheRows(final String tableName,
+            final ITable expectedTable, final SortedTable expectedSortedTable,
+            final Column[] sortKey, final Map<String, ValueComparer> columnValueComparers)
+            throws DatabaseUnitException
+    {
+        final List<Column> comparerColumns =
+                columnsThatCannotOrderTheRows(sortKey, columnValueComparers);
+        final boolean rowsToOrder =
+                !comparerColumns.isEmpty() && expectedSortedTable.getRowCount() > 1;
+        if (!rowsToOrder)
+        {
+            return;
+        }
+
+        final String firstColumnName = sortKey[0].getColumnName();
+        try
+        {
+            expectedSortedTable.getValue(0, firstColumnName);
+        } catch (final TypeCastException sortFailure)
+        {
+            final int otherColumnCount = sortKey.length - comparerColumns.size();
+            final Column[] otherColumns = Arrays.copyOf(sortKey, otherColumnCount);
+            final boolean otherColumnsSort =
+                    sortsWithoutTypeCastFailure(expectedTable, otherColumns, firstColumnName);
+            if (!otherColumnsSort)
+            {
+                throw sortFailure;
+            }
+
+            final String columnNames = comparerColumns.stream().map(Column::getColumnName)
+                    .collect(Collectors.joining(", "));
+            throw new DatabaseUnitException("Cannot line up the expected rows of table "
+                    + tableName + " with the actual rows: expected rows that tie on every other"
+                    + " column are ordered by the columns whose value comparer cannot order"
+                    + " them (" + columnNames + "), and the data type of such a column cannot"
+                    + " compare their"
+                    + " expected values (" + sortFailure.getMessage() + "). Give the rows that"
+                    + " tie the same value in those columns, or a column that tells them apart.",
+                    sortFailure);
+        }
+    }
+
+    private List<Column> columnsThatCannotOrderTheRows(final Column[] sortColumns,
+            final Map<String, ValueComparer> columnValueComparers)
+    {
+        final List<Column> comparerColumns = new ArrayList<>();
+        if (columnValueComparers == null)
+        {
+            return comparerColumns;
+        }
+
+        for (final Column column : sortColumns)
+        {
+            if (cannotOrderTheRows(column, columnValueComparers))
+            {
+                comparerColumns.add(column);
+            }
+        }
+        return comparerColumns;
+    }
+
+    /**
+     * Returns whether the column has a value comparer of its own whose
+     * expected values cannot order the rows, as
+     * {@link ValueComparer#isSortableByExpectedValue()} says. A column without
+     * one, compared by the default value comparer, can.
+     *
+     * @param column
+     *            The column.
+     * @param columnValueComparers
+     *            The value comparers of the columns that have one; not null.
+     * @return True if the column's comparer cannot order the rows.
+     */
+    private boolean cannotOrderTheRows(final Column column,
+            final Map<String, ValueComparer> columnValueComparers)
+    {
+        final String columnName = column.getColumnName();
+        final ValueComparer valueComparer =
+                columnValueComparers.get(columnName);
+        return valueComparer != null
+                && !valueComparer.isSortableByExpectedValue();
+    }
+
+    private boolean sortsWithoutTypeCastFailure(final ITable table, final Column[] sortColumns,
+            final String columnName) throws DataSetException
+    {
+        final SortedTable sortedTable = sortByColumns(table, sortColumns, true);
+        try
+        {
+            sortedTable.getValue(0, columnName);
+            return true;
+        } catch (final TypeCastException e)
+        {
+            return false;
+        }
+    }
+
+    /**
+     * Returns the sort columns with the ones whose value comparer in
+     * {@code columnValueComparers} cannot order the rows by its expected
+     * values moved after the others, each group in its original order. Such a
+     * column, compared by a pattern for example, holds a value in the expected
+     * table that does not order the rows as the actual value does, so ordering
+     * the rows by it first lines them up against the wrong counterparts, for
+     * example by the generated ids of the actual rows when every expected row
+     * holds the same pattern in that column. Ordered last, such a column only
+     * orders the rows that tie on every other one. A column compared by order
+     * or by a tolerance keeps its place, so a leading sequence of generated
+     * ids compared with "greater than or equal to" still orders the rows.
+     *
+     * @param sortColumns
+     *            The columns to sort by.
+     * @param columnValueComparers
+     *            The value comparers of the columns that have one, keyed
+     *            without regard to case as verifyData keys them, so that the
+     *            sort and the comparison find the same columns; can be null.
+     * @return The sort columns with those whose comparer cannot order the
+     *         rows last, or sortColumns itself when no column has a comparer.
+     */
+    private Column[] moveColumnsThatCannotOrderTheRowsLast(final Column[] sortColumns,
+            final Map<String, ValueComparer> columnValueComparers)
+    {
+        if (columnValueComparers == null || columnValueComparers.isEmpty())
+        {
+            return sortColumns;
+        }
+
+        return moveColumnsLast(sortColumns,
+                column -> cannotOrderTheRows(column, columnValueComparers));
+    }
+
+    /**
+     * Returns the sort columns with the ones that the predicate accepts moved
+     * after the others, each group in its original order.
+     *
+     * @param sortColumns
+     *            The columns to sort by.
+     * @param isMovedLast
+     *            Accepts the columns to move last.
+     * @return The reordered sort columns.
+     */
+    private Column[] moveColumnsLast(final Column[] sortColumns,
+            final Predicate<Column> isMovedLast)
+    {
+        final List<Column> sortedColumns = new ArrayList<>();
+        final List<Column> lastColumns = new ArrayList<>();
+        for (final Column column : sortColumns)
+        {
+            if (isMovedLast.test(column))
+            {
+                lastColumns.add(column);
+            } else
+            {
+                sortedColumns.add(column);
+            }
+        }
+        sortedColumns.addAll(lastColumns);
+        return sortedColumns.toArray(new Column[sortedColumns.size()]);
+    }
+
+    /**
+     * Returns a copy of the column value comparers whose keys match the column
+     * names without regard to case, as the column names of the exclude and
+     * include filters do, so that a comparer keyed {@code id} compares an
+     * {@code ID} column. A null key names no column, so the copy leaves it out.
+     *
+     * @param columnValueComparers
+     *            The value comparers of the columns that have one; can be null.
+     * @return The copy, or null when columnValueComparers is null, so that the
+     *         comparison still falls back to its default comparers.
+     * @throws IllegalArgumentException
+     *             If two keys differ only in case, as they name the same
+     *             column.
+     */
+    private static Map<String, ValueComparer> withColumnNamesIgnoringCase(
+            final Map<String, ValueComparer> columnValueComparers)
+    {
+        if (columnValueComparers == null)
+        {
+            return null;
+        }
+
+        final TreeMap<String, ValueComparer> ignoringCase =
+                new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        for (final Map.Entry<String, ValueComparer> entry : columnValueComparers
+                .entrySet())
+        {
+            final String columnName = entry.getKey();
+            if (columnName != null)
+            {
+                if (ignoringCase.containsKey(columnName))
+                {
+                    final String existingKey = ignoringCase.floorKey(columnName);
+                    throw new IllegalArgumentException(
+                            "columnValueComparers has the keys '" + existingKey
+                                    + "' and '" + columnName
+                                    + "', which name the same column, as a key"
+                                    + " matches its column without regard to"
+                                    + " case; keep one of them.");
+                }
+                ignoringCase.put(columnName, entry.getValue());
+            }
+        }
+        return ignoringCase;
+    }
+
+    /**
      * Returns whether comparing the tables passes when both are sorted by only
      * the columns that survive the exclude and include column filters, as
-     * {@code sortOnFilteredColumnsOnly} sorts them. It compares with a fresh
-     * {@link DefaultFailureHandler} and no additional column info, instead of
-     * through {@link #compareData} and the {@link #failureHandler}, so that it
-     * neither runs a subclass's comparison nor records differences in a
-     * handler that collects them. It does not compare tables of different
-     * columns or row counts, which cannot pass. Whatever it throws means that
-     * it does not pass: this check explains a failure and must never replace
-     * it.
+     * {@code sortOnFilteredColumnsOnly} sorts them, compared as
+     * {@link #passesWhenSortedBy} compares them.
      *
      * @param expectedTable
      *            The expected table.
@@ -1789,10 +2747,64 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
             final Column[] expectedSortColumns = filterColumns(
                     expectedTableColumns, excludeColumns, includeColumns,
                     tableName);
+            final Column[] expectedSortKey = moveColumnsThatCannotOrderTheRowsLast(
+                    expectedSortColumns, columnValueComparers);
+            final Column[] actualSortKey = moveColumnsThatCannotOrderTheRowsLast(
+                    actualSortColumns, columnValueComparers);
+            return passesWhenSortedBy(expectedTable, actualTable,
+                    expectedSortKey, actualSortKey, excludeColumns,
+                    includeColumns, defaultValueComparer, columnValueComparers);
+        } catch (final DataSetException e)
+        {
+            log.debug("{}: Cannot read the columns to sort by", methodName, e);
+            return false;
+        }
+    }
+
+    /**
+     * Returns whether comparing the tables passes when they are sorted by the
+     * given columns. It compares with a fresh
+     * {@link DefaultFailureHandler} and no additional column info, instead of
+     * through {@link #compareData} and the {@link #failureHandler}, so that it
+     * neither runs a subclass's comparison nor records differences in a
+     * handler that collects them. It does not compare tables of different
+     * columns or row counts, which cannot pass. Whatever it throws means that
+     * it does not pass: this check explains a failure and must never replace
+     * it.
+     *
+     * @param expectedTable
+     *            The expected table.
+     * @param actualTable
+     *            The actual table.
+     * @param expectedSortKey
+     *            The columns to sort the expected table by.
+     * @param actualSortKey
+     *            The columns to sort the actual table by.
+     * @param excludeColumns
+     *            The column names to exclude from comparison.
+     * @param includeColumns
+     *            The column names to only include in comparison.
+     * @param defaultValueComparer
+     *            The value comparer for columns without one in
+     *            columnValueComparers; can be null.
+     * @param columnValueComparers
+     *            The value comparers for specific columns; can be null.
+     * @return True if the comparison passes with that sort.
+     */
+    private boolean passesWhenSortedBy(final ITable expectedTable,
+            final ITable actualTable, final Column[] expectedSortKey,
+            final Column[] actualSortKey, final String[] excludeColumns,
+            final String[] includeColumns,
+            final ValueComparer defaultValueComparer,
+            final Map<String, ValueComparer> columnValueComparers)
+    {
+        final String methodName = "passesWhenSortedBy";
+        try
+        {
             final SortedTable expectedSortedTable =
-                    sortByColumns(expectedTable, expectedSortColumns, true);
+                    sortByColumns(expectedTable, expectedSortKey, true);
             final SortedTable actualSortedTable =
-                    sortByColumns(actualTable, actualSortColumns, false);
+                    sortByColumns(actualTable, actualSortKey, false);
             final ITable expectedFilteredTable = applyColumnFilters(
                     expectedSortedTable, excludeColumns, includeColumns);
             final ITable actualFilteredTable = applyColumnFilters(
@@ -1810,8 +2822,8 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
             return true;
         } catch (final AssertionError | Exception e)
         {
-            log.debug("{}: The comparison does not pass sorted by only the"
-                    + " filtered columns", methodName, e);
+            log.debug("{}: The comparison does not pass sorted by {}",
+                    methodName, Arrays.toString(expectedSortKey), e);
             return false;
         }
     }
@@ -2007,13 +3019,16 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * Uses {@link #failureHandler} when set; otherwise defers to
      * {@link Assertion#assertWithValueComparer(ITable, ITable, Column[], ValueComparer, Map)}'s
      * own {@link org.dbunit.assertion.DefaultFailureHandler}, configured with
-     * additionalColumnInfo.
+     * additionalColumnInfo. A handler that is set brings its own row
+     * information: it is not given additionalColumnInfo.
      *
      * @param expectedTable the table containing all expected results.
      * @param actualTable the table containing all actual results.
      * @param additionalColumnInfo the additional columns to include in failure messages.
      * @param defaultValueComparer the value comparer used when no more specific comparer is configured.
-     * @param columnValueComparers the per-column value comparers to use.
+     * @param columnValueComparers the per-column value comparers to use;
+     *            verifyData passes a copy whose keys match the column names
+     *            without regard to case, or null when it has none.
      * @throws DatabaseUnitException if the tables' row counts, columns, or data do not match.
      */
     protected void compareData(final ITable expectedTable,
@@ -2161,7 +3176,8 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      *            The exclude filters; use null or empty array to mean exclude
      *            none.
      * @param includeColumns
-     *            The include filters; use null to mean include all.
+     *            The include filters; use null or empty array to mean include
+     *            all.
      * @return The filtered table.
      * @throws DataSetException if applying the filters fails.
      */
@@ -2176,8 +3192,8 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
 
         ITable filteredTable = table;
 
-        // note: dbunit interprets an empty inclusion filter array as one
-        // not wanting to compare anything!
+        // note: a filter with no include patterns accepts every column, so an
+        // empty inclusion array includes all, the same as null
         if (includeColumns == null)
         {
             log.debug("applyColumnFilters: including columns=(all)");
@@ -2234,7 +3250,6 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      *
      * @return The databaseTester.
      */
-    @Override
     public IDatabaseTester getDatabaseTester()
     {
         return databaseTester;
@@ -2277,7 +3292,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      */
     private void releaseReplacedTestersConnection()
     {
-        rowCountChecker.discardBaseline();
+        rowCountBaselineTracker.discardBaseline();
         if (!reusableConnectionHolder.isResolved())
         {
             return;
@@ -2309,11 +3324,38 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     }
 
     /**
+     * Gets whether cleanupData() leaves the connection this instance shares across a test's
+     * lifecycle open for another owner to close. That is the case when
+     * {@link #isCloseConnectionAfterTest()} is false, and when the databaseTester's operation
+     * listener or this instance's own {@link #getOperationListener()} is
+     * {@link IOperationListener#NO_OP_OPERATION_LISTENER}. Whoever else holds that connection,
+     * such as the executor of the annotation runtime that resolved it for a test method
+     * parameter, must leave it open too.
+     * <p>
+     * This method is for the annotation runtime in {@code org.dbunit.annotation.runtime}, which
+     * calls it to decide whether it may close a connection it resolved. It is public because that
+     * runtime lives in another package. Test code should not rely on it.
+     *
+     * @return {@code true} when cleanupData() leaves the connection open, {@code false} when it
+     *         may close it.
+     * @since 3.6.0
+     */
+    public boolean isConnectionLeftOpen()
+    {
+        return connectionOwnership.isLeftOpenByConfiguration();
+    }
+
+    /**
      * Set whether the connection lookupFeatureValue() and cleanupData() are
      * done with is closed. Default is true. Set to false when databaseTester
      * shares a {@link org.dbunit.database.CachingConnectionProvider} across
      * test methods, so this instance does not close a connection other tests
-     * still expect to reuse.
+     * still expect to reuse. False requires a databaseTester that hands out
+     * the same connection on repeated calls: with one that hands out a new
+     * connection each time, nothing closes the connection left open after a
+     * test, and a step that fails leaves open the connection this instance
+     * forgets. A warning is logged when databaseTester is a
+     * {@link JdbcDatabaseTester} without a CachingConnectionProvider.
      *
      * @see #closeConnectionAfterTest
      *
@@ -2325,6 +3367,43 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
             final boolean closeConnectionAfterTest)
     {
         this.closeConnectionAfterTest = closeConnectionAfterTest;
+    }
+
+    /**
+     * Set the operation setupData() runs on the prep dataset, instead of the databaseTester's
+     * own set up operation, which the databaseTester keeps unchanged. A caller that configures
+     * one test case without touching the databaseTester other test cases share, such as the
+     * annotation runtime for {@code @DbUnitSetUpOperation}, sets it here. A subclass overriding
+     * {@link #getSetUpOperation()} decides for itself and ignores it.
+     *
+     * @see #setupData()
+     *
+     * @param setUpOperation
+     *            The operation to run; null, the default, runs the databaseTester's own.
+     * @since 3.6.0
+     */
+    public void setSetUpOperation(final DatabaseOperation setUpOperation)
+    {
+        this.setUpOperation = setUpOperation;
+    }
+
+    /**
+     * Set the operation cleanupData() runs over the prep and expected datasets, instead of the
+     * databaseTester's own tear down operation, which the databaseTester keeps unchanged. A
+     * caller that configures one test case without touching the databaseTester other test cases
+     * share, such as the annotation runtime for {@code @DbUnitTearDownOperation}, sets it
+     * here. A subclass overriding {@link #getTearDownOperation()} decides for itself and
+     * ignores it.
+     *
+     * @see #cleanupData()
+     *
+     * @param tearDownOperation
+     *            The operation to run; null, the default, runs the databaseTester's own.
+     * @since 3.6.0
+     */
+    public void setTearDownOperation(final DatabaseOperation tearDownOperation)
+    {
+        this.tearDownOperation = tearDownOperation;
     }
 
     /**
@@ -2456,65 +3535,133 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     /**
      * Get the RowCountCheck in use.
      *
-     * @see #rowCountChecker
+     * @see #rowCountBaselineTracker
      *
      * @return The RowCountCheck, or null if none has been resolved or set yet.
      * @since 3.6.0
      */
     public RowCountCheck getRowCountCheck()
     {
-        return rowCountChecker.getRowCountCheck();
+        return rowCountBaselineTracker.getRowCountCheck();
     }
 
     /**
      * Set the RowCountCheck, overriding the one otherwise lazily built from the shared
-     * connection's DatabaseConfig.
+     * connection's DatabaseConfig. A check set here wins over any override set with
+     * {@link #setRowCountCheckOverride(RowCountCheckOverride)}, including the one a
+     * {@code @DbUnitRowCountCheck} annotation declares: the check is used as-is for every
+     * later test, and the first test that finds an override set logs a warning that it has
+     * no effect.
      *
-     * @see #rowCountChecker
+     * @see #rowCountBaselineTracker
      *
      * @param rowCountCheck
-     *            The RowCountCheck to use.
+     *            The RowCountCheck to use as-is, or null to resolve it from the override and
+     *            the shared connection's DatabaseConfig again.
      * @since 3.6.0
      */
     public void setRowCountCheck(final RowCountCheck rowCountCheck)
     {
-        rowCountChecker.setRowCountCheck(rowCountCheck);
+        rowCountBaselineTracker.setRowCountCheck(rowCountCheck);
     }
 
     /**
-     * {@link IDatabaseTester} that runs setUp/tearDown operations against a
-     * connection supplied by the given {@link Callable} instead of calling
-     * {@code getConnection()} on a wrapped {@link IDatabaseTester}, so
-     * repeated {@link #onSetup()}/{@link #onTearDown()} calls driven through
-     * this instance share whatever connection the supplier itself caches
-     * (here, {@link DefaultPrepAndExpectedTestCase#getReusableConnection()})
-     * rather than each opening a new one.
+     * Get the enabled flag and excluded table patterns the RowCountCheck is resolved from.
      *
-     * @since 3.4.0
+     * @see #rowCountBaselineTracker
+     *
+     * @return The override, or null when the RowCountCheck is resolved from the shared
+     *         connection's DatabaseConfig.
+     * @since 3.6.0
      */
-    private static final class ReusableConnectionDatabaseTester
-            extends AbstractDatabaseTester
+    public RowCountCheckOverride getRowCountCheckOverride()
     {
-        private final Callable<IDatabaseConnection> connectionSupplier;
+        return rowCountBaselineTracker.getOverride();
+    }
 
-        /**
-         * Create new instance with the specified connection supplier.
-         *
-         * @param connectionSupplier
-         *            Supplies the connection to use; invoked once per
-         *            {@link #getConnection()} call, so it is responsible for
-         *            any caching of its own.
-         */
-        private ReusableConnectionDatabaseTester(
-                final Callable<IDatabaseConnection> connectionSupplier)
+    /**
+     * Set the enabled flag and excluded table patterns to resolve a RowCountCheck from - the
+     * values an annotation such as {@code @DbUnitRowCountCheck} declares. The enabled flag
+     * replaces the one of the shared connection's DatabaseConfig, and the patterns add to the
+     * ones it configures. A RowCountCheck set with {@link #setRowCountCheck(RowCountCheck)}
+     * wins over this override.
+     *
+     * <p>A caller reusing one instance across several tests that drive it themselves - e.g. a
+     * test case in a static field whose tests each call {@code runTest()} - must set the
+     * override back to what it was, null for none, once a test that set one is over, so that
+     * test's override does not silently carry over onto the next one. The annotation runtime
+     * puts the override back itself for an instance it drives through a
+     * {@code @DbUnitTestCase} field.
+     *
+     * @see #rowCountBaselineTracker
+     *
+     * @param rowCountCheckOverride
+     *            The enabled flag and excluded table patterns to resolve from, or null to
+     *            resolve from the shared connection's DatabaseConfig again.
+     * @since 3.6.0
+     */
+    public void setRowCountCheckOverride(final RowCountCheckOverride rowCountCheckOverride)
+    {
+        rowCountBaselineTracker.setOverride(rowCountCheckOverride);
+    }
+
+    /**
+     * Get the DatabaseConfig property name/value pairs applied to the connection shared by
+     * setupData(), verifyData() and cleanupData().
+     *
+     * @see #setDatabaseConfigProperties(Properties)
+     *
+     * @return A copy of the properties, or null if none are set.
+     * @since 3.6.0
+     */
+    public Properties getDatabaseConfigProperties()
+    {
+        if (databaseConfigProperties == null)
         {
-            this.connectionSupplier = connectionSupplier;
+            return null;
         }
 
-        @Override
-        public IDatabaseConnection getConnection() throws Exception
+        final Properties copy = new Properties();
+        copy.putAll(databaseConfigProperties);
+        return copy;
+    }
+
+    /**
+     * Set DatabaseConfig property name/value pairs to apply to the connection shared by
+     * setupData(), verifyData() and cleanupData(), when {@link #getReusableConnection()}
+     * acquires it and again on a connection kept from an earlier test.
+     *
+     * <p>
+     * Puts back, first, whatever the previous properties replaced, so that changing them - as
+     * the annotation runtime does to restore an injected instance's own properties after a
+     * test - leaves nothing of the old values on a connection kept open.
+     *
+     * @see #databaseConfigProperties
+     *
+     * @param databaseConfigProperties
+     *            The properties to apply; null or empty applies none.
+     * @throws IllegalArgumentException
+     *             If a name is not the long or the short form of a {@link DatabaseConfig}
+     *             property, or a value does not suit the type of its property, as
+     *             {@link DatabaseConfigOverrides#DatabaseConfigOverrides(Properties)} describes.
+     *             The properties set before stay as they were then.
+     * @since 3.6.0
+     */
+    public void setDatabaseConfigProperties(final Properties databaseConfigProperties)
+    {
+        if (databaseConfigProperties == null)
         {
-            return connectionSupplier.call();
+            restoreDatabaseConfig();
+            this.databaseConfigProperties = null;
+            this.databaseConfigOverrides = new DatabaseConfigOverrides(new Properties());
+        } else
+        {
+            final Properties copy = new Properties();
+            copy.putAll(databaseConfigProperties);
+            final DatabaseConfigOverrides overrides = new DatabaseConfigOverrides(copy);
+            restoreDatabaseConfig();
+            this.databaseConfigProperties = copy;
+            this.databaseConfigOverrides = overrides;
         }
     }
 }

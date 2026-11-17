@@ -50,9 +50,9 @@ Start with these as they provide for most comparison needs.
 For a column whose exact content a test does not control but whose format it
 does - a database-generated id, a UUID, a formatted identifier, a timestamp
 rendered into a text column -
-link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/RegularExpressionValueComparer.html[RegularExpressionValueComparer]
+link:../apidocs/org/dbunit/assertion/comparer/value/RegularExpressionValueComparer.html[RegularExpressionValueComparer]
 (also
-link:/dbunit/apidocs/org/dbunit/assertion/comparer/value/ValueComparers.html#regularExpressionValueComparer[ValueComparers.regularExpressionValueComparer])
+link:../apidocs/org/dbunit/assertion/comparer/value/ValueComparers.html#regularExpressionValueComparer[ValueComparers.regularExpressionValueComparer])
 takes the expected dataset value as a regular expression and passes when it
 matches the actual value in its entirety, the same rule as
 `java.lang.String.matches`. The pattern is matched against the actual value's text as dbUnit
@@ -62,7 +62,17 @@ keeps the scale of its column (`12.50` in a `DECIMAL(10,2)` column), and a binar
 Base64 text. A pattern that ignores this does not match, and the comparer's part of the failure
 message, `Actual value='...'`, shows the text that was matched. To match only part of the value, wrap the pattern in
 `.*` on both ends, e.g. `.*[0-9]{4}.*`; a `.` does not cross a line terminator,
-so prefix the pattern with `(?s)` when the actual value may contain a newline.
+so prefix the pattern with `(?s)` when the actual value may contain a newline. When
+`DefaultPrepAndExpectedTestCase` or `@DbUnitExpected` verifies a table, the rows are lined up
+before they are compared, and the columns whose comparer cannot order the rows by its
+expected values, such as this one on a generated id, are the last columns they are sorted by,
+in their original order. Rows that
+tie on every other column and hold different patterns in a numeric column fail with a message
+that says so - see
+link:../components/verifytabledefinition.html#sortmode[Sort Mode].
+`Assertion.assertWithValueComparer` and the other assert methods compare the rows in the order
+the two tables give them, so when that order is not fixed, sort both tables, for example with
+link:../apidocs/org/dbunit/dataset/SortedTable.html[SortedTable].
 
 Some implementations are deliberately left off
 link:../apidocs/org/dbunit/assertion/comparer/value/ValueComparers.html[ValueComparers]
@@ -134,6 +144,21 @@ class reference).
 See
 link:../testcases/PrepAndExpectedTestCase.html[PrepAndExpectedTestCase overview]
 for examples with it.
+
+Before it compares a table, `PrepAndExpectedTestCase` sorts the expected and the actual rows
+by the same columns, in the database's column order, so that each expected row meets its
+counterpart. A comparer says with
+link:../apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html#isSortableByExpectedValue()[isSortableByExpectedValue()]
+whether the expected values of its column can order the rows the way the actual values do.
+These return `false`, so their columns are sorted by after all the others:
+`IsActualNotNullValueComparer`, `IsActualNullValueComparer`, `NeverFailsValueComparer`,
+`RegularExpressionValueComparer`, `IsActualContainingExpectedStringValueComparer`,
+`IsActualNotEqualToExpectedValueComparer` and `IsActualEqualToExpectedJsonValueComparer`, as
+well as a `ConditionalSelectorMultiValueComparer` or a `ConditionalSetBiValueComparer` that can
+pick one of them. Every other comparer, the equality, greater than, less than and timestamp
+tolerance ones among them, keeps its column in place, as does a comparer of your own unless it
+overrides the method to return `false`. See
+link:../components/verifytabledefinition.html#sortmode[Sort Mode].
 
 == Example
 

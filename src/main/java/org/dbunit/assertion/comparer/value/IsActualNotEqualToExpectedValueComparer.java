@@ -28,4 +28,16 @@ public class IsActualNotEqualToExpectedValueComparer extends ValueComparerTempla
     {
         return "equal to";
     }
+
+    /**
+     * Returns false: the expected value is one that the actual
+     * value must differ from, so it cannot order the rows.
+     *
+     * @return False.
+     */
+    @Override
+    public boolean isSortableByExpectedValue()
+    {
+        return false;
+    }
 }

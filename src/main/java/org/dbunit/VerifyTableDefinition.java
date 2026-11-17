@@ -84,9 +84,13 @@ public class VerifyTableDefinition
      * Since 3.6.0, <code>true</code> also makes
      * {@link DefaultPrepAndExpectedTestCase} select only the filtered columns
      * from the database instead of every column, so an excluded column, often
-     * a large BLOB or CLOB, is not fetched. It still selects every column when
-     * the columns cannot be determined, when all of them are filtered out, and
-     * when a subclass overrides <code>loadTableDataFromDatabase()</code>.
+     * a large BLOB or CLOB, is not fetched. With no escape pattern set, it
+     * writes each selected column name between the database's identifier quote
+     * string, so that a column named as a reserved word or in mixed case is
+     * selected as the database stores it. It still selects every column, as
+     * the default does, when the columns cannot be determined, when none of
+     * them is filtered out, when all of them are filtered out, and when a
+     * subclass overrides <code>loadTableDataFromDatabase()</code>.
      * Where it selects only the filtered columns, a column that only the
      * include filter drops is not read either, so the additional row info of a
      * failure message, which lists such a column in the default sort to help
