@@ -52,7 +52,10 @@ public interface ValueComparer
      * the column, such as the generated ids of a sequence compared with
      * "greater than or equal to", so the column keeps its place in the sort.
      * A comparer whose expected value is a pattern, a part of the value, or
-     * ignored returns false.
+     * ignored returns false. When the expected values of a column that kept
+     * its place do not order the rows, for example the same bound in every
+     * row, and the comparison fails but passes with every column that has a
+     * comparer sorted last, the failure says so.
      *
      * @return True if the expected values can order the rows; false to sort
      *         by the column after the others.

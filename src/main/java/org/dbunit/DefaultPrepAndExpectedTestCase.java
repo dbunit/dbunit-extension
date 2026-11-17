@@ -32,9 +32,12 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import org.dbunit.assertion.DefaultFailureHandler;
+import org.dbunit.assertion.DiffCollectingFailureHandler;
 import org.dbunit.assertion.FailureHandler;
 import org.dbunit.assertion.comparer.value.ValueComparer;
 import org.dbunit.database.DatabaseConfig;
@@ -2093,7 +2096,11 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      *            id for example, does not line the rows up against the wrong
      *            counterparts. A column compared by order or by a tolerance,
      *            such as a sequence of generated ids compared with "greater
-     *            than or equal to", keeps its place. Also
+     *            than or equal to", keeps its place. When a comparison
+     *            fails while such a column kept its place, and passes with
+     *            every column that has a comparer here sorted last, the
+     *            failure carries a suppressed exception that names those
+     *            columns. Also
      *            since 3.6.0 a key matches its column without regard to case,
      *            as the column names of excludeColumns and includeColumns do.
      * @param sortOnFilteredColumnsOnly
@@ -2105,7 +2112,10 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      *            table, so the two sort by different columns, a failed
      *            comparison that passes when sorted by only the filtered
      *            columns carries a suppressed exception naming this as the
-     *            remedy.
+     *            remedy. A failure handler that collects the differences,
+     *            such as {@link DiffCollectingFailureHandler}, throws nothing
+     *            to carry it, so the remedy is logged as a warning instead,
+     *            as is the hint of the columns of columnValueComparers.
      * @throws DatabaseUnitException if the tables' row counts, columns, or data do not match.
      * @throws IllegalArgumentException if two keys of columnValueComparers
      *             differ only in case, as they name the same column.
@@ -2191,6 +2201,27 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
 
         logSortedTables(expectedSortedTable, actualSortedTable);
 
+        final Supplier<DatabaseUnitRuntimeException> findSortHint = () -> {
+            final boolean passesWhenSortedOnFilteredColumnsOnly = sortKeysDiffer
+                    && passesWhenSortedOnFilteredColumnsOnly(expectedTable,
+                            actualTable, excludeColumns, includeColumns,
+                            defaultValueComparer, caseInsensitiveComparers);
+            if (passesWhenSortedOnFilteredColumnsOnly)
+            {
+                return makeSortHint(tableName, actualTableColumns.length,
+                        expectedTableColumns.length);
+            }
+
+            final SortKeys sortKeys = new SortKeys(expectedSortColumns,
+                    actualSortColumns, expectedSortKey, actualSortKey);
+            return findHintWhenComparerColumnsLastPass(tableName, expectedTable,
+                    actualTable, sortKeys, excludeColumns, includeColumns,
+                    defaultValueComparer, caseInsensitiveComparers);
+        };
+
+        final DiffCollectingFailureHandler collectingHandler =
+                collectingHandlerOrNull();
+        final int collectedBefore = countCollectedDifferences(collectingHandler);
         log.debug("{}: Comparing expected table to actual table", methodName);
         try
         {
@@ -2199,25 +2230,196 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
                     caseInsensitiveComparers);
         } catch (final AssertionError e)
         {
-            if (sortKeysDiffer)
+            final DatabaseUnitRuntimeException hint = findSortHint.get();
+            if (hint != null)
             {
-                final boolean passesWhenSortedOnFilteredColumnsOnly =
-                        passesWhenSortedOnFilteredColumnsOnly(expectedTable,
-                                actualTable, excludeColumns, includeColumns,
-                                defaultValueComparer, caseInsensitiveComparers);
-                if (passesWhenSortedOnFilteredColumnsOnly)
-                {
-                    final DatabaseUnitRuntimeException hint = makeSortHint(
-                            tableName, actualTableColumns.length,
-                            expectedTableColumns.length);
-                    e.addSuppressed(hint);
-                    // also logged: a build that trims stack traces, for
-                    // example Surefire with trimStackTrace, drops suppressed
-                    log.warn(hint.getMessage());
-                }
+                addHint(e, hint);
             }
             throw e;
         }
+
+        final boolean differencesWereCollected =
+                countCollectedDifferences(collectingHandler) > collectedBefore;
+        if (differencesWereCollected)
+        {
+            final DatabaseUnitRuntimeException hint = findSortHint.get();
+            if (hint != null)
+            {
+                log.warn(hint.getMessage());
+            }
+        }
+    }
+
+    /**
+     * Returns the failure handler when it collects the differences instead of
+     * throwing, as such a comparison does not fail, so the hint about the sort
+     * has no failure to be attached to.
+     *
+     * @return The collecting failure handler, or null when there is none.
+     */
+    private DiffCollectingFailureHandler collectingHandlerOrNull()
+    {
+        if (failureHandler instanceof DiffCollectingFailureHandler)
+        {
+            return (DiffCollectingFailureHandler) failureHandler;
+        }
+        return null;
+    }
+
+    private static int countCollectedDifferences(
+            final DiffCollectingFailureHandler collectingHandler)
+    {
+        if (collectingHandler == null)
+        {
+            return 0;
+        }
+        return collectingHandler.getDiffList().size();
+    }
+
+    /**
+     * Attaches the hint to the failure as a suppressed exception and logs it as
+     * a warning, as a build that trims stack traces, for example Surefire with
+     * trimStackTrace, drops suppressed exceptions.
+     *
+     * @param failure
+     *            The failed comparison.
+     * @param hint
+     *            The hint.
+     */
+    private void addHint(final AssertionError failure,
+            final DatabaseUnitRuntimeException hint)
+    {
+        failure.addSuppressed(hint);
+        log.warn(hint.getMessage());
+    }
+
+    /**
+     * The columns that the expected and the actual table were sorted by,
+     * before and after the columns whose comparer cannot order the rows were
+     * moved last.
+     */
+    private static class SortKeys
+    {
+        private final Column[] expectedSortColumns;
+        private final Column[] actualSortColumns;
+        private final Column[] expectedSortKey;
+        private final Column[] actualSortKey;
+
+        SortKeys(final Column[] expectedSortColumns,
+                final Column[] actualSortColumns, final Column[] expectedSortKey,
+                final Column[] actualSortKey)
+        {
+            this.expectedSortColumns = expectedSortColumns;
+            this.actualSortColumns = actualSortColumns;
+            this.expectedSortKey = expectedSortKey;
+            this.actualSortKey = actualSortKey;
+        }
+    }
+
+    /**
+     * Finds the hint for a failed comparison when a column that has a value
+     * comparer kept its place in the sort, as its comparer can order the rows
+     * by its expected values, and the comparison passes when every column that
+     * has a comparer is sorted after the others. The expected values of such a
+     * column then do not order the rows as the actual values do, for example
+     * when every expected row holds the same bound for a generated id. Nothing
+     * is compared again when no such column kept its place, as the sort would
+     * not change.
+     *
+     * @param tableName
+     *            The name of the table, for the hint.
+     * @param expectedTable
+     *            The expected table.
+     * @param actualTable
+     *            The actual table.
+     * @param sortKeys
+     *            The columns the tables were sorted by.
+     * @param excludeColumns
+     *            The column names to exclude from comparison.
+     * @param includeColumns
+     *            The column names to only include in comparison.
+     * @param defaultValueComparer
+     *            The value comparer for columns without one in
+     *            columnValueComparers; can be null.
+     * @param columnValueComparers
+     *            The value comparers for specific columns; can be null.
+     * @return The hint, or null when the comparison does not pass with the
+     *         comparer columns sorted last.
+     */
+    private DatabaseUnitRuntimeException findHintWhenComparerColumnsLastPass(
+            final String tableName,
+            final ITable expectedTable, final ITable actualTable,
+            final SortKeys sortKeys, final String[] excludeColumns,
+            final String[] includeColumns,
+            final ValueComparer defaultValueComparer,
+            final Map<String, ValueComparer> columnValueComparers)
+    {
+        if (columnValueComparers == null || columnValueComparers.isEmpty())
+        {
+            return null;
+        }
+
+        final Predicate<Column> hasAComparer = column -> columnValueComparers
+                .containsKey(column.getColumnName());
+        final Column[] expectedComparersLastKey =
+                moveColumnsLast(sortKeys.expectedSortColumns, hasAComparer);
+        final Column[] actualComparersLastKey =
+                moveColumnsLast(sortKeys.actualSortColumns, hasAComparer);
+        final boolean expectedSortChanges = !Arrays
+                .equals(expectedComparersLastKey, sortKeys.expectedSortKey);
+        final boolean actualSortChanges =
+                !Arrays.equals(actualComparersLastKey, sortKeys.actualSortKey);
+        if (!expectedSortChanges && !actualSortChanges)
+        {
+            return null;
+        }
+
+        final boolean passes = passesWhenSortedBy(expectedTable, actualTable,
+                expectedComparersLastKey, actualComparersLastKey,
+                excludeColumns, includeColumns, defaultValueComparer,
+                columnValueComparers);
+        if (passes)
+        {
+            final String columnNames = Arrays
+                    .stream(sortKeys.expectedSortColumns).filter(hasAComparer)
+                    .filter(column -> !cannotOrderTheRows(column,
+                            columnValueComparers))
+                    .map(Column::getColumnName)
+                    .collect(Collectors.joining(", "));
+            return makeComparerColumnsLastHint(tableName, columnNames);
+        }
+        return null;
+    }
+
+    /**
+     * Makes the hint for a failed comparison that passes when every column
+     * that has a value comparer is sorted after the others.
+     *
+     * @param tableName
+     *            The name of the table that failed the comparison.
+     * @param columnNames
+     *            The names of the columns whose comparer kept them in their
+     *            place in the sort.
+     * @return The hint, to attach to the failure as suppressed.
+     */
+    private DatabaseUnitRuntimeException makeComparerColumnsLastHint(
+            final String tableName, final String columnNames)
+    {
+        final String message = "verifyData: The comparison of table '"
+                + tableName + "' failed, but it passes when the columns that"
+                + " have a value comparer are sorted after the other columns."
+                + " The value comparers of " + columnNames + " can order"
+                + " the rows by their expected values, so these columns kept"
+                + " their place in the sort, but here their expected values do"
+                + " not put the expected rows in the order of the actual rows,"
+                + " for example when every expected row holds the same bound"
+                + " for a generated id. Give the expected rows values in those"
+                + " columns that are in the order of the actual values, such as"
+                + " the ids 1, 2 and 3 for a greater than or equal to comparer,"
+                + " or compare such a column with a ValueComparer whose"
+                + " isSortableByExpectedValue() returns false, such as a"
+                + " subclass of its comparer that overrides it.";
+        return new DatabaseUnitRuntimeException(message);
     }
 
     /**
@@ -2399,19 +2601,36 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
             return sortColumns;
         }
 
+        return moveColumnsLast(sortColumns,
+                column -> cannotOrderTheRows(column, columnValueComparers));
+    }
+
+    /**
+     * Returns the sort columns with the ones that the predicate accepts moved
+     * after the others, each group in its original order.
+     *
+     * @param sortColumns
+     *            The columns to sort by.
+     * @param isMovedLast
+     *            Accepts the columns to move last.
+     * @return The reordered sort columns.
+     */
+    private Column[] moveColumnsLast(final Column[] sortColumns,
+            final Predicate<Column> isMovedLast)
+    {
         final List<Column> sortedColumns = new ArrayList<>();
-        final List<Column> comparerColumns = new ArrayList<>();
+        final List<Column> lastColumns = new ArrayList<>();
         for (final Column column : sortColumns)
         {
-            if (cannotOrderTheRows(column, columnValueComparers))
+            if (isMovedLast.test(column))
             {
-                comparerColumns.add(column);
+                lastColumns.add(column);
             } else
             {
                 sortedColumns.add(column);
             }
         }
-        sortedColumns.addAll(comparerColumns);
+        sortedColumns.addAll(lastColumns);
         return sortedColumns.toArray(new Column[sortedColumns.size()]);
     }
 
@@ -2464,14 +2683,8 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     /**
      * Returns whether comparing the tables passes when both are sorted by only
      * the columns that survive the exclude and include column filters, as
-     * {@code sortOnFilteredColumnsOnly} sorts them. It compares with a fresh
-     * {@link DefaultFailureHandler} and no additional column info, instead of
-     * through {@link #compareData} and the {@link #failureHandler}, so that it
-     * neither runs a subclass's comparison nor records differences in a
-     * handler that collects them. It does not compare tables of different
-     * columns or row counts, which cannot pass. Whatever it throws means that
-     * it does not pass: this check explains a failure and must never replace
-     * it.
+     * {@code sortOnFilteredColumnsOnly} sorts them, compared as
+     * {@link #passesWhenSortedBy} compares them.
      *
      * @param expectedTable
      *            The expected table.
@@ -2517,6 +2730,56 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
                     expectedSortColumns, columnValueComparers);
             final Column[] actualSortKey = moveColumnsThatCannotOrderTheRowsLast(
                     actualSortColumns, columnValueComparers);
+            return passesWhenSortedBy(expectedTable, actualTable,
+                    expectedSortKey, actualSortKey, excludeColumns,
+                    includeColumns, defaultValueComparer, columnValueComparers);
+        } catch (final DataSetException e)
+        {
+            log.debug("{}: Cannot read the columns to sort by", methodName, e);
+            return false;
+        }
+    }
+
+    /**
+     * Returns whether comparing the tables passes when they are sorted by the
+     * given columns. It compares with a fresh
+     * {@link DefaultFailureHandler} and no additional column info, instead of
+     * through {@link #compareData} and the {@link #failureHandler}, so that it
+     * neither runs a subclass's comparison nor records differences in a
+     * handler that collects them. It does not compare tables of different
+     * columns or row counts, which cannot pass. Whatever it throws means that
+     * it does not pass: this check explains a failure and must never replace
+     * it.
+     *
+     * @param expectedTable
+     *            The expected table.
+     * @param actualTable
+     *            The actual table.
+     * @param expectedSortKey
+     *            The columns to sort the expected table by.
+     * @param actualSortKey
+     *            The columns to sort the actual table by.
+     * @param excludeColumns
+     *            The column names to exclude from comparison.
+     * @param includeColumns
+     *            The column names to only include in comparison.
+     * @param defaultValueComparer
+     *            The value comparer for columns without one in
+     *            columnValueComparers; can be null.
+     * @param columnValueComparers
+     *            The value comparers for specific columns; can be null.
+     * @return True if the comparison passes with that sort.
+     */
+    private boolean passesWhenSortedBy(final ITable expectedTable,
+            final ITable actualTable, final Column[] expectedSortKey,
+            final Column[] actualSortKey, final String[] excludeColumns,
+            final String[] includeColumns,
+            final ValueComparer defaultValueComparer,
+            final Map<String, ValueComparer> columnValueComparers)
+    {
+        final String methodName = "passesWhenSortedBy";
+        try
+        {
             final SortedTable expectedSortedTable =
                     sortByColumns(expectedTable, expectedSortKey, true);
             final SortedTable actualSortedTable =
@@ -2538,8 +2801,8 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
             return true;
         } catch (final AssertionError | Exception e)
         {
-            log.debug("{}: The comparison does not pass sorted by only the"
-                    + " filtered columns", methodName, e);
+            log.debug("{}: The comparison does not pass sorted by {}",
+                    methodName, Arrays.toString(expectedSortKey), e);
             return false;
         }
     }
