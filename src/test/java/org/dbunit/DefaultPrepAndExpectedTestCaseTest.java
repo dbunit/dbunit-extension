@@ -2035,6 +2035,96 @@ class DefaultPrepAndExpectedTestCaseTest
     }
 
     @Test
+    void testVerifyData_collectingHandlerAndFilteredSortPasses_logsTheRemedyOnce()
+            throws Exception
+    {
+        final ITable actualTable = makeIdAndCol1Table(2, "Apple", 1, "Banana");
+        final ITable expectedTable = makeCol1Table("Apple", "Banana");
+        final DiffCollectingFailureHandler collectingHandler = new DiffCollectingFailureHandler();
+        tc.setFailureHandler(collectingHandler);
+
+        final ListAppender<ILoggingEvent> appender =
+                startCapturingLogOf(DefaultPrepAndExpectedTestCase.class);
+        try
+        {
+            tc.verifyData(expectedTable, actualTable, new String[] {"ID"}, null, null, null,
+                    false);
+
+            assertThat(collectingHandler.getDiffList())
+                    .as("The misaligned rows are collected, not thrown.").isNotEmpty();
+            assertThat(appender.list).filteredOn(event -> event.getLevel() == Level.WARN)
+                    .extracting(ILoggingEvent::getFormattedMessage)
+                    .as("A handler that collects throws nothing to attach the remedy to, so it"
+                            + " is logged, once, naming the table and the setting.")
+                    .singleElement().asString().contains("TEST_TABLE")
+                    .contains("setSortOnFilteredColumnsOnly(true)");
+        } finally
+        {
+            stopCapturingLogOf(DefaultPrepAndExpectedTestCase.class, appender);
+        }
+    }
+
+    @Test
+    void testVerifyData_collectingHandlerAndSameBoundInEveryRowOfALeadingId_logsAComparerColumnsLastHint()
+            throws Exception
+    {
+        final ITable actualTable = makeLeadingIdActualTable();
+        final ITable expectedTable = makeLeadingIdExpectedTable("1", "1");
+        final Map<String, ValueComparer> comparers = new ColumnValueComparerMapBuilder()
+                .add("ID", ValueComparers.isActualGreaterThanOrEqualToExpected).build();
+        final DiffCollectingFailureHandler collectingHandler = new DiffCollectingFailureHandler();
+        tc.setFailureHandler(collectingHandler);
+
+        final ListAppender<ILoggingEvent> appender =
+                startCapturingLogOf(DefaultPrepAndExpectedTestCase.class);
+        try
+        {
+            tc.verifyData(expectedTable, actualTable, new String[0], new String[0], null,
+                    comparers, false);
+
+            assertThat(collectingHandler.getDiffList())
+                    .as("The rows paired by the expected ids are collected, not thrown.")
+                    .isNotEmpty();
+            assertThat(appender.list).filteredOn(event -> event.getLevel() == Level.WARN)
+                    .extracting(ILoggingEvent::getFormattedMessage)
+                    .as("The hint that sorting the comparer columns last passes is logged, once.")
+                    .singleElement().asString().contains("table 'ACCOUNT'")
+                    .contains("comparers of ID can order")
+                    .contains("isSortableByExpectedValue() returns false");
+        } finally
+        {
+            stopCapturingLogOf(DefaultPrepAndExpectedTestCase.class, appender);
+        }
+    }
+
+    @Test
+    void testVerifyData_collectingHandlerAndAGenuineDifference_logsNoHint() throws Exception
+    {
+        final ITable actualTable = makeIdAndCol1Table(1, "Apple", 2, "Cherry");
+        final ITable expectedTable = makeCol1Table("Apple", "Banana");
+        final DiffCollectingFailureHandler collectingHandler = new DiffCollectingFailureHandler();
+        tc.setFailureHandler(collectingHandler);
+
+        final ListAppender<ILoggingEvent> appender =
+                startCapturingLogOf(DefaultPrepAndExpectedTestCase.class);
+        try
+        {
+            tc.verifyData(expectedTable, actualTable, new String[] {"ID"}, null, null, null,
+                    false);
+
+            assertThat(collectingHandler.getDiffList()).as("The difference is collected.")
+                    .hasSize(1);
+            assertThat(appender.list).filteredOn(event -> event.getLevel() == Level.WARN)
+                    .as("The comparison does not pass sorted by the compared columns either, so"
+                            + " no sort setting explains it and no hint is logged.")
+                    .isEmpty();
+        } finally
+        {
+            stopCapturingLogOf(DefaultPrepAndExpectedTestCase.class, appender);
+        }
+    }
+
+    @Test
     void testVerifyData_patternComparerOnALeadingGeneratedIdAndIdsOutOfDataOrder_alignsTheRowsByTheOtherColumns()
             throws Exception
     {
@@ -2193,6 +2283,74 @@ class DefaultPrepAndExpectedTestCaseTest
                         + " sort by ID: the actual rows are 7/b and 8/a, which are not the"
                         + " expected 7/a and 8/b.")
                 .isInstanceOf(DbComparisonFailure.class);
+    }
+
+    @Test
+    void testVerifyData_sameBoundInEveryRowOfALeadingGreaterThanOrEqualId_failsWithAComparerColumnsLastHint()
+            throws Exception
+    {
+        final ITable actualTable = makeLeadingIdActualTable();
+        final ITable expectedTable = makeLeadingIdExpectedTable("1", "1");
+        final Map<String, ValueComparer> comparers = new ColumnValueComparerMapBuilder()
+                .add("ID", ValueComparers.isActualGreaterThanOrEqualToExpected).build();
+
+        final Throwable thrown = catchThrowable(() -> tc.verifyData(expectedTable, actualTable,
+                new String[0], new String[0], null, comparers, false));
+
+        assertThat(thrown)
+                .as("Every expected row holds the bound 1, so the expected rows are ordered by"
+                        + " NAME and the actual rows by their ids, which pairs a with b.")
+                .isInstanceOf(DbComparisonFailure.class);
+        assertThat(thrown.getSuppressed())
+                .as("Sorted with ID last the comparison passes, so the failure says that the"
+                        + " expected ids do not order the rows and how to fix it.")
+                .singleElement().isInstanceOf(DatabaseUnitRuntimeException.class)
+                .extracting(Throwable::getMessage).asString()
+                .contains("table 'ACCOUNT'")
+                .contains("comparers of ID can order")
+                .contains("isSortableByExpectedValue() returns false");
+    }
+
+    @Test
+    void testVerifyData_sameBoundInEveryRowAndAGenuineDifference_failsWithoutAHint()
+            throws Exception
+    {
+        final ITable actualTable = makeLeadingIdActualTable();
+        final DefaultTable expectedTable = new DefaultTable("ACCOUNT",
+                new Column[] {new Column("ID", DataType.UNKNOWN),
+                        new Column("NAME", DataType.UNKNOWN)});
+        expectedTable.addRow(new Object[] {"1", "a"});
+        expectedTable.addRow(new Object[] {"1", "c"});
+        final Map<String, ValueComparer> comparers = new ColumnValueComparerMapBuilder()
+                .add("ID", ValueComparers.isActualGreaterThanOrEqualToExpected).build();
+
+        final Throwable thrown = catchThrowable(() -> tc.verifyData(expectedTable, actualTable,
+                new String[0], new String[0], null, comparers, false));
+
+        assertThat(thrown).as("No actual row has the NAME c.")
+                .isInstanceOf(DbComparisonFailure.class);
+        assertThat(thrown.getSuppressed())
+                .as("The comparison also fails with ID sorted last, so no sort explains it.")
+                .isEmpty();
+    }
+
+    @Test
+    void testVerifyData_patternComparerFailing_failsWithoutAComparerColumnsLastHint()
+            throws Exception
+    {
+        final ITable actualTable = makeLeadingIdActualTable();
+        final ITable expectedTable = makeLeadingIdExpectedTable("9", "9");
+        final Map<String, ValueComparer> comparers = new ColumnValueComparerMapBuilder()
+                .add("ID", new RegularExpressionValueComparer()).build();
+
+        final Throwable thrown = catchThrowable(() -> tc.verifyData(expectedTable, actualTable,
+                new String[0], new String[0], null, comparers, false));
+
+        assertThat(thrown).as("No actual id matches the pattern 9.")
+                .isInstanceOf(DbComparisonFailure.class);
+        assertThat(thrown.getSuppressed())
+                .as("The pattern column is already sorted last, so there is nothing to hint.")
+                .isEmpty();
     }
 
     @Test
