@@ -1194,13 +1194,37 @@
         </configuration>
         <reportSets>
           <reportSet>
-            <id>3.5.2-to-snapshot</id>
+            <id>3.5.3-to-snapshot</id>
             <reports>
               <report>cmp-report</report>
             </reports>
             <configuration>
               <parameter>
-                <reportLinkName>3.5.2-to-snapshot</reportLinkName>
+                <reportLinkName>3.5.3-to-snapshot</reportLinkName>
+              </parameter>
+              <oldVersion>
+                <dependency>
+                  <groupId>${project.groupId}</groupId>
+                  <artifactId>${project.artifactId}</artifactId>
+                  <version>3.5.3</version>
+                  <type>jar</type>
+                </dependency>
+              </oldVersion>
+              <newVersion>
+                <file>
+                  <path>${project.build.directory}/${project.artifactId}-${project.version}.${project.packaging}</path>
+                </file>
+              </newVersion>
+            </configuration>
+          </reportSet>
+          <reportSet>
+            <id>3.5.2-to-3.5.3</id>
+            <reports>
+              <report>cmp-report</report>
+            </reports>
+            <configuration>
+              <parameter>
+                <reportLinkName>3.5.2-to-3.5.3</reportLinkName>
               </parameter>
               <oldVersion>
                 <dependency>
@@ -1211,9 +1235,12 @@
                 </dependency>
               </oldVersion>
               <newVersion>
-                <file>
-                  <path>${project.build.directory}/${project.artifactId}-${project.version}.${project.packaging}</path>
-                </file>
+                <dependency>
+                  <groupId>${project.groupId}</groupId>
+                  <artifactId>${project.artifactId}</artifactId>
+                  <version>3.5.3</version>
+                  <type>jar</type>
+                </dependency>
               </newVersion>
             </configuration>
           </reportSet>
