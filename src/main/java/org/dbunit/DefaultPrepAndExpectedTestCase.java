@@ -2056,8 +2056,10 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * For the specified expected and actual tables (and excluding and including
      * the specified columns), verify the actual data is as expected.
      *
-     * <p>Since 3.6.0 the columns that have a comparer in columnValueComparers come
-     * last in the sort key. Expected rows that tie on every other column are ordered
+     * <p>Since 3.6.0 the columns whose comparer in columnValueComparers cannot
+     * order the rows by its expected values, as
+     * {@link ValueComparer#isSortableByExpectedValue()} says, come last in the
+     * sort key. Expected rows that tie on every other column are ordered
      * by their values in those columns, which the type of a column may not be able to
      * compare, a pattern in a numeric column for example. The verification then fails
      * with a {@link DatabaseUnitException} that names the table and the columns, with
@@ -2085,10 +2087,13 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      *            columns. Key is column name, value is the
      *            {@link ValueComparer}. Can be <code>null</code> and will
      *            default to defaultValueComparer for all columns in all tables.
-     *            Since 3.6.0 the columns that have a comparer here come last
-     *            in the sort key of both tables, so a comparer that matches a
-     *            pattern or a tolerance, on a generated id for example, does
-     *            not line the rows up against the wrong counterparts. Also
+     *            Since 3.6.0 the columns whose comparer here cannot order the
+     *            rows by its expected values come last in the sort key of both
+     *            tables, so a comparer that matches a pattern, on a generated
+     *            id for example, does not line the rows up against the wrong
+     *            counterparts. A column compared by order or by a tolerance,
+     *            such as a sequence of generated ids compared with "greater
+     *            than or equal to", keeps its place. Also
      *            since 3.6.0 a key matches its column without regard to case,
      *            as the column names of excludeColumns and includeColumns do.
      * @param sortOnFilteredColumnsOnly
@@ -2147,9 +2152,9 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
             expectedSortColumns = expectedTableColumns;
         }
 
-        final Column[] expectedSortKey = moveComparerColumnsLast(
+        final Column[] expectedSortKey = moveColumnsThatCannotOrderTheRowsLast(
                 expectedSortColumns, caseInsensitiveComparers);
-        final Column[] actualSortKey = moveComparerColumnsLast(
+        final Column[] actualSortKey = moveColumnsThatCannotOrderTheRowsLast(
                 actualSortColumns, caseInsensitiveComparers);
 
         final SortedTable expectedSortedTable =
@@ -2242,11 +2247,11 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     }
 
     /**
-     * Sorts the expected table now when its sort key holds a column that has a value comparer,
-     * to tell a failure that those columns cause from any other. A table sorts when its first
-     * value is read, and expected rows that tie on every other column are ordered by the
-     * comparer columns, last in the key, by the values of the expected dataset. A pattern or a
-     * tolerance in a numeric column is a value that the data type of the column cannot compare,
+     * Sorts the expected table now when its sort key holds a column whose value comparer cannot
+     * order the rows, to tell a failure that those columns cause from any other. A table sorts
+     * when its first value is read, and expected rows that tie on every other column are ordered
+     * by those columns, last in the key, by the values of the expected dataset. A pattern in a
+     * numeric column is a value that the data type of the column cannot compare,
      * so the sort fails with a {@link TypeCastException} that names neither the table nor the
      * column. The failure is translated only when the sort passes without the comparer
      * columns, so one that a value of another column causes stays as it is.
@@ -2258,8 +2263,9 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * @param expectedSortedTable
      *            The expected table sorted by the sort key.
      * @param sortKey
-     *            The sort key of the expected table, with the columns that have a comparer
-     *            last, as {@link #moveComparerColumnsLast(Column[], Map)} returns it.
+     *            The sort key of the expected table, with the columns whose comparer cannot
+     *            order the rows last, as
+     *            {@link #moveColumnsThatCannotOrderTheRowsLast(Column[], Map)} returns it.
      * @param columnValueComparers
      *            The value comparers of the columns that have one, keyed without regard to
      *            case; can be null.
@@ -2272,7 +2278,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
             throws DatabaseUnitException
     {
         final List<Column> comparerColumns =
-                columnsWithAComparer(sortKey, columnValueComparers);
+                columnsThatCannotOrderTheRows(sortKey, columnValueComparers);
         final boolean rowsToOrder =
                 !comparerColumns.isEmpty() && expectedSortedTable.getRowCount() > 1;
         if (!rowsToOrder)
@@ -2299,15 +2305,16 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
                     .collect(Collectors.joining(", "));
             throw new DatabaseUnitException("Cannot line up the expected rows of table "
                     + tableName + " with the actual rows: expected rows that tie on every other"
-                    + " column are ordered by the columns that have a value comparer ("
-                    + columnNames + "), and the data type of such a column cannot compare their"
+                    + " column are ordered by the columns whose value comparer cannot order"
+                    + " them (" + columnNames + "), and the data type of such a column cannot"
+                    + " compare their"
                     + " expected values (" + sortFailure.getMessage() + "). Give the rows that"
                     + " tie the same value in those columns, or a column that tells them apart.",
                     sortFailure);
         }
     }
 
-    private List<Column> columnsWithAComparer(final Column[] sortColumns,
+    private List<Column> columnsThatCannotOrderTheRows(final Column[] sortColumns,
             final Map<String, ValueComparer> columnValueComparers)
     {
         final List<Column> comparerColumns = new ArrayList<>();
@@ -2318,13 +2325,34 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
 
         for (final Column column : sortColumns)
         {
-            final String columnName = column.getColumnName();
-            if (columnValueComparers.containsKey(columnName))
+            if (cannotOrderTheRows(column, columnValueComparers))
             {
                 comparerColumns.add(column);
             }
         }
         return comparerColumns;
+    }
+
+    /**
+     * Returns whether the column has a value comparer of its own whose
+     * expected values cannot order the rows, as
+     * {@link ValueComparer#isSortableByExpectedValue()} says. A column without
+     * one, compared by the default value comparer, can.
+     *
+     * @param column
+     *            The column.
+     * @param columnValueComparers
+     *            The value comparers of the columns that have one; not null.
+     * @return True if the column's comparer cannot order the rows.
+     */
+    private boolean cannotOrderTheRows(final Column column,
+            final Map<String, ValueComparer> columnValueComparers)
+    {
+        final String columnName = column.getColumnName();
+        final ValueComparer valueComparer =
+                columnValueComparers.get(columnName);
+        return valueComparer != null
+                && !valueComparer.isSortableByExpectedValue();
     }
 
     private boolean sortsWithoutTypeCastFailure(final ITable table, final Column[] sortColumns,
@@ -2342,15 +2370,17 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     }
 
     /**
-     * Returns the sort columns with the ones that have a value comparer of
-     * their own in {@code columnValueComparers} moved after the others, each
-     * group in its original order. A column compared by something other than
-     * equality, such as a pattern or a tolerance, holds a value in the
-     * expected table that is not the actual value, so ordering the rows by it
-     * first lines them up against the wrong counterparts, for example by the
-     * generated ids of the actual rows when every expected row holds the same
-     * pattern in that column. Ordered last, such a column only orders the rows
-     * that tie on every other one.
+     * Returns the sort columns with the ones whose value comparer in
+     * {@code columnValueComparers} cannot order the rows by its expected
+     * values moved after the others, each group in its original order. Such a
+     * column, compared by a pattern for example, holds a value in the expected
+     * table that does not order the rows as the actual value does, so ordering
+     * the rows by it first lines them up against the wrong counterparts, for
+     * example by the generated ids of the actual rows when every expected row
+     * holds the same pattern in that column. Ordered last, such a column only
+     * orders the rows that tie on every other one. A column compared by order
+     * or by a tolerance keeps its place, so a leading sequence of generated
+     * ids compared with "greater than or equal to" still orders the rows.
      *
      * @param sortColumns
      *            The columns to sort by.
@@ -2358,10 +2388,10 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      *            The value comparers of the columns that have one, keyed
      *            without regard to case as verifyData keys them, so that the
      *            sort and the comparison find the same columns; can be null.
-     * @return The sort columns with those that have a comparer last, or
-     *         sortColumns itself when none has.
+     * @return The sort columns with those whose comparer cannot order the
+     *         rows last, or sortColumns itself when no column has a comparer.
      */
-    private Column[] moveComparerColumnsLast(final Column[] sortColumns,
+    private Column[] moveColumnsThatCannotOrderTheRowsLast(final Column[] sortColumns,
             final Map<String, ValueComparer> columnValueComparers)
     {
         if (columnValueComparers == null || columnValueComparers.isEmpty())
@@ -2373,8 +2403,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
         final List<Column> comparerColumns = new ArrayList<>();
         for (final Column column : sortColumns)
         {
-            final String columnName = column.getColumnName();
-            if (columnValueComparers.containsKey(columnName))
+            if (cannotOrderTheRows(column, columnValueComparers))
             {
                 comparerColumns.add(column);
             } else
@@ -2484,9 +2513,9 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
             final Column[] expectedSortColumns = filterColumns(
                     expectedTableColumns, excludeColumns, includeColumns,
                     tableName);
-            final Column[] expectedSortKey = moveComparerColumnsLast(
+            final Column[] expectedSortKey = moveColumnsThatCannotOrderTheRowsLast(
                     expectedSortColumns, columnValueComparers);
-            final Column[] actualSortKey = moveComparerColumnsLast(
+            final Column[] actualSortKey = moveColumnsThatCannotOrderTheRowsLast(
                     actualSortColumns, columnValueComparers);
             final SortedTable expectedSortedTable =
                     sortByColumns(expectedTable, expectedSortKey, true);

@@ -71,4 +71,18 @@ public class ConditionalSelectorMultiValueComparer extends ValueComparerBase
 
         return sb.toString();
     }
+
+    /**
+     * Returns whether every comparer that this one can select can order the
+     * rows by its expected values, as the selected comparer differs from row to
+     * row.
+     *
+     * @return True if each of the comparers returns true.
+     */
+    @Override
+    public boolean isSortableByExpectedValue()
+    {
+        return valueComparers.values().stream()
+                .allMatch(ValueComparer::isSortableByExpectedValue);
+    }
 }

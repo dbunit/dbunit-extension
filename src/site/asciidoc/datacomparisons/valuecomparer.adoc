@@ -64,8 +64,9 @@ message, `Actual value='...'`, shows the text that was matched. To match only pa
 `.*` on both ends, e.g. `.*[0-9]{4}.*`; a `.` does not cross a line terminator,
 so prefix the pattern with `(?s)` when the actual value may contain a newline. When
 `DefaultPrepAndExpectedTestCase` or `@DbUnitExpected` verifies a table, the rows are lined up
-before they are compared, and the columns that have a comparer of their own, such as this one
-on a generated id, are the last columns they are sorted by, in their original order. Rows that
+before they are compared, and the columns whose comparer cannot order the rows by its
+expected values, such as this one on a generated id, are the last columns they are sorted by,
+in their original order. Rows that
 tie on every other column and hold different patterns in a numeric column fail with a message
 that says so - see
 link:../components/verifytabledefinition.html#sortmode[Sort Mode].
@@ -143,6 +144,21 @@ class reference).
 See
 link:../testcases/PrepAndExpectedTestCase.html[PrepAndExpectedTestCase overview]
 for examples with it.
+
+Before it compares a table, `PrepAndExpectedTestCase` sorts the expected and the actual rows
+by the same columns, in the database's column order, so that each expected row meets its
+counterpart. A comparer says with
+link:../apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html#isSortableByExpectedValue()[isSortableByExpectedValue()]
+whether the expected values of its column can order the rows the way the actual values do.
+These return `false`, so their columns are sorted by after all the others:
+`IsActualNotNullValueComparer`, `IsActualNullValueComparer`, `NeverFailsValueComparer`,
+`RegularExpressionValueComparer`, `IsActualContainingExpectedStringValueComparer`,
+`IsActualNotEqualToExpectedValueComparer` and `IsActualEqualToExpectedJsonValueComparer`, as
+well as a `ConditionalSelectorMultiValueComparer` or a `ConditionalSetBiValueComparer` that can
+pick one of them. Every other comparer, the equality, greater than, less than and timestamp
+tolerance ones among them, keeps its column in place, as does a comparer of your own unless it
+overrides the method to return `false`. See
+link:../components/verifytabledefinition.html#sortmode[Sort Mode].
 
 == Example
 
