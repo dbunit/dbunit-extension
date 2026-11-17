@@ -4,7 +4,7 @@
 
   <groupId>org.dbunit</groupId>
   <artifactId>dbunit</artifactId>
-  <version>3.5.3-SNAPSHOT</version>
+  <version>3.5.3</version>
   <packaging>jar</packaging>
   <name>dbUnit Extension</name>
   <url>https://github.com/dbunit/dbunit-extension</url>
@@ -1187,7 +1187,7 @@
                 <dependency>
                   <groupId>${project.groupId}</groupId>
                   <artifactId>${project.artifactId}</artifactId>
-                  <version>3.5.3</version>
+                  <version>3.5.2</version>
                   <type>jar</type>
                 </dependency>
               </oldVersion>
