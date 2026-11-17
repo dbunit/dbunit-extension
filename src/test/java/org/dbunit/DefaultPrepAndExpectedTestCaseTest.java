@@ -2062,8 +2062,8 @@ class DefaultPrepAndExpectedTestCaseTest
 
         assertThatCode(() -> tc.verifyData(expectedTable, actualTable, new String[0],
                 new String[0], null, comparers, true))
-                        .as("Sorting on the filtered columns only keeps the column that has a"
-                                + " comparer of its own last in the sort key too.")
+                        .as("Sorting on the filtered columns only keeps the column whose"
+                                + " comparer cannot order the rows last in the sort key too.")
                         .doesNotThrowAnyException();
     }
 
@@ -2103,7 +2103,7 @@ class DefaultPrepAndExpectedTestCaseTest
                 .isInstanceOf(DatabaseUnitException.class)
                 .isNotInstanceOf(TypeCastException.class)
                 .hasMessageContaining("table ACCOUNT")
-                .hasMessageContaining("have a value comparer (ID)")
+                .hasMessageContaining("cannot order them (ID)")
                 .hasMessageContaining("Give the rows that tie the same value in those columns")
                 .hasCauseInstanceOf(TypeCastException.class);
     }
@@ -2147,7 +2147,7 @@ class DefaultPrepAndExpectedTestCaseTest
                         + " fails with the message that names the table and the column.")
                 .isInstanceOf(DatabaseUnitException.class)
                 .hasMessageContaining("table ACCOUNT")
-                .hasMessageContaining("have a value comparer (ID)");
+                .hasMessageContaining("cannot order them (ID)");
     }
 
     @Test
@@ -2189,9 +2189,32 @@ class DefaultPrepAndExpectedTestCaseTest
                 new String[0], new String[0], null, comparers, false));
 
         assertThat(thrown)
-                .as("A comparer on NAME moves NAME last, so both tables sort by ID: the actual"
-                        + " rows are 7/b and 8/a, which are not the expected 7/a and 8/b.")
+                .as("An equality comparer on NAME keeps NAME in its place, so both tables"
+                        + " sort by ID: the actual rows are 7/b and 8/a, which are not the"
+                        + " expected 7/a and 8/b.")
                 .isInstanceOf(DbComparisonFailure.class);
+    }
+
+    @Test
+    void testVerifyData_greaterThanOrEqualComparerOnALeadingIdAndAnExcludedColumnOutOfIdOrder_sortsByTheIds()
+            throws Exception
+    {
+        final ITable actualTable = makeLeadingIdNoteAndNameActualTable();
+        final DefaultTable expectedTable = new DefaultTable("ACCOUNT",
+                new Column[] {new Column("ID", DataType.UNKNOWN),
+                        new Column("NAME", DataType.UNKNOWN)});
+        expectedTable.addRow(new Object[] {"7", "b"});
+        expectedTable.addRow(new Object[] {"8", "a"});
+        final Map<String, ValueComparer> comparers = new ColumnValueComparerMapBuilder()
+                .add("ID", ValueComparers.isActualGreaterThanOrEqualToExpected).build();
+
+        assertThatCode(() -> tc.verifyData(expectedTable, actualTable,
+                new String[] {"NOTE"}, new String[0], null, comparers, false))
+                        .as("The expected ids are in the order of the actual ids, so ID keeps"
+                                + " its place first in the sort and lines each row up with its"
+                                + " counterpart; sorted last, the rows would be ordered by NOTE"
+                                + " on the actual side and by NAME on the expected side.")
+                        .doesNotThrowAnyException();
     }
 
     @Test
@@ -4386,6 +4409,21 @@ class DefaultPrepAndExpectedTestCaseTest
         final DefaultTable table = new DefaultTable("ACCOUNT", columns);
         table.addRow(new Object[] {firstIdPattern, "a"});
         table.addRow(new Object[] {secondIdPattern, "b"});
+        return table;
+    }
+
+    /**
+     * An actual table of a leading {@code ID} column, a {@code NOTE} column that an expected
+     * table leaves out, and a {@code NAME} column, whose notes are in the order of the ids and
+     * whose names are in the opposite order.
+     */
+    private static DefaultTable makeLeadingIdNoteAndNameActualTable() throws DataSetException
+    {
+        final Column[] columns = {new Column("ID", DataType.BIGINT),
+                new Column("NOTE", DataType.VARCHAR), new Column("NAME", DataType.VARCHAR)};
+        final DefaultTable table = new DefaultTable("ACCOUNT", columns);
+        table.addRow(new Object[] {7L, "y", "b"});
+        table.addRow(new Object[] {8L, "z", "a"});
         return table;
     }
 

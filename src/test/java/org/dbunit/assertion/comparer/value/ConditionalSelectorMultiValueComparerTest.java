@@ -105,4 +105,36 @@ class ConditionalSelectorMultiValueComparerTest
                 .as("Actual and expected not equal, should have fail message.")
                 .isNotNull();
     }
+
+    @Test
+    void testIsSortableByExpectedValue_everyComparerCanOrderTheRows_returnsTrue()
+    {
+        final Map<Object, ValueComparer> valueComparers = new HashMap<>();
+        valueComparers.put(1L, ValueComparers.isActualEqualToExpected);
+        valueComparers.put(2L, ValueComparers.isActualGreaterThanOrEqualToExpected);
+        final ConditionalSelectorMultiValueComparer sut =
+                new ConditionalSelectorMultiValueComparer(valueComparers,
+                        valueComparerSelector1);
+
+        final boolean actual = sut.isSortableByExpectedValue();
+
+        assertThat(actual).as("Whichever comparer it selects for a row can order the"
+                + " rows by its expected values, so it can too.").isTrue();
+    }
+
+    @Test
+    void testIsSortableByExpectedValue_oneComparerCannotOrderTheRows_returnsFalse()
+    {
+        final Map<Object, ValueComparer> valueComparers = new HashMap<>();
+        valueComparers.put(1L, ValueComparers.isActualEqualToExpected);
+        valueComparers.put(2L, ValueComparers.regularExpressionValueComparer);
+        final ConditionalSelectorMultiValueComparer sut =
+                new ConditionalSelectorMultiValueComparer(valueComparers,
+                        valueComparerSelector1);
+
+        final boolean actual = sut.isSortableByExpectedValue();
+
+        assertThat(actual).as("It can select the pattern comparer for some rows, whose"
+                + " expected values cannot order them.").isFalse();
+    }
 }

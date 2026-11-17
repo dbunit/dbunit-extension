@@ -220,4 +220,16 @@ public class RegularExpressionValueComparer extends ValueComparerTemplateBase
     {
         return "not matching the regular expression";
     }
+
+    /**
+     * Returns false: the expected value is a pattern, not a value
+     * of the column, so it cannot order the rows.
+     *
+     * @return False.
+     */
+    @Override
+    public boolean isSortableByExpectedValue()
+    {
+        return false;
+    }
 }

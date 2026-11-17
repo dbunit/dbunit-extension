@@ -162,14 +162,19 @@ with autocommit off, a failed statement leaves the connection's transaction unus
 keeps deciding what is loaded. The default `false` still selects every column, because each
 one is a sort key there.
 
-Whichever mode sorts, since 3.6.0 a column that has a comparer of its own in
-`columnValueComparers` is the last column of the sort key of both tables. Its expected value
-is often not the actual value - a pattern for `RegularExpressionValueComparer`, a tolerance
-for a timestamp comparer - so ordering the rows by it first would line each expected row up
-against the wrong actual row, for example when every expected row holds the same pattern for a
-generated id and the actual rows are ordered by their real ids. Ordered last, the column only
-orders rows that tie on every other column: give such rows the same pattern, or tell them
-apart by another column. Rows that tie and hold different patterns in a column whose type
+Whichever mode sorts, since 3.6.0 a column whose comparer in `columnValueComparers` cannot
+order the rows by its expected values is the last column of the sort key of both tables. Such
+a comparer's
+link:../apidocs/org/dbunit/assertion/comparer/value/ValueComparer.html#isSortableByExpectedValue()[isSortableByExpectedValue()]
+returns `false`: its expected value is a pattern, a part of the value, or ignored - a pattern
+for `RegularExpressionValueComparer`, any value for `IsActualNotNullValueComparer` - so
+ordering the rows by it first would line each expected row up against the wrong actual row,
+for example when every expected row holds the same pattern for a generated id and the actual
+rows are ordered by their real ids. Ordered last, the column only orders rows that tie on
+every other column: give such rows the same pattern, or tell them apart by another column. A
+column compared by equality, by order or by a tolerance keeps its place, so a leading
+sequence of generated ids compared with `isActualGreaterThanOrEqualToExpected` still orders
+the rows; give its expected rows bounds in the order of the actual ids, such as 1, 2 and 3. Rows that tie and hold different patterns in a column whose type
 cannot compare a pattern, such as a numeric id, fail the verification with a
 `DatabaseUnitException` that names the table and the column; in a text column the patterns
 compare as text. A table that names no comparer sorts as before.

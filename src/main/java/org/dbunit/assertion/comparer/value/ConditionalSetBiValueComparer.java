@@ -127,4 +127,21 @@ public class ConditionalSetBiValueComparer<T> extends ValueComparerBase
 
         return sb.toString();
     }
+
+    /**
+     * Returns whether both comparers that this one chooses between can order
+     * the rows by their expected values, as the chosen comparer differs from
+     * row to row.
+     *
+     * @return True if both comparers return true.
+     */
+    @Override
+    public boolean isSortableByExpectedValue()
+    {
+        final boolean inValuesSortable =
+                inValuesValueComparer.isSortableByExpectedValue();
+        final boolean notInValuesSortable =
+                notInValuesValueComparer.isSortableByExpectedValue();
+        return inValuesSortable && notInValuesSortable;
+    }
 }

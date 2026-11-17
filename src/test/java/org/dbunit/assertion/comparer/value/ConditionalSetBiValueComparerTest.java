@@ -175,4 +175,32 @@ class ConditionalSetBiValueComparerTest
                 "Actual is equal to expected, should have been fail message.")
                 .isNotNull();
     }
+
+    @Test
+    void testIsSortableByExpectedValue_bothComparersCanOrderTheRows_returnsTrue()
+    {
+        final ConditionalSetBiValueComparer<Long> sut =
+                new ConditionalSetBiValueComparer<>(valueFactory1, values1,
+                        ValueComparers.isActualEqualToExpected,
+                        ValueComparers.isActualGreaterThanOrEqualToExpected);
+
+        final boolean actual = sut.isSortableByExpectedValue();
+
+        assertThat(actual).as("Whichever comparer it chooses for a row can order the"
+                + " rows by its expected values, so it can too.").isTrue();
+    }
+
+    @Test
+    void testIsSortableByExpectedValue_oneComparerCannotOrderTheRows_returnsFalse()
+    {
+        final ConditionalSetBiValueComparer<Long> sut =
+                new ConditionalSetBiValueComparer<>(valueFactory1, values1,
+                        ValueComparers.isActualEqualToExpected,
+                        ValueComparers.isActualNotNullValueComparer);
+
+        final boolean actual = sut.isSortableByExpectedValue();
+
+        assertThat(actual).as("It can choose the not-null comparer for some rows, which"
+                + " ignores their expected values.").isFalse();
+    }
 }

@@ -41,4 +41,16 @@ public class IsActualNullValueComparer extends ValueComparerTemplateBase
         // ignored
         return null;
     }
+
+    /**
+     * Returns false: it ignores the expected value, so that value
+     * cannot order the rows.
+     *
+     * @return False.
+     */
+    @Override
+    public boolean isSortableByExpectedValue()
+    {
+        return false;
+    }
 }

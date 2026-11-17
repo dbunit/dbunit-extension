@@ -72,4 +72,16 @@ public class IsActualContainingExpectedStringValueComparer
     {
         return "not containing";
     }
+
+    /**
+     * Returns false: the expected value is only a part of the
+     * actual value, so it cannot order the rows.
+     *
+     * @return False.
+     */
+    @Override
+    public boolean isSortableByExpectedValue()
+    {
+        return false;
+    }
 }
