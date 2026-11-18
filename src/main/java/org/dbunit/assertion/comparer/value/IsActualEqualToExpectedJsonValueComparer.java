@@ -2,6 +2,7 @@ package org.dbunit.assertion.comparer.value;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Locale;
 
 import org.dbunit.DatabaseUnitException;
 import org.dbunit.dataset.ITable;
@@ -254,7 +255,7 @@ public class IsActualEqualToExpectedJsonValueComparer
     private String parseFailureMessage(final int rowNum,
             final String columnName, final String label, final String json)
     {
-        return String.format(
+        return String.format(Locale.ENGLISH,
                 "Unable to parse %s value as JSON for column '%s', row %d: %s",
                 label, columnName, rowNum, json);
     }
