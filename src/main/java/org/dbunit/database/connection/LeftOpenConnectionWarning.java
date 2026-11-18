@@ -50,7 +50,8 @@ import org.slf4j.LoggerFactory;
  * <p>Used as an {@code onAcquired} hook of a {@link TestScopedConnection}, next to
  * {@link AutoCommitOffWarning}, so the check runs where a connection arrives. One instance per
  * lifecycle owner; it warns at most once regardless of how many times the connection is
- * (re)acquired. The tester is checked before the ownership is asked anything, so a tester that
+ * (re)acquired, and once for a tester however many lifecycle owners it serves, as the condition
+ * is how the tester builds its connections. The tester is checked before the ownership is asked anything, so a tester that
  * is not a {@link JdbcDatabaseTester} sees no extra calls.
  *
  * <p>This type is internal to dbUnit's bindings; it is public only for use across
@@ -62,6 +63,8 @@ import org.slf4j.LoggerFactory;
 public class LeftOpenConnectionWarning implements Consumer<IDatabaseConnection>
 {
     private static final Logger log = LoggerFactory.getLogger(LeftOpenConnectionWarning.class);
+
+    private static final WarnedTesters TESTERS_WARNED_IN_THE_JVM = new WarnedTesters();
 
     private final ConnectionOwnership ownership;
     private final Supplier<IDatabaseTester> tester;
@@ -84,7 +87,8 @@ public class LeftOpenConnectionWarning implements Consumer<IDatabaseConnection>
 
     /**
      * Warns when the connection is going to be left open and its tester creates a new
-     * connection on every call, unless a warning has already been logged by this instance.
+     * connection on every call, unless a warning has already been logged by this instance or for
+     * this tester.
      *
      * @param connection The connection just acquired; not inspected, as it is the tester and
      *            the ownership that decide.
@@ -114,6 +118,10 @@ public class LeftOpenConnectionWarning implements Consumer<IDatabaseConnection>
         }
 
         isAlreadyWarned = true;
+        if (!TESTERS_WARNED_IN_THE_JVM.isFirstWarningAbout(jdbcTester))
+        {
+            return;
+        }
         log.warn("The connection this test's dbUnit steps share is left open after the test,"
                 + " because closeConnectionAfterTest is false or an operation listener leaves"
                 + " every connection open, as the no-op listener does. The database tester, {},"

@@ -27,6 +27,7 @@ import static org.mockito.Mockito.when;
 import java.sql.Connection;
 import java.sql.SQLException;
 
+import org.dbunit.IDatabaseTester;
 import org.dbunit.database.IDatabaseConnection;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -79,7 +80,7 @@ class AutoCommitOffWarningTest
     @Test
     void testAccept_autoCommitOff_warnsOnce() throws SQLException
     {
-        final AutoCommitOffWarning warning = new AutoCommitOffWarning();
+        final AutoCommitOffWarning warning = new AutoCommitOffWarning(() -> null);
         final IDatabaseConnection connection = connectionWithAutoCommit(false);
 
         warning.accept(connection);
@@ -89,9 +90,37 @@ class AutoCommitOffWarningTest
     }
 
     @Test
+    void testAccept_twoInstancesForTheSameTester_warnOnceForTheTester() throws SQLException
+    {
+        final IDatabaseTester tester = mock(IDatabaseTester.class);
+        final IDatabaseConnection connection = connectionWithAutoCommit(false);
+
+        new AutoCommitOffWarning(() -> tester).accept(connection);
+        new AutoCommitOffWarning(() -> tester).accept(connection);
+
+        assertThat(warnings())
+                .as("The condition belongs to the tester, so a second test case that the same"
+                        + " tester serves does not repeat the warning.")
+                .isEqualTo(1);
+    }
+
+    @Test
+    void testAccept_twoInstancesForDifferentTesters_warnForEachTester() throws SQLException
+    {
+        final IDatabaseTester tester = mock(IDatabaseTester.class);
+        final IDatabaseTester otherTester = mock(IDatabaseTester.class);
+        final IDatabaseConnection connection = connectionWithAutoCommit(false);
+
+        new AutoCommitOffWarning(() -> tester).accept(connection);
+        new AutoCommitOffWarning(() -> otherTester).accept(connection);
+
+        assertThat(warnings()).as("Another tester is warned about too.").isEqualTo(2);
+    }
+
+    @Test
     void testAccept_autoCommitOn_doesNotWarn() throws SQLException
     {
-        new AutoCommitOffWarning().accept(connectionWithAutoCommit(true));
+        new AutoCommitOffWarning(() -> null).accept(connectionWithAutoCommit(true));
 
         assertThat(warnings()).isZero();
     }
@@ -104,7 +133,7 @@ class AutoCommitOffWarningTest
         when(connection.getConnection()).thenReturn(jdbc);
         when(jdbc.getAutoCommit()).thenThrow(new SQLException("cannot read"));
 
-        new AutoCommitOffWarning().accept(connection);
+        new AutoCommitOffWarning(() -> null).accept(connection);
 
         assertThat(warnings()).as("An unreadable autocommit state is not warned about.")
                 .isZero();

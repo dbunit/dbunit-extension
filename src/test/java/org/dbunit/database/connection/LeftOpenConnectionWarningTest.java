@@ -120,6 +120,34 @@ class LeftOpenConnectionWarningTest
     }
 
     @Test
+    void testAccept_twoInstancesForTheSameTester_warnOnceForTheTester() throws Exception
+    {
+        final JdbcDatabaseTester tester = testerOpeningANewConnectionOnEachCall();
+        final ConnectionOwnership leftOpen = ownership(false, new DefaultOperationListener());
+
+        new LeftOpenConnectionWarning(leftOpen, () -> tester).accept(connection);
+        new LeftOpenConnectionWarning(leftOpen, () -> tester).accept(connection);
+
+        assertThat(warnings())
+                .as("The condition belongs to the tester, so a second test case that the same"
+                        + " tester serves does not repeat the warning.")
+                .hasSize(1);
+    }
+
+    @Test
+    void testAccept_twoInstancesForDifferentTesters_warnForEachTester() throws Exception
+    {
+        final ConnectionOwnership leftOpen = ownership(false, new DefaultOperationListener());
+        final JdbcDatabaseTester tester = testerOpeningANewConnectionOnEachCall();
+        final JdbcDatabaseTester otherTester = testerOpeningANewConnectionOnEachCall();
+
+        new LeftOpenConnectionWarning(leftOpen, () -> tester).accept(connection);
+        new LeftOpenConnectionWarning(leftOpen, () -> otherTester).accept(connection);
+
+        assertThat(warnings()).as("Another tester is warned about too.").hasSize(2);
+    }
+
+    @Test
     void testAccept_noOpListenerAndTesterOpensNewConnectionOnEachCall_warns() throws Exception
     {
         final JdbcDatabaseTester tester = testerOpeningANewConnectionOnEachCall();

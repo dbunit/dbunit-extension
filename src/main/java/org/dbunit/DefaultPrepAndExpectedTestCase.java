@@ -268,7 +268,8 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
                 new ClosedConnectionHandedOutWarning(() -> databaseTester);
         final LeftOpenConnectionWarning leftOpenConnectionWarning =
                 new LeftOpenConnectionWarning(connectionOwnership, () -> databaseTester);
-        final Consumer<IDatabaseConnection> warnings = new AutoCommitOffWarning()
+        final Consumer<IDatabaseConnection> warnings =
+                new AutoCommitOffWarning(() -> databaseTester)
                 .andThen(closedConnectionHandedOutWarning).andThen(leftOpenConnectionWarning)
                 .andThen(closedFixedConnectionWarning);
         return new TestScopedConnection(this::acquireSharedConnection, connectionOwnership,
