@@ -93,6 +93,7 @@ public class AnnotatedTestExecutor
     private final ClassicLifecycle classicLifecycle;
     private final ClosedConnectionHandedOutWarning closedConnectionWarning;
 
+    private boolean beforeTestRan;
     private boolean afterTestRan;
     private ClassicOperationListener installedListener;
     private IOperationListener listenerToRestore;
@@ -413,10 +414,23 @@ public class AnnotatedTestExecutor
      * {@link TestCaseLifecycle#before()} for an annotation-driven test,
      * {@link ClassicLifecycle#before()} for a classic one.
      *
+     * <p>Runs the steps once for this executor: a second call does nothing. A test class that
+     * registers {@code DbUnitExtension} twice, for example with {@code @DbUnitTest} and a
+     * {@code @RegisterExtension} field, has two extension instances sharing the one executor of
+     * the test, and each of them calls this method.
+     *
      * @throws Exception If any step fails.
      */
     public void beforeTest() throws Exception
     {
+        if (beforeTestRan)
+        {
+            log.debug("beforeTest() ignored: the steps already ran, so the extension is"
+                    + " probably registered twice.");
+            return;
+        }
+
+        beforeTestRan = true;
         if (annotationDriven)
         {
             testCaseLifecycle.before();
@@ -444,6 +458,10 @@ public class AnnotatedTestExecutor
      * every ordinary verification failure, the single most common way this method's step throws
      * at all.
      *
+     * <p>Runs the steps once for this executor: a second call does nothing, as the first one
+     * verified and tore down, so a second verification would compare the database that the
+     * teardown just emptied with the expected data. See {@link #beforeTest()}.
+     *
      * @param testFailed Whether the test method itself already threw; when {@code true},
      *            verification is skipped so a difference does not mask the real failure.
      * @throws Exception If any step fails with a checked exception.
@@ -451,6 +469,13 @@ public class AnnotatedTestExecutor
      */
     public void afterTest(final boolean testFailed) throws Exception
     {
+        if (afterTestRan)
+        {
+            log.debug("afterTest() ignored: the steps already ran, so the extension is"
+                    + " probably registered twice.");
+            return;
+        }
+
         afterTestRan = true;
         try
         {

@@ -152,6 +152,8 @@ public class DbUnitExtension implements BeforeAllCallback, BeforeEachCallback,
 
     private static final String DATA_FILE_LOADERS_KEY = "dataFileLoaders";
 
+    private static final String PARAMETER_RESOLVER_KEY = "parameterResolver";
+
     private final LifecycleMethodAnnotationCheck lifecycleMethodCheck =
             new LifecycleMethodAnnotationCheck(JupiterLifecycleMethods::of,
                     (method, annotationType) -> AnnotationSupport.isAnnotated(method,
@@ -309,7 +311,27 @@ public class DbUnitExtension implements BeforeAllCallback, BeforeEachCallback,
         final InjectableParameter injectable = InjectableParameter.forType(type);
         return injectable != null
                 && isTestMethodOrBeforeEach(parameterContext, extensionContext)
-                && isAnnotationDriven(extensionContext);
+                && isAnnotationDriven(extensionContext)
+                && isTheParameterResolverOfTheTest(extensionContext);
+    }
+
+    /**
+     * Returns whether this instance resolves the parameters of the current test. JUnit Jupiter
+     * keeps a {@code @RegisterExtension} instance next to the one that {@link DbUnitTest} or
+     * {@code @ExtendWith} registers, and fails a parameter that two resolvers claim. Both
+     * instances share the executor of the test in its store, so the first instance that is asked
+     * is recorded there and resolves every parameter of the test, which then gets the same value
+     * whichever instance resolves it.
+     */
+    @SuppressWarnings("deprecation")
+    private boolean isTheParameterResolverOfTheTest(final ExtensionContext context)
+    {
+        final ExtensionContext.Store store = context.getStore(NAMESPACE);
+        // computeIfAbsent, which replaces this call, exists only since JUnit Jupiter 6.0, and the
+        // extension supports 5.7 and later.
+        final Object parameterResolver =
+                store.getOrComputeIfAbsent(PARAMETER_RESOLVER_KEY, key -> this);
+        return parameterResolver == this;
     }
 
     /**
