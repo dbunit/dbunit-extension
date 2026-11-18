@@ -343,28 +343,68 @@ class YamlProducerTest
     }
 
     @Test
-    void testProduce_unquotedTimestampTheColumnTypeDoesNotParse_producesTheInstantSnakeYamlReads()
+    void testProduce_unquotedTimestampWithATAndNoOffset_producesTheTextOfTheDocument()
+            throws Exception
+    {
+        final RecordingConsumer consumer = new RecordingConsumer();
+        final YamlProducer producer = new YamlProducer(stream("EVENT:\n"
+                + "  - WITHOUT_OFFSET: 2024-03-01T10:15:30\n"
+                + "    WITH_FRACTION: 2024-03-01t10:15:30.1\n"));
+        producer.setConsumer(consumer);
+
+        producer.produce();
+
+        assertThat(consumer.rows.get(0))
+                .as("A timestamp with a T and no offset reaches the column type as the text of"
+                        + " the document, as the other timestamps do, not as the instant that"
+                        + " SnakeYAML reads, which takes it as UTC; the column type reads the"
+                        + " text in the JVM's time zone.")
+                .containsExactly("2024-03-01T10:15:30", "2024-03-01t10:15:30.1");
+    }
+
+    @Test
+    void testProduce_unquotedTimestampWithAnOffset_producesTheInstantSnakeYamlReads()
             throws Exception
     {
         final RecordingConsumer consumer = new RecordingConsumer();
         final YamlProducer producer = new YamlProducer(stream("EVENT:\n"
                 + "  - IN_UTC: 2024-03-01T10:15:30Z\n"
                 + "    WITH_OFFSET: 2024-03-01t10:15:30.1-05:00\n"
-                + "    WITH_SPACED_OFFSET: 2024-03-01 10:15:30.10 -5\n"
-                + "    WITHOUT_ZONE: 2024-03-01T10:15:30\n"));
+                + "    WITH_SPACED_OFFSET: 2024-03-01 10:15:30.10 -5\n"));
         producer.setConsumer(consumer);
 
         producer.produce();
 
         final Object[] expected = {Date.from(Instant.parse("2024-03-01T10:15:30Z")),
                 Date.from(Instant.parse("2024-03-01T15:15:30.100Z")),
-                Date.from(Instant.parse("2024-03-01T15:15:30.100Z")),
-                Date.from(Instant.parse("2024-03-01T10:15:30Z"))};
+                Date.from(Instant.parse("2024-03-01T15:15:30.100Z"))};
         assertThat(consumer.rows.get(0))
-                .as("A timestamp with a T or a time zone, which the column type does not parse"
-                        + " as text, reaches it as the instant SnakeYAML reads, as before 3.6.0;"
-                        + " SnakeYAML takes one without a time zone as UTC.")
+                .as("A timestamp with an offset reaches the column type as the instant that"
+                        + " SnakeYAML reads, so a TIMESTAMP column stores and compares the same"
+                        + " instant, in the JVM's time zone.")
                 .containsExactly(expected);
+    }
+
+    @Test
+    void testProduce_unquotedTimestampWithAnOffsetYamlDoesNotRead_producesTheTextOfTheDocument()
+            throws Exception
+    {
+        final RecordingConsumer consumer = new RecordingConsumer();
+        final YamlProducer producer = new YamlProducer(stream("EVENT:\n"
+                + "  - WITH_HOURS_AND_MINUTES: 2024-03-01T10:15:30+0530\n"
+                + "    WITH_MINUS: 2024-03-01T10:15:30-0500\n"
+                + "    IN_LOWER_CASE_UTC: 2024-03-01T10:15:30z\n"));
+        producer.setConsumer(consumer);
+
+        producer.produce();
+
+        assertThat(consumer.rows.get(0))
+                .as("A timestamp whose offset YAML 1.1 does not read, +hhmm or a lower case z, is"
+                        + " no timestamp to SnakeYAML, so it reaches the column type as the text"
+                        + " of the document, which the TIMESTAMP type reads as it reads the text"
+                        + " of any other format, not as an instant.")
+                .containsExactly("2024-03-01T10:15:30+0530", "2024-03-01T10:15:30-0500",
+                        "2024-03-01T10:15:30z");
     }
 
     @Test

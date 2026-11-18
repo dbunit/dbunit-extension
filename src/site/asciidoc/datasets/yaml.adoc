@@ -54,25 +54,40 @@ with `{` as a mapping, so quote such a value to give it as text, as `'[NULL]'`,
 with a `DataSetException` that names the table, the row and the column, and an
 unquoted `[TEXT]hello` is a syntax error that fails the whole file.
 
-Since 3.6.0 an unquoted date or timestamp that the column type parses as text,
-such as `2024-03-01` or `2024-03-01 10:15:30`, an unquoted base-60 number, such
+Since 3.6.0 an unquoted date or timestamp without an offset, such as `2024-03-01`,
+`2024-03-01 10:15:30` or `2024-03-01T10:15:30`, an unquoted base-60 number, such
 as the time `10:30:00`, the clock time `12:30`, the ratio `16:9` or `1:30.5`, an
 unquoted integer with leading zeros, such as `01234`, an unquoted integer with a
 leading plus, such as `+4930123456`, and an unquoted decimal number, such as
 `12.50` or `1.5e3`, reach the column type as their text, which it parses in the
 JVM's time zone and with every digit.
 Before, SnakeYAML read such a date as an instant at midnight UTC, the day before
-in a time zone west of UTC, such a timestamp as an instant in UTC, such a
+in a time zone west of UTC, such a timestamp as an instant in UTC, so that the ISO form
+without an offset, `2024-03-01T10:15:30`, was stored shifted by the offset of the JVM's time
+zone and a text column got the `toString()` of a `java.util.Date`, such a
 base-60 number as the sum of its parts, so that `10:30:00` became 37800 and
 `16:9` became 969, such an integer with leading zeros as an octal number, so
 that `01234` became 668, such an integer with a leading plus as the integer
-without the plus, and such a number as a `double`. A timestamp or a number that
-the column type does not parse as text still reaches it as the instant, the
-integer or the `double` that SnakeYAML reads: a timestamp with a `T` or a time
-zone, such as `2024-03-01T10:15:30Z`, which SnakeYAML takes as UTC when it names
-no zone, an integer in hexadecimal, binary or with digit groups, such as `0x1F`,
+without the plus, and such a number as a `double`. The column type reads the ISO
+form: the `TIMESTAMP` type takes a `T`, a tab or more than one space instead of the one space,
+in the JVM's time zone, which the other formats read too. An unquoted timestamp with an
+offset that YAML 1.1 reads, such as `2024-03-01T10:15:30Z` or `2024-03-01 10:15:30 +01:00`,
+still reaches the column type as the instant that SnakeYAML reads, as before 3.6.0: a
+`TIMESTAMP` column stores that instant in the JVM's time zone and the same value verifies
+against it, and a text column gets the `toString()` of a `java.util.Date`. Quote such a value,
+as `'2024-03-01T10:15:30Z'`, for a text column that should get it as written. YAML 1.1 reads
+an offset only as `Z` or as a sign, one or two digits of hours and, as an option, `:mm`, such
+as `+1`, `-05` or `+05:30`, so a timestamp with another spelling, such as
+`2024-03-01T10:15:30+0100` or `2024-03-01T10:15:30z`, is plain text to it and reaches the
+column type as text: the `TIMESTAMP` type reads the offset, but a column without a time zone
+gets the time as written, so the value does not verify in a JVM whose time zone has another
+offset, as link:values.html#datetime[Dataset Values] says. Write the offset as `+01:00`, or
+leave it out. A number that
+the column type does not parse as text still reaches it as the integer or the `double`
+that SnakeYAML reads: an integer in hexadecimal, binary or with digit groups, such as `0x1F`,
 `0b101` or `1_000`, and a number with digit groups, such as `1_000.5`, or `.inf`
-and `.nan`.
+and `.nan`. A value with an explicit tag, such as `!!timestamp 2024-03-01T10:15:30`, keeps the
+type the tag names, here an instant that is in UTC when the value has no offset.
 YAML 1.1 also reads `yes`, `no`, `on` and `off`, in lower case, capitalized or in
 upper case, as booleans, so a text column gets `true` or `false` for such an
 unquoted value, such as the country code `NO`: quote a value that a text column
