@@ -21,6 +21,7 @@
 package org.dbunit.dataset.yaml;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -32,6 +33,7 @@ import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.sql.Date;
+import java.sql.Statement;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -39,6 +41,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Arrays;
+import java.util.TimeZone;
 import java.util.UUID;
 
 import org.dbunit.Assertion;
@@ -55,9 +58,14 @@ import org.dbunit.dataset.xml.FlatXmlProducer;
 import org.xml.sax.InputSource;
 import org.dbunit.dataset.ReplacementDataSet;
 import org.dbunit.dataset.datatype.DataType;
+import org.dbunit.database.IDatabaseConnection;
+import org.dbunit.database.InMemoryDatabaseConnection;
+import org.dbunit.operation.DatabaseOperation;
 import org.dbunit.testutil.TestUtils;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * @author Björn Beskow
@@ -242,6 +250,105 @@ class YmlDataSetTest extends AbstractDataSetTest
                         + " column type parses, so the column type reads back the same value.")
                 .containsExactly(Date.valueOf(eventDay), Timestamp.valueOf(startsAt),
                         Time.valueOf(starts), Timestamp.from(recordedAt));
+    }
+
+    @Test
+    void testConstructor_unquotedIsoTimestamps_giveTheTextOfTheLocalTimeOrTheOffsetInstant()
+            throws Exception
+    {
+        final TimeZone original = TimeZone.getDefault();
+        TimeZone.setDefault(TimeZone.getTimeZone("America/Chicago"));
+        try
+        {
+            final String document = "EVENT:\n  - WITHOUT_OFFSET: 2024-01-15T10:00:00\n"
+                    + "    IN_UTC: 2024-01-15T10:00:00Z\n"
+                    + "    SPACED: 2024-01-15 10:00:00\n";
+
+            final IDataSet dataSet = new YamlDataSet(
+                    new ByteArrayInputStream(document.getBytes(StandardCharsets.UTF_8)));
+
+            final ITable table = dataSet.getTable("EVENT");
+            final Object withoutOffset = table.getValue(0, "WITHOUT_OFFSET");
+            final Object inUtc = table.getValue(0, "IN_UTC");
+            assertThat(new Object[] {withoutOffset, inUtc, table.getValue(0, "SPACED")})
+                    .as("An unquoted ISO timestamp without an offset reaches the column type as"
+                            + " the text written, not a java.util.Date; one with an offset as the"
+                            + " instant SnakeYAML reads.")
+                    .containsExactly("2024-01-15T10:00:00",
+                            java.util.Date.from(Instant.parse("2024-01-15T10:00:00Z")),
+                            "2024-01-15 10:00:00");
+            assertThat(DataType.TIMESTAMP.typeCast(withoutOffset))
+                    .as("The T form is 10:00 in the JVM's zone, west of UTC too, as the form with"
+                            + " the space is, not 10:00 UTC shifted by the zone's offset.")
+                    .isEqualTo(DataType.TIMESTAMP.typeCast(table.getValue(0, "SPACED")))
+                    .isEqualTo(Timestamp.valueOf("2024-01-15 10:00:00"));
+            assertThat(DataType.TIMESTAMP.typeCast(inUtc))
+                    .as("The Z form is the instant in UTC.")
+                    .isEqualTo(Timestamp.from(Instant.parse("2024-01-15T10:00:00Z")));
+        } finally
+        {
+            TimeZone.setDefault(original);
+        }
+    }
+
+    /**
+     * Runs in America/Chicago, which it sets itself: in a JVM whose zone has the offset of the
+     * written value a stored instant and the wall clock as written are the same, and the test has
+     * no power, so it must not depend on the zone that the build runs in.
+     */
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"2024-01-15T10:00:00Z", "2024-01-15T10:00:00+05:00",
+            "2024-01-15 10:00:00 -5", "2024-01-15T10:00:00", "2024-01-15 10:00:00",
+            "2024-01-15"})
+    void testCleanInsert_unquotedTimestamp_verifiesAgainstTheRowItInserted(final String value)
+            throws Exception
+    {
+        final TimeZone original = TimeZone.getDefault();
+        TimeZone.setDefault(TimeZone.getTimeZone("America/Chicago"));
+        final IDatabaseConnection connection = InMemoryDatabaseConnection.create();
+        try
+        {
+            try (Statement statement = connection.getConnection().createStatement())
+            {
+                statement.execute(
+                        "CREATE TABLE EVENT (ID INTEGER PRIMARY KEY, RECORDED_AT TIMESTAMP)");
+            }
+            final String document = "EVENT:\n  - ID: 1\n    RECORDED_AT: " + value + "\n";
+            final IDataSet dataSet = new YamlDataSet(
+                    new ByteArrayInputStream(document.getBytes(StandardCharsets.UTF_8)));
+
+            DatabaseOperation.CLEAN_INSERT.execute(connection, dataSet);
+
+            assertThatCode(() -> Assertion.assertEquals(dataSet.getTable("EVENT"),
+                    connection.createTable("EVENT")))
+                    .as("The YAML dataset that inserted the timestamp must verify against the"
+                            + " row it inserted, an offset included, in a JVM zone other than"
+                            + " UTC.")
+                    .doesNotThrowAnyException();
+        } finally
+        {
+            connection.close();
+            TimeZone.setDefault(original);
+        }
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"2024-03-01  10:15:30", "2024-03-01\t10:15:30",
+            "2024-03-01 10:15:30."})
+    void testConstructor_unquotedTimestampWithOtherWhitespaceOrAnEmptyFraction_isTheLocalTime(
+            final String value) throws Exception
+    {
+        final String document = "EVENT:\n  - RECORDED_AT: " + value + "\n";
+
+        final IDataSet dataSet = new YamlDataSet(
+                new ByteArrayInputStream(document.getBytes(StandardCharsets.UTF_8)));
+
+        final Object recordedAt = dataSet.getTable("EVENT").getValue(0, "RECORDED_AT");
+        assertThat(DataType.TIMESTAMP.typeCast(recordedAt))
+                .as("A timestamp that YAML 1.1 reads with more than one space, a tab or a dot"
+                        + " without digits is the time written in the JVM's time zone, as the"
+                        + " form with one space is.")
+                .isEqualTo(Timestamp.valueOf("2024-03-01 10:15:30"));
     }
 
     @Test

@@ -172,41 +172,57 @@ public class YamlProducer implements IDataSetProducer
 
         /**
          * Resolves the implicit type of an unquoted value as SnakeYAML does, except that it keeps
-         * the text of the document when the column's data type parses that text, or when no data
-         * type wants the number SnakeYAML would read from it. The data type then parses the text as
-         * it does for every other format.
+         * the text of the document for a date, a timestamp without an offset and the numbers that
+         * the data types parse as text, or that no data type wants as the number SnakeYAML would
+         * read. The data type then parses the text as it does for every other format. The
+         * resolver sees the text only, not the column.
          *
          * <p>
-         * Such a value is a date such as {@code 2024-03-01}, a date and time such as
-         * {@code 2024-03-01 10:15:30}, a base-60 number such as the time {@code 10:30:00}, the
+         * Such a value is a date, or a timestamp without an offset in any form that YAML 1.1 reads
+         * as a timestamp, such as {@code 2024-03-01}, {@code 2024-03-01 10:15:30} or
+         * {@code 2024-03-01T10:15:30}, a base-60 number such as the time {@code 10:30:00}, the
          * clock time {@code 12:30}, the ratio {@code 16:9} or {@code 1:30.5}, an integer with
          * leading zeros such as {@code 01234}, an integer with a leading plus such as
          * {@code +4930123456}, and a decimal number such as {@code 12.50} or {@code 1.5e3}.
          * SnakeYAML would read the date as an instant at midnight UTC, the day before in a time
-         * zone west of UTC. It would read a base-60 number as the sum of its parts, so that
-         * {@code 10:30:00} became 37800 and {@code 12:30} became 750, an integer with leading
-         * zeros as an octal number, so that {@code 01234} became 668, an integer with a leading
-         * plus as the integer without the plus, and a number with a fraction as a double, which
-         * drops the digits past about 17 significant ones.
+         * zone west of UTC, and a timestamp without an offset as an instant in UTC, so that a text
+         * column got the {@code toString()} of a {@link java.util.Date} and a timestamp column the
+         * time shifted by the offset of the JVM's time zone. It would read a base-60 number as the
+         * sum of its parts, so that {@code 10:30:00} became 37800 and {@code 12:30} became 750,
+         * an integer with leading zeros as an octal number, so that {@code 01234} became 668, an
+         * integer with a leading plus as the integer without the plus, and a number with a
+         * fraction as a double, which drops the digits past about 17 significant ones.
          *
          * <p>
-         * A timestamp or a number that no data type parses as text, such as
-         * {@code 2024-03-01T10:15:30Z}, {@code 0x1F}, {@code 0b101}, {@code 1_000},
-         * {@code 1_000.5} or {@code .inf}, resolves to the instant, the integer or the double
-         * SnakeYAML reads. Every other value, such as a boolean like {@code yes} or {@code off},
-         * resolves as SnakeYAML resolves it. A value with an explicit tag, such as
-         * {@code !!timestamp}, keeps the type the tag names.
+         * A timestamp with an offset, such as {@code 2024-03-01T10:15:30Z} or
+         * {@code 2024-03-01 10:15:30 +01:00}, resolves to the instant SnakeYAML reads, as before
+         * 3.6.0: a {@code TIMESTAMP} column stores that instant in the JVM's time zone and compares
+         * it as that instant, where the text would be stored as written in its offset and
+         * compared as the instant, which differ in a JVM outside that offset. A number that no
+         * data type parses as text, such as {@code 0x1F}, {@code 0b101}, {@code 1_000},
+         * {@code 1_000.5} or {@code .inf}, resolves to the integer or the double SnakeYAML reads.
+         * Every other value, such as a boolean like {@code yes} or {@code off}, resolves as
+         * SnakeYAML resolves it. A value with an explicit tag, such as {@code !!timestamp}, keeps
+         * the type the tag names.
          */
         private static class TextValueResolver extends Resolver
         {
             private static final Pattern ZERO_PADDED_INTEGER = Pattern.compile("[-+]?0[0-9]+");
 
             /**
+             * The end of a YAML 1.1 timestamp that has an offset: the seconds, a fraction, then
+             * {@code Z} or an offset of one of the forms {@code +h}, {@code +hh} and
+             * {@code +hh:mm}, which may follow spaces or tabs.
+             */
+            private static final Pattern TIMESTAMP_WITH_OFFSET = Pattern.compile(
+                    ".*:[0-9][0-9](?:\\.[0-9]*)?[ \\t]*(?:Z|[-+][0-9][0-9]?(?::[0-9][0-9])?)");
+
+            /**
              * {@inheritDoc}
              * <p>
-             * Resolves a timestamp, a base-60 number, an integer or a float to a string instead
-             * when the column's data type parses the text, or when no data type wants the
-             * number SnakeYAML reads from it.
+             * Resolves a date, a timestamp without an offset, a base-60 number, an integer or a
+             * float to a string instead when the data types parse the text, or when no data type
+             * wants the number SnakeYAML reads from it.
              */
             @Override
             public Tag resolve(final NodeId kind, final String value, final boolean implicit)
@@ -216,7 +232,7 @@ public class YamlProducer implements IDataSetProducer
                 final boolean floatTag = Tag.FLOAT.equals(tag);
                 final boolean numberTag = integerTag || floatTag;
                 final boolean timestampText =
-                        Tag.TIMESTAMP.equals(tag) && isDateOrTimestampText(value);
+                        Tag.TIMESTAMP.equals(tag) && !isTimestampWithOffset(value);
                 final boolean decimalText = floatTag && isDecimalText(value);
                 final boolean base60Text = numberTag && isBase60Number(value);
                 final boolean paddedIntegerText = integerTag && isZeroPaddedIntegerText(value);
@@ -230,30 +246,16 @@ public class YamlProducer implements IDataSetProducer
             }
 
             /**
-             * Returns whether the DATE and TIMESTAMP data types parse the text: as a date when it
-             * has ten characters, otherwise as a date and time, as
-             * {@link java.sql.Date#valueOf(String)} and {@link java.sql.Timestamp#valueOf(String)}
-             * read them.
+             * Returns whether a YAML 1.1 timestamp has an offset, {@code Z} or one such as
+             * {@code +01:00}, which SnakeYAML reads as the instant it names. A date alone, such
+             * as {@code 2024-03-01}, has none, though it ends in a minus and digits.
              *
-             * @param value The text of a timestamp.
-             * @return {@code true} if the data types parse the text.
+             * @param value The text of a YAML 1.1 timestamp.
+             * @return {@code true} if the timestamp has an offset.
              */
-            private static boolean isDateOrTimestampText(final String value)
+            private static boolean isTimestampWithOffset(final String value)
             {
-                try
-                {
-                    if (value.length() == 10)
-                    {
-                        java.sql.Date.valueOf(value);
-                    } else
-                    {
-                        java.sql.Timestamp.valueOf(value);
-                    }
-                    return true;
-                } catch (final IllegalArgumentException e)
-                {
-                    return false;
-                }
+                return TIMESTAMP_WITH_OFFSET.matcher(value).matches();
             }
 
             /**
