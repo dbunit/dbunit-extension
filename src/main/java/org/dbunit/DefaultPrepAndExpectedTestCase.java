@@ -144,7 +144,12 @@ import org.slf4j.LoggerFactory;
  * on the first mismatch found. Set {@link #setFailureHandler(FailureHandler)}
  * to, for example, a {@link org.dbunit.assertion.DiffCollectingFailureHandler}
  * to collect every {@link org.dbunit.assertion.Difference} instead; that is
- * not the default since most tests want to keep failing fast.
+ * not the default since most tests want to keep failing fast. A collecting
+ * handler does not fail {@code verifyData()}: whoever calls it reads the
+ * handler's list afterwards. The annotation runtime ({@code DbUnitExtension},
+ * {@code DbUnitTestExecutionListener}), which drives an instance it builds or
+ * one injected with {@code @DbUnitTestCase}, does so: it fails the test with
+ * the collected differences after {@code postTest()}.
  * <p>
  * Not thread-safe. An instance holds the state of one test at a time: its
  * datasets, verify table definitions, shared connection and row count
@@ -369,7 +374,9 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * first mismatch. Set this, for example to a
      * {@link org.dbunit.assertion.DiffCollectingFailureHandler}, only when a
      * test needs to collect every {@link org.dbunit.assertion.Difference}
-     * instead.
+     * instead. Such a handler does not throw, so the caller of
+     * verifyData() has to read its collected differences; the annotation
+     * runtime does and fails the test with them.
      *
      * @since 3.5.0
      */
@@ -2114,8 +2121,10 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      *            columns carries a suppressed exception naming this as the
      *            remedy. A failure handler that collects the differences,
      *            such as {@link DiffCollectingFailureHandler}, throws nothing
-     *            to carry it, so the remedy is logged as a warning instead,
-     *            as is the hint of the columns of columnValueComparers.
+     *            to carry it, so the remedy is logged as a warning and added
+     *            to the handler, which attaches it to the failure it creates
+     *            for the collected differences, as is the hint of the columns
+     *            of columnValueComparers.
      * @throws DatabaseUnitException if the tables' row counts, columns, or data do not match.
      * @throws IllegalArgumentException if two keys of columnValueComparers
      *             differ only in case, as they name the same column.
@@ -2245,6 +2254,7 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
             final DatabaseUnitRuntimeException hint = findSortHint.get();
             if (hint != null)
             {
+                collectingHandler.addHint(hint);
                 log.warn(hint.getMessage());
             }
         }
@@ -2253,7 +2263,8 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
     /**
      * Returns the failure handler when it collects the differences instead of
      * throwing, as such a comparison does not fail, so the hint about the sort
-     * has no failure to be attached to.
+     * has no failure to be attached to here: it goes to the handler, which
+     * attaches it to the failure that it creates.
      *
      * @return The collecting failure handler, or null when there is none.
      */
@@ -2998,7 +3009,8 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * Uses {@link #failureHandler} when set; otherwise defers to
      * {@link Assertion#assertWithValueComparer(ITable, ITable, Column[], ValueComparer, Map)}'s
      * own {@link org.dbunit.assertion.DefaultFailureHandler}, configured with
-     * additionalColumnInfo.
+     * additionalColumnInfo. A handler that is set brings its own row
+     * information: it is not given additionalColumnInfo.
      *
      * @param expectedTable the table containing all expected results.
      * @param actualTable the table containing all actual results.

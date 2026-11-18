@@ -36,6 +36,8 @@ import org.dbunit.IDatabaseTester;
 import org.dbunit.PrepAndExpectedTestCase;
 import org.dbunit.PrepAndExpectedTestData;
 import org.dbunit.VerifyTableDefinition;
+import org.dbunit.assertion.DiffCollectingFailureHandler;
+import org.dbunit.assertion.FailureHandler;
 import org.dbunit.database.IDatabaseConnection;
 import org.dbunit.database.rowcount.RowCountDifference;
 import org.dbunit.database.rowcount.UnexpectedRowCountException;
@@ -321,6 +323,11 @@ class TestCaseLifecycle
      * again is cleaned up without verifying, and the test fails: see
      * {@link #failIfTheTestMethodConfiguredTheInjectedTestCaseAgain()}.
      *
+     * <p>A {@link DefaultPrepAndExpectedTestCase} whose failure handler is a
+     * {@link DiffCollectingFailureHandler}, which does not throw on a value that differs, fails
+     * the test with the differences it collected, after the teardown has run: see
+     * {@link #failIfDifferencesWereCollected(DiffCollectingFailureHandler)}.
+     *
      * @param testFailed Whether the test method itself already threw.
      * @throws IllegalStateException If the test method configured an injected
      *             {@link DefaultPrepAndExpectedTestCase} again.
@@ -333,7 +340,10 @@ class TestCaseLifecycle
             if (configured)
             {
                 failIfTheTestMethodConfiguredTheInjectedTestCaseAgain();
+                final DiffCollectingFailureHandler collectingHandler = collectingFailureHandler();
+                forgetDifferencesOfEarlierTests(collectingHandler);
                 testCase.postTest(!testFailed);
+                failIfDifferencesWereCollected(collectingHandler);
             }
         } catch (final UnexpectedRowCountException rowCountFailure)
         {
@@ -346,6 +356,66 @@ class TestCaseLifecycle
             throw primaryFailure;
         }
         undoConfiguration();
+    }
+
+    /**
+     * Returns the {@link DiffCollectingFailureHandler} of the test case.
+     *
+     * @return The handler, or {@code null} when the test case is not a
+     *         {@link DefaultPrepAndExpectedTestCase} or its failure handler is another one.
+     */
+    private DiffCollectingFailureHandler collectingFailureHandler()
+    {
+        if (testCase instanceof DefaultPrepAndExpectedTestCase)
+        {
+            final FailureHandler failureHandler =
+                    ((DefaultPrepAndExpectedTestCase) testCase).getFailureHandler();
+            if (failureHandler instanceof DiffCollectingFailureHandler)
+            {
+                return (DiffCollectingFailureHandler) failureHandler;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Empties the list and the hints of the handler, so that only the differences of this test's
+     * verification count: an injected test case that is {@code static} or reused keeps its
+     * handler, and with it the differences and hints that an earlier test collected.
+     *
+     * @param collectingHandler The handler, or {@code null} for none.
+     */
+    private void forgetDifferencesOfEarlierTests(
+            final DiffCollectingFailureHandler collectingHandler)
+    {
+        if (collectingHandler != null)
+        {
+            collectingHandler.clear();
+        }
+    }
+
+    /**
+     * Fails the test with the differences the handler collected while {@code postTest()}
+     * verified. A {@link DiffCollectingFailureHandler} does not throw on a value that differs,
+     * and nothing but this method reads its list after the test method has returned, so without
+     * this the verification would pass whatever the database holds. It runs after
+     * {@code postTest()}, so the teardown has run already.
+     *
+     * @param collectingHandler The handler, or {@code null} for none.
+     */
+    private void failIfDifferencesWereCollected(
+            final DiffCollectingFailureHandler collectingHandler)
+    {
+        if (collectingHandler == null)
+        {
+            return;
+        }
+
+        final boolean differencesCollected = !collectingHandler.getDiffList().isEmpty();
+        if (differencesCollected)
+        {
+            throw collectingHandler.createFailureForCollectedDifferences();
+        }
     }
 
     /**

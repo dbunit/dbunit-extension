@@ -76,6 +76,8 @@ import org.dbunit.annotation.DbUnitRowCountCheck;
 import org.dbunit.annotation.DbUnitSetUpOperation;
 import org.dbunit.annotation.DbUnitTearDownOperation;
 import org.dbunit.annotation.DbUnitTestCase;
+import org.dbunit.assertion.DbComparisonFailure;
+import org.dbunit.assertion.Difference;
 import org.dbunit.assertion.DiffCollectingFailureHandler;
 import org.dbunit.database.CachingConnectionProvider;
 import org.dbunit.database.DatabaseConfig;
@@ -95,6 +97,7 @@ import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.DefaultDataSet;
 import org.dbunit.dataset.DefaultTable;
 import org.dbunit.dataset.IDataSet;
+import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.datatype.DataType;
 import org.dbunit.dataset.datatype.DefaultDataTypeFactory;
 import org.dbunit.operation.DatabaseOperation;
@@ -217,6 +220,106 @@ class AnnotatedTestExecutorTest
         verify(tester, never()).setDataSet(any());
         verify(tester, never()).setSetUpOperation(any());
         verify(tester).onSetup();
+    }
+
+    // ---- a failure handler that collects the differences instead of throwing ----
+
+    @Test
+    void testAfterTest_collectingFailureHandlerCollectedADifference_failsTheTestAfterTheTeardown()
+            throws Exception
+    {
+        final RecordingAbstractDatabaseTester ownTester = new RecordingAbstractDatabaseTester();
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithCollectingHandlerAndACollectedDifference.class), ownTester,
+                null);
+        executor.beforeTest();
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown).as("The collected difference fails the test.")
+                .isInstanceOf(DbComparisonFailure.class).hasMessageContaining("table=ITEM").hasMessageContaining("col=NAME")
+                .hasMessageContaining("expected:<b> but was:<a>");
+        assertThat(collectingTestCaseOf(executor).tornDown)
+                .as("The teardown ran before the test failed.").isTrue();
+    }
+
+    @Test
+    void testAfterTest_collectingFailureHandlerHoldsAHint_failsTheTestWithTheHintSuppressed()
+            throws Exception
+    {
+        final RecordingAbstractDatabaseTester ownTester = new RecordingAbstractDatabaseTester();
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithCollectingHandlerAndACollectedDifference.class), ownTester,
+                null);
+        executor.beforeTest();
+        collectingTestCaseOf(executor).addsAHint = true;
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown).as("The collected difference fails the test.")
+                .isInstanceOf(DbComparisonFailure.class);
+        assertThat(thrown.getSuppressed())
+                .as("The hint that the verification added to the handler explains the failure,"
+                        + " so the failure carries it.")
+                .singleElement().extracting(Throwable::getMessage).isEqualTo("the sort hint");
+    }
+
+    @Test
+    void testAfterTest_collectingFailureHandlerCollectedNothing_passesTheTest() throws Exception
+    {
+        final RecordingAbstractDatabaseTester ownTester = new RecordingAbstractDatabaseTester();
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithCollectingHandlerAndACollectedDifference.class), ownTester,
+                null);
+        executor.beforeTest();
+        collectingTestCaseOf(executor).collectsADifference = false;
+
+        assertThatCode(() -> executor.afterTest(false))
+                .as("A verification that collected nothing is a pass.")
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void testAfterTest_collectingFailureHandlerAndTheTestFailed_doesNotReportDifferences()
+            throws Exception
+    {
+        final RecordingAbstractDatabaseTester ownTester = new RecordingAbstractDatabaseTester();
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithCollectingHandlerAndACollectedDifference.class), ownTester,
+                null);
+        executor.beforeTest();
+
+        assertThatCode(() -> executor.afterTest(true))
+                .as("A test that failed is not verified, so the failure of the test method stays"
+                        + " the one JUnit reports.")
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void testAfterTest_collectingFailureHandlerKeptByAnInjectedTestCase_forgetsTheDifferencesOfAnEarlierTest()
+            throws Exception
+    {
+        final DiffCollectingFailureHandler keptHandler = new DiffCollectingFailureHandler();
+        final ITable table = new DefaultTable("ITEM",
+                new Column[] {new Column("NAME", DataType.VARCHAR)});
+        final Difference earlierDifference = new Difference(table, table, 0, "NAME", "x", "y");
+        keptHandler.handle(earlierDifference);
+        keptHandler.addHint(new IllegalStateException("an earlier test's hint"));
+        final CollectingDifferenceTestCase injected = new CollectingDifferenceTestCase(
+                new FlatXmlDataFileLoader(), new RecordingAbstractDatabaseTester());
+        injected.setFailureHandler(keptHandler);
+        injected.collectsADifference = false;
+        final RecordingAbstractDatabaseTester ownTester = new RecordingAbstractDatabaseTester();
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithNothing.class), ownTester, injected);
+        executor.beforeTest();
+
+        assertThatCode(() -> executor.afterTest(false))
+                .as("A difference that an earlier test collected in the kept handler is not this"
+                        + " test's.")
+                .doesNotThrowAnyException();
+        assertThat(keptHandler.getDiffList()).as("The list was emptied.").isEmpty();
+        assertThat(keptHandler.getHints()).as("The hints were forgotten too.").isEmpty();
     }
 
     // ---- a second registration of the extension shares the executor of the test ----
@@ -5978,6 +6081,53 @@ class AnnotatedTestExecutorTest
             postTestCalled = true;
             postTestCount++;
         }
+    }
+
+    private static CollectingDifferenceTestCase collectingTestCaseOf(
+            final AnnotatedTestExecutor executor)
+    {
+        return (CollectingDifferenceTestCase) executor.getPrepAndExpectedTestCase();
+    }
+
+    /**
+     * A test case whose verification, as {@code postTest()} runs it, reports one difference to
+     * its failure handler, as a comparison of a value that differs does, unless told not to.
+     */
+    public static class CollectingDifferenceTestCase extends RecordingPrepAndExpectedTestCase
+    {
+        boolean collectsADifference = true;
+        boolean addsAHint;
+        boolean tornDown;
+
+        public CollectingDifferenceTestCase(final DataFileLoader dataFileLoader,
+                final IDatabaseTester tester)
+        {
+            super(dataFileLoader, tester);
+        }
+
+        @Override
+        public void postTest(final boolean verifyData)
+        {
+            if (verifyData && collectsADifference)
+            {
+                final ITable table = new DefaultTable("ITEM",
+                        new Column[] {new Column("NAME", DataType.VARCHAR)});
+                getFailureHandler().handle(new Difference(table, table, 0, "NAME", "b", "a"));
+                if (addsAHint)
+                {
+                    ((DiffCollectingFailureHandler) getFailureHandler())
+                            .addHint(new IllegalStateException("the sort hint"));
+                }
+            }
+            tornDown = true;
+        }
+    }
+
+    @DbUnitConfig(prepAndExpectedTestCase = CollectingDifferenceTestCase.class,
+            failureHandler = DiffCollectingFailureHandler.class)
+    @DbUnitExpected("expected.xml")
+    static class WithCollectingHandlerAndACollectedDifference
+    {
     }
 
     /**

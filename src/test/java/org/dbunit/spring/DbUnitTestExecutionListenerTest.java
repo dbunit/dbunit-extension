@@ -52,11 +52,15 @@ import org.dbunit.annotation.DbUnitTearDownOperation;
 import org.dbunit.annotation.DbUnitTestCase;
 import org.dbunit.annotation.DbUnitTester;
 import org.dbunit.annotation.runtime.AnnotatedTestExecutor;
+import org.dbunit.assertion.DbUnitAssert;
+import org.dbunit.assertion.DiffCollectingFailureHandler;
 import org.dbunit.database.IDatabaseConnection;
 import org.dbunit.database.InMemoryDatabaseConnection;
+import org.dbunit.dataset.Column;
 import org.dbunit.dataset.DefaultDataSet;
 import org.dbunit.dataset.DefaultTable;
 import org.dbunit.dataset.IDataSet;
+import org.dbunit.dataset.datatype.DataType;
 import org.dbunit.junit.jupiter.DbUnitExtension;
 import org.dbunit.junit.jupiter.DbUnitTest;
 import org.dbunit.operation.DatabaseOperation;
@@ -1451,6 +1455,51 @@ class DbUnitTestExecutionListenerTest
                         .contains("rolled back")
                         .contains("@Commit")
                         .contains("@Rollback(false)"));
+    }
+
+    @Test
+    void testAfterTestMethod_twoCollectedDifferencesAfterTheTransactionRolledBack_attachesTheHintAsSuppressed()
+            throws Exception
+    {
+        final DbUnitTestExecutionListener rollingBack =
+                new DbUnitTestExecutionListener(() -> true);
+        final AnnotatedTestExecutor executor = mock(AnnotatedTestExecutor.class);
+        final Error collectedFailure = failureCollectedForTwoDifferences();
+        doThrow(collectedFailure).when(executor).afterTest(false);
+        final FakeTestContext context = new FakeTestContext(HasExpectedDeclared.class)
+                .beginMethod(new HasExpectedDeclared(mock(IDatabaseTester.class)),
+                        "aTestMethod");
+        context.setAttribute(EXECUTOR_ATTRIBUTE, executor);
+        rollingBack.afterTestExecution(context);
+
+        final Throwable thrown = catchThrowable(() -> rollingBack.afterTestMethod(context));
+
+        assertThat(thrown)
+                .as("The failure that a collecting handler builds for several differences must be"
+                        + " the one reported.")
+                .isSameAs(collectedFailure);
+        assertThat(thrown.getSuppressed())
+                .as("Several collected differences are a failed verification too, so the failure"
+                        + " must explain that the test's transaction rolled back.")
+                .singleElement()
+                .satisfies(hint -> assertThat(hint.getMessage())
+                        .contains("rolled back")
+                        .contains("@Commit")
+                        .contains("@Rollback(false)"));
+    }
+
+    private static Error failureCollectedForTwoDifferences() throws Exception
+    {
+        final Column[] columns = {new Column("BAL", DataType.INTEGER)};
+        final DefaultTable expected = new DefaultTable("ACCOUNT", columns);
+        expected.addRow(new Object[] {11});
+        expected.addRow(new Object[] {21});
+        final DefaultTable actual = new DefaultTable("ACCOUNT", columns);
+        actual.addRow(new Object[] {10});
+        actual.addRow(new Object[] {20});
+        final DiffCollectingFailureHandler collecting = new DiffCollectingFailureHandler();
+        new DbUnitAssert().assertEquals(expected, actual, collecting);
+        return collecting.createFailureForCollectedDifferences();
     }
 
     @Test
