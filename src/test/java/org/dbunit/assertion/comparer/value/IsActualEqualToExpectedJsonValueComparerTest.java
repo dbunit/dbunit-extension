@@ -2,9 +2,11 @@ package org.dbunit.assertion.comparer.value;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.Locale;
 
 import org.dbunit.DatabaseUnitException;
 import org.dbunit.dataset.ITable;
@@ -261,6 +263,27 @@ class IsActualEqualToExpectedJsonValueComparerTest
                         actualValue))
                 .withMessageContaining(columnName)
                 .withMessageContaining(String.valueOf(rowNum));
+    }
+
+    @Test
+    void testIsExpected_ExpectedNotValidJsonInLocaleWithOwnDigits_MessageHasAsciiRowNumber()
+    {
+        final Locale digitsOfItsOwn = Locale.forLanguageTag("ar-EG");
+        assumeFalse(String.format(digitsOfItsOwn, "%d", rowNum).equals(String.valueOf(rowNum)),
+                "This JVM must write a row number with digits of the locale's own.");
+        final Locale original = Locale.getDefault(Locale.Category.FORMAT);
+        Locale.setDefault(Locale.Category.FORMAT, digitsOfItsOwn);
+        try
+        {
+            assertThatExceptionOfType(DatabaseUnitException.class)
+                    .as("The row number of the failure message should not depend on the default"
+                            + " locale.")
+                    .isThrownBy(() -> compare("not json", "{\"a\":1}"))
+                    .withMessageContaining("row " + rowNum + ":");
+        } finally
+        {
+            Locale.setDefault(Locale.Category.FORMAT, original);
+        }
     }
 
     @Test
