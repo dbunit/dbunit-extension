@@ -1600,6 +1600,44 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
+    void testBeforeTest_twoTestsOfOneTesterAutoCommitOff_warnsOnceForTheTester() throws Exception
+    {
+        // Each annotation-driven test builds its own test case, so a warning that only
+        // remembered itself would repeat for every test of a suite that shares one tester.
+        stubDisabledConnection();
+        when(jdbcConnection.getAutoCommit()).thenReturn(false);
+        final DbUnitSetUpOperation setup =
+                WithSetupNoPrep.class.getAnnotation(DbUnitSetUpOperation.class);
+        final Logger warningLogger = (Logger) LoggerFactory
+                .getLogger("org.dbunit.database.connection.AutoCommitOffWarning");
+        final ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        warningLogger.addAppender(appender);
+        try
+        {
+            for (int test = 0; test < 2; test++)
+            {
+                final AnnotatedTestConfiguration configuration = AnnotatedTestConfiguration
+                        .from(WithSetupNoPrep.class, null, null, setup, null, null, null);
+                final AnnotatedTestExecutor executor =
+                        new AnnotatedTestExecutor(configuration, tester, null);
+                executor.beforeTest();
+                executor.afterTest(false);
+            }
+
+            assertThat(appender.list)
+                    .filteredOn(event -> event.getLevel() == Level.WARN
+                            && event.getFormattedMessage().contains("autocommit disabled"))
+                    .as("Two tests of the one tester are warned about once.")
+                    .hasSize(1);
+        } finally
+        {
+            warningLogger.detachAppender(appender);
+            appender.stop();
+        }
+    }
+
+    @Test
     void testBeforeTest_classicPathConnectionAutoCommitOff_doesNotWarn() throws Exception
     {
         // The classic path resolves this executor's connection only for the read-only row
