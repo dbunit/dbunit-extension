@@ -405,13 +405,33 @@ recognized. When the class also registers the listener, through
 `@DbUnitSpringTest` or `@TestExecutionListeners`, the listener logs one warning
 that names the class. Keep one of the two: `@DbUnitSpringTest` to take the tester
 from the application context, or `@DbUnitTest` to have `IDatabaseTester` and
-`IDatabaseConnection` test method parameters injected.
+`IDatabaseConnection` test method parameters injected. Choose `@DbUnitSpringTest` for a
+`@Transactional` test whose tester has a connection of its own: `@DbUnitTest` runs dbUnit
+inside the test's transaction, see the next paragraph.
 
 *Different phases.* `DbUnitExtension` sets up immediately before the test
 method, after the `@BeforeEach` methods, and tears down immediately after it.
 This listener sets up before the `@BeforeEach` methods and tears down after the
 `@AfterEach` methods, around a `@Transactional` test's transaction rather than
 inside it; see <<ordering,Listener Ordering and Transactional Tests>>.
+
+The difference matters for a `@Transactional` test. Under `SpringExtension`, Spring starts the
+test's transaction before `DbUnitExtension` sets up and ends it after `DbUnitExtension` has
+torn down, so the extension works inside the transaction. A tester whose `DataSource` is a
+`TransactionAwareDataSourceProxy` gets the transaction's connection, so the prep, the test, the
+verification and the teardown run in the transaction and roll back with it. A tester with a
+connection of its own does not join it: a teardown of rows that the test method changed waits
+for the locks of the transaction, which can end only after the teardown returns, and it fails
+after the database's lock timeout (50 seconds by default on MySQL's InnoDB), while on
+PostgreSQL, which has no lock timeout by default, the build waits without end. A verification
+does not see what the transaction has not committed. A test that only reads the rows its prep
+seeded is not affected by the wait, but the warning shows for it too: `DbUnitExtension` logs
+one, once for the test class, whenever it runs inside a Spring test-managed transaction, as it
+cannot tell the two testers apart. For a tester with a connection of its own, wrap its
+`DataSource` in a `TransactionAwareDataSourceProxy`, use `@DbUnitSpringTest`, or leave
+`@Transactional` off the test. Under `@DbUnitSpringTest` the transaction ends before the
+verification, so a test that verifies its own changes with `@DbUnitExpected` needs `@Commit`,
+as the ordering section above says.
 
 == When to Use This
 

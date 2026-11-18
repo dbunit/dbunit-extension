@@ -103,6 +103,33 @@ its first dynamic test and verifies it after its last: its dynamic tests share o
 failed dynamic test does not skip the verification, which can fail the factory too. Use a `@ParameterizedTest`
 for a setup per case - see link:annotations.html#testfactory[A @TestFactory Method Is One Test].
 
+[#spring-transactional]
+== Spring Tests With `@Transactional`
+
+Under Spring's `SpringExtension`, a `@Transactional` test runs inside a test-managed transaction
+that starts before `DbUnitExtension` sets up and ends after it has torn down, so the extension
+works inside that window. What happens depends on the tester:
+
+* A tester whose `DataSource` is a `TransactionAwareDataSourceProxy` of the application's
+  `DataSource`, as link:PrepAndExpectedTestCase.html[the PrepAndExpectedTestCase page]
+  configures it, gets the transaction's connection. The prep, the test, the verification and the
+  teardown all run in the transaction, the verification sees the test's changes, and Spring rolls
+  everything back. dbUnit's warning about a connection with autocommit disabled is expected there,
+  as that connection is the transaction's.
+* A tester with a connection of its own does not join the transaction. A teardown of rows that
+  the test method changed waits for the locks of the transaction, which cannot end until the
+  teardown returns: it fails after the database's lock timeout, and on PostgreSQL waits without
+  end. A verification does not see the changes that the transaction has not committed.
+
+The extension cannot tell the two apart, so it logs a warning, once for the test class, whenever
+it runs inside such a transaction, and the warning names both. For a tester with a connection of
+its own, wrap its `DataSource` in a `TransactionAwareDataSourceProxy`, or use
+`@DbUnitSpringTest`, whose listener runs outside the transaction, or leave `@Transactional` off
+the test. Under `@DbUnitSpringTest` the transaction ends before the verification, and a
+rolled-back transaction leaves the test's changes out of it, so a test that verifies its own
+changes with `@DbUnitExpected` needs `@Commit` as well. See
+link:DbUnitTestExecutionListener.html#ordering[the listener page] for the order of the steps.
+
 == Row Count Check
 
 The same link:../components/rowcountcheck.html[RowCountCheck] diagnostic available to

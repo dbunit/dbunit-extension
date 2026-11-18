@@ -25,6 +25,8 @@ import java.lang.reflect.Method;
 import java.sql.Connection;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.dbunit.IDatabaseTester;
 import org.dbunit.PrepAndExpectedTestCase;
@@ -162,6 +164,8 @@ public class DbUnitExtension implements BeforeAllCallback, BeforeEachCallback,
     private final AnnotatedTestOptIn optIn = new AnnotatedTestOptIn(testerFields);
     private final TesterResolver testerResolver =
             new TesterResolver(new TestInstanceTesterResolver(testerFields));
+    private final Set<Class<?>> classesWarnedAboutASpringTestTransaction =
+            ConcurrentHashMap.newKeySet();
 
     /** Creates the extension. */
     public DbUnitExtension()
@@ -216,7 +220,54 @@ public class DbUnitExtension implements BeforeAllCallback, BeforeEachCallback,
     @Override
     public void beforeTestExecution(final ExtensionContext context) throws Exception
     {
+        warnOnceIfInASpringTestTransaction(context);
         resolveExecutor(context).beforeTest();
+    }
+
+    /**
+     * Logs a warning, once for a test class, when the test runs in a transaction that Spring's
+     * test context framework manages, as a {@code @Transactional} test does under
+     * {@code SpringExtension}. This extension runs inside the window of that transaction. A
+     * tester whose {@code DataSource} is a {@code TransactionAwareDataSourceProxy} gets the
+     * transaction's connection, so the prep, the test, the verification and the teardown all run
+     * in the transaction and roll back with it. A tester with a connection of its own waits in
+     * the teardown of rows that the test method changed for the locks of the transaction, which
+     * ends only after the teardown, so it fails after the database's lock timeout and, on a
+     * database without one, as PostgreSQL by default, waits without end; and its verification
+     * does not see the changes that the transaction has not committed. The warning comes before
+     * the test, so it is in the log when a test hangs, and it cannot tell the two testers apart,
+     * so it names both.
+     */
+    private void warnOnceIfInASpringTestTransaction(final ExtensionContext context)
+    {
+        final Class<?> testClass = context.getRequiredTestClass();
+        final SpringTestTransactionCheck springTestTransaction =
+                new SpringTestTransactionCheck(testClass.getClassLoader());
+        final boolean inATransaction = springTestTransaction.getAsBoolean();
+        if (!inATransaction)
+        {
+            return;
+        }
+
+        final boolean firstTimeForTheClass =
+                classesWarnedAboutASpringTestTransaction.add(testClass);
+        if (firstTimeForTheClass)
+        {
+            log.warn("{} runs in a Spring test-managed transaction, and DbUnitExtension runs its"
+                    + " prep, verification and teardown inside that transaction's window. A"
+                    + " tester whose DataSource is a TransactionAwareDataSourceProxy gets the"
+                    + " transaction's connection, so all of it runs in the transaction and rolls"
+                    + " back with it. A tester with a connection of its own waits, in the teardown"
+                    + " of rows that the test method changed, for the locks of the transaction,"
+                    + " which ends only after the teardown: it fails after the database's lock"
+                    + " timeout and on PostgreSQL waits without end, and its verification does"
+                    + " not see what the transaction has not committed. For such a tester, wrap"
+                    + " its DataSource in a TransactionAwareDataSourceProxy, use"
+                    + " @DbUnitSpringTest, whose listener runs outside the transaction and so"
+                    + " needs @Commit on a test that verifies its own changes, or remove"
+                    + " @Transactional.",
+                    testClass.getName());
+        }
     }
 
     /**
