@@ -54,6 +54,10 @@ import org.dbunit.operation.DbUnitOperation;
  * {@link DbUnitExpected} is present - is what the operation runs against. Declaring an extra
  * table to tear down is done by listing it, empty, in the prep dataset instead.
  *
+ * <p>The operation has no default, so the annotation always names one. A test without this
+ * annotation runs the tester's own teardown operation; declare
+ * {@link DbUnitOperation#NONE} to run none for a test, in place of the tester's own.
+ *
  * <p>The teardown operation runs over the rows of both datasets, so one that inserts, such as
  * {@code CLEAN_INSERT}, {@code INSERT} or {@code REFRESH}, leaves those rows in the table when the
  * test ends, and {@code CLEAN_INSERT} and {@code INSERT} fail on a duplicate key when the two
@@ -97,7 +101,7 @@ public @interface DbUnitTearDownOperation
     /**
      * The database operation to apply during teardown.
      *
-     * @return The teardown operation; defaults to {@link DbUnitOperation#NONE}.
+     * @return The teardown operation; {@link DbUnitOperation#NONE} runs none.
      */
-    DbUnitOperation value() default DbUnitOperation.NONE;
+    DbUnitOperation value();
 }

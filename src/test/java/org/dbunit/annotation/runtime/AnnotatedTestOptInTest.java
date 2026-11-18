@@ -38,6 +38,7 @@ import org.dbunit.annotation.DbUnitSetUpOperation;
 import org.dbunit.annotation.DbUnitTearDownOperation;
 import org.dbunit.annotation.DbUnitTestCase;
 import org.dbunit.annotation.DbUnitTester;
+import org.dbunit.operation.DbUnitOperation;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -134,7 +135,7 @@ class AnnotatedTestOptInTest
     @DbUnitPrep("prep.xml")
     @DbUnitSetUpOperation
     @DbUnitExpected("expected.xml")
-    @DbUnitTearDownOperation
+    @DbUnitTearDownOperation(DbUnitOperation.NONE)
     @DbUnitRowCountCheck
     static class AllConfiguringAnnotations
     {

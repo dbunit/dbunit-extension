@@ -347,6 +347,37 @@ class AnnotatedTestConfigurationTest
     }
 
     @Test
+    void testFrom_tearDownDeclaredNone_reportsDeclaredSoItReplacesTheTestersOwn()
+    {
+        final DbUnitTearDownOperation tearDown =
+                WithNoneTearDown.class.getAnnotation(DbUnitTearDownOperation.class);
+
+        final AnnotatedTestConfiguration config = AnnotatedTestConfiguration
+                .from(WithNoneTearDown.class, null, null, null, null, tearDown, null);
+
+        assertThat(config.isTearDownDeclared())
+                .as("An explicit NONE is a declaration, which replaces the tester's own teardown"
+                        + " operation and a class-level operation.")
+                .isTrue();
+        assertThat(config.getTearDownOperation()).as("The declared operation is NONE.")
+                .isEqualTo(DatabaseOperation.NONE);
+    }
+
+    @Test
+    void testFrom_prepDeclaredEmpty_declaresNoFiles()
+    {
+        final DbUnitPrep prep = WithEmptyPrep.class.getAnnotation(DbUnitPrep.class);
+
+        final AnnotatedTestConfiguration config = AnnotatedTestConfiguration
+                .from(WithEmptyPrep.class, null, prep, null, null, null, null);
+
+        assertThat(config.getPrepDataFiles())
+                .as("@DbUnitPrep({}) declares no files, as a method-level override of a class's"
+                        + " files.")
+                .isEmpty();
+    }
+
+    @Test
     void testFrom_tearDownAbsent_reportsNotDeclared()
     {
         final AnnotatedTestConfiguration config = AnnotatedTestConfiguration
@@ -989,6 +1020,16 @@ class AnnotatedTestConfigurationTest
 
     @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
     static class WithTearDown
+    {
+    }
+
+    @DbUnitTearDownOperation(DbUnitOperation.NONE)
+    static class WithNoneTearDown
+    {
+    }
+
+    @DbUnitPrep({})
+    static class WithEmptyPrep
     {
     }
 

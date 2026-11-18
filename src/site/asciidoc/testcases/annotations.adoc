@@ -86,7 +86,7 @@ with its full rules:
 |`@DbUnitSetUpOperation` |The operation to load them with; needed only to replace the tester's own, `CLEAN_INSERT` for dbUnit's built-in testers — see <<prepandsetup>>.
 |`@DbUnitExpected` |Dataset file(s) to verify after the test — see <<expected>>.
 |`@DbUnitVerifyTable`, `@DbUnitColumnComparer` |Full per-table/per-column verify rules, nested inside `@DbUnitExpected` — see <<expected>>.
-|`@DbUnitTearDownOperation` |The cleanup operation to run after the test; defaults to doing nothing — see <<prepandsetup>>.
+|`@DbUnitTearDownOperation` |The cleanup operation to run after the test, in place of the tester's own, which runs when the annotation is absent; `DbUnitOperation.NONE` runs none. The operation is required — see <<prepandsetup>>.
 |`@DbUnitConfig` |Class-level wiring: loader, tester factory, `DatabaseConfig` properties, catalog default, base directory, failure handler — see <<config>>.
 |`@DbUnitProperty` |One `DatabaseConfig` name/value pair, nested inside `@DbUnitConfig` — see <<properties>>.
 |`@DbUnitTester`, `@DbUnitTestCase` |Field markers injecting an already-built `IDatabaseTester` / `PrepAndExpectedTestCase`, in place of the plain-field auto-scan — see <<resolution>>.
@@ -278,7 +278,7 @@ default `@DbUnitSetUpOperation` operation.
 |`DELETE` |Deletes rows matching the dataset.
 |`DELETE_ALL` |Deletes all rows from each table in the dataset.
 |`TRUNCATE_TABLE` |Truncates each table in the dataset.
-|`NONE` |Performs no operation. The default `@DbUnitTearDownOperation` operation.
+|`NONE` |Performs no operation. Declared with `@DbUnitTearDownOperation`, it runs no teardown for the test, in place of the tester's own.
 |===
 
 Data and operation are deliberately separate annotations rather than one
@@ -379,11 +379,18 @@ to the tester, one a `CachingConnectionProvider` caches, or one its tester's lis
 open: they are put back when the test ends — see <<properties>>. A `@TestFactory` method is the
 one exception to a setup per method: see <<testfactory>>.
 
-`@DbUnitTearDownOperation` is the counterpart of `@DbUnitSetUpOperation`, defaulting to
-`DbUnitOperation.NONE`. It has no data annotation of its own: the dataset
+`@DbUnitTearDownOperation` is the counterpart of `@DbUnitSetUpOperation`, but its operation has
+no default: it is required, as it replaces the teardown operation that the tester has, and a
+bare `@DbUnitTearDownOperation` would replace that with nothing. A test without the annotation
+runs the tester's own teardown operation; `@DbUnitTearDownOperation(DbUnitOperation.NONE)` runs
+none, also for a test whose class declares another operation. The teardown operation has no
+data annotation of its own: the dataset
 already prepared (prep, plus expected when there is one) is what the
 operation runs against. To tear down an extra table, list it — empty — in
 the prep dataset instead.
+
+Like `@DbUnitTearDownOperation`, `@DbUnitPrep` has no default: it always names its files, and
+`@DbUnitPrep({})` declares none, for a test method that must not load the files of its class.
 
 [#testfactory]
 === A @TestFactory Method Is One Test
@@ -985,8 +992,9 @@ wrongly listed (whose count went *down*).
 
 Because the baseline is taken before `@DbUnitPrep`, a passing check means teardown
 returned the database to its *pre-prep* state — the prep data removed too, not just the
-test's own writes. `@DbUnitRowCountCheck` with `@DbUnitPrep` and no `@DbUnitTearDownOperation` (the
-`NONE` default) therefore *fails*: the prep rows are still there. Pair it with
+test's own writes. `@DbUnitRowCountCheck` with `@DbUnitPrep` and no teardown, neither a
+`@DbUnitTearDownOperation` nor a tester whose own teardown operation deletes, therefore *fails*:
+the prep rows are still there. Pair it with
 `@DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)`, as the example below does. That
 assumes the prep tables are empty at the baseline. A prep table that already holds rows, such
 as seed data, loses them to the default `CLEAN_INSERT` setup, so its count goes *down*: declare
