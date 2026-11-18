@@ -5751,11 +5751,6 @@ class AnnotatedTestExecutorTest
     {
     }
 
-    @DbUnitTearDownOperation
-    static class WithBareTearDown
-    {
-    }
-
     @DbUnitRowCountCheck
     static class WithBareRowCountCheck
     {

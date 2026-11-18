@@ -576,9 +576,8 @@ class TestCaseLifecycle
      * on: every such operation ({@code CLEAN_INSERT}, {@code INSERT}, {@code REFRESH},
      * {@code UPDATE}, {@code DELETE}, {@code DELETE_ALL}, {@code TRUNCATE_TABLE}) needs one, and
      * a bare {@code @DbUnitSetUpOperation} resolves to {@code CLEAN_INSERT}, so that is the
-     * likely shape of the mistake on the setup side; a bare {@code @DbUnitTearDownOperation}
-     * resolves to {@code NONE}, so on the teardown side reaching this warning means the
-     * operation was set explicitly. The teardown operation also acts on the expected datasets.
+     * likely shape of the mistake on the setup side. The teardown operation also acts on the
+     * expected datasets.
      * The dataset a tester holds is not one to act on, see
      * {@link #warnIfTestersDataSetIsIgnored()}.
      *

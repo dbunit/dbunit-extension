@@ -95,9 +95,11 @@ import java.lang.annotation.Target;
 public @interface DbUnitPrep
 {
     /**
-     * Classpath resource paths for the prep dataset files to load.
+     * Classpath resource paths for the prep dataset files to load. The annotation always names
+     * them, so it declares the files the test needs. An empty array, {@code @DbUnitPrep({})},
+     * declares none, which on a test method replaces the files of a class-level annotation.
      *
      * @return Zero or more dataset resource paths.
      */
-    String[] value() default {};
+    String[] value();
 }
