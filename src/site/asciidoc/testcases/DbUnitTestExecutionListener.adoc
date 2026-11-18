@@ -325,6 +325,13 @@ What follows from that:
   connection; only a transaction that something else opens around this
   listener's phases, such as a listener of your own ordered before it, could be
   joined that way, and then the tester needs the underlying `DataSource`.
+* *The tester's connection stays checked out of the pool while the test runs.* The test case
+  takes it for the prep and holds it through the test method until the teardown, so the
+  `DataSource` of the application needs a connection more than the test uses. With a pool of
+  one, the `@Transactional` test cannot open its transaction: it waits for the pool's timeout
+  and fails with a `CannotCreateTransactionException` that does not name dbUnit. Size the
+  pool for both, or give the tester a `DataSource` of its own. See
+  link:annotations.html#connection-ownership[Who Closes the Connection].
 * *`@DbUnitExpected` sees only what the transaction committed.* A test that
   changes data in a rolled-back transaction is verified against the database
   as the rollback left it, so such a test fails against an expected dataset

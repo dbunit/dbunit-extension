@@ -797,6 +797,16 @@ open too. A tester that is not given the no-op listener only costs a new
 connection per test when it shares a `CachingConnectionProvider`, which replaces a closed
 connection.
 
+*The connection is held for the whole test.* The test case takes its connection for the prep,
+keeps it through the test method, and uses it again for the verification and the teardown, so
+a pooled connection is checked out of the pool from before the prep until after the teardown,
+not only while dbUnit's steps run. A test whose own code takes a connection from the same
+pool, such as a Spring `@Transactional` test or a repository under test, therefore needs a
+pool with one connection more than the test uses: a pool of one, as some projects configure to
+catch connection leaks or for SQLite, cannot give the test its own connection, which waits for
+the pool's timeout (30 seconds with HikariCP) and then fails in the test's code, far from
+dbUnit. Size the pool for the test and dbUnit, or give the tester its own `DataSource`.
+
 A tester over one fixed connection, such as a `DefaultDatabaseTester` built on an
 `IDatabaseConnection`, cannot replace a closed connection, so it needs the no-op listener: with
 any other listener, one that only configures each connection's `DatabaseConfig` in
