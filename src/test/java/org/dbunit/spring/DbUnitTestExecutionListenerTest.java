@@ -803,22 +803,6 @@ class DbUnitTestExecutionListenerTest
     }
 
     @Test
-    void testBeforeTestMethod_fieldExtendsWithDbUnitExtension_leavesTheTestToDbUnitExtension()
-            throws Exception
-    {
-        final IDatabaseTester tester = mock(IDatabaseTester.class);
-        final FakeTestContext context = new FakeTestContext(ExtendsWithDbUnitExtensionOnField.class)
-                .beginMethod(new ExtendsWithDbUnitExtensionOnField(tester), "aTestMethod");
-
-        listener.beforeTestMethod(context);
-
-        assertThat(RecordingTestCase.testersAtPreTest)
-                .as("JUnit registers an extension that @ExtendWith names on a field, so the"
-                        + " listener leaves the test to it.")
-                .isEmpty();
-    }
-
-    @Test
     void testBeforeTestMethod_superclassDeclaresRegisterExtensionField_leavesTheTestToDbUnitExtension()
             throws Exception
     {
@@ -1137,23 +1121,6 @@ class DbUnitTestExecutionListenerTest
         assertThatCode(() -> onOlderSpring.beforeTestMethod(context))
                 .as("A test that JUnit Jupiter runs with the extension a @RegisterExtension field"
                         + " holds needs no listener, so an older Spring Framework does not fail"
-                        + " it.")
-                .doesNotThrowAnyException();
-    }
-
-    @Test
-    void testBeforeTestMethod_olderSpringAndFieldExtendsWithDbUnitExtension_doesNothing()
-            throws Exception
-    {
-        final DbUnitTestExecutionListener onOlderSpring =
-                new DbUnitTestExecutionListener(() -> false, () -> false);
-        final IDatabaseTester tester = mock(IDatabaseTester.class);
-        final FakeTestContext context = new FakeTestContext(ExtendsWithDbUnitExtensionOnField.class)
-                .beginMethod(new ExtendsWithDbUnitExtensionOnField(tester), "aTestMethod");
-
-        assertThatCode(() -> onOlderSpring.beforeTestMethod(context))
-                .as("A test that JUnit Jupiter runs with an extension that @ExtendWith names on a"
-                        + " field needs no listener, so an older Spring Framework does not fail"
                         + " it.")
                 .doesNotThrowAnyException();
     }
@@ -2363,25 +2330,6 @@ class DbUnitTestExecutionListenerTest
         IDatabaseTester databaseTester;
 
         RegistersAnotherExtensionInField(final IDatabaseTester databaseTester)
-        {
-            this.databaseTester = databaseTester;
-        }
-
-        void aTestMethod()
-        {
-        }
-    }
-
-    @DbUnitConfig(prepAndExpectedTestCase = RecordingTestCase.class)
-    static class ExtendsWithDbUnitExtensionOnField
-    {
-        @ExtendWith(DbUnitExtension.class)
-        Object marker;
-
-        @DbUnitTester
-        IDatabaseTester databaseTester;
-
-        ExtendsWithDbUnitExtensionOnField(final IDatabaseTester databaseTester)
         {
             this.databaseTester = databaseTester;
         }

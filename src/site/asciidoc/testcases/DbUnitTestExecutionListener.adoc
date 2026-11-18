@@ -105,7 +105,8 @@ test and the second leaves it alone.
 Older Spring Framework versions are not supported. dbUnit builds and tests the
 listener against the Spring Framework version that the
 link:../dependencies.html[Dependencies] report of this dbUnit release lists for
-`spring-test` and `spring-context`. As the listener is one of Spring's default
+`spring-test` and `spring-context`, and also runs its unit tests against Spring Framework 6.2
+on every build. As the listener is one of Spring's default
 listeners, it also runs for the Spring tests of a project that uses dbUnit only
 with `DbUnitExtension`. On a Spring Framework older than 6.0 it does nothing for
 them, logging that once, and fails a test that uses a `@DbUnit*` annotation
