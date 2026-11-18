@@ -133,8 +133,10 @@ compares again with both tables sorted by only the compared columns. If that pas
 failure carries (since 3.6.0) a suppressed exception that says so and names
 `setSortOnFilteredColumnsOnly(true)` as the remedy, and the same text is logged as a warning,
 for a build that trims stack traces, such as Surefire with `trimStackTrace` set to `true`. A
-`DiffCollectingFailureHandler` throws no failure to carry the suppressed exception, so with it
-the text is only logged as a warning, once for the table.
+`DiffCollectingFailureHandler` throws no failure while it collects, so with it the text is
+logged as a warning, once for the table, and given to the handler, whose failure for the
+collected differences, which the annotation-driven tests fail with, carries it as the
+suppressed exception.
 Nothing is added when the comparison passes, which it can when the omitted columns sort the
 same way, or when it also fails sorted that way, as it does for a different row count, a
 different set of columns or a genuine difference in the data.
@@ -176,8 +178,9 @@ sequence of generated ids compared with `isActualGreaterThanOrEqualToExpected` s
 the rows; give its expected rows bounds in the order of the actual ids, such as 1, 2 and 3.
 When a comparison fails while such a column kept its place, and it passes with every column
 that has a comparer sorted last, the failure carries (since 3.6.0) a suppressed exception
-that names those columns, and the same text is logged as a warning, which is all a
-`DiffCollectingFailureHandler` gets, as it throws nothing: their expected values,
+that names those columns, and the same text is logged as a warning; a
+`DiffCollectingFailureHandler` carries it on the failure it creates for the collected
+differences. Their expected values,
 for example the same bound in every row, do not order the rows. Give them values in the order
 of the actual ones, or compare such a column with a comparer whose
 `isSortableByExpectedValue()` returns `false`, such as a subclass of its comparer that

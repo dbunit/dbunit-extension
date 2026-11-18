@@ -728,8 +728,32 @@ have to reimplement dataset loading, comparison, and cleanup — see
 |`dataSetBaseDir` |A classpath directory prefix — see <<paths>> below.
 
 |`failureHandler` |A `FailureHandler` for verification failures, in place of
-dbUnit's own default.
+dbUnit's own default. See <<failure-handler>>.
 |===
+
+[#failure-handler]
+*A failure handler that collects.* dbUnit's own handler fails the test at the first value that
+differs. A `DiffCollectingFailureHandler` does not throw: it collects every difference, so the
+verification can show them all in one run. The annotations verify after the test method has
+returned, where no code of yours can read what the handler collected, so dbUnit reads it: it
+runs the verification and the teardown, then fails the test with the collected differences,
+one in the message for each, with its table, row, column and the two values. The failure is the
+same kind for one difference and for several: with the default failure factory a
+`DbComparisonFailure`, an `AssertionError`, whose expected and actual text hold one line for
+each difference. This holds for a
+handler named with `@DbUnitConfig(failureHandler = DiffCollectingFailureHandler.class)` and
+for one set on an injected test case. A difference in the number of rows still fails at
+once, as it does with any handler. When the differences come from rows that the sort lined up
+against the wrong counterparts, the failure carries the hint of the
+link:../components/verifytabledefinition.html#sortmode[sort mode] as a suppressed exception, and the
+log has it as a warning. An injected instance that is `static` or reused keeps its
+handler from test to test, so dbUnit empties the collected differences and hints before each
+verification: a test never fails for the differences of an earlier test.
+
+A handler that dbUnit instantiates for `failureHandler` has no `additionalColumnInfo`, the
+key columns that dbUnit adds to the failure of its own default handler to name the row.
+A handler class of your own with a no-argument constructor can supply the columns itself, for
+example as a `DefaultFailureHandler` subclass that passes them to the super constructor.
 
 *Declarations merge attribute by attribute.* A test can be in scope of several `@DbUnitConfig`
 declarations at once: on its class, on its superclasses, on the annotations composed into any
@@ -853,6 +877,9 @@ private static DefaultPrepAndExpectedTestCase newTestCase()
     return testCase;
 }
 ----
+
+The collecting handler of this example does not make the verification pass: dbUnit fails the
+test with the differences that it collected, see <<failure-handler>>.
 
 dbUnit drives the instance around every test, so the test method does not. A test method
 that drives it too, with `runTest()`, or with `configureTest()`, `preTest()` and

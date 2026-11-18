@@ -20,10 +20,12 @@
  */
 package org.dbunit;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.dbunit.assertion.DbComparisonFailure;
+import org.dbunit.assertion.DiffCollectingFailureHandler;
 import org.dbunit.database.IDatabaseConnection;
 import org.dbunit.operation.DatabaseOperation;
 import org.dbunit.util.fileloader.DataFileLoader;
@@ -101,6 +103,32 @@ class DefaultPrepAndExpectedTestCaseGeneratedIdRowOrderIT
                         + " default may have changed - see this class's"
                         + " Javadoc.")
                 .isInstanceOf(DbComparisonFailure.class);
+    }
+
+    @Test
+    void testVerifyData_collectingHandlerAndDefaultSort_rowsInsertedInDifferentOrderButSameData_failureCarriesTheSortHint()
+            throws Exception
+    {
+        final DefaultPrepAndExpectedTestCase tc = makeTestCase();
+        final DiffCollectingFailureHandler collectingHandler = new DiffCollectingFailureHandler();
+        tc.setFailureHandler(collectingHandler);
+        tc.configureTest(makeVerifyTableDefinitions(false),
+                new String[] {PREP_DATA_FILE_NAME},
+                new String[] {EXPECTED_MATCH_DATA_FILE_NAME});
+        tc.preTest();
+
+        assertThatCode(() -> tc.postTest())
+                .as("A collecting handler does not throw for the misaligned rows.")
+                .doesNotThrowAnyException();
+
+        assertThat(collectingHandler.getDiffList())
+                .as("The same-data rows were compared against the wrong counterparts.")
+                .isNotEmpty();
+        assertThat(collectingHandler.createFailureForCollectedDifferences().getSuppressed())
+                .as("The failure for the collected differences says that sorting on the"
+                        + " filtered columns only is the remedy.")
+                .singleElement().extracting(Throwable::getMessage).asString()
+                .contains("setSortOnFilteredColumnsOnly(true)");
     }
 
     @Test

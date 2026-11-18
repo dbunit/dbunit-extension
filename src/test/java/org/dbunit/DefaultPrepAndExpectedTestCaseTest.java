@@ -2058,6 +2058,15 @@ class DefaultPrepAndExpectedTestCaseTest
                             + " is logged, once, naming the table and the setting.")
                     .singleElement().asString().contains("TEST_TABLE")
                     .contains("setSortOnFilteredColumnsOnly(true)");
+            assertThat(collectingHandler.getHints())
+                    .as("The handler holds the remedy too, for the failure it creates for the"
+                            + " collected differences.")
+                    .singleElement().isInstanceOf(DatabaseUnitRuntimeException.class)
+                    .extracting(Throwable::getMessage).asString()
+                    .contains("setSortOnFilteredColumnsOnly(true)");
+            assertThat(collectingHandler.createFailureForCollectedDifferences().getSuppressed())
+                    .as("The failure for the collected differences carries the remedy.")
+                    .containsExactlyElementsOf(collectingHandler.getHints());
         } finally
         {
             stopCapturingLogOf(DefaultPrepAndExpectedTestCase.class, appender);
@@ -2091,6 +2100,12 @@ class DefaultPrepAndExpectedTestCaseTest
                     .singleElement().asString().contains("table 'ACCOUNT'")
                     .contains("comparers of ID can order")
                     .contains("isSortableByExpectedValue() returns false");
+            assertThat(collectingHandler.getHints())
+                    .as("The handler holds the hint too, for the failure it creates for the"
+                            + " collected differences.")
+                    .singleElement().isInstanceOf(DatabaseUnitRuntimeException.class)
+                    .extracting(Throwable::getMessage).asString()
+                    .contains("comparers of ID can order");
         } finally
         {
             stopCapturingLogOf(DefaultPrepAndExpectedTestCase.class, appender);
@@ -2118,6 +2133,8 @@ class DefaultPrepAndExpectedTestCaseTest
                     .as("The comparison does not pass sorted by the compared columns either, so"
                             + " no sort setting explains it and no hint is logged.")
                     .isEmpty();
+            assertThat(collectingHandler.getHints())
+                    .as("No hint is added to the handler either.").isEmpty();
         } finally
         {
             stopCapturingLogOf(DefaultPrepAndExpectedTestCase.class, appender);

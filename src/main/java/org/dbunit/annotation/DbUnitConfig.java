@@ -210,6 +210,18 @@ public @interface DbUnitConfig
      * naming the implementation and this attribute: set the handler where the instance is
      * built.
      *
+     * <p>The handler brings its own row information: dbUnit does not give it the
+     * {@code additionalColumnInfo} that it gives its own default handler, so a failure of a
+     * handler created here does not name the key columns of the row.
+     *
+     * <p>A handler that does not throw on a value that differs, such as
+     * {@link org.dbunit.assertion.DiffCollectingFailureHandler}, does not make the verification
+     * pass silently: after the test method has returned and the verification and the teardown
+     * have run, dbUnit fails the test with the collected differences, all of them in one
+     * message. With the default failure factory the failure is a
+     * {@link org.dbunit.assertion.DbComparisonFailure} for one difference and for several. A
+     * difference in the number of rows still fails at once.
+     *
      * @return The failure handler class, reflectively instantiated with its no-arg
      *         constructor; the interface itself (the default) means "not set".
      */
