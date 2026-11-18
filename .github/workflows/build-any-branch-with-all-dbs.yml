@@ -47,7 +47,7 @@ jobs:
   oldest-supported-versions:
     # Waits for the unit test job so that it, not this job, saves the Maven cache that the jobs of
     # this workflow restore: the cache key is the hash of the pom, the first job to finish saves
-    # it, and this job resolves fewer dependencies than the tests need.
+    # it.
     needs: [compile-and-unit-test]
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -67,6 +67,18 @@ jobs:
     # 6.2 or later. Keep the version here in step with that page.
     - name: Compile against Spring Framework 6.2.0
       run: ${{ env.MAVEN_COMMAND }} ${{ env.MAVEN_CLI_COMMON }} clean compile -DspringFrameworkVersion=6.2.0
+    # Compiling does not catch a binding that relies on behavior which changed after the oldest
+    # versions: the order and the context of the extension callbacks, the store lookup through the
+    # parent contexts and the handling of @Nested classes in JUnit Jupiter, the listener ordering
+    # and the TestContext attributes in Spring. So run the unit tests of the bindings against both
+    # oldest versions together. The oldest-supported-versions profile of the pom sets them and
+    # leaves out the few test classes that need newer ones; naming it switches off the profiles
+    # that are active by default, so name those too.
+    - name: Test the bindings against JUnit Jupiter 5.7.0 and Spring Framework 6.2.0
+      run: >-
+        ${{ env.MAVEN_COMMAND }} ${{ env.MAVEN_CLI_COMMON }} clean test
+        -Poldest-supported-versions,hsqldb-2-7,oracle-default
+        "-Dtest=org.dbunit.junit.**.*Test,org.dbunit.annotation.**.*Test,org.dbunit.spring.*Test"
 
   ITs:
     needs: [compile-and-unit-test]
