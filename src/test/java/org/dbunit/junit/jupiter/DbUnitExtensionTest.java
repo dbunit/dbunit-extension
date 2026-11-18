@@ -36,7 +36,10 @@ import static org.mockito.Mockito.when;
 import java.lang.reflect.Method;
 import java.sql.Connection;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
 
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.dbunit.IDatabaseTester;
@@ -297,6 +300,7 @@ class DbUnitExtensionTest
     void testSupportsParameter_supportedTypes_returnsTrue() throws Exception
     {
         doReturn(AnnotationDrivenHost.class).when(context).getRequiredTestClass();
+        givenAStoreThatComputesItsValues(context);
         for (final Class<?> methodParam : new Class<?>[] {IDatabaseTester.class,
                 IDatabaseConnection.class})
         {
@@ -362,6 +366,7 @@ class DbUnitExtensionTest
     void testSupportsParameter_markerFieldButNoAnnotation_returnsTrue() throws Exception
     {
         doReturn(HasTester.class).when(context).getRequiredTestClass();
+        givenAStoreThatComputesItsValues(context);
         final Method method = ParameterHost.class
                 .getDeclaredMethod("withIDatabaseTester", IDatabaseTester.class);
         final ParameterContext parameterContext = mock(ParameterContext.class);
@@ -373,6 +378,31 @@ class DbUnitExtensionTest
                 .as("A @DbUnitTester field alone - no @DbUnit* class/method annotation - still"
                         + " opts the test into parameter injection.")
                 .isTrue();
+    }
+
+    @Test
+    void testSupportsParameter_secondInstanceForTheSameTest_returnsFalse() throws Exception
+    {
+        doReturn(AnnotationDrivenHost.class).when(context).getRequiredTestClass();
+        givenAStoreThatComputesItsValues(context);
+        final Method method = ParameterHost.class
+                .getDeclaredMethod("withIDatabaseConnection", IDatabaseConnection.class);
+        final ParameterContext parameterContext = mock(ParameterContext.class);
+        when(parameterContext.getParameter()).thenReturn(method.getParameters()[0]);
+        when(parameterContext.getDeclaringExecutable()).thenReturn(method);
+        when(context.getTestMethod()).thenReturn(Optional.of(method));
+        final DbUnitExtension registeredInstance = new DbUnitExtension();
+
+        final boolean firstClaims = extension.supportsParameter(parameterContext, context);
+        final boolean secondClaims =
+                registeredInstance.supportsParameter(parameterContext, context);
+        final boolean firstClaimsAgain = extension.supportsParameter(parameterContext, context);
+
+        assertThat(new boolean[] {firstClaims, secondClaims, firstClaimsAgain})
+                .as("With the extension registered twice for one test, only the instance asked"
+                        + " first may claim the parameter, every time it is asked, or JUnit fails"
+                        + " the test with competing parameter resolvers.")
+                .containsExactly(true, false, true);
     }
 
     @Test
@@ -394,6 +424,21 @@ class DbUnitExtensionTest
                 .as("A matching parameter type declared on a method that is neither the"
                         + " current test method nor annotated @BeforeEach must not be claimed.")
                 .isFalse();
+    }
+
+    /**
+     * Gives the context a store that keeps what {@code getOrComputeIfAbsent()} computes, as the
+     * store of a test does.
+     */
+    @SuppressWarnings({"deprecation", "unchecked"})
+    private static void givenAStoreThatComputesItsValues(final ExtensionContext context)
+    {
+        final Map<Object, Object> values = new HashMap<>();
+        final ExtensionContext.Store store = mock(ExtensionContext.Store.class);
+        when(store.getOrComputeIfAbsent(any(), any())).thenAnswer(invocation -> values
+                .computeIfAbsent(invocation.getArgument(0),
+                        invocation.<Function<Object, Object>>getArgument(1)));
+        when(context.getStore(any(ExtensionContext.Namespace.class))).thenReturn(store);
     }
 
     @Test

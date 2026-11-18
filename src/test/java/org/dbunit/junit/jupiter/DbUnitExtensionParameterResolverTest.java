@@ -49,6 +49,7 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.ParameterContext;
 import org.junit.jupiter.api.extension.ParameterResolutionException;
 import org.junit.jupiter.api.extension.ParameterResolver;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.platform.engine.TestExecutionResult;
@@ -79,6 +80,29 @@ class DbUnitExtensionParameterResolverTest
         assertThat(InjectionSample.injectedInTest)
                 .as("A @Test parameter must receive the resolved tester.")
                 .isSameAs(InjectionSample.TESTER);
+    }
+
+    @Test
+    void testResolveParameter_extensionRegisteredTwice_oneInstanceResolvesTheParameters()
+    {
+        RegisteredTwiceInjectionSample.injectedInBeforeEach = null;
+        RegisteredTwiceInjectionSample.injectedInTest = null;
+
+        EngineTestKit.engine("junit-jupiter")
+                .selectors(selectClass(RegisteredTwiceInjectionSample.class))
+                .execute()
+                .testEvents()
+                .assertStatistics(stats -> stats.started(1).succeeded(1));
+
+        assertThat(RegisteredTwiceInjectionSample.injectedInBeforeEach)
+                .as("With the extension registered by @DbUnitTest and by a @RegisterExtension"
+                        + " field, one instance must claim a @BeforeEach parameter, not both,"
+                        + " which JUnit rejects as competing resolvers.")
+                .isSameAs(RegisteredTwiceInjectionSample.TESTER);
+        assertThat(RegisteredTwiceInjectionSample.injectedInTest)
+                .as("With the extension registered twice, one instance must claim a @Test"
+                        + " parameter, not both.")
+                .isSameAs(RegisteredTwiceInjectionSample.TESTER);
     }
 
     @Test
@@ -256,6 +280,32 @@ class DbUnitExtensionParameterResolverTest
         static IDatabaseTester injectedInTest;
 
         // @DbUnitTester (rather than a plain field) so the class opts into parameter injection.
+        @DbUnitTester
+        IDatabaseTester databaseTester = TESTER;
+
+        @BeforeEach
+        void beforeEach(final IDatabaseTester tester)
+        {
+            injectedInBeforeEach = tester;
+        }
+
+        @Test
+        void testParameterInjected(final IDatabaseTester tester)
+        {
+            injectedInTest = tester;
+        }
+    }
+
+    @DbUnitTest
+    static class RegisteredTwiceInjectionSample
+    {
+        static final IDatabaseTester TESTER = new NoOpTester();
+        static IDatabaseTester injectedInBeforeEach;
+        static IDatabaseTester injectedInTest;
+
+        @RegisterExtension
+        static DbUnitExtension dbUnit = new DbUnitExtension();
+
         @DbUnitTester
         IDatabaseTester databaseTester = TESTER;
 

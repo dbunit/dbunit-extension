@@ -219,6 +219,65 @@ class AnnotatedTestExecutorTest
         verify(tester).onSetup();
     }
 
+    // ---- a second registration of the extension shares the executor of the test ----
+
+    @Test
+    void testBeforeTest_calledTwiceOnTheClassicPath_runsOnSetupOnce() throws Exception
+    {
+        final RecordingAbstractDatabaseTester sharedTester = new RecordingAbstractDatabaseTester();
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithNothing.class), sharedTester, null, false);
+
+        executor.beforeTest();
+        executor.beforeTest();
+
+        assertThat(sharedTester.setUpOperationsRun)
+                .as("A second beforeTest() of the same test, as a second registration of the"
+                        + " extension makes, must not set the database up again.")
+                .hasSize(1);
+    }
+
+    @Test
+    void testAfterTest_calledTwiceOnTheClassicPath_runsOnTearDownOnce() throws Exception
+    {
+        final RecordingAbstractDatabaseTester sharedTester = new RecordingAbstractDatabaseTester();
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithNothing.class), sharedTester, null, false);
+        executor.beforeTest();
+
+        executor.afterTest(false);
+        executor.afterTest(false);
+
+        assertThat(sharedTester.tearDownOperationsRun)
+                .as("A second afterTest() of the same test must not tear the database down"
+                        + " again.")
+                .hasSize(1);
+    }
+
+    @Test
+    void testBeforeTestAndAfterTest_calledTwiceOnTheAnnotationDrivenPath_runEachStepOnce()
+            throws Exception
+    {
+        final RecordingAbstractDatabaseTester ownTester = new RecordingAbstractDatabaseTester();
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(BuildsRecordingTestCase.class), ownTester, null);
+
+        executor.beforeTest();
+        executor.beforeTest();
+        executor.afterTest(false);
+        executor.afterTest(false);
+
+        final RecordingPrepAndExpectedTestCase testCase =
+                RecordingPrepAndExpectedTestCase.instance;
+        assertThat(testCase.preTestCount)
+                .as("preTest() runs once, however often the extensions call beforeTest().")
+                .isEqualTo(1);
+        assertThat(testCase.postTestCount)
+                .as("postTest(), which verifies and tears down, runs once, however often the"
+                        + " extensions call afterTest().")
+                .isEqualTo(1);
+    }
+
     // ---- teardown: the classic path's onTearDown(), and a failing postTest() ----
 
     @Test
@@ -5875,6 +5934,8 @@ class AnnotatedTestExecutorTest
 
         boolean preTestCalled;
         boolean postTestCalled;
+        int preTestCount;
+        int postTestCount;
 
         DatabaseOperation setUpOperationInEffect() throws Exception
         {
@@ -5908,12 +5969,14 @@ class AnnotatedTestExecutorTest
         public void preTest()
         {
             preTestCalled = true;
+            preTestCount++;
         }
 
         @Override
         public void postTest(final boolean verifyData)
         {
             postTestCalled = true;
+            postTestCount++;
         }
     }
 
