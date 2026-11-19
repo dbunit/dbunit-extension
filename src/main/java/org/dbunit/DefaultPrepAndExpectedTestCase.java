@@ -1214,10 +1214,14 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * When {@code verifyData} is false - the test steps already failed - discards any
      * captured row count check baseline, so cleanupData() skips that check too: the database
      * is in an unknown state, so a count difference would be noise around the real failure,
-     * not a finding worth its own report. A verification failure discards it the same way,
-     * so cleanupData() does not throw a row count difference in its place: the comparison
-     * failure names what differs and is the one to fix first, while a cleanup failure still
-     * shadows it as before.
+     * not a finding worth its own report. A verification failure that is thrown discards it
+     * the same way, so cleanupData() does not throw a row count difference in its place: the
+     * comparison failure names what differs and is the one to fix first, while a cleanup
+     * failure still shadows it as before. A {@link DiffCollectingFailureHandler} throws
+     * nothing for a value that differs, so the baseline stays and cleanupData() still throws a
+     * row count difference; the differences stay in the handler for the caller to read, and
+     * the annotation-driven lifecycle fails the test with them and attaches the row count
+     * difference as a suppressed exception.
      */
     @Override
     public void postTest(final boolean verifyData) throws Exception

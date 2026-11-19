@@ -750,7 +750,11 @@ same kind for one difference and for several: with the default failure factory a
 each difference. This holds for a
 handler named with `@DbUnitConfig(failureHandler = DiffCollectingFailureHandler.class)` and
 for one set on an injected test case. A difference in the number of rows still fails at
-once, as it does with any handler. When the differences come from rows that the sort lined up
+once, as it does with any handler. When the row count check, which runs after the teardown, finds a
+difference too, as it does for a test that writes a wrong value and also leaves a row in a table
+that no dataset lists, the collected differences are the failure and the
+link:../components/rowcountcheck.html[row count] difference is attached to it as a suppressed
+exception, so the one cause is not hidden by the other. When the differences come from rows that the sort lined up
 against the wrong counterparts, the failure carries the hint of the
 link:../components/verifytabledefinition.html#sortmode[sort mode] as a suppressed exception, and the
 log has it as a warning. An injected instance that is `static` or reused keeps its

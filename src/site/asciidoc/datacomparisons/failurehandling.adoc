@@ -56,7 +56,10 @@ The annotation-driven tests (`DbUnitExtension`, `DbUnitTestExecutionListener`) a
 test fails after the verification and the teardown, with the collected differences. See
 link:../testcases/annotations.html#failure-handler[the annotations page].
 A `DefaultPrepAndExpectedTestCase` that you run yourself with `runTest()` or `postTest()` keeps
-the handler's list for you to read, as in the example above.
+the handler's list for you to read, as in the example above. When the row count check is on and
+finds a difference too, `postTest()` throws its `UnexpectedRowCountException`, as a collecting
+handler does not discard the check's baseline, and the list is still there to read; the
+annotation-driven tests attach that exception to the failure of the collected differences.
 
 When the sort lines rows of a verified table up against the wrong counterparts, the many
 differences that follow have one cause. A `DefaultPrepAndExpectedTestCase` that finds

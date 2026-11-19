@@ -326,7 +326,10 @@ class TestCaseLifecycle
      * <p>A {@link DefaultPrepAndExpectedTestCase} whose failure handler is a
      * {@link DiffCollectingFailureHandler}, which does not throw on a value that differs, fails
      * the test with the differences it collected, after the teardown has run: see
-     * {@link #failIfDifferencesWereCollected(DiffCollectingFailureHandler)}.
+     * {@link #failIfDifferencesWereCollected(DiffCollectingFailureHandler)}. When the row count
+     * check found a difference too, the collected differences are the failure and the row count
+     * difference, with its hint, is attached to it as a suppressed exception, as the value
+     * differences are the ones to fix first.
      *
      * @param testFailed Whether the test method itself already threw.
      * @throws IllegalStateException If the test method configured an injected
@@ -348,6 +351,17 @@ class TestCaseLifecycle
         } catch (final UnexpectedRowCountException rowCountFailure)
         {
             final UnexpectedRowCountException hinted = withHintForUnclearedPrep(rowCountFailure);
+            final DiffCollectingFailureHandler collectingHandler = collectingFailureHandler();
+            final boolean differencesCollected = collectingHandler != null
+                    && !collectingHandler.getDiffList().isEmpty();
+            if (differencesCollected)
+            {
+                final Error collectedFailure =
+                        collectingHandler.createFailureForCollectedDifferences();
+                collectedFailure.addSuppressed(hinted);
+                undoConfigurationSuppressing(collectedFailure);
+                throw collectedFailure;
+            }
             undoConfigurationSuppressing(hinted);
             throw hinted;
         } catch (final Throwable primaryFailure)
