@@ -220,6 +220,9 @@
       <action dev="jeffjensen" type="fix" issue="1054" system="github" due-to="jeffjensen">
           Fix YamlDataSet.write() writing a NUMERIC or DECIMAL value without a fraction, such as the id of a NUMERIC(30,0) column, with the tag !!float, which YamlDataSet reads as a double, so a value of more than about 15 digits changed when the document was read and an export did not verify against the table it came from. A decimal without a fraction is now written as an integer, which reads back with every digit. A document that an earlier release wrote holds the tag, and the reader keeps the type that an explicit tag names, so write such a document again.
       </action>
+      <action dev="jeffjensen" type="fix" issue="1055" system="github" due-to="jeffjensen">
+          Fix JsonDataSet and YamlDataSet reading a column that the rows of a table spell in two cases, such as ID in one row and id in another, as two columns, which made CLEAN_INSERT fail with the database's duplicate column error and a verification crash with an ArrayIndexOutOfBoundsException, where Flat XML reads the same rows as one column: both producers now match column names ignoring case, as the rest of dbUnit does, so a later row's value goes to the column of the earlier row, which keeps the spelling of its first appearance, and YamlDataSet rejects a column named twice in one row in two cases with a DataSetException that names the table, the row and both spellings, as JsonDataSet does. Release 3.5.3 behaves the same.
+      </action>
     </release>
     <release version="3.5.3" date="Nov 17, 2026" description="DefaultPrepAndExpectedTestCase verification fixes: line up equal rows when sorting the expected and the actual table, and list only the compared columns in a failure message">
       <action dev="robertonr" type="update" issue="994" system="github" due-to="robertonr">Make loggers static final for performance.</action>

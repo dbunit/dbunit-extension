@@ -53,11 +53,11 @@ import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
@@ -395,12 +395,16 @@ public class YamlProducer implements IDataSetProducer
      *
      * <p>An empty or comment-only document produces an empty dataset, and a document whose root
      * is not a mapping of table names to rows is rejected, as is a document that cannot be
-     * parsed, such as one with a syntax error or a second document, a key named twice, a table
+     * parsed, such as one with a syntax error or a second document, a key named twice, a column
+     * named twice in one row in two cases, such as {@code ID} and {@code id}, a table
      * that is not a list of rows, a row that is not a mapping of column names to values, a
      * table or column name that is not a string, and a cell that is a list or a mapping, which
      * YAML builds from an unquoted value that starts with a square bracket or a curly brace,
      * such as {@code [NULL]}, so such a value needs quotes. A row with no value is a row of
-     * nulls, as in {@link org.dbunit.dataset.json.JsonProducer}. The consumer is told the
+     * nulls, as in {@link org.dbunit.dataset.json.JsonProducer}. Column names are matched
+     * ignoring case, as in flat XML: a row that spells a column in another case than an earlier
+     * row gives its value to the column, which keeps the spelling of its first appearance. The
+     * consumer is told the
      * dataset ended once
      * every table is produced. A stream the producer opened itself, for a {@link File}, is
      * closed afterward, whether or not producing succeeded.
@@ -487,15 +491,39 @@ public class YamlProducer implements IDataSetProducer
                     + describe(entry));
         }
         Map<String, Object> row = new LinkedHashMap<String, Object>();
+        Map<String, String> spellingByColumnKey = new HashMap<String, String>();
         for (Map.Entry<?, ?> column : ((Map<?, ?>) entry).entrySet())
         {
             String columnName = nameOf(column.getKey(),
                     "Column name in row " + rowIndex + " of table '" + tableName + "'");
             Object value = column.getValue();
             requireValue(tableName, rowIndex, columnName, value);
+            requireOnceInTheRow(tableName, rowIndex, columnName, spellingByColumnKey);
             row.put(columnName, value);
         }
         return row;
+    }
+
+    /**
+     * Checks that the row does not name the column twice in two cases, such as {@code ID} and
+     * {@code id}, which dbUnit takes for one column. SnakeYAML rejects a key named twice in
+     * the same case itself.
+     *
+     * @param spellingByColumnKey The first spelling of each column the row named so far, by its
+     *            upper-case name; this method adds the column to it.
+     * @throws DataSetException If the row named the column before, in another case.
+     */
+    private static void requireOnceInTheRow(String tableName, int rowIndex, String columnName,
+            Map<String, String> spellingByColumnKey) throws DataSetException
+    {
+        String columnKey = columnName.toUpperCase(Locale.ENGLISH);
+        String firstSpelling = spellingByColumnKey.putIfAbsent(columnKey, columnName);
+        if (firstSpelling != null)
+        {
+            throw new DataSetException("Row " + rowIndex + " of table '" + tableName
+                    + "' names column '" + firstSpelling + "' more than once, also as '"
+                    + columnName + "': a column is named once in a row");
+        }
     }
 
     /**
@@ -569,15 +597,17 @@ public class YamlProducer implements IDataSetProducer
 
     private ITableMetaData getMetaData(String tableName, List<Map<String, Object>> rows)
     {
-        Set<String> columns = new LinkedHashSet<String>();
-        // iterate through the dataset and add the column names to a set
+        Map<String, String> firstSpellingByColumnKey = new LinkedHashMap<String, String>();
         for (Map<String, Object> row : rows)
         {
-            columns.addAll(row.keySet());
+            for (String columnName : row.keySet())
+            {
+                firstSpellingByColumnKey.putIfAbsent(columnName.toUpperCase(Locale.ENGLISH),
+                        columnName);
+            }
         }
-        List<Column> list = new ArrayList<Column>(columns.size());
-        // create a list of DBUnit columns based on the column name set
-        for (String s : columns)
+        List<Column> list = new ArrayList<Column>(firstSpellingByColumnKey.size());
+        for (String s : firstSpellingByColumnKey.values())
         {
             list.add(new Column(s, DataType.UNKNOWN));
         }
@@ -587,9 +617,10 @@ public class YamlProducer implements IDataSetProducer
     private Object[] getRow(ITableMetaData meta, Map<String, Object> row) throws DataSetException
     {
         Object[] result = new Object[meta.getColumns().length];
-        for (int i = 0; i < meta.getColumns().length; i++)
+        for (Map.Entry<String, Object> cell : row.entrySet())
         {
-            result[i] = row.get(meta.getColumns()[i].getColumnName());
+            int columnIndex = meta.getColumnIndex(cell.getKey());
+            result[columnIndex] = cell.getValue();
         }
         return result;
     }

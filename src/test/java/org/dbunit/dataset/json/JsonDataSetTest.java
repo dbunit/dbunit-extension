@@ -338,6 +338,32 @@ class JsonDataSetTest extends AbstractDataSetTest
     }
 
     @Test
+    void testGetTable_laterRowSpellsAColumnInAnotherCase_readsOneColumn() throws Exception
+    {
+        final String json = "{\"TEST_TABLE\": [{\"ID\": 1, \"NAME\": \"a\"},"
+                + " {\"id\": 2, \"name\": \"b\"}, {\"Id\": 3, \"Extra\": \"c\"}]}";
+        final InputStream in = new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8));
+
+        final ITable table = new JsonDataSet(in).getTable("TEST_TABLE");
+
+        final String[] columnNames = Arrays.stream(table.getTableMetaData().getColumns())
+                .map(Column::getColumnName).toArray(String[]::new);
+        assertThat(columnNames)
+                .as("A column that a later row spells in another case is the same column, as"
+                        + " dbUnit matches column names ignoring case, and it keeps the spelling"
+                        + " of its first appearance.")
+                .containsExactly("ID", "NAME", "Extra");
+        final Object[][] rows = new Object[table.getRowCount()][];
+        for (int row = 0; row < rows.length; row++)
+        {
+            rows[row] = new Object[] {table.getValue(row, "ID"), table.getValue(row, "NAME"),
+                    table.getValue(row, "Extra")};
+        }
+        assertThat(rows).as("Every row gives its values to the one column of each name.")
+                .isDeepEqualTo(new Object[][] {{1, "a", null}, {2, "b", null}, {3, null, "c"}});
+    }
+
+    @Test
     void testConstructor_tableNamedTwice_stillThrowsAmbiguousTableNameException()
     {
         final String json = "{\"ACCOUNT\": [{\"ID\": 1, \"NAME\": \"a\"}], \"ACCOUNT\": []}";

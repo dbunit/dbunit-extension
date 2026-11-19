@@ -38,6 +38,7 @@ import java.util.Date;
 import java.util.List;
 
 import org.dbunit.database.AmbiguousTableNameException;
+import org.dbunit.dataset.Column;
 import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.ITableMetaData;
 import org.dbunit.dataset.datatype.DataType;
@@ -245,6 +246,45 @@ class YamlProducerTest
                 .isInstanceOf(DataSetException.class)
                 .isNotInstanceOf(AmbiguousTableNameException.class)
                 .hasMessageContaining("COLUMN0");
+    }
+
+    @Test
+    void testProduce_laterRowSpellsAColumnInAnotherCase_producesOneColumn() throws Exception
+    {
+        final RecordingConsumer consumer = new RecordingConsumer();
+        final YamlProducer producer = new YamlProducer(stream("TEST_TABLE:\n"
+                + "  - ID: 1\n    NAME: a\n"
+                + "  - id: 2\n    name: b\n"
+                + "  - Id: 3\n    Extra: c\n"));
+        producer.setConsumer(consumer);
+
+        producer.produce();
+
+        assertThat(consumer.columnNames)
+                .as("A column that a later row spells in another case is the same column, as"
+                        + " dbUnit matches column names ignoring case, and it keeps the spelling"
+                        + " of its first appearance.")
+                .containsExactly("ID, NAME, Extra");
+        assertThat(consumer.rows)
+                .as("Every row gives its values to the one column of each name.")
+                .containsExactly(new Object[] {1, "a", null}, new Object[] {2, "b", null},
+                        new Object[] {3, null, "c"});
+    }
+
+    @Test
+    void testProduce_rowNamesAColumnTwiceInAnotherCase_throwsDataSetExceptionNamingBothSpellings()
+    {
+        final YamlProducer producer = new YamlProducer(
+                stream("TEST_TABLE:\n  - COLUMN0: row0\n  - ID: 1\n    id: 2\n"));
+        producer.setConsumer(new RecordingConsumer());
+
+        assertThatThrownBy(producer::produce)
+                .as("A column named twice in a row in two cases is one column named twice, as"
+                        + " dbUnit matches column names ignoring case, so it must be rejected"
+                        + " instead of keeping the last value.")
+                .isExactlyInstanceOf(DataSetException.class)
+                .hasMessage("Row 1 of table 'TEST_TABLE' names column 'ID' more than once, also"
+                        + " as 'id': a column is named once in a row");
     }
 
     @Test
@@ -738,6 +778,8 @@ class YamlProducerTest
 
         private final List<Object[]> rows = new ArrayList<>();
 
+        private final List<String> columnNames = new ArrayList<>();
+
         @Override
         public void startDataSet() throws DataSetException
         {
@@ -754,6 +796,12 @@ class YamlProducerTest
         public void startTable(final ITableMetaData metaData) throws DataSetException
         {
             events.add("startTable:" + metaData.getTableName());
+            final List<String> names = new ArrayList<>();
+            for (final Column column : metaData.getColumns())
+            {
+                names.add(column.getColumnName());
+            }
+            columnNames.add(String.join(", ", names));
         }
 
         @Override
