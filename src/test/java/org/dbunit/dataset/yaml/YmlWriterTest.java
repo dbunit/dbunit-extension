@@ -26,6 +26,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.ByteArrayInputStream;
 import java.io.StringWriter;
+import java.math.BigDecimal;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -304,6 +305,45 @@ public class YmlWriterTest
                 .as("The writer writes a value of another type as its text, instead of a global"
                         + " tag, or an empty mapping that loses the value.")
                 .containsExactly(uuid.toString(), "http://x", "NEW", "sb");
+    }
+
+    @Test
+    void testWrite_wholeNumberDecimals_writeIntegersThatReadBackWithEveryDigit() throws Exception
+    {
+        final BigDecimal[] amounts = {new BigDecimal("123456789012345678901234567890"),
+                new BigDecimal("9007199254740993"), new BigDecimal("5"), new BigDecimal("-12"),
+                new BigDecimal("12.50"), new BigDecimal("1E+3")};
+        final DefaultTable table =
+                new DefaultTable("AMOUNTS", new Column[] {new Column("AMOUNT", DataType.NUMERIC)});
+        for (final BigDecimal amount : amounts)
+        {
+            table.addRow(new Object[] {amount});
+        }
+        final String expectedOutput = "AMOUNTS:\n" + "  - AMOUNT: 123456789012345678901234567890\n"
+                + "  - AMOUNT: 9007199254740993\n" + "  - AMOUNT: 5\n" + "  - AMOUNT: -12\n"
+                + "  - AMOUNT: 12.50\n" + "  - AMOUNT: 1E+3\n";
+        final StringWriter stringWriter = new StringWriter();
+        final YamlWriter yamlWriter = new YamlWriter(stringWriter);
+
+        yamlWriter.write(new DefaultDataSet(table));
+
+        assertThat(stringWriter.toString())
+                .as("A decimal without a fraction is written as a plain integer, where SnakeYAML"
+                        + " would write it with the tag !!float, which the reader reads as a"
+                        + " double.")
+                .isEqualTo(expectedOutput);
+        final ITable readBackTable = new YamlDataSet(new ByteArrayInputStream(
+                stringWriter.toString().getBytes(StandardCharsets.UTF_8))).getTable("AMOUNTS");
+        final BigDecimal[] readBackAmounts = new BigDecimal[amounts.length];
+        for (int row = 0; row < amounts.length; row++)
+        {
+            final Object readBackValue = readBackTable.getValue(row, "AMOUNT");
+            readBackAmounts[row] = (BigDecimal) DataType.NUMERIC.typeCast(readBackValue);
+        }
+        assertThat(readBackAmounts)
+                .as("Every decimal reads back with every digit, as a number that the column type"
+                        + " parses.")
+                .usingElementComparator(BigDecimal::compareTo).containsExactly(amounts);
     }
 
     @Test

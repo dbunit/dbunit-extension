@@ -78,6 +78,12 @@ import java.nio.charset.StandardCharsets;
  * column, for each table name. That row carries the column, with {@code null} for a null
  * cell, so a column that is null in every row survives a read-back.
  *
+ * <p>
+ * Writing a dataset writes a {@link java.math.BigDecimal} without a fraction, the value of a
+ * {@code NUMERIC(p,0)} or {@code DECIMAL(p,0)} column, as an integer, so that a value of more
+ * than 15 digits reads back with every digit, where SnakeYAML's tag {@code !!float} would make
+ * the reader hand it on as a {@code double}.
+ *
  * @author Björn Beskow
  * @version $Revision$ $Date$
  */

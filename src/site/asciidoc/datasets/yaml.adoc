@@ -101,6 +101,12 @@ It writes text that holds a control character, such as a form feed or an escape
 character, as a quoted value with YAML escapes, so it reads back as the same text.
 A file written before 3.6.0 holds such text as a `!!binary` value, which a text column
 reads as Base64 text: write it again.
+`YamlDataSet.write()` also writes a decimal without a fraction, the value of a `NUMERIC(p,0)`,
+`DECIMAL(p,0)` or Oracle `NUMBER(p)` column, as an integer, so it reads back with every digit.
+A file written before 3.6.0 holds such a decimal with the tag `!!float` and its digits in
+quotes, and the reader keeps the type that the tag names, so a value of more than 15 digits
+reads as a `double` and its last digits change: write the file again, or replace the tag and
+the quotes with the digits.
 
 `YamlDataSet.write()` can write a streaming dataset, such as a `StreamingDataSet` over a flat XML
 file, or a database export through `ForwardOnlyResultSetTableFactory`. It does not stream

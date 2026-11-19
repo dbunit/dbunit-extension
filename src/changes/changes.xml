@@ -217,6 +217,9 @@
       <action dev="jeffjensen" type="fix" issue="1053" system="github" due-to="jeffjensen">
           Fix TimestampDataType failing with a TypeCastException for a timestamp in the ISO 8601 or YAML 1.1 form, such as 2024-03-01T10:15:30 or 2024-03-01T10:15:30Z, in every format but YAML, where it was shifted by the JVM's time zone. TimestampDataType now reads a T, a t, a tab or more than one space in place of the one space between date and time, and a dot with no digits after the seconds, in the JVM's time zone, as it reads the form with the space, and an offset behind the time, Z or +hh, +hh:mm or +hhmm, as that instant. DateDataType reads such a text too, so a DATE column keeps loading a YAML timestamp.
       </action>
+      <action dev="jeffjensen" type="fix" issue="1054" system="github" due-to="jeffjensen">
+          Fix YamlDataSet.write() writing a NUMERIC or DECIMAL value without a fraction, such as the id of a NUMERIC(30,0) column, with the tag !!float, which YamlDataSet reads as a double, so a value of more than about 15 digits changed when the document was read and an export did not verify against the table it came from. A decimal without a fraction is now written as an integer, which reads back with every digit. A document that an earlier release wrote holds the tag, and the reader keeps the type that an explicit tag names, so write such a document again.
+      </action>
     </release>
     <release version="3.5.3" date="Nov 17, 2026" description="DefaultPrepAndExpectedTestCase verification fixes: line up equal rows when sorting the expected and the actual table, and list only the compared columns in a failure message">
       <action dev="robertonr" type="update" issue="994" system="github" due-to="robertonr">Make loggers static final for performance.</action>
