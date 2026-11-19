@@ -49,6 +49,10 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Writes an {@link IDataSet} to an XLS file or OutputStream.
+ *
+ * <p>
+ * The writer writes a number as a {@code double} and a date or a timestamp as milliseconds, as an
+ * Excel cell holds no more. See {@link XlsDataSet} for what that costs.
  * 
  * @author gommma (gommma AT users.sourceforge.net)
  * @author Last changed by: $Author$

@@ -345,7 +345,8 @@ a `NUMERIC` column. Everything else goes through `new BigDecimal(value)`.
 
 The link:json.html[JSON] and link:yaml.html[YAML] datasets that dbUnit writes hold a `NUMERIC`
 or `DECIMAL` value with every digit, a value without a fraction as an integer, so a value of
-any size reads back as it was.
+any size reads back as it was. An Excel dataset does not, as a cell holds a number as a
+`double`: see link:excel.html[Excel].
 
 In link:csv.html[CSV], a numeric field with a trailing space before the comma
 is read as a string, not a number.

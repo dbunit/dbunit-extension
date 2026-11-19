@@ -18,6 +18,16 @@ column value — binary/BLOB syntax, literal and relative dates, UUID literals,
 and booleans/numbers from strings (in text cells) — see
 link:values.html[Dataset Values].
 
+An Excel cell holds a number as a `double`, and dbUnit writes a date or a timestamp as a
+number of milliseconds, so an Excel dataset keeps 15 to 17 significant digits of a number and a
+timestamp to the millisecond. A `NUMERIC` or `DECIMAL` value of more than 15 digits, a `BIGINT`
+above 9,007,199,254,740,992 (2 to the power of 53) and the digits of the fraction of a second of a
+timestamp past the third change when dbUnit writes them to an Excel file and reads them back,
+so such a dataset does not verify against the table it was written from, and a `BIGINT` at the
+limit of its range, such as `Long.MAX_VALUE`, comes back with the wrong sign. The other formats
+keep every digit: use link:json.html[JSON] or link:yaml.html[YAML], for example, for a dataset
+that holds such values.
+
 == Dependency
 
 dbUnit depends on https://poi.apache.org/[Apache POI] to read/write Excel
