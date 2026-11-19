@@ -52,7 +52,10 @@ tables, the rows of every occurrence go under the one table name, in order.
 
 In contrast to link:flatxml.html[Flat XML], table metadata is deduced from
 the sum of all rows for each table, not just the first — so a column that
-first appears on a later row is still picked up.
+first appears on a later row is still picked up. As in Flat XML and the rest of dbUnit,
+column names are matched ignoring case: a later row that spells a column in another case,
+`name` for the `NAME` of an earlier row, gives its value to that column, which keeps the
+spelling of its first appearance, and does not add a second column.
 
 Because columns are inferred entirely from row content, a table with declared
 columns but zero rows cannot carry that column information through JSON: an

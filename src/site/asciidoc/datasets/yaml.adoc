@@ -36,7 +36,11 @@ more than once in the dataset.
 
 In contrast to link:flatxml.html[Flat XML], table metadata is deduced from
 the sum of all rows for each table, not just the first — so a column that
-first appears on a later row is still picked up.
+first appears on a later row is still picked up. As in Flat XML and the rest of dbUnit,
+column names are matched ignoring case: a later row that spells a column in another case,
+`name` for the `NAME` of an earlier row, gives its value to that column, which keeps the
+spelling of its first appearance, and does not add a second column. A column named twice in
+one row, in the same case or in two, such as `ID` and `id`, throws a `DataSetException`.
 
 Table names are always case-sensitive — unlike some other formats, there is no
 case-insensitive table lookup fallback. A test that loads a YAML dataset through a

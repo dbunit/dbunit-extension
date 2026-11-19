@@ -57,7 +57,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  *
  * <p>The expected JSON format is a top-level object whose keys are table names and whose values
  * are arrays of row objects. Each row object maps column names to cell values. Missing keys within
- * a row are treated as {@code null} for that column. Empty tables are represented by empty arrays.
+ * a row are treated as {@code null} for that column. Column names are matched ignoring case, as
+ * in flat XML: a row that spells a column in another case than an earlier row gives its value to
+ * the column, which keeps the spelling of its first appearance. Empty tables are represented by empty arrays.
  * A cell that is a JSON object or array reaches the column type as its compact JSON text.
  * The producer rejects a table named twice with an {@link AmbiguousTableNameException}, and a
  * column named twice in one row, whatever the case of its two spellings, with a
@@ -321,13 +323,17 @@ public class JsonProducer implements IDataSetProducer
 
     private ITableMetaData buildMetaData(final String tableName, final List<Map<String, Object>> rows)
     {
-        final Set<String> columnNames = new LinkedHashSet<>();
+        final Map<String, String> firstSpellingByColumnKey = new LinkedHashMap<>();
         for (final Map<String, Object> row : rows)
         {
-            columnNames.addAll(row.keySet());
+            for (final String columnName : row.keySet())
+            {
+                final String columnKey = columnName.toUpperCase(Locale.ENGLISH);
+                firstSpellingByColumnKey.putIfAbsent(columnKey, columnName);
+            }
         }
-        final List<Column> columns = new ArrayList<>(columnNames.size());
-        for (final String colName : columnNames)
+        final List<Column> columns = new ArrayList<>(firstSpellingByColumnKey.size());
+        for (final String colName : firstSpellingByColumnKey.values())
         {
             columns.add(new Column(colName, DataType.UNKNOWN));
         }
@@ -337,11 +343,11 @@ public class JsonProducer implements IDataSetProducer
     private Object[] buildRow(final ITableMetaData meta, final Map<String, Object> row)
             throws DataSetException
     {
-        final Column[] columns = meta.getColumns();
-        final Object[] result = new Object[columns.length];
-        for (int i = 0; i < columns.length; i++)
+        final Object[] result = new Object[meta.getColumns().length];
+        for (final Map.Entry<String, Object> cell : row.entrySet())
         {
-            result[i] = row.get(columns[i].getColumnName());
+            final int columnIndex = meta.getColumnIndex(cell.getKey());
+            result[columnIndex] = cell.getValue();
         }
         return result;
     }
