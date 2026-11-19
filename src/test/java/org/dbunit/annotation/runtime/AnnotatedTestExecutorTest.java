@@ -265,6 +265,94 @@ class AnnotatedTestExecutorTest
     }
 
     @Test
+    void testAfterTest_collectingFailureHandlerCollectedADifferenceAndARowWasLeftBehind_failsWithTheCollectedDifferenceAndTheRowCountSuppressed()
+            throws Exception
+    {
+        final RecordingAbstractDatabaseTester ownTester = new RecordingAbstractDatabaseTester();
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithCollectingHandlerAndACollectedDifference.class), ownTester,
+                null);
+        executor.beforeTest();
+        collectingTestCaseOf(executor).leavesARowBehind = true;
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown)
+                .as("The value difference is the failure to fix first, so the row count"
+                        + " difference does not replace it.")
+                .isInstanceOf(DbComparisonFailure.class).hasMessageContaining("table=ITEM")
+                .hasMessageContaining("col=NAME").hasMessageContaining("expected:<b> but was:<a>");
+        assertThat(thrown.getSuppressed())
+                .as("The row count difference rides along as suppressed.").hasSize(1);
+        assertThat(thrown.getSuppressed()[0]).isInstanceOf(UnexpectedRowCountException.class)
+                .hasMessageContaining("AUDIT");
+    }
+
+    @Test
+    void testAfterTest_collectingFailureHandlerHoldsAHintAndARowWasLeftBehind_failsWithTheHintThenTheRowCountSuppressed()
+            throws Exception
+    {
+        final RecordingAbstractDatabaseTester ownTester = new RecordingAbstractDatabaseTester();
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithCollectingHandlerAndACollectedDifference.class), ownTester,
+                null);
+        executor.beforeTest();
+        collectingTestCaseOf(executor).addsAHint = true;
+        collectingTestCaseOf(executor).leavesARowBehind = true;
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown).isInstanceOf(DbComparisonFailure.class);
+        assertThat(thrown.getSuppressed())
+                .as("The sort hint that explains the collected differences comes first, then the"
+                        + " row count difference.")
+                .hasSize(2);
+        assertThat(thrown.getSuppressed()[0]).hasMessage("the sort hint");
+        assertThat(thrown.getSuppressed()[1]).isInstanceOf(UnexpectedRowCountException.class);
+    }
+
+    @Test
+    void testAfterTest_collectingFailureHandlerCollectedADifferenceAndARowWasLeftBehind_putsTheFailureHandlerBack()
+            throws Exception
+    {
+        final RecordingAbstractDatabaseTester ownTester = new RecordingAbstractDatabaseTester();
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithCollectingHandlerAndACollectedDifference.class), ownTester,
+                null);
+        executor.beforeTest();
+        final CollectingDifferenceTestCase testCase = collectingTestCaseOf(executor);
+        testCase.leavesARowBehind = true;
+
+        catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(testCase.getFailureHandler())
+                .as("The failure handler that @DbUnitConfig gave the test case for the test must"
+                        + " be put back when the collected differences fail the test over a row"
+                        + " count difference, as on every other path.")
+                .isNull();
+    }
+
+    @Test
+    void testAfterTest_collectingFailureHandlerCollectedNothingAndARowWasLeftBehind_failsWithTheRowCountDifference()
+            throws Exception
+    {
+        final RecordingAbstractDatabaseTester ownTester = new RecordingAbstractDatabaseTester();
+        final AnnotatedTestExecutor executor = new AnnotatedTestExecutor(
+                configurationOf(WithCollectingHandlerAndACollectedDifference.class), ownTester,
+                null);
+        executor.beforeTest();
+        collectingTestCaseOf(executor).collectsADifference = false;
+        collectingTestCaseOf(executor).leavesARowBehind = true;
+
+        final Throwable thrown = catchThrowable(() -> executor.afterTest(false));
+
+        assertThat(thrown)
+                .as("With no collected difference the row count difference is the failure, as"
+                        + " with any handler.")
+                .isInstanceOf(UnexpectedRowCountException.class);
+    }
+
+    @Test
     void testAfterTest_collectingFailureHandlerCollectedNothing_passesTheTest() throws Exception
     {
         final RecordingAbstractDatabaseTester ownTester = new RecordingAbstractDatabaseTester();
@@ -6109,7 +6197,7 @@ class AnnotatedTestExecutorTest
         }
 
         @Override
-        public void postTest(final boolean verifyData)
+        public void postTest(final boolean verifyData) throws Exception
         {
             postTestCalled = true;
             postTestCount++;
@@ -6130,6 +6218,7 @@ class AnnotatedTestExecutorTest
     {
         boolean collectsADifference = true;
         boolean addsAHint;
+        boolean leavesARowBehind;
         boolean tornDown;
 
         public CollectingDifferenceTestCase(final DataFileLoader dataFileLoader,
@@ -6139,7 +6228,7 @@ class AnnotatedTestExecutorTest
         }
 
         @Override
-        public void postTest(final boolean verifyData)
+        public void postTest(final boolean verifyData) throws Exception
         {
             if (verifyData && collectsADifference)
             {
@@ -6153,6 +6242,11 @@ class AnnotatedTestExecutorTest
                 }
             }
             tornDown = true;
+            if (leavesARowBehind)
+            {
+                throw new UnexpectedRowCountException(
+                        Collections.singletonList(new RowCountDifference("AUDIT", 0, 1)));
+            }
         }
     }
 

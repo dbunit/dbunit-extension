@@ -274,6 +274,14 @@ data, a row count difference would be noise around that failure, so the check is
 the failure you see is the original one. Fix it first; a leaked or wrongly cleaned table then
 shows up on the next run.
 
+A failure handler that collects, `DiffCollectingFailureHandler`, does not throw on a value that
+differs, so `DefaultPrepAndExpectedTestCase` does not skip the check then. The annotation-driven
+tests (`DbUnitExtension`, `DbUnitTestExecutionListener`) fail with the collected differences and
+attach the row count difference to that failure as a suppressed exception, so the test reports
+both. A `DefaultPrepAndExpectedTestCase` that you run yourself throws the
+`UnexpectedRowCountException` from `postTest()` and keeps the collected differences in the
+handler for you to read with `getDiffList()`.
+
 [#row-counter]
 == Supplying Your Own RowCounter
 
