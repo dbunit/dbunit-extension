@@ -75,6 +75,11 @@ like `DataSourceDatabaseTester`.
   — override either default. See link:../operations.html[Database Operations]
   for the full set.
 
+A test that calls `onSetup()` and `onTearDown()` itself does not get the
+link:../components/rowcountcheck.html[row count check], whatever
+`dbunit.rowCountCheck` says. Use link:DbUnitExtension.html[DbUnitExtension] for
+a test that wants it.
+
 [source,java]
 ----
 private final IDatabaseTester databaseTester;
@@ -108,7 +113,9 @@ this lifecycle (plus expected-data verification) behind `runTest()`/
 TIP: On JUnit 5/6 (Jupiter), link:DbUnitExtension.html[`DbUnitExtension`] can
 call `onSetup()`/`onTearDown()` for you, removing those two calls from the
 `@BeforeEach`/`@AfterEach` pair shown above. Keep `@BeforeEach` if it still
-configures the tester, e.g. via `setDataSet()`/`setTearDownOperation()`.
+configures the tester, e.g. via `setDataSet()`/`setTearDownOperation()` — or
+remove it too by declaring the dataset and operation with
+link:annotations.html[`org.dbunit.annotation`] instead.
 
 [#IOperationListenerHooks]
 == IOperationListener Hooks

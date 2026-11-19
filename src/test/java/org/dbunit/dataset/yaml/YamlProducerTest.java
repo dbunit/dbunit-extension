@@ -38,6 +38,7 @@ import java.util.Date;
 import java.util.List;
 
 import org.dbunit.database.AmbiguousTableNameException;
+import org.dbunit.dataset.Column;
 import org.dbunit.dataset.DataSetException;
 import org.dbunit.dataset.ITableMetaData;
 import org.dbunit.dataset.datatype.DataType;
@@ -45,6 +46,7 @@ import org.dbunit.dataset.datatype.TypeCastException;
 import org.dbunit.dataset.stream.IDataSetConsumer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.yaml.snakeyaml.error.YAMLException;
 
@@ -151,7 +153,69 @@ class YamlProducerTest
     }
 
     @ParameterizedTest
+    @ValueSource(strings = {"[NULL]", "[now]", "[now-1d]", "[1, 2]", "[]", "{a: 1}", "{}"})
+    void testProduce_unquotedListOrMappingCell_throwsDataSetExceptionSayingToQuoteIt(
+            final String cell)
+    {
+        final YamlProducer producer =
+                new YamlProducer(stream("TEST_TABLE:\n  - ID: 1\n  - NOTE: " + cell + "\n"));
+        producer.setConsumer(new RecordingConsumer());
+
+        assertThatThrownBy(producer::produce)
+                .as("A cell that YAML reads as a list or a mapping, such as an unquoted [NULL] or"
+                        + " [now-1d], must be reported with its table, row and column and with"
+                        + " the advice to quote it, not handed on to a column type that cannot"
+                        + " use it.")
+                .isInstanceOf(DataSetException.class)
+                .hasMessageContaining("Column 'NOTE' of row 1 of table 'TEST_TABLE'")
+                .hasMessageContaining("Quote the value");
+    }
+
+    @ParameterizedTest
+    @CsvSource(delimiter = '|', value = {
+            "[NULL]|a list, [null]",
+            "{a: 1}|a mapping, {a=1}"})
+    void testProduce_unquotedPlaceholderOrMapping_throwsDataSetExceptionShowingWhatYamlBuilt(
+            final String cell, final String built)
+    {
+        final YamlProducer producer =
+                new YamlProducer(stream("TEST_TABLE:\n  - NOTE: " + cell + "\n"));
+        producer.setConsumer(new RecordingConsumer());
+
+        assertThatThrownBy(producer::produce)
+                .as("The message names the cell, shows the list or the mapping that YAML built,"
+                        + " says why, and gives the quoted spelling.")
+                .isInstanceOf(DataSetException.class)
+                .hasMessage("Column 'NOTE' of row 0 of table 'TEST_TABLE' must be a value, but"
+                        + " was " + built + ": YAML reads an unquoted value that starts with"
+                        + " '[' as a list and one that starts with '{' as a mapping. Quote the"
+                        + " value, such as '[NULL]' or '[now-1d]', to give it as text.");
+    }
+
+    @Test
+    void testProduce_quotedBracketAndBraceValues_produceTheTextOfTheDocument() throws Exception
+    {
+        final RecordingConsumer consumer = new RecordingConsumer();
+        final YamlProducer producer = new YamlProducer(stream("TEST_TABLE:\n"
+                + "  - NULL_PLACEHOLDER: '[NULL]'\n"
+                + "    RELATIVE_DATE: '[now-1d]'\n"
+                + "    BINARY: '[TEXT]hello'\n"
+                + "    MAPPING_LIKE: '{a: 1}'\n"));
+        producer.setConsumer(consumer);
+
+        producer.produce();
+
+        assertThat(consumer.rows.get(0))
+                .as("A quoted value that starts with a square bracket or a curly brace reaches"
+                        + " the column type as the text of the document, for the column type or"
+                        + " a ReplacementDataSet to read.")
+                .containsExactly("[NULL]", "[now-1d]", "[TEXT]hello", "{a: 1}");
+    }
+
+    @ParameterizedTest
     @ValueSource(strings = {"TEST_TABLE:\n  - COLUMN0: [row0\n",
+            "TEST_TABLE:\n  - COLUMN0: [TEXT]hello\n",
+            "TEST_TABLE:\n  - COLUMN0: [BASE64]aGVsbG8=\n",
             "TEST_TABLE:\n  - COLUMN0: row0\n---\nSECOND_TABLE:\n  - COLUMN0: row1\n"})
     void testProduce_malformedDocument_throwsDataSetExceptionNamingTheProblem(
             final String document)
@@ -185,6 +249,45 @@ class YamlProducerTest
     }
 
     @Test
+    void testProduce_laterRowSpellsAColumnInAnotherCase_producesOneColumn() throws Exception
+    {
+        final RecordingConsumer consumer = new RecordingConsumer();
+        final YamlProducer producer = new YamlProducer(stream("TEST_TABLE:\n"
+                + "  - ID: 1\n    NAME: a\n"
+                + "  - id: 2\n    name: b\n"
+                + "  - Id: 3\n    Extra: c\n"));
+        producer.setConsumer(consumer);
+
+        producer.produce();
+
+        assertThat(consumer.columnNames)
+                .as("A column that a later row spells in another case is the same column, as"
+                        + " dbUnit matches column names ignoring case, and it keeps the spelling"
+                        + " of its first appearance.")
+                .containsExactly("ID, NAME, Extra");
+        assertThat(consumer.rows)
+                .as("Every row gives its values to the one column of each name.")
+                .containsExactly(new Object[] {1, "a", null}, new Object[] {2, "b", null},
+                        new Object[] {3, null, "c"});
+    }
+
+    @Test
+    void testProduce_rowNamesAColumnTwiceInAnotherCase_throwsDataSetExceptionNamingBothSpellings()
+    {
+        final YamlProducer producer = new YamlProducer(
+                stream("TEST_TABLE:\n  - COLUMN0: row0\n  - ID: 1\n    id: 2\n"));
+        producer.setConsumer(new RecordingConsumer());
+
+        assertThatThrownBy(producer::produce)
+                .as("A column named twice in a row in two cases is one column named twice, as"
+                        + " dbUnit matches column names ignoring case, so it must be rejected"
+                        + " instead of keeping the last value.")
+                .isExactlyInstanceOf(DataSetException.class)
+                .hasMessage("Row 1 of table 'TEST_TABLE' names column 'ID' more than once, also"
+                        + " as 'id': a column is named once in a row");
+    }
+
+    @Test
     void testProduce_tableNamedTwice_throwsAmbiguousTableNameException()
     {
         final YamlProducer producer = new YamlProducer(stream(
@@ -195,6 +298,33 @@ class YamlProducerTest
                 .as("A table named twice at the root of the document is an ambiguous table name.")
                 .isInstanceOf(AmbiguousTableNameException.class)
                 .hasMessageContaining("TEST_TABLE");
+    }
+
+    @Test
+    void testProduce_documentPastSnakeYamlsDefaultCodePointLimit_readsEveryRow() throws Exception
+    {
+        final int rowCount = 200_000;
+        final StringBuilder document = new StringBuilder("TEST_TABLE:\n");
+        for (int i = 0; i < rowCount; i++)
+        {
+            document.append("  - COLUMN0: row").append(i).append('\n');
+        }
+        final int snakeYamlDefaultCodePointLimit = 3 * 1024 * 1024;
+        final RecordingConsumer consumer = new RecordingConsumer();
+        final YamlProducer producer = new YamlProducer(stream(document.toString()));
+        producer.setConsumer(consumer);
+
+        producer.produce();
+
+        final long producedRows =
+                consumer.events.stream().filter(event -> event.startsWith("row:")).count();
+        assertThat(document.length())
+                .as("The document must be longer than the limit SnakeYAML sets by default.")
+                .isGreaterThan(snakeYamlDefaultCodePointLimit);
+        assertThat(producedRows)
+                .as("A dataset is a fixture of the test's own project, so a document of any size"
+                        + " is read, as JsonProducer reads one.")
+                .isEqualTo(rowCount);
     }
 
     @Test
@@ -253,28 +383,68 @@ class YamlProducerTest
     }
 
     @Test
-    void testProduce_unquotedTimestampTheColumnTypeDoesNotParse_producesTheInstantSnakeYamlReads()
+    void testProduce_unquotedTimestampWithATAndNoOffset_producesTheTextOfTheDocument()
+            throws Exception
+    {
+        final RecordingConsumer consumer = new RecordingConsumer();
+        final YamlProducer producer = new YamlProducer(stream("EVENT:\n"
+                + "  - WITHOUT_OFFSET: 2024-03-01T10:15:30\n"
+                + "    WITH_FRACTION: 2024-03-01t10:15:30.1\n"));
+        producer.setConsumer(consumer);
+
+        producer.produce();
+
+        assertThat(consumer.rows.get(0))
+                .as("A timestamp with a T and no offset reaches the column type as the text of"
+                        + " the document, as the other timestamps do, not as the instant that"
+                        + " SnakeYAML reads, which takes it as UTC; the column type reads the"
+                        + " text in the JVM's time zone.")
+                .containsExactly("2024-03-01T10:15:30", "2024-03-01t10:15:30.1");
+    }
+
+    @Test
+    void testProduce_unquotedTimestampWithAnOffset_producesTheInstantSnakeYamlReads()
             throws Exception
     {
         final RecordingConsumer consumer = new RecordingConsumer();
         final YamlProducer producer = new YamlProducer(stream("EVENT:\n"
                 + "  - IN_UTC: 2024-03-01T10:15:30Z\n"
                 + "    WITH_OFFSET: 2024-03-01t10:15:30.1-05:00\n"
-                + "    WITH_SPACED_OFFSET: 2024-03-01 10:15:30.10 -5\n"
-                + "    WITHOUT_ZONE: 2024-03-01T10:15:30\n"));
+                + "    WITH_SPACED_OFFSET: 2024-03-01 10:15:30.10 -5\n"));
         producer.setConsumer(consumer);
 
         producer.produce();
 
         final Object[] expected = {Date.from(Instant.parse("2024-03-01T10:15:30Z")),
                 Date.from(Instant.parse("2024-03-01T15:15:30.100Z")),
-                Date.from(Instant.parse("2024-03-01T15:15:30.100Z")),
-                Date.from(Instant.parse("2024-03-01T10:15:30Z"))};
+                Date.from(Instant.parse("2024-03-01T15:15:30.100Z"))};
         assertThat(consumer.rows.get(0))
-                .as("A timestamp with a T or a time zone, which the column type does not parse"
-                        + " as text, reaches it as the instant SnakeYAML reads, as before 3.6.0;"
-                        + " SnakeYAML takes one without a time zone as UTC.")
+                .as("A timestamp with an offset reaches the column type as the instant that"
+                        + " SnakeYAML reads, so a TIMESTAMP column stores and compares the same"
+                        + " instant, in the JVM's time zone.")
                 .containsExactly(expected);
+    }
+
+    @Test
+    void testProduce_unquotedTimestampWithAnOffsetYamlDoesNotRead_producesTheTextOfTheDocument()
+            throws Exception
+    {
+        final RecordingConsumer consumer = new RecordingConsumer();
+        final YamlProducer producer = new YamlProducer(stream("EVENT:\n"
+                + "  - WITH_HOURS_AND_MINUTES: 2024-03-01T10:15:30+0530\n"
+                + "    WITH_MINUS: 2024-03-01T10:15:30-0500\n"
+                + "    IN_LOWER_CASE_UTC: 2024-03-01T10:15:30z\n"));
+        producer.setConsumer(consumer);
+
+        producer.produce();
+
+        assertThat(consumer.rows.get(0))
+                .as("A timestamp whose offset YAML 1.1 does not read, +hhmm or a lower case z, is"
+                        + " no timestamp to SnakeYAML, so it reaches the column type as the text"
+                        + " of the document, which the TIMESTAMP type reads as it reads the text"
+                        + " of any other format, not as an instant.")
+                .containsExactly("2024-03-01T10:15:30+0530", "2024-03-01T10:15:30-0500",
+                        "2024-03-01T10:15:30z");
     }
 
     @Test
@@ -466,6 +636,29 @@ class YamlProducerTest
     }
 
     @Test
+    void testProduce_unquotedTrueAndFalse_produceBooleansThatAnIntegerColumnTypeCasts()
+            throws Exception
+    {
+        final RecordingConsumer consumer = new RecordingConsumer();
+        final YamlProducer producer = new YamlProducer(stream("FLAGS:\n"
+                + "  - ACTIVE: true\n"
+                + "    DELETED: false\n"));
+        producer.setConsumer(consumer);
+
+        producer.produce();
+
+        final Object[] row = consumer.rows.get(0);
+        assertThat(row)
+                .as("An unquoted YAML true or false is produced as a Boolean.")
+                .containsExactly(true, false);
+        assertThat(new Object[] {DataType.INTEGER.typeCast(row[0]),
+                DataType.INTEGER.typeCast(row[1])})
+                        .as("An integer column takes such a Boolean as 1 or 0, as it takes"
+                                + " the text true or false.")
+                        .containsExactly(1, 0);
+    }
+
+    @Test
     void testProduce_tableWithOneRow_endsTheDataSetAfterTheLastTable() throws Exception
     {
         final RecordingConsumer consumer = new RecordingConsumer();
@@ -585,6 +778,8 @@ class YamlProducerTest
 
         private final List<Object[]> rows = new ArrayList<>();
 
+        private final List<String> columnNames = new ArrayList<>();
+
         @Override
         public void startDataSet() throws DataSetException
         {
@@ -601,6 +796,12 @@ class YamlProducerTest
         public void startTable(final ITableMetaData metaData) throws DataSetException
         {
             events.add("startTable:" + metaData.getTableName());
+            final List<String> names = new ArrayList<>();
+            for (final Column column : metaData.getColumns())
+            {
+                names.add(column.getColumnName());
+            }
+            columnNames.add(String.join(", ", names));
         }
 
         @Override

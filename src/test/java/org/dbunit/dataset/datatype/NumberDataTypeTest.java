@@ -95,6 +95,28 @@ public class NumberDataTypeTest extends AbstractDataTypeTest
         }
     }
 
+    @Test
+    void testTypeCast_trueText_returnsOne() throws Exception
+    {
+        for (final DataType element : TYPES)
+        {
+            assertThat(element.typeCast("true"))
+                    .as("The text true must become 1 for " + element + ".")
+                    .isEqualTo(new BigDecimal("1"));
+        }
+    }
+
+    @Test
+    void testTypeCast_falseTextInUpperCase_returnsZero() throws Exception
+    {
+        for (final DataType element : TYPES)
+        {
+            assertThat(element.typeCast("FALSE"))
+                    .as("The text FALSE must become 0 for " + element + ".")
+                    .isEqualTo(new BigDecimal("0"));
+        }
+    }
+
     @Override
     @Test
     public void testTypeCast_withCompatibleInput_returnsExpectedValue() throws Exception

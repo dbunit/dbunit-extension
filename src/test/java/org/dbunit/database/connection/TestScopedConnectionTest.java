@@ -1,0 +1,616 @@
+/*
+ *
+ * The DbUnit Database Testing Framework
+ * Copyright (C)2002-2026, DbUnit.org
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *
+ */
+package org.dbunit.database.connection;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import javax.sql.DataSource;
+
+import org.dbunit.database.DatabaseDataSourceConnection;
+import org.dbunit.database.IDatabaseConnection;
+import org.junit.jupiter.api.Test;
+
+class TestScopedConnectionTest
+{
+    private final ConnectionOwnership alwaysMayClose =
+            new ConnectionOwnership(() -> true, () -> null);
+    private final ConnectionOwnership neverMayClose =
+            new ConnectionOwnership(() -> false, () -> null);
+
+    private IDatabaseConnection openConnection() throws SQLException
+    {
+        final IDatabaseConnection connection = mock(IDatabaseConnection.class);
+        final Connection jdbc = mock(Connection.class);
+        when(connection.getConnection()).thenReturn(jdbc);
+        when(jdbc.isClosed()).thenReturn(false);
+        when(jdbc.getAutoCommit()).thenReturn(true);
+        return connection;
+    }
+
+    @Test
+    void testGetConnection_calledTwice_acquiresOnceAndMemoizes() throws Exception
+    {
+        final IDatabaseConnection connection = openConnection();
+        final AtomicInteger calls = new AtomicInteger();
+        final TestScopedConnection holder = new TestScopedConnection(() ->
+        {
+            calls.incrementAndGet();
+            return connection;
+        }, alwaysMayClose, null);
+
+        assertThat(holder.getConnection()).isSameAs(connection);
+        assertThat(holder.getConnection()).isSameAs(connection);
+        assertThat(calls).as("The supplier is called once, then the result is memoized.")
+                .hasValue(1);
+    }
+
+    @Test
+    void testGetConnection_memoizedConnectionSinceClosed_dropsItAndReacquires() throws Exception
+    {
+        final IDatabaseConnection dead = mock(IDatabaseConnection.class);
+        final Connection deadJdbc = mock(Connection.class);
+        when(dead.getConnection()).thenReturn(deadJdbc);
+        when(deadJdbc.isClosed()).thenReturn(true);
+        final IDatabaseConnection fresh = openConnection();
+        final List<IDatabaseConnection> toReturn =
+                new ArrayList<>(Arrays.asList(dead, fresh));
+        final TestScopedConnection holder =
+                new TestScopedConnection(() -> toReturn.remove(0), alwaysMayClose, null);
+
+        assertThat(holder.getConnection()).as("First acquisition.").isSameAs(dead);
+        assertThat(holder.getConnection())
+                .as("The memoized connection now reports closed, so a fresh one is acquired.")
+                .isSameAs(fresh);
+    }
+
+    @Test
+    void testGetConnection_jdbcConnectionUnreadableAtAcquisition_keepsReturningTheSameConnection()
+            throws Exception
+    {
+        // A DatabaseDataSourceConnection whose pool timed out when asked for its JDBC connection:
+        // the wrapper itself is fine and checks one out again when it is next used.
+        final List<IDatabaseConnection> acquired = new ArrayList<>();
+        final TestScopedConnection holder = new TestScopedConnection(() ->
+        {
+            final IDatabaseConnection connection = mock(IDatabaseConnection.class);
+            when(connection.getConnection()).thenThrow(new SQLException("pool timeout"));
+            acquired.add(connection);
+            return connection;
+        }, alwaysMayClose, null);
+
+        final IDatabaseConnection first = holder.getConnection();
+        final IDatabaseConnection second = holder.getConnection();
+        holder.release();
+
+        assertThat(second)
+                .as("A connection whose state cannot be checked is kept for the whole test, not"
+                        + " replaced on every call, which would leave each one before it"
+                        + " unclosed.")
+                .isSameAs(first);
+        assertThat(acquired).as("The source is asked once.").hasSize(1);
+        verify(first).close();
+    }
+
+    @Test
+    void testGetConnection_connectionHasNoJdbcConnection_keepsReturningTheSameConnection()
+            throws Exception
+    {
+        final List<IDatabaseConnection> acquired = new ArrayList<>();
+        final TestScopedConnection holder = new TestScopedConnection(() ->
+        {
+            final IDatabaseConnection connection = mock(IDatabaseConnection.class);
+            when(connection.getConnection()).thenReturn(null);
+            acquired.add(connection);
+            return connection;
+        }, alwaysMayClose, null);
+
+        final IDatabaseConnection first = holder.getConnection();
+        final IDatabaseConnection second = holder.getConnection();
+
+        assertThat(second)
+                .as("A connection with no JDBC connection to check is kept for the whole test.")
+                .isSameAs(first);
+        assertThat(acquired).as("The source is asked once.").hasSize(1);
+    }
+
+    @Test
+    void testGetConnection_isClosedCheckThrows_dropsItAndReacquires() throws Exception
+    {
+        final IDatabaseConnection broken = mock(IDatabaseConnection.class);
+        final Connection brokenJdbc = mock(Connection.class);
+        when(broken.getConnection()).thenReturn(brokenJdbc);
+        when(brokenJdbc.isClosed()).thenThrow(new SQLException("connection lost"));
+        final IDatabaseConnection fresh = openConnection();
+        final List<IDatabaseConnection> toReturn = new ArrayList<>(Arrays.asList(broken, fresh));
+        final TestScopedConnection holder =
+                new TestScopedConnection(() -> toReturn.remove(0), alwaysMayClose, null);
+
+        assertThat(holder.getConnection()).as("First acquisition.").isSameAs(broken);
+        assertThat(holder.getConnection())
+                .as("A connection that can no longer report whether it is closed is replaced.")
+                .isSameAs(fresh);
+    }
+
+    @Test
+    void testGetConnection_onAcquiredHook_runsOncePerAcquiredConnectionNotForNull()
+            throws Exception
+    {
+        final List<IDatabaseConnection> seen = new ArrayList<>();
+        final IDatabaseConnection connection = openConnection();
+        final TestScopedConnection holder = new TestScopedConnection(() -> connection,
+                alwaysMayClose, seen::add);
+
+        holder.getConnection();
+        holder.getConnection();
+
+        assertThat(seen).as("onAcquired runs once, on the connection actually acquired.")
+                .containsExactly(connection);
+    }
+
+    @Test
+    void testRelease_ownershipAllows_closesAndForgets() throws Exception
+    {
+        final IDatabaseConnection connection = openConnection();
+        final TestScopedConnection holder =
+                new TestScopedConnection(() -> connection, alwaysMayClose, null);
+        holder.getConnection();
+
+        holder.release();
+
+        verify(connection).close();
+        assertThat(holder.isResolved()).as("A closed connection is forgotten.").isFalse();
+    }
+
+    @Test
+    void testRelease_ownershipDeclines_leavesConnectionOpenAndMemoized() throws Exception
+    {
+        final IDatabaseConnection connection = openConnection();
+        final TestScopedConnection holder =
+                new TestScopedConnection(() -> connection, neverMayClose, null);
+        holder.getConnection();
+
+        holder.release();
+
+        verify(connection, never()).close();
+        assertThat(holder.peekConnection()).as("The memo is kept for the connection's real owner.")
+                .isSameAs(connection);
+    }
+
+    @Test
+    void testRelease_connectionAlreadyClosed_doesNotCloseItAgain() throws Exception
+    {
+        final IDatabaseConnection connection = mock(IDatabaseConnection.class);
+        final Connection jdbc = mock(Connection.class);
+        when(connection.getConnection()).thenReturn(jdbc);
+        when(jdbc.isClosed()).thenReturn(true);
+        final TestScopedConnection holder =
+                new TestScopedConnection(() -> connection, alwaysMayClose, null);
+        holder.getConnection();
+
+        holder.release();
+
+        verify(connection, never()).close();
+    }
+
+    @Test
+    void testRelease_connectionAlreadyClosedByAnotherOwner_doesNotCheckOutAnotherPooledConnection()
+            throws Exception
+    {
+        // DatabaseDataSourceConnection.close() forgets its JDBC connection and getConnection()
+        // quietly checks a new one out, so asking it whether it is closed - to find out there is
+        // nothing left to close - would itself cost a checkout.
+        final DataSource dataSource = mock(DataSource.class);
+        final AtomicBoolean closed = new AtomicBoolean();
+        final Connection pooled = mock(Connection.class);
+        doAnswer(invocation ->
+        {
+            closed.set(true);
+            return null;
+        }).when(pooled).close();
+        when(pooled.isClosed()).thenAnswer(invocation -> closed.get());
+        when(dataSource.getConnection()).thenReturn(pooled, mock(Connection.class));
+        final DatabaseDataSourceConnection connection = new DatabaseDataSourceConnection(dataSource);
+        final TestScopedConnection holder =
+                new TestScopedConnection(() -> connection, alwaysMayClose, null);
+        holder.getConnection();
+        connection.getConnection();
+        connection.close();
+
+        holder.release();
+
+        verify(dataSource, times(1)).getConnection();
+    }
+
+    @Test
+    void testGetConnection_memoizedConnectionClosedByAnotherOwner_dropsItAndReacquires()
+            throws Exception
+    {
+        // The same lazily reopening connection: reading its JDBC connection again to see
+        // whether it is closed would reopen it and report it alive.
+        final DataSource dataSource = mock(DataSource.class);
+        final AtomicBoolean closed = new AtomicBoolean();
+        final Connection pooled = mock(Connection.class);
+        doAnswer(invocation ->
+        {
+            closed.set(true);
+            return null;
+        }).when(pooled).close();
+        when(pooled.isClosed()).thenAnswer(invocation -> closed.get());
+        when(dataSource.getConnection()).thenReturn(pooled, mock(Connection.class));
+        final DatabaseDataSourceConnection first = new DatabaseDataSourceConnection(dataSource);
+        final IDatabaseConnection second = openConnection();
+        final List<IDatabaseConnection> toReturn = new ArrayList<>(Arrays.asList(first, second));
+        final TestScopedConnection holder =
+                new TestScopedConnection(() -> toReturn.remove(0), alwaysMayClose, null);
+        holder.getConnection();
+        first.close();
+
+        assertThat(holder.getConnection())
+                .as("A memoized connection closed by another owner must be replaced by a newly"
+                        + " acquired one, not quietly reopened.")
+                .isSameAs(second);
+    }
+
+    @Test
+    void testRelease_connectionHasNoJdbcConnectionToInspect_stillClosesIt() throws Exception
+    {
+        final IDatabaseConnection connection = mock(IDatabaseConnection.class);
+        when(connection.getConnection()).thenReturn(null);
+        final TestScopedConnection holder =
+                new TestScopedConnection(() -> connection, alwaysMayClose, null);
+        holder.getConnection();
+
+        holder.release();
+
+        verify(connection).close();
+    }
+
+    @Test
+    void testRelease_connectionAutoCommitOff_closesWithoutEndingTheTransaction() throws Exception
+    {
+        // a transaction manager, a pool or the test owns that transaction; dbUnit did not begin it
+        final IDatabaseConnection connection = mock(IDatabaseConnection.class);
+        final Connection jdbc = mock(Connection.class);
+        when(connection.getConnection()).thenReturn(jdbc);
+        when(jdbc.isClosed()).thenReturn(false);
+        when(jdbc.getAutoCommit()).thenReturn(false);
+        final TestScopedConnection holder =
+                new TestScopedConnection(() -> connection, alwaysMayClose, null);
+        holder.getConnection();
+
+        holder.release();
+
+        verify(connection).close();
+        verify(jdbc, never()).rollback();
+        verify(jdbc, never()).commit();
+    }
+
+    @Test
+    void testRelease_connectionAutoCommitOn_closesWithoutRollingBack() throws Exception
+    {
+        final IDatabaseConnection connection = openConnection();
+        final Connection jdbc = connection.getConnection();
+        final TestScopedConnection holder =
+                new TestScopedConnection(() -> connection, alwaysMayClose, null);
+        holder.getConnection();
+
+        holder.release();
+
+        verify(jdbc, never()).rollback();
+        verify(connection).close();
+    }
+
+    @Test
+    void testRelease_driverRefusesCloseOverOpenTransaction_failsWithAnExplanationAndTheCause()
+            throws Exception
+    {
+        final IDatabaseConnection connection = mock(IDatabaseConnection.class);
+        final Connection jdbc = mock(Connection.class);
+        when(connection.getConnection()).thenReturn(jdbc);
+        when(jdbc.isClosed()).thenReturn(false);
+        when(jdbc.getAutoCommit()).thenReturn(false);
+        final SQLException refusal = new SQLException(
+                "Cannot close a connection while a transaction is still active.", "25001");
+        doThrow(refusal).when(connection).close();
+        final TestScopedConnection holder =
+                new TestScopedConnection(() -> connection, alwaysMayClose, null);
+        holder.getConnection();
+
+        assertThatThrownBy(holder::release)
+                .as("A refused close over an open transaction fails and says why.")
+                .isInstanceOf(SQLException.class)
+                .hasMessageContaining("does not end a transaction it did not begin")
+                .hasMessageContaining("Cannot close a connection while a transaction is still"
+                        + " active.")
+                .hasCause(refusal)
+                .extracting(e -> ((SQLException) e).getSQLState())
+                .isEqualTo("25001");
+        assertThat(holder.isResolved())
+                .as("The refused connection is forgotten as any released one is.")
+                .isFalse();
+    }
+
+    @Test
+    void testRelease_db2RefusesCloseOverOpenTransactionWithNoSqlState_failsWithAnExplanation()
+            throws Exception
+    {
+        final IDatabaseConnection connection = mock(IDatabaseConnection.class);
+        final Connection jdbc = mock(Connection.class);
+        when(connection.getConnection()).thenReturn(jdbc);
+        when(jdbc.isClosed()).thenReturn(false);
+        final SQLException refusal = new SQLException(
+                "java.sql.Connection.close() requested while a transaction is in progress"
+                        + " on the connection.", (String) null, -4471);
+        doThrow(refusal).when(connection).close();
+        final TestScopedConnection holder =
+                new TestScopedConnection(() -> connection, alwaysMayClose, null);
+        holder.getConnection();
+
+        assertThatThrownBy(holder::release)
+                .as("DB2's refusal has no SQLState and is explained by its error code.")
+                .isInstanceOf(SQLException.class)
+                .hasMessageContaining("does not end a transaction it did not begin")
+                .hasCause(refusal);
+    }
+
+    @Test
+    void testRelease_closeFailsOutsideTheInvalidTransactionStateClass_surfacesUnchanged()
+            throws Exception
+    {
+        final IDatabaseConnection connection = mock(IDatabaseConnection.class);
+        final Connection jdbc = mock(Connection.class);
+        when(connection.getConnection()).thenReturn(jdbc);
+        when(jdbc.isClosed()).thenReturn(false);
+        final SQLException failure = new SQLException("socket reset", "08006");
+        doThrow(failure).when(connection).close();
+        final TestScopedConnection holder =
+                new TestScopedConnection(() -> connection, alwaysMayClose, null);
+        holder.getConnection();
+
+        assertThatThrownBy(holder::release)
+                .as("Any other close failure is not reworded.")
+                .isSameAs(failure);
+    }
+
+    @Test
+    void testRelease_isClosedCheckThrows_propagatesTheException() throws Exception
+    {
+        final IDatabaseConnection connection = mock(IDatabaseConnection.class);
+        final Connection jdbc = mock(Connection.class);
+        when(connection.getConnection()).thenReturn(jdbc);
+        final SQLException failure = new SQLException("connection lost");
+        when(jdbc.isClosed()).thenThrow(failure);
+        final TestScopedConnection holder =
+                new TestScopedConnection(() -> connection, alwaysMayClose, null);
+        holder.getConnection();
+
+        assertThatThrownBy(holder::release)
+                .as("A connection whose isClosed() throws has failed in a way worth"
+                        + " surfacing, not swallowing.")
+                .isSameAs(failure);
+    }
+
+    @Test
+    void testReleaseSuppressing_closeFails_attachesItToPrimaryAndForgetsTheConnection()
+            throws Exception
+    {
+        final IDatabaseConnection connection = openConnection();
+        final SQLException closeFailure = new SQLException("close failed");
+        doThrow(closeFailure).when(connection).close();
+        final TestScopedConnection holder =
+                new TestScopedConnection(() -> connection, alwaysMayClose, null);
+        holder.getConnection();
+        final RuntimeException primary = new RuntimeException("the real failure");
+
+        holder.releaseSuppressing(primary);
+
+        assertThat(primary.getSuppressed()).containsExactly(closeFailure);
+        assertThat(holder.isResolved()).as("releaseSuppressing always forgets the connection.")
+                .isFalse();
+    }
+
+    @Test
+    void testReleaseSuppressing_closeThrowsThePrimaryItself_suppressesNothingAndForgetsTheConnection()
+            throws Exception
+    {
+        final IDatabaseConnection connection = openConnection();
+        final SQLException primary = new SQLException("the real failure, stored by the connection");
+        doThrow(primary).when(connection).close();
+        final TestScopedConnection holder =
+                new TestScopedConnection(() -> connection, alwaysMayClose, null);
+        holder.getConnection();
+
+        assertThatCode(() -> holder.releaseSuppressing(primary))
+                .as("A close that throws the failure already in flight must not make it suppress"
+                        + " itself, which throws an IllegalArgumentException in its place.")
+                .doesNotThrowAnyException();
+
+        assertThat(primary.getSuppressed()).as("A throwable cannot suppress itself.").isEmpty();
+        assertThat(holder.isResolved()).as("releaseSuppressing always forgets the connection.")
+                .isFalse();
+    }
+
+    @Test
+    void testReleaseSuppressing_closeThrowsAnError_attachesItToPrimaryAndForgetsTheConnection()
+            throws Exception
+    {
+        final IDatabaseConnection connection = openConnection();
+        final AssertionError closeError = new AssertionError("close asserted");
+        doThrow(closeError).when(connection).close();
+        final TestScopedConnection holder =
+                new TestScopedConnection(() -> connection, alwaysMayClose, null);
+        holder.getConnection();
+        final RuntimeException primary = new RuntimeException("the real failure");
+
+        assertThatCode(() -> holder.releaseSuppressing(primary))
+                .as("An Error from closing the connection must not replace the failure already"
+                        + " in flight.")
+                .doesNotThrowAnyException();
+
+        assertThat(primary.getSuppressed()).containsExactly(closeError);
+        assertThat(holder.isResolved()).as("releaseSuppressing always forgets the connection.")
+                .isFalse();
+    }
+
+    @Test
+    void testDiscardOnFailure_thenGetConnection_reacquires() throws Exception
+    {
+        final AtomicInteger calls = new AtomicInteger();
+        final Callable<IDatabaseConnection> source = () ->
+        {
+            calls.incrementAndGet();
+            return mockOpen();
+        };
+        final TestScopedConnection holder =
+                new TestScopedConnection(source, alwaysMayClose, null);
+
+        holder.getConnection();
+        holder.discardOnFailure();
+        holder.getConnection();
+
+        assertThat(calls).as("discardOnFailure() makes the next getConnection() re-acquire.")
+                .hasValue(2);
+    }
+
+    @Test
+    void testAdopt_connectionAcquiredElsewhere_takesItOverWithoutRunningOnAcquired()
+    {
+        final List<IDatabaseConnection> seen = new ArrayList<>();
+        final IDatabaseConnection connection = mock(IDatabaseConnection.class);
+        final TestScopedConnection holder = new TestScopedConnection(() ->
+        {
+            throw new AssertionError("source must not be called after adopt()");
+        }, alwaysMayClose, seen::add);
+
+        holder.adopt(connection);
+
+        assertThat(holder.peekConnection()).isSameAs(connection);
+        assertThat(holder.isResolved()).isTrue();
+        assertThat(seen).as("adopt() does not run the onAcquired hook.").isEmpty();
+    }
+
+    @Test
+    void testReleaseUnlessAdopted_connectionAdopted_forgetsItWithoutClosingIt() throws Exception
+    {
+        final IDatabaseConnection connection = openConnection();
+        final TestScopedConnection holder =
+                new TestScopedConnection(() -> connection, alwaysMayClose, null);
+        holder.adopt(connection);
+
+        holder.releaseUnlessAdopted();
+
+        verify(connection, never()).close();
+        assertThat(holder.isResolved())
+                .as("An adopted connection is forgotten, left to whoever acquired it.")
+                .isFalse();
+    }
+
+    @Test
+    void testReleaseUnlessAdopted_connectionAcquiredFromTheSource_closesIt() throws Exception
+    {
+        final IDatabaseConnection connection = openConnection();
+        final TestScopedConnection holder =
+                new TestScopedConnection(() -> connection, alwaysMayClose, null);
+        holder.getConnection();
+
+        holder.releaseUnlessAdopted();
+
+        verify(connection).close();
+    }
+
+    @Test
+    void testReleaseUnlessAdopted_adoptedConnectionClosedThenReacquired_closesTheReacquiredOne()
+            throws Exception
+    {
+        final IDatabaseConnection adopted = mock(IDatabaseConnection.class);
+        final Connection adoptedJdbc = mock(Connection.class);
+        when(adopted.getConnection()).thenReturn(adoptedJdbc);
+        when(adoptedJdbc.isClosed()).thenReturn(true);
+        final IDatabaseConnection reacquired = openConnection();
+        final TestScopedConnection holder =
+                new TestScopedConnection(() -> reacquired, alwaysMayClose, null);
+        holder.adopt(adopted);
+        holder.getConnection();
+
+        holder.releaseUnlessAdopted();
+
+        verify(reacquired).close();
+    }
+
+    @Test
+    void testPeekConnection_beforeGetConnection_returnsNullWithoutAcquiring()
+    {
+        final TestScopedConnection holder = new TestScopedConnection(() ->
+        {
+            throw new AssertionError("peekConnection() must not acquire");
+        }, alwaysMayClose, null);
+
+        assertThat(holder.peekConnection()).isNull();
+        assertThat(holder.isResolved()).isFalse();
+    }
+
+    @Test
+    void testGetConnection_supplierReturnsNull_isResolvedButPeekConnectionIsNull()
+            throws Exception
+    {
+        final TestScopedConnection holder =
+                new TestScopedConnection(() -> null, alwaysMayClose, null);
+
+        assertThat(holder.getConnection()).isNull();
+        assertThat(holder.isResolved()).isTrue();
+        assertThat(holder.peekConnection()).isNull();
+    }
+
+    private static IDatabaseConnection mockOpen()
+    {
+        try
+        {
+            final IDatabaseConnection connection = mock(IDatabaseConnection.class);
+            final Connection jdbc = mock(Connection.class);
+            when(connection.getConnection()).thenReturn(jdbc);
+            when(jdbc.isClosed()).thenReturn(false);
+            when(jdbc.getAutoCommit()).thenReturn(true);
+            return connection;
+        } catch (final SQLException e)
+        {
+            throw new IllegalStateException(e);
+        }
+    }
+}

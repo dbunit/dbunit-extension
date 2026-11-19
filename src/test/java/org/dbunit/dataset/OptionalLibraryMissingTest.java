@@ -45,12 +45,16 @@ class OptionalLibraryMissingTest
 {
     private static final String JACKSON_PREFIX = "com.fasterxml.";
     private static final String SNAKEYAML_PREFIX = "org.yaml.";
+    private static final String POI_PREFIX = "org.apache.poi.";
+    private static final String EXCEL_PACKAGE = "org.dbunit.dataset.excel.";
     private static final String JSON_PACKAGE = "org.dbunit.dataset.json.";
     private static final String YAML_PACKAGE = "org.dbunit.dataset.yaml.";
     private static final String LOADER_PACKAGE = "org.dbunit.util.fileloader.";
     private static final String COMPARER_PACKAGE = "org.dbunit.assertion.comparer.value.";
     private static final String JACKSON_COORDINATES = "com.fasterxml.jackson.core:jackson-databind";
     private static final String SNAKEYAML_COORDINATES = "org.yaml:snakeyaml";
+    private static final String POI_COORDINATES = "org.apache.poi:poi";
+    private static final String POI_OOXML_COORDINATES = "org.apache.poi:poi-ooxml";
 
     @Test
     void testJsonDataSetFromStream_jacksonMissing_failsNamingTheDependency() throws Exception
@@ -288,6 +292,100 @@ class OptionalLibraryMissingTest
 
         assertThat(thrown).isInstanceOf(DatabaseUnitRuntimeException.class)
                 .hasMessageContaining(SNAKEYAML_COORDINATES);
+    }
+
+    @Test
+    void testXlsDataSetFromStream_poiMissing_failsNamingTheDependency() throws Exception
+    {
+        final ClassLoader loader = new LibraryHidingClassLoader(POI_PREFIX, EXCEL_PACKAGE);
+        final Class<?> dataSetClass = loader.loadClass(EXCEL_PACKAGE + "XlsDataSet");
+
+        final Throwable thrown = failureOf(() -> dataSetClass.getConstructor(InputStream.class)
+                .newInstance(new ByteArrayInputStream(new byte[0])));
+
+        assertThat(thrown).isInstanceOf(DataSetException.class)
+                .hasMessageContaining(POI_COORDINATES).hasMessageContaining(POI_OOXML_COORDINATES);
+    }
+
+    @Test
+    void testXlsDataSetFromFile_poiMissing_failsNamingTheDependencyBeforeOpeningTheFile()
+            throws Exception
+    {
+        final ClassLoader loader = new LibraryHidingClassLoader(POI_PREFIX, EXCEL_PACKAGE);
+        final Class<?> dataSetClass = loader.loadClass(EXCEL_PACKAGE + "XlsDataSet");
+
+        final Throwable thrown = failureOf(() -> dataSetClass.getConstructor(File.class)
+                .newInstance(Paths.get("does-not-exist.xls").toFile()));
+
+        assertThat(thrown).isInstanceOf(DataSetException.class)
+                .hasMessageContaining(POI_COORDINATES);
+    }
+
+    @Test
+    void testXlsDataSetWrite_poiMissing_failsNamingTheDependency() throws Exception
+    {
+        final ClassLoader loader = new LibraryHidingClassLoader(POI_PREFIX, EXCEL_PACKAGE);
+        final Class<?> dataSetClass = loader.loadClass(EXCEL_PACKAGE + "XlsDataSet");
+        final Method write = dataSetClass.getMethod("write", IDataSet.class,
+                java.io.OutputStream.class);
+
+        final Throwable thrown = failureOf(() -> write.invoke(null, new DefaultDataSet(),
+                new ByteArrayOutputStream()));
+
+        assertThat(thrown).isInstanceOf(DataSetException.class)
+                .hasMessageContaining(POI_COORDINATES);
+    }
+
+    @Test
+    void testXlsDataFileLoader_poiMissing_failsNamingTheDependency() throws Exception
+    {
+        final ClassLoader loader =
+                new LibraryHidingClassLoader(POI_PREFIX, EXCEL_PACKAGE, LOADER_PACKAGE);
+        final Class<?> loaderClass = loader.loadClass(LOADER_PACKAGE + "XlsDataFileLoader");
+        final Object dataFileLoader = loaderClass.getConstructor().newInstance();
+
+        final Throwable thrown = failureOf(() -> loaderClass.getMethod("load", String.class)
+                .invoke(dataFileLoader, "/xml/dataSetTest.xlsx"));
+
+        assertThat(thrown).hasMessageContaining(POI_COORDINATES)
+                .hasMessageContaining(POI_OOXML_COORDINATES);
+    }
+
+    @Test
+    void testFileExtensionDataFileLoader_poiMissing_failsNamingTheDependencyForAnXlsxFile()
+            throws Exception
+    {
+        final ClassLoader loader =
+                new LibraryHidingClassLoader(POI_PREFIX, EXCEL_PACKAGE, LOADER_PACKAGE);
+        final Class<?> loaderClass =
+                loader.loadClass(LOADER_PACKAGE + "FileExtensionDataFileLoader");
+        final Object dataFileLoader = loaderClass.getConstructor().newInstance();
+
+        final Throwable thrown = failureOf(() -> loaderClass.getMethod("load", String.class)
+                .invoke(dataFileLoader, "/xml/dataSetTest.xlsx"));
+
+        assertThat(thrown)
+                .as("The default loader dispatches an .xlsx file to the Excel loader, which says"
+                        + " what to add, rather than failing with a NoClassDefFoundError.")
+                .hasMessageContaining(POI_COORDINATES).hasMessageContaining(POI_OOXML_COORDINATES);
+    }
+
+    @Test
+    void testXlsDataSetFromStream_poiPresent_buildsTheDataSetAsUsual() throws Exception
+    {
+        final ClassLoader loader = new LibraryHidingClassLoader("no.such.prefix.",
+                EXCEL_PACKAGE);
+        final Class<?> dataSetClass = loader.loadClass(EXCEL_PACKAGE + "XlsDataSet");
+
+        try (InputStream in = getClass().getResourceAsStream("/xml/dataSetTest.xls"))
+        {
+            final Object dataSet = dataSetClass.getConstructor(InputStream.class).newInstance(in);
+
+            assertThat(dataSet)
+                    .as("With the library present, nothing is reported missing and the dataset"
+                            + " is built as usual.")
+                    .isNotNull();
+        }
     }
 
     @Test

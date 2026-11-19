@@ -51,12 +51,13 @@ import java.io.InputStream;
 import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
@@ -145,48 +146,83 @@ public class YamlProducer implements IDataSetProducer
         {
             LoaderOptions options = new LoaderOptions();
             options.setAllowDuplicateKeys(false);
+            removeCodePointLimit(options);
             DumperOptions dumperOptions = new DumperOptions();
             _yaml = new Yaml(new Constructor(options), new Representer(dumperOptions),
                     dumperOptions, options, new TextValueResolver());
         }
 
         /**
+         * Lifts the limit on the size of a document, which SnakeYAML sets to 3,145,728 code
+         * points to protect a service from hostile input. A dataset is a fixture of the test's
+         * own project, and a document {@link YamlDataSet#write} wrote must be readable. A
+         * SnakeYAML older than 1.32, such as 1.30, has no such limit and no method to set it.
+         */
+        private static void removeCodePointLimit(final LoaderOptions options)
+        {
+            try
+            {
+                options.setCodePointLimit(Integer.MAX_VALUE);
+            }
+            catch (final NoSuchMethodError e)
+            {
+                // SnakeYAML before 1.32: there is no limit to lift.
+            }
+        }
+
+        /**
          * Resolves the implicit type of an unquoted value as SnakeYAML does, except that it keeps
-         * the text of the document when the column's data type parses that text, or when no data
-         * type wants the number SnakeYAML would read from it. The data type then parses the text as
-         * it does for every other format.
+         * the text of the document for a date, a timestamp without an offset and the numbers that
+         * the data types parse as text, or that no data type wants as the number SnakeYAML would
+         * read. The data type then parses the text as it does for every other format. The
+         * resolver sees the text only, not the column.
          *
          * <p>
-         * Such a value is a date such as {@code 2024-03-01}, a date and time such as
-         * {@code 2024-03-01 10:15:30}, a base-60 number such as the time {@code 10:30:00}, the
+         * Such a value is a date, or a timestamp without an offset in any form that YAML 1.1 reads
+         * as a timestamp, such as {@code 2024-03-01}, {@code 2024-03-01 10:15:30} or
+         * {@code 2024-03-01T10:15:30}, a base-60 number such as the time {@code 10:30:00}, the
          * clock time {@code 12:30}, the ratio {@code 16:9} or {@code 1:30.5}, an integer with
          * leading zeros such as {@code 01234}, an integer with a leading plus such as
          * {@code +4930123456}, and a decimal number such as {@code 12.50} or {@code 1.5e3}.
          * SnakeYAML would read the date as an instant at midnight UTC, the day before in a time
-         * zone west of UTC. It would read a base-60 number as the sum of its parts, so that
-         * {@code 10:30:00} became 37800 and {@code 12:30} became 750, an integer with leading
-         * zeros as an octal number, so that {@code 01234} became 668, an integer with a leading
-         * plus as the integer without the plus, and a number with a fraction as a double, which
-         * drops the digits past about 17 significant ones.
+         * zone west of UTC, and a timestamp without an offset as an instant in UTC, so that a text
+         * column got the {@code toString()} of a {@link java.util.Date} and a timestamp column the
+         * time shifted by the offset of the JVM's time zone. It would read a base-60 number as the
+         * sum of its parts, so that {@code 10:30:00} became 37800 and {@code 12:30} became 750,
+         * an integer with leading zeros as an octal number, so that {@code 01234} became 668, an
+         * integer with a leading plus as the integer without the plus, and a number with a
+         * fraction as a double, which drops the digits past about 17 significant ones.
          *
          * <p>
-         * A timestamp or a number that no data type parses as text, such as
-         * {@code 2024-03-01T10:15:30Z}, {@code 0x1F}, {@code 0b101}, {@code 1_000},
-         * {@code 1_000.5} or {@code .inf}, resolves to the instant, the integer or the double
-         * SnakeYAML reads. Every other value, such as a boolean like {@code yes} or {@code off},
-         * resolves as SnakeYAML resolves it. A value with an explicit tag, such as
-         * {@code !!timestamp}, keeps the type the tag names.
+         * A timestamp with an offset, such as {@code 2024-03-01T10:15:30Z} or
+         * {@code 2024-03-01 10:15:30 +01:00}, resolves to the instant SnakeYAML reads, as before
+         * 3.6.0: a {@code TIMESTAMP} column stores that instant in the JVM's time zone and compares
+         * it as that instant, where the text would be stored as written in its offset and
+         * compared as the instant, which differ in a JVM outside that offset. A number that no
+         * data type parses as text, such as {@code 0x1F}, {@code 0b101}, {@code 1_000},
+         * {@code 1_000.5} or {@code .inf}, resolves to the integer or the double SnakeYAML reads.
+         * Every other value, such as a boolean like {@code yes} or {@code off}, resolves as
+         * SnakeYAML resolves it. A value with an explicit tag, such as {@code !!timestamp}, keeps
+         * the type the tag names.
          */
         private static class TextValueResolver extends Resolver
         {
             private static final Pattern ZERO_PADDED_INTEGER = Pattern.compile("[-+]?0[0-9]+");
 
             /**
+             * The end of a YAML 1.1 timestamp that has an offset: the seconds, a fraction, then
+             * {@code Z} or an offset of one of the forms {@code +h}, {@code +hh} and
+             * {@code +hh:mm}, which may follow spaces or tabs.
+             */
+            private static final Pattern TIMESTAMP_WITH_OFFSET = Pattern.compile(
+                    ".*:[0-9][0-9](?:\\.[0-9]*)?[ \\t]*(?:Z|[-+][0-9][0-9]?(?::[0-9][0-9])?)");
+
+            /**
              * {@inheritDoc}
              * <p>
-             * Resolves a timestamp, a base-60 number, an integer or a float to a string instead
-             * when the column's data type parses the text, or when no data type wants the
-             * number SnakeYAML reads from it.
+             * Resolves a date, a timestamp without an offset, a base-60 number, an integer or a
+             * float to a string instead when the data types parse the text, or when no data type
+             * wants the number SnakeYAML reads from it.
              */
             @Override
             public Tag resolve(final NodeId kind, final String value, final boolean implicit)
@@ -196,7 +232,7 @@ public class YamlProducer implements IDataSetProducer
                 final boolean floatTag = Tag.FLOAT.equals(tag);
                 final boolean numberTag = integerTag || floatTag;
                 final boolean timestampText =
-                        Tag.TIMESTAMP.equals(tag) && isDateOrTimestampText(value);
+                        Tag.TIMESTAMP.equals(tag) && !isTimestampWithOffset(value);
                 final boolean decimalText = floatTag && isDecimalText(value);
                 final boolean base60Text = numberTag && isBase60Number(value);
                 final boolean paddedIntegerText = integerTag && isZeroPaddedIntegerText(value);
@@ -210,30 +246,16 @@ public class YamlProducer implements IDataSetProducer
             }
 
             /**
-             * Returns whether the DATE and TIMESTAMP data types parse the text: as a date when it
-             * has ten characters, otherwise as a date and time, as
-             * {@link java.sql.Date#valueOf(String)} and {@link java.sql.Timestamp#valueOf(String)}
-             * read them.
+             * Returns whether a YAML 1.1 timestamp has an offset, {@code Z} or one such as
+             * {@code +01:00}, which SnakeYAML reads as the instant it names. A date alone, such
+             * as {@code 2024-03-01}, has none, though it ends in a minus and digits.
              *
-             * @param value The text of a timestamp.
-             * @return {@code true} if the data types parse the text.
+             * @param value The text of a YAML 1.1 timestamp.
+             * @return {@code true} if the timestamp has an offset.
              */
-            private static boolean isDateOrTimestampText(final String value)
+            private static boolean isTimestampWithOffset(final String value)
             {
-                try
-                {
-                    if (value.length() == 10)
-                    {
-                        java.sql.Date.valueOf(value);
-                    } else
-                    {
-                        java.sql.Timestamp.valueOf(value);
-                    }
-                    return true;
-                } catch (final IllegalArgumentException e)
-                {
-                    return false;
-                }
+                return TIMESTAMP_WITH_OFFSET.matcher(value).matches();
             }
 
             /**
@@ -373,10 +395,17 @@ public class YamlProducer implements IDataSetProducer
      *
      * <p>An empty or comment-only document produces an empty dataset, and a document whose root
      * is not a mapping of table names to rows is rejected, as is a document that cannot be
-     * parsed, such as one with a syntax error or a second document, a key named twice, a table
-     * that is not a list of rows, a row that is not a mapping of column names to values, and a
-     * table or column name that is not a string. A row with no value is a row of nulls, as in
-     * {@link org.dbunit.dataset.json.JsonProducer}. The consumer is told the dataset ended once
+     * parsed, such as one with a syntax error or a second document, a key named twice, a column
+     * named twice in one row in two cases, such as {@code ID} and {@code id}, a table
+     * that is not a list of rows, a row that is not a mapping of column names to values, a
+     * table or column name that is not a string, and a cell that is a list or a mapping, which
+     * YAML builds from an unquoted value that starts with a square bracket or a curly brace,
+     * such as {@code [NULL]}, so such a value needs quotes. A row with no value is a row of
+     * nulls, as in {@link org.dbunit.dataset.json.JsonProducer}. Column names are matched
+     * ignoring case, as in flat XML: a row that spells a column in another case than an earlier
+     * row gives its value to the column, which keeps the spelling of its first appearance. The
+     * consumer is told the
+     * dataset ended once
      * every table is produced. A stream the producer opened itself, for a {@link File}, is
      * closed afterward, whether or not producing succeeded.
      */
@@ -418,7 +447,7 @@ public class YamlProducer implements IDataSetProducer
      * of its list.
      *
      * @throws DataSetException If the table is not a list of rows, or one of its rows is not
-     *             a row.
+     *             a row or has a cell that is a list or a mapping.
      */
     private static List<Map<String, Object>> rowsOf(String tableName, Object value)
             throws DataSetException
@@ -445,7 +474,8 @@ public class YamlProducer implements IDataSetProducer
      * Returns one row of a table, its column names mapped to their values, with no columns for
      * an entry with no value, which makes a row of nulls.
      *
-     * @throws DataSetException If the entry is not a mapping of column names to values.
+     * @throws DataSetException If the entry is not a mapping of column names to values, or one
+     *             of its values is a list or a mapping.
      */
     private static Map<String, Object> rowOf(String tableName, int rowIndex, Object entry)
             throws DataSetException
@@ -461,13 +491,62 @@ public class YamlProducer implements IDataSetProducer
                     + describe(entry));
         }
         Map<String, Object> row = new LinkedHashMap<String, Object>();
+        Map<String, String> spellingByColumnKey = new HashMap<String, String>();
         for (Map.Entry<?, ?> column : ((Map<?, ?>) entry).entrySet())
         {
             String columnName = nameOf(column.getKey(),
                     "Column name in row " + rowIndex + " of table '" + tableName + "'");
-            row.put(columnName, column.getValue());
+            Object value = column.getValue();
+            requireValue(tableName, rowIndex, columnName, value);
+            requireOnceInTheRow(tableName, rowIndex, columnName, spellingByColumnKey);
+            row.put(columnName, value);
         }
         return row;
+    }
+
+    /**
+     * Checks that the row does not name the column twice in two cases, such as {@code ID} and
+     * {@code id}, which dbUnit takes for one column. SnakeYAML rejects a key named twice in
+     * the same case itself.
+     *
+     * @param spellingByColumnKey The first spelling of each column the row named so far, by its
+     *            upper-case name; this method adds the column to it.
+     * @throws DataSetException If the row named the column before, in another case.
+     */
+    private static void requireOnceInTheRow(String tableName, int rowIndex, String columnName,
+            Map<String, String> spellingByColumnKey) throws DataSetException
+    {
+        String columnKey = columnName.toUpperCase(Locale.ENGLISH);
+        String firstSpelling = spellingByColumnKey.putIfAbsent(columnKey, columnName);
+        if (firstSpelling != null)
+        {
+            throw new DataSetException("Row " + rowIndex + " of table '" + tableName
+                    + "' names column '" + firstSpelling + "' more than once, also as '"
+                    + columnName + "': a column is named once in a row");
+        }
+    }
+
+    /**
+     * Checks that a cell holds a value. YAML builds a list from an unquoted value that starts
+     * with a square bracket, such as {@code [NULL]} or {@code [now-1d]}, and a mapping from one
+     * that starts with a curly brace, and no column type can use either.
+     *
+     * @throws DataSetException If the cell is a list or a mapping.
+     */
+    private static void requireValue(String tableName, int rowIndex, String columnName,
+            Object value) throws DataSetException
+    {
+        final boolean mapping = value instanceof Map;
+        final boolean list = value instanceof Collection;
+        if (mapping || list)
+        {
+            final String kind = mapping ? "a mapping" : "a list";
+            throw new DataSetException("Column '" + columnName + "' of row " + rowIndex
+                    + " of table '" + tableName + "' must be a value, but was " + kind + ", "
+                    + value + ": YAML reads an unquoted value that starts with '[' as a list and"
+                    + " one that starts with '{' as a mapping. Quote the value, such as '[NULL]'"
+                    + " or '[now-1d]', to give it as text.");
+        }
     }
 
     /**
@@ -518,15 +597,17 @@ public class YamlProducer implements IDataSetProducer
 
     private ITableMetaData getMetaData(String tableName, List<Map<String, Object>> rows)
     {
-        Set<String> columns = new LinkedHashSet<String>();
-        // iterate through the dataset and add the column names to a set
+        Map<String, String> firstSpellingByColumnKey = new LinkedHashMap<String, String>();
         for (Map<String, Object> row : rows)
         {
-            columns.addAll(row.keySet());
+            for (String columnName : row.keySet())
+            {
+                firstSpellingByColumnKey.putIfAbsent(columnName.toUpperCase(Locale.ENGLISH),
+                        columnName);
+            }
         }
-        List<Column> list = new ArrayList<Column>(columns.size());
-        // create a list of DBUnit columns based on the column name set
-        for (String s : columns)
+        List<Column> list = new ArrayList<Column>(firstSpellingByColumnKey.size());
+        for (String s : firstSpellingByColumnKey.values())
         {
             list.add(new Column(s, DataType.UNKNOWN));
         }
@@ -536,9 +617,10 @@ public class YamlProducer implements IDataSetProducer
     private Object[] getRow(ITableMetaData meta, Map<String, Object> row) throws DataSetException
     {
         Object[] result = new Object[meta.getColumns().length];
-        for (int i = 0; i < meta.getColumns().length; i++)
+        for (Map.Entry<String, Object> cell : row.entrySet())
         {
-            result[i] = row.get(meta.getColumns()[i].getColumnName());
+            int columnIndex = meta.getColumnIndex(cell.getKey());
+            result[columnIndex] = cell.getValue();
         }
         return result;
     }

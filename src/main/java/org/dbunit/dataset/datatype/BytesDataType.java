@@ -171,6 +171,10 @@ public class BytesDataType extends AbstractDataType
      * this might sometimes result in undesired behavior when character data
      * (Strings) are used.
      *
+     * <p>A string that starts with a bracketed command that is none of TEXT, BASE64, FILE
+     * and URL fails with a {@link TypeCastException} that names the command and the four
+     * valid ones, and says to prefix a text value with {@code [TEXT]}.
+     *
      * @see org.dbunit.dataset.datatype.DataType#typeCast(java.lang.Object)
      */
     @Override
@@ -203,11 +207,13 @@ public class BytesDataType extends AbstractDataType
                 final Matcher matcher = inputPattern.matcher(stringValue);
                 if (matcher.matches())
                 {
-                    final String commandLine = matcher.group(1).toUpperCase(Locale.ENGLISH);
+                    final String writtenCommandLine = matcher.group(1);
+                    final String commandLine = writtenCommandLine.toUpperCase(Locale.ENGLISH);
                     stringValue = matcher.group(2);
 
                     final String[] split = commandLine.split(" ");
                     final String command = split[0];
+                    final String writtenCommand = writtenCommandLine.split(" ")[0];
 
                     if ("TEXT".equals(command))
                     {
@@ -270,11 +276,13 @@ public class BytesDataType extends AbstractDataType
                         }
                     } else
                     {
-                        logger.error(
-                                "Unrecognized command <{}> in binary extended-syntax value"
-                                        + " <{}> - expected [TEXT], [BASE64], [FILE] or [URL]",
-                                command, value);
-                        throw new TypeCastException(value, this);
+                        final String errMsg = "Unable to typecast value <" + value
+                                + "> of type <" + value.getClass().getName() + "> to " + this
+                                + ": unrecognized command <" + writtenCommand + ">, expected [TEXT],"
+                                + " [BASE64], [FILE] or [URL]. To store the value as text, prefix"
+                                + " it with [TEXT]; a placeholder such as [NULL] has to be"
+                                + " replaced before it reaches the column.";
+                        throw new TypeCastException(errMsg, (Throwable) null);
                     }
                 }
             }

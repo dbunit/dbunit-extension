@@ -28,22 +28,49 @@ import org.dbunit.dataset.RequiredLibrary;
 import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.ITableIterator;
 import org.dbunit.dataset.ITableMetaData;
+import org.dbunit.dataset.RowOutOfBoundsException;
+import org.dbunit.dataset.JdbcEscapeText;
 import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.Yaml;
 
 import java.io.Writer;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.time.OffsetDateTime;
-import java.time.ZonedDateTime;
-import java.time.temporal.TemporalAccessor;
+import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 
 /**
+ * Writes an {@link IDataSet} to a {@link Writer} in YAML format.
+ *
+ * <p>The writer leaves a null cell, or a cell with no value, out of the mapping of a row,
+ * except in the first row that has the column, for each table name. That row carries the
+ * column with {@code null} for such a cell, so a column that is null in every row still
+ * appears in the output and survives a read-back, also when the table name occurs more
+ * than once in the dataset.
+ *
+ * <p>The writer writes a date, a time or a timestamp as the JDBC escape text that the column
+ * types parse, see {@link JdbcEscapeText}, where SnakeYAML would write an instant in UTC, so
+ * that a date reads back as the same day, and a timestamp as the same date and time, in any
+ * time zone. It writes a value of any type other than a string, a number, a boolean, an array, a
+ * collection or a map, such as a {@link java.util.UUID}, as its {@code toString()} text.
+ *
+ * <p>The writer writes a {@link java.math.BigDecimal} without a fraction, the value of a
+ * {@code NUMERIC(p,0)}, {@code DECIMAL(p,0)} or Oracle {@code NUMBER(p)} column, as an integer.
+ * SnakeYAML would write it with the tag {@code !!float}, which the reader keeps, so that the cell
+ * would read back as a {@code double} and a value of more than about 15 digits would change.
+ *
+ * <p>The writer writes text that holds a control character, such as a form feed, a NUL or an
+ * escape character, as a double-quoted value with YAML escapes, so that it reads back as the
+ * same text. SnakeYAML's default would write such text as a {@code !!binary} value, which the
+ * reader returns as bytes, and a text column would store the Base64 text of the value. A byte
+ * array, a BLOB value, is not text, and the writer still writes it as {@code !!binary}.
+ *
  * @author Björn Beskow
  * @version $Revision$ $Date$
  */
@@ -75,6 +102,9 @@ class YamlWriter
     {
         LinkedHashMap<String, List<LinkedHashMap<String, Object>>> dataSetAsMap = dataSetAsMap(dataSet);
         DumperOptions options = new DumperOptions();
+        // Text must stay text on read-back: the default style writes a string with a control
+        // character as !!binary, which the reader returns as bytes.
+        options.setNonPrintableStyle(DumperOptions.NonPrintableStyle.ESCAPE);
         if (_useFlowStyle)
         {
             options.setDefaultFlowStyle(DumperOptions.FlowStyle.FLOW);
@@ -92,78 +122,124 @@ class YamlWriter
     private LinkedHashMap<String, List<LinkedHashMap<String, Object>>> dataSetAsMap(IDataSet dataSet) throws DataSetException
     {
         LinkedHashMap<String, List<LinkedHashMap<String, Object>>> result = new LinkedHashMap<>();
+        Map<String, Set<String>> writtenColumnsByTable = new HashMap<>();
         ITableIterator iterator = dataSet.iterator();
         while (iterator.next())
         {
             ITableMetaData tableMetaData = iterator.getTableMetaData();
-            List<LinkedHashMap<String, Object>> tableRows = new ArrayList<>();
+            List<LinkedHashMap<String, Object>> tableRows =
+                    result.computeIfAbsent(tableMetaData.getTableName(), name -> new ArrayList<>());
+            Set<String> writtenColumns = writtenColumnsByTable
+                    .computeIfAbsent(tableMetaData.getTableName(), name -> new HashSet<>());
             ITable table = iterator.getTable();
-            for (int row = 0; row < table.getRowCount(); row++)
+            Column[] columns = tableMetaData.getColumns();
+            if (columns.length == 0)
             {
-                LinkedHashMap<String, Object> rowMap = new LinkedHashMap<>();
-                for (Column column : tableMetaData.getColumns())
-                {
-                    String columnName = column.getColumnName();
-                    Object value = table.getValue(row, columnName);
-                    if (value != null && value != ITable.NO_VALUE)
-                    {
-                        rowMap.put(columnName, valueToWrite(value));
-                    }
-                }
-                tableRows.add(rowMap);
+                addEmptyRows(tableRows, table);
+                continue;
             }
-            result.put(tableMetaData.getTableName(), tableRows);
+            int rowCount = rowCountOf(table);
+            try
+            {
+                for (int row = 0; row < rowCount; row++)
+                {
+                    LinkedHashMap<String, Object> rowMap = new LinkedHashMap<>();
+                    for (Column column : columns)
+                    {
+                        String columnName = column.getColumnName();
+                        Object value = table.getValue(row, columnName);
+                        boolean noValue = value == null || value == ITable.NO_VALUE;
+                        String columnKey = columnName.toUpperCase(Locale.ENGLISH);
+                        boolean firstWriteOfColumn = writtenColumns.add(columnKey);
+                        if (noValue)
+                        {
+                            // The first row that has the column carries it, so that a column that
+                            // is null in every row still appears in the document and survives a
+                            // read-back.
+                            if (firstWriteOfColumn)
+                            {
+                                rowMap.put(columnName, null);
+                            }
+                        } else
+                        {
+                            rowMap.put(columnName, yamlValueOf(value));
+                        }
+                    }
+                    tableRows.add(rowMap);
+                }
+            } catch (RowOutOfBoundsException e)
+            {
+                // The rows of the table are exhausted, as a streaming table reports it.
+            }
         }
         return result;
     }
 
     /**
-     * Returns a date, a time or a timestamp as the text a column type parses, the JDBC escape
-     * format of {@link java.sql.Timestamp#toString()} and its siblings: a {@code java.sql} or
-     * {@code java.time} date, time or date and time as it is, a {@code java.time} time to the
-     * second, and an instant, such as a {@link java.util.Date} or an
-     * {@link java.time.OffsetDateTime}, in the time zone of the JVM. A date then reads back as
-     * the same day, and a timestamp as the same date and time, in any time zone, as from a flat
-     * XML file; SnakeYAML would write either as an instant in UTC. Returns any other
-     * {@code java.time} value as its {@code toString()}, and any other value as it is.
-     *
-     * @param value The value of a cell; not {@code null}.
-     * @return The value to write.
+     * Adds an empty row for each row of a table with no columns, so the row count survives a
+     * read-back. A table that cannot tell its row count, such as a streaming table, gets no row,
+     * as its rows cannot be counted without a column to read.
      */
-    private static Object valueToWrite(Object value)
+    private static void addEmptyRows(List<LinkedHashMap<String, Object>> rows, ITable table)
     {
-        if (value instanceof java.sql.Date || value instanceof java.sql.Time
-                || value instanceof java.sql.Timestamp)
+        int rowCount = rowCountOf(table);
+        boolean countKnown = rowCount != Integer.MAX_VALUE;
+        if (countKnown)
         {
-            return value.toString();
+            for (int row = 0; row < rowCount; row++)
+            {
+                rows.add(new LinkedHashMap<>());
+            }
         }
-        if (value instanceof java.util.Date)
+    }
+
+    /**
+     * Returns the value as SnakeYAML writes it as a plain value: a string, a number, a boolean, a
+     * byte array as they are, a {@link BigDecimal} without a fraction as an integer, and any other
+     * value, such as a {@link java.util.UUID}, as its {@code toString()} text. SnakeYAML writes
+     * the other value with a global tag, which the reader refuses, or as an empty mapping, which
+     * loses the value. It writes a {@code BigDecimal} without a fraction, such as {@code 5}, with
+     * the tag {@code !!float} and its digits in quotes, as the digits alone read as an integer,
+     * and the reader keeps the type that an explicit tag names, so the cell would arrive as a
+     * {@code double}, which holds about 15 to 17 significant digits. A {@code BigDecimal} with a
+     * fraction or an exponent, such as {@code 12.50} or {@code 1E+3}, needs no tag, and the reader
+     * keeps its text. An array, a collection or a map stays as it is, as YAML has a sequence and
+     * a mapping for it, which the reader rejects in a cell with a message that names the table,
+     * the row and the column, where the text of the array object would read back without a word.
+     */
+    private static Object yamlValueOf(Object value)
+    {
+        Object escaped = JdbcEscapeText.of(value);
+        if (escaped instanceof BigDecimal)
         {
-            long millis = ((java.util.Date) value).getTime();
-            return new java.sql.Timestamp(millis).toString();
+            final BigDecimal decimal = (BigDecimal) escaped;
+            final boolean hasNoFraction = decimal.scale() == 0;
+            if (hasNoFraction)
+            {
+                return decimal.toBigIntegerExact();
+            }
         }
-        if (value instanceof LocalDate)
+        if (escaped instanceof String || escaped instanceof Number || escaped instanceof Boolean
+                || escaped instanceof Collection || escaped instanceof Map
+                || escaped.getClass().isArray())
         {
-            return java.sql.Date.valueOf((LocalDate) value).toString();
+            return escaped;
         }
-        if (value instanceof LocalDateTime)
+        return escaped.toString();
+    }
+
+    /**
+     * Returns the row count of the table, or an unbounded count for a table that cannot tell it,
+     * such as a streaming table, whose rows end with a {@link RowOutOfBoundsException}.
+     */
+    private static int rowCountOf(ITable table)
+    {
+        try
         {
-            return java.sql.Timestamp.valueOf((LocalDateTime) value).toString();
-        }
-        if (value instanceof LocalTime)
+            return table.getRowCount();
+        } catch (UnsupportedOperationException e)
         {
-            return java.sql.Time.valueOf((LocalTime) value).toString();
+            return Integer.MAX_VALUE;
         }
-        if (value instanceof Instant || value instanceof OffsetDateTime
-                || value instanceof ZonedDateTime)
-        {
-            Instant instant = Instant.from((TemporalAccessor) value);
-            return java.sql.Timestamp.from(instant).toString();
-        }
-        if (value instanceof TemporalAccessor)
-        {
-            return value.toString();
-        }
-        return value;
     }
 }

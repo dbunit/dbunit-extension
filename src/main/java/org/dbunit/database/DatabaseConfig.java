@@ -120,6 +120,20 @@ public class DatabaseConfig
      */
     public static final String FEATURE_SKIP_CYCLE_CHECK =
             "http://www.dbunit.org/features/skipCycleCheck";
+    /**
+     * Name of the feature controlling whether table row counts are compared before and after
+     * each test.
+     */
+    public static final String FEATURE_ROW_COUNT_CHECK =
+            "http://www.dbunit.org/features/rowCountCheck";
+    /**
+     * Name of the feature controlling whether verifying a table fails when a column name to
+     * include, or the column name of a column comparer, matches no column of the database
+     * table. When enabled, the default, the verification fails; when disabled, it logs a
+     * warning for each such name instead.
+     */
+    public static final String FEATURE_FAIL_ON_UNKNOWN_VERIFY_COLUMN_NAME =
+            "http://www.dbunit.org/features/failOnUnknownVerifyColumnName";
 
     /**
      * A list of all properties as {@link ConfigProperty} objects. 
@@ -145,6 +159,10 @@ public class DatabaseConfig
         new ConfigProperty(PROPERTY_ALLOW_VERIFYTABLEDEFINITION_EXPECTEDTABLE_COUNT_MISMATCH, Boolean.class, false),
         new ConfigProperty(FEATURE_SORT_ALL_COLUMNS_WHEN_NO_PRIMARY_KEY, Boolean.class, false),
         new ConfigProperty(FEATURE_SKIP_CYCLE_CHECK, Boolean.class, false),
+        new ConfigProperty(PROPERTY_ROW_COUNT_CHECK_EXCLUDE_TABLES, String[].class, false),
+        new ConfigProperty(PROPERTY_ROW_COUNTER, RowCounter.class, false),
+        new ConfigProperty(FEATURE_ROW_COUNT_CHECK, Boolean.class, false),
+        new ConfigProperty(FEATURE_FAIL_ON_UNKNOWN_VERIFY_COLUMN_NAME, Boolean.class, false),
     };
 
     /**
@@ -159,7 +177,9 @@ public class DatabaseConfig
         FEATURE_SKIP_ORACLE_RECYCLEBIN_TABLES,
         FEATURE_ALLOW_EMPTY_FIELDS,
         FEATURE_SORT_ALL_COLUMNS_WHEN_NO_PRIMARY_KEY,
-        FEATURE_SKIP_CYCLE_CHECK
+        FEATURE_SKIP_CYCLE_CHECK,
+        FEATURE_ROW_COUNT_CHECK,
+        FEATURE_FAIL_ON_UNKNOWN_VERIFY_COLUMN_NAME
     };
     
     private static final DefaultDataTypeFactory DEFAULT_DATA_TYPE_FACTORY =
@@ -192,6 +212,8 @@ public class DatabaseConfig
         setFeature(FEATURE_ALLOW_EMPTY_FIELDS, false);
         setFeature(FEATURE_SORT_ALL_COLUMNS_WHEN_NO_PRIMARY_KEY, false);
         setFeature(FEATURE_SKIP_CYCLE_CHECK, false);
+        setFeature(FEATURE_ROW_COUNT_CHECK, false);
+        setFeature(FEATURE_FAIL_ON_UNKNOWN_VERIFY_COLUMN_NAME, true);
 
         setProperty(PROPERTY_STATEMENT_FACTORY, PREPARED_STATEMENT_FACTORY);
         setProperty(PROPERTY_RESULTSET_TABLE_FACTORY, RESULT_SET_TABLE_FACTORY);
