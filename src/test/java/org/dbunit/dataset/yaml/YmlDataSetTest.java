@@ -221,6 +221,57 @@ class YmlDataSetTest extends AbstractDataSetTest
     }
 
     @Test
+    void testWrite_wholeNumberDecimalColumn_verifiesAgainstItsTableAndReimportsUnchanged()
+            throws Exception
+    {
+        final IDatabaseConnection connection = InMemoryDatabaseConnection.create();
+        try
+        {
+            try (Statement statement = connection.getConnection().createStatement())
+            {
+                statement.execute("CREATE TABLE ACCOUNT (ID NUMERIC(30,0) PRIMARY KEY,"
+                        + " BALANCE NUMERIC(30,2))");
+                statement.execute("INSERT INTO ACCOUNT VALUES (5, 2.00)");
+                statement.execute("INSERT INTO ACCOUNT VALUES (9007199254740993, 1.10)");
+                statement.execute("INSERT INTO ACCOUNT VALUES"
+                        + " (123456789012345678901234567890, 12345678901234567890.12)");
+            }
+            final String select = "SELECT ID, BALANCE FROM ACCOUNT ORDER BY ID";
+            final ByteArrayOutputStream out = new ByteArrayOutputStream();
+            YamlDataSet.write(new DefaultDataSet(connection.createQueryTable("ACCOUNT", select)),
+                    out);
+            final IDataSet exported =
+                    new YamlDataSet(new ByteArrayInputStream(out.toByteArray()));
+            final ITable exportedTable = exported.getTable("ACCOUNT");
+            final ITable tableItCameFrom = connection.createQueryTable("ACCOUNT", select);
+
+            assertThatCode(() -> Assertion.assertEquals(exportedTable, tableItCameFrom))
+                    .as("The document that YamlDataSet.write() wrote must verify against the table"
+                            + " it was written from, a decimal without a fraction included.")
+                    .doesNotThrowAnyException();
+
+            DatabaseOperation.CLEAN_INSERT.execute(connection, exported);
+
+            final DefaultTable originals = new DefaultTable("ACCOUNT",
+                    new Column[] {new Column("ID", DataType.NUMERIC),
+                            new Column("BALANCE", DataType.NUMERIC)});
+            originals.addRow(new Object[] {new BigDecimal("5"), new BigDecimal("2.00")});
+            originals.addRow(
+                    new Object[] {new BigDecimal("9007199254740993"), new BigDecimal("1.10")});
+            originals.addRow(new Object[] {new BigDecimal("123456789012345678901234567890"),
+                    new BigDecimal("12345678901234567890.12")});
+            final ITable reimported = connection.createQueryTable("ACCOUNT", select);
+            assertThatCode(() -> Assertion.assertEquals(originals, reimported))
+                    .as("A re-import of the document must store the values that were exported,"
+                            + " every digit of a decimal without a fraction included.")
+                    .doesNotThrowAnyException();
+        } finally
+        {
+            connection.close();
+        }
+    }
+
+    @Test
     void testWrite_javaTimeValues_readsThemBackAsTheSameColumnValues() throws Exception
     {
         final Column[] columns = {new Column("EVENT_DAY", DataType.DATE),

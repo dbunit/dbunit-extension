@@ -343,6 +343,10 @@ link:excel.html[Excel] dataset arrive as. Otherwise they parse the value as a nu
 CSV or Excel text `true` or `false` fill the `NUMBER(1)` boolean column of Oracle, which is
 a `NUMERIC` column. Everything else goes through `new BigDecimal(value)`.
 
+The link:json.html[JSON] and link:yaml.html[YAML] datasets that dbUnit writes hold a `NUMERIC`
+or `DECIMAL` value with every digit, a value without a fraction as an integer, so a value of
+any size reads back as it was.
+
 In link:csv.html[CSV], a numeric field with a trailing space before the comma
 is read as a string, not a number.
 

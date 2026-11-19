@@ -34,6 +34,7 @@ import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.Yaml;
 
 import java.io.Writer;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -58,6 +59,11 @@ import java.util.Set;
  * that a date reads back as the same day, and a timestamp as the same date and time, in any
  * time zone. It writes a value of any type other than a string, a number, a boolean, an array, a
  * collection or a map, such as a {@link java.util.UUID}, as its {@code toString()} text.
+ *
+ * <p>The writer writes a {@link java.math.BigDecimal} without a fraction, the value of a
+ * {@code NUMERIC(p,0)}, {@code DECIMAL(p,0)} or Oracle {@code NUMBER(p)} column, as an integer.
+ * SnakeYAML would write it with the tag {@code !!float}, which the reader keeps, so that the cell
+ * would read back as a {@code double} and a value of more than about 15 digits would change.
  *
  * <p>The writer writes text that holds a control character, such as a form feed, a NUL or an
  * escape character, as a double-quoted value with YAML escapes, so that it reads back as the
@@ -189,16 +195,30 @@ class YamlWriter
 
     /**
      * Returns the value as SnakeYAML writes it as a plain value: a string, a number, a boolean, a
-     * byte array as they are, and any other value, such as a {@link java.util.UUID}, as its
-     * {@code toString()} text. SnakeYAML writes the other value with a global tag, which the
-     * reader refuses, or as an empty mapping, which loses the value. An array, a collection or
-     * a map stays as it is, as YAML has a sequence and a mapping for it, which the reader rejects
-     * in a cell with a message that names the table, the row and the column, where the text of
-     * the array object would read back without a word.
+     * byte array as they are, a {@link BigDecimal} without a fraction as an integer, and any other
+     * value, such as a {@link java.util.UUID}, as its {@code toString()} text. SnakeYAML writes
+     * the other value with a global tag, which the reader refuses, or as an empty mapping, which
+     * loses the value. It writes a {@code BigDecimal} without a fraction, such as {@code 5}, with
+     * the tag {@code !!float} and its digits in quotes, as the digits alone read as an integer,
+     * and the reader keeps the type that an explicit tag names, so the cell would arrive as a
+     * {@code double}, which holds about 15 to 17 significant digits. A {@code BigDecimal} with a
+     * fraction or an exponent, such as {@code 12.50} or {@code 1E+3}, needs no tag, and the reader
+     * keeps its text. An array, a collection or a map stays as it is, as YAML has a sequence and
+     * a mapping for it, which the reader rejects in a cell with a message that names the table,
+     * the row and the column, where the text of the array object would read back without a word.
      */
     private static Object yamlValueOf(Object value)
     {
         Object escaped = JdbcEscapeText.of(value);
+        if (escaped instanceof BigDecimal)
+        {
+            final BigDecimal decimal = (BigDecimal) escaped;
+            final boolean hasNoFraction = decimal.scale() == 0;
+            if (hasNoFraction)
+            {
+                return decimal.toBigIntegerExact();
+            }
+        }
         if (escaped instanceof String || escaped instanceof Number || escaped instanceof Boolean
                 || escaped instanceof Collection || escaped instanceof Map
                 || escaped.getClass().isArray())
