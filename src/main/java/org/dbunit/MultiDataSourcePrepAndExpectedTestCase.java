@@ -22,6 +22,7 @@ package org.dbunit;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -166,7 +167,9 @@ public class MultiDataSourcePrepAndExpectedTestCase
      * {@link PrepAndExpectedTestData#NONE} instance, is skipped entirely this run - its
      * {@code preTest} is never called and its connection is never opened. An unknown key in
      * {@code dataByDataSourceName} - one not wired to this instance - is rejected before any
-     * delegate is touched.
+     * delegate is touched, as is a run in which two involved data source names are wired to the
+     * same delegate instance, because a delegate holds the data of one run and the second
+     * {@code preTest} would replace the first.
      * <p>
      * If an involved delegate's own {@code preTest} fails, every involved delegate set up so far -
      * including the one that just failed - is rolled back, via
@@ -182,7 +185,8 @@ public class MultiDataSourcePrepAndExpectedTestCase
      *            {@code null}, and containing no key this instance has no delegate wired for.
      * @throws IllegalArgumentException
      *             If dataByDataSourceName is {@code null}, contains an unknown data source name,
-     *             or maps a wired data source name to {@code null}.
+     *             maps a wired data source name to {@code null}, or involves two data source
+     *             names wired to the same delegate instance.
      * @throws Exception
      *             If an involved delegate's own {@code preTest} fails.
      */
@@ -221,6 +225,8 @@ public class MultiDataSourcePrepAndExpectedTestCase
             }
         }
 
+        rejectOneDelegateUnderTwoNames(involved);
+
         involvedDataSourceNames = Collections.emptySet();
         final List<String> setUpSoFar = new ArrayList<>();
         for (final String dataSourceName : involved)
@@ -241,6 +247,24 @@ public class MultiDataSourcePrepAndExpectedTestCase
         }
 
         involvedDataSourceNames = involved;
+    }
+
+    private void rejectOneDelegateUnderTwoNames(final Set<String> involved)
+    {
+        final Map<PrepAndExpectedTestCase, String> namesByDelegate = new IdentityHashMap<>();
+        for (final String dataSourceName : involved)
+        {
+            final PrepAndExpectedTestCase testCase = testCasesByDataSourceName.get(dataSourceName);
+            final String firstName = namesByDelegate.put(testCase, dataSourceName);
+            if (firstName != null)
+            {
+                throw new IllegalArgumentException("Data sources \"" + firstName + "\" and \""
+                        + dataSourceName + "\" are wired to the same test case, which holds the"
+                        + " data of one run, so the second would replace the first. Wire a test"
+                        + " case per data source, or add a tester per data source with"
+                        + " add(name, tester).");
+            }
+        }
     }
 
     private void rollBackSuppressing(final List<String> setUpSoFar, final Throwable primaryFailure)

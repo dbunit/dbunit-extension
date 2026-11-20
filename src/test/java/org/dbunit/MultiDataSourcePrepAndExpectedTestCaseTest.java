@@ -341,6 +341,43 @@ class MultiDataSourcePrepAndExpectedTestCaseTest
     }
 
     @Test
+    void testPreTest_oneDelegateUnderTwoInvolvedNames_throwsNamingBothBeforeAnyDelegateIsTouched()
+    {
+        final List<String> callLog = new ArrayList<>();
+        final RecordingTestCase shared = new RecordingTestCase("shared", callLog);
+        final RecordingTestCase orders = new RecordingTestCase("orders", callLog);
+        final MultiDataSourcePrepAndExpectedTestCase testCase =
+                MultiDataSourcePrepAndExpectedTestCase.builder().add("orders", orders)
+                        .add("a", shared).add("b", shared).build();
+
+        final Throwable thrown = catchThrowable(() -> testCase
+                .preTest(map("orders", someData(), "a", someData(), "b", someData())));
+
+        assertThat(thrown).as("A delegate holds one run's data, so two names for it must throw.")
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("\"a\"")
+                .hasMessageContaining("\"b\"");
+        assertThat(callLog)
+                .as("No delegate may be touched, not even the one before the shared pair.")
+                .isEmpty();
+    }
+
+    @Test
+    void testPreTest_oneDelegateUnderTwoNamesOnlyOneInvolved_setsItUp() throws Exception
+    {
+        final List<String> callLog = new ArrayList<>();
+        final RecordingTestCase shared = new RecordingTestCase("shared", callLog);
+        final MultiDataSourcePrepAndExpectedTestCase testCase =
+                MultiDataSourcePrepAndExpectedTestCase.builder().add("a", shared)
+                        .add("b", shared).build();
+
+        testCase.preTest(map("b", someData()));
+        testCase.postTest(true);
+
+        assertThat(callLog).as("Two names for one delegate are aliases when only one is involved.")
+                .containsExactly("shared:preTest", "shared:postTest(true)");
+    }
+
+    @Test
     void testPreTest_secondCallRejectedWhileARunIsActive_postTestStillTearsDownTheActiveRun()
             throws Exception
     {

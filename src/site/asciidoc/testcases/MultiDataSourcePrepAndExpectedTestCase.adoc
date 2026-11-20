@@ -31,7 +31,10 @@ assembled with `builder()` - `add`, `addAll`, `dataFileLoader` and `closeConnect
 any order, then `build()` - or with the `Map` constructor. `addAll` and the `Map` constructor take
 test cases. A tester is wired with `add(name, tester)`, which wraps it in a
 `DefaultPrepAndExpectedTestCase` that uses the builder's loader, a `FileExtensionDataFileLoader`
-unless one is set, and its `closeConnectionAfterTest`, `true` unless set otherwise.
+unless one is set, and its `closeConnectionAfterTest`, `true` unless set otherwise. A delegate
+holds the data of one run, so wire one delegate per data source: a run that involves two names of
+one delegate throws an `IllegalArgumentException` naming both. Two names for one delegate are
+accepted when no run involves both.
 
 Data (varies per test method, per `@ParameterizedTest` row):: the
 `{name -> PrepAndExpectedTestData}` map passed to `preTest(map)`/`runTest(map, steps)`. A wired
@@ -109,7 +112,8 @@ cleanup) on a failed run, and suppressed-exception handling are all the wrapper'
 
 |`preTest(map)`
 |declared
-|An unknown key, or a key mapped to `null`, throws before any delegate is touched. For each
+|An unknown key, a key mapped to `null`, or two involved names wired to the same delegate throws
+ before any delegate is touched. For each
  *involved* data source (present in the map and not mapped to `NONE`), in declared order:
  `delegate.preTest(...)`. If one throws, every involved delegate set up so far - including the one
  that just failed - is rolled back via `postTest(false)` in reverse - never a bare `cleanupData()`
