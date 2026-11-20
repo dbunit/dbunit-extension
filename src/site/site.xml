@@ -6,7 +6,7 @@
     <image src="/images/dbunit-logo.jpg"/>
   </bannerLeft>
 
-  <bannerRight name="" href="https://github.com/dbunit">
+  <bannerRight name="" href="https://github.com/dbunit/dbunit-extension">
     <image src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png" width="48px" height="48px"/>
   </bannerRight>
 
@@ -36,6 +36,9 @@
       </item>
       <item name="" href="https://central.sonatype.com/artifact/org.dbunit/dbunit">
         <image src="https://api.scarf.sh/v2/packages/Dbunit/8fb62e30-d923-4676-bfd0-f57445d56578/downloads-badge" alt="Maven Central download count"/>
+      </item>
+      <item name="" href="https://github.com/dbunit/dbunit-extension/network/dependents">
+        <image src="https://img.shields.io/badge/Dependents-15K-blue?style=flat&amp;logo=github" alt="GitHub Dependents"/>
       </item>
     </links>
 
@@ -154,6 +157,15 @@
       <item name="Older Migration Guide"    href="/migration.html"/>
     </menu>
 
+    <menu name="Getting Help">
+      <item name="FAQ"               href="/faq.html"/>
+      <item name="Wiki"              href="http://dbunit.wikidot.com/"/>
+      <item name="JavaDocs"          href="/apidocs/index.html"/>
+      <item name="Source Xref"       href="/xref/index.html"/>
+      <item name="Discussion Forum"  href="https://github.com/dbunit/dbunit-extension/discussions"/>
+      <item name="Issues"            href="https://github.com/dbunit/dbunit-extension/issues"/>
+    </menu>
+
     <menu name="Developing DbUnit">
       <item name="Developers Guide"     href="/devguide.html"/>
       <item name="Coding Standards"     href="/codingstandards.html">
@@ -172,6 +184,15 @@
       <item name="Integration Tests"    href="/integrationtests.html"/>
       <item name="Releasing"            href="/releasing.html"/>
     </menu>
+
+    <menu name="References">
+      <item name="Resources"            href="/resources.html"/>
+      <item name="Maven 1.x Plugin"     href="http://maven-plugins.sourceforge.net/maven-dbunit-plugin/index.html"/>
+      <item name="Maven 2.x/3.x Plugin" href="../dbunit-maven-plugin/index.html"/>
+      <item name="Eclipse Plugin"       href="../dbunit-eclipse-plugin/index.html"/>
+      <item name="DBUnit AT Open Hub"   href="https://www.openhub.net/p/dbunit"/>
+    </menu>
+
     <menu ref="reports"/>
   </body>
 </site>

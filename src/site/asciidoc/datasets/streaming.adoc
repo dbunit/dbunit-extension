@@ -3,7 +3,7 @@
 link:../apidocs/org/dbunit/dataset/stream/StreamingDataSet.html[StreamingDataSet]
 consumes a producer and exposes its content as a dataset.
 Provides cursor like forward only access to it and only keeps the active row in memory.
-Can be used with FlatXmlProducer and XmlProvider.
+Can be used with FlatXmlProducer and XmlProducer.
 
 This is a very efficient way to load XML dataset document when working with forward only database operations (UPDATE, INSERT, REFRESH).
 

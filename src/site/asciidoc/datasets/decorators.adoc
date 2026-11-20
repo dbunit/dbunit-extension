@@ -127,7 +127,7 @@ whatever replacement objects/substrings were configured on the loader.
 == TableDecoratorDataSet
 
 link:../apidocs/org/dbunit/dataset/TableDecoratorDataSet.html[TableDecoratorDataSet]
-is a decorator that allows `ITable`s (and `ITableMetaData`s, by extension) to
+is a decorator that allows an `ITable` (and an `ITableMetaData`, by extension) to
 be wrapped. This is intended for use cases like filtering out columns from a
 table.
 
@@ -145,8 +145,8 @@ column filters.
 == CachedDataSet
 
 link:../apidocs/org/dbunit/dataset/CachedDataSet.html[CachedDataSet]
-holds an in-memory copy of another dataset, or of a consumed
-`IDataSetProducer`'s content — decoupling the rest of your code from a
+holds an in-memory copy of another dataset, or of the content of a consumed
+`IDataSetProducer` — decoupling the rest of your code from a
 one-shot/forward-only source such as a link:streaming.html[StreamingDataSet].
 
 [source,java]

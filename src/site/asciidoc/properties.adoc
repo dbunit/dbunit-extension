@@ -1,7 +1,7 @@
 = Configurable Features and Properties
 
-DbUnit does not use System properties anymore since version 2.0.
-DbUnit use a configuration object, `DatabaseConfig`, to query and set feature flags and property values for a `IDatabaseConnection`.
+DbUnit reads its configuration from `DatabaseConfig`, not from system properties, with three exceptions: the system properties `dbunit.rowCountCheck` and `dbunit.rowCountCheckExcludeTables` override the <<rowcountcheck,row count check>> for a whole build, and `PropertiesBasedJdbcDatabaseTester` takes its connection settings from the `dbunit.connectionUrl`, `dbunit.driverClass`, `dbunit.username`, `dbunit.password` and `dbunit.schema` system properties.
+DbUnit uses a configuration object, `DatabaseConfig`, to query and set feature flags and property values for a `IDatabaseConnection`.
 It is possible to change DbUnit behaviors, such as using batched statements or not, using the `getFeature`, `setFeature`, `getProperty`, and `setProperty` methods of `DatabaseConfig`.
 
 While feature flags are always boolean, property values are arbitrary objects.

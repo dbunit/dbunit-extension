@@ -36,7 +36,8 @@ reviews:
     - path: "src/test/java/**/*IT.java"
       instructions: >-
         Integration tests (Failsafe) run against a real database that DatabaseEnvironment
-        bootstraps from the active Maven profile, with user.timezone=Europe/Berlin. Name
+        bootstraps from the active Maven profile, in the machine's time zone (only the unit
+        tests get Europe/Berlin). Name
         methods test<Method>_<StartingStateConditions>_<AssertedOutcome>. Prefer AssertJ;
         assert a whole expected object rather than field by field; add .as("...") ending with
         a period. A test that would still pass without exercising the behavior under test is a

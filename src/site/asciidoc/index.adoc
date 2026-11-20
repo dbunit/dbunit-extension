@@ -9,13 +9,17 @@ dbUnit hooks into JUnit 5/6 (Jupiter) — JUnit 4 support was dropped in 3.0.0
 — either by composing an link:testcases/IDatabaseTester.html[`IDatabaseTester`] into your test class (the preferred style)
 or by extending link:apidocs/org/dbunit/DBTestCase.html[`DBTestCase`].
 Outside of tests, it is also a convenient utility for importing and exporting data — from code, via link:anttask.html[Ant Integration], or through the companion dbunit-maven-plugin.
+Flat XML dataset files can also be edited by hand, spreadsheet-style, with the companion link:https://dbunit.github.io/dbunit-eclipse-plugin/[dbUnit Eclipse Plugin].
 
-== What dbUnit Provides
+== Features
 
-* *Dataset formats* — link:datasets.html[Flat XML, XML, CSV, JSON, YAML, and Excel], plus building datasets in code or reading them straight from a live query.
-* *Database operations* — `INSERT`, `UPDATE`, `DELETE`, `DELETE_ALL`, `TRUNCATE_TABLE`, `REFRESH` (upsert), and `CLEAN_INSERT` (truncate + insert), composable and transaction-wrappable.
+* *Dataset formats* — link:datasets.html[Flat XML, XML, CSV, JSON, YAML, and Excel], plus building datasets in code or reading them straight from a live query. Matching link:datasets/fileloader.html[`DataFileLoader`] implementations — including one that dispatches by file extension — load prep/expected fixture files for you.
+* *Database operations* — `INSERT`, `UPDATE`, `DELETE`, `DELETE_ALL`, `TRUNCATE_TABLE`, `REFRESH` (upsert), and `CLEAN_INSERT` (delete all + insert), composable and transaction-wrappable.
 * *Flexible assertions* — link:datacomparisons.html[`ValueComparer`] implementations go beyond strict equality: tolerance (numeric and timestamp), greater-than/less-than, null checks, string containment, and ignore-millis timestamp comparisons.
 * *Broad database support* — vendor-specific type and metadata handling for 10 databases: DB2, H2, HSQLDB, MariaDB, Mckoi, MSSQL, MySQL, Netezza, Oracle, and PostgreSQL; see link:databases.html[Database-Specific Guides].
+* *Annotation-driven configuration* — on JUnit 5/6 (Jupiter), link:testcases/annotations.html[`org.dbunit.annotation`] declares a test's dataset, operation, and verification directly on the class or method — `@DbUnitPrep`, `@DbUnitExpected`, `@DbUnitSetup`, `@DbUnitTearDown`, `@DbUnitConfig` — instead of hand-written `@BeforeEach`/`@AfterEach` lifecycle code, injects the dbUnit `IDatabaseConnection` or JDBC `Connection` straight into a test method, and adds an opt-in `@DbUnitRowCountCheck` for teardown completeness.
+* *Maven plugin* — Usable outside of tests too, via its https://dbunit.github.io/dbunit-extension/anttask.html[Ant Integration] task or the companion dbunit-maven-plugin, for data import/export.
+* *Eclipse plugin* — Edit dbUnit datasets like a spreadsheet: https://dbunit.github.io/dbunit-eclipse-plugin.
 
 == Where to Start
 
@@ -46,68 +50,89 @@ We will gladly help you as needed with your ideas and contributions and look to 
 |===
 |Date |News
 
-// |TBD
-// |Please try the 3.6.0-SNAPSHOT snapshot build and let us know how it works!
-// It adds ????
-// See link:https://dbunit.github.io/dbunit-extension/repos.html#snapshots[SNAPSHOTS] for how to use them.
-// Refer to the link:changes.html#a3.6.0-SNAPSHOT[changes report],
-// the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.6.0%20type%3AFeature[feature list], and
-// the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.6.0%20type%3ABug[bug list]
-// for the snapshot contents (and subsequent updates).
+|TBD
+|Please try the 3.6.0-SNAPSHOT snapshot build and let us know how it works!
+It adds
+link:testcases/annotations.html[*annotation-driven test configuration*] for JUnit 5/6 (Jupiter),
+link:testcases/DbUnitTestExecutionListener.html[`DbUnitTestExecutionListener`] for running that configuration in *Spring TestContext Framework* tests,
+an opt-in link:components/rowcountcheck.html[*row count check*] that catches teardown table cleanup mistakes,
+link:datasets/fileloader.html[*JSON/YAML* data file loader] implementations,
+link:datacomparisons/valuecomparer.html[`RegularExpressionValueComparer`] for *matching a column against a pattern* rather than a literal,
+link:testcases/PrepAndExpectedTestCase.html#Bundling_Test_Data[`PrepAndExpectedTestData`] - an *immutable bundle* of the verify-definition, prep, and expected arrays for data-driven `PrepAndExpectedTestCase` tests,
+and
+link:testcases/MultiDataSourcePrepAndExpectedTestCase.html[`MultiDataSourcePrepAndExpectedTestCase`] for prepping and verifying *multiple databases* around one test.
+See link:https://dbunit.github.io/dbunit-extension/repos.html#snapshots[SNAPSHOTS] for how to use them.
+Refer to the link:changes.html#a3.6.0-SNAPSHOT[changes report],
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.6.0%20type%3AFeature[feature list],
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.6.0%20type%3ABug[bug list], and
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.6.0%20type%3ATask[task list]
 
 |2026-11-17
 |Release 3.5.3 available.
 It has DefaultPrepAndExpectedTestCase verification fixes
 and reduces some logger performance problems with having instance loggers in highly-instantiated code.
 Refer to the link:changes.html#a3.5.3[changes report],
-the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.5.3%20type%3AFeature[feature list], and
-the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.5.3%20type%3ABug[bug list]
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.5.3%20type%3AFeature[feature list],
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.5.3%20type%3ABug[bug list], and
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.5.3%20type%3ATask[task list]
 for the release contents.
+
+|2026-10-06
+|The new link:https://dbunit.github.io/dbunit-eclipse-plugin/[dbUnit Eclipse Plugin] opens dbUnit dataset files as a *spreadsheet-like grid* inside the Eclipse IDE, one sheet per table and warnings for content dbUnit ignores or rejects.  Version 1.0.0 supports flat XML datasets.
 
 |2026-09-07
 |Release 3.5.2 available.
 It fixes `DefaultPrepAndExpectedTestCase` *reusing a closed connection* when one instance is shared across test methods with `closeConnectionAfterTest` disabled — a cached connection the pool or database dropped between tests is now discarded and re-acquired live — and adds a warning when the class is handed a non-autocommit connection, on which its prep and teardown writes would otherwise never be committed.
 Refer to the link:changes.html#a3.5.2[changes report],
-the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.5.2%20type%3AFeature[feature list], and
-the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.5.2%20type%3ABug[bug list]
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.5.2%20type%3AFeature[feature list],
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.5.2%20type%3ABug[bug list], and
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.5.2%20type%3ATask[task list]
 for the release contents.
 
 |2026-08-20
 |Release 3.5.1 available.
 It fixes a 3.5.0 regression where `FlatXmlDataSetBuilder.setMetaDataSet()` pulled *every table in the supplied metadata source* into the produced dataset, not just the ones in the flat XML body.
 Refer to the link:changes.html#a3.5.1[changes report],
-the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.5.1%20type%3AFeature[feature list], and
-the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.5.1%20type%3ABug[bug list]
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.5.1%20type%3AFeature[feature list],
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.5.1%20type%3ABug[bug list], and
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.5.1%20type%3ATask[task list]
 for the release contents.
 
 |2026-08-11
 |Release 3.5.0 available.
 It adds `DbUnitExtension` for *native JUnit 5/6 lifecycle management*, a new *JSON dataset format* and JSON `ValueComparer`, *MariaDB and H2 2.x* database support, expanded PostgreSQL `json`/`jsonb` and array type support, and an opt-in escape hatch for *circular foreign keys*, plus a ground-up *documentation site overhaul* and numerous other bug fixes.
 Refer to the link:changes.html#a3.5.0[changes report],
-the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.5.0%20type%3AFeature[feature list], and
-the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.5.0%20type%3ABug[bug list]
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.5.0%20type%3AFeature[feature list],
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.5.0%20type%3ABug[bug list], and
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.5.0%20type%3ATask[task list]
 for the release contents.
 
 |2026-07-28
 |Release 3.4.0 available.
 It adds an opt-in `CachingConnectionProvider` to cut *per-test connection overhead*, pins identifier matching to `Locale.ENGLISH` for Turkish-locale correctness, and fixes numerous timestamp, export-format, and resource-leak bugs.
 Refer to the link:changes.html#a3.4.0[changes report],
-the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.4.0%20type%3AFeature[feature list], and
-the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.4.0%20type%3ABug[bug list]
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.4.0%20type%3AFeature[feature list],
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.4.0%20type%3ABug[bug list], and
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.4.0%20type%3ATask[task list]
 for the release contents.
 
 |2026-07-22
 |Release 3.3.0 available.
 It is a large *performance improving* release, especially with high column count tables, having 22 improvements and 6 fixes.
 Refer to the link:changes.html#a3.3.0[changes report],
-the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.3.0%20type%3AFeature[feature list], and
-the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.3.0%20type%3ABug[bug list]
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.3.0%20type%3AFeature[feature list],
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.3.0%20type%3ABug[bug list], and
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.3.0%20type%3ATask[task list]
 for the release contents.
 
 |2026-06-04
 |Release 3.2.0 available.
 It adds `DataSetBuilder` for *easing in-memory dataset creation*, brings up full DB2 build/CI support, and fixes case-sensitive table lookups along with a long-standing `ScrollableResultSetTable` bug.
-Refer to the link:changes.html#a3.2.0[changes report], the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.2.0%20type%3AFeature[feature list], and the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.2.0%20type%3ABug[bug list] for the release contents.
+Refer to the link:changes.html#a3.2.0[changes report],
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.2.0%20type%3AFeature[feature list],
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.2.0%20type%3ABug[bug list], and
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.2.0%20type%3ATask[task list]
+for the release contents.
 
 |2026-05-18
 |After 24 years at SourceForge, DbUnit moved to GitHub in May 2026. Source code, issues, and CI now all live at https://github.com/dbunit/dbunit-extension. Thank you, SourceForge, for 24 years of hosting.
@@ -115,67 +140,119 @@ Refer to the link:changes.html#a3.2.0[changes report], the link:https://github.c
 |2026-05-11
 |Release 3.1.0 available.
 It adds two ignore-millis `ValueComparer` implementations, moves release publishing to the new Central Portal with *reproducible builds*, and switches CI to GitHub Actions with auto-published snapshots.
-Refer to the link:changes.html#a3.1.0[changes report], the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.1.0%20type%3AFeature[feature list], and the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.1.0%20type%3ABug[bug list] for the release contents.
+Refer to the link:changes.html#a3.1.0[changes report],
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.1.0%20type%3AFeature[feature list],
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.1.0%20type%3ABug[bug list], and
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.1.0%20type%3ATask[task list]
+for the release contents.
 
 |2025-01-25
 |Release 3.0.0 available.
 Its main change is *JUnit 5 support* (JUnit 4 dropped); it also adds `TableDecoratorDataSet`/`GeneratedColumnFilterSupport` for computed-column filtering and fixes Oracle/PostgreSQL driver-unwrapping bugs.
-Refer to the link:changes.html#a3.0.0[changes report], the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.0.0%20type%3AFeature[feature list], and the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.0.0%20type%3ABug[bug list] for the release contents.
+Refer to the link:changes.html#a3.0.0[changes report],
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.0.0%20type%3AFeature[feature list],
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.0.0%20type%3ABug[bug list], and
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.0.0%20type%3ATask[task list]
+for the release contents.
 
 |2024-06-02
 |Release 2.8.0 available.
 It adds `YamlDataSet`, a new *YAML-based dataset format*.
-Refer to the link:changes.html#a2.8.0[changes report], the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.8.0%20type%3AFeature[feature list], and the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.8.0%20type%3ABug[bug list] for the release contents.
+Refer to the link:changes.html#a2.8.0[changes report],
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.8.0%20type%3AFeature[feature list],
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.8.0%20type%3ABug[bug list], and
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.8.0%20type%3ATask[task list]
+for the release contents.
 
 |2022-02-12
 |Release 2.7.3 available.
 It lets an operation's dataset be *composed from multiple source files*, adds new null-check `ValueComparer` implementations, and fixes a daylight-saving-time timestamp conversion bug.
-Refer to the link:changes.html#a2.7.3[changes report], the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.7.3%20type%3AFeature[feature list], and the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.7.3%20type%3ABug[bug list] for the release contents.
+Refer to the link:changes.html#a2.7.3[changes report],
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.7.3%20type%3AFeature[feature list],
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.7.3%20type%3ABug[bug list], and
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.7.3%20type%3ATask[task list]
+for the release contents.
 
 |2021-07-25
 |Release 2.7.2 available.
 A small fix release: *case-sensitive table name* handling in `DefaultPrepAndExpectedTestCase.cleanupData()` and a connection-initialization bug.
-Refer to the link:changes.html#a2.7.2[changes report], the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.7.2%20type%3AFeature[feature list], and the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.7.2%20type%3ABug[bug list] for the release contents.
+Refer to the link:changes.html#a2.7.2[changes report],
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.7.2%20type%3AFeature[feature list],
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.7.2%20type%3ABug[bug list], and
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.7.2%20type%3ATask[task list]
+for the release contents.
 
 |2021-07-22
 |Release 2.7.1 available.
 It upgrades Apache POI (Excel support) to 4.1.0, *drops the commons-io and commons-collections dependencies* for a lighter footprint, and fixes a Java 12 UUID-validation compatibility issue.
-Refer to the link:changes.html#a2.7.1[changes report], the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.7.1%20type%3AFeature[feature list], and the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.7.1%20type%3ABug[bug list] for the release contents.
+Refer to the link:changes.html#a2.7.1[changes report],
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.7.1%20type%3AFeature[feature list],
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.7.1%20type%3ABug[bug list], and
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.7.1%20type%3ATask[task list]
+for the release contents.
 
 |2020-02-23
 |Release 2.7.0 available.
 It adds *relative date/time syntax* for dataset values and MSSQL `datetimeoffset` support, plus fixes a broken `CachedDataSet` and case-sensitivity handling in `FilteredDataSet`.
-Refer to the link:changes.html#a2.7.0[changes report], the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.7.0%20type%3AFeature[feature list], and the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.7.0%20type%3ABug[bug list] for the release contents.
+Refer to the link:changes.html#a2.7.0[changes report],
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.7.0%20type%3AFeature[feature list],
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.7.0%20type%3ABug[bug list], and
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.7.0%20type%3ATask[task list]
+for the release contents.
 
 |2018-10-14
 |Release 2.6.0 available.
 It introduces the `ValueComparer` assertion strategy for *pluggable per-column comparison*, adds PostgreSQL OID data type support, and moves the build to Java 8.
-Refer to the link:changes.html#a2.6.0[changes report], the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.6.0%20type%3AFeature[feature list], and the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.6.0%20type%3ABug[bug list] for the release contents.
+Refer to the link:changes.html#a2.6.0[changes report],
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.6.0%20type%3AFeature[feature list],
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.6.0%20type%3ABug[bug list], and
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.6.0%20type%3ATask[task list]
+for the release contents.
 
 |2017-08-20
 |Release 2.5.4 available.
 It adds `[text]`/`[base64]`/`[file]` cues for *defining blobs directly* in flat XML/CSV datasets, and fixes MSSQL `IdentityInsertOperation` erroneously always committing.
-Refer to the link:changes.html#a2.5.4[changes report], the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.5.4%20type%3AFeature[feature list], and the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.5.4%20type%3ABug[bug list] for the release contents.
+Refer to the link:changes.html#a2.5.4[changes report],
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.5.4%20type%3AFeature[feature list],
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.5.4%20type%3ABug[bug list], and
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.5.4%20type%3ATask[task list]
+for the release contents.
 
 |2016-08-21
 |Release 2.5.3 available.
 A *broad fix release*: case-sensitive table name handling in `DbUnitAssert`/`ReplacementDataSet`, timezone-correct `XlsTable` reads, and support for `'true'`/`'false'` string values in numeric fields.
-Refer to the link:changes.html#a2.5.3[changes report], the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.5.3%20type%3AFeature[feature list], and the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.5.3%20type%3ABug[bug list] for the release contents.
+Refer to the link:changes.html#a2.5.3[changes report],
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.5.3%20type%3AFeature[feature list],
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.5.3%20type%3ABug[bug list], and
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.5.3%20type%3ATask[task list]
+for the release contents.
 
 |2016-04-08
 |Release 2.5.2 available.
 It adds *multi-schema support* for `FlatXmlDataSet`, stops inserting explicit nulls into `NOT NULL` columns that have a `DEFAULT`, and adds PostgreSQL `CITEXT` data type support.
-Refer to the link:changes.html#a2.5.2[changes report], the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.5.2%20type%3AFeature[feature list], and the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.5.2%20type%3ABug[bug list] for the release contents.
+Refer to the link:changes.html#a2.5.2[changes report],
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.5.2%20type%3AFeature[feature list],
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.5.2%20type%3ABug[bug list], and
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.5.2%20type%3ATask[task list]
+for the release contents.
 
 |2015-04-11
 |Release 2.5.1 available.
 It adds the `allowEmptyFields` property to *allow empty string fields* without failing fast, fixes column aliases not being picked up, and upgrades Apache POI to 3.11.
-Refer to the link:changes.html#a2.5.1[changes report], the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.5.1%20type%3AFeature[feature list], and the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.5.1%20type%3ABug[bug list] for the release contents.
+Refer to the link:changes.html#a2.5.1[changes report],
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.5.1%20type%3AFeature[feature list],
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.5.1%20type%3ABug[bug list], and
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.5.1%20type%3ATask[task list]
+for the release contents.
 
 |2014-04-24
 |Release 2.5.0 available.
 It adds PostgreSQL Geometry type support and *UUID-to-binary dataset syntax*, moves release publishing to Sonatype OSSRH, and fixes several CSV, MySQL, and Oracle metadata bugs.
-Refer to the link:changes.html#a2.5.0[changes report], the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.5.0%20type%3AFeature[feature list], and the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.5.0%20type%3ABug[bug list] for the release contents.
+Refer to the link:changes.html#a2.5.0[changes report],
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.5.0%20type%3AFeature[feature list],
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.5.0%20type%3ABug[bug list], and
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A2.5.0%20type%3ATask[task list]
+for the release contents.
 
 |2012-09-30
 |Release 2.4.9 available.

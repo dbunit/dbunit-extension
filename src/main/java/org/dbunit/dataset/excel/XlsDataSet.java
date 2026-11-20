@@ -45,6 +45,15 @@ import org.slf4j.LoggerFactory;
  * sheet represents a table. The first row of a sheet defines the columns names
  * and remaining rows contains the data.
  *
+ * <p>
+ * An Excel cell holds a number as a {@code double}, and dbUnit writes a date or a timestamp as a
+ * number of milliseconds, so the dataset keeps 15 to 17 significant digits of a number and a
+ * timestamp to the millisecond: a {@code NUMERIC} or {@code DECIMAL} value of more than 15
+ * digits, a {@code BIGINT} above 2 to the power of 53 and the digits of the fraction of a second
+ * of a timestamp past the third change when dbUnit writes them and reads them back, and a
+ * {@code BIGINT} at the limit of its range, such as {@link Long#MAX_VALUE}, comes back with the
+ * wrong sign. Use another format for a dataset that holds such values.
+ *
  * @author Manuel Laflamme
  * @since Feb 21, 2003
  * @version $Revision$

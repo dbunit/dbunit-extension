@@ -18,7 +18,7 @@ itself cannot be customized, since it's a facade of static methods.
 
 link:../apidocs/org/dbunit/assertion/DbUnitValueComparerAssert.html[DbUnitValueComparerAssert]
 (`org.dbunit.assertion`, since 2.6.0):: The `ValueComparer`-based sibling of
-`DbUnitAssert` — `Assertion`'s `assertWithValueComparer` overloads delegate here instead.
+`DbUnitAssert` — the `assertWithValueComparer` overloads of `Assertion` delegate here instead.
 See link:../datacomparisons/valuecomparer.html[ValueComparer Comparison] for the
 comparison strategy and full usage examples; this page only covers how the classes
 relate.

@@ -37,12 +37,69 @@ jobs:
     - uses: ./.github/actions/jdk-setup
     - name: Compile and run unit tests
       run: ${{ env.MAVEN_COMMAND }} ${{ env.MAVEN_CLI_COMMON }} clean test
+    # The ITs jobs run the verify phase of a database profile, which needs the plugins of the verify
+    # phase (jar, failsafe, ...) and, from each profile, its JDBC driver and the docker-maven-plugin
+    # with its dependencies. The test phase above resolves none of them. Resolve them here, with every
+    # database profile active and the containers skipped, so that this job saves them in the Maven
+    # cache that the ITs jobs restore, instead of all of them downloading them from Maven Central
+    # at the same time, where the downloads fail with 429. Every profile has its own driver in a
+    # single version, so one run resolves them all.
+    - name: Resolve the plugins and drivers of the database profiles into the Maven cache
+      run: |
+        profiles=$(tr -d '\r' < database-profiles.txt | paste -sd, -)
+        ${{ env.MAVEN_COMMAND }} ${{ env.MAVEN_CLI_COMMON }} "-P${profiles}" -DdockerMavenPluginSkip=true -DskipTests -DskipITs verify
     - name: Upload target directory for reuse
       uses: actions/upload-artifact@v7
       with:
         name: target-directory
         path: target/
         retention-days: 11
+    # The oldest-supported-versions job resolves the oldest JUnit Jupiter and Spring Framework with
+    # the JUnit Platform provider of Surefire, none of which any other build resolves, so it
+    # downloaded them from Maven Central on every run, where the downloads fail with 429. Resolve
+    # them here, after the upload of target/ as the clean deletes it, so that this job saves them
+    # in the Maven cache that the oldest-supported-versions job restores.
+    - name: Resolve the oldest JUnit Jupiter and Spring Framework into the Maven cache
+      run: >-
+        ${{ env.MAVEN_COMMAND }} ${{ env.MAVEN_CLI_COMMON }} clean test
+        -Poldest-supported-versions,hsqldb-2-7,oracle-default
+        -Dtest=DbUnitExtensionTest
+
+  oldest-supported-versions:
+    # Waits for the unit test job so that it, not this job, saves the Maven cache that the jobs of
+    # this workflow restore: the cache key is the hash of the pom, the first job to finish saves
+    # it.
+    needs: [compile-and-unit-test]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        persist-credentials: false
+    - uses: ./.github/actions/jdk-setup
+    # The build compiles against JUnit Jupiter 6, but DbUnitExtension.adoc promises 5.7 or later,
+    # so a call of a newer JUnit API would pass the build and fail a user with a
+    # NoSuchMethodError. Keep the version here in step with that page.
+    - name: Compile against JUnit Jupiter 5.7.0
+      run: ${{ env.MAVEN_COMMAND }} ${{ env.MAVEN_CLI_COMMON }} clean compile -DjunitVersion=5.7.0
+    # The build compiles against Spring Framework 7, but DbUnitTestExecutionListener.adoc promises
+    # 6.2 or later. Keep the version here in step with that page.
+    - name: Compile against Spring Framework 6.2.0
+      run: ${{ env.MAVEN_COMMAND }} ${{ env.MAVEN_CLI_COMMON }} clean compile -DspringFrameworkVersion=6.2.0
+    # Compiling does not catch a binding that relies on behavior which changed after the oldest
+    # versions: the order and the context of the extension callbacks, the store lookup through the
+    # parent contexts and the handling of @Nested classes in JUnit Jupiter, the listener ordering
+    # and the TestContext attributes in Spring. So run the unit tests of the bindings against both
+    # oldest versions together. The oldest-supported-versions profile of the pom sets them and
+    # leaves out the few test classes that need newer ones; naming it switches off the profiles
+    # that are active by default, so name those too.
+    - name: Test the bindings against JUnit Jupiter 5.7.0 and Spring Framework 6.2.0
+      run: >-
+        ${{ env.MAVEN_COMMAND }} ${{ env.MAVEN_CLI_COMMON }} clean test
+        -Poldest-supported-versions,hsqldb-2-7,oracle-default
+        "-Dtest=org.dbunit.junit.**.*Test,org.dbunit.annotation.**.*Test,org.dbunit.spring.*Test"
 
   ITs:
     needs: [compile-and-unit-test]
@@ -77,5 +134,66 @@ jobs:
         with:
           name: target-directory
           path: target/
+      # icr.io, the registry of the DB2 image, regularly times out, so keep the image in the Actions
+      # cache and go to the registry only when the cache has no copy. The cache steps never fail the
+      # job: a copy that does not load or save leaves the pull below to do the work. The key holds
+      # the image name, so a new image version in pom.xml starts a new copy.
+      - name: Name the DB2 image
+        id: db2-image
+        if: matrix.database.profile == 'db2-11-5'
+        run: |
+          image=$(sed -n 's|.*<docker.image.name.db2-11>\(.*\)</docker.image.name.db2-11>.*|\1|p' pom.xml)
+          test -n "$image" || { echo "docker.image.name.db2-11 is not set in pom.xml."; exit 1; }
+          echo "name=$image" >> "$GITHUB_OUTPUT"
+      - name: Restore the DB2 image from the cache
+        id: db2-image-cache
+        if: matrix.database.profile == 'db2-11-5'
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ runner.temp }}/db2-image.tar
+          key: ${{ runner.os }}-docker-image-${{ steps.db2-image.outputs.name }}
+      - name: Load the cached DB2 image
+        if: matrix.database.profile == 'db2-11-5' && steps.db2-image-cache.outputs.cache-hit == 'true'
+        continue-on-error: true
+        run: docker load --input "$RUNNER_TEMP/db2-image.tar"
+      # The docker-maven-plugin does not retry a pull and then finds the image already pulled and
+      # skips its pull. The registry can stay unreachable for minutes, and a connect timeout fails an
+      # attempt after 30 seconds, so retry within a time budget, not a count of attempts. The last
+      # attempt starts within 10 minutes and takes at most 5 more, which leaves the rest of the job's
+      # timeout for the tests.
+      - name: Pull the DB2 image, retrying when the registry times out
+        if: matrix.database.profile == 'db2-11-5'
+        env:
+          IMAGE: ${{ steps.db2-image.outputs.name }}
+        run: |
+          if docker image inspect "$IMAGE" > /dev/null 2>&1; then
+            echo "$IMAGE is already present."
+            exit 0
+          fi
+          deadline=$((SECONDS + 600))
+          attempt=0
+          while true; do
+            attempt=$((attempt + 1))
+            if timeout 5m docker pull "$IMAGE"; then
+              exit 0
+            fi
+            echo "Pulling $IMAGE failed on attempt $attempt."
+            pause=$((attempt * 30))
+            test $((SECONDS + pause)) -lt "$deadline" || exit 1
+            sleep "$pause"
+          done
+      - name: Export the pulled DB2 image
+        id: db2-image-export
+        if: matrix.database.profile == 'db2-11-5' && steps.db2-image-cache.outputs.cache-hit != 'true'
+        continue-on-error: true
+        env:
+          IMAGE: ${{ steps.db2-image.outputs.name }}
+        run: docker save --output "$RUNNER_TEMP/db2-image.tar" "$IMAGE"
+      - name: Save the DB2 image into the cache
+        if: matrix.database.profile == 'db2-11-5' && steps.db2-image-export.outcome == 'success'
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ runner.temp }}/db2-image.tar
+          key: ${{ runner.os }}-docker-image-${{ steps.db2-image.outputs.name }}
       - name: Run ${{ matrix.database.name }} integration tests
         run: ${{ env.MAVEN_COMMAND }} ${{ env.MAVEN_CLI_COMMON }} -P${{ matrix.database.profile }} verify ${{ matrix.database.url != '' && format('-Ddbunit.profile.url={0}', matrix.database.url) || '' }}

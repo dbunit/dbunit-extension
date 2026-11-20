@@ -27,8 +27,8 @@ have schemas in the JDBC sense.
 == Connection Preconfiguration Class
 
 None — Netezza has no dedicated `IDatabaseConnection` subclass. Register
-`NetezzaDataTypeFactory` and `NetezzaMetadataHandler` directly on a plain
-`DatabaseConnection`'s `DatabaseConfig`:
+`NetezzaDataTypeFactory` and `NetezzaMetadataHandler` directly on the
+`DatabaseConfig` of a plain `DatabaseConnection`:
 
 [source,java]
 ----

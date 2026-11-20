@@ -13,6 +13,12 @@
   </properties>
 
   <body>
+    <release version="3.6.0-SNAPSHOT" date="TBD" description="A row count check for incomplete teardown, multi-data-source testing, JSON and YAML data file loaders, a regular expression comparer, and DefaultPrepAndExpectedTestCase connection, verification and dataset fixes">
+      <action dev="dependabot" type="update" due-to="Dependabot">Update github_actions dependency advanced-security/maven-dependency-submission-action from 5 to 6 (#970).</action>
+      <action dev="dependabot" type="update" due-to="Dependabot">Update github_actions dependency actions/setup-java from 5.7.0 to 6.0.0 (#970).</action>
+      <action dev="dependabot" type="update" due-to="Dependabot">Update maven dependency org.apache.maven.wrapper:maven-wrapper from 3.3.2 to 3.3.4 (#942).</action>
+      <action dev="dependabot" type="update" due-to="Dependabot">Update github_actions dependency actions/setup-java from 6.0.0 to 6.0.1 (#984).</action>
+    </release>
     <release version="3.5.3" date="Nov 17, 2026" description="DefaultPrepAndExpectedTestCase verification fixes: line up equal rows when sorting the expected and the actual table, and list only the compared columns in a failure message">
       <action dev="robertonr" type="update" issue="994" system="github" due-to="robertonr">Make loggers static final for performance.</action>
       <action dev="jeffjensen" type="fix" issue="1006" system="github" due-to="jeffjensen">
