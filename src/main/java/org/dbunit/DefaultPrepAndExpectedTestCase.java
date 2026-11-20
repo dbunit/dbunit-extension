@@ -1355,7 +1355,9 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * kept for subclasses that drive the lifecycle manually. Runs
      * {@link #setupData()} on the connection shared with the rest of this
      * test's lifecycle, leaving the databaseTester's dataset and operation
-     * listener as the caller set them.
+     * listener as the caller set them. Takes no row count check baseline, as
+     * only {@link #preTest} takes one, so a test driven through this method
+     * and {@link #tearDown()} alone is not checked by the row count check.
      */
     @Override
     protected void setUp() throws Exception
@@ -1370,7 +1372,8 @@ public class DefaultPrepAndExpectedTestCase extends DBTestCase
      * and releases the shared connection. Calling it after a full
      * {@link #runTest} or {@link #postTest} cycle cleans up a second time, as
      * both already ran cleanupData(), without verifying the row count check
-     * baseline again, which that cleanupData() already used.
+     * baseline again, which that cleanupData() already used. Without a
+     * baseline, which {@link #setUp()} does not take, it verifies no row count.
      */
     @Override
     protected void tearDown() throws Exception

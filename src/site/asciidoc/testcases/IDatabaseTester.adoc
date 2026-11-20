@@ -75,6 +75,11 @@ like `DataSourceDatabaseTester`.
   — override either default. See link:../operations.html[Database Operations]
   for the full set.
 
+A test that calls `onSetup()` and `onTearDown()` itself does not get the
+link:../components/rowcountcheck.html[row count check], whatever
+`dbunit.rowCountCheck` says. Use link:DbUnitExtension.html[DbUnitExtension] for
+a test that wants it.
+
 [source,java]
 ----
 private final IDatabaseTester databaseTester;
