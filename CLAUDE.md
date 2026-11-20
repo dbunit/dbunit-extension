@@ -153,7 +153,7 @@ Integration tests use `DatabaseEnvironment` to bootstrap the target database fro
     - Capitalize the first word after the colon, use the imperative mood ("Add", not "Added" or "Adds"), and do not end the line with a period.
     - Do not put the issue number in the subject line.
     - **Commit Types:** `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `build:`, `ci:`, `perf:`
-    - **Scopes:** the database names `db2`, `h2`, `hsqldb`, `mariadb`, `mckoi`, `mssql`, `mysql`, `netezza`, `oracle`, `postgresql`, and `ai`, `annotations`, `assertion`, `pom`, `log`, `docker`, `database`, `dataset`, `junit`, `metadata`, `resultset`, `scripts`, `site`, `statement`, `search`, `util`, `ant`, `operation`, `spring`
+    - **Scopes:** the database names `db2`, `h2`, `hsqldb`, `mariadb`, `mckoi`, `mssql`, `mysql`, `netezza`, `oracle`, `postgresql`, and `ai`, `annotations`, `assertion`, `pom`, `log`, `docker`, `ci`, `database`, `dataset`, `junit`, `metadata`, `resultset`, `scripts`, `site`, `statement`, `search`, `util`, `ant`, `operation`, `spring`
     - When no listed type or scope fits, use the closest one and suggest the addition in the reply.
     - Mark a breaking change with `!` immediately before the colon (e.g. `feat(dataset)!: Remove the deprecated constructor`) and add a `BREAKING-CHANGE:` footer.  A change is breaking when it can break users of the last release; a change to unreleased code is not.
   - Body:

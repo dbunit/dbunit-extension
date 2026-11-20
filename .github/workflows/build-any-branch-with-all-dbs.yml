@@ -37,12 +37,33 @@ jobs:
     - uses: ./.github/actions/jdk-setup
     - name: Compile and run unit tests
       run: ${{ env.MAVEN_COMMAND }} ${{ env.MAVEN_CLI_COMMON }} clean test
+    # The ITs jobs run the verify phase of a database profile, which needs the plugins of the verify
+    # phase (jar, failsafe, ...) and, from each profile, its JDBC driver and the docker-maven-plugin
+    # with its dependencies. The test phase above resolves none of them. Resolve them here, with every
+    # database profile active and the containers skipped, so that this job saves them in the Maven
+    # cache that the ITs jobs restore, instead of all of them downloading them from Maven Central
+    # at the same time, where the downloads fail with 429. Every profile has its own driver in a
+    # single version, so one run resolves them all.
+    - name: Resolve the plugins and drivers of the database profiles into the Maven cache
+      run: |
+        profiles=$(tr -d '\r' < database-profiles.txt | paste -sd, -)
+        ${{ env.MAVEN_COMMAND }} ${{ env.MAVEN_CLI_COMMON }} "-P${profiles}" -DdockerMavenPluginSkip=true -DskipTests -DskipITs verify
     - name: Upload target directory for reuse
       uses: actions/upload-artifact@v7
       with:
         name: target-directory
         path: target/
         retention-days: 11
+    # The oldest-supported-versions job resolves the oldest JUnit Jupiter and Spring Framework with
+    # the JUnit Platform provider of Surefire, none of which any other build resolves, so it
+    # downloaded them from Maven Central on every run, where the downloads fail with 429. Resolve
+    # them here, after the upload of target/ as the clean deletes it, so that this job saves them
+    # in the Maven cache that the oldest-supported-versions job restores.
+    - name: Resolve the oldest JUnit Jupiter and Spring Framework into the Maven cache
+      run: >-
+        ${{ env.MAVEN_COMMAND }} ${{ env.MAVEN_CLI_COMMON }} clean test
+        -Poldest-supported-versions,hsqldb-2-7,oracle-default
+        -Dtest=DbUnitExtensionTest
 
   oldest-supported-versions:
     # Waits for the unit test job so that it, not this job, saves the Maven cache that the jobs of

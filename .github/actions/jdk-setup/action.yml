@@ -31,6 +31,11 @@ runs:
         java-version: '21'
         distribution: 'temurin'
         cache: maven
+        cache-dependency-path: |
+          **/pom.xml
+          .github/actions/jdk-setup/action.yml
+          .github/workflows/build-any-branch-with-all-dbs.yml
+          database-profiles.txt
 
     - name: Set up JDK 21 with Maven Central credentials
       if: ${{ inputs.server-id != '' }}
@@ -39,6 +44,11 @@ runs:
         java-version: '21'
         distribution: 'temurin'
         cache: maven
+        cache-dependency-path: |
+          **/pom.xml
+          .github/actions/jdk-setup/action.yml
+          .github/workflows/build-any-branch-with-all-dbs.yml
+          database-profiles.txt
         server-id: ${{ inputs.server-id }}
         server-username: ${{ inputs.server-username }}
         server-password: ${{ inputs.server-password }}
