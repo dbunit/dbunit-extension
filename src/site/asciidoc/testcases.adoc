@@ -56,6 +56,14 @@ configure it is in the constructor of your test class. You may modify this
 behavior by overriding `newDatabaseTester()`, using one of the subclasses
 below or your own `IDatabaseTester`.
 
+The link:components/rowcountcheck.html[row count check] does not run for a
+`DBTestCase` subclass driven through its `setUp()` and `tearDown()`, whatever
+`dbunit.rowCountCheck` says. That includes a `DefaultPrepAndExpectedTestCase`
+subclass driven that way, as its legacy `setUp()` and `tearDown()` take no
+baseline. Use link:testcases/DbUnitExtension.html[DbUnitExtension], or call
+`preTest()` and `postTest()` of a `DefaultPrepAndExpectedTestCase`, for a test
+that wants it.
+
 [cols="1,3", options="header"]
 |===
 |Class |Uses

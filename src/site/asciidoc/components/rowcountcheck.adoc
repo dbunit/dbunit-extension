@@ -158,8 +158,18 @@ its owner set on it, which dbUnit cannot read, and an annotation that declares e
 is rejected next to it.
 
 It is wired into both link:../testcases/PrepAndExpectedTestCase.html[PrepAndExpectedTestCase]
-and link:../testcases/DbUnitExtension.html[DbUnitExtension]; enabling the feature (or the
-system property) is everything a test needs to do. Both integration points share the same
+and link:../testcases/DbUnitExtension.html[DbUnitExtension], and so also into the test styles that
+run through them. A test that one of them drives, through `preTest()` and `postTest()` or
+`runTest()` of a `DefaultPrepAndExpectedTestCase` (directly or through
+`MultiDataSourcePrepAndExpectedTestCase`), through the annotations, or through `DbUnitExtension`,
+needs nothing more than the feature (or the system property) enabled. A `DatabaseTestCase` or `DBTestCase` subclass driven through its `setUp()` and
+`tearDown()`, such as `JdbcBasedDBTestCase`, and a test that calls a tester's `onSetup()` and
+`onTearDown()` itself are not checked, whatever the feature or the system property says: they pass
+whether or not they leave rows behind. That includes a `DefaultPrepAndExpectedTestCase` subclass
+driven only through its legacy `setUp()` and `tearDown()`, which take and verify no baseline. Move
+such a test to `DbUnitExtension` to have it checked; a `DefaultPrepAndExpectedTestCase` subclass can
+call `preTest()` and `postTest()` instead.
+Both integration points share the same
 `org.dbunit.database.rowcount.RowCountBaselineTracker`, the class that captures a baseline, verifies
 it later, and lets it be discarded when a verify would be noise (e.g. the test's own steps
 already failed) — plumbing a test integration reuses, not something a test author calls
@@ -261,6 +271,10 @@ the dataset the test gives the tester, and call
 test, over its prep and expected datasets, with the operation set on the test case or else the
 tester's, which is `NONE` by default. It needs a matching `VerifyTableDefinition` for each
 expected table too.
+* *A `DatabaseTestCase` or `DBTestCase` subclass driven through its `setUp()` and `tearDown()`
+(a `DefaultPrepAndExpectedTestCase` subclass included), or a test that calls a tester's
+`onSetup()` and `onTearDown()` itself.* The check does not run for it, so there is no table to
+list.
 
 The check reports only a test that is otherwise passing. When the test's own steps already
 failed, or `DefaultPrepAndExpectedTestCase` found the actual data differing from the expected

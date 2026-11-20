@@ -73,7 +73,12 @@ public class RowCountCheckConfiguration
      * matter. Any other value, such as {@code yes}, {@code on} or {@code 1}, makes resolving a
      * configuration throw an {@link IllegalArgumentException}, also for a test that declares the
      * check disabled, instead of counting as {@code false}: a value meant to turn the check on
-     * would otherwise turn it off, and a run that the check would have failed would pass.
+     * would otherwise turn it off, and a run that the check would have failed would pass. The
+     * property decides only whether the check is on for a test that the check covers: it does not
+     * add the check to a {@link org.dbunit.DatabaseTestCase} or {@link org.dbunit.DBTestCase}
+     * subclass driven through its {@code setUp()} and {@code tearDown()}, which includes a
+     * {@code DefaultPrepAndExpectedTestCase} subclass driven that way, or to a test that calls a
+     * tester's {@code onSetup()} and {@code onTearDown()} itself.
      */
     public static final String DBUNIT_ROW_COUNT_CHECK = "dbunit.rowCountCheck";
 

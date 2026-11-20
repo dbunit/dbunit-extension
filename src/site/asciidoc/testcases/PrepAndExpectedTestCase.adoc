@@ -107,7 +107,8 @@ survive teardown), and wrongly listing a reference table that should never be cl
 link:../components/rowcountcheck.html[RowCountCheck] is an opt-in diagnostic for exactly
 this: it compares every table's row count before `preTest()` and after `cleanupData()`,
 failing the test by name when a count moved instead of letting the corruption surface in
-whichever test happens to run next. It is off by default; turn it on with
+whichever test happens to run next. The legacy `setUp()` and `tearDown()` take and verify no
+baseline, so a subclass driven only through them is not checked. It is off by default; turn it on with
 `DatabaseConfig.FEATURE_ROW_COUNT_CHECK` (or `-Ddbunit.rowCountCheck=true`) when
 verifying a suite's teardown correctness, and see
 link:../components/rowcountcheck.html[the RowCountCheck page] for what it catches, how

@@ -131,7 +131,15 @@ public class DatabaseConfig
             "http://www.dbunit.org/features/skipCycleCheck";
     /**
      * Name of the feature controlling whether table row counts are compared before and after
-     * each test.
+     * each test that a {@link org.dbunit.DefaultPrepAndExpectedTestCase} runs through
+     * {@code preTest()} and {@code postTest()} or {@code runTest()}, that the JUnit Jupiter
+     * {@code DbUnitExtension} runs, or that the Spring {@code DbUnitTestExecutionListener}
+     * runs. The check skips a {@link org.dbunit.DatabaseTestCase} or
+     * {@link org.dbunit.DBTestCase} subclass driven through its {@code setUp()} and
+     * {@code tearDown()}, including a {@code DefaultPrepAndExpectedTestCase} subclass driven
+     * that way, because its legacy {@code setUp()} and {@code tearDown()} take and verify no
+     * baseline. The check also skips a test that calls an {@link org.dbunit.IDatabaseTester}'s
+     * {@code onSetup()} and {@code onTearDown()} itself.
      */
     public static final String FEATURE_ROW_COUNT_CHECK =
             "http://www.dbunit.org/features/rowCountCheck";

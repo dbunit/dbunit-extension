@@ -10,6 +10,10 @@ link:../apidocs/org/dbunit/JdbcDatabaseTester.html[JdbcDatabaseTester] —
 it is `DBTestCase` and `JdbcDatabaseTester` wired together, so you only
 implement `getDriverClass()`, `getConnectionUrl()`, and `getDataSet()`.
 
+The link:../components/rowcountcheck.html[row count check] does not run for a `DBTestCase` subclass,
+whatever `dbunit.rowCountCheck` says. A test that wants it uses
+link:DbUnitExtension.html[DbUnitExtension] instead.
+
 == Example
 
 [source,java]
