@@ -37,6 +37,11 @@ jobs:
     - uses: ./.github/actions/jdk-setup
     - name: Compile and run unit tests
       run: ${{ env.MAVEN_COMMAND }} ${{ env.MAVEN_CLI_COMMON }} clean test
+    # The ITs jobs run the verify phase, whose plugins (jar, failsafe, ...) the test phase above does
+    # not resolve. Resolve them here so that this job saves them in the Maven cache that the ITs jobs
+    # restore, instead of each of them downloading them from Maven Central.
+    - name: Resolve the verify phase plugins into the Maven cache
+      run: ${{ env.MAVEN_COMMAND }} ${{ env.MAVEN_CLI_COMMON }} -DskipTests -DskipITs verify
     - name: Upload target directory for reuse
       uses: actions/upload-artifact@v7
       with:
