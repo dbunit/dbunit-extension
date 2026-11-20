@@ -200,13 +200,16 @@ nothing from its enclosing class. Spring's `TestContext` holds only the
 innermost test instance, so the listener reads each enclosing instance from the
 reference the compiler gives every inner class. When compiling for Java 18 or
 later, `javac` omits that reference from an inner class that never uses its
-enclosing instance. The enclosing instance is then unreachable. A
-`@DbUnitTester` or `@DbUnitTestCase` field in the nested class itself still
-outranks every tester field of the enclosing class, so it needs nothing from
-the enclosing instance. Otherwise, when the enclosing class declares a tester
-field that would have been used, the listener fails with a message saying so,
-rather than quietly use a lower-ranked tester such as an `ApplicationContext`
-bean. Either use the enclosing instance in the nested class, declare a
+enclosing instance. The enclosing instance is then unreachable. A `static`
+`@DbUnitTester` or `@DbUnitTestCase` field of the enclosing class needs no
+instance, so the listener reads it from the class, as `DbUnitExtension` does,
+and only an instance field needs the enclosing instance. A `@DbUnitTester` or
+`@DbUnitTestCase` field in the nested class itself still outranks every tester
+field of the enclosing class, so it needs nothing from the enclosing instance.
+Otherwise, when the enclosing class declares an instance tester field that would
+have been used, the listener fails with a message saying so, rather than quietly
+use a lower-ranked tester such as an `ApplicationContext` bean. Either declare
+the field `static`, use the enclosing instance in the nested class, declare a
 `@DbUnitTester` field in the nested class itself, or replace the enclosing
 class's tester field with a tester bean.
 

@@ -38,7 +38,8 @@ import org.springframework.test.context.TestContextAnnotationUtils;
  * {@code DbUnitExtension}. An enclosing instance is read from the compiler-generated reference
  * every inner class holds to it. When compiling for Java 18 or later, {@code javac} omits that
  * reference from an inner class that never uses its enclosing instance, so the chain then stops
- * there, and {@link #getUnreachableEnclosingClasses()} names the classes it could not reach. The
+ * there, and {@link #getUnreachableEnclosingClasses()} names the classes it could not reach. A
+ * {@code static} field of such a class needs no instance, so a reader can still use it. The
  * chain also stops, by design, where Spring does not inherit an enclosing class's configuration:
  * for a {@code static} nested class, or one annotated
  * {@code @NestedTestConfiguration(OVERRIDE)} - see
