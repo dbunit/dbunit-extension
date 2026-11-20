@@ -27,7 +27,13 @@ import java.util.List;
 import java.util.Map;
 
 import org.dbunit.DatabaseUnitException;
+import org.dbunit.database.AbstractDatabaseConnection;
+import org.dbunit.database.DatabaseConfig;
+import org.dbunit.database.DatabaseDataSet;
 import org.dbunit.database.IDatabaseConnection;
+import org.dbunit.database.IMetadataHandler;
+import org.dbunit.dataset.DataSetException;
+import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.filter.ExcludeTableFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,6 +47,29 @@ import org.slf4j.LoggerFactory;
  * Every method is a no-op, and never queries the connection, when
  * {@link RowCountCheckConfiguration#isEnabled()} is {@code false} - the check costs nothing
  * when a caller has not opted in.
+ * <p>
+ * It counts the tables its connection lists. A dbUnit connection, an
+ * {@link AbstractDatabaseConnection}, keeps the dataset of its first listing for its lifetime, so
+ * the check lists the tables of such a connection anew for each snapshot, through the metadata of
+ * its JDBC connection. The check therefore counts a table the test creates or drops as empty in
+ * the snapshot it is missing from, and lists a connection that narrows its dataset by overriding
+ * {@link IDatabaseConnection#createDataSet()} in full, which leaves such tables to the exclude
+ * patterns. It lists any other implementation of {@link IDatabaseConnection} through its own
+ * {@code createDataSet()}, except one that the check counts through the schema it works in, as
+ * the next sentence describes. A connection that names no schema is counted through the schema it
+ * works in, as its metadata handler reports it with
+ * {@link IMetadataHandler#getCurrentSchema(Connection)}: by default the current schema of its
+ * JDBC connection, and with {@code MySqlMetadataHandler} the database a MySQL or MariaDB
+ * connection works in. The check then does not meet the system schemas of a database such as
+ * H2, or the tables of other schemas or databases, which it cannot count by their unqualified
+ * names. When the handler reports none, the connection is counted as it is.
+ * <p>
+ * It counts each table by its name as the connection lists it, unquoted unless the
+ * {@code escapePattern} property of the connection is set. A table whose name needs quoting, such
+ * as Flyway's {@code flyway_schema_history} on H2, cannot be counted that way, and the failure
+ * names the exclusion and the property as the ways out. The failure also carries the message of
+ * the counter's failure, which names the table when the {@link RowCounter} does: the default
+ * {@link QueryPerTableRowCounter} always does.
  *
  * @author dbunit
  * @since 3.6.0
@@ -49,12 +78,22 @@ public class RowCountCheck
 {
     private static final Logger log = LoggerFactory.getLogger(RowCountCheck.class);
 
+    private static final String COUNT_FAILED_MESSAGE =
+            "The row count check could not count the rows of a table it listed";
+
+    private static final String COUNT_FAILED_ADVICE = "If the name of a table needs quoting, such"
+            + " as Flyway's flyway_schema_history on H2, whose name the database stores in a case"
+            + " it does not fold unquoted names to, it cannot be counted by its unquoted name:"
+            + " exclude it from the check, or set the escapePattern property, which quotes every"
+            + " table and column name dbUnit writes into SQL, so every dataset must then name its"
+            + " tables as the database stores them.";
+
     private final RowCountCheckConfiguration configuration;
 
     /**
      * Creates a check using the given configuration.
      *
-     * @param configuration resolves whether the check is enabled, the excluded table patterns,
+     * @param configuration Resolves whether the check is enabled, the excluded table patterns,
      *            and the {@link RowCounter} to use.
      */
     public RowCountCheck(final RowCountCheckConfiguration configuration)
@@ -67,10 +106,12 @@ public class RowCountCheck
      * against, of every table {@code connection} exposes that survives the configured exclude
      * patterns.
      *
-     * @param connection the connection to capture the baseline from.
-     * @return the baseline snapshot, or {@code null} when the check is disabled.
-     * @throws DatabaseUnitException if enumerating or filtering the tables fails.
-     * @throws SQLException if counting a table's rows fails.
+     * @param connection The connection to capture the baseline from.
+     * @return The baseline snapshot, or {@code null} when the check is disabled.
+     * @throws DatabaseUnitException If enumerating or filtering the tables fails.
+     * @throws SQLException If counting a table's rows fails. The message gives the counter's
+     *             message, which names the table when the counter does, and the ways out, and
+     *             the cause is the counter's failure.
      */
     public RowCountSnapshot capture(final IDatabaseConnection connection)
             throws DatabaseUnitException, SQLException
@@ -84,12 +125,14 @@ public class RowCountCheck
      * {@code baseline} is {@code null} - the latter meaning no baseline was captured, e.g.
      * because the caller intentionally skipped {@link #capture(IDatabaseConnection)}.
      *
-     * @param baseline the baseline to compare against; {@code null} to skip the check silently.
-     * @param connection the connection to read the current row counts from.
-     * @throws DatabaseUnitException if enumerating or filtering the tables fails, or if any
+     * @param baseline The baseline to compare against; {@code null} to skip the check silently.
+     * @param connection The connection to read the current row counts from.
+     * @throws DatabaseUnitException If enumerating or filtering the tables fails, or if any
      *             table's row count no longer matches the baseline
      *             ({@link UnexpectedRowCountException}).
-     * @throws SQLException if counting a table's rows fails.
+     * @throws SQLException If counting a table's rows fails. The message gives the counter's
+     *             message, which names the table when the counter does, and the ways out, and
+     *             the cause is the counter's failure.
      */
     public void verify(final RowCountSnapshot baseline, final IDatabaseConnection connection)
             throws DatabaseUnitException, SQLException
@@ -112,7 +155,8 @@ public class RowCountCheck
     {
         try
         {
-            final String[] allTableNames = connection.createDataSet().getTableNames();
+            final IDatabaseConnection countingConnection = connectionToCountThrough(connection);
+            final String[] allTableNames = tableNamesListedAfresh(countingConnection);
             final ExcludeTableFilter excludeTableFilter = configuration.getExcludeTableFilter();
 
             final List<String> tableNames = new ArrayList<>();
@@ -124,13 +168,156 @@ public class RowCountCheck
                 }
             }
 
-            final Map<String, Integer> rowCounts =
-                    configuration.getRowCounter().countRows(connection, tableNames);
+            final Map<String, Integer> rowCounts = countRows(countingConnection, tableNames);
             return new RowCountSnapshot(rowCounts);
         }
         finally
         {
             endReadTransaction(connection);
+        }
+    }
+
+    /**
+     * Counts the rows of {@code tableNames} with the configured counter. A counter that fails
+     * gives the driver's error alone, which does not name the check, so the failure is rethrown
+     * with the message of the counter's failure, which names the table when the counter does, and
+     * the ways out of a table that cannot be counted, and the original as its cause.
+     */
+    private Map<String, Integer> countRows(final IDatabaseConnection countingConnection,
+            final List<String> tableNames) throws DatabaseUnitException, SQLException
+    {
+        try
+        {
+            return configuration.getRowCounter().countRows(countingConnection, tableNames);
+        } catch (final SQLException e)
+        {
+            throw new SQLException(countFailedMessage(e), e.getSQLState(), e.getErrorCode(), e);
+        }
+    }
+
+    /**
+     * Returns the message for a counter's failure: what the check could not do, the counter's own
+     * message, which names the table when the counter does, and the ways out.
+     */
+    private static String countFailedMessage(final SQLException counterFailure)
+    {
+        final String reason = counterFailure.getMessage();
+        if (reason == null || reason.trim().isEmpty())
+        {
+            return COUNT_FAILED_MESSAGE + ". " + COUNT_FAILED_ADVICE;
+        }
+        final String reasonWithoutEndingPeriods = reason.trim().replaceAll("\\.+$", "");
+        return COUNT_FAILED_MESSAGE + ": " + reasonWithoutEndingPeriods + ". "
+                + COUNT_FAILED_ADVICE;
+    }
+
+    /**
+     * Returns the connection to list and count the tables through: {@code connection} itself,
+     * unless it names no schema and its metadata handler reports a current one, in which case a
+     * view of it that names that schema. Without a schema a connection lists the tables of every
+     * schema it can see, the system schemas of a database such as H2 among them, and counts them
+     * by names that carry no schema, so a table of another schema cannot be counted.
+     *
+     * @param connection The connection the check was asked to count.
+     * @return The connection to count through.
+     * @throws SQLException If reading the JDBC connection fails.
+     */
+    private IDatabaseConnection connectionToCountThrough(final IDatabaseConnection connection)
+            throws SQLException
+    {
+        final String currentSchema = currentSchemaOf(connection);
+        if (currentSchema == null)
+        {
+            return connection;
+        }
+
+        log.debug("connectionToCountThrough: the connection names no schema, so counting the"
+                + " tables of the current schema '{}'", currentSchema);
+        return new CurrentSchemaConnection(connection, currentSchema);
+    }
+
+    /**
+     * Returns the schema that a connection which names none works in, as its metadata handler
+     * reports it for its JDBC connection, or null when there is none to count in: the connection
+     * names a schema, or its table names already carry theirs, or it has no JDBC connection, or
+     * the handler reports no current schema, fails to report it, or reads it from a driver that
+     * predates JDBC 4.1 and cannot.
+     *
+     * @param connection The connection the check was asked to count.
+     * @return The current schema, or null if the connection is to be counted as it is.
+     * @throws SQLException If reading the JDBC connection of the connection fails.
+     */
+    private String currentSchemaOf(final IDatabaseConnection connection) throws SQLException
+    {
+        if (connection.getSchema() != null)
+        {
+            return null;
+        }
+
+        final Connection jdbcConnection = connection.getConnection();
+        if (jdbcConnection == null)
+        {
+            return null;
+        }
+
+        final DatabaseConfig config = connection.getConfig();
+        final IMetadataHandler metadataHandler =
+                (IMetadataHandler) config.getProperty(DatabaseConfig.PROPERTY_METADATA_HANDLER);
+        final String currentSchema = currentSchemaReportedBy(metadataHandler, jdbcConnection);
+        if (currentSchema == null || currentSchema.isEmpty())
+        {
+            return null;
+        }
+
+        final boolean tableNamesCarryTheirSchema =
+                config.getFeature(DatabaseConfig.FEATURE_QUALIFIED_TABLE_NAMES);
+        if (tableNamesCarryTheirSchema)
+        {
+            return null;
+        }
+        return currentSchema;
+    }
+
+    /**
+     * Lists the tables of a connection for one snapshot. An {@link AbstractDatabaseConnection}
+     * keeps the dataset of its first listing for its lifetime, so this lists the tables of such a
+     * connection anew, through a new {@link DatabaseDataSet} like the one its first listing built,
+     * and sees the tables that exist when the snapshot is taken, whether or not the connection
+     * names a schema. It lists any other implementation of {@link IDatabaseConnection} through
+     * its own {@link IDatabaseConnection#createDataSet()}, as it cannot know how that one lists.
+     *
+     * @param connection The connection to count through.
+     * @return The names of the tables the connection lists.
+     * @throws SQLException If reading the metadata of the connection fails.
+     * @throws DataSetException If listing the tables fails.
+     */
+    private static String[] tableNamesListedAfresh(final IDatabaseConnection connection)
+            throws SQLException, DataSetException
+    {
+        if (connection instanceof AbstractDatabaseConnection)
+        {
+            final boolean caseSensitiveTableNames = connection.getConfig()
+                    .getFeature(DatabaseConfig.FEATURE_CASE_SENSITIVE_TABLE_NAMES);
+            final IDataSet dataSet = new DatabaseDataSet(connection, caseSensitiveTableNames);
+            return dataSet.getTableNames();
+        }
+
+        final IDataSet dataSet = connection.createDataSet();
+        return dataSet.getTableNames();
+    }
+
+    private String currentSchemaReportedBy(final IMetadataHandler metadataHandler,
+            final Connection jdbcConnection)
+    {
+        try
+        {
+            return metadataHandler.getCurrentSchema(jdbcConnection);
+        }
+        catch (final SQLException | AbstractMethodError e)
+        {
+            log.debug("currentSchemaReportedBy: the metadata handler does not report the current"
+                    + " schema of the JDBC connection", e);
+            return null;
         }
     }
 
@@ -150,7 +337,7 @@ public class RowCountCheck
      * best-effort attempt - a snapshot that already failed, or a connection the database has
      * dropped, is the caller's to handle.
      *
-     * @param connection the connection the snapshot queried.
+     * @param connection The connection the snapshot queried.
      */
     private void endReadTransaction(final IDatabaseConnection connection)
     {

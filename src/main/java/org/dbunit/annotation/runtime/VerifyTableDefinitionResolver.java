@@ -20,12 +20,13 @@
  */
 package org.dbunit.annotation.runtime;
 
-import java.lang.reflect.InvocationTargetException;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeSet;
 
 import org.dbunit.VerifyTableDefinition;
 import org.dbunit.annotation.DbUnitColumnComparer;
@@ -39,25 +40,38 @@ import org.dbunit.util.fileloader.DataFileLoader;
 
 /**
  * Resolves {@code @DbUnitExpected}'s verification spec - its inline {@code verify()}
- * {@link DbUnitVerifyTable}s, its {@code verifyTables()} names, its {@code verifyDefinitions()}
- * catalog classes, or {@link DbUnitConfig#verifyDefinitions()} class-level catalogs - into the
+ * {@link DbUnitVerifyTable}s or its {@code verifyTables()} names, with the rules of the
+ * {@link DbUnitConfig#verifyDefinitions()} class-level catalogs - into the
  * {@link VerifyTableDefinition}[] {@link AnnotatedTestConfiguration} carries.
  *
- * <p>Precedence, first match wins: {@code @DbUnitExpected.verifyDefinitions()}, then
- * {@code verify()}, then {@code @DbUnitConfig.verifyDefinitions()}, then bare
- * {@code verifyTables()}, then one definition per table found in the expected datasets.
- * {@code verifyTables()} narrows a catalog rather than conflicting with it; declaring both
- * {@code verify()} and either catalog form, or the same table twice, is rejected. So is a
- * {@code @DbUnitExpected} that names no expected dataset, whatever else it declares, since the
- * tables it verifies are compared to that dataset.
+ * <p>Precedence, first match wins: {@code verify()}, then {@code verifyTables()}, then one
+ * definition per table found in the expected datasets. The test case compares a table only with
+ * a definition and fails when the expected datasets hold a table that none names, so
+ * {@code verify()} and {@code verifyTables()} have to name every table of the datasets, as the
+ * third form does by deriving one for each. A catalog only supplies each table's rules, and a
+ * table it does not define gets a default definition. Declaring {@code verify()} together with
+ * {@code verifyTables()}, or the same table twice, is rejected. So is a {@code @DbUnitExpected}
+ * whose {@code value()} is an empty array, whatever else it declares, since the tables it
+ * verifies are compared to that dataset.
  *
  * @author Jeff Jensen
  * @since 3.6.0
  */
-final class VerifyTableDefinitionResolver
+class VerifyTableDefinitionResolver
 {
+    private static final String COMPARER_CONSTRUCTOR_HINT = "It is likely a configured instance"
+            + " built with constructor arguments, which an annotation cannot express. Either"
+            + " declare it as a VerifyTableDefinition constant in a catalog class, or name a"
+            + " subclass with a public no-arg constructor that passes the arguments to super(...).";
+
     private static final ClassValue<ValueComparer> COMPARERS = new ClassValue<ValueComparer>()
     {
+        /**
+         * {@inheritDoc}
+         * <p>
+         * Creates the comparer the first time a caller asks for the class, and the
+         * {@link ClassValue} keeps it from then on.
+         */
         @Override
         @SuppressWarnings("unchecked")
         protected ValueComparer computeValue(final Class<?> comparerClass)
@@ -69,57 +83,41 @@ final class VerifyTableDefinitionResolver
     /**
      * Resolves the verification spec the annotations spell out, leaving the one form that needs
      * a data file loader - the default of one definition per table in the expected datasets -
-     * to {@link #deriveFromExpectedDatasets(DataFileLoader, String[])}, so the loader can be the
-     * one the test case that will compare those datasets actually uses.
+     * to {@link #deriveFromExpectedDatasets(DataFileLoader, String[], VerifyTableDefinition[])},
+     * so the loader can be the one the test case that will compare those datasets actually uses.
      *
-     * @param config The resolved {@code @DbUnitConfig}, or {@code null} if absent.
+     * @param classLevelCatalogs The catalog classes {@code @DbUnitConfig(verifyDefinitions)}
+     *            declares, which supply the rules of the tables {@code verifyTables()} names;
+     *            empty when none.
      * @param expected The resolved {@code @DbUnitExpected} (never {@code null} - this runs only
      *            when it is present).
      * @param expectedDataFiles The resolved expected dataset paths.
      * @return The table definitions to verify, or empty when the annotations declare none and
      *         they are to be derived from the expected datasets.
-     * @throws IllegalStateException If no expected dataset is named, or the spec is
+     * @throws IllegalStateException If {@code value()} is an empty array, or the spec is
      *             contradictory.
      */
-    Optional<VerifyTableDefinition[]> resolveDeclared(final DbUnitConfig config,
+    Optional<VerifyTableDefinition[]> resolveDeclared(final Class<?>[] classLevelCatalogs,
             final DbUnitExpected expected, final String[] expectedDataFiles)
     {
         if (expectedDataFiles.length == 0)
         {
-            throw new IllegalStateException("@DbUnitExpected names no expected dataset, so"
-                    + " there is nothing to verify the database against: verify(),"
-                    + " verifyTables() and verifyDefinitions() only choose which tables of that"
-                    + " dataset are compared. Name the dataset with value() or provider(), or"
-                    + " drop @DbUnitExpected for a test that verifies nothing.");
+            throw new IllegalStateException("@DbUnitExpected names an empty array of expected"
+                    + " datasets (value = {}), so there is nothing to verify the database"
+                    + " against: verify() and verifyTables() only give the tables of that"
+                    + " dataset their rules. Name the dataset files with value(), or drop"
+                    + " @DbUnitExpected for a test that verifies nothing.");
         }
-        final Class<?>[] classLevelCatalogs =
-                config == null ? new Class<?>[0] : config.verifyDefinitions();
         final DbUnitVerifyTable[] verify = expected.verify();
         final String[] verifyTables = expected.verifyTables();
 
-        ProvidedAttribute.rejectBothSet(
-                verify.length > 0 && expected.verifyDefinitions().length > 0, "@DbUnitExpected",
-                "verify()", "verifyDefinitions()", "See VerifyTableDefinitionsProvider.");
-        ProvidedAttribute.rejectBothSet(verify.length > 0 && verifyTables.length > 0,
-                "@DbUnitExpected", "verify()", "verifyTables()",
-                "verifyTables() only narrows a catalog.");
+        if (verify.length > 0 && verifyTables.length > 0)
+        {
+            throw new IllegalStateException("@DbUnitExpected sets both verify() and"
+                    + " verifyTables(); set only one. verify() declares the rules of its"
+                    + " tables, verifyTables() takes them from a catalog.");
+        }
         requireNoDuplicateTableNames(verifyTables);
-        final Class<?>[] catalogClasses;
-        if (expected.verifyDefinitions().length > 0)
-        {
-            catalogClasses = expected.verifyDefinitions();
-        } else if (verify.length > 0)
-        {
-            catalogClasses = new Class<?>[0];
-        } else
-        {
-            catalogClasses = classLevelCatalogs;
-        }
-        if (catalogClasses.length > 0)
-        {
-            return Optional.of(
-                    VerifyTableDefinitionCatalog.forClasses(catalogClasses).select(verifyTables));
-        }
         if (verify.length > 0)
         {
             final VerifyTableDefinition[] definitions =
@@ -127,7 +125,7 @@ final class VerifyTableDefinitionResolver
             final Set<String> tableNames = new LinkedHashSet<>(verify.length);
             for (int i = 0; i < verify.length; i++)
             {
-                if (!tableNames.add(verify[i].value()))
+                if (!tableNames.add(TableNameKey.of(verify[i].value())))
                 {
                     throw new IllegalStateException("@DbUnitExpected declares more than one"
                             + " @DbUnitVerifyTable entry for table '" + verify[i].value()
@@ -139,15 +137,24 @@ final class VerifyTableDefinitionResolver
         }
         if (verifyTables.length > 0)
         {
-            final VerifyTableDefinition[] definitions =
-                    new VerifyTableDefinition[verifyTables.length];
-            for (int i = 0; i < verifyTables.length; i++)
-            {
-                definitions[i] = new VerifyTableDefinition(verifyTables[i], (String[]) null);
-            }
-            return Optional.of(definitions);
+            return Optional.of(VerifyTableDefinitionCatalog.forClasses(classLevelCatalogs)
+                    .select(verifyTables));
         }
         return Optional.empty();
+    }
+
+    /**
+     * Returns the definitions of the class-level catalogs, the rules of the tables derived from
+     * the expected datasets - see
+     * {@link #deriveFromExpectedDatasets(DataFileLoader, String[], VerifyTableDefinition[])}.
+     *
+     * @param classLevelCatalogs The catalog classes {@code @DbUnitConfig(verifyDefinitions)}
+     *            declares; empty when none.
+     * @return Every definition the catalogs hold; empty when there are none.
+     */
+    VerifyTableDefinition[] catalogDefinitions(final Class<?>[] classLevelCatalogs)
+    {
+        return VerifyTableDefinitionCatalog.forClasses(classLevelCatalogs).select();
     }
 
     private void requireNoDuplicateTableNames(final String[] verifyTables)
@@ -155,7 +162,7 @@ final class VerifyTableDefinitionResolver
         final Set<String> tableNames = new LinkedHashSet<>(verifyTables.length);
         for (final String tableName : verifyTables)
         {
-            if (!tableNames.add(tableName))
+            if (!tableNames.add(TableNameKey.of(tableName)))
             {
                 throw new IllegalStateException("@DbUnitExpected declares more than one"
                         + " verifyTables() entry for table '" + tableName
@@ -168,31 +175,35 @@ final class VerifyTableDefinitionResolver
     {
         final String[] include = v.include().length == 0 ? null : v.include();
         final ValueComparer defaultComparer = v.defaultComparer() == ValueComparer.class ? null
-                : instantiateComparer(v.defaultComparer());
+                : instantiateComparer(v.defaultComparer(), "DbUnitVerifyTable.defaultComparer");
         final Map<String, ValueComparer> columnComparers =
                 new LinkedHashMap<>(v.columnComparers().length);
+        final Set<String> columnNames = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
         for (final DbUnitColumnComparer c : v.columnComparers())
         {
-            if (columnComparers.containsKey(c.column()))
+            if (!columnNames.add(c.column()))
             {
                 throw new IllegalStateException("@DbUnitVerifyTable(\"" + v.value()
                         + "\") declares more than one @DbUnitColumnComparer for column '"
-                        + c.column() + "'; declare at most one per column.");
+                        + c.column() + "', whose name matches the column without regard to"
+                        + " case; declare at most one per column.");
             }
-            columnComparers.put(c.column(), instantiateComparer(c.comparer()));
+            columnComparers.put(c.column(),
+                    instantiateComparer(c.comparer(), "DbUnitColumnComparer.comparer"));
         }
         return new VerifyTableDefinition(v.value(), v.exclude(), include, defaultComparer,
                 columnComparers, v.sortOnFilteredColumnsOnly());
     }
 
     /**
-     * Derives one default definition per table found in {@code expectedDataFiles}, read with
-     * {@code dataFileLoader}. Parses the files a second time here, just to enumerate table
-     * names - {@code DefaultPrepAndExpectedTestCase#configureTest()} parses the same files
-     * again later for the real verification. Left as-is: avoiding the second parse needs a real
-     * change to the boundary between resolving a configuration and the
-     * {@code PrepAndExpectedTestCase} that consumes it, not a small tweak - not worth it for
-     * what is normally a small test fixture file.
+     * Derives one definition per table found in {@code expectedDataFiles}, read with
+     * {@code dataFileLoader}: the catalog's for a table it defines, a default one for the
+     * others. Parses the files here, just to enumerate table names, for a
+     * {@code PrepAndExpectedTestCase} that cannot derive them from the expected dataset it
+     * loads itself, which only a {@code DefaultPrepAndExpectedTestCase} does - see
+     * {@code PrepAndExpectedTestData#verifyingExpectedTables(String[], String[],
+     * VerifyTableDefinition[])}; its {@code configureTest()} parses the same files again for the
+     * real verification.
      *
      * <p>Takes the loader as an argument because it must be the one that test case compares the
      * files with, which can differ from the {@code @DbUnitConfig} one when the test case is
@@ -200,11 +211,18 @@ final class VerifyTableDefinitionResolver
      *
      * @param dataFileLoader The loader to read the expected datasets with.
      * @param expectedDataFiles The resolved expected dataset paths.
-     * @return One default definition per table, in first-seen order.
+     * @param catalogDefinitions The definitions of the class-level catalogs, the rules of the
+     *            tables they define; the other tables get a default definition.
+     * @return One definition per table, in first-seen order.
      */
     VerifyTableDefinition[] deriveFromExpectedDatasets(final DataFileLoader dataFileLoader,
-            final String[] expectedDataFiles)
+            final String[] expectedDataFiles, final VerifyTableDefinition[] catalogDefinitions)
     {
+        final Map<String, VerifyTableDefinition> catalogByTableNameKey = new HashMap<>();
+        for (final VerifyTableDefinition definition : catalogDefinitions)
+        {
+            catalogByTableNameKey.put(TableNameKey.of(definition.getTableName()), definition);
+        }
         final Set<String> tableNames = new LinkedHashSet<>();
         for (final String path : expectedDataFiles)
         {
@@ -226,7 +244,15 @@ final class VerifyTableDefinitionResolver
         int i = 0;
         for (final String tableName : tableNames)
         {
-            definitions[i++] = new VerifyTableDefinition(tableName, (String[]) null);
+            final VerifyTableDefinition inCatalog =
+                    catalogByTableNameKey.get(TableNameKey.of(tableName));
+            if (inCatalog == null)
+            {
+                definitions[i++] = new VerifyTableDefinition(tableName, (String[]) null);
+            } else
+            {
+                definitions[i++] = inCatalog;
+            }
         }
         return definitions;
     }
@@ -240,30 +266,29 @@ final class VerifyTableDefinitionResolver
      * itself, through a {@link ClassValue}, so it goes away with the class and its class loader
      * rather than keeping them alive. See {@link DbUnitColumnComparer#comparer()} for the
      * resulting purity requirement.
+     *
+     * <p>One instance serves both attributes that name a comparer class, so the cache cannot
+     * know which attribute asks. A class it cannot instantiate stays out of the cache, and its
+     * failure is reported here under {@code attributeDescription}, with the cause of the
+     * cache's failure.
      */
     private static ValueComparer instantiateComparer(
-            final Class<? extends ValueComparer> comparerClass)
+            final Class<? extends ValueComparer> comparerClass, final String attributeDescription)
     {
-        return COMPARERS.get(comparerClass);
+        try
+        {
+            return COMPARERS.get(comparerClass);
+        } catch (final IllegalStateException e)
+        {
+            throw new IllegalStateException(attributeDescription + " names a ValueComparer that"
+                    + " dbUnit cannot instantiate. " + e.getMessage(), e.getCause());
+        }
     }
 
     private static ValueComparer newComparerInstance(
             final Class<? extends ValueComparer> comparerClass)
     {
-        try
-        {
-            return ReflectiveInstantiation.newInstance(comparerClass);
-        } catch (final InvocationTargetException e)
-        {
-            throw new IllegalStateException("ValueComparer " + comparerClass.getName()
-                    + " threw from its no-arg constructor.", e.getCause());
-        } catch (final ReflectiveOperationException e)
-        {
-            throw new IllegalStateException("ValueComparer " + comparerClass.getName()
-                    + " has no accessible no-arg constructor - it is likely a configured"
-                    + " instance built with constructor arguments, which an annotation cannot"
-                    + " express. Declare it as a VerifyTableDefinition constant in a catalog"
-                    + " class instead; see VerifyTableDefinitionsProvider.", e);
-        }
+        return new ReflectiveInstantiation().instantiate(comparerClass, "ValueComparer",
+                COMPARER_CONSTRUCTOR_HINT);
     }
 }

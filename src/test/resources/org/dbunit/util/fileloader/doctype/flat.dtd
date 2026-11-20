@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!ELEMENT dataset (A*)>
+<!ELEMENT A EMPTY>
+<!ATTLIST A ID CDATA #IMPLIED>

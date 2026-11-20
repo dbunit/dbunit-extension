@@ -34,7 +34,7 @@ import org.dbunit.DatabaseUnitRuntimeException;
  * @author Jeff Jensen
  * @since 3.6.0
  */
-public final class RequiredLibrary
+public class RequiredLibrary
 {
     /** Jackson, needed to read and write JSON datasets and to compare JSON column values. */
     public static final RequiredLibrary JACKSON = new RequiredLibrary("JSON", "Jackson",
@@ -44,6 +44,15 @@ public final class RequiredLibrary
     /** SnakeYAML, needed to read and write YAML datasets. */
     public static final RequiredLibrary SNAKEYAML = new RequiredLibrary("YAML", "SnakeYAML",
             "org.yaml.snakeyaml.Yaml", "org.yaml:snakeyaml");
+
+    /**
+     * Apache POI, needed to read and write Excel datasets. Reading an {@code .xlsx} file needs
+     * {@code poi-ooxml} as well; the probe is a class of {@code poi}, which {@code poi-ooxml}
+     * depends on.
+     */
+    public static final RequiredLibrary POI = new RequiredLibrary("Excel", "Apache POI",
+            "org.apache.poi.ss.usermodel.WorkbookFactory",
+            "org.apache.poi:poi (and org.apache.poi:poi-ooxml for an .xlsx file)");
 
     private final String feature;
     private final String libraryName;
@@ -76,8 +85,8 @@ public final class RequiredLibrary
         } catch (final ClassNotFoundException | NoClassDefFoundError e)
         {
             throw new DataSetException(feature + " support needs " + libraryName + ", which is"
-                    + " not on the classpath. Add " + coordinates + " (an optional dependency"
-                    + " of dbUnit) to the classpath.", e);
+                    + " not on the classpath. Add " + coordinates + " to the classpath. "
+                    + libraryName + " is an optional dependency of dbUnit.", e);
         }
     }
 

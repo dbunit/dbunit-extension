@@ -39,7 +39,28 @@ import org.dbunit.dataset.RequiredLibrary;
  *
  * <p>Contrary to the flat XML layout, columns are calculated by parsing the entire dataset, not
  * just the first row. Each table is a top-level key in the JSON object, and its value is an array
- * of row objects. Columns with {@code null} values are omitted from the JSON representation.
+ * of row objects. The writer leaves a column with a {@code null} value, or with no value, out
+ * of a row, except in the first row of a table, which carries every column of the table, so
+ * a column that is null in every row survives a read-back.
+ *
+ * <p>A cell that is a JSON object or array reaches the column type as its compact JSON text,
+ * such as {@code {"type":"click"}}, which a text column or a {@code json} or {@code jsonb}
+ * column takes as it is. To give a column type its own text form, write the value as a JSON
+ * string.
+ *
+ * <p>The writer writes a date, a time or a timestamp as the JDBC escape text that the column
+ * types parse, such as {@code 2024-03-01}, so that a dataset reads back the same day and
+ * time in any time zone. A dataset written before 3.6.0, with the number of milliseconds
+ * since the epoch, still reads for any date after January 1970.
+ *
+ * <p>The writer writes a value of any other type than a string, a number, a boolean, an array, a
+ * collection or a map, such as the driver's object for a column type that dbUnit does not
+ * recognize in a query table, as its {@code toString()} text. Jackson would write it as a JSON
+ * object of its properties.
+ *
+ * <p>The reader reads a string value of any length, such as the Base64 text of a large BLOB that
+ * the writer wrote. It lifts the limit of 20,000,000 characters that Jackson 2.15 and later set
+ * on a string value.
  *
  * <p>Example:
  *

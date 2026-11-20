@@ -81,7 +81,7 @@ Use nested `<query>` elements to export data according to a sql statement.
 |combine |Boolean indicating if tables in a composite dataset having the same name should be merged into one table. Possible values are "true" or "false". Defaults to *"false"*. |No
 |transaction |Boolean indicating if this operation should be wrapped in a transaction, ensuring that the entire operation completes or is rolled back. This may also dramatically improve performance of large operations. Possible values are "true" or "false". Defaults to *"false"*. |No
 |ordered |If set to "true" the tables of the exported dataset are ordered using a database key. Therefore dbunit uses the FilteredDataSet combined with the DatabaseSequenceFilter. Defaults to *"false"* |No
-|nullToken |A String used to replace all occurrences of this String in a dataset with `<null>`. A common value for this is "[NULL]". Defaults to *null* which means that no replacement occurs. |No
+|nullToken |A String used to replace all occurrences of this String in a dataset with `<null>`. A common value for this is "[NULL]", which a "yml" source file has to write in quotes, as `'[NULL]'`. Defaults to *null* which means that no replacement occurs. |No
 |===
 
 ==== export

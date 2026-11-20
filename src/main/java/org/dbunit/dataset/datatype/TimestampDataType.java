@@ -44,6 +44,22 @@ import org.slf4j.LoggerFactory;
 /**
  * {@link DataType} mapping the SQL TIMESTAMP type to {@link java.sql.Timestamp}.
  *
+ * <p>
+ * A text is read as {@code yyyy-mm-dd hh:mm:ss[.f]}, the JDBC timestamp escape format, in the
+ * JVM's time zone, or as a date, {@code yyyy-mm-dd}, at midnight. Since 3.6.0 it also reads the
+ * ISO 8601 and YAML 1.1 forms: a {@code T} or a {@code t} instead of the space between date and
+ * time, such as {@code 2024-01-15T10:00:00}, which is read in the JVM's time zone like the form
+ * with the space. An offset behind the time, the letter {@code Z} for UTC or one of the forms
+ * {@code +hh}, {@code +hh:mm} and {@code +hhmm}, which can follow a space, makes the text an
+ * instant in that offset. A tab or more than one space between date and time, and a dot with no
+ * digits after the seconds, which YAML 1.1 allows, are read too.
+ *
+ * <p>
+ * Such a text with an offset is written to a column of the SQL type
+ * {@code TIMESTAMP WITH TIME ZONE} as its instant, and to a column without a time zone as the
+ * date and time written, in its offset's calendar: that column holds the instant only in a JVM
+ * whose time zone has the same offset.
+ *
  * @author Manuel Laflamme
  * @author Last changed by: $Author$
  * @version $Revision$ $Date$
@@ -113,6 +129,8 @@ public class TimestampDataType extends AbstractDataType
                     throw new TypeCastException(value, this, e);
                 }
             }
+
+            stringValue = IsoTimestampText.toJdbcTimestampText(stringValue);
 
             String zoneValue = null;
 
@@ -271,7 +289,8 @@ public class TimestampDataType extends AbstractDataType
             final PreparedStatement statement, final Timestamp ts)
             throws SQLException
     {
-        final Matcher timezoneMatcher = TIMEZONE_REGEX.matcher(value);
+        final String jdbcText = IsoTimestampText.toJdbcTimestampText(value);
+        final Matcher timezoneMatcher = TIMEZONE_REGEX.matcher(jdbcText);
         if (timezoneMatcher.matches() && timezoneMatcher.group(2) != null)
         {
             final Calendar cal = makeCalendar(timezoneMatcher);

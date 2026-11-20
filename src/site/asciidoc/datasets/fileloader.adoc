@@ -48,6 +48,57 @@ objects and substrings configured on the `FileExtensionDataFileLoader` itself
 are the ones applied, exactly once, regardless of which delegate handled the
 file.
 
+The extension also decides how the dataset looks tables up. A `.json`, `.yaml` or
+`.yml` dataset is case-sensitive, so `getTable("account")` throws a
+`NoSuchTableException` for a table named `ACCOUNT`, where the datasets of the other
+formats find it, flat XML by default. `DefaultPrepAndExpectedTestCase` is not
+affected: it looks tables up the way the connection's
+`FEATURE_CASE_SENSITIVE_TABLE_NAMES` says, whatever the format.
+
+[#columnsensing]
+=== Column Sensing for Flat XML
+
+Flat XML takes a table's columns from its first row and ignores, with a
+warning, a column that only a later row has (see
+link:values.html#columnsensing[Dataset Values: column sensing]). To load such
+a column, give the loader a `FlatXmlDataSetBuilder` with column sensing on; the
+other formats load as before:
+
+[source,java]
+----
+DataFileLoader loader = new FileExtensionDataFileLoader(
+        new FlatXmlDataSetBuilder().setColumnSensing(true));
+----
+
+`@DbUnitConfig(dataFileLoader)` builds a loader class with its no-argument
+constructor, so name a subclass that passes the builder on:
+
+[source,java]
+----
+public class ColumnSensingDataFileLoader extends FileExtensionDataFileLoader
+{
+    public ColumnSensingDataFileLoader()
+    {
+        super(new FlatXmlDataSetBuilder().setColumnSensing(true));
+    }
+}
+----
+
+To also load each file once for the scope, wrap the same loader in a
+`CachingDataFileLoader` subclass instead (see <<caching>>):
+
+[source,java]
+----
+public class CachingColumnSensingDataFileLoader extends CachingDataFileLoader
+{
+    public CachingColumnSensingDataFileLoader()
+    {
+        super(new FileExtensionDataFileLoader(
+                new FlatXmlDataSetBuilder().setColumnSensing(true)));
+    }
+}
+----
+
 An unsupported extension throws `IllegalArgumentException` naming it. Two
 formats are deliberately not dispatched here:
 
@@ -56,7 +107,15 @@ formats are deliberately not dispatched here:
   loader's one-file-per-path convention. Use `CsvDataFileLoader` directly,
   pointed at a directory.
 * *Full (non-flat) XML* — `.xml` maps to flat XML, the overwhelmingly common
-  case. Use `FullXmlDataFileLoader` directly for the full XML format.
+  case. Use `FullXmlDataFileLoader` directly for the full XML format. A full XML file
+  with columns or rows that reaches this loader would load as flat XML, as tables
+  named `table`, `column`, `row` and `value`, so it is rejected with an
+  `IllegalArgumentException` that names the file and says to use
+  `FullXmlDataFileLoader`, for example with
+  `@DbUnitConfig(dataFileLoader = FullXmlDataFileLoader.class)`. A `DOCTYPE` makes no
+  difference, such as the `<!DOCTYPE dataset SYSTEM "dataset.dtd">` of the
+  link:xml.html[full XML sample], even when the DTD cannot be read; the exception then has the
+  failure of the flat XML load as its cause.
 
 Each extends
 link:../apidocs/org/dbunit/util/fileloader/AbstractDataFileLoader.html[AbstractDataFileLoader],
@@ -82,33 +141,81 @@ IDataSet ds = loader.load("/the/package/prepData.xml");
 Every `load()` parses its file again, so a suite whose tests share the same prep and
 expected files parses each of them once per test: a SAX parse and the building of the tables
 for flat XML, and much more for Excel files.
+link:../apidocs/org/dbunit/util/fileloader/CachingDataFileLoader.html[CachingDataFileLoader]
+(since 3.6.0) wraps any other loader and loads each file once, handing the dataset to every
+later `load()` of that file:
+
+[source,java]
+----
+DataFileLoader loader = new CachingDataFileLoader(new FlatXmlDataFileLoader());
+----
+
+The datasets are held by the instance, so share the instance among the test cases that should
+share them. `clearCache()` drops them, and so does a change to the replacements made through
+the caching loader, so the next load applies it. A load that fails is not kept. Threads that
+ask for the same file at the same time wait for its one load.
+
+An annotation can name only a class with a no-argument constructor, and a
+`CachingDataFileLoader` takes the loader it wraps, so
 link:../apidocs/org/dbunit/util/fileloader/CachingFileExtensionDataFileLoader.html[CachingFileExtensionDataFileLoader]
-(since 3.6.0) dispatches by extension like `FileExtensionDataFileLoader`, and parses each
-file once per run, handing every later `load()` of that file the parsed dataset:
+is a `CachingDataFileLoader` around a `FileExtensionDataFileLoader`, which dispatches by
+extension:
 
 [source,java]
 ----
 @DbUnitConfig(dataFileLoader = CachingFileExtensionDataFileLoader.class)
 ----
 
-The annotation runtime builds a new loader for each test, so the parsed datasets are held
-per loader class, not per instance: every instance of the class reuses what the others
-parsed, and a subclass keeps its own. Replacement objects and substrings still apply per
-instance, because only the parsed dataset is shared and each `load()` wraps it in its own
-`ReplacementDataSet`.
+A file name without a leading slash is looked up relative to the package of that class, so a
+subclass of it finds the files in its own package, as a subclass of
+`FileExtensionDataFileLoader` does.
 
-Use it for immutable classpath fixtures:
+To cache another loader, extend `CachingDataFileLoader` with a no-argument constructor that
+passes it:
+
+[source,java]
+----
+public class CachingFlatXmlDataFileLoader extends CachingDataFileLoader
+{
+    public CachingFlatXmlDataFileLoader()
+    {
+        super(new FlatXmlDataFileLoader());
+    }
+}
+----
+
+The annotation runtime builds one instance of each `CachingDataFileLoader` class named in
+`@DbUnitConfig(dataFileLoader)` and shares it among the tests of its scope: all the tests of
+the run under JUnit Jupiter, those of one test class under Spring. It therefore loads each file
+once for the scope. A loader of any other class, the default `FileExtensionDataFileLoader`
+included, is built for each test, so a test case that changes the loader it is given, such as
+by adding replacement objects, changes no other test's. Sharing the instance has three
+consequences for a caching loader class:
+
+* A value its constructor computes, such as a replacement of the current time, is computed once
+  for the scope rather than once per test.
+* It must be safe for tests that run in parallel. The loaders dbUnit provides are, as long as
+  nothing changes their replacements while tests run. The datasets a caching loader hands out
+  are shared among the tests of its scope, though, so a test must only read them. A flat XML,
+  JSON or YAML dataset is safe to read from tests that run in parallel, but an Excel dataset
+  is not: Apache POI does not support reading one workbook from several threads. Use a loader
+  that is not a caching one, or run the tests that read Excel datasets one at a time.
+* A replacement added to it later, such as by a test case, reaches every test of the scope and
+  drops the datasets it holds, so give it its replacements in its constructor.
+
+Use caching for immutable classpath fixtures:
 
 * A resource that changes while the JVM keeps running, as in a test daemon or an IDE runner,
-  is not read again until `clearCache()` drops the loader class's datasets.
-* The shared datasets must be treated as read-only, as every test sees the same ones.
-* The datasets stay in memory for the rest of the run, so mind the number of distinct large
-  files, such as Excel workbooks.
+  is not read again until `clearCache()` drops the datasets.
+* The cached datasets must be treated as read-only, as every test sees the same ones.
+* The datasets stay in memory for the scope, so mind the number of distinct large files, such
+  as Excel workbooks.
 
 == Replacement Objects and Substrings
 
-Every loader's constructors accept replacement object and replacement
-substring maps, used the same way as with `ReplacementDataSet` directly (see
+Every loader but the `CachingDataFileLoader` decorator accepts replacement object and
+replacement substring maps in its constructors, used the same way as with
+`ReplacementDataSet` directly (see
 link:decorators.html#replacementdataset[Decorators], and
 link:values.html#null[Dataset Values] for the `[NULL]` convention):
 
@@ -121,9 +228,16 @@ DataFileLoader loader = new FlatXmlDataFileLoader(replacementObjects);
 IDataSet ds = loader.load("/the/package/prepData.xml");
 ----
 
+A link:yaml.html[YAML] dataset has to write such a placeholder in quotes, as
+`'[NULL]'`: YAML reads an unquoted `[NULL]` as a list, which dbUnit rejects.
+
 You can also add or clear replacements after construction:
 `addReplacementObjects()`, `addReplacementSubstrings()`,
 `removeAllReplacementObjects()`, `removeAllReplacementSubstrings()`.
+
+A `CachingDataFileLoader` takes only the loader it wraps, so give the maps to that
+loader, or use these methods on the caching loader: they pass the change on to the
+wrapped loader and drop the datasets the caching loader holds.
 
 See link:../testcases/PrepAndExpectedTestCase.html[PrepAndExpectedTestCase] for
 a `DataFileLoader` used as part of a full prep/expected test setup.

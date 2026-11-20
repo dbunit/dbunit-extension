@@ -1,0 +1,4 @@
+<dataset>
+    <TEST_TABLE COL0="row 0"/>
+    <TEST_TABLE COL0="row 1" COL1="[TOKEN]"/>
+</dataset>

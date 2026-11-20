@@ -38,4 +38,31 @@ public interface ValueComparer
     String compare(ITable expectedTable, ITable actualTable, int rowNum,
             String columnName, DataType dataType, Object expectedValue,
             Object actualValue) throws DatabaseUnitException;
+
+    /**
+     * Returns whether the expected values of a column that this comparer
+     * compares can order the rows the way the actual values do. Before it
+     * compares a table, {@link org.dbunit.DefaultPrepAndExpectedTestCase}
+     * sorts the expected and the actual rows by the same columns, so that
+     * each expected row meets its counterpart. A column whose comparer
+     * returns false is moved after every other column of the sort, so it only
+     * orders the rows that tie on all of them. A comparer that compares the
+     * actual value with the expected one by equality, by order or by a
+     * tolerance returns true, the default: its expected values are values of
+     * the column, such as the generated ids of a sequence compared with
+     * "greater than or equal to", so the column keeps its place in the sort.
+     * A comparer whose expected value is a pattern, a part of the value, or
+     * ignored returns false. When the expected values of a column that kept
+     * its place do not order the rows, for example the same bound in every
+     * row, and the comparison fails but passes with every column that has a
+     * comparer sorted last, the failure says so.
+     *
+     * @return True if the expected values can order the rows; false to sort
+     *         by the column after the others.
+     * @since 3.6.0
+     */
+    default boolean isSortableByExpectedValue()
+    {
+        return true;
+    }
 }

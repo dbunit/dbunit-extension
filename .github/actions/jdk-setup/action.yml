@@ -31,6 +31,9 @@ runs:
         java-version: '21'
         distribution: 'temurin'
         cache: maven
+        cache-dependency-path: |
+          **/pom.xml
+          .github/actions/jdk-setup/action.yml
 
     - name: Set up JDK 21 with Maven Central credentials
       if: ${{ inputs.server-id != '' }}
@@ -39,6 +42,9 @@ runs:
         java-version: '21'
         distribution: 'temurin'
         cache: maven
+        cache-dependency-path: |
+          **/pom.xml
+          .github/actions/jdk-setup/action.yml
         server-id: ${{ inputs.server-id }}
         server-username: ${{ inputs.server-username }}
         server-password: ${{ inputs.server-password }}

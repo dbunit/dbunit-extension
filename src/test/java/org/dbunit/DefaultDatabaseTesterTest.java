@@ -121,14 +121,14 @@ class DefaultDatabaseTesterTest
     }
 
     @Test
-    void testGetOperationListener_noneSet_returnsNull() throws Exception
+    void testGetOperationListener_noneSet_returnsDefaultOperationListener() throws Exception
     {
         final DefaultDatabaseTester tester = new DefaultDatabaseTester(newRealConnection());
 
         assertThat(tester.getOperationListener())
-                .as("getOperationListener() must return null before setOperationListener() is"
-                        + " ever called.")
-                .isNull();
+                .as("getOperationListener() must return the listener the tester would use before"
+                        + " setOperationListener() is ever called, never null.")
+                .isInstanceOf(DefaultOperationListener.class);
     }
 
     @Test
@@ -145,6 +145,28 @@ class DefaultDatabaseTesterTest
                         + " setOperationListener(), so a caller can wrap it instead of"
                         + " discarding it.")
                 .isSameAs(listener);
+    }
+
+    @Test
+    void testIsReusingConnection_withRawConnectionConstructor_returnsTrue() throws Exception
+    {
+        final DefaultDatabaseTester tester = new DefaultDatabaseTester(newRealConnection());
+
+        assertThat(tester.isReusingConnection())
+                .as("A tester over one connection hands out that connection on every call.")
+                .isTrue();
+    }
+
+    @Test
+    void testIsReusingConnection_withProviderConstructor_returnsTrue()
+    {
+        final DefaultDatabaseTester tester = new DefaultDatabaseTester(
+                new CachingConnectionProvider(), this::newRealConnection);
+
+        assertThat(tester.isReusingConnection())
+                .as("A tester over a CachingConnectionProvider hands out the connection the"
+                        + " provider caches on every call.")
+                .isTrue();
     }
 
     private IDatabaseConnection newRealConnection() throws Exception

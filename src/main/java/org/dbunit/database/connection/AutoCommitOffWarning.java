@@ -23,7 +23,9 @@ package org.dbunit.database.connection;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
+import org.dbunit.IDatabaseTester;
 import org.dbunit.database.IDatabaseConnection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,10 +40,15 @@ import org.slf4j.LoggerFactory;
  * database's idle-in-transaction timeout may terminate mid-run.
  *
  * <p>Used as the {@code onAcquired} hook of a {@link TestScopedConnection} so the check runs
- * once per acquired connection at the single acquisition point, whichever path - the annotation
- * runtime's setup/teardown handling, or {@link org.dbunit.DefaultPrepAndExpectedTestCase} -
- * borrowed it. One instance per lifecycle owner; it warns at most once regardless of how many
- * times the connection is (re)acquired.
+ * once per acquired connection at the single acquisition point, whichever lifecycle owner
+ * borrowed it, such as {@link org.dbunit.DefaultPrepAndExpectedTestCase}. One instance per
+ * lifecycle owner; it warns at most once regardless of how many times the connection is
+ * (re)acquired, and once for a tester however many lifecycle owners it serves, as it is the
+ * tester that hands out connections with autocommit disabled. Without a tester to name, an
+ * instance warns once for itself.
+ *
+ * <p>This type is internal to dbUnit's bindings; it is public only for use across
+ * dbUnit's packages and may change in a minor release.
  *
  * @author Jeff Jensen
  * @since 3.6.0
@@ -50,11 +57,27 @@ public class AutoCommitOffWarning implements Consumer<IDatabaseConnection>
 {
     private static final Logger log = LoggerFactory.getLogger(AutoCommitOffWarning.class);
 
+    private static final WarnedTesters TESTERS_WARNED_IN_THE_JVM = new WarnedTesters();
+
+    private final Supplier<IDatabaseTester> tester;
+
     private boolean isAlreadyWarned;
 
     /**
+     * Creates the warning for one lifecycle owner.
+     *
+     * @param tester Supplies the database tester the connection comes from, read fresh each
+     *            time as it can change between tests; may supply {@code null}, for which the
+     *            warning is given once for this instance.
+     */
+    public AutoCommitOffWarning(final Supplier<IDatabaseTester> tester)
+    {
+        this.tester = tester;
+    }
+
+    /**
      * Warns when {@code connection}'s autocommit is off, unless a warning has already been
-     * logged by this instance or the autocommit state cannot be read.
+     * logged by this instance or for its tester, or the autocommit state cannot be read.
      *
      * @param connection The connection just acquired.
      */
@@ -80,6 +103,16 @@ public class AutoCommitOffWarning implements Consumer<IDatabaseConnection>
         }
 
         isAlreadyWarned = true;
+        final IDatabaseTester databaseTester = tester.get();
+        if (databaseTester != null)
+        {
+            final boolean isFirstWarning =
+                    TESTERS_WARNED_IN_THE_JVM.isFirstWarningAbout(databaseTester);
+            if (!isFirstWarning)
+            {
+                return;
+            }
+        }
         log.warn("The connection this test's dbUnit setup/teardown operations run on has"
                 + " autocommit disabled. Those operations (CLEAN_INSERT, DELETE_ALL, ...) do"
                 + " not manage a transaction, and TransactionOperation refuses a non-autocommit"

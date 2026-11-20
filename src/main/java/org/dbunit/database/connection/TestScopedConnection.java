@@ -37,6 +37,9 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Not thread-safe; a test's steps run sequentially on one thread.
  *
+ * <p>This type is internal to dbUnit's bindings; it is public only for use across
+ * dbUnit's packages and may change in a minor release.
+ *
  * @author Jeff Jensen
  * @since 3.6.0
  */
@@ -51,6 +54,7 @@ public final class TestScopedConnection
     private IDatabaseConnection connection;
     private Connection jdbcConnection;
     private boolean resolved;
+    private boolean adopted;
 
     /**
      * Creates a test-scoped connection.
@@ -76,20 +80,26 @@ public final class TestScopedConnection
     /**
      * Returns the connection for this test, acquiring it from the supplier on first use and
      * returning the same one thereafter. A memoized connection that has since been closed - by
-     * a pool max-lifetime, a server reap, a
-     * {@link org.dbunit.database.CachingConnectionProvider#close()} between reused test methods
-     * - is dropped and re-acquired rather than handed back dead. Whether it is closed is read
-     * from the JDBC connection captured when it was acquired, never by asking the
-     * {@link IDatabaseConnection} for its JDBC connection again: a
+     * its pool, or by {@link org.dbunit.database.CachingConnectionProvider#close()} between
+     * reused test methods - is dropped and re-acquired rather than handed back dead. Whether it
+     * is closed is read from the JDBC connection captured when it was acquired, never by asking
+     * the {@link IDatabaseConnection} for its JDBC connection again: a
      * {@link org.dbunit.database.DatabaseDataSourceConnection} that was closed answers that
-     * question by checking out a new one.
+     * question by checking out a new one. The read is {@link Connection#isClosed()}, which
+     * reports a {@code close()} call and may report a failure the driver has already noticed.
+     * It does not report a connection the server dropped before anything noticed: that one
+     * reads open until a use of it fails. A connection that has no JDBC connection to capture
+     * when it is acquired - it threw, as a {@link org.dbunit.database.DatabaseDataSourceConnection}
+     * does when its pool times out, or returned {@code null} - cannot be asked whether it is
+     * closed, so it is kept for the rest of the test rather than replaced on every call, which
+     * would leave each connection before it unclosed; {@link #release()} closes it.
      *
      * @return The connection, or {@code null} when the supplier has none to offer.
      * @throws Exception If the supplier fails.
      */
     public IDatabaseConnection getConnection() throws Exception
     {
-        if (resolved && connection != null && isClosedOrUnreadable())
+        if (resolved && connection != null && isClosedOrBroken())
         {
             discardOnFailure();
         }
@@ -97,6 +107,7 @@ public final class TestScopedConnection
         {
             connection = source.call();
             resolved = true;
+            adopted = false;
             jdbcConnection = captureJdbcConnection(connection);
             if (connection != null && onAcquired != null)
             {
@@ -142,14 +153,12 @@ public final class TestScopedConnection
         this.connection = connection;
         this.jdbcConnection = captureJdbcConnection(connection);
         this.resolved = true;
+        this.adopted = true;
     }
 
     /**
      * Closes the connection when {@link ConnectionOwnership#mayClose()} allows it and it is not
-     * already closed; a no-op when no connection was ever acquired. Leaves the memo in place -
-     * a single-use holder is discarded with its owner, and a reused one relies on
-     * {@code revalidateOnReacquire} to drop the now-closed connection on the next
-     * {@link #getConnection()}.
+     * already closed; a no-op when no connection was ever acquired.
      *
      * <p>When it does close, it forgets the connection too, so the next {@link #getConnection()}
      * on a reused holder acquires a fresh one. When ownership says leave it - {@code
@@ -196,18 +205,37 @@ public final class TestScopedConnection
     }
 
     /**
+     * Releases the connection as {@link #release()} does when this holder acquired it, and only
+     * forgets one it {@linkplain #adopt(IDatabaseConnection) adopted}: that connection belongs
+     * to whoever acquired it, which closes it or keeps it open for another owner.
+     *
+     * @throws Exception If closing a connection this holder acquired, or checking whether it is
+     *             already closed, fails.
+     */
+    public void releaseUnlessAdopted() throws Exception
+    {
+        if (adopted)
+        {
+            discardOnFailure();
+            return;
+        }
+        release();
+    }
+
+    /**
      * Rolls back an uncommitted transaction on {@code jdbcConnection}, best-effort, before
      * {@link #release()} closes it, when its autocommit is off. The dbUnit setup/teardown
      * operations that run on a borrowed connection manage no transaction of their own, so on an
      * autocommit-off connection their writes sit here uncommitted - already warned about (see
-     * {@link AutoCommitOffWarning}) and about to be discarded by the close regardless. Derby and
-     * DB2 refuse to close a connection while a transaction is still open - Derby raises SQLState
-     * 25001 - turning an ordinary end-of-test close into a failure; every other supported
-     * database rolls the transaction back on close on its own. Doing it explicitly makes the
-     * close portable and the discard of those never-committed writes intentional. A rollback,
-     * not a commit: this lifecycle's operations were never meant to persist here, and a rollback
-     * cannot disturb work a caller committed before handing the connection over. A connection
-     * with autocommit on has no transaction to end and is left untouched.
+     * {@link AutoCommitOffWarning}) and not meant to persist. JDBC leaves the outcome of closing
+     * a connection with a transaction still open to the driver: Derby and DB2 refuse to close it
+     * - Derby raises SQLState 25001 - turning an ordinary end-of-test close into a failure, and
+     * Oracle commits it on close, which is what the 3.5.x extension's close did there. Doing it
+     * explicitly makes the close portable and the discard of those never-committed writes
+     * intentional on every database, so on Oracle they are now discarded where 3.5.x committed
+     * them. A rollback, not a commit: this lifecycle's operations were never meant to persist
+     * here, and a rollback cannot disturb work a caller committed before handing the connection
+     * over. A connection with autocommit on has no transaction to end and is left untouched.
      *
      * @param jdbcConnection The JDBC connection {@link #release()} is about to close.
      */
@@ -227,9 +255,10 @@ public final class TestScopedConnection
     }
 
     /**
-     * Releases the connection, attaching any close failure to {@code primary} via
-     * {@link Throwable#addSuppressed(Throwable)} rather than letting it replace the more useful
-     * failure already in flight, then {@linkplain #discardOnFailure() discards} the memo.
+     * Releases the connection, attaching any close failure, whether an {@link Exception} or an
+     * {@link Error}, to {@code primary} via {@link Throwable#addSuppressed(Throwable)} rather
+     * than letting it replace the more useful failure already in flight, then
+     * {@linkplain #discardOnFailure() discards} the memo.
      *
      * @param primary The failure already being thrown, to attach a close failure to.
      */
@@ -238,9 +267,14 @@ public final class TestScopedConnection
         try
         {
             release();
-        } catch (final Exception closeFailure)
+        } catch (final Throwable closeFailure)
         {
-            primary.addSuppressed(closeFailure);
+            // a connection that rethrows the failure already in flight cannot have it suppress
+            // itself
+            if (closeFailure != primary)
+            {
+                primary.addSuppressed(closeFailure);
+            }
         }
         discardOnFailure();
     }
@@ -255,19 +289,22 @@ public final class TestScopedConnection
         connection = null;
         jdbcConnection = null;
         resolved = false;
+        adopted = false;
     }
 
     /**
      * Returns whether the memoized connection is closed or can no longer report its state - the
      * cheap, side-effect-free check for a connection a pool or server may have closed between
-     * reused test methods. Reads the JDBC connection captured at acquisition; a connection that
-     * had none, or whose state cannot be read, is treated as unusable, so a re-acquire follows.
+     * reused test methods. Reads the JDBC connection captured at acquisition; one whose state
+     * cannot be read is treated as unusable, so a re-acquire follows. A connection that had no
+     * JDBC connection to capture was never able to report its state, so it is not treated as
+     * closed: replacing it would leave it unclosed.
      */
-    private boolean isClosedOrUnreadable()
+    private boolean isClosedOrBroken()
     {
         if (jdbcConnection == null)
         {
-            return true;
+            return false;
         }
         try
         {

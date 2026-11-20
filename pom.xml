@@ -53,14 +53,25 @@
     <gsbaseVersion>2.0.1</gsbaseVersion>
     <jacksonDatabindVersion>2.22.3</jacksonDatabindVersion>
     <jclOverSlf4jVersion>2.0.20</jclOverSlf4jVersion>
+    <!-- The version the build compiles and tests against, not the oldest one the extension
+         supports: the oldest, 5.7.0, is compiled against and its binding tests are run, by the
+         oldest-supported-versions job of build-any-branch-with-all-dbs.yml, which overrides this
+         property, with the oldest-supported-versions profile for the tests. -->
     <junitVersion>6.1.3</junitVersion>
+    <!-- The version of the JUnit Platform artifacts, which equals junitVersion from JUnit 6 on.
+         Up to JUnit 5 the platform has its own number, 1.7.0 for JUnit Jupiter 5.7.0, so a build
+         against an older JUnit Jupiter sets both properties. -->
+    <junitPlatformVersion>${junitVersion}</junitPlatformVersion>
     <logbackClassicVersion>1.6.5</logbackClassicVersion>
     <mockitoVersion>5.24.0</mockitoVersion>
     <poiVersion>5.5.1</poiVersion>
     <spotbugsAnnotationsVersion>4.10.4</spotbugsAnnotationsVersion>
     <!-- spring-core/spring-context/spring-test are released in lockstep, one version. It is the
          version the build tests the integration against, not the oldest one it supports: the
-         site page testcases/DbUnitTestExecutionListener.adoc states that one, in Requirements. -->
+         site page testcases/DbUnitTestExecutionListener.adoc states that one, in Requirements.
+         The oldest-supported-versions job of build-any-branch-with-all-dbs.yml compiles against
+         it by overriding this property, and runs the binding tests against it with the
+         oldest-supported-versions profile. -->
     <springFrameworkVersion>7.0.9</springFrameworkVersion>
     <xmlparserv2Version>23.26.3.0.0</xmlparserv2Version>
 
@@ -441,7 +452,7 @@
       <dependency>
         <groupId>org.junit.platform</groupId>
         <artifactId>junit-platform-testkit</artifactId>
-        <version>${junitVersion}</version>
+        <version>${junitPlatformVersion}</version>
       </dependency>
       <dependency>
         <groupId>org.assertj</groupId>
@@ -1189,13 +1200,37 @@
         </configuration>
         <reportSets>
           <reportSet>
-            <id>3.5.2-to-snapshot</id>
+            <id>3.5.3-to-snapshot</id>
             <reports>
               <report>cmp-report</report>
             </reports>
             <configuration>
               <parameter>
-                <reportLinkName>3.5.2-to-snapshot</reportLinkName>
+                <reportLinkName>3.5.3-to-snapshot</reportLinkName>
+              </parameter>
+              <oldVersion>
+                <dependency>
+                  <groupId>${project.groupId}</groupId>
+                  <artifactId>${project.artifactId}</artifactId>
+                  <version>3.5.3</version>
+                  <type>jar</type>
+                </dependency>
+              </oldVersion>
+              <newVersion>
+                <file>
+                  <path>${project.build.directory}/${project.artifactId}-${project.version}.${project.packaging}</path>
+                </file>
+              </newVersion>
+            </configuration>
+          </reportSet>
+          <reportSet>
+            <id>3.5.2-to-3.5.3</id>
+            <reports>
+              <report>cmp-report</report>
+            </reports>
+            <configuration>
+              <parameter>
+                <reportLinkName>3.5.2-to-3.5.3</reportLinkName>
               </parameter>
               <oldVersion>
                 <dependency>
@@ -1206,9 +1241,12 @@
                 </dependency>
               </oldVersion>
               <newVersion>
-                <file>
-                  <path>${project.build.directory}/${project.artifactId}-${project.version}.${project.packaging}</path>
-                </file>
+                <dependency>
+                  <groupId>${project.groupId}</groupId>
+                  <artifactId>${project.artifactId}</artifactId>
+                  <version>3.5.3</version>
+                  <type>jar</type>
+                </dependency>
               </newVersion>
             </configuration>
           </reportSet>
@@ -1836,6 +1874,44 @@
   </reporting>
 
   <profiles>
+    <!-- The oldest versions of JUnit Jupiter and Spring Framework that DbUnitExtension.adoc and
+         DbUnitTestExecutionListener.adoc promise, for the oldest-supported-versions job of
+         build-any-branch-with-all-dbs.yml, which runs the tests of the bindings against them. A
+         profile that is activated by name switches off the profiles that are active by default,
+         so name those too: -Poldest-supported-versions,hsqldb-2-7,oracle-default.
+         Test classes that need a newer JUnit Jupiter than the oldest one, or that the oldest
+         one cannot discover, are left out: the lifecycle methods of a parameterized class are
+         JUnit Jupiter 5.13, ExtensionContext.getEnclosingTestClasses() is 5.12, and @ExtendWith
+         on a field is 5.8. -->
+    <profile>
+      <id>oldest-supported-versions</id>
+      <properties>
+        <junitVersion>5.7.0</junitVersion>
+        <junitPlatformVersion>1.7.0</junitPlatformVersion>
+        <springFrameworkVersion>6.2.0</springFrameworkVersion>
+      </properties>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <configuration>
+              <testExcludes>
+                <testExclude>org/dbunit/junit/jupiter/ContextAnnotationLookupTest.java</testExclude>
+                <testExclude>org/dbunit/junit/jupiter/DbUnitExtensionLifecycleMethodCheckTest.java</testExclude>
+                <testExclude>org/dbunit/junit/jupiter/EnclosingTestClassesTest.java</testExclude>
+                <testExclude>org/dbunit/junit/jupiter/JupiterLifecycleMethodsTest.java</testExclude>
+                <testExclude>org/dbunit/junit/jupiter/NestedContextChain.java</testExclude>
+                <testExclude>org/dbunit/spring/DbUnitTestExecutionListenerFieldExtendWithTest.java</testExclude>
+                <testExclude>org/dbunit/spring/DbUnitTestExecutionListenerInheritanceTest.java</testExclude>
+                <testExclude>org/dbunit/spring/DbUnitTestExecutionListenerLifecycleMethodCheckTest.java</testExclude>
+                <testExclude>org/dbunit/spring/SpringLifecycleMethodsTest.java</testExclude>
+              </testExcludes>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
     <profile>
       <id>oracle-default</id>
       <activation>

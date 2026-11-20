@@ -23,6 +23,10 @@ guide] for how the 3 hooks fit into the setup/teardown lifecycle in practice.
 |`operationTearDownFinished(IDatabaseConnection connection)` |After the operation of `IDatabaseTester.onTearDown()` completes, or fails - including when `connectionRetrieved()` itself threw.
 |===
 
+The tester calls none of the three for an operation that is `DatabaseOperation.NONE`: it
+retrieves no connection and calls no listener then. `NONE` is the default teardown operation,
+so a default `onTearDown()` calls nothing.
+
 Both `*Finished` methods exist so a listener can decide whether the connection should
 be closed at that point — the two built-in implementations below make opposite choices.
 
@@ -33,8 +37,8 @@ link:../apidocs/org/dbunit/DefaultOperationListener.html[DefaultOperationListene
 default implementation used when none is explicitly set. Confirmed directly against its
 source: `connectionRetrieved()` is a no-op; both `operationSetUpFinished()` and
 `operationTearDownFinished()` close the connection. In other words, a fresh connection
-is created (or retrieved) for every single `onSetup()`/`onTearDown()` call unless a
-different listener is configured.
+is created (or retrieved) for every single `onSetup()`/`onTearDown()` call that runs an
+operation unless a different listener is configured.
 
 [#noop]
 == IOperationListener.NO_OP_OPERATION_LISTENER
@@ -84,27 +88,44 @@ databaseTester.setOperationListener(listener);
 [#extension]
 == Under the JUnit Jupiter Extension
 
-link:../testcases/DbUnitExtension.html[`DbUnitExtension`] on an annotation-driven test
-wraps the tester's listener for the duration of one test, then puts the tester's own
-listener back, so a tester shared across test methods carries nothing from one test to
-the next. Putting it back relies on the tester reporting its listener through
-`getOperationListener()`, as `AbstractDatabaseTester` and the testers built on it do. A
-custom `IDatabaseTester` that does not override it reports none, so there is nothing to
-put back and the extension's wrapper stays installed.
+link:../testcases/DbUnitExtension.html[`DbUnitExtension`] leaves the listener of the tester of an
+annotation-driven test alone: that test runs through a `DefaultPrepAndExpectedTestCase`, which
+only reads the tester, so a tester shared across test methods carries nothing from one test to
+the next. On a plain `@ExtendWith(DbUnitExtension.class)` test, the 3.5.0 style, the extension
+wraps the tester's listener for the duration of one test, then puts the tester's own listener
+back. The wrapper only forwards every callback to your listener, closes included, and takes the
+row count baseline from the connection `onSetup()` retrieves, so capturing it opens no
+connection of its own. That connection stays your listener's to close or to keep open, so
+a non-closing listener still keeps a fixed connection alive for the next test. The extension
+closes only a connection it resolves itself, and not one handed out by a tester that reports
+through `isReusingConnection()` that it hands out one fixed connection, as a
+`DefaultDatabaseTester` does and a `JdbcDatabaseTester`, `DataSourceDatabaseTester` or
+`JndiDatabaseTester` built with a `CachingConnectionProvider` does, nor one of a tester whose
+listener is `NO_OP_OPERATION_LISTENER`; those stay open for their owner. With the row count
+check enabled it
+resolves one to verify after `onTearDown()` when your listener closed the one `onSetup()`
+retrieved, as the default listener does. Wrapping the listener and putting it back rely on the
+tester reporting it through `getOperationListener()`, as `AbstractDatabaseTester` and the
+testers built on it do, never returning `null`: a tester nobody gave a listener reports the
+default one it would use. A
+custom `IDatabaseTester` that does not override it reports none, so the extension leaves
+its listener exactly as configured rather than replace it with one it could not put back.
+For such a tester the row count check baseline is captured from a connection of its own before
+`onSetup()`.
 
-* A listener wrapped in a `ConnectionPreservingOperationListener` keeps that wrapper in
-force: the extension adds its own protection for the one connection it holds on top of it,
-and does not replace it.
 * A connection the extension resolves itself, rather than through the tester's
 `onSetup()` or `onTearDown()`, is first offered to your listener's
 `connectionRetrieved()`, so a `DatabaseConfig` customization made there, such as
 enabling the link:rowcountcheck.html[row count check], applies to it too. That includes
 the connection a plain `@ExtendWith(DbUnitExtension.class)` test resolves for the row
-count baseline and, on the setup/teardown path, a `Connection` or `IDatabaseConnection`
-test method parameter. The prep/expected path offers it to your listener's
-`connectionRetrieved()` too, each time `DefaultPrepAndExpectedTestCase` runs a set up or
-tear down operation, but never to the `*Finished` callbacks: that class decides when its
-shared connection closes. The same connection can be offered more than once, by the extension
-and again when `onSetup()` retrieves it, and your listener sees one more retrieval than the
-3.5.0 lifecycle gave it, so keep `connectionRetrieved()` idempotent, as configuring a
+count baseline when `onSetup()` cannot be relied on to retrieve one, a `NONE` setup
+operation, say, and the one it resolves to verify the baseline after `onTearDown()` when
+your listener closed the connection `onSetup()` retrieved. An annotation-driven test never
+calls `onSetup()` or `onTearDown()`: its
+`DefaultPrepAndExpectedTestCase` offers your listener's `connectionRetrieved()` the shared
+connection when it acquires it, before the row count baseline or anything else reads the
+connection's configuration, and again each time it runs a set up or tear down operation, but
+never the `*Finished` callbacks, as that class decides when its shared connection closes. The
+same connection can be offered more than once, and on a plain test by the extension and again
+when `onSetup()` retrieves it, so keep `connectionRetrieved()` idempotent, as configuring a
 `DatabaseConfig` is.

@@ -29,4 +29,16 @@ public class NeverFailsValueComparer extends ValueComparerTemplateBase
     {
         return "";
     }
+
+    /**
+     * Returns false: it ignores the expected value, so that value
+     * cannot order the rows.
+     *
+     * @return False.
+     */
+    @Override
+    public boolean isSortableByExpectedValue()
+    {
+        return false;
+    }
 }

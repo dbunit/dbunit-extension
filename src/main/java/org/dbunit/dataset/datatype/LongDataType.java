@@ -34,6 +34,11 @@ import org.slf4j.LoggerFactory;
 /**
  * {@link DataType} mapping the SQL BIGINT type to {@link Long}.
  *
+ * <p>A {@link Boolean}, or the text {@code true} or {@code false} in any case, becomes 1
+ * or 0, as it does for the other integer types. A JSON or YAML dataset hands an unquoted
+ * {@code true} or {@code false} over as a {@link Boolean}, and an Excel dataset hands a
+ * boolean cell over as one, where a flat XML dataset hands over the text.
+ *
  * @author Manuel Laflamme
  * @version $Revision$
  */
@@ -63,6 +68,28 @@ public class LongDataType extends AbstractDataType
         if (value instanceof Number)
         {
             return ((Number) value).longValue();
+        }
+
+        if (value instanceof Boolean)
+        {
+            final boolean flag = ((Boolean) value).booleanValue();
+            return flag ? 1L : 0L;
+        }
+
+        // Treat "false" as 0, "true" as 1
+        if (value instanceof String)
+        {
+            final String string = (String) value;
+
+            if ("false".equalsIgnoreCase(string))
+            {
+                return 0L;
+            }
+
+            if ("true".equalsIgnoreCase(string))
+            {
+                return 1L;
+            }
         }
 
         try

@@ -183,6 +183,80 @@ class TimestampDataTypeTest extends AbstractDataTypeTest
     }
 
     @Test
+    void testTypeCast_isoTimestampWithoutOffset_returnsTheLocalTimeOfTheJvmZone() throws Exception
+    {
+        final Timestamp expected = makeTimestamp(2024, 0, 15, 10, 0, 0);
+
+        final Object actual = THIS_TYPE.typeCast("2024-01-15T10:00:00");
+
+        assertThat(actual).as("The T form is read in the JVM's zone, as the space form is.")
+                .isEqualTo(expected)
+                .isEqualTo(THIS_TYPE.typeCast("2024-01-15 10:00:00"));
+    }
+
+    @Test
+    void testTypeCast_isoTimestampWithLowerCaseTAndFraction_returnsTheLocalTime()
+            throws Exception
+    {
+        final Timestamp expected = makeTimestamp(2024, 0, 15, 10, 0, 0, 500);
+
+        final Object actual = THIS_TYPE.typeCast("2024-01-15t10:00:00.5");
+
+        assertThat(actual).isEqualTo(expected);
+    }
+
+    @Test
+    void testTypeCast_isoTimestampWithZ_returnsTheUtcInstant() throws Exception
+    {
+        final Timestamp expected = makeTimestamp(2024, 0, 15, 10, 0, 0, "GMT+00:00");
+
+        final Object actual = THIS_TYPE.typeCast("2024-01-15T10:00:00Z");
+
+        assertThat(actual).as("The Z offset is UTC, whatever the JVM's zone.")
+                .isEqualTo(expected);
+    }
+
+    @Test
+    void testTypeCast_isoTimestampWithColonOffset_returnsTheInstantOfThatOffset()
+            throws Exception
+    {
+        final Timestamp expected = makeTimestamp(2021, 5, 26, 18, 42, 50, 900, "GMT+05:30");
+
+        final Object actual = THIS_TYPE.typeCast("2021-06-26T18:42:50.900+05:30");
+
+        assertThat(actual).isEqualTo(expected);
+    }
+
+    @Test
+    void testTypeCast_yamlTimestampWithSpacedHourOffset_returnsTheInstantOfThatOffset()
+            throws Exception
+    {
+        final Timestamp expected = makeTimestamp(2001, 11, 14, 21, 59, 43, 100, "GMT-05:00");
+
+        final Object actual = THIS_TYPE.typeCast("2001-12-14 21:59:43.10 -5");
+
+        assertThat(actual).isEqualTo(expected);
+    }
+
+    @Test
+    void testTypeCast_isoTimestampWithoutOffsetInAZoneWestOfUtc_isTheLocalTimeNotShifted()
+            throws Exception
+    {
+        final TimeZone original = TimeZone.getDefault();
+        TimeZone.setDefault(TimeZone.getTimeZone("America/Chicago"));
+        try
+        {
+            final Object actual = THIS_TYPE.typeCast("2024-01-15T10:00:00");
+
+            assertThat(actual).as("10:00 in Chicago, as written, not 10:00 UTC shifted.")
+                    .isEqualTo(Timestamp.valueOf("2024-01-15 10:00:00"));
+        } finally
+        {
+            TimeZone.setDefault(original);
+        }
+    }
+
+    @Test
     void testTypeCast_withNonZeroMinutesTimezoneOffset_returnsCorrectTimestamp()
             throws Exception
     {
@@ -674,6 +748,34 @@ class TimestampDataTypeTest extends AbstractDataTypeTest
         assertThat(calCaptor.getValue().getTimeZone().getRawOffset())
                 .as("calendar timezone raw offset for GMT-05:00.")
                 .isEqualTo(-5 * 3600 * 1000);
+    }
+
+    @Test
+    void testSetSqlValue_withIsoOffsetString_callsSetTimestampWithMatchingCalendar()
+            throws TypeCastException, SQLException
+    {
+        final ArgumentCaptor<Calendar> calCaptor =
+                ArgumentCaptor.forClass(Calendar.class);
+
+        new TimestampDataType().setSqlValue("1995-01-07T01:22:41.9-05:00", 1,
+                mockedStatement);
+
+        verify(mockedStatement).setTimestamp(eq(1), any(Timestamp.class),
+                calCaptor.capture());
+        assertThat(calCaptor.getValue().getTimeZone().getRawOffset())
+                .as("calendar timezone raw offset for the ISO offset -05:00.")
+                .isEqualTo(-5 * 3600 * 1000);
+    }
+
+    @Test
+    void testSetSqlValue_withIsoStringWithoutOffset_callsSetTimestampWithoutCalendar()
+            throws TypeCastException, SQLException
+    {
+        new TimestampDataType().setSqlValue("1995-01-07T01:22:41.9", 1, mockedStatement);
+
+        verify(mockedStatement).setTimestamp(eq(1), any(Timestamp.class));
+        verify(mockedStatement, never()).setTimestamp(eq(1), any(Timestamp.class),
+                any(Calendar.class));
     }
 
     @Test

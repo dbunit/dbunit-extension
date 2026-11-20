@@ -27,6 +27,7 @@ import java.lang.annotation.Target;
 
 import org.dbunit.VerifyTableDefinition;
 import org.dbunit.assertion.comparer.value.ValueComparer;
+import org.dbunit.database.DatabaseConfig;
 
 /**
  * Full per-table verification rules for one table, nested inside
@@ -38,9 +39,8 @@ import org.dbunit.assertion.comparer.value.ValueComparer;
  * annotation cannot express {@code null}.
  *
  * <p>For a shared, reusable table definition - especially one needing a configured
- * {@link ValueComparer} instance that has no no-arg constructor - prefer a
- * {@link org.dbunit.VerifyTableDefinitionsProvider} catalog over this inline form;
- * see {@link DbUnitExpected#verifyDefinitions()}.
+ * {@link ValueComparer} instance that has no no-arg constructor - prefer a catalog class over
+ * this inline form; see {@link DbUnitConfig#verifyDefinitions()}.
  *
  * @author Jeff Jensen
  * @since 3.6.0
@@ -68,7 +68,14 @@ public @interface DbUnitVerifyTable
     String[] exclude() default {};
 
     /**
-     * Column names to include in comparison, to the exclusion of all others.
+     * Column names to include in comparison, to the exclusion of all others. Each name must
+     * match a column of the table, without regard to case and with the wildcards
+     * {@code *} and {@code ?}; a name that matches no column, such as a misspelled one, fails the
+     * verification, as it would otherwise leave that column out of the comparison unnoticed.
+     * A {@link DbUnitColumnComparer} for a column that the include names leave out fails it too,
+     * as the comparer would not be used.
+     * Setting {@link DatabaseConfig#FEATURE_FAIL_ON_UNKNOWN_VERIFY_COLUMN_NAME} to false logs a warning
+     * instead.
      *
      * @return The column names to include; empty (the default) includes every column.
      */
@@ -77,8 +84,8 @@ public @interface DbUnitVerifyTable
     /**
      * The {@link ValueComparer} to use for columns not named in {@link #columnComparers()},
      * instantiated with its no-arg constructor and cached for as long as its class stays
-     * loaded, keyed by class - see {@link DbUnitColumnComparer} for the resulting purity
-     * requirement on a custom {@link ValueComparer}.
+     * loaded, keyed by class - see {@link DbUnitColumnComparer} for the resulting requirement
+     * that a custom {@link ValueComparer} be stateless.
      *
      * @return The default comparer class; the interface itself (the default) means "not set",
      *         leaving dbUnit's own default comparer in effect.

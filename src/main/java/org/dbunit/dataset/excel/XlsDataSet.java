@@ -26,6 +26,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.apache.poi.EncryptedDocumentException;
 import org.apache.poi.ss.usermodel.Workbook;
@@ -37,6 +39,7 @@ import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.ITableIterator;
 import org.dbunit.dataset.OrderedTableNameMap;
+import org.dbunit.dataset.RequiredLibrary;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,6 +47,15 @@ import org.slf4j.LoggerFactory;
  * This dataset implementation can read and write MS Excel documents. Each
  * sheet represents a table. The first row of a sheet defines the columns names
  * and remaining rows contains the data.
+ *
+ * <p>
+ * An Excel cell holds a number as a {@code double}, and dbUnit writes a date or a timestamp as a
+ * number of milliseconds, so the dataset keeps 15 to 17 significant digits of a number and a
+ * timestamp to the millisecond: a {@code NUMERIC} or {@code DECIMAL} value of more than 15
+ * digits, a {@code BIGINT} above 2 to the power of 53 and the digits of the fraction of a second
+ * of a timestamp past the third change when dbUnit writes them and reads them back, and a
+ * {@code BIGINT} at the limit of its range, such as {@link Long#MAX_VALUE}, comes back with the
+ * wrong sign. Use another format for a dataset that holds such values.
  *
  * @author Manuel Laflamme
  * @since Feb 21, 2003
@@ -65,16 +77,17 @@ public class XlsDataSet extends AbstractDataSet
      *
      * @param file the Excel document to load.
      * @throws IOException if the file cannot be read.
-     * @throws DataSetException if the document cannot be parsed.
+     * @throws DataSetException if the document cannot be parsed, or Apache POI is not on the
+     *         classpath.
      */
     public XlsDataSet(File file) throws IOException, DataSetException
     {
+        RequiredLibrary.POI.require(XlsDataSet.class);
         _tables = super.createTableNameMap();
 
         try (InputStream in = new BufferedInputStream(Files.newInputStream(file.toPath())))
         {
-            Workbook workbook = createWorkbook(in);
-            loadSheets(workbook);
+            loadSheets(in);
         }
     }
 
@@ -83,34 +96,52 @@ public class XlsDataSet extends AbstractDataSet
      *
      * @param in the Excel document to load.
      * @throws IOException if the stream cannot be read.
-     * @throws DataSetException if the document cannot be parsed.
+     * @throws DataSetException if the document cannot be parsed, or Apache POI is not on the
+     *         classpath.
      */
     public XlsDataSet(InputStream in) throws IOException, DataSetException
     {
+        RequiredLibrary.POI.require(XlsDataSet.class);
         _tables = super.createTableNameMap();
 
-        Workbook workbook = createWorkbook(in);
-        loadSheets(workbook);
+        loadSheets(in);
     }
 
-    private static Workbook createWorkbook(InputStream in) throws IOException
+    private void loadSheets(InputStream in) throws IOException, DataSetException
     {
-        try
+        for (ITable table : PoiWorkbook.readTables(in))
         {
-            return WorkbookFactory.create(in);
-        } catch (EncryptedDocumentException e) {
-            throw new IOException(e);
+            _tables.add(table.getTableMetaData().getTableName(), table);
         }
     }
 
-    private void loadSheets(Workbook workbook) throws DataSetException
+    /**
+     * The only code in this dataset that uses Apache POI directly, kept in a class of its own
+     * so that loading {@link XlsDataSet} does not itself need Apache POI and its constructors
+     * can say what is missing.
+     */
+    private static class PoiWorkbook
     {
-        int sheetCount = workbook.getNumberOfSheets();
-        for (int i = 0; i < sheetCount; i++)
+        static List<ITable> readTables(InputStream in) throws IOException, DataSetException
         {
-            ITable table = new XlsTable(workbook.getSheetName(i),
-                    workbook.getSheetAt(i));
-            _tables.add(table.getTableMetaData().getTableName(), table);
+            Workbook workbook = createWorkbook(in);
+            List<ITable> tables = new ArrayList<>();
+            int sheetCount = workbook.getNumberOfSheets();
+            for (int i = 0; i < sheetCount; i++)
+            {
+                tables.add(new XlsTable(workbook.getSheetName(i), workbook.getSheetAt(i)));
+            }
+            return tables;
+        }
+
+        private static Workbook createWorkbook(InputStream in) throws IOException
+        {
+            try
+            {
+                return WorkbookFactory.create(in);
+            } catch (EncryptedDocumentException e) {
+                throw new IOException(e);
+            }
         }
     }
 
@@ -120,13 +151,15 @@ public class XlsDataSet extends AbstractDataSet
      * @param dataSet the dataset to write.
      * @param out the stream to write the Excel document to.
      * @throws IOException if writing to the stream fails.
-     * @throws DataSetException if the dataset cannot be read.
+     * @throws DataSetException if the dataset cannot be read, or Apache POI is not on the
+     *         classpath.
      */
     public static void write(IDataSet dataSet, OutputStream out)
             throws IOException, DataSetException
     {
         logger.debug("write(dataSet={}, out={}) - start", dataSet, out);
 
+        RequiredLibrary.POI.require(XlsDataSet.class);
         new XlsDataSetWriter().write(dataSet, out);
     }
 
