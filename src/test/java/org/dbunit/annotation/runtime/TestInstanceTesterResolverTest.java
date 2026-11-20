@@ -66,6 +66,10 @@ class TestInstanceTesterResolverTest
     {
         RecordingFactory.next = null;
         HasStaticMarkedTesterField.tester = null;
+        HasOtherStaticMarkedTesterField.tester = null;
+        HasStaticMarkedTestCaseField.testCase = null;
+        HasTwoStaticMarkedTesterFields.tester = null;
+        HasTwoStaticMarkedTesterFields.anotherTester = null;
     }
 
     // ---- resolve(): marked fields ----
@@ -351,6 +355,126 @@ class TestInstanceTesterResolverTest
                 .isNull();
     }
 
+    // ---- resolve(): enclosing classes without an instance ----
+
+    @Test
+    void testResolve_classWithoutInstanceDeclaresStaticMarkedTester_usesField() throws Exception
+    {
+        HasStaticMarkedTesterField.tester = mock(IDatabaseTester.class);
+
+        final TestInstanceTesterResolver.Resolution resolution = resolver.resolve(
+                instances(new NoFieldsInstance()), classes(HasStaticMarkedTesterField.class),
+                NO_UNMARKED_TESTER);
+
+        assertThat(resolution.getTester())
+                .as("A static marked field needs no instance, so a class without one supplies it.")
+                .isSameAs(HasStaticMarkedTesterField.tester);
+    }
+
+    @Test
+    void testResolve_classWithoutInstanceDeclaresStaticMarkedTestCase_usesItAndItsTester()
+            throws Exception
+    {
+        final IDatabaseTester testCaseTester = mock(IDatabaseTester.class);
+        final DefaultPrepAndExpectedTestCase testCase = mock(DefaultPrepAndExpectedTestCase.class);
+        when(testCase.getDatabaseTester()).thenReturn(testCaseTester);
+        HasStaticMarkedTestCaseField.testCase = testCase;
+
+        final TestInstanceTesterResolver.Resolution resolution = resolver.resolve(
+                instances(new NoFieldsInstance()), classes(HasStaticMarkedTestCaseField.class),
+                NO_UNMARKED_TESTER);
+
+        assertThat(resolution.getTestCase())
+                .as("A static @DbUnitTestCase field of a class without an instance supplies the"
+                        + " test case.")
+                .isSameAs(testCase);
+        assertThat(resolution.getTester()).as("The test case's own tester must be used.")
+                .isSameAs(testCaseTester);
+    }
+
+    @Test
+    void testResolve_classWithoutInstanceDeclaresInstanceMarkedTester_leavesTheFieldAlone()
+            throws Exception
+    {
+        final IDatabaseTester fallback = mock(IDatabaseTester.class);
+
+        final TestInstanceTesterResolver.Resolution resolution = resolver.resolve(
+                instances(new NoFieldsInstance()), classes(HasTesterField.class), () -> fallback);
+
+        assertThat(resolution.getTester())
+                .as("A field that needs an instance cannot be read from a class, so it is left to"
+                        + " the binding, which decides what it means, and resolution carries on.")
+                .isSameAs(fallback);
+    }
+
+    @Test
+    void testResolve_instanceAndClassWithoutInstanceDeclareMarkedTesters_instanceShadowsClass()
+            throws Exception
+    {
+        final IDatabaseTester instanceTester = mock(IDatabaseTester.class);
+        HasStaticMarkedTesterField.tester = mock(IDatabaseTester.class);
+
+        final TestInstanceTesterResolver.Resolution resolution = resolver.resolve(
+                instances(new HasTesterField(instanceTester)),
+                classes(HasStaticMarkedTesterField.class), NO_UNMARKED_TESTER);
+
+        assertThat(resolution.getTester())
+                .as("A class without an instance ranks after every instance.")
+                .isSameAs(instanceTester);
+    }
+
+    @Test
+    void testResolve_twoClassesWithoutInstanceDeclareStaticMarkedTesters_nearerClassShadowsFurther()
+            throws Exception
+    {
+        HasStaticMarkedTesterField.tester = mock(IDatabaseTester.class);
+        HasOtherStaticMarkedTesterField.tester = mock(IDatabaseTester.class);
+
+        final TestInstanceTesterResolver.Resolution resolution = resolver.resolve(
+                instances(new NoFieldsInstance()), classes(HasStaticMarkedTesterField.class,
+                        HasOtherStaticMarkedTesterField.class),
+                NO_UNMARKED_TESTER);
+
+        assertThat(resolution.getTester())
+                .as("The classes are searched innermost first, and the first one with a marked"
+                        + " field shadows the rest, not ambiguous with them.")
+                .isSameAs(HasStaticMarkedTesterField.tester);
+    }
+
+    @Test
+    void testResolve_classWithoutInstanceDeclaresTwoStaticMarkedTesters_throwsIllegalStateException()
+    {
+        assertThatThrownBy(() -> resolver.resolve(instances(new NoFieldsInstance()),
+                classes(HasTwoStaticMarkedTesterFields.class), NO_UNMARKED_TESTER))
+                        .as("The ambiguity rule applies to a class without an instance too.")
+                        .isInstanceOf(IllegalStateException.class)
+                        .hasMessageContaining("Multiple @DbUnitTester fields found in "
+                                + HasTwoStaticMarkedTesterFields.class.getName());
+    }
+
+    @Test
+    void testResolve_classWithoutInstanceDeclaresBothStaticMarkers_throwsIllegalStateException()
+    {
+        assertThatThrownBy(() -> resolver.resolve(instances(new NoFieldsInstance()),
+                classes(HasBothStaticMarkers.class), NO_UNMARKED_TESTER))
+                        .as("Declaring both markers is rejected for a class without an instance"
+                                + " too.")
+                        .isInstanceOf(IllegalStateException.class)
+                        .hasMessageContaining("Both @DbUnitTestCase and @DbUnitTester fields are"
+                                + " declared in " + HasBothStaticMarkers.class.getName());
+    }
+
+    @Test
+    void testResolve_classWithoutInstanceDeclaresNullStaticMarkedTester_throwsNamingTheClass()
+    {
+        assertThatThrownBy(() -> resolver.resolve(instances(new NoFieldsInstance()),
+                classes(HasStaticMarkedTesterField.class), NO_UNMARKED_TESTER))
+                        .as("A null static field is named by the class that declares it.")
+                        .isInstanceOf(IllegalStateException.class)
+                        .hasMessage("IDatabaseTester field 'tester' in "
+                                + HasStaticMarkedTesterField.class.getName() + " is null.");
+    }
+
     // ---- fromFactory() ----
 
     @Test
@@ -606,6 +730,11 @@ class TestInstanceTesterResolverTest
         return Collections.unmodifiableList(Arrays.asList(innermostFirst));
     }
 
+    private static List<Class<?>> classes(final Class<?>... innermostFirst)
+    {
+        return Collections.unmodifiableList(Arrays.<Class<?>>asList(innermostFirst));
+    }
+
     static class HasTestCaseField
     {
         @DbUnitTestCase
@@ -772,6 +901,34 @@ class TestInstanceTesterResolverTest
 
     static class HasStaticMarkedTesterField
     {
+        @DbUnitTester
+        static IDatabaseTester tester;
+    }
+
+    static class HasOtherStaticMarkedTesterField
+    {
+        @DbUnitTester
+        static IDatabaseTester tester;
+    }
+
+    static class HasStaticMarkedTestCaseField
+    {
+        @DbUnitTestCase
+        static PrepAndExpectedTestCase testCase;
+    }
+
+    static class HasTwoStaticMarkedTesterFields
+    {
+        @DbUnitTester
+        static IDatabaseTester tester;
+        @DbUnitTester
+        static IDatabaseTester anotherTester;
+    }
+
+    static class HasBothStaticMarkers
+    {
+        @DbUnitTestCase
+        static PrepAndExpectedTestCase testCase;
         @DbUnitTester
         static IDatabaseTester tester;
     }

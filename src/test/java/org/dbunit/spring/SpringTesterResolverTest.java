@@ -67,6 +67,8 @@ class SpringTesterResolverTest
     void resetStaticFixtureState()
     {
         RecordingFactory.next = null;
+        EnclosingWithStaticMarkedTester.tester = null;
+        EnclosingWithStaticMarkedTestCase.testCase = null;
     }
 
     @Test
@@ -571,6 +573,108 @@ class SpringTesterResolverTest
                 .isSameAs(nestedTester);
     }
 
+    @Test
+    void testResolve_nestedInstanceEnclosingInstanceUnreachableAndEnclosingDeclaresStaticMarkedTester_usesThatTester()
+            throws Exception
+    {
+        final IDatabaseTester enclosingTester = mock(IDatabaseTester.class);
+        EnclosingWithStaticMarkedTester.tester = enclosingTester;
+        final EnclosingWithStaticMarkedTester enclosing = new EnclosingWithStaticMarkedTester();
+        final EnclosingWithStaticMarkedTester.Nested nested = enclosing.new Nested();
+        TestInstanceChainTest.clearEnclosingReference(nested);
+        final FakeTestContext context = fakeTestContext(nested,
+                applicationContextWithTester(mock(IDatabaseTester.class)));
+
+        final TestInstanceTesterResolver.Resolution resolution =
+                resolver.resolve(context, noFactoryConfiguration);
+
+        assertThat(resolution.getTester())
+                .as("A static @DbUnitTester field needs no enclosing instance, so it must be used"
+                        + " as it is under DbUnitExtension, not rejected and not replaced by the"
+                        + " ApplicationContext's bean.")
+                .isSameAs(enclosingTester);
+    }
+
+    @Test
+    void testResolve_nestedInstanceEnclosingInstanceUnreachableAndEnclosingDeclaresStaticMarkedTestCase_usesItsTester()
+            throws Exception
+    {
+        final IDatabaseTester testCaseTester = mock(IDatabaseTester.class);
+        final DefaultPrepAndExpectedTestCase testCase = mock(DefaultPrepAndExpectedTestCase.class);
+        when(testCase.getDatabaseTester()).thenReturn(testCaseTester);
+        EnclosingWithStaticMarkedTestCase.testCase = testCase;
+        final EnclosingWithStaticMarkedTestCase enclosing = new EnclosingWithStaticMarkedTestCase();
+        final EnclosingWithStaticMarkedTestCase.Nested nested = enclosing.new Nested();
+        TestInstanceChainTest.clearEnclosingReference(nested);
+        final FakeTestContext context = fakeTestContext(nested,
+                applicationContextWithTester(mock(IDatabaseTester.class)));
+
+        final TestInstanceTesterResolver.Resolution resolution =
+                resolver.resolve(context, noFactoryConfiguration);
+
+        assertThat(resolution.getTestCase())
+                .as("A static @DbUnitTestCase field needs no enclosing instance either.")
+                .isSameAs(testCase);
+        assertThat(resolution.getTester()).as("The test case's own tester must be used.")
+                .isSameAs(testCaseTester);
+    }
+
+    @Test
+    void testResolve_nestedInstanceEnclosingInstanceUnreachableAndEnclosingStaticMarkedTesterIsNull_throwsNamingTheEnclosingClass()
+            throws Exception
+    {
+        final EnclosingWithStaticMarkedTester enclosing = new EnclosingWithStaticMarkedTester();
+        final EnclosingWithStaticMarkedTester.Nested nested = enclosing.new Nested();
+        TestInstanceChainTest.clearEnclosingReference(nested);
+        final FakeTestContext context = fakeTestContext(nested,
+                applicationContextWithTester(mock(IDatabaseTester.class)));
+
+        assertThatThrownBy(() -> resolver.resolve(context, noFactoryConfiguration))
+                .as("A null static field of an enclosing class must be reported by the class that"
+                        + " declares it, not fall through to the ApplicationContext's bean.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("IDatabaseTester field 'tester' in "
+                        + EnclosingWithStaticMarkedTester.class.getName() + " is null.");
+    }
+
+    @Test
+    void testResolve_nestedInstanceEnclosingInstanceUnreachableAndNearerEnclosingClassDeclaresInstanceMarkedTester_throwsIllegalStateException()
+            throws Exception
+    {
+        EnclosingWithStaticMarkedTester.tester = mock(IDatabaseTester.class);
+        final OuterWithStaticMarkedTester outer = new OuterWithStaticMarkedTester();
+        final OuterWithStaticMarkedTester.Middle middle = outer.new Middle();
+        final OuterWithStaticMarkedTester.Middle.Inner inner = middle.new Inner();
+        TestInstanceChainTest.clearEnclosingReference(inner);
+        final FakeTestContext context = fakeTestContext(inner);
+
+        assertThatThrownBy(() -> resolver.resolve(context, noFactoryConfiguration))
+                .as("The nearer enclosing class's instance field outranks a static field of a"
+                        + " class further out, and it cannot be read without its instance, so it"
+                        + " must be reported rather than shadowed by the outer static field.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining(OuterWithStaticMarkedTester.Middle.class.getName())
+                .hasMessageContaining("'middleTester'")
+                .hasMessageContaining("cannot be reached");
+    }
+
+    @Test
+    void testResolve_nestedInstanceEnclosingInstanceUnreachableAndEnclosingDeclaresInstanceMarkedTester_messageOffersMakingItStatic()
+            throws Exception
+    {
+        final EnclosingWithMarkedTester enclosing =
+                new EnclosingWithMarkedTester(mock(IDatabaseTester.class));
+        final EnclosingWithMarkedTester.NestedWithoutTester nested = enclosing.new NestedWithoutTester();
+        TestInstanceChainTest.clearEnclosingReference(nested);
+        final FakeTestContext context = fakeTestContext(nested);
+
+        assertThatThrownBy(() -> resolver.resolve(context, noFactoryConfiguration))
+                .as("An instance field is the case that still fails, so its message must say that"
+                        + " a static field needs no enclosing instance.")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("declare the field static");
+    }
+
     private AnnotatedTestConfiguration configurationWithFactory()
     {
         final DbUnitConfig config = WithFactory.class.getAnnotation(DbUnitConfig.class);
@@ -899,6 +1003,71 @@ class SpringTesterResolverTest
 
             void aTestMethod()
             {
+            }
+        }
+    }
+
+    static class EnclosingWithStaticMarkedTester
+    {
+        @DbUnitTester
+        static IDatabaseTester tester;
+
+        class Nested
+        {
+            Object enclosing()
+            {
+                return EnclosingWithStaticMarkedTester.this;
+            }
+
+            void aTestMethod()
+            {
+            }
+        }
+    }
+
+    static class EnclosingWithStaticMarkedTestCase
+    {
+        @DbUnitTestCase
+        static PrepAndExpectedTestCase testCase;
+
+        class Nested
+        {
+            Object enclosing()
+            {
+                return EnclosingWithStaticMarkedTestCase.this;
+            }
+
+            void aTestMethod()
+            {
+            }
+        }
+    }
+
+    static class OuterWithStaticMarkedTester
+    {
+        @DbUnitTester
+        static IDatabaseTester tester;
+
+        class Middle
+        {
+            @DbUnitTester
+            IDatabaseTester middleTester;
+
+            Object enclosing()
+            {
+                return OuterWithStaticMarkedTester.this;
+            }
+
+            class Inner
+            {
+                Object enclosing()
+                {
+                    return Middle.this;
+                }
+
+                void aTestMethod()
+                {
+                }
             }
         }
     }

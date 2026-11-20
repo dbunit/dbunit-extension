@@ -22,6 +22,8 @@ package org.dbunit.annotation.runtime;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Callable;
 
@@ -63,6 +65,10 @@ import org.slf4j.LoggerFactory;
  * instance, the whole class hierarchy is searched, and a marked field is ambiguous - rejected
  * with an {@link IllegalStateException} - when it is declared more than once there, on one class
  * or across a class and its superclass, or when both markers are declared.
+ *
+ * <p>A binding that cannot get the instance of an enclosing class can still hand over the class
+ * itself: such a class is searched after every instance, outermost last, and only for its
+ * {@code static} marked fields, which need no instance. The same rules apply to it.
  *
  * <p>Public so a binding outside {@code org.dbunit.annotation.runtime} - such as
  * {@code DbUnitExtension} or a Spring {@code TestExecutionListener} - can reach it too.
@@ -124,7 +130,33 @@ public class TestInstanceTesterResolver
     public Resolution resolve(final List<Object> instances,
             final Callable<IDatabaseTester> unmarkedTester) throws Exception
     {
-        final MarkedFields marked = findMarkedFields(instances);
+        final List<Class<?>> noClasses = Collections.emptyList();
+        return resolve(instances, noClasses, unmarkedTester);
+    }
+
+    /**
+     * Resolves the tester and test case as {@link #resolve(List, Callable)} does, and also from
+     * the {@code static} marked fields of enclosing classes whose instances the binding could
+     * not get. Such a class ranks after every instance in {@code instances}, in the order given,
+     * and only its {@code static} marked fields count, as a field of an instance needs the
+     * instance. The binding decides what an instance field of such a class means.
+     *
+     * @param instances The test instances in scope, innermost first.
+     * @param classesWithoutInstance The enclosing classes in scope whose instances are not
+     *            available, innermost first, and that rank after the instances.
+     * @param unmarkedTester Supplies the tester when no marked field does; must throw rather
+     *            than return {@code null} when it finds none.
+     * @return The resolved tester, and the test case when a {@code @DbUnitTestCase} field
+     *         supplied one.
+     * @throws IllegalStateException If a marked field is ambiguous, null, or of the wrong type,
+     *             or a {@link DefaultPrepAndExpectedTestCase} it holds has no tester.
+     * @throws Exception If {@code unmarkedTester} fails.
+     */
+    public Resolution resolve(final List<Object> instances,
+            final List<Class<?>> classesWithoutInstance,
+            final Callable<IDatabaseTester> unmarkedTester) throws Exception
+    {
+        final MarkedFields marked = findMarkedFields(instances, classesWithoutInstance);
         if (marked.testCaseField != null)
         {
             return resolveFromTestCaseField(marked.testCaseField);
@@ -212,7 +244,7 @@ public class TestInstanceTesterResolver
         if (value == null)
         {
             throw new IllegalStateException("PrepAndExpectedTestCase field '"
-                    + testCaseField.field.getName() + "' in " + testCaseField.instanceClassName()
+                    + testCaseField.field.getName() + "' in " + testCaseField.scopeClassName()
                     + " is null.");
         }
         final String fieldDescription = testCaseField.describe();
@@ -247,7 +279,7 @@ public class TestInstanceTesterResolver
         if (value == null)
         {
             throw new IllegalStateException("IDatabaseTester field '"
-                    + testerField.field.getName() + "' in " + testerField.instanceClassName()
+                    + testerField.field.getName() + "' in " + testerField.scopeClassName()
                     + " is null.");
         }
         if (!(value instanceof IDatabaseTester))
@@ -267,45 +299,76 @@ public class TestInstanceTesterResolver
      * field entirely, regardless of whether the outer field uses the same marker or the other
      * one, rather than the two being resolved independently and compared across instances.
      *
-     * @throws IllegalStateException If one instance declares both markers, or more than one
-     *             field for the same marker within one instance's class hierarchy.
+     * Then it checks the enclosing classes without an instance in the same way, for their
+     * {@code static} marked fields only.
+     *
+     * @throws IllegalStateException If one instance or class declares both markers, or more than
+     *             one field for the same marker within one instance's or class's hierarchy.
      */
-    private MarkedFields findMarkedFields(final List<Object> instances)
+    private MarkedFields findMarkedFields(final List<Object> instances,
+            final List<Class<?>> classesWithoutInstance)
     {
         for (final Object instance : instances)
         {
-            final FieldMatch testCaseField = findMarkedField(instance, DbUnitTestCase.class);
-            final FieldMatch testerField = findMarkedField(instance, DbUnitTester.class);
-            if (testCaseField != null && testerField != null)
+            final MarkedFields marked = findMarkedFieldsOf(instance.getClass(), instance);
+            if (marked != null)
             {
-                throw new IllegalStateException(
-                        "Both @DbUnitTestCase and @DbUnitTester fields are declared in "
-                                + instance.getClass().getName() + "; declare at most one.");
+                return marked;
             }
-            if (testCaseField != null || testerField != null)
+        }
+        for (final Class<?> clazz : classesWithoutInstance)
+        {
+            final MarkedFields marked = findMarkedFieldsOf(clazz, null);
+            if (marked != null)
             {
-                return new MarkedFields(testCaseField, testerField);
+                return marked;
             }
         }
         return new MarkedFields(null, null);
     }
 
     /**
-     * Finds a field annotated {@code marker} within one test instance's whole class hierarchy.
+     * Finds the marked fields of one class, with its superclasses, read from {@code instance}
+     * or, when that is {@code null}, from the class itself, which leaves out the fields that need
+     * an instance.
+     *
+     * @return The marked fields, or {@code null} when the class declares none.
+     */
+    private MarkedFields findMarkedFieldsOf(final Class<?> scope, final Object instance)
+    {
+        final FieldMatch testCaseField = findMarkedField(scope, instance, DbUnitTestCase.class);
+        final FieldMatch testerField = findMarkedField(scope, instance, DbUnitTester.class);
+        if (testCaseField != null && testerField != null)
+        {
+            throw new IllegalStateException(
+                    "Both @DbUnitTestCase and @DbUnitTester fields are declared in "
+                            + scope.getName() + "; declare at most one.");
+        }
+        if (testCaseField != null || testerField != null)
+        {
+            return new MarkedFields(testCaseField, testerField);
+        }
+        return null;
+    }
+
+    /**
+     * Finds a field annotated {@code marker} within one class's whole hierarchy, leaving out the
+     * fields that need an instance when {@code instance} is {@code null}.
      *
      * @throws IllegalStateException If more than one such field is found.
      */
-    private FieldMatch findMarkedField(final Object instance,
+    private FieldMatch findMarkedField(final Class<?> scope, final Object instance,
             final Class<? extends Annotation> marker)
     {
-        final List<Field> matches = testerFields.findAll(instance.getClass(),
-                field -> field.isAnnotationPresent(marker));
+        final List<Field> matches = testerFields.findAll(scope,
+                field -> field.isAnnotationPresent(marker)
+                        && (instance != null || Modifier.isStatic(field.getModifiers())));
         if (matches.size() > 1)
         {
             final Field first = matches.get(0);
             final Field second = matches.get(1);
             throw new IllegalStateException("Multiple @" + marker.getSimpleName()
-                    + " fields found in " + instance.getClass().getName() + ": '"
+                    + " fields found in " + scope.getName() + ": '"
                     + first.getDeclaringClass().getSimpleName() + "." + first.getName()
                     + "' and '" + second.getDeclaringClass().getSimpleName() + "."
                     + second.getName() + "'. Mark only one field @" + marker.getSimpleName()
@@ -317,7 +380,7 @@ public class TestInstanceTesterResolver
         }
         final Field match = matches.get(0);
         match.setAccessible(true);
-        return new FieldMatch(match, instance);
+        return new FieldMatch(match, instance, scope);
     }
 
     private Field findUnmarkedTesterField(final Class<?> clazz, final Object instance)
@@ -396,26 +459,29 @@ public class TestInstanceTesterResolver
     {
         private final Field field;
         private final Object instance;
+        private final Class<?> scope;
 
-        private FieldMatch(final Field field, final Object instance)
+        private FieldMatch(final Field field, final Object instance, final Class<?> scope)
         {
             this.field = field;
             this.instance = instance;
+            this.scope = scope;
         }
 
+        /** Reads the field; {@code instance} is {@code null} for a {@code static} one. */
         private Object value() throws IllegalAccessException
         {
             return field.get(instance);
         }
 
-        private String instanceClassName()
+        private String scopeClassName()
         {
-            return instance.getClass().getName();
+            return scope.getName();
         }
 
         private String describe()
         {
-            return "Field '" + field.getName() + "' in " + instanceClassName();
+            return "Field '" + field.getName() + "' in " + scopeClassName();
         }
     }
 

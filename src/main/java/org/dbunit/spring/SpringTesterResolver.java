@@ -21,6 +21,7 @@
 package org.dbunit.spring;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.util.List;
 import java.util.function.Predicate;
 
@@ -52,12 +53,14 @@ import org.springframework.test.context.TestContextAnnotationUtils;
  * {@link TestInstanceChain}: the one Spring's {@link TestContext} holds and, for a
  * {@code @Nested} class, the enclosing instances reachable from it, innermost first.
  *
- * <p>An enclosing instance that cannot be reached cannot be searched, so a tester field it
+ * <p>An enclosing instance that cannot be reached cannot be searched, so an instance field it
  * declares is an error, never a silent fall-through to something that ranks lower, such as an
  * {@code ApplicationContext} bean - unless a tester that outranks the field is found anyway: a
  * marked field in a reachable instance outranks every field of an enclosing class, and the
  * configured factory and an unmarked field in a reachable instance outrank an unmarked field of
- * an enclosing class.
+ * an enclosing class. A {@code static} marked field of such a class needs no instance, so it is
+ * read from the class, as under {@code DbUnitExtension}, at the rank it has when the instance is
+ * reachable.
  *
  * @author Jeff Jensen
  * @since 3.6.0
@@ -92,7 +95,7 @@ class SpringTesterResolver
      * @return The resolved tester, and the test case when a {@code @DbUnitTestCase} field
      *         supplied one.
      * @throws Exception If a field is null or the wrong type, a factory fails, no tester can be
-     *             found, or a tester field of an enclosing class cannot be reached.
+     *             found, or an instance field of an enclosing class cannot be reached.
      */
     TestInstanceTesterResolver.Resolution resolve(final TestContext testContext,
             final AnnotatedTestConfiguration configuration) throws Exception
@@ -103,9 +106,10 @@ class SpringTesterResolver
         final List<Object> instances = chain.getInnermostFirst();
         if (!anyDeclaresMarkedField(instances))
         {
-            rejectUnreachableFields(chain, testClass, testerFields::isMarked);
+            rejectUnreadableMarkedFields(chain, testClass);
         }
-        return instanceResolver.resolve(instances,
+        final List<Class<?>> unreachableClasses = chain.getUnreachableEnclosingClasses();
+        return instanceResolver.resolve(instances, unreachableClasses,
                 () -> findTester(instances, chain, testContext, configuration));
     }
 
@@ -242,6 +246,38 @@ class SpringTesterResolver
     }
 
     /**
+     * Fails when the nearest enclosing class that declares a marked field, among those whose
+     * instance could not be reached, declares one that needs its instance, rather than carry on
+     * and silently drive a lower-ranked tester - e.g. an {@code ApplicationContext} bean - than
+     * the one that field would have supplied. A {@code static} marked field needs no instance, so
+     * the resolver reads it from the class and nothing is rejected for it.
+     */
+    private void rejectUnreadableMarkedFields(final TestInstanceChain chain,
+            final Class<?> testClass)
+    {
+        for (final Class<?> enclosingClass : chain.getUnreachableEnclosingClasses())
+        {
+            final Field instanceField =
+                    testerFields.findFirst(enclosingClass, this::isMarkedInstanceField);
+            if (instanceField != null)
+            {
+                final String extraRemedy = "declare the field static, which needs no instance, ";
+                throw new IllegalStateException(unreachableFieldMessage(enclosingClass,
+                        instanceField, testClass, extraRemedy));
+            }
+            if (testerFields.declaresMarkedField(enclosingClass))
+            {
+                return;
+            }
+        }
+    }
+
+    private boolean isMarkedInstanceField(final Field field)
+    {
+        return testerFields.isMarked(field) && !Modifier.isStatic(field.getModifiers());
+    }
+
+    /**
      * Fails when {@code matches} accepts a field of an enclosing class whose instance could not
      * be reached, rather than carry on and silently drive a lower-ranked tester - e.g. an
      * {@code ApplicationContext} bean - than the one that field would have supplied.
@@ -254,17 +290,24 @@ class SpringTesterResolver
             final Field field = testerFields.findFirst(enclosingClass, matches);
             if (field != null)
             {
-                throw new IllegalStateException("The enclosing class " + enclosingClass.getName()
-                        + " declares the tester field '" + field.getName()
-                        + "', but the enclosing instance of the @Nested class "
-                        + testClass.getName() + " cannot be reached: when compiling for Java 18"
-                        + " or later, javac omits an inner class's reference to its enclosing"
-                        + " instance unless the class uses it. Use the enclosing instance"
-                        + " somewhere in the @Nested class, declare a @DbUnitTester field in the"
-                        + " @Nested class itself, or replace the enclosing class's tester field"
-                        + " with an IDatabaseTester bean in the ApplicationContext.");
+                throw new IllegalStateException(
+                        unreachableFieldMessage(enclosingClass, field, testClass, ""));
             }
         }
+    }
+
+    private String unreachableFieldMessage(final Class<?> enclosingClass, final Field field,
+            final Class<?> testClass, final String extraRemedy)
+    {
+        return "The enclosing class " + enclosingClass.getName()
+                + " declares the tester field '" + field.getName()
+                + "', but the enclosing instance of the @Nested class "
+                + testClass.getName() + " cannot be reached: when compiling for Java 18"
+                + " or later, javac omits an inner class's reference to its enclosing"
+                + " instance unless the class uses it. Use the enclosing instance"
+                + " somewhere in the @Nested class, " + extraRemedy + "declare a @DbUnitTester"
+                + " field in the @Nested class itself, or replace the enclosing class's tester"
+                + " field with an IDatabaseTester bean in the ApplicationContext.";
     }
 
 }

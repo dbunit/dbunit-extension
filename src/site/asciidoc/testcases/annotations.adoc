@@ -174,8 +174,9 @@ assignable to `IDatabaseTester`, nearest declaring class wins. Unchanged, so
 every 3.5.0 test keeps working untouched.
 
 |5 |Under `DbUnitTestExecutionListener` only: the `IDatabaseTester` bean of the test's
-`ApplicationContext`, when no step before it found a tester. A tester field of an enclosing
-class whose instance cannot be reached fails the test instead of falling through to the bean.
+`ApplicationContext`, when no step before it found a tester. An instance tester field of an
+enclosing class whose instance cannot be reached fails the test instead of falling through to
+the bean; a `static` marked field needs no instance and is read as usual.
 See link:DbUnitTestExecutionListener.html#discovery[the listener page].
 |===
 
