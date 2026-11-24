@@ -764,6 +764,25 @@ class MultiDataSourcePrepAndExpectedTestCaseTest
     }
 
     @Test
+    void testPostTest_verifyTrueAndFailureIsAnAssertionError_labelsThePhaseVerifyData()
+            throws Exception
+    {
+        final RecordingTestCase catalog = new RecordingTestCase("catalog", new ArrayList<>());
+        catalog.failOnPostTest(new DbComparisonFailure("reason", "expected", "actual"));
+        final MultiDataSourcePrepAndExpectedTestCase testCase =
+                MultiDataSourcePrepAndExpectedTestCase.builder().add("catalog", catalog).build();
+        testCase.preTest(map("catalog", someData()));
+
+        final Throwable aggregate = catchThrowable(() -> testCase.postTest(true));
+
+        assertThat(aggregate.getMessage())
+                .as("A postTest(true) failure that is an AssertionError, such as a"
+                        + " DbComparisonFailure, comes from the verification, so its phase is"
+                        + " verifyData.")
+                .isEqualTo("1 data source failed in postTest: catalog (verifyData)");
+    }
+
+    @Test
     void testPostTest_verifyFalseAndDelegatesFail_labelsEveryFailureCleanupData()
             throws Exception
     {
