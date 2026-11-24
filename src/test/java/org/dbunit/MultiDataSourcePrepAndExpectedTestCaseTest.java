@@ -72,6 +72,21 @@ class MultiDataSourcePrepAndExpectedTestCaseTest
     }
 
     @Test
+    void testGetTestCase_unwiredDataSourceName_throwsIllegalArgumentException()
+    {
+        final MultiDataSourcePrepAndExpectedTestCase testCase =
+                MultiDataSourcePrepAndExpectedTestCase.builder()
+                        .add("catalog", new RecordingTestCase("catalog", new ArrayList<>()))
+                        .build();
+
+        assertThatThrownBy(() -> testCase.getTestCase("orders"))
+                .as("Asking for a data source that is not wired must fail with a message that"
+                        + " names it, not return null.")
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("No data source named 'orders' is wired.");
+    }
+
+    @Test
     void testBuilder_addAllWithLinkedHashMap_wiresInMapIterationOrder()
     {
         final Map<String, PrepAndExpectedTestCase> more = new LinkedHashMap<>();
