@@ -764,6 +764,27 @@ class MultiDataSourcePrepAndExpectedTestCaseTest
     }
 
     @Test
+    void testPostTest_verifyFalseAndDelegatesFail_labelsEveryFailureCleanupData()
+            throws Exception
+    {
+        final RecordingTestCase catalog = new RecordingTestCase("catalog", new ArrayList<>());
+        final RecordingTestCase orders = new RecordingTestCase("orders", new ArrayList<>());
+        catalog.failOnPostTest(new AssertionError("an Error from the catalog teardown"));
+        orders.failOnPostTest(new Exception("a checked failure from the orders teardown"));
+        final MultiDataSourcePrepAndExpectedTestCase testCase = MultiDataSourcePrepAndExpectedTestCase
+                .builder().add("catalog", catalog).add("orders", orders).build();
+        testCase.preTest(map("catalog", someData(), "orders", someData()));
+
+        final Throwable aggregate = catchThrowable(() -> testCase.postTest(false));
+
+        assertThat(aggregate.getMessage())
+                .as("A postTest(false) call verifies nothing, so every failure it reports must"
+                        + " have the phase cleanupData, an AssertionError included.")
+                .isEqualTo("2 data sources failed in postTest: catalog (cleanupData),"
+                        + " orders (cleanupData)");
+    }
+
+    @Test
     void testPostTest_verifyTrueAndTwoDataSourcesFail_aggregateNamesBothFirstAsCauseRestSuppressed()
             throws Exception
     {
