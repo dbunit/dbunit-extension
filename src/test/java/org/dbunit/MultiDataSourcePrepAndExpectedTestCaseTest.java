@@ -529,10 +529,76 @@ class MultiDataSourcePrepAndExpectedTestCaseTest
         assertThat(thrown).as("preTest(...) must rethrow the real setup failure itself, not a"
                 + " wrapper.").isSameAs(setupFailure);
         assertThat(thrown.getSuppressed())
-                .as("A rollback failure must be attached as suppressed on the setup failure,"
-                        + " labelled with the data source it came from.")
+                .as("The setup failure must carry a label naming its data source and the"
+                        + " preTest phase, then each rollback failure, labelled with the data"
+                        + " source it came from.")
                 .extracting(Throwable::getMessage, Throwable::getCause)
-                .containsExactly(tuple("catalog failed in cleanupData.", rollbackFailure));
+                .containsExactly(tuple("orders failed in preTest.", null),
+                        tuple("catalog failed in cleanupData.", rollbackFailure));
+    }
+
+    @Test
+    void testPreTest_laterDataSourceSetupThrows_labelsTheSetupFailureWithItsDataSource()
+    {
+        final RecordingTestCase catalog = new RecordingTestCase("catalog", new ArrayList<>());
+        final RecordingTestCase orders = new RecordingTestCase("orders", new ArrayList<>());
+        final RuntimeException setupFailure = new RuntimeException("orders setup failed");
+        orders.failOnPreTest(setupFailure);
+        final MultiDataSourcePrepAndExpectedTestCase testCase = MultiDataSourcePrepAndExpectedTestCase
+                .builder().add("catalog", catalog).add("orders", orders).build();
+
+        final Throwable thrown = catchThrowable(
+                () -> testCase.preTest(map("catalog", someData(), "orders", someData())));
+
+        assertThat(thrown).as("preTest(...) must rethrow the real setup failure itself, not a"
+                + " wrapper.").isSameAs(setupFailure);
+        assertThat(thrown.getSuppressed())
+                .as("The setup failure must carry exactly one label, naming the data source that"
+                        + " failed and the preTest phase, with no cause.")
+                .extracting(Throwable::getMessage, Throwable::getCause)
+                .containsExactly(tuple("orders failed in preTest.", null));
+    }
+
+    @Test
+    void testPreTest_firstDataSourceSetupThrows_labelsTheSetupFailureWithItsDataSource()
+    {
+        final RecordingTestCase catalog = new RecordingTestCase("catalog", new ArrayList<>());
+        final RuntimeException setupFailure = new RuntimeException("catalog setup failed");
+        catalog.failOnPreTest(setupFailure);
+        final RecordingTestCase orders = new RecordingTestCase("orders", new ArrayList<>());
+        final MultiDataSourcePrepAndExpectedTestCase testCase = MultiDataSourcePrepAndExpectedTestCase
+                .builder().add("catalog", catalog).add("orders", orders).build();
+
+        final Throwable thrown = catchThrowable(
+                () -> testCase.preTest(map("catalog", someData(), "orders", someData())));
+
+        assertThat(thrown).as("preTest(...) must rethrow the real setup failure itself, not a"
+                + " wrapper.").isSameAs(setupFailure);
+        assertThat(thrown.getSuppressed())
+                .as("The first data source's setup failure must be labelled too, with nothing"
+                        + " else to roll back.")
+                .extracting(Throwable::getMessage, Throwable::getCause)
+                .containsExactly(tuple("catalog failed in preTest.", null));
+    }
+
+    @Test
+    void testPreTest_setupFailureIsAnError_staysTheSameErrorWithTheLabelSuppressed()
+    {
+        final RecordingTestCase orders = new RecordingTestCase("orders", new ArrayList<>());
+        final AssertionError setupFailure = new AssertionError("orders setup failed");
+        orders.failOnPreTest(setupFailure);
+        final MultiDataSourcePrepAndExpectedTestCase testCase = MultiDataSourcePrepAndExpectedTestCase
+                .builder().add("orders", orders).build();
+
+        final Throwable thrown = catchThrowable(
+                () -> testCase.preTest(map("orders", someData())));
+
+        assertThat(thrown).as("An Error from a delegate's preTest must stay that same Error.")
+                .isSameAs(setupFailure);
+        assertThat(thrown.getSuppressed())
+                .as("An Error takes the label as a suppressed exception like any failure.")
+                .extracting(Throwable::getMessage)
+                .containsExactly("orders failed in preTest.");
     }
 
     @Test
@@ -560,7 +626,7 @@ class MultiDataSourcePrepAndExpectedTestCaseTest
                         + " catalog's distinct rollback failure must still be attached - proving"
                         + " the self-suppression guard does not stop the rollback loop early.")
                 .extracting(Throwable::getCause)
-                .containsExactly(catalogRollbackFailure);
+                .containsExactly(null, catalogRollbackFailure);
     }
 
     @Test

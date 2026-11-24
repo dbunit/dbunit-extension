@@ -171,14 +171,17 @@ public class MultiDataSourcePrepAndExpectedTestCase
      * same delegate instance, because a delegate holds the data of one run and the second
      * {@code preTest} would replace the first.
      * <p>
-     * If an involved delegate's own {@code preTest} fails, every involved delegate set up so far -
-     * including the one that just failed - is rolled back, via
-     * {@link PrepAndExpectedTestCase#postTest(boolean) postTest(false)}, in reverse order, never a
-     * bare {@code cleanupData()} - with each rollback failure attached to the original failure via
-     * {@link Throwable#addSuppressed(Throwable)}, labelled with its data source name and the
+     * If an involved delegate's own {@code preTest} fails, a label with its data source name and
+     * the {@code preTest} phase is attached to the original failure via
+     * {@link Throwable#addSuppressed(Throwable)}, ahead of any rollback failure, so a failure that
+     * names nothing specific to one database, such as a key violation, still says which data
+     * source it came from. Then every involved delegate set up so far - including the one that
+     * just failed - is rolled back, via
+     * {@link PrepAndExpectedTestCase#postTest(boolean) postTest(false)}, in reverse order, never a bare {@code cleanupData()} - with each rollback failure attached to
+     * the original failure in the same way, labelled with its data source name and the
      * {@code cleanupData} phase, except a rollback failure that is the exact same instance as the
      * original failure, which is dropped rather than attached to itself; the original failure is
-     * then rethrown as-is.
+     * then rethrown as-is, the same instance with its type unchanged.
      *
      * @param dataByDataSourceName
      *            The prep/expected/verify data for this run, keyed by data source name; not
@@ -238,6 +241,10 @@ public class MultiDataSourcePrepAndExpectedTestCase
                 testCase.preTest(data);
             } catch (final Throwable setupFailure)
             {
+                final MultiDataSourceAssertionError.DataSourceFailure label =
+                        new MultiDataSourceAssertionError.DataSourceFailure(dataSourceName,
+                                "preTest", null);
+                setupFailure.addSuppressed(label);
                 setUpSoFar.add(dataSourceName);
                 rollBackSuppressing(setUpSoFar, setupFailure);
                 involvedDataSourceNames = Collections.emptySet();
