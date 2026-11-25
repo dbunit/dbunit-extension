@@ -426,6 +426,14 @@ autocommit off therefore sits in a transaction after the check's reads, as it do
 dbUnit's other reads and its uncommitted prep and teardown writes, holding locks and exposed to
 the database's idle-in-transaction timeout; use a connection with autocommit on (see
 link:../connections.html[Connections]).
+* *Do not enable the check on a connection that a Spring-managed test transaction owns*, the
+connection of a `TransactionAwareDataSourceProxy` in a `@Transactional` test under
+`DbUnitExtension`. The check counts inside that transaction, so a row the test writes to a table
+outside the datasets counts as left behind, though Spring rolls the transaction back a moment
+later, and the check fails the test. Turn it off for such a test class with
+`@DbUnitRowCountCheck(enabled = false)`, or use `@DbUnitSpringTest`, whose listener takes its
+baseline before the transaction opens and checks after it has ended (see
+link:../testcases/DbUnitExtension.html[DbUnitExtension]).
 * *A check set with `setRowCountCheck()` wins over `@DbUnitRowCountCheck`.* A
 `DefaultPrepAndExpectedTestCase` whose owner called `setRowCountCheck(RowCountCheck)` uses that
 check as-is for every test, so the annotation's `enabled` and `exclude` have no effect on it;

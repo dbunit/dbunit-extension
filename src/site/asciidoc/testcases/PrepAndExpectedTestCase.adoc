@@ -549,6 +549,14 @@ public class DbUnitConfiguration
 }
 ----
 
+The `TransactionAwareDataSourceProxy` in the `databaseTester` bean makes a tester join the
+transaction of a Spring `@Transactional` test: dbUnit ends no transaction it did not begin, so
+Spring ends that one, and `@Commit` and `@Rollback(false)` work as usual. Under
+`DbUnitExtension`, that transaction is also why the row count check cannot run in such a test
+class: turn it off with `@DbUnitRowCountCheck(enabled = false)`, or use `@DbUnitSpringTest`; see
+link:DbUnitExtension.html#spring-transactional[Spring Tests With @Transactional] and
+link:../components/rowcountcheck.html#caveats[the row count check caveats].
+
 [source,java]
 ----
 /**
