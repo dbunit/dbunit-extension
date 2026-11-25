@@ -236,6 +236,8 @@ Under link:../testcases/MultiDataSourcePrepAndExpectedTestCase.html[MultiDataSou
 it is reported inside the `MultiDataSourceAssertionError` that names its data source, which a build
 tool reports as a test failure: as its cause when its data source is the first failing one in
 declared order, and otherwise as the cause of a suppressed entry labelled with the data source.
+Data source names that reach the same tables can fail the check of a correct test; see
+link:../testcases/MultiDataSourcePrepAndExpectedTestCase.html#shared-tables[Data Sources That Share Tables].
 
 Each line names the table in the exact form `getTableNames()` returned it, so it can be
 pasted straight into a dataset or an exclude list, and the delta's sign tells you which fix

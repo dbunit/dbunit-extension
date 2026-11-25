@@ -158,6 +158,49 @@ failure, and its suppressed labels read `orders failed in preTest.`, with no cau
 source whose setup failed, and `catalog failed in cleanupData.`, with the rollback failure as the
 cause, for a data source whose rollback failed.
 
+[#shared-tables]
+=== Data Sources That Share Tables
+
+Each delegate's link:../components/rowcountcheck.html[row count check] counts every table its own
+connection lists, so data source names that reach the same tables, such as two data sources that a
+test environment points at one database, each count the others' tables. The teardown runs in
+reverse declared order, so a data source is checked before the data sources declared ahead of it
+have torn down. A test whose steps change a table of an earlier-declared data source therefore
+fails the check of a later-declared one with a row count difference, though the earlier data
+source's teardown then removes the change and nothing is left behind. When the steps write to
+both data sources, one of them fails whichever way they are declared. A row that a later-declared
+data source leaves behind is reported under the earlier-declared one as well.
+
+Any of these keeps the check right:
+
+* Give each data source a database or a schema of its own. A connection that names its schema
+  counts only that schema.
+* Turn the check off for every data source but the first-declared one, which is checked last,
+  after every teardown, and still counts every table. A row that a later data source leaves behind
+  is then reported under the first one's name. `-Ddbunit.rowCountCheck=true` keeps the check off
+  for a data source that is set to `false` this way:
++
+[source,java]
+----
+((DefaultPrepAndExpectedTestCase) testCase.getTestCase("audit"))
+        .setRowCountCheckOverride(new RowCountCheckOverride(false, null));
+----
+* Exclude the tables of the others from each data source's check, with the
+  `rowCountCheckExcludeTables` property of that data source's test case. Each table is then still
+  counted, by the check of the data source whose datasets list it:
++
+[source,java]
+----
+final Properties properties = new Properties();
+properties.setProperty("rowCountCheckExcludeTables", "ORDERS");
+((DefaultPrepAndExpectedTestCase) testCase.getTestCase("audit"))
+        .setDatabaseConfigProperties(properties);
+----
++
+Prefer the property to `setRowCountCheckOverride()` for this: a `RowCountCheckOverride` also sets
+the enabled flag, so `new RowCountCheckOverride(true, ...)` turns the check on for that data source
+even when nothing else does.
+
 === A `@ParameterizedTest` suite
 
 Condensed from PrepAndExpectedTestCase's
@@ -241,7 +284,7 @@ intentionally preps/verifies *nothing* for one side but still wants that delegat
 opened must build its own all-empty `PrepAndExpectedTestData` rather than pass `NONE` - the skip
 check is `==` against that exact instance, not content equality; and teardown order flips from
 whatever the harness used to reverse declared order, harmless when, as is typical, the data
-sources are independent.
+sources are independent; <<shared-tables,data sources that share tables>> need the care described there.
 
 This wrapper's API is deliberately the *programmatic* equivalent only. A named-tester /
 named-connection annotation model for the `@DbUnitPrep`/`@DbUnitExpected` annotation style
