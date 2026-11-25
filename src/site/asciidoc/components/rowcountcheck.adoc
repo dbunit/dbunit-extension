@@ -98,8 +98,8 @@ writes into SQL, so every dataset must then name its tables as the database stor
 [#enabling]
 == Enabling It
 
-The check is *off by default* and writes no data of its own — though on an autocommit-off
-connection it ends its read transaction with a rollback, which discards uncommitted work (see
+The check is *off by default*, writes no data of its own and ends no transaction: on an
+autocommit-off connection its reads join the transaction the connection's owner has open (see
 <<caveats>>). Turn it on to verify
 a suite's teardown correctness; leave it off for routine runs, since capturing two snapshots
 per test roughly doubles that test's table-counting cost.
@@ -419,15 +419,13 @@ must then respect; see <<which-tables>>.
 * *Modified rows are invisible* — see <<what-it-detects>>.
 * *Parallel tests against one database break the check*, as they already break
 `DELETE_ALL` teardown. Not specific to this check.
-* *On a connection with autocommit off, the check ends its own read transaction with a
-rollback* — after capturing the baseline and again after verifying — so a connection kept
-across tests is not left idle in a transaction, holding locks and exposed to the database's
-idle-in-transaction timeout. A rollback also discards anything uncommitted on that connection,
-so do not enable the check on a connection that carries your own pending transaction, such as
-one enlisted in a Spring-managed test transaction; prep and teardown writes on an
-autocommit-off connection are never committed regardless, and the annotation-driven lifecycle
-rolls them back before it closes the connection, which on Oracle replaces the commit that
-closing it performs (see link:../connections.html[Connections]).
+* *On a connection with autocommit off, the check ends no transaction.* Its counting queries
+and metadata reads join whatever transaction the connection's owner has open, a transaction
+manager, a pool or the test, and the owner ends it. A connection kept across tests with
+autocommit off therefore sits in a transaction after the check's reads, as it does after
+dbUnit's other reads and its uncommitted prep and teardown writes, holding locks and exposed to
+the database's idle-in-transaction timeout; use a connection with autocommit on (see
+link:../connections.html[Connections]).
 * *A check set with `setRowCountCheck()` wins over `@DbUnitRowCountCheck`.* A
 `DefaultPrepAndExpectedTestCase` whose owner called `setRowCountCheck(RowCountCheck)` uses that
 check as-is for every test, so the annotation's `enabled` and `exclude` have no effect on it;

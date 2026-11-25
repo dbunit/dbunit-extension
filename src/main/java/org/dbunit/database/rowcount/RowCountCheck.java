@@ -41,8 +41,8 @@ import org.slf4j.LoggerFactory;
 /**
  * Compares a database's table row counts before and after a test, to catch a table the test
  * left dirty - either one it should have cleaned up and did not, or a reference table it wrongly
- * cleaned. Writes no data of its own, but on an autocommit-off connection it ends its read
- * transaction with a rollback, which discards uncommitted work.
+ * cleaned. Writes no data of its own and ends no transaction: on an autocommit-off connection
+ * its reads join whatever transaction the connection's owner has open, and the owner ends it.
  * <p>
  * Every method is a no-op, and never queries the connection, when
  * {@link RowCountCheckConfiguration#isEnabled()} is {@code false} - the check costs nothing
@@ -153,28 +153,21 @@ public class RowCountCheck
     private RowCountSnapshot snapshot(final IDatabaseConnection connection)
             throws DatabaseUnitException, SQLException
     {
-        try
-        {
-            final IDatabaseConnection countingConnection = connectionToCountThrough(connection);
-            final String[] allTableNames = tableNamesListedAfresh(countingConnection);
-            final ExcludeTableFilter excludeTableFilter = configuration.getExcludeTableFilter();
+        final IDatabaseConnection countingConnection = connectionToCountThrough(connection);
+        final String[] allTableNames = tableNamesListedAfresh(countingConnection);
+        final ExcludeTableFilter excludeTableFilter = configuration.getExcludeTableFilter();
 
-            final List<String> tableNames = new ArrayList<>();
-            for (final String tableName : allTableNames)
+        final List<String> tableNames = new ArrayList<>();
+        for (final String tableName : allTableNames)
+        {
+            if (excludeTableFilter.isValidName(tableName))
             {
-                if (excludeTableFilter.isValidName(tableName))
-                {
-                    tableNames.add(tableName);
-                }
+                tableNames.add(tableName);
             }
+        }
 
-            final Map<String, Integer> rowCounts = countRows(countingConnection, tableNames);
-            return new RowCountSnapshot(rowCounts);
-        }
-        finally
-        {
-            endReadTransaction(connection);
-        }
+        final Map<String, Integer> rowCounts = countRows(countingConnection, tableNames);
+        return new RowCountSnapshot(rowCounts);
     }
 
     /**
@@ -318,41 +311,6 @@ public class RowCountCheck
             log.debug("currentSchemaReportedBy: the metadata handler does not report the current"
                     + " schema of the JDBC connection", e);
             return null;
-        }
-    }
-
-    /**
-     * Ends the transaction the read-only snapshot queries (the {@code SELECT COUNT(*)}s and the
-     * metadata reads behind {@link IDatabaseConnection#createDataSet()}) opened, when the
-     * connection's autocommit is off, so a check that modified nothing does not leave that
-     * connection sitting idle in a transaction - holding locks, and a candidate for the
-     * database's {@code idle_in_transaction_session_timeout}. This matters when the connection
-     * outlives the check: shared through a {@link org.dbunit.database.CachingConnectionProvider}
-     * and not closed after each test.
-     * <p>
-     * A rollback rather than a commit: the snapshot wrote nothing of its own, so there is
-     * nothing to keep, and a rollback cannot disturb work a caller committed before calling in.
-     * It does discard work the caller left uncommitted on the connection, which is why the
-     * check is not meant for a connection carrying a pending transaction of its own. A
-     * best-effort attempt - a snapshot that already failed, or a connection the database has
-     * dropped, is the caller's to handle.
-     *
-     * @param connection The connection the snapshot queried.
-     */
-    private void endReadTransaction(final IDatabaseConnection connection)
-    {
-        try
-        {
-            final Connection jdbcConnection = connection.getConnection();
-            if (jdbcConnection != null && !jdbcConnection.getAutoCommit())
-            {
-                jdbcConnection.rollback();
-            }
-        }
-        catch (final SQLException e)
-        {
-            log.debug("endReadTransaction: could not roll back the row count snapshot's"
-                    + " read transaction", e);
         }
     }
 }

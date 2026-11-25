@@ -35,8 +35,10 @@ import org.slf4j.LoggerFactory;
  * connection dbUnit's own setup and teardown operations will run on. Those operations
  * ({@code CLEAN_INSERT}, {@code DELETE_ALL}, ...) do not manage a transaction of their own, and
  * {@link org.dbunit.operation.TransactionOperation} refuses a connection whose autocommit is
- * already off, so on such a connection their writes are never committed: invisible to other
- * connections, and - when the connection is kept across test methods - held as locks a
+ * already off, so on such a connection their writes are not committed by dbUnit, which ends no
+ * transaction it did not begin: invisible to other connections, discarded when the connection
+ * closes (except on Oracle, which commits them then, and on Derby and DB2, which refuse to
+ * close it), and - when the connection is kept across test methods - held as locks a
  * database's idle-in-transaction timeout may terminate mid-run.
  *
  * <p>Used as the {@code onAcquired} hook of a {@link TestScopedConnection} so the check runs
@@ -116,9 +118,12 @@ public class AutoCommitOffWarning implements Consumer<IDatabaseConnection>
         log.warn("The connection this test's dbUnit setup/teardown operations run on has"
                 + " autocommit disabled. Those operations (CLEAN_INSERT, DELETE_ALL, ...) do"
                 + " not manage a transaction, and TransactionOperation refuses a non-autocommit"
-                + " connection, so the prep and teardown writes are never committed - invisible"
-                + " to other connections, and (for a connection shared across test methods)"
-                + " held as locks the database's idle-in-transaction timeout may terminate"
-                + " mid-run. Use a connection with autocommit enabled.");
+                + " connection, so dbUnit does not commit the prep and teardown writes and ends"
+                + " no transaction it did not begin: they are invisible to other connections,"
+                + " discarded when the connection closes (except on Oracle, which commits them"
+                + " then, and on Derby and DB2, which refuse to close it), and (for a connection"
+                + " shared across test methods) held as locks the database's"
+                + " idle-in-transaction timeout may terminate mid-run. Use a connection with"
+                + " autocommit enabled.");
     }
 }

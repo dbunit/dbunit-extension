@@ -47,6 +47,20 @@ public final class TestScopedConnection
 {
     private static final Logger log = LoggerFactory.getLogger(TestScopedConnection.class);
 
+    private static final String INVALID_TRANSACTION_STATE_CLASS = "25";
+
+    /**
+     * The vendor error code of the IBM DB2 JDBC driver (jcc) for a close requested while a
+     * transaction is in progress, which carries no SQLState.
+     */
+    private static final int DB2_CLOSE_WITH_TRANSACTION_IN_PROGRESS = -4471;
+
+    private static final String CLOSE_REFUSED_MESSAGE = "The database driver refused to close the"
+            + " test's connection because a transaction is still open on it: its autocommit is off,"
+            + " and dbUnit does not end a transaction it did not begin. Give the tester a"
+            + " connection with autocommit on, or have whoever turned autocommit off end the"
+            + " transaction before the test finishes.";
+
     private final Callable<IDatabaseConnection> source;
     private final ConnectionOwnership ownership;
     private final Consumer<IDatabaseConnection> onAcquired;
@@ -176,8 +190,12 @@ public final class TestScopedConnection
      * connection whose {@code isClosed()} throws has failed in a way worth surfacing (as a
      * suppressed exception, via {@link #releaseSuppressing(Throwable)}).
      *
-     * <p>An uncommitted transaction is rolled back first when the connection's autocommit is
-     * off - see {@link #rollBackOpenTransaction(Connection)}.
+     * <p>It ends no transaction: whoever turned the connection's autocommit off, a transaction
+     * manager, a pool or the test, ends it, because JDBC gives no way to tell whether the open
+     * transaction holds only this lifecycle's writes. What closing a connection with an open
+     * transaction does is the driver's: most databases discard it, Oracle commits it, and Derby
+     * and DB2 refuse the close. A refusal over an open transaction fails with a message that
+     * says why, with the driver's exception as its cause.
      *
      * @throws Exception If closing the connection, or checking whether it is already closed,
      *             fails.
@@ -190,13 +208,9 @@ public final class TestScopedConnection
         }
         try
         {
-            if (jdbcConnection == null)
+            if (jdbcConnection == null || !jdbcConnection.isClosed())
             {
-                connection.close();
-            } else if (!jdbcConnection.isClosed())
-            {
-                rollBackOpenTransaction(jdbcConnection);
-                connection.close();
+                close();
             }
         } finally
         {
@@ -223,35 +237,35 @@ public final class TestScopedConnection
     }
 
     /**
-     * Rolls back an uncommitted transaction on {@code jdbcConnection}, best-effort, before
-     * {@link #release()} closes it, when its autocommit is off. The dbUnit setup/teardown
-     * operations that run on a borrowed connection manage no transaction of their own, so on an
-     * autocommit-off connection their writes sit here uncommitted - already warned about (see
-     * {@link AutoCommitOffWarning}) and not meant to persist. JDBC leaves the outcome of closing
-     * a connection with a transaction still open to the driver: Derby and DB2 refuse to close it
-     * - Derby raises SQLState 25001 - turning an ordinary end-of-test close into a failure, and
-     * Oracle commits it on close, which is what the 3.5.x extension's close did there. Doing it
-     * explicitly makes the close portable and the discard of those never-committed writes
-     * intentional on every database, so on Oracle they are now discarded where 3.5.x committed
-     * them. A rollback, not a commit: this lifecycle's operations were never meant to persist
-     * here, and a rollback cannot disturb work a caller committed before handing the connection
-     * over. A connection with autocommit on has no transaction to end and is left untouched.
-     *
-     * @param jdbcConnection The JDBC connection {@link #release()} is about to close.
+     * Closes the connection. A driver that refuses to close a connection with an open transaction
+     * raises an exception of SQLState class 25, "invalid transaction state", as Derby does with
+     * 25001, or, for DB2, one with error code -4471 and no SQLState. That exception is rethrown
+     * with a message that says what to do, as the bare driver message does not name the cause:
+     * dbUnit did not begin that transaction, so it does not end it.
      */
-    private static void rollBackOpenTransaction(final Connection jdbcConnection)
+    private void close() throws SQLException
     {
         try
         {
-            if (!jdbcConnection.getAutoCommit())
-            {
-                jdbcConnection.rollback();
-            }
+            connection.close();
         } catch (final SQLException e)
         {
-            log.debug("rollBackOpenTransaction: could not roll back before closing the"
-                    + " connection", e);
+            if (!isRefusalOverOpenTransaction(e))
+            {
+                throw e;
+            }
+            throw new SQLException(CLOSE_REFUSED_MESSAGE + " Driver message: " + e.getMessage(),
+                    e.getSQLState(), e.getErrorCode(), e);
         }
+    }
+
+    private static boolean isRefusalOverOpenTransaction(final SQLException e)
+    {
+        final String sqlState = e.getSQLState();
+        final boolean isInvalidTransactionState =
+                sqlState != null && sqlState.startsWith(INVALID_TRANSACTION_STATE_CLASS);
+        final boolean isDb2Refusal = e.getErrorCode() == DB2_CLOSE_WITH_TRANSACTION_IN_PROGRESS;
+        return isInvalidTransactionState || isDb2Refusal;
     }
 
     /**

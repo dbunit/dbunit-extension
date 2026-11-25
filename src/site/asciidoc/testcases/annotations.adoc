@@ -843,11 +843,11 @@ closes the connection left open, so each test leaves one open, except that an in
 case reused across tests keeps one. A step that fails also makes the
 test case forget its connection so that the next step acquires another, and the forgotten one
 stays open with nothing referencing it. dbUnit logs a warning when it sees a connection left
-open with a `JdbcDatabaseTester` that has no `CachingConnectionProvider`. A connection dbUnit
-closes while its autocommit is off has its open transaction rolled back first: Derby and DB2
-refuse to close one, and Oracle commits it on close, as the 3.5.x extension's close did,
-so on Oracle the prep and teardown writes of such a connection are now discarded, not
-committed - see link:../connections.html[Connections].
+open with a `JdbcDatabaseTester` that has no `CachingConnectionProvider`. dbUnit ends no
+transaction it did not begin, so it closes a connection whose autocommit is off with its
+transaction still open, as 3.5.x did: most databases discard the transaction, Oracle commits it
+on close, and Derby and DB2 refuse the close, which fails the test with a message that says why
+- see link:../connections.html[Connections].
 
 [#injected-testcase-config]
 === @DbUnitConfig and an injected @DbUnitTestCase

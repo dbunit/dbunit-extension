@@ -24,7 +24,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -346,8 +345,7 @@ class RowCountCheckTest
     }
 
     @Test
-    void testCapture_connectionAutoCommitOff_rollsBackSoTheReadOnlySnapshotLeavesNoOpenTransaction()
-            throws Exception
+    void testCapture_connectionAutoCommitOff_leavesTheOwnersTransactionAlone() throws Exception
     {
         final RowCounter rowCounter = mock(RowCounter.class);
         when(rowCounter.countRows(any(), any())).thenReturn(mapOf("ACCOUNT", 1));
@@ -360,36 +358,14 @@ class RowCountCheckTest
 
         check.capture(connection);
 
-        verify(jdbcConnection)
+        verify(jdbcConnection, never())
                 .rollback();
+        verify(jdbcConnection, never())
+                .commit();
     }
 
     @Test
-    void testCapture_theRollbackItselfFails_swallowsItAndStillReturnsTheSnapshot()
-            throws Exception
-    {
-        final RowCounter rowCounter = mock(RowCounter.class);
-        when(rowCounter.countRows(any(), any())).thenReturn(mapOf("ACCOUNT", 1));
-        final RowCountCheck check = new RowCountCheck(
-                new RowCountCheckConfiguration(enabledDatabaseConfig(rowCounter)));
-        final Connection jdbcConnection = mock(Connection.class);
-        when(jdbcConnection.getAutoCommit()).thenReturn(false);
-        doThrow(new SQLException("connection already dropped")).when(jdbcConnection).rollback();
-        final IDatabaseConnection connection =
-                connectionWithTablesAndJdbcConnection(jdbcConnection, "ACCOUNT");
-
-        final RowCountSnapshot snapshot = check.capture(connection);
-
-        assertThat(snapshot.getRowCounts())
-                .as("A rollback that itself fails - e.g. the database already dropped the"
-                        + " connection - must not mask the read-only snapshot that already"
-                        + " completed.")
-                .containsEntry("ACCOUNT", 1);
-    }
-
-    @Test
-    void testVerify_connectionAutoCommitOff_rollsBackAfterReadingTheCurrentCounts()
-            throws Exception
+    void testVerify_connectionAutoCommitOff_leavesTheOwnersTransactionAlone() throws Exception
     {
         final RowCounter rowCounter = mock(RowCounter.class);
         when(rowCounter.countRows(any(), any())).thenReturn(mapOf("ACCOUNT", 1));
@@ -402,8 +378,10 @@ class RowCountCheckTest
 
         check.verify(new RowCountSnapshot(mapOf("ACCOUNT", 1)), connection);
 
-        verify(jdbcConnection)
+        verify(jdbcConnection, never())
                 .rollback();
+        verify(jdbcConnection, never())
+                .commit();
     }
 
     @Test

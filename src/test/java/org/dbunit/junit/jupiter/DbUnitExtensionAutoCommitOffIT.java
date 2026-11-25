@@ -45,7 +45,9 @@ import org.dbunit.database.rowcount.ClearRowCountCheckSystemProperties;
 import org.dbunit.operation.DbUnitOperation;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.platform.engine.TestExecutionResult;
 import org.junit.platform.testkit.engine.EngineTestKit;
+import org.junit.platform.testkit.engine.Events;
 import org.slf4j.LoggerFactory;
 
 import ch.qos.logback.classic.Level;
@@ -56,14 +58,15 @@ import ch.qos.logback.core.read.ListAppender;
 /**
  * Real-database integration test of an annotated test that is handed a connection with
  * autocommit disabled (issue #965). {@code DefaultPrepAndExpectedTestCase}'s
- * setup/teardown operations do not manage a transaction, so their writes are never committed;
- * the row count check's own read transactions are still rolled back so the run completes and
- * the connection is not left idle-in-transaction (issue #964). This proves both, end to end
- * through {@link DbUnitExtension}: the warning fires, the check-driven run finishes clean, and
- * nothing the test wrote survives to a separate connection.
+ * setup/teardown operations do not manage a transaction, so dbUnit does not commit their writes
+ * and, as it did not begin that transaction, does not end it either: the connection's owner does.
+ * This proves it, end to end through {@link DbUnitExtension}: the warning fires, the
+ * check-driven run finishes clean, and nothing the test wrote survives the owner's rollback. When
+ * the test case closes the connection, the database decides what happens to the open
+ * transaction: Derby and DB2 refuse the close, and dbUnit fails the test with the reason.
  *
  * <p>{@code DefaultPrepAndExpectedTestCaseTest} covers the warning itself with a mocked
- * connection; only a real database shows the "writes never persist" consequence.
+ * connection; only a real database shows the consequences for the transaction.
  *
  * <p>Matrix modifier: autocommit-off across the prep/expected rows (G-c4).
  */
@@ -106,12 +109,13 @@ class DbUnitExtensionAutoCommitOffIT
                             + " warned about (#965).")
                     .hasSize(1);
 
+            nonAutocommit.rollback();
             final IDatabaseConnection verifyConnection = environment.getConnection();
             assertThat(rowCount(verifyConnection, TEST_TABLE))
                     .as("With autocommit disabled the setup/teardown operations never commit"
-                            + " (#965), so a separate connection must see TEST_TABLE unchanged"
-                            + " from before the run - the @DbUnitPrep seed and the test's own"
-                            + " UPDATE both invisible outside the never-committed transaction.")
+                            + " (#965), so once the connection's owner ends the transaction a"
+                            + " separate connection must see TEST_TABLE unchanged from before the"
+                            + " run - the @DbUnitPrep seed and the test's own UPDATE both gone.")
                     .isZero();
         } finally
         {
@@ -144,9 +148,26 @@ class DbUnitExtensionAutoCommitOffIT
         warningLogger.addAppender(appender);
         try
         {
-            EngineTestKit.engine("junit-jupiter")
+            final boolean closeIsRefused = closeWithOpenTransactionIsRefused(profile);
+            final Events testEvents = EngineTestKit.engine("junit-jupiter")
                     .selectors(selectClass(AutoCommitOffNoExpectedSample.class)).execute()
-                    .testEvents().assertStatistics(stats -> stats.started(1).succeeded(1));
+                    .testEvents();
+            if (closeIsRefused)
+            {
+                testEvents.assertStatistics(stats -> stats.started(1).failed(1));
+                final Throwable failure = testEvents.failed().stream().findFirst()
+                        .flatMap(event -> event.getRequiredPayload(TestExecutionResult.class)
+                                .getThrowable())
+                        .orElseThrow(() -> new AssertionError("The failed test has no exception."));
+                assertThat(failure)
+                        .as("A database that refuses to close a connection with an open"
+                                + " transaction fails the test with the reason, as dbUnit does"
+                                + " not end a transaction it did not begin.")
+                        .hasMessageContaining("does not end a transaction it did not begin");
+            } else
+            {
+                testEvents.assertStatistics(stats -> stats.started(1).succeeded(1));
+            }
 
             assertThat(appender.list)
                     .filteredOn(event -> event.getLevel() == Level.WARN
@@ -157,14 +178,20 @@ class DbUnitExtensionAutoCommitOffIT
                             + " warns about.")
                     .hasSize(1);
 
+            if (closeIsRefused)
+            {
+                return;
+            }
+
             // The test case the runtime builds closes the tester's connection when the test
             // ends (its closeConnectionAfterTest is true and the tester keeps its default
-            // listener), rolling the never-committed @DbUnitPrep back first, so a separate
-            // connection sees no rows.
+            // listener), and the database discards the open transaction on close - Oracle
+            // commits it, but the teardown DELETE_ALL ran in it too - so a separate connection
+            // sees no rows.
             final IDatabaseConnection verifyConnection = environment.getConnection();
             assertThat(rowCount(verifyConnection, TEST_TABLE))
-                    .as("The @DbUnitPrep CLEAN_INSERT ran on the never-committed transaction, so"
-                            + " a separate connection sees no rows.")
+                    .as("The @DbUnitPrep CLEAN_INSERT and the teardown ran on the open"
+                            + " transaction, so a separate connection sees no rows.")
                     .isZero();
         } finally
         {
@@ -174,6 +201,12 @@ class DbUnitExtensionAutoCommitOffIT
             deleteAllRowsQuietly(environment);
             environment.closeConnection();
         }
+    }
+
+    private static boolean closeWithOpenTransactionIsRefused(final DatabaseProfile profile)
+    {
+        final String activeProfile = profile.getActiveProfile();
+        return activeProfile.startsWith("derby") || activeProfile.startsWith("db2");
     }
 
     private static int rowCount(final IDatabaseConnection connection, final String tableName)

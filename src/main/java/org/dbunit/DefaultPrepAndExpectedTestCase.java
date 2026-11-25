@@ -133,8 +133,10 @@ import org.slf4j.LoggerFactory;
  * operations run here (CLEAN_INSERT, DELETE_ALL, ...) do not manage a
  * transaction of their own, and {@link org.dbunit.operation.TransactionOperation}
  * refuses a connection whose autocommit is already off, so on a
- * non-autocommit connection the prep and teardown writes are never
- * committed: invisible to any other connection, and - with
+ * non-autocommit connection dbUnit does not commit the prep and teardown
+ * writes, and it ends no transaction it did not begin: they are invisible
+ * to any other connection until the connection's owner ends the transaction,
+ * and - with
  * {@link #setCloseConnectionAfterTest(boolean)} false - held as locks on a
  * connection the database's idle-in-transaction timeout may terminate
  * mid-run. This class logs a warning when it detects such a connection.

@@ -26,7 +26,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -47,7 +46,6 @@ import javax.sql.DataSource;
 import org.dbunit.database.DatabaseDataSourceConnection;
 import org.dbunit.database.IDatabaseConnection;
 import org.junit.jupiter.api.Test;
-import org.mockito.InOrder;
 
 class TestScopedConnectionTest
 {
@@ -305,11 +303,9 @@ class TestScopedConnectionTest
     }
 
     @Test
-    void testRelease_connectionAutoCommitOff_rollsBackBeforeClosing() throws Exception
+    void testRelease_connectionAutoCommitOff_closesWithoutEndingTheTransaction() throws Exception
     {
-        // Oracle commits an open transaction on close and Derby and DB2 refuse to
-        // close one, so the order is deliberate: the lifecycle's own writes are discarded, never
-        // persisted by the close.
+        // a transaction manager, a pool or the test owns that transaction; dbUnit did not begin it
         final IDatabaseConnection connection = mock(IDatabaseConnection.class);
         final Connection jdbc = mock(Connection.class);
         when(connection.getConnection()).thenReturn(jdbc);
@@ -321,9 +317,9 @@ class TestScopedConnectionTest
 
         holder.release();
 
-        final InOrder inOrder = inOrder(jdbc, connection);
-        inOrder.verify(jdbc).rollback();
-        inOrder.verify(connection).close();
+        verify(connection).close();
+        verify(jdbc, never()).rollback();
+        verify(jdbc, never()).commit();
     }
 
     @Test
@@ -342,24 +338,75 @@ class TestScopedConnectionTest
     }
 
     @Test
-    void testRelease_autoCommitOffAndRollbackFails_stillClosesTheConnection() throws Exception
+    void testRelease_driverRefusesCloseOverOpenTransaction_failsWithAnExplanationAndTheCause()
+            throws Exception
     {
         final IDatabaseConnection connection = mock(IDatabaseConnection.class);
         final Connection jdbc = mock(Connection.class);
         when(connection.getConnection()).thenReturn(jdbc);
         when(jdbc.isClosed()).thenReturn(false);
         when(jdbc.getAutoCommit()).thenReturn(false);
-        doThrow(new SQLException("rollback failed")).when(jdbc).rollback();
+        final SQLException refusal = new SQLException(
+                "Cannot close a connection while a transaction is still active.", "25001");
+        doThrow(refusal).when(connection).close();
         final TestScopedConnection holder =
                 new TestScopedConnection(() -> connection, alwaysMayClose, null);
         holder.getConnection();
 
-        holder.release();
-
-        verify(connection).close();
+        assertThatThrownBy(holder::release)
+                .as("A refused close over an open transaction fails and says why.")
+                .isInstanceOf(SQLException.class)
+                .hasMessageContaining("does not end a transaction it did not begin")
+                .hasMessageContaining("Cannot close a connection while a transaction is still"
+                        + " active.")
+                .hasCause(refusal)
+                .extracting(e -> ((SQLException) e).getSQLState())
+                .isEqualTo("25001");
         assertThat(holder.isResolved())
-                .as("A best-effort rollback failure does not stop the close or the forget.")
+                .as("The refused connection is forgotten as any released one is.")
                 .isFalse();
+    }
+
+    @Test
+    void testRelease_db2RefusesCloseOverOpenTransactionWithNoSqlState_failsWithAnExplanation()
+            throws Exception
+    {
+        final IDatabaseConnection connection = mock(IDatabaseConnection.class);
+        final Connection jdbc = mock(Connection.class);
+        when(connection.getConnection()).thenReturn(jdbc);
+        when(jdbc.isClosed()).thenReturn(false);
+        final SQLException refusal = new SQLException(
+                "java.sql.Connection.close() requested while a transaction is in progress"
+                        + " on the connection.", (String) null, -4471);
+        doThrow(refusal).when(connection).close();
+        final TestScopedConnection holder =
+                new TestScopedConnection(() -> connection, alwaysMayClose, null);
+        holder.getConnection();
+
+        assertThatThrownBy(holder::release)
+                .as("DB2's refusal has no SQLState and is explained by its error code.")
+                .isInstanceOf(SQLException.class)
+                .hasMessageContaining("does not end a transaction it did not begin")
+                .hasCause(refusal);
+    }
+
+    @Test
+    void testRelease_closeFailsOutsideTheInvalidTransactionStateClass_surfacesUnchanged()
+            throws Exception
+    {
+        final IDatabaseConnection connection = mock(IDatabaseConnection.class);
+        final Connection jdbc = mock(Connection.class);
+        when(connection.getConnection()).thenReturn(jdbc);
+        when(jdbc.isClosed()).thenReturn(false);
+        final SQLException failure = new SQLException("socket reset", "08006");
+        doThrow(failure).when(connection).close();
+        final TestScopedConnection holder =
+                new TestScopedConnection(() -> connection, alwaysMayClose, null);
+        holder.getConnection();
+
+        assertThatThrownBy(holder::release)
+                .as("Any other close failure is not reworded.")
+                .isSameAs(failure);
     }
 
     @Test

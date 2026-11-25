@@ -1654,7 +1654,7 @@ class AnnotatedTestExecutorTest
     void testBeforeTest_annotationDrivenConnectionAutoCommitOff_warnsOnce() throws Exception
     {
         // Issue #965: the test case runs the prep and teardown operations with no transaction,
-        // so on an autocommit-off connection their writes are never committed. It warns about
+        // so on an autocommit-off connection dbUnit does not commit their writes. It warns about
         // that with or without @DbUnitExpected.
         stubDisabledConnection();
         when(jdbcConnection.getAutoCommit()).thenReturn(false);
