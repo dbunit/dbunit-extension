@@ -26,10 +26,15 @@ delegate.
 
 Two things vary on two different schedules:
 
-Wiring (fixed for the instance's life):: the `{name -> PrepAndExpectedTestCase}` (or
-`{name -> IDatabaseTester}`) map, assembled with the constructors,
-`from(String, PrepAndExpectedTestCase)`, the `forTesters(...)` factories, and `add`/`addAll` -
-each returning the instance so calls chain - then frozen on the first `preTest`/`runTest` call.
+Wiring (fixed when the instance is created):: the `{name -> PrepAndExpectedTestCase}` map,
+assembled with `builder()` - `add`, `addAll`, `dataFileLoader` and `closeConnectionAfterTest`, in
+any order, then `build()` - or with the `Map` constructor. `addAll` and the `Map` constructor take
+test cases. A tester is wired with `add(name, tester)`, which wraps it in a
+`DefaultPrepAndExpectedTestCase` that uses the builder's loader, a `FileExtensionDataFileLoader`
+unless one is set, and its `closeConnectionAfterTest`, `true` unless set otherwise. A delegate
+holds the data of one run, so wire one delegate per data source: a run that involves two names of
+one delegate throws an `IllegalArgumentException` naming both. Two names for one delegate are
+accepted when no run involves both.
 
 Data (varies per test method, per `@ParameterizedTest` row):: the
 `{name -> PrepAndExpectedTestData}` map passed to `preTest(map)`/`runTest(map, steps)`. A wired
@@ -75,10 +80,11 @@ private MultiDataSourcePrepAndExpectedTestCase testCase;
 @BeforeEach
 void setUp()
 {
-    final Map<String, IDatabaseTester> testers = new LinkedHashMap<>();
-    testers.put("orders", makeTester(ordersDataSource));
-    testers.put("inventory", makeTester(inventoryDataSource));
-    testCase = MultiDataSourcePrepAndExpectedTestCase.forTesters(loader, testers);
+    testCase = MultiDataSourcePrepAndExpectedTestCase.builder()
+            .dataFileLoader(loader)
+            .add("orders", makeTester(ordersDataSource))
+            .add("inventory", makeTester(inventoryDataSource))
+            .build();
 }
 
 @Test
@@ -106,25 +112,34 @@ cleanup) on a failed run, and suppressed-exception handling are all the wrapper'
 
 |`preTest(map)`
 |declared
-|An unknown key, or a key mapped to `null`, throws before any delegate is touched. For each
+|An unknown key, a key mapped to `null`, or two involved names wired to the same delegate throws
+ before any delegate is touched. For each
  *involved* data source (present in the map and not mapped to `NONE`), in declared order:
  `delegate.preTest(...)`. If one throws, every involved delegate set up so far - including the one
- that just failed - is rolled back via `postTest(false)` in reverse - never a bare `cleanupData()`
- - with each rollback failure attached as suppressed on the original failure, which is then
- rethrown as-is.
+ that just failed - is rolled back via `postTest(false)` in reverse - never a bare `cleanupData()`.
+ The original failure first gets a suppressed label with the name of the data source whose
+ `preTest` failed and the `preTest` phase, so a failure that names nothing specific to one
+ database, such as a key violation, still says which data source it came from. Each rollback
+ failure is then attached as suppressed on it, labelled with its data source name and the
+ `cleanupData` phase, and the original failure is rethrown as-is: the same instance, of its own
+ type.
 
 |test steps
 |once
 |Run by `runTest`, or by the caller between `preTest(map)` and `postTest(boolean)`. A delegate's
  own overridden `runTestSteps()` is not invoked - the steps span every data source, so no single
- delegate's step wrapper is the right scope.
+ delegate's step wrapper is the right scope. When the steps that `runTest` runs throw, it tears
+ every involved delegate down via `postTest(false)` in reverse and rethrows the step failure
+ as-is, with each teardown failure attached as suppressed and labelled as a rollback failure is.
 
 |`postTest(verify)`
 |reverse
 |`delegate.postTest(verify)` for each involved delegate, in reverse declared order, even after an
- earlier one in that order fails - so every data source is verified and cleaned up, and every
- mismatch reported, instead of stopping at the first. Every collected failure is aggregated into
- one link:../apidocs/org/dbunit/MultiDataSourceAssertionError.html[MultiDataSourceAssertionError].
+ earlier one in that order fails - so every data source is verified and cleaned up, and each data
+ source that fails is reported, instead of stopping at the first one. With the default failure
+ handler, the verification of a data source stops at its first mismatch, so that mismatch is what
+ the data source reports. Every collected failure is aggregated into one
+ link:../apidocs/org/dbunit/MultiDataSourceAssertionError.html[MultiDataSourceAssertionError].
  The run is over once this is called, and once `runTest` has torn it down after failing test
  steps, so a further call, such as one in a caller's `finally` block, tears nothing down again.
 |===
@@ -135,7 +150,56 @@ failure becomes its cause, so a single failing data source still surfaces its re
 link:../apidocs/org/dbunit/assertion/DbComparisonFailure.html[DbComparisonFailure] one
 `Caused by:` hop down, and the rest are attached as suppressed, each labelled with its data source
 name and phase, e.g. `"2 data sources failed in postTest: orders (verifyData), inventory
-(cleanupData)"`.
+(postTest)"`. The phase is `verifyData` for an `AssertionError`, such as a `DbComparisonFailure`,
+and `postTest` for any other failure, such as a row count difference or a failed cleanup. A
+`postTest(false)` call verifies nothing, so every failure it reports has the phase `cleanupData`.
+The failure that a failed `preTest(map)` rethrows is not an aggregate: it is the delegate's own
+failure, and its suppressed labels read `orders failed in preTest.`, with no cause, for the data
+source whose setup failed, and `catalog failed in cleanupData.`, with the rollback failure as the
+cause, for a data source whose rollback failed.
+
+[#shared-tables]
+=== Data Sources That Share Tables
+
+Each delegate's link:../components/rowcountcheck.html[row count check] counts every table its own
+connection lists, so data source names that reach the same tables, such as two data sources that a
+test environment points at one database, each count the others' tables. The teardown runs in
+reverse declared order, so a data source is checked before the data sources declared ahead of it
+have torn down. A test whose steps change a table of an earlier-declared data source therefore
+fails the check of a later-declared one with a row count difference, though the earlier data
+source's teardown then removes the change and nothing is left behind. When the steps write to
+both data sources, one of them fails whichever way they are declared. A row that a later-declared
+data source leaves behind is reported under the earlier-declared one as well.
+
+Any of these keeps the check right:
+
+* Give each data source a database or a schema of its own. A connection that names its schema
+  counts only that schema.
+* Turn the check off for every data source but the first-declared one, which is checked last,
+  after every teardown, and still counts every table. A row that a later data source leaves behind
+  is then reported under the first one's name. `-Ddbunit.rowCountCheck=true` keeps the check off
+  for a data source that is set to `false` this way:
++
+[source,java]
+----
+((DefaultPrepAndExpectedTestCase) testCase.getTestCase("audit"))
+        .setRowCountCheckOverride(new RowCountCheckOverride(false, null));
+----
+* Exclude the tables of the others from each data source's check, with the
+  `rowCountCheckExcludeTables` property of that data source's test case. Each table is then still
+  counted, by the check of the data source whose datasets list it:
++
+[source,java]
+----
+final Properties properties = new Properties();
+properties.setProperty("rowCountCheckExcludeTables", "ORDERS");
+((DefaultPrepAndExpectedTestCase) testCase.getTestCase("audit"))
+        .setDatabaseConfigProperties(properties);
+----
++
+Prefer the property to `setRowCountCheckOverride()` for this: a `RowCountCheckOverride` also sets
+the enabled flag, so `new RowCountCheckOverride(true, ...)` turns the check on for that data source
+even when nothing else does.
 
 === A `@ParameterizedTest` suite
 
@@ -195,9 +259,10 @@ public class PrimarySecondaryDbTester
             @Qualifier("primaryTestCase") PrepAndExpectedTestCase primaryTestCase,
             @Qualifier("secondaryTestCase") PrepAndExpectedTestCase secondaryTestCase)
     {
-        testCase = MultiDataSourcePrepAndExpectedTestCase
-                .from("primary", primaryTestCase)
-                .add("secondary", secondaryTestCase);
+        testCase = MultiDataSourcePrepAndExpectedTestCase.builder()
+                .add("primary", primaryTestCase)
+                .add("secondary", secondaryTestCase)
+                .build();
     }
 
     public Object runTest(PrepAndExpectedTestData primary, PrepAndExpectedTestData secondary,
@@ -219,7 +284,7 @@ intentionally preps/verifies *nothing* for one side but still wants that delegat
 opened must build its own all-empty `PrepAndExpectedTestData` rather than pass `NONE` - the skip
 check is `==` against that exact instance, not content equality; and teardown order flips from
 whatever the harness used to reverse declared order, harmless when, as is typical, the data
-sources are independent.
+sources are independent; <<shared-tables,data sources that share tables>> need the care described there.
 
 This wrapper's API is deliberately the *programmatic* equivalent only. A named-tester /
 named-connection annotation model for the `@DbUnitPrep`/`@DbUnitExpected` annotation style

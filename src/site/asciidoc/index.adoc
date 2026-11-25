@@ -14,10 +14,11 @@ Flat XML dataset files can also be edited by hand, spreadsheet-style, with the c
 == Features
 
 * *Dataset formats* — link:datasets.html[Flat XML, XML, CSV, JSON, YAML, and Excel], plus building datasets in code or reading them straight from a live query. Matching link:datasets/fileloader.html[`DataFileLoader`] implementations — including one that dispatches by file extension — load prep/expected fixture files for you.
-* *Database operations* — `INSERT`, `UPDATE`, `DELETE`, `DELETE_ALL`, `TRUNCATE_TABLE`, `REFRESH` (upsert), and `CLEAN_INSERT` (truncate + insert), composable and transaction-wrappable.
+* *Database operations* — `INSERT`, `UPDATE`, `DELETE`, `DELETE_ALL`, `TRUNCATE_TABLE`, `REFRESH` (upsert), and `CLEAN_INSERT` (delete all + insert), composable and transaction-wrappable.
 * *Flexible assertions* — link:datacomparisons.html[`ValueComparer`] implementations go beyond strict equality: tolerance (numeric and timestamp), greater-than/less-than, null checks, string containment, and ignore-millis timestamp comparisons.
 * *Broad database support* — vendor-specific type and metadata handling for 10 databases: DB2, H2, HSQLDB, MariaDB, Mckoi, MSSQL, MySQL, Netezza, Oracle, and PostgreSQL; see link:databases.html[Database-Specific Guides].
-* *Annotation-driven configuration* — on JUnit 5/6 (Jupiter), link:testcases/annotations.html[`org.dbunit.annotation`] declares a test's dataset, operation, and verification directly on the class or method — `@DbUnitPrep`, `@DbUnitExpected`, `@DbUnitSetup`, `@DbUnitTearDown`, `@DbUnitConfig` — instead of hand-written `@BeforeEach`/`@AfterEach` lifecycle code, injects the dbUnit `IDatabaseConnection` or JDBC `Connection` straight into a test method, and adds an opt-in `@DbUnitRowCountCheck` for teardown completeness.
+* *Annotation-driven configuration* — on JUnit 5/6 (Jupiter), link:testcases/annotations.html[`org.dbunit.annotation`] declares a test's dataset, operation, and verification directly on the class or method — `@DbUnitPrep`, `@DbUnitExpected`, `@DbUnitSetUpOperation`, `@DbUnitTearDownOperation`, `@DbUnitConfig` — instead of hand-written `@BeforeEach`/`@AfterEach` lifecycle code, injects the dbUnit `IDatabaseTester` or `IDatabaseConnection` straight into a test method (`getConnection()` of the latter gives the JDBC `Connection`), and adds an opt-in `@DbUnitRowCountCheck` for teardown completeness.
+* *Spring TestContext integration* — link:testcases/DbUnitTestExecutionListener.html[`DbUnitTestExecutionListener`] is a Spring `TestExecutionListener` that applies the same dataset, operation, and verification annotations to tests run through Spring's TestContext Framework with `SpringExtension`. One `@DbUnitSpringTest` registers it, and it can take the `IDatabaseTester` from a `@DbUnitTester` field or from a bean in the test's `ApplicationContext`. Its link:testcases/DbUnitTestExecutionListener.html#requirements[requirements] name the Spring Framework version it needs.
 * *Maven plugin* — Usable outside of tests too, via its https://dbunit.github.io/dbunit-extension/anttask.html[Ant Integration] task or the companion dbunit-maven-plugin, for data import/export.
 * *Eclipse plugin* — Edit dbUnit datasets like a spreadsheet: https://dbunit.github.io/dbunit-eclipse-plugin.
 
@@ -54,6 +55,7 @@ We will gladly help you as needed with your ideas and contributions and look to 
 |Please try the 3.6.0-SNAPSHOT snapshot build and let us know how it works!
 It adds
 link:testcases/annotations.html[*annotation-driven test configuration*] for JUnit 5/6 (Jupiter),
+link:testcases/DbUnitTestExecutionListener.html[`DbUnitTestExecutionListener`] for running that configuration in *Spring TestContext Framework* tests,
 an opt-in link:components/rowcountcheck.html[*row count check*] that catches teardown table cleanup mistakes,
 link:datasets/fileloader.html[*JSON/YAML* data file loader] implementations,
 link:datacomparisons/valuecomparer.html[`RegularExpressionValueComparer`] for *matching a column against a pattern* rather than a literal,
@@ -62,9 +64,40 @@ and
 link:testcases/MultiDataSourcePrepAndExpectedTestCase.html[`MultiDataSourcePrepAndExpectedTestCase`] for prepping and verifying *multiple databases* around one test.
 See link:https://dbunit.github.io/dbunit-extension/repos.html#snapshots[SNAPSHOTS] for how to use them.
 Refer to the link:changes.html#a3.6.0-SNAPSHOT[changes report],
-the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.6.0%20type%3AFeature[feature list], and
-the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.6.0%20type%3ABug[bug list]
-for the snapshot contents (and subsequent updates).
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.6.0%20type%3AFeature[feature list],
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.6.0%20type%3ABug[bug list], and
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.6.0%20type%3ATask[task list]
+
+|2026-11-17
+|Release 3.5.3 available.
+It has DefaultPrepAndExpectedTestCase verification fixes
+and reduces some logger performance problems with having instance loggers in highly-instantiated code.
+Refer to the link:changes.html#a3.5.3[changes report],
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.5.3%20type%3AFeature[feature list],
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.5.3%20type%3ABug[bug list], and
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.5.3%20type%3ATask[task list]
+for the release contents.
+
+|2026-10-06
+|The new link:https://dbunit.github.io/dbunit-eclipse-plugin/[dbUnit Eclipse Plugin] opens dbUnit dataset files as a *spreadsheet-like grid* inside the Eclipse IDE, one sheet per table and warnings for content dbUnit ignores or rejects.  Version 1.0.0 supports flat XML datasets.
+
+|2026-09-07
+|Release 3.5.2 available.
+It fixes `DefaultPrepAndExpectedTestCase` *reusing a closed connection* when one instance is shared across test methods with `closeConnectionAfterTest` disabled — a cached connection the pool or database dropped between tests is now discarded and re-acquired live — and adds a warning when the class is handed a non-autocommit connection, on which its prep and teardown writes would otherwise never be committed.
+Refer to the link:changes.html#a3.5.2[changes report],
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.5.2%20type%3AFeature[feature list],
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.5.2%20type%3ABug[bug list], and
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.5.2%20type%3ATask[task list]
+for the release contents.
+
+|2026-08-20
+|Release 3.5.1 available.
+It fixes a 3.5.0 regression where `FlatXmlDataSetBuilder.setMetaDataSet()` pulled *every table in the supplied metadata source* into the produced dataset, not just the ones in the flat XML body.
+Refer to the link:changes.html#a3.5.1[changes report],
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.5.1%20type%3AFeature[feature list],
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.5.1%20type%3ABug[bug list], and
+the link:https://github.com/dbunit/dbunit-extension/issues?q=is%3Aissue+milestone%3A3.5.1%20type%3ATask[task list]
+for the release contents.
 
 |2026-08-11
 |Release 3.5.0 available.
@@ -255,7 +288,7 @@ Here a detailed link:changes.html#a2.4.5[changes] report.
 
 |2009-02-24
 |We are proud to announce the 2.4.4 release has been cut.
-It adds `DatabaseConnection` methods for working with `PreparedStatement`s, and fixes overridden `setUpDatabaseConfig()` not being called and *a DB2 regression* from 2.4.0.
+It adds `DatabaseConnection` methods for working with `PreparedStatement` objects, and fixes overridden `setUpDatabaseConfig()` not being called and *a DB2 regression* from 2.4.0.
 Here a detailed link:changes.html#a2.4.4[changes] report.
 
 |2009-01-20
