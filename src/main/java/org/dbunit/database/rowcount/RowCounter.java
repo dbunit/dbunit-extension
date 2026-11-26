@@ -42,6 +42,11 @@ import org.dbunit.database.IDatabaseConnection;
  * <li>Counts must be <b>exact</b>. Estimates, such as vendor statistics views
  * that lag asynchronously, are not acceptable however cheap they are, since
  * they would produce false failures.
+ * <li>A failure to count a table must be an {@link java.sql.SQLException} whose message names
+ * the table, or the tables that one query counted, because {@link RowCountCheck} gives that
+ * message to the user, and a driver's own message, such as an Oracle
+ * <code>ORA-00942: table or view does not exist</code>, often does not name it. Keep the
+ * driver's exception as the cause.
  * </ul>
  * Table enumeration and exclusion filtering are handled by {@link RowCountCheck}
  * before this interface is ever consulted, so an implementation's whole job is
@@ -59,7 +64,9 @@ public interface RowCounter
      * @param tableNames The names of the tables to count; every name must appear
      *            as a key in the returned map, and no other keys may appear.
      * @return The row count of each requested table, keyed exactly as supplied.
-     * @throws SQLException If counting a table's rows fails.
+     * @throws SQLException If counting a table's rows fails. The message must name the table
+     *             that failed, or the tables that one query counted, as {@link RowCountCheck}
+     *             shows it to the user, and the cause is the failure that the database gave.
      */
     Map<String, Integer> countRows(IDatabaseConnection connection, List<String> tableNames)
             throws SQLException;

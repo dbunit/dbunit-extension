@@ -41,8 +41,8 @@ import org.slf4j.LoggerFactory;
 /**
  * Compares a database's table row counts before and after a test, to catch a table the test
  * left dirty - either one it should have cleaned up and did not, or a reference table it wrongly
- * cleaned. Writes no data of its own, but on an autocommit-off connection it ends its read
- * transaction with a rollback, which discards uncommitted work.
+ * cleaned. Writes no data of its own and ends no transaction: on an autocommit-off connection
+ * its reads join whatever transaction the connection's owner has open, and the owner ends it.
  * <p>
  * Every method is a no-op, and never queries the connection, when
  * {@link RowCountCheckConfiguration#isEnabled()} is {@code false} - the check costs nothing
@@ -63,6 +63,13 @@ import org.slf4j.LoggerFactory;
  * connection works in. The check then does not meet the system schemas of a database such as
  * H2, or the tables of other schemas or databases, which it cannot count by their unqualified
  * names. When the handler reports none, the connection is counted as it is.
+ * <p>
+ * It counts each table by its name as the connection lists it, unquoted unless the
+ * {@code escapePattern} property of the connection is set. A table whose name needs quoting, such
+ * as Flyway's {@code flyway_schema_history} on H2, cannot be counted that way, and the failure
+ * names the exclusion and the property as the ways out. The failure also carries the message of
+ * the counter's failure, which names the table when the {@link RowCounter} does: the default
+ * {@link QueryPerTableRowCounter} always does.
  *
  * @author dbunit
  * @since 3.6.0
@@ -70,6 +77,16 @@ import org.slf4j.LoggerFactory;
 public class RowCountCheck
 {
     private static final Logger log = LoggerFactory.getLogger(RowCountCheck.class);
+
+    private static final String COUNT_FAILED_MESSAGE =
+            "The row count check could not count the rows of a table it listed";
+
+    private static final String COUNT_FAILED_ADVICE = "If the name of a table needs quoting, such"
+            + " as Flyway's flyway_schema_history on H2, whose name the database stores in a case"
+            + " it does not fold unquoted names to, it cannot be counted by its unquoted name:"
+            + " exclude it from the check, or set the escapePattern property, which quotes every"
+            + " table and column name dbUnit writes into SQL, so every dataset must then name its"
+            + " tables as the database stores them.";
 
     private final RowCountCheckConfiguration configuration;
 
@@ -92,7 +109,9 @@ public class RowCountCheck
      * @param connection The connection to capture the baseline from.
      * @return The baseline snapshot, or {@code null} when the check is disabled.
      * @throws DatabaseUnitException If enumerating or filtering the tables fails.
-     * @throws SQLException If counting a table's rows fails.
+     * @throws SQLException If counting a table's rows fails. The message gives the counter's
+     *             message, which names the table when the counter does, and the ways out, and
+     *             the cause is the counter's failure.
      */
     public RowCountSnapshot capture(final IDatabaseConnection connection)
             throws DatabaseUnitException, SQLException
@@ -111,7 +130,9 @@ public class RowCountCheck
      * @throws DatabaseUnitException If enumerating or filtering the tables fails, or if any
      *             table's row count no longer matches the baseline
      *             ({@link UnexpectedRowCountException}).
-     * @throws SQLException If counting a table's rows fails.
+     * @throws SQLException If counting a table's rows fails. The message gives the counter's
+     *             message, which names the table when the counter does, and the ways out, and
+     *             the cause is the counter's failure.
      */
     public void verify(final RowCountSnapshot baseline, final IDatabaseConnection connection)
             throws DatabaseUnitException, SQLException
@@ -132,29 +153,55 @@ public class RowCountCheck
     private RowCountSnapshot snapshot(final IDatabaseConnection connection)
             throws DatabaseUnitException, SQLException
     {
+        final IDatabaseConnection countingConnection = connectionToCountThrough(connection);
+        final String[] allTableNames = tableNamesListedAfresh(countingConnection);
+        final ExcludeTableFilter excludeTableFilter = configuration.getExcludeTableFilter();
+
+        final List<String> tableNames = new ArrayList<>();
+        for (final String tableName : allTableNames)
+        {
+            if (excludeTableFilter.isValidName(tableName))
+            {
+                tableNames.add(tableName);
+            }
+        }
+
+        final Map<String, Integer> rowCounts = countRows(countingConnection, tableNames);
+        return new RowCountSnapshot(rowCounts);
+    }
+
+    /**
+     * Counts the rows of {@code tableNames} with the configured counter. A counter that fails
+     * gives the driver's error alone, which does not name the check, so the failure is rethrown
+     * with the message of the counter's failure, which names the table when the counter does, and
+     * the ways out of a table that cannot be counted, and the original as its cause.
+     */
+    private Map<String, Integer> countRows(final IDatabaseConnection countingConnection,
+            final List<String> tableNames) throws DatabaseUnitException, SQLException
+    {
         try
         {
-            final IDatabaseConnection countingConnection = connectionToCountThrough(connection);
-            final String[] allTableNames = tableNamesListedAfresh(countingConnection);
-            final ExcludeTableFilter excludeTableFilter = configuration.getExcludeTableFilter();
-
-            final List<String> tableNames = new ArrayList<>();
-            for (final String tableName : allTableNames)
-            {
-                if (excludeTableFilter.isValidName(tableName))
-                {
-                    tableNames.add(tableName);
-                }
-            }
-
-            final Map<String, Integer> rowCounts =
-                    configuration.getRowCounter().countRows(countingConnection, tableNames);
-            return new RowCountSnapshot(rowCounts);
-        }
-        finally
+            return configuration.getRowCounter().countRows(countingConnection, tableNames);
+        } catch (final SQLException e)
         {
-            endReadTransaction(connection);
+            throw new SQLException(countFailedMessage(e), e.getSQLState(), e.getErrorCode(), e);
         }
+    }
+
+    /**
+     * Returns the message for a counter's failure: what the check could not do, the counter's own
+     * message, which names the table when the counter does, and the ways out.
+     */
+    private static String countFailedMessage(final SQLException counterFailure)
+    {
+        final String reason = counterFailure.getMessage();
+        if (reason == null || reason.trim().isEmpty())
+        {
+            return COUNT_FAILED_MESSAGE + ". " + COUNT_FAILED_ADVICE;
+        }
+        final String reasonWithoutEndingPeriods = reason.trim().replaceAll("\\.+$", "");
+        return COUNT_FAILED_MESSAGE + ": " + reasonWithoutEndingPeriods + ". "
+                + COUNT_FAILED_ADVICE;
     }
 
     /**
@@ -264,41 +311,6 @@ public class RowCountCheck
             log.debug("currentSchemaReportedBy: the metadata handler does not report the current"
                     + " schema of the JDBC connection", e);
             return null;
-        }
-    }
-
-    /**
-     * Ends the transaction the read-only snapshot queries (the {@code SELECT COUNT(*)}s and the
-     * metadata reads behind {@link IDatabaseConnection#createDataSet()}) opened, when the
-     * connection's autocommit is off, so a check that modified nothing does not leave that
-     * connection sitting idle in a transaction - holding locks, and a candidate for the
-     * database's {@code idle_in_transaction_session_timeout}. This matters when the connection
-     * outlives the check: shared through a {@link org.dbunit.database.CachingConnectionProvider}
-     * and not closed after each test.
-     * <p>
-     * A rollback rather than a commit: the snapshot wrote nothing of its own, so there is
-     * nothing to keep, and a rollback cannot disturb work a caller committed before calling in.
-     * It does discard work the caller left uncommitted on the connection, which is why the
-     * check is not meant for a connection carrying a pending transaction of its own. A
-     * best-effort attempt - a snapshot that already failed, or a connection the database has
-     * dropped, is the caller's to handle.
-     *
-     * @param connection The connection the snapshot queried.
-     */
-    private void endReadTransaction(final IDatabaseConnection connection)
-    {
-        try
-        {
-            final Connection jdbcConnection = connection.getConnection();
-            if (jdbcConnection != null && !jdbcConnection.getAutoCommit())
-            {
-                jdbcConnection.rollback();
-            }
-        }
-        catch (final SQLException e)
-        {
-            log.debug("endReadTransaction: could not roll back the row count snapshot's"
-                    + " read transaction", e);
         }
     }
 }

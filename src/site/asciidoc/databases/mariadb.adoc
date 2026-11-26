@@ -56,8 +56,8 @@ a call to the connection's current database.
 == Connection Preconfiguration Class
 
 None — MariaDB has no dedicated `IDatabaseConnection` subclass. Register
-`MariaDbDataTypeFactory` and `MySqlMetadataHandler` directly on a plain
-`DatabaseConnection`'s `DatabaseConfig`:
+`MariaDbDataTypeFactory` and `MySqlMetadataHandler` directly on the
+`DatabaseConfig` of a plain `DatabaseConnection`:
 
 [source,java]
 ----

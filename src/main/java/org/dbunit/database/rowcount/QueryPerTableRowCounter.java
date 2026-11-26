@@ -35,6 +35,10 @@ import org.dbunit.database.IDatabaseConnection;
  * {@link org.dbunit.util.QualifiedTableName}, and is exercised across every
  * supported database by that method's own tests.
  * <p>
+ * A table that cannot be counted fails with an {@link SQLException} whose message names the
+ * table and gives the database's message, and whose cause, SQL state and error code are the
+ * database's.
+ * <p>
  * This is the {@link RowCountCheck} v1 implementation, and the value
  * {@link DatabaseConfig#PROPERTY_ROW_COUNTER} initialises to.
  *
@@ -45,6 +49,9 @@ public class QueryPerTableRowCounter implements RowCounter
 {
     /**
      * {@inheritDoc}
+     *
+     * @throws SQLException If counting a table's rows fails. The message names the table and
+     *             gives the database's message, and the cause is the database's failure.
      */
     @Override
     public Map<String, Integer> countRows(final IDatabaseConnection connection,
@@ -53,8 +60,30 @@ public class QueryPerTableRowCounter implements RowCounter
         final Map<String, Integer> rowCounts = new LinkedHashMap<>();
         for (final String tableName : tableNames)
         {
-            rowCounts.put(tableName, connection.getRowCount(tableName));
+            final int rowCount = countRows(connection, tableName);
+            rowCounts.put(tableName, rowCount);
         }
         return rowCounts;
+    }
+
+    private static int countRows(final IDatabaseConnection connection, final String tableName)
+            throws SQLException
+    {
+        try
+        {
+            return connection.getRowCount(tableName);
+        } catch (final SQLException e)
+        {
+            final String reason = e.getMessage();
+            final String message;
+            if (reason == null)
+            {
+                message = "The rows of table " + tableName + " could not be counted.";
+            } else
+            {
+                message = "The rows of table " + tableName + " could not be counted: " + reason;
+            }
+            throw new SQLException(message, e.getSQLState(), e.getErrorCode(), e);
+        }
     }
 }
