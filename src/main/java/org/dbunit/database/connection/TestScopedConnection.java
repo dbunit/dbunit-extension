@@ -184,8 +184,9 @@ public final class TestScopedConnection
      * the same. That is read from the JDBC connection captured at acquisition, so it never
      * costs a {@link org.dbunit.database.DatabaseDataSourceConnection} a new checkout just to
      * learn there is nothing left to close. A connection that has no JDBC connection to inspect
-     * is still closed, as the 3.5.x extension closed every connection it resolved: closing it
-     * is the connection's own business. A
+     * is still closed, as the tester's default listener closes the connections
+     * {@code onSetup()} and {@code onTearDown()} retrieve: closing it is the connection's own
+     * business. A
      * {@link SQLException} from the check is left to propagate rather than swallowed: a
      * connection whose {@code isClosed()} throws has failed in a way worth surfacing (as a
      * suppressed exception, via {@link #releaseSuppressing(Throwable)}).
