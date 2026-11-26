@@ -61,13 +61,16 @@ public interface PrepAndExpectedTestCase
      * @param testData
      *            The verification definitions and prep and expected data files
      *            for this test.
+     * @throws UnsupportedOperationException If {@code testData} verifies every expected table
+     *             ({@link PrepAndExpectedTestData#verifyingExpectedTables(String[], String[])})
+     *             and this implementation does not override this method to honor that.
      * @throws Exception If the test cannot be configured.
      * @since 3.6.0
      */
     default void configureTest(final PrepAndExpectedTestData testData)
             throws Exception
     {
-        configureTest(testData.getVerifyTableDefinitions(),
+        configureTest(testData.getVerifyTableDefinitionsFor(this),
                 testData.getPrepDataFiles(), testData.getExpectedDataFiles());
     }
 
@@ -105,12 +108,14 @@ public interface PrepAndExpectedTestCase
      * @param testData
      *            The verification definitions and prep and expected data files
      *            for this test.
+     * @throws UnsupportedOperationException If {@code testData} verifies every expected table
+     *             and this implementation does not override this method to honor that.
      * @throws Exception If the pre-test steps fail.
      * @since 3.6.0
      */
     default void preTest(final PrepAndExpectedTestData testData) throws Exception
     {
-        preTest(testData.getVerifyTableDefinitions(),
+        preTest(testData.getVerifyTableDefinitionsFor(this),
                 testData.getPrepDataFiles(), testData.getExpectedDataFiles());
     }
 
@@ -147,13 +152,15 @@ public interface PrepAndExpectedTestCase
      * @param testSteps
      *            The test steps to run.
      * @return The user-defined object from running the test steps.
+     * @throws UnsupportedOperationException If {@code testData} verifies every expected table
+     *             and this implementation does not override this method to honor that.
      * @throws Exception If the test steps fail.
      * @since 3.6.0
      */
     default Object runTest(final PrepAndExpectedTestData testData,
             final PrepAndExpectedTestCaseSteps testSteps) throws Exception
     {
-        return runTest(testData.getVerifyTableDefinitions(),
+        return runTest(testData.getVerifyTableDefinitionsFor(this),
                 testData.getPrepDataFiles(), testData.getExpectedDataFiles(),
                 testSteps);
     }
