@@ -426,6 +426,12 @@ autocommit off therefore sits in a transaction after the check's reads, as it do
 dbUnit's other reads and its uncommitted prep and teardown writes, holding locks and exposed to
 the database's idle-in-transaction timeout; use a connection with autocommit on (see
 link:../connections.html[Connections]).
+* *The counts are reads in the owner's transaction, so the isolation level matters.* Under
+REPEATABLE READ, the MySQL InnoDB default, the first count fixes the snapshot the owner's later
+reads see. Under SERIALIZABLE, a count of every table adds each counted table to the
+transaction's read set. On PostgreSQL, a count that fails aborts the transaction, and its later
+statements fail until it is rolled back. Turn the check off, or exclude the tables, for a test
+where that matters.
 * *Do not enable the check on a connection that a Spring-managed test transaction owns*, the
 connection of a `TransactionAwareDataSourceProxy` in a `@Transactional` test under
 `DbUnitExtension`. The check counts inside that transaction, so a row the test writes to a table
