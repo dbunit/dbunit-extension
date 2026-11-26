@@ -135,8 +135,13 @@ public class MultiDataSourceAssertionError extends AssertionError
     }
 
     /**
-     * Labels a data source's failure with its name and lifecycle phase, so an entry this class
-     * adds via {@link Throwable#addSuppressed(Throwable)} reads without unwrapping.
+     * Labels a data source's failure with its name and lifecycle phase, so a suppressed entry
+     * reads without unwrapping: one this class adds via
+     * {@link Throwable#addSuppressed(Throwable)}, and two kinds that
+     * {@link MultiDataSourcePrepAndExpectedTestCase} attaches. One labels, with no cause, the
+     * setup failure of the data source whose {@code preTest} failed, in the {@code preTest}
+     * phase. The other labels a data source whose teardown failed after a failed setup or failed
+     * test steps, in the {@code cleanupData} phase, with the teardown failure as its cause.
      */
     static class DataSourceFailure extends RuntimeException
     {

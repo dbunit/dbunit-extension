@@ -16,9 +16,10 @@ unset, `DefaultMetadataHandler` applies.
 [#methods]
 == Interface Shape
 
-Every method takes the real `DatabaseMetaData` (or a `ResultSet` it already produced)
+Nearly every method takes the real `DatabaseMetaData` (or a `ResultSet` it already produced)
 plus the schema/table/column dbUnit is searching for, and returns either a `ResultSet`
-to iterate or a `boolean`/`String` answer. Full signatures are in the
+to iterate or a `boolean`/`String` answer; `getCurrentSchema()` takes the JDBC `Connection`
+instead. Full signatures are in the
 link:../apidocs/org/dbunit/database/IMetadataHandler.html[JavaDoc]; grouped by
 purpose:
 
@@ -39,6 +40,10 @@ counterpart so a caller that already extracted and cached a row's values can rep
 same comparison without re-querying or holding a `ResultSet` open;
 `supportsColumnCache()` opts a handler into that fast path — return `true` only if
 `matchesColumn(...)` fully replicates the handler's `matches(...)` override.
+|Current schema |`getCurrentSchema(Connection)` (since 3.6.0) returns the schema a connection
+that names none works in, as the handler names schemas: `Connection.getSchema()` by default, and
+the connection's database, its catalog, for `MySqlMetadataHandler`. The
+link:rowcountcheck.html[row count check] counts such a connection in it.
 |===
 
 [#implementations]
@@ -53,10 +58,12 @@ automatically when `PROPERTY_METADATA_HANDLER` is left unset.
 |link:../databases/db2.html[`Db2MetadataHandler`] |DB2, fixing a catalog/schema
 column-matching bug.
 |link:../databases/mysql.html[`MySqlMetadataHandler`] |MySQL/MariaDB, fixing
-catalog/schema comparison so qualified-table-name lookups don't spuriously miss.
+catalog/schema comparison so qualified-table-name lookups don't spuriously miss, reporting
+the database a connection works in as its current schema, and reading an empty schema as that
+database.
 |link:../databases/mysql.html[`MultiSchemaMySqlMetadataHandler`] |A MySQL connection
-(e.g. as `root`) that must see tables across every catalog it can access, not just its
-current one.
+(e.g. as `root`) that must see tables across every catalog it can access, without MySQL's
+system catalogs, whatever the driver's `nullDatabaseMeansCurrent` setting.
 |link:../databases/netezza.html[`NetezzaMetadataHandler`] |Netezza, which reports schema
 information via the catalog column.
 |link:../databases/h2.html[`H2MetadataHandler`] |H2 2.x, excluding `INFORMATION_SCHEMA`
@@ -70,10 +77,12 @@ A `java.sql.ResultSet` is a forward-only cursor over one query — rows can't be
 out of it, or several combined, after the fact. That's a problem for a handler that
 needs to correct *which* rows come back, not just how they're compared:
 
-* MySQL Connector/J's `nullCatalogMeansCurrent` default treats a `null` catalog as "the
-connection's current catalog only" instead of "every catalog," per the JDBC spec.
-Correcting that means issuing one real `getTables()` call *per* catalog and combining
-the results.
+* A `null` catalog lists either the connection's current catalog only or every catalog,
+MySQL's system catalogs included, depending on MySQL Connector/J's
+`nullDatabaseMeansCurrent` property (`nullCatalogMeansCurrent` in 8.0.16 and earlier, `true` by
+default in 5.1, `false` since 8.0).
+Listing every catalog but the system ones, whatever that setting, means issuing one real
+`getTables()` call *per* catalog and combining the results.
 * H2 2.x's `INFORMATION_SCHEMA` now reports its own internal tables with the same JDBC
 `TABLE_TYPE` as real user tables (see link:../databases/h2.html[H2]). Correcting that
 means running the real `getTables()` call once and dropping the rows that don't belong.

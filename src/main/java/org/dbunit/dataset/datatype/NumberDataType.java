@@ -33,6 +33,10 @@ import org.slf4j.LoggerFactory;
 /**
  * {@link DataType} mapping numeric SQL column types to {@link java.math.BigDecimal}.
  *
+ * <p>A {@link Boolean}, and the text {@code true} or {@code false} in any case, become 1 or 0,
+ * as they do for the integer types, so a boolean value can fill the {@code NUMBER(1)} column
+ * that Oracle uses for a boolean.
+ *
  * @author Manuel Laflamme
  * @version $Revision$
  * @since Feb 17, 2002
@@ -71,6 +75,19 @@ public class NumberDataType extends AbstractDataType
         if (value instanceof Boolean)
         {
             return ((Boolean) value) ? TRUE : FALSE;
+        }
+
+        if (value instanceof String)
+        {
+            final String string = (String) value;
+            if ("false".equalsIgnoreCase(string))
+            {
+                return FALSE;
+            }
+            if ("true".equalsIgnoreCase(string))
+            {
+                return TRUE;
+            }
         }
 
         try

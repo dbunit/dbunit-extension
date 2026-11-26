@@ -25,6 +25,7 @@ import static org.junit.platform.engine.discovery.DiscoverySelectors.selectClass
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Properties;
 
 import org.dbunit.DatabaseEnvironment;
 import org.dbunit.DefaultDatabaseTester;
@@ -47,12 +48,11 @@ import org.junit.platform.testkit.engine.EngineTestKit;
 
 /**
  * Real-database integration test proving an {@code @DbUnitProperty} value actually reaches
- * {@link IDatabaseConnection#getConfig()} on both the setup/teardown path (the {@code
- * IOperationListener} wiring described in the annotations plan's execution model) and the
- * prep/expected path ({@code DefaultPrepAndExpectedTestCase}'s own connection resolution,
- * which never goes through that listener) - neither is something
- * {@code AnnotatedTestExecutorTest}'s mocked connection can prove - and that a connection kept
- * open past the test carries the value into no later test.
+ * {@link IDatabaseConnection#getConfig()} for an annotated test that declares
+ * {@code @DbUnitPrep} and for one that declares {@code @DbUnitExpected}, because
+ * {@code DefaultPrepAndExpectedTestCase}'s own connection resolution applies it in both -
+ * neither is something {@code AnnotatedTestExecutorTest}'s mocked connection can prove - and
+ * that a connection kept open past the test carries the value into no later test.
  */
 class DbUnitConfigPropertiesIT
 {
@@ -89,10 +89,9 @@ class DbUnitConfigPropertiesIT
     }
 
     @ExtendWith(DbUnitExtension.class)
-    // closeConnectionAfterTest = false: databaseTester wraps the environment's shared
-    // connection (see the finally block above), not one owned by this one test.
-    @DbUnitConfig(closeConnectionAfterTest = false,
-            properties = @DbUnitProperty(name = "batchedStatements", value = "true"))
+    // databaseTester wraps the environment's shared connection (see the finally block above),
+    // not one owned by this one test, so its listener is the no-op one.
+    @DbUnitConfig(properties = @DbUnitProperty(name = "batchedStatements", value = "true"))
     @DbUnitPrep("empty.xml")
     static class PropertySample
     {
@@ -111,7 +110,7 @@ class DbUnitConfigPropertiesIT
     }
 
     @Test
-    void testBeforeTestExecution_dbUnitPropertyDeclaredOnExpectedPath_reachesConnectionConfig()
+    void testBeforeTestExecution_dbUnitPropertyDeclaredWithExpected_reachesConnectionConfig()
             throws Exception
     {
         final DatabaseEnvironment environment = DatabaseEnvironment.getInstance();
@@ -119,20 +118,18 @@ class DbUnitConfigPropertiesIT
         {
             final IDatabaseConnection connection = environment.getConnection();
             connection.getConfig().setFeature(DatabaseConfig.FEATURE_BATCHED_STATEMENTS, false);
-            ExpectedPathPropertySample.databaseTester = new DefaultDatabaseTester(connection);
-            ExpectedPathPropertySample.databaseTester
+            ExpectedPropertySample.databaseTester = new DefaultDatabaseTester(connection);
+            ExpectedPropertySample.databaseTester
                     .setOperationListener(IOperationListener.NO_OP_OPERATION_LISTENER);
 
             EngineTestKit.engine("junit-jupiter")
-                    .selectors(selectClass(ExpectedPathPropertySample.class)).execute()
+                    .selectors(selectClass(ExpectedPropertySample.class)).execute()
                     .testEvents().assertStatistics(stats -> stats.started(1).succeeded(1));
 
-            assertThat(ExpectedPathPropertySample.batchedStatementsDuringTest)
+            assertThat(ExpectedPropertySample.batchedStatementsDuringTest)
                     .as("The @DbUnitProperty value must reach the connection"
                             + " DefaultPrepAndExpectedTestCase actually uses for"
-                            + " setupData()/verifyData()/cleanupData() - the"
-                            + " setup/teardown path's IOperationListener wiring is never"
-                            + " triggered by those methods.")
+                            + " setupData()/verifyData()/cleanupData().")
                     .isTrue();
             assertThat(
                     connection.getConfig().getFeature(DatabaseConfig.FEATURE_BATCHED_STATEMENTS))
@@ -147,12 +144,11 @@ class DbUnitConfigPropertiesIT
     }
 
     @ExtendWith(DbUnitExtension.class)
-    // closeConnectionAfterTest = false: databaseTester wraps the environment's shared
-    // connection (see the finally block above), not one owned by this one test.
-    @DbUnitConfig(closeConnectionAfterTest = false,
-            properties = @DbUnitProperty(name = "batchedStatements", value = "true"))
+    // databaseTester wraps the environment's shared connection (see the finally block above),
+    // not one owned by this one test, so its listener is the no-op one.
+    @DbUnitConfig(properties = @DbUnitProperty(name = "batchedStatements", value = "true"))
     @DbUnitExpected("empty.xml")
-    static class ExpectedPathPropertySample
+    static class ExpectedPropertySample
     {
         @DbUnitTester
         static IDatabaseTester databaseTester;
@@ -175,19 +171,23 @@ class DbUnitConfigPropertiesIT
         try
         {
             final IDatabaseConnection connection = environment.getConnection();
-            KeptConnectionBase.observedBatchSizes.clear();
-            KeptConnectionBase.testCase = new DefaultPrepAndExpectedTestCase(
-                    new FlatXmlDataFileLoader(), new DefaultDatabaseTester(connection), false);
-
-            runOnTheKeptConnection(DeclaresNothingFirst.class);
-            runOnTheKeptConnection(DeclaresBatchSize.class);
-            runOnTheKeptConnection(DeclaresNothingLast.class);
-
             final Object defaultBatchSize =
                     new DatabaseConfig().getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE);
-            assertThat(KeptConnectionBase.observedBatchSizes)
-                    .as("A test declaring nothing, then one declaring batchSize=50, then one"
-                            + " declaring nothing again, on one connection kept across them:"
+            // The in-memory profiles keep this connection through closeConnection(), so an IT
+            // class that ran first may have left its own batch size on it.
+            connection.getConfig().setProperty(DatabaseConfig.PROPERTY_BATCH_SIZE,
+                    defaultBatchSize);
+            KeptConnectionSample.observedBatchSizes.clear();
+            final Properties batchSize = new Properties();
+            batchSize.setProperty(DatabaseConfig.PROPERTY_BATCH_SIZE, "50");
+
+            runOnTheKeptConnection(connection, new Properties());
+            runOnTheKeptConnection(connection, batchSize);
+            runOnTheKeptConnection(connection, new Properties());
+
+            assertThat(KeptConnectionSample.observedBatchSizes)
+                    .as("A test case built with no properties, then one built with batchSize=50,"
+                            + " then one with none again, on one connection kept across them:"
                             + " the middle value must not bleed into the last test.")
                     .containsExactly(defaultBatchSize, 50, defaultBatchSize);
             assertThat(connection.getConfig().getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE))
@@ -199,13 +199,21 @@ class DbUnitConfigPropertiesIT
         }
     }
 
-    private static void runOnTheKeptConnection(final Class<?> sampleClass)
+    private static void runOnTheKeptConnection(final IDatabaseConnection connection,
+            final Properties properties)
     {
-        EngineTestKit.engine("junit-jupiter").selectors(selectClass(sampleClass)).execute()
-                .testEvents().assertStatistics(stats -> stats.started(1).succeeded(1));
+        final DefaultPrepAndExpectedTestCase testCase = new DefaultPrepAndExpectedTestCase(
+                new FlatXmlDataFileLoader(), new DefaultDatabaseTester(connection), false);
+        testCase.setDatabaseConfigProperties(properties);
+        KeptConnectionSample.testCase = testCase;
+
+        EngineTestKit.engine("junit-jupiter").selectors(selectClass(KeptConnectionSample.class))
+                .execute().testEvents()
+                .assertStatistics(stats -> stats.started(1).succeeded(1));
     }
 
-    static class KeptConnectionBase
+    @ExtendWith(DbUnitExtension.class)
+    static class KeptConnectionSample
     {
         @DbUnitTestCase
         static PrepAndExpectedTestCase testCase;
@@ -219,21 +227,5 @@ class DbUnitConfigPropertiesIT
             observedBatchSizes
                     .add(connection.getConfig().getProperty(DatabaseConfig.PROPERTY_BATCH_SIZE));
         }
-    }
-
-    @ExtendWith(DbUnitExtension.class)
-    static class DeclaresNothingFirst extends KeptConnectionBase
-    {
-    }
-
-    @ExtendWith(DbUnitExtension.class)
-    @DbUnitConfig(properties = @DbUnitProperty(name = "batchSize", value = "50"))
-    static class DeclaresBatchSize extends KeptConnectionBase
-    {
-    }
-
-    @ExtendWith(DbUnitExtension.class)
-    static class DeclaresNothingLast extends KeptConnectionBase
-    {
     }
 }

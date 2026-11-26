@@ -2,7 +2,17 @@ package org.dbunit.assertion.comparer.value;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+import static org.junit.jupiter.api.Assumptions.assumeFalse;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.withSettings;
 
+import java.math.BigDecimal;
+import java.sql.Timestamp;
+import java.util.Locale;
 import java.util.regex.PatternSyntaxException;
 
 import org.dbunit.DatabaseUnitException;
@@ -338,6 +348,82 @@ class RegularExpressionValueComparerTest
     }
 
     @Test
+    void testIsExpected_TimestampActualValueAndPatternWithFraction_True()
+            throws DatabaseUnitException
+    {
+        final Timestamp actualValue = Timestamp.valueOf("2026-01-02 10:00:00");
+
+        final boolean actual = isExpected("2026-01-02 10:00:00\\.0", actualValue);
+
+        assertThat(actual)
+                .as("A timestamp is matched as its Java text, which ends in the fraction.")
+                .isTrue();
+    }
+
+    @Test
+    void testIsExpected_TimestampActualValueAndPatternWithoutFraction_False()
+            throws DatabaseUnitException
+    {
+        final Timestamp actualValue = Timestamp.valueOf("2026-01-02 10:00:00");
+
+        final boolean actual = isExpected("2026-01-02 10:00:00", actualValue);
+
+        assertThat(actual)
+                .as("A pattern written as the database shows the timestamp does not match its"
+                        + " Java text.")
+                .isFalse();
+    }
+
+    @Test
+    void testIsExpected_DecimalActualValueKeepsItsScale_MatchesOnlyThePatternWithTheScale()
+            throws DatabaseUnitException
+    {
+        final BigDecimal actualValue = new BigDecimal("12.50");
+
+        final boolean withScale = isExpected("12\\.50", actualValue);
+        final boolean withoutScale = isExpected("12\\.5", actualValue);
+
+        assertThat(withScale && !withoutScale)
+                .as("A decimal is matched as its text with the scale of its column.").isTrue();
+    }
+
+    @Test
+    void testIsExpected_BinaryActualValue_MatchesItsBase64Text() throws DatabaseUnitException
+    {
+        final byte[] actualValue = "ABC".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+
+        final boolean actual = isExpected("QUJD", actualValue);
+
+        assertThat(actual).as("A binary value is matched as its Base64 text.").isTrue();
+    }
+
+    @Test
+    void testIsExpected_SameRegexForTwoRows_BothMatch() throws DatabaseUnitException
+    {
+        final boolean firstRow = isExpected("[0-9]{4}", "2026");
+        final boolean secondRow = isExpected("[0-9]{4}", "1999");
+
+        assertThat(firstRow && secondRow)
+                .as("The expression a column holds in every row must match in each of them.")
+                .isTrue();
+    }
+
+    @Test
+    void testIsExpected_SameRegexForTwoRows_AsksTheCacheForItEachTime()
+            throws DatabaseUnitException
+    {
+        final CompiledPatternCache cache = spy(new CompiledPatternCache(4));
+        final RegularExpressionValueComparer withCache = new RegularExpressionValueComparer(cache);
+
+        withCache.isExpected(expectedTable, actualTable, rowNum, columnName, dataType, "[0-9]+",
+                "12");
+        withCache.isExpected(expectedTable, actualTable, rowNum + 1, columnName, dataType,
+                "[0-9]+", "34");
+
+        verify(cache, times(2)).get("[0-9]+");
+    }
+
+    @Test
     void testIsExpected_ExpectedRegexInvalid_ThrowsDatabaseUnitExceptionWithRowAndColumn()
     {
         assertThatExceptionOfType(DatabaseUnitException.class)
@@ -345,6 +431,27 @@ class RegularExpressionValueComparerTest
                 .isThrownBy(() -> isExpected("[", "abc"))
                 .withMessageContaining(columnName)
                 .withMessageContaining(String.valueOf(rowNum));
+    }
+
+    @Test
+    void testIsExpected_ExpectedRegexInvalidInLocaleWithOwnDigits_MessageHasAsciiRowNumber()
+    {
+        final Locale digitsOfItsOwn = Locale.forLanguageTag("ar-EG");
+        assumeFalse(String.format(digitsOfItsOwn, "%d", rowNum).equals(String.valueOf(rowNum)),
+                "This JVM must write a row number with digits of the locale's own.");
+        final Locale original = Locale.getDefault(Locale.Category.FORMAT);
+        Locale.setDefault(Locale.Category.FORMAT, digitsOfItsOwn);
+        try
+        {
+            assertThatExceptionOfType(DatabaseUnitException.class)
+                    .as("The row number of the failure message should not depend on the default"
+                            + " locale.")
+                    .isThrownBy(() -> isExpected("[", "abc"))
+                    .withMessageContaining("row " + rowNum + ":");
+        } finally
+        {
+            Locale.setDefault(Locale.Category.FORMAT, original);
+        }
     }
 
     @Test
@@ -381,6 +488,35 @@ class RegularExpressionValueComparerTest
     }
 
     @Test
+    void testCompare_BinaryActualValueDoesNotMatch_FailMessageShowsItsBase64Text()
+            throws DatabaseUnitException
+    {
+        final byte[] actualValue = "ABC".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+
+        final String actual = sut.compare(expectedTable, actualTable, rowNum,
+                columnName, dataType, "XYZ.*", actualValue);
+
+        assertThat(actual)
+                .as("A binary value that does not match should show as the Base64 text that was matched.")
+                .isEqualTo("Actual value='QUJD' is not matching the regular expression expected value='XYZ.*'");
+    }
+
+    @Test
+    void testMakeFailMessage_ActualClobThatCannotBeRead_ShowsValueOf()
+            throws Exception
+    {
+        final java.sql.Clob actualValue = mock(java.sql.Clob.class,
+                withSettings().name("unreadableClob"));
+        when(actualValue.length()).thenThrow(new java.sql.SQLException("closed"));
+
+        final String actual = sut.makeFailMessage("XYZ.*", actualValue);
+
+        assertThat(actual)
+                .as("A value that cannot be converted to text should show as String.valueOf gives it.")
+                .isEqualTo("Actual value='unreadableClob' is not matching the regular expression expected value='XYZ.*'");
+    }
+
+    @Test
     void testCompare_BothNull_ReturnsNull() throws DatabaseUnitException
     {
         final String actual = sut.compare(expectedTable, actualTable, rowNum,
@@ -391,7 +527,7 @@ class RegularExpressionValueComparerTest
     }
 
     @Test
-    void testGetFailPhrase_ReturnsNonNullPhrase()
+    void testGetFailPhrase_NoArguments_ReturnsNonNullPhrase()
     {
         final String actual = sut.getFailPhrase();
 

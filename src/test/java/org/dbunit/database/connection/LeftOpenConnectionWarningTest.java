@@ -70,15 +70,12 @@ class LeftOpenConnectionWarningTest
     private static ConnectionOwnership ownership(final boolean closeConnectionAfterTest,
             final IOperationListener testerListener)
     {
-        return new ConnectionOwnership(() -> closeConnectionAfterTest, () -> testerListener,
-                () -> true);
+        return new ConnectionOwnership(() -> closeConnectionAfterTest, () -> testerListener);
     }
 
     private static ConnectionOwnership ownershipThatMustNotBeConsulted()
     {
         return new ConnectionOwnership(() -> {
-            throw new AssertionError("The ownership must not be consulted.");
-        }, () -> {
             throw new AssertionError("The ownership must not be consulted.");
         }, () -> {
             throw new AssertionError("The ownership must not be consulted.");
@@ -120,6 +117,34 @@ class LeftOpenConnectionWarningTest
                         + " open, and the remedy.")
                 .contains("JdbcDatabaseTester", "closeConnectionAfterTest", "no-op",
                         "CachingConnectionProvider");
+    }
+
+    @Test
+    void testAccept_twoInstancesForTheSameTester_warnOnceForTheTester() throws Exception
+    {
+        final JdbcDatabaseTester tester = testerOpeningANewConnectionOnEachCall();
+        final ConnectionOwnership leftOpen = ownership(false, new DefaultOperationListener());
+
+        new LeftOpenConnectionWarning(leftOpen, () -> tester).accept(connection);
+        new LeftOpenConnectionWarning(leftOpen, () -> tester).accept(connection);
+
+        assertThat(warnings())
+                .as("The condition belongs to the tester, so a second test case that the same"
+                        + " tester serves does not repeat the warning.")
+                .hasSize(1);
+    }
+
+    @Test
+    void testAccept_twoInstancesForDifferentTesters_warnForEachTester() throws Exception
+    {
+        final ConnectionOwnership leftOpen = ownership(false, new DefaultOperationListener());
+        final JdbcDatabaseTester tester = testerOpeningANewConnectionOnEachCall();
+        final JdbcDatabaseTester otherTester = testerOpeningANewConnectionOnEachCall();
+
+        new LeftOpenConnectionWarning(leftOpen, () -> tester).accept(connection);
+        new LeftOpenConnectionWarning(leftOpen, () -> otherTester).accept(connection);
+
+        assertThat(warnings()).as("Another tester is warned about too.").hasSize(2);
     }
 
     @Test

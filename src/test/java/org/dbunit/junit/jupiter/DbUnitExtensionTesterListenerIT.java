@@ -34,7 +34,7 @@ import org.dbunit.annotation.DbUnitConfig;
 import org.dbunit.annotation.DbUnitExpected;
 import org.dbunit.annotation.DbUnitPrep;
 import org.dbunit.annotation.DbUnitProperty;
-import org.dbunit.annotation.DbUnitTearDown;
+import org.dbunit.annotation.DbUnitTearDownOperation;
 import org.dbunit.annotation.DbUnitTester;
 import org.dbunit.annotation.DbUnitVerifyTable;
 import org.dbunit.database.DatabaseConfig;
@@ -45,11 +45,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.platform.testkit.engine.EngineTestKit;
 
 /**
- * Real-database integration test proving the prep/expected path tells the tester's own
- * {@link IOperationListener} about the connection each of its set up and tear down operations
- * retrieves, as the tester's {@code onSetup()}/{@code onTearDown()} do, and that a
- * {@code @DbUnitProperty} value still wins over what that listener sets, because the
- * annotation values are applied after it.
+ * Real-database integration test proving an annotated test tells the tester's own
+ * {@link IOperationListener} about its shared connection when it acquires it and again before
+ * each of its set up and tear down operations, as the tester's {@code onSetup()}/{@code
+ * onTearDown()} do for the connections they retrieve, and that a {@code @DbUnitProperty} value
+ * still wins over what that listener sets, because the annotation values are applied after it.
  */
 class DbUnitExtensionTesterListenerIT
 {
@@ -58,7 +58,7 @@ class DbUnitExtensionTesterListenerIT
     private static final String ANNOTATION_BATCH_SIZE = "7";
 
     @Test
-    void testBeforeTestExecution_prepExpectedPathWithTesterListener_tellsItPerOperationAndAnnotationValuesWin()
+    void testBeforeTestExecution_annotationDrivenWithTesterListener_tellsItOnAcquisitionAndPerOperationAndAnnotationValuesWin()
             throws Exception
     {
         final DatabaseEnvironment environment = DatabaseEnvironment.getInstance();
@@ -68,18 +68,19 @@ class DbUnitExtensionTesterListenerIT
             final IDatabaseTester tester =
                     new DefaultDatabaseTester(environment.getConnection());
             tester.setOperationListener(listener);
-            ExpectedPathSample.databaseTester = tester;
-            ExpectedPathSample.batchSizeSeenByTest = null;
+            TesterListenerSample.databaseTester = tester;
+            TesterListenerSample.batchSizeSeenByTest = null;
 
-            EngineTestKit.engine("junit-jupiter").selectors(selectClass(ExpectedPathSample.class))
+            EngineTestKit.engine("junit-jupiter").selectors(selectClass(TesterListenerSample.class))
                     .execute().testEvents()
                     .assertStatistics(stats -> stats.started(1).succeeded(1));
 
             assertThat(listener.getRetrievedCount())
-                    .as("The tester's listener must hear of the connection once for the set up"
-                            + " operation and once for the tear down operation.")
-                    .isEqualTo(2);
-            assertThat(ExpectedPathSample.batchSizeSeenByTest)
+                    .as("The tester's listener must hear of the connection when the test case"
+                            + " acquires it, once for the set up operation and once for the"
+                            + " tear down operation.")
+                    .isEqualTo(3);
+            assertThat(TesterListenerSample.batchSizeSeenByTest)
                     .as("The @DbUnitProperty value must be in force during the test, because"
                             + " it is applied after the tester's listener has set its own.")
                     .isEqualTo(Integer.valueOf(ANNOTATION_BATCH_SIZE));
@@ -124,8 +125,8 @@ class DbUnitExtensionTesterListenerIT
     @DbUnitPrep("annotation-it-prep.xml")
     @DbUnitExpected(value = "annotation-it-expected.xml",
             verify = @DbUnitVerifyTable(value = TEST_TABLE, include = {"COLUMN0", "COLUMN1"}))
-    @DbUnitTearDown(operation = DbUnitOperation.DELETE_ALL)
-    static class ExpectedPathSample
+    @DbUnitTearDownOperation(DbUnitOperation.DELETE_ALL)
+    static class TesterListenerSample
     {
         @DbUnitTester
         static IDatabaseTester databaseTester;

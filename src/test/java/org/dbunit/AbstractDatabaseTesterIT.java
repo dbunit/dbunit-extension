@@ -89,6 +89,7 @@ public abstract class AbstractDatabaseTesterIT
         DatabaseOperation.DELETE_ALL.execute(_connection,
                 _connection.createDataSet());
 
+        _connection.close();
         _connection = null;
     }
 

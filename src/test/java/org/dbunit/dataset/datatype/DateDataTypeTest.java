@@ -109,6 +109,27 @@ class DateDataTypeTest extends AbstractDataTypeTest
         }
     }
 
+    @Test
+    void testTypeCast_isoTimestampWithoutOffset_returnsTheDateOfTheWrittenTime() throws Exception
+    {
+        final Object actual = THIS_TYPE.typeCast("2024-01-15T23:30:00");
+
+        assertThat(((java.sql.Date) actual).toLocalDate())
+                .as("The date of the time as written, in the JVM's zone.")
+                .isEqualTo(LocalDate.of(2024, 1, 15));
+    }
+
+    @Test
+    void testTypeCast_isoTimestampWithOffset_returnsTheDateOfTheInstantInTheJvmZone()
+            throws Exception
+    {
+        final Object actual = THIS_TYPE.typeCast("2024-01-15T23:30:00Z");
+
+        assertThat(((java.sql.Date) actual).toLocalDate())
+                .as("23:30 UTC is 00:30 of the next day in Berlin, the test zone.")
+                .isEqualTo(LocalDate.of(2024, 1, 16));
+    }
+
     @Override
     @Test
     public void testTypeCastNone_withNullInput_returnsNull() throws Exception

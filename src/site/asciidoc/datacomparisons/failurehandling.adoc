@@ -43,6 +43,36 @@ List<Difference> diffList = myHandler.getDiffList();
 Difference diff = diffList.get(0);
 ----
 
+Nothing fails while the handler collects, so whoever runs the comparison reads the
+collected differences afterwards. `createFailureForCollectedDifferences()` builds the failure
+for all of them: the one a `DefaultFailureHandler` throws when there is one difference, and
+otherwise one failure of the same kind, whose message lists each difference and whose expected
+and actual text hold one line for each of them, naming the cell and its value. With the default
+failure factory it is a `DbComparisonFailure`, an `AssertionError`, whether there is one
+difference or several.
+
+The annotation-driven tests (`DbUnitExtension`, `DbUnitTestExecutionListener`) and a
+`DefaultPrepAndExpectedTestCase` that they run with a collecting handler do this for you: the
+test fails after the verification and the teardown, with the collected differences. See
+link:../testcases/annotations.html#failure-handler[the annotations page].
+A `DefaultPrepAndExpectedTestCase` that you run yourself with `runTest()` or `postTest()` keeps
+the handler's list for you to read, as in the example above. When the row count check is on and
+finds a difference too, `postTest()` throws its `UnexpectedRowCountException`, as a collecting
+handler does not discard the check's baseline, and the list is still there to read; the
+annotation-driven tests attach that exception to the failure of the collected differences.
+
+When the sort lines rows of a verified table up against the wrong counterparts, the many
+differences that follow have one cause. A `DefaultPrepAndExpectedTestCase` that finds
+differences with a collecting handler, and sees that sorting differently would have passed, logs
+the hint of the link:../components/verifytabledefinition.html#sortmode[sort mode] as a warning,
+once for the table, and gives it to the handler with `addHint()`. The failure that
+`createFailureForCollectedDifferences()` builds carries each hint as a suppressed exception, as
+the failure of a throwing handler carries it, so a test that the annotations fail with a long
+list of differences shows the hint. A build that trims stack traces, such as Surefire with
+`trimStackTrace` set to `true`, drops suppressed exceptions, so the log has it too. A caller
+that finds the differences and knows their cause can add a hint of its own; `getHints()` lists
+them and `clear()` forgets them with the differences.
+
 See link:equality.html[Equality Comparison] and
 link:valuecomparer.html[ValueComparer Comparison] for the comparison methods
 a `FailureHandler` plugs into.

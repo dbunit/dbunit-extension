@@ -26,7 +26,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.sql.Connection;
-import java.sql.SQLException;
 
 import org.dbunit.DatabaseTesterFactory;
 import org.dbunit.DefaultPrepAndExpectedTestCase;
@@ -35,13 +34,13 @@ import org.dbunit.IOperationListener;
 import org.dbunit.JdbcDatabaseTester;
 import org.dbunit.PrepAndExpectedTestCase;
 import org.dbunit.annotation.DbUnitConfig;
+import org.dbunit.annotation.DbUnitExpected;
 import org.dbunit.annotation.DbUnitTestCase;
 import org.dbunit.annotation.DbUnitTester;
 import org.dbunit.database.DatabaseConfig;
 import org.dbunit.database.IDatabaseConnection;
 import org.dbunit.dataset.IDataSet;
 import org.dbunit.operation.DatabaseOperation;
-import org.dbunit.util.fileloader.FlatXmlDataFileLoader;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -50,6 +49,7 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.ParameterContext;
 import org.junit.jupiter.api.extension.ParameterResolutionException;
 import org.junit.jupiter.api.extension.ParameterResolver;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.platform.engine.TestExecutionResult;
@@ -83,6 +83,29 @@ class DbUnitExtensionParameterResolverTest
     }
 
     @Test
+    void testResolveParameter_extensionRegisteredTwice_oneInstanceResolvesTheParameters()
+    {
+        RegisteredTwiceInjectionSample.injectedInBeforeEach = null;
+        RegisteredTwiceInjectionSample.injectedInTest = null;
+
+        EngineTestKit.engine("junit-jupiter")
+                .selectors(selectClass(RegisteredTwiceInjectionSample.class))
+                .execute()
+                .testEvents()
+                .assertStatistics(stats -> stats.started(1).succeeded(1));
+
+        assertThat(RegisteredTwiceInjectionSample.injectedInBeforeEach)
+                .as("With the extension registered by @DbUnitTest and by a @RegisterExtension"
+                        + " field, one instance must claim a @BeforeEach parameter, not both,"
+                        + " which JUnit rejects as competing resolvers.")
+                .isSameAs(RegisteredTwiceInjectionSample.TESTER);
+        assertThat(RegisteredTwiceInjectionSample.injectedInTest)
+                .as("With the extension registered twice, one instance must claim a @Test"
+                        + " parameter, not both.")
+                .isSameAs(RegisteredTwiceInjectionSample.TESTER);
+    }
+
+    @Test
     void testResolveParameter_testerFactoryConfigured_factoryInvokedExactlyOnce()
     {
         CountingFactory.count = 0;
@@ -111,53 +134,50 @@ class DbUnitExtensionParameterResolverTest
     }
 
     @Test
-    void testResolveParameter_testCaseFieldDeclared_beforeEachAndTestBothReceiveIt()
+    void testResolveParameter_testCaseThatIsNotDefaultAndTesterParameter_failsClearly()
     {
-        TestCaseInjectionSample.testCase = new DefaultPrepAndExpectedTestCase(
-                new FlatXmlDataFileLoader(), new NoOpTester());
-        TestCaseInjectionSample.injectedInBeforeEach = null;
-        TestCaseInjectionSample.injectedInTest = null;
+        final Throwable reported = failureOf(OtherTestCaseTesterParameterSample.class);
 
-        EngineTestKit.engine("junit-jupiter")
-                .selectors(selectClass(TestCaseInjectionSample.class))
-                .execute()
-                .testEvents()
-                .assertStatistics(stats -> stats.started(1).succeeded(1));
-
-        assertThat(TestCaseInjectionSample.injectedInBeforeEach)
-                .as("A @BeforeEach PrepAndExpectedTestCase parameter must receive the"
-                        + " @DbUnitTestCase field's instance.")
-                .isSameAs(TestCaseInjectionSample.testCase);
-        assertThat(TestCaseInjectionSample.injectedInTest)
-                .as("A @Test PrepAndExpectedTestCase parameter must receive the same"
-                        + " instance too.")
-                .isSameAs(TestCaseInjectionSample.testCase);
+        assertThat(reported)
+                .as("A test case that is not a DefaultPrepAndExpectedTestCase tells dbUnit of no"
+                        + " tester, so an IDatabaseTester parameter must fail clearly rather than"
+                        + " inject null, naming the test case's class and the way out.")
+                .rootCause()
+                .hasMessageContaining("no IDatabaseTester")
+                .hasMessageContaining(OtherTestCaseTesterParameterSample.testCase.getClass()
+                        .getName())
+                .hasMessageContaining("Remove the IDatabaseTester parameter");
     }
 
     @Test
-    void testResolveParameter_testCaseParameterWithoutMarkedField_failsClearly()
+    void testResolveParameter_testCaseThatIsNotDefaultAndConnectionParameter_failsClearly()
+    {
+        final Throwable reported = failureOf(OtherTestCaseConnectionParameterSample.class);
+
+        assertThat(reported)
+                .as("A test case that is not a DefaultPrepAndExpectedTestCase tells dbUnit of no"
+                        + " connection, so an IDatabaseConnection parameter must fail clearly"
+                        + " rather than inject null.")
+                .rootCause()
+                .hasMessageContaining("no connection");
+    }
+
+    private static Throwable failureOf(final Class<?> sample)
     {
         final Event failedEvent = EngineTestKit.engine("junit-jupiter")
-                .selectors(selectClass(NoTestCaseFieldSample.class))
+                .selectors(selectClass(sample))
                 .execute()
                 .testEvents()
                 .failed().stream().findFirst()
                 .orElseThrow(() -> new AssertionError("Expected one failed test event."));
-
-        final Throwable reported = failedEvent.getRequiredPayload(TestExecutionResult.class)
-                .getThrowable()
+        return failedEvent.getRequiredPayload(TestExecutionResult.class).getThrowable()
                 .orElseThrow(() -> new AssertionError("Expected a reported throwable."));
-        assertThat(reported.getCause())
-                .as("Injecting a PrepAndExpectedTestCase parameter with no @DbUnitTestCase"
-                        + " field must fail clearly rather than injecting null.")
-                .hasMessageContaining("@DbUnitTestCase");
     }
 
     @Test
-    void testResolveParameter_connectionParameterTypes_bothReceiveTheTestersConnection()
+    void testResolveParameter_connectionParameter_receivesTheTestersConnection()
     {
         ConnectionInjectionSample.injectedConnection = null;
-        ConnectionInjectionSample.injectedJdbcConnection = null;
 
         EngineTestKit.engine("junit-jupiter")
                 .selectors(selectClass(ConnectionInjectionSample.class))
@@ -168,10 +188,6 @@ class DbUnitExtensionParameterResolverTest
         assertThat(ConnectionInjectionSample.injectedConnection)
                 .as("An IDatabaseConnection parameter must receive the tester's connection.")
                 .isSameAs(ConnectionInjectionSample.TESTER_CONNECTION);
-        assertThat(ConnectionInjectionSample.injectedJdbcConnection)
-                .as("A java.sql.Connection parameter must receive that connection's own"
-                        + " wrapped JDBC connection.")
-                .isSameAs(ConnectionInjectionSample.JDBC_CONNECTION);
     }
 
     @Test
@@ -206,7 +222,7 @@ class DbUnitExtensionParameterResolverTest
                 .getThrowable()
                 .orElseThrow(() -> new AssertionError("Expected a reported throwable."));
         assertThat(reported)
-                .as("A Connection parameter on @AfterEach must be rejected, not resolved:"
+                .as("An IDatabaseConnection parameter on @AfterEach must be rejected, not resolved:"
                         + " afterTestExecution() already ran - closing this executor's"
                         + " connection, or never resolving one - by the time @AfterEach runs,"
                         + " so resolving one here would hand out an already-closed connection,"
@@ -215,7 +231,7 @@ class DbUnitExtensionParameterResolverTest
     }
 
     @Test
-    void testSupportsParameter_bareExtendWithNoDbUnitAnnotation_leavesConnectionToAnotherResolver()
+    void testSupportsParameter_connectionParameterOnAnnotationDrivenTest_leavesItToAnotherResolver()
     {
         ForeignConnectionResolverSample.injected = null;
 
@@ -226,48 +242,11 @@ class DbUnitExtensionParameterResolverTest
                 .assertStatistics(stats -> stats.started(1).succeeded(1));
 
         assertThat(ForeignConnectionResolverSample.injected)
-                .as("A bare @ExtendWith(DbUnitExtension.class) class with only a plain,"
-                        + " unannotated IDatabaseTester field must not claim a Connection"
-                        + " parameter, so a co-registered resolver takes it without a"
-                        + " \"multiple competing ParameterResolvers\" clash.")
+                .as("An annotation-driven test must yield java.sql.Connection to a"
+                        + " co-registered resolver, avoiding JUnit's \"multiple competing"
+                        + " ParameterResolvers\" failure; the IDatabaseConnection parameter is the"
+                        + " one dbUnit resolves.")
                 .isSameAs(ForeignConnectionResolver.CONNECTION);
-    }
-
-    @Test
-    void testSupportsParameter_injectConnectionParameterFalse_leavesConnectionToAnotherResolver()
-    {
-        ForeignResolverWithInjectConnectionParameterFalseSample.injected = null;
-
-        EngineTestKit.engine("junit-jupiter")
-                .selectors(selectClass(
-                        ForeignResolverWithInjectConnectionParameterFalseSample.class))
-                .execute()
-                .testEvents()
-                .assertStatistics(stats -> stats.started(1).succeeded(1));
-
-        assertThat(ForeignResolverWithInjectConnectionParameterFalseSample.injected)
-                .as("@DbUnitConfig(injectConnectionParameter = false) on an annotation-driven"
-                        + " test must yield java.sql.Connection to a co-registered resolver,"
-                        + " avoiding JUnit's \"multiple competing ParameterResolvers\" failure.")
-                .isSameAs(ForeignConnectionResolver.CONNECTION);
-    }
-
-    @Test
-    void testSupportsParameter_vendorConnectionSubtype_leavesItToAnotherResolver()
-    {
-        VendorConnectionSample.injected = null;
-
-        EngineTestKit.engine("junit-jupiter")
-                .selectors(selectClass(VendorConnectionSample.class))
-                .execute()
-                .testEvents()
-                .assertStatistics(stats -> stats.started(1).succeeded(1));
-
-        assertThat(VendorConnectionSample.injected)
-                .as("A parameter of a java.sql.Connection subtype, such as a vendor connection"
-                        + " interface, is not a java.sql.Connection parameter: the extension"
-                        + " must not claim it, or it competes with the resolver that does.")
-                .isSameAs(VendorConnectionResolver.CONNECTION);
     }
 
     @Test
@@ -301,6 +280,32 @@ class DbUnitExtensionParameterResolverTest
         static IDatabaseTester injectedInTest;
 
         // @DbUnitTester (rather than a plain field) so the class opts into parameter injection.
+        @DbUnitTester
+        IDatabaseTester databaseTester = TESTER;
+
+        @BeforeEach
+        void beforeEach(final IDatabaseTester tester)
+        {
+            injectedInBeforeEach = tester;
+        }
+
+        @Test
+        void testParameterInjected(final IDatabaseTester tester)
+        {
+            injectedInTest = tester;
+        }
+    }
+
+    @DbUnitTest
+    static class RegisteredTwiceInjectionSample
+    {
+        static final IDatabaseTester TESTER = new NoOpTester();
+        static IDatabaseTester injectedInBeforeEach;
+        static IDatabaseTester injectedInTest;
+
+        @RegisterExtension
+        static DbUnitExtension dbUnit = new DbUnitExtension();
+
         @DbUnitTester
         IDatabaseTester databaseTester = TESTER;
 
@@ -352,36 +357,27 @@ class DbUnitExtensionParameterResolverTest
     }
 
     @ExtendWith(DbUnitExtension.class)
-    static class TestCaseInjectionSample
+    static class OtherTestCaseTesterParameterSample
     {
         @DbUnitTestCase
-        static PrepAndExpectedTestCase testCase;
-        static PrepAndExpectedTestCase injectedInBeforeEach;
-        static PrepAndExpectedTestCase injectedInTest;
-
-        @BeforeEach
-        void beforeEach(final PrepAndExpectedTestCase testCase)
-        {
-            injectedInBeforeEach = testCase;
-        }
+        static PrepAndExpectedTestCase testCase = mock(PrepAndExpectedTestCase.class);
 
         @Test
-        void testParameterInjected(final PrepAndExpectedTestCase testCase)
+        @DbUnitExpected("expected.xml")
+        void testParameterInjected(final IDatabaseTester tester)
         {
-            injectedInTest = testCase;
         }
     }
 
-    // @DbUnitTest (an opt-in annotation) rather than a bare @ExtendWith, so parameter
-    // resolution is claimed and the missing-@DbUnitTestCase-field failure comes from
-    // resolveParameter() with its clear message, not from JUnit finding no resolver at all.
-    @DbUnitTest
-    static class NoTestCaseFieldSample
+    @ExtendWith(DbUnitExtension.class)
+    static class OtherTestCaseConnectionParameterSample
     {
-        IDatabaseTester databaseTester = new NoOpTester();
+        @DbUnitTestCase
+        static PrepAndExpectedTestCase testCase = mock(PrepAndExpectedTestCase.class);
 
         @Test
-        void testParameterInjected(final PrepAndExpectedTestCase testCase)
+        @DbUnitExpected("expected.xml")
+        void testParameterInjected(final IDatabaseConnection connection)
         {
         }
     }
@@ -389,34 +385,16 @@ class DbUnitExtensionParameterResolverTest
     @ExtendWith(DbUnitExtension.class)
     static class ConnectionInjectionSample
     {
-        static final Connection JDBC_CONNECTION = mock(Connection.class);
-        static final IDatabaseConnection TESTER_CONNECTION = mockConnection();
+        static final IDatabaseConnection TESTER_CONNECTION = newMockConnection();
         static IDatabaseConnection injectedConnection;
-        static Connection injectedJdbcConnection;
 
         @DbUnitTester
         IDatabaseTester databaseTester = new NoOpTester(TESTER_CONNECTION);
 
-        private static IDatabaseConnection mockConnection()
-        {
-            final IDatabaseConnection connection = mock(IDatabaseConnection.class);
-            when(connection.getConfig()).thenReturn(new DatabaseConfig());
-            try
-            {
-                when(connection.getConnection()).thenReturn(JDBC_CONNECTION);
-            } catch (final SQLException e)
-            {
-                throw new IllegalStateException(e);
-            }
-            return connection;
-        }
-
         @Test
-        void testParametersInjected(final IDatabaseConnection connection,
-                final Connection jdbcConnection)
+        void testParameterInjected(final IDatabaseConnection connection)
         {
             injectedConnection = connection;
-            injectedJdbcConnection = jdbcConnection;
         }
     }
 
@@ -440,8 +418,9 @@ class DbUnitExtensionParameterResolverTest
     @ExtendWith(DbUnitExtension.class)
     static class AfterEachConnectionInjectionSample
     {
-        // @DbUnitTester so the @AfterEach Connection parameter is declined only for the
-        // @AfterEach-runs-too-late reason, not also for the class not being annotation-driven.
+        // @DbUnitTester so the @AfterEach IDatabaseConnection parameter is declined only for
+        // the @AfterEach-runs-too-late reason, not also for the class not being
+        // annotation-driven.
         @DbUnitTester
         IDatabaseTester databaseTester = new NoOpTester();
 
@@ -451,7 +430,7 @@ class DbUnitExtensionParameterResolverTest
         }
 
         @AfterEach
-        void afterEach(final Connection connection)
+        void afterEach(final IDatabaseConnection connection)
         {
         }
     }
@@ -462,22 +441,6 @@ class DbUnitExtensionParameterResolverTest
     {
         static Connection injected;
 
-        IDatabaseTester databaseTester = new NoOpTester();
-
-        @Test
-        void testForeignResolverWins(final Connection connection)
-        {
-            injected = connection;
-        }
-    }
-
-    @ExtendWith(DbUnitExtension.class)
-    @ExtendWith(ForeignConnectionResolver.class)
-    @DbUnitConfig(injectConnectionParameter = false)
-    static class ForeignResolverWithInjectConnectionParameterFalseSample
-    {
-        static Connection injected;
-
         @DbUnitTester
         IDatabaseTester databaseTester = new NoOpTester();
 
@@ -485,46 +448,6 @@ class DbUnitExtensionParameterResolverTest
         void testForeignResolverWins(final Connection connection)
         {
             injected = connection;
-        }
-    }
-
-    /** A vendor-specific connection interface, standing in for a driver's own type. */
-    interface VendorConnection extends Connection
-    {
-    }
-
-    @ExtendWith(DbUnitExtension.class)
-    @ExtendWith(VendorConnectionResolver.class)
-    static class VendorConnectionSample
-    {
-        static VendorConnection injected;
-
-        @DbUnitTester
-        IDatabaseTester databaseTester = new NoOpTester();
-
-        @Test
-        void testVendorResolverWins(final VendorConnection connection)
-        {
-            injected = connection;
-        }
-    }
-
-    static class VendorConnectionResolver implements ParameterResolver
-    {
-        static final VendorConnection CONNECTION = mock(VendorConnection.class);
-
-        @Override
-        public boolean supportsParameter(final ParameterContext parameterContext,
-                final ExtensionContext extensionContext)
-        {
-            return parameterContext.getParameter().getType() == VendorConnection.class;
-        }
-
-        @Override
-        public Object resolveParameter(final ParameterContext parameterContext,
-                final ExtensionContext extensionContext)
-        {
-            return CONNECTION;
         }
     }
 
@@ -559,13 +482,24 @@ class DbUnitExtensionParameterResolverTest
         }
     }
 
+    private static IDatabaseConnection newMockConnection()
+    {
+        final IDatabaseConnection connection = mock(IDatabaseConnection.class);
+        when(connection.getConfig()).thenReturn(new DatabaseConfig());
+        return connection;
+    }
+
+    /**
+     * A tester that does nothing, but hands out a connection and runs no operation, as the test
+     * case of an annotation-driven test needs of it.
+     */
     private static class NoOpTester implements IDatabaseTester
     {
         private final IDatabaseConnection connection;
 
         private NoOpTester()
         {
-            this(null);
+            this(newMockConnection());
         }
 
         private NoOpTester(final IDatabaseConnection connection)
@@ -603,13 +537,13 @@ class DbUnitExtensionParameterResolverTest
         @Override
         public DatabaseOperation getSetUpOperation()
         {
-            return null;
+            return DatabaseOperation.NONE;
         }
 
         @Override
         public DatabaseOperation getTearDownOperation()
         {
-            return null;
+            return DatabaseOperation.NONE;
         }
 
         @Override

@@ -26,6 +26,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 import org.dbunit.assertion.comparer.value.ValueComparer;
+import org.dbunit.database.DatabaseConfig;
 
 /**
  * Binds one column to the {@link ValueComparer} used to compare its values, nested inside
@@ -37,18 +38,26 @@ import org.dbunit.assertion.comparer.value.ValueComparer;
  * {@code ValueComparers} constant that is a configured instance built with constructor
  * arguments - the timestamp-tolerance comparers, for example
  * {@code isActualWithinOneMinuteNewerOfExpectedTimestamp}; naming one of those here fails
- * fast with an {@link IllegalStateException} pointing at a
- * {@link org.dbunit.VerifyTableDefinitionsProvider} catalog as the fix, since a
- * configured comparer can only be expressed as a {@code VerifyTableDefinition}
- * constant written in Java.
+ * fast with an {@link IllegalStateException} naming the two ways to use it: as a
+ * {@code VerifyTableDefinition} constant written in Java in a catalog class, or through a
+ * subclass whose public no-arg constructor passes the arguments on, which works inline:
+ * <pre>{@code
+ * public class WithinOneMinuteNewer
+ *         extends IsActualWithinToleranceOfExpectedTimestampValueComparer {
+ *     public WithinOneMinuteNewer() {
+ *         super(0, 60_000);
+ *     }
+ * }
+ * }</pre>
  *
  * <p>The instantiated comparer is cached for as long as its class stays loaded, keyed by
  * class, and reused by every later {@code @DbUnitColumnComparer}/{@link DbUnitVerifyTable#defaultComparer()}
  * naming the same class, rather than reflectively constructed anew for every test method - the
- * same once-and-reused-forever caching a {@link org.dbunit.VerifyTableDefinitionsProvider}
- * catalog gets. A custom {@link ValueComparer} named here must therefore be a pure function
- * with no dependency on mutable external state that could legitimately differ between the
- * tests reusing it.
+ * same once-and-reused-forever caching a catalog class gets.
+ * One instance therefore serves every test naming the class, in whatever order
+ * they run, so a custom {@link ValueComparer} named here must be stateless: a pure function that
+ * keeps nothing between calls and has no dependency on mutable external state that could
+ * legitimately differ between the tests reusing it.
  *
  * @author Jeff Jensen
  * @since 3.6.0
@@ -60,7 +69,16 @@ import org.dbunit.assertion.comparer.value.ValueComparer;
 public @interface DbUnitColumnComparer
 {
     /**
-     * The name of the column this comparer applies to.
+     * The name of the column this comparer applies to. It matches the column without regard to
+     * case, as the column names of {@link DbUnitVerifyTable#exclude()} and
+     * {@link DbUnitVerifyTable#include()} do, so two {@code @DbUnitColumnComparer}s of one
+     * {@link DbUnitVerifyTable} whose names differ only in case fail fast with an
+     * {@link IllegalStateException}, as two for the same column do. A name that matches no
+     * column of the table fails the verification, as the comparer would not be used, and so does
+     * a name of a column that the {@link DbUnitVerifyTable#include()} or
+     * {@link DbUnitVerifyTable#exclude()} names leave out of the comparison.
+     * Setting {@link DatabaseConfig#FEATURE_FAIL_ON_UNKNOWN_VERIFY_COLUMN_NAME} to false logs a warning
+     * instead.
      *
      * @return The column name.
      */

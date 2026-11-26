@@ -38,21 +38,35 @@ public interface IOperationListener {
      * Is invoked immediately after a connection was newly created or an existing
      * connection is retrieved to do some work on it. It should be used to initialize the 
      * {@link DatabaseConfig} of the connection with user defined parameters.
+     * <p>
+     * dbUnit can offer the same connection to this method more than once. For example, a test
+     * case that shares one connection for a whole test offers it when it acquires it and again
+     * before each set up or tear down operation it runs. Write this method so that repeating it
+     * for one connection does no harm, as configuring a {@link DatabaseConfig} does.
      * @param connection The database connection 
      * @since 2.4.4
      */
     public void connectionRetrieved(IDatabaseConnection connection);
     /**
-     * Notification of the completion of the {@link IDatabaseTester#onSetup()} method.
-     * Should close the given connection if desired.
-     * @param connection The database connection 
+     * Is invoked once the operation of {@link IDatabaseTester#onSetup()} is over, whether it
+     * completed or failed, and also when {@link #connectionRetrieved(IDatabaseConnection)}
+     * threw. A listener that wants the connection closed closes it here, which covers a failed
+     * operation too. The tester calls it only for an operation other than
+     * {@link org.dbunit.operation.DatabaseOperation#NONE}, which retrieves no connection and
+     * calls no listener method.
+     * @param connection The database connection the tester retrieved for the operation.
      * @since 2.4.4
      */
     public void operationSetUpFinished(IDatabaseConnection connection);
     /**
-     * Notification of the completion of the {@link IDatabaseTester#onTearDown()} method
-     * Should close the given connection if desired.
-     * @param connection The database connection 
+     * Is invoked once the operation of {@link IDatabaseTester#onTearDown()} is over, whether it
+     * completed or failed, and also when {@link #connectionRetrieved(IDatabaseConnection)}
+     * threw. A listener that wants the connection closed closes it here, which covers a failed
+     * operation too. The tester calls it only for an operation other than
+     * {@link org.dbunit.operation.DatabaseOperation#NONE}, which retrieves no connection and
+     * calls no listener method. {@code NONE} is the default tear down operation, so a default
+     * {@link IDatabaseTester#onTearDown()} calls nothing.
+     * @param connection The database connection the tester retrieved for the operation.
      * @since 2.4.4
      */
     public void operationTearDownFinished(IDatabaseConnection connection);

@@ -68,9 +68,10 @@ class DefaultPrepAndExpectedTestCaseColumnProjectionIT
     void testPostTest_sortOnFilteredColumnsOnlyOnEveryTable_passesOnTheDatabaseColumns()
             throws Exception
     {
-        final VerifyTableDefinition[] tables = {sorted("TEST_TABLE"), sorted("SECOND_TABLE"),
-                sorted("EMPTY_TABLE"), sorted("PK_TABLE"), sorted("ONLY_PK_TABLE"),
-                sorted("EMPTY_MULTITYPE_TABLE")};
+        final VerifyTableDefinition[] tables = {sortedWithout("TEST_TABLE", "COLUMN3"),
+                sortedWithout("SECOND_TABLE", "COLUMN3"), sortedWithout("EMPTY_TABLE", "COLUMN3"),
+                sortedWithout("PK_TABLE", "NORMAL1"), sorted("ONLY_PK_TABLE"),
+                sortedWithout("EMPTY_MULTITYPE_TABLE", "VARBINARY_COL")};
 
         runWithRecordingFactory(ALL_TABLES_DATA_FILE_NAME, tables, (testCase, recording) ->
                 assertThatCode(testCase::postTest)
@@ -78,6 +79,28 @@ class DefaultPrepAndExpectedTestCaseColumnProjectionIT
                                 + " definitions must verify the same data as selecting every"
                                 + " column, on every table shape.")
                         .doesNotThrowAnyException());
+    }
+
+    @Test
+    void testPostTest_sortOnFilteredColumnsOnlyWithNoFilter_selectsEveryColumnWithoutProjecting()
+            throws Exception
+    {
+        final VerifyTableDefinition[] tables = {sorted(TEST_TABLE)};
+
+        runWithRecordingFactory(TEST_TABLE_DATA_FILE_NAME, tables, (testCase, recording) ->
+        {
+            assertThatCode(testCase::postTest)
+                    .as("Nothing is compared differently, so the verification must pass.")
+                    .doesNotThrowAnyException();
+
+            assertThat(recording.getSelectStatements())
+                    .as("Nothing is filtered out, so naming the columns would save nothing and"
+                            + " every column must be selected as the default mode does.")
+                    .singleElement().asString().containsIgnoringCase("select *");
+            assertThat(recording.getRequestedColumnNames())
+                    .as("No column list may be requested when nothing is filtered out.")
+                    .isEmpty();
+        });
     }
 
     @Test
@@ -215,6 +238,13 @@ class DefaultPrepAndExpectedTestCaseColumnProjectionIT
     private static VerifyTableDefinition sorted(final String tableName)
     {
         return new VerifyTableDefinition(tableName, NO_COLUMNS, null, null, true);
+    }
+
+    private static VerifyTableDefinition sortedWithout(final String tableName,
+            final String excludedColumn)
+    {
+        return new VerifyTableDefinition(tableName, new String[] {excludedColumn}, null, null,
+                true);
     }
 
     private IDatabaseTester makeDatabaseTester() throws Exception

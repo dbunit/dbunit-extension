@@ -21,23 +21,51 @@
 package org.dbunit.dataset.yaml;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.StringReader;
+import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.sql.Date;
+import java.sql.Statement;
+import java.sql.Time;
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.Arrays;
+import java.util.TimeZone;
+import java.util.UUID;
 
 import org.dbunit.Assertion;
 import org.dbunit.dataset.AbstractDataSetTest;
+import org.dbunit.dataset.Column;
 import org.dbunit.dataset.DataSetBuilder;
 import org.dbunit.dataset.DataSetUtils;
+import org.dbunit.dataset.DefaultDataSet;
+import org.dbunit.dataset.DefaultTable;
 import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.ITable;
+import org.dbunit.dataset.stream.StreamingDataSet;
+import org.dbunit.dataset.xml.FlatXmlProducer;
+import org.xml.sax.InputSource;
+import org.dbunit.dataset.ReplacementDataSet;
+import org.dbunit.dataset.datatype.DataType;
+import org.dbunit.database.IDatabaseConnection;
+import org.dbunit.database.InMemoryDatabaseConnection;
+import org.dbunit.operation.DatabaseOperation;
 import org.dbunit.testutil.TestUtils;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * @author Björn Beskow
@@ -94,6 +122,28 @@ class YmlDataSetTest extends AbstractDataSetTest
     }
 
     @Test
+    void testWrite_streamingDataSetWithInterleavedTable_writesEveryRow() throws Exception
+    {
+        final String xml = "<dataset><A x=\"1\"/><B y=\"1\"/><A x=\"2\"/></dataset>";
+        final IDataSet source = new StreamingDataSet(
+                new FlatXmlProducer(new InputSource(new StringReader(xml))));
+        final ByteArrayOutputStream out = new ByteArrayOutputStream();
+
+        YamlDataSet.write(source, out);
+
+        final IDataSet actual = new YamlDataSet(new ByteArrayInputStream(out.toByteArray()));
+        final ITable tableA = actual.getTable("A");
+        assertThat(actual.getTableNames()).as("The table names must be A and B.")
+                .containsExactly("A", "B");
+        assertThat(tableA.getRowCount()).as("Both rows of A must be written.").isEqualTo(2);
+        assertThat(String.valueOf(tableA.getValue(0, "x"))).as("The first A row.")
+                .isEqualTo("1");
+        assertThat(String.valueOf(tableA.getValue(1, "x"))).as("The second A row.")
+                .isEqualTo("2");
+        assertThat(actual.getTable("B").getRowCount()).as("The row of B.").isEqualTo(1);
+    }
+
+    @Test
     void testWrite_withValidDataSet_writesAndReadsBackEquivalentData() throws Exception
     {
         final IDataSet expectedDataSet = createDataSet();
@@ -144,6 +194,256 @@ class YmlDataSetTest extends AbstractDataSetTest
     }
 
     @Test
+    void testWrite_dateTimeAndDecimalValues_readsThemBackAsTheirText() throws Exception
+    {
+        final Column[] columns = {new Column("EVENT_DAY", DataType.DATE),
+                new Column("STARTS_AT", DataType.TIMESTAMP),
+                new Column("AMOUNT", DataType.DECIMAL)};
+        final DefaultTable table = new DefaultTable("EVENT", columns);
+        table.addRow(new Object[] {Date.valueOf("2024-03-01"),
+                Timestamp.valueOf("2024-03-01 10:15:00"),
+                new BigDecimal("12345678901234567890.123")});
+        final ByteArrayOutputStream out = new ByteArrayOutputStream();
+
+        YamlDataSet.write(new DefaultDataSet(table), out);
+        final IDataSet readBack =
+                new YamlDataSet(new ByteArrayInputStream(out.toByteArray()));
+
+        final ITable readBackTable = readBack.getTable("EVENT");
+        final Object[] readBackRow = {readBackTable.getValue(0, "EVENT_DAY"),
+                readBackTable.getValue(0, "STARTS_AT"), readBackTable.getValue(0, "AMOUNT")};
+        assertThat(readBackRow)
+                .as("A date, a timestamp and a decimal are written in the text a column type"
+                        + " parses, not as an instant in UTC or a double, so they read back"
+                        + " unchanged in any time zone.")
+                .containsExactly("2024-03-01", "2024-03-01 10:15:00.0",
+                        "12345678901234567890.123");
+    }
+
+    @Test
+    void testWrite_wholeNumberDecimalColumn_verifiesAgainstItsTableAndReimportsUnchanged()
+            throws Exception
+    {
+        final IDatabaseConnection connection = InMemoryDatabaseConnection.create();
+        try
+        {
+            try (Statement statement = connection.getConnection().createStatement())
+            {
+                statement.execute("CREATE TABLE ACCOUNT (ID NUMERIC(30,0) PRIMARY KEY,"
+                        + " BALANCE NUMERIC(30,2))");
+                statement.execute("INSERT INTO ACCOUNT VALUES (5, 2.00)");
+                statement.execute("INSERT INTO ACCOUNT VALUES (9007199254740993, 1.10)");
+                statement.execute("INSERT INTO ACCOUNT VALUES"
+                        + " (123456789012345678901234567890, 12345678901234567890.12)");
+            }
+            final String select = "SELECT ID, BALANCE FROM ACCOUNT ORDER BY ID";
+            final ByteArrayOutputStream out = new ByteArrayOutputStream();
+            YamlDataSet.write(new DefaultDataSet(connection.createQueryTable("ACCOUNT", select)),
+                    out);
+            final IDataSet exported =
+                    new YamlDataSet(new ByteArrayInputStream(out.toByteArray()));
+            final ITable exportedTable = exported.getTable("ACCOUNT");
+            final ITable tableItCameFrom = connection.createQueryTable("ACCOUNT", select);
+
+            assertThatCode(() -> Assertion.assertEquals(exportedTable, tableItCameFrom))
+                    .as("The document that YamlDataSet.write() wrote must verify against the table"
+                            + " it was written from, a decimal without a fraction included.")
+                    .doesNotThrowAnyException();
+
+            DatabaseOperation.CLEAN_INSERT.execute(connection, exported);
+
+            final DefaultTable originals = new DefaultTable("ACCOUNT",
+                    new Column[] {new Column("ID", DataType.NUMERIC),
+                            new Column("BALANCE", DataType.NUMERIC)});
+            originals.addRow(new Object[] {new BigDecimal("5"), new BigDecimal("2.00")});
+            originals.addRow(
+                    new Object[] {new BigDecimal("9007199254740993"), new BigDecimal("1.10")});
+            originals.addRow(new Object[] {new BigDecimal("123456789012345678901234567890"),
+                    new BigDecimal("12345678901234567890.12")});
+            final ITable reimported = connection.createQueryTable("ACCOUNT", select);
+            assertThatCode(() -> Assertion.assertEquals(originals, reimported))
+                    .as("A re-import of the document must store the values that were exported,"
+                            + " every digit of a decimal without a fraction included.")
+                    .doesNotThrowAnyException();
+        } finally
+        {
+            connection.close();
+        }
+    }
+
+    @Test
+    void testWrite_javaTimeValues_readsThemBackAsTheSameColumnValues() throws Exception
+    {
+        final Column[] columns = {new Column("EVENT_DAY", DataType.DATE),
+                new Column("STARTS_AT", DataType.TIMESTAMP),
+                new Column("STARTS", DataType.TIME),
+                new Column("RECORDED_AT", DataType.TIMESTAMP)};
+        final DefaultTable table = new DefaultTable("EVENT", columns);
+        final LocalDate eventDay = LocalDate.of(2024, 3, 1);
+        final LocalDateTime startsAt = LocalDateTime.of(2024, 3, 1, 10, 15);
+        final LocalTime starts = LocalTime.of(10, 15);
+        final Instant recordedAt = Instant.parse("2024-03-01T16:15:30Z");
+        table.addRow(new Object[] {eventDay, startsAt, starts, recordedAt});
+        final ByteArrayOutputStream out = new ByteArrayOutputStream();
+
+        YamlDataSet.write(new DefaultDataSet(table), out);
+        final IDataSet readBack =
+                new YamlDataSet(new ByteArrayInputStream(out.toByteArray()));
+
+        final ITable readBackTable = readBack.getTable("EVENT");
+        final Object[] readBackRow = {
+                DataType.DATE.typeCast(readBackTable.getValue(0, "EVENT_DAY")),
+                DataType.TIMESTAMP.typeCast(readBackTable.getValue(0, "STARTS_AT")),
+                DataType.TIME.typeCast(readBackTable.getValue(0, "STARTS")),
+                DataType.TIMESTAMP.typeCast(readBackTable.getValue(0, "RECORDED_AT"))};
+        assertThat(readBackRow)
+                .as("A java.time date, date and time, time or instant is written in the text a"
+                        + " column type parses, so the column type reads back the same value.")
+                .containsExactly(Date.valueOf(eventDay), Timestamp.valueOf(startsAt),
+                        Time.valueOf(starts), Timestamp.from(recordedAt));
+    }
+
+    @Test
+    void testConstructor_unquotedIsoTimestamps_giveTheTextOfTheLocalTimeOrTheOffsetInstant()
+            throws Exception
+    {
+        final TimeZone original = TimeZone.getDefault();
+        TimeZone.setDefault(TimeZone.getTimeZone("America/Chicago"));
+        try
+        {
+            final String document = "EVENT:\n  - WITHOUT_OFFSET: 2024-01-15T10:00:00\n"
+                    + "    IN_UTC: 2024-01-15T10:00:00Z\n"
+                    + "    SPACED: 2024-01-15 10:00:00\n";
+
+            final IDataSet dataSet = new YamlDataSet(
+                    new ByteArrayInputStream(document.getBytes(StandardCharsets.UTF_8)));
+
+            final ITable table = dataSet.getTable("EVENT");
+            final Object withoutOffset = table.getValue(0, "WITHOUT_OFFSET");
+            final Object inUtc = table.getValue(0, "IN_UTC");
+            assertThat(new Object[] {withoutOffset, inUtc, table.getValue(0, "SPACED")})
+                    .as("An unquoted ISO timestamp without an offset reaches the column type as"
+                            + " the text written, not a java.util.Date; one with an offset as the"
+                            + " instant SnakeYAML reads.")
+                    .containsExactly("2024-01-15T10:00:00",
+                            java.util.Date.from(Instant.parse("2024-01-15T10:00:00Z")),
+                            "2024-01-15 10:00:00");
+            assertThat(DataType.TIMESTAMP.typeCast(withoutOffset))
+                    .as("The T form is 10:00 in the JVM's zone, west of UTC too, as the form with"
+                            + " the space is, not 10:00 UTC shifted by the zone's offset.")
+                    .isEqualTo(DataType.TIMESTAMP.typeCast(table.getValue(0, "SPACED")))
+                    .isEqualTo(Timestamp.valueOf("2024-01-15 10:00:00"));
+            assertThat(DataType.TIMESTAMP.typeCast(inUtc))
+                    .as("The Z form is the instant in UTC.")
+                    .isEqualTo(Timestamp.from(Instant.parse("2024-01-15T10:00:00Z")));
+        } finally
+        {
+            TimeZone.setDefault(original);
+        }
+    }
+
+    /**
+     * Runs in America/Chicago, which it sets itself: in a JVM whose zone has the offset of the
+     * written value a stored instant and the wall clock as written are the same, and the test has
+     * no power, so it must not depend on the zone that the build runs in.
+     */
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"2024-01-15T10:00:00Z", "2024-01-15T10:00:00+05:00",
+            "2024-01-15 10:00:00 -5", "2024-01-15T10:00:00", "2024-01-15 10:00:00",
+            "2024-01-15"})
+    void testCleanInsert_unquotedTimestamp_verifiesAgainstTheRowItInserted(final String value)
+            throws Exception
+    {
+        final TimeZone original = TimeZone.getDefault();
+        TimeZone.setDefault(TimeZone.getTimeZone("America/Chicago"));
+        final IDatabaseConnection connection = InMemoryDatabaseConnection.create();
+        try
+        {
+            try (Statement statement = connection.getConnection().createStatement())
+            {
+                statement.execute(
+                        "CREATE TABLE EVENT (ID INTEGER PRIMARY KEY, RECORDED_AT TIMESTAMP)");
+            }
+            final String document = "EVENT:\n  - ID: 1\n    RECORDED_AT: " + value + "\n";
+            final IDataSet dataSet = new YamlDataSet(
+                    new ByteArrayInputStream(document.getBytes(StandardCharsets.UTF_8)));
+
+            DatabaseOperation.CLEAN_INSERT.execute(connection, dataSet);
+
+            assertThatCode(() -> Assertion.assertEquals(dataSet.getTable("EVENT"),
+                    connection.createTable("EVENT")))
+                    .as("The YAML dataset that inserted the timestamp must verify against the"
+                            + " row it inserted, an offset included, in a JVM zone other than"
+                            + " UTC.")
+                    .doesNotThrowAnyException();
+        } finally
+        {
+            connection.close();
+            TimeZone.setDefault(original);
+        }
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"2024-03-01  10:15:30", "2024-03-01\t10:15:30",
+            "2024-03-01 10:15:30."})
+    void testConstructor_unquotedTimestampWithOtherWhitespaceOrAnEmptyFraction_isTheLocalTime(
+            final String value) throws Exception
+    {
+        final String document = "EVENT:\n  - RECORDED_AT: " + value + "\n";
+
+        final IDataSet dataSet = new YamlDataSet(
+                new ByteArrayInputStream(document.getBytes(StandardCharsets.UTF_8)));
+
+        final Object recordedAt = dataSet.getTable("EVENT").getValue(0, "RECORDED_AT");
+        assertThat(DataType.TIMESTAMP.typeCast(recordedAt))
+                .as("A timestamp that YAML 1.1 reads with more than one space, a tab or a dot"
+                        + " without digits is the time written in the JVM's time zone, as the"
+                        + " form with one space is.")
+                .isEqualTo(Timestamp.valueOf("2024-03-01 10:15:30"));
+    }
+
+    @Test
+    void testConstructor_quotedNullPlaceholder_becomesNullThroughAReplacementDataSet()
+            throws Exception
+    {
+        final String document = "TEST_TABLE:\n  - ID: 1\n    NOTE: '[NULL]'\n";
+        final ReplacementDataSet replaced = new ReplacementDataSet(new YamlDataSet(
+                new ByteArrayInputStream(document.getBytes(StandardCharsets.UTF_8))));
+        replaced.addReplacementObject("[NULL]", null);
+
+        final Object note = replaced.getTable("TEST_TABLE").getValue(0, "NOTE");
+
+        assertThat(note)
+                .as("A quoted '[NULL]' is the text that a ReplacementDataSet replaces with"
+                        + " null, which an unquoted [NULL] is not: YAML reads that as a list.")
+                .isNull();
+    }
+
+    @Test
+    void testWrite_columnNullInEveryRow_survivesWriteAndReadBack() throws Exception
+    {
+        final Column[] columns = {new Column("ID", DataType.UNKNOWN),
+                new Column("NOTE", DataType.UNKNOWN)};
+        final DefaultTable table = new DefaultTable("TEST_TABLE", columns);
+        table.addRow(new Object[] {"1", null});
+        table.addRow(new Object[] {"2", null});
+        final ByteArrayOutputStream out = new ByteArrayOutputStream();
+
+        YamlDataSet.write(new DefaultDataSet(table), out);
+        final IDataSet readBack =
+                new YamlDataSet(new ByteArrayInputStream(out.toByteArray()));
+
+        final ITable readBackTable = readBack.getTable("TEST_TABLE");
+        assertThat(readBackTable.getTableMetaData().getColumns())
+                .as("A column that is null in every row still exists after a write and a"
+                        + " read-back, as the first row carries every column.")
+                .extracting(Column::getColumnName).containsExactly("ID", "NOTE");
+        assertThat(new Object[] {readBackTable.getValue(0, "NOTE"),
+                readBackTable.getValue(1, "NOTE")})
+                        .as("The null cells are still null.").containsExactly(null, null);
+    }
+
+    @Test
     void testWrite_largeDataSetToMemoryStream_writesCompleteOutput() throws Exception
     {
         final int rowCount = 2000;
@@ -165,6 +465,54 @@ class YmlDataSetTest extends AbstractDataSetTest
                 .as("All rows should be present in the in-memory stream after write() returns.")
                 .isEqualTo(rowCount);
         Assertion.assertEquals(expectedDataSet, actualDataSet);
+    }
+
+    @Test
+    void testWrite_documentPastSnakeYamlsDefaultCodePointLimit_readsBackEveryRow()
+            throws Exception
+    {
+        final int rowCount = 1000;
+        final char[] wideChars = new char[4000];
+        Arrays.fill(wideChars, 'x');
+        final String wideValue = new String(wideChars);
+        final DataSetBuilder.TableBuilder builder =
+                new DataSetBuilder().table("WIDE_ROWS").columns("ID", "NAME");
+        for (int i = 0; i < rowCount; i++)
+        {
+            builder.row(i, wideValue);
+        }
+        final IDataSet expectedDataSet = builder.build();
+        final ByteArrayOutputStream out = new ByteArrayOutputStream();
+        YamlDataSet.write(expectedDataSet, out);
+        final int snakeYamlDefaultCodePointLimit = 3 * 1024 * 1024;
+
+        final IDataSet actualDataSet =
+                new YamlDataSet(new ByteArrayInputStream(out.toByteArray()));
+
+        assertThat(out.size())
+                .as("The document must be longer than the limit SnakeYAML sets by default.")
+                .isGreaterThan(snakeYamlDefaultCodePointLimit);
+        assertThat(actualDataSet.getTable("WIDE_ROWS").getRowCount())
+                .as("A document that YamlDataSet.write() wrote must be readable, whatever its"
+                        + " size.")
+                .isEqualTo(rowCount);
+    }
+
+    @Test
+    void testWrite_uuidValue_readsBackAsItsText() throws Exception
+    {
+        final UUID uuid = UUID.fromString("55a54008-ad1b-4c7a-8d4c-0a3c8f2b1e11");
+        final IDataSet dataSet = new DataSetBuilder().table("UUID_TABLE").columns("ID")
+                .row(uuid).build();
+        final ByteArrayOutputStream out = new ByteArrayOutputStream();
+
+        YamlDataSet.write(dataSet, out);
+        final IDataSet readBack = new YamlDataSet(new ByteArrayInputStream(out.toByteArray()));
+
+        assertThat(readBack.getTable("UUID_TABLE").getValue(0, "ID"))
+                .as("A UUID that a dataset built in code holds is written as its text, which the"
+                        + " reader reads, and not as a global tag the reader refuses.")
+                .isEqualTo(uuid.toString());
     }
 
     @Test

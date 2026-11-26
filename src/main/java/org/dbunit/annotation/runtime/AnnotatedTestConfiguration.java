@@ -30,21 +30,19 @@ import org.dbunit.annotation.DbUnitConfig;
 import org.dbunit.annotation.DbUnitExpected;
 import org.dbunit.annotation.DbUnitPrep;
 import org.dbunit.annotation.DbUnitRowCountCheck;
-import org.dbunit.annotation.DbUnitSetup;
-import org.dbunit.annotation.DbUnitTearDown;
+import org.dbunit.annotation.DbUnitSetUpOperation;
+import org.dbunit.annotation.DbUnitTearDownOperation;
 import org.dbunit.assertion.FailureHandler;
 import org.dbunit.operation.DatabaseOperation;
 import org.dbunit.util.fileloader.DataFileLoader;
-import org.dbunit.util.fileloader.DataSetPathsProvider;
 import org.dbunit.util.fileloader.FileExtensionDataFileLoader;
 
 /**
  * Immutable configuration resolved from one test element's {@code org.dbunit.annotation}
  * instances, ready for {@link AnnotatedTestExecutor} to drive - no dataset has been applied to
- * a database yet, but every dataset path is normalized, every provider and catalog has been
- * consulted, and every reflective instantiation that can fail (a provider or comparer with no
- * accessible no-arg constructor, conflicting inline-value-and-provider attributes) has already
- * happened.
+ * a database yet, but every dataset path is normalized, every catalog has been read, and every
+ * reflective instantiation that can fail (a comparer or factory with no accessible no-arg
+ * constructor, conflicting attributes) has already happened.
  *
  * <p>Not intended for direct use by test code; this is machinery consumed by a binding such as
  * {@code DbUnitExtension} or a Spring {@code TestExecutionListener}. Building one is
@@ -53,55 +51,60 @@ import org.dbunit.util.fileloader.FileExtensionDataFileLoader;
  * class-level - a binding's job, since only it knows how to search for them), rather than a
  * framework's test context.
  *
+ * <p>This type is internal to dbUnit's bindings; it is public only for use across
+ * dbUnit's packages and may change in a minor release.
+ *
  * @author Jeff Jensen
  * @since 3.6.0
  */
 public class AnnotatedTestConfiguration
 {
     private final DataFileLoader dataFileLoader;
+    private final boolean dataFileLoaderDeclared;
     private final String[] prepDataFiles;
     private final boolean setupDeclared;
     private final DatabaseOperation setUpOperation;
-    private final boolean expected;
     private final String[] expectedDataFiles;
     // null when the annotations declare none, to be derived from the expected datasets later.
     private final VerifyTableDefinition[] verifyTableDefinitions;
+    // the rules of the class-level catalogs, for the tables derived from the expected datasets.
+    private final VerifyTableDefinition[] catalogDefinitions;
     private final boolean tearDownDeclared;
     private final DatabaseOperation tearDownOperation;
     private final Properties databaseConfigProperties;
     private final FailureHandler failureHandler;
-    private final boolean closeConnectionAfterTest;
     private final Class<? extends DatabaseTesterFactory> databaseTesterFactory;
-    private final Class<? extends PrepAndExpectedTestCase> prepAndExpectedTestCaseClass;
+    private final Class<? extends DefaultPrepAndExpectedTestCase> prepAndExpectedTestCaseClass;
     private final boolean rowCountCheckDeclared;
     private final boolean rowCountCheckEnabled;
     private final String[] rowCountCheckExclude;
 
     private AnnotatedTestConfiguration(final DataFileLoader dataFileLoader,
-            final String[] prepDataFiles, final boolean setupDeclared,
-            final DatabaseOperation setUpOperation, final boolean expected,
+            final boolean dataFileLoaderDeclared, final String[] prepDataFiles,
+            final boolean setupDeclared,
+            final DatabaseOperation setUpOperation,
             final String[] expectedDataFiles,
             final VerifyTableDefinition[] verifyTableDefinitions,
+            final VerifyTableDefinition[] catalogDefinitions,
             final boolean tearDownDeclared, final DatabaseOperation tearDownOperation,
             final Properties databaseConfigProperties, final FailureHandler failureHandler,
-            final boolean closeConnectionAfterTest,
             final Class<? extends DatabaseTesterFactory> databaseTesterFactory,
-            final Class<? extends PrepAndExpectedTestCase> prepAndExpectedTestCaseClass,
+            final Class<? extends DefaultPrepAndExpectedTestCase> prepAndExpectedTestCaseClass,
             final boolean rowCountCheckDeclared, final boolean rowCountCheckEnabled,
             final String[] rowCountCheckExclude)
     {
         this.dataFileLoader = dataFileLoader;
+        this.dataFileLoaderDeclared = dataFileLoaderDeclared;
         this.prepDataFiles = prepDataFiles;
         this.setupDeclared = setupDeclared;
         this.setUpOperation = setUpOperation;
-        this.expected = expected;
         this.expectedDataFiles = expectedDataFiles;
         this.verifyTableDefinitions = verifyTableDefinitions;
+        this.catalogDefinitions = catalogDefinitions;
         this.tearDownDeclared = tearDownDeclared;
         this.tearDownOperation = tearDownOperation;
         this.databaseConfigProperties = databaseConfigProperties;
         this.failureHandler = failureHandler;
-        this.closeConnectionAfterTest = closeConnectionAfterTest;
         this.databaseTesterFactory = databaseTesterFactory;
         this.prepAndExpectedTestCaseClass = prepAndExpectedTestCaseClass;
         this.rowCountCheckDeclared = rowCountCheckDeclared;
@@ -115,9 +118,9 @@ public class AnnotatedTestConfiguration
      * @param testClass The test class; used to resolve dataset paths relative to its package.
      * @param config The resolved {@code @DbUnitConfig}, or {@code null} if absent.
      * @param prep The resolved {@code @DbUnitPrep}, or {@code null} if absent.
-     * @param setup The resolved {@code @DbUnitSetup}, or {@code null} if absent.
+     * @param setup The resolved {@code @DbUnitSetUpOperation}, or {@code null} if absent.
      * @param expected The resolved {@code @DbUnitExpected}, or {@code null} if absent.
-     * @param tearDown The resolved {@code @DbUnitTearDown}, or {@code null} if absent.
+     * @param tearDown The resolved {@code @DbUnitTearDownOperation}, or {@code null} if absent.
      * @param rowCountCheck The resolved {@code @DbUnitRowCountCheck}, or {@code null} if
      *            absent.
      * @return The resolved configuration.
@@ -125,11 +128,11 @@ public class AnnotatedTestConfiguration
      *             a named provider, catalog, or comparer class cannot be instantiated.
      */
     public static AnnotatedTestConfiguration from(final Class<?> testClass,
-            final DbUnitConfig config, final DbUnitPrep prep, final DbUnitSetup setup,
-            final DbUnitExpected expected, final DbUnitTearDown tearDown,
+            final DbUnitConfig config, final DbUnitPrep prep, final DbUnitSetUpOperation setup,
+            final DbUnitExpected expected, final DbUnitTearDownOperation tearDown,
             final DbUnitRowCountCheck rowCountCheck)
     {
-        return from(testClass, testClass, testClass, config, prep, setup, expected, tearDown,
+        return from(testClass, testClass, config, prep, setup, expected, tearDown,
                 rowCountCheck);
     }
 
@@ -139,69 +142,80 @@ public class AnnotatedTestConfiguration
      * declares the annotation naming it. That is the test class itself unless the annotation is
      * inherited from a base class, or sits on an inherited test method, in another package.
      *
-     * @param testClass The test class; used in diagnostics.
      * @param prepDeclaringClass The class declaring {@code prep}; used to resolve its
      *            package-relative paths.
      * @param expectedDeclaringClass The class declaring {@code expected}; used to resolve its
      *            package-relative paths.
      * @param config The resolved {@code @DbUnitConfig}, or {@code null} if absent.
      * @param prep The resolved {@code @DbUnitPrep}, or {@code null} if absent.
-     * @param setup The resolved {@code @DbUnitSetup}, or {@code null} if absent.
+     * @param setup The resolved {@code @DbUnitSetUpOperation}, or {@code null} if absent.
      * @param expected The resolved {@code @DbUnitExpected}, or {@code null} if absent.
-     * @param tearDown The resolved {@code @DbUnitTearDown}, or {@code null} if absent.
+     * @param tearDown The resolved {@code @DbUnitTearDownOperation}, or {@code null} if absent.
      * @param rowCountCheck The resolved {@code @DbUnitRowCountCheck}, or {@code null} if
      *            absent.
      * @return The resolved configuration.
      * @throws IllegalStateException If two mutually exclusive attributes are both set, or if
      *             a named provider, catalog, or comparer class cannot be instantiated.
      */
-    public static AnnotatedTestConfiguration from(final Class<?> testClass,
-            final Class<?> prepDeclaringClass, final Class<?> expectedDeclaringClass,
-            final DbUnitConfig config, final DbUnitPrep prep, final DbUnitSetup setup,
-            final DbUnitExpected expected, final DbUnitTearDown tearDown,
+    public static AnnotatedTestConfiguration from(final Class<?> prepDeclaringClass,
+            final Class<?> expectedDeclaringClass, final DbUnitConfig config,
+            final DbUnitPrep prep, final DbUnitSetUpOperation setup,
+            final DbUnitExpected expected, final DbUnitTearDownOperation tearDown,
             final DbUnitRowCountCheck rowCountCheck)
     {
-        final String dataSetBaseDir = config == null ? "" : config.dataSetBaseDir();
+        return from(prepDeclaringClass, expectedDeclaringClass, MergedDbUnitConfig.ofOne(config),
+                prep, setup, expected, tearDown, rowCountCheck, new DataFileLoaderInstances());
+    }
+
+    private static AnnotatedTestConfiguration from(final Class<?> prepDeclaringClass,
+            final Class<?> expectedDeclaringClass, final MergedDbUnitConfig config,
+            final DbUnitPrep prep, final DbUnitSetUpOperation setup,
+            final DbUnitExpected expected, final DbUnitTearDownOperation tearDown,
+            final DbUnitRowCountCheck rowCountCheck, final DataFileLoaderInstances dataFileLoaders)
+    {
+        final String dataSetBaseDir = config.getDataSetBaseDir();
         final DataSetPathsResolver pathsResolver = new DataSetPathsResolver();
 
-        final Class<? extends DataFileLoader> dataFileLoaderClass =
-                config == null ? FileExtensionDataFileLoader.class : config.dataFileLoader();
-        final DataFileLoader dataFileLoader =
-                instantiate(dataFileLoaderClass, "DbUnitConfig.dataFileLoader");
+        final Class<? extends DataFileLoader> declaredDataFileLoaderClass =
+                config.getDataFileLoader();
+        final boolean dataFileLoaderDeclared = declaredDataFileLoaderClass != null;
+        final Class<? extends DataFileLoader> dataFileLoaderClass = dataFileLoaderDeclared
+                ? declaredDataFileLoaderClass : FileExtensionDataFileLoader.class;
+        final DataFileLoader dataFileLoader = dataFileLoaders.get(dataFileLoaderClass);
 
-        final String[] prepDataFiles = pathsResolver.resolve("DbUnitPrep", prepDeclaringClass,
-                dataSetBaseDir, prep == null ? null : prep.value(),
-                prep == null ? DataSetPathsProvider.class : prep.provider());
+        final String[] prepDataFiles = pathsResolver.resolve(prepDeclaringClass, dataSetBaseDir,
+                prep == null ? null : prep.value());
         final boolean setupDeclared = setup != null;
         final DatabaseOperation setUpOperation = setup == null ? DatabaseOperation.CLEAN_INSERT
-                : setup.operation().toDatabaseOperation();
+                : setup.value().toDatabaseOperation();
         final boolean tearDownDeclared = tearDown != null;
         final DatabaseOperation tearDownOperation =
                 tearDown == null ? DatabaseOperation.NONE
-                        : tearDown.operation().toDatabaseOperation();
+                        : tearDown.value().toDatabaseOperation();
 
         final boolean hasExpected = expected != null;
         final String[] expectedDataFiles = !hasExpected ? new String[0]
-                : pathsResolver.resolve("DbUnitExpected", expectedDeclaringClass, dataSetBaseDir,
-                        expected.value(), expected.provider());
+                : pathsResolver.resolve(expectedDeclaringClass, dataSetBaseDir,
+                        expected.value());
+        final VerifyTableDefinitionResolver verifyResolver = new VerifyTableDefinitionResolver();
         final VerifyTableDefinition[] verifyTableDefinitions = !hasExpected
                 ? new VerifyTableDefinition[0]
-                : new VerifyTableDefinitionResolver()
-                        .resolveDeclared(config, expected, expectedDataFiles).orElse(null);
+                : verifyResolver.resolveDeclared(config.getVerifyDefinitions(), expected,
+                        expectedDataFiles).orElse(null);
+        final VerifyTableDefinition[] catalogDefinitions = !hasExpected
+                ? new VerifyTableDefinition[0]
+                : verifyResolver.catalogDefinitions(config.getVerifyDefinitions());
 
         final Properties databaseConfigProperties =
-                new DatabaseConfigPropertiesResolver().resolve(config);
-        final FailureHandler failureHandler = config == null
-                || config.failureHandler() == FailureHandler.class ? null
-                        : instantiate(config.failureHandler(), "DbUnitConfig.failureHandler");
-        final boolean closeConnectionAfterTest =
-                config == null || config.closeConnectionAfterTest();
-        final Class<? extends DatabaseTesterFactory> databaseTesterFactory = config == null
-                || config.databaseTesterFactory() == DatabaseTesterFactory.class ? null
-                        : config.databaseTesterFactory();
-        final Class<? extends PrepAndExpectedTestCase> prepAndExpectedTestCaseClass =
-                config == null ? DefaultPrepAndExpectedTestCase.class
-                        : config.prepAndExpectedTestCase();
+                new DatabaseConfigPropertiesResolver().resolve(config.getProperties());
+        final Class<? extends FailureHandler> failureHandlerClass = config.getFailureHandler();
+        final FailureHandler failureHandler = failureHandlerClass == null ? null
+                : new ReflectiveInstantiation().instantiate(failureHandlerClass,
+                        "DbUnitConfig.failureHandler");
+        final Class<? extends DatabaseTesterFactory> databaseTesterFactory =
+                config.getDatabaseTesterFactory();
+        final Class<? extends DefaultPrepAndExpectedTestCase> prepAndExpectedTestCaseClass =
+                config.getPrepAndExpectedTestCase();
 
         final boolean rowCountCheckDeclared = rowCountCheck != null;
         final boolean rowCountCheckEnabled =
@@ -209,46 +223,66 @@ public class AnnotatedTestConfiguration
         final String[] rowCountCheckExclude =
                 rowCountCheckDeclared ? rowCountCheck.exclude() : new String[0];
 
-        return new AnnotatedTestConfiguration(dataFileLoader, prepDataFiles, setupDeclared,
-                setUpOperation, hasExpected, expectedDataFiles, verifyTableDefinitions,
-                tearDownDeclared, tearDownOperation, databaseConfigProperties, failureHandler,
-                closeConnectionAfterTest, databaseTesterFactory, prepAndExpectedTestCaseClass,
-                rowCountCheckDeclared, rowCountCheckEnabled, rowCountCheckExclude);
+        return new AnnotatedTestConfiguration(dataFileLoader, dataFileLoaderDeclared,
+                prepDataFiles, setupDeclared, setUpOperation, expectedDataFiles,
+                verifyTableDefinitions, catalogDefinitions, tearDownDeclared, tearDownOperation,
+                databaseConfigProperties, failureHandler, databaseTesterFactory,
+                prepAndExpectedTestCaseClass, rowCountCheckDeclared, rowCountCheckEnabled,
+                rowCountCheckExclude);
     }
 
     /**
      * Resolves a configuration from the annotations a binding's {@link AnnotationLookup} finds
      * for one test - the six {@code org.dbunit.annotation} annotations that configure a test,
-     * method-level before class-level - so a binding supplies only its search strategy. A dataset
-     * path written relative to a package is resolved against the package of the class the lookup
-     * reports as declaring the annotation naming it - see
+     * method-level before class-level - so a binding supplies only its search strategy. The
+     * nearest declaration of an annotation wins whole, except {@link DbUnitConfig}: every
+     * declaration in scope is merged attribute by attribute - see {@link MergedDbUnitConfig}. A
+     * dataset path written relative to a package is resolved against the package of the class
+     * the lookup reports as declaring the annotation naming it - see
      * {@link AnnotationLookup#findDeclaringClass(Class)}.
      *
-     * @param testClass The test class; used in diagnostics.
+     * <p>The data file loader is built for this configuration alone. A binding that wants the
+     * tests of a scope to share one loader of each caching class calls
+     * {@link #from(AnnotationLookup, DataFileLoaderInstances)} instead.
+     *
      * @param lookup Finds the annotations that apply to the test, and the classes declaring them.
      * @return The resolved configuration.
      * @throws IllegalStateException If two mutually exclusive attributes are both set, or if
      *             a named provider, catalog, or comparer class cannot be instantiated.
      */
-    public static AnnotatedTestConfiguration from(final Class<?> testClass,
-            final AnnotationLookup lookup)
+    public static AnnotatedTestConfiguration from(final AnnotationLookup lookup)
     {
-        final DbUnitConfig config = lookup.find(DbUnitConfig.class);
+        return from(lookup, new DataFileLoaderInstances());
+    }
+
+    /**
+     * Resolves a configuration as {@link #from(AnnotationLookup)} does, taking the data
+     * file loader from the given instances: the one of the loader class the merged
+     * {@code @DbUnitConfig} names, or of {@link FileExtensionDataFileLoader} when it names none.
+     * Every configuration resolved with the same instances therefore uses the same loader of a
+     * caching class, built on the first request, and a loader of its own of any other class.
+     *
+     * @param lookup Finds the annotations that apply to the test, and the classes declaring them.
+     * @param dataFileLoaders The loaders of the binding's scope: one for each caching loader
+     *            class, a new one for each request of any other.
+     * @return The resolved configuration.
+     * @throws IllegalStateException If two mutually exclusive attributes are both set, or if
+     *             a named provider, catalog, or comparer class cannot be instantiated.
+     */
+    public static AnnotatedTestConfiguration from(final AnnotationLookup lookup,
+            final DataFileLoaderInstances dataFileLoaders)
+    {
+        final MergedDbUnitConfig config =
+                MergedDbUnitConfig.of(lookup.findAll(DbUnitConfig.class));
         final DbUnitPrep prep = lookup.find(DbUnitPrep.class);
-        final DbUnitSetup setup = lookup.find(DbUnitSetup.class);
+        final DbUnitSetUpOperation setup = lookup.find(DbUnitSetUpOperation.class);
         final DbUnitExpected expected = lookup.find(DbUnitExpected.class);
-        final DbUnitTearDown tearDown = lookup.find(DbUnitTearDown.class);
+        final DbUnitTearDownOperation tearDown = lookup.find(DbUnitTearDownOperation.class);
         final DbUnitRowCountCheck rowCountCheck = lookup.find(DbUnitRowCountCheck.class);
         final Class<?> prepDeclaringClass = lookup.findDeclaringClass(DbUnitPrep.class);
         final Class<?> expectedDeclaringClass = lookup.findDeclaringClass(DbUnitExpected.class);
-        return from(testClass, prepDeclaringClass, expectedDeclaringClass, config, prep, setup,
-                expected, tearDown, rowCountCheck);
-    }
-
-    private static <T> T instantiate(final Class<? extends T> implementationClass,
-            final String attributeDescription)
-    {
-        return ReflectiveInstantiation.instantiate(implementationClass, attributeDescription);
+        return from(prepDeclaringClass, expectedDeclaringClass, config, prep, setup, expected,
+                tearDown, rowCountCheck, dataFileLoaders);
     }
 
     /**
@@ -262,6 +296,17 @@ public class AnnotatedTestConfiguration
     }
 
     /**
+     * Returns whether a {@code @DbUnitConfig} declares the data file loader, rather than the
+     * default {@link FileExtensionDataFileLoader} being used for want of one.
+     *
+     * @return True when a declaration names the loader.
+     */
+    public boolean isDataFileLoaderDeclared()
+    {
+        return dataFileLoaderDeclared;
+    }
+
+    /**
      * Returns the resolved, absolute classpath paths of the prep dataset files.
      *
      * @return The prep dataset paths; empty when no {@code @DbUnitPrep} was declared.
@@ -272,19 +317,17 @@ public class AnnotatedTestConfiguration
     }
 
     /**
-     * Returns whether {@code @DbUnitSetup} was declared.
+     * Returns whether {@code @DbUnitSetUpOperation} was declared, which is what replaces the
+     * tester's own setup operation with {@link #getSetUpOperation()} for the test case that runs
+     * the test. Without it the test case uses the tester's setup operation, such as one a
+     * {@code @BeforeEach} method set, which can be one {@code DbUnitOperation} cannot express:
+     * {@code @DbUnitPrep} names only the dataset. The tester itself is never written.
      *
-     * <p>A binding consults this, alongside {@link #getPrepDataFiles()} being non-empty, to
-     * decide whether to call {@code setSetUpOperation} at all: with neither, the test runs with
-     * the tester's own pre-configured setup (matching pre-annotation behaviour); with
-     * {@code @DbUnitSetup} declared but no {@code @DbUnitPrep}, the operation is still applied
-     * - most usefully {@link org.dbunit.operation.DatabaseOperation#NONE} - to whatever
-     * dataset the tester already has, rather than leaving a tester with no dataset at all to
-     * run its unrelated default operation against. Either way a binding driving a tester shared
-     * across methods should restore the tester's dataset and operations afterward, so a
-     * per-method {@code @DbUnitSetup}/{@code @DbUnitPrep} does not carry onto a later method.
+     * <p>With {@code @DbUnitSetUpOperation} declared but no {@code @DbUnitPrep}, the operation
+     * runs over no data, as the dataset the tester holds is never read, so only an operation that
+     * sources its own data changes anything.
      *
-     * @return True when {@code @DbUnitSetup} was declared.
+     * @return True when {@code @DbUnitSetUpOperation} was declared.
      */
     public boolean isSetupDeclared()
     {
@@ -294,8 +337,9 @@ public class AnnotatedTestConfiguration
     /**
      * Returns the setup operation.
      *
-     * @return The setup operation; {@link DatabaseOperation#CLEAN_INSERT} when no
-     *         {@code @DbUnitSetup} was declared.
+     * @return The setup operation {@code @DbUnitSetUpOperation} declared;
+     *         {@link DatabaseOperation#CLEAN_INSERT} when none was, which applies only when
+     *         {@link #isSetupDeclared()}.
      */
     public DatabaseOperation getSetUpOperation()
     {
@@ -303,20 +347,9 @@ public class AnnotatedTestConfiguration
     }
 
     /**
-     * Returns whether {@code @DbUnitExpected} was declared, switching the test onto the
-     * prep/expected path.
-     *
-     * @return True when {@code @DbUnitExpected} was declared.
-     */
-    public boolean isExpected()
-    {
-        return expected;
-    }
-
-    /**
      * Returns the resolved, absolute classpath paths of the expected dataset files.
      *
-     * @return The expected dataset paths; empty when {@link #isExpected()} is false.
+     * @return The expected dataset paths; empty when no {@code @DbUnitExpected} was declared.
      */
     public String[] getExpectedDataFiles()
     {
@@ -328,11 +361,29 @@ public class AnnotatedTestConfiguration
      * {@link #getDataFileLoader()} when the annotations declare none - see
      * {@link #getVerifyTableDefinitions(DataFileLoader)}.
      *
-     * @return The table definitions; empty when {@link #isExpected()} is false.
+     * @return The table definitions; empty when no {@code @DbUnitExpected} was declared.
      */
     public VerifyTableDefinition[] getVerifyTableDefinitions()
     {
         return getVerifyTableDefinitions(dataFileLoader);
+    }
+
+    /**
+     * Returns whether the annotations declare no table definitions to verify, so that the
+     * default of one per table in the expected datasets applies: either derived by reading the
+     * expected datasets - see {@link #getVerifyTableDefinitions(DataFileLoader)} - or, by a
+     * binding whose {@code PrepAndExpectedTestCase} loads those datasets itself, from the
+     * dataset it has loaded, so the files are not parsed twice. In both, the rules of a table
+     * are its definition in the class-level catalogs - see {@link #getCatalogDefinitions()} -
+     * and the default ones for a table they do not define.
+     *
+     * @return True when the table definitions are to be derived from the expected datasets;
+     *         false when the annotations declare them, or no {@code @DbUnitExpected} was
+     *         declared.
+     */
+    public boolean derivesVerifyTableDefinitions()
+    {
+        return verifyTableDefinitions == null;
     }
 
     /**
@@ -344,7 +395,7 @@ public class AnnotatedTestConfiguration
      *
      * @param expectedDataLoader The loader to read the expected datasets with when the
      *            definitions must be derived from them.
-     * @return The table definitions; empty when {@link #isExpected()} is false.
+     * @return The table definitions; empty when no {@code @DbUnitExpected} was declared.
      */
     public VerifyTableDefinition[] getVerifyTableDefinitions(
             final DataFileLoader expectedDataLoader)
@@ -352,25 +403,33 @@ public class AnnotatedTestConfiguration
         if (verifyTableDefinitions == null)
         {
             return new VerifyTableDefinitionResolver().deriveFromExpectedDatasets(
-                    expectedDataLoader, expectedDataFiles);
+                    expectedDataLoader, expectedDataFiles, catalogDefinitions);
         }
         return verifyTableDefinitions.clone();
     }
 
     /**
-     * Returns whether {@code @DbUnitTearDown} was declared.
+     * Returns the definitions of the class-level {@code @DbUnitConfig(verifyDefinitions)}
+     * catalogs, the rules of the tables derived from the expected datasets when
+     * {@link #derivesVerifyTableDefinitions()}: a table a catalog defines is verified with its
+     * definition, any other with the default rules.
      *
-     * <p>On the setup/teardown path a binding consults this to decide whether to call
-     * {@code setTearDownOperation} at all: with no {@code @DbUnitTearDown}, {@code onTearDown()}
-     * runs with the tester's own pre-configured teardown operation - e.g. one set in a
-     * {@code @BeforeEach} method - rather than a forced {@link DatabaseOperation#NONE},
-     * mirroring how an undeclared setup operation is handled (see {@link #isSetupDeclared()}).
-     * A binding driving a tester shared across methods should restore the operation afterward
-     * so a per-method {@code @DbUnitTearDown} does not carry onto a later method. On the
-     * prep/expected path the operation is applied regardless, since {@code cleanupData()}
-     * always runs there and reads it from the tester lazily.
+     * @return The catalogs' definitions; empty when the test declares no catalog, or
+     *         no {@code @DbUnitExpected} was declared.
+     */
+    public VerifyTableDefinition[] getCatalogDefinitions()
+    {
+        return catalogDefinitions.clone();
+    }
+
+    /**
+     * Returns whether {@code @DbUnitTearDownOperation} was declared. Without it the test case
+     * that runs the test uses the tester's own teardown operation, such as one set in a
+     * {@code @BeforeEach} method, rather than a forced {@link DatabaseOperation#NONE}, as for an
+     * undeclared setup operation (see {@link #isSetupDeclared()}). The tester itself is never
+     * written.
      *
-     * @return True when {@code @DbUnitTearDown} was declared.
+     * @return True when {@code @DbUnitTearDownOperation} was declared.
      */
     public boolean isTearDownDeclared()
     {
@@ -381,7 +440,7 @@ public class AnnotatedTestConfiguration
      * Returns the teardown operation.
      *
      * @return The teardown operation; {@link DatabaseOperation#NONE} when no
-     *         {@code @DbUnitTearDown} was declared.
+     *         {@code @DbUnitTearDownOperation} was declared.
      */
     public DatabaseOperation getTearDownOperation()
     {
@@ -412,17 +471,6 @@ public class AnnotatedTestConfiguration
     }
 
     /**
-     * Returns whether the connection this executor resolves - for the prep/expected path, the
-     * row count check, or parameter injection - is closed after each test.
-     *
-     * @return True to close the connection after each test.
-     */
-    public boolean isCloseConnectionAfterTest()
-    {
-        return closeConnectionAfterTest;
-    }
-
-    /**
      * Returns the {@link DatabaseTesterFactory} implementation to use when no tester field is
      * declared.
      *
@@ -434,12 +482,12 @@ public class AnnotatedTestConfiguration
     }
 
     /**
-     * Returns the {@link PrepAndExpectedTestCase} implementation to use for the prep/expected
-     * path when no test case field is declared.
+     * Returns the {@link PrepAndExpectedTestCase} implementation to build for an
+     * annotation-driven test when no test case field is declared.
      *
      * @return The test case class; {@link DefaultPrepAndExpectedTestCase} when not set.
      */
-    public Class<? extends PrepAndExpectedTestCase> getPrepAndExpectedTestCaseClass()
+    public Class<? extends DefaultPrepAndExpectedTestCase> getPrepAndExpectedTestCaseClass()
     {
         return prepAndExpectedTestCaseClass;
     }

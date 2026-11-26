@@ -23,6 +23,7 @@ package org.dbunit;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.catchThrowable;
+import static org.assertj.core.api.Assertions.tuple;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -34,6 +35,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.dbunit.assertion.DbComparisonFailure;
 import org.dbunit.database.MockDatabaseConnection;
 import org.dbunit.dataset.IDataSet;
+import org.dbunit.util.fileloader.DataFileLoader;
+import org.dbunit.util.fileloader.FileExtensionDataFileLoader;
+import org.dbunit.util.fileloader.FlatXmlDataFileLoader;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -51,17 +55,167 @@ class MultiDataSourcePrepAndExpectedTestCaseTest
     // ---- construction / assembly ----
 
     @Test
-    void testFrom_thenAdd_wiresDataSourcesInCallOrder()
+    void testBuilder_dataSourcesAdded_wiresThemInCallOrder()
     {
         final RecordingTestCase catalog = new RecordingTestCase("catalog", new ArrayList<>());
         final RecordingTestCase orders = new RecordingTestCase("orders", new ArrayList<>());
 
-        final MultiDataSourcePrepAndExpectedTestCase testCase = MultiDataSourcePrepAndExpectedTestCase
-                .from("catalog", catalog).add("orders", orders);
+        final MultiDataSourcePrepAndExpectedTestCase testCase =
+                MultiDataSourcePrepAndExpectedTestCase.builder().add("catalog", catalog)
+                        .add("orders", orders).build();
 
         assertThat(testCase.getDataSourceNames())
-                .as("from(...).add(...) must wire the data sources in call order.")
+                .as("The builder must wire the data sources in the order they were added.")
                 .containsExactly("catalog", "orders");
+        assertThat(testCase.getTestCase("orders"))
+                .as("Each name must map to the delegate added under it.").isSameAs(orders);
+    }
+
+    @Test
+    void testGetTestCase_unwiredDataSourceName_throwsIllegalArgumentException()
+    {
+        final MultiDataSourcePrepAndExpectedTestCase testCase =
+                MultiDataSourcePrepAndExpectedTestCase.builder()
+                        .add("catalog", new RecordingTestCase("catalog", new ArrayList<>()))
+                        .build();
+
+        assertThatThrownBy(() -> testCase.getTestCase("orders"))
+                .as("Asking for a data source that is not wired must fail with a message that"
+                        + " names it, not return null.")
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("No data source named 'orders' is wired.");
+    }
+
+    @Test
+    void testBuilder_addAllWithLinkedHashMap_wiresInMapIterationOrder()
+    {
+        final Map<String, PrepAndExpectedTestCase> more = new LinkedHashMap<>();
+        more.put("inventory", new RecordingTestCase("inventory", new ArrayList<>()));
+        more.put("audit", new RecordingTestCase("audit", new ArrayList<>()));
+
+        final MultiDataSourcePrepAndExpectedTestCase testCase =
+                MultiDataSourcePrepAndExpectedTestCase.builder()
+                        .add("catalog", new RecordingTestCase("catalog", new ArrayList<>()))
+                        .addAll(more).build();
+
+        assertThat(testCase.getDataSourceNames())
+                .as("addAll must wire the entries after the ones added before it, in the given"
+                        + " map's iteration order.")
+                .containsExactly("catalog", "inventory", "audit");
+    }
+
+    @Test
+    void testBuilder_duplicateDataSourceName_throwsIllegalArgumentException()
+    {
+        final MultiDataSourcePrepAndExpectedTestCase.Builder builder =
+                MultiDataSourcePrepAndExpectedTestCase.builder().add("catalog",
+                        new RecordingTestCase("catalog", new ArrayList<>()));
+        final IDatabaseTester tester = new DefaultDatabaseTester(new MockDatabaseConnection());
+
+        assertThatThrownBy(() -> builder.add("catalog",
+                new RecordingTestCase("catalog-2", new ArrayList<>())))
+                .as("Adding a second delegate under an already-wired data source name must"
+                        + " throw.")
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> builder.add("catalog", tester))
+                .as("Adding a tester under an already-wired data source name must throw.")
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void testBuilder_nullOrBlankNameOrNullDelegateOrNullTester_throwsIllegalArgumentException()
+    {
+        final MultiDataSourcePrepAndExpectedTestCase.Builder builder =
+                MultiDataSourcePrepAndExpectedTestCase.builder();
+        final RecordingTestCase delegate = new RecordingTestCase("x", new ArrayList<>());
+        final IDatabaseTester tester = new DefaultDatabaseTester(new MockDatabaseConnection());
+
+        assertThatThrownBy(() -> builder.add(null, delegate))
+                .as("A null data source name must throw.")
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> builder.add("   ", tester))
+                .as("A blank data source name must throw.")
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> builder.add("catalog", (PrepAndExpectedTestCase) null))
+                .as("A null delegate must throw.").isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> builder.add("catalog", (IDatabaseTester) null))
+                .as("A null tester must throw.").isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> builder.addAll(null))
+                .as("A null map must throw.").isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void testBuilder_nothingAdded_throwsIllegalArgumentException()
+    {
+        final MultiDataSourcePrepAndExpectedTestCase.Builder builder =
+                MultiDataSourcePrepAndExpectedTestCase.builder();
+
+        assertThatThrownBy(builder::build)
+                .as("An instance without a data source can do nothing, so building one must"
+                        + " fail at once rather than at the first preTest.")
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void testBuilder_testerAddedWithoutLoaderOrFlag_wrapsItWithTheDefaultLoaderAndClosing()
+    {
+        final IDatabaseTester tester = new DefaultDatabaseTester(new MockDatabaseConnection());
+
+        final MultiDataSourcePrepAndExpectedTestCase testCase =
+                MultiDataSourcePrepAndExpectedTestCase.builder().add("catalog", tester).build();
+
+        final DefaultPrepAndExpectedTestCase wrapped =
+                (DefaultPrepAndExpectedTestCase) testCase.getTestCase("catalog");
+        assertThat(wrapped.getDatabaseTester()).as("The wrapped test case drives the tester.")
+                .isSameAs(tester);
+        assertThat(wrapped.getDataFileLoader())
+                .as("Without a loader, the file extension chooses the format.")
+                .isExactlyInstanceOf(FileExtensionDataFileLoader.class);
+        assertThat(wrapped.isCloseConnectionAfterTest())
+                .as("Without a flag, the connection is closed after each test.").isTrue();
+    }
+
+    @Test
+    void testBuilder_loaderAndFlagSetAfterTesterAdded_theWrappedTestCasesGetThem()
+    {
+        final IDatabaseTester catalogTester =
+                new DefaultDatabaseTester(new MockDatabaseConnection());
+        final IDatabaseTester ordersTester =
+                new DefaultDatabaseTester(new MockDatabaseConnection());
+        final DataFileLoader loader = new FlatXmlDataFileLoader();
+
+        final MultiDataSourcePrepAndExpectedTestCase testCase =
+                MultiDataSourcePrepAndExpectedTestCase.builder().add("catalog", catalogTester)
+                        .add("orders", ordersTester).dataFileLoader(loader)
+                        .closeConnectionAfterTest(false).build();
+
+        for (final String name : testCase.getDataSourceNames())
+        {
+            final DefaultPrepAndExpectedTestCase wrapped =
+                    (DefaultPrepAndExpectedTestCase) testCase.getTestCase(name);
+            assertThat(wrapped.getDataFileLoader())
+                    .as("The loader set after the tester was added must reach '" + name + "'.")
+                    .isSameAs(loader);
+            assertThat(wrapped.isCloseConnectionAfterTest())
+                    .as("The flag set after the tester was added must reach '" + name + "'.")
+                    .isFalse();
+        }
+    }
+
+    @Test
+    void testBuilder_changedAfterBuild_doesNotAffectTheBuiltInstance()
+    {
+        final MultiDataSourcePrepAndExpectedTestCase.Builder builder =
+                MultiDataSourcePrepAndExpectedTestCase.builder().add("catalog",
+                        new RecordingTestCase("catalog", new ArrayList<>()));
+        final MultiDataSourcePrepAndExpectedTestCase testCase = builder.build();
+
+        builder.add("orders", new RecordingTestCase("orders", new ArrayList<>()));
+
+        assertThat(testCase.getDataSourceNames())
+                .as("A built instance is fully wired and fixed: the builder's later additions"
+                        + " must not reach it.")
+                .containsExactly("catalog");
     }
 
     @Test
@@ -97,10 +251,16 @@ class MultiDataSourcePrepAndExpectedTestCaseTest
     }
 
     @Test
-    void testConstructor_nullMapOrNullOrBlankKeyOrNullDelegate_throws()
+    void testConstructor_nullOrEmptyMapOrNullOrBlankKeyOrNullDelegate_throws()
     {
         assertThatThrownBy(() -> new MultiDataSourcePrepAndExpectedTestCase(null))
                 .as("A null seed map must throw.").isInstanceOf(IllegalArgumentException.class);
+
+        assertThatThrownBy(
+                () -> new MultiDataSourcePrepAndExpectedTestCase(new LinkedHashMap<>()))
+                .as("An empty seed map must throw: an instance without a data source can do"
+                        + " nothing.")
+                .isInstanceOf(IllegalArgumentException.class);
 
         final Map<String, PrepAndExpectedTestCase> nullKey = new LinkedHashMap<>();
         nullKey.put(null, new RecordingTestCase("x", new ArrayList<>()));
@@ -119,67 +279,6 @@ class MultiDataSourcePrepAndExpectedTestCaseTest
         assertThatThrownBy(() -> new MultiDataSourcePrepAndExpectedTestCase(nullDelegate))
                 .as("A null delegate in the seed map must throw.")
                 .isInstanceOf(IllegalArgumentException.class);
-    }
-
-    @Test
-    void testAdd_duplicateDataSourceName_throwsIllegalArgumentException()
-    {
-        final MultiDataSourcePrepAndExpectedTestCase testCase = MultiDataSourcePrepAndExpectedTestCase
-                .from("catalog", new RecordingTestCase("catalog", new ArrayList<>()));
-
-        assertThatThrownBy(() -> testCase.add("catalog",
-                new RecordingTestCase("catalog-2", new ArrayList<>())))
-                .as("Adding a second delegate under an already-wired data source name must"
-                        + " throw.")
-                .isInstanceOf(IllegalArgumentException.class);
-    }
-
-    @Test
-    void testAdd_afterFirstPreTest_throwsIllegalStateException() throws Exception
-    {
-        final RecordingTestCase catalog = new RecordingTestCase("catalog", new ArrayList<>());
-        final MultiDataSourcePrepAndExpectedTestCase testCase =
-                MultiDataSourcePrepAndExpectedTestCase.from("catalog", catalog);
-
-        testCase.preTest(map("catalog", someData()));
-
-        assertThatThrownBy(
-                () -> testCase.add("orders", new RecordingTestCase("orders", new ArrayList<>())))
-                .as("add(...) after the wiring is frozen by the first preTest(...) call must"
-                        + " throw.")
-                .isInstanceOf(IllegalStateException.class);
-    }
-
-    @Test
-    void testPreTest_firstCallFailsValidation_wiringStaysUnfrozenSoAddStillWorks() throws Exception
-    {
-        final MultiDataSourcePrepAndExpectedTestCase testCase =
-                new MultiDataSourcePrepAndExpectedTestCase();
-
-        assertThatThrownBy(() -> testCase.preTest(map("catalog", someData())))
-                .as("preTest on an instance with nothing wired yet must throw.")
-                .isInstanceOf(IllegalStateException.class);
-
-        testCase.add("catalog", new RecordingTestCase("catalog", new ArrayList<>()));
-
-        assertThat(testCase.getDataSourceNames())
-                .as("A failed first preTest call - before any delegate was ever wired or"
-                        + " touched - must not have frozen the wiring, so add(...) afterward"
-                        + " must still work.")
-                .containsExactly("catalog");
-    }
-
-    @Test
-    void testAddTester_onInstanceNotCreatedViaForTesters_throwsIllegalStateException()
-    {
-        final MultiDataSourcePrepAndExpectedTestCase testCase =
-                new MultiDataSourcePrepAndExpectedTestCase();
-        final IDatabaseTester tester = new DefaultDatabaseTester(new MockDatabaseConnection());
-
-        assertThatThrownBy(() -> testCase.add("catalog", tester))
-                .as("add(String, IDatabaseTester) on an instance not created via one of the"
-                        + " forTesters(...) factories must throw.")
-                .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
@@ -210,14 +309,31 @@ class MultiDataSourcePrepAndExpectedTestCaseTest
     }
 
     @Test
-    void testPreTest_zeroDataSources_throwsIllegalStateException()
+    void testPreTest_dataSourceVerifiesEveryExpectedTable_handsTheBundleToItsTestCase()
+            throws Exception
     {
+        final List<PrepAndExpectedTestData> received = new ArrayList<>();
+        final RecordingTestCase catalog = new RecordingTestCase("catalog", new ArrayList<>())
+        {
+            @Override
+            public void preTest(final PrepAndExpectedTestData testData) throws Exception
+            {
+                received.add(testData);
+            }
+        };
+        final Map<String, PrepAndExpectedTestCase> wired = new HashMap<>();
+        wired.put("catalog", catalog);
         final MultiDataSourcePrepAndExpectedTestCase testCase =
-                new MultiDataSourcePrepAndExpectedTestCase();
+                new MultiDataSourcePrepAndExpectedTestCase(wired);
+        final PrepAndExpectedTestData everyTable = PrepAndExpectedTestData
+                .verifyingExpectedTables(new String[0], new String[] {"/expected/a.xml"});
 
-        assertThatThrownBy(() -> testCase.preTest(new LinkedHashMap<>()))
-                .as("preTest(...) with zero data sources wired must throw.")
-                .isInstanceOf(IllegalStateException.class);
+        testCase.preTest(map("catalog", everyTable));
+
+        assertThat(received)
+                .as("A data source's test case must receive its data as given, so a scenario that"
+                        + " verifies every expected table is not reduced to verifying none.")
+                .containsExactly(everyTable);
     }
 
     // ---- lifecycle ----
@@ -227,7 +343,7 @@ class MultiDataSourcePrepAndExpectedTestCaseTest
     {
         final RecordingTestCase catalog = new RecordingTestCase("catalog", new ArrayList<>());
         final MultiDataSourcePrepAndExpectedTestCase testCase =
-                MultiDataSourcePrepAndExpectedTestCase.from("catalog", catalog);
+                MultiDataSourcePrepAndExpectedTestCase.builder().add("catalog", catalog).build();
 
         assertThatThrownBy(
                 () -> testCase.preTest(map("catalog", someData(), "bogus", someData())))
@@ -240,13 +356,50 @@ class MultiDataSourcePrepAndExpectedTestCaseTest
     }
 
     @Test
+    void testPreTest_oneDelegateUnderTwoInvolvedNames_throwsNamingBothBeforeAnyDelegateIsTouched()
+    {
+        final List<String> callLog = new ArrayList<>();
+        final RecordingTestCase shared = new RecordingTestCase("shared", callLog);
+        final RecordingTestCase orders = new RecordingTestCase("orders", callLog);
+        final MultiDataSourcePrepAndExpectedTestCase testCase =
+                MultiDataSourcePrepAndExpectedTestCase.builder().add("orders", orders)
+                        .add("a", shared).add("b", shared).build();
+
+        final Throwable thrown = catchThrowable(() -> testCase
+                .preTest(map("orders", someData(), "a", someData(), "b", someData())));
+
+        assertThat(thrown).as("A delegate holds one run's data, so two names for it must throw.")
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("\"a\"")
+                .hasMessageContaining("\"b\"");
+        assertThat(callLog)
+                .as("No delegate may be touched, not even the one before the shared pair.")
+                .isEmpty();
+    }
+
+    @Test
+    void testPreTest_oneDelegateUnderTwoNamesOnlyOneInvolved_setsItUp() throws Exception
+    {
+        final List<String> callLog = new ArrayList<>();
+        final RecordingTestCase shared = new RecordingTestCase("shared", callLog);
+        final MultiDataSourcePrepAndExpectedTestCase testCase =
+                MultiDataSourcePrepAndExpectedTestCase.builder().add("a", shared)
+                        .add("b", shared).build();
+
+        testCase.preTest(map("b", someData()));
+        testCase.postTest(true);
+
+        assertThat(callLog).as("Two names for one delegate are aliases when only one is involved.")
+                .containsExactly("shared:preTest", "shared:postTest(true)");
+    }
+
+    @Test
     void testPreTest_secondCallRejectedWhileARunIsActive_postTestStillTearsDownTheActiveRun()
             throws Exception
     {
         final List<String> callLog = new ArrayList<>();
         final RecordingTestCase catalog = new RecordingTestCase("catalog", callLog);
         final MultiDataSourcePrepAndExpectedTestCase testCase =
-                MultiDataSourcePrepAndExpectedTestCase.from("catalog", catalog);
+                MultiDataSourcePrepAndExpectedTestCase.builder().add("catalog", catalog).build();
         testCase.preTest(map("catalog", someData()));
 
         assertThatThrownBy(
@@ -267,7 +420,7 @@ class MultiDataSourcePrepAndExpectedTestCaseTest
         final RecordingTestCase catalog = new RecordingTestCase("catalog", new ArrayList<>());
         final RecordingTestCase orders = new RecordingTestCase("orders", new ArrayList<>());
         final MultiDataSourcePrepAndExpectedTestCase testCase = MultiDataSourcePrepAndExpectedTestCase
-                .from("catalog", catalog).add("orders", orders);
+                .builder().add("catalog", catalog).add("orders", orders).build();
 
         assertThatThrownBy(
                 () -> testCase.preTest(map("catalog", someData(), "orders", null)))
@@ -285,7 +438,7 @@ class MultiDataSourcePrepAndExpectedTestCaseTest
         final RecordingTestCase catalog = new RecordingTestCase("catalog", new ArrayList<>());
         final RecordingTestCase orders = new RecordingTestCase("orders", new ArrayList<>());
         final MultiDataSourcePrepAndExpectedTestCase testCase = MultiDataSourcePrepAndExpectedTestCase
-                .from("catalog", catalog).add("orders", orders);
+                .builder().add("catalog", catalog).add("orders", orders).build();
 
         testCase.preTest(map("catalog", someData()));
 
@@ -302,7 +455,7 @@ class MultiDataSourcePrepAndExpectedTestCaseTest
         final RecordingTestCase catalog = new RecordingTestCase("catalog", new ArrayList<>());
         final RecordingTestCase orders = new RecordingTestCase("orders", new ArrayList<>());
         final MultiDataSourcePrepAndExpectedTestCase testCase = MultiDataSourcePrepAndExpectedTestCase
-                .from("catalog", catalog).add("orders", orders);
+                .builder().add("catalog", catalog).add("orders", orders).build();
 
         testCase.preTest(map("catalog", someData(), "orders", PrepAndExpectedTestData.NONE));
 
@@ -317,7 +470,7 @@ class MultiDataSourcePrepAndExpectedTestCaseTest
     {
         final RecordingTestCase catalog = new RecordingTestCase("catalog", new ArrayList<>());
         final MultiDataSourcePrepAndExpectedTestCase testCase =
-                MultiDataSourcePrepAndExpectedTestCase.from("catalog", catalog);
+                MultiDataSourcePrepAndExpectedTestCase.builder().add("catalog", catalog).build();
         final PrepAndExpectedTestData emptyButDistinct = someData();
         assertThat(emptyButDistinct)
                 .as("Sanity check: the empty bundle must be content-equal to NONE for this test"
@@ -340,7 +493,8 @@ class MultiDataSourcePrepAndExpectedTestCaseTest
         final RecordingTestCase orders = new RecordingTestCase("orders", callLog);
         final RecordingTestCase inventory = new RecordingTestCase("inventory", callLog);
         final MultiDataSourcePrepAndExpectedTestCase testCase = MultiDataSourcePrepAndExpectedTestCase
-                .from("catalog", catalog).add("orders", orders).add("inventory", inventory);
+                .builder().add("catalog", catalog).add("orders", orders)
+                .add("inventory", inventory).build();
 
         testCase.preTest(map("catalog", someData(), "orders", someData(), "inventory",
                 someData()));
@@ -358,7 +512,7 @@ class MultiDataSourcePrepAndExpectedTestCaseTest
         final RecordingTestCase orders = new RecordingTestCase("orders", callLog);
         orders.failOnPreTest(new RuntimeException("orders setup failed"));
         final MultiDataSourcePrepAndExpectedTestCase testCase = MultiDataSourcePrepAndExpectedTestCase
-                .from("catalog", catalog).add("orders", orders);
+                .builder().add("catalog", catalog).add("orders", orders).build();
 
         assertThatThrownBy(
                 () -> testCase.preTest(map("catalog", someData(), "orders", someData())))
@@ -382,7 +536,7 @@ class MultiDataSourcePrepAndExpectedTestCaseTest
         final RuntimeException setupFailure = new RuntimeException("orders setup failed");
         orders.failOnPreTest(setupFailure);
         final MultiDataSourcePrepAndExpectedTestCase testCase = MultiDataSourcePrepAndExpectedTestCase
-                .from("catalog", catalog).add("orders", orders);
+                .builder().add("catalog", catalog).add("orders", orders).build();
 
         final Throwable thrown = catchThrowable(
                 () -> testCase.preTest(map("catalog", someData(), "orders", someData())));
@@ -390,8 +544,76 @@ class MultiDataSourcePrepAndExpectedTestCaseTest
         assertThat(thrown).as("preTest(...) must rethrow the real setup failure itself, not a"
                 + " wrapper.").isSameAs(setupFailure);
         assertThat(thrown.getSuppressed())
-                .as("A rollback failure must be attached as suppressed on the setup failure.")
-                .containsExactly(rollbackFailure);
+                .as("The setup failure must carry a label naming its data source and the"
+                        + " preTest phase, then each rollback failure, labelled with the data"
+                        + " source it came from.")
+                .extracting(Throwable::getMessage, Throwable::getCause)
+                .containsExactly(tuple("orders failed in preTest.", null),
+                        tuple("catalog failed in cleanupData.", rollbackFailure));
+    }
+
+    @Test
+    void testPreTest_laterDataSourceSetupThrows_labelsTheSetupFailureWithItsDataSource()
+    {
+        final RecordingTestCase catalog = new RecordingTestCase("catalog", new ArrayList<>());
+        final RecordingTestCase orders = new RecordingTestCase("orders", new ArrayList<>());
+        final RuntimeException setupFailure = new RuntimeException("orders setup failed");
+        orders.failOnPreTest(setupFailure);
+        final MultiDataSourcePrepAndExpectedTestCase testCase = MultiDataSourcePrepAndExpectedTestCase
+                .builder().add("catalog", catalog).add("orders", orders).build();
+
+        final Throwable thrown = catchThrowable(
+                () -> testCase.preTest(map("catalog", someData(), "orders", someData())));
+
+        assertThat(thrown).as("preTest(...) must rethrow the real setup failure itself, not a"
+                + " wrapper.").isSameAs(setupFailure);
+        assertThat(thrown.getSuppressed())
+                .as("The setup failure must carry exactly one label, naming the data source that"
+                        + " failed and the preTest phase, with no cause.")
+                .extracting(Throwable::getMessage, Throwable::getCause)
+                .containsExactly(tuple("orders failed in preTest.", null));
+    }
+
+    @Test
+    void testPreTest_firstDataSourceSetupThrows_labelsTheSetupFailureWithItsDataSource()
+    {
+        final RecordingTestCase catalog = new RecordingTestCase("catalog", new ArrayList<>());
+        final RuntimeException setupFailure = new RuntimeException("catalog setup failed");
+        catalog.failOnPreTest(setupFailure);
+        final RecordingTestCase orders = new RecordingTestCase("orders", new ArrayList<>());
+        final MultiDataSourcePrepAndExpectedTestCase testCase = MultiDataSourcePrepAndExpectedTestCase
+                .builder().add("catalog", catalog).add("orders", orders).build();
+
+        final Throwable thrown = catchThrowable(
+                () -> testCase.preTest(map("catalog", someData(), "orders", someData())));
+
+        assertThat(thrown).as("preTest(...) must rethrow the real setup failure itself, not a"
+                + " wrapper.").isSameAs(setupFailure);
+        assertThat(thrown.getSuppressed())
+                .as("The first data source's setup failure must be labelled too, with nothing"
+                        + " else to roll back.")
+                .extracting(Throwable::getMessage, Throwable::getCause)
+                .containsExactly(tuple("catalog failed in preTest.", null));
+    }
+
+    @Test
+    void testPreTest_setupFailureIsAnError_staysTheSameErrorWithTheLabelSuppressed()
+    {
+        final RecordingTestCase orders = new RecordingTestCase("orders", new ArrayList<>());
+        final AssertionError setupFailure = new AssertionError("orders setup failed");
+        orders.failOnPreTest(setupFailure);
+        final MultiDataSourcePrepAndExpectedTestCase testCase = MultiDataSourcePrepAndExpectedTestCase
+                .builder().add("orders", orders).build();
+
+        final Throwable thrown = catchThrowable(
+                () -> testCase.preTest(map("orders", someData())));
+
+        assertThat(thrown).as("An Error from a delegate's preTest must stay that same Error.")
+                .isSameAs(setupFailure);
+        assertThat(thrown.getSuppressed())
+                .as("An Error takes the label as a suppressed exception like any failure.")
+                .extracting(Throwable::getMessage)
+                .containsExactly("orders failed in preTest.");
     }
 
     @Test
@@ -406,7 +628,7 @@ class MultiDataSourcePrepAndExpectedTestCaseTest
         orders.failOnPreTest(setupFailure);
         orders.failOnPostTest(setupFailure);
         final MultiDataSourcePrepAndExpectedTestCase testCase = MultiDataSourcePrepAndExpectedTestCase
-                .from("catalog", catalog).add("orders", orders);
+                .builder().add("catalog", catalog).add("orders", orders).build();
 
         final Throwable thrown = catchThrowable(
                 () -> testCase.preTest(map("catalog", someData(), "orders", someData())));
@@ -418,7 +640,8 @@ class MultiDataSourcePrepAndExpectedTestCaseTest
                         + " failure and must be skipped rather than self-suppressed, but"
                         + " catalog's distinct rollback failure must still be attached - proving"
                         + " the self-suppression guard does not stop the rollback loop early.")
-                .containsExactly(catalogRollbackFailure);
+                .extracting(Throwable::getCause)
+                .containsExactly(null, catalogRollbackFailure);
     }
 
     @Test
@@ -428,7 +651,8 @@ class MultiDataSourcePrepAndExpectedTestCaseTest
         final RecordingTestCase orders = new RecordingTestCase("orders", new ArrayList<>());
         final RecordingTestCase inventory = new RecordingTestCase("inventory", new ArrayList<>());
         final MultiDataSourcePrepAndExpectedTestCase testCase = MultiDataSourcePrepAndExpectedTestCase
-                .from("catalog", catalog).add("orders", orders).add("inventory", inventory);
+                .builder().add("catalog", catalog).add("orders", orders)
+                .add("inventory", inventory).build();
         final AtomicInteger stepRunCount = new AtomicInteger();
 
         testCase.runTest(
@@ -443,7 +667,7 @@ class MultiDataSourcePrepAndExpectedTestCaseTest
     {
         final RecordingTestCase catalog = new RecordingTestCase("catalog", new ArrayList<>());
         final MultiDataSourcePrepAndExpectedTestCase testCase =
-                MultiDataSourcePrepAndExpectedTestCase.from("catalog", catalog);
+                MultiDataSourcePrepAndExpectedTestCase.builder().add("catalog", catalog).build();
         final RuntimeException stepFailure = new RuntimeException("step failed");
 
         final Throwable thrown = catchThrowable(() -> testCase.runTest(map("catalog", someData()),
@@ -464,7 +688,7 @@ class MultiDataSourcePrepAndExpectedTestCaseTest
         catalog.failOnPostTest(catalogTeardownFailure);
         final RecordingTestCase orders = new RecordingTestCase("orders", new ArrayList<>());
         final MultiDataSourcePrepAndExpectedTestCase testCase = MultiDataSourcePrepAndExpectedTestCase
-                .from("catalog", catalog).add("orders", orders);
+                .builder().add("catalog", catalog).add("orders", orders).build();
         final RuntimeException stepFailure = new RuntimeException("step failed");
 
         final Throwable thrown = catchThrowable(() -> testCase
@@ -475,8 +699,10 @@ class MultiDataSourcePrepAndExpectedTestCaseTest
         assertThat(thrown).isSameAs(stepFailure);
         assertThat(thrown.getSuppressed())
                 .as("Every involved data source must be torn down, with each teardown failure"
-                        + " suppressed onto the step exception.")
-                .containsExactly(catalogTeardownFailure);
+                        + " suppressed onto the step exception and labelled with the data source"
+                        + " it came from.")
+                .extracting(Throwable::getMessage, Throwable::getCause)
+                .containsExactly(tuple("catalog failed in cleanupData.", catalogTeardownFailure));
         assertThat(orders.lastPostTestVerifyData)
                 .as("Teardown after a step failure must call postTest(false) - not verify - on"
                         + " every involved data source.")
@@ -490,7 +716,7 @@ class MultiDataSourcePrepAndExpectedTestCaseTest
         final RecordingTestCase catalog = new RecordingTestCase("catalog", new ArrayList<>());
         catalog.failOnPostTest(sharedFailure);
         final MultiDataSourcePrepAndExpectedTestCase testCase =
-                MultiDataSourcePrepAndExpectedTestCase.from("catalog", catalog);
+                MultiDataSourcePrepAndExpectedTestCase.builder().add("catalog", catalog).build();
 
         final Throwable thrown = catchThrowable(() -> testCase.runTest(map("catalog", someData()),
                 () -> {
@@ -518,7 +744,7 @@ class MultiDataSourcePrepAndExpectedTestCaseTest
                 new DbComparisonFailure("reason", "expected", "actual");
         catalog.failOnPostTest(verifyFailure);
         final MultiDataSourcePrepAndExpectedTestCase testCase =
-                MultiDataSourcePrepAndExpectedTestCase.from("catalog", catalog);
+                MultiDataSourcePrepAndExpectedTestCase.builder().add("catalog", catalog).build();
         testCase.preTest(map("catalog", someData()));
 
         final Throwable thrown = catchThrowable(() -> testCase.postTest(true));
@@ -539,7 +765,7 @@ class MultiDataSourcePrepAndExpectedTestCaseTest
         final RecordingTestCase catalog = new RecordingTestCase("catalog", new ArrayList<>());
         catalog.failOnPostTest(new Exception("a checked failure that is not an AssertionError"));
         final MultiDataSourcePrepAndExpectedTestCase testCase =
-                MultiDataSourcePrepAndExpectedTestCase.from("catalog", catalog);
+                MultiDataSourcePrepAndExpectedTestCase.builder().add("catalog", catalog).build();
         testCase.preTest(map("catalog", someData()));
 
         final Throwable aggregate = catchThrowable(() -> testCase.postTest(true));
@@ -550,6 +776,46 @@ class MultiDataSourcePrepAndExpectedTestCaseTest
                         + " cleanupData(); it must not be confidently mislabelled as"
                         + " cleanupData.")
                 .contains("catalog (postTest)");
+    }
+
+    @Test
+    void testPostTest_verifyTrueAndFailureIsAnAssertionError_labelsThePhaseVerifyData()
+            throws Exception
+    {
+        final RecordingTestCase catalog = new RecordingTestCase("catalog", new ArrayList<>());
+        catalog.failOnPostTest(new DbComparisonFailure("reason", "expected", "actual"));
+        final MultiDataSourcePrepAndExpectedTestCase testCase =
+                MultiDataSourcePrepAndExpectedTestCase.builder().add("catalog", catalog).build();
+        testCase.preTest(map("catalog", someData()));
+
+        final Throwable aggregate = catchThrowable(() -> testCase.postTest(true));
+
+        assertThat(aggregate.getMessage())
+                .as("A postTest(true) failure that is an AssertionError, such as a"
+                        + " DbComparisonFailure, comes from the verification, so its phase is"
+                        + " verifyData.")
+                .isEqualTo("1 data source failed in postTest: catalog (verifyData)");
+    }
+
+    @Test
+    void testPostTest_verifyFalseAndDelegatesFail_labelsEveryFailureCleanupData()
+            throws Exception
+    {
+        final RecordingTestCase catalog = new RecordingTestCase("catalog", new ArrayList<>());
+        final RecordingTestCase orders = new RecordingTestCase("orders", new ArrayList<>());
+        catalog.failOnPostTest(new AssertionError("an Error from the catalog teardown"));
+        orders.failOnPostTest(new Exception("a checked failure from the orders teardown"));
+        final MultiDataSourcePrepAndExpectedTestCase testCase = MultiDataSourcePrepAndExpectedTestCase
+                .builder().add("catalog", catalog).add("orders", orders).build();
+        testCase.preTest(map("catalog", someData(), "orders", someData()));
+
+        final Throwable aggregate = catchThrowable(() -> testCase.postTest(false));
+
+        assertThat(aggregate.getMessage())
+                .as("A postTest(false) call verifies nothing, so every failure it reports must"
+                        + " have the phase cleanupData, an AssertionError included.")
+                .isEqualTo("2 data sources failed in postTest: catalog (cleanupData),"
+                        + " orders (cleanupData)");
     }
 
     @Test
@@ -565,7 +831,8 @@ class MultiDataSourcePrepAndExpectedTestCaseTest
         final RuntimeException inventoryFailure = new RuntimeException("inventory cleanup failed");
         inventory.failOnPostTest(inventoryFailure);
         final MultiDataSourcePrepAndExpectedTestCase testCase = MultiDataSourcePrepAndExpectedTestCase
-                .from("catalog", catalog).add("orders", orders).add("inventory", inventory);
+                .builder().add("catalog", catalog).add("orders", orders)
+                .add("inventory", inventory).build();
         testCase.preTest(map("catalog", someData(), "orders", someData(), "inventory",
                 someData()));
 
@@ -601,7 +868,8 @@ class MultiDataSourcePrepAndExpectedTestCaseTest
         final RecordingTestCase orders = new RecordingTestCase("orders", callLog);
         final RecordingTestCase inventory = new RecordingTestCase("inventory", callLog);
         final MultiDataSourcePrepAndExpectedTestCase testCase = MultiDataSourcePrepAndExpectedTestCase
-                .from("catalog", catalog).add("orders", orders).add("inventory", inventory);
+                .builder().add("catalog", catalog).add("orders", orders)
+                .add("inventory", inventory).build();
         testCase.preTest(map("catalog", someData(), "orders", someData(), "inventory",
                 someData()));
         callLog.clear();
@@ -621,7 +889,7 @@ class MultiDataSourcePrepAndExpectedTestCaseTest
         final List<String> callLog = new ArrayList<>();
         final RecordingTestCase catalog = new RecordingTestCase("catalog", callLog);
         final MultiDataSourcePrepAndExpectedTestCase testCase =
-                MultiDataSourcePrepAndExpectedTestCase.from("catalog", catalog);
+                MultiDataSourcePrepAndExpectedTestCase.builder().add("catalog", catalog).build();
         testCase.preTest(map("catalog", someData()));
         testCase.postTest(true);
         callLog.clear();
@@ -641,7 +909,7 @@ class MultiDataSourcePrepAndExpectedTestCaseTest
         final RecordingTestCase catalog = new RecordingTestCase("catalog", callLog);
         catalog.failOnPostTest(new AssertionError("catalog mismatch"));
         final MultiDataSourcePrepAndExpectedTestCase testCase =
-                MultiDataSourcePrepAndExpectedTestCase.from("catalog", catalog);
+                MultiDataSourcePrepAndExpectedTestCase.builder().add("catalog", catalog).build();
         testCase.preTest(map("catalog", someData()));
         assertThatThrownBy(() -> testCase.postTest(true))
                 .as("The delegate's failure must be reported.")
@@ -657,13 +925,37 @@ class MultiDataSourcePrepAndExpectedTestCaseTest
     }
 
     @Test
+    void testPostTest_calledAfterRunTestStepsThrew_doesNotTearDownThatRunAgain() throws Exception
+    {
+        final List<String> callLog = new ArrayList<>();
+        final RecordingTestCase catalog = new RecordingTestCase("catalog", callLog);
+        final RecordingTestCase orders = new RecordingTestCase("orders", callLog);
+        final MultiDataSourcePrepAndExpectedTestCase testCase = MultiDataSourcePrepAndExpectedTestCase
+                .builder().add("catalog", catalog).add("orders", orders).build();
+        final RuntimeException stepFailure = new RuntimeException("step failed");
+        assertThatThrownBy(
+                () -> testCase.runTest(map("catalog", someData(), "orders", someData()), () -> {
+                    throw stepFailure;
+                })).as("The step failure must be rethrown.").isSameAs(stepFailure);
+        callLog.clear();
+
+        testCase.postTest(false);
+
+        assertThat(callLog)
+                .as("A run whose steps threw is over once runTest(...) has torn it down, so a"
+                        + " postTest(false) in the caller's finally block must not tear its"
+                        + " delegates down a second time.")
+                .isEmpty();
+    }
+
+    @Test
     void testPostTest_secondPreTestRejectedAfterACompletedRun_doesNotTearDownTheFirstRunsDelegates()
             throws Exception
     {
         final List<String> callLog = new ArrayList<>();
         final RecordingTestCase catalog = new RecordingTestCase("catalog", callLog);
         final MultiDataSourcePrepAndExpectedTestCase testCase =
-                MultiDataSourcePrepAndExpectedTestCase.from("catalog", catalog);
+                MultiDataSourcePrepAndExpectedTestCase.builder().add("catalog", catalog).build();
         testCase.preTest(map("catalog", someData()));
         testCase.postTest(true);
         callLog.clear();
@@ -687,7 +979,7 @@ class MultiDataSourcePrepAndExpectedTestCaseTest
         final RecordingTestCase catalog = new RecordingTestCase("catalog", new ArrayList<>());
         final RecordingTestCase orders = new RecordingTestCase("orders", new ArrayList<>());
         final MultiDataSourcePrepAndExpectedTestCase testCase = MultiDataSourcePrepAndExpectedTestCase
-                .from("catalog", catalog).add("orders", orders);
+                .builder().add("catalog", catalog).add("orders", orders).build();
         testCase.preTest(map("catalog", someData(), "orders", someData()));
 
         testCase.postTest(false);
@@ -710,7 +1002,8 @@ class MultiDataSourcePrepAndExpectedTestCaseTest
         orders.failOnPostTest(new RuntimeException("orders cleanup failed"));
         final RecordingTestCase inventory = new RecordingTestCase("inventory", callLog);
         final MultiDataSourcePrepAndExpectedTestCase testCase = MultiDataSourcePrepAndExpectedTestCase
-                .from("catalog", catalog).add("orders", orders).add("inventory", inventory);
+                .builder().add("catalog", catalog).add("orders", orders)
+                .add("inventory", inventory).build();
         testCase.preTest(map("catalog", someData(), "orders", someData(), "inventory",
                 someData()));
         callLog.clear();
@@ -762,7 +1055,7 @@ class MultiDataSourcePrepAndExpectedTestCaseTest
      * Records the exact {@code preTest}/{@code postTest(boolean)} calls and their order via a
      * shared call log, and can be told to throw on demand from either.
      */
-    private static final class RecordingTestCase implements PrepAndExpectedTestCase
+    private static class RecordingTestCase implements PrepAndExpectedTestCase
     {
         private final String name;
 

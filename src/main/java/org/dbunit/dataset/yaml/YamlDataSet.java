@@ -67,6 +67,23 @@ import java.nio.charset.StandardCharsets;
  * EMPTY_TABLE: []
  * </pre>
  *
+ * <p>
+ * A value that starts with a square bracket or a curly brace needs quotes, such as
+ * {@code '[NULL]'} or {@code '[now-1d]'}: YAML reads an unquoted one as a list or a mapping,
+ * or fails on it as a syntax error. The reader rejects a list or a mapping in a cell with a
+ * {@link DataSetException} that names the table, the row and the column.
+ *
+ * <p>
+ * Writing a dataset leaves a null cell out of a row, except in the first row that has the
+ * column, for each table name. That row carries the column, with {@code null} for a null
+ * cell, so a column that is null in every row survives a read-back.
+ *
+ * <p>
+ * Writing a dataset writes a {@link java.math.BigDecimal} without a fraction, the value of a
+ * {@code NUMERIC(p,0)} or {@code DECIMAL(p,0)} column, as an integer, so that a value of more
+ * than 15 digits reads back with every digit, where SnakeYAML's tag {@code !!float} would make
+ * the reader hand it on as a {@code double}.
+ *
  * @author Björn Beskow
  * @version $Revision$ $Date$
  */
@@ -78,7 +95,7 @@ public class YamlDataSet extends CachedDataSet
      *
      * @param file the YAML file to load.
      * @throws IOException if the file cannot be read.
-     * @throws DataSetException if the document cannot be parsed, or SnakeYAML is not on the
+     * @throws DataSetException If the document cannot be parsed, or SnakeYAML is not on the
      *             classpath.
      */
     public YamlDataSet(File file) throws IOException, DataSetException
@@ -90,7 +107,7 @@ public class YamlDataSet extends CachedDataSet
      * Creates a YAML dataset based on an inputstream
      *
      * @param inputStream An inputstream pointing to a YAML dataset
-     * @throws DataSetException if the document cannot be parsed, or SnakeYAML is not on the
+     * @throws DataSetException If the document cannot be parsed, or SnakeYAML is not on the
      *             classpath.
      */
     public YamlDataSet(InputStream inputStream) throws DataSetException
@@ -118,7 +135,7 @@ public class YamlDataSet extends CachedDataSet
      *
      * @param dataSet the dataset to write.
      * @param out the writer to write the YAML document to.
-     * @throws DataSetException if the dataset cannot be read, or SnakeYAML is not on the
+     * @throws DataSetException If the dataset cannot be read, or SnakeYAML is not on the
      *             classpath.
      */
     public static void write(IDataSet dataSet, Writer out)

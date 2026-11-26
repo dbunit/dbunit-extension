@@ -73,7 +73,9 @@ void setUp() throws Exception
 
 See link:components/ioperationlistener.html[IOperationListener] for the full hook
 reference, including why the default listener would otherwise close this cached
-connection.
+connection. The annotation-driven lifecycle reads the same signal: it closes the connection it
+resolves after a test unless the tester's listener is the no-op one - see
+link:testcases/annotations.html#connection-ownership[Who Closes the Connection].
 
 *Thread safety.* Access to the cached connection is synchronized, so
 concurrent callers cannot create or replace it at the same time. The
@@ -92,12 +94,18 @@ teardown operations (`CLEAN_INSERT`, `DELETE_ALL`, ...) do not manage a
 transaction of their own, and
 link:apidocs/org/dbunit/operation/TransactionOperation.html[TransactionOperation]
 refuses a connection whose autocommit is already off. On a non-autocommit
-connection the prep and teardown writes are therefore never committed:
-invisible to any other connection, and — when a provider holds the
+connection dbUnit does not commit the prep and teardown writes, and it ends no
+transaction it did not begin: they are invisible to any other connection until the
+connection's owner ends the transaction, and — when a provider holds the
 connection open across tests — held as locks on a connection the database's
 idle-in-transaction timeout can terminate mid-run.
 link:apidocs/org/dbunit/DefaultPrepAndExpectedTestCase.html[DefaultPrepAndExpectedTestCase]
-logs a warning when it detects one.
+logs a warning when it detects one. dbUnit ends no transaction it did not
+begin, so whoever turned autocommit off, a transaction manager, a pool or the test, ends it.
+When the annotation-driven lifecycle closes such a connection after the test, what happens to
+the open transaction is the database's: most discard it, Oracle commits it on close, and Derby
+and DB2 refuse to close a connection with an open transaction. The refusal fails the test with
+a message that names the open transaction and has the driver's exception as its cause.
 
 See link:testcases/IDatabaseTester.html[the IDatabaseTester guide] for the
 full setup/teardown lifecycle this fits into, and

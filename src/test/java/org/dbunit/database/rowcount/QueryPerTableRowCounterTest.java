@@ -80,16 +80,44 @@ class QueryPerTableRowCounterTest
     }
 
     @Test
-    void testCountRows_getRowCountThrows_propagatesTheSameSQLExceptionUnchanged() throws Exception
+    void testCountRows_getRowCountThrows_failsNamingTheTableAndKeepingTheCause() throws Exception
     {
         final IDatabaseConnection connection = mock(IDatabaseConnection.class);
-        final SQLException failure = new SQLException("boom");
+        final SQLException failure = new SQLException("boom", "42S02", 942);
+        when(connection.getRowCount("ACCOUNT")).thenReturn(5);
+        when(connection.getRowCount("ACCOUNT_AUDIT")).thenThrow(failure);
+
+        assertThatThrownBy(() -> rowCounter.countRows(connection,
+                Arrays.asList("ACCOUNT", "ACCOUNT_AUDIT")))
+                        .as("A counting failure must name the table that failed, as a driver's"
+                                + " own message may not, and keep the driver's failure as the"
+                                + " cause.")
+                        .isInstanceOf(SQLException.class)
+                        .hasMessage("The rows of table ACCOUNT_AUDIT could not be counted: boom")
+                        .hasCause(failure)
+                        .satisfies(thrown ->
+                        {
+                            final SQLException sqlException = (SQLException) thrown;
+                            assertThat(sqlException.getSQLState())
+                                    .as("The SQL state of the cause is kept.")
+                                    .isEqualTo("42S02");
+                            assertThat(sqlException.getErrorCode())
+                                    .as("The error code of the cause is kept.").isEqualTo(942);
+                        });
+    }
+
+    @Test
+    void testCountRows_getRowCountThrowsWithoutMessage_failsNamingTheTable() throws Exception
+    {
+        final IDatabaseConnection connection = mock(IDatabaseConnection.class);
+        final SQLException failure = new SQLException();
         when(connection.getRowCount("ACCOUNT")).thenThrow(failure);
 
         assertThatThrownBy(() -> rowCounter.countRows(connection,
                 Collections.singletonList("ACCOUNT")))
-                        .as("A counting failure for one table must propagate as-is, not be"
-                                + " swallowed or wrapped.")
-                        .isSameAs(failure);
+                        .as("A failure without a message still names the table, with no null.")
+                        .isInstanceOf(SQLException.class)
+                        .hasMessage("The rows of table ACCOUNT could not be counted.")
+                        .hasCause(failure);
     }
 }

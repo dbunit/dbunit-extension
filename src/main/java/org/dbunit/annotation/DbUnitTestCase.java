@@ -30,43 +30,44 @@ import org.dbunit.PrepAndExpectedTestCase;
 
 /**
  * Marks a test class field, of a type implementing {@link PrepAndExpectedTestCase}, as the
- * test case to drive: the extension configures and runs that instance instead of constructing
- * one of its own, the "the object already exists and I want it used" case. Takes precedence
- * over a {@link DbUnitTester} field and a {@link DbUnitConfig#databaseTesterFactory()}.
+ * test case to drive: the extension runs that instance, as it was built, instead of
+ * constructing one of its own, the "the object already exists and I want it used" case. Takes
+ * precedence over a {@link DbUnitTester} field and a {@link DbUnitConfig#databaseTesterFactory()}.
  *
  * <p>Accepts a static field, the way a test case shared across every method in a class is
  * typically declared. Declaring this alongside a {@link DbUnitTester} field, or more than one
  * field with either marker at the same class level, is rejected as ambiguous.
  *
- * <p>For an instance reused across methods this way that also caches its own
- * {@link PrepAndExpectedTestCase#getReusableConnection()} connection, the extension leaves that
- * connection alone when a test aborts before {@code configureTest()} (e.g. a
- * {@code @DbUnitConfig} value the instance's type cannot apply) - the instance keeps ownership
- * rather than the extension closing a connection the next method would reuse. A single-use
- * instance the extension constructs itself still has its connection closed on such a failure.
+ * <p>The instance is used as its owner built it. The extension gives it the test's files and
+ * calls {@code configureTest()}, {@code preTest()} and {@code postTest()}, and for a
+ * {@link org.dbunit.DefaultPrepAndExpectedTestCase} applies {@link DbUnitRowCountCheck}
+ * through its override methods, and nothing else. Its loader, failure handler, properties,
+ * close-connection flag, tester and the tester's operations are the instance's own, set where it
+ * is built, so a test declaring {@link DbUnitSetUpOperation}, {@link DbUnitTearDownOperation}
+ * or a {@link DbUnitConfig} attribute that would configure it is rejected with
+ * {@link IllegalStateException}. A {@link org.dbunit.DefaultPrepAndExpectedTestCase} must
+ * already have a tester when the extension resolves it, and a data file loader when dbUnit calls
+ * its {@code configureTest()}, which dbUnit does for every test and which needs the loader even
+ * when the test names no dataset file. {@code DbUnitExtension} calls it after the
+ * {@code @BeforeEach} methods, so one of them can still give the loader;
+ * {@code DbUnitTestExecutionListener} calls it before them, so the loader must be there when
+ * the test case is built.
  *
- * <p>The instance keeps the settings it was built with. {@link DbUnitConfig} pushes onto it only
- * what a test declares, for that test only, and puts the instance's own values back afterward;
- * see {@link DbUnitConfig#dataFileLoader()} and {@link DbUnitConfig#closeConnectionAfterTest()}
- * for the two defaults that behave slightly differently.
+ * <p>dbUnit drives the instance around every test, so a test method must not drive it as
+ * well. A test method that drives it too, with {@code runTest()}, or with
+ * {@code configureTest()}, {@code preTest()} and {@code postTest()}, would run its setup, its
+ * verification and its cleanup twice. For a {@link org.dbunit.DefaultPrepAndExpectedTestCase},
+ * dbUnit notices a test method that configured it again, with {@code runTest()} or
+ * {@code configureTest()}, cleans up what the instance holds without verifying and fails the
+ * test with an {@link IllegalStateException}. A test class that drives its test case itself
+ * keeps it in a field without this marker and does not register {@code DbUnitExtension}; the
+ * Spring listener does nothing for such a class.
  *
- * <p>Marking this field does not, by itself, remove the need for a resolvable
- * {@code IDatabaseTester}: the extension's own machinery (installing the
- * {@code @DbUnitProperty} listener, and any {@code IDatabaseTester} parameter injection) needs
- * one regardless of test case type. For an implementation whose type overrides
- * {@link PrepAndExpectedTestCase#getDatabaseTester()}/
- * {@link PrepAndExpectedTestCase#setDatabaseTester(org.dbunit.IDatabaseTester)} - {@code
- * DefaultPrepAndExpectedTestCase} does - one is found and wired on automatically when none is
- * set yet. Any other implementation may override those same two methods to get the same
- * automatic wiring; one that does not (their default is a no-op reporting no tester) needs
- * {@link DbUnitConfig#databaseTesterFactory()} configured even when it manages its own
- * connection internally - otherwise resolution fails with "No IDatabaseTester field found" for
- * a test case that otherwise needs nothing external. A {@link DbUnitTester} field is not a
- * substitute here: it is rejected outright alongside this annotation (see above), and even if
- * it were not, {@code DbUnitExtension}'s tester resolution does not consult one for this
- * fallback. In that case the factory-resolved tester must be the exact instance this test case
- * actually uses internally, or {@code @DbUnitSetup}/{@code @DbUnitTearDown} operations set on
- * it may silently never reach what this test case actually runs.
+ * <p>Any other implementation of {@link PrepAndExpectedTestCase} tells the extension of no
+ * tester and no connection, so a test declaring anything that needs one -
+ * {@code @DbUnitRowCountCheck}, or an {@code IDatabaseTester} or {@code IDatabaseConnection}
+ * test method parameter - is rejected with {@link IllegalStateException} too. Configure such a
+ * test case where it is built.
  *
  * @author Jeff Jensen
  * @since 3.6.0

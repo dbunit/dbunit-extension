@@ -21,7 +21,6 @@
 package org.dbunit.annotation.runtime;
 
 import java.lang.annotation.Annotation;
-import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
@@ -30,16 +29,16 @@ import org.dbunit.annotation.DbUnitConfig;
 import org.dbunit.annotation.DbUnitExpected;
 import org.dbunit.annotation.DbUnitPrep;
 import org.dbunit.annotation.DbUnitRowCountCheck;
-import org.dbunit.annotation.DbUnitSetup;
-import org.dbunit.annotation.DbUnitTearDown;
+import org.dbunit.annotation.DbUnitSetUpOperation;
+import org.dbunit.annotation.DbUnitTearDownOperation;
 import org.dbunit.annotation.DbUnitTestCase;
 import org.dbunit.annotation.DbUnitTester;
 
 /**
  * Decides whether a test opts into the {@code org.dbunit.annotation} family, and so into the
  * annotation-driven lifecycle: any of the annotations that configure a test
- * ({@link DbUnitConfig}, {@link DbUnitPrep}, {@link DbUnitSetup}, {@link DbUnitExpected},
- * {@link DbUnitTearDown}, {@link DbUnitRowCountCheck}) on the test method or class, or a
+ * ({@link DbUnitConfig}, {@link DbUnitPrep}, {@link DbUnitSetUpOperation}, {@link DbUnitExpected},
+ * {@link DbUnitTearDownOperation}, {@link DbUnitRowCountCheck}) on the test method or class, or a
  * {@link DbUnitTester @DbUnitTester}/{@link DbUnitTestCase @DbUnitTestCase} field in the test
  * class or one enclosing it. A plain, unannotated {@link org.dbunit.IDatabaseTester} field alone
  * is not an opt-in - that is the 3.5.0 lifecycle-only style, left exactly as it was.
@@ -52,6 +51,9 @@ import org.dbunit.annotation.DbUnitTester;
  * <p>Public so a binding outside {@code org.dbunit.annotation.runtime} - such as
  * {@code DbUnitExtension} or a Spring {@code TestExecutionListener} - can reach it too.
  *
+ * <p>This type is internal to dbUnit's bindings; it is public only for use across
+ * dbUnit's packages and may change in a minor release.
+ *
  * @author Jeff Jensen
  * @since 3.6.0
  */
@@ -59,11 +61,20 @@ public class AnnotatedTestOptIn
 {
     /** The annotations any one of which, on the test method or class, opts a test in. */
     private static final List<Class<? extends Annotation>> OPT_IN_ANNOTATIONS = Arrays.asList(
-            DbUnitConfig.class, DbUnitPrep.class, DbUnitSetup.class, DbUnitExpected.class,
-            DbUnitTearDown.class, DbUnitRowCountCheck.class);
+            DbUnitConfig.class, DbUnitPrep.class, DbUnitSetUpOperation.class, DbUnitExpected.class,
+            DbUnitTearDownOperation.class, DbUnitRowCountCheck.class);
 
-    private AnnotatedTestOptIn()
+    private final TesterFields testerFields;
+
+    /**
+     * Creates an opt-in check that finds the marked tester fields by the given rules.
+     *
+     * @param testerFields The rules for which fields are tester fields; share the instance with
+     *            whatever else of the binding applies them.
+     */
+    public AnnotatedTestOptIn(final TesterFields testerFields)
     {
+        this.testerFields = testerFields;
     }
 
     /**
@@ -75,7 +86,7 @@ public class AnnotatedTestOptIn
      * @return {@code true} when the test carries an annotation that configures it, or a class
      *         in scope declares a {@code @DbUnitTester} or {@code @DbUnitTestCase} field.
      */
-    public static boolean isOptedIn(final AnnotationLookup lookup,
+    public boolean isOptedIn(final AnnotationLookup lookup,
             final Collection<Class<?>> testClasses)
     {
         for (final Class<? extends Annotation> annotationType : OPT_IN_ANNOTATIONS)
@@ -87,32 +98,10 @@ public class AnnotatedTestOptIn
         }
         for (final Class<?> testClass : testClasses)
         {
-            if (declaresMarkerField(testClass))
+            if (testerFields.declaresMarkedField(testClass))
             {
                 return true;
             }
-        }
-        return false;
-    }
-
-    /**
-     * Returns whether {@code testClass} or a superclass declares a {@link DbUnitTester} or
-     * {@link DbUnitTestCase} field.
-     */
-    private static boolean declaresMarkerField(final Class<?> testClass)
-    {
-        Class<?> current = testClass;
-        while (current != null && current != Object.class)
-        {
-            for (final Field field : current.getDeclaredFields())
-            {
-                if (field.isAnnotationPresent(DbUnitTester.class)
-                        || field.isAnnotationPresent(DbUnitTestCase.class))
-                {
-                    return true;
-                }
-            }
-            current = current.getSuperclass();
         }
         return false;
     }
