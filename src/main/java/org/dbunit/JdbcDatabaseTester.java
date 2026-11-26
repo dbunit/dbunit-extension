@@ -133,6 +133,22 @@ public class JdbcDatabaseTester extends AbstractDatabaseTester
         Class.forName( driverClass );
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>A tester built with a {@link CachingConnectionProvider} hands out the connection the
+     * provider caches; one built without creates a new connection on every call. A subclass that
+     * overrides {@link #getConnection()} to reuse a connection overrides this method to say so.
+     *
+     * @return {@code true} when this tester was built with a {@link CachingConnectionProvider}.
+     * @since 3.6.0
+     */
+    @Override
+    public boolean isReusingConnection()
+    {
+        return connectionProvider != null;
+    }
+
     public IDatabaseConnection getConnection() throws Exception
     {
         logger.debug("getConnection() - start");

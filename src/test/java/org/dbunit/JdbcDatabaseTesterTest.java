@@ -128,6 +128,28 @@ class JdbcDatabaseTesterTest
                 .isSameAs(fromFirstTester);
     }
 
+    @Test
+    void testIsReusingConnection_withoutProvider_returnsFalse() throws Exception
+    {
+        final JdbcDatabaseTester tester =
+                new JdbcDatabaseTester(DRIVER_CLASS, nextConnectionUrl());
+
+        assertThat(tester.isReusingConnection())
+                .as("Without a CachingConnectionProvider every call creates a new connection.")
+                .isFalse();
+    }
+
+    @Test
+    void testIsReusingConnection_withProvider_returnsTrue() throws Exception
+    {
+        final JdbcDatabaseTester tester = new JdbcDatabaseTester(DRIVER_CLASS,
+                nextConnectionUrl(), null, null, null, new CachingConnectionProvider());
+
+        assertThat(tester.isReusingConnection())
+                .as("With a CachingConnectionProvider calls reuse the cached connection.")
+                .isTrue();
+    }
+
     private static String nextConnectionUrl()
     {
         return "jdbc:h2:mem:jdbctester_" + DB_COUNTER.incrementAndGet() + ";DB_CLOSE_DELAY=-1";
